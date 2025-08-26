@@ -22,6 +22,34 @@ build/
 *.tar.gz
 export/
 
+# Release builds and artifacts
+scripts/releases/
+releases/
+*.exe
+nikcli-*
+temp-*
+temp-complete/
+temp-nikcli-*
+
+# All release files and directories
+releases/
+scripts/releases/
+*.tar.gz
+*.tgz
+nikcli-*
+nikcli-linux-*
+nikcli-macos-*
+nikcli-win-*
+nikcli-v*-*
+checksums.json
+release-info.json
+temp-*
+temp-complete/
+temp-nikcli-*
+build/
+export/
+dist/
+
 # TypeScript
 *.tsbuildinfo
 tsconfig.cli.tsbuildinfo
