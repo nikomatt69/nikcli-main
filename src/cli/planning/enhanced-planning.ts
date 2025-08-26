@@ -681,12 +681,26 @@ Generate a comprehensive plan that is practical and executable.`
       // Temporarily override emit to capture events
       agentService.emit = eventHandler;
 
-      // Execute task using autonomous-coder as universal agent
-      const result = await agentService.executeTask('autonomous-coder', `${todo.title}: ${todo.description}`);
+      // Execute task using autonomous-coder and get taskId
+      const taskId = await agentService.executeTask('autonomous-coder', `${todo.title}: ${todo.description}`);
 
-      // Check execution result
-      if (!result || result === 'failed' || (typeof result === 'string' && result.toLowerCase().includes('error'))) {
-        throw new Error(`Todo execution failed: ${result || 'Unknown error'}`);
+      // Poll for completion with timeout (per-todo)
+      const maxWaitMs = Math.min(Math.max(((todo?.estimatedDuration || 5) * 60 * 1000), 2 * 60 * 1000), 15 * 60 * 1000);
+      const start = Date.now();
+      let result: any = undefined;
+      while (Date.now() - start < maxWaitMs) {
+        const status = agentService.getTaskStatus(taskId);
+        if (status?.status === 'completed') {
+          result = status.result || 'Task completed successfully';
+          break;
+        }
+        if (status?.status === 'failed') {
+          throw new Error(status.error || 'Task execution failed');
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      if (result === undefined) {
+        throw new Error('Todo execution timeout');
       }
 
       console.log(chalk.green(`✅ Completed: ${todo.title}`));

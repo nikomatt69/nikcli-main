@@ -143,7 +143,7 @@ export class AgentService extends EventEmitter {
       // Se il bypass è abilitato, non eseguire agenti
       if (inputQueue.isBypassEnabled()) {
         console.log(chalk.yellow('⚠️ Agent execution blocked during approval process'));
-        return 'Agent execution blocked during approval process';
+        throw new Error('Agent execution blocked during approval process');
       }
 
       if (!task) {
@@ -173,69 +173,15 @@ export class AgentService extends EventEmitter {
 
       // Check if we can run immediately or need to queue
       if (this.runningCount < this.maxConcurrentAgents) {
-        await this.runTask(agentTask);
+        // Start task asynchronously; do not await to keep API responsive
+        this.runTask(agentTask).catch(err => this.emit('error', err));
       } else {
         this.taskQueue.push(agentTask);
         console.log(chalk.yellow(`⏳ Task queued (${this.taskQueue.length} in queue)`));
-
-        // Wait for task to be processed from queue
-        return new Promise((resolve, reject) => {
-          const checkCompletion = () => {
-            const currentTask = this.activeTasks.get(taskId);
-            if (!currentTask) {
-              reject(new Error('Task was removed unexpectedly'));
-              return;
-            }
-
-            if (currentTask.status === 'completed') {
-              resolve(currentTask.result || 'Task completed successfully');
-            } else if (currentTask.status === 'failed') {
-              reject(new Error(currentTask.error || 'Task execution failed'));
-            } else {
-              // Still running, check again
-              setTimeout(checkCompletion, 500);
-            }
-          };
-          checkCompletion();
-        });
       }
 
-      // For immediate execution, wait for completion and return result
-      // Wait a bit for status to be updated
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const completedTask = this.activeTasks.get(taskId);
-      if (completedTask?.status === 'completed') {
-        return completedTask.result || 'Task completed successfully';
-      } else if (completedTask?.status === 'failed') {
-        throw new Error(completedTask.error || 'Task execution failed');
-      }
-
-      // If still not completed, wait longer with polling
-      return new Promise((resolve, reject) => {
-        const maxWaitTime = 30000; // 30 seconds max
-        const startTime = Date.now();
-
-        const checkCompletion = () => {
-          const currentTask = this.activeTasks.get(taskId);
-          if (!currentTask) {
-            reject(new Error('Task was removed unexpectedly'));
-            return;
-          }
-
-          if (currentTask.status === 'completed') {
-            resolve(currentTask.result || 'Task completed successfully');
-          } else if (currentTask.status === 'failed') {
-            reject(new Error(currentTask.error || 'Task execution failed'));
-          } else if (Date.now() - startTime > maxWaitTime) {
-            reject(new Error('Task execution timeout'));
-          } else {
-            // Still running, check again
-            setTimeout(checkCompletion, 500);
-          }
-        };
-        checkCompletion();
-      });
+      // Return taskId immediately; callers can poll getTaskStatus or listen to events
+      return taskId;
     } catch (error: any) {
       console.error(chalk.red(`❌ Task execution setup failed: ${error.message}`));
       this.emit('error', error);
