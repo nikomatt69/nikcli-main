@@ -94,6 +94,40 @@ export class EnhancedPlanningSystem {
   }
 
   /**
+   * Dynamic preflight per-todo: warn on missing resources and adapt todo metadata
+   */
+  private async preflightTodoResources(todo: TodoItem): Promise<void> {
+    try {
+      if (todo.files && todo.files.length > 0) {
+        const verified: string[] = [];
+        const missing: string[] = [];
+
+        for (const f of todo.files) {
+          try {
+            const p = path.resolve(this.workingDirectory, f);
+            const stat = await fs.stat(p);
+            if (stat && (stat.isFile() || stat.isDirectory())) {
+              verified.push(f);
+            } else {
+              missing.push(f);
+            }
+          } catch {
+            missing.push(f);
+          }
+        }
+
+        if (missing.length > 0) {
+          console.log(chalk.yellow(`⚠️ Missing resources for this todo: ${missing.join(', ')}`));
+          todo.files = verified;
+          todo.tags = Array.from(new Set([...(todo.tags || []), 'adaptive']));
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
    * If the goal explicitly requests read-only analysis (e.g., mentions only grep/read),
    * filter out todos that create/modify files or execute commands, and keep only analysis/read tasks.
    */
@@ -693,6 +727,9 @@ Generate a comprehensive plan that is practical and executable.`
       plan.progress!.percentage = Math.round((plan.progress!.completedSteps / plan.progress!.totalSteps) * 100);
       return;
     }
+
+    // Dynamic preflight: ensure referenced resources exist; adapt instead of failing
+    await this.preflightTodoResources(todo);
 
     let originalEmit: any;
     try {
