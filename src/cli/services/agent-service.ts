@@ -37,6 +37,20 @@ export class AgentService extends EventEmitter {
     this.registerDefaultAgents();
   }
 
+  /**
+   * Suggest the best built-in agent type for a given natural language task
+   */
+  public suggestAgentTypeForTask(task: string): string {
+    const lower = (task || '').toLowerCase();
+    if (lower.includes('react') || lower.includes('component')) return 'react-expert';
+    if (lower.includes('backend') || lower.includes('api') || lower.includes('server')) return 'backend-expert';
+    if (lower.includes('frontend') || lower.includes('ui') || lower.includes('css')) return 'frontend-expert';
+    if (lower.includes('deploy') || lower.includes('docker') || lower.includes('kubernetes') || lower.includes('ci')) return 'devops-expert';
+    if (lower.includes('review') || lower.includes('analyze') || lower.includes('audit')) return 'code-review';
+    if (lower.includes('system') || lower.includes('admin')) return 'system-admin';
+    return 'autonomous-coder';
+  }
+
   private registerDefaultAgents(): void {
     // AI Analysis Agent
     this.registerAgent({
@@ -132,19 +146,25 @@ export class AgentService extends EventEmitter {
         return 'Agent execution blocked during approval process';
       }
 
-      if (!agentType || !task) {
+      if (!task) {
         throw new Error('Invalid parameters: agentType and task are required');
       }
 
-      const agent = this.agents.get(agentType);
+      // Fallback selection when agentType is missing/unknown or explicitly 'auto'
+      let resolvedAgentType = agentType;
+      if (!resolvedAgentType || resolvedAgentType === 'auto' || !this.agents.has(resolvedAgentType)) {
+        resolvedAgentType = this.suggestAgentTypeForTask(task);
+      }
+
+      const agent = this.agents.get(resolvedAgentType);
       if (!agent) {
-        throw new Error(`Agent '${agentType}' not found`);
+        throw new Error(`Agent '${resolvedAgentType}' not found`);
       }
 
       const taskId = Date.now().toString();
       const agentTask: AgentTask = {
         id: taskId,
-        agentType,
+        agentType: resolvedAgentType,
         task,
         status: 'pending'
       };
