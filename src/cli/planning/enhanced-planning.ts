@@ -94,6 +94,44 @@ export class EnhancedPlanningSystem {
   }
 
   /**
+   * If the goal explicitly requests read-only analysis (e.g., mentions only grep/read),
+   * filter out todos that create/modify files or execute commands, and keep only analysis/read tasks.
+   */
+  private applyReadOnlyConstraints(goal: string, todos: TodoItem[]): TodoItem[] {
+    const lower = (goal || '').toLowerCase();
+    const readOnlyRequested = lower.includes('solo grep') || lower.includes('solo read') ||
+      (lower.includes('grep') && lower.includes('read') && (lower.includes('solo') || lower.includes('only')));
+
+    if (!readOnlyRequested) return todos;
+
+    // Whitelist categories and tags for read-only analysis
+    const allowedCategories = new Set(['planning', 'analysis', 'testing', 'documentation']);
+    const allowedTags = new Set(['grep', 'readfile', 'analysis', 'search', 'inspect']);
+
+    // Filter todos: no commands, no files to modify, category/tag must be analysis-oriented
+    const filtered = todos.filter(t => {
+      const hasCommands = (t.commands && t.commands.length > 0);
+      const hasFiles = (t.files && t.files.length > 0);
+      const categoryOk = allowedCategories.has(t.category);
+      const tagsOk = (t.tags || []).some(tag => allowedTags.has(tag));
+      return !hasCommands && !hasFiles && (categoryOk || tagsOk);
+    });
+
+    // If everything got filtered, fall back to minimal read-only plan derived from original
+    if (filtered.length === 0) {
+      return todos.map(t => ({
+        ...t,
+        commands: [],
+        files: [],
+        category: allowedCategories.has(t.category) ? t.category : 'analysis',
+        tags: Array.from(new Set([...(t.tags || []), 'grep', 'readfile', 'analysis'])),
+      }));
+    }
+
+    return filtered;
+  }
+
+  /**
    * Generate a comprehensive plan with enhanced analysis
    */
   async generatePlan(
@@ -121,7 +159,10 @@ export class EnhancedPlanningSystem {
 
     // Generate AI-powered plan with enhanced analysis
     console.log(chalk.gray('🧠 Generating comprehensive AI plan...'));
-    const todos = await this.generateTodosWithAI(goal, projectContext, maxTodos);
+    let todos = await this.generateTodosWithAI(goal, projectContext, maxTodos);
+
+    // Enforce read-only constraints if requested by the goal (no commands, no file writes)
+    todos = this.applyReadOnlyConstraints(goal, todos);
 
     // Perform risk assessment
     const riskAssessment = this.performRiskAssessment(todos);
@@ -427,8 +468,9 @@ Generate a comprehensive plan that is practical and executable.`
         estimatedDuration: todoData.estimatedDuration || 30,
         dependencies: todoData.dependencies || [],
         tags: todoData.tags || [],
-        commands: todoData.commands || [],
-        files: todoData.files || [],
+        // Normalize commands/files fields to arrays of strings
+        commands: Array.isArray(todoData.commands) ? todoData.commands.filter((c: any) => typeof c === 'string') : [],
+        files: Array.isArray(todoData.files) ? todoData.files.filter((f: any) => typeof f === 'string') : [],
         reasoning: todoData.reasoning || '',
         createdAt: new Date(),
       }));
@@ -630,6 +672,20 @@ Generate a comprehensive plan that is practical and executable.`
   private async executeTodo(todo: TodoItem, plan: TodoPlan): Promise<void> {
     console.log(chalk.blue(`🚀 Starting: ${todo.title}`));
     console.log(chalk.gray(`   ${todo.description}`));
+
+    // Enforce read-only execution if requested by plan goal
+    const lowerGoal = (plan.goal || '').toLowerCase();
+    const readOnlyRequested = lowerGoal.includes('solo grep') || lowerGoal.includes('solo read') ||
+      (lowerGoal.includes('grep') && lowerGoal.includes('read') && (lowerGoal.includes('solo') || lowerGoal.includes('only')));
+    if (readOnlyRequested && ((todo.commands && todo.commands.length > 0) || (todo.files && todo.files.length > 0))) {
+      console.log(chalk.yellow('⚠️ Read-only mode: skipping commands/file modifications for this todo'));
+      // Mark as skipped but not failed to continue flow
+      todo.status = 'skipped';
+      todo.completedAt = new Date();
+      plan.progress!.completedSteps += 1;
+      plan.progress!.percentage = Math.round((plan.progress!.completedSteps / plan.progress!.totalSteps) * 100);
+      return;
+    }
 
     let originalEmit: any;
     try {
