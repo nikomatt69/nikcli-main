@@ -1,0 +1,156 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# TypeScript files
+*.ts text
+*.tsx text
+
+# JavaScript files
+*.js text
+*.jsx text
+*.mjs text
+*.cjs text
+
+# JSON files
+*.json text
+
+# Markdown files
+*.md text
+*.mdx text
+
+# Configuration files
+*.yml text
+*.yaml text
+*.toml text
+*.ini text
+*.cfg text
+*.conf text
+
+# Shell scripts
+*.sh text eol=lf
+*.bash text eol=lf
+*.zsh text eol=lf
+
+# Windows batch files
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Documentation
+*.txt text
+*.rst text
+*.adoc text
+
+# CSS and styling
+*.css text
+*.scss text
+*.sass text
+*.less text
+
+# HTML
+*.html text
+*.htm text
+
+# XML
+*.xml text
+*.svg text
+
+# SQL
+*.sql text
+
+# Docker
+Dockerfile text
+*.dockerfile text
+
+# Git
+.gitignore text
+.gitattributes text
+.gitkeep text
+
+# Package files
+package.json text
+package-lock.json text
+bun.lockb binary
+yarn.lock text
+pnpm-lock.yaml text
+
+# Binary files (should not be modified)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+*.tgz binary
+*.rar binary
+*.7z binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.app binary
+*.dmg binary
+*.pkg binary
+*.deb binary
+*.rpm binary
+*.msi binary
+
+# Build artifacts
+dist/ export-ignore
+build/ export-ignore
+coverage/ export-ignore
+.nyc_output/ export-ignore
+.cache/ export-ignore
+.parcel-cache/ export-ignore
+.next/ export-ignore
+.nuxt/ export-ignore
+out/ export-ignore
+
+# Dependencies
+node_modules/ export-ignore
+
+# Environment files
+.env* export-ignore
+
+# IDE files
+.vscode/ export-ignore
+.idea/ export-ignore
+*.swp export-ignore
+*.swo export-ignore
+
+# OS files
+.DS_Store export-ignore
+Thumbs.db export-ignore
+*.lnk export-ignore
+
+# Logs
+*.log export-ignore
+logs/ export-ignore
+
+# Temporary files
+tmp/ export-ignore
+temp/ export-ignore
+*.tmp export-ignore
+*.temp export-ignore
+
+# Test artifacts
+test-results/ export-ignore
+playwright-report/ export-ignore
+coverage/ export-ignore
+
+# Database files
+*.db export-ignore
+*.sqlite export-ignore
+*.sqlite3 export-ignore
+
+# Project specific
+.claude/ export-ignore
+.nikcli/ export-ignore
+chroma_db/ export-ignore
+chroma/ export-ignore

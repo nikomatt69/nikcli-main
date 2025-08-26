@@ -1,0 +1,358 @@
+---
+title: "Advanced Features"
+description: "Advanced CLI capabilities and power-user features in NikCLI"
+icon: "rocket"
+---
+
+## Overview
+
+NikCLI provides advanced features for power users, including custom workflows, scripting capabilities, plugin development, and enterprise integrations. These features enable deep customization and automation for complex development scenarios.
+
+<CardGroup cols={2}>
+  <Card title="Custom Workflows" icon="flow-chart">
+    Design and execute complex automated workflows
+  </Card>
+  <Card title="Scripting & Automation" icon="code">
+    Programmatic control and batch operations
+  </Card>
+  <Card title="Plugin System" icon="puzzle">
+    Extend functionality with custom plugins
+  </Card>
+  <Card title="Enterprise Features" icon="building">
+    Advanced security, compliance, and management
+  </Card>
+</CardGroup>
+
+## Workflow Automation
+
+### `/workflow` - Custom Workflow Management
+
+<Tabs>
+  <Tab title="Workflow Creation">
+    ```bash # Create new workflow /workflow create "full-stack-setup" /workflow
+    create --template api-development --customize # Define workflow steps
+    /workflow define --steps " 1. analyze-project 2. setup-backend:backend-agent
+    3. create-frontend:react-expert 4. integrate-apis:universal-agent 5.
+    run-tests:all " ```
+  </Tab>
+
+  <Tab title="Workflow Execution">
+    ```bash # Execute workflow /workflow run full-stack-setup /workflow run
+    --with-approval api-development # Conditional workflow execution /workflow
+    run deployment --if "tests-passing" /workflow run optimization --unless
+    "performance-acceptable" ```
+  </Tab>
+
+  <Tab title="Workflow Management">
+    ```bash # List workflows /workflow list --detailed --usage-stats # Share
+    workflows /workflow export full-stack-setup --format yaml /workflow import
+    team-workflow.yml --validate # Workflow versioning /workflow version --tag
+    v1.2.0 --changelog "Added testing step" ```
+  </Tab>
+</Tabs>
+
+### Advanced Scripting
+
+<AccordionGroup>
+  <Accordion title="Batch Operations">
+    ```bash # Batch file operations /batch process "src/**/*.ts" --operation
+    "add-type-annotations" /batch refactor "components/*.tsx" --pattern
+    "class-to-hooks" # Batch agent execution /batch agents --task
+    "optimize-performance" --files "*.tsx" /batch parallel --agents
+    "react-expert,backend-agent" --tasks tasks.json ```
+  </Accordion>
+
+  <Accordion title="Pipeline Operations">
+    ```bash # Create processing pipeline /pipeline create code-quality --steps "
+    lint → format → test → security-scan → deploy " # Execute pipeline with data
+    flow /pipeline run code-quality --input "src/" --output "dist/" /pipeline
+    run --parallel optimization --chunks 4 ```
+  </Accordion>
+
+  <Accordion title="Conditional Logic">
+    ```bash # Conditional command execution /if file-exists "package.json" then
+    run "npm install" /if git-has-changes then agent react-expert "review
+    changes" # Loop operations /for-each component in "src/components/*.tsx" do
+    optimize /while tests-failing do fix-issues --auto-retry 3 ```
+  </Accordion>
+</AccordionGroup>
+
+## Plugin Development
+
+### `/plugin` - Plugin System
+
+<Tabs>
+  <Tab title="Plugin Management">
+    ```bash # List installed plugins /plugin list --enabled --detailed # Install
+    plugin /plugin install @nikcli/database-plugin /plugin install
+    ./local-plugin --dev # Enable/disable plugins /plugin enable database-plugin
+    /plugin disable debug-plugin --session-only ```
+  </Tab>
+
+  <Tab title="Plugin Development">
+    ```bash # Create new plugin /plugin create my-custom-plugin --template
+    agent-extension # Plugin development mode /plugin dev --watch --hot-reload
+    ./my-plugin # Test plugin /plugin test my-custom-plugin --unit --integration
+    ```
+  </Tab>
+
+  <Tab title="Plugin Publishing">
+    ```bash # Package plugin /plugin build my-plugin --optimize --bundle #
+    Publish plugin /plugin publish --registry npm --access public # Plugin
+    marketplace /plugin marketplace --search "database" --install-popular ```
+  </Tab>
+</Tabs>
+
+### Custom Commands
+
+<AccordionGroup>
+  <Accordion title="Command Registration">
+    ```typescript
+    // Register custom command
+    import { registerCommand } from '@nikcli/plugin-api';
+    
+    registerCommand('deploy-staging', {
+      description: 'Deploy to staging environment',
+      parameters: {
+        branch: { type: 'string', default: 'main' },
+        skipTests: { type: 'boolean', default: false }
+      },
+      handler: async (params, context) => {
+        // Custom deployment logic
+        await context.agents.devops.execute('deploy', params);
+      }
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Agent Extensions">
+    ```typescript
+    // Extend existing agent
+    import { extendAgent } from '@nikcli/plugin-api';
+    
+    extendAgent('react-expert', {
+      capabilities: ['styled-components', 'emotion', 'chakra-ui'],
+      tools: ['component-generator', 'style-optimizer'],
+      prompts: {
+        'create-styled-component': './prompts/styled-component.txt'
+      }
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Enterprise Features
+
+### `/enterprise` - Enterprise Management
+
+<Tabs>
+  <Tab title="Team Management">
+    ```bash # User management /enterprise users --list --roles --permissions
+    /enterprise user add john@company.com --role developer /enterprise user
+    permissions --grant "agent-create" --user jane@company.com # Team
+    organization /enterprise teams create frontend-team --members "user1,user2"
+    /enterprise teams assign-project e-commerce frontend-team ```
+  </Tab>
+
+  <Tab title="Policy Management">
+    ```bash # Security policies /enterprise policy create security-standard
+    --template corporate /enterprise policy apply --policy security-standard
+    --scope organization # Compliance management /enterprise compliance
+    --framework sox --audit-ready /enterprise compliance report --period
+    quarterly --format pdf ```
+  </Tab>
+
+  <Tab title="Analytics & Reporting">
+    ```bash # Usage analytics /enterprise analytics --users --projects
+    --usage-patterns /enterprise report productivity --team frontend-team
+    --period monthly # Cost management /enterprise billing --usage --costs
+    --optimization-suggestions /enterprise budget set --monthly 1000 --alerts
+    80% ```
+  </Tab>
+</Tabs>
+
+### SSO and Authentication
+
+<AccordionGroup>
+  <Accordion title="Single Sign-On">
+    ```bash # Configure SSO /enterprise sso setup --provider okta --domain
+    company.okta.com /enterprise sso test --user test@company.com # SAML
+    configuration /enterprise saml configure --metadata saml-metadata.xml
+    /enterprise saml certificates --update --auto-rotate ```
+  </Accordion>
+
+  <Accordion title="Access Control">
+    ```bash # Role-based access control /enterprise rbac create-role
+    "senior-developer" --inherit developer /enterprise rbac assign-permissions
+    --role senior-developer --permissions "agent-create,workflow-admin" # API
+    access management /enterprise api-keys generate --scope read-write --expiry
+    90d /enterprise api-keys rotate --key-id abc123 --notify-users ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance and Optimization
+
+### `/performance` - Performance Management
+
+<Tabs>
+  <Tab title="Performance Monitoring">
+    ```bash # System performance monitoring /performance monitor --real-time
+    --agents --system /performance metrics --cpu --memory --tokens
+    --response-times # Performance profiling /performance profile --session
+    ses_abc123 --detailed /performance bottlenecks --identify --recommendations
+    ```
+  </Tab>
+
+  <Tab title="Resource Management">
+    ```bash # Resource allocation /performance resources --allocate agents=70%
+    system=30% /performance limits --set max-tokens=10000 max-agents=5 # Load
+    balancing /performance load-balance --strategy round-robin /performance
+    scale --auto --based-on cpu-usage=80% ```
+  </Tab>
+
+  <Tab title="Optimization">
+    ```bash # Automatic optimization /performance optimize --auto-tune
+    --learning-based /performance cache --optimize --cleanup-old
+    --preload-common # Performance testing /performance benchmark --baseline
+    --compare-with-previous /performance stress-test --duration 10m
+    --concurrent-users 50 ```
+  </Tab>
+</Tabs>
+
+## API and Integration
+
+### REST API Access
+
+<AccordionGroup>
+  <Accordion title="API Server">
+    ```bash # Start API server /api server start --port 3001 --auth-required
+    /api server configure --cors --rate-limiting --documentation # API endpoints
+    # GET /sessions - List sessions # POST /agents/execute - Execute agent task
+    # GET /config - Get configuration # WebSocket /stream - Real-time updates
+    ```
+  </Accordion>
+
+  <Accordion title="Webhook Integration">
+    ```bash # Configure webhooks /api webhooks create --url
+    https://example.com/webhook --events "session.created,agent.completed" /api
+    webhooks test --endpoint webhook-123 --payload sample.json # Webhook
+    security /api webhooks secure --signing-secret secret123 --verify-ssl ```
+  </Accordion>
+</AccordionGroup>
+
+### SDK Development
+
+<Tabs>
+  <Tab title="JavaScript SDK">
+    ```typescript
+    import { NikCLI } from '@nikcli/sdk';
+    
+    const cli = new NikCLI({
+      apiKey: process.env.NIKCLI_API_KEY,
+      baseUrl: 'http://localhost:3001'
+    });
+    
+    // Execute agent task
+    const result = await cli.agents.execute('react-expert', {
+      task: 'create login component',
+      context: './src/components/'
+    });
+    ```
+  </Tab>
+  
+  <Tab title="Python SDK">
+    ```python
+    from nikcli import NikCLI
+    
+    cli = NikCLI(
+        api_key=os.environ['NIKCLI_API_KEY'],
+        base_url='http://localhost:3001'
+    )
+    
+    # Execute workflow
+    result = cli.workflows.execute('deployment', {
+        'environment': 'staging',
+        'branch': 'main'
+    })
+    ```
+  </Tab>
+  
+  <Tab title="Go SDK">
+    ```go
+    package main
+    
+    import "github.com/nikcli/go-sdk"
+    
+    client := nikcli.NewClient(nikcli.Config{
+        APIKey: os.Getenv("NIKCLI_API_KEY"),
+        BaseURL: "http://localhost:3001",
+    })
+    
+    // Create session
+    session, err := client.Sessions.Create("API Development")
+    if err != nil {
+        log.Fatal(err)
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Debugging and Development
+
+### Advanced Debugging
+
+<AccordionGroup>
+  <Accordion title="Debug Mode">
+    ```bash # Enable comprehensive debugging /debug enable --level verbose
+    --components all /debug agent --trace-execution --log-decisions # Debug
+    specific components /debug tools --show-calls --timing --errors /debug
+    streaming --buffer-analysis --connection-status ```
+  </Accordion>
+
+  <Accordion title="Development Tools">
+    ```bash # Development server with hot reload /dev server --watch
+    --auto-restart --debug-ui # Interactive development console /dev console
+    --repl --agent-access --tool-testing # Development analytics /dev analytics
+    --performance --usage-patterns --optimization-suggestions ```
+  </Accordion>
+</AccordionGroup>
+
+### Testing Framework
+
+<Tabs>
+  <Tab title="Agent Testing">
+    ```bash # Test agent behavior /test agent react-expert --scenarios
+    test-scenarios.json /test agent-interaction --multi-agent --coordination #
+    Performance testing /test performance --load --concurrent-agents 5
+    --duration 10m ```
+  </Tab>
+
+  <Tab title="Integration Testing">
+    ```bash # End-to-end testing /test e2e --workflows --real-projects
+    --validation /test integration --external-apis --databases --file-systems #
+    Regression testing /test regression --baseline v1.0.0 --compare-current ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agent System" icon="users" href="/agent-system/universal-agent">
+    Deep dive into the advanced agent system capabilities
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/core-apis">
+    Explore the complete API reference documentation
+  </Card>
+  <Card title="Contributing" icon="heart" href="/contributing/development">
+    Learn how to contribute to NikCLI development
+  </Card>
+  <Card title="Examples" icon="play" href="/examples/advanced-automation">
+    See advanced automation examples and real-world scenarios
+  </Card>
+</CardGroup>
+
+<Tip>
+  Advanced features require careful configuration and understanding of the
+  system architecture. Start with workflows and scripting before moving to
+  plugin development and enterprise features.
+</Tip>

@@ -1,0 +1,60 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "lib": [
+      "es2020",
+      "ES2015"
+    ],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "downlevelIteration": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./src",
+    "declaration": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "paths": {
+      "@/*": [
+        "*"
+      ],
+      "@cli/*": [
+        "cli/*"
+      ],
+      "@agents/*": [
+        "cli/automation/agents/*"
+      ],
+      "@core/*": [
+        "cli/core/*"
+      ],
+      "@utils/*": [
+        "cli/utils/*"
+      ],
+      "@tools/*": [
+        "cli/tools/*"
+      ],
+      "@ai/*": [
+        "cli/ai/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "tests",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
+}

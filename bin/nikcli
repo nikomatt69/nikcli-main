@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve repo root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+DIST_ENTRY="${ROOT_DIR}/dist/cli/index.js"
+SRC_ENTRY="${ROOT_DIR}/src/cli/index.ts"
+TSCONFIG="${ROOT_DIR}/tsconfig.cli.json"
+
+if [[ -f "$DIST_ENTRY" ]]; then
+  exec node "$DIST_ENTRY" "$@"
+fi
+
+if command -v npx >/dev/null 2>&1; then
+  exec npx ts-node --project "$TSCONFIG" "$SRC_ENTRY" "$@"
+fi
+
+echo "NikCLI: build output not found."
+echo "Run: npm run build"
+exit 1

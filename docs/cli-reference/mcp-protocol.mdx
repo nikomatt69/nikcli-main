@@ -1,0 +1,231 @@
+---
+title: "MCP Protocol"
+description: "Model Context Protocol integration and server management"
+icon: "plug"
+---
+
+## Overview
+
+The Model Context Protocol (MCP) enables NikCLI to connect with external services, tools, and data sources through standardized interfaces. This creates a rich ecosystem of integrations while maintaining security and performance.
+
+<CardGroup cols={2}>
+  <Card title="Server Management" icon="server">
+    Connect and manage MCP servers seamlessly
+  </Card>
+  <Card title="Tool Integration" icon="wrench">
+    Access external tools and services through MCP
+  </Card>
+  <Card title="Data Sources" icon="database">
+    Connect to databases, APIs, and file systems
+  </Card>
+  <Card title="Custom Protocols" icon="code">
+    Build and deploy custom MCP implementations
+  </Card>
+</CardGroup>
+
+## MCP Server Commands
+
+### `/mcp` - MCP Management
+
+<Tabs>
+  <Tab title="Server Operations">
+    ```bash # List available MCP servers /mcp list /mcp servers --status
+    --health # Connect to MCP server /mcp connect filesystem /mcp connect
+    --server database --config ./db.json # Disconnect from server /mcp
+    disconnect filesystem /mcp disconnect --all ```
+  </Tab>
+
+{" "}
+<Tab title="Server Configuration">
+  ```bash # Configure MCP server /mcp config filesystem --path "/project/root"
+  /mcp config database --connection-string "..." # Server health checks /mcp
+  health --all-servers /mcp ping filesystem ```
+</Tab>
+
+  <Tab title="Tool Access">
+    ```bash # List available tools from MCP servers /mcp tools /mcp tools
+    --server filesystem --detailed # Execute MCP tool /mcp exec filesystem
+    read_file --path "src/App.tsx" /mcp exec database query --sql "SELECT * FROM
+    users" ```
+  </Tab>
+</Tabs>
+
+### Built-in MCP Integrations
+
+<AccordionGroup>
+  <Accordion title="Filesystem MCP Server">
+    ```bash # File system operations /mcp connect filesystem --root-path
+    "/project" # Available tools: # - read_file: Read file contents # -
+    write_file: Write file contents # - list_files: List directory contents # -
+    create_directory: Create directories # - delete_file: Delete files safely
+    ```
+  </Accordion>
+
+{" "}
+<Accordion title="Database MCP Server">
+  ```bash # Database connectivity /mcp connect database --type postgresql
+  --config db.json # Available tools: # - query: Execute SELECT queries # -
+  schema: Get table schema information # - describe: Describe table structure #
+  - explain: Explain query execution plan ```
+</Accordion>
+
+  <Accordion title="Web MCP Server">
+    ```bash # Web service integration /mcp connect web --base-url
+    "https://api.example.com" # Available tools: # - http_get: Make GET requests
+    # - http_post: Make POST requests # - web_search: Search web content # -
+    scrape_page: Extract page content ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced MCP Features
+
+### Custom MCP Server Development
+
+<Tabs>
+  <Tab title="Server Implementation">
+    ```typescript
+    // Custom MCP server example
+    import { Server } from '@modelcontextprotocol/server';
+    
+    const server = new Server({
+      name: 'custom-server',
+      version: '1.0.0'
+    });
+    
+    server.tool('custom_tool', {
+      description: 'Custom tool implementation',
+      parameters: {
+        type: 'object',
+        properties: {
+          input: { type: 'string' }
+        }
+      }
+    }, async ({ input }) => {
+      // Tool implementation
+      return { result: `Processed: ${input}` };
+    });
+    ```
+  </Tab>
+  
+  <Tab title="Server Deployment">
+    ```bash
+    # Deploy custom MCP server
+    /mcp deploy --server ./custom-server.js --name "custom"
+    
+    # Register server configuration
+    /mcp register custom --config server-config.json
+    
+    # Test custom server
+    /mcp test custom --validate-tools
+    ```
+  </Tab>
+</Tabs>
+
+### Security and Access Control
+
+<AccordionGroup>
+  <Accordion title="Authentication">
+    ```bash # Configure MCP authentication /mcp auth --server database --method
+    oauth2 /mcp auth --server api --token "bearer-token" # Manage credentials
+    securely /mcp credentials --store --encrypt /mcp credentials --rotate
+    --server database ```
+  </Accordion>
+
+  <Accordion title="Access Control">
+    ```bash # Configure access policies /mcp policy --server filesystem
+    --allow-read "/safe/path/" /mcp policy --server database --deny-write
+    "sensitive_table" # Audit MCP access /mcp audit --log-level detailed
+    --retention 90d ```
+  </Accordion>
+</AccordionGroup>
+
+## Integration Examples
+
+### Database Integration
+
+```bash
+# Connect to PostgreSQL
+/mcp connect database --type postgresql --config "{
+  \"host\": \"localhost\",
+  \"port\": 5432,
+  \"database\": \"myapp\",
+  \"username\": \"user\"
+}"
+
+# Query database through agents
+/agent backend-expert "analyze user table structure using database MCP"
+```
+
+### File System Integration
+
+```bash
+# Enable file system access
+/mcp connect filesystem --root-path "./src"
+
+# Agent can now access files directly
+/agent react-expert "refactor components using filesystem MCP to read current implementations"
+```
+
+### API Integration
+
+```bash
+# Connect to REST API
+/mcp connect web --base-url "https://api.github.com" --auth "token ghp_xxx"
+
+# Integrate with development workflow
+/agent devops-expert "check GitHub API for recent commits using web MCP"
+```
+
+## Real-World Usage Examples
+
+### Development Workflow Integration
+
+```bash
+# Connect multiple MCP servers for development
+/mcp connect filesystem --root-path "/project"
+/mcp connect database --type postgresql --config db.json
+/mcp connect web --base-url "https://api.company.com"
+
+# Use MCP tools in agent workflows
+/agent universal-agent "analyze project structure and database schema using MCP tools"
+```
+
+### Custom Tool Development
+
+```bash
+# Create custom MCP server for company tools
+/mcp deploy --server ./company-tools.js --name "company-tools"
+
+# Register company-specific tools
+/mcp register company-tools --config company-config.json
+
+# Use custom tools in development
+/agent backend-expert "deploy using company deployment MCP tools"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Advanced Features"
+    icon="rocket"
+    href="/cli-reference/advanced-features"
+  >
+    Explore advanced CLI capabilities and power features
+  </Card>
+  <Card title="MCP Servers" icon="server" href="/advanced/mcp-servers">
+    Deep dive into MCP server configuration and deployment
+  </Card>
+  <Card title="Tool System" icon="wrench" href="/api-reference/tool-system">
+    Learn about the underlying tool system architecture
+  </Card>
+  <Card title="Integrations" icon="plug" href="/api-reference/integrations">
+    Discover available integrations and how to build custom ones
+  </Card>
+</CardGroup>
+
+<Tip>
+  MCP servers extend NikCLI's capabilities significantly. Start with built-in
+  servers like filesystem and database, then explore custom implementations for
+  your specific use cases.
+</Tip>

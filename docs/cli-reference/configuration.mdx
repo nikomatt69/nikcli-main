@@ -1,0 +1,234 @@
+---
+title: 'Configuration'
+description: 'Complete configuration management reference for NikCLI'
+icon: 'gear'
+---
+
+## Overview
+
+NikCLI provides comprehensive configuration management through multiple layers: global settings, project-specific configurations, session preferences, and runtime parameters. The configuration system supports environment variables, configuration files, command-line options, and interactive configuration wizards.
+
+<CardGroup cols={2}>
+  <Card title="Multi-Layer Config" icon="layers">
+    Global, project, session, and runtime configuration layers
+  </Card>
+  <Card title="Environment Integration" icon="cloud">
+    Seamless integration with environment variables and CI/CD
+  </Card>
+  <Card title="Security" icon="shield">
+    Encrypted storage for sensitive configuration data
+  </Card>
+  <Card title="Validation" icon="check-circle">
+    Configuration validation and error prevention
+  </Card>
+</CardGroup>
+
+## Configuration Commands
+
+### `/config` - Configuration Management
+
+<Tabs>
+  <Tab title="View Configuration">
+    ```bash
+    # Show all configuration
+    /config
+    /config --all --detailed
+    
+    # Show specific sections
+    /config ai
+    /config security
+    /config agents
+    
+    # Show configuration hierarchy
+    /config --hierarchy --sources
+    ```
+  </Tab>
+  
+  <Tab title="Set Configuration">
+    ```bash
+    # Set configuration values
+    /config set ai.default-model claude-3-sonnet
+    /config set security.approval-required true
+    /config set agents.max-concurrent 3
+    
+    # Interactive configuration
+    /config setup --interactive
+    /config wizard --guided-setup
+    ```
+  </Tab>
+  
+  <Tab title="Configuration Files">
+    ```bash
+    # Export configuration
+    /config export --file nikcli.config.json
+    /config export --format yaml --pretty
+    
+    # Import configuration
+    /config import --file config.json
+    /config import --merge --validate
+    ```
+  </Tab>
+</Tabs>
+
+### AI Model Configuration
+
+<AccordionGroup>
+  <Accordion title="Model Selection">
+    ```bash
+    # Configure default AI model
+    /config set ai.default-model claude-3-sonnet
+    /config set ai.fallback-model gpt-4
+    
+    # Model-specific settings
+    /config set ai.claude.temperature 0.3
+    /config set ai.gpt.max-tokens 4000
+    
+    # Model availability configuration
+    /config set ai.providers "anthropic,openai"
+    /config set ai.model-rotation true
+    ```
+  </Accordion>
+  
+  <Accordion title="API Configuration">
+    ```bash
+    # Set API keys (encrypted storage)
+    /config set-key anthropic sk-ant-...
+    /config set-key openai sk-...
+    
+    # API endpoint configuration
+    /config set api.anthropic.base-url https://api.anthropic.com
+    /config set api.timeout 30000
+    /config set api.retry-attempts 3
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Security Configuration
+
+<Tabs>
+  <Tab title="Access Control">
+    ```bash
+    # Security mode configuration
+    /config set security.mode safe
+    /config set security.approval-required true
+    /config set security.command-restrictions strict
+    
+    # File system permissions
+    /config set security.allowed-paths "src/,docs/,tests/"
+    /config set security.blocked-paths "node_modules/,.env"
+    ```
+  </Tab>
+  
+  <Tab title="Audit Configuration">
+    ```bash
+    # Audit logging
+    /config set audit.enabled true
+    /config set audit.level detailed
+    /config set audit.retention-days 90
+    
+    # Compliance settings
+    /config set compliance.gdpr true
+    /config set compliance.data-retention 365d
+    ```
+  </Tab>
+</Tabs>
+
+### Agent Configuration
+
+<AccordionGroup>
+  <Accordion title="Agent Behavior">
+    ```bash
+    # Default agent settings
+    /config set agents.default universal-agent
+    /config set agents.auto-select true
+    /config set agents.max-concurrent 3
+    
+    # Agent-specific configuration
+    /config set agents.react-expert.temperature 0.2
+    /config set agents.backend-agent.context-size 8000
+    ```
+  </Accordion>
+  
+  <Accordion title="Performance Settings">
+    ```bash
+    # Performance optimization
+    /config set agents.performance.caching true
+    /config set agents.performance.parallel-execution true
+    /config set agents.performance.resource-limits enabled
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Configuration
+
+### Environment-Specific Configuration
+
+```bash
+# Development environment
+/config env development
+/config set --env dev security.mode relaxed
+/config set --env dev agents.debug true
+
+# Production environment  
+/config env production
+/config set --env prod security.mode strict
+/config set --env prod audit.level comprehensive
+```
+
+### Project Configuration
+
+```bash
+# Project-specific settings
+/config project-init
+/config set --project tools.preferred typescript,react
+/config set --project style.formatter prettier
+```
+
+### Configuration Validation
+
+```bash
+# Validate configuration
+/config validate
+/config validate --strict --report-issues
+
+# Check configuration compatibility
+/config compatibility-check
+/config --migration-required --suggestions
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="MCP Protocol"
+    icon="plug"
+    href="/cli-reference/mcp-protocol"
+  >
+    Learn about Model Context Protocol integration
+  </Card>
+  <Card
+    title="Advanced Features"
+    icon="rocket"
+    href="/cli-reference/advanced-features"
+  >
+    Explore advanced CLI capabilities
+  </Card>
+  <Card
+    title="Token Management"
+    icon="coins"
+    href="/advanced/token-management"
+  >
+    Understand token optimization strategies
+  </Card>
+  <Card
+    title="Caching"
+    icon="database"
+    href="/advanced/caching"
+  >
+    Learn about caching systems and optimization
+  </Card>
+</CardGroup>
+
+<Tip>
+  Use `/config wizard` for first-time setup or when migrating between environments. The interactive wizard ensures all required settings are properly configured.
+</Tip>

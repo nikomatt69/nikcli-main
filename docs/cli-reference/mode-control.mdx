@@ -1,0 +1,654 @@
+---
+title: 'Mode Control'
+description: 'Master NikCLI operating modes and transitions'
+icon: 'toggle-on'
+---
+
+## Operating Modes Overview
+
+NikCLI operates in four distinct modes, each optimized for different development scenarios. Understanding and effectively using these modes is key to maximizing your productivity.
+
+<CardGroup cols={2}>
+  <Card title="💬 Default Chat" icon="comments">
+    Interactive conversational development with step-by-step guidance
+  </Card>
+  <Card title="📋 Planning Mode" icon="clipboard-list">
+    Strategic planning and review before implementation
+  </Card>
+  <Card title="🤖 Autonomous Mode" icon="robot">
+    Independent AI execution with minimal supervision
+  </Card>
+  <Card title="🖥️ VM Mode" icon="server">
+    Isolated development environment with containerization
+  </Card>
+</CardGroup>
+
+## Mode Switching Commands
+
+### Direct Mode Commands
+
+<Tabs>
+  <Tab title="Mode Switching">
+    **Direct Mode Commands**
+    ```bash
+    /default    # Switch to Default Chat mode
+    /plan       # Switch to Planning mode
+    /auto "task description"  # Switch to Autonomous mode with task
+    /vm         # Switch to VM mode
+    ```
+    
+    **Status Commands**
+    ```bash
+    /stats      # Show usage and session statistics
+    /agents     # Show available agents
+    ```
+  </Tab>
+  
+  <Tab title="Configuration">
+    **View Current Configuration**
+    ```bash
+    /config     # Show current configuration
+    /debug      # Show debug information
+    ```
+  </Tab>
+</Tabs>
+
+## Default Chat Mode (💬)
+
+### Mode Characteristics
+
+<AccordionGroup>
+  <Accordion title="Interactive Development">
+    **Perfect for learning and step-by-step development**
+    
+    ```
+    > Create a React component for user login
+    
+    🔍 I'll help you create a login component. Let me ask a few questions:
+    
+    1. What authentication method do you prefer?
+       a) Email/password
+       b) Social login (Google, GitHub)
+       c) Both
+    
+    2. Do you want form validation?
+       a) Basic validation
+       b) Advanced validation with error messages
+       c) Real-time validation
+    
+    3. What styling approach should I use?
+       a) CSS modules
+       b) Styled-components
+       c) Tailwind CSS
+    
+    Please let me know your preferences.
+    ```
+    
+    **Features:**
+    - Clarification questions
+    - Step-by-step guidance
+    - Manual approval for changes
+    - Educational explanations
+  </Accordion>
+  
+  <Accordion title="Manual Approval Workflow">
+    **Every action requires explicit approval**
+    
+    ```
+    📝 Ready to create the following files:
+    
+    ┌─ src/components/LoginForm.tsx (new file)
+    ├─ src/components/LoginForm.module.css (new file)
+    └─ src/types/auth.ts (new file)
+    
+    Changes will include:
+    • React functional component with TypeScript
+    • Form validation with error handling
+    • Responsive CSS styling
+    • Type definitions for authentication
+    
+    Proceed with file creation? (y/n/details)
+    > y
+    
+    ✅ Files created successfully!
+    
+    Next steps:
+    1. Review the generated code
+    2. Test the component integration
+    3. Customize styling as needed
+    
+    Would you like me to show you how to integrate this component?
+    ```
+  </Accordion>
+  
+  <Accordion title="Educational Features">
+    **Learn while you develop**
+    
+    ```
+    ✅ Login component created! Let me explain what I built:
+    
+    🏗️ Component Structure:
+    ├── LoginForm.tsx - Main component with state management
+    │   ├── useState for form data and validation
+    │   ├── useCallback for optimized event handlers
+    │   └── Custom validation logic
+    │
+    ├── LoginForm.module.css - Scoped styling
+    │   ├── Responsive layout with flexbox
+    │   ├── Focus states for accessibility
+    │   └── Error styling for validation feedback
+    │
+    └── auth.ts - Type definitions
+        ├── LoginCredentials interface
+        ├── ValidationError interface
+        └── AuthResponse interface
+    
+    💡 Key Features Implemented:
+    • Real-time validation with debouncing
+    • Accessibility attributes (ARIA labels)
+    • Loading states for better UX
+    • Error handling with user-friendly messages
+    
+    Would you like me to explain any specific part in detail?
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Best Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Learning & Exploration" icon="graduation-cap">
+    - Understanding new concepts
+    - Exploring different approaches
+    - Getting detailed explanations
+    - Step-by-step tutorials
+  </Card>
+  
+  <Card title="Precision Work" icon="target">
+    - Critical system modifications
+    - Custom requirement implementations
+    - Code review and refinement
+    - Complex debugging scenarios
+  </Card>
+</CardGroup>
+
+## Planning Mode (📋)
+
+### Planning Workflow
+
+<Steps>
+  <Step title="Plan Creation">
+    Generate comprehensive implementation plans
+    
+    ```
+    /plan create "User authentication system with social login"
+    
+    📋 Creating comprehensive implementation plan...
+    
+    ## User Authentication System Implementation Plan
+    
+    ### Project Analysis
+    - Current stack: React + Node.js + MongoDB
+    - Authentication needs: Email/password + OAuth
+    - Security requirements: JWT tokens, password hashing
+    - Integration points: Frontend auth context, protected routes
+    
+    ### Implementation Phases
+    
+    #### Phase 1: Backend Foundation (2-3 hours)
+    - User model with Mongoose schema
+    - Password hashing with bcrypt
+    - JWT token generation and validation
+    - Authentication middleware
+    - Basic login/register endpoints
+    
+    #### Phase 2: OAuth Integration (1-2 hours)  
+    - Passport.js setup for Google/GitHub
+    - OAuth callback handling
+    - User account linking logic
+    - Social profile data integration
+    
+    #### Phase 3: Frontend Implementation (2-3 hours)
+    - Authentication context/provider
+    - Login and registration forms
+    - Social login buttons
+    - Protected route wrapper
+    - User profile management
+    
+    #### Phase 4: Security & Testing (1-2 hours)
+    - Input validation and sanitization
+    - Rate limiting implementation
+    - Unit and integration tests
+    - Security audit and hardening
+    
+    ### Technical Specifications
+    - Database: MongoDB with Mongoose ODM
+    - Authentication: JWT with refresh tokens
+    - OAuth: Passport.js with Google/GitHub strategies
+    - Frontend: React Context API for state management
+    - Validation: Joi for backend, custom hooks for frontend
+    
+    ### Dependencies
+    - Backend: bcryptjs, jsonwebtoken, passport, passport-google-oauth20
+    - Frontend: react-router-dom, axios for API calls
+    
+    Do you want to proceed with this plan? (y/n/modify)
+    ```
+  </Step>
+  
+  <Step title="Plan Review & Modification">
+    Review and refine the implementation plan
+    
+    ```
+    > I'd like to modify the plan to include email verification
+    
+    📝 Plan Modification Request: Add email verification
+    
+    Updated Phase 1: Backend Foundation (3-4 hours)
+    - User model with email verification fields
+    - Email verification token generation
+    - Email service setup (SendGrid/Nodemailer)
+    - Email verification endpoints
+    - Modified registration flow
+    
+    Updated Phase 3: Frontend Implementation (2.5-3.5 hours)
+    - Email verification page component
+    - Verification status handling
+    - Resend verification email functionality
+    - Updated registration flow with verification step
+    
+    Additional Dependencies:
+    - Backend: nodemailer or @sendgrid/mail
+    - Email templates for verification
+    
+    Updated timeline: 7-9 hours total
+    
+    Save modified plan? (y/n)
+    ```
+  </Step>
+  
+  <Step title="Plan Execution">
+    Execute the approved plan systematically
+    
+    ```
+    /plan execute
+    
+    🚀 Executing Authentication System Plan
+    
+    Phase 1: Backend Foundation [ACTIVE]
+    ├── ✅ User model with Mongoose schema (5 min)
+    ├── ✅ Password hashing implementation (3 min)
+    ├── 🔄 JWT token system (in progress - 8 min)
+    ├── ⏳ Email verification system
+    ├── ⏳ Authentication middleware
+    └── ⏳ API endpoints
+    
+    Current Task: Implementing JWT token generation and validation
+    Estimated completion: 15 minutes
+    
+    Progress: 2/6 tasks complete (33%)
+    
+    Would you like to:
+    [C] Continue automatic execution
+    [P] Pause and review current progress  
+    [M] Switch to manual mode for this phase
+    [S] Skip to next phase
+    ```
+  </Step>
+  
+  <Step title="Progress Monitoring">
+    Track implementation progress against the plan
+    
+    ```
+    /plan status
+    
+    📊 Authentication System Implementation Status
+    
+    Overall Progress: ████████████░░░░░░░░ 60%
+    
+    ✅ Phase 1: Backend Foundation (100% complete)
+    ├── ✅ User model and schema
+    ├── ✅ Password hashing system  
+    ├── ✅ JWT token management
+    ├── ✅ Email verification system
+    ├── ✅ Authentication middleware
+    └── ✅ Login/register/verify endpoints
+    
+    🔄 Phase 2: OAuth Integration (40% complete)
+    ├── ✅ Passport.js configuration
+    ├── 🔄 Google OAuth strategy (in progress)
+    ├── ⏳ GitHub OAuth strategy
+    ├── ⏳ Account linking logic
+    └── ⏳ Profile data integration
+    
+    ⏳ Phase 3: Frontend Implementation (0% complete)
+    ⏳ Phase 4: Security & Testing (0% complete)
+    
+    Current Focus: Google OAuth integration
+    Next Milestone: Complete OAuth setup (ETA: 30 min)
+    
+    Issues Found: None
+    Deviations from Plan: None
+    ```
+  </Step>
+</Steps>
+
+### Planning Mode
+
+Planning mode provides strategic planning and task breakdown capabilities.
+
+```bash
+# Switch to planning mode
+/plan
+
+# Switch to planning mode with specific task
+/plan "Build authentication system"
+```
+
+**Planning Mode Features:**
+- Strategic task analysis
+- Comprehensive planning approach
+- Step-by-step breakdown
+- Implementation guidance
+
+### Best Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Complex Projects" icon="puzzle-piece">
+    - Multi-component features
+    - System integrations
+    - Architecture changes
+    - Large refactoring efforts
+  </Card>
+  
+  <Card title="Team Collaboration" icon="users">
+    - Shared project planning
+    - Task delegation
+    - Progress tracking
+    - Milestone management
+  </Card>
+</CardGroup>
+
+## Autonomous Mode (🤖)
+
+### Autonomous Operation
+
+<AccordionGroup>
+  <Accordion title="Independent Execution">
+    **AI works with minimal supervision**
+    
+    ```
+    /auto "Create a complete blog system with posts, comments, and admin panel"
+    
+    🤖 Autonomous Mode: Analyzing comprehensive blog system requirement
+    
+    📊 Complexity Analysis:
+    - Feature Scope: HIGH (multiple interconnected components)
+    - Technical Complexity: MEDIUM-HIGH  
+    - Estimated Duration: 2-3 hours
+    - Agents Required: 4 (Frontend, Backend, Database, Integration)
+    
+    🎯 Auto-Generated Execution Plan:
+    
+    Foundation Layer (30 min):
+    ├── Database models (User, Post, Comment, Category)
+    ├── Authentication system setup
+    ├── Basic API structure with Express.js
+    └── Database relationships and constraints
+    
+    Backend API (45 min):
+    ├── CRUD operations for posts and comments
+    ├── User management and authentication
+    ├── Admin panel API endpoints
+    ├── File upload for images
+    └── Search and filtering capabilities
+    
+    Frontend Implementation (60 min):
+    ├── Blog post listing and detail views
+    ├── Comment system with threading
+    ├── Admin dashboard for content management
+    ├── Rich text editor for post creation
+    └── Responsive design implementation
+    
+    Integration & Testing (30 min):
+    ├── End-to-end functionality testing
+    ├── API integration validation
+    ├── Security assessment
+    └── Performance optimization
+    
+    🚀 Beginning autonomous execution in 3 seconds...
+    Press Ctrl+C to abort, 'pause' to pause
+    ```
+  </Accordion>
+  
+  <Accordion title="Multi-Agent Coordination">
+    **Parallel execution with agent collaboration**
+    
+    ```
+    🤖 Multi-Agent Execution Dashboard
+    
+    ┌─ Blog System Implementation ─────────────────────────────┐
+    │                                                         │
+    │  Overall Progress: ████████████████░░░░  75%            │
+    │  Active Agents: 4/4    Elapsed: 1h 23m    ETA: 22m     │
+    │                                                         │
+    │  📊 Agent Status:                                       │
+    │  ├── Backend-Agent     ████████████████████ 100%       │
+    │  ├── Frontend-Agent    ████████████████░░░░  80%       │
+    │  ├── Database-Agent    ████████████████████ 100%       │
+    │  └── Integration-Agent ████████░░░░░░░░░░░░  40%       │
+    │                                                         │
+    │  🎯 Current Tasks:                                      │
+    │  ├── ✅ Database schema completed                       │
+    │  ├── ✅ Authentication API finished                     │
+    │  ├── ✅ Blog post CRUD operations done                  │
+    │  ├── 🔄 Comment system frontend (85% done)             │
+    │  ├── 🔄 Admin dashboard integration (60% done)         │
+    │  └── ⏳ End-to-end testing (queued)                    │
+    │                                                         │
+    │  💡 Recent Completions:                                │
+    │  ├── 14:23 Rich text editor integrated                 │
+    │  ├── 14:31 Image upload functionality added            │
+    │  ├── 14:45 Comment threading implemented               │
+    │  └── 14:52 Admin panel authentication secured         │
+    │                                                         │
+    │  Commands: [P]ause [S]tatus [D]etails [Q]uit          │
+    └─────────────────────────────────────────────────────────┘
+    ```
+  </Accordion>
+  
+  <Accordion title="Quality Assurance">
+    **Continuous validation during execution**
+    
+    ```
+    🔍 Autonomous Quality Assurance
+    
+    Real-time Validation:
+    ├── ✅ TypeScript compilation: No errors
+    ├── ✅ ESLint validation: All rules passed
+    ├── ✅ Unit tests: 47/47 passing
+    ├── ✅ Integration tests: 12/12 passing
+    ├── 🔄 E2E tests: 8/10 passing (2 in progress)
+    └── ⏳ Security scan: Scheduled after completion
+    
+    Code Quality Metrics:
+    ├── Test Coverage: 94% (exceeds 80% requirement)
+    ├── Cyclomatic Complexity: 3.2 avg (good)
+    ├── Duplication: 1.8% (excellent)
+    ├── Maintainability Index: 87 (very good)
+    └── Technical Debt Ratio: 2.1% (low)
+    
+    Automatic Fixes Applied:
+    ├── 🔧 Fixed 3 linting warnings
+    ├── 🔧 Resolved type inconsistency in Comment model
+    ├── 🔧 Optimized database query in post listing
+    ├── 🔧 Enhanced error handling in authentication
+    └── 🔧 Improved responsive design on mobile
+    
+    Performance Benchmarks:
+    ├── Page Load Time: 1.2s (excellent)
+    ├── API Response Time: 45ms avg (very good)
+    ├── Bundle Size: 234KB (within target)
+    └── Memory Usage: 38MB (optimal)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Autonomous Mode
+
+Autonomous mode enables AI-driven execution with minimal supervision.
+
+```bash
+# Start autonomous execution
+/auto "task description"
+
+# Examples
+/auto "create a todo application with React and Node.js"
+/auto "implement user authentication with JWT tokens"
+/auto "optimize application performance"
+```
+
+**Autonomous Features:**
+- Automatic task execution
+- Minimal user intervention
+- Progress tracking
+- Quality assurance
+
+**Control Commands:**
+```bash
+# View progress and status
+/stats      # Show usage statistics
+/agents     # Show agent status
+
+# Safety controls
+/dev-mode   # Enable developer mode
+/safe-mode  # Enable safe mode
+/clear-approvals  # Clear cached approvals
+```
+
+### VM Mode
+
+VM mode provides secure, isolated development environments using Docker containers.
+
+```bash
+# Switch to VM mode
+/vm
+/vm-mode
+
+# VM operations
+/vm-create https://github.com/user/repo.git  # Create new container
+/vm-list                                     # List active containers
+/vm-connect [container-id]                   # Connect to container
+/vm-create-pr [id] "title" "description"     # Create pull request
+```
+
+**VM Mode Features:**
+- Docker container isolation
+- Repository cloning and analysis
+- Secure development environment
+- Pull request creation capabilities
+- API key security proxy
+
+**VM Management Commands:**
+```bash
+/vm-stop [container-id]     # Stop container
+/vm-remove [container-id]   # Remove container
+/vm-logs [container-id]     # View container logs
+```
+
+### Best Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Rapid Development" icon="rocket">
+    - Prototyping and MVP development
+    - Boilerplate generation
+    - Routine implementation tasks
+    - Time-sensitive projects
+  </Card>
+  
+  <Card title="Large Scale Tasks" icon="building">
+    - Full-stack feature implementation
+    - System-wide refactoring
+    - Migration projects
+    - Performance optimization
+  </Card>
+</CardGroup>
+
+## Mode Comparison
+
+| Feature | Default Chat 💬 | Planning Mode 📋 | Autonomous Mode 🤖 | VM Mode 🖥️ |
+|---------|------------------|-------------------|-------------------|------------------|
+| **Supervision** | High | Medium | Low | Medium |
+| **Speed** | Slow | Medium | Fast | Medium |
+| **Learning** | High | Medium | Low | Medium |
+| **Complexity** | Simple-Medium | Medium-High | Any | Medium-High |
+| **Approval** | Every step | Major milestones | Safety checkpoints | Container operations |
+| **Security** | Standard | Standard | Reduced (dev-mode) | Maximum (isolated) |
+| **Best For** | Learning, precision | Complex planning | Rapid development | Secure analysis |
+
+## Real-World Examples
+
+### Mode Transition Workflow
+
+```bash
+# Start with planning for complex feature
+/plan "E-commerce checkout system with payment integration"
+
+# Review plan and then execute autonomously
+/auto "Implement the planned e-commerce checkout system"
+
+# Switch to chat mode for specific issues
+/default
+> "The payment validation is failing, can you help debug this?"
+```
+
+### Development Scenarios
+
+```bash
+# Learning new technology
+/default
+> "Teach me about React Server Components"
+
+# Complex project planning
+/plan "Microservices migration from monolith"
+
+# Rapid prototyping
+/auto "Create a simple task management app with React and Node.js"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="File Operations"
+    icon="folder"
+    href="/cli-reference/file-operations"
+  >
+    Learn file system operations across all modes
+  </Card>
+  <Card
+    title="Agent Management"
+    icon="users"
+    href="/cli-reference/agent-management"
+  >
+    Understand agent coordination in different modes
+  </Card>
+  <Card
+    title="Workflow Patterns"
+    icon="workflow"
+    href="/user-guide/workflow-patterns"
+  >
+    Discover optimal mode usage patterns
+  </Card>
+  <Card
+    title="Advanced Configuration"
+    icon="gear"
+    href="/advanced/configuration"
+  >
+    Configure advanced mode behaviors
+  </Card>
+</CardGroup>
+
+<Tip>
+  Master mode switching to optimize your development workflow. Use Default Chat for learning, Planning Mode for complex projects, and Autonomous Mode for rapid implementation.
+</Tip>

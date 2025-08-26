@@ -1,0 +1,758 @@
+---
+title: 'Commands Overview'
+description: 'Complete reference for all NikCLI commands'
+icon: 'terminal'
+---
+
+## Command Reference
+
+NikCLI provides over **70 powerful commands** organized into logical categories. All commands are prefixed with `/` and can be used during any chat session.
+
+<CardGroup cols={3}>
+  <Card title="Basic System" icon="computer">
+    **3 commands**: help, quit/exit, clear
+  </Card>
+  <Card title="Model Management" icon="brain">
+    **3 commands**: model switching and API keys
+  </Card>
+  <Card title="Configuration" icon="gear">
+    **6 commands**: settings and preferences
+  </Card>
+  <Card title="Session Management" icon="clock">
+    **4 commands**: session control and history
+  </Card>
+  <Card title="Agent Management" icon="users">
+    **9 commands**: AI agent orchestration
+  </Card>
+  <Card title="Planning & Todo" icon="clipboard-list">
+    **4 commands**: task planning and management
+  </Card>
+  <Card title="Security" icon="shield">
+    **4 commands**: security and permissions
+  </Card>
+  <Card title="File Operations" icon="folder">
+    **5 commands**: file system operations
+  </Card>
+  <Card title="Terminal" icon="terminal">
+    **12 commands**: command execution
+  </Card>
+  <Card title="VM Operations" icon="server">
+    **8 commands**: virtual machine management
+  </Card>
+  <Card title="AI Features" icon="magic">
+    **4 commands**: vision and image generation
+  </Card>
+  <Card title="Memory & Data" icon="database">
+    **8 commands**: memory and snapshot management
+  </Card>
+</CardGroup>
+
+## Quick Command Reference
+
+### Essential Commands
+
+<Tabs>
+  <Tab title="Getting Started">
+    ```bash
+    /help           # Show all available commands
+    /config         # View current configuration
+    /models         # List available AI models
+    /agents         # Show available AI agents
+    ```
+  </Tab>
+  
+  <Tab title="Development">
+    ```bash
+    /auto "task"    # Autonomous execution
+    /plan create    # Create execution plan
+    /read file.js   # Read file contents
+    /run npm test   # Execute terminal command
+    ```
+  </Tab>
+  
+  <Tab title="Session Control">
+    ```bash
+    /new            # Start new session
+    /clear          # Clear current session
+    /export         # Export session to markdown
+    /quit           # Exit NikCLI
+    ```
+  </Tab>
+</Tabs>
+
+## Command Categories
+
+### 🖥️ Basic System Commands
+
+| Command | Description | Usage | Example |
+|---------|-------------|-------|---------|
+| `/help` | Show help message with all available commands | `/help` | `/help` |
+| `/quit`, `/exit` | Exit the chat interface | `/quit` or `/exit` | `/quit` |
+| `/clear` | Clear current chat session | `/clear` | `/clear` |
+| `/default` | Switch to default conversational mode | `/default` | `/default` |
+
+### 🧠 Model Management
+
+<AccordionGroup>
+  <Accordion title="/model - Switch AI Models">
+    Switch between different AI models or show current model.
+    
+    ```bash
+    # Show current model
+    /model
+    
+    # Switch to specific model
+    /model claude-3-5-sonnet
+    /model gpt-4
+    /model gemini-pro
+    /model ollama:llama2
+    ```
+    
+    **Examples:**
+    - Anthropic: `claude-sonnet-4-20250514`, `claude-3-5-sonnet-latest`
+    - OpenAI: `gpt-5`, `gpt-4o-mini`
+    - Google: `gemini-1.5-pro`
+    - Ollama: `llama3.1:8b`, `mistral:7b`
+  </Accordion>
+  
+  <Accordion title="/models - List Available Models">
+    Display all available models with their status and capabilities.
+    
+    ```bash
+    /models
+    ```
+    
+    **Output includes:**
+    - Model name and provider
+    - Availability status
+    - Token limits
+    - Current API key status
+  </Accordion>
+  
+  <Accordion title="/set-key - Configure API Keys">
+    Set API keys for different AI providers.
+    
+    ```bash
+    /set-key anthropic sk-ant-api03-...
+    /set-key openai sk-...
+    /set-key google AIza...
+    ```
+    
+    <Warning>
+      API keys are read from your `~/.nikcli/config.json` or environment vars.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+### ⚙️ Configuration Commands
+
+<AccordionGroup>
+  <Accordion title="/config - View Configuration">
+    Display current NikCLI configuration settings.
+    
+    ```bash
+    /config
+    ```
+    
+    **Shows:**
+    - Default AI provider and model
+    - Security settings
+    - Session preferences
+    - Cache configuration
+  </Accordion>
+  
+  <Accordion title="/debug - Debug Configuration">
+    Debug API key configuration and test AI generation.
+    
+    ```bash
+    /debug
+    ```
+    
+    **Performs:**
+    - API key validation
+    - Connection testing
+    - Model availability check
+    - Configuration diagnostics
+  </Accordion>
+  
+  <Accordion title="/temp - Set Creativity Level">
+    Configure AI temperature (creativity/randomness level).
+    
+    ```bash
+    # Show current temperature
+    /temp
+    
+    # Set temperature (0.0 = focused, 2.0 = creative)
+    /temp 0.7
+    /temp 1.2
+    ```
+    
+    **Range:** 0.0 (most focused) to 2.0 (most creative)
+  </Accordion>
+  
+  <Accordion title="/history - Chat History Control">
+    Enable or disable chat history persistence.
+    
+    ```bash
+    # Show current status
+    /history
+    
+    # Enable/disable history
+    /history on
+    /history off
+    ```
+  </Accordion>
+  
+  <Accordion title="/system - System Prompt">
+    Set or view the system prompt for the current session.
+    
+    ```bash
+    # Show current system prompt
+    /system
+    
+    # Set custom system prompt
+    /system "You are a senior React developer specializing in TypeScript"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 🕐 Session Management
+
+<AccordionGroup>
+  <Accordion title="/new - Start New Session">
+    Create a new chat session with optional title.
+    
+    ```bash
+    # Start new session
+    /new
+    
+    # Start with title
+    /new "React Authentication Project"
+    /new "API Development"
+    ```
+  </Accordion>
+  
+  <Accordion title="/sessions - List Sessions">
+    Display all saved chat sessions.
+    
+    ```bash
+    /sessions
+    ```
+    
+    **Shows:**
+    - Session ID and title
+    - Creation date
+    - Message count
+    - Last activity
+  </Accordion>
+  
+  <Accordion title="/export - Export Session">
+    Export session history to markdown format.
+    
+    ```bash
+    # Export current session
+    /export
+    
+    # Export specific session
+    /export abc123
+    ```
+    
+    **Output:** Markdown file with complete conversation history
+  </Accordion>
+  
+  <Accordion title="/stats - Usage Statistics">
+    Show usage statistics and metrics.
+    
+    ```bash
+    /stats
+    ```
+    
+    **Includes:**
+    - Token usage by provider
+    - Session counts
+    - Command usage frequency
+    - Time spent in different modes
+  </Accordion>
+</AccordionGroup>
+
+### 👥 Agent Management
+
+<AccordionGroup>
+  <Accordion title="/agents - List Available Agents">
+    Display all available AI agents and their capabilities.
+    
+    ```bash
+    /agents
+    ```
+    
+    **Shows:**
+    - Agent name and specialization
+    - Current status (active/idle)
+    - Capabilities and tools
+  </Accordion>
+  
+  <Accordion title="/agent - Run Specific Agent">
+    Execute a specific agent with a given task.
+    
+    ```bash
+    /agent universal-agent "create a responsive navigation component"
+    /agent vm-agent "setup development environment"
+    ```
+  </Accordion>
+  
+  <Accordion title="/auto - Autonomous Execution">
+    Enable autonomous execution for complex tasks.
+    
+    ```bash
+    /auto "Create a complete React todo app with backend API"
+    /auto "Implement user authentication with JWT tokens"
+    /auto "Add real-time chat functionality to the application"
+    ```
+    
+    **Features:**
+    - Automatic task breakdown
+    - Autonomous execution
+    - Progress tracking
+  </Accordion>
+  
+  <Accordion title="/parallel - Parallel Agent Execution">
+    Run agents in parallel execution mode.
+    
+    ```bash
+    /parallel "create a login component with validation"
+    ```
+  </Accordion>
+  
+  <Accordion title="/factory - Agent Factory Dashboard">
+    Open the agent factory for creating and managing custom agents.
+    
+    ```bash
+    /factory
+    ```
+  </Accordion>
+  
+  <Accordion title="/create-agent - Create Custom Agent">
+    Create a new specialized agent for specific tasks.
+    
+    ```bash
+    /create-agent "React Testing Expert"
+    /create-agent "Database Optimization Specialist"
+    ```
+  </Accordion>
+  
+  <Accordion title="/launch-agent - Launch from Blueprint">
+    Launch an agent from a saved blueprint configuration.
+    
+    ```bash
+    /launch-agent blueprint-id "optimize performance"
+    ```
+  </Accordion>
+  
+  <Accordion title="/blueprints - Manage Agent Blueprints">
+    List and manage agent blueprints.
+    
+    ```bash
+    /blueprints
+    /blueprint [id]
+    /delete-blueprint [id]
+    /export-blueprint [id]
+    /import-blueprint [file]
+    /search-blueprints [query]
+    ```
+  </Accordion>
+  
+  <Accordion title="/context - Workspace Context">
+    Select or view workspace context paths for agents.
+    
+    ```bash
+    # Show current context
+    /context
+    
+    # Set context paths  
+    /context src/ tests/
+    ```
+  </Accordion>
+  
+  <Accordion title="/stream - Agent Stream Dashboard">
+    View live agent activity streams.
+    
+    ```bash
+    /stream
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 📋 Planning & Todo Commands
+
+<AccordionGroup>
+  <Accordion title="/plan - Execution Planning">
+    Create and manage execution plans for complex tasks.
+    
+    ```bash
+    # Switch to planning mode
+    /plan
+    
+    # Create plan with task description
+    /plan "Build authentication system"
+    ```
+    
+    **Plan Features:**
+    - Automatic task breakdown
+    - Progress monitoring
+    - Strategic planning approach
+  </Accordion>
+  
+  <Accordion title="/todo - Todo Management">
+    Manage todo lists and task tracking.
+    
+    ```bash
+    /todo
+    ```
+  </Accordion>
+  
+  <Accordion title="/todos - Quick Todo List">
+    Alias for `/todo` - quickly view todo items.
+    
+    ```bash
+    /todos
+    ```
+  </Accordion>
+  
+  <Accordion title="/approval - Approval Management">
+    Manage approval system for operations.
+    
+    ```bash
+    /approval
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 🛡️ Security Commands
+
+<AccordionGroup>
+  <Accordion title="/security - Security Management">
+    Manage security settings and view current security status.
+    
+    ```bash
+    /security
+    ```
+  </Accordion>
+  
+  <Accordion title="/dev-mode - Developer Mode">
+    Enable developer mode with reduced security restrictions.
+    
+    ```bash
+    /dev-mode
+    ```
+    
+    <Warning>
+      Developer mode reduces security restrictions. Use with caution in production environments.
+    </Warning>
+  </Accordion>
+  
+  <Accordion title="/safe-mode - Maximum Security">
+    Enable safe mode with maximum security restrictions.
+    
+    ```bash
+    /safe-mode
+    ```
+    
+    **Enables:**
+    - Maximum security restrictions
+    - Enhanced approval requirements
+    - Limited file system access
+  </Accordion>
+  
+  <Accordion title="/clear-approvals - Clear Session Approvals">
+    Clear all cached approvals for the current session.
+    
+    ```bash
+    /clear-approvals
+    ```
+    
+    **Effect:** Requires fresh approval for previously approved operations
+  </Accordion>
+</AccordionGroup>
+
+### 🖥️ VM Operations
+
+<AccordionGroup>
+  <Accordion title="/vm - VM Mode Control">
+    Switch to virtual machine mode for isolated development.
+    
+    ```bash
+    /vm
+    /vm-mode
+    ```
+  </Accordion>
+  
+  <Accordion title="/vm-create - Create VM Container">
+    Create a new VM container from repository URL.
+    
+    ```bash
+    /vm-create https://github.com/user/repo.git
+    ```
+  </Accordion>
+  
+  <Accordion title="/vm-list - List VM Containers">
+    Display all active VM containers.
+    
+    ```bash
+    /vm-list
+    ```
+  </Accordion>
+  
+  <Accordion title="/vm-connect - Connect to VM">
+    Connect to a specific VM container.
+    
+    ```bash
+    /vm-connect [container-id]
+    ```
+  </Accordion>
+  
+  <Accordion title="/vm-create-pr - Create Pull Request">
+    Create pull request from VM container changes.
+    
+    ```bash
+    /vm-create-pr [container-id] "PR Title" "Description"
+    ```
+  </Accordion>
+  
+  <Accordion title="/vm-stop - Stop VM Container">
+    Stop a running VM container.
+    
+    ```bash
+    /vm-stop [container-id]
+    ```
+  </Accordion>
+  
+  <Accordion title="/vm-remove - Remove VM Container">
+    Remove a VM container completely.
+    
+    ```bash
+    /vm-remove [container-id]
+    ```
+  </Accordion>
+  
+  <Accordion title="/vm-logs - View VM Logs">
+    View logs from a VM container.
+    
+    ```bash
+    /vm-logs [container-id]
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 🪄 AI Features
+
+<AccordionGroup>
+  <Accordion title="/analyze-image - Vision Analysis">
+    Analyze images using AI vision capabilities.
+    
+    ```bash
+    /analyze-image path/to/image.jpg
+    /vision path/to/screenshot.png
+    ```
+  </Accordion>
+  
+  <Accordion title="/generate-image - Image Generation">
+    Generate images from text descriptions.
+    
+    ```bash
+    /generate-image "A futuristic cityscape at sunset"
+    /create-image "Modern web application interface"
+    ```
+  </Accordion>
+  
+  <Accordion title="/diagnostic - System Diagnostics">
+    Run system diagnostics and monitoring.
+    
+    ```bash
+    /diagnostic
+    /diag
+    /monitor
+    /diag-status
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 🗄️ Memory & Data Management
+
+<AccordionGroup>
+  <Accordion title="/remember - Store Information">
+    Store information in long-term memory.
+    
+    ```bash
+    /remember "Important project details or facts"
+    ```
+  </Accordion>
+  
+  <Accordion title="/recall - Retrieve Information">
+    Search and retrieve stored memories.
+    
+    ```bash
+    /recall "search query for stored information"
+    ```
+  </Accordion>
+  
+  <Accordion title="/memory - Memory Management">
+    Manage memory system and stored information.
+    
+    ```bash
+    /memory
+    ```
+  </Accordion>
+  
+  <Accordion title="/forget - Remove Information">
+    Remove information from memory.
+    
+    ```bash
+    /forget [memory-id or query]
+    ```
+  </Accordion>
+  
+  <Accordion title="/snapshot - Create Project Snapshot">
+    Create snapshot of current project state.
+    
+    ```bash
+    /snapshot "Before major refactoring"
+    /snap "Pre-deployment state"
+    ```
+  </Accordion>
+  
+  <Accordion title="/restore - Restore from Snapshot">
+    Restore project to previous snapshot state.
+    
+    ```bash
+    /restore [snapshot-id]
+    ```
+  </Accordion>
+  
+  <Accordion title="/snapshots - List Snapshots">
+    Display all available project snapshots.
+    
+    ```bash
+    /snapshots
+    ```
+  </Accordion>
+  
+  <Accordion title="/index - Index Management">
+    Manage project indexing for search and context.
+    
+    ```bash
+    /index
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Operating Modes
+
+NikCLI supports three primary operating modes accessible via `Shift+Tab`:
+
+<Tabs>
+  <Tab title="💬 Default Chat">
+    **Standard Mode**
+    - Interactive conversation
+    - Manual confirmation for operations
+    - Step-by-step guidance
+    - Best for learning and experimentation
+  </Tab>
+  
+  <Tab title="📋 Planning Mode">
+    **Strategic Planning**
+    - Comprehensive execution plans
+    - Todo.md file generation
+    - Approval workflows
+    - Best for complex projects
+  </Tab>
+  
+  <Tab title="🤖 Auto Mode">
+    **Autonomous Execution**
+    - Automatic task execution
+    - Minimal user intervention
+    - Streamlined workflows
+    - Best for rapid development
+  </Tab>
+</Tabs>
+
+## Keyboard Shortcuts
+
+| Shortcut | Description |
+|----------|-------------|
+| `Ctrl+C` | Stop current operation or streaming response |
+| `/` | Open command menu (when not processing) |
+| `Shift+Tab` | Cycle between operating modes |
+| `ESC` | Return to default chat mode |
+| `Tab` | Auto-complete commands and file paths |
+
+## Command Tips
+
+<CardGroup cols={2}>
+  <Card title="Auto-completion" icon="magic">
+    Use `Tab` for command and file path completion
+    
+    ```bash
+    /read src/comp[Tab] → /read src/components/
+    ```
+  </Card>
+  
+  <Card title="Command History" icon="history">
+    Use up/down arrows to navigate command history
+    
+    Previous commands are automatically saved
+  </Card>
+  
+  <Card title="Contextual Help" icon="question">
+    Add `--help` to any command for detailed usage
+    
+    ```bash
+    /plan --help
+    /agent --help
+    ```
+  </Card>
+  
+  <Card title="Command Aliases" icon="arrows-repeat">
+    Many commands have shorter aliases
+    
+    - `/sh` → `/run`
+    - `/todos` → `/todo list`
+    - `/exit` → `/quit`
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Mode Control"
+    icon="toggle-on"
+    href="/cli-reference/mode-control"
+  >
+    Learn about operating modes and mode switching
+  </Card>
+  <Card
+    title="File Operations"
+    icon="folder"
+    href="/cli-reference/file-operations"
+  >
+    Master file system operations and management
+  </Card>
+  <Card
+    title="Agent Management"
+    icon="users"
+    href="/cli-reference/agent-management"
+  >
+    Deep dive into AI agent orchestration
+  </Card>
+  <Card
+    title="Terminal Operations"
+    icon="terminal"
+    href="/cli-reference/terminal-ops"
+  >
+    Execute and manage terminal commands safely
+  </Card>
+</CardGroup>
+
+<Tip>
+  Use `/help` at any time to see all available commands. Commands are context-aware and will show relevant options based on your current project and mode.
+</Tip>

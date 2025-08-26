@@ -1,0 +1,425 @@
+---
+title: 'Agent Management'
+description: 'Complete guide to managing AI agents in NikCLI'
+icon: 'users'
+---
+
+## Overview
+
+NikCLI's agent management system provides control over AI agents, enabling you to execute tasks with specialized agents, create custom agents, and manage agent blueprints. The system includes two registered agents: the Universal Agent for comprehensive tasks and the VM Agent for isolated development.
+
+<CardGroup cols={2}>
+  <Card title="Universal Agent" icon="robot">
+    Comprehensive full-stack development agent with 64 capabilities
+  </Card>
+  <Card title="VM Agent" icon="server">
+    Secure virtualized development environment
+  </Card>
+  <Card title="Custom Agents" icon="wrench">
+    Create and deploy specialized agents from blueprints
+  </Card>
+  <Card title="Blueprint Management" icon="blueprint">
+    Manage agent configurations and templates
+  </Card>
+</CardGroup>
+
+## Core Agent Commands
+
+### `/agents` - List Available Agents
+
+Display all available agents and their current status.
+
+```bash
+# List all available agents
+/agents
+```
+
+**Output includes:**
+- Agent name and specialization
+- Current status (active/idle)
+- Basic capabilities overview
+
+**Available Agents:**
+- `universal-agent` - Full-stack development with 64 capabilities
+- `vm-agent` - Secure virtualized development environment
+
+### `/agent` - Execute with Specific Agent
+
+Execute tasks using a specific agent.
+
+<Tabs>
+  <Tab title="Universal Agent">
+    ```bash
+    # Execute with universal agent
+    /agent universal-agent "create a React login component"
+    /agent universal-agent "optimize database queries"
+    /agent universal-agent "implement API authentication"
+    ```
+    
+    **Universal Agent Capabilities:**
+    - Full-stack development (React, Node.js, TypeScript)
+    - Database operations and optimization
+    - API development and integration
+    - Testing and debugging
+    - DevOps and deployment
+    - Code review and refactoring
+  </Tab>
+  
+  <Tab title="VM Agent">
+    ```bash
+    # Execute with VM agent for isolated development
+    /agent vm-agent "setup development environment"
+    /agent vm-agent "clone and analyze repository"
+    /agent vm-agent "create pull request with changes"
+    ```
+    
+    **VM Agent Features:**
+    - Docker container isolation
+    - Repository cloning and analysis
+    - Secure development environment
+    - Pull request creation
+  </Tab>
+</Tabs>
+
+### `/auto` - Autonomous Execution
+
+Enable autonomous mode for complex tasks with minimal supervision.
+
+```bash
+# Simple autonomous task
+/auto "create a todo application with React and Node.js"
+
+# Complex autonomous project
+/auto "build an e-commerce platform with authentication and payment processing"
+
+# Autonomous optimization
+/auto "identify and fix all performance issues in the project"
+```
+
+**Autonomous Features:**
+- Automatic task breakdown
+- Progress tracking
+- Quality assurance
+- Minimal user intervention required
+
+### `/parallel` - Parallel Execution Mode
+
+Execute tasks using parallel processing capabilities.
+
+```bash
+/parallel "create full-stack authentication system"
+```
+
+## Agent Factory and Blueprints
+
+### `/factory` - Agent Factory Dashboard
+
+Access the agent factory for creating and managing custom agents.
+
+```bash
+/factory
+```
+
+**Factory Features:**
+- Agent creation interface
+- Blueprint management
+- Agent configuration tools
+
+### `/create-agent` - Create Custom Agent
+
+Create specialized agents for specific domains or tasks.
+
+```bash
+# Create domain-specific agent
+/create-agent "React Testing Expert"
+/create-agent "Database Optimization Specialist"  
+/create-agent "API Security Analyst"
+```
+
+**Agent Creation Process:**
+1. Define agent specialization
+2. Configure capabilities and tools
+3. Set operational parameters
+4. Deploy and activate agent
+
+### `/launch-agent` - Launch from Blueprint
+
+Deploy agents from pre-configured blueprints.
+
+```bash
+# Launch from saved blueprint
+/launch-agent blueprint-id "implement user authentication"
+
+# Launch with specific task
+/launch-agent react-testing-blueprint "create comprehensive test suite"
+```
+
+## Blueprint Management
+
+### `/blueprints` - List All Blueprints
+
+Display all available agent blueprints.
+
+```bash
+/blueprints
+```
+
+**Blueprint Information:**
+- Blueprint ID and name
+- Agent specialization
+- Creation date
+- Usage statistics
+
+### `/blueprint` - View Specific Blueprint
+
+View details of a specific blueprint.
+
+```bash
+/blueprint [blueprint-id]
+```
+
+### `/delete-blueprint` - Remove Blueprint
+
+Delete a specific agent blueprint.
+
+```bash
+/delete-blueprint [blueprint-id]
+```
+
+### `/export-blueprint` - Export Blueprint
+
+Export blueprint configuration for sharing or backup.
+
+```bash
+/export-blueprint [blueprint-id]
+```
+
+### `/import-blueprint` - Import Blueprint
+
+Import a blueprint configuration from file.
+
+```bash
+/import-blueprint [file-path]
+```
+
+### `/search-blueprints` - Search Blueprints
+
+Search blueprints by name, specialization, or capabilities.
+
+```bash
+/search-blueprints "react testing"
+/search-blueprints "backend optimization"
+```
+
+## Context and Streaming
+
+### `/context` - Workspace Context Management
+
+Manage workspace context for focused agent operations.
+
+```bash
+# Show current context
+/context
+
+# Set specific paths
+/context src/components/ src/hooks/
+
+# Set context with multiple directories
+/context src/ tests/ docs/
+```
+
+**Context Features:**
+- Focused codebase analysis
+- Improved agent performance
+- Targeted operations
+- Reduced processing overhead
+
+### `/stream` - Agent Activity Streaming
+
+Monitor live agent activity and execution streams.
+
+```bash
+# View agent stream dashboard
+/stream
+
+# Monitor specific operations
+/stream [operation-id]
+```
+
+**Stream Features:**
+- Real-time agent activity monitoring
+- Progress tracking
+- Error detection and reporting
+- Performance metrics
+
+## Agent System Architecture
+
+### Registered Agents
+
+NikCLI uses a focused approach with two primary registered agents:
+
+<Tabs>
+  <Tab title="Universal Agent">
+    **Full-Stack Development Specialist**
+    
+    **64 Core Capabilities:**
+    - **Frontend**: React, Next.js, TypeScript, JavaScript, HTML, CSS
+    - **Backend**: Node.js, API development, database operations
+    - **DevOps**: CI/CD, Docker, deployment, monitoring
+    - **Testing**: Unit tests, integration tests, e2e testing
+    - **Code Quality**: Review, refactoring, optimization
+    
+    **Operational Mode:**
+    - Fully autonomous operation
+    - Maximum 3 concurrent tasks
+    - Complete file system access (security-restricted)
+    - Command execution with approval system integration
+  </Tab>
+  
+  <Tab title="VM Agent">
+    **Secure Virtualized Development**
+    
+    **Key Features:**
+    - Docker container isolation
+    - Repository analysis in isolated environment
+    - Pull request creation capabilities
+    - API key security proxy
+    - Resource and token budget management
+    
+    **Use Cases:**
+    - Secure code analysis
+    - Isolated development environments
+    - Safe experimentation
+    - Repository migration and analysis
+  </Tab>
+</Tabs>
+
+### Agent Communication
+
+Agents communicate through:
+- **Event Bus**: Inter-agent communication
+- **Task Queue**: Work distribution
+- **Context Sharing**: Workspace information
+- **Progress Reporting**: Status updates
+
+## Best Practices
+
+### Agent Selection Guidelines
+
+<CardGroup cols={2}>
+  <Card title="Universal Agent" icon="robot">
+    **Use for:**
+    - General development tasks
+    - Full-stack implementations
+    - Code optimization and review
+    - Multi-technology projects
+  </Card>
+  
+  <Card title="VM Agent" icon="server">
+    **Use for:**
+    - Repository analysis
+    - Isolated development
+    - Security-sensitive operations
+    - Environment setup
+  </Card>
+</CardGroup>
+
+### Performance Optimization
+
+- **Context Management**: Set specific workspace contexts to improve performance
+- **Task Scoping**: Define clear, focused tasks for better results
+- **Resource Monitoring**: Use `/stream` to monitor agent activity
+- **Blueprint Reuse**: Create and reuse blueprints for common tasks
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Agent Not Responding">
+    **Problem:** Agent fails to complete tasks or becomes unresponsive
+    
+    **Solutions:**
+    ```bash
+    # Check agent status
+    /agents
+    
+    # View debug information
+    /debug
+    
+    # Clear context and retry
+    /clear
+    /agent universal-agent "retry task"
+    ```
+  </Accordion>
+  
+  <Accordion title="Poor Task Results">
+    **Problem:** Agent produces suboptimal results
+    
+    **Solutions:**
+    ```bash
+    # Set specific context
+    /context src/components/
+    
+    # Use more detailed task description
+    /agent universal-agent "create React login component with TypeScript, 
+    form validation, error handling, and responsive design"
+    
+    # Try autonomous mode for complex tasks
+    /auto "comprehensive task description with requirements"
+    ```
+  </Accordion>
+  
+  <Accordion title="Blueprint Issues">
+    **Problem:** Blueprint creation or deployment fails
+    
+    **Solutions:**
+    ```bash
+    # List available blueprints
+    /blueprints
+    
+    # Search for similar blueprints
+    /search-blueprints "relevant keywords"
+    
+    # Create new blueprint with specific parameters
+    /create-agent "Descriptive Agent Name"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Mode Control"
+    icon="toggle-on"
+    href="/cli-reference/mode-control"
+  >
+    Learn about operating modes and transitions
+  </Card>
+  <Card
+    title="File Operations"
+    icon="folder"
+    href="/cli-reference/file-operations"
+  >
+    Master file system operations with agents
+  </Card>
+  <Card
+    title="Terminal Operations"
+    icon="terminal"
+    href="/cli-reference/terminal-ops"
+  >
+    Execute commands safely through agents
+  </Card>
+  <Card
+    title="Universal Agent Guide"
+    icon="robot"
+    href="/agent-system/universal-agent"
+  >
+    Deep dive into Universal Agent capabilities
+  </Card>
+</CardGroup>
+
+<Tip>
+  Start with `/agents` to see available agents, then use `/agent universal-agent "task"` for most development tasks. For complex projects, try `/auto "description"` to enable autonomous execution.
+</Tip>

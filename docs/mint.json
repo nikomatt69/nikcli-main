@@ -1,0 +1,141 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "NikCLI Documentation",
+  "logo": {
+    "dark": "/logo/logo.png",
+    "light": "/logo/logo.png"
+  },
+  "favicon": "/logo/logo.png",
+  "colors": {
+    "primary": "#4EC5F1",
+    "light": "#4EC5F1",
+    "dark": "#1f39ff",
+    "anchors": {
+      "from": "#4EC5F1",
+      "to": "#1f39ff"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "https://github.com/nikomatt69/agent-cli/issues"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "GitHub",
+    "url": "https://github.com/nikomatt69/agent-cli"
+  },
+  "tabs": [
+    {
+      "name": "User Guide",
+      "url": "user-guide"
+    },
+    {
+      "name": "CLI Reference",
+      "url": "cli-reference"
+    },
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    },
+    {
+      "name": "Examples",
+      "url": "examples"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "introduction",
+        "quickstart/installation",
+        "quickstart/first-steps",
+        "quickstart/configuration"
+      ]
+    },
+    {
+      "group": "User Guide",
+      "pages": [
+        "user-guide/overview",
+        "user-guide/chat-interface",
+        "user-guide/autonomous-mode",
+        "user-guide/workflow-patterns"
+      ]
+    },
+    {
+      "group": "CLI Commands",
+      "pages": [
+        "cli-reference/commands-overview",
+        "cli-reference/mode-control",
+        "cli-reference/file-operations",
+        "cli-reference/terminal-ops",
+        "cli-reference/project-ops",
+        "cli-reference/agent-management",
+        "cli-reference/session-management",
+        "cli-reference/configuration",
+        "cli-reference/mcp-protocol",
+        "cli-reference/advanced-features"
+      ]
+    },
+    {
+      "group": "Agent System",
+      "pages": [
+        "agent-system/architecture",
+        "agent-system/universal-agent",
+        "agent-system/specialized-agents",
+        "agent-system/orchestration",
+        "agent-system/custom-agents"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/core-apis"
+      ]
+    },
+    {
+      "group": "Advanced",
+      "pages": [
+        "advanced/token-management"
+      ]
+    },
+    {
+      "group": "Troubleshooting",
+      "pages": [
+        "troubleshooting/common-issues",
+        "troubleshooting/faq"
+      ]
+    },
+    {
+      "group": "Examples",
+      "pages": [
+        "examples/basic-workflows",
+        "examples/advanced-automation"
+      ]
+    },
+    {
+      "group": "Contributing",
+      "pages": [
+        "contributing/development"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/nikomatt69/agent-cli",
+    "linkedin": "https://www.linkedin.com/in/nicolamattioli95/"
+  },
+  "search": {
+    "prompt": "Search NikCLI documentation..."
+  },
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true,
+    "raiseIssue": true
+  },
+  "api": {
+    "baseUrl": "https://nikcli.cadcamfun.xyz",
+    "auth": {
+      "method": "bearer"
+    }
+  }
+}

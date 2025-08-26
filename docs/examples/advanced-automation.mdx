@@ -1,0 +1,1041 @@
+---
+title: 'Advanced Automation Examples'
+description: 'Real-world examples of complex automation workflows using NikCLI'
+icon: 'robot'
+---
+
+## Overview
+
+This guide showcases advanced automation scenarios using NikCLI's powerful agent orchestration capabilities. These examples demonstrate how to handle complex, multi-step development tasks with minimal human intervention.
+
+<CardGroup cols={2}>
+  <Card title="Full-Stack Applications" icon="layers">
+    Complete application development from concept to deployment
+  </Card>
+  <Card title="Legacy Modernization" icon="arrows-rotate">
+    Automated migration and modernization of existing systems
+  </Card>
+  <Card title="DevOps Automation" icon="gears">
+    Infrastructure setup, CI/CD, and deployment automation
+  </Card>
+  <Card title="Quality Assurance" icon="shield-check">
+    Automated testing, security audits, and code quality improvements
+  </Card>
+</CardGroup>
+
+## Full-Stack Application Development
+
+### E-Commerce Platform Creation
+
+<Tabs>
+  <Tab title="Complete Platform Setup">
+    ```bash
+    # Comprehensive e-commerce platform development
+    /auto "Create a complete e-commerce platform with the following requirements:
+    
+    Frontend:
+    - Next.js 14 with TypeScript and App Router
+    - Tailwind CSS for styling with dark mode support
+    - Product catalog with search and filtering
+    - Shopping cart and checkout process
+    - User authentication and profile management
+    - Order history and tracking
+    - Responsive design for mobile and desktop
+    
+    Backend:
+    - Node.js with Express and TypeScript
+    - PostgreSQL database with Prisma ORM
+    - JWT-based authentication with refresh tokens
+    - RESTful API with OpenAPI documentation
+    - Payment processing with Stripe integration
+    - Email notifications with SendGrid
+    - Image upload with AWS S3 integration
+    - Rate limiting and security middleware
+    
+    Database:
+    - User management (auth, profiles, preferences)
+    - Product catalog (categories, inventory, pricing)
+    - Order management (cart, orders, payments)
+    - Review and rating system
+    - Admin panel data structures
+    
+    DevOps:
+    - Docker containers for all services
+    - Docker Compose for local development
+    - GitHub Actions CI/CD pipeline
+    - Automated testing (unit, integration, e2e)
+    - Environment-specific configurations
+    - Health checks and monitoring
+    - Deployment to AWS ECS with RDS
+    
+    Quality & Security:
+    - Comprehensive test coverage (80%+)
+    - Security best practices implementation
+    - Performance optimization
+    - Accessibility compliance (WCAG 2.1 AA)
+    - SEO optimization
+    - Error handling and logging
+    
+    Please create this step-by-step with proper project structure, documentation, and deployment instructions."
+    ```
+    
+    **Expected Workflow:**
+    1. **Project Planning** (Universal Agent): Architecture design, tech stack selection
+    2. **Database Design** (Backend Agent): Schema creation, relationships, migrations
+    3. **Backend Development** (Backend Agent): API endpoints, authentication, business logic
+    4. **Frontend Development** (React Expert): UI components, state management, integration
+    5. **Integration** (Universal Agent): Frontend-backend integration, testing
+    6. **Security Review** (Security Expert): Security audit, vulnerability assessment
+    7. **Performance Optimization** (Performance Expert): Speed optimization, caching
+    8. **Testing Implementation** (Testing Expert): Test suite creation, coverage analysis
+    9. **DevOps Setup** (DevOps Agent): Containerization, CI/CD, deployment
+    10. **Documentation** (Universal Agent): README, API docs, deployment guide
+  </Tab>
+  
+  <Tab title="Real-Time Features Addition">
+    ```bash
+    # Add real-time features to existing e-commerce platform
+    /auto "Enhance the existing e-commerce platform with real-time features:
+    
+    Real-Time Chat Support:
+    - WebSocket-based customer support chat
+    - Admin dashboard for support agents
+    - Chat history and ticket management
+    - Automated bot responses for common questions
+    - File sharing and image upload in chat
+    
+    Live Inventory Updates:
+    - Real-time stock level updates across all clients
+    - Low inventory alerts for administrators
+    - Automatic product availability updates
+    - Live pricing changes and promotions
+    
+    Order Tracking:
+    - Real-time order status updates
+    - Live delivery tracking integration
+    - Push notifications for order updates
+    - SMS and email notifications
+    
+    Live Analytics Dashboard:
+    - Real-time sales metrics and KPIs
+    - Live user activity tracking
+    - Revenue and conversion rate monitoring
+    - Real-time report generation
+    
+    Implementation Requirements:
+    - Use Socket.IO for WebSocket communication
+    - Redis for session management and pub/sub
+    - Background job processing with Bull
+    - Real-time database change tracking
+    - Mobile push notifications
+    - Performance monitoring and scaling considerations
+    
+    Ensure backward compatibility and maintain existing functionality."
+    ```
+  </Tab>
+</Tabs>
+
+### SaaS Application Development
+
+<AccordionGroup>
+  <Accordion title="Multi-Tenant Project Management SaaS">
+    ```bash
+    # Complete SaaS project management application
+    /auto "Build a comprehensive multi-tenant project management SaaS application:
+    
+    Core Features:
+    - Multi-tenant architecture with data isolation
+    - Team and user management with role-based permissions
+    - Project creation and management with templates
+    - Task management with Kanban and list views
+    - Time tracking and reporting
+    - File sharing and document management
+    - Team collaboration tools (comments, mentions, notifications)
+    - Gantt charts and project timeline visualization
+    - Resource allocation and capacity planning
+    - Integration with popular tools (Slack, GitHub, Jira)
+    
+    Technical Stack:
+    - Frontend: React 18 with TypeScript, Vite, and React Query
+    - Backend: Node.js with Fastify and TypeScript
+    - Database: PostgreSQL with row-level security for multi-tenancy
+    - Authentication: Auth0 integration with SSO support
+    - File Storage: AWS S3 with CDN
+    - Real-time: WebSocket for live collaboration
+    - Search: Elasticsearch for advanced search capabilities
+    - Email: Transactional emails with templates
+    
+    Business Features:
+    - Subscription billing with Stripe
+    - Usage-based pricing tiers
+    - Free trial with feature limitations
+    - Admin dashboard for system management
+    - Analytics and reporting for customers
+    - White-label options for enterprise customers
+    
+    Enterprise Requirements:
+    - GDPR and SOC 2 compliance
+    - Single Sign-On (SSO) with SAML/OIDC
+    - Advanced security features
+    - Audit logging and compliance reporting
+    - 99.9% uptime SLA with monitoring
+    - Scalable infrastructure design
+    
+    Include comprehensive testing, documentation, and deployment automation."
+    ```
+    
+    **Advanced Features Implemented:**
+    - Tenant isolation at database level
+    - Dynamic subscription management
+    - Advanced permission system
+    - Real-time collaborative editing
+    - Comprehensive audit trails
+    - White-label customization
+    - Advanced reporting and analytics
+  </Accordion>
+  
+  <Accordion title="AI-Powered Content Management SaaS">
+    ```bash
+    # AI-powered content management and optimization SaaS
+    /auto "Create an AI-powered content management SaaS with advanced automation:
+    
+    Content Management:
+    - WYSIWYG editor with collaborative editing
+    - AI-powered content generation and suggestions
+    - Automated SEO optimization and scoring
+    - Content scheduling and publishing workflows
+    - Multi-channel publishing (blog, social media, newsletters)
+    - Content performance analytics and insights
+    - A/B testing for content optimization
+    - Automated content translation to multiple languages
+    
+    AI Features:
+    - Content idea generation based on trends
+    - Automated content writing assistance
+    - Image generation and optimization
+    - Content sentiment analysis
+    - Automated tagging and categorization
+    - Plagiarism detection and originality scoring
+    - Content readability optimization
+    - Automated social media post creation
+    
+    Technical Implementation:
+    - Frontend: Next.js 14 with TypeScript and Tailwind CSS
+    - Backend: Python FastAPI with async/await
+    - Database: PostgreSQL with vector extensions for AI features
+    - AI Integration: OpenAI GPT-4, DALL-E, and custom models
+    - Search: Vector search with embeddings
+    - File Processing: Background jobs with Celery
+    - Caching: Redis for performance optimization
+    - CDN: CloudFront for global content delivery
+    
+    Business Logic:
+    - Usage-based pricing for AI features
+    - Team collaboration with granular permissions
+    - Brand management and consistency checking
+    - Content workflow automation
+    - Integration with popular CMS platforms
+    - API for custom integrations
+    
+    Include advanced monitoring, security, and compliance features."
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Legacy System Modernization
+
+### Enterprise Application Migration
+
+<Tabs>
+  <Tab title="Monolith to Microservices">
+    ```bash
+    # Automated legacy monolith modernization
+    /auto "Modernize a legacy PHP monolith application to microservices architecture:
+    
+    Current State Analysis:
+    - Large PHP application with mixed MVC patterns
+    - MySQL database with complex relationships  
+    - jQuery-based frontend with server-side rendering
+    - Tightly coupled business logic
+    - No automated testing
+    - Manual deployment process
+    - Performance and scaling issues
+    
+    Modernization Goals:
+    - Break down into logical microservices
+    - Implement event-driven architecture
+    - Modern frontend with React/TypeScript
+    - Automated CI/CD pipelines
+    - Comprehensive testing strategy
+    - Container-based deployment
+    - Observability and monitoring
+    
+    Migration Strategy:
+    1. Code Analysis and Service Boundaries:
+       - Analyze existing codebase for service boundaries
+       - Identify data dependencies and relationships
+       - Create migration roadmap with phases
+       - Risk assessment and mitigation strategies
+    
+    2. Database Migration:
+       - Design new database schema per service
+       - Create data migration scripts
+       - Implement gradual data migration strategy
+       - Ensure data consistency during transition
+    
+    3. Service Implementation:
+       - User Management Service (Node.js + TypeScript)
+       - Product Catalog Service (Python + FastAPI)
+       - Order Management Service (Java + Spring Boot)
+       - Payment Processing Service (Node.js + TypeScript)
+       - Notification Service (Go)
+    
+    4. Frontend Modernization:
+       - React application with TypeScript
+       - Micro-frontend architecture
+       - Component library and design system
+       - Modern state management
+       - Progressive migration strategy
+    
+    5. Integration Layer:
+       - API Gateway with Kong or AWS API Gateway
+       - Event streaming with Apache Kafka
+       - Service mesh with Istio
+       - Circuit breakers and resilience patterns
+    
+    6. DevOps Transformation:
+       - Kubernetes deployment
+       - GitOps with ArgoCD
+       - Comprehensive monitoring with Prometheus/Grafana
+       - Distributed tracing with Jaeger
+       - Automated testing and quality gates
+    
+    Create detailed migration plan, implementation timeline, and rollback procedures."
+    ```
+  </Tab>
+  
+  <Tab title="Technology Stack Upgrade">
+    ```bash
+    # Automated technology stack modernization
+    /auto "Upgrade legacy .NET Framework application to modern .NET 8 with cloud-native architecture:
+    
+    Legacy System:
+    - .NET Framework 4.8 Web Forms application
+    - SQL Server database with stored procedures
+    - On-premise IIS hosting
+    - Manual deployment process
+    - Limited error handling and logging
+    - No automated testing
+    - jQuery and server-side rendering
+    
+    Modernization Target:
+    - .NET 8 with minimal APIs and clean architecture
+    - Entity Framework Core with repository pattern
+    - Azure cloud deployment with containers
+    - React SPA with TypeScript frontend
+    - Automated CI/CD with GitHub Actions
+    - Comprehensive testing and monitoring
+    - Modern security implementations
+    
+    Migration Process:
+    1. Architecture Assessment:
+       - Analyze existing Web Forms pages and business logic
+       - Identify reusable components and patterns
+       - Create new solution architecture
+       - Plan incremental migration approach
+    
+    2. Backend Modernization:
+       - Convert Web Forms to REST APIs
+       - Implement clean architecture with CQRS
+       - Add dependency injection and middleware
+       - Create comprehensive data access layer
+       - Implement modern authentication (OAuth2/OIDC)
+       - Add structured logging and monitoring
+    
+    3. Database Migration:
+       - Convert stored procedures to repository pattern
+       - Implement Entity Framework Core migrations
+       - Add database seeding and test data
+       - Create backup and rollback procedures
+    
+    4. Frontend Development:
+       - React SPA with TypeScript and Vite
+       - Modern component library (Material-UI or Ant Design)
+       - State management with React Query
+       - Form validation and error handling
+       - Responsive design and accessibility
+    
+    5. Cloud Migration:
+       - Azure App Service or Container Apps
+       - Azure SQL Database with connection pooling
+       - Azure Key Vault for secrets management
+       - Azure Application Insights for monitoring
+       - Azure DevOps or GitHub Actions for CI/CD
+    
+    6. Testing Strategy:
+       - Unit tests with xUnit and Moq
+       - Integration tests with TestContainers
+       - End-to-end tests with Playwright
+       - Performance testing with NBomber
+       - Security testing with OWASP ZAP
+    
+    Include migration timeline, risk mitigation, and training materials."
+    ```
+  </Tab>
+</Tabs>
+
+### Database Modernization
+
+<AccordionGroup>
+  <Accordion title="Oracle to PostgreSQL Migration">
+    ```bash
+    # Automated Oracle to PostgreSQL migration with application updates
+    /auto "Migrate enterprise application from Oracle database to PostgreSQL:
+    
+    Current Oracle Setup:
+    - Oracle 19c database with complex schemas
+    - Stored procedures and functions (PL/SQL)
+    - Custom data types and collections
+    - Materialized views and triggers
+    - Partitioned tables for large datasets
+    - Custom indexing strategies
+    - Database links and synonyms
+    
+    Migration Objectives:
+    - Complete migration to PostgreSQL 16
+    - Maintain data integrity and performance
+    - Minimize application downtime
+    - Reduce licensing costs
+    - Improve development productivity
+    - Enable cloud deployment options
+    
+    Migration Strategy:
+    1. Schema Analysis and Conversion:
+       - Analyze Oracle schema structures
+       - Convert Oracle-specific features to PostgreSQL equivalents
+       - Handle data type mappings and constraints
+       - Convert indexes and performance optimizations
+    
+    2. PL/SQL to PL/pgSQL Conversion:
+       - Convert stored procedures and functions
+       - Handle Oracle-specific constructs
+       - Optimize for PostgreSQL performance characteristics
+       - Maintain business logic integrity
+    
+    3. Data Migration:
+       - Create ETL pipelines for data transfer
+       - Handle large dataset migration with minimal downtime
+       - Implement data validation and integrity checks
+       - Create rollback procedures
+    
+    4. Application Code Updates:
+       - Update connection strings and configurations
+       - Modify SQL queries for PostgreSQL compatibility
+       - Update ORM mappings (Hibernate/JPA)
+       - Handle database-specific features
+    
+    5. Performance Optimization:
+       - Implement PostgreSQL-specific optimizations
+       - Create proper indexing strategies
+       - Configure connection pooling
+       - Optimize query performance
+    
+    6. Testing and Validation:
+       - Comprehensive data validation tests
+       - Performance benchmark comparisons
+       - Application functionality testing
+       - Load testing under production conditions
+    
+    Include detailed migration scripts, testing procedures, and documentation."
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## DevOps and Infrastructure Automation
+
+### Complete CI/CD Pipeline Setup
+
+<Tabs>
+  <Tab title="Multi-Environment Pipeline">
+    ```bash
+    # Advanced CI/CD pipeline with multiple environments and complex workflows
+    /auto "Create a comprehensive CI/CD pipeline for a microservices application:
+    
+    Application Architecture:
+    - 8 microservices (Node.js, Python, Go, Java)
+    - React frontend application
+    - PostgreSQL and Redis databases
+    - Message queues with RabbitMQ
+    - File storage with AWS S3
+    - CDN with CloudFront
+    
+    Environment Strategy:
+    - Development: Automated deployment on feature branch push
+    - Staging: Deployment on main branch merge with approval
+    - Pre-production: Blue-green deployment for final testing
+    - Production: Canary deployment with automated rollback
+    
+    CI/CD Requirements:
+    1. Continuous Integration:
+       - Multi-language build support
+       - Parallel testing across services
+       - Code quality gates (SonarQube, ESLint, Pylint)
+       - Security scanning (Snyk, OWASP dependency check)
+       - Container image building and scanning
+       - Automated semantic versioning
+    
+    2. Deployment Automation:
+       - Infrastructure as Code with Terraform
+       - Kubernetes manifests with Helm charts
+       - Database migration automation
+       - Environment-specific configuration management
+       - Service mesh configuration (Istio)
+       - Monitoring and alerting setup
+    
+    3. Quality Assurance:
+       - Unit test execution and coverage reporting
+       - Integration testing with test databases
+       - End-to-end testing with Cypress
+       - Performance testing with k6
+       - Security testing with automated tools
+       - Smoke tests in production
+    
+    4. Observability:
+       - Distributed tracing with Jaeger
+       - Metrics collection with Prometheus
+       - Log aggregation with ELK stack
+       - Application performance monitoring
+       - Business metrics tracking
+       - Alert management with PagerDuty
+    
+    5. Deployment Strategies:
+       - Blue-green deployment for critical services
+       - Canary deployment with traffic splitting
+       - Feature flags for controlled rollouts
+       - Automated rollback on failure detection
+       - Zero-downtime deployment procedures
+    
+    Implementation Platform:
+    - GitHub Actions for CI/CD orchestration
+    - AWS EKS for Kubernetes hosting
+    - AWS RDS for managed databases
+    - AWS ElastiCache for Redis
+    - Terraform for infrastructure management
+    - HashiCorp Vault for secrets management
+    
+    Include detailed pipeline configurations, monitoring setup, and incident response procedures."
+    ```
+  </Tab>
+  
+  <Tab title="Multi-Cloud Deployment">
+    ```bash
+    # Multi-cloud deployment strategy with disaster recovery
+    /auto "Implement multi-cloud deployment strategy with automated failover:
+    
+    Architecture Requirements:
+    - Primary deployment on AWS
+    - Secondary deployment on Google Cloud Platform
+    - Tertiary deployment on Microsoft Azure
+    - Active-active configuration for high availability
+    - Automated failover and traffic routing
+    - Data synchronization across clouds
+    
+    Infrastructure Components:
+    1. Compute Resources:
+       - AWS: EKS clusters with auto-scaling
+       - GCP: GKE clusters with node auto-provisioning
+       - Azure: AKS clusters with virtual node scaling
+       - Load balancing across all regions
+    
+    2. Data Layer:
+       - Multi-region database replication
+       - Cross-cloud backup and restore procedures
+       - Data consistency and synchronization
+       - Conflict resolution strategies
+    
+    3. Networking:
+       - VPN connections between clouds
+       - CDN setup for global content delivery
+       - DNS-based failover with health checks
+       - Cross-cloud service discovery
+    
+    4. Security:
+       - Unified identity and access management
+       - Cross-cloud encryption and key management
+       - Network security and firewall rules
+       - Compliance across all environments
+    
+    Automation Implementation:
+    1. Infrastructure as Code:
+       - Terraform modules for each cloud provider
+       - Consistent resource naming and tagging
+       - Environment-specific configurations
+       - Automated resource provisioning
+    
+    2. CI/CD Pipeline:
+       - Multi-cloud deployment workflows
+       - Environment-specific testing
+       - Gradual rollout across regions
+       - Automated health checks and validation
+    
+    3. Monitoring and Alerting:
+       - Cross-cloud monitoring dashboards
+       - Unified logging and metrics collection
+       - Automated incident response
+       - Performance tracking across regions
+    
+    4. Disaster Recovery:
+       - Automated backup procedures
+       - Cross-cloud data replication
+       - Failover automation with RTO/RPO targets
+       - Recovery testing and validation
+    
+    Include cost optimization strategies, compliance documentation, and operational runbooks."
+    ```
+  </Tab>
+</Tabs>
+
+### Container Orchestration
+
+<AccordionGroup>
+  <Accordion title="Kubernetes Platform Setup">
+    ```bash
+    # Complete Kubernetes platform with advanced features
+    /auto "Set up production-ready Kubernetes platform with comprehensive tooling:
+    
+    Cluster Architecture:
+    - Multi-master high availability setup
+    - Worker nodes with different instance types
+    - Separate node pools for different workloads
+    - Network policies for microsegmentation
+    - Resource quotas and limits
+    - Cluster autoscaling configuration
+    
+    Core Platform Services:
+    1. Ingress and Load Balancing:
+       - NGINX Ingress Controller with SSL termination
+       - Cert-manager for automatic SSL certificate management
+       - External-DNS for automatic DNS record management
+       - Load balancer configuration for high availability
+    
+    2. Service Mesh:
+       - Istio installation and configuration
+       - Traffic management and routing rules
+       - Security policies and mTLS
+       - Observability and telemetry
+       - Circuit breaker and retry policies
+    
+    3. Storage:
+       - Persistent volume provisioning
+       - Storage classes for different performance tiers
+       - Backup and restore procedures
+       - Data encryption at rest
+    
+    4. Security:
+       - Pod Security Standards implementation
+       - Network policies for traffic control
+       - RBAC configuration with least privilege
+       - Image scanning and admission controllers
+       - Secrets management with external providers
+    
+    5. Monitoring and Observability:
+       - Prometheus for metrics collection
+       - Grafana for visualization and alerting
+       - Jaeger for distributed tracing
+       - ELK stack for log aggregation
+       - Application performance monitoring
+    
+    6. CI/CD Integration:
+       - GitOps with ArgoCD
+       - Image building and scanning pipelines
+       - Automated deployment workflows
+       - Canary deployment capabilities
+       - Rollback procedures
+    
+    7. Backup and Disaster Recovery:
+       - Velero for cluster backup
+       - Cross-region replication
+       - Automated restore procedures
+       - Data protection policies
+    
+    Application Deployment:
+    - Helm charts for application packaging
+    - Environment-specific value files
+    - Progressive delivery strategies
+    - Health checks and readiness probes
+    - Resource management and optimization
+    
+    Include operational procedures, troubleshooting guides, and security best practices."
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Quality Assurance Automation
+
+### Comprehensive Testing Strategy
+
+<Tabs>
+  <Tab title="End-to-End Testing Automation">
+    ```bash
+    # Automated comprehensive testing strategy
+    /auto "Implement comprehensive automated testing strategy for complex web application:
+    
+    Application Under Test:
+    - Multi-tenant SaaS application
+    - React frontend with complex user interactions
+    - Node.js backend with multiple APIs
+    - PostgreSQL database with complex relationships
+    - Third-party integrations (Stripe, SendGrid, AWS)
+    - Real-time features with WebSocket
+    
+    Testing Strategy:
+    1. Unit Testing:
+       - Frontend: React components with Testing Library
+       - Backend: API functions with Jest and Supertest
+       - Database: Repository layer with test containers
+       - Utilities: Pure functions with comprehensive coverage
+       - Target: 90% code coverage with meaningful tests
+    
+    2. Integration Testing:
+       - API integration tests with test database
+       - Third-party service mocking and contract testing
+       - Database integration with real PostgreSQL instance
+       - WebSocket connection and message testing
+       - Cross-service communication testing
+    
+    3. End-to-End Testing:
+       - Critical user journeys with Playwright
+       - Cross-browser testing (Chrome, Firefox, Safari)
+       - Mobile responsive testing
+       - Performance testing under load
+       - Visual regression testing with screenshots
+    
+    4. Performance Testing:
+       - Load testing with k6 or Artillery
+       - Database performance under high load
+       - API response time benchmarking
+       - Memory leak detection
+       - Scalability testing with auto-scaling
+    
+    5. Security Testing:
+       - OWASP ZAP automated security scanning
+       - SQL injection and XSS vulnerability testing
+       - Authentication and authorization testing
+       - Data privacy and GDPR compliance testing
+       - Dependency vulnerability scanning
+    
+    6. Accessibility Testing:
+       - Automated accessibility testing with axe-core
+       - Screen reader compatibility testing
+       - Keyboard navigation testing
+       - Color contrast and WCAG compliance
+       - User experience testing for disabilities
+    
+    Test Infrastructure:
+    - Containerized test environments
+    - Test data management and seeding
+    - Parallel test execution
+    - Test result reporting and visualization
+    - Automated test maintenance and updates
+    
+    CI/CD Integration:
+    - Pre-commit hooks for quick feedback
+    - Pull request testing automation
+    - Staging environment testing
+    - Production smoke tests
+    - Automated rollback on test failures
+    
+    Include test documentation, maintenance procedures, and performance benchmarks."
+    ```
+  </Tab>
+  
+  <Tab title="Security Audit Automation">
+    ```bash
+    # Automated security audit and compliance checking
+    /auto "Implement comprehensive automated security audit system:
+    
+    Security Scope:
+    - Web application security (OWASP Top 10)
+    - Infrastructure security (cloud and containers)
+    - Data protection and privacy compliance
+    - API security and authentication
+    - Third-party integration security
+    - Supply chain security
+    
+    Automated Security Testing:
+    1. Static Application Security Testing (SAST):
+       - Code analysis with SonarQube and Semgrep
+       - Dependency vulnerability scanning with Snyk
+       - License compliance checking
+       - Secrets detection in code repositories
+       - Infrastructure as Code security scanning
+    
+    2. Dynamic Application Security Testing (DAST):
+       - OWASP ZAP automated scanning
+       - SQL injection and XSS testing
+       - Authentication bypass attempts
+       - Session management testing
+       - Input validation and sanitization testing
+    
+    3. Interactive Application Security Testing (IAST):
+       - Runtime security monitoring
+       - Real-time vulnerability detection
+       - Code coverage during security testing
+       - False positive reduction
+    
+    4. Infrastructure Security:
+       - Container image vulnerability scanning
+       - Kubernetes security best practices validation
+       - Cloud configuration security assessment
+       - Network security policy validation
+       - SSL/TLS configuration testing
+    
+    5. Compliance Automation:
+       - GDPR compliance checking and reporting
+       - SOC 2 Type II audit trail generation
+       - PCI DSS compliance validation (if applicable)
+       - HIPAA compliance assessment (if applicable)
+       - Data classification and handling verification
+    
+    Security Monitoring:
+    - Continuous security monitoring setup
+    - Anomaly detection and alerting
+    - Security incident response automation
+    - Threat intelligence integration
+    - Security metrics and KPI tracking
+    
+    Remediation Automation:
+    - Automated security patch management
+    - Configuration drift detection and correction
+    - Security policy enforcement
+    - Incident response playbooks
+    - Communication and escalation procedures
+    
+    Integration and Reporting:
+    - Security dashboard with real-time metrics
+    - Executive security reports and summaries
+    - Developer-friendly security feedback
+    - Integration with ticketing systems
+    - Compliance report generation
+    
+    Include security policies, incident response procedures, and team training materials."
+    ```
+  </Tab>
+</Tabs>
+
+## Performance and Optimization Automation
+
+### Application Performance Optimization
+
+<AccordionGroup>
+  <Accordion title="Full-Stack Performance Audit">
+    ```bash
+    # Comprehensive automated performance optimization
+    /auto "Perform comprehensive performance audit and optimization for full-stack application:
+    
+    Application Architecture:
+    - React SPA with server-side rendering (Next.js)
+    - Node.js API server with Express
+    - PostgreSQL database with complex queries
+    - Redis for caching and sessions
+    - AWS infrastructure with global CDN
+    - Mobile-responsive design requirements
+    
+    Performance Audit Scope:
+    1. Frontend Performance:
+       - Core Web Vitals optimization (LCP, FID, CLS)
+       - Bundle size analysis and optimization
+       - Code splitting and lazy loading implementation
+       - Image optimization and modern format adoption
+       - CSS optimization and critical path rendering
+       - JavaScript execution optimization
+       - Caching strategy implementation
+    
+    2. Backend Performance:
+       - API response time optimization
+       - Database query performance analysis
+       - N+1 query detection and resolution
+       - Caching layer implementation
+       - Connection pooling optimization
+       - Memory usage and garbage collection tuning
+       - Asynchronous processing implementation
+    
+    3. Database Performance:
+       - Query execution plan analysis
+       - Index optimization and creation
+       - Table partitioning for large datasets
+       - Connection pool configuration
+       - Read replica implementation
+       - Query caching strategies
+    
+    4. Infrastructure Performance:
+       - CDN configuration optimization
+       - Load balancer configuration
+       - Auto-scaling policies tuning
+       - Resource allocation optimization
+       - Network latency reduction
+       - Geographic distribution optimization
+    
+    Automated Optimization Process:
+    1. Performance Baseline:
+       - Automated performance testing setup
+       - Lighthouse CI integration
+       - Load testing with realistic traffic patterns
+       - Real user monitoring implementation
+       - Performance regression detection
+    
+    2. Code Optimization:
+       - Bundle analyzer integration
+       - Automated code splitting recommendations
+       - Dead code elimination
+       - Tree shaking optimization
+       - Component memoization implementation
+       - Lazy loading strategy implementation
+    
+    3. Database Optimization:
+       - Slow query log analysis
+       - Index recommendation system
+       - Query optimization suggestions
+       - Caching strategy implementation
+       - Connection pooling tuning
+    
+    4. Caching Implementation:
+       - Multi-layer caching strategy
+       - CDN configuration optimization
+       - Browser caching headers
+       - API response caching
+       - Database query result caching
+       - Static asset optimization
+    
+    Performance Monitoring:
+    - Real-time performance monitoring
+    - Automated performance alerts
+    - Performance regression detection
+    - User experience metrics tracking
+    - Business impact correlation
+    
+    Include performance benchmarks, optimization documentation, and monitoring setup."
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices and Tips
+
+### Automation Strategy
+
+<CardGroup cols={2}>
+  <Card title="Incremental Approach" icon="stairs">
+    Start with simple automation and gradually increase complexity
+    
+    ```bash
+    # Start simple
+    /auto "Create basic React component"
+    
+    # Then increase complexity
+    /auto "Create React component with state management, testing, and documentation"
+    ```
+  </Card>
+  
+  <Card title="Context Management" icon="brain">
+    Provide comprehensive context for better automation results
+    
+    ```bash
+    # Set project context
+    /context set "src/" --include-patterns "*.tsx,*.ts,*.json"
+    
+    # Include relevant documentation
+    /read README.md
+    /read docs/architecture.md
+    ```
+  </Card>
+  
+  <Card title="Quality Gates" icon="shield-check">
+    Implement quality checkpoints in automation workflows
+    
+    ```bash
+    # Use orchestration with quality gates
+    /orchestrate quality-gates "feature-development" --gates "
+      security-review: required
+      performance-test: required
+      accessibility-check: required
+    "
+    ```
+  </Card>
+  
+  <Card title="Monitoring and Feedback" icon="chart-line">
+    Monitor automation results and provide feedback for improvement
+    
+    ```bash
+    # Monitor workflow performance
+    /workflow analytics --performance --success-rate
+    
+    # Provide agent feedback
+    /agent-learning feedback universal-agent --rating 5 --improvements "excellent automation"
+    ```
+  </Card>
+</CardGroup>
+
+### Common Patterns
+
+<Tabs>
+  <Tab title="Progressive Enhancement">
+    ```bash
+    # Start with MVP, then enhance
+    /auto "Create MVP version of the application with core features only"
+    # Wait for completion, review results
+    /auto "Enhance the MVP with advanced features, optimization, and polish"
+    ```
+  </Tab>
+  
+  <Tab title="Parallel Development">
+    ```bash
+    # Use parallel agents for independent components
+    /parallel "backend-agent,react-expert,devops-agent" 
+             "Develop API, frontend, and infrastructure simultaneously"
+    ```
+  </Tab>
+  
+  <Tab title="Review and Iteration">
+    ```bash
+    # Always include review steps
+    /auto "Build the application, then have security-expert and performance-expert review and suggest improvements"
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Real-World Scenarios"
+    icon="globe"
+    href="/examples/real-world-scenarios"
+  >
+    See how NikCLI is used in real production environments
+  </Card>
+  <Card
+    title="Integration Examples"
+    icon="plug"
+    href="/examples/integration-examples"
+  >
+    Learn how to integrate NikCLI with existing tools and workflows
+  </Card>
+  <Card
+    title="Agent Orchestration"
+    icon="sitemap"
+    href="/agent-system/orchestration"
+  >
+    Master advanced agent coordination techniques
+  </Card>
+  <Card
+    title="Performance Optimization"
+    icon="zap"
+    href="/troubleshooting/performance"
+  >
+    Optimize automation performance for large-scale projects
+  </Card>
+</CardGroup>
+
+<Tip>
+  Advanced automation works best when you start with clear requirements and break complex tasks into manageable phases. Use the orchestration system to coordinate multiple agents and always include quality gates and review processes.
+</Tip>

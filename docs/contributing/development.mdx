@@ -1,0 +1,993 @@
+---
+title: 'Development Guide'
+description: 'Complete guide to contributing to NikCLI development'
+icon: 'code'
+---
+
+## Overview
+
+Contributing to NikCLI helps build the future of AI-assisted development. Whether you're fixing bugs, adding features, improving documentation, or creating agents, your contributions make a real difference for developers worldwide.
+
+<CardGroup cols={2}>
+  <Card title="Getting Started" icon="rocket">
+    Set up your development environment and make your first contribution
+  </Card>
+  <Card title="Code Contributions" icon="code">
+    Guidelines for submitting high-quality code contributions
+  </Card>
+  <Card title="Agent Development" icon="robot">
+    Create and contribute new AI agents to the ecosystem
+  </Card>
+  <Card title="Community" icon="users">
+    Join our vibrant community of contributors and maintainers
+  </Card>
+</CardGroup>
+
+## Development Setup
+
+### Prerequisites
+
+<Tabs>
+  <Tab title="System Requirements">
+    ```bash
+    # Required software
+    Node.js 18+ (LTS recommended)
+    npm 9+ or yarn 1.22+
+    Git 2.30+
+    
+    # Recommended tools
+    VS Code with extensions:
+    - TypeScript and JavaScript Language Features
+    - ESLint
+    - Prettier
+    - Jest Runner
+    - GitLens
+    
+    # System resources
+    RAM: 8GB minimum (16GB recommended)
+    Storage: 10GB free space for development
+    OS: macOS, Linux, or Windows with WSL2
+    ```
+  </Tab>
+  
+  <Tab title="Development Environment">
+    ```bash
+    # Clone the repository
+    git clone https://github.com/cadcamfun/nikcli.git
+    cd nikcli
+    
+    # Install dependencies
+    npm install
+    
+    # Set up development environment
+    cp .env.example .env.local
+    # Edit .env.local with your API keys and configuration
+    
+    # Run initial setup
+    npm run setup:dev
+    
+    # Start development server
+    npm run dev
+    
+    # Run tests to verify setup
+    npm test
+    ```
+  </Tab>
+  
+  <Tab title="Project Structure">
+    ```bash
+    nikcli/
+    ├── src/cli/                 # Main CLI source code
+    │   ├── index.ts            # CLI entry point
+    │   ├── automation/         # Agent system
+    │   ├── chat/              # Chat interface
+    │   ├── core/              # Core functionality
+    │   ├── services/          # Service layer
+    │   ├── tools/             # Tool implementations
+    │   └── utils/             # Utility functions
+    ├── tests/                  # Test files
+    │   ├── unit/              # Unit tests
+    │   ├── integration/       # Integration tests
+    │   └── e2e/               # End-to-end tests
+    ├── docs/                   # Documentation
+    ├── scripts/               # Build and utility scripts
+    ├── bin/                   # Binary entry points
+    └── dist/                  # Compiled output
+    ```
+  </Tab>
+</Tabs>
+
+### Development Workflow
+
+<AccordionGroup>
+  <Accordion title="Branch Strategy">
+    We use Git Flow with the following branch structure:
+    
+    - `main`: Production-ready code, tagged releases
+    - `develop`: Integration branch for features
+    - `feature/*`: Feature development branches
+    - `bugfix/*`: Bug fix branches
+    - `hotfix/*`: Critical fixes for production
+    - `release/*`: Release preparation branches
+    
+    ```bash
+    # Start new feature
+    git checkout develop
+    git pull origin develop
+    git checkout -b feature/agent-improvements
+    
+    # Work on feature, commit regularly
+    git add .
+    git commit -m "feat: improve agent response caching"
+    
+    # Push and create PR when ready
+    git push origin feature/agent-improvements
+    ```
+  </Accordion>
+  
+  <Accordion title="Commit Convention">
+    We follow [Conventional Commits](https://conventionalcommits.org/) specification:
+    
+    ```bash
+    # Format: type(scope): description
+    
+    # Types:
+    feat: new feature
+    fix: bug fix
+    docs: documentation changes
+    style: formatting, missing semicolons, etc
+    refactor: code change that neither fixes bug nor adds feature
+    perf: performance improvement
+    test: adding or updating tests
+    chore: updating build tasks, package manager configs, etc
+    
+    # Examples:
+    git commit -m "feat(agents): add React testing specialist agent"
+    git commit -m "fix(chat): resolve message streaming timeout issue"
+    git commit -m "docs(api): update tool system documentation"
+    git commit -m "test(agents): add unit tests for agent orchestration"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Code Contribution Guidelines
+
+### Code Standards
+
+<Tabs>
+  <Tab title="TypeScript Guidelines">
+    ```typescript
+    // Use strict TypeScript configuration
+    // Always define explicit types for public APIs
+    
+    interface AgentConfig {
+      name: string;
+      version: string;
+      capabilities: AgentCapability[];
+      tools: ToolDefinition[];
+    }
+    
+    // Use generic types when appropriate
+    class AgentManager<T extends BaseAgent> {
+      private agents = new Map<string, T>();
+      
+      register(agent: T): void {
+        this.agents.set(agent.id, agent);
+      }
+      
+      get(id: string): T | undefined {
+        return this.agents.get(id);
+      }
+    }
+    
+    // Document complex functions with JSDoc
+    /**
+     * Executes an agent task with retry logic and error handling
+     * @param agentId - The ID of the agent to execute
+     * @param task - The task to execute
+     * @param options - Execution options including retry and timeout settings
+     * @returns Promise that resolves to the task result
+     */
+    async function executeAgentTask(
+      agentId: string,
+      task: AgentTask,
+      options: ExecutionOptions = {}
+    ): Promise<AgentResult> {
+      // Implementation...
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Error Handling">
+    ```typescript
+    // Use custom error types for different scenarios
+    export class AgentExecutionError extends Error {
+      constructor(
+        message: string,
+        public agentId: string,
+        public taskId: string,
+        public cause?: Error
+      ) {
+        super(message);
+        this.name = 'AgentExecutionError';
+      }
+    }
+    
+    // Implement proper error handling with recovery
+    async function executeWithRetry<T>(
+      operation: () => Promise<T>,
+      maxRetries: number = 3,
+      delay: number = 1000
+    ): Promise<T> {
+      let lastError: Error;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          return await operation();
+        } catch (error) {
+          lastError = error as Error;
+          
+          if (attempt === maxRetries) {
+            throw new AgentExecutionError(
+              `Operation failed after ${maxRetries} attempts`,
+              'unknown',
+              'unknown',
+              lastError
+            );
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        }
+      }
+      
+      throw lastError!;
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Testing Standards">
+    ```typescript
+    // Unit test example
+    import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+    import { AgentManager } from '../agent-manager';
+    import { MockAgent } from '../../test-utils/mock-agent';
+    
+    describe('AgentManager', () => {
+      let agentManager: AgentManager;
+      let mockAgent: MockAgent;
+      
+      beforeEach(() => {
+        agentManager = new AgentManager();
+        mockAgent = new MockAgent('test-agent');
+      });
+      
+      describe('register', () => {
+        it('should register an agent successfully', () => {
+          agentManager.register(mockAgent);
+          
+          expect(agentManager.get('test-agent')).toBe(mockAgent);
+        });
+        
+        it('should throw error when registering duplicate agent', () => {
+          agentManager.register(mockAgent);
+          
+          expect(() => agentManager.register(mockAgent))
+            .toThrow('Agent test-agent is already registered');
+        });
+      });
+      
+      describe('execute', () => {
+        it('should execute agent task successfully', async () => {
+          const task = { id: 'task-1', description: 'Test task' };
+          const expectedResult = { success: true, output: 'Task completed' };
+          
+          mockAgent.execute.mockResolvedValue(expectedResult);
+          agentManager.register(mockAgent);
+          
+          const result = await agentManager.execute('test-agent', task);
+          
+          expect(result).toEqual(expectedResult);
+          expect(mockAgent.execute).toHaveBeenCalledWith(task);
+        });
+      });
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### Performance Guidelines
+
+<AccordionGroup>
+  <Accordion title="Memory Management">
+    ```typescript
+    // Implement proper cleanup in long-running processes
+    export class StreamingManager {
+      private streams = new Map<string, NodeJS.ReadableStream>();
+      private cleanupTimer?: NodeJS.Timeout;
+      
+      constructor() {
+        // Set up automatic cleanup
+        this.cleanupTimer = setInterval(() => {
+          this.cleanupInactiveStreams();
+        }, 60000); // Every minute
+      }
+      
+      addStream(id: string, stream: NodeJS.ReadableStream): void {
+        // Clean up existing stream if any
+        this.removeStream(id);
+        
+        this.streams.set(id, stream);
+        
+        // Set up stream cleanup on end
+        stream.on('end', () => this.removeStream(id));
+        stream.on('error', () => this.removeStream(id));
+      }
+      
+      removeStream(id: string): void {
+        const stream = this.streams.get(id);
+        if (stream) {
+          stream.destroy();
+          this.streams.delete(id);
+        }
+      }
+      
+      destroy(): void {
+        if (this.cleanupTimer) {
+          clearInterval(this.cleanupTimer);
+        }
+        
+        // Clean up all streams
+        for (const [id] of this.streams) {
+          this.removeStream(id);
+        }
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Caching Strategies">
+    ```typescript
+    // Implement intelligent caching with TTL and LRU eviction
+    export class IntelligentCache<T> {
+      private cache = new Map<string, CacheEntry<T>>();
+      private accessOrder: string[] = [];
+      
+      constructor(
+        private maxSize: number = 1000,
+        private defaultTtl: number = 300000 // 5 minutes
+      ) {}
+      
+      set(key: string, value: T, ttl?: number): void {
+        const expiry = Date.now() + (ttl ?? this.defaultTtl);
+        
+        // Remove if already exists to update access order
+        if (this.cache.has(key)) {
+          this.remove(key);
+        }
+        
+        // Evict if at capacity
+        if (this.cache.size >= this.maxSize) {
+          this.evictLRU();
+        }
+        
+        this.cache.set(key, { value, expiry });
+        this.accessOrder.push(key);
+      }
+      
+      get(key: string): T | undefined {
+        const entry = this.cache.get(key);
+        
+        if (!entry) {
+          return undefined;
+        }
+        
+        if (Date.now() > entry.expiry) {
+          this.remove(key);
+          return undefined;
+        }
+        
+        // Update access order
+        this.updateAccessOrder(key);
+        
+        return entry.value;
+      }
+      
+      private evictLRU(): void {
+        const oldestKey = this.accessOrder.shift();
+        if (oldestKey) {
+          this.cache.delete(oldestKey);
+        }
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Feature Development Process
+
+### Planning and Design
+
+<Tabs>
+  <Tab title="Feature Proposal">
+    1. **Create GitHub Issue**
+       - Use feature request template
+       - Describe the problem and proposed solution
+       - Include user stories and acceptance criteria
+       - Add relevant labels and milestones
+    
+    2. **Design Discussion**
+       - Participate in design discussions
+       - Consider backwards compatibility
+       - Review impact on existing features
+       - Get maintainer approval before starting
+    
+    3. **Technical Design**
+       - Create technical design document if complex
+       - Consider architecture implications
+       - Plan testing strategy
+       - Identify potential risks and mitigations
+  </Tab>
+  
+  <Tab title="Implementation">
+    ```bash
+    # Development workflow
+    
+    1. Create feature branch
+    git checkout -b feature/new-agent-capability
+    
+    2. Implement feature with tests
+    # Write failing tests first (TDD approach)
+    # Implement minimum viable feature
+    # Refactor and optimize
+    # Add comprehensive tests
+    
+    3. Update documentation
+    # Update relevant documentation
+    # Add examples and usage guides
+    # Update CHANGELOG.md
+    
+    4. Test thoroughly
+    npm run test:unit
+    npm run test:integration
+    npm run test:e2e
+    
+    5. Submit pull request
+    # Follow PR template
+    # Request reviews from relevant maintainers
+    # Address feedback promptly
+    ```
+  </Tab>
+  
+  <Tab title="Review Process">
+    **Pull Request Requirements:**
+    - All tests pass (unit, integration, e2e)
+    - Code coverage maintained (80% minimum)
+    - Documentation updated
+    - No breaking changes without major version bump
+    - Performance impact assessed
+    - Security implications reviewed
+    
+    **Review Checklist:**
+    - [ ] Code follows project conventions
+    - [ ] Tests are comprehensive and meaningful
+    - [ ] Documentation is clear and accurate
+    - [ ] Performance is acceptable
+    - [ ] Security considerations addressed
+    - [ ] Backwards compatibility maintained
+  </Tab>
+</Tabs>
+
+### Quality Assurance
+
+<AccordionGroup>
+  <Accordion title="Testing Requirements">
+    ```bash
+    # Test coverage requirements
+    - Unit tests: 90% statement coverage minimum
+    - Integration tests: All service interactions
+    - End-to-end tests: Critical user workflows
+    - Performance tests: Response time benchmarks
+    
+    # Running different test suites
+    npm run test:unit              # Fast unit tests
+    npm run test:integration       # Service integration tests  
+    npm run test:e2e              # End-to-end browser tests
+    npm run test:performance      # Performance benchmarks
+    npm run test:security         # Security vulnerability tests
+    
+    # Test in different environments
+    npm run test:node-18          # Test on Node.js 18
+    npm run test:node-20          # Test on Node.js 20
+    npm run test:windows          # Windows-specific tests
+    npm run test:linux            # Linux-specific tests
+    npm run test:macos            # macOS-specific tests
+    ```
+  </Accordion>
+  
+  <Accordion title="Performance Testing">
+    ```typescript
+    // Performance test example
+    import { performance } from 'perf_hooks';
+    
+    describe('Agent Performance', () => {
+      it('should respond within acceptable time limits', async () => {
+        const agent = new UniversalAgent();
+        const startTime = performance.now();
+        
+        const result = await agent.execute({
+          task: 'Create a simple React component',
+          context: { files: [], workspace: '/test' }
+        });
+        
+        const duration = performance.now() - startTime;
+        
+        expect(result).toBeDefined();
+        expect(duration).toBeLessThan(30000); // 30 seconds max
+      });
+      
+      it('should handle concurrent requests efficiently', async () => {
+        const agent = new UniversalAgent();
+        const concurrentRequests = 10;
+        
+        const startTime = performance.now();
+        
+        const promises = Array.from({ length: concurrentRequests }, () =>
+          agent.execute({
+            task: 'Simple task',
+            context: { files: [], workspace: '/test' }
+          })
+        );
+        
+        const results = await Promise.all(promises);
+        const duration = performance.now() - startTime;
+        
+        expect(results).toHaveLength(concurrentRequests);
+        expect(duration).toBeLessThan(60000); // Should complete within 1 minute
+      });
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Agent Development
+
+### Creating New Agents
+
+<Tabs>
+  <Tab title="Agent Structure">
+    ```typescript
+    // src/cli/automation/agents/my-custom-agent.ts
+    import { BaseAgent, AgentCapability, AgentResult } from './base-agent';
+    import { ToolRegistry } from '../tools/tool-registry';
+    
+    export class MyCustomAgent extends BaseAgent {
+      constructor() {
+        super({
+          id: 'my-custom-agent',
+          name: 'My Custom Agent',
+          description: 'Specialized agent for custom tasks',
+          version: '1.0.0',
+          capabilities: [
+            AgentCapability.CODE_GENERATION,
+            AgentCapability.CODE_REVIEW,
+            AgentCapability.TESTING
+          ],
+          specializations: ['custom-framework', 'domain-specific'],
+          tools: [
+            'file_operations',
+            'code_analysis', 
+            'custom_validator'
+          ]
+        });
+      }
+      
+      async execute(task: AgentTask): Promise<AgentResult> {
+        try {
+          // Validate task requirements
+          this.validateTask(task);
+          
+          // Process task with domain expertise
+          const result = await this.processCustomTask(task);
+          
+          // Validate result quality
+          await this.validateResult(result);
+          
+          return {
+            success: true,
+            result: result,
+            confidence: this.calculateConfidence(result),
+            suggestions: this.generateSuggestions(result)
+          };
+        } catch (error) {
+          return this.handleError(error, task);
+        }
+      }
+      
+      private async processCustomTask(task: AgentTask): Promise<any> {
+        // Custom processing logic
+        const context = await this.analyzeContext(task.context);
+        const solution = await this.generateSolution(task.description, context);
+        return await this.refineSolution(solution, task.requirements);
+      }
+      
+      protected getSystemPrompt(): string {
+        return `
+        You are a specialized agent expert in custom framework development.
+        You have deep knowledge of:
+        - Custom framework patterns and best practices
+        - Domain-specific architecture patterns  
+        - Performance optimization techniques
+        - Testing strategies for custom frameworks
+        
+        Always provide:
+        - Clean, maintainable code
+        - Comprehensive documentation
+        - Appropriate test coverage
+        - Performance considerations
+        `;
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Agent Registration">
+    ```typescript
+    // src/cli/register-agents.ts
+    import { AgentRegistry } from './core/agent-registry';
+    import { MyCustomAgent } from './automation/agents/my-custom-agent';
+    
+    export function registerAllAgents(): void {
+      const registry = AgentRegistry.getInstance();
+      
+      // Register existing agents...
+      
+      // Register new custom agent
+      registry.register(new MyCustomAgent());
+      
+      // Agent is now available via:
+      // /agent my-custom-agent "task description"
+      // /agents (will list the new agent)
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Agent Testing">
+    ```typescript
+    // tests/unit/agents/my-custom-agent.test.ts
+    import { MyCustomAgent } from '../../../src/cli/automation/agents/my-custom-agent';
+    import { AgentTask } from '../../../src/cli/types/agent';
+    
+    describe('MyCustomAgent', () => {
+      let agent: MyCustomAgent;
+      
+      beforeEach(() => {
+        agent = new MyCustomAgent();
+      });
+      
+      describe('execute', () => {
+        it('should handle custom framework tasks', async () => {
+          const task: AgentTask = {
+            id: 'test-task',
+            description: 'Create custom framework component',
+            context: {
+              workspace: '/test/project',
+              files: ['src/framework/base.ts']
+            }
+          };
+          
+          const result = await agent.execute(task);
+          
+          expect(result.success).toBe(true);
+          expect(result.result).toBeDefined();
+          expect(result.confidence).toBeGreaterThan(0.8);
+        });
+        
+        it('should provide helpful suggestions', async () => {
+          const task: AgentTask = {
+            id: 'test-task-2', 
+            description: 'Optimize framework performance',
+            context: { workspace: '/test', files: [] }
+          };
+          
+          const result = await agent.execute(task);
+          
+          expect(result.suggestions).toBeDefined();
+          expect(result.suggestions.length).toBeGreaterThan(0);
+        });
+      });
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### Agent Best Practices
+
+<AccordionGroup>
+  <Accordion title="Design Principles">
+    **Single Responsibility**: Each agent should have a clear, focused purpose
+    
+    ```typescript
+    // Good: Focused agent
+    export class ReactTestingAgent extends BaseAgent {
+      // Specialized in React component testing only
+    }
+    
+    // Avoid: Overly broad agent
+    export class FullStackEverythingAgent extends BaseAgent {
+      // Tries to do too many different things
+    }
+    ```
+    
+    **Domain Expertise**: Agents should have deep knowledge in their domain
+    
+    ```typescript
+    protected getSystemPrompt(): string {
+      return `
+      You are a React testing expert with deep knowledge of:
+      - Jest and React Testing Library best practices
+      - Component testing strategies (unit, integration)  
+      - Mock strategies for complex components
+      - Testing hooks and context providers
+      - Accessibility testing with jest-axe
+      - Visual regression testing approaches
+      `;
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Error Handling">
+    ```typescript
+    async execute(task: AgentTask): Promise<AgentResult> {
+      try {
+        // Validate inputs
+        if (!this.canHandleTask(task)) {
+          return {
+            success: false,
+            error: 'This agent cannot handle the requested task type',
+            suggestions: ['Try the universal-agent or a more appropriate specialist']
+          };
+        }
+        
+        // Execute with timeout protection
+        const result = await Promise.race([
+          this.processTask(task),
+          this.timeoutPromise(30000) // 30 second timeout
+        ]);
+        
+        return result;
+      } catch (error) {
+        // Log error for debugging but don't expose internal details
+        this.logger.error('Agent execution failed', { 
+          agentId: this.id, 
+          taskId: task.id, 
+          error 
+        });
+        
+        return {
+          success: false,
+          error: 'An unexpected error occurred while processing the task',
+          suggestions: [
+            'Try rephrasing the request',
+            'Check if all required context is provided',
+            'Consider breaking the task into smaller parts'
+          ]
+        };
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Documentation Contributions
+
+### Writing Guidelines
+
+<Tabs>
+  <Tab title="Documentation Standards">
+    **Structure**: Follow established patterns and organization
+    
+    ```markdown
+    ---
+    title: 'Clear, Descriptive Title'
+    description: 'Concise description of the content'
+    icon: 'relevant-icon'
+    ---
+    
+    ## Overview
+    Brief introduction with key benefits/features
+    
+    <CardGroup cols={2}>
+      <!-- Feature highlights -->
+    </CardGroup>
+    
+    ## Main Content Sections
+    
+    ### Subsection
+    <Tabs>
+      <Tab title="Basic Usage">
+        <!-- Simple examples first -->
+      </Tab>
+      
+      <Tab title="Advanced Usage">
+        <!-- Complex examples after -->
+      </Tab>
+    </Tabs>
+    
+    ## Next Steps
+    <CardGroup cols={2}>
+      <!-- Related documentation links -->
+    </CardGroup>
+    ```
+    
+    **Code Examples**: Always include working, tested examples
+    
+    ```bash
+    # Always show the actual command
+    /agent react-expert "create a login component with validation"
+    
+    # Show expected output or results when helpful
+    # ✓ Component created: src/components/LoginForm.tsx
+    # ✓ Tests created: src/components/__tests__/LoginForm.test.tsx
+    # ✓ Storybook story: src/stories/LoginForm.stories.tsx
+    ```
+  </Tab>
+  
+  <Tab title="API Documentation">
+    ```typescript
+    /**
+     * Executes an agent task with comprehensive error handling and validation
+     * 
+     * @param agentId - Unique identifier for the agent to execute
+     * @param task - Task object containing description and context
+     * @param options - Optional execution parameters
+     * @returns Promise resolving to the agent execution result
+     * 
+     * @example
+     * ```typescript
+     * const result = await executeAgent('react-expert', {
+     *   description: 'Create a modal component',
+     *   context: { workspace: './src', files: ['types.ts'] }
+     * });
+     * 
+     * if (result.success) {
+     *   console.log('Task completed:', result.output);
+     * }
+     * ```
+     * 
+     * @throws {AgentNotFoundError} When the specified agent doesn't exist
+     * @throws {InvalidTaskError} When the task is malformed or incomplete
+     */
+    export async function executeAgent(
+      agentId: string,
+      task: AgentTask,
+      options?: ExecutionOptions
+    ): Promise<AgentResult>;
+    ```
+  </Tab>
+</Tabs>
+
+### Documentation Review Process
+
+<AccordionGroup>
+  <Accordion title="Review Checklist">
+    **Content Quality**:
+    - [ ] Information is accurate and up-to-date
+    - [ ] Examples are working and tested
+    - [ ] Writing is clear and concise
+    - [ ] Technical terms are explained
+    - [ ] Prerequisites are clearly stated
+    
+    **Structure**:
+    - [ ] Follows documentation template
+    - [ ] Proper heading hierarchy
+    - [ ] Code examples are syntax highlighted
+    - [ ] Links work and point to correct pages
+    - [ ] Images have alt text and load correctly
+    
+    **User Experience**:
+    - [ ] Information is organized logically
+    - [ ] Examples progress from simple to complex
+    - [ ] Cross-references help navigation
+    - [ ] Search keywords are appropriate
+  </Accordion>
+</AccordionGroup>
+
+## Community Guidelines
+
+### Code of Conduct
+
+We are committed to fostering an inclusive and welcoming community. All contributors must adhere to our [Code of Conduct](https://github.com/cadcamfun/nikcli/blob/main/CODE_OF_CONDUCT.md).
+
+**Key Principles**:
+- **Be respectful**: Treat all community members with respect and kindness
+- **Be collaborative**: Work together constructively and share knowledge
+- **Be inclusive**: Welcome contributors from all backgrounds and experience levels
+- **Be patient**: Help newcomers learn and grow
+- **Focus on what's best for the community**: Make decisions that benefit everyone
+
+### Getting Help
+
+<CardGroup cols={2}>
+  <Card title="Discord Community" icon="discord">
+    Join our active Discord for real-time discussions
+    
+    - General discussion and questions
+    - Development help and code review
+    - Feature planning and feedback
+    - Community events and updates
+  </Card>
+  
+  <Card title="GitHub Discussions" icon="github">
+    Participate in structured discussions
+    
+    - Feature requests and proposals
+    - Architecture discussions
+    - Best practices sharing
+    - Q&A and troubleshooting
+  </Card>
+  
+  <Card title="Office Hours" icon="calendar">
+    Join weekly maintainer office hours
+    
+    - Every Tuesday 2PM EST / 7PM GMT
+    - Open forum for questions and discussion
+    - Feature demos and roadmap updates
+    - New contributor onboarding
+  </Card>
+  
+  <Card title="Mentorship Program" icon="graduation-cap">
+    Get paired with experienced contributors
+    
+    - 1-on-1 guidance for new contributors
+    - Code review and feedback
+    - Career development support
+    - Open source best practices
+  </Card>
+</CardGroup>
+
+### Recognition
+
+We believe in recognizing and celebrating our contributors:
+
+- **Contributor Hall of Fame**: Featured on our documentation site
+- **Annual Awards**: Recognition for outstanding contributions
+- **Speaking Opportunities**: Conference and meetup speaking invitations  
+- **Swag and Rewards**: Exclusive contributor merchandise
+- **Resume Support**: LinkedIn recommendations and references
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Architecture Deep Dive"
+    icon="sitemap"
+    href="/contributing/architecture-deep"
+  >
+    Understand NikCLI's architecture and design decisions
+  </Card>
+  <Card
+    title="Extending NikCLI"
+    icon="puzzle"
+    href="/contributing/extending"
+  >
+    Learn advanced techniques for extending NikCLI
+  </Card>
+  <Card
+    title="GitHub Repository"
+    icon="github"
+    href="https://github.com/cadcamfun/nikcli"
+  >
+    Visit our repository to start contributing
+  </Card>
+  <Card
+    title="Discord Community"
+    icon="discord"
+    href="https://discord.gg/nikcli"
+  >
+    Join our development community discussions
+  </Card>
+</CardGroup>
+
+<Tip>
+  Start small with documentation fixes or bug reports, then gradually work up to feature contributions. Don't hesitate to ask questions in Discord or GitHub Discussions - our community is here to help!
+</Tip>

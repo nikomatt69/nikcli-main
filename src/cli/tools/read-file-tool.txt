@@ -1,0 +1,190 @@
+# Read File Tool Documentation
+
+## Purpose
+Production-ready file reading tool with advanced processing, LSP integration, and context awareness for intelligent file analysis and content extraction.
+
+## Capabilities
+- Safe file reading with comprehensive error handling
+- Content processing and filtering options
+- LSP integration for code intelligence during reading
+- Context-aware RAG system integration for workspace learning
+- Multiple file reading with parallel processing
+- Streaming support for large files
+- File metadata extraction and analysis
+- Comment stripping and content transformation
+- Format detection and processing
+- Security validation and access control
+
+## Usage Patterns
+
+### When to Use
+- Reading any file content from the filesystem
+- Need file metadata and analysis
+- Require content processing (comment stripping, line limiting)
+- Want LSP analysis during file reading
+- Reading multiple files efficiently
+- Need streaming for large files
+- Require context integration for workspace awareness
+
+### When NOT to Use
+- Binary file operations without text processing
+- Simple existence checks (use file info instead)
+- Operations that bypass security validation
+- Direct filesystem operations without tool integration
+
+## Examples
+
+### Basic File Reading
+```typescript
+const result = await readFileTool.execute('/path/to/file.ts');
+if (result.success) {
+  console.log('Content:', result.data.content);
+  console.log('Lines:', result.data.metadata.lines);
+}
+```
+
+### Reading with Processing Options
+```typescript
+const result = await readFileTool.execute('/path/to/component.tsx', {
+  stripComments: true,
+  maxLines: 100,
+  maxSize: 1024 * 1024 // 1MB limit
+});
+```
+
+### Multiple File Reading
+```typescript
+const results = await readFileTool.readMultiple([
+  '/src/component.tsx',
+  '/src/types.ts',
+  '/tests/component.test.tsx'
+], {
+  stripComments: false,
+  parseJson: false
+});
+```
+
+### Streaming Large Files
+```typescript
+const stream = await readFileTool.readStream('/path/to/large-file.txt');
+for await (const chunk of stream) {
+  processChunk(chunk);
+}
+```
+
+### File Info Without Reading Content
+```typescript
+const info = await readFileTool.getFileInfo('/path/to/file.ts');
+console.log('Size:', info.size);
+console.log('Modified:', info.modified);
+console.log('Is Readable:', info.isReadable);
+```
+
+## Internal Management Features
+
+### Content Processing Pipeline
+1. **Security Validation**: Path sanitization and access control
+2. **Size Checking**: Configurable file size limits
+3. **Content Reading**: Efficient reading with encoding support
+4. **LSP Analysis**: Code intelligence and diagnostics integration
+5. **Content Processing**: Comment stripping, line limiting, format detection
+6. **Context Recording**: RAG system integration for workspace learning
+7. **UI Display**: Structured content display for non-binary files
+
+### Error Handling
+- Comprehensive error logging with context
+- Graceful handling of missing files
+- Security violation reporting
+- Resource cleanup on failures
+- Non-blocking LSP/Context analysis errors
+
+### Performance Features
+- Configurable size limits to prevent memory issues
+- Streaming support for large files
+- Parallel processing for multiple files
+- Efficient content processing algorithms
+- Metadata extraction without full content reading
+
+### Security Features
+- Path traversal prevention
+- Access permission checking
+- Content sanitization options
+- Binary file detection
+- Resource limit enforcement
+
+## Configuration Options
+
+### ReadFileOptions
+- `encoding`: File encoding (default: 'utf8')
+- `maxSize`: Maximum file size in bytes
+- `maxLines`: Maximum number of lines to read
+- `stripComments`: Remove comments from code files
+- `parseJson`: Parse JSON files automatically
+
+### File Processing Features
+- **Comment Stripping**: Intelligent comment removal for various languages
+  - JavaScript/TypeScript: `//` and `/* */` comments
+  - Python: `#` comments  
+  - CSS: `/* */` comments
+  - HTML/XML: `<!-- -->` comments
+- **Content Filtering**: Line limiting with truncation indicators
+- **Format Detection**: Automatic file type detection and processing
+
+### Integration Features
+- **LSP Integration**: Real-time code analysis and diagnostics
+- **Context Awareness**: Workspace memory and file relationship tracking
+- **Advanced UI**: Structured content display with syntax awareness
+- **File Metadata**: Comprehensive file information extraction
+
+## Output Structure
+
+### ReadFileResult
+- `success`: Operation success status
+- `filePath`: Absolute path to the file
+- `content`: File content (string or Buffer)
+- `size`: File size in bytes
+- `encoding`: Used encoding
+- `metadata`: File metadata object
+  - `lines`: Number of lines (for text files)
+  - `isEmpty`: Whether file is empty
+  - `isBinary`: Binary file detection
+  - `extension`: File extension
+
+### FileInfo
+- `path`: Absolute file path
+- `size`: File size in bytes
+- `isFile`/`isDirectory`: Type detection
+- `created`/`modified`/`accessed`: Timestamp information
+- `extension`: File extension
+- `isReadable`: Access permission status
+
+## Best Practices
+
+### For Agent Implementations
+1. Always check result.success before using content
+2. Use appropriate processing options for file types
+3. Handle large files with streaming when possible
+4. Leverage LSP integration for code analysis
+5. Record reading operations for context learning
+
+### For Tool Composition
+1. Combine with write-file-tool for modification workflows
+2. Use with LSP tools for comprehensive code analysis
+3. Integrate with search and analysis tools
+4. Coordinate with validation and formatting tools
+
+### Performance Optimization
+1. Use readMultiple for bulk operations
+2. Set appropriate size limits for large files
+3. Use streaming for processing large content
+4. Optimize processing options for specific use cases
+5. Leverage context system for intelligent caching
+
+### Security Considerations
+1. Always validate file paths before reading
+2. Respect size limits to prevent memory exhaustion
+3. Use appropriate encoding for content type
+4. Handle binary files appropriately
+5. Log access patterns for security analysis
+
+This tool provides enterprise-level file reading capabilities with comprehensive processing, analysis, and integration features essential for intelligent development workflows.
