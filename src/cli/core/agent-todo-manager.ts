@@ -309,6 +309,10 @@ export class AgentTodoManager {
         // Avoid circular import by accessing global instance directly
         const globalThis = (global as any);
         const nikCliInstance = globalThis.__nikCLI;
+        if (nikCliInstance) {
+          // Ensure we are in default chat mode after todo execution
+          nikCliInstance.currentMode = 'default';
+        }
         if (nikCliInstance && typeof nikCliInstance.showPrompt === 'function') {
           console.log(chalk.dim('🔄 Returning to chat mode...'));
           nikCliInstance.showPrompt();
