@@ -1827,6 +1827,12 @@ export class NikCLI {
                     return; // Prevent other handlers from running
                 }
 
+                // Handle Shift+Tab for mode cycling (default mode friendly)
+                if (key && key.shift && key.name === 'tab') {
+                    this.cycleModes();
+                    return; // Prevent other handlers from running
+                }
+
                 // Handle Cmd+] for mode cycling (macOS) - alternative
                 if (key && key.meta && key.name === ']') {
                     this.cycleModes();
