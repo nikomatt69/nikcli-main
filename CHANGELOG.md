@@ -1,12 +1,12 @@
-# 📝 Changelog - Claude Code Clone
+# 📝 Changelog - Nikcli
 
-All notable changes to Claude Code Clone will be documented in this file.
+All notable changes to Nikcli will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [2.0.0] - 2025-08-07
 
-### 🚀 **Initial Release - Claude Code Clone**
+### 🚀 **Initial Release - Nikcli**
 
 This is the first major release transforming the original AI Agents CLI into a true Claude Code clone with terminal velocity.
 
@@ -184,6 +184,142 @@ nikcli/
 - **Command Sanitization**: Safe command execution
 - **API Key Storage**: Secure credential management
 - **Input Validation**: Comprehensive Zod schema validation
+
+---
+
+## [0.3.2-beta] - 2025-08-26
+
+### 🚀 **Release Distribution System**
+
+#### ✨ **Added**
+
+##### **Automated Release Builds**
+
+- **Multi-Platform Binaries**: Automated builds for Linux, macOS (Intel/ARM), and Windows
+- **Gzip Archives**: Platform-specific and complete distribution archives
+- **Checksum Verification**: SHA256 checksums for all release files
+- **Release Metadata**: Comprehensive release information and file listings
+
+##### **Build System Enhancements**
+
+- **Enhanced Build Script**: `scripts/build-release.js` with archive creation
+- **Export Distribution**: `scripts/export-dist.js` for complete package exports
+- **Cross-Platform Support**: Native binaries for all major platforms
+- **Package Management**: Optimized distribution packages with essential files
+
+##### **Release Assets**
+
+- **Complete Archive**: `nikcli-v{version}-complete.tar.gz` with all platforms
+- **Platform Archives**: Individual archives for each platform (Linux, macOS, Windows)
+- **Verification Files**: `checksums.json` and `release-info.json` for integrity
+- **Installation Scripts**: Automated setup scripts for easy deployment
+
+#### 🔧 **Technical Improvements**
+
+##### **Build Process**
+
+- **Automated Compilation**: TypeScript build with Bun for optimal performance
+- **Binary Creation**: pkg-based binary generation for each target platform
+- **Archive Generation**: Automated tar.gz creation with proper file structure
+- **File Integrity**: SHA256 checksum generation for security verification
+
+##### **Distribution Structure**
+
+```
+releases/
+├── nikcli-v0.3.2-beta-complete.tar.gz          # Complete distribution
+├── nikcli-v0.3.2-beta-nikcli-linux-x64.tar.gz  # Linux x64
+├── nikcli-v0.3.2-beta-nikcli-macos-x64.tar.gz  # macOS Intel
+├── nikcli-v0.3.2-beta-nikcli-macos-arm64.tar.gz # macOS ARM
+├── nikcli-v0.3.2-beta-nikcli-win-x64.tar.gz    # Windows x64
+├── checksums.json                               # File integrity checksums
+└── release-info.json                            # Release metadata
+```
+
+##### **Platform Support**
+
+| Platform | Architecture | Binary Name          | Archive Name                                  |
+| -------- | ------------ | -------------------- | --------------------------------------------- |
+| Linux    | x64          | `nikcli-linux-x64`   | `nikcli-v{version}-nikcli-linux-x64.tar.gz`   |
+| macOS    | Intel        | `nikcli-macos-x64`   | `nikcli-v{version}-nikcli-macos-x64.tar.gz`   |
+| macOS    | ARM64        | `nikcli-macos-arm64` | `nikcli-v{version}-nikcli-macos-arm64.tar.gz` |
+| Windows  | x64          | `nikcli-win-x64.exe` | `nikcli-v{version}-nikcli-win-x64.tar.gz`     |
+
+#### 📦 **Release Process**
+
+##### **Automated Workflow**
+
+1. **Build Phase**: TypeScript compilation and optimization
+2. **Binary Generation**: Platform-specific executable creation
+3. **Archive Creation**: Gzip compression with essential files
+4. **Verification**: Checksum generation and integrity validation
+5. **Metadata**: Release information and file listings
+
+##### **Distribution Files**
+
+- **Essential Files**: README, LICENSE, CHANGELOG, configuration
+- **Package.json**: Platform-specific package configurations
+- **Installation Scripts**: Automated setup and deployment
+- **Verification**: Checksums and release metadata
+
+#### 🔒 **Security & Verification**
+
+##### **Integrity Checks**
+
+- **SHA256 Checksums**: Cryptographic verification of all files
+- **Release Metadata**: Comprehensive file listings and build information
+- **Platform Validation**: Verified builds for each target platform
+- **Archive Verification**: Compressed archive integrity validation
+
+##### **Distribution Security**
+
+- **Signed Archives**: Verified source and build process
+- **Checksum Validation**: User-verifiable file integrity
+- **Metadata Transparency**: Complete build and release information
+- **Platform Isolation**: Separate archives for each platform
+
+#### 🚀 **Usage Instructions**
+
+##### **For Users**
+
+```bash
+# Download platform-specific archive
+curl -O "https://github.com/user/nikcli/releases/download/v0.3.2-beta/nikcli-v0.3.2-beta-nikcli-linux-x64.tar.gz"
+
+# Verify checksum
+sha256sum nikcli-v0.3.2-beta-nikcli-linux-x64.tar.gz
+# Compare with checksums.json
+
+# Extract and run
+tar -xzf nikcli-v0.3.2-beta-nikcli-linux-x64.tar.gz
+./nikcli-linux-x64
+```
+
+##### **For Developers**
+
+```bash
+# Build release
+npm run build:release
+
+# Create distribution
+npm run export:dist
+
+# Verify release
+npm run verify:release
+```
+
+#### 📋 **Release Commands**
+
+```bash
+# Build all platforms
+node scripts/build-release.js
+
+# Export distribution
+node scripts/export-dist.js
+
+# Verify checksums
+sha256sum -c checksums.txt
+```
 
 ---
 

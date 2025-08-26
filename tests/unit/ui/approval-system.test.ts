@@ -91,7 +91,7 @@ describe('ApprovalSystem', () => {
     });
 
     it('should handle high-risk operations with additional confirmation', async () => {
-      mockInquirer.default.prompt.mockResolvedValue({ 
+      mockInquirer.default.prompt.mockResolvedValue({
         approved: true,
         confirmHighRisk: true
       });
@@ -115,7 +115,7 @@ describe('ApprovalSystem', () => {
     });
 
     it('should reject high-risk operations without confirmation', async () => {
-      mockInquirer.default.prompt.mockResolvedValue({ 
+      mockInquirer.default.prompt.mockResolvedValue({
         approved: true,
         confirmHighRisk: false
       });
@@ -201,7 +201,7 @@ describe('ApprovalSystem', () => {
     });
 
     it('should assess high risk for dangerous commands', async () => {
-      mockInquirer.default.prompt.mockResolvedValue({ 
+      mockInquirer.default.prompt.mockResolvedValue({
         approved: true,
         confirmHighRisk: true
       });
@@ -249,7 +249,7 @@ describe('ApprovalSystem', () => {
           lowRisk: true
         }
       };
-      
+
       approvalSystem.updateConfig(config);
 
       const request: ApprovalRequest = {
@@ -277,7 +277,7 @@ describe('ApprovalSystem', () => {
           fileOperations: true
         }
       };
-      
+
       approvalSystem.updateConfig(config);
 
       const request: ApprovalRequest = {
@@ -394,10 +394,17 @@ describe('ApprovalSystem', () => {
         timeout: 100 // Very short timeout
       };
 
-      // Don't mock the prompt to let it timeout
+      // Mock a timeout scenario
+      mockInquirer.default.prompt.mockImplementation(() =>
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout')), 200)
+        )
+      );
+
       const result = await approvalSystem.requestApproval(request);
 
       // Should handle timeout gracefully
+      expect(result.approved).toBe(false);
       expect(result.timestamp).toBeInstanceOf(Date);
     });
   });

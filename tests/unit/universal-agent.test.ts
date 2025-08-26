@@ -45,7 +45,7 @@ describe('UniversalAgent', () => {
   describe('Agent Initialization', () => {
     it('should initialize with default configuration', async () => {
       await agent.initialize();
-      
+
       expect(agent.getStatus()).toBe('ready');
       expect(agent.getCapabilities()).toContain('code-generation');
       expect(agent.getCapabilities()).toContain('frontend');
@@ -94,22 +94,22 @@ describe('UniversalAgent', () => {
 
     it('should have all required capabilities', () => {
       const capabilities = agent.getCapabilities();
-      
+
       // Core capabilities
       expect(capabilities).toContain('code-generation');
       expect(capabilities).toContain('code-analysis');
       expect(capabilities).toContain('testing');
-      
+
       // Frontend capabilities
       expect(capabilities).toContain('react');
       expect(capabilities).toContain('typescript');
       expect(capabilities).toContain('frontend');
-      
+
       // Backend capabilities
       expect(capabilities).toContain('backend');
       expect(capabilities).toContain('api-development');
       expect(capabilities).toContain('database');
-      
+
       // DevOps capabilities
       expect(capabilities).toContain('devops');
       expect(capabilities).toContain('docker');
@@ -135,9 +135,9 @@ describe('UniversalAgent', () => {
         updatedAt: new Date(),
         progress: 0
       };
-      
+
       const result = await agent.executeTask(task);
-      
+
       expect(result.status).toBe('completed');
       expect(result.output).toBeDefined();
       expect(result.output).toContain('Code Analysis Results');
@@ -153,7 +153,7 @@ describe('UniversalAgent', () => {
         description: 'Create a React component for user authentication',
         priority: 'high',
         status: 'pending',
-        data: { 
+        data: {
           type: 'generate',
           framework: 'react',
           requirements: ['TypeScript', 'functional component', 'form validation']
@@ -163,9 +163,9 @@ describe('UniversalAgent', () => {
         updatedAt: new Date(),
         progress: 0
       };
-      
+
       const result = await agent.executeTask(task);
-      
+
       expect(result.status).toBe('completed');
       expect(result.output).toContain('Code Generation Results');
       expect(result.result).toBeDefined();
@@ -179,7 +179,7 @@ describe('UniversalAgent', () => {
         description: 'Create React component with TypeScript',
         priority: 'medium',
         status: 'pending',
-        data: { 
+        data: {
           framework: 'react',
           component: 'UserProfile',
           features: ['hooks', 'typescript']
@@ -189,9 +189,9 @@ describe('UniversalAgent', () => {
         updatedAt: new Date(),
         progress: 0
       };
-      
+
       const result = await agent.executeTask(task);
-      
+
       expect(result.status).toBe('completed');
       expect(result.output).toContain('React Development Results');
     });
@@ -204,7 +204,7 @@ describe('UniversalAgent', () => {
         description: 'Create REST API endpoints',
         priority: 'high',
         status: 'pending',
-        data: { 
+        data: {
           type: 'api',
           endpoints: ['users', 'posts'],
           database: 'postgresql'
@@ -214,9 +214,9 @@ describe('UniversalAgent', () => {
         updatedAt: new Date(),
         progress: 0
       };
-      
+
       const result = await agent.executeTask(task);
-      
+
       expect(result.status).toBe('completed');
       expect(result.output).toContain('Backend Development Results');
     });
@@ -234,11 +234,12 @@ describe('UniversalAgent', () => {
         updatedAt: new Date(),
         progress: 0
       };
-      
+
       const result = await agent.executeTask(task);
-      
-      expect(result.status).toBe('completed'); // Universal agent handles all tasks
-      expect(result.output).toBeDefined();
+
+      expect(result.status).toBe('failed'); // Should fail for invalid task type
+      expect(result.error).toBeDefined();
+      expect(result.error).toContain('invalid');
     });
   });
 
@@ -257,7 +258,7 @@ describe('UniversalAgent', () => {
         updatedAt: new Date(),
         progress: 0
       };
-      
+
       expect(agent.canHandle(reactTask)).toBe(true);
     });
 
@@ -274,7 +275,7 @@ describe('UniversalAgent', () => {
         updatedAt: new Date(),
         progress: 0
       };
-      
+
       expect(agent.canHandle(generalTask)).toBe(true);
     });
   });
@@ -297,9 +298,9 @@ describe('UniversalAgent', () => {
         updatedAt: new Date(),
         progress: 0
       };
-      
+
       await agent.executeTask(task);
-      
+
       const metrics = agent.getMetrics();
       expect(metrics.tasksExecuted).toBe(0); // Initial execution count
       expect(metrics.tasksSucceeded).toBeGreaterThanOrEqual(0);
@@ -333,11 +334,11 @@ describe('UniversalAgent', () => {
           progress: 0
         }
       ];
-      
+
       const startTime = Date.now();
       const results = await Promise.all(tasks.map(task => agent.executeTask(task)));
       const endTime = Date.now();
-      
+
       expect(results).toHaveLength(2);
       expect(results.every(r => r.status === 'completed')).toBe(true);
       expect(endTime - startTime).toBeLessThan(10000); // Should complete reasonably fast
@@ -350,13 +351,13 @@ describe('UniversalAgent', () => {
         autonomyLevel: 'supervised' as const,
         maxConcurrentTasks: 10
       };
-      
+
       expect(() => agent.updateConfiguration(newConfig)).not.toThrow();
     });
 
     it('should update guidance', () => {
       const newGuidance = 'Updated guidance for the agent';
-      
+
       expect(() => agent.updateGuidance(newGuidance)).not.toThrow();
     });
   });
@@ -365,14 +366,14 @@ describe('UniversalAgent', () => {
     it('should cleanup resources properly', async () => {
       await agent.initialize();
       expect(agent.getStatus()).toBe('ready');
-      
+
       await agent.cleanup();
       expect(agent.getStatus()).toBe('offline');
     });
 
     it('should handle cleanup with running tasks', async () => {
       await agent.initialize();
-      
+
       // Start a task but don't wait for completion
       const task: AgentTask = {
         id: 'cleanup-task',
@@ -386,9 +387,9 @@ describe('UniversalAgent', () => {
         updatedAt: new Date(),
         progress: 0
       };
-      
+
       agent.executeTask(task); // Don't await
-      
+
       await agent.cleanup();
       expect(agent.getStatus()).toBe('offline');
     });
@@ -412,9 +413,9 @@ describe('UniversalAgent', () => {
         updatedAt: new Date(),
         progress: 0
       };
-      
+
       const result = await agent.run(task);
-      
+
       expect(result.status).toBe('completed');
       expect(result.taskId).toBe(task.id);
     });
@@ -426,7 +427,7 @@ describe('UniversalAgent', () => {
         description: 'Test todo execution',
         priority: 'medium'
       };
-      
+
       await expect(() => agent.executeTodo(todo)).not.toThrow();
     });
   });

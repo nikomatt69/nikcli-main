@@ -33,7 +33,7 @@ export class ToolService {
   private approvalSystem: ApprovalSystem;
 
   constructor() {
-    this.policyManager = new ExecutionPolicyManager(simpleConfigManager);
+    this.policyManager = new ExecutionPolicyManager(simpleConfigManager);   
     this.approvalSystem = new ApprovalSystem({
       autoApprove: {
         lowRisk: false,

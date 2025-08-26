@@ -120,7 +120,16 @@ describe('AgentManager', () => {
       agentManager.registerAgent('mock-agent', MockAgent);
     });
 
-    // Test removed - completely mocked, not veritieri
+    it('should execute tasks successfully', async () => {
+      const agent = agentManager.createAgent('mock-agent', 'executing-agent');
+      await agentManager.startAgent('executing-agent');
+
+      const task = { action: 'test', data: 'test data' };
+      const result = await agentManager.executeAgentTask('executing-agent', task);
+
+      expect(result.success).toBe(true);
+      expect(result.result).toBe('Mock execution result');
+    });
 
     it('should handle execution failures', async () => {
       const agent = agentManager.createAgent('mock-agent', 'failing-agent');

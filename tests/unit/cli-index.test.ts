@@ -99,8 +99,10 @@ describe('CLI Index (Entry Point)', () => {
 
       const { main } = await import('../../src/cli/index');
 
-      // Should handle config failures without crashing
-      await expect(() => main()).not.toThrow();
+      // Should handle config failures and return error status
+      const result = await main();
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Config failed');
     });
 
     it('should set up proper signal handlers', async () => {

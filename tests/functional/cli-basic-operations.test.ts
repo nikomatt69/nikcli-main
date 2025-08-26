@@ -465,6 +465,8 @@ Sarah,28,Boston,true`;
         const { filePath, content } = results[i];
         const readContent = await fs.readFile(filePath, 'utf-8');
         expect(readContent).toBe(content);
+        expect(filePath).toBeDefined();
+        expect(content).toBeDefined();
       }
     });
   });

@@ -91,7 +91,16 @@ describe('WriteFileTool', () => {
       expect(await readFile(filePath)).toBe('');
     });
 
-    // Test removed - encoding property not implemented in WriteFileTool
+    it('should handle file encoding', async () => {
+      const content = 'Hello 世界! 🌍';
+      const filePath = 'encoding-test.txt';
+      tempFiles.push(filePath);
+
+      const result = await writeFileTool.execute(filePath, content, { encoding: 'utf8' });
+
+      expect(result.success).toBe(true);
+      expect(await readFile(filePath)).toBe(content);
+    });
 
     it('should handle file modes', async () => {
       const content = 'File with mode';

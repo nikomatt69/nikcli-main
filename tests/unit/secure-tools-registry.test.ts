@@ -284,14 +284,15 @@ describe('SecureToolsRegistry', () => {
       });
 
       it('should handle command timeout', async () => {
-        // Skip this test on CI or make it more lenient since timeout behavior is environment dependent
-        const result = await toolsRegistry.executeCommand('ping -c 10 127.0.0.1', {
+        // Test timeout with a command that should timeout quickly
+        const result = await toolsRegistry.executeCommand('sleep 10', {
           skipConfirmation: true,
-          timeout: 100
+          timeout: 100 // 100ms timeout
         }).catch(error => ({ success: false, error: error.message }));
 
-        // Command might complete fast or timeout - both are acceptable
-        expect(typeof result.success).toBe('boolean');
+        // Should timeout and return error
+        expect(result.success).toBe(true);
+        expect(result.error).toContain('timeout');
       });
 
       it('should set working directory', async () => {

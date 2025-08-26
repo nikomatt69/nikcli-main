@@ -1,0 +1,13 @@
+{
+  "checksums.json": "cd6b618dc141855a1129948daca00d49b1914c045fe27b3e5339fca5b7bdcba6",
+  "nikcli-linux-x64": "66397a44fc245015d65258403d1846b237790ac48acf4ae7bdecb21111a7c861",
+  "nikcli-macos-arm64": "776478257f26e08444605d067cea59a237ddf4e27257db6c111420c2b0738da8",
+  "nikcli-macos-x64": "29b6a8059afc7cf8f034a3c26e6f2d9d779d5883d9d664601a33def3e06f0319",
+  "nikcli-v0.3.2-beta-complete.tar.gz": "dfdff37c18f1136c7eab81643dea185392d18e7811662ffee4a5f3d8438a0f10",
+  "nikcli-v0.3.2-beta-nikcli-linux-x64.tar.gz": "9c30db81a6d089b8420108156223ccc194ca8657df390f463991dcf855d65549",
+  "nikcli-v0.3.2-beta-nikcli-macos-arm64.tar.gz": "8aecf06dac52925f22b255ae6916a197922af65cff8575369173992436674ae0",
+  "nikcli-v0.3.2-beta-nikcli-macos-x64.tar.gz": "93f3ca8586627bcc1d91f8afe5cc8df9329187735fc4ebcb01a42b69cd4b3167",
+  "nikcli-v0.3.2-beta-nikcli-win-x64.tar.gz": "19866a2ee79e29164439a5afa35ca49af1da0a9a949925d9e7d3d6e3102a7a8c",
+  "nikcli-win-x64.exe": "9f8f68939aef3888ac70bbe53199d1890d5fa1d1909d849c525b8cbe37a966f4",
+  "release-info.json": "0aab17d9df13186b10a36e27fdfdf5f1d9dae3e242424d64a6f0e5ef2fd012cf"
+}

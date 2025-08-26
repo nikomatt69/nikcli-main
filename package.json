@@ -22,9 +22,12 @@
         "prepublishOnly": "npm run build",
         "build:start": "npm run build && node dist/cli/index.js",
         "build:binary": "node build-all.js",
+        "build:release": "node scripts/build-release.js",
         "test": "vitest",
         "test:run": "vitest run",
         "test:watch": "vitest --watch",
+        "test:coherence": "node tests/verify-coherence.js",
+        "test:system": "node tests/verify-system.js",
         "lint": "eslint src --ext .ts,.tsx"
     },
     "engines": {

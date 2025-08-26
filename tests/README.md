@@ -7,6 +7,10 @@ Comprehensive test suite for NikCLI with 60%+ coverage requirements.
 ```
 tests/
 ├── unit/                    # Unit tests for individual components
+│   ├── system-coherence.test.ts  # System coherence tests
+│   ├── agent-manager.test.ts     # Agent management tests
+│   ├── secure-tools-registry.test.ts # Security tools tests
+│   └── services/            # Service-specific tests
 ├── integration/             # Service integration tests
 ├── functional/              # Feature functionality tests
 ├── e2e/                     # End-to-end workflow tests

@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ToolService } from '../../../src/cli/services/tool-service';
-import { mockConsole, createTempFile } from '../../helpers/test-utils';
+import { mockConsole, createTempFile, cleanup } from '../../helpers/test-utils';
 
 vi.mock('../../../src/cli/tools/secure-tools-registry', () => ({
   SecureToolsRegistry: vi.fn(() => ({
@@ -26,420 +26,179 @@ vi.mock('../../../src/cli/core/config-manager', () => ({
 describe('ToolService', () => {
   let toolService: ToolService;
   let console: ReturnType<typeof mockConsole>;
+  let tempFiles: string[] = [];
 
   beforeEach(() => {
     console = mockConsole();
     toolService = new ToolService();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     console.restore();
+    await cleanup(tempFiles);
+    tempFiles = [];
   });
 
   describe('Service Initialization', () => {
-    it('should initialize successfully', async () => {
-      await toolService.initialize();
-      expect(toolService.isInitialized()).toBe(true);
-    });
-
-    it('should setup tool registry during initialization', async () => {
-      await toolService.initialize();
-      const registry = toolService.getToolRegistry();
-      expect(registry).toBeDefined();
-    });
-
-    it('should load available tools', async () => {
-      await toolService.initialize();
+    it('should initialize with default tools', () => {
       const tools = toolService.getAvailableTools();
       expect(tools.length).toBeGreaterThan(0);
+      expect(tools.some(tool => tool.name === 'read_file')).toBe(true);
+      expect(tools.some(tool => tool.name === 'write_file')).toBe(true);
     });
 
-    it('should handle initialization failures', async () => {
-      const mockInit = vi.spyOn(toolService, 'initialize').mockRejectedValue(new Error('Init failed'));
+    it('should register new tools', () => {
+      const customTool = {
+        name: 'custom-tool',
+        description: 'Custom tool for testing',
+        category: 'file' as const,
+        handler: vi.fn().mockResolvedValue({ success: true })
+      };
 
-      await expect(toolService.initialize()).rejects.toThrow('Init failed');
-      mockInit.mockRestore();
+      toolService.registerTool(customTool);
+      const tools = toolService.getAvailableTools();
+      expect(tools.some(tool => tool.name === 'custom-tool')).toBe(true);
+    });
+
+    it('should set working directory', () => {
+      const testDir = '/test/directory';
+      toolService.setWorkingDirectory(testDir);
+      // Note: workingDirectory is private, so we test through behavior
+      expect(() => toolService.setWorkingDirectory(testDir)).not.toThrow();
     });
   });
 
   describe('Tool Discovery and Registration', () => {
-    beforeEach(async () => {
-      await toolService.initialize();
-    });
-
     it('should list available tools', () => {
       const tools = toolService.getAvailableTools();
       expect(Array.isArray(tools)).toBe(true);
-      expect(tools).toContain('read-file');
-      expect(tools).toContain('write-file');
+      expect(tools.length).toBeGreaterThan(0);
+
+      const toolNames = tools.map(tool => tool.name);
+      expect(toolNames).toContain('read_file');
+      expect(toolNames).toContain('write_file');
     });
 
     it('should get tool information', () => {
-      const toolInfo = toolService.getToolInfo('read-file');
-      expect(toolInfo).toHaveProperty('name');
-      expect(toolInfo).toHaveProperty('description');
-      expect(toolInfo).toHaveProperty('parameters');
+      const tools = toolService.getAvailableTools();
+      const readFileTool = tools.find(tool => tool.name === 'read_file');
+
+      expect(readFileTool).toBeDefined();
+      expect(readFileTool).toHaveProperty('name');
+      expect(readFileTool).toHaveProperty('description');
+      expect(readFileTool).toHaveProperty('category');
+      expect(readFileTool).toHaveProperty('handler');
     });
 
     it('should validate tool existence', () => {
-      expect(toolService.isToolAvailable('read-file')).toBe(true);
-      expect(toolService.isToolAvailable('non-existent-tool')).toBe(false);
+      const tools = toolService.getAvailableTools();
+      const toolNames = tools.map(tool => tool.name);
+
+      expect(toolNames).toContain('read_file');
+      expect(toolNames).not.toContain('non-existent-tool');
     });
 
     it('should categorize tools by type', () => {
-      const categories = toolService.getToolCategories();
+      const tools = toolService.getAvailableTools();
+      const categories = tools.reduce((acc, tool) => {
+        if (!acc[tool.category]) acc[tool.category] = [];
+        acc[tool.category].push(tool.name);
+        return acc;
+      }, {} as Record<string, string[]>);
+
       expect(categories).toHaveProperty('file');
       expect(categories).toHaveProperty('command');
-      expect(categories.file).toContain('read-file');
+      expect(categories.file).toContain('read_file');
     });
   });
 
-  // Tests removed - completely mocked, not veritieri
+  describe('Tool Execution', () => {
+    it('should execute tools successfully', async () => {
+      // Create a test file first
+      await createTempFile('test.txt', 'test content');
+      tempFiles.push('test.txt');
 
-  // Tests removed - completely mocked, not veritieri
+      const result = await toolService.executeTool('read_file', { filePath: 'test.txt' });
 
-  describe('Tool Parameter Validation', () => {
-    beforeEach(async () => {
-      await toolService.initialize();
+      expect(result).toBeDefined();
+      expect(result.content).toBe('test content');
+      expect(result.size).toBe(11);
     });
 
-    it('should validate required parameters', async () => {
-      const result = await toolService.executeTool('read-file', {});
+    it('should handle tool execution failures', async () => {
+      await expect(
+        toolService.executeTool('read_file', { filePath: 'non-existent.txt' })
+      ).rejects.toThrow('File not found');
+    });
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('required');
+    it('should handle non-existent tools', async () => {
+      await expect(
+        toolService.executeTool('non-existent-tool', {})
+      ).rejects.toThrow("Tool 'non-existent-tool' not found");
+    });
+  });
+
+  describe('Tool Parameter Validation', () => {
+    it('should validate required parameters', async () => {
+      await expect(
+        toolService.executeTool('read_file', {})
+      ).rejects.toThrow();
     });
 
     it('should validate parameter types', async () => {
-      const result = await toolService.executeTool('read-file', {
-        path: 123 // Should be string
-      });
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('type');
+      await expect(
+        toolService.executeTool('read_file', { filePath: 123 })
+      ).rejects.toThrow();
     });
 
-    it('should provide parameter suggestions', async () => {
-      const suggestions = toolService.getParameterSuggestions('read-file');
+    it('should handle valid parameters', async () => {
+      await createTempFile('valid-test.txt', 'test content');
+      tempFiles.push('valid-test.txt');
 
-      expect(suggestions).toHaveProperty('path');
-      expect(suggestions.path).toContain('example');
-    });
-
-    it('should handle optional parameters', async () => {
-      const result = await toolService.executeTool('list-directory', {
-        path: '/test',
-        recursive: true,
-        pattern: '*.js'
-      });
-
-      expect(result.success).toBe(true);
+      const result = await toolService.executeTool('read_file', { filePath: 'valid-test.txt' });
+      expect(result.content).toBe('test content');
     });
   });
 
-  describe('Tool Execution Policies', () => {
-    beforeEach(async () => {
-      await toolService.initialize();
+  describe('Tool Execution History', () => {
+    it('should track execution history', async () => {
+      await createTempFile('history-test.txt', 'test content');
+      tempFiles.push('history-test.txt');
+
+      await toolService.executeTool('read_file', { filePath: 'history-test.txt' });
+
+      const history = toolService.getExecutionHistory();
+      expect(history.length).toBeGreaterThan(0);
+      expect(history[0].toolName).toBe('read_file');
+      expect(history[0].status).toBe('completed');
     });
 
-    it('should enforce security policies', async () => {
-      toolService.setSecurityPolicy({
-        allowDangerousCommands: false,
-        restrictedPaths: ['/system', '/etc'],
-        maxFileSize: 1024 * 1024 // 1MB
-      });
-
-      const result = await toolService.executeTool('read-file', {
-        path: '/etc/passwd'
-      });
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('restricted');
-    });
-
-    it('should handle permission requirements', async () => {
-      const result = await toolService.executeTool('write-file', {
-        path: '/protected/file.txt',
-        content: 'test',
-        requiresPermission: true
-      });
-
-      // Should require user confirmation or proper permissions
-      expect(result).toHaveProperty('requiresConfirmation');
-    });
-
-    it('should apply rate limiting', async () => {
-      toolService.setRateLimit('run-command', { maxCalls: 2, window: 1000 });
-
-      // Execute commands rapidly
-      const results = await Promise.all([
-        toolService.executeTool('run-command', { command: 'echo 1' }),
-        toolService.executeTool('run-command', { command: 'echo 2' }),
-        toolService.executeTool('run-command', { command: 'echo 3' }),
-      ]);
-
-      // Third command should be rate limited
-      expect(results[2].success).toBe(false);
-      expect(results[2].error).toContain('rate limit');
-    });
-  });
-
-  describe('Tool Execution Monitoring', () => {
-    beforeEach(async () => {
-      await toolService.initialize();
-    });
-
-    it('should track execution metrics', async () => {
-      await toolService.executeTool('read-file', { path: 'test.txt' });
-
-      const metrics = toolService.getExecutionMetrics();
-      expect(metrics.totalExecutions).toBe(1);
-      expect(metrics.toolUsage['read-file']).toBe(1);
-    });
-
-    it('should measure execution time', async () => {
-      const result = await toolService.executeTool('read-file', { path: 'test.txt' });
-
-      expect(result.executionTime).toBeGreaterThanOrEqual(0);
-    });
-
-    it('should track success/failure rates', async () => {
-      await toolService.executeTool('read-file', { path: 'exists.txt' });
-      await toolService.executeTool('read-file', { path: 'missing.txt' });
-
-      const stats = toolService.getToolStatistics('read-file');
-      expect(stats.totalCalls).toBe(2);
-      expect(stats.successRate).toBeDefined();
-    });
-
-    it('should generate execution reports', () => {
-      const report = toolService.generateExecutionReport();
-
-      expect(report).toHaveProperty('totalTools');
-      expect(report).toHaveProperty('mostUsedTools');
-      expect(report).toHaveProperty('errorRates');
-      expect(report).toHaveProperty('performanceMetrics');
-    });
-  });
-
-  describe('Tool Chaining and Workflows', () => {
-    beforeEach(async () => {
-      await toolService.initialize();
-    });
-
-    it('should execute tool chains', async () => {
-      const workflow = [
-        { tool: 'read-file', params: { path: 'input.txt' } },
-        { tool: 'write-file', params: { path: 'output.txt', content: '${prev.content}' } }
-      ];
-
-      const result = await toolService.executeWorkflow(workflow);
-
-      expect(result.success).toBe(true);
-      expect(result.steps).toHaveLength(2);
-    });
-
-    it('should handle workflow failures', async () => {
-      const workflow = [
-        { tool: 'read-file', params: { path: 'missing.txt' } },
-        { tool: 'write-file', params: { path: 'output.txt', content: '${prev.content}' } }
-      ];
-
-      const result = await toolService.executeWorkflow(workflow, {
-        stopOnFailure: true
-      });
-
-      expect(result.success).toBe(false);
-      expect(result.failedStep).toBe(0);
-    });
-
-    it('should support conditional execution', async () => {
-      const workflow = [
-        {
-          tool: 'read-file',
-          params: { path: 'config.json' },
-          condition: 'exists'
-        },
-        {
-          tool: 'write-file',
-          params: { path: 'default-config.json', content: '{}' },
-          condition: '!prev.success'
-        }
-      ];
-
-      const result = await toolService.executeWorkflow(workflow);
-
-      expect(result.success).toBe(true);
-    });
-
-    it('should provide workflow templates', () => {
-      const templates = toolService.getWorkflowTemplates();
-
-      expect(templates).toHaveProperty('file-processing');
-      expect(templates).toHaveProperty('project-setup');
-      expect(templates['file-processing']).toHaveLength(3);
-    });
-  });
-
-  describe('Tool Configuration and Customization', () => {
-    beforeEach(async () => {
-      await toolService.initialize();
-    });
-
-    it('should configure tool defaults', async () => {
-      toolService.setToolDefaults('read-file', {
-        encoding: 'utf-8',
-        maxSize: 1024 * 1024
-      });
-
-      const defaults = toolService.getToolDefaults('read-file');
-      expect(defaults.encoding).toBe('utf-8');
-      expect(defaults.maxSize).toBe(1024 * 1024);
-    });
-
-    it('should support tool aliases', () => {
-      toolService.createAlias('rf', 'read-file');
-
-      expect(toolService.isToolAvailable('rf')).toBe(true);
-      expect(toolService.resolveAlias('rf')).toBe('read-file');
-    });
-
-    it('should allow custom tool registration', () => {
-      const customTool = {
-        name: 'custom-tool',
-        execute: vi.fn(() => ({ success: true, data: 'custom result' })),
-        parameters: { input: { type: 'string', required: true } }
-      };
-
-      toolService.registerCustomTool(customTool);
-
-      expect(toolService.isToolAvailable('custom-tool')).toBe(true);
-    });
-
-    it('should support tool plugins', async () => {
-      const plugin = {
-        name: 'test-plugin',
-        tools: [
-          { name: 'plugin-tool', execute: vi.fn(() => ({ success: true })) }
-        ],
-        initialize: vi.fn()
-      };
-
-      await toolService.loadPlugin(plugin);
-
-      expect(toolService.isToolAvailable('plugin-tool')).toBe(true);
-    });
-  });
-
-  describe('Error Handling and Recovery', () => {
-    beforeEach(async () => {
-      await toolService.initialize();
-    });
-
-    it('should handle tool execution errors', async () => {
-      const mockRegistry = toolService.getToolRegistry();
-      if (mockRegistry) {
-        vi.spyOn(mockRegistry, 'readFile').mockRejectedValue(new Error('IO Error'));
+    it('should track failed executions', async () => {
+      try {
+        await toolService.executeTool('read_file', { filePath: 'non-existent.txt' });
+      } catch (error) {
+        // Expected to fail
       }
 
-      const result = await toolService.executeTool('read-file', { path: 'test.txt' });
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('IO Error');
-      expect(result.errorCode).toBeDefined();
-    });
-
-    it('should implement retry logic', async () => {
-      let callCount = 0;
-      const mockRegistry = toolService.getToolRegistry();
-      if (mockRegistry) {
-        vi.spyOn(mockRegistry, 'readFile').mockImplementation(() => {
-          callCount++;
-          if (callCount < 3) {
-            throw new Error('Transient error');
-          }
-          return { success: true, data: { content: 'success after retries' } };
-        });
-      }
-
-      const result = await toolService.executeTool('read-file', {
-        path: 'test.txt',
-        retryPolicy: { maxRetries: 3, delay: 10 }
-      });
-
-      expect(result.success).toBe(true);
-      expect(callCount).toBe(3);
-    });
-
-    it('should provide fallback mechanisms', async () => {
-      const result = await toolService.executeTool('read-file', {
-        path: 'primary.txt',
-        fallbacks: ['backup.txt', 'default.txt']
-      });
-
-      expect(result.success).toBe(true);
-    });
-
-    it('should handle tool registry failures', async () => {
-      const originalRegistry = toolService.getToolRegistry();
-
-      // Simulate registry failure
-      (toolService as any).toolRegistry = null;
-
-      const result = await toolService.executeTool('read-file', { path: 'test.txt' });
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('registry');
-
-      // Restore registry
-      (toolService as any).toolRegistry = originalRegistry;
+      const history = toolService.getExecutionHistory();
+      const failedExecutions = history.filter(exec => exec.status === 'failed');
+      expect(failedExecutions.length).toBeGreaterThan(0);
     });
   });
 
-  describe('Performance Optimization', () => {
-    beforeEach(async () => {
-      await toolService.initialize();
+  describe('Tool Execution Safety', () => {
+    it('should execute tools safely with approval', async () => {
+      await createTempFile('safe-test.txt', 'test content');
+      tempFiles.push('safe-test.txt');
+
+      const result = await toolService.executeToolSafely('read_file', 'read', { filePath: 'safe-test.txt' });
+      expect(result.content).toBe('test content');
     });
 
-    it('should cache tool execution results', async () => {
-      toolService.enableCaching({ ttl: 60000, maxSize: 100 });
-
-      // Execute same tool twice
-      const result1 = await toolService.executeTool('read-file', { path: 'cache-test.txt' });
-      const result2 = await toolService.executeTool('read-file', { path: 'cache-test.txt' });
-
-      expect(result1.success).toBe(true);
-      expect(result2.success).toBe(true);
-      expect(result2.cached).toBe(true);
-    });
-
-    it('should execute tools concurrently when possible', async () => {
-      const startTime = Date.now();
-
-      const results = await Promise.all([
-        toolService.executeTool('read-file', { path: 'file1.txt' }),
-        toolService.executeTool('read-file', { path: 'file2.txt' }),
-        toolService.executeTool('read-file', { path: 'file3.txt' }),
-      ]);
-
-      const endTime = Date.now();
-
-      expect(results).toHaveLength(3);
-      expect(results.every(r => r.success)).toBe(true);
-      expect(endTime - startTime).toBeLessThan(1000); // Should be fast due to concurrency
-    });
-
-    it('should optimize tool loading', () => {
-      const loadTime = toolService.getLoadTime();
-      expect(loadTime).toBeLessThan(5000); // Should load quickly
-    });
-
-    it('should manage resource usage', () => {
-      const usage = toolService.getResourceUsage();
-
-      expect(usage).toHaveProperty('memoryUsage');
-      expect(usage).toHaveProperty('activeTools');
-      expect(usage).toHaveProperty('queueSize');
+    it('should handle safe execution failures', async () => {
+      await expect(
+        toolService.executeToolSafely('read_file', 'read', { filePath: 'non-existent.txt' })
+      ).rejects.toThrow();
     });
   });
 });

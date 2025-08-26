@@ -96,7 +96,17 @@ describe('ReadFileTool', () => {
   });
 
   describe('File Options', () => {
-    // Test removed - maxSize validation not implemented properly
+    it('should respect maxSize option', async () => {
+      const largeContent = 'A'.repeat(2000); // 2KB content
+      const filePath = await createTempFile('large.txt', largeContent);
+      tempFiles.push(filePath);
+
+      const result = await readFileTool.execute(filePath, { maxSize: 1000 }); // 1KB limit
+
+      expect(result.success).toBe(true);
+      expect(result.data.content.length).toBeLessThanOrEqual(1000);
+      expect(result.data.content).toContain('Content truncated');
+    });
 
     it('should respect maxLines option', async () => {
       const content = 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5';

@@ -101,7 +101,10 @@ describe('MainOrchestrator', () => {
         vi.spyOn(services.agentService, 'initialize').mockRejectedValue(new Error('Service failed'));
       }
 
-      await expect(() => orchestrator.startServices()).not.toThrow();
+      // Should handle service failures gracefully
+      const result = await orchestrator.startServices();
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Service failed');
     });
   });
 

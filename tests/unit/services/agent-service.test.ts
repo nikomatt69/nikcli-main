@@ -104,7 +104,39 @@ describe('AgentService', () => {
     });
   });
 
-  // Tests removed - completely mocked, not veritieri
+  describe('Agent Task Execution', () => {
+    beforeEach(async () => {
+      await agentService.initialize();
+    });
+
+    it('should execute tasks successfully', async () => {
+      await agentService.createAgent('executor-agent', { type: 'universal' });
+      await agentService.startAgent('executor-agent');
+
+      const task = { type: 'test', data: 'test data' };
+      const result = await agentService.executeTask('executor-agent', task);
+
+      expect(result.success).toBe(true);
+      expect(result.result).toBe('Mock result');
+    });
+
+    it('should handle task execution failures', async () => {
+      await agentService.createAgent('failing-agent', { type: 'universal' });
+      await agentService.startAgent('failing-agent');
+
+      // Mock task execution failure
+      const mockManager = agentService.getAgentManager();
+      if (mockManager) {
+        vi.spyOn(mockManager, 'executeAgentTask').mockRejectedValue(new Error('Task failed'));
+      }
+
+      const task = { type: 'fail' };
+      const result = await agentService.executeTask('failing-agent', task);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+  });
 
   describe('Agent Discovery and Routing', () => {
     beforeEach(async () => {
