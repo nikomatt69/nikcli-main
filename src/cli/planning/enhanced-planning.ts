@@ -109,7 +109,7 @@ export class EnhancedPlanningSystem {
     const allowedTags = new Set(['grep', 'readfile', 'analysis', 'search', 'inspect']);
 
     // Filter todos: no commands, no files to modify, category/tag must be analysis-oriented
-    const filtered = todos.filter(t => {
+    let filtered = todos.filter(t => {
       const hasCommands = (t.commands && t.commands.length > 0);
       const hasFiles = (t.files && t.files.length > 0);
       const categoryOk = allowedCategories.has(t.category);
@@ -119,7 +119,7 @@ export class EnhancedPlanningSystem {
 
     // If everything got filtered, fall back to minimal read-only plan derived from original
     if (filtered.length === 0) {
-      return todos.map(t => ({
+      filtered = todos.map(t => ({
         ...t,
         commands: [],
         files: [],
@@ -127,6 +127,13 @@ export class EnhancedPlanningSystem {
         tags: Array.from(new Set([...(t.tags || []), 'grep', 'readfile', 'analysis'])),
       }));
     }
+
+    // Clean up dependencies: remove links to tasks that no longer exist
+    const validIds = new Set(filtered.map(t => t.id));
+    filtered = filtered.map(t => ({
+      ...t,
+      dependencies: (t.dependencies || []).filter(depId => validIds.has(depId))
+    }));
 
     return filtered;
   }
