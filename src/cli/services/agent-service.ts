@@ -160,18 +160,15 @@ export class AgentService extends EventEmitter {
       if (!agent) {
         // Graceful fallback: try autonomous-coder
         const fallbackType = 'autonomous-coder';
-        const fallback = this.agents.get(fallbackType);
-        if (fallback) {
+        if (this.agents.has(fallbackType)) {
           console.log(chalk.yellow(`⚠️ Agent '${resolvedAgentType}' not found. Falling back to '${fallbackType}'.`));
           resolvedAgentType = fallbackType;
-          agent = fallback;
         } else {
           // As a last resort, pick the first available agent
           const anyAgent = this.getAvailableAgents()[0];
           if (anyAgent) {
             console.log(chalk.yellow(`⚠️ Agent '${resolvedAgentType}' not found. Using '${anyAgent.name}'.`));
             resolvedAgentType = anyAgent.name;
-            agent = this.agents.get(anyAgent.name)!;
           } else {
             throw new Error(`Agent '${resolvedAgentType}' not found and no fallback available`);
           }
