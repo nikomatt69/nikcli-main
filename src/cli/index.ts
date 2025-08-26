@@ -937,8 +937,13 @@ class StreamingModule extends EventEmitter {
 
   private setupInterface(): void {
     // Raw mode for better control
-    process.stdin.setRawMode(true);
-    require('readline').emitKeypressEvents(process.stdin);
+    if (process.stdin.isTTY) {
+      require('readline').emitKeypressEvents(process.stdin);
+      if (!(process.stdin as any).isRaw) {
+        (process.stdin as any).setRawMode(true);
+      }
+      (process.stdin as any).resume();
+    }
 
     // Keypress handlers
     process.stdin.on('keypress', (str, key) => {
