@@ -16,12 +16,12 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
   console.error(chalk.red('⚠️  Unhandled Promise Rejection:'));
   console.error(chalk.red('Reason:', reason));
   console.error(chalk.red('Promise:', promise));
-  
+
   // Log stack trace if available
   if (reason && reason.stack) {
     console.error(chalk.gray('Stack:', reason.stack));
   }
-  
+
   // Graceful handling - don't exit process, but log for debugging
   console.error(chalk.yellow('System continuing with error logged...'));
 });
@@ -30,7 +30,7 @@ process.on('uncaughtException', (error: Error) => {
   console.error(chalk.red('⚠️  Uncaught Exception:'));
   console.error(chalk.red('Error:', error.message));
   console.error(chalk.gray('Stack:', error.stack));
-  
+
   // For uncaught exceptions, we need to exit gracefully
   console.error(chalk.red('System shutting down due to uncaught exception...'));
   process.exit(1);
@@ -205,7 +205,7 @@ class OnboardingModule {
       chalk.white('• AI responses may be inaccurate\n') +
       chalk.white('• System resource usage\n\n') +
       chalk.cyan('For detailed security information, visit:\n') +
-      chalk.blue.underline('https://github.com/nikomatt69/agent-cli/blob/main/SECURITY.md\n\n') +
+      chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
       chalk.white('By continuing, you acknowledge these risks.'),
       {
         padding: 1,
@@ -850,14 +850,14 @@ class ServiceModule {
         // Import providers to make them available for autonomous chat
         const { visionProvider } = await import('./providers/vision');
         const { imageGenerator } = await import('./providers/image');
-        
+
         // Providers initialize automatically in their constructors
         console.log(chalk.dim('   ✓ Vision & Image providers ready for autonomous use'));
-        
+
         // Make providers globally accessible for chat
         global.visionProvider = visionProvider;
         global.imageGenerator = imageGenerator;
-        
+
       } catch (error: any) {
         console.log(chalk.yellow(`   ⚠ Vision providers warning: ${error.message}`));
         console.log(chalk.yellow('Vision and image generation will not be available in autonomous chat'));

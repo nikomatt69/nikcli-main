@@ -3,7 +3,7 @@ set -euo pipefail
 
 # NikCLI curl uninstaller (beta)
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/nikomatt69/agent-cli/main/installer/uninstall.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/uninstall.sh | bash
 
 PACKAGE="@cadcamfun/nikcli"
 

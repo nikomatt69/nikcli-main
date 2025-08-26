@@ -46,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/install
 Disinstallazione:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nikomatt69/agent-cli/main/installer/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/uninstall.sh | bash
 ```
 
 > Nota: l’installer usa `npm i -g`. L’uso di `npm` è preferito (evitare `yarn`).

@@ -10,16 +10,16 @@ Replace `USER_OR_ORG/REPO` with your GitHub path when publishing these scripts p
 
 ```bash
 # Install latest beta
-type curl >/dev/null 2>&1 && curl -fsSL https://raw.githubusercontent.com/nikomatt69/agent-cli/main/installer/install.sh | bash
+type curl >/dev/null 2>&1 && curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
 
 # Or specify exact version
-type curl >/dev/null 2>&1 && curl -fsSL https://raw.githubusercontent.com/nikomatt69/agent-cli/main/installer/install.sh | bash -s -- --version 0.2.60-beta
+type curl >/dev/null 2>&1 && curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 0.2.60-beta
 ```
 
 ## Uninstall
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nikomatt69/agent-cli/main/installer/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/uninstall.sh | bash
 ```
 
 ## What the installer does
