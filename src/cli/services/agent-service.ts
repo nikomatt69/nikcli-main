@@ -156,9 +156,26 @@ export class AgentService extends EventEmitter {
         resolvedAgentType = this.suggestAgentTypeForTask(task);
       }
 
-      const agent = this.agents.get(resolvedAgentType);
+      let agent = this.agents.get(resolvedAgentType);
       if (!agent) {
-        throw new Error(`Agent '${resolvedAgentType}' not found`);
+        // Graceful fallback: try autonomous-coder
+        const fallbackType = 'autonomous-coder';
+        const fallback = this.agents.get(fallbackType);
+        if (fallback) {
+          console.log(chalk.yellow(`⚠️ Agent '${resolvedAgentType}' not found. Falling back to '${fallbackType}'.`));
+          resolvedAgentType = fallbackType;
+          agent = fallback;
+        } else {
+          // As a last resort, pick the first available agent
+          const anyAgent = this.getAvailableAgents()[0];
+          if (anyAgent) {
+            console.log(chalk.yellow(`⚠️ Agent '${resolvedAgentType}' not found. Using '${anyAgent.name}'.`));
+            resolvedAgentType = anyAgent.name;
+            agent = this.agents.get(anyAgent.name)!;
+          } else {
+            throw new Error(`Agent '${resolvedAgentType}' not found and no fallback available`);
+          }
+        }
       }
 
       const taskId = Date.now().toString();
