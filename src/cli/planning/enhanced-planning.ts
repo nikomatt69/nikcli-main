@@ -29,6 +29,9 @@ export interface TodoItem {
   progress?: number; // 0-100
   errorMessage?: string;
   rollbackPlan?: string[];
+  // Execution trace
+  agentTypeUsed?: string;
+  agentTaskId?: string;
 }
 
 export interface TodoPlan {
@@ -781,8 +784,13 @@ Generate a comprehensive plan that is practical and executable.`
       // Temporarily override emit to capture events
       agentService.emit = eventHandler;
 
-      // Execute task using autonomous-coder and get taskId
-      const taskId = await agentService.executeTask('autonomous-coder', `${todo.title}: ${todo.description}`);
+      // Select best agent dynamically for the todo
+      const agentType = this.selectAgentForTodo(todo);
+      // Execute task and get taskId
+      const taskId = await agentService.executeTask(agentType, `${todo.title}: ${todo.description}`);
+      // Trace
+      todo.agentTypeUsed = agentType;
+      todo.agentTaskId = taskId;
 
       // Poll for completion with timeout (per-todo)
       const maxWaitMs = Math.min(Math.max(((todo?.estimatedDuration || 5) * 60 * 1000), 2 * 60 * 1000), 15 * 60 * 1000);
@@ -817,6 +825,21 @@ Generate a comprehensive plan that is practical and executable.`
         }
       } catch { /* ignore */ }
     }
+  }
+
+  /**
+   * Minimal dynamic agent selection based on todo metadata
+   */
+  private selectAgentForTodo(todo: TodoItem): string {
+    const text = `${todo.title} ${todo.description} ${(todo.tags || []).join(' ')}`.toLowerCase();
+    if (text.includes('react') || text.includes('component')) return 'react-expert';
+    if (text.includes('frontend') || text.includes('ui') || text.includes('css')) return 'frontend-expert';
+    if (text.includes('backend') || text.includes('api') || text.includes('server')) return 'backend-expert';
+    if (text.includes('deploy') || text.includes('docker') || text.includes('kubernetes') || text.includes('ci')) return 'devops-expert';
+    if (text.includes('review') || text.includes('analyze') || text.includes('audit')) return 'code-review';
+    if (text.includes('system') || text.includes('admin')) return 'system-admin';
+    // default universal agent
+    return 'autonomous-coder';
   }
 
   /**
