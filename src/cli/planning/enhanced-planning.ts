@@ -168,7 +168,6 @@ export class EnhancedPlanningSystem {
 
   /**
    * Enhanced plan approval with detailed analysis
-   * @deprecated Use approvalSystem.requestPlanApproval directly instead
    */
   async requestPlanApproval(planId: string): Promise<boolean> {
     const plan = this.activePlans.get(planId);
@@ -176,13 +175,42 @@ export class EnhancedPlanningSystem {
       throw new Error(`Plan ${planId} not found`);
     }
 
-    // This method is deprecated - use approvalSystem.requestPlanApproval directly
-    console.log(chalk.yellow('⚠️  This method is deprecated. Use approvalSystem.requestPlanApproval directly.'));
+    // Build details for approval system
+    const categories = Array.from(new Set(plan.todos.map(t => t.category).filter(Boolean)));
+    const priorities: Record<string, number> = {};
+    plan.todos.forEach(t => { priorities[t.priority] = (priorities[t.priority] || 0) + 1; });
+    const dependencies = plan.todos.reduce((sum, t) => sum + (t.dependencies?.length || 0), 0);
+    const affectedFiles = plan.todos.flatMap(t => t.files || []);
+    const commands = plan.todos.flatMap(t => t.commands || []);
+    const riskLevel = this.assessPlanRisk(plan);
 
-    // For backward compatibility, return true to allow execution
-    plan.status = 'approved';
-    plan.approvedAt = new Date();
-    return true;
+    const approval = await approvalSystem.requestPlanApproval(
+      plan.title,
+      plan.description || plan.goal || '',
+      {
+        totalSteps: plan.todos.length,
+        estimatedDuration: plan.estimatedTotalDuration,
+        riskLevel,
+        categories,
+        priorities,
+        dependencies,
+        affectedFiles,
+        commands,
+      },
+      {
+        showBreakdown: true,
+        allowModification: false,
+        showTimeline: true,
+      }
+    );
+
+    if (approval.approved) {
+      plan.status = 'approved';
+      plan.approvedAt = new Date();
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -214,6 +242,16 @@ export class EnhancedPlanningSystem {
       let failedCount = 0;
 
       for (const todo of executionOrder) {
+        // Allow user interruption to cancel execution
+        try {
+          const nik = (global as any).__nikCLI;
+          if (nik && nik.shouldInterrupt) {
+            console.log(chalk.yellow('🛑 Execution interrupted by user'));
+            plan.status = 'failed';
+            return;
+          }
+        } catch { /* ignore */ }
+
         console.log(chalk.cyan(`\n📋 [${completedCount + 1}/${plan.todos.length}] ${todo.title}`));
         console.log(chalk.gray(`   ${todo.description}`));
 
@@ -227,9 +265,15 @@ export class EnhancedPlanningSystem {
         todo.startedAt = new Date();
 
         try {
-          // Execute the todo with enhanced error handling
+          // Execute the todo with per-step timeout based on estimate (min 2m, max 15m)
+          const estimatedMs = (typeof todo.estimatedDuration === 'number' ? todo.estimatedDuration : 30) * 60000;
+          const stepTimeoutMs = Math.max(120000, Math.min(900000, estimatedMs));
+
           const startTime = Date.now();
-          await this.executeEnhancedTodo(todo, plan);
+          await Promise.race([
+            this.executeEnhancedTodo(todo, plan),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Todo execution timeout')), stepTimeoutMs))
+          ]);
           const duration = Date.now() - startTime;
 
           todo.status = 'completed';
@@ -285,6 +329,24 @@ export class EnhancedPlanningSystem {
     } catch (error: any) {
       plan.status = 'failed';
       console.log(chalk.red(`\n❌ Enhanced plan execution failed: ${error.message}`));
+    } finally {
+      // Always return to default mode after plan execution
+      try {
+        const nik = (global as any).__nikCLI;
+        if (nik) {
+          nik.currentMode = 'default';
+          if (typeof nik.renderPromptAfterOutput === 'function') {
+            nik.renderPromptAfterOutput();
+          } else if (typeof nik.showPrompt === 'function') {
+            nik.showPrompt();
+          }
+        }
+        const orchestrator = (global as any).__streamingOrchestrator;
+        if (orchestrator && orchestrator.context) {
+          orchestrator.context.planMode = false;
+          orchestrator.context.autoAcceptEdits = false;
+        }
+      } catch { /* ignore cleanup errors */ }
     }
   }
 
@@ -569,12 +631,13 @@ Generate a comprehensive plan that is practical and executable.`
     console.log(chalk.blue(`🚀 Starting: ${todo.title}`));
     console.log(chalk.gray(`   ${todo.description}`));
 
+    let originalEmit: any;
     try {
       // Import agent service for real execution
       const { agentService } = await import('../services/agent-service');
       
       // Setup event listeners to bridge agent events to UI
-      const originalEmit = agentService.emit.bind(agentService);
+      originalEmit = agentService.emit.bind(agentService);
       const eventHandler = (event: string, ...args: any[]) => {
         // Route events through the NikCLI UI system if available
         try {
@@ -621,9 +684,6 @@ Generate a comprehensive plan that is practical and executable.`
       // Execute task using autonomous-coder as universal agent
       const result = await agentService.executeTask('autonomous-coder', `${todo.title}: ${todo.description}`);
 
-      // Restore original emit
-      agentService.emit = originalEmit;
-
       // Check execution result
       if (!result || result === 'failed' || (typeof result === 'string' && result.toLowerCase().includes('error'))) {
         throw new Error(`Todo execution failed: ${result || 'Unknown error'}`);
@@ -634,6 +694,14 @@ Generate a comprehensive plan that is practical and executable.`
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed: ${todo.title} - ${error.message}`));
       throw error;
+    } finally {
+      try {
+        // Restore original emit even on errors/timeouts
+        const { agentService } = await import('../services/agent-service');
+        if (originalEmit) {
+          agentService.emit = originalEmit;
+        }
+      } catch { /* ignore */ }
     }
   }
 
