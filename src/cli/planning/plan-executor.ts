@@ -60,6 +60,16 @@ export class PlanExecutor {
             if (!approval.approved) {
                 result.status = 'cancelled';
                 CliUI.logWarning('Plan execution cancelled by user');
+                // Cleanup/reset before returning
+                try {
+                    const nik = (global as any).__nikCLI;
+                    if (nik) nik.currentMode = 'default';
+                    const orchestrator = (global as any).__streamingOrchestrator;
+                    if (orchestrator && orchestrator.context) {
+                        orchestrator.context.planMode = false;
+                        orchestrator.context.autoAcceptEdits = false;
+                    }
+                } catch { /* ignore */ }
                 return result;
             }
 
@@ -74,6 +84,16 @@ export class PlanExecutor {
             const executionOrder = this.resolveDependencyOrder(stepsToExecute);
 
             for (let i = 0; i < executionOrder.length; i++) {
+                // Allow global interruption (ESC) similar to planner logic
+                try {
+                    const nik = (global as any).__nikCLI;
+                    if (nik && nik.shouldInterrupt) {
+                        CliUI.logWarning('Execution interrupted by user');
+                        result.status = 'failed';
+                        break;
+                    }
+                } catch { /* ignore */ }
+
                 const step = executionOrder[i];
 
                 CliUI.logProgress(i + 1, executionOrder.length, `Executing: ${step.title}`);
@@ -121,12 +141,33 @@ export class PlanExecutor {
             // Log final results
             this.logExecutionSummary(result);
 
+            // Cleanup/reset after successful run
+            try {
+                const nik = (global as any).__nikCLI;
+                if (nik) nik.currentMode = 'default';
+                const orchestrator = (global as any).__streamingOrchestrator;
+                if (orchestrator && orchestrator.context) {
+                    orchestrator.context.planMode = false;
+                    orchestrator.context.autoAcceptEdits = false;
+                }
+            } catch { /* ignore */ }
+
             return result;
 
         } catch (error: any) {
             result.status = 'failed';
             result.endTime = new Date();
             CliUI.logError(`Plan execution failed: ${error.message}`);
+            // Cleanup/reset after failure
+            try {
+                const nik = (global as any).__nikCLI;
+                if (nik) nik.currentMode = 'default';
+                const orchestrator = (global as any).__streamingOrchestrator;
+                if (orchestrator && orchestrator.context) {
+                    orchestrator.context.planMode = false;
+                    orchestrator.context.autoAcceptEdits = false;
+                }
+            } catch { /* ignore */ }
             return result;
         }
     }
