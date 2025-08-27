@@ -1,8 +1,7 @@
 import * as readline from 'readline';
 import chalk from 'chalk';
 import boxen from 'boxen';
-import { marked } from 'marked';
-import TerminalRenderer from 'marked-terminal';
+import { configureSyntaxHighlighting } from './utils/syntax-highlighter';
 import ora, { Ora } from 'ora';
 import cliProgress from 'cli-progress';
 import * as fs from 'fs/promises';
@@ -65,10 +64,8 @@ import { TokenOptimizer, QuietCacheLogger, TokenOptimizationConfig } from './cor
 import { WebSearchProvider } from './core/web-search-provider';
 import { ideDiagnosticIntegration, getProjectHealthSummary } from './integrations/ide-diagnostic-integration';
 
-// Configure marked for terminal rendering
-marked.setOptions({
-    renderer: new TerminalRenderer() as any,
-});
+// Configure syntax highlighting for terminal output
+configureSyntaxHighlighting();
 
 export interface NikCLIOptions {
     agent?: string;

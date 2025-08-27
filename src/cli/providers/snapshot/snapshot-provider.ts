@@ -59,7 +59,7 @@ export class SnapshotProvider extends EventEmitter {
 
   constructor() {
     super();
-    
+
     this.config = {
       provider: 'local',
       localPath: './.nikcli/snapshots',
@@ -83,7 +83,7 @@ export class SnapshotProvider extends EventEmitter {
     try {
       // Use getAll() to get all config and extract snapshot section
       const allConfig = simpleConfigManager.getAll();
-      const config = (allConfig as any).snapshot || {};
+      const config = (allConfig as Record<string, any>).snapshot || {};
       this.config = { ...this.config, ...config };
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ Using default snapshot config: ${error.message}`));
@@ -111,10 +111,10 @@ export class SnapshotProvider extends EventEmitter {
 
       await this.loadExistingSnapshots();
       this.isInitialized = true;
-      
+
       console.log(chalk.green(`✅ Snapshot provider initialized (${this.config.provider})`));
       this.emit('initialized');
-      
+
     } catch (error: any) {
       console.log(chalk.red(`❌ Snapshot provider initialization failed: ${error.message}`));
       throw error;
@@ -123,7 +123,7 @@ export class SnapshotProvider extends EventEmitter {
 
   private async initializeLocal(): Promise<void> {
     const snapshotDir = this.config.localPath!;
-    
+
     try {
       await fs.access(snapshotDir);
     } catch {
@@ -136,17 +136,17 @@ export class SnapshotProvider extends EventEmitter {
     if (!this.config.githubToken || !this.config.githubRepo) {
       throw new Error('GitHub token and repo required for GitHub provider');
     }
-    
+
     // Test GitHub API connection
     try {
       const response = await fetch(`https://api.github.com/repos/${this.config.githubRepo}`, {
         headers: { 'Authorization': `token ${this.config.githubToken}` }
       });
-      
+
       if (!response.ok) {
         throw new Error(`GitHub API error: ${response.status}`);
       }
-      
+
       console.log(chalk.green('✅ GitHub connection verified'));
     } catch (error: any) {
       throw new Error(`GitHub initialization failed: ${error.message}`);
@@ -157,20 +157,20 @@ export class SnapshotProvider extends EventEmitter {
     if (!this.config.supabaseUrl || !this.config.supabaseKey) {
       throw new Error('Supabase URL and key required for Supabase provider');
     }
-    
+
     // Test Supabase connection
     try {
       const response = await fetch(`${this.config.supabaseUrl}/rest/v1/`, {
-        headers: { 
+        headers: {
           'apikey': this.config.supabaseKey,
           'Authorization': `Bearer ${this.config.supabaseKey}`
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`Supabase API error: ${response.status}`);
       }
-      
+
       console.log(chalk.green('✅ Supabase connection verified'));
     } catch (error: any) {
       throw new Error(`Supabase initialization failed: ${error.message}`);
@@ -181,7 +181,7 @@ export class SnapshotProvider extends EventEmitter {
    * Create a new snapshot
    */
   async createSnapshot(
-    name: string, 
+    name: string,
     description: string = '',
     options: {
       includePaths?: string[];
@@ -193,13 +193,13 @@ export class SnapshotProvider extends EventEmitter {
 
     const snapshotId = this.generateSnapshotId();
     const timestamp = Date.now();
-    
+
     console.log(chalk.blue(`📸 Creating snapshot: ${name}`));
-    
+
     try {
       // Scan and collect files
       const files = await this.collectFiles(options.includePaths, options.excludePaths);
-      
+
       if (files.length === 0) {
         throw new Error('No files found to snapshot');
       }
@@ -229,11 +229,11 @@ export class SnapshotProvider extends EventEmitter {
 
       console.log(chalk.green(`✅ Snapshot created: ${snapshotId.substring(0, 8)}...`));
       console.log(chalk.gray(`   Files: ${snapshot.metadata.fileCount}, Size: ${this.formatSize(snapshot.metadata.size)}`));
-      
+
       this.emit('snapshot_created', { snapshot });
-      
+
       return snapshotId;
-      
+
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to create snapshot: ${error.message}`));
       throw error;
@@ -244,7 +244,7 @@ export class SnapshotProvider extends EventEmitter {
    * Restore from snapshot
    */
   async restoreSnapshot(
-    snapshotId: string, 
+    snapshotId: string,
     options: {
       targetPath?: string;
       overwrite?: boolean;
@@ -259,7 +259,7 @@ export class SnapshotProvider extends EventEmitter {
     }
 
     const targetPath = options.targetPath || process.cwd();
-    const filesToRestore = options.selectedFiles 
+    const filesToRestore = options.selectedFiles
       ? snapshot.files.filter(f => options.selectedFiles!.includes(f.path))
       : snapshot.files;
 
@@ -293,7 +293,7 @@ export class SnapshotProvider extends EventEmitter {
         // Write file content
         await fs.writeFile(fullPath, file.content);
         restoredCount++;
-        
+
       } catch (error: any) {
         console.log(chalk.red(`❌ Failed to restore ${file.path}: ${error.message}`));
       }
@@ -317,26 +317,26 @@ export class SnapshotProvider extends EventEmitter {
 
     // Apply filters
     if (options.name) {
-      results = results.filter(s => 
+      results = results.filter(s =>
         s.name.toLowerCase().includes(options.name!.toLowerCase())
       );
     }
 
     if (options.tags && options.tags.length > 0) {
-      results = results.filter(s => 
+      results = results.filter(s =>
         options.tags!.some(tag => s.metadata.tags.includes(tag))
       );
     }
 
     if (options.dateRange) {
-      results = results.filter(s => 
-        s.timestamp >= options.dateRange!.start && 
+      results = results.filter(s =>
+        s.timestamp >= options.dateRange!.start &&
         s.timestamp <= options.dateRange!.end
       );
     }
 
     if (options.author) {
-      results = results.filter(s => 
+      results = results.filter(s =>
         s.metadata.author === options.author
       );
     }
@@ -366,10 +366,10 @@ export class SnapshotProvider extends EventEmitter {
     try {
       await this.removeStoredSnapshot(snapshotId);
       this.snapshots.delete(snapshotId);
-      
+
       console.log(chalk.green(`✅ Snapshot deleted: ${snapshotId.substring(0, 8)}...`));
       this.emit('snapshot_deleted', { snapshotId });
-      
+
       return true;
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to delete snapshot: ${error.message}`));
@@ -380,7 +380,7 @@ export class SnapshotProvider extends EventEmitter {
   // ===== PRIVATE METHODS =====
 
   private async collectFiles(
-    includePaths?: string[], 
+    includePaths?: string[],
     excludePaths?: string[]
   ): Promise<SnapshotFile[]> {
     const files: SnapshotFile[] = [];
@@ -388,7 +388,7 @@ export class SnapshotProvider extends EventEmitter {
 
     // Use includePaths or scan current directory
     const scanPaths = includePaths || ['.'];
-    
+
     for (const scanPath of scanPaths) {
       await this.scanDirectory(scanPath, files, basePath, excludePaths);
     }
@@ -397,8 +397,8 @@ export class SnapshotProvider extends EventEmitter {
   }
 
   private async scanDirectory(
-    dirPath: string, 
-    files: SnapshotFile[], 
+    dirPath: string,
+    files: SnapshotFile[],
     basePath: string,
     excludePaths?: string[]
   ): Promise<void> {
@@ -420,7 +420,7 @@ export class SnapshotProvider extends EventEmitter {
           try {
             const content = await fs.readFile(fullPath, 'utf8');
             const stats = await fs.stat(fullPath);
-            
+
             files.push({
               path: relativePath,
               content,
@@ -441,14 +441,14 @@ export class SnapshotProvider extends EventEmitter {
 
   private shouldExclude(filePath: string, excludePaths?: string[]): boolean {
     const allExcludes = [...this.config.excludePatterns, ...(excludePaths || [])];
-    
+
     return allExcludes.some(pattern => {
       // Simple glob pattern matching
       const regex = pattern
         .replace(/\*\*/g, '.*')
         .replace(/\*/g, '[^/]*')
         .replace(/\?/g, '[^/]');
-      
+
       return new RegExp(`^${regex}$`).test(filePath);
     });
   }
@@ -469,7 +469,7 @@ export class SnapshotProvider extends EventEmitter {
 
   private async storeSnapshotLocal(snapshot: SnapshotEntry): Promise<void> {
     const snapshotPath = path.join(this.config.localPath!, `${snapshot.id}.json`);
-    
+
     let data = snapshot;
     if (this.config.compression) {
       // Simple compression by removing whitespace from file contents
@@ -481,14 +481,14 @@ export class SnapshotProvider extends EventEmitter {
         }))
       };
     }
-    
+
     await fs.writeFile(snapshotPath, JSON.stringify(data, null, 2));
   }
 
   private async storeSnapshotGitHub(snapshot: SnapshotEntry): Promise<void> {
     // Store as GitHub Gist or in repository
     const content = JSON.stringify(snapshot, null, 2);
-    
+
     const response = await fetch('https://api.github.com/gists', {
       method: 'POST',
       headers: {
@@ -542,12 +542,12 @@ export class SnapshotProvider extends EventEmitter {
   private async loadSnapshotsLocal(): Promise<void> {
     try {
       const files = await fs.readdir(this.config.localPath!);
-      
+
       for (const file of files) {
         if (file.endsWith('.json')) {
           try {
             const content = await fs.readFile(
-              path.join(this.config.localPath!, file), 
+              path.join(this.config.localPath!, file),
               'utf8'
             );
             const snapshot: SnapshotEntry = JSON.parse(content);
@@ -557,7 +557,7 @@ export class SnapshotProvider extends EventEmitter {
           }
         }
       }
-      
+
       console.log(chalk.dim(`📁 Loaded ${this.snapshots.size} local snapshots`));
     } catch (error) {
       // Directory doesn't exist or is empty
@@ -572,7 +572,7 @@ export class SnapshotProvider extends EventEmitter {
 
     if (response.ok) {
       const gists = await response.json() as any[];
-      
+
       for (const gist of gists) {
         if (gist.description?.startsWith('NikCLI Snapshot:')) {
           // Load gist content
@@ -614,10 +614,10 @@ export class SnapshotProvider extends EventEmitter {
     }
 
     const sortedSnapshots = Array.from(this.snapshots.entries())
-      .sort(([,a], [,b]) => b.timestamp - a.timestamp);
+      .sort(([, a], [, b]) => b.timestamp - a.timestamp);
 
     const toDelete = sortedSnapshots.slice(this.config.maxSnapshots);
-    
+
     for (const [id] of toDelete) {
       await this.deleteSnapshot(id);
     }

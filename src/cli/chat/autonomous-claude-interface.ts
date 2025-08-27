@@ -1,8 +1,7 @@
 import * as readline from 'readline';
 import chalk from 'chalk';
 import boxen from 'boxen';
-import { marked } from 'marked';
-import TerminalRenderer from 'marked-terminal';
+import { configureSyntaxHighlighting } from '../utils/syntax-highlighter';
 import { advancedAIProvider, StreamEvent } from '../ai/advanced-ai-provider';
 import { modernAgentOrchestrator, AGENT_CAPABILITIES } from '../automation/agents/modern-agent-system';
 import { simpleConfigManager as configManager } from '../core/config-manager';
@@ -15,10 +14,8 @@ import { contextManager } from '../core/context-manager';
 
 
 
-// Configure marked for terminal rendering
-marked.setOptions({
-  renderer: new TerminalRenderer() as any,
-});
+// Configure syntax highlighting for terminal output
+configureSyntaxHighlighting();
 
 interface AutonomousChatSession {
   id: string;

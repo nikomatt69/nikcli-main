@@ -298,7 +298,7 @@ export class ApprovalSystem extends EventEmitter {
         mediumRisk: true,
         fileOperations: true,
         packageInstalls: false,
-        planExecution: true,
+        planExecution: false, // Always ask for plan execution approval
       },
       requireConfirmation: {
         destructiveOperations: true,
@@ -864,19 +864,22 @@ export class ApprovalSystem extends EventEmitter {
     console.log(chalk.gray('═'.repeat(80)));
     console.log();
 
-    // Main plan header
+    // Main plan header with execution warning
     console.log(boxen(
-      `${riskIcon} ${chalk.bold(request.title)}\n\n` +
+      `${riskIcon} ${chalk.bold('🤔 Plan Execution Approval Required')}\n\n` +
+      `${chalk.gray('Plan:')} ${chalk.white.bold(request.title.replace('Execute Plan: ', ''))}\n` +
       `${chalk.gray('Description:')} ${request.description}\n` +
       `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
-      `${chalk.gray('Total Steps:')} ${planDetails.totalSteps}\n` +
-      `${chalk.gray('Estimated Duration:')} ${Math.round(planDetails.estimatedDuration)} minutes`,
+      `${chalk.gray('Total Steps:')} ${chalk.cyan(planDetails.totalSteps)}\n` +
+      `${chalk.gray('Estimated Duration:')} ${chalk.cyan(Math.round(planDetails.estimatedDuration) + ' minutes')}\n\n` +
+      `${chalk.yellow.bold('⚠️  This will execute all steps automatically!\n')}` +
+      `${chalk.gray('The plan will switch to auto mode and run without further prompts.')}`,
       {
         padding: 1,
         margin: { top: 0, bottom: 1, left: 0, right: 0 },
         borderStyle: 'round',
         borderColor: request.riskLevel === 'critical' ? 'red' :
-          request.riskLevel === 'high' ? 'yellow' : 'blue',
+          request.riskLevel === 'high' ? 'yellow' : 'cyan',
       }
     ));
 
@@ -1016,12 +1019,18 @@ export class ApprovalSystem extends EventEmitter {
       {
         type: 'list',
         name: 'approved',
-        message: chalk.cyan.bold('\n❓ Do you approve this operation?'),
-        choices: [
+        message: chalk.cyan.bold(request.type === 'plan' ? 
+          '\n🚀 Execute this plan automatically?' : 
+          '\n❓ Do you approve this operation?'
+        ),
+        choices: request.type === 'plan' ? [
+          { name: '✅ Yes, execute the plan now', value: true },
+          { name: '❌ No, return to default mode', value: false }
+        ] : [
           { name: 'Yes', value: true },
           { name: 'No', value: false }
         ],
-        default: request.riskLevel === 'low' ? 0 : 1,
+        default: request.type === 'plan' ? 1 : (request.riskLevel === 'low' ? 0 : 1),
         prefix: '  ',
       },
     ];

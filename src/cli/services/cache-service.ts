@@ -50,7 +50,7 @@ export class CacheService extends EventEmitter {
 
   constructor(options?: CacheServiceOptions) {
     super();
-    
+
     const redisConfig = simpleConfigManager.getRedisConfig();
     this.config = {
       redisEnabled: redisConfig.enabled,
@@ -126,7 +126,7 @@ export class CacheService extends EventEmitter {
           // Convert to SmartCache format
           const tokensSaved = this.estimateTokensSaved(value);
           const responseTime = metadata?.responseTime || 0;
-          
+
           await this.smartCache.setCachedResponse(
             key,
             JSON.stringify(value),
@@ -173,7 +173,7 @@ export class CacheService extends EventEmitter {
             this.stats.hits++;
             this.stats.redisHits++;
             result = redisEntry.value;
-            
+
             // Update SmartCache for consistency if both strategies
             if (strategy === 'both' && this.config.fallbackEnabled) {
               try {
@@ -188,7 +188,7 @@ export class CacheService extends EventEmitter {
                 // Silent failure for consistency update
               }
             }
-            
+
             return result;
           }
         } catch (error: any) {
@@ -204,14 +204,14 @@ export class CacheService extends EventEmitter {
           if (smartEntry) {
             this.stats.hits++;
             this.stats.fallbackHits++;
-            
+
             try {
               result = JSON.parse(smartEntry.response);
             } catch {
               // If not JSON, return as string
-              result = smartEntry.response as any;
+              result = smartEntry.response as any
             }
-            
+
             // Promote to Redis if available and both strategies
             if (strategy === 'both' && this.shouldUseRedis('redis')) {
               try {
@@ -223,7 +223,7 @@ export class CacheService extends EventEmitter {
                 // Silent failure for promotion
               }
             }
-            
+
             return result;
           }
         } catch (error: any) {
@@ -300,8 +300,8 @@ export class CacheService extends EventEmitter {
     const redisHealth = this.redis.isHealthy() ? this.redis.getLastHealthCheck() : null;
     const smartStats = this.smartCache.getCacheStats();
 
-    const hitRate = this.stats.hits + this.stats.misses > 0 
-      ? (this.stats.hits / (this.stats.hits + this.stats.misses)) * 100 
+    const hitRate = this.stats.hits + this.stats.misses > 0
+      ? (this.stats.hits / (this.stats.hits + this.stats.misses)) * 100
       : 0;
 
     return {
@@ -344,7 +344,7 @@ export class CacheService extends EventEmitter {
     }
 
     await Promise.all(promises);
-    
+
     // Reset stats
     this.stats = {
       hits: 0,
@@ -361,9 +361,9 @@ export class CacheService extends EventEmitter {
    * Determine if Redis should be used based on strategy and availability
    */
   private shouldUseRedis(strategy: 'redis' | 'smart' | 'both'): boolean {
-    return (strategy === 'redis' || strategy === 'both') && 
-           !!this.config.redisEnabled && 
-           this.redis.isHealthy();
+    return (strategy === 'redis' || strategy === 'both') &&
+      !!this.config.redisEnabled &&
+      this.redis.isHealthy();
   }
 
   /**
@@ -413,7 +413,7 @@ export class CacheService extends EventEmitter {
    */
   updateConfig(newConfig: Partial<CacheServiceOptions>): void {
     this.config = { ...this.config, ...newConfig };
-    
+
     // Update Redis config if needed
     if (newConfig.redisEnabled !== undefined) {
       const redisConfig = simpleConfigManager.getRedisConfig();

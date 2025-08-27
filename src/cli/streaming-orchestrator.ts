@@ -1140,6 +1140,11 @@ class StreamingOrchestratorImpl extends EventEmitter {
   private showPrompt(): void {
     if (!this.rl) return;
 
+    // Don't show prompt if NikCLI is the main interface (check for global instance)
+    if ((global as any).__nikCLI) {
+      return; // Let NikCLI handle the prompt display
+    }
+
     const dir = require('path').basename(this.context.workingDirectory);
     const agents = this.activeAgents.size;
     const agentIndicator = agents > 0 ? chalk.blue(`${agents}🤖`) : '🎛️';
@@ -1153,11 +1158,17 @@ class StreamingOrchestratorImpl extends EventEmitter {
     const contextStr = chalk.dim(`${this.context.contextLeft}%`);
 
     // Mostra stato della queue se abilitata
-    const queueStatus = this.inputQueueEnabled ? inputQueue.getStatus() : null;
-    const queueStr = queueStatus && queueStatus.queueLength > 0 ?
-      chalk.yellow(` | 📥${queueStatus.queueLength}`) : '';
+    let queueStr = '';
+    try {
+      const queueStatus = this.inputQueueEnabled ? inputQueue.getStatus() : null;
+      queueStr = queueStatus && queueStatus.queueLength > 0 ?
+        chalk.yellow(` | 📥${queueStatus.queueLength}`) : '';
+    } catch (error) {
+      // Ignore queue status errors
+      queueStr = '';
+    }
 
-    const prompt = `\n┌─[${agentIndicator}:${chalk.green(dir)}${modeStr}]─[${contextStr}${queueStr}]\n└─❯ `;
+    const prompt = `${agentIndicator}:${chalk.green(dir)}${modeStr}]─[${contextStr}${queueStr}]`;
     this.rl.setPrompt(prompt);
     this.rl.prompt();
   }
@@ -1195,11 +1206,11 @@ class StreamingOrchestratorImpl extends EventEmitter {
       this.context.planMode = false;
       this.context.autoAcceptEdits = false;
       this.context.vmMode = false;
-      try { diffManager.setAutoAccept(false); } catch {}
+      try { diffManager.setAutoAccept(false); } catch { }
 
       // Cleanup VM agent if any
       if (this.activeVMAgent) {
-        this.cleanupVMAgent().catch(() => {});
+        this.cleanupVMAgent().catch(() => { });
       }
 
       // Show prompt after a small delay to ensure messages are processed
@@ -1232,7 +1243,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     // Cleanup VM agent if active
     if (this.activeVMAgent) {
-      this.cleanupVMAgent().catch(() => {});
+      this.cleanupVMAgent().catch(() => { });
     }
 
     console.log(chalk.green('✅ Goodbye!'));

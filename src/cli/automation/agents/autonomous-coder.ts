@@ -28,7 +28,7 @@ const CodeGenerationSchema = z.object({
 
 export class AutonomousCoder extends BaseAgent {
   id = 'autonomous-coder';
-  capabilities = ["autonomous-coding","file-operations","code-generation","debugging"];
+  capabilities = ["autonomous-coding", "file-operations", "code-generation", "debugging"];
   specialization = 'Autonomous coding with full file system access';
   name = 'autonomous-coder';
   description = 'Autonomous coding agent that can read, write, and modify files independently';
@@ -47,9 +47,9 @@ export class AutonomousCoder extends BaseAgent {
 
   async analyzeProject(): Promise<any> {
     console.log(chalk.blue('🔍 Analyzing project structure...'));
-    
+
     const analysis = await toolsManager.analyzeProject();
-    
+
     const messages: ChatMessage[] = [
       {
         role: 'system',
@@ -68,16 +68,16 @@ Framework: ${analysis.framework || 'Unknown'}
 Technologies: ${analysis.technologies.join(', ')}
 Structure: ${JSON.stringify(analysis.structure, null, 2)}
 Package Info: ${analysis.packageInfo ? JSON.stringify({
-  name: analysis.packageInfo.name,
-  version: analysis.packageInfo.version,
-  scripts: Object.keys(analysis.packageInfo.scripts || {}),
-  dependencies: Object.keys(analysis.packageInfo.dependencies || {}),
-}, null, 2) : 'No package.json found'}`,
+          name: analysis.packageInfo.name,
+          version: analysis.packageInfo.version,
+          scripts: Object.keys(analysis.packageInfo.scripts || {}),
+          dependencies: Object.keys(analysis.packageInfo.dependencies || {}),
+        }, null, 2) : 'No package.json found'}`,
       },
     ];
 
     const analysisResult = await modelProvider.generateResponse({ messages });
-    
+
     return {
       projectAnalysis: analysis,
       insights: analysisResult,
@@ -86,11 +86,11 @@ Package Info: ${analysis.packageInfo ? JSON.stringify({
 
   async createFeature(description: string): Promise<any> {
     console.log(chalk.blue(`🚀 Creating feature: ${description}`));
-    
+
     // First analyze the current project
     console.log(chalk.cyan('📊 Analyzing current project structure...'));
     const projectInfo = await toolsManager.analyzeProject();
-    
+
     // Check if dependencies need to be installed
     const requiredDeps = await this.analyzeRequiredDependencies(description, projectInfo);
     if (requiredDeps.length > 0) {
@@ -99,7 +99,7 @@ Package Info: ${analysis.packageInfo ? JSON.stringify({
         await toolsManager.installPackage(dep);
       }
     }
-    
+
     const messages: ChatMessage[] = [
       {
         role: 'system',
@@ -134,7 +134,7 @@ Follow the project's existing patterns and conventions.`,
       });
 
       // Process the generated plan - cast to any to handle unknown type
-      const planResult = result as any;
+      const planResult = result as z.infer<typeof CodeGenerationSchema>;
 
       // Create the files
       for (const file of planResult.files || []) {
@@ -175,7 +175,7 @@ Follow the project's existing patterns and conventions.`,
       }
 
       console.log(chalk.green('✅ Feature created successfully!'));
-      
+
       return {
         success: true,
         filesCreated: planResult.files?.map((f: any) => f.path) || [],
@@ -215,7 +215,7 @@ Follow the project's existing patterns and conventions.`,
     console.log(chalk.red(`Found ${allErrors.length} errors to fix`));
 
     const fixes = [];
-    
+
     for (const error of allErrors.slice(0, 10)) { // Limit to first 10 errors
       try {
         const fix = await this.generateErrorFix(error);
@@ -231,7 +231,7 @@ Follow the project's existing patterns and conventions.`,
     // Re-run checks
     console.log(chalk.blue('🔄 Re-checking after fixes...'));
     const newBuildResult = await toolsManager.build();
-    
+
     return {
       success: newBuildResult.success,
       originalErrors: allErrors.length,
@@ -283,12 +283,12 @@ ${error.line ? `Line: ${error.line}` : ''}`,
     if (!fix.file || !fix.changes) return;
 
     console.log(chalk.cyan(`🔧 Applying fix to ${fix.file}`));
-    
+
     try {
       // Read the file first to understand context
       const fileInfo = await toolsManager.readFile(fix.file);
       console.log(chalk.gray(`📄 File has ${fileInfo.content.split('\n').length} lines`));
-      
+
       await toolsManager.editFile(fix.file, fix.changes);
       console.log(chalk.green(`✅ Fix applied: ${fix.explanation}`));
     } catch (error) {
@@ -332,7 +332,7 @@ Return empty array [] if no new dependencies needed.`,
       try {
         const fileInfo = await toolsManager.readFile(file);
         const optimization = await this.generateOptimization(file, fileInfo.content);
-        
+
         if (optimization && optimization.optimized) {
           await toolsManager.writeFile(file, optimization.optimized);
           optimizations.push({
@@ -386,14 +386,14 @@ Return JSON with:
 
   async runTests(pattern?: string): Promise<any> {
     console.log(chalk.blue('🧪 Running tests...'));
-    
+
     const result = await toolsManager.runTests(pattern);
-    
+
     if (result.success) {
       console.log(chalk.green('✅ All tests passed!'));
     } else {
       console.log(chalk.red('❌ Some tests failed'));
-      
+
       // Try to fix failing tests
       if (result.errors) {
         for (const error of result.errors) {
@@ -422,27 +422,27 @@ Return JSON with:
     }
 
     const lowerTask = taskData.toLowerCase();
-    
+
     try {
       if (lowerTask.includes('analyze') || lowerTask.includes('overview')) {
         return await this.analyzeProject();
       }
-      
+
       if (lowerTask.includes('create') || lowerTask.includes('build') || lowerTask.includes('implement')) {
         const description = taskData.replace(/(create|build|implement)\s*/i, '');
         return await this.createFeature(description);
       }
-      
+
       if (lowerTask.includes('debug') || lowerTask.includes('fix') || lowerTask.includes('errors')) {
         return await this.debugErrors();
       }
-      
+
       if (lowerTask.includes('optimize') || lowerTask.includes('improve')) {
         const fileMatch = taskData.match(/file:\s*([^\s]+)/);
         const filePath = fileMatch ? fileMatch[1] : undefined;
         return await this.optimizeCode(filePath);
       }
-      
+
       if (lowerTask.includes('test')) {
         const patternMatch = taskData.match(/pattern:\s*([^\s]+)/);
         const pattern = patternMatch ? patternMatch[1] : undefined;
@@ -451,7 +451,7 @@ Return JSON with:
 
       // Default: treat as a feature creation request
       return await this.createFeature(taskData);
-      
+
     } catch (error: any) {
       return {
         error: `Autonomous coding failed: ${error.message}`,

@@ -330,7 +330,7 @@ export class EnhancedToolRouter extends ToolRouter {
 
         for (const [level, keywords] of Object.entries(urgencyKeywords)) {
             if (keywords.some(keyword => content.toLowerCase().includes(keyword))) {
-                return level as any;
+                return level as 'low' | 'normal' | 'high' | 'critical';
             }
         }
 

@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import { Agent } from '../types/agent';
+import { AgentConfig, AgentConfigSchema } from '../types/agent';
+
 
 interface AgentState {
-  agents: Agent[];
+  agents: AgentConfig[];
   runningAgents: number;
-  addAgent: (agent: Agent) => void;
+  addAgent: (agent: AgentConfig) => void;
   removeAgent: (id: string) => void;
   updateAgentStatus: (id: string, status: 'idle' | 'running' | 'completed' | 'error') => void;
 }

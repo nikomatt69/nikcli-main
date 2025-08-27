@@ -40,7 +40,7 @@ Vedere `installer/README.md`. Esempio:
 curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
 
 # Versione specifica
-curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 0.3.2-beta
+curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 0.3.3-beta
 ```
 
 Disinstallazione:

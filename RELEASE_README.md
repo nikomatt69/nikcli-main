@@ -88,10 +88,10 @@ chmod +x releases/nikcli-macos-x64
 
 ```bash
 # Crea un tag per la versione
-git tag v0.3.2-beta
+git tag v0.3.3-beta
 
 # Push del tag
-git push origin v0.3.2-beta
+git push origin v0.3.3-beta
 ```
 
 ### 2. GitHub Release
@@ -104,7 +104,7 @@ git push origin v0.3.2-beta
 
 ### 3. Contenuto della Release
 
-**Titolo**: `NikCLI v0.3.2-beta - Context-Aware AI Development Assistant`
+**Titolo**: `NikCLI v0.3.3-beta - Context-Aware AI Development Assistant`
 
 **Descrizione**: Usa il contenuto di `github-release-notes.md`
 
@@ -115,7 +115,7 @@ git push origin v0.3.2-beta
 - `nikcli-macos-arm64`
 - `nikcli-win-x64.exe`
 - `checksums.json`
-- `nikcli-v0.3.2-beta-binaries.tar.gz`
+- `nikcli-v0.3.3-beta-binaries.tar.gz`
 
 ## 🔧 Configurazione pkg
 

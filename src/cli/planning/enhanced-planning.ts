@@ -608,13 +608,13 @@ Generate a comprehensive plan that is practical and executable.`
     console.log(chalk.cyan('\\n🎯 Priority Distribution:'));
     Object.entries(stats.byPriority).forEach(([priority, todos]) => {
       const icon = this.getPriorityIcon(priority as any);
-      console.log(`  ${icon} ${priority}: ${(todos as any[]).length} todos`);
+      console.log(`  ${icon} ${priority}: ${(todos as TodoItem[]).length} todos`);
     });
 
     console.log(chalk.cyan('\n📁 Category Distribution:'));
     Object.entries(stats.byCategory).forEach(([category, todos]) => {
       const color = this.getCategoryColor(category);
-      console.log(`  • ${color(category)}: ${(todos as any[]).length} todos`);
+      console.log(`  • ${color(category)}: ${(todos as TodoItem[]).length} todos`);
     });
   }
 
@@ -738,7 +738,7 @@ Generate a comprehensive plan that is practical and executable.`
     try {
       // Import agent service for real execution
       const { agentService } = await import('../services/agent-service');
-      
+
       // Setup event listeners to bridge agent events to UI
       originalEmit = agentService.emit.bind(agentService);
       const eventHandler = (event: string, ...args: any[]) => {
@@ -776,11 +776,11 @@ Generate a comprehensive plan that is practical and executable.`
             console.log(chalk.magenta(`   🔧 Tool: ${args[1]?.tool || 'unknown'} - ${args[1]?.description || ''}`));
           }
         }
-        
+
         // Call original emit to maintain existing functionality
         return originalEmit(event, ...args);
       };
-      
+
       // Temporarily override emit to capture events
       agentService.emit = eventHandler;
 
@@ -1249,14 +1249,14 @@ Generate a comprehensive plan that is practical and executable.`
 
     console.log(chalk.cyan('\n🎯 Priority Distribution:'));
     Object.entries(stats.byPriority).forEach(([priority, todos]) => {
-      const icon = this.getPriorityIcon(priority as any);
-      console.log(`  ${icon} ${priority}: ${(todos as any[]).length} todos`);
+      const icon = this.getPriorityIcon(priority);
+      console.log(`  ${icon} ${priority}: ${(todos as TodoItem[]).length} todos`);
     });
 
     console.log(chalk.cyan('\n📁 Category Distribution:'));
     Object.entries(stats.byCategory).forEach(([category, todos]) => {
       const color = this.getCategoryColor(category);
-      console.log(`  • ${color(category)}: ${(todos as any[]).length} todos`);
+      console.log(`  • ${color(category)}: ${(todos as TodoItem[]).length} todos`);
     });
   }
 

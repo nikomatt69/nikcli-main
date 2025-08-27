@@ -219,7 +219,7 @@ export class PlanningManager extends EventEmitter {
       // If the todo has tool information, execute it
       if (todo.toolName && todo.toolArgs) {
         CliUI.logInfo(`Executing tool: ${todo.toolName}`);
-        
+
         // Get tool metadata for validation
         const toolMetadata = this.toolRegistry.getToolMetadata(todo.toolName);
         if (!toolMetadata) {
@@ -231,16 +231,16 @@ export class PlanningManager extends EventEmitter {
         if (!tool) {
           throw new Error(`Tool instance not found: ${todo.toolName}`);
         }
-        
+
         const result = await tool.execute(todo.toolArgs);
-        
+
         if (this.config.logLevel === 'debug') {
           CliUI.logInfo(`Tool execution result: ${JSON.stringify(result, null, 2)}`);
         }
       } else {
         // For steps without specific tools, log the action
         CliUI.logInfo(`Executing step: ${todo.title || todo.description}`);
-        
+
         // Simulate execution time for non-tool steps
         await new Promise(resolve => setTimeout(resolve, 500));
       }
@@ -353,18 +353,18 @@ export class PlanningManager extends EventEmitter {
     // Use real project analysis via tool service
     try {
       const { toolService } = await import('../services/tool-service');
-      
+
       // Get real file count and structure
-      const fileList = await toolService.executeTool('find-files', { 
-        path: projectPath, 
-        patterns: ['**/*'] 
+      const fileList = await toolService.executeTool('find-files', {
+        path: projectPath,
+        patterns: ['**/*']
       }).catch(() => []);
-      
+
       const files = Array.isArray(fileList) ? fileList : [];
       const languages = this.detectLanguagesFromFiles(files);
       const frameworks = this.detectFrameworks(projectPath);
       const hasTests = this.detectTests(files);
-      
+
       return {
         fileCount: files.length,
         languages: languages,
@@ -411,23 +411,23 @@ export class PlanningManager extends EventEmitter {
 
   private detectFrameworks(projectPath: string): string[] {
     const frameworks: string[] = [];
-    
+
     // This would read package.json and analyze dependencies
     // For now, return common frameworks based on file patterns
     return frameworks;
   }
 
   private detectTests(files: string[]): boolean {
-    return files.some(file => 
-      file.includes('.test.') || 
-      file.includes('.spec.') || 
+    return files.some(file =>
+      file.includes('.test.') ||
+      file.includes('.spec.') ||
       file.includes('__tests__')
     );
   }
 
   private detectDocumentation(files: string[]): boolean {
-    return files.some(file => 
-      file.toLowerCase().includes('readme') || 
+    return files.some(file =>
+      file.toLowerCase().includes('readme') ||
       file.toLowerCase().includes('.md')
     );
   }

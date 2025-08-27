@@ -120,7 +120,7 @@ export class TokenManager extends EventEmitter {
   async verifyToken(token: string): Promise<TokenPayload> {
     try {
       // Decode without verification first to get token ID
-      const decoded = jwt.decode(token, { complete: true }) as any;
+      const decoded = jwt.decode(token, { complete: true });
 
       if (!decoded || !decoded.header || !decoded.header.kid) {
         throw new Error('Invalid token format');
@@ -165,14 +165,14 @@ export class TokenManager extends EventEmitter {
    */
   async revokeToken(token: string): Promise<void> {
     try {
-      const decoded = jwt.decode(token, { complete: true }) as any;
+      const decoded = jwt.decode(token, { complete: true });
 
       if (!decoded || !decoded.header || !decoded.header.kid) {
         throw new Error('Invalid token format');
       }
 
       const tokenId = decoded.header.kid;
-      const agentId = decoded.payload.agentId;
+      const agentId = (decoded.payload as TokenPayload).agentId;
 
       // Add to revoked tokens set
       this.revokedTokens.add(tokenId);

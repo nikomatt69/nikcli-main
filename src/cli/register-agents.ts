@@ -1,6 +1,7 @@
 import { AgentManager } from './core/agent-manager';
 import { UniversalAgent } from './automation/agents/universal-agent';
 import { SecureVirtualizedAgent } from './virtualized-agents/secure-vm-agent';
+import { CodeReviewAgent } from './automation/agents/code-review-agent';
 
 export function registerAgents(agentManager: AgentManager): void {
   // Register the unified UniversalAgent for enterprise production use
