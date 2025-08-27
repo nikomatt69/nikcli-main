@@ -2,6 +2,7 @@ import * as readline from 'readline';
 import chalk from 'chalk';
 import boxen from 'boxen';
 import { marked } from 'marked';
+import type { Renderer } from 'marked';
 import TerminalRenderer from 'marked-terminal';
 import { advancedAIProvider, StreamEvent } from '../ai/advanced-ai-provider';
 import { modernAgentOrchestrator, AGENT_CAPABILITIES } from '../automation/agents/modern-agent-system';
@@ -16,8 +17,9 @@ import { contextManager } from '../core/context-manager';
 
 
 // Configure marked for terminal rendering
+const terminalRenderer = new TerminalRenderer() as unknown as Renderer;
 marked.setOptions({
-  renderer: new TerminalRenderer() as any,
+  renderer: terminalRenderer,
 });
 
 interface AutonomousChatSession {
@@ -104,11 +106,12 @@ export class AutonomousClaudeInterface {
 
     // Enable raw mode for keypress detection
     if (process.stdin.isTTY) {
-      require('readline').emitKeypressEvents(process.stdin);
-      if (!(process.stdin as any).isRaw) {
-        (process.stdin as any).setRawMode(true);
+      const stdin = process.stdin as NodeJS.ReadStream;
+      require('readline').emitKeypressEvents(stdin);
+      if (!stdin.isRaw) {
+        stdin.setRawMode(true);
       }
-      (process.stdin as any).resume();
+      stdin.resume();
     }
 
     // Handle keypress events for interactive features
@@ -150,8 +153,9 @@ export class AutonomousClaudeInterface {
     // Handle close
     this.rl.on('close', () => {
       try {
-        if (process.stdin.isTTY && (process.stdin as any).isRaw) {
-          (process.stdin as any).setRawMode(false);
+        if (process.stdin.isTTY) {
+          const stdin = process.stdin as NodeJS.ReadStream;
+          if (stdin.isRaw) stdin.setRawMode(false);
         }
       } catch { /* ignore */ }
       this.showGoodbye();

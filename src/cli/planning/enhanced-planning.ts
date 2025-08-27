@@ -329,7 +329,8 @@ export class EnhancedPlanningSystem {
       for (const todo of executionOrder) {
         // Allow user interruption to cancel execution
         try {
-          const nik = (global as any).__nikCLI;
+          const maybeGlobal = global as unknown as { __nikCLI?: { shouldInterrupt?: boolean } };
+          const nik = maybeGlobal?.__nikCLI;
           if (nik && nik.shouldInterrupt) {
             console.log(chalk.yellow('🛑 Execution interrupted by user'));
             plan.status = 'failed';
@@ -417,7 +418,8 @@ export class EnhancedPlanningSystem {
     } finally {
       // Always return to default mode after plan execution
       try {
-        const nik = (global as any).__nikCLI;
+        const maybeGlobal = global as unknown as { __nikCLI?: { currentMode?: string; renderPromptAfterOutput?: () => void; showPrompt?: () => void }, __streamingOrchestrator?: { context?: { planMode?: boolean; autoAcceptEdits?: boolean } } };
+        const nik = maybeGlobal?.__nikCLI;
         if (nik) {
           nik.currentMode = 'default';
           if (typeof nik.renderPromptAfterOutput === 'function') {
@@ -426,7 +428,7 @@ export class EnhancedPlanningSystem {
             nik.showPrompt();
           }
         }
-        const orchestrator = (global as any).__streamingOrchestrator;
+        const orchestrator = maybeGlobal?.__streamingOrchestrator;
         if (orchestrator && orchestrator.context) {
           orchestrator.context.planMode = false;
           orchestrator.context.autoAcceptEdits = false;
@@ -1249,14 +1251,16 @@ Generate a comprehensive plan that is practical and executable.`
 
     console.log(chalk.cyan('\n🎯 Priority Distribution:'));
     Object.entries(stats.byPriority).forEach(([priority, todos]) => {
-      const icon = this.getPriorityIcon(priority as any);
-      console.log(`  ${icon} ${priority}: ${(todos as any[]).length} todos`);
+      const icon = this.getPriorityIcon(priority as 'low' | 'medium' | 'high' | 'critical');
+      const count = Array.isArray(todos) ? (todos as unknown[]).length : 0;
+      console.log(`  ${icon} ${priority}: ${count} todos`);
     });
 
     console.log(chalk.cyan('\n📁 Category Distribution:'));
     Object.entries(stats.byCategory).forEach(([category, todos]) => {
       const color = this.getCategoryColor(category);
-      console.log(`  • ${color(category)}: ${(todos as any[]).length} todos`);
+      const count = Array.isArray(todos) ? (todos as unknown[]).length : 0;
+      console.log(`  • ${color(category)}: ${count} todos`);
     });
   }
 
@@ -1329,13 +1333,16 @@ Generate a comprehensive plan that is practical and executable.`
         category: t.category,
       }));
       ui?.showTodos?.(todoItems, plan.title);
-    } catch (e: any) {
-      const msg = String(e?.message ?? '');
-      const code = (e as any)?.code;
+    } catch (e: unknown) {
+      const err = e as { message?: unknown; code?: unknown };
+      const msg = String(err?.message ?? '');
+      const code = err?.code as string | number | undefined;
       const isModuleNotFound =
         code === 'ERR_MODULE_NOT_FOUND' || /Cannot find module/.test(msg);
-      if (!isModuleNotFound) {
-        console.debug(chalk.gray(`Enhanced UI not shown: ${msg}`));
+      if (isModuleNotFound) {
+        console.log(chalk.dim('ℹ️ UI module not available; continuing without advanced UI'));
+      } else {
+        console.log(chalk.yellow(`⚠️ UI initialization warning: ${msg}`));
       }
     }
   }

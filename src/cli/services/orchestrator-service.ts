@@ -90,12 +90,13 @@ export class OrchestratorService extends EventEmitter {
 
     // Enable raw mode for keypress detection (TTY guard)
     if (process.stdin.isTTY) {
-      this.originalRawMode = (process.stdin as any).isRaw || false;
-      require('readline').emitKeypressEvents(process.stdin);
-      if (!(process.stdin as any).isRaw) {
-        (process.stdin as any).setRawMode(true);
+      const stdin = process.stdin as NodeJS.ReadStream;
+      this.originalRawMode = stdin.isRaw || false;
+      require('readline').emitKeypressEvents(stdin);
+      if (!stdin.isRaw) {
+        stdin.setRawMode(true);
       }
-      (process.stdin as any).resume();
+      stdin.resume();
     }
 
     // Handle keypress events
@@ -142,7 +143,8 @@ export class OrchestratorService extends EventEmitter {
         this.keypressHandler = undefined;
       }
       if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
-        (process.stdin as any).setRawMode(this.originalRawMode);
+        const stdin = process.stdin as NodeJS.ReadStream;
+        stdin.setRawMode(this.originalRawMode);
       }
     } catch {
       // ignore
@@ -155,7 +157,7 @@ export class OrchestratorService extends EventEmitter {
       this.activeAgentTasks.set(task.id, task);
       
       // Avoid duplicate logging if NikCLI is active
-      const nikCliActive = (global as any).__nikCLI?.eventsSubscribed;
+      const nikCliActive = (global as unknown as { __nikCLI?: { eventsSubscribed?: boolean } }).__nikCLI?.eventsSubscribed;
       if (!nikCliActive) {
         console.log(chalk.blue(`🤖 Agent ${task.agentType} started: ${task.task.slice(0, 50)}...`));
       }
@@ -163,7 +165,7 @@ export class OrchestratorService extends EventEmitter {
 
     agentService.on('task_progress', (task: AgentTask, update: any) => {
       // Avoid duplicate logging if NikCLI is active
-      const nikCliActive = (global as any).__nikCLI?.eventsSubscribed;
+      const nikCliActive = (global as unknown as { __nikCLI?: { eventsSubscribed?: boolean } }).__nikCLI?.eventsSubscribed;
       if (!nikCliActive) {
         console.log(chalk.cyan(`  📊 ${task.agentType}: ${update.progress}% - ${update.description || ''}`));
       }
@@ -171,7 +173,7 @@ export class OrchestratorService extends EventEmitter {
 
     agentService.on('tool_use', (task: AgentTask, update: any) => {
       // Avoid duplicate logging if NikCLI is active
-      const nikCliActive = (global as any).__nikCLI?.eventsSubscribed;
+      const nikCliActive = (global as unknown as { __nikCLI?: { eventsSubscribed?: boolean } }).__nikCLI?.eventsSubscribed;
       if (!nikCliActive) {
         console.log(chalk.magenta(`  🔧 ${task.agentType} using ${update.tool}: ${update.description}`));
       }
@@ -441,7 +443,7 @@ export class OrchestratorService extends EventEmitter {
 
       try {
         // Access global NikCLI instance to show prompt
-        const globalThis = (global as any);
+        const globalThis = global as unknown as { __nikCLI?: { showPrompt?: () => void } };
         const nikCliInstance = globalThis.__nikCLI;
         if (nikCliInstance && typeof nikCliInstance.showPrompt === 'function') {
           nikCliInstance.showPrompt();

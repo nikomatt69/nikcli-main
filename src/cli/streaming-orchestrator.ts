@@ -90,7 +90,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     this.policyManager = new ExecutionPolicyManager(configManager);
 
     // Expose streaming orchestrator globally for VM agent communications
-    (global as any).__streamingOrchestrator = this;
+    (global as unknown as { __streamingOrchestrator?: StreamingOrchestratorImpl }).__streamingOrchestrator = this;
 
     // Don't setup interface automatically - only when start() is called
   }

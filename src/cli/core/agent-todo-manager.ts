@@ -249,7 +249,7 @@ export class AgentTodoManager {
       title: todoBase.title!,
       description: todoBase.description!,
       status: 'planning' as const,
-      priority: todoBase.priority as any,
+      priority: todoBase.priority as 'low' | 'medium' | 'high' | 'critical',
       createdAt: new Date(),
       updatedAt: new Date(),
       estimatedDuration: todoBase.estimatedDuration,
@@ -307,7 +307,7 @@ export class AgentTodoManager {
     setTimeout(() => {
       try {
         // Avoid circular import by accessing global instance directly
-        const globalThis = (global as any);
+        const globalThis = global as unknown as { __nikCLI?: { routeEventToUI?: (ev: string, payload: any) => void; currentMode?: string; showPrompt?: () => void } };
         const nikCliInstance = globalThis.__nikCLI;
         if (nikCliInstance) {
           // Ensure we are in default chat mode after todo execution

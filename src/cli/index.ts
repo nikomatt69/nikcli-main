@@ -248,7 +248,8 @@ class OnboardingModule {
     // Check for Ollama models
     try {
       const currentModel = configManager.get('currentModel');
-      const modelCfg = (configManager.get('models') as any)[currentModel];
+      const models = configManager.get('models') as Record<string, { provider?: string; model?: string }>;
+      const modelCfg = models[currentModel];
       if (modelCfg && modelCfg.provider === 'ollama') {
         console.log(chalk.green('✅ Ollama model configured'));
         return true;
@@ -330,13 +331,14 @@ class OnboardingModule {
     // Check Ollama if needed
     try {
       const currentModel = configManager.get('currentModel');
-      const modelCfg = (configManager.get('models') as any)[currentModel];
+      const models2 = configManager.get('models') as Record<string, { provider?: string; model?: string }>;
+      const modelCfg = models2[currentModel];
       if (modelCfg && modelCfg.provider === 'ollama') {
         const host = process.env.OLLAMA_HOST || '127.0.0.1:11434';
         const base = host.startsWith('http') ? host : `http://${host}`;
 
         try {
-          const res = await fetch(`${base}/api/tags`, { method: 'GET' } as any);
+          const res = await fetch(`${base}/api/tags`, { method: 'GET' });
           if (res.ok) {
             console.log(chalk.green('✅ Ollama service detected'));
           } else {
@@ -599,7 +601,8 @@ class SystemModule {
     // Allow running without API keys when using an Ollama model
     try {
       const currentModel = configManager.get('currentModel');
-      const modelCfg = (configManager.get('models') as any)[currentModel];
+      const models = configManager.get('models') as Record<string, { provider?: string; model?: string }>;
+      const modelCfg = models[currentModel];
       if (modelCfg && modelCfg.provider === 'ollama') {
         return true;
       }
@@ -645,7 +648,8 @@ class SystemModule {
     // Only enforce when current provider is Ollama
     try {
       const currentModel = configManager.get('currentModel');
-      const modelCfg = (configManager.get('models') as any)[currentModel];
+      const models2 = configManager.get('models') as Record<string, { provider?: string; model?: string }>;
+      const modelCfg = models2[currentModel];
       if (!modelCfg || modelCfg.provider !== 'ollama') {
         // Not applicable – clear status indicator
         SystemModule.lastOllamaStatus = undefined;
@@ -658,7 +662,7 @@ class SystemModule {
     try {
       const host = process.env.OLLAMA_HOST || '127.0.0.1:11434';
       const base = host.startsWith('http') ? host : `http://${host}`;
-      const res = await fetch(`${base}/api/tags`, { method: 'GET' } as any);
+      const res = await fetch(`${base}/api/tags`, { method: 'GET' });
       if (!res.ok) {
         SystemModule.lastOllamaStatus = false;
         console.log(chalk.red(`❌ Ollama reachable at ${base} but returned status ${res.status}`));
@@ -669,7 +673,8 @@ class SystemModule {
         console.log(chalk.yellow('⚠️ Unexpected response from Ollama when listing models'));
       } else {
         const currentModel = configManager.get('currentModel');
-        const modelCfg = (configManager.get('models') as any)[currentModel];
+        const models2 = configManager.get('models') as Record<string, { provider?: string; model?: string }>;
+        const modelCfg = models2[currentModel];
         const name = modelCfg?.model;
         const present = data.models.some((m: any) => m?.name === name || m?.model === name);
         if (!present && name) {
@@ -1039,9 +1044,9 @@ class StreamingModule extends EventEmitter {
     let modelBadge = '';
     try {
       const currentModel = configManager.get('currentModel');
-      const models = (configManager.get('models') as any) || {};
-      const modelCfg = models[currentModel] || {};
-      const provider = modelCfg.provider || 'unknown';
+      const models = configManager.get('models') as Record<string, { provider?: string; model?: string }>;
+      const modelCfg = models[currentModel];
+      const provider = modelCfg?.provider || 'unknown';
       // Status dot only meaningful for Ollama
       let dot = chalk.dim('●');
       if (provider === 'ollama') {
