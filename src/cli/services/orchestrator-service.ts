@@ -35,6 +35,8 @@ export class OrchestratorService extends EventEmitter {
   private moduleManager: ModuleManager;
   private initialized = false;
   private activeAgentTasks: Map<string, AgentTask> = new Map();
+  private originalRawMode?: boolean;
+  private keypressHandler?: (str: string, key: any) => void;
 
   constructor() {
     super();
@@ -86,12 +88,19 @@ export class OrchestratorService extends EventEmitter {
       }
     });
 
-    // Enable raw mode for keypress detection
-    process.stdin.setRawMode(true);
-    require('readline').emitKeypressEvents(process.stdin);
+    // Enable raw mode for keypress detection (TTY guard)
+    if (process.stdin.isTTY) {
+      const stdin = process.stdin as NodeJS.ReadStream;
+      this.originalRawMode = stdin.isRaw || false;
+      require('readline').emitKeypressEvents(stdin);
+      if (!stdin.isRaw) {
+        stdin.setRawMode(true);
+      }
+      stdin.resume();
+    }
 
     // Handle keypress events
-    process.stdin.on('keypress', (str, key) => {
+    const onKeypress = (str: string, key: any) => {
       if (key && key.name === 'slash' && !this.context.isProcessing) {
         setTimeout(() => this.showCommandMenu(), 50);
       }
@@ -103,7 +112,9 @@ export class OrchestratorService extends EventEmitter {
       if (key && key.name === 'a' && key.ctrl && !this.context.isProcessing) {
         this.toggleAutoAccept();
       }
-    });
+    };
+    this.keypressHandler = onKeypress;
+    process.stdin.on('keypress', onKeypress);
 
     // Handle input
     this.rl.on('line', async (input: string) => {
@@ -119,9 +130,25 @@ export class OrchestratorService extends EventEmitter {
     });
 
     this.rl.on('close', () => {
+      this.teardownInterface();
       this.showGoodbye();
       process.exit(0);
     });
+  }
+
+  private teardownInterface(): void {
+    try {
+      if (this.keypressHandler) {
+        process.stdin.removeListener('keypress', this.keypressHandler);
+        this.keypressHandler = undefined;
+      }
+      if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
+        const stdin = process.stdin as NodeJS.ReadStream;
+        stdin.setRawMode(this.originalRawMode);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   private setupServiceListeners(): void {
@@ -130,7 +157,7 @@ export class OrchestratorService extends EventEmitter {
       this.activeAgentTasks.set(task.id, task);
       
       // Avoid duplicate logging if NikCLI is active
-      const nikCliActive = (global as any).__nikCLI?.eventsSubscribed;
+      const nikCliActive = (global as unknown as { __nikCLI?: { eventsSubscribed?: boolean } }).__nikCLI?.eventsSubscribed;
       if (!nikCliActive) {
         console.log(chalk.blue(`🤖 Agent ${task.agentType} started: ${task.task.slice(0, 50)}...`));
       }
@@ -138,7 +165,7 @@ export class OrchestratorService extends EventEmitter {
 
     agentService.on('task_progress', (task: AgentTask, update: any) => {
       // Avoid duplicate logging if NikCLI is active
-      const nikCliActive = (global as any).__nikCLI?.eventsSubscribed;
+      const nikCliActive = (global as unknown as { __nikCLI?: { eventsSubscribed?: boolean } }).__nikCLI?.eventsSubscribed;
       if (!nikCliActive) {
         console.log(chalk.cyan(`  📊 ${task.agentType}: ${update.progress}% - ${update.description || ''}`));
       }
@@ -146,7 +173,7 @@ export class OrchestratorService extends EventEmitter {
 
     agentService.on('tool_use', (task: AgentTask, update: any) => {
       // Avoid duplicate logging if NikCLI is active
-      const nikCliActive = (global as any).__nikCLI?.eventsSubscribed;
+      const nikCliActive = (global as unknown as { __nikCLI?: { eventsSubscribed?: boolean } }).__nikCLI?.eventsSubscribed;
       if (!nikCliActive) {
         console.log(chalk.magenta(`  🔧 ${task.agentType} using ${update.tool}: ${update.description}`));
       }
@@ -410,9 +437,13 @@ export class OrchestratorService extends EventEmitter {
       console.log(chalk.gray('─'.repeat(50)));
       console.log(chalk.cyan('🏠 All background tasks completed. Returning to default mode.'));
       
+      // Ensure default mode explicitly
+      this.context.planMode = false;
+      this.context.autoAcceptEdits = false;
+
       try {
         // Access global NikCLI instance to show prompt
-        const globalThis = (global as any);
+        const globalThis = global as unknown as { __nikCLI?: { showPrompt?: () => void } };
         const nikCliInstance = globalThis.__nikCLI;
         if (nikCliInstance && typeof nikCliInstance.showPrompt === 'function') {
           nikCliInstance.showPrompt();

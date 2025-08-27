@@ -2,6 +2,7 @@ import * as readline from 'readline';
 import chalk from 'chalk';
 import boxen from 'boxen';
 import { marked } from 'marked';
+import type { Renderer } from 'marked';
 import TerminalRenderer from 'marked-terminal';
 import ora, { Ora } from 'ora';
 import cliProgress from 'cli-progress';
@@ -66,8 +67,9 @@ import { WebSearchProvider } from './core/web-search-provider';
 import { ideDiagnosticIntegration, getProjectHealthSummary } from './integrations/ide-diagnostic-integration';
 
 // Configure marked for terminal rendering
+const terminalRendererNik = new (TerminalRenderer as any)() as Renderer;
 marked.setOptions({
-    renderer: new TerminalRenderer() as any,
+    renderer: terminalRendererNik,
 });
 
 export interface NikCLIOptions {
@@ -218,7 +220,7 @@ export class NikCLI {
 
 
         // Expose this instance globally for command handlers
-        (global as any).__nikCLI = this;
+        (global as unknown as { __nikCLI?: NikCLI }).__nikCLI = this;
 
         this.setupEventHandlers();
         // Bridge orchestrator events into NikCLI output
@@ -245,7 +247,7 @@ export class NikCLI {
         this.renderPromptArea();
 
         // Expose NikCLI globally for token management
-        (global as any).__nikcli = this;
+        (global as unknown as { __nikcli?: NikCLI }).__nikcli = this;
     }
 
     /**
@@ -744,7 +746,6 @@ export class NikCLI {
             await this.shutdown();
         });
     }
-
     // Bridge StreamingOrchestrator agent lifecycle events into NikCLI output
     private orchestratorEventsInitialized = false;
     private setupOrchestratorEventBridge(): void {
@@ -1515,7 +1516,6 @@ export class NikCLI {
             inputQueue.disableBypass();
         }
     }
-
     private async showAdvancedSelection<T>(
         title: string,
         choices: { value: T; label: string; description?: string }[],
@@ -1825,6 +1825,12 @@ export class NikCLI {
 
                 // Handle Cmd+Tab for mode cycling (macOS)
                 if (key && key.meta && key.name === 'tab') {
+                    this.cycleModes();
+                    return; // Prevent other handlers from running
+                }
+
+                // Handle Shift+Tab for mode cycling (default mode friendly)
+                if (key && key.shift && key.name === 'tab') {
                     this.cycleModes();
                     return; // Prevent other handlers from running
                 }
@@ -2307,7 +2313,6 @@ export class NikCLI {
             await this.executeAgent('mobile', `mobile development: ${input}`, {});
         }
     }
-
     /**
      * Auto machine learning
      */
@@ -2315,7 +2320,6 @@ export class NikCLI {
         console.log(chalk.cyan('🤖 Machine Learning detected'));
         await this.executeAgent('ml', `machine learning task: ${input}`, {});
     }
-
     /**
      * Auto blockchain/Web3 development
      */
@@ -3086,7 +3090,6 @@ export class NikCLI {
             }
         }
     }
-
     /**
      * Show agent suggestions when @ is pressed
      */
@@ -3225,15 +3228,14 @@ export class NikCLI {
                         this.startAIOperation('Testing AI System');
 
                         try {
-                            // Use real agent service for testing
-                            const testResult = await agentService.executeTask('universal-agent', 'Test AI Operation: Testing real AI integration and token usage');
+                            // Use real agent service for testing - returns taskId immediately
+                            const taskId = await agentService.executeTask('universal-agent', 'Test AI Operation: Testing real AI integration and token usage');
 
                             // Update with estimated token usage
                             this.updateTokenUsage(250, true, 'claude-sonnet-4-20250514');
 
                             this.stopAIOperation();
-                            const success = !testResult.toLowerCase().includes('error') && !testResult.toLowerCase().includes('failed');
-                            console.log(chalk.green(success ? '\n✅ AI test completed successfully' : '\n❌ AI test failed'));
+                            console.log(chalk.green(`\n✅ AI test launched (Task ID: ${taskId.slice(-6)})`));
                             this.showPrompt();
                         } catch (error: any) {
                             this.stopAIOperation();
@@ -3824,7 +3826,6 @@ export class NikCLI {
             await this.autoExecute(input, {});
         }
     }
-
     /**
      * Default mode: Unified Aggregator - observes and subscribes to all event sources
      */
@@ -4111,9 +4112,22 @@ export class NikCLI {
                 })();
             } else {
                 // Direct autonomous execution - select best agent and launch
-                const selected = this.agentManager.findBestAgentForTask(task as any);
+                const probeTask = {
+                    id: String(Date.now()),
+                    type: 'user_request',
+                    title: task.slice(0, 40) || 'NL Task',
+                    description: task,
+                    priority: 'medium',
+                    status: 'pending',
+                    data: {},
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    progress: 0
+                } as import('./types/types').AgentTask;
+                const selectedAgent = this.agentManager.findBestAgentForTask(probeTask);
+                const selected = selectedAgent ? selectedAgent.name : 'autonomous-coder';
                 console.log(chalk.blue(`🤖 Selected agent: ${chalk.cyan(selected)}`));
-                const taskId = await agentService.executeTask(selected as any, task, {});
+                const taskId = await agentService.executeTask(String(selected), task, {});
                 console.log(wrapBlue(`🚀 Launched ${selected} (Task ID: ${taskId.slice(-6)})`));
             }
         } catch (error: any) {
@@ -4224,7 +4238,6 @@ Agents:
   Total: ${this.agentManager.getStats().totalAgents}
   Active: ${this.agentManager.getStats().activeAgents}
   Pending Tasks: ${this.agentManager.getStats().pendingTasks}
-
 Planning:
   Plans Generated: ${this.planningManager.getPlanningStats().totalPlansGenerated}
   Plans Executed: ${this.planningManager.getPlanningStats().totalPlansExecuted}
@@ -4937,7 +4950,6 @@ Planning:
             console.log(chalk.red(`❌ Error: ${error.message}`));
         }
     }
-
     private async handleAdvancedFeatures(command: string, args: string[]): Promise<void> {
         try {
             switch (command) {
@@ -5592,7 +5604,6 @@ Planning:
                 role: 'system' as const,
                 content: `Expert project planner. Generate JSON todo array:
 {"todos":[{"title":"Task title","description":"Task desc","priority":"low/medium/high/critical","category":"planning/setup/implementation/testing/docs/deployment","estimatedDuration":30,"dependencies":[],"tags":["tag"],"commands":["cmd"],"files":["file.ts"],"reasoning":"Brief reason"}]}
-
 Max ${maxTodos} todos. Context: ${truncatedContext}`
             }, {
                 role: 'user' as const,
@@ -6382,7 +6393,6 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
                 await this.showTokenUsage();
         }
     }
-
     private async showModelComparison(): Promise<void> {
         console.log(chalk.blue('💸 Complete Model Cost Comparison'));
 
@@ -7140,7 +7150,6 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
             console.log(chalk.red(`Failed to export config: ${error.message}`));
         }
     }
-
     /**
      * Add new MCP server (Legacy format for backward compatibility)
      */
@@ -8300,13 +8309,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
     private async savePlanToFile(plan: ExecutionPlan, filename: string): Promise<void> {
         const content = `# Execution Plan: ${plan.title}
-
 ## Description
 ${plan.description}
-
 ## Steps
 ${plan.steps.map((step, index) => `${index + 1}. ${step.title}\n   ${step.description}`).join('\n\n')}
-
 ## Risk Assessment
 - Overall Risk: ${plan.riskAssessment.overallRisk}
 - Estimated Duration: ${Math.round(plan.estimatedTotalDuration / 1000)}s
@@ -9073,7 +9079,6 @@ Generated by NikCLI on ${new Date().toISOString()}
             console.log(chalk.dim(`\n   Connection String: ${safeConnectionString}`));
         }
     }
-
     private async showCacheHealth(): Promise<void> {
         console.log(chalk.blue('\n🏥 Cache System Health:'));
 
@@ -9860,7 +9865,6 @@ Generated by NikCLI on ${new Date().toISOString()}
             }
         }
     }
-
     /**
      * Display generated todos to user
      */
@@ -9876,7 +9880,6 @@ Generated by NikCLI on ${new Date().toISOString()}
         });
         console.log('');
     }
-
     /**
      * Execute todos in background using orchestrated agents
      */

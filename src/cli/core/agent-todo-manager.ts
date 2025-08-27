@@ -249,7 +249,7 @@ export class AgentTodoManager {
       title: todoBase.title!,
       description: todoBase.description!,
       status: 'planning' as const,
-      priority: todoBase.priority as any,
+      priority: todoBase.priority as 'low' | 'medium' | 'high' | 'critical',
       createdAt: new Date(),
       updatedAt: new Date(),
       estimatedDuration: todoBase.estimatedDuration,
@@ -307,8 +307,12 @@ export class AgentTodoManager {
     setTimeout(() => {
       try {
         // Avoid circular import by accessing global instance directly
-        const globalThis = (global as any);
+        const globalThis = global as unknown as { __nikCLI?: { routeEventToUI?: (ev: string, payload: any) => void; currentMode?: string; showPrompt?: () => void } };
         const nikCliInstance = globalThis.__nikCLI;
+        if (nikCliInstance) {
+          // Ensure we are in default chat mode after todo execution
+          nikCliInstance.currentMode = 'default';
+        }
         if (nikCliInstance && typeof nikCliInstance.showPrompt === 'function') {
           console.log(chalk.dim('🔄 Returning to chat mode...'));
           nikCliInstance.showPrompt();
@@ -362,8 +366,27 @@ export class AgentTodoManager {
       // Import agent service dynamically to avoid circular dependencies
       const { agentService } = await import('../services/agent-service');
 
-      // Execute task using real agent service (use autonomous-coder as universal agent)
-      const result = await agentService.executeTask('autonomous-coder', `${todo.title}: ${todo.description}`);
+      // Execute task using real agent service and get taskId
+      const taskId = await agentService.executeTask('autonomous-coder', `${todo.title}: ${todo.description}`);
+
+      // Poll for completion with timeout
+      const maxWaitMs = 10 * 60 * 1000; // 10 minutes
+      const start = Date.now();
+      let result: any = undefined;
+      while (Date.now() - start < maxWaitMs) {
+        const status = agentService.getTaskStatus(taskId);
+        if (status?.status === 'completed') {
+          result = status.result || 'Task completed successfully';
+          break;
+        }
+        if (status?.status === 'failed') {
+          throw new Error(status.error || 'Task execution failed');
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      if (result === undefined) {
+        throw new Error('Task execution timeout');
+      }
 
       // Update progress with visual feedback
       const progressSteps = 10;

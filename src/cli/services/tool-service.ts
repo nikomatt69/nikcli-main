@@ -241,11 +241,22 @@ export class ToolService {
 
     this.executions.set(execution.id, execution);
 
+    // Per-execution timeout guard
+    const timeoutMs = (typeof args?.timeout === 'number' && args.timeout > 0) ? args.timeout : 30000;
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
     try {
       console.log(chalk.blue(`🔧 Executing ${toolName}...`));
-      
-      const result = await tool.handler(args);
-      
+
+      const timed = new Promise<any>((resolve, reject) => {
+        timeoutHandle = setTimeout(() => reject(new Error(`Tool '${toolName}' timed out after ${timeoutMs}ms`)), timeoutMs);
+      });
+
+      const result = await Promise.race([
+        tool.handler(args),
+        timed
+      ]);
+
       execution.endTime = new Date();
       execution.status = 'completed';
       execution.result = result;
@@ -261,6 +272,8 @@ export class ToolService {
 
       console.log(chalk.red(`❌ ${toolName} failed: ${error.message}`));
       throw error;
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
     }
   }
 

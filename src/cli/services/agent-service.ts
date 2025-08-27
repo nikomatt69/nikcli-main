@@ -37,6 +37,20 @@ export class AgentService extends EventEmitter {
     this.registerDefaultAgents();
   }
 
+  /**
+   * Suggest the best built-in agent type for a given natural language task
+   */
+  public suggestAgentTypeForTask(task: string): string {
+    const lower = (task || '').toLowerCase();
+    if (lower.includes('react') || lower.includes('component')) return 'react-expert';
+    if (lower.includes('backend') || lower.includes('api') || lower.includes('server')) return 'backend-expert';
+    if (lower.includes('frontend') || lower.includes('ui') || lower.includes('css')) return 'frontend-expert';
+    if (lower.includes('deploy') || lower.includes('docker') || lower.includes('kubernetes') || lower.includes('ci')) return 'devops-expert';
+    if (lower.includes('review') || lower.includes('analyze') || lower.includes('audit')) return 'code-review';
+    if (lower.includes('system') || lower.includes('admin')) return 'system-admin';
+    return 'autonomous-coder';
+  }
+
   private registerDefaultAgents(): void {
     // AI Analysis Agent
     this.registerAgent({
@@ -129,22 +143,42 @@ export class AgentService extends EventEmitter {
       // Se il bypass è abilitato, non eseguire agenti
       if (inputQueue.isBypassEnabled()) {
         console.log(chalk.yellow('⚠️ Agent execution blocked during approval process'));
-        return 'Agent execution blocked during approval process';
+        throw new Error('Agent execution blocked during approval process');
       }
 
-      if (!agentType || !task) {
+      if (!task) {
         throw new Error('Invalid parameters: agentType and task are required');
       }
 
-      const agent = this.agents.get(agentType);
+      // Fallback selection when agentType is missing/unknown or explicitly 'auto'
+      let resolvedAgentType = agentType;
+      if (!resolvedAgentType || resolvedAgentType === 'auto' || !this.agents.has(resolvedAgentType)) {
+        resolvedAgentType = this.suggestAgentTypeForTask(task);
+      }
+
+      let agent = this.agents.get(resolvedAgentType);
       if (!agent) {
-        throw new Error(`Agent '${agentType}' not found`);
+        // Graceful fallback: try autonomous-coder
+        const fallbackType = 'autonomous-coder';
+        if (this.agents.has(fallbackType)) {
+          console.log(chalk.yellow(`⚠️ Agent '${resolvedAgentType}' not found. Falling back to '${fallbackType}'.`));
+          resolvedAgentType = fallbackType;
+        } else {
+          // As a last resort, pick the first available agent
+          const anyAgent = this.getAvailableAgents()[0];
+          if (anyAgent) {
+            console.log(chalk.yellow(`⚠️ Agent '${resolvedAgentType}' not found. Using '${anyAgent.name}'.`));
+            resolvedAgentType = anyAgent.name;
+          } else {
+            throw new Error(`Agent '${resolvedAgentType}' not found and no fallback available`);
+          }
+        }
       }
 
       const taskId = Date.now().toString();
       const agentTask: AgentTask = {
         id: taskId,
-        agentType,
+        agentType: resolvedAgentType,
         task,
         status: 'pending'
       };
@@ -153,69 +187,15 @@ export class AgentService extends EventEmitter {
 
       // Check if we can run immediately or need to queue
       if (this.runningCount < this.maxConcurrentAgents) {
-        await this.runTask(agentTask);
+        // Start task asynchronously; do not await to keep API responsive
+        this.runTask(agentTask).catch(err => this.emit('error', err));
       } else {
         this.taskQueue.push(agentTask);
         console.log(chalk.yellow(`⏳ Task queued (${this.taskQueue.length} in queue)`));
-
-        // Wait for task to be processed from queue
-        return new Promise((resolve, reject) => {
-          const checkCompletion = () => {
-            const currentTask = this.activeTasks.get(taskId);
-            if (!currentTask) {
-              reject(new Error('Task was removed unexpectedly'));
-              return;
-            }
-
-            if (currentTask.status === 'completed') {
-              resolve(currentTask.result || 'Task completed successfully');
-            } else if (currentTask.status === 'failed') {
-              reject(new Error(currentTask.error || 'Task execution failed'));
-            } else {
-              // Still running, check again
-              setTimeout(checkCompletion, 500);
-            }
-          };
-          checkCompletion();
-        });
       }
 
-      // For immediate execution, wait for completion and return result
-      // Wait a bit for status to be updated
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const completedTask = this.activeTasks.get(taskId);
-      if (completedTask?.status === 'completed') {
-        return completedTask.result || 'Task completed successfully';
-      } else if (completedTask?.status === 'failed') {
-        throw new Error(completedTask.error || 'Task execution failed');
-      }
-
-      // If still not completed, wait longer with polling
-      return new Promise((resolve, reject) => {
-        const maxWaitTime = 30000; // 30 seconds max
-        const startTime = Date.now();
-
-        const checkCompletion = () => {
-          const currentTask = this.activeTasks.get(taskId);
-          if (!currentTask) {
-            reject(new Error('Task was removed unexpectedly'));
-            return;
-          }
-
-          if (currentTask.status === 'completed') {
-            resolve(currentTask.result || 'Task completed successfully');
-          } else if (currentTask.status === 'failed') {
-            reject(new Error(currentTask.error || 'Task execution failed'));
-          } else if (Date.now() - startTime > maxWaitTime) {
-            reject(new Error('Task execution timeout'));
-          } else {
-            // Still running, check again
-            setTimeout(checkCompletion, 500);
-          }
-        };
-        checkCompletion();
-      });
+      // Return taskId immediately; callers can poll getTaskStatus or listen to events
+      return taskId;
     } catch (error: any) {
       console.error(chalk.red(`❌ Task execution setup failed: ${error.message}`));
       this.emit('error', error);
