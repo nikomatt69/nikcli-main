@@ -5,6 +5,7 @@ import cliProgress from 'cli-progress';
 import * as readline from 'readline';
 import { highlight } from 'cli-highlight';
 import * as path from 'path';
+import { inkUIManager } from '../ui-ink/InkUIManager';
 
 export interface StatusIndicator {
   id: string;
@@ -67,6 +68,7 @@ export class AdvancedCliUI {
   private isInteractiveMode: boolean = false;
   private panels: Map<string, StructuredPanel> = new Map();
   private layoutMode: 'single' | 'dual' | 'triple' = 'dual';
+  private inkEnabled: boolean = process.env.NIKCLI_UI === 'ink' || process.env.NIKCLI_INK_UI === 'true';
 
   constructor() {
     this.theme = {
@@ -85,7 +87,14 @@ export class AdvancedCliUI {
    */
   startInteractiveMode(): void {
     this.isInteractiveMode = true;
-
+    if (this.inkEnabled) {
+      try {
+        inkUIManager.start();
+      } catch (_) {
+        // ignore ink startup errors; keep legacy mode
+        this.inkEnabled = false;
+      }
+    }
   }
 
   /**
@@ -280,6 +289,7 @@ export class AdvancedCliUI {
       content: message,
       source: details,
     });
+    if (this.inkEnabled) inkUIManager.logInfo(message, details);
   }
 
   logSuccess(message: string, details?: string): void {
@@ -288,6 +298,7 @@ export class AdvancedCliUI {
       content: `✅ ${message}`,
       source: details,
     });
+    if (this.inkEnabled) inkUIManager.logSuccess(`✅ ${message}`, details);
   }
 
   logWarning(message: string, details?: string): void {
@@ -296,6 +307,7 @@ export class AdvancedCliUI {
       content: `⚠️ ${message}`,
       source: details,
     });
+    if (this.inkEnabled) inkUIManager.logInfo(`⚠️ ${message}`, details);
   }
 
   logError(message: string, details?: string): void {
@@ -304,6 +316,7 @@ export class AdvancedCliUI {
       content: `❌ ${message}`,
       source: details,
     });
+    if (this.inkEnabled) inkUIManager.logError(`❌ ${message}`, details);
   }
 
   /**
@@ -682,7 +695,9 @@ export class AdvancedCliUI {
       visible: true,
       borderColor: 'yellow'
     });
-
+    if (this.inkEnabled) {
+      try { inkUIManager.showFileDiff(filePath, oldContent, newContent); } catch (_) {}
+    }
 
     this.autoLayout();
   }
@@ -773,7 +788,9 @@ export class AdvancedCliUI {
       visible: true,
       borderColor: 'cyan',
     });
-
+    if (this.inkEnabled) {
+      try { inkUIManager.showTodos(todos as any, title); } catch (_) {}
+    }
     this.autoLayout();
   }
 
@@ -855,7 +872,9 @@ export class AdvancedCliUI {
       visible: true,
       borderColor: 'green'
     });
-
+    if (this.inkEnabled) {
+      try { inkUIManager.showFileContent(filePath, content); } catch (_) {}
+    }
     this.showCodingLayout();
   }
 
@@ -876,7 +895,9 @@ export class AdvancedCliUI {
       visible: true,
       borderColor: 'magenta'
     });
-
+    if (this.inkEnabled) {
+      try { inkUIManager.showFileList(files, title); } catch (_) {}
+    }
     this.autoLayout();
   }
 
@@ -1401,7 +1422,13 @@ export class AdvancedCliUI {
       visible: true,
       borderColor: 'blue'
     });
-
+    if (this.inkEnabled) {
+      try {
+        for (const agent of agents) {
+          inkUIManager.updateBackgroundAgent(agent as any);
+        }
+      } catch (_) {}
+    }
     this.autoLayout();
   }
 
