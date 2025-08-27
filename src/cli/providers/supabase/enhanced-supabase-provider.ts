@@ -130,8 +130,17 @@ export class EnhancedSupabaseProvider extends EventEmitter {
     } catch (error: any) {
       console.log(chalk.red(`❌ Supabase connection failed: ${error.message}`));
       this.isConnected = false;
-      this.emit('error', error);
-      throw error;
+      
+      // Handle the error without throwing to prevent unhandled promise rejection
+      try {
+        this.emit('error', error);
+      } catch (emitError) {
+        // Silent failure if no error listeners
+        console.log(chalk.yellow('⚠️ No error listeners registered for Supabase provider'));
+      }
+      
+      // Don't throw the error to prevent unhandled rejections
+      return;
     }
   }
 

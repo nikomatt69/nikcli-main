@@ -822,6 +822,11 @@ class ServiceModule {
       // Initialize Supabase if enabled
       if (config.supabase?.enabled) {
         try {
+          // Add error listener to prevent unhandled promise rejections
+          enhancedSupabaseProvider.on('error', (error: any) => {
+            console.log(chalk.yellow(`⚠️ Supabase Provider Error: ${error.message || error}`));
+          });
+          
           // enhancedSupabaseProvider and authProvider initialize automatically
           console.log(chalk.dim('   ✓ Supabase providers ready'));
         } catch (error: any) {

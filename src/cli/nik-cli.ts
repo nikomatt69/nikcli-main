@@ -3993,6 +3993,9 @@ export class NikCLI {
                 }
 
                 console.log(); // newline after streaming
+
+                // Update token usage after streaming completes (sync with session)
+                this.syncTokensFromSession();
             } catch (err: any) {
                 console.log(chalk.red(`Chat error: ${err.message}`));
             }
@@ -5598,6 +5601,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
 
             // Stream AI response for real-time feedback
             let assistantText = '';
+
             for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
                 if (ev.type === 'text_delta' && ev.content) {
                     assistantText += ev.content;
@@ -5605,6 +5609,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
                 }
             }
             console.log(); // newline
+
+            // Update token usage after streaming completes (sync with session)
+            this.syncTokensFromSession();
 
             // Extract JSON from response
             const jsonMatch = assistantText.match(/\{[\s\S]*\}/);
@@ -7738,53 +7745,41 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
     private showLegacyPrompt(): void {
         if (!this.rl) return;
 
-        // Calculate session duration and enhanced token info
-        const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60); // minutes
+        // Calculate session info
+        const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60);
         const totalTokens = this.sessionTokenUsage + this.contextTokens;
         const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString();
-        const costDisplay = this.realTimeCost > 0 ? ` | $${this.realTimeCost.toFixed(4)}` : ' | $0.0000';
-        const contextDisplay = this.contextTokens > 0 ? ` | ctx: ${this.contextTokens}` : '';
-        const tokenInfo = `${tokensDisplay} tokens${contextDisplay}${costDisplay} | ${sessionDuration}m session`;
-        const terminalWidth = process.stdout.columns || 80;
-        const boxWidth = Math.min(terminalWidth - 4, 120); // Max width with padding
+        const costDisplay = this.realTimeCost > 0 ? `$${this.realTimeCost.toFixed(4)}` : '$0.0000';
 
-        // Token info line (centered and dimmed)
-        const tokenLine = chalk.gray(tokenInfo);
-        const plainTokenLength = this._stripAnsi(tokenInfo).length;
-        const tokenPadding = Math.max(0, Math.floor((boxWidth - plainTokenLength) / 2));
-        const centeredTokenInfo = ' '.repeat(tokenPadding) + tokenLine;
-
-        // Build the framed prompt
-        const topBorder = '┌' + '─'.repeat(boxWidth - 2) + '┐';
-        const tokenBorder = '│' + centeredTokenInfo.padEnd(boxWidth - 2) + '│';
-        const middleBorder = '├' + '─'.repeat(boxWidth - 2) + '┤';
-
-        const inputBorder = '└─❯ ';
+        const terminalWidth = process.stdout.columns || 120;
         const workingDir = path.basename(this.workingDirectory);
-        const modeIcon = this.currentMode === 'auto' ? '🚀' :
-            this.currentMode === 'plan' ? '🎯' :
-                this.currentMode === 'vm' ? '🐳' : '💬';
-        const agentInfo = this.currentAgent ? `@${this.currentAgent}:` : '';
 
-        // Ottieni stato della queue
+        // Mode info
+        const modeIcon = this.currentMode === 'auto' ? '🚀' :
+            this.currentMode === 'plan' ? '🧠' :
+                this.currentMode === 'vm' ? '🐳' : '💎';
+        const modeText = this.currentMode.toUpperCase();
+
+        // Status info
         const queueStatus = inputQueue.getStatus();
         const queueCount = queueStatus.queueLength;
-        const queueIndicator = queueCount > 0 ? chalk.yellow(`📥${queueCount}`) : '';
+        const queueIndicator = queueCount > 0 ? ` 📥${queueCount}` : '';
+        const statusDot = this.assistantProcessing ? chalk.blue('●') : chalk.gray('●');
+        const readyText = this.assistantProcessing ? chalk.blue('Processing...') : 'Ready';
 
-        const statusDot = this.assistantProcessing ? chalk.green('●') + chalk.dim('….') : chalk.red('●');
-        const statusWithQueue = queueIndicator ? `${statusDot} ${queueIndicator}` : statusDot;
+        // Create status bar
+        const statusLeft = `${modeIcon} ${readyText}${queueIndicator}`;
+        const statusRight = `💰 ${tokensDisplay} | ${costDisplay} | ⏱️ ${sessionDuration}m | 📁 ${workingDir}`;
+        const statusPadding = Math.max(0, terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 4);
 
-        const promptContent = `${modeIcon}${agentInfo}${chalk.yellow(costDisplay)}${chalk.green(workingDir)} ${statusWithQueue}`;
-        const promptLength = this._stripAnsi(promptContent).length;
+        // Display status bar using process.stdout.write to avoid extra lines
+        process.stdout.write(chalk.cyan('┌' + '─'.repeat(terminalWidth - 2) + '┐') + '\n');
+        process.stdout.write(chalk.cyan('│') + chalk.green(` ${statusLeft}`) + ' '.repeat(statusPadding) + chalk.gray(statusRight + ' ') + chalk.cyan('│') + '\n');
+        process.stdout.write(chalk.cyan('└' + '─'.repeat(terminalWidth - 2) + '┘') + '\n');
 
-        // Truncate if too long
-        const maxPromptLength = terminalWidth - 10; // Leave space for borders
-        const truncatedPrompt = promptLength > maxPromptLength
-            ? this._stripAnsi(promptContent).substring(0, maxPromptLength - 3) + '...'
-            : promptContent;
-
-        const prompt = `\n┌─[${truncatedPrompt}]\n└─❯ `;
-        this.rl.setPrompt(prompt);
+        // Input prompt
+        const inputPrompt = chalk.green('❯ ');
+        this.rl.setPrompt(inputPrompt);
         this.rl.prompt();
     }
 
@@ -7872,7 +7867,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
         const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60); // minutes
         const totalTokens = this.sessionTokenUsage + this.contextTokens;
         const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString();
-        const costDisplay = this.realTimeCost > 0 ? ` | $${this.realTimeCost.toFixed(4)}` : ' | $0.0000';
+        const costDisplay = this.realTimeCost > 0 ? `$${this.realTimeCost.toFixed(4)}` : '$0.0000';
         const sessionDisplay = ` | ${sessionDuration}m session`;
 
         // Get current model info
@@ -7880,7 +7875,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
         const providerIcon = this.getProviderIcon(currentModel);
 
         const statusBar = chalk.bgGray.white(
-            `${currentFile} | ${contextInfo} | 📊 ${tokensDisplay} tokens${costDisplay} | ${providerIcon}${sessionDisplay}`
+            `${currentFile} | ${contextInfo} | 📊 ${tokensDisplay} tokens | ${costDisplay} | ${providerIcon}${sessionDisplay}`
         );
 
         console.log(statusBar);
@@ -7907,20 +7902,45 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
      * Render prompt area (fixed at bottom)
  */
     private renderPromptArea(): void {
+        // Calculate session info (copied from showLegacyPrompt)
+        const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60);
+        const totalTokens = this.sessionTokenUsage + this.contextTokens;
+        const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString();
+        const costDisplay = this.realTimeCost > 0 ? `$${this.realTimeCost.toFixed(4)}` : '$0.0000';
+
+        const terminalWidth = process.stdout.columns || 120;
+        const workingDir = path.basename(this.workingDirectory);
+
+        // Mode info
+        const modeIcon = this.currentMode === 'auto' ? '🚀' :
+            this.currentMode === 'plan' ? '🧠' :
+                this.currentMode === 'vm' ? '🐳' : '💎';
+        const modeText = this.currentMode.toUpperCase();
+
+        // Status info
+        const readyText = this.assistantProcessing ? chalk.blue('Processing...') : chalk.green('Ready');
+        const statusIndicator = this.assistantProcessing ? '⏳' : '✅';
+
         // Move cursor to bottom of terminal
         const terminalHeight = process.stdout.rows || 24;
-        process.stdout.write(`\x1B[${terminalHeight};0H`);
+        process.stdout.write(`\x1B[${terminalHeight - 2};0H`);
 
         // Clear the bottom lines
-        process.stdout.write('\x1B[K'); // Clear current line
-        process.stdout.write('\x1B[1A\x1B[K'); // Clear line above
+        process.stdout.write('\x1B[J'); // Clear from cursor to end
 
-        const width = process.stdout.columns || 80;
-        const promptLine = chalk.gray('─'.repeat(width));
-        console.log(promptLine);
+        // Create status bar
+        const statusLeft = `${statusIndicator} ${readyText} | Mode: ${modeText}`;
+        const statusRight = `💰 ${tokensDisplay} | ${costDisplay} | ⏱️ ${sessionDuration}m | 📁 ${workingDir}`;
+        const statusPadding = Math.max(0, terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 4);
+
+        // Display status bar with frame using process.stdout.write to avoid extra lines
+        process.stdout.write(chalk.cyan('┌' + '─'.repeat(terminalWidth - 2) + '┐') + '\n');
+        process.stdout.write(chalk.cyan('│') + chalk.green(` ${statusLeft}`) + ' '.repeat(statusPadding) + chalk.gray(statusRight + ' ') + chalk.cyan('│') + '\n');
+        process.stdout.write(chalk.cyan('└' + '─'.repeat(terminalWidth - 2) + '┘') + '\n');
 
         if (this.rl) {
-            this.rl.setPrompt(this.buildPrompt());
+            // Simple clean prompt
+            this.rl.setPrompt(chalk.green('❯ '));
             this.rl.prompt();
         }
     }
@@ -7934,7 +7954,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
             this.currentMode === 'plan' ? '🎯' :
                 this.currentMode === 'vm' ? '🐳' : '💬';
         const agentInfo = this.currentAgent ? `@${this.currentAgent}:` : '';
-        const statusDot = this.assistantProcessing ? chalk.green('●') : chalk.red('●');
+        const statusDot = this.assistantProcessing ? chalk.blue('●') : chalk.red('●');
 
         // Get token and cost information
         const tokenInfo = this.getTokenInfoSync();
@@ -8217,6 +8237,34 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
             const outputTokens = isOutput ? tokens : 0;
             this.realTimeCost += this.calculateCost(inputTokens, outputTokens, modelName);
         }
+
+        // Don't update UI during streaming to avoid duplicates
+        // UI will be updated when streaming completes
+    }
+
+    /**
+     * Sync token usage from current session (same method as /tokens command)
+     */
+    private async syncTokensFromSession(): Promise<void> {
+        try {
+            const session = chatManager.getCurrentSession();
+            if (session) {
+                // Calculate tokens the same way as /tokens command
+                const userTokens = Math.round(session.messages.filter(m => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4);
+                const assistantTokens = Math.round(session.messages.filter(m => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4);
+
+                // Update session tokens
+                this.sessionTokenUsage = userTokens + assistantTokens;
+
+                // Calculate real cost using the same method as /tokens
+                const { calculateTokenCost } = await import('./config/token-limits');
+                const currentModel = this.configManager.getCurrentModel();
+                this.realTimeCost = calculateTokenCost(userTokens, assistantTokens, currentModel).totalCost;
+            }
+        } catch (error) {
+            // Fallback to keep existing values if import fails
+            console.debug('Failed to sync tokens from session:', error);
+        }
     }
 
     /**
@@ -8224,6 +8272,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
      */
     public updateContextTokens(tokens: number): void {
         this.contextTokens = tokens;
+
+        // Don't update UI during streaming to avoid duplicates
+        // UI will be updated when streaming completes
     }
 
     /**
@@ -9846,11 +9897,17 @@ Generated by NikCLI on ${new Date().toISOString()}
 
             // Simple AI response
             process.stdout.write(`${chalk.cyan('\nAssistant: ')}`);
+            let assistantText = '';
+
             for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
                 if (ev.type === 'text_delta' && ev.content) {
+                    assistantText += ev.content;
                     process.stdout.write(ev.content);
                 }
             }
+
+            // Update token usage after streaming completes (sync with session)
+            this.syncTokensFromSession();
         }
     }
     /**
