@@ -361,8 +361,8 @@ class OnboardingModule {
     console.log(chalk.gray('─'.repeat(40)));
 
     try {
-      const models = configManager.get('models') as any;
-      let ollamaEntries = Object.entries(models).filter(([, cfg]: any) => cfg.provider === 'ollama');
+      const models = configManager.get('models') as Record<string, { provider?: string; model?: string }>;
+      let ollamaEntries = Object.entries(models).filter(([, cfg]) => cfg?.provider === 'ollama');
 
       if (ollamaEntries.length > 0) {
         console.log(chalk.green('✅ Ollama models found in configuration'));
@@ -406,7 +406,7 @@ class OnboardingModule {
 
         if (!answer || answer.toLowerCase().startsWith('y')) {
           const defaultName = 'llama3.1:8b';
-          configManager.addModel(defaultName, { provider: 'ollama', model: 'llama3.1:8b' } as any);
+          configManager.addModel(defaultName, { provider: 'ollama', model: 'llama3.1:8b' });
           configManager.setCurrentModel(defaultName);
           console.log(chalk.green(`✅ Added and switched to Ollama model: ${defaultName}`));
           return true;

@@ -747,7 +747,7 @@ Generate a comprehensive plan that is practical and executable.`
         // Route events through the NikCLI UI system if available
         try {
           // Avoid circular import by accessing global instance directly
-          const globalThis = (global as any);
+          const globalThis = global as unknown as { __nikCLI?: { routeEventToUI?: (ev: string, payload: any) => void } };
           const nikCliInstance = globalThis.__nikCLI;
           if (nikCliInstance && typeof nikCliInstance.routeEventToUI === 'function') {
             // Map agent service events to UI events
