@@ -5,8 +5,8 @@
       "es2020",
       "ES2015"
     ],
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "es2020",
+    "moduleResolution": "bundler",
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
@@ -18,6 +18,7 @@
     "downlevelIteration": true,
     "outDir": "./dist",
     "rootDir": "./src",
+    "jsx": "react-jsx",
     "baseUrl": "./src",
     "declaration": false,
     "sourceMap": false,
@@ -47,7 +48,8 @@
     }
   },
   "include": [
-    "src/cli/**/*.ts"
+    "src/cli/**/*.ts",
+    "src/cli/**/*.tsx"
   ],
   "exclude": [
     "node_modules",
