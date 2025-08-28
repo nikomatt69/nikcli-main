@@ -4225,9 +4225,9 @@ Agents:
   Active: ${this.agentManager.getStats().activeAgents}
   Pending Tasks: ${this.agentManager.getStats().pendingTasks}
 Planning:
-  Plans Generated: ${this.planningManager.getPlanningStats().totalPlansGenerated}
-  Plans Executed: ${this.planningManager.getPlanningStats().totalPlansExecuted}
-  Success Rate: ${Math.round((this.planningManager.getPlanningStats().successfulExecutions / this.planningManager.getPlanningStats().totalPlansExecuted) * 100)}%`;
+  Plans Generated: ${enhancedPlanning.getPlanningStats().totalPlansGenerated}
+  Plans Executed: ${enhancedPlanning.getPlanningStats().totalPlansExecuted}
+  Success Rate: ${Math.round((enhancedPlanning.getPlanningStats().successfulExecutions / enhancedPlanning.getPlanningStats().totalPlansExecuted) * 100)}%`;
 
         // Show in structured UI if active - use logInfo for now
         advancedUI.logInfo('System Status', statusInfo);

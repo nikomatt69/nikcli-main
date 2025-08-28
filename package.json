@@ -1,7 +1,7 @@
 {
     "$schema": "https://json.schemastore.org/package",
     "name": "@cadcamfun/nikcli",
-    "version": "0.3.3-beta",
+    "version": "0.3.6-beta",
     "description": "NikCLI - Context-Aware AI Development Assistant",
     "author": "nikomatt69",
     "license": "MIT",

@@ -1189,6 +1189,29 @@ Generate a comprehensive plan that is practical and executable.`
   }
 
   /**
+   * Get planning statistics compatible with legacy PlanningManager interface
+   */
+  getPlanningStats(): {
+    totalPlansGenerated: number;
+    totalPlansExecuted: number;
+    successfulExecutions: number;
+    failedExecutions: number;
+    averageStepsPerPlan: number;
+    averageExecutionTime: number;
+  } {
+    const plans = this.getActivePlans();
+    return {
+      totalPlansGenerated: this.executionStats.totalPlans,
+      totalPlansExecuted: this.executionStats.totalPlans,
+      successfulExecutions: this.executionStats.successfulPlans,
+      failedExecutions: this.executionStats.failedPlans,
+      averageStepsPerPlan: plans.length > 0 ? 
+        plans.reduce((sum, p) => sum + p.todos.length, 0) / plans.length : 0,
+      averageExecutionTime: this.executionStats.averageExecutionTime
+    };
+  }
+
+  /**
    * Display enhanced plan in formatted view
    */
   private displayEnhancedPlan(plan: TodoPlan): void {

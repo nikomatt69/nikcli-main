@@ -528,7 +528,7 @@ export class SimpleConfigManager {
       ],
     },
     redis: {
-      enabled: true,
+      enabled: false,
       host: 'localhost',
       port: 6379,
       database: 0,
@@ -536,12 +536,12 @@ export class SimpleConfigManager {
       ttl: 3600,
       maxRetries: 3,
       retryDelayMs: 1000,
-      cluster: { enabled: true },
+      cluster: { enabled: false },
       fallback: { enabled: true, strategy: 'memory' as const },
       strategies: { tokens: true, sessions: true, agents: true, documentation: true }
     },
     supabase: {
-      enabled: true,
+      enabled: false,
       features: {
         database: true,
         storage: true,
