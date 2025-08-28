@@ -1,0 +1,37 @@
+{
+  "name": "nikcli-vscode",
+  "displayName": "NikCLI Chat",
+  "description": "Use NikCLI as an in-editor chat inside VS Code",
+  "version": "0.0.1",
+  "publisher": "nikcli",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:nikcli.openChat"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "nikcli.openChat",
+        "title": "NikCLI: Open Chat"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p ./",
+    "watch": "tsc -w -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.5"
+  }
+}
+
