@@ -103,7 +103,7 @@ export class PromptRegistry {
 
     try {
       await this.registerBuiltInPrompts();
-      
+
       if (this.config.autoDiscovery) {
         await this.discoverPrompts();
       }
@@ -116,7 +116,7 @@ export class PromptRegistry {
       const loadTime = Date.now() - startTime;
 
       advancedUI.logSuccess(`✅ Prompt Registry initialized (${this.prompts.size} prompts, ${loadTime}ms)`);
-      
+
       if (this.config.enableMetrics) {
         this.logRegistryStats();
       }
@@ -198,7 +198,7 @@ export class PromptRegistry {
 
   searchPrompts(query: string): PromptTemplate[] {
     const searchTerm = query.toLowerCase();
-    return Array.from(this.prompts.values()).filter(prompt => 
+    return Array.from(this.prompts.values()).filter(prompt =>
       prompt.metadata.name.toLowerCase().includes(searchTerm) ||
       prompt.metadata.description.toLowerCase().includes(searchTerm) ||
       prompt.metadata.tags.some(tag => tag.toLowerCase().includes(searchTerm))
@@ -211,7 +211,7 @@ export class PromptRegistry {
       throw new Error(`Prompt not found: ${promptId}`);
     }
 
-    const updatedMetadata = metadata ? 
+    const updatedMetadata = metadata ?
       PromptMetadataSchema.parse({ ...existingPrompt.metadata, ...metadata, updatedAt: new Date() }) :
       { ...existingPrompt.metadata, updatedAt: new Date() };
 
@@ -256,9 +256,9 @@ export class PromptRegistry {
       topPrompts: Array.from(this.prompts.values())
         .sort((a, b) => b.metadata.usageCount - a.metadata.usageCount)
         .slice(0, 5)
-        .map(p => ({ 
-          name: p.metadata.name, 
-          usage: p.metadata.usageCount, 
+        .map(p => ({
+          name: p.metadata.name,
+          usage: p.metadata.usageCount,
           successRate: p.metadata.successRate,
           category: p.metadata.category
         }))
@@ -274,7 +274,7 @@ export class PromptRegistry {
 
   private async registerBuiltInPrompts(): Promise<void> {
     // Register key system prompts
-    
+
     // Universal Agent System Prompt
     await this.registerPrompt('universal-agent-system', `
 You are the Universal Agent, a comprehensive AI assistant for autonomous software development.
@@ -402,10 +402,10 @@ Error Context:
 
   private async discoverPrompts(): Promise<void> {
     const promptsDir = join(this.workingDirectory, this.config.promptsDirectory);
-    
+
     try {
       const files = await readdir(promptsDir);
-      
+
       for (const file of files) {
         if (extname(file) === '.txt' || extname(file) === '.md') {
           await this.loadPromptFromFile(join(promptsDir, file));
@@ -421,12 +421,12 @@ Error Context:
     try {
       const content = await readFile(filePath, 'utf8');
       const filename = filePath.split('/').pop()?.replace(/\.(txt|md)$/, '') || 'unknown';
-      
+
       // Extract metadata from content if present (YAML frontmatter style)
       const metadataMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
       let metadata = {};
       let template = content;
-      
+
       if (metadataMatch) {
         try {
           // Simple key-value parsing (not full YAML)
@@ -435,7 +435,7 @@ Error Context:
             const [key, ...valueParts] = line.split(':');
             if (key && valueParts.length > 0) {
               const value = valueParts.join(':').trim();
-              (metadata as any)[key.trim()] = value.replace(/^["']|["']$/g, '');
+              (metadata as Record<string, any>)[key.trim()] = value.replace(/^["']|["']$/g, '');
             }
           }
           template = metadataMatch[2];
@@ -446,7 +446,7 @@ Error Context:
 
       await this.registerPrompt(filename, template, {
         ...metadata,
-        category: (metadata as any)['category'] || 'system'
+        category: (metadata as Record<string, any>)['category'] || 'system'
       });
 
     } catch (error: any) {
@@ -525,13 +525,13 @@ Error Context:
 
   private logRegistryStats(): void {
     const stats = this.getRegistryStats();
-    
+
     advancedUI.logInfo(`🧠 Prompt Registry Statistics:`);
     console.log(chalk.cyan(`   Total Prompts: ${stats.totalPrompts}`));
     console.log(chalk.cyan(`   Loaded: ${stats.loadedPrompts}`));
     console.log(chalk.cyan(`   Enabled: ${stats.enabledPrompts}`));
     console.log(chalk.cyan(`   Categories: ${Object.keys(stats.categories).length}`));
-    
+
     if (stats.topPrompts.length > 0) {
       console.log(chalk.cyan(`   Top Prompts:`));
       stats.topPrompts.forEach(prompt => {

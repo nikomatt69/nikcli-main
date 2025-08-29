@@ -338,6 +338,17 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
         content: `❌ Plan failed: ${error.message}`,
         error: error.message
       };
+    } finally {
+      // Ensure default mode after autonomous execution ends
+      try {
+        const nik = (global as any).__nikCLI;
+        if (nik) nik.currentMode = 'default';
+        const orchestrator = (global as any).__streamingOrchestrator;
+        if (orchestrator && orchestrator.context) {
+          orchestrator.context.planMode = false;
+          orchestrator.context.autoAcceptEdits = false;
+        }
+      } catch { /* ignore */ }
     }
   }
 

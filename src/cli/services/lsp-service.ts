@@ -76,19 +76,39 @@ export class LSPService {
 
       server.process = process;
 
+      // Startup timeout guard (10s)
+      const startupTimeout = setTimeout(() => {
+        if (server.status !== 'running' && server.process) {
+          try { server.process.kill(); } catch { }
+          server.status = 'error';
+          console.log(chalk.red(`⏱️  ${server.name} startup timed out`));
+        }
+      }, 10000);
+
       process.on('spawn', () => {
         server.status = 'running';
         console.log(chalk.green(`✅ ${server.name} started successfully`));
+        clearTimeout(startupTimeout);
       });
 
       process.on('error', (error) => {
         server.status = 'error';
         console.log(chalk.red(`❌ Failed to start ${server.name}: ${error.message}`));
+        clearTimeout(startupTimeout);
       });
 
-      process.on('exit', (code) => {
-        server.status = 'stopped';
-        console.log(chalk.yellow(`⏹️  ${server.name} stopped (code: ${code})`));
+      process.on('exit', (code, signal) => {
+        if (startupTimeout) clearTimeout(startupTimeout);
+        const abnormal = (code !== 0 && code !== null) || !!signal;
+        server.process = undefined;
+        if (abnormal) {
+          server.status = 'error';
+          const cause = signal ? `signal: ${signal}` : `code: ${code}`;
+          console.log(chalk.red(`⛔ ${server.name} exited (${cause})`));
+        } else {
+          server.status = 'stopped';
+          console.log(chalk.yellow(`⏹️  ${server.name} stopped (code: ${code})`));
+        }
       });
 
       return true;
@@ -106,13 +126,19 @@ export class LSPService {
       return false;
     }
 
-    server.process.kill();
-    server.status = 'stopped';
-    console.log(chalk.green(`✅ Stopped ${server.name}`));
-    return true;
+    try {
+      server.process.kill();
+      server.status = 'stopped';
+      console.log(chalk.green(`✅ Stopped ${server.name}`));
+      return true;
+    } catch (error: any) {
+      server.status = 'error';
+      console.log(chalk.red(`❌ Failed to stop ${server.name}: ${error.message}`));
+      return false;
+    }
   }
 
-  getServerStatus(): Array<{name: string; status: string; filetypes: string[]}> {
+  getServerStatus(): Array<{ name: string; status: string; filetypes: string[] }> {
     return Array.from(this.servers.values()).map(server => ({
       name: server.name,
       status: server.status,
@@ -138,15 +164,15 @@ export class LSPService {
     try {
       // Check for common config files
       const files = fs.readdirSync(projectPath);
-      
+
       if (files.includes('tsconfig.json') || files.includes('package.json')) {
         languages.push('typescript');
       }
-      
+
       if (files.includes('Cargo.toml')) {
         languages.push('rust');
       }
-      
+
       if (files.includes('pyproject.toml') || files.includes('requirements.txt')) {
         languages.push('python');
       }

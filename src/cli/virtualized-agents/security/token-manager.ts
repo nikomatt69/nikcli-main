@@ -120,7 +120,7 @@ export class TokenManager extends EventEmitter {
   async verifyToken(token: string): Promise<TokenPayload> {
     try {
       // Decode without verification first to get token ID
-      const decoded = jwt.decode(token, { complete: true }) as any;
+      const decoded = jwt.decode(token, { complete: true });
 
       if (!decoded || !decoded.header || !decoded.header.kid) {
         throw new Error('Invalid token format');
@@ -165,14 +165,24 @@ export class TokenManager extends EventEmitter {
    */
   async revokeToken(token: string): Promise<void> {
     try {
-      const decoded = jwt.decode(token, { complete: true }) as any;
-
-      if (!decoded || !decoded.header || !decoded.header.kid) {
-        throw new Error('Invalid token format');
+      const payload = jwt.verify(token, this.jwtSecret, {
+        algorithms: ['HS256'],
+        audience: 'nikcli-vm-agent',
+        issuer: 'nikcli-proxy',
+        ignoreExpiration: true
+      }) as jwt.JwtPayload;
+      if (
+        typeof payload !== 'object' || payload === null ||
+        typeof (payload as any).jti !== 'string' ||
+        typeof (payload as any).agentId !== 'string'
+      ) {
+        throw new Error('Invalid token payload');
       }
-
-      const tokenId = decoded.header.kid;
-      const agentId = decoded.payload.agentId;
+      if ((payload as any).sub && (payload as any).sub !== (payload as any).agentId) {
+        throw new Error('Token subject mismatch');
+      }
+      const tokenId = (payload as any).jti as string;
+      const agentId = (payload as any).agentId as string;
 
       // Add to revoked tokens set
       this.revokedTokens.add(tokenId);

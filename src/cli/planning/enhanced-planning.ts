@@ -29,6 +29,9 @@ export interface TodoItem {
   progress?: number; // 0-100
   errorMessage?: string;
   rollbackPlan?: string[];
+  // Execution trace
+  agentTypeUsed?: string;
+  agentTaskId?: string;
 }
 
 export interface TodoPlan {
@@ -94,6 +97,85 @@ export class EnhancedPlanningSystem {
   }
 
   /**
+   * Dynamic preflight per-todo: warn on missing resources and adapt todo metadata
+   */
+  private async preflightTodoResources(todo: TodoItem): Promise<void> {
+    try {
+      if (todo.files && todo.files.length > 0) {
+        const verified: string[] = [];
+        const missing: string[] = [];
+
+        for (const f of todo.files) {
+          try {
+            const p = path.resolve(this.workingDirectory, f);
+            const stat = await fs.stat(p);
+            if (stat && (stat.isFile() || stat.isDirectory())) {
+              verified.push(f);
+            } else {
+              missing.push(f);
+            }
+          } catch {
+            missing.push(f);
+          }
+        }
+
+        if (missing.length > 0) {
+          console.log(chalk.yellow(`⚠️ Missing resources for this todo: ${missing.join(', ')}`));
+          todo.files = verified;
+          todo.tags = Array.from(new Set([...(todo.tags || []), 'adaptive']));
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * If the goal explicitly requests read-only analysis (e.g., mentions only grep/read),
+   * filter out todos that create/modify files or execute commands, and keep only analysis/read tasks.
+   */
+  private applyReadOnlyConstraints(goal: string, todos: TodoItem[]): TodoItem[] {
+    const lower = (goal || '').toLowerCase();
+    const readOnlyRequested = lower.includes('solo grep') || lower.includes('solo read') ||
+      (lower.includes('grep') && lower.includes('read') && (lower.includes('solo') || lower.includes('only')));
+
+    if (!readOnlyRequested) return todos;
+
+    // Whitelist categories and tags for read-only analysis
+    const allowedCategories = new Set(['planning', 'analysis', 'testing', 'documentation']);
+    const allowedTags = new Set(['grep', 'readfile', 'analysis', 'search', 'inspect']);
+
+    // Filter todos: no commands, no files to modify, category/tag must be analysis-oriented
+    let filtered = todos.filter(t => {
+      const hasCommands = (t.commands && t.commands.length > 0);
+      const hasFiles = (t.files && t.files.length > 0);
+      const categoryOk = allowedCategories.has(t.category);
+      const tagsOk = (t.tags || []).some(tag => allowedTags.has(tag));
+      return !hasCommands && !hasFiles && (categoryOk || tagsOk);
+    });
+
+    // If everything got filtered, fall back to minimal read-only plan derived from original
+    if (filtered.length === 0) {
+      filtered = todos.map(t => ({
+        ...t,
+        commands: [],
+        files: [],
+        category: allowedCategories.has(t.category) ? t.category : 'analysis',
+        tags: Array.from(new Set([...(t.tags || []), 'grep', 'readfile', 'analysis'])),
+      }));
+    }
+
+    // Clean up dependencies: remove links to tasks that no longer exist
+    const validIds = new Set(filtered.map(t => t.id));
+    filtered = filtered.map(t => ({
+      ...t,
+      dependencies: (t.dependencies || []).filter(depId => validIds.has(depId))
+    }));
+
+    return filtered;
+  }
+
+  /**
    * Generate a comprehensive plan with enhanced analysis
    */
   async generatePlan(
@@ -121,7 +203,10 @@ export class EnhancedPlanningSystem {
 
     // Generate AI-powered plan with enhanced analysis
     console.log(chalk.gray('🧠 Generating comprehensive AI plan...'));
-    const todos = await this.generateTodosWithAI(goal, projectContext, maxTodos);
+    let todos = await this.generateTodosWithAI(goal, projectContext, maxTodos);
+
+    // Enforce read-only constraints if requested by the goal (no commands, no file writes)
+    todos = this.applyReadOnlyConstraints(goal, todos);
 
     // Perform risk assessment
     const riskAssessment = this.performRiskAssessment(todos);
@@ -168,7 +253,6 @@ export class EnhancedPlanningSystem {
 
   /**
    * Enhanced plan approval with detailed analysis
-   * @deprecated Use approvalSystem.requestPlanApproval directly instead
    */
   async requestPlanApproval(planId: string): Promise<boolean> {
     const plan = this.activePlans.get(planId);
@@ -176,13 +260,42 @@ export class EnhancedPlanningSystem {
       throw new Error(`Plan ${planId} not found`);
     }
 
-    // This method is deprecated - use approvalSystem.requestPlanApproval directly
-    console.log(chalk.yellow('⚠️  This method is deprecated. Use approvalSystem.requestPlanApproval directly.'));
+    // Build details for approval system
+    const categories = Array.from(new Set(plan.todos.map(t => t.category).filter(Boolean)));
+    const priorities: Record<string, number> = {};
+    plan.todos.forEach(t => { priorities[t.priority] = (priorities[t.priority] || 0) + 1; });
+    const dependencies = plan.todos.reduce((sum, t) => sum + (t.dependencies?.length || 0), 0);
+    const affectedFiles = plan.todos.flatMap(t => t.files || []);
+    const commands = plan.todos.flatMap(t => t.commands || []);
+    const riskLevel = this.assessPlanRisk(plan);
 
-    // For backward compatibility, return true to allow execution
-    plan.status = 'approved';
-    plan.approvedAt = new Date();
-    return true;
+    const approval = await approvalSystem.requestPlanApproval(
+      plan.title,
+      plan.description || plan.goal || '',
+      {
+        totalSteps: plan.todos.length,
+        estimatedDuration: plan.estimatedTotalDuration,
+        riskLevel,
+        categories,
+        priorities,
+        dependencies,
+        affectedFiles,
+        commands,
+      },
+      {
+        showBreakdown: true,
+        allowModification: false,
+        showTimeline: true,
+      }
+    );
+
+    if (approval.approved) {
+      plan.status = 'approved';
+      plan.approvedAt = new Date();
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -214,6 +327,16 @@ export class EnhancedPlanningSystem {
       let failedCount = 0;
 
       for (const todo of executionOrder) {
+        // Allow user interruption to cancel execution
+        try {
+          const nik = (global as any).__nikCLI;
+          if (nik && nik.shouldInterrupt) {
+            console.log(chalk.yellow('🛑 Execution interrupted by user'));
+            plan.status = 'failed';
+            return;
+          }
+        } catch { /* ignore */ }
+
         console.log(chalk.cyan(`\n📋 [${completedCount + 1}/${plan.todos.length}] ${todo.title}`));
         console.log(chalk.gray(`   ${todo.description}`));
 
@@ -227,9 +350,15 @@ export class EnhancedPlanningSystem {
         todo.startedAt = new Date();
 
         try {
-          // Execute the todo with enhanced error handling
+          // Execute the todo with per-step timeout based on estimate (min 2m, max 15m)
+          const estimatedMs = (typeof todo.estimatedDuration === 'number' ? todo.estimatedDuration : 30) * 60000;
+          const stepTimeoutMs = Math.max(120000, Math.min(900000, estimatedMs));
+
           const startTime = Date.now();
-          await this.executeEnhancedTodo(todo, plan);
+          await Promise.race([
+            this.executeEnhancedTodo(todo, plan),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Todo execution timeout')), stepTimeoutMs))
+          ]);
           const duration = Date.now() - startTime;
 
           todo.status = 'completed';
@@ -285,6 +414,24 @@ export class EnhancedPlanningSystem {
     } catch (error: any) {
       plan.status = 'failed';
       console.log(chalk.red(`\n❌ Enhanced plan execution failed: ${error.message}`));
+    } finally {
+      // Always return to default mode after plan execution
+      try {
+        const nik = (global as any).__nikCLI;
+        if (nik) {
+          nik.currentMode = 'default';
+          if (typeof nik.renderPromptAfterOutput === 'function') {
+            nik.renderPromptAfterOutput();
+          } else if (typeof nik.showPrompt === 'function') {
+            nik.showPrompt();
+          }
+        }
+        const orchestrator = (global as any).__streamingOrchestrator;
+        if (orchestrator && orchestrator.context) {
+          orchestrator.context.planMode = false;
+          orchestrator.context.autoAcceptEdits = false;
+        }
+      } catch { /* ignore cleanup errors */ }
     }
   }
 
@@ -337,7 +484,7 @@ Generate a comprehensive plan that is practical and executable.`
 
     let lastModelOutput = '';
     try {
-      const response = await modelProvider.generateResponse({ messages });
+      const response = await modelProvider.generateResponse({ messages, scope: 'planning' });
       lastModelOutput = response || '';
 
       // Prefer fenced JSON blocks if present, otherwise fall back to broad match
@@ -365,8 +512,9 @@ Generate a comprehensive plan that is practical and executable.`
         estimatedDuration: todoData.estimatedDuration || 30,
         dependencies: todoData.dependencies || [],
         tags: todoData.tags || [],
-        commands: todoData.commands || [],
-        files: todoData.files || [],
+        // Normalize commands/files fields to arrays of strings
+        commands: Array.isArray(todoData.commands) ? todoData.commands.filter((c: any) => typeof c === 'string') : [],
+        files: Array.isArray(todoData.files) ? todoData.files.filter((f: any) => typeof f === 'string') : [],
         reasoning: todoData.reasoning || '',
         createdAt: new Date(),
       }));
@@ -460,13 +608,13 @@ Generate a comprehensive plan that is practical and executable.`
     console.log(chalk.cyan('\\n🎯 Priority Distribution:'));
     Object.entries(stats.byPriority).forEach(([priority, todos]) => {
       const icon = this.getPriorityIcon(priority as any);
-      console.log(`  ${icon} ${priority}: ${(todos as any[]).length} todos`);
+      console.log(`  ${icon} ${priority}: ${(todos as TodoItem[]).length} todos`);
     });
 
     console.log(chalk.cyan('\n📁 Category Distribution:'));
     Object.entries(stats.byCategory).forEach(([category, todos]) => {
       const color = this.getCategoryColor(category);
-      console.log(`  • ${color(category)}: ${(todos as any[]).length} todos`);
+      console.log(`  • ${color(category)}: ${(todos as TodoItem[]).length} todos`);
     });
   }
 
@@ -569,12 +717,30 @@ Generate a comprehensive plan that is practical and executable.`
     console.log(chalk.blue(`🚀 Starting: ${todo.title}`));
     console.log(chalk.gray(`   ${todo.description}`));
 
+    // Enforce read-only execution if requested by plan goal
+    const lowerGoal = (plan.goal || '').toLowerCase();
+    const readOnlyRequested = lowerGoal.includes('solo grep') || lowerGoal.includes('solo read') ||
+      (lowerGoal.includes('grep') && lowerGoal.includes('read') && (lowerGoal.includes('solo') || lowerGoal.includes('only')));
+    if (readOnlyRequested && ((todo.commands && todo.commands.length > 0) || (todo.files && todo.files.length > 0))) {
+      console.log(chalk.yellow('⚠️ Read-only mode: skipping commands/file modifications for this todo'));
+      // Mark as skipped but not failed to continue flow
+      todo.status = 'skipped';
+      todo.completedAt = new Date();
+      plan.progress!.completedSteps += 1;
+      plan.progress!.percentage = Math.round((plan.progress!.completedSteps / plan.progress!.totalSteps) * 100);
+      return;
+    }
+
+    // Dynamic preflight: ensure referenced resources exist; adapt instead of failing
+    await this.preflightTodoResources(todo);
+
+    let originalEmit: any;
     try {
       // Import agent service for real execution
       const { agentService } = await import('../services/agent-service');
-      
+
       // Setup event listeners to bridge agent events to UI
-      const originalEmit = agentService.emit.bind(agentService);
+      originalEmit = agentService.emit.bind(agentService);
       const eventHandler = (event: string, ...args: any[]) => {
         // Route events through the NikCLI UI system if available
         try {
@@ -610,23 +776,39 @@ Generate a comprehensive plan that is practical and executable.`
             console.log(chalk.magenta(`   🔧 Tool: ${args[1]?.tool || 'unknown'} - ${args[1]?.description || ''}`));
           }
         }
-        
+
         // Call original emit to maintain existing functionality
         return originalEmit(event, ...args);
       };
-      
+
       // Temporarily override emit to capture events
       agentService.emit = eventHandler;
 
-      // Execute task using autonomous-coder as universal agent
-      const result = await agentService.executeTask('autonomous-coder', `${todo.title}: ${todo.description}`);
+      // Select best agent dynamically for the todo
+      const agentType = this.selectAgentForTodo(todo);
+      // Execute task and get taskId
+      const taskId = await agentService.executeTask(agentType, `${todo.title}: ${todo.description}`);
+      // Trace
+      todo.agentTypeUsed = agentType;
+      todo.agentTaskId = taskId;
 
-      // Restore original emit
-      agentService.emit = originalEmit;
-
-      // Check execution result
-      if (!result || result === 'failed' || (typeof result === 'string' && result.toLowerCase().includes('error'))) {
-        throw new Error(`Todo execution failed: ${result || 'Unknown error'}`);
+      // Poll for completion with timeout (per-todo)
+      const maxWaitMs = Math.min(Math.max(((todo?.estimatedDuration || 5) * 60 * 1000), 2 * 60 * 1000), 15 * 60 * 1000);
+      const start = Date.now();
+      let result: any = undefined;
+      while (Date.now() - start < maxWaitMs) {
+        const status = agentService.getTaskStatus(taskId);
+        if (status?.status === 'completed') {
+          result = status.result || 'Task completed successfully';
+          break;
+        }
+        if (status?.status === 'failed') {
+          throw new Error(status.error || 'Task execution failed');
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      if (result === undefined) {
+        throw new Error('Todo execution timeout');
       }
 
       console.log(chalk.green(`✅ Completed: ${todo.title}`));
@@ -634,7 +816,30 @@ Generate a comprehensive plan that is practical and executable.`
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed: ${todo.title} - ${error.message}`));
       throw error;
+    } finally {
+      try {
+        // Restore original emit even on errors/timeouts
+        const { agentService } = await import('../services/agent-service');
+        if (originalEmit) {
+          agentService.emit = originalEmit;
+        }
+      } catch { /* ignore */ }
     }
+  }
+
+  /**
+   * Minimal dynamic agent selection based on todo metadata
+   */
+  private selectAgentForTodo(todo: TodoItem): string {
+    const text = `${todo.title} ${todo.description} ${(todo.tags || []).join(' ')}`.toLowerCase();
+    if (text.includes('react') || text.includes('component')) return 'react-expert';
+    if (text.includes('frontend') || text.includes('ui') || text.includes('css')) return 'frontend-expert';
+    if (text.includes('backend') || text.includes('api') || text.includes('server')) return 'backend-expert';
+    if (text.includes('deploy') || text.includes('docker') || text.includes('kubernetes') || text.includes('ci')) return 'devops-expert';
+    if (text.includes('review') || text.includes('analyze') || text.includes('audit')) return 'code-review';
+    if (text.includes('system') || text.includes('admin')) return 'system-admin';
+    // default universal agent
+    return 'autonomous-coder';
   }
 
   /**
@@ -984,6 +1189,38 @@ Generate a comprehensive plan that is practical and executable.`
   }
 
   /**
+   * Register an externally generated plan into the enhanced planner registry.
+   * Useful for graceful fallbacks that still want approval/execution features.
+   */
+  registerExternalPlan(plan: TodoPlan): void {
+    this.activePlans.set(plan.id, plan);
+    this.planHistory.push(plan);
+  }
+
+  /**
+   * Get planning statistics compatible with legacy PlanningManager interface
+   */
+  getPlanningStats(): {
+    totalPlansGenerated: number;
+    totalPlansExecuted: number;
+    successfulExecutions: number;
+    failedExecutions: number;
+    averageStepsPerPlan: number;
+    averageExecutionTime: number;
+  } {
+    const plans = this.getActivePlans();
+    return {
+      totalPlansGenerated: this.executionStats.totalPlans,
+      totalPlansExecuted: this.executionStats.totalPlans,
+      successfulExecutions: this.executionStats.successfulPlans,
+      failedExecutions: this.executionStats.failedPlans,
+      averageStepsPerPlan: plans.length > 0 ? 
+        plans.reduce((sum, p) => sum + p.todos.length, 0) / plans.length : 0,
+      averageExecutionTime: this.executionStats.averageExecutionTime
+    };
+  }
+
+  /**
    * Display enhanced plan in formatted view
    */
   private displayEnhancedPlan(plan: TodoPlan): void {
@@ -1044,14 +1281,14 @@ Generate a comprehensive plan that is practical and executable.`
 
     console.log(chalk.cyan('\n🎯 Priority Distribution:'));
     Object.entries(stats.byPriority).forEach(([priority, todos]) => {
-      const icon = this.getPriorityIcon(priority as any);
-      console.log(`  ${icon} ${priority}: ${(todos as any[]).length} todos`);
+      const icon = this.getPriorityIcon(priority);
+      console.log(`  ${icon} ${priority}: ${(todos as TodoItem[]).length} todos`);
     });
 
     console.log(chalk.cyan('\n📁 Category Distribution:'));
     Object.entries(stats.byCategory).forEach(([category, todos]) => {
       const color = this.getCategoryColor(category);
-      console.log(`  • ${color(category)}: ${(todos as any[]).length} todos`);
+      console.log(`  • ${color(category)}: ${(todos as TodoItem[]).length} todos`);
     });
   }
 

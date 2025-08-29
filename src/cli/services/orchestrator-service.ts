@@ -35,6 +35,8 @@ export class OrchestratorService extends EventEmitter {
   private moduleManager: ModuleManager;
   private initialized = false;
   private activeAgentTasks: Map<string, AgentTask> = new Map();
+  private originalRawMode?: boolean;
+  private keypressHandler?: (str: string, key: any) => void;
 
   constructor() {
     super();
@@ -86,12 +88,18 @@ export class OrchestratorService extends EventEmitter {
       }
     });
 
-    // Enable raw mode for keypress detection
-    process.stdin.setRawMode(true);
-    require('readline').emitKeypressEvents(process.stdin);
+    // Enable raw mode for keypress detection (TTY guard)
+    if (process.stdin.isTTY) {
+      this.originalRawMode = (process.stdin as any).isRaw || false;
+      require('readline').emitKeypressEvents(process.stdin);
+      if (!(process.stdin as any).isRaw) {
+        (process.stdin as any).setRawMode(true);
+      }
+      (process.stdin as any).resume();
+    }
 
     // Handle keypress events
-    process.stdin.on('keypress', (str, key) => {
+    const onKeypress = (str: string, key: any) => {
       if (key && key.name === 'slash' && !this.context.isProcessing) {
         setTimeout(() => this.showCommandMenu(), 50);
       }
@@ -103,7 +111,9 @@ export class OrchestratorService extends EventEmitter {
       if (key && key.name === 'a' && key.ctrl && !this.context.isProcessing) {
         this.toggleAutoAccept();
       }
-    });
+    };
+    this.keypressHandler = onKeypress;
+    process.stdin.on('keypress', onKeypress);
 
     // Handle input
     this.rl.on('line', async (input: string) => {
@@ -119,9 +129,24 @@ export class OrchestratorService extends EventEmitter {
     });
 
     this.rl.on('close', () => {
+      this.teardownInterface();
       this.showGoodbye();
       process.exit(0);
     });
+  }
+
+  private teardownInterface(): void {
+    try {
+      if (this.keypressHandler) {
+        process.stdin.removeListener('keypress', this.keypressHandler);
+        this.keypressHandler = undefined;
+      }
+      if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
+        (process.stdin as any).setRawMode(this.originalRawMode);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   private setupServiceListeners(): void {
@@ -410,6 +435,10 @@ export class OrchestratorService extends EventEmitter {
       console.log(chalk.gray('─'.repeat(50)));
       console.log(chalk.cyan('🏠 All background tasks completed. Returning to default mode.'));
       
+      // Ensure default mode explicitly
+      this.context.planMode = false;
+      this.context.autoAcceptEdits = false;
+
       try {
         // Access global NikCLI instance to show prompt
         const globalThis = (global as any);

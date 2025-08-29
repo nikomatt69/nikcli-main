@@ -63,6 +63,10 @@ class StreamingOrchestratorImpl extends EventEmitter {
   private activeVMAgent?: any; // Store VM agent instance for chat mode
   private streamBuffer = '';
 
+  // TTY/raw-mode handling
+  private originalRawMode?: boolean;
+  private keypressHandler?: (str: string, key: any) => void;
+
   // 🧠 Cognitive-AI Pipeline Integration
   private cognitiveEnabled: boolean = true;
   private lastUpdate = Date.now();
@@ -95,11 +99,17 @@ class StreamingOrchestratorImpl extends EventEmitter {
     if (!this.rl) return;
 
     // Raw mode for better control
-    process.stdin.setRawMode(true);
-    require('readline').emitKeypressEvents(process.stdin);
+    if (process.stdin.isTTY) {
+      this.originalRawMode = (process.stdin as any).isRaw || false;
+      require('readline').emitKeypressEvents(process.stdin);
+      if (!(process.stdin as any).isRaw) {
+        (process.stdin as any).setRawMode(true);
+      }
+      (process.stdin as any).resume();
+    }
 
     // Keypress handlers
-    process.stdin.on('keypress', (str, key) => {
+    const onKeypress = (str: string, key: any) => {
       // Se il bypass è abilitato, ignora tutti i keypress tranne Ctrl+C
       if (inputQueue.isBypassEnabled() && !(key && key.name === 'c' && key.ctrl)) {
         return;
@@ -120,7 +130,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
           this.gracefulExit();
         }
       }
-    });
+    };
+    this.keypressHandler = onKeypress;
+    process.stdin.on('keypress', onKeypress);
 
     // Input handler
     this.rl.on('line', async (input: string) => {
@@ -163,11 +175,26 @@ class StreamingOrchestratorImpl extends EventEmitter {
     });
 
     this.rl.on('close', () => {
+      this.teardownInterface();
       this.gracefulExit();
     });
 
     // Setup service listeners
     this.setupServiceListeners();
+  }
+
+  private teardownInterface(): void {
+    try {
+      if (this.keypressHandler) {
+        process.stdin.removeListener('keypress', this.keypressHandler);
+        this.keypressHandler = undefined;
+      }
+      if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
+        (process.stdin as any).setRawMode(this.originalRawMode);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   private setupServiceListeners(): void {
@@ -1113,6 +1140,11 @@ class StreamingOrchestratorImpl extends EventEmitter {
   private showPrompt(): void {
     if (!this.rl) return;
 
+    // Don't show prompt if NikCLI is the main interface (check for global instance)
+    if ((global as any).__nikCLI) {
+      return; // Let NikCLI handle the prompt display
+    }
+
     const dir = require('path').basename(this.context.workingDirectory);
     const agents = this.activeAgents.size;
     const agentIndicator = agents > 0 ? chalk.blue(`${agents}🤖`) : '🎛️';
@@ -1126,11 +1158,17 @@ class StreamingOrchestratorImpl extends EventEmitter {
     const contextStr = chalk.dim(`${this.context.contextLeft}%`);
 
     // Mostra stato della queue se abilitata
-    const queueStatus = this.inputQueueEnabled ? inputQueue.getStatus() : null;
-    const queueStr = queueStatus && queueStatus.queueLength > 0 ?
-      chalk.yellow(` | 📥${queueStatus.queueLength}`) : '';
+    let queueStr = '';
+    try {
+      const queueStatus = this.inputQueueEnabled ? inputQueue.getStatus() : null;
+      queueStr = queueStatus && queueStatus.queueLength > 0 ?
+        chalk.yellow(` | 📥${queueStatus.queueLength}`) : '';
+    } catch (error) {
+      // Ignore queue status errors
+      queueStr = '';
+    }
 
-    const prompt = `\n┌─[${agentIndicator}:${chalk.green(dir)}${modeStr}]─[${contextStr}${queueStr}]\n└─❯ `;
+    const prompt = `${agentIndicator}:${chalk.green(dir)}${modeStr}]─[${contextStr}${queueStr}]`;
     this.rl.setPrompt(prompt);
     this.rl.prompt();
   }
@@ -1164,6 +1202,17 @@ class StreamingOrchestratorImpl extends EventEmitter {
         content: '🏠 All background tasks completed. You can continue chatting.'
       });
 
+      // Ensure default mode
+      this.context.planMode = false;
+      this.context.autoAcceptEdits = false;
+      this.context.vmMode = false;
+      try { diffManager.setAutoAccept(false); } catch { }
+
+      // Cleanup VM agent if any
+      if (this.activeVMAgent) {
+        this.cleanupVMAgent().catch(() => { });
+      }
+
       // Show prompt after a small delay to ensure messages are processed
       setTimeout(() => {
         try {
@@ -1187,6 +1236,14 @@ class StreamingOrchestratorImpl extends EventEmitter {
     if (this.activeAgents.size > 0) {
       console.log(chalk.yellow(`⏳ Waiting for ${this.activeAgents.size} agents to finish...`));
       // In production, you'd wait for agents to complete
+    }
+
+    // Cleanup keyboard handlers and raw mode
+    this.teardownInterface();
+
+    // Cleanup VM agent if active
+    if (this.activeVMAgent) {
+      this.cleanupVMAgent().catch(() => { });
     }
 
     console.log(chalk.green('✅ Goodbye!'));
@@ -1217,6 +1274,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     // Start the interface
     this.showPrompt();
+
+    // Ensure SIGINT exits gracefully even when TTY is not controlling
+    process.on('SIGINT', () => this.gracefulExit());
 
     return new Promise<void>((resolve) => {
       this.rl!.on('close', resolve);

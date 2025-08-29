@@ -8,7 +8,10 @@ export class FindFilesTool extends BaseTool {
   constructor(workingDirectory: string) {
     super('find-files-tool', workingDirectory);
   }
-
+  async showPrompt() {
+    const { advancedUI } = await import('../ui/advanced-cli-ui');
+    this.showPrompt();
+  }
   async execute(pattern: string, options: { cwd?: string } = {}): Promise<ToolExecutionResult> {
     const startTime = Date.now();
 
@@ -42,6 +45,9 @@ export class FindFilesTool extends BaseTool {
           } catch {
             // Best-effort logging; never throw from here
           }
+          process.stdout.write('');
+          await new Promise(resolve => setTimeout(resolve, 150));
+          this.showPrompt();// Extra newline for better separation
         }
       }
 

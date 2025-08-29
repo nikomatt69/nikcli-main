@@ -26,6 +26,11 @@ const ConfigSchema = z.object({
   preferredAgent: z.string().optional(),
   models: z.record(ModelConfigSchema),
   apiKeys: z.record(z.string()).optional(),
+  modelRouting: z.object({
+    enabled: z.boolean().default(true),
+    verbose: z.boolean().default(false),
+    mode: z.enum(['conservative','balanced','aggressive']).default('balanced')
+  }).default({ enabled: true, verbose: false, mode: 'balanced' }),
   // MCP (Model Context Protocol) servers configuration - Claude Code/OpenCode compatible
   mcp: z.record(z.union([
     // Local MCP server (compatible with Claude Code)
@@ -238,13 +243,13 @@ const ConfigSchema = z.object({
       vector: true,
     }),
     tables: z.object({
-      sessions: z.string().default('cli_sessions'),
+      sessions: z.string().default('chat_sessions'),
       blueprints: z.string().default('agent_blueprints'),
       users: z.string().default('cli_users'),
       metrics: z.string().default('usage_metrics'),
       documents: z.string().default('documentation'),
     }).default({
-      sessions: 'cli_sessions',
+      sessions: 'chat_sessions',
       blueprints: 'agent_blueprints',
       users: 'cli_users',
       metrics: 'usage_metrics',
@@ -260,7 +265,7 @@ const ConfigSchema = z.object({
       vector: false,
     },
     tables: {
-      sessions: 'cli_sessions',
+      sessions: 'chat_sessions',
       blueprints: 'agent_blueprints',
       users: 'cli_users',
       metrics: 'usage_metrics',
@@ -287,6 +292,10 @@ const ConfigSchema = z.object({
     autoLoadForAgents: true,
     smartSuggestions: true,
   }),
+  // Auto Todo generation settings
+  autoTodo: z.object({
+    requireExplicitTrigger: z.boolean().default(false),
+  }).default({ requireExplicitTrigger: false }),
 });
 
 export type ConfigType = z.infer<typeof ConfigSchema>;
@@ -298,24 +307,24 @@ class KeyEncryption {
   private static ALGORITHM = 'aes-256-gcm';
   private static KEY_LENGTH = 32;
   private static IV_LENGTH = 16;
-  
+
   private static getEncryptionKey(): Buffer {
     // Use machine-specific key derivation
     const machineId = os.hostname() + os.userInfo().username;
     return crypto.scryptSync(machineId, 'nikcli-salt', this.KEY_LENGTH);
   }
-  
+
   static encrypt(text: string): string {
     try {
       const key = this.getEncryptionKey();
       const iv = crypto.randomBytes(this.IV_LENGTH);
       const cipher = crypto.createCipheriv(this.ALGORITHM, key, iv) as crypto.CipherGCM;
       cipher.setAAD(Buffer.from('nikcli-api-key'));
-      
+
       let encrypted = cipher.update(text, 'utf8', 'hex');
       encrypted += cipher.final('hex');
       const authTag = cipher.getAuthTag();
-      
+
       // Combine iv + authTag + encrypted
       return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
     } catch {
@@ -323,29 +332,29 @@ class KeyEncryption {
       return 'b64:' + Buffer.from(text).toString('base64');
     }
   }
-  
+
   static decrypt(encryptedText: string): string {
     try {
       // Handle base64 fallback
       if (encryptedText.startsWith('b64:')) {
         return Buffer.from(encryptedText.slice(4), 'base64').toString('utf8');
       }
-      
+
       const parts = encryptedText.split(':');
       if (parts.length !== 3) throw new Error('Invalid format');
-      
+
       const key = this.getEncryptionKey();
       const iv = Buffer.from(parts[0], 'hex');
       const authTag = Buffer.from(parts[1], 'hex');
       const encrypted = parts[2];
-      
+
       const decipher = crypto.createDecipheriv(this.ALGORITHM, key, iv) as crypto.DecipherGCM;
       decipher.setAAD(Buffer.from('nikcli-api-key'));
       decipher.setAuthTag(authTag);
-      
+
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
-      
+
       return decrypted;
     } catch {
       // If decryption fails, assume it's already decrypted (migration case)
@@ -490,6 +499,7 @@ export class SimpleConfigManager {
     enableAutoApprove: false,
     models: this.defaultModels,
     apiKeys: {},
+    modelRouting: { enabled: true, verbose: false, mode: 'balanced' },
     mcpServers: {},
     maxConcurrentAgents: 3,
     enableGuidanceSystem: true,
@@ -528,7 +538,7 @@ export class SimpleConfigManager {
       ],
     },
     redis: {
-      enabled: true,
+      enabled: false,
       host: 'localhost',
       port: 6379,
       database: 0,
@@ -536,12 +546,12 @@ export class SimpleConfigManager {
       ttl: 3600,
       maxRetries: 3,
       retryDelayMs: 1000,
-      cluster: { enabled: true },
+      cluster: { enabled: false },
       fallback: { enabled: true, strategy: 'memory' as const },
       strategies: { tokens: true, sessions: true, agents: true, documentation: true }
     },
     supabase: {
-      enabled: true,
+      enabled: false,
       features: {
         database: true,
         storage: true,
@@ -550,7 +560,7 @@ export class SimpleConfigManager {
         vector: true,
       },
       tables: {
-        sessions: 'cli_sessions',
+        sessions: 'chat_sessions',
         blueprints: 'agent_blueprints',
         users: 'cli_users',
         metrics: 'usage_metrics',
@@ -565,6 +575,9 @@ export class SimpleConfigManager {
       maxContextSize: 50000,
       autoLoadForAgents: true,
       smartSuggestions: true,
+    },
+    autoTodo: {
+      requireExplicitTrigger: false,
     },
   };
 

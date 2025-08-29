@@ -7,9 +7,9 @@ import { promisify } from 'util';
 import chalk from 'chalk';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { configManager } from './config-manager';
 import { createOllama } from 'ollama-ai-provider';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 const execAsync = promisify(exec);
 
@@ -54,32 +54,81 @@ export class AdvancedTools {
         }
     }
 
-    private getEmbeddingModel() {
-        // Use OpenAI for embeddings
-        const apiKey = configManager.getApiKey('gpt-4o-mini') || configManager.getApiKey('claude-sonnet-4-20250514');
-        if (!apiKey) throw new Error('No API key found for embeddings');
+    private getEmbeddingModel(provider?: 'openai' | 'google') {
+        // Auto-detect provider based on available API keys if not specified
+        if (!provider) {
+            const openaiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY;
+            const googleKey = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-        const openaiProvider = createOpenAI({ apiKey });
-        return openaiProvider('text-embedding-3-small') as any; // Type assertion for embedding model
+            if (openaiKey) provider = 'openai';
+            else if (googleKey) provider = 'google';
+            else throw new Error('No API key found for embeddings. Set OPENAI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY');
+        }
+
+        switch (provider) {
+            case 'openai': {
+                const apiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY;
+                if (!apiKey) throw new Error('OpenAI API key not found for embeddings');
+                const openaiProvider = createOpenAI({ apiKey });
+                return openaiProvider.embedding('text-embedding-3-small');
+            }
+            case 'google': {
+                const apiKey = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+                if (!apiKey) throw new Error('Google API key not found for embeddings');
+                const googleProvider = createGoogleGenerativeAI({ apiKey });
+                return googleProvider.textEmbeddingModel('text-embedding-004');
+            }
+
+            default:
+                throw new Error(`Unsupported embedding provider: ${provider}`);
+        }
+    }
+
+    // Get available embedding providers
+    getAvailableEmbeddingProviders(): Array<{ provider: string; available: boolean; model: string }> {
+        const providers = [];
+
+        try {
+            const openaiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY;
+            providers.push({
+                provider: 'openai',
+                available: !!openaiKey,
+                model: 'text-embedding-3-small'
+            });
+        } catch { }
+
+        try {
+            const googleKey = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+            providers.push({
+                provider: 'google',
+                available: !!googleKey,
+                model: 'text-embedding-004'
+            });
+        } catch { }
+
+
+        return providers;
     }
 
     // Semantic search tool using embeddings
     getSemanticSearchTool() {
         return tool({
-            description: 'Search for semantically similar content in the codebase using embeddings',
+            description: 'Search for semantically similar content in the codebase using embeddings with AI SDK support for OpenAI and Google providers',
             parameters: z.object({
                 query: z.string().describe('Search query to find similar content'),
                 searchPath: z.string().default('.').describe('Path to search in'),
                 fileTypes: z.array(z.string()).default(['.ts', '.js', '.tsx', '.jsx']).describe('File types to search'),
-                maxResults: z.number().default(5).describe('Maximum number of results')
+                maxResults: z.number().default(5).describe('Maximum number of results'),
+                embeddingProvider: z.enum(['openai', 'google']).optional().describe('Embedding provider to use (auto-detected if not specified)')
             }),
-            execute: async ({ query, searchPath, fileTypes, maxResults }) => {
+            execute: async ({ query, searchPath, fileTypes, maxResults, embeddingProvider }) => {
                 try {
-                    // console.log(chalk.blue(`🔍 Semantic search for: "${query}"`));
+                    console.log(chalk.blue(`🔍 Semantic search for: "${query}" using ${embeddingProvider || 'auto-detected'} embeddings`));
 
                     // Generate embedding for query
+                    const model = this.getEmbeddingModel(embeddingProvider);
                     const queryEmbedding = await embed({
-                        model: this.getEmbeddingModel(),
+                        model,
                         value: query
                     });
 
@@ -91,7 +140,7 @@ export class AdvancedTools {
                         try {
                             const content = readFileSync(file, 'utf-8');
                             const fileEmbedding = await embed({
-                                model: this.getEmbeddingModel(),
+                                model,
                                 value: content.substring(0, 1000) // Limit content for embedding
                             });
 
@@ -116,12 +165,63 @@ export class AdvancedTools {
                         query,
                         results: topResults,
                         totalFiles: files.length,
+                        processedFiles: Math.min(files.length, 20),
+                        embeddingProvider: embeddingProvider || 'auto-detected',
                         searchTime: new Date().toISOString()
                     };
                 } catch (error: any) {
                     return {
                         error: `Semantic search failed: ${error.message}`,
                         query
+                    };
+                }
+            }
+        });
+    }
+
+    // Tool to show available embedding providers
+    getEmbeddingProvidersTool() {
+        return tool({
+            description: 'Show available embedding providers and their configuration status',
+            parameters: z.object({
+                showDetails: z.boolean().default(false).describe('Show detailed provider information')
+            }),
+            execute: async ({ showDetails }) => {
+                try {
+                    const providers = this.getAvailableEmbeddingProviders();
+                    const available = providers.filter(p => p.available);
+                    const unavailable = providers.filter(p => !p.available);
+
+                    console.log(chalk.blue('🤖 Available Embedding Providers:'));
+
+                    if (available.length > 0) {
+                        available.forEach(provider => {
+                            console.log(chalk.green(`✅ ${provider.provider}: ${provider.model}`));
+                        });
+                    } else {
+                        console.log(chalk.yellow('⚠️  No embedding providers are currently available'));
+                    }
+
+                    if (unavailable.length > 0 && showDetails) {
+                        console.log(chalk.yellow('\n📋 Unavailable Providers (missing API keys):'));
+                        unavailable.forEach(provider => {
+                            console.log(chalk.gray(`❌ ${provider.provider}: ${provider.model}`));
+                        });
+                    }
+
+                    return {
+                        total: providers.length,
+                        available: available.length,
+                        unavailable: unavailable.length,
+                        providers: showDetails ? providers : available,
+                        recommendation: available.length === 0
+                            ? 'Set at least one API key: OPENAI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY'
+                            : `Using ${available[0].provider} as default provider`
+                    };
+                } catch (error: any) {
+                    return {
+                        error: `Failed to check embedding providers: ${error.message}`,
+                        providers: []
                     };
                 }
             }

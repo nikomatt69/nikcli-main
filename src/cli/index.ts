@@ -52,6 +52,8 @@ import boxen from 'boxen';
 import * as readline from 'readline';
 import { EventEmitter } from 'events';
 import { spawn } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Core imports
 import { NikCLI } from './nik-cli';
@@ -112,6 +114,83 @@ const banner = `
 ██║ ╚████║██║██║  ██╗╚██████╗███████╗██║
 ╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝╚═╝
 `;
+
+/**
+ * Version utilities for checking current and latest versions
+ */
+interface VersionInfo {
+  current: string;
+  latest?: string;
+  hasUpdate?: boolean;
+  error?: string;
+}
+
+function getCurrentVersion(): string {
+  try {
+    const packagePath = path.join(__dirname, '../../package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    return packageJson.version;
+  } catch (error) {
+    return 'unknown';
+  }
+}
+
+async function getLatestVersion(packageName: string = '@cadcamfun/nikcli'): Promise<string | null> {
+  try {
+    // Get package info with all versions and tags
+    const response = await fetch(`https://registry.npmjs.org/${packageName}`);
+    if (!response.ok) {
+      return null;
+    }
+    const data = await response.json();
+    
+    // Get the latest and beta versions
+    const latestVersion = data['dist-tags']?.latest;
+    const betaVersion = data['dist-tags']?.beta;
+    
+    // Compare and return the highest version
+    if (!latestVersion && !betaVersion) return null;
+    if (!latestVersion) return betaVersion;
+    if (!betaVersion) return latestVersion;
+    
+    // Compare versions and return the highest
+    const isBetaNewer = compareVersions(latestVersion, betaVersion);
+    return isBetaNewer ? betaVersion : latestVersion;
+  } catch (error) {
+    return null;
+  }
+}
+
+function compareVersions(current: string, latest: string): boolean {
+  const currentParts = current.replace('-beta', '').split('.').map(Number);
+  const latestParts = latest.replace('-beta', '').split('.').map(Number);
+  
+  for (let i = 0; i < Math.max(currentParts.length, latestParts.length); i++) {
+    const currentPart = currentParts[i] || 0;
+    const latestPart = latestParts[i] || 0;
+    
+    if (latestPart > currentPart) return true;
+    if (latestPart < currentPart) return false;
+  }
+  
+  return false;
+}
+
+async function getVersionInfo(): Promise<VersionInfo> {
+  const current = getCurrentVersion();
+  
+  try {
+    const latest = await getLatestVersion();
+    if (!latest) {
+      return { current, error: 'Unable to check for updates' };
+    }
+    
+    const hasUpdate = compareVersions(current, latest);
+    return { current, latest, hasUpdate };
+  } catch (error) {
+    return { current, error: 'Network error checking for updates' };
+  }
+}
 
 /**
  * Introduction Display Module
@@ -178,16 +257,19 @@ class OnboardingModule {
     console.clear();
     console.log(chalk.cyanBright(banner));
 
-    // Step 1: Beta Warning
+    // Step 1: Version Information
+    await this.showVersionInfo();
+
+    // Step 2: Beta Warning
     await this.showBetaWarning();
 
-    // Step 2: API Key Setup
+    // Step 3: API Key Setup
     const hasKeys = await this.setupApiKeys();
 
-    // Step 3: Enhanced Services Setup (optional)
+    // Step 4: Enhanced Services Setup (optional)
     await this.setupEnhancedServices();
 
-    // Step 4: System Check
+    // Step 5: System Check
     const systemOk = await this.checkSystemRequirements();
 
     // Onboarding is complete if system requirements are met
@@ -588,6 +670,43 @@ class OnboardingModule {
       console.log(chalk.red(`   ❌ Sign up error: ${error.message}`));
     }
   }
+
+  private static async showVersionInfo(): Promise<void> {
+    console.log(chalk.blue('\n📦 Version Information'));
+    console.log(chalk.gray('─'.repeat(40)));
+
+    try {
+      const versionInfo = await getVersionInfo();
+      
+      let versionContent = chalk.cyan.bold(`Current Version: `) + chalk.white(versionInfo.current);
+      
+      if (versionInfo.error) {
+        versionContent += '\n' + chalk.yellow(`⚠️  ${versionInfo.error}`);
+      } else if (versionInfo.latest) {
+        versionContent += '\n' + chalk.cyan(`Latest Version: `) + chalk.white(versionInfo.latest);
+        
+        if (versionInfo.hasUpdate) {
+          versionContent += '\n\n' + chalk.green.bold('🚀 Update Available!');
+          versionContent += '\n' + chalk.white('Run the following command to update:');
+          versionContent += '\n' + chalk.yellow.bold('npm update -g @cadcamfun/nikcli');
+        } else {
+          versionContent += '\n\n' + chalk.green('✅ You are using the latest version!');
+        }
+      }
+
+      const versionBox = boxen(versionContent, {
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: versionInfo.hasUpdate ? 'green' : 'cyan',
+        backgroundColor: versionInfo.hasUpdate ? '#001a00' : '#001a2a'
+      });
+
+      console.log(versionBox);
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Unable to check version: ${error.message}`));
+    }
+  }
 }
 
 /**
@@ -822,6 +941,11 @@ class ServiceModule {
       // Initialize Supabase if enabled
       if (config.supabase?.enabled) {
         try {
+          // Add error listener to prevent unhandled promise rejections
+          enhancedSupabaseProvider.on('error', (error: any) => {
+            console.log(chalk.yellow(`⚠️ Supabase Provider Error: ${error.message || error}`));
+          });
+
           // enhancedSupabaseProvider and authProvider initialize automatically
           console.log(chalk.dim('   ✓ Supabase providers ready'));
         } catch (error: any) {
@@ -937,8 +1061,13 @@ class StreamingModule extends EventEmitter {
 
   private setupInterface(): void {
     // Raw mode for better control
-    process.stdin.setRawMode(true);
-    require('readline').emitKeypressEvents(process.stdin);
+    if (process.stdin.isTTY) {
+      require('readline').emitKeypressEvents(process.stdin);
+      if (!(process.stdin as any).isRaw) {
+        (process.stdin as any).setRawMode(true);
+      }
+      (process.stdin as any).resume();
+    }
 
     // Keypress handlers
     process.stdin.on('keypress', (str, key) => {

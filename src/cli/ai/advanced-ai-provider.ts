@@ -16,6 +16,7 @@ import {
 } from 'ai';
 import { z } from 'zod';
 import { simpleConfigManager as configManager } from '../core/config-manager';
+import { adaptiveModelRouter, ModelScope } from './adaptive-model-router';
 import { readFileSync, writeFileSync, existsSync, statSync, readdirSync, mkdirSync } from 'fs';
 import { join, relative, resolve, dirname, extname } from 'path';
 import { exec, execSync } from 'child_process';
@@ -978,7 +979,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
     // Apply AGGRESSIVE truncation to prevent prompt length errors
     const truncatedMessages = await this.truncateMessages(optimizedMessages, 80000); // ULTRA REDUCED: 80k tokens safety margin
 
-    const model = this.getModel() as any;
+    const routingCfg = configManager.get('modelRouting');
+    const effectiveModelName = routingCfg?.enabled ? this.resolveAdaptiveModel('chat_default', truncatedMessages) : undefined;
+    const model = this.getModel(effectiveModelName) as any;
     const tools = this.getAdvancedTools();
 
     try {
@@ -1857,7 +1860,11 @@ Requirements:
 - Ensure code is production-ready`;
 
     try {
-      const model = this.getModel() as any;
+      const routingCfg = configManager.get('modelRouting');
+      const resolved = routingCfg?.enabled ? this.resolveAdaptiveModel('code_gen', [
+        { role: 'user', content: `${type}: ${description} (${language})` } as any
+      ]) : undefined;
+      const model = this.getModel(resolved) as any;
       const params = this.getProviderParams();
       const provider = this.getCurrentModelInfo().config.provider;
       const genOpts: any = {
@@ -1882,6 +1889,43 @@ Requirements:
     }
   }
 
+  // Resolve adaptive model variant for given messages/scope using router
+  private resolveAdaptiveModel(scope: ModelScope, coreMessages: CoreMessage[]): string {
+    try {
+      const info = this.getCurrentModelInfo();
+      const provider = info.config.provider as any;
+      const baseModel = info.config.model;
+
+      const toText = (c: any) => typeof c === 'string'
+        ? c
+        : Array.isArray(c)
+          ? c.map(part => typeof part === 'string' ? part : (part?.text || JSON.stringify(part))).join('')
+          : String(c);
+
+      const simpleMessages = coreMessages.map(m => ({
+        role: (m.role as any) || 'user',
+        content: toText(m.content)
+      }));
+
+      const decision = adaptiveModelRouter.choose({ provider, baseModel, messages: simpleMessages as any, scope });
+
+      // Log gently (if UI exists)
+      try {
+        const nik = (global as any).__nikCLI;
+        const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`;
+        if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg);
+        else console.log(chalk.dim(msg));
+      } catch {}
+
+      // The router returns a provider model id. Our config keys match these ids in default models.
+      // If key is missing, fallback to current model name in config.
+      const models = configManager.get('models');
+      return models[decision.selectedModel] ? decision.selectedModel : (this.currentModel || configManager.get('currentModel'));
+    } catch {
+      return this.currentModel || configManager.get('currentModel');
+    }
+  }
+
   // Model management
   private getModel(modelName?: string): any {
     const model = modelName || this.currentModel || configManager.get('currentModel');
@@ -1896,25 +1940,43 @@ Requirements:
     // Create provider instances with API keys, then get the specific model
     switch (configData.provider) {
       case 'openai': {
-        const apiKey = configManager.getApiKey(model);
-        if (!apiKey) throw new Error(`No API key found for model ${model} (OpenAI)`);
+        let apiKey = configManager.getApiKey(model);
+        if (!apiKey) {
+          const current = configManager.get('currentModel');
+          if (current && current !== model) apiKey = configManager.getApiKey(current);
+        }
+        if (!apiKey) throw new Error(`No API key found for provider OpenAI (model ${model})`);
         const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' });
         return openaiProvider(configData.model);
       }
       case 'anthropic': {
-        const apiKey = configManager.getApiKey(model);
-        if (!apiKey) throw new Error(`No API key found for model ${model} (Anthropic)`);
+        let apiKey = configManager.getApiKey(model);
+        if (!apiKey) {
+          const current = configManager.get('currentModel');
+          if (current && current !== model) apiKey = configManager.getApiKey(current);
+        }
+        if (!apiKey) throw new Error(`No API key found for provider Anthropic (model ${model})`);
         const anthropicProvider = createAnthropic({ apiKey });
         return anthropicProvider(configData.model);
       }
       case 'google': {
-        const apiKey = configManager.getApiKey(model);
-        if (!apiKey) throw new Error(`No API key found for model ${model} (Google)`);
+        let apiKey = configManager.getApiKey(model);
+        if (!apiKey) {
+          const current = configManager.get('currentModel');
+          if (current && current !== model) apiKey = configManager.getApiKey(current);
+        }
+        if (!apiKey) throw new Error(`No API key found for provider Google (model ${model})`);
         const googleProvider = createGoogleGenerativeAI({ apiKey });
         return googleProvider(configData.model);
       }
       case 'gateway': {
-        const gatewayProvider = createGateway({ apiKey: configManager.getApiKey(model) });
+        let apiKey = configManager.getApiKey(model);
+        if (!apiKey) {
+          const current = configManager.get('currentModel');
+          if (current && current !== model) apiKey = configManager.getApiKey(current);
+        }
+        if (!apiKey) throw new Error(`No API key found for provider Gateway (model ${model})`);
+        const gatewayProvider = createGateway({ apiKey });
         return gatewayProvider(configData.model);
       }
       case 'ollama': {

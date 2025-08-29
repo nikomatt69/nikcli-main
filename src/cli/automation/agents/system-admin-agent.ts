@@ -18,7 +18,7 @@ const SystemCommandSchema = z.object({
 
 export class SystemAdminAgent extends BaseAgent {
   id = 'system-admin';
-  capabilities = ["system-administration","server-management","monitoring"];
+  capabilities = ["system-administration", "server-management", "monitoring"];
   specialization = 'System administration and server management';
   constructor(workingDirectory: string = process.cwd()) {
     super(workingDirectory);
@@ -34,12 +34,12 @@ export class SystemAdminAgent extends BaseAgent {
 
   async analyzeSystem(): Promise<any> {
     console.log(chalk.blue('🔍 Analyzing system...'));
-    
+
     const systemInfo = await toolsManager.getSystemInfo();
     const dependencies = await toolsManager.checkDependencies([
       'node', 'npm', 'git', 'docker', 'python3', 'curl', 'wget', 'code'
     ]);
-    
+
     const runningProcesses = toolsManager.getRunningProcesses();
     const commandHistory = toolsManager.getCommandHistory(10);
 
@@ -68,7 +68,7 @@ export class SystemAdminAgent extends BaseAgent {
     console.log(chalk.blue(`⚡ Planning command execution: ${commandsDescription}`));
 
     const systemInfo = await toolsManager.getSystemInfo();
-    
+
     const messages: ChatMessage[] = [
       {
         role: 'system',
@@ -102,11 +102,11 @@ Generate a structured plan with commands to execute.`,
       });
 
       // Cast to any to handle unknown type
-      const planResult = plan as any;
-      
+      const planResult = plan as z.infer<typeof SystemCommandSchema>;
+
       console.log(chalk.blue.bold('\n📋 Command Execution Plan:'));
       console.log(chalk.gray(`Reasoning: ${planResult.reasoning || 'No reasoning provided'}`));
-      
+
       if (planResult.warnings && planResult.warnings.length > 0) {
         console.log(chalk.yellow.bold('\n⚠️  Warnings:'));
         planResult.warnings.forEach((warning: string) => {
@@ -143,7 +143,7 @@ Generate a structured plan with commands to execute.`,
       const results = [];
       for (const cmd of planResult.commands || []) {
         console.log(chalk.blue(`\n🔄 Executing: ${cmd.command}`));
-        
+
         const [command, ...args] = cmd.command.split(' ');
         const result = await toolsManager.runCommand(command, args, {
           sudo: cmd.sudo,
@@ -187,21 +187,21 @@ Generate a structured plan with commands to execute.`,
 
   async installDependencies(packages: string[], options: { global?: boolean; dev?: boolean; manager?: string } = {}): Promise<any> {
     console.log(chalk.blue(`📦 Installing packages: ${packages.join(', ')}`));
-    
+
     const results = [];
     const manager = options.manager || 'npm';
 
     for (const pkg of packages) {
       console.log(chalk.cyan(`Installing ${pkg} with ${manager}...`));
-      
+
       const success = await toolsManager.installPackage(pkg, {
         global: options.global,
         dev: options.dev,
-        manager: manager as any,
+        manager: manager as 'npm' | 'yarn' | 'pnpm',
       });
 
       results.push({ package: pkg, success });
-      
+
       if (!success) {
         console.log(chalk.yellow(`⚠️ Failed to install ${pkg}, continuing with others...`));
       }
@@ -224,7 +224,7 @@ Generate a structured plan with commands to execute.`,
   async manageProcesses(action: 'list' | 'kill', pid?: number): Promise<any> {
     if (action === 'list') {
       const processes = toolsManager.getRunningProcesses();
-      
+
       console.log(chalk.blue.bold('\n🔄 Running Processes:'));
       if (processes.length === 0) {
         console.log(chalk.gray('No processes currently running'));
@@ -242,9 +242,9 @@ Generate a structured plan with commands to execute.`,
 
     } else if (action === 'kill' && pid) {
       console.log(chalk.yellow(`⚠️ Attempting to kill process ${pid}...`));
-      
+
       const success = await toolsManager.killProcess(pid);
-      
+
       return {
         success,
         action: 'kill',
@@ -257,7 +257,7 @@ Generate a structured plan with commands to execute.`,
 
   async createProject(projectType: string, projectName: string): Promise<any> {
     console.log(chalk.blue(`🚀 Creating ${projectType} project: ${projectName}`));
-    
+
     const validTypes = ['react', 'next', 'node', 'express'];
     if (!validTypes.includes(projectType)) {
       return {
@@ -267,46 +267,46 @@ Generate a structured plan with commands to execute.`,
     }
 
     const result = await toolsManager.setupProject(projectType as any, projectName);
-    
+
     return result;
   }
 
   async runScript(script: string, language: 'bash' | 'python' | 'node' = 'bash'): Promise<any> {
     console.log(chalk.blue(`📝 Running ${language} script...`));
     console.log(chalk.gray(`Script:\n${script}`));
-    
+
     const result = await toolsManager.runScript(script, { language });
-    
+
     if (result.success) {
       console.log(chalk.green('✅ Script executed successfully'));
     } else {
       console.log(chalk.red('❌ Script execution failed'));
     }
-    
+
     console.log(chalk.blue('Output:'));
     console.log(result.output);
-    
+
     return result;
   }
 
   async monitorSystem(duration: number = 30): Promise<any> {
     console.log(chalk.blue(`👀 Monitoring system for ${duration} seconds...`));
-    
+
     const startTime = Date.now();
     const samples = [];
-    
+
     const interval = setInterval(async () => {
       const systemInfo = await toolsManager.getSystemInfo();
       const processes = toolsManager.getRunningProcesses();
-      
+
       samples.push({
         timestamp: new Date(),
         memoryUsed: systemInfo.memory.used,
         processCount: processes.length,
       });
-      
+
       console.log(chalk.cyan(`📊 Memory: ${Math.round(systemInfo.memory.used / 1024 / 1024 / 1024 * 100) / 100}GB | Processes: ${processes.length}`));
-      
+
     }, 5000); // Sample every 5 seconds
 
     setTimeout(() => {
@@ -349,25 +349,25 @@ Generate a structured plan with commands to execute.`,
     }
 
     const lowerTask = taskData.toLowerCase();
-    
+
     try {
       if (lowerTask.includes('analyze') || lowerTask.includes('system info')) {
         return await this.analyzeSystem();
       }
-      
+
       if (lowerTask.includes('install')) {
         const packages = taskData.match(/install\s+(.+)/i)?.[1]?.split(/\s+/) || [];
         const isGlobal = lowerTask.includes('global') || lowerTask.includes('-g');
         const isDev = lowerTask.includes('dev') || lowerTask.includes('--save-dev');
-        
+
         return await this.installDependencies(packages, { global: isGlobal, dev: isDev });
       }
-      
+
       if (lowerTask.includes('run command') || lowerTask.includes('execute')) {
         const command = taskData.replace(/(run command|execute):\s*/i, '');
         return await this.executeCommands(command);
       }
-      
+
       if (lowerTask.includes('create project')) {
         const match = taskData.match(/create project\s+(\w+)\s+(.+)/i);
         if (match) {
@@ -375,25 +375,25 @@ Generate a structured plan with commands to execute.`,
           return await this.createProject(type, name);
         }
       }
-      
+
       if (lowerTask.includes('run script')) {
         const script = taskData.replace(/run script:\s*/i, '');
-        const language = lowerTask.includes('python') ? 'python' : 
-                        lowerTask.includes('node') ? 'node' : 'bash';
+        const language = lowerTask.includes('python') ? 'python' :
+          lowerTask.includes('node') ? 'node' : 'bash';
         return await this.runScript(script, language);
       }
-      
+
       if (lowerTask.includes('list process') || lowerTask.includes('show process')) {
         return await this.manageProcesses('list');
       }
-      
+
       if (lowerTask.includes('kill process')) {
         const pid = parseInt(taskData.match(/kill process\s+(\d+)/i)?.[1] || '');
         if (pid) {
           return await this.manageProcesses('kill', pid);
         }
       }
-      
+
       if (lowerTask.includes('monitor')) {
         const duration = parseInt(taskData.match(/monitor.*?(\d+)/)?.[1] || '30');
         return await this.monitorSystem(duration);
@@ -401,7 +401,7 @@ Generate a structured plan with commands to execute.`,
 
       // Default: treat as command execution
       return await this.executeCommands(taskData);
-      
+
     } catch (error: any) {
       return {
         error: `System administration failed: ${error.message}`,

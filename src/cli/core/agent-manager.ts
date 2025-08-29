@@ -43,7 +43,7 @@ export class AgentManager extends EventEmitter {
     super();
     this.configManager = configManager;
     this.guidanceManager = guidanceManager || new GuidanceManager(process.cwd());
-    this.config = this.configManager.getConfig() as any;
+    this.config = this.configManager.getConfig() as CliConfig;
 
     this.setupEventHandlers();
   }

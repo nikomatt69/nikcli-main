@@ -124,7 +124,7 @@ export class VMOrchestrator extends EventEmitter {
     const initCommands = [
       // Install git using Alpine package manager (Node.js already included in base image)
       'apk add --no-cache git curl',
-      
+
       // Verify installations
       'node --version && npm --version',
       'git --version && curl --version',
@@ -220,7 +220,7 @@ export class VMOrchestrator extends EventEmitter {
       const devCommands = [
         // Verify Node.js is working
         'cd /workspace/repo && node --version',
-        
+
         // Install project dependencies if package.json exists
         'cd /workspace/repo && [ -f package.json ] && npm install || echo "No package.json found, skipping npm install"'
       ];
@@ -291,7 +291,7 @@ export class VMOrchestrator extends EventEmitter {
 
     } catch (error: any) {
       CliUI.logError(`❌ Command failed in ${containerId.slice(0, 8)}: ${command}`);
-      
+
       // Emit command error event
       this.emit('command:error', {
         containerId,
@@ -299,7 +299,7 @@ export class VMOrchestrator extends EventEmitter {
         error: error.message,
         timestamp: new Date()
       });
-      
+
       throw error;
     }
   }
@@ -322,7 +322,7 @@ export class VMOrchestrator extends EventEmitter {
       // Execute command and stream output line by line
       const result = await this.containerManager.executeCommand(containerId, command);
       const lines = result.split('\n');
-      
+
       for (const line of lines) {
         if (line.trim()) {
           yield {
@@ -332,7 +332,7 @@ export class VMOrchestrator extends EventEmitter {
             output: line + '\n',
             timestamp: new Date()
           };
-          
+
           // Brief delay for readability
           await new Promise(resolve => setTimeout(resolve, 50));
         }
@@ -357,7 +357,7 @@ export class VMOrchestrator extends EventEmitter {
 
     } catch (error: any) {
       CliUI.logError(`❌ Streaming command failed in ${containerId.slice(0, 8)}: ${command}`);
-      
+
       // Yield error
       yield {
         type: 'error',
@@ -366,7 +366,7 @@ export class VMOrchestrator extends EventEmitter {
         error: error.message,
         timestamp: new Date()
       };
-      
+
       // Emit command error event
       this.emit('command:error', {
         containerId,
@@ -374,7 +374,7 @@ export class VMOrchestrator extends EventEmitter {
         error: error.message,
         timestamp: new Date()
       });
-      
+
       throw error;
     }
   }
@@ -483,7 +483,7 @@ export class VMOrchestrator extends EventEmitter {
       });
 
       if (!response.ok) {
-        const error = await response.json() as any;
+        const error = await response.json() as Error;
 
         // If a PR already exists for this branch, return it instead of failing
         if (response.status === 422 && typeof error?.message === 'string' && error.message.toLowerCase().includes('a pull request already exists')) {
@@ -641,20 +641,20 @@ export class VMOrchestrator extends EventEmitter {
 
     try {
       CliUI.logInfo('🌉 Initializing VM communication bridge...');
-      
+
       // Initialize bridge components
       await vmChatBridge.initialize();
-      
+
       // Setup event handlers for container lifecycle
       this.on('container:created', async ({ containerId, agentId }) => {
         try {
           // Wait a moment for container to be fully ready
           await new Promise(resolve => setTimeout(resolve, 2000));
-          
+
           // Create session for new container
           const session = await vmSessionManager.createSession(containerId, agentId);
           CliUI.logSuccess(`📝 Created VM session ${session.sessionId} for container ${containerId.slice(0, 12)}`);
-          
+
         } catch (error: any) {
           CliUI.logError(`❌ Failed to create session for container ${containerId}: ${error.message}`);
         }

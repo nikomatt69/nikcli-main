@@ -154,6 +154,7 @@ Estimate realistic durations and assess risk levels accurately.`;
           schemaName: 'ExecutionPlan',
           schemaDescription: 'Structured plan for secure tool execution',
           temperature: 0.1, // Low temperature for consistent planning
+          scope: 'planning'
         });
 
         const plan: ExecutionPlan = {

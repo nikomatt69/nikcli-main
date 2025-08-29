@@ -11,6 +11,7 @@ import {
 import { inputQueue } from '../core/input-queue';
 import { CliUI } from '../utils/cli-ui';
 import { ToolRegistry } from '../tools/tool-registry';
+import { agentService, AgentTask } from '../services/agent-service';
 
 /**
  * Production-ready Plan Executor
@@ -32,6 +33,26 @@ export class PlanExecutor {
             autoApproveReadonly: true, // Auto-approve readonly operations
             ...config
         };
+    }
+
+    /**
+     * Reset CLI context and orchestrator state to clean defaults
+     */
+    private resetCliContext(): void {
+        try {
+            const nik = (global as any).__nikCLI;
+            if (nik) {
+                nik.currentMode = 'default';
+                if (nik.shouldInterrupt !== undefined) {
+                    nik.shouldInterrupt = false;
+                }
+            }
+            const orchestrator = (global as any).__streamingOrchestrator;
+            if (orchestrator && orchestrator.context) {
+                orchestrator.context.planMode = false;
+                orchestrator.context.autoAcceptEdits = false;
+            }
+        } catch { /* ignore */ }
     }
 
     /**
@@ -60,6 +81,8 @@ export class PlanExecutor {
             if (!approval.approved) {
                 result.status = 'cancelled';
                 CliUI.logWarning('Plan execution cancelled by user');
+                // Cleanup/reset before returning
+                this.resetCliContext();
                 return result;
             }
 
@@ -74,6 +97,16 @@ export class PlanExecutor {
             const executionOrder = this.resolveDependencyOrder(stepsToExecute);
 
             for (let i = 0; i < executionOrder.length; i++) {
+                // Allow global interruption (ESC) similar to planner logic
+                try {
+                    const nik = (global as any).__nikCLI;
+                    if (nik?.shouldInterrupt) {
+                        CliUI.logWarning('Execution interrupted by user');
+                        result.status = 'cancelled';
+                        nik.shouldInterrupt = false;
+                        break;
+                    }
+                } catch { /* ignore */ }
                 const step = executionOrder[i];
 
                 CliUI.logProgress(i + 1, executionOrder.length, `Executing: ${step.title}`);
@@ -96,10 +129,16 @@ export class PlanExecutor {
 
                 // Handle step failure
                 if (stepResult.status === 'failure') {
-                    const shouldContinue = await this.handleStepFailure(step, stepResult, plan);
-                    if (!shouldContinue) {
+                    const decision = await this.handleStepFailure(step, stepResult, plan);
+                    if (decision === 'abort') {
                         result.status = 'failed';
                         break;
+                    } else if (decision === 'skip') {
+                        continue;
+                    } else if (decision === 'retry') {
+                        if (result.summary.failedSteps > 0) result.summary.failedSteps--;
+                        i--; // redo this step
+                        continue;
                     }
                 }
 
@@ -121,12 +160,17 @@ export class PlanExecutor {
             // Log final results
             this.logExecutionSummary(result);
 
+            // Cleanup/reset after successful run
+            this.resetCliContext();
+
             return result;
 
         } catch (error: any) {
             result.status = 'failed';
             result.endTime = new Date();
             CliUI.logError(`Plan execution failed: ${error.message}`);
+            // Cleanup/reset after failure
+            this.resetCliContext();
             return result;
         }
     }
@@ -212,9 +256,17 @@ export class PlanExecutor {
             CliUI.startSpinner(`Executing: ${step.title}`);
 
             switch (step.type) {
-                case 'tool':
-                    result.output = await this.executeTool(step);
+                case 'tool': {
+                    // If step is annotated with agent metadata or tool is missing, execute via AgentService
+                    const hasAgentHint = !!(step.metadata && (step.metadata.agent || step.metadata.agentType || step.metadata.task));
+                    const toolExists = step.toolName ? !!this.toolRegistry.getTool(step.toolName) : false;
+                    if (hasAgentHint || !toolExists) {
+                        result.output = await this.executeAgentStep(step, plan);
+                    } else {
+                        result.output = await this.executeTool(step);
+                    }
                     break;
+                }
 
                 case 'validation':
                     result.output = await this.executeValidation(step, plan);
@@ -245,6 +297,67 @@ export class PlanExecutor {
         }
 
         return result;
+    }
+
+    /**
+     * Execute a step by delegating to the AgentService and waiting for completion
+     */
+    private async executeAgentStep(step: ExecutionStep, plan: ExecutionPlan): Promise<any> {
+        // Compose task text
+        const taskText = (step.metadata?.task as string) || `${step.title}: ${step.description}`;
+        // Choose agent
+        let agentType = (step.metadata?.agent as string) || (step.metadata?.agentType as string) || '';
+        try {
+            if (!agentType || !(agentService as any).agents?.has?.(agentType)) {
+                agentType = agentService.suggestAgentTypeForTask(taskText);
+            }
+        } catch { /* fallback below */ }
+
+        // Start agent task
+        const taskId = await agentService.executeTask(agentType, taskText, { planId: plan.id, stepId: step.id });
+
+        // Live progress hookup
+        const onProgress = (t: AgentTask, update: any) => {
+            try {
+                if (t.id !== taskId) return;
+                const pct = typeof update?.progress === 'number' ? `${update.progress}%` : '';
+                const desc = update?.description ? ` - ${update.description}` : '';
+                CliUI.updateSpinner(`Executing: ${step.title}${pct ? ` (${pct})` : ''}${desc}`);
+            } catch { /* noop */ }
+        };
+        const onToolUse = (_t: AgentTask, update: any) => {
+            try {
+                CliUI.logInfo(`🔧 ${update?.tool}: ${update?.description || ''}`);
+            } catch { /* noop */ }
+        };
+        agentService.on('task_progress', onProgress as any);
+        agentService.on('tool_use', onToolUse as any);
+
+        // Await completion or timeout
+        const timeoutMs = Math.max(30000, this.config.timeoutPerStep);
+        const agentCompleted = new Promise<AgentTask>((resolve, reject) => {
+            const onComplete = (task: AgentTask) => {
+                if (task.id === taskId) {
+                    agentService.off('task_complete', onComplete as any);
+                    resolve(task);
+                }
+            };
+            agentService.on('task_complete', onComplete as any);
+            setTimeout(() => {
+                try { agentService.off('task_complete', onComplete as any); } catch { /* ignore */ }
+                reject(new Error(`Agent step timeout after ${Math.round(timeoutMs/1000)}s`));
+            }, timeoutMs);
+        });
+
+        const task = await agentCompleted;
+        try {
+            agentService.off('task_progress', onProgress as any);
+            agentService.off('tool_use', onToolUse as any);
+        } catch { /* ignore */ }
+        if (task.status === 'completed') {
+            return task.result || { completed: true, agentType };
+        }
+        throw new Error(task.error || 'Agent task failed');
     }
 
     /**
@@ -330,7 +443,7 @@ export class PlanExecutor {
         step: ExecutionStep,
         result: StepExecutionResult,
         plan: ExecutionPlan
-    ): Promise<boolean> {
+    ): Promise<'abort' | 'skip' | 'retry' | 'continue'> {
         CliUI.logError(`Step "${step.title}" failed: ${result.error?.message}`);
 
         inputQueue.enableBypass();
@@ -349,7 +462,7 @@ export class PlanExecutor {
                         default: 0
                     }
                 ]);
-                return answers.continue;
+                return answers.continue ? 'continue' : 'abort';
             }
 
             // For critical steps, offer rollback if available
@@ -369,19 +482,18 @@ export class PlanExecutor {
 
                 switch (answers.action) {
                     case 'abort':
-                        return false;
+                        return 'abort';
                     case 'skip':
                         result.status = 'skipped';
-                        return true;
+                        return 'skip';
                     case 'retry':
-                        // Implement retry logic
-                        return true;
+                        return 'retry';
                     default:
-                        return false;
+                        return 'abort';
                 }
             }
 
-            return false;
+            return 'abort';
         } finally {
             inputQueue.disableBypass();
         }
