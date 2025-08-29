@@ -12,16 +12,58 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:nikcli.openChat"
+    "onCommand:nikcli.openChat",
+    "onCommand:nikcli.restart",
+    "onCommand:nikcli.stop",
+    "onCommand:nikcli.healthCheck",
+    "onCommand:nikcli.setApiKey",
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      {
-        "command": "nikcli.openChat",
-        "title": "NikCLI: Open Chat"
+      { "command": "nikcli.openChat", "title": "NikCLI: Open Chat" },
+      { "command": "nikcli.restart", "title": "NikCLI: Restart Chat" },
+      { "command": "nikcli.stop", "title": "NikCLI: Stop Chat" },
+      { "command": "nikcli.healthCheck", "title": "NikCLI: Run Health Check" },
+      { "command": "nikcli.setApiKey", "title": "NikCLI: Set API Key" }
+    ],
+    "configuration": {
+      "title": "NikCLI",
+      "properties": {
+        "nikcli.cli.path": {
+          "type": "string",
+          "default": "${workspaceFolder}/bin/nikcli",
+          "description": "Path to the NikCLI executable/script"
+        },
+        "nikcli.cli.args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Extra arguments passed to NikCLI"
+        },
+        "nikcli.forceStructuredUI": {
+          "type": "boolean",
+          "default": false,
+          "description": "Set FORCE_STRUCTURED_UI=true when launching NikCLI"
+        },
+        "nikcli.env": {
+          "type": "object",
+          "default": {},
+          "description": "Additional environment variables to inject when launching NikCLI"
+        },
+        "nikcli.autoStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically open NikCLI Chat on startup"
+        },
+        "nikcli.statusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show NikCLI status bar item"
+        }
       }
-    ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run build",

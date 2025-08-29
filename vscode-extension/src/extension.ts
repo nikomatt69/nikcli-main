@@ -2,11 +2,31 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as path from 'path';
 
+let statusItem: vscode.StatusBarItem | undefined;
+let output: vscode.OutputChannel | undefined;
+
 export function activate(context: vscode.ExtensionContext) {
-  const disposable = vscode.commands.registerCommand('nikcli.openChat', () => {
+  output = vscode.window.createOutputChannel('NikCLI');
+
+  if (getConfig('statusBar', true)) {
+    statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+    statusItem.text = 'NikCLI: Idle';
+    statusItem.command = 'nikcli.openChat';
+    statusItem.show();
+    context.subscriptions.push(statusItem);
+  }
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('nikcli.openChat', () => ChatPanel.createOrShow(context)),
+    vscode.commands.registerCommand('nikcli.restart', () => ChatPanel.currentPanel?.restart()),
+    vscode.commands.registerCommand('nikcli.stop', () => ChatPanel.currentPanel?.dispose()),
+    vscode.commands.registerCommand('nikcli.healthCheck', () => healthCheck(context)),
+    vscode.commands.registerCommand('nikcli.setApiKey', () => setApiKey(context))
+  );
+
+  if (getConfig('autoStart', false)) {
     ChatPanel.createOrShow(context);
-  });
-  context.subscriptions.push(disposable);
+  }
 }
 
 export function deactivate() {}
@@ -16,6 +36,7 @@ class ChatPanel {
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionUri: vscode.Uri;
   private pty?: cp.ChildProcessWithoutNullStreams;
+  private disposed = false;
 
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
     this.panel = panel;
@@ -56,14 +77,47 @@ class ChatPanel {
 
   private spawnCli() {
     const repoRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
-    const binPath = path.join(repoRoot, 'bin', 'nikcli');
+    const cfgPath = getConfig<string>('cli.path', path.join(repoRoot, 'bin', 'nikcli'));
+    const cfgArgs = getConfig<string[]>('cli.args', []);
+    const forceStructured = getConfig<boolean>('forceStructuredUI', false);
+    const extraEnv = getConfig<Record<string, string>>('env', {});
 
-    const env = { ...process.env, FORCE_STRUCTURED_UI: 'false' } as NodeJS.ProcessEnv;
-    this.pty = cp.spawn(binPath, [], { cwd: repoRoot, env });
-    this.pty.stdout.on('data', (d) => this.post('output', d.toString()));
-    this.pty.stderr.on('data', (d) => this.post('output', d.toString()));
-    this.pty.on('close', (code) => this.post('status', `process exited with code ${code}`));
-    this.pty.on('error', (err) => this.post('status', `failed to start: ${String(err.message || err)}`));
+    const env = { ...process.env, ...(forceStructured ? { FORCE_STRUCTURED_UI: 'true' } : {}), ...extraEnv } as NodeJS.ProcessEnv;
+    const args = Array.isArray(cfgArgs) ? cfgArgs : [];
+
+    try {
+      output?.appendLine(`[NikCLI] Spawning: ${cfgPath} ${args.join(' ')}`);
+      this.pty = cp.spawn(cfgPath, args, { cwd: repoRoot, env });
+    } catch (e: any) {
+      const msg = `Failed to spawn NikCLI: ${e?.message || e}`;
+      vscode.window.showErrorMessage(msg);
+      output?.appendLine(msg);
+      return;
+    }
+
+    statusItem && (statusItem.text = 'NikCLI: Running');
+    this.pty.stdout.on('data', (d) => {
+      const text = d.toString();
+      this.post('output', text);
+      output?.append(text);
+    });
+    this.pty.stderr.on('data', (d) => {
+      const text = d.toString();
+      this.post('output', text);
+      output?.append(text);
+    });
+    this.pty.on('close', (code) => {
+      const text = `process exited with code ${code}`;
+      this.post('status', text);
+      output?.appendLine(`[NikCLI] ${text}`);
+      statusItem && (statusItem.text = 'NikCLI: Stopped');
+    });
+    this.pty.on('error', (err) => {
+      const text = `failed to start: ${String(err?.message || err)}`;
+      this.post('status', text);
+      output?.appendLine(`[NikCLI] ${text}`);
+      statusItem && (statusItem.text = 'NikCLI: Error');
+    });
   }
 
   private write(data: string) {
@@ -102,10 +156,61 @@ class ChatPanel {
   }
 
   dispose() {
+    if (this.disposed) return;
     if (this.pty) {
       try { this.pty.stdin.end(); this.pty.kill(); } catch {}
+      this.pty = undefined;
     }
     ChatPanel.currentPanel = undefined;
+    this.disposed = true;
+    statusItem && (statusItem.text = 'NikCLI: Idle');
   }
+
+  restart() {
+    try { this.dispose(); } catch {}
+    ChatPanel.currentPanel = this;
+    this.disposed = false;
+    this.panel.webview.html = this.getHtml();
+    this.setupMessageHandlers();
+  }
+}
+
+function getConfig<T>(key: string, fallback: T): T {
+  const config = vscode.workspace.getConfiguration('nikcli');
+  const value = config.get<T>(key);
+  return (value === undefined ? fallback : value) as T;
+}
+
+async function setApiKey(context: vscode.ExtensionContext) {
+  const selection = await vscode.window.showQuickPick([
+    { label: 'ANTHROPIC_API_KEY' },
+    { label: 'OPENAI_API_KEY' },
+    { label: 'GOOGLE_GENERATIVE_AI_API_KEY' },
+    { label: 'AI_GATEWAY_API_KEY' }
+  ], { placeHolder: 'Select API key to set' });
+  if (!selection) return;
+  const secret = await vscode.window.showInputBox({ prompt: `Enter value for ${selection.label}`, ignoreFocusOut: true, password: true });
+  if (!secret) return;
+  await context.secrets.store(selection.label, secret);
+  vscode.window.showInformationMessage(`Stored ${selection.label} in VS Code secret storage.`);
+}
+
+async function healthCheck(context: vscode.ExtensionContext) {
+  const repoRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+  const cfgPath = getConfig<string>('cli.path', path.join(repoRoot, 'bin', 'nikcli'));
+  const exists = await fileExists(cfgPath);
+  const results: string[] = [];
+  results.push(`CLI path: ${cfgPath} ${exists ? '✅' : '❌ not found'}`);
+  const keys = ['ANTHROPIC_API_KEY','OPENAI_API_KEY','GOOGLE_GENERATIVE_AI_API_KEY','AI_GATEWAY_API_KEY'];
+  for (const k of keys) {
+    const secret = await context.secrets.get(k);
+    results.push(`${k}: ${secret ? '🔒 stored' : '—'}`);
+  }
+  output?.appendLine(results.join('\n'));
+  vscode.window.showInformationMessage('NikCLI Health Check completed. See Output: NikCLI');
+}
+
+async function fileExists(p: string): Promise<boolean> {
+  try { await vscode.workspace.fs.stat(vscode.Uri.file(p)); return true; } catch { return false; }
 }
 
