@@ -133,23 +133,31 @@ class ChatPanel {
 
   private getHtml(): string {
     const csp = "default-src 'none'; img-src https: data:; script-src 'nonce-abc'; style-src 'unsafe-inline'";
-    return `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"/><meta http-equiv=\"Content-Security-Policy\" content=\"${csp}\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><title>NikCLI Chat</title></head><body>
-      <div id=\"root\" style=\"height:100vh;display:flex;flex-direction:column;font-family:var(--vscode-font-family);background:var(--vscode-editor-background);color:var(--vscode-editor-foreground);\">
-        <div id=\"output\" style=\"flex:1;overflow:auto;white-space:pre-wrap;padding:8px;font-family:monospace;\"></div>
-        <form id=\"form\" style=\"display:flex;gap:8px;border-top:1px solid var(--vscode-panel-border);padding:8px;\">
-          <input id=\"input\" type=\"text\" style=\"flex:1;padding:6px;background:var(--vscode-input-background);color:var(--vscode-input-foreground);border:1px solid var(--vscode-input-border);\" placeholder=\"Type message or /command and press Enter\"/>
-          <button>Send</button>
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta http-equiv="Content-Security-Policy" content="${csp}"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>NikCLI Chat</title></head><body>
+      <div id="root" style="height:100vh;display:flex;flex-direction:column;font-family:var(--vscode-font-family);background:var(--vscode-editor-background);color:var(--vscode-editor-foreground);">
+        <div id="chat" style="flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;"></div>
+        <form id="form" style="display:flex;gap:8px;border-top:1px solid var(--vscode-panel-border);padding:8px;">
+          <textarea id="input" rows="1" style="flex:1;padding:6px;background:var(--vscode-input-background);color:var(--vscode-input-foreground);border:1px solid var(--vscode-input-border);resize:vertical;" placeholder="Type message or /command. Shift+Enter for newline. Enter to send."></textarea>
+          <button title="Send">Send</button>
         </form>
       </div>
-      <script nonce=\"abc\">
+      <script nonce="abc">
         const vscode = acquireVsCodeApi();
-        const out = document.getElementById('output');
+        const chat = document.getElementById('chat');
         const form = document.getElementById('form');
         const input = document.getElementById('input');
         vscode.postMessage({ type: 'init' });
-        form.addEventListener('submit', (e) => { e.preventDefault(); const v = input.value; if (!v) return; vscode.postMessage({ type: 'input', data: v }); input.value=''; });
-        window.addEventListener('message', (e) => { const { type, data } = e.data; if (type === 'output') { append(stripAnsi(data)); } if (type === 'status') { append('\n' + stripAnsi(data) + '\n'); } });
-        function append(text){ out.textContent += text; out.scrollTop = out.scrollHeight; }
+        let currentAssistantBubble = null;
+        let buffer = '';
+        form.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); form.dispatchEvent(new Event('submit')); }});
+        form.addEventListener('submit', (e) => { e.preventDefault(); const v = input.value.trim(); if (!v) return; addBubble('user', v); vscode.postMessage({ type: 'input', data: v }); input.value=''; input.focus(); });
+        window.addEventListener('message', (e) => { const { type, data } = e.data; if (type === 'output') { onChunk(data); } if (type === 'status') { addSystem(stripAnsi(data)); } });
+        function onChunk(chunk){ chunk = stripAnsi(chunk); buffer += chunk; ensureAssistant(); currentAssistantBubble.textContent += chunk; chat.scrollTop = chat.scrollHeight; if (looksLikePrompt(buffer)) { finalizeAssistant(); buffer=''; } }
+        function ensureAssistant(){ if(!currentAssistantBubble){ currentAssistantBubble = addBubble('assistant',''); } }
+        function finalizeAssistant(){ currentAssistantBubble = null; }
+        function addBubble(role, text){ const div = document.createElement('div'); const bg = role==='user'? 'var(--vscode-button-background)':'var(--vscode-editor-inactiveSelectionBackground)'; const align = role==='user'? 'flex-end':'flex-start'; div.style.cssText = 'max-width:80%;padding:8px;border-radius:8px;white-space:pre-wrap;'; div.style.background = bg; div.style.color = 'inherit'; const row = document.createElement('div'); row.style.cssText = 'display:flex;width:100%;'; row.style.justifyContent = align; div.textContent = text; row.appendChild(div); chat.appendChild(row); chat.scrollTop = chat.scrollHeight; return div; }
+        function addSystem(text){ const row = document.createElement('div'); row.style.cssText = 'font-size:12px;color:var(--vscode-descriptionForeground);padding:4px 8px;'; row.textContent = text; chat.appendChild(row); chat.scrollTop = chat.scrollHeight; }
+        function looksLikePrompt(t){ return /(└─❯\s*$|\n\s*└─❯\s*$)/m.test(t); }
         function stripAnsi(s){ return s.replace(/\u001b\[[0-9;]*m/g, ''); }
       </script>
     </body></html>`;
