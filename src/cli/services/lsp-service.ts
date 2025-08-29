@@ -79,7 +79,7 @@ export class LSPService {
       // Startup timeout guard (10s)
       const startupTimeout = setTimeout(() => {
         if (server.status !== 'running' && server.process) {
-          try { server.process.kill(); } catch {}
+          try { server.process.kill(); } catch { }
           server.status = 'error';
           console.log(chalk.red(`⏱️  ${server.name} startup timed out`));
         }
@@ -97,10 +97,18 @@ export class LSPService {
         clearTimeout(startupTimeout);
       });
 
-      process.on('exit', (code) => {
-        server.status = 'stopped';
-        console.log(chalk.yellow(`⏹️  ${server.name} stopped (code: ${code})`));
-        clearTimeout(startupTimeout);
+      process.on('exit', (code, signal) => {
+        if (startupTimeout) clearTimeout(startupTimeout);
+        const abnormal = (code !== 0 && code !== null) || !!signal;
+        server.process = undefined;
+        if (abnormal) {
+          server.status = 'error';
+          const cause = signal ? `signal: ${signal}` : `code: ${code}`;
+          console.log(chalk.red(`⛔ ${server.name} exited (${cause})`));
+        } else {
+          server.status = 'stopped';
+          console.log(chalk.yellow(`⏹️  ${server.name} stopped (code: ${code})`));
+        }
       });
 
       return true;
@@ -130,7 +138,7 @@ export class LSPService {
     }
   }
 
-  getServerStatus(): Array<{name: string; status: string; filetypes: string[]}> {
+  getServerStatus(): Array<{ name: string; status: string; filetypes: string[] }> {
     return Array.from(this.servers.values()).map(server => ({
       name: server.name,
       status: server.status,
@@ -156,15 +164,15 @@ export class LSPService {
     try {
       // Check for common config files
       const files = fs.readdirSync(projectPath);
-      
+
       if (files.includes('tsconfig.json') || files.includes('package.json')) {
         languages.push('typescript');
       }
-      
+
       if (files.includes('Cargo.toml')) {
         languages.push('rust');
       }
-      
+
       if (files.includes('pyproject.toml') || files.includes('requirements.txt')) {
         languages.push('python');
       }

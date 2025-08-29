@@ -484,7 +484,7 @@ Generate a comprehensive plan that is practical and executable.`
 
     let lastModelOutput = '';
     try {
-      const response = await modelProvider.generateResponse({ messages });
+      const response = await modelProvider.generateResponse({ messages, scope: 'planning' });
       lastModelOutput = response || '';
 
       // Prefer fenced JSON blocks if present, otherwise fall back to broad match
@@ -1186,6 +1186,15 @@ Generate a comprehensive plan that is practical and executable.`
    */
   getPlan(planId: string): TodoPlan | undefined {
     return this.activePlans.get(planId);
+  }
+
+  /**
+   * Register an externally generated plan into the enhanced planner registry.
+   * Useful for graceful fallbacks that still want approval/execution features.
+   */
+  registerExternalPlan(plan: TodoPlan): void {
+    this.activePlans.set(plan.id, plan);
+    this.planHistory.push(plan);
   }
 
   /**

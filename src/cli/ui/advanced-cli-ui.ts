@@ -38,12 +38,14 @@ export interface StructuredPanel {
   id: string;
   title: string;
   content: string;
-  type: 'diff' | 'file' | 'list' | 'status' | 'chat' | 'todos' | 'agents';
+  type: 'diff' | 'file' | 'list' | 'status' | 'chat' | 'todos' | 'agents' | 'git';
   language?: string;
   filePath?: string;
   visible: boolean;
   width?: number;
   borderColor?: string;
+  pinned?: boolean;
+  priority?: number;
   // For panels that should remain visible across operations
 }
 
@@ -67,6 +69,7 @@ export class AdvancedCliUI {
   private isInteractiveMode: boolean = false;
   private panels: Map<string, StructuredPanel> = new Map();
   private layoutMode: 'single' | 'dual' | 'triple' = 'dual';
+  private renderTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     this.theme = {
@@ -691,10 +694,10 @@ export class AdvancedCliUI {
    * Show enhanced Todos panel with real items and additional metadata
    */
   showTodos(
-    todos: Array<{ 
-      content?: string; 
-      title?: string; 
-      status?: string; 
+    todos: Array<{
+      content?: string;
+      title?: string;
+      status?: string;
       priority?: string;
       category?: string;
       progress?: number;
@@ -702,30 +705,30 @@ export class AdvancedCliUI {
     title: string = 'Update Todos'
   ): void {
     const lines: string[] = [];
-    
+
     for (const t of todos) {
       const text = (t.title || t.content || '').trim();
       if (!text) continue;
-      
+
       // Enhanced status icons
-      const statusIcon = t.status === 'completed' ? '✅' : 
-                        t.status === 'in_progress' ? '🔄' : 
-                        t.status === 'failed' ? '❌' : 
-                        t.status === 'skipped' ? '⏭️' : '⏳';
-      
+      const statusIcon = t.status === 'completed' ? '✅' :
+        t.status === 'in_progress' ? '🔄' :
+          t.status === 'failed' ? '❌' :
+            t.status === 'skipped' ? '⏭️' : '⏳';
+
       // Priority indicators
       const priorityIcon = t.priority === 'critical' ? '🔴' :
-                          t.priority === 'high' ? '🟡' :
-                          t.priority === 'medium' ? '🟢' :
-                          t.priority === 'low' ? '🔵' : '';
-      
+        t.priority === 'high' ? '🟡' :
+          t.priority === 'medium' ? '🟢' :
+            t.priority === 'low' ? '🔵' : '';
+
       // Category color coding
       const categoryColor = t.category === 'planning' ? this.theme.primary :
-                           t.category === 'implementation' ? this.theme.success :
-                           t.category === 'testing' ? this.theme.warning :
-                           t.category === 'documentation' ? this.theme.secondary :
-                           this.theme.info;
-      
+        t.category === 'implementation' ? this.theme.success :
+          t.category === 'testing' ? this.theme.warning :
+            t.category === 'documentation' ? this.theme.secondary :
+              this.theme.info;
+
       // Progress bar for in-progress items
       let progressBar = '';
       if (t.status === 'in_progress' && t.progress !== undefined) {
@@ -734,7 +737,7 @@ export class AdvancedCliUI {
         const empty = 20 - filled;
         progressBar = ` [${'█'.repeat(filled)}${'░'.repeat(empty)}] ${progress}%`;
       }
-      
+
       // Styling based on status
       let styled = text;
       if (t.status === 'completed') {
@@ -746,23 +749,23 @@ export class AdvancedCliUI {
       } else {
         styled = this.theme.info(text);
       }
-      
+
       // Build the line with all information
       let line = `${statusIcon} ${priorityIcon} ${styled}`;
-      
+
       // Add category if available
       if (t.category) {
         line += ` ${categoryColor(`[${t.category}]`)}`;
       }
-      
+
       // Add progress bar
       if (progressBar) {
         line += ` ${this.theme.muted(progressBar)}`;
       }
-      
+
       lines.push(line);
     }
-    
+
     const content = lines.join('\n');
 
     this.panels.set('todos', {
@@ -912,17 +915,13 @@ export class AdvancedCliUI {
    * Auto-layout based on current visible panels
    */
   autoLayout(): void {
-    const visiblePanels = Array.from(this.panels.values()).filter(p => p.visible);
+    const visiblePanels = this.getRenderablePanels();
+    const count = visiblePanels.length;
+    if (count <= 1) this.layoutMode = 'single';
+    else if (count === 2) this.layoutMode = 'dual';
+    else this.layoutMode = 'triple';
 
-    if (visiblePanels.length <= 1) {
-      this.layoutMode = 'single';
-    } else if (visiblePanels.length === 2) {
-      this.layoutMode = 'dual';
-    } else {
-      this.layoutMode = 'triple';
-    }
-
-    this.renderStructuredLayout();
+    this.scheduleRender();
   }
 
   /**
@@ -971,6 +970,36 @@ export class AdvancedCliUI {
   }
 
   /**
+   * Create a new panel
+   */
+  createPanel(panelConfig: StructuredPanel): void {
+    // Apply default border color per panel type if not provided
+    const color = panelConfig.borderColor || this.getDefaultBorderColor(panelConfig.type);
+    const defaultPinned = (panelConfig.type === 'status' || panelConfig.type === 'todos' || panelConfig.type === 'agents');
+    const withDefaults: StructuredPanel = { pinned: panelConfig.id === 'todos' ? true : defaultPinned, priority: panelConfig.id === 'todos' ? 100 : 0, ...panelConfig, borderColor: color };
+    this.panels.set(withDefaults.id, withDefaults);
+
+    // Recompute layout and render
+    this.autoLayout();
+    if (!this.isInteractiveMode) {
+      console.log(chalk.green(`✅ Panel '${withDefaults.title}' created`));
+    }
+  }
+
+  private getDefaultBorderColor(type: StructuredPanel['type']): string {
+    switch (type) {
+      case 'diff': return 'yellow';
+      case 'file': return 'green';
+      case 'list': return 'magenta';
+      case 'git': return 'blue';
+      case 'todos': return 'cyan';
+      case 'agents': return 'blue';
+      case 'status': return 'green';
+      case 'chat': return 'white';
+      default: return 'white';
+    }
+  }
+  /**
    * Show persistent todos (disabled in simple mode)
    */
 
@@ -987,7 +1016,7 @@ export class AdvancedCliUI {
     console.clear();
 
 
-    const visiblePanels = Array.from(this.panels.values()).filter(p => p.visible);
+    const visiblePanels = this.getRenderablePanels();
 
     if (visiblePanels.length === 0) {
       this.showActiveIndicators();
@@ -1010,8 +1039,31 @@ export class AdvancedCliUI {
     this.showActiveIndicators();
   }
 
+  private scheduleRender(): void {
+    if (this.renderTimer) {
+      clearTimeout(this.renderTimer);
+      this.renderTimer = null;
+    }
+    this.renderTimer = setTimeout(() => {
+      this.renderStructuredLayout();
+    }, 16);
+  }
+
+  private getRenderablePanels(): StructuredPanel[] {
+    const visible = Array.from(this.panels.values()).filter(p => p.visible);
+    const pinned = visible.filter(p => p.pinned);
+    const others = visible.filter(p => !p.pinned);
+    const sortByPriority = (a: StructuredPanel, b: StructuredPanel) => (b.priority || 0) - (a.priority || 0);
+    pinned.sort(sortByPriority);
+    others.sort(sortByPriority);
+    const maxPanels = 3;
+    const remaining = Math.max(0, maxPanels - pinned.length);
+    const selectedOthers = remaining > 0 ? others.slice(0, remaining) : [];
+    return [...pinned.slice(0, maxPanels), ...selectedOthers].slice(0, maxPanels);
+  }
+
   private renderSimpleLayout(): void {
-    const visiblePanels = Array.from(this.panels.values()).filter(p => p.visible);
+    const visiblePanels = this.getRenderablePanels();
 
     visiblePanels.forEach(panel => {
       console.log(boxen(
@@ -1091,6 +1143,8 @@ export class AdvancedCliUI {
         return panel.content; // Already formatted in showFileContent
       case 'list':
         return this.formatListContent(panel.content);
+      case 'git':
+        return this.formatGitContent(panel.content);
       default:
         return panel.content;
     }
@@ -1135,10 +1189,35 @@ export class AdvancedCliUI {
   }
 
   private formatListContent(content: string): string {
+    const highlightNumbers = (s: string) => s.replace(/(\b\d[\d,.]*\b)/g, (_m, g1) => chalk.yellow(g1));
     return content.split('\n').map(line => {
-      if (line.trim()) {
-        return line.startsWith('•') ? line : `${chalk.blue('•')} ${line}`;
+      const colored = highlightNumbers(line);
+      if (colored.trim()) {
+        return colored.startsWith('•') ? colored : `${chalk.blue('•')} ${colored}`;
       }
+      return colored;
+    }).join('\n');
+  }
+
+  private formatGitContent(content: string): string {
+    return content.split('\n').map(line => {
+      // Colorize commit hashes (7+ character hex strings)
+      if (/^[a-f0-9]{7,}/.test(line.trim())) {
+        return chalk.yellow(line);
+      }
+      // Colorize commit messages (lines starting with spaces)
+      else if (line.startsWith('  ')) {
+        return chalk.white(line);
+      }
+      // Colorize author and date information
+      else if (line.includes('(') && line.includes(')')) {
+        return chalk.blue(line);
+      }
+      // Colorize separators
+      else if (line.includes('─')) {
+        return chalk.gray(line);
+      }
+      // Default formatting
       return line;
     }).join('\n');
   }

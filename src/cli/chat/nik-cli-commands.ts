@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import boxen from 'boxen';
 import { z } from 'zod';
 import { chatManager } from './chat-manager';
 import { configManager } from '../core/config-manager';
@@ -133,6 +134,11 @@ export class SlashCommandHandler {
     this.registerCommands();
   }
 
+  // Expose registered slash commands for palettes/autocomplete
+  public listCommands(): string[] {
+    return Array.from(this.commands.keys());
+  }
+
   private registerCommands(): void {
     this.commands.set('help', this.helpCommand.bind(this));
     this.commands.set('quit', this.quitCommand.bind(this));
@@ -220,8 +226,10 @@ export class SlashCommandHandler {
     this.commands.set('analyze-image', this.analyzeImageCommand.bind(this));
     this.commands.set('vision', this.analyzeImageCommand.bind(this));
     this.commands.set('generate-image', this.generateImageCommand.bind(this));
+    // Image discovery + interactive analyze
+    this.commands.set('images', this.imagesCommand.bind(this));
     this.commands.set('create-image', this.generateImageCommand.bind(this));
-    
+
     // IDE diagnostic commands
     this.commands.set('diagnostic', this.diagnosticCommand.bind(this));
     this.commands.set('diag', this.diagnosticCommand.bind(this));
@@ -242,6 +250,8 @@ export class SlashCommandHandler {
 
     // Indexing commands
     this.commands.set('index', this.indexCommand.bind(this));
+    // Router controls
+    this.commands.set('router', this.routerCommand.bind(this));
   }
 
   async handle(input: string): Promise<CommandResult> {
@@ -277,6 +287,7 @@ ${chalk.cyan('/set-key <model> <key>')} - Set API key for a model
 
 ${chalk.blue.bold('Configuration:')}
 ${chalk.cyan('/config')} - Show current configuration
+${chalk.cyan('/router [status|on|off|verbose|mode <m>]')} - Adaptive model router controls
 ${chalk.cyan('/debug')} - Debug API key configuration
 ${chalk.cyan('/temp <0.0-2.0>')} - Set temperature (creativity)
 ${chalk.cyan('/history <on|off>')} - Enable/disable chat history
@@ -318,6 +329,7 @@ ${chalk.cyan('/search --web <query> [--type general|technical|documentation|stac
 ${chalk.blue.bold('Vision & Image Analysis:')}
 ${chalk.cyan('/analyze-image <path>')} - Analyze image with AI vision models
 ${chalk.cyan('/vision <path>')} - Alias for analyze-image
+${chalk.cyan('/images')} - Discover images and pick one to analyze
 ${chalk.cyan('/analyze-image --provider <claude|openai|google|vercel>')} - Choose specific provider
 ${chalk.cyan('/analyze-image --prompt "custom prompt"')} - Custom analysis prompt
 
@@ -454,6 +466,61 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     console.log(chalk.gray('\nUse /model <name> to switch models'));
     console.log(chalk.gray('Use /set-key <model> <key> to add API keys'));
+
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  private async routerCommand(args: string[] = []): Promise<CommandResult> {
+    try {
+      const { configManager } = await import('../core/config-manager');
+      const sub = (args[0] || 'status').toLowerCase();
+
+      const cfg = configManager.getAll();
+      cfg.modelRouting = cfg.modelRouting || { enabled: true, verbose: false, mode: 'balanced' } as any;
+
+      switch (sub) {
+        case 'on':
+          cfg.modelRouting.enabled = true;
+          configManager.setAll(cfg as any);
+          console.log(boxen('Adaptive model routing enabled', { title: '🔀 Router', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'green' }));
+          break;
+        case 'off':
+          cfg.modelRouting.enabled = false;
+          configManager.setAll(cfg as any);
+          console.log(boxen('Adaptive model routing disabled', { title: '🔀 Router', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }));
+          break;
+        case 'verbose':
+          cfg.modelRouting.verbose = !cfg.modelRouting.verbose;
+          configManager.setAll(cfg as any);
+          console.log(boxen(`Verbose logging: ${cfg.modelRouting.verbose ? 'ON' : 'OFF'}`, { title: '🔀 Router', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }));
+          break;
+        case 'mode': {
+          const mode = (args[1] || 'balanced').toLowerCase();
+          if (!['conservative', 'balanced', 'aggressive'].includes(mode)) {
+            console.log(chalk.red('Usage: /router mode <conservative|balanced|aggressive>'));
+            break;
+          }
+          (cfg.modelRouting as any).mode = mode as any;
+          configManager.setAll(cfg as any);
+          console.log(boxen(`Routing mode set to ${mode}`, { title: '🔀 Router', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }));
+          break;
+        }
+        case 'status':
+        default: {
+          const lines = [
+            `${chalk.green('Enabled:')} ${cfg.modelRouting.enabled ? 'Yes' : 'No'}`,
+            `${chalk.green('Verbose:')} ${cfg.modelRouting.verbose ? 'Yes' : 'No'}`,
+            `${chalk.green('Mode:')} ${cfg.modelRouting.mode}`,
+            '',
+            chalk.gray('Routing stays within provider and API key.'),
+            chalk.gray('Use /router on|off | /router verbose | /router mode <...>')
+          ].join('\n');
+          console.log(boxen(lines, { title: '🔀 Router Status', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' }));
+        }
+      }
+    } catch (error: any) {
+      console.log(boxen(`Router error: ${error.message}`, { title: '❌ Router', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }));
+    }
 
     return { shouldExit: false, shouldUpdatePrompt: false };
   }
@@ -2827,60 +2894,63 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const result = await visionProvider.analyzeImage(imagePath, options);
 
       // Display results
-      console.log('');
-      console.log(chalk.green.bold('📊 Vision Analysis Results:'));
-      console.log(chalk.gray('─'.repeat(50)));
-      console.log('');
+      const nik: any = (global as any).__nikCLI;
+      nik?.beginPanelOutput?.();
+      try {
+        const lines: string[] = [];
+        lines.push(chalk.bold('📊 Vision Analysis Results'));
+        lines.push(chalk.gray('──────────────────────────────────────────────────'));
+        lines.push('');
+        lines.push(chalk.cyan('🖼️ Description:'));
+        lines.push(result.description);
+        lines.push('');
 
-      console.log(chalk.cyan.bold('🖼️ Description:'));
-      console.log(chalk.white(result.description));
-      console.log('');
+        if (result.objects.length > 0) {
+          lines.push(chalk.cyan('🎯 Objects Detected:'));
+          result.objects.forEach(obj => lines.push(`  • ${obj}`));
+          lines.push('');
+        }
+        if (result.text && result.text.trim()) {
+          lines.push(chalk.cyan('📝 Text Found:'));
+          lines.push(`"${result.text}"`);
+          lines.push('');
+        }
+        if (result.emotions.length > 0) {
+          lines.push(chalk.cyan('😊 Emotions/Mood:'));
+          lines.push(result.emotions.join(', '));
+          lines.push('');
+        }
+        if (result.colors.length > 0) {
+          lines.push(chalk.cyan('🎨 Color Palette:'));
+          lines.push(result.colors.join(', '));
+          lines.push('');
+        }
+        lines.push(chalk.cyan('🏗️ Composition:'));
+        lines.push(result.composition);
+        lines.push('');
+        lines.push(chalk.cyan('⚙️ Technical Quality:'));
+        lines.push(result.technical_quality);
+        lines.push('');
+        lines.push(chalk.gray('──────────────────────────────────────────────────'));
+        lines.push(chalk.gray(`Model: ${result.metadata.model_used}`));
+        lines.push(chalk.gray(`Processing time: ${result.metadata.processing_time_ms}ms`));
+        lines.push(chalk.gray(`File size: ${(result.metadata.file_size_bytes / 1024).toFixed(1)} KB`));
+        lines.push(chalk.gray(`Confidence: ${(result.confidence * 100).toFixed(1)}%`));
+        if (result.metadata.image_dimensions) {
+          lines.push(chalk.gray(`Dimensions: ${result.metadata.image_dimensions.width}x${result.metadata.image_dimensions.height}`));
+        }
 
-      if (result.objects.length > 0) {
-        console.log(chalk.cyan.bold('🎯 Objects Detected:'));
-        result.objects.forEach(obj => console.log(chalk.white(`  • ${obj}`)));
-        console.log('');
+        console.log(boxen(lines.join('\n'), {
+          title: '👁️ Image Analysis',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'magenta'
+        }));
+        console.log(chalk.green(`✅ Image analysis completed in ${Date.now() - _startTime}ms`));
+      } finally {
+        nik?.endPanelOutput?.();
       }
-
-      if (result.text && result.text.trim()) {
-        console.log(chalk.cyan.bold('📝 Text Found:'));
-        console.log(chalk.white(`"${result.text}"`));
-        console.log('');
-      }
-
-      if (result.emotions.length > 0) {
-        console.log(chalk.cyan.bold('😊 Emotions/Mood:'));
-        console.log(chalk.white(result.emotions.join(', ')));
-        console.log('');
-      }
-
-      if (result.colors.length > 0) {
-        console.log(chalk.cyan.bold('🎨 Color Palette:'));
-        console.log(chalk.white(result.colors.join(', ')));
-        console.log('');
-      }
-
-      console.log(chalk.cyan.bold('🏗️ Composition:'));
-      console.log(chalk.white(result.composition));
-      console.log('');
-
-      console.log(chalk.cyan.bold('⚙️ Technical Quality:'));
-      console.log(chalk.white(result.technical_quality));
-      console.log('');
-
-      // Metadata
-      console.log(chalk.gray('─'.repeat(50)));
-      console.log(chalk.gray(`Model: ${result.metadata.model_used}`));
-      console.log(chalk.gray(`Processing time: ${result.metadata.processing_time_ms}ms`));
-      console.log(chalk.gray(`File size: ${(result.metadata.file_size_bytes / 1024).toFixed(1)} KB`));
-      console.log(chalk.gray(`Confidence: ${(result.confidence * 100).toFixed(1)}%`));
-
-      if (result.metadata.image_dimensions) {
-        console.log(chalk.gray(`Dimensions: ${result.metadata.image_dimensions.width}x${result.metadata.image_dimensions.height}`));
-      }
-
-      console.log('');
-      console.log(chalk.green(`✅ Analysis completed successfully`));
 
     } catch (error: any) {
       console.log(chalk.red(`❌ Image analysis failed: ${error.message}`));
@@ -2898,6 +2968,93 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  /**
+   * Discover images in working directory and interactively analyze one
+   */
+  private async imagesCommand(_args: string[]): Promise<CommandResult> {
+    try {
+      const cwd = process.cwd();
+      const { readdirSync, statSync } = await import('fs');
+      const { join, relative } = await import('path');
+      const inquirer = (await import('inquirer')).default;
+      const { inputQueue } = await import('../core/input-queue');
+
+      const isIgnoredDir = (name: string) => ['node_modules', '.git', 'dist', 'build', '.next', 'coverage', '.turbo', '.cache'].includes(name);
+      const isImage = (name: string) => /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name);
+
+      const found: { path: string; size: number }[] = [];
+
+      const walk = (dir: string) => {
+        let entries: any[] = [];
+        try { entries = readdirSync(dir, { withFileTypes: true } as any); } catch { return; }
+        for (const e of entries) {
+          if (e.isDirectory()) {
+            if (isIgnoredDir(e.name)) continue;
+            walk(join(dir, e.name));
+          } else if (e.isFile()) {
+            if (isImage(e.name)) {
+              const p = join(dir, e.name);
+              let size = 0;
+              try { size = statSync(p).size; } catch { /* ignore */ }
+              found.push({ path: p, size });
+            }
+          }
+        }
+      };
+
+      walk(cwd);
+
+      if (found.length === 0) {
+        console.log(boxen('No image files found in the working directory', {
+          title: '🖼️ Images', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow'
+        }));
+        return { shouldExit: false, shouldUpdatePrompt: false };
+      }
+
+      // Sort by path and limit to reasonable number
+      found.sort((a, b) => a.path.localeCompare(b.path));
+      const list = found.slice(0, 500);
+
+      console.log(boxen(`Found ${found.length} images${found.length > list.length ? ` (showing ${list.length})` : ''}. Use arrows to choose and Enter to analyze.`, {
+        title: '🖼️ Images', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan'
+      }));
+
+      const choices = list.map(f => ({
+        name: `${relative(cwd, f.path)}  ${chalk.gray(`(${(f.size / 1024).toFixed(1)} KB)`)}`,
+        value: f.path
+      }));
+
+      // Suspend NikCLI prompt and bypass input queue for interactive selection
+      const nik: any = (global as any).__nikCLI;
+      nik?.suspendPrompt?.();
+      inputQueue.enableBypass();
+      let answer: any;
+      try {
+        answer = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'imagePath',
+            message: 'Select image to analyze',
+            pageSize: Math.min(20, choices.length),
+            choices
+          }
+        ]);
+      } finally {
+        inputQueue.disableBypass();
+        nik?.resumePromptAndRender?.();
+      }
+
+      // Analyze the selected image
+      return await this.analyzeImageCommand([answer.imagePath]);
+
+    } catch (error: any) {
+      console.log(boxen(`Failed to list/analyze images: ${error.message}`, {
+        title: '❌ Images Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red'
+      }));
+      return { shouldExit: false, shouldUpdatePrompt: false };
+    }
   }
 
   /**
@@ -4166,99 +4323,99 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async startDiagnosticMonitoring(args: string[]): Promise<CommandResult> {
     const path = args[0];
-    
+
     console.log(chalk.blue('🔍 Starting IDE diagnostic monitoring...'));
-    
+
     try {
       // Enable the integration first
       ideDiagnosticIntegration.setActive(true);
-      
+
       // Start monitoring via the integration
       await ideDiagnosticIntegration.startMonitoring(path);
-      
+
       if (path) {
         console.log(chalk.green(`✅ Monitoring started for path: ${path}`));
       } else {
         console.log(chalk.green(`✅ Monitoring started for entire project`));
       }
-      
+
       console.log(chalk.gray('💡 Use /diag-status to check monitoring status'));
       console.log(chalk.gray('💡 Use /diagnostic stop to stop monitoring'));
-      
+
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to start monitoring: ${error.message}`));
     }
-    
+
     return { shouldExit: false, shouldUpdatePrompt: false };
   }
 
   private async stopDiagnosticMonitoring(args: string[]): Promise<CommandResult> {
     const path = args[0];
-    
+
     console.log(chalk.yellow('🔍 Stopping IDE diagnostic monitoring...'));
-    
+
     try {
       await ideDiagnosticIntegration.stopMonitoring(path);
-      
+
       if (path) {
         console.log(chalk.yellow(`⏹️ Stopped monitoring path: ${path}`));
       } else {
         console.log(chalk.yellow(`⏹️ Stopped all monitoring`));
       }
-      
+
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to stop monitoring: ${error.message}`));
     }
-    
+
     return { shouldExit: false, shouldUpdatePrompt: false };
   }
 
   private async showDiagnosticStatus(): Promise<CommandResult> {
     console.log(chalk.blue.bold('🔍 IDE Diagnostic Status:'));
     console.log(chalk.gray('─'.repeat(40)));
-    
+
     try {
       // Get monitoring status
       const status = await ideDiagnosticIntegration.getMonitoringStatus();
-      
+
       console.log(`Monitoring: ${status.enabled ? chalk.green('Active') : chalk.gray('Inactive')}`);
       console.log(`Watched paths: ${status.watchedPaths.length}`);
       console.log(`Active watchers: ${status.totalWatchers}`);
-      
+
       if (status.watchedPaths.length > 0) {
         console.log(chalk.blue('\nWatched paths:'));
         status.watchedPaths.forEach((path: string) => {
           console.log(`  ${chalk.cyan('•')} ${path}`);
         });
       }
-      
+
       // Get quick diagnostic status
       const quickStatus = await ideDiagnosticIntegration.getQuickStatus();
       console.log(`\nCurrent status: ${quickStatus}`);
-      
+
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to get status: ${error.message}`));
     }
-    
+
     return { shouldExit: false, shouldUpdatePrompt: false };
   }
 
   private async runDiagnosticScan(): Promise<CommandResult> {
     console.log(chalk.blue('🔍 Running diagnostic scan...'));
-    
+
     try {
       // Enable integration temporarily if not active
       const wasActive = ideDiagnosticIntegration['isActive'];
       if (!wasActive) {
         ideDiagnosticIntegration.setActive(true);
       }
-      
+
       // Get comprehensive diagnostic context
       const context = await ideDiagnosticIntegration.getWorkflowContext();
-      
+
       console.log(chalk.blue.bold('\n📊 Diagnostic Results:'));
       console.log(chalk.gray('─'.repeat(40)));
-      
+
       // Display errors and warnings
       if (context.errors > 0) {
         console.log(`${chalk.red('Errors:')} ${context.errors}`);
@@ -4269,18 +4426,18 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (context.errors === 0 && context.warnings === 0) {
         console.log(chalk.green('✅ No errors or warnings found'));
       }
-      
+
       // Display build status
       console.log(`${chalk.blue('Build:')} ${this.formatStatus(context.buildStatus)}`);
       console.log(`${chalk.blue('Tests:')} ${this.formatStatus(context.testStatus)}`);
       console.log(`${chalk.blue('Lint:')} ${this.formatStatus(context.lintStatus)}`);
-      
+
       // Display VCS status
       console.log(`${chalk.blue('Branch:')} ${context.vcsStatus.branch}`);
       if (context.vcsStatus.hasChanges) {
         console.log(`${chalk.yellow('Changes:')} ${context.vcsStatus.stagedFiles} staged, ${context.vcsStatus.unstagedFiles} unstaged`);
       }
-      
+
       // Display affected files
       if (context.affectedFiles.length > 0) {
         console.log(chalk.blue('\nAffected files:'));
@@ -4291,7 +4448,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(`  ${chalk.gray(`... and ${context.affectedFiles.length - 10} more`)}`);
         }
       }
-      
+
       // Display recommendations
       if (context.recommendations.length > 0) {
         console.log(chalk.blue.bold('\n💡 Recommendations:'));
@@ -4299,16 +4456,16 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(`  ${chalk.yellow('•')} ${rec}`);
         });
       }
-      
+
       // Restore previous active state
       if (!wasActive) {
         ideDiagnosticIntegration.setActive(false);
       }
-      
+
     } catch (error: any) {
       console.log(chalk.red(`❌ Diagnostic scan failed: ${error.message}`));
     }
-    
+
     return { shouldExit: false, shouldUpdatePrompt: false };
   }
 

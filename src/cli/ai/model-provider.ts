@@ -5,6 +5,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOllama } from 'ollama-ai-provider';
 import { createVercel } from '@ai-sdk/vercel';
 import { ModelConfig, configManager } from '../core/config-manager';
+import { adaptiveModelRouter, ModelScope } from './adaptive-model-router';
 import { gateway } from '@ai-sdk/gateway';
 import { createGateway } from '@ai-sdk/gateway';
 import { z } from 'zod';
@@ -23,7 +24,11 @@ export const GenerateOptionsSchema = z.object({
   messages: z.array(ChatMessageSchema).min(1),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(1).max(100000).optional(),
-  stream: z.boolean().optional()
+  stream: z.boolean().optional(),
+  // Routing hints (optional)
+  scope: z.enum(['chat_default','planning','code_gen','tool_light','tool_heavy','vision']).optional(),
+  needsVision: z.boolean().optional(),
+  sizeHints: z.object({ fileCount: z.number().optional(), totalBytes: z.number().optional() }).optional()
 });
 
 // Model Response Schema
@@ -113,7 +118,31 @@ export class ModelProvider {
       throw new Error(`Model configuration not found for: ${currentModelName}`);
     }
 
-    const model = this.getModel(currentModelConfig);
+    // Choose adaptive model variant based on complexity and scope (if routing enabled)
+    const routingCfg = configManager.get('modelRouting');
+    let effectiveModelId = currentModelConfig.model;
+    if (routingCfg?.enabled) {
+      const decision = adaptiveModelRouter.choose({
+        provider: currentModelConfig.provider as any,
+        baseModel: currentModelConfig.model,
+        messages: validatedOptions.messages,
+        scope: (validatedOptions as any).scope as ModelScope | undefined,
+        needsVision: (validatedOptions as any).needsVision,
+        sizeHints: (validatedOptions as any).sizeHints
+      });
+      effectiveModelId = decision.selectedModel;
+      // Light log if verbose
+      try {
+        if (routingCfg.verbose) {
+          const nik = (global as any).__nikCLI;
+          const msg = `[Router] ${currentModelName} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`;
+          if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg);
+          else console.log(require('chalk').dim(msg));
+        }
+      } catch {}
+    }
+    const effectiveConfig: ModelConfig = { ...currentModelConfig, model: effectiveModelId } as ModelConfig;
+    const model = this.getModel(effectiveConfig);
 
     const baseOptions: Parameters<typeof generateText>[0] = {
       model: model as any,
@@ -131,6 +160,8 @@ export class ModelProvider {
     }
     const { text } = await generateText(baseOptions);
 
+    // (logs handled above if verbose)
+
     return text;
   }
 
@@ -146,7 +177,29 @@ export class ModelProvider {
       throw new Error(`Model configuration not found for: ${currentModelName}`);
     }
 
-    const model = this.getModel(currentModelConfig);
+    const routingCfg2 = configManager.get('modelRouting');
+    let effectiveModelId2 = currentModelConfig.model;
+    if (routingCfg2?.enabled) {
+      const decision = adaptiveModelRouter.choose({
+        provider: currentModelConfig.provider as any,
+        baseModel: currentModelConfig.model,
+        messages: validatedOptions.messages,
+        scope: (validatedOptions as any).scope as ModelScope | undefined,
+        needsVision: (validatedOptions as any).needsVision,
+        sizeHints: (validatedOptions as any).sizeHints
+      });
+      effectiveModelId2 = decision.selectedModel;
+      if (routingCfg2.verbose) {
+        try {
+          const nik = (global as any).__nikCLI;
+          const msg = `[Router] ${currentModelName} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`;
+          if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg);
+          else console.log(require('chalk').dim(msg));
+        } catch {}
+      }
+    }
+    const effectiveConfig2: ModelConfig = { ...currentModelConfig, model: effectiveModelId2 } as ModelConfig;
+    const model = this.getModel(effectiveConfig2);
 
     const streamOptions: any = {
       model: model as any,
@@ -178,7 +231,28 @@ export class ModelProvider {
       throw new Error(`Model configuration not found for: ${currentModelName}`);
     }
 
-    const model = this.getModel(currentModelConfig);
+    const routingCfg3 = configManager.get('modelRouting');
+    let effId3 = currentModelConfig.model;
+    if (routingCfg3?.enabled) {
+      const decision = adaptiveModelRouter.choose({
+        provider: currentModelConfig.provider as any,
+        baseModel: currentModelConfig.model,
+        messages: options.messages as any,
+        scope: (options as any).scope as ModelScope | undefined,
+        needsVision: (options as any).needsVision,
+        sizeHints: (options as any).sizeHints
+      });
+      effId3 = decision.selectedModel;
+      if (routingCfg3.verbose) {
+        try {
+          const nik = (global as any).__nikCLI;
+          const msg = `[Router] ${configManager.getCurrentModel()} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`;
+          if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg);
+          else console.log(require('chalk').dim(msg));
+        } catch {}
+      }
+    }
+    const model = this.getModel({ ...currentModelConfig, model: effId3 } as ModelConfig);
 
     const { object } = await generateObject({
       model: model as any,

@@ -257,7 +257,7 @@ export interface FileStorage {
 // Utility Types
 export type ServiceConstructor<T extends Service = Service> = new (...args: unknown[]) => T;
 export type APIResponseData<T> = T extends APIResponse<infer U> ? U : unknown;
-export type CacheValue<T> = T extends Cache<infer U> ? U[keyof U] : unknown;
+export type CacheValue<T> = T extends Cache<infer U> ? U : unknown;
 export type QueueData<T> = T extends Queue<infer U> ? U : unknown;
 export type MessageData<T> = T extends Message<infer U> ? U : unknown;
 export type DatabaseRow<T> = T extends DatabaseResult<infer U> ? U : Record<string, unknown>;

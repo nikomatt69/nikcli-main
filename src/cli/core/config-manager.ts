@@ -26,6 +26,11 @@ const ConfigSchema = z.object({
   preferredAgent: z.string().optional(),
   models: z.record(ModelConfigSchema),
   apiKeys: z.record(z.string()).optional(),
+  modelRouting: z.object({
+    enabled: z.boolean().default(true),
+    verbose: z.boolean().default(false),
+    mode: z.enum(['conservative','balanced','aggressive']).default('balanced')
+  }).default({ enabled: true, verbose: false, mode: 'balanced' }),
   // MCP (Model Context Protocol) servers configuration - Claude Code/OpenCode compatible
   mcp: z.record(z.union([
     // Local MCP server (compatible with Claude Code)
@@ -287,6 +292,10 @@ const ConfigSchema = z.object({
     autoLoadForAgents: true,
     smartSuggestions: true,
   }),
+  // Auto Todo generation settings
+  autoTodo: z.object({
+    requireExplicitTrigger: z.boolean().default(false),
+  }).default({ requireExplicitTrigger: false }),
 });
 
 export type ConfigType = z.infer<typeof ConfigSchema>;
@@ -490,6 +499,7 @@ export class SimpleConfigManager {
     enableAutoApprove: false,
     models: this.defaultModels,
     apiKeys: {},
+    modelRouting: { enabled: true, verbose: false, mode: 'balanced' },
     mcpServers: {},
     maxConcurrentAgents: 3,
     enableGuidanceSystem: true,
@@ -565,6 +575,9 @@ export class SimpleConfigManager {
       maxContextSize: 50000,
       autoLoadForAgents: true,
       smartSuggestions: true,
+    },
+    autoTodo: {
+      requireExplicitTrigger: false,
     },
   };
 
