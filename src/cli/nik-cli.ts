@@ -4020,15 +4020,12 @@ export class NikCLI {
         // Initialize as Unified Aggregator for all event sources
         this.subscribeToAllEventSources();
 
-        // Re-enable auto-todo generation in default chat mode
-        // Triggers when user explicitly mentions "todo" or when the task is complex
+        // DISABLED: Auto-todo generation in default chat mode
+        // Now only triggers when user explicitly mentions "todo"
         try {
             const wantsTodos = /\btodo(s)?\b/i.test(input);
-            const autoTodoCfg = this.configManager.get('autoTodo') as any;
-            const requireExplicit = !!(autoTodoCfg && autoTodoCfg.requireExplicitTrigger);
-            const shouldTrigger = requireExplicit ? wantsTodos : (wantsTodos || this.assessTaskComplexity(input));
-            if (shouldTrigger) {
-                console.log(chalk.cyan('📋 Detected actionable request — generating todos...'));
+            if (wantsTodos) {
+                console.log(chalk.cyan('📋 Detected explicit todo request — generating todos...'));
                 await this.autoGenerateTodosAndOrchestrate(input);
                 return; // Background execution will proceed; keep chat responsive
             }
