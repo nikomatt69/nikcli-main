@@ -524,6 +524,7 @@ export class AgentService extends EventEmitter {
           task.error = 'Cancelled by user';
           task.endTime = new Date();
           this.emit('task_complete', task);
+          this.activeTasks.delete(taskId);
           return true;
         }
       }

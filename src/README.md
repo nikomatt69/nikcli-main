@@ -39,4 +39,4 @@ npm run build
 npm test
 ```
 
-For complete development documentation, visit [nikcli.mintifly.app](https://nikcli.mintifly.app/contributing/development).
+For complete development documentation, visit [nikcli.mintifly.app](https://nikcli.mintlify.app/contributing/development).

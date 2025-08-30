@@ -143,16 +143,16 @@ async function getLatestVersion(packageName: string = '@cadcamfun/nikcli'): Prom
       return null;
     }
     const data = await response.json();
-    
+
     // Get the latest and beta versions
     const latestVersion = data['dist-tags']?.latest;
     const betaVersion = data['dist-tags']?.beta;
-    
+
     // Compare and return the highest version
     if (!latestVersion && !betaVersion) return null;
     if (!latestVersion) return betaVersion;
     if (!betaVersion) return latestVersion;
-    
+
     // Compare versions and return the highest
     const isBetaNewer = compareVersions(latestVersion, betaVersion);
     return isBetaNewer ? betaVersion : latestVersion;
@@ -164,27 +164,27 @@ async function getLatestVersion(packageName: string = '@cadcamfun/nikcli'): Prom
 function compareVersions(current: string, latest: string): boolean {
   const currentParts = current.replace('-beta', '').split('.').map(Number);
   const latestParts = latest.replace('-beta', '').split('.').map(Number);
-  
+
   for (let i = 0; i < Math.max(currentParts.length, latestParts.length); i++) {
     const currentPart = currentParts[i] || 0;
     const latestPart = latestParts[i] || 0;
-    
+
     if (latestPart > currentPart) return true;
     if (latestPart < currentPart) return false;
   }
-  
+
   return false;
 }
 
 async function getVersionInfo(): Promise<VersionInfo> {
   const current = getCurrentVersion();
-  
+
   try {
     const latest = await getLatestVersion();
     if (!latest) {
       return { current, error: 'Unable to check for updates' };
     }
-    
+
     const hasUpdate = compareVersions(current, latest);
     return { current, latest, hasUpdate };
   } catch (error) {
@@ -677,14 +677,14 @@ class OnboardingModule {
 
     try {
       const versionInfo = await getVersionInfo();
-      
+
       let versionContent = chalk.cyan.bold(`Current Version: `) + chalk.white(versionInfo.current);
-      
+
       if (versionInfo.error) {
         versionContent += '\n' + chalk.yellow(`⚠️  ${versionInfo.error}`);
       } else if (versionInfo.latest) {
         versionContent += '\n' + chalk.cyan(`Latest Version: `) + chalk.white(versionInfo.latest);
-        
+
         if (versionInfo.hasUpdate) {
           versionContent += '\n\n' + chalk.green.bold('🚀 Update Available!');
           versionContent += '\n' + chalk.white('Run the following command to update:');
@@ -954,20 +954,7 @@ class ServiceModule {
       }
 
       // Initialize enhanced token cache
-      try {
-        // enhancedTokenCache initializes automatically in constructor
-        console.log(chalk.dim('   ✓ Enhanced token cache ready'));
-      } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠ Token cache warning: ${error.message}`));
-      }
 
-      // Initialize memory and snapshot services
-      try {
-        // memoryService and snapshotService initialize automatically
-        console.log(chalk.dim('   ✓ Memory & snapshot services ready'));
-      } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠ Memory services warning: ${error.message}`));
-      }
 
       // Initialize vision and image providers for autonomous capabilities
       try {
@@ -983,8 +970,7 @@ class ServiceModule {
         global.imageGenerator = imageGenerator;
 
       } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠ Vision providers warning: ${error.message}`));
-        console.log(chalk.yellow('Vision and image generation will not be available in autonomous chat'));
+
       }
 
     } catch (error: any) {
@@ -1326,20 +1312,7 @@ class MainOrchestrator {
     }
   }
 
-  private showQuickStart(): void {
-    console.log(chalk.cyan.bold('\n📚 Quick Start Guide:'));
-    console.log(chalk.gray('─'.repeat(40)));
-    console.log(`${chalk.green('Natural Language:')} Just describe what you want`);
-    console.log(`${chalk.blue('Agent Specific:')} @agent-name your task`);
-    console.log(`${chalk.yellow('Commands:')} /help, /status, /agents`);
-    console.log(`${chalk.magenta('Shortcuts:')} / (menu), Shift+Tab (modes)`);
-    console.log('');
-    console.log(chalk.dim('Examples:'));
-    console.log(chalk.dim('• "Create a React todo app with TypeScript"'));
-    console.log(chalk.dim('• "@react-expert optimize this component"'));
-    console.log(chalk.dim('• "/status" to see system status'));
-    console.log('');
-  }
+
 
   async start(): Promise<void> {
     try {
@@ -1370,10 +1343,9 @@ class MainOrchestrator {
       console.log(chalk.gray('─'.repeat(40)));
 
       // Show quick start guide
-      this.showQuickStart();
 
-      // Start unified NikCLI interface with structured UI
-      console.log(chalk.blue.bold('\n🤖 Starting NikCLI...\n'));
+
+
 
       const cli = new NikCLI();
       await cli.startChat({

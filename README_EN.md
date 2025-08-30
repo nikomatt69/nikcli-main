@@ -48,7 +48,7 @@ For a quick installation, see the `installer/README.md`. Example commands are as
 curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
 
 # Specific version installation
-curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 0.3.6-beta
+curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 0.4.0-beta
 ```
 
 To uninstall NikCLI:

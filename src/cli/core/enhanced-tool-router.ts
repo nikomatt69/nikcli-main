@@ -59,6 +59,7 @@ export class EnhancedToolRouter extends ToolRouter {
     constructor() {
         super();
         this.initializeEnhancedPatterns();
+
     }
 
     private initializeEnhancedPatterns(): void {
@@ -74,14 +75,22 @@ export class EnhancedToolRouter extends ToolRouter {
      */
     analyzeMessageEnhanced(
         message: CoreMessage,
-        projectContext?: ProjectContext
+        projectContext?: ProjectContext | null
     ): EnhancedToolRecommendation[] {
+        // Cache project context for reuse
+        if (projectContext) {
+            this.projectContextCache = projectContext;
+        }
+
         const content = typeof message.content === 'string'
             ? message.content
             : String(message.content);
 
+        // Use cached context if no new context provided
+        const effectiveContext = projectContext || this.projectContextCache;
+
         // Check cache first
-        const cacheKey = this.generateCacheKey(content, projectContext);
+        const cacheKey = this.generateCacheKey(content, effectiveContext || undefined);
         const cached = this.smartSuggestionCache.get(cacheKey);
         if (cached && (Date.now() - this.lastAnalysisTime) < 30000) { // 30 second cache
             return cached;
@@ -89,7 +98,7 @@ export class EnhancedToolRouter extends ToolRouter {
 
         // Perform enhanced analysis
         const intentAnalysis = this.analyzeIntentEnhanced(content);
-        const contextualFactors = this.analyzeContextualFactors(content, projectContext);
+        const contextualFactors = this.analyzeContextualFactors(content, effectiveContext || undefined);
         const basicRecommendations = this.analyzeMessage(message);
 
         // Convert to enhanced recommendations
@@ -97,7 +106,7 @@ export class EnhancedToolRouter extends ToolRouter {
             basicRecommendations,
             intentAnalysis,
             contextualFactors,
-            projectContext
+            effectiveContext || undefined
         );
 
         // Apply smart ranking
@@ -140,6 +149,18 @@ export class EnhancedToolRouter extends ToolRouter {
             },
             'analyze': {
                 pattern: /\b(analyze|investigate|review|audit|assess|evaluate|inspect|debug)\b/,
+                weight: 1.0
+            },
+            'generate_code': {
+                pattern: /\b(generate|create|build|write|implement|implement)\b/,
+                weight: 1.0
+            },
+            'manage_packages': {
+                pattern: /\b(manage|update|install|uninstall|add|remove|package)\b/,
+                weight: 1.0
+            },
+            'git_workflow': {
+                pattern: /\b(git|commit|branch|merge|pull|push|repository|repo|workflow|history|log|status|changes|diff|conflict|rebase|cherry-pick)\b/,
                 weight: 1.0
             }
         };
@@ -373,7 +394,12 @@ export class EnhancedToolRouter extends ToolRouter {
             'search': ['indexing', 'pattern_matching', 'semantic_search'],
             'modify': ['file_system', 'parsing', 'generation', 'validation'],
             'execute': ['command_execution', 'process_management'],
-            'analyze': ['parsing', 'analysis', 'reporting']
+            'analyze': ['parsing', 'analysis', 'reporting'],
+            'generate_code': ['code_generation', 'validation'],
+            'manage_packages': ['package_management', 'validation'],
+            'git_workflow': ['git_operations', 'validation'],
+            'doc_search': ['doc_search', 'validation'],
+            'semantic_search': ['semantic_search', 'validation']
         };
 
         const baseCapabilities = capabilityMap[primaryAction as keyof typeof capabilityMap] || ['general'];
@@ -475,10 +501,16 @@ export class EnhancedToolRouter extends ToolRouter {
 
     private suggestAlternativeTools(tool: string, intentAnalysis: IntentAnalysis): string[] {
         const alternatives: Record<string, string[]> = {
-            'read_file': ['explore_directory', 'semantic_search'],
-            'write_file': ['generate_code', 'multi_edit'],
+            'read_file': ['explore_directory', 'semantic_search', 'web_search'],
+            'write_file': ['generate_code', 'multi_edit', 'write_file'],
             'web_search': ['doc_search', 'semantic_search'],
-            'execute_command': ['manage_packages', 'git_workflow']
+            'execute_command': ['manage_packages', 'git_workflow', 'web_search'],
+            'analyze_project': ['code_analysis', 'read_file'],
+            'generate_code': ['code_generation', 'write_file'],
+            'manage_packages': ['dependency_analysis', 'read_file'],
+            'git_workflow': ['git_workflow', 'read_file'],
+            'doc_search': ['doc_search', 'read_file', 'web_search'],
+            'semantic_search': ['semantic_search', 'read_file']
         };
 
         return alternatives[tool] || [];
