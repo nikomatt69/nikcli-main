@@ -68,6 +68,7 @@ import { toolService } from './services/tool-service';
 import inquirer from 'inquirer';
 import { visionProvider } from './providers/vision';
 import { imageGenerator } from './providers/image';
+import { timeStamp } from 'console';
 
 // Configure syntax highlighting for terminal output
 configureSyntaxHighlighting();
@@ -8275,23 +8276,23 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
         const queuePart = queueCount > 0 ? ` | 📥 ${queueCount}` : '';
         const visionPart = ` | ${this.getVisionStatusIcon()}`;
         const imgPart = ` | ${this.getImageGenStatusIcon()}`;
-        const statusRight = `💰 ${tokensDisplay} | ${costDisplay} | ⏱️ ${sessionDuration}m | 📁 ${workingDir}${queuePart}${visionPart}${imgPart}`;
+        const statusRight = `${timeStamp()}|💰 ${tokensDisplay} | ${costDisplay} | ⏱️ ${sessionDuration}m | 📁 ${workingDir}${queuePart}${visionPart}${imgPart}`;
         const statusPadding = Math.max(0, terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 4);
 
         // Determine border color based on state
         let borderColor;
         if (this.userInputActive) {
-            borderColor = chalk.green; // Green when user is active
+            borderColor = chalk.green.visible; // Green when user is active
         } else if (this.assistantProcessing) {
-            borderColor = chalk.blue;  // Blue when assistant is processing
+            borderColor = chalk.blue.visible;  // Blue when assistant is processing
         } else {
-            borderColor = chalk.cyan;  // Default cyan when idle
+            borderColor = chalk.cyan.visible;  // Default cyan when idle
         }
 
         // Display status bar using process.stdout.write to avoid extra lines
         if (!this.isPrintingPanel) {
             process.stdout.write(borderColor('┌' + '─'.repeat(terminalWidth - 2) + '┐') + '\n');
-            process.stdout.write(borderColor('│') + chalk.green(` ${statusLeft}`) + ' '.repeat(statusPadding) + chalk.gray(statusRight + ' ') + borderColor('│') + '\n');
+            process.stdout.write(borderColor('│') + chalk.green(` ${statusLeft}`) + ' '.repeat(statusPadding) + chalk.gray(statusRight + '  ') + borderColor(' │') + '\n');
             process.stdout.write(borderColor('└' + '─'.repeat(terminalWidth - 2) + '┘') + '\n');
         }
 

@@ -70,6 +70,8 @@ nikcli
 - **Approval System**: Interactive confirmation for sensitive operations
 - **No Data Collection**: Your code and projects stay private
 
+
+
 ## 🤝 Community
 
 - **GitHub Issues**: [Bug reports and feature requests](https://github.com/nikomatt69/nikcli-main/issues)
