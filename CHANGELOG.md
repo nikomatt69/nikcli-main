@@ -4,6 +4,90 @@ All notable changes to Nikcli will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.2-beta] - 2025-01-27
+
+### 🚀 **esbuild Build System Integration**
+
+#### ✨ **Added**
+
+##### **Modern Build System**
+
+- **esbuild Configuration**: Comprehensive build configuration with `esbuild.config.js`
+- **Fast Compilation**: Significantly faster builds compared to TypeScript compiler
+- **Bundle Optimization**: Tree shaking and dead code elimination
+- **Path Alias Support**: Full support for TypeScript path mapping
+- **Multiple Build Modes**: Development and production configurations
+- **Watch Mode**: Automatic rebuilds during development
+
+##### **Build Commands**
+
+- **Development Build**: `npm run build:esbuild:dev` with sourcemaps
+- **Production Build**: `npm run build:esbuild:prod` with minification
+- **Watch Mode**: `npm run build:esbuild:watch` for development
+- **Direct Usage**: `node esbuild.config.js [mode]` for custom builds
+
+##### **Build Features**
+
+- **External Dependencies**: All node_modules excluded from bundle
+- **Shebang Support**: Proper CLI executable with `#!/usr/bin/env node`
+- **File Copying**: Essential files copied to dist directory
+- **Executable Permissions**: Automatic chmod 755 for CLI binary
+- **Bundle Analysis**: Metafile generation for build insights
+
+##### **Configuration Management**
+
+- **Path Aliases**: Matches `tsconfig.cli.json` configuration
+- **Loader Support**: TypeScript, TSX, JavaScript, and JSON files
+- **Environment Variables**: Production environment configuration
+- **Tree Shaking**: Unused code elimination for smaller bundles
+
+#### 🔧 **Technical Improvements**
+
+##### **Build Architecture**
+
+- **esbuild Integration**: Replaces TypeScript compiler for production builds
+- **Plugin System**: Custom plugins for file copying and shebang handling
+- **Error Handling**: Comprehensive build error reporting
+- **Performance**: Optimized build times and bundle sizes
+
+##### **File Structure**
+
+```
+├── esbuild.config.js      # Main build configuration
+├── BUILD.md               # Build system documentation
+├── package.json           # Updated build scripts
+└── dist/
+    └── cli/
+        └── index.js       # Built executable
+```
+
+##### **Build Scripts**
+
+```json
+{
+  "scripts": {
+    "build:esbuild": "node esbuild.config.js",
+    "build:esbuild:dev": "node esbuild.config.js dev",
+    "build:esbuild:prod": "node esbuild.config.js prod",
+    "build:esbuild:watch": "node esbuild.config.js dev --watch"
+  }
+}
+```
+
+#### 📦 **Dependencies**
+
+- **esbuild-plugin-copy**: File copying during build process
+- **Enhanced Build Tools**: Improved build pipeline and optimization
+
+#### 📚 **Documentation**
+
+- **BUILD.md**: Comprehensive build system documentation
+- **Usage Examples**: Development and production build workflows
+- **Troubleshooting**: Common build issues and solutions
+- **Migration Guide**: From TypeScript compiler to esbuild
+
+---
+
 ## [2.0.0] - 2025-08-07
 
 ### 🚀 **Initial Release - Nikcli**

@@ -1,6 +1,6 @@
 # 🔒 SECURITY DISCLOSURE - BETA VERSION
 
-> **⚠️ CRITICAL WARNING: This software is currently in BETA (v0.4.1-beta) and should NOT be used in production environments.**
+> **⚠️ CRITICAL WARNING: This software is currently in BETA (v0.5.0) and should NOT be used in production environments.**
 
 ## 🚨 BETA VERSION RISKS
 
@@ -222,7 +222,7 @@
 
 ## 🔄 VERSION INFORMATION
 
-- **Current Version**: 0.4.1-beta
+- **Current Version**: 0.5.0-beta
 - **Release Date**: August 2025
 - **Beta Status**: Active development
 - **Stability**: Unstable - not for production use
@@ -244,4 +244,4 @@ By using this software, you acknowledge that:
 
 **Last Updated**: August 2025  
 **Security Version**: 1.0  
-**Beta Version**: 0.4.1-beta
+**Beta Version**: 0.5.0-beta

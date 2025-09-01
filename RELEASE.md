@@ -1,4 +1,4 @@
-# NikCLI v0.4.1-beta Release
+# NikCLI v0.5.0-beta Release
 
 **Context-Aware AI Development Assistant with Multi-Agent System**
 
@@ -55,7 +55,7 @@ sudo mv nikcli-[platform] /usr/local/bin/nikcli
 nikcli
 ```
 
-## ✨ What's New in v0.4.1-beta
+## ✨ What's New in v0.5.0-beta
 
 ### 🤖 Enhanced Multi-Agent System
 
