@@ -290,7 +290,7 @@ export class UnifiedRAGSystem {
           await this.testOpenAIEmbeddings();
           console.log(chalk.green('✅ Vector DB client initialized'));
         } catch (error: any) {
-          console.log(chalk.yellow(`⚠️ Vector DB unavailable: ${error.message}, using workspace analysis only`));
+          console.log(chalk.yellow(`⚠️ Vector DB unavailable: ChromaDB connection failed, using workspace analysis only`));
           this.config.useVectorDB = false;
         }
       }

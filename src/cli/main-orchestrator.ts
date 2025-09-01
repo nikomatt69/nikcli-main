@@ -171,37 +171,7 @@ class MainOrchestrator {
     }
   }
 
-  private showStartupBanner(): void {
-    console.clear();
 
-    const banner = boxen(
-      `${chalk.cyanBright([
-        '╔═══════════════════════════════════════════╗',
-        '║        AI DEVELOPMENT ORCHESTRATOR        ║',
-        '╚═══════════════════════════════════════════╝'
-      ].join('\\n'))}\\n\\n` +
-      `${chalk.white.bold('🎛️  Multi-Agent Autonomous Development System')}\\n\\n` +
-      `${chalk.blue('Features:')}\\n` +
-      `• ${chalk.green('Streaming Chat Interface')} - Real-time message processing\\n` +
-      `• ${chalk.green('Parallel Agent Execution')} - Up to 3 agents simultaneously\\n` +
-      `• ${chalk.green('Intelligent Planning')} - Autonomous task breakdown\\n` +
-      `• ${chalk.green('Tool Integration')} - File ops, git, package management\\n` +
-      `• ${chalk.green('Diff Management')} - Visual file change review\\n` +
-      `• ${chalk.green('VM Orchestration')} - Container management & agent isolation\\n` +
-      `• ${chalk.green('Security Policies')} - Safe command execution\\n` +
-      `• ${chalk.green('Context Management')} - Automatic memory optimization\\n\\n` +
-      `${chalk.yellow.bold('🚀 Ready for autonomous development!')}`,
-      {
-        padding: 2,
-        margin: 1,
-        borderStyle: 'double',
-        borderColor: 'cyan',
-        titleAlignment: 'center',
-      }
-    );
-
-    console.log(banner);
-  }
 
   private async initializeSystem(): Promise<boolean> {
     console.log(chalk.blue('🚀 Initializing AI Development Orchestrator...'));
@@ -377,25 +347,12 @@ class MainOrchestrator {
     return this.streamOrchestrator;
   }
 
-  private showQuickStart(): void {
-    console.log(chalk.cyan.bold('\\n📚 Quick Start Guide:'));
-    console.log(chalk.gray('─'.repeat(40)));
-    console.log(`${chalk.green('Natural Language:')} Just describe what you want`);
-    console.log(`${chalk.blue('Agent Specific:')} @agent-name your task`);
-    console.log(`${chalk.yellow('Commands:')} /help, /status, /agents`);
-    console.log(`${chalk.magenta('Shortcuts:')} / (menu), Shift+Tab (modes)`);
-    console.log('');
-    console.log(chalk.dim('Examples:'));
-    console.log(chalk.dim('• "Create a React todo app with TypeScript"'));
-    console.log(chalk.dim('• "@react-expert optimize this component"'));
-    console.log(chalk.dim('• "/status" to see system status'));
-    console.log('');
-  }
+
 
   async start(): Promise<void> {
     try {
       // Show startup banner
-      this.showStartupBanner();
+
 
       // Wait for user to see banner
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -415,7 +372,7 @@ class MainOrchestrator {
       }
 
       // Show quick start guide
-      this.showQuickStart();
+
 
       // Start the streaming orchestrator
       console.log(chalk.blue.bold('🎛️ Starting Streaming Orchestrator...\\n'));

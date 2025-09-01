@@ -46,4 +46,4 @@ npm run test:coverage
 - **Timeout**: 30 seconds (extended for AI operations)
 - **Coverage**: 60% minimum on all metrics
 
-For testing guidelines, see [nikcli.mintifly.app/contributing](https://nikcli.mintifly.app/contributing/development).
+For testing guidelines, see [nikcli.mintifly.app/contributing](https://nikcli.mintlify.app/contributing/development).

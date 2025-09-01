@@ -1,6 +1,6 @@
 # Documentation
 
-Complete NikCLI documentation source files for the documentation website at [nikcli.mintifly.app](https://nikcli.mintifly.app).
+Complete NikCLI documentation source files for the documentation website at [nikcli.mintifly.app](https://nikcli.mintlify.app).
 
 ## Structure
 
@@ -46,4 +46,4 @@ mintlify build
 
 ## Contributing
 
-See [contributing guidelines](https://nikcli.mintifly.app/contributing/development) for documentation standards and review process.
+See [contributing guidelines](https://nikcli.mintlify.app/contributing/development) for documentation standards and review process.

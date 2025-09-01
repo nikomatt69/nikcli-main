@@ -39,12 +39,17 @@ export class LSPManager {
   private clients: Map<string, LSPClient> = new Map(); // workspaceRoot+serverId -> client
   private workspaceRoots: Set<string> = new Set();
   private fileAnalysisCache: Map<string, CodeContext> = new Map();
+  private clientLastUsed: Map<string, number> = new Map(); // Track last usage for cleanup
+  private readonly CLIENT_IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
   constructor() {
     // Cleanup on process exit
     process.on('beforeExit', () => this.shutdown());
     process.on('SIGINT', () => this.shutdown());
     process.on('SIGTERM', () => this.shutdown());
+    
+    // Start periodic cleanup of idle clients
+    setInterval(() => this.cleanupIdleClients(), 60000); // Every minute
   }
 
   // Get or create LSP clients for a file
@@ -79,6 +84,8 @@ export class LSPManager {
         }
       }
 
+      // Update last used timestamp
+      this.clientLastUsed.set(clientKey, Date.now());
       clients.push(client);
     }
 
@@ -354,6 +361,33 @@ export class LSPManager {
   // Clear analysis cache
   clearCache(): void {
     this.fileAnalysisCache.clear();
+  }
+
+  // Cleanup idle LSP clients
+  private async cleanupIdleClients(): Promise<void> {
+    const now = Date.now();
+    const toRemove: string[] = [];
+
+    for (const [clientKey, lastUsed] of this.clientLastUsed.entries()) {
+      if (now - lastUsed > this.CLIENT_IDLE_TIMEOUT) {
+        toRemove.push(clientKey);
+      }
+    }
+
+    for (const clientKey of toRemove) {
+      const client = this.clients.get(clientKey);
+      if (client) {
+        try {
+          await client.shutdown();
+          console.log(chalk.gray(`🧹 Cleaned up idle LSP client: ${client.getServerInfo().name}`));
+        } catch (error: any) {
+          console.log(chalk.yellow(`⚠️ Error cleaning up client: ${error.message}`));
+        }
+        
+        this.clients.delete(clientKey);
+        this.clientLastUsed.delete(clientKey);
+      }
+    }
   }
 
   // Get active workspace roots

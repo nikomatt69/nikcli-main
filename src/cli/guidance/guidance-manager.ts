@@ -130,8 +130,8 @@ export class GuidanceManager {
       const content = fs.readFileSync(filePath, 'utf-8');
       const filename = path.basename(filePath);
 
-      const type = filename.startsWith('CLAUDE') ? 'claude' :
-        filename.startsWith('CODEX') ? 'codex' : 'agents';
+      const type = filename.startsWith('NIKOCLI') ? 'nikocli' :
+        filename.startsWith('AGENTS') ? 'agents' : 'nikocli';
 
       const guidanceFile: GuidanceFile = {
         path: filePath,
@@ -144,7 +144,7 @@ export class GuidanceManager {
 
       this.guidanceFiles.set(filePath, guidanceFile);
 
-      console.log(chalk.cyan(`📋 Loaded ${level} guidance: ${path.relative(this.workingDirectory, filePath)}`));
+
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ Could not load guidance file ${filePath}: ${error.message}`));
     }
@@ -153,7 +153,7 @@ export class GuidanceManager {
   /**
    * Parse guidance file content and extract structured information
    */
-  private async parseGuidanceFile(content: string, type: 'claude' | 'codex' | 'agents'): Promise<any> {
+  private async parseGuidanceFile(content: string, type: 'nikocli' | 'agents'): Promise<any> {
     const parsed: any = {
       sections: {},
       instructions: []
@@ -247,9 +247,7 @@ export class GuidanceManager {
   private setupFileWatchers(): void {
     const watchPaths = [
       path.join(this.globalGuidanceDir, '*.md'),
-      path.join(this.workingDirectory, '**/CLAUDE.md'),
       path.join(this.workingDirectory, '**/NIKOCLI.md'),
-      path.join(this.workingDirectory, '**/CODEX.md'),
       path.join(this.workingDirectory, '**/AGENTS.md')
     ];
 

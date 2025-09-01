@@ -47,10 +47,14 @@ import { commandPredictor } from './core/command-predictor';
 
 import { projectMemory } from './core/project-memory';
 
+// VM System imports
+import { vmSelector, initializeVMSelector } from './virtualized-agents/vm-selector';
+
 import { wrapBlue, formatStatus, formatCommand, formatFileOp, formatProgress, formatAgent, formatSearch } from './utils/text-wrapper';
 import { DiffViewer } from './ui/diff-viewer';
 import { SlashCommandHandler } from './chat/nik-cli-commands';
 import { chatManager } from './chat/chat-manager';
+
 import { agentService } from './services/agent-service';
 import { planningService } from './services/planning-service';
 import { memoryService } from './services/memory-service';
@@ -217,7 +221,7 @@ export class NikCLI {
 
         // IDE diagnostic integration will be initialized on demand
         // No automatic initialization to avoid unwanted file watchers
-        this.slashHandler = new SlashCommandHandler();
+        this.slashHandler = new SlashCommandHandler(this);
         this.advancedUI = advancedUI;
 
         // Token optimizer will be initialized lazily when needed
@@ -3723,10 +3727,10 @@ export class NikCLI {
     }
 
     /**
-     * VM mode: Chat directly with VM agents in containers using real communication
+     * VM mode: Chat directly with VM agents in containers using targeted communication
      */
     private async handleVMMode(input: string): Promise<void> {
-        console.log(chalk.blue('🐳 VM Mode: Real communication with VM agents...'));
+        console.log(chalk.blue('🐳 VM Mode: Targeted OS-like VM communication...'));
 
         try {
             // Get VM orchestrator instance from slash handler
@@ -3737,11 +3741,8 @@ export class NikCLI {
                 return;
             }
 
-            // Get registered VM agents from the bridge
-            const bridgeStats = vmOrchestrator.getBridgeStats?.();
-            const activeAgents = bridgeStats?.activeConnections || 0;
+            // Check for available VMs
             const containers = this.slashHandler.getActiveVMContainers?.() || [];
-
             if (containers.length === 0) {
                 console.log(chalk.yellow('⚠️ No active VM containers'));
                 console.log(chalk.gray('Use /vm-create <repo-url> to create one'));
@@ -3749,61 +3750,304 @@ export class NikCLI {
                 return;
             }
 
-            console.log(chalk.cyan(`🌉 Bridge Stats: ${activeAgents} agents, ${containers.length} containers`));
-            console.log(chalk.gray(`Message: ${input.substring(0, 100)}${input.length > 100 ? '...' : ''}`));
+            // Get currently selected VM or prompt for selection
+            let selectedVM = vmSelector.getSelectedVM();
 
-            // Send message to each VM agent through the communication bridge
-            for (const container of containers) {
-                try {
-                    console.log(chalk.blue(`🤖 VM Agent ${container.id.slice(0, 8)}: Sending via bridge...`));
+            if (!selectedVM) {
+                console.log(chalk.cyan('🎯 No VM selected. Choose a VM to chat with:'));
+                selectedVM = await vmSelector.selectVM({ interactive: true, sortBy: 'activity' });
 
-                    // Use real communication through VMOrchestrator bridge
-                    if (vmOrchestrator.sendMessageToAgent) {
-                        const response = await vmOrchestrator.sendMessageToAgent(container.agentId, input);
-
-                        if (response.success) {
-                            console.log(chalk.green(`✅ VM Agent ${container.id.slice(0, 8)}: Response received`));
-                            console.log(chalk.white(`📝 Response: ${response.data?.substring(0, 200)}${response.data?.length > 200 ? '...' : ''}`));
-                            console.log(chalk.gray(`⏱️ Response time: ${response.metadata?.responseTime}ms`));
-                        } else {
-                            console.log(chalk.red(`❌ VM Agent ${container.id.slice(0, 8)}: ${response.error}`));
-                        }
-                    } else {
-                        // Bridge not initialized - show error and guidance
-                        console.log(chalk.red(`❌ VM Bridge not initialized for ${container.id.slice(0, 8)}`));
-                        console.log(chalk.gray('   VM communication system requires proper initialization'));
-                        console.log(chalk.gray('   This indicates a configuration or startup issue'));
-                    }
-
-                    console.log(chalk.gray(`Repository: ${container.repositoryUrl}`));
-                    console.log(chalk.gray(`VS Code: http://localhost:${container.vscodePort}`));
-                    console.log('');
-
-                } catch (error: any) {
-                    console.log(chalk.red(`❌ VM Agent ${container.id.slice(0, 8)} error: ${error.message}`));
-                    console.log(chalk.gray('Continuing with next agent...'));
+                if (!selectedVM) {
+                    console.log(chalk.gray('VM mode cancelled'));
+                    return;
                 }
             }
 
-            // Show bridge statistics
-            if (vmOrchestrator.getBridgeStats) {
-                const stats = vmOrchestrator.getBridgeStats();
-                console.log(chalk.cyan('📊 Communication Stats:'));
-                console.log(chalk.gray(`   Messages routed: ${stats.totalMessagesRouted}`));
-                console.log(chalk.gray(`   Success rate: ${Math.round((stats.successfulRequests / (stats.successfulRequests + stats.failedRequests)) * 100) || 0}%`));
-                console.log(chalk.gray(`   Avg response time: ${Math.round(stats.averageResponseTime)}ms`));
+            // Show current VM context with enhanced info
+            console.log(chalk.green(`💬 Chatting with VM: ${chalk.bold(selectedVM.name)}`));
+            console.log(chalk.gray(`🆔 Container: ${selectedVM.containerId.slice(0, 12)}`));
+
+            if (selectedVM.systemInfo) {
+                console.log(chalk.gray(`📍 System: ${selectedVM.systemInfo.os} ${selectedVM.systemInfo.arch}`));
+                console.log(chalk.gray(`📂 Working Dir: ${selectedVM.systemInfo.workingDirectory}`));
             }
 
+            if (selectedVM.repositoryUrl) {
+                console.log(chalk.gray(`🔗 Repository: ${selectedVM.repositoryUrl.split('/').pop()}`));
+            }
+
+            // Show chat history count
+            const chatHistory = vmSelector.getChatHistory(selectedVM.id);
+            console.log(chalk.gray(`💭 Chat History: ${chatHistory.length} messages`));
+
+            console.log(chalk.gray(`📝 Message: ${input.substring(0, 80)}${input.length > 80 ? '...' : ''}`));
+            console.log(chalk.white('─'.repeat(50)));
+            console.log();
+
+            try {
+                // Send message to the selected VM agent through the communication bridge
+                console.log(chalk.blue(`🤖 Sending to VM Agent ${selectedVM.containerId.slice(0, 8)}...`));
+
+                // Use real communication through VMOrchestrator bridge
+                if (vmOrchestrator.sendMessageToAgent) {
+                    const response = await vmOrchestrator.sendMessageToAgent(selectedVM.agentId, input);
+
+                    if (response.success) {
+                        console.log(chalk.green(`✅ VM Response received (${response.metadata?.responseTime}ms)`));
+                        console.log();
+                        console.log(chalk.cyan(`🤖 ${selectedVM.name}:`));
+                        console.log(chalk.white('┌' + '─'.repeat(58) + '┐'));
+
+                        // Format response with proper line breaks
+                        const responseLines = (response.data || '').split('\n');
+                        responseLines.forEach((line: string) => {
+                            const truncatedLine = line.length > 56 ? line.substring(0, 53) + '...' : line;
+                            console.log(chalk.white(`│ ${truncatedLine.padEnd(56)} │`));
+                        });
+
+                        console.log(chalk.white('└' + '─'.repeat(58) + '┘'));
+
+                        // Add to chat history
+                        await vmSelector.addChatMessage(selectedVM.id, 'user', input);
+                        await vmSelector.addChatMessage(selectedVM.id, 'vm', response.data || '');
+
+                        // Show quick actions
+                        console.log();
+                        console.log(chalk.gray('💡 Quick actions: /vm-status | /vm-exec | /vm-switch | /vm-ls'));
+                        process.stdout.write('');
+                        await new Promise(resolve => setTimeout(resolve, 150));
+                        this.showPrompt();
+
+                    } else {
+                        console.log(chalk.red(`❌ VM Agent error: ${response.error}`));
+                        console.log(chalk.gray('Try /vm-dashboard to check VM health'));
+                        process.stdout.write('');
+                        await new Promise(resolve => setTimeout(resolve, 150));
+                        this.showPrompt();
+                    }
+                } else {
+                    console.log(chalk.red(`❌ VM Bridge not initialized`));
+                    console.log(chalk.gray('VM communication system requires proper initialization'));
+                    process.stdout.write('');
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                    this.showPrompt();
+                }
+
+                // Show quick VM info
+                console.log();
+                console.log(chalk.cyan(`📊 VM Info: ${selectedVM.containerId.slice(0, 12)} | Repository: ${selectedVM.repositoryUrl || 'N/A'}`));
+
+                // Show bridge statistics
+                if (vmOrchestrator.getBridgeStats) {
+                    const stats = vmOrchestrator.getBridgeStats();
+                    console.log(chalk.gray(`💡 Bridge Stats: ${stats.totalMessagesRouted} messages | ${Math.round(stats.averageResponseTime)}ms avg`));
+                }
+                process.stdout.write('');
+                await new Promise(resolve => setTimeout(resolve, 150));
+                this.showPrompt();
+
+            } catch (error: any) {
+                console.log(chalk.red(`❌ VM communication error: ${error.message}`));
+            }
+            process.stdout.write('');
+            await new Promise(resolve => setTimeout(resolve, 150));
+            this.showPrompt();
         } catch (error: any) {
-            console.log(chalk.red(`❌ VM Mode communication error: ${error.message}`));
+            console.log(chalk.red(`❌ VM Mode error: ${error.message}`));
             console.log(chalk.gray('Use /default to exit VM mode'));
-            console.log(chalk.gray('Use /vm-status to check system health'));
+            console.log(chalk.gray('Use /vm-switch to select different VM'));
         }
+
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
         process.stdout.write('');
         await new Promise(resolve => setTimeout(resolve, 150));
         this.showPrompt();
+    }
+
+    /**
+     * VM Switch Panel - Enhanced interface for VM switching
+     */
+    private async showVMSwitchPanel(): Promise<void> {
+        console.clear();
+        console.log(chalk.cyan.bold('\n🔄 VM Switch Panel'));
+        console.log(chalk.gray('═'.repeat(60)));
+
+        try {
+            const vms = await vmSelector.getAvailableVMs({ showInactive: false, sortBy: 'activity' });
+            const currentVM = vmSelector.getSelectedVM();
+
+            if (vms.length === 0) {
+                console.log(chalk.yellow('\n⚠️ No active VMs available'));
+                console.log(chalk.gray('Use /vm-create <repo-url> to create one'));
+                return;
+            }
+
+            console.log(chalk.white.bold('\n📋 Available VMs:'));
+            console.log(chalk.gray('─'.repeat(60)));
+
+            vms.forEach((vm, index) => {
+                const isCurrent = currentVM?.id === vm.id;
+                const prefix = isCurrent ? chalk.green('▶ ') : chalk.gray(`${index + 1}. `);
+                const name = isCurrent ? chalk.green.bold(vm.name) : chalk.white(vm.name);
+                const status = vm.status === 'running' ? chalk.green('🟢') : chalk.yellow('🟡');
+
+                console.log(`${prefix}${name} ${status}`);
+                console.log(chalk.gray(`   Container: ${vm.containerId.slice(0, 12)}`));
+                console.log(chalk.gray(`   Repository: ${vm.repositoryUrl?.split('/').pop() || 'N/A'}`));
+
+                if (vm.systemInfo) {
+                    console.log(chalk.gray(`   System: ${vm.systemInfo.os} ${vm.systemInfo.arch}`));
+                }
+                console.log();
+            });
+
+            const selectedVM = await vmSelector.switchVM();
+            if (selectedVM) {
+                console.log(chalk.green(`\n✅ Switched to: ${selectedVM.name}`));
+                console.log(chalk.gray('You can now chat directly with this VM in /vm mode'));
+            }
+
+        } catch (error: any) {
+            console.log(chalk.red(`❌ VM Switch Panel error: ${error.message}`));
+        }
+    }
+
+    /**
+     * VM Dashboard Panel - Enhanced VM overview
+     */
+    private async showVMDashboardPanel(): Promise<void> {
+        console.clear();
+        console.log(chalk.cyan.bold('\n🐳 VM Dashboard Panel'));
+        console.log(chalk.gray('═'.repeat(80)));
+
+        try {
+            await vmSelector.showVMDashboard();
+
+            // Add interactive options
+            console.log(chalk.blue.bold('\n🎯 Quick Actions:'));
+            console.log(chalk.gray('[1] Switch VM          [2] Create VM         [3] VM Status'));
+            console.log(chalk.gray('[4] Execute Command    [5] List Files        [6] Enter VM Mode'));
+            console.log(chalk.gray('[0] Back to Main'));
+
+        } catch (error: any) {
+            console.log(chalk.red(`❌ VM Dashboard Panel error: ${error.message}`));
+        }
+    }
+
+    /**
+     * VM Status Panel - Detailed system information
+     */
+    private async showVMStatusPanel(vmId?: string): Promise<void> {
+        console.clear();
+        console.log(chalk.cyan.bold('\n🖥️ VM System Status Panel'));
+        console.log(chalk.gray('═'.repeat(80)));
+
+        try {
+            const targetVM = vmId ?
+                vmSelector.getAvailableVMs().then(vms => vms.find(vm => vm.id === vmId)) :
+                vmSelector.getSelectedVM();
+
+            if (!targetVM) {
+                console.log(chalk.yellow('\n⚠️ No VM selected'));
+                console.log(chalk.gray('Use /vm-select to choose a VM'));
+                return;
+            }
+
+            await vmSelector.showVMSystemStatus(vmId);
+
+            // Add real-time options
+            console.log(chalk.blue.bold('\n⚡ Real-time Actions:'));
+            console.log(chalk.gray('[R] Refresh Status     [L] List Files         [T] Top Processes'));
+            console.log(chalk.gray('[M] Memory Usage       [D] Disk Usage         [E] Execute Command'));
+            console.log(chalk.gray('[0] Back'));
+
+        } catch (error: any) {
+            console.log(chalk.red(`❌ VM Status Panel error: ${error.message}`));
+        }
+    }
+
+    /**
+     * VM Exec Panel - Command execution interface
+     */
+    private async showVMExecPanel(initialCommand?: string): Promise<void> {
+        console.clear();
+        console.log(chalk.cyan.bold('\n🔧 VM Command Execution Panel'));
+        console.log(chalk.gray('═'.repeat(70)));
+
+        const selectedVM = vmSelector.getSelectedVM();
+        if (!selectedVM) {
+            console.log(chalk.yellow('\n⚠️ No VM selected'));
+            console.log(chalk.gray('Use /vm-select to choose a VM first'));
+            return;
+        }
+
+        console.log(chalk.green(`\n🎯 Target VM: ${chalk.bold(selectedVM.name)}`));
+        console.log(chalk.gray(`Container: ${selectedVM.containerId.slice(0, 12)}`));
+        console.log(chalk.gray(`Working Dir: ${selectedVM.systemInfo?.workingDirectory || '/workspace'}`));
+        console.log(chalk.white('─'.repeat(70)));
+
+        if (initialCommand) {
+            console.log(chalk.blue(`\n🚀 Executing: ${initialCommand}`));
+            console.log(chalk.gray('─'.repeat(70)));
+
+            try {
+                await vmSelector.executeVMCommand(selectedVM.id, initialCommand);
+            } catch (error: any) {
+                console.log(chalk.red(`❌ Execution failed: ${error.message}`));
+            }
+        }
+
+        console.log(chalk.blue.bold('\n💡 Quick Commands:'));
+        console.log(chalk.gray('[pwd] Current Directory    [ls] List Files       [ps] Processes'));
+        console.log(chalk.gray('[top] System Monitor       [df] Disk Usage       [free] Memory'));
+        console.log(chalk.gray('[node -v] Node Version     [npm -v] NPM Version  [git status] Git'));
+        console.log(chalk.gray('Type any command or [0] to go back'));
+    }
+
+    /**
+     * VM File Browser Panel - File system navigation
+     */
+    private async showVMFileBrowserPanel(directory?: string): Promise<void> {
+        console.clear();
+        console.log(chalk.cyan.bold('\n📁 VM File Browser Panel'));
+        console.log(chalk.gray('═'.repeat(70)));
+
+        const selectedVM = vmSelector.getSelectedVM();
+        if (!selectedVM) {
+            console.log(chalk.yellow('\n⚠️ No VM selected'));
+            console.log(chalk.gray('Use /vm-select to choose a VM first'));
+            return;
+        }
+
+        const currentDir = directory || selectedVM.systemInfo?.workingDirectory || '/workspace';
+
+        console.log(chalk.green(`\n🎯 VM: ${chalk.bold(selectedVM.name)}`));
+        console.log(chalk.blue(`📂 Current Directory: ${currentDir}`));
+        console.log(chalk.white('─'.repeat(70)));
+
+        try {
+            const files = await vmSelector.listVMFiles(selectedVM.id, currentDir);
+
+            if (files.length === 0) {
+                console.log(chalk.yellow('\n📭 Directory is empty'));
+            } else {
+                console.log(chalk.white.bold('\n📋 Files and Directories:'));
+                files.forEach((file, index) => {
+                    const isDir = file.startsWith('d');
+                    const icon = isDir ? '📁' : '📄';
+                    const color = isDir ? chalk.blue : chalk.white;
+                    console.log(`${chalk.gray(`${index + 1}.`)} ${icon} ${color(file.split(/\s+/).pop())}`);
+                });
+            }
+
+            console.log(chalk.blue.bold('\n🎯 Navigation:'));
+            console.log(chalk.gray('[..] Parent Directory     [.] Current Directory   [~] Home'));
+            console.log(chalk.gray('[/] Root Directory        [tab] Auto-complete     [0] Back'));
+
+        } catch (error: any) {
+            console.log(chalk.red(`❌ File Browser error: ${error.message}`));
+        }
     }
 
     /**
@@ -4018,15 +4262,12 @@ export class NikCLI {
         // Initialize as Unified Aggregator for all event sources
         this.subscribeToAllEventSources();
 
-        // Re-enable auto-todo generation in default chat mode
-        // Triggers when user explicitly mentions "todo" or when the task is complex
+        // DISABLED: Auto-todo generation in default chat mode
+        // Now only triggers when user explicitly mentions "todo"
         try {
             const wantsTodos = /\btodo(s)?\b/i.test(input);
-            const autoTodoCfg = this.configManager.get('autoTodo') as any;
-            const requireExplicit = !!(autoTodoCfg && autoTodoCfg.requireExplicitTrigger);
-            const shouldTrigger = requireExplicit ? wantsTodos : (wantsTodos || this.assessTaskComplexity(input));
-            if (shouldTrigger) {
-                console.log(chalk.cyan('📋 Detected actionable request — generating todos...'));
+            if (wantsTodos) {
+                console.log(chalk.cyan('📋 Detected explicit todo request — generating todos...'));
                 await this.autoGenerateTodosAndOrchestrate(input);
                 return; // Background execution will proceed; keep chat responsive
             }
@@ -4063,13 +4304,7 @@ export class NikCLI {
                     console.log(chalk.blue(`🔧 Detected ${topRecommendation.tool} intent (${Math.round(topRecommendation.confidence * 100)}% confidence)`));
 
                     // Auto-execute high-confidence tool recommendations
-                    if (topRecommendation.confidence > 0.7) {
-                        const shouldAutoExecute = await this.shouldAutoExecuteTool(topRecommendation.tool, input);
-                        if (shouldAutoExecute) {
-                            await this.autoExecuteTool(topRecommendation.tool, input, topRecommendation.suggestedParams);
-                            return;
-                        }
-                    }
+
                 }
 
                 // Activate structured UI for better visualization
@@ -7846,7 +8081,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
             ['/models', 'List available models'],
             ['/model <name>', 'Switch to model'],
             ['/set-key <model> <key>', 'Set API key'],
-            ['/config', 'Show configuration'],
+            ['/config [interactive , i]', 'Show configuration'],
 
             // MCP (Model Context Protocol)
             ['/mcp servers', 'List configured MCP servers'],
@@ -8263,6 +8498,17 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
                 this.currentMode === 'vm' ? '🐳' : '💎';
         const modeText = this.currentMode.toUpperCase();
 
+        // VM info if in VM mode
+        let vmInfo = '';
+        if (this.currentMode === 'vm') {
+            const selectedVM = vmSelector.getSelectedVM();
+            if (selectedVM) {
+                vmInfo = ` | 🎯 ${selectedVM.name}`;
+            } else {
+                vmInfo = ` | ❓ No VM selected`;
+            }
+        }
+
         // Status info
         const queueStatus = inputQueue.getStatus();
         const queueCount = queueStatus.queueLength;
@@ -8276,28 +8522,68 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
         const modelDisplay = `${providerIcon} ${modelColor(currentModel)}`;
 
         // Create status bar
-        const statusLeft = `${modeIcon} ${readyText} | ${modelDisplay}`;
+        const statusLeft = `${modeIcon} ${readyText} | ${modelDisplay}${vmInfo}`;
         const queuePart = queueCount > 0 ? ` | 📥 ${queueCount}` : '';
         const visionPart = ` | ${this.getVisionStatusIcon()}`;
         const imgPart = ` | ${this.getImageGenStatusIcon()}`;
         const statusRight = `💰 ${tokensDisplay} | ${costDisplay} | ⏱️ ${sessionDuration}m | 📁 ${workingDir}${queuePart}${visionPart}${imgPart}`;
-        const statusPadding = Math.max(0, terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 4);
+        const statusPadding = Math.max(0, terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 3); // -3 for │ space and │
+
+        // Ensure we don't overflow the terminal width
+        const maxContentWidth = terminalWidth - 4; // Reserve space for │ characters
+        let finalStatusLeft = statusLeft;
+        let finalStatusRight = statusRight;
+        let finalStatusPadding = statusPadding;
+
+        const currentContentWidth = this._stripAnsi(statusLeft).length + this._stripAnsi(statusRight).length;
+        if (currentContentWidth > maxContentWidth) {
+            // Truncate statusRight if necessary to fit
+            const availableRightSpace = Math.max(10, maxContentWidth - this._stripAnsi(statusLeft).length - 1);
+            const plainStatusRight = this._stripAnsi(statusRight);
+            if (plainStatusRight.length > availableRightSpace) {
+                const truncatedText = plainStatusRight.substring(0, availableRightSpace - 3) + '...';
+                finalStatusRight = truncatedText;
+            }
+            finalStatusPadding = Math.max(1, terminalWidth - this._stripAnsi(finalStatusLeft).length - this._stripAnsi(finalStatusRight).length - 3);
+        }
 
         // Determine border color based on state
         let borderColor;
         if (this.userInputActive) {
-            borderColor = chalk.green; // Green when user is active
+            borderColor = chalk.green.visible; // Green when user is active
         } else if (this.assistantProcessing) {
-            borderColor = chalk.blue;  // Blue when assistant is processing
+            borderColor = chalk.blue.visible;  // Blue when assistant is processing
         } else {
-            borderColor = chalk.cyan;  // Default cyan when idle
+            borderColor = chalk.cyan.visible;  // Default cyan when idle
         }
 
         // Display status bar using process.stdout.write to avoid extra lines
         if (!this.isPrintingPanel) {
-            process.stdout.write(borderColor('┌' + '─'.repeat(terminalWidth - 2) + '┐') + '\n');
-            process.stdout.write(borderColor('│') + chalk.green(` ${statusLeft}`) + ' '.repeat(statusPadding) + chalk.gray(statusRight + ' ') + borderColor('│') + '\n');
-            process.stdout.write(borderColor('└' + '─'.repeat(terminalWidth - 2) + '┘') + '\n');
+            process.stdout.write(borderColor('╭' + '─'.repeat(terminalWidth - 2) + '╮') + '\n');
+
+            // Force exact width to prevent overflow
+            const leftPart = ` ${finalStatusLeft}`;
+            const rightPart = finalStatusRight;
+            const availableSpace = terminalWidth - 4; // 2 for borders, 2 for minimum spaces
+            const totalContentLength = this._stripAnsi(leftPart).length + this._stripAnsi(rightPart).length;
+
+            let displayLeft = leftPart;
+            let displayRight = rightPart;
+            let padding = Math.max(1, availableSpace - totalContentLength);
+
+            // If still too long, truncate right part
+            if (totalContentLength >= availableSpace) {
+                const maxRightLength = availableSpace - this._stripAnsi(leftPart).length - 1;
+                if (maxRightLength > 10) {
+                    const plainRight = this._stripAnsi(rightPart);
+                    displayRight = plainRight.length > maxRightLength ?
+                        plainRight.substring(0, maxRightLength - 3) + '...' : plainRight;
+                }
+                padding = 1;
+            }
+
+            process.stdout.write(borderColor('│') + chalk.green(displayLeft) + ' '.repeat(padding) + chalk.gray(displayRight) + borderColor('│') + '\n');
+            process.stdout.write(borderColor('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n');
         }
 
         // Input prompt
@@ -8310,7 +8596,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
      * Strip ANSI escape codes to calculate actual string length
      */
     private _stripAnsi(str: string): string {
-        return str.replace(/\x1b\[[0-9;]*m/g, '');
+        // More comprehensive ANSI escape sequence removal
+        return str.replace(/\x1b\[[0-9;]*[mGK]|\x1b\[[\d;]*[A-Za-z]|\x1b\[[0-9;]*[JKHJIS]/g, '');
     }
 
     // NEW: Chat UI Methods
@@ -8399,9 +8686,23 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
         const currentModel = this.configManager.getCurrentModel();
         const providerIcon = this.getProviderIcon(currentModel);
         const modelColor = this.getProviderColor(currentModel);
-        const statusBar = chalk.bgGray.white(
-            `${currentFile} | ${contextInfo} | 📊 ${tokensDisplay} tokens | ${costDisplay} | ${providerIcon} ${modelColor(currentModel)} | ${this.getVisionStatusIcon()} | ${this.getImageGenStatusIcon()}${sessionDisplay}`
-        );
+        // Create status bar content
+        const statusContent = `${currentFile} | ${contextInfo} | 📊 ${tokensDisplay} tokens | ${costDisplay} | ${providerIcon} ${modelColor(currentModel)} | ${this.getVisionStatusIcon()} | ${this.getImageGenStatusIcon()}`;
+
+        // Calculate available width and truncate if necessary
+        const maxWidth = width - 4; // Reserve space for borders
+        let displayContent = statusContent;
+
+        if (this._stripAnsi(statusContent).length > maxWidth) {
+            const plainContent = this._stripAnsi(statusContent);
+            displayContent = plainContent.substring(0, maxWidth - 3) + '...';
+        }
+
+        // No padding - close immediately after content
+        // Create bordered status bar that always closes
+        const statusBar = chalk.cyan('╭' + '─'.repeat(width - 2) + '╮') + '\n' +
+            chalk.cyan('│') + chalk.bgGray.white(` ${displayContent} `) + chalk.cyan('│') + '\n' +
+            chalk.cyan('╰' + '─'.repeat(width - 2) + '╯');
 
         console.log(statusBar);
     }
@@ -8450,7 +8751,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
         if (lowerModel.includes('claude') || lowerModel.includes('anthropic')) {
             return '🟠'; // Claude/Anthropic = orange dot
         } else if (lowerModel.includes('gpt') || lowerModel.includes('openai')) {
-            return '⚫'; // OpenAI/GPT = black dot
+            return '🔴'; // OpenAI/GPT = black dot
         } else if (lowerModel.includes('gemini') || lowerModel.includes('google')) {
             return '🔵'; // Google/Gemini = blue dot
         } else {
@@ -8464,7 +8765,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
     private getProviderColor(modelName: string): (s: string) => string {
         const lowerModel = modelName.toLowerCase();
         if (lowerModel.includes('claude') || lowerModel.includes('anthropic')) {
-            return chalk.hex('#FFA500'); // orange
+            return chalk.yellowBright; // orange
         } else if (lowerModel.includes('gpt') || lowerModel.includes('openai')) {
             return chalk.black; // black
         } else if (lowerModel.includes('gemini') || lowerModel.includes('google')) {
@@ -8557,7 +8858,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
         const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString();
         const costDisplay = this.realTimeCost > 0 ? `$${this.realTimeCost.toFixed(4)}` : '$0.0000';
 
-        const terminalWidth = process.stdout.columns || 120;
+        const terminalWidth = process.stdout.columns - 1 || 120;
         const workingDir = path.basename(this.workingDirectory);
 
         // Mode info
@@ -8596,18 +8897,58 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
         const visionPart2 = ` | ${this.getVisionStatusIcon()}`;
         const imgPart2 = ` | ${this.getImageGenStatusIcon()}`;
         const statusRight = `💰 ${tokensDisplay} | ${costDisplay} | ⏱️ ${sessionDuration}m | 📁 ${workingDir}${rightExtra}${visionPart2}${imgPart2}`;
-        const statusPadding = Math.max(0, terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 4);
+        const statusPadding = Math.max(0, terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 3); // -3 for │ space and │
+
+        // Ensure we don't overflow the terminal width
+        const maxContentWidth = terminalWidth - 4; // Reserve space for │ characters
+        let finalStatusLeft = statusLeft;
+        let finalStatusRight = statusRight;
+        let finalStatusPadding = statusPadding;
+
+        const currentContentWidth = this._stripAnsi(statusLeft).length + this._stripAnsi(statusRight).length;
+        if (currentContentWidth > maxContentWidth) {
+            // Truncate statusRight if necessary to fit
+            const availableRightSpace = Math.max(10, maxContentWidth - this._stripAnsi(statusLeft).length - 1);
+            const plainStatusRight = this._stripAnsi(statusRight);
+            if (plainStatusRight.length > availableRightSpace) {
+                const truncatedText = plainStatusRight.substring(0, availableRightSpace - 3) + '...';
+                finalStatusRight = truncatedText;
+            }
+            finalStatusPadding = Math.max(1, terminalWidth - this._stripAnsi(finalStatusLeft).length - this._stripAnsi(finalStatusRight).length - 3);
+        }
 
         // Display status bar with frame using process.stdout.write to avoid extra lines
         if (!this.isPrintingPanel) {
-            process.stdout.write(chalk.cyan('┌' + '─'.repeat(terminalWidth - 2) + '┐') + '\n');
-            process.stdout.write(chalk.cyan('│') + chalk.green(` ${statusLeft}`) + ' '.repeat(statusPadding) + chalk.gray(statusRight + ' ') + chalk.cyan('│') + '\n');
-            process.stdout.write(chalk.cyan('└' + '─'.repeat(terminalWidth - 2) + '┘') + '\n');
+            process.stdout.write(chalk.cyan('╭' + '─'.repeat(terminalWidth - 2) + '╮') + '\n');
+
+            // Force exact width to prevent overflow
+            const leftPart = ` ${finalStatusLeft}`;
+            const rightPart = finalStatusRight;
+            const availableSpace = terminalWidth - 2; // 2 for borders, 2 for minimum spaces
+            const totalContentLength = this._stripAnsi(leftPart).length + this._stripAnsi(rightPart).length;
+
+            let displayLeft = leftPart;
+            let displayRight = rightPart;
+            let padding = Math.max(1, availableSpace - totalContentLength);
+
+            // If still too long, truncate right part
+            if (totalContentLength >= availableSpace) {
+                const maxRightLength = availableSpace - this._stripAnsi(leftPart).length - 1;
+                if (maxRightLength > 10) {
+                    const plainRight = this._stripAnsi(rightPart);
+                    displayRight = plainRight.length > maxRightLength ?
+                        plainRight.substring(0, maxRightLength - 3) + '...' : plainRight;
+                }
+                padding = 1;
+            }
+
+            process.stdout.write(chalk.cyan('│') + chalk.green(displayLeft) + ' '.repeat(padding) + chalk.gray(displayRight) + chalk.cyan('  │') + '\n');
+            process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n');
         }
 
         if (this.rl) {
             // Simple clean prompt
-            this.rl.setPrompt(chalk.green('❯ '));
+            this.rl.setPrompt(chalk.greenBright('❯ '));
             this.rl.prompt();
         }
     }
@@ -12208,12 +12549,18 @@ Generated by NikCLI on ${new Date().toISOString()}
                     done = true;
                     break;
             }
+
+
+
         }
 
-        try {
-            inputQueue.disableBypass();
-        } catch { /* ignore */ }
+
         console.log(chalk.dim('Exited interactive configuration'));
+
+        process.stdout.write('');
+        await new Promise(resolve => setTimeout(resolve, 150));
+        this.showPrompt();
+
     }
 
     /**
@@ -12414,7 +12761,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         }
         process.stdout.write('');
         await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.showPrompt()
     }
     /**
      * Show current model details and pricing in a panel

@@ -27,7 +27,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
   // Agent properties
   public status: AgentStatus = 'initializing';
   public currentTasks: number = 0;
-  public maxConcurrentTasks: number = 1;
+  public maxConcurrentTasks: number = 10;
 
   // VM Infrastructure
   private containerManager: ContainerManager;
@@ -898,6 +898,28 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
 
   public getContainerId(): string | undefined {
     return this.containerId;
+  }
+
+  /**
+   * Execute command in container
+   */
+  async executeCommand(command: string, _options?: { timeout?: number; capture?: boolean }): Promise<{ stdout?: string; stderr?: string }> {
+    if (!this.containerId) {
+      throw new Error('Container not available');
+    }
+
+    try {
+      const result = await this.vmOrchestrator.executeCommand(this.containerId, command);
+      return {
+        stdout: result,
+        stderr: undefined
+      };
+    } catch (error: any) {
+      return {
+        stdout: undefined,
+        stderr: error.message
+      };
+    }
   }
 
   public getTokenUsage(): { used: number; budget: number; remaining: number } {

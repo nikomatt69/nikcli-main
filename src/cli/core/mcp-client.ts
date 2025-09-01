@@ -140,7 +140,7 @@ export class McpClient extends EventEmitter {
     if (!ideServer) {
       ideServer = new IDEDiagnosticMcpServer();
       this.defaultServers.set('ide-diagnostic', ideServer);
-      console.log(chalk.green('🔧 IDE diagnostic server initialized on demand'));
+
     }
     return ideServer;
   }
@@ -338,7 +338,7 @@ export class McpClient extends EventEmitter {
    */
   private async executeDefaultServerRequest(server: McpServerConfig, request: McpRequest): Promise<McpResponse> {
     let defaultServer;
-    
+
     // Special handling for ide-diagnostic server - create on demand
     if (server.name === 'ide-diagnostic') {
       defaultServer = this.getOrCreateIdeDiagnosticServer();
@@ -742,9 +742,9 @@ export class McpClient extends EventEmitter {
         } else {
           defaultServer = this.defaultServers.get(serverName)!;
         }
-        
+
         const response = await defaultServer.handleRequest(healthRequest);
-        
+
         const isHealthy = response.result?.status !== 'unhealthy';
         this.healthStatus.set(serverName, isHealthy);
         this.lastHealthCheck.set(serverName, now);

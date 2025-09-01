@@ -3,13 +3,15 @@
 Generated: 2025-08-28T16:15:53.119Z
 
 ## Project
+
 - Name: @cadcamfun/nikcli
-- Version: 0.3.6-beta
+- Version: 0.5.0-beta
 - Description: NikCLI - Context-Aware AI Development Assistant
 - Git Branch: main-0.3.3
-- Last Commit: 9250dc8 2025-08-28 0.3.6-beta
+- Last Commit: 9250dc8 2025-08-28 0.4.0-beta
 
 ## Scripts
+
 - start: ts-node --project tsconfig.cli.json src/cli/index.ts
 - dev: npm start
 - build: tsc --project tsconfig.cli.json
@@ -25,6 +27,7 @@ Generated: 2025-08-28T16:15:53.119Z
 - lint: eslint src --ext .ts,.tsx
 
 ## Dependencies
+
 - Dependencies (56)
   - @ai-sdk/anthropic
   - @ai-sdk/gateway
@@ -107,6 +110,7 @@ Generated: 2025-08-28T16:15:53.119Z
   - ws
 
 ## Top-level Structure
+
 - .checkpoints/
 - .claude/
 - .git/
@@ -151,6 +155,7 @@ Generated: 2025-08-28T16:15:53.119Z
 - vitest.config.ts
 
 ## Code Stats
+
 - Files: 34348
 - Directories: 3832
 - Test Files: 174
@@ -158,5 +163,6 @@ Generated: 2025-08-28T16:15:53.119Z
 - JavaScript Files: 13213
 
 ## Notes
+
 - This file is used by NikCLI to provide project context.
 - Update sections as needed, or regenerate with /init --force.

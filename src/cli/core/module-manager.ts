@@ -4,6 +4,7 @@ import { ExecutionPolicyManager } from '../policies/execution-policy';
 import { simpleConfigManager as configManager } from './config-manager';
 import { advancedAIProvider } from '../ai/advanced-ai-provider';
 import { modernAgentOrchestrator } from '../automation/agents/modern-agent-system';
+import { middlewareManager } from '../middleware';
 
 export interface ModuleContext {
   workingDirectory: string;
@@ -18,7 +19,7 @@ export interface ModuleContext {
 export interface ModuleCommand {
   name: string;
   description: string;
-  category: 'system' | 'file' | 'analysis' | 'security' | 'diff' | 'agent';
+  category: 'system' | 'file' | 'analysis' | 'security' | 'diff' | 'agent' | 'middleware';
   requiresArgs?: boolean;
   handler: (args: string[], context: ModuleContext) => Promise<void>;
 }
@@ -177,6 +178,51 @@ export class ModuleManager {
       description: 'Toggle autonomous mode',
       category: 'system',
       handler: this.handleAutonomous.bind(this)
+    });
+
+    // Middleware Commands
+    this.register({
+      name: 'middleware-status',
+      description: 'Show middleware system status and metrics',
+      category: 'middleware',
+      handler: this.handleMiddlewareStatus.bind(this)
+    });
+
+    this.register({
+      name: 'middleware-enable',
+      description: 'Enable specific middleware by name',
+      category: 'middleware',
+      requiresArgs: true,
+      handler: this.handleMiddlewareEnable.bind(this)
+    });
+
+    this.register({
+      name: 'middleware-disable',
+      description: 'Disable specific middleware by name',
+      category: 'middleware',
+      requiresArgs: true,
+      handler: this.handleMiddlewareDisable.bind(this)
+    });
+
+    this.register({
+      name: 'middleware-config',
+      description: 'Show or update middleware configuration',
+      category: 'middleware',
+      handler: this.handleMiddlewareConfig.bind(this)
+    });
+
+    this.register({
+      name: 'middleware-logs',
+      description: 'Show recent middleware execution logs',
+      category: 'middleware',
+      handler: this.handleMiddlewareLogs.bind(this)
+    });
+
+    this.register({
+      name: 'middleware-clear',
+      description: 'Clear middleware metrics and logs',
+      category: 'middleware',
+      handler: this.handleMiddlewareClear.bind(this)
     });
   }
 
@@ -517,5 +563,123 @@ export class ModuleManager {
       context.autonomous = true;
       console.log(chalk.green('✅ Autonomous mode enabled - full independence'));
     }
+  }
+
+  // Middleware Command Handlers
+
+  private async handleMiddlewareStatus(args: string[], context: ModuleContext): Promise<void> {
+    console.log(chalk.cyan.bold('\\n🔧 Middleware System Status'));
+    console.log(chalk.gray('─'.repeat(60)));
+    
+    middlewareManager.showStatus();
+    
+    const history = middlewareManager.getExecutionHistory(5);
+    if (history.length > 0) {
+      console.log(chalk.white.bold('\\nRecent Events:'));
+      history.forEach(event => {
+        const icon = event.type === 'complete' ? '✅' : 
+                   event.type === 'error' ? '❌' : 
+                   event.type === 'start' ? '🔄' : '⏭️';
+        const duration = event.duration ? ` (${event.duration}ms)` : '';
+        console.log(`  ${icon} ${event.middlewareName}: ${event.type}${duration}`);
+      });
+    }
+  }
+
+  private async handleMiddlewareEnable(args: string[], context: ModuleContext): Promise<void> {
+    const middlewareName = args[0];
+    if (!middlewareName) {
+      console.log(chalk.red('❌ Please specify middleware name'));
+      return;
+    }
+
+    const success = middlewareManager.enableMiddleware(middlewareName);
+    if (success) {
+      console.log(chalk.green(`✅ Enabled middleware: ${middlewareName}`));
+    } else {
+      console.log(chalk.red(`❌ Middleware not found: ${middlewareName}`));
+    }
+  }
+
+  private async handleMiddlewareDisable(args: string[], context: ModuleContext): Promise<void> {
+    const middlewareName = args[0];
+    if (!middlewareName) {
+      console.log(chalk.red('❌ Please specify middleware name'));
+      return;
+    }
+
+    const success = middlewareManager.disableMiddleware(middlewareName);
+    if (success) {
+      console.log(chalk.yellow(`⚠️ Disabled middleware: ${middlewareName}`));
+    } else {
+      console.log(chalk.red(`❌ Middleware not found: ${middlewareName}`));
+    }
+  }
+
+  private async handleMiddlewareConfig(args: string[], context: ModuleContext): Promise<void> {
+    const middlewareName = args[0];
+    
+    if (!middlewareName) {
+      console.log(chalk.cyan.bold('\\n📋 All Middleware Configurations'));
+      console.log(chalk.gray('─'.repeat(50)));
+      
+      const allMiddleware = middlewareManager.getAllMiddleware();
+      allMiddleware.forEach(registration => {
+        console.log(`\\n${chalk.blue(registration.name)}:`);
+        console.log(`  Enabled: ${registration.config.enabled ? chalk.green('Yes') : chalk.red('No')}`);
+        console.log(`  Priority: ${registration.config.priority}`);
+        if (registration.config.timeout) {
+          console.log(`  Timeout: ${registration.config.timeout}ms`);
+        }
+      });
+      return;
+    }
+
+    const middleware = middlewareManager.getMiddleware(middlewareName);
+    if (!middleware) {
+      console.log(chalk.red(`❌ Middleware not found: ${middlewareName}`));
+      return;
+    }
+
+    const registration = middlewareManager.getAllMiddleware().find(m => m.name === middlewareName);
+    if (registration) {
+      console.log(chalk.cyan.bold(`\\n📋 Configuration for ${middlewareName}`));
+      console.log(chalk.gray('─'.repeat(40)));
+      console.log(JSON.stringify(registration.config, null, 2));
+    }
+  }
+
+  private async handleMiddlewareLogs(args: string[], context: ModuleContext): Promise<void> {
+    const limit = parseInt(args[0]) || 20;
+    
+    console.log(chalk.cyan.bold(`\\n📋 Recent Middleware Execution History (${limit} events)`));
+    console.log(chalk.gray('─'.repeat(60)));
+    
+    const history = middlewareManager.getExecutionHistory(limit);
+    if (history.length === 0) {
+      console.log(chalk.dim('No middleware execution history available'));
+      return;
+    }
+
+    history.forEach((event, index) => {
+      const icon = event.type === 'complete' ? '✅' : 
+                 event.type === 'error' ? '❌' : 
+                 event.type === 'start' ? '🔄' : 
+                 event.type === 'skip' ? '⏭️' : '⚠️';
+      
+      const duration = event.duration ? ` (${event.duration}ms)` : '';
+      const time = event.timestamp.toLocaleTimeString();
+      
+      console.log(`${String(index + 1).padStart(2)}. ${icon} [${time}] ${event.middlewareName}: ${event.type}${duration}`);
+      
+      if (event.error) {
+        console.log(`    ${chalk.red('Error:')} ${event.error.message}`);
+      }
+    });
+  }
+
+  private async handleMiddlewareClear(args: string[], context: ModuleContext): Promise<void> {
+    middlewareManager.clearMetrics();
+    console.log(chalk.green('✅ Middleware metrics and logs cleared'));
   }
 }

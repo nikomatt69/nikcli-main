@@ -143,16 +143,16 @@ async function getLatestVersion(packageName: string = '@cadcamfun/nikcli'): Prom
       return null;
     }
     const data = await response.json();
-    
+
     // Get the latest and beta versions
     const latestVersion = data['dist-tags']?.latest;
     const betaVersion = data['dist-tags']?.beta;
-    
+
     // Compare and return the highest version
     if (!latestVersion && !betaVersion) return null;
     if (!latestVersion) return betaVersion;
     if (!betaVersion) return latestVersion;
-    
+
     // Compare versions and return the highest
     const isBetaNewer = compareVersions(latestVersion, betaVersion);
     return isBetaNewer ? betaVersion : latestVersion;
@@ -164,27 +164,27 @@ async function getLatestVersion(packageName: string = '@cadcamfun/nikcli'): Prom
 function compareVersions(current: string, latest: string): boolean {
   const currentParts = current.replace('-beta', '').split('.').map(Number);
   const latestParts = latest.replace('-beta', '').split('.').map(Number);
-  
+
   for (let i = 0; i < Math.max(currentParts.length, latestParts.length); i++) {
     const currentPart = currentParts[i] || 0;
     const latestPart = latestParts[i] || 0;
-    
+
     if (latestPart > currentPart) return true;
     if (latestPart < currentPart) return false;
   }
-  
+
   return false;
 }
 
 async function getVersionInfo(): Promise<VersionInfo> {
   const current = getCurrentVersion();
-  
+
   try {
     const latest = await getLatestVersion();
     if (!latest) {
       return { current, error: 'Unable to check for updates' };
     }
-    
+
     const hasUpdate = compareVersions(current, latest);
     return { current, latest, hasUpdate };
   } catch (error) {
@@ -525,7 +525,7 @@ class OnboardingModule {
         console.log(chalk.gray(`   Fallback: ${redisConfig!.fallback.enabled ? 'Enabled' : 'Disabled'}`));
         console.log(chalk.green('   ✅ Redis configuration loaded'));
       } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠️ Redis configuration issue: ${error.message}`));
+        console.log(chalk.yellow(`   ⚠️ Redis configuration issue`));
       }
     }
 
@@ -554,7 +554,7 @@ class OnboardingModule {
           console.log(chalk.dim('   Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables'));
         }
       } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠️ Supabase setup issue: ${error.message}`));
+        console.log(chalk.yellow(`   ⚠️ Supabase setup issue`));
       }
     }
 
@@ -632,7 +632,7 @@ class OnboardingModule {
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`   ❌ Sign in error: ${error.message}`));
+      console.log(chalk.red(`   ❌ Sign in error`));
     }
   }
 
@@ -667,7 +667,7 @@ class OnboardingModule {
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`   ❌ Sign up error: ${error.message}`));
+      console.log(chalk.red(`   ❌ Sign up error`));
     }
   }
 
@@ -677,14 +677,14 @@ class OnboardingModule {
 
     try {
       const versionInfo = await getVersionInfo();
-      
+
       let versionContent = chalk.cyan.bold(`Current Version: `) + chalk.white(versionInfo.current);
-      
+
       if (versionInfo.error) {
         versionContent += '\n' + chalk.yellow(`⚠️  ${versionInfo.error}`);
       } else if (versionInfo.latest) {
         versionContent += '\n' + chalk.cyan(`Latest Version: `) + chalk.white(versionInfo.latest);
-        
+
         if (versionInfo.hasUpdate) {
           versionContent += '\n\n' + chalk.green.bold('🚀 Update Available!');
           versionContent += '\n' + chalk.white('Run the following command to update:');
@@ -704,7 +704,7 @@ class OnboardingModule {
 
       console.log(versionBox);
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Unable to check version: ${error.message}`));
+      console.log(chalk.yellow(`⚠️ Unable to check version`));
     }
   }
 }
@@ -925,7 +925,7 @@ class ServiceModule {
         // cacheService initializes automatically in constructor
         console.log(chalk.dim('   ✓ Unified cache service ready'));
       } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠ Cache service warning: ${error.message}`));
+        console.log(chalk.yellow(`   ⚠ Cache service warning`));
       }
 
       // Initialize Redis cache if enabled
@@ -934,7 +934,7 @@ class ServiceModule {
           // redisProvider initializes connection automatically
           console.log(chalk.dim('   ✓ Redis cache provider ready'));
         } catch (error: any) {
-          console.log(chalk.yellow(`   ⚠ Redis connection warning: ${error.message}`));
+          console.log(chalk.yellow(`   ⚠ Redis connection warning`));
         }
       }
 
@@ -943,31 +943,18 @@ class ServiceModule {
         try {
           // Add error listener to prevent unhandled promise rejections
           enhancedSupabaseProvider.on('error', (error: any) => {
-            console.log(chalk.yellow(`⚠️ Supabase Provider Error: ${error.message || error}`));
+            console.log(chalk.yellow(`⚠️ Supabase Provider Error`));
           });
 
           // enhancedSupabaseProvider and authProvider initialize automatically
           console.log(chalk.dim('   ✓ Supabase providers ready'));
         } catch (error: any) {
-          console.log(chalk.yellow(`   ⚠ Supabase initialization warning: ${error.message}`));
+          console.log(chalk.yellow(`   ⚠ Supabase initialization warning`));
         }
       }
 
       // Initialize enhanced token cache
-      try {
-        // enhancedTokenCache initializes automatically in constructor
-        console.log(chalk.dim('   ✓ Enhanced token cache ready'));
-      } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠ Token cache warning: ${error.message}`));
-      }
 
-      // Initialize memory and snapshot services
-      try {
-        // memoryService and snapshotService initialize automatically
-        console.log(chalk.dim('   ✓ Memory & snapshot services ready'));
-      } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠ Memory services warning: ${error.message}`));
-      }
 
       // Initialize vision and image providers for autonomous capabilities
       try {
@@ -983,12 +970,11 @@ class ServiceModule {
         global.imageGenerator = imageGenerator;
 
       } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠ Vision providers warning: ${error.message}`));
-        console.log(chalk.yellow('Vision and image generation will not be available in autonomous chat'));
+
       }
 
     } catch (error: any) {
-      console.log(chalk.red(`❌ Enhanced services failed: ${error.message}`));
+      console.log(chalk.red(`❌ Enhanced services failed`));
       // Don't throw error to allow system to continue with basic functionality
       console.log(chalk.yellow('System will continue with basic services only'));
     }
@@ -1326,20 +1312,7 @@ class MainOrchestrator {
     }
   }
 
-  private showQuickStart(): void {
-    console.log(chalk.cyan.bold('\n📚 Quick Start Guide:'));
-    console.log(chalk.gray('─'.repeat(40)));
-    console.log(`${chalk.green('Natural Language:')} Just describe what you want`);
-    console.log(`${chalk.blue('Agent Specific:')} @agent-name your task`);
-    console.log(`${chalk.yellow('Commands:')} /help, /status, /agents`);
-    console.log(`${chalk.magenta('Shortcuts:')} / (menu), Shift+Tab (modes)`);
-    console.log('');
-    console.log(chalk.dim('Examples:'));
-    console.log(chalk.dim('• "Create a React todo app with TypeScript"'));
-    console.log(chalk.dim('• "@react-expert optimize this component"'));
-    console.log(chalk.dim('• "/status" to see system status'));
-    console.log('');
-  }
+
 
   async start(): Promise<void> {
     try {
@@ -1370,10 +1343,9 @@ class MainOrchestrator {
       console.log(chalk.gray('─'.repeat(40)));
 
       // Show quick start guide
-      this.showQuickStart();
 
-      // Start unified NikCLI interface with structured UI
-      console.log(chalk.blue.bold('\n🤖 Starting NikCLI...\n'));
+
+
 
       const cli = new NikCLI();
       await cli.startChat({

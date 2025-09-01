@@ -70,6 +70,7 @@ export class AdvancedCliUI {
   private panels: Map<string, StructuredPanel> = new Map();
   private layoutMode: 'single' | 'dual' | 'triple' = 'dual';
   private renderTimer: NodeJS.Timeout | null = null;
+  private vscodeStreamEnabled: boolean = false;
 
   constructor() {
     this.theme = {
@@ -81,6 +82,18 @@ export class AdvancedCliUI {
       info: chalk.gray,
       muted: chalk.dim,
     };
+    // Enable VS Code structured event stream when requested
+    const flag = process.env.NIKCLI_VSCODE_STREAM || process.env.NIKCLI_EXT_JSON;
+    this.vscodeStreamEnabled = !!flag && !['0', 'false', 'False', 'OFF'].includes(flag);
+  }
+
+  /** Emit a structured event consumable by VS Code webview */
+  private emitEvent(event: any): void {
+    if (!this.vscodeStreamEnabled) return;
+    try {
+      const payload = typeof event === 'string' ? event : JSON.stringify(event);
+      process.stdout.write(`NIKCLI_EVENT:${payload}\n`);
+    } catch { /* ignore */ }
   }
 
   /**
@@ -88,7 +101,7 @@ export class AdvancedCliUI {
    */
   startInteractiveMode(): void {
     this.isInteractiveMode = true;
-
+    this.emitEvent({ type: 'ui', action: 'start' });
   }
 
   /**
@@ -97,6 +110,7 @@ export class AdvancedCliUI {
   stopInteractiveMode(): void {
     this.isInteractiveMode = false;
     this.cleanup();
+    this.emitEvent({ type: 'ui', action: 'stop' });
   }
 
   /**
@@ -119,6 +133,8 @@ export class AdvancedCliUI {
 
     this.indicators.set(id, indicator);
 
+    this.emitEvent({ type: 'indicator', action: 'create', data: indicator });
+
     if (this.isInteractiveMode) {
       this.refreshDisplay();
     } else {
@@ -139,6 +155,7 @@ export class AdvancedCliUI {
     if (!indicator) return;
 
     Object.assign(indicator, updates);
+    this.emitEvent({ type: 'indicator', action: 'update', data: indicator });
 
     if (updates.status === 'completed' || updates.status === 'failed') {
       indicator.endTime = new Date();
@@ -167,6 +184,7 @@ export class AdvancedCliUI {
     }).start();
 
     this.spinners.set(id, spinner);
+    this.emitEvent({ type: 'spinner', action: 'start', data: { id, text } });
   }
 
   /**
@@ -179,6 +197,7 @@ export class AdvancedCliUI {
     }
 
     this.updateIndicator(id, { details: text });
+    this.emitEvent({ type: 'spinner', action: 'update', data: { id, text } });
   }
 
   /**
@@ -199,6 +218,7 @@ export class AdvancedCliUI {
       status: success ? 'completed' : 'failed',
       details: finalText,
     });
+    this.emitEvent({ type: 'spinner', action: 'stop', data: { id, success, finalText } });
   }
 
   /**
@@ -208,6 +228,7 @@ export class AdvancedCliUI {
     if (this.isInteractiveMode) {
       this.createIndicator(id, title);
       this.updateIndicator(id, { progress: 0 });
+      this.emitEvent({ type: 'progress', action: 'create', data: { id, title, total } });
       return;
     }
 
@@ -219,6 +240,7 @@ export class AdvancedCliUI {
 
     progressBar.start(total, 0);
     this.progressBars.set(id, progressBar);
+    this.emitEvent({ type: 'progress', action: 'create', data: { id, title, total } });
   }
 
   /**
@@ -232,6 +254,7 @@ export class AdvancedCliUI {
 
     const progress = total ? Math.round((current / total) * 100) : current;
     this.updateIndicator(id, { progress });
+    this.emitEvent({ type: 'progress', action: 'update', data: { id, current, total, progress } });
   }
 
   /**
@@ -249,6 +272,7 @@ export class AdvancedCliUI {
       progress: 100,
       details: message,
     });
+    this.emitEvent({ type: 'progress', action: 'complete', data: { id, message } });
   }
 
   /**
@@ -272,6 +296,9 @@ export class AdvancedCliUI {
     } else {
       this.printLiveUpdate(liveUpdate);
     }
+
+    // Stream as structured log event
+    this.emitEvent({ type: 'log', level: update.type, message: update.content, source: update.source, timestamp: liveUpdate.timestamp });
   }
 
   /**
@@ -688,6 +715,9 @@ export class AdvancedCliUI {
 
 
     this.autoLayout();
+
+    // Emit raw contents for accurate rendering in VS Code
+    this.emitEvent({ type: 'panel', panel: 'diff', filePath, oldContent, newContent });
   }
 
   /**
@@ -775,9 +805,12 @@ export class AdvancedCliUI {
       type: 'todos',
       visible: true,
       borderColor: 'cyan',
+      pinned: true,
+      priority: 100,
     });
 
     this.autoLayout();
+    this.emitEvent({ type: 'panel', panel: 'todos', title, items: todos });
   }
 
   /**
@@ -860,6 +893,8 @@ export class AdvancedCliUI {
     });
 
     this.showCodingLayout();
+
+    this.emitEvent({ type: 'panel', panel: 'file', filePath, content, language, highlightLines });
   }
 
   /**
@@ -881,6 +916,8 @@ export class AdvancedCliUI {
     });
 
     this.autoLayout();
+
+    this.emitEvent({ type: 'panel', panel: 'list', title, files });
   }
 
   /**
@@ -948,6 +985,8 @@ export class AdvancedCliUI {
     });
 
     this.showSearchLayout();
+
+    this.emitEvent({ type: 'panel', panel: 'grep', pattern, matches });
   }
 
   /**
@@ -958,6 +997,7 @@ export class AdvancedCliUI {
     if (panel) {
       panel.visible = false;
       this.adjustLayout();
+      this.emitEvent({ type: 'panel', panel: panel.type, action: 'hide', id: panelId });
     }
   }
 
@@ -967,6 +1007,7 @@ export class AdvancedCliUI {
   clearPanels(): void {
     this.panels.clear();
     this.layoutMode = 'single';
+    this.emitEvent({ type: 'panel', panel: 'all', action: 'clear' });
   }
 
   /**
@@ -984,6 +1025,7 @@ export class AdvancedCliUI {
     if (!this.isInteractiveMode) {
       console.log(chalk.green(`✅ Panel '${withDefaults.title}' created`));
     }
+    this.emitEvent({ type: 'panel', panel: withDefaults.type, action: 'create', config: withDefaults });
   }
 
   private getDefaultBorderColor(type: StructuredPanel['type']): string {
@@ -1447,6 +1489,7 @@ export class AdvancedCliUI {
 
     if (agents.length === 0) {
       this.panels.delete('agents');
+      this.emitEvent({ type: 'panel', panel: 'agents', action: 'hide' });
       return;
     }
 
@@ -1482,6 +1525,7 @@ export class AdvancedCliUI {
     });
 
     this.autoLayout();
+    this.emitEvent({ type: 'panel', panel: 'agents', action: 'update', agents });
   }
 
   /**

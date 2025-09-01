@@ -19,6 +19,29 @@ npm install -g @cadcamfun/nikcli
 yarn global add @cadcamfun/nikcli
 ```
 
+### iOS App (Tauri)
+
+For iOS development and deployment:
+
+```bash
+# Navigate to the Tauri app directory
+cd terminal-tauri
+
+# Install dependencies
+npm install
+
+# Setup iOS development environment
+npm run ios:setup
+
+# Run on iOS Simulator
+npm run ios:dev
+
+# Build for iOS
+npm run ios:build
+```
+
+📖 **[Complete iOS Build Guide](terminal-tauri/IOS_BUILD_README.md)**
+
 ### First Run
 
 ```bash
@@ -27,13 +50,13 @@ nikcli
 
 ## 📚 Documentation
 
-**Complete documentation is available at [nikcli.mintifly.app](https://nikcli.mintifly.app)**
+**Complete documentation is available at [nikcli.mintifly.app](https://nikcli.mintlify.app)**
 
-- 📖 [Getting Started](https://nikcli.mintifly.app/quickstart/installation)
-- 🎯 [CLI Commands Reference](https://nikcli.mintifly.app/cli-reference/commands-overview)
-- 🤖 [Agent System](https://nikcli.mintifly.app/agent-system/overview)
-- ⚙️ [Configuration](https://nikcli.mintifly.app/configuration)
-- 🛠️ [Development Guide](https://nikcli.mintifly.app/contributing/development)
+- 📖 [Getting Started](https://nikcli.mintlify.app/quickstart/installation)
+- 🎯 [CLI Commands Reference](https://nikcli.mintlify.app/cli-reference/commands-overview)
+- 🤖 [Agent System](https://nikcli.mintlify.app/agent-system/overview)
+- ⚙️ [Configuration](https://nikcli.mintlify.app/configuration)
+- 🛠️ [Development Guide](https://nikcli.mintlify.app/contributing/development)
 
 ## ✨ Key Features
 
@@ -70,11 +93,13 @@ nikcli
 - **Approval System**: Interactive confirmation for sensitive operations
 - **No Data Collection**: Your code and projects stay private
 
+
+
 ## 🤝 Community
 
 - **GitHub Issues**: [Bug reports and feature requests](https://github.com/nikomatt69/nikcli-main/issues)
-- **Documentation**: [Complete guides and API reference](https://nikcli.mintifly.app)
-- **Contributing**: [Development guidelines](https://nikcli.mintifly.app/contributing/development)
+- **Documentation**: [Complete guides and API reference](https://nikcli.mintlify.app)
+- **Contributing**: [Development guidelines](https://nikcli.mintlify.app/contributing/development)
 
 ## 📄 License
 
@@ -82,4 +107,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Visit [nikcli.mintifly.app](https://nikcli.mintifly.app) for complete documentation, tutorials, and examples.**
+**Visit [nikcli.mintifly.app](https://nikcli.mintlify.app) for complete documentation, tutorials, and examples.**

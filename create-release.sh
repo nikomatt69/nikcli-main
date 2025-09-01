@@ -130,14 +130,14 @@ Check \`checksums.json\` for SHA256 hashes of all binaries.
 
 ## 📚 Documentation
 
-- **Complete Docs**: https://nikcli.mintifly.app
-- **Quick Start**: https://nikcli.mintifly.app/quickstart/installation
-- **CLI Reference**: https://nikcli.mintifly.app/cli-reference/commands-overview
+- **Complete Docs**: https://nikcli.mintlify.app
+- **Quick Start**: https://nikcli.mintlify.app/quickstart/installation
+- **CLI Reference**: https://nikcli.mintlify.app/cli-reference/commands-overview
 
 ## 🤝 Support
 
 - **GitHub Issues**: https://github.com/nikomatt69/nikcli-main/issues
-- **Documentation**: https://nikcli.mintifly.app
+- **Documentation**: https://nikcli.mintlify.app
 - **Community**: https://github.com/nikomatt69/nikcli-main/discussions
 
 ---

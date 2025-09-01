@@ -1,4 +1,4 @@
-# NikCLI v0.3.6-beta Release
+# NikCLI v0.5.0-beta Release
 
 **Context-Aware AI Development Assistant with Multi-Agent System**
 
@@ -55,7 +55,7 @@ sudo mv nikcli-[platform] /usr/local/bin/nikcli
 nikcli
 ```
 
-## ✨ What's New in v0.3.6-beta
+## ✨ What's New in v0.5.0-beta
 
 ### 🤖 Enhanced Multi-Agent System
 
@@ -176,15 +176,15 @@ Check the `checksums.json` file in this release for the correct SHA256 values.
 
 ## 📚 Documentation
 
-- **Complete Docs**: [nikcli.mintifly.app](https://nikcli.mintifly.app)
-- **Quick Start**: [Installation Guide](https://nikcli.mintifly.app/quickstart/installation)
-- **CLI Reference**: [Commands Overview](https://nikcli.mintifly.app/cli-reference/commands-overview)
-- **Agent System**: [Agent Documentation](https://nikcli.mintifly.app/agent-system/overview)
+- **Complete Docs**: [nikcli.mintifly.app](https://nikcli.mintlify.app)
+- **Quick Start**: [Installation Guide](https://nikcli.mintlify.app/quickstart/installation)
+- **CLI Reference**: [Commands Overview](https://nikcli.mintlify.app/cli-reference/commands-overview)
+- **Agent System**: [Agent Documentation](https://nikcli.mintlify.app/agent-system/overview)
 
 ## 🤝 Support
 
 - **GitHub Issues**: [Bug reports and feature requests](https://github.com/nikomatt69/nikcli-main/issues)
-- **Documentation**: [Complete guides](https://nikcli.mintifly.app)
+- **Documentation**: [Complete guides](https://nikcli.mintlify.app)
 - **Community**: [Discussions and help](https://github.com/nikomatt69/nikcli-main/discussions)
 
 ## 📄 License
@@ -195,4 +195,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 **🎯 Ready to transform your development workflow? Download and start building with AI-powered agents!**
 
-**Visit [nikcli.mintifly.app](https://nikcli.mintifly.app) for complete documentation and tutorials.**
+**Visit [nikcli.mintifly.app](https://nikcli.mintlify.app) for complete documentation and tutorials.**
