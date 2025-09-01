@@ -63,6 +63,7 @@ import { AgentTask } from './types/types';
 import { ExecutionPlan } from './planning/types';
 import { registerAgents } from './register-agents';
 import { advancedUI } from './ui/advanced-cli-ui';
+import { initializeTerminalUIKit, NikCLIIntegration } from './ui/terminal-ui-kit/integration/NikCLIIntegration';
 import { inputQueue } from './core/input-queue';
 import { TokenOptimizer, QuietCacheLogger, TokenOptimizationConfig } from './core/performance-optimizer';
 import { WebSearchProvider } from './core/web-search-provider';
@@ -198,6 +199,9 @@ export class NikCLI {
     private enhancedSessionManager: EnhancedSessionManager;
     private isEnhancedMode: boolean = false;
 
+    // Terminal UI Kit
+    private terminalUIKit: NikCLIIntegration;
+
     // NEW: Chat UI System
     private chatBuffer: string[] = [];
     private maxChatLines: number = 1000;
@@ -254,6 +258,9 @@ export class NikCLI {
 
         // Initialize chat UI system
         this.initializeChatUI();
+
+        // Initialize Terminal UI Kit
+        this.terminalUIKit = initializeTerminalUIKit(this);
 
         // Render initial prompt
         this.renderPromptArea();
@@ -1773,6 +1780,41 @@ export class NikCLI {
         if (hasWarning) return chalk.yellow('Warning');
 
         return chalk.green('Ready');
+    }
+
+    /**
+     * Enable Terminal UI Kit
+     */
+    async enableTerminalUIKit(mode: string = 'default'): Promise<void> {
+        try {
+            await this.terminalUIKit.getCLIBridge().enableInkMode(mode);
+            console.log('🎨 Terminal UI Kit enabled');
+        } catch (error: any) {
+            console.error('Failed to enable Terminal UI Kit:', error.message);
+        }
+    }
+
+    /**
+     * Disable Terminal UI Kit
+     */
+    async disableTerminalUIKit(): Promise<void> {
+        try {
+            await this.terminalUIKit.getCLIBridge().disableInkMode();
+            console.log('📺 Terminal UI Kit disabled');
+        } catch (error: any) {
+            console.error('Failed to disable Terminal UI Kit:', error.message);
+        }
+    }
+
+    /**
+     * Toggle Terminal UI Kit
+     */
+    async toggleTerminalUIKit(): Promise<void> {
+        try {
+            await this.terminalUIKit.getCLIBridge().toggleUIMode();
+        } catch (error: any) {
+            console.error('Failed to toggle Terminal UI Kit:', error.message);
+        }
     }
 
     /**

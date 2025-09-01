@@ -32,6 +32,7 @@
         "test:watch": "vitest --watch",
         "test:coherence": "node tests/verify-coherence.js",
         "test:system": "node tests/verify-system.js",
+        "test:ui-kit": "node scripts/test-ui-kit.js",
         "lint": "eslint src --ext .ts,.tsx"
     },
     "engines": {
@@ -121,6 +122,7 @@
         "eslint": "^8.56.0",
         "pkg": "^5.8.1",
         "ts-node": "^10.9.1",
+        "tsx": "^4.20.5",
         "typescript": "^5.9.2",
         "vitest": "^3.2.4",
         "ws": "^8.18.0"
