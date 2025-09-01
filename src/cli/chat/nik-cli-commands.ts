@@ -269,6 +269,12 @@ export class SlashCommandHandler {
     this.commands.set('index', this.indexCommand.bind(this));
     // Router controls
     this.commands.set('router', this.routerCommand.bind(this));
+    
+    // Terminal UI Kit controls
+    this.commands.set('ui-kit', this.uiKitCommand.bind(this));
+    this.commands.set('ink', this.uiKitCommand.bind(this));
+    this.commands.set('toggle-ui', this.toggleUICommand.bind(this));
+    this.commands.set('demo-ui', this.demoUICommand.bind(this));
   }
 
   async handle(input: string): Promise<CommandResult> {
@@ -410,7 +416,14 @@ ${chalk.cyan('/dev-mode [enable|status|help]')} - Developer mode controls
 ${chalk.cyan('/safe-mode')} - Enable safe mode (maximum security)
 ${chalk.cyan('/clear-approvals')} - Clear session approvals
 
+${chalk.blue.bold('Terminal UI Kit:')}
+${chalk.cyan('/ui-kit [enable|disable|status|toggle]')} - Manage Terminal UI Kit
+${chalk.cyan('/toggle-ui')} - Quick toggle between UI modes
+${chalk.cyan('/demo-ui')} - Demo all UI Kit capabilities
+${chalk.cyan('/ink [command]')} - Alias for ui-kit commands
+
 ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
+${chalk.gray('New: Use /ui-kit enable for modern terminal UI experience!')}
     `;
 
     console.log(help);
@@ -4756,5 +4769,152 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       default:
         return chalk.gray(status);
     }
+  }
+
+  // Terminal UI Kit Commands
+  private async uiKitCommand(args: string[]): Promise<CommandResult> {
+    const subcommand = (args[0] || 'status').toLowerCase();
+    const cliInstance = (global as any).__nikCLI;
+
+    if (!cliInstance) {
+      console.log(chalk.red('❌ CLI instance not found'));
+      return { shouldExit: false, shouldUpdatePrompt: false };
+    }
+
+    try {
+      switch (subcommand) {
+        case 'enable':
+        case 'on':
+          const mode = args[1] || 'default';
+          await cliInstance.enableTerminalUIKit(mode);
+          console.log(chalk.green(`✅ Terminal UI Kit enabled in ${mode} mode`));
+          break;
+
+        case 'disable':
+        case 'off':
+          await cliInstance.disableTerminalUIKit();
+          console.log(chalk.yellow('📺 Terminal UI Kit disabled'));
+          break;
+
+        case 'toggle':
+          await cliInstance.toggleTerminalUIKit();
+          break;
+
+        case 'status':
+        default:
+          const uiKit = (global as any).__terminalUIKit;
+          if (uiKit) {
+            const stats = uiKit.getUIStats();
+            const content = [
+              `${chalk.green('Status:')} ${stats.isActive ? 'Active (Ink Mode)' : 'Inactive (Console Mode)'}`,
+              `${chalk.blue('Components:')} ${stats.commandsWithUI} command panels available`,
+              `${chalk.cyan('Categories:')} ${stats.commandsByCategory.join(', ')}`,
+              '',
+              chalk.gray('Commands:'),
+              chalk.gray('  /ui-kit enable [mode] - Enable Terminal UI Kit'),
+              chalk.gray('  /ui-kit disable       - Disable Terminal UI Kit'),
+              chalk.gray('  /ui-kit toggle        - Toggle UI mode'),
+              chalk.gray('  /toggle-ui            - Quick toggle shortcut'),
+            ].join('\n');
+
+            console.log(boxen(content, {
+              title: '🎨 Terminal UI Kit',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: stats.isActive ? 'green' : 'yellow'
+            }));
+          } else {
+            console.log(chalk.red('❌ Terminal UI Kit not initialized'));
+          }
+          break;
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ UI Kit command failed: ${error.message}`));
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  private async toggleUICommand(): Promise<CommandResult> {
+    const cliInstance = (global as any).__nikCLI;
+    
+    if (cliInstance?.toggleTerminalUIKit) {
+      try {
+        await cliInstance.toggleTerminalUIKit();
+        console.log(chalk.cyan('🔄 Terminal UI mode toggled'));
+      } catch (error: any) {
+        console.log(chalk.red(`❌ Failed to toggle UI: ${error.message}`));
+      }
+    } else {
+      console.log(chalk.red('❌ Terminal UI Kit not available'));
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  private async demoUICommand(): Promise<CommandResult> {
+    console.log(chalk.cyan.bold('🎨 Terminal UI Kit Demo\n'));
+    
+    console.log(chalk.blue('📋 Demonstrating UI Kit capabilities...\n'));
+
+    // Demo sequence
+    const demos = [
+      {
+        title: 'Model Management UI',
+        command: '/models',
+        description: 'Interactive model selection and configuration'
+      },
+      {
+        title: 'Agent Management UI', 
+        command: '/agents',
+        description: 'Visual agent dashboard and task management'
+      },
+      {
+        title: 'File Browser UI',
+        command: '/ls',
+        description: 'Interactive file browser with preview'
+      },
+      {
+        title: 'Planning UI',
+        command: '/plan list',
+        description: 'Visual planning and todo management'
+      },
+      {
+        title: 'Configuration UI',
+        command: '/config',
+        description: 'Interactive configuration editor'
+      }
+    ];
+
+    console.log(chalk.yellow('🎯 Available UI Demos:\n'));
+    
+    demos.forEach((demo, index) => {
+      console.log(`${chalk.cyan(`${index + 1}.`)} ${chalk.bold(demo.title)}`);
+      console.log(`   ${chalk.gray('Command:')} ${chalk.green(demo.command)}`);
+      console.log(`   ${chalk.gray('Description:')} ${demo.description}\n`);
+    });
+
+    console.log(chalk.blue.bold('🚀 Quick Start:\n'));
+    console.log(chalk.white('1. Enable UI Kit:'), chalk.green('/ui-kit enable'));
+    console.log(chalk.white('2. Try any command:'), chalk.green('/help'), chalk.gray('(interactive help system)'));
+    console.log(chalk.white('3. Toggle UI mode:'), chalk.green('/toggle-ui'), chalk.gray('(switch between UI/console)'));
+    console.log(chalk.white('4. Check status:'), chalk.green('/ui-kit status'), chalk.gray('(UI Kit information)'));
+
+    console.log(chalk.magenta.bold('\n🎨 UI Kit Features:\n'));
+    console.log(chalk.white('✨ Interactive panels for every command'));
+    console.log(chalk.white('📊 Real-time progress tracking'));  
+    console.log(chalk.white('🔄 Live stream output'));
+    console.log(chalk.white('📁 Visual file browser'));
+    console.log(chalk.white('🤖 Agent monitoring dashboard'));
+    console.log(chalk.white('📋 Todo management with progress'));
+    console.log(chalk.white('✅ Approval system with risk assessment'));
+    console.log(chalk.white('🎛️ Adaptive layout (1-4 panels)'));
+    console.log(chalk.white('⌨️ Keyboard shortcuts and navigation'));
+    console.log(chalk.white('🎨 Multiple themes (default/dark/cyberpunk/retro)'));
+
+    console.log(chalk.green.bold('\n🎉 Ready to use! Enable with /ui-kit enable\n'));
+
+    return { shouldExit: false, shouldUpdatePrompt: false };
   }
 }
