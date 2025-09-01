@@ -19,6 +19,29 @@ npm install -g @cadcamfun/nikcli
 yarn global add @cadcamfun/nikcli
 ```
 
+### iOS App (Tauri)
+
+For iOS development and deployment:
+
+```bash
+# Navigate to the Tauri app directory
+cd terminal-tauri
+
+# Install dependencies
+npm install
+
+# Setup iOS development environment
+npm run ios:setup
+
+# Run on iOS Simulator
+npm run ios:dev
+
+# Build for iOS
+npm run ios:build
+```
+
+📖 **[Complete iOS Build Guide](terminal-tauri/IOS_BUILD_README.md)**
+
 ### First Run
 
 ```bash

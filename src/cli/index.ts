@@ -525,7 +525,7 @@ class OnboardingModule {
         console.log(chalk.gray(`   Fallback: ${redisConfig!.fallback.enabled ? 'Enabled' : 'Disabled'}`));
         console.log(chalk.green('   ✅ Redis configuration loaded'));
       } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠️ Redis configuration issue: ${error.message}`));
+        console.log(chalk.yellow(`   ⚠️ Redis configuration issue`));
       }
     }
 
@@ -554,7 +554,7 @@ class OnboardingModule {
           console.log(chalk.dim('   Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables'));
         }
       } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠️ Supabase setup issue: ${error.message}`));
+        console.log(chalk.yellow(`   ⚠️ Supabase setup issue`));
       }
     }
 
@@ -632,7 +632,7 @@ class OnboardingModule {
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`   ❌ Sign in error: ${error.message}`));
+      console.log(chalk.red(`   ❌ Sign in error`));
     }
   }
 
@@ -667,7 +667,7 @@ class OnboardingModule {
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`   ❌ Sign up error: ${error.message}`));
+      console.log(chalk.red(`   ❌ Sign up error`));
     }
   }
 
@@ -704,7 +704,7 @@ class OnboardingModule {
 
       console.log(versionBox);
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Unable to check version: ${error.message}`));
+      console.log(chalk.yellow(`⚠️ Unable to check version`));
     }
   }
 }
@@ -925,7 +925,7 @@ class ServiceModule {
         // cacheService initializes automatically in constructor
         console.log(chalk.dim('   ✓ Unified cache service ready'));
       } catch (error: any) {
-        console.log(chalk.yellow(`   ⚠ Cache service warning: ${error.message}`));
+        console.log(chalk.yellow(`   ⚠ Cache service warning`));
       }
 
       // Initialize Redis cache if enabled
@@ -934,7 +934,7 @@ class ServiceModule {
           // redisProvider initializes connection automatically
           console.log(chalk.dim('   ✓ Redis cache provider ready'));
         } catch (error: any) {
-          console.log(chalk.yellow(`   ⚠ Redis connection warning: ${error.message}`));
+          console.log(chalk.yellow(`   ⚠ Redis connection warning`));
         }
       }
 
@@ -943,13 +943,13 @@ class ServiceModule {
         try {
           // Add error listener to prevent unhandled promise rejections
           enhancedSupabaseProvider.on('error', (error: any) => {
-            console.log(chalk.yellow(`⚠️ Supabase Provider Error: ${error.message || error}`));
+            console.log(chalk.yellow(`⚠️ Supabase Provider Error`));
           });
 
           // enhancedSupabaseProvider and authProvider initialize automatically
           console.log(chalk.dim('   ✓ Supabase providers ready'));
         } catch (error: any) {
-          console.log(chalk.yellow(`   ⚠ Supabase initialization warning: ${error.message}`));
+          console.log(chalk.yellow(`   ⚠ Supabase initialization warning`));
         }
       }
 
@@ -974,7 +974,7 @@ class ServiceModule {
       }
 
     } catch (error: any) {
-      console.log(chalk.red(`❌ Enhanced services failed: ${error.message}`));
+      console.log(chalk.red(`❌ Enhanced services failed`));
       // Don't throw error to allow system to continue with basic functionality
       console.log(chalk.yellow('System will continue with basic services only'));
     }

@@ -344,3 +344,4 @@ temp-scripts/
 
 # Project specific exclusions
 docs/supabase-schema.sql
+.vercel

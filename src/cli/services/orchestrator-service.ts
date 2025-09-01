@@ -14,6 +14,7 @@ import { ModuleManager, ModuleContext } from '../core/module-manager';
 import { VMStatusIndicator } from '../ui/vm-status-indicator';
 import { VMKeyboardControls } from '../ui/vm-keyboard-controls';
 import { APIKeyProxy } from '../virtualized-agents/security/api-key-proxy';
+import { middlewareManager, MiddlewareBootstrap } from '../middleware';
 
 export interface OrchestratorContext {
   workingDirectory: string;
@@ -34,6 +35,7 @@ export class OrchestratorService extends EventEmitter {
   private policyManager: ExecutionPolicyManager;
   private moduleManager: ModuleManager;
   private initialized = false;
+  private middlewareInitialized = false;
   private activeAgentTasks: Map<string, AgentTask> = new Map();
   private originalRawMode?: boolean;
   private keypressHandler?: (str: string, key: any) => void;
@@ -215,6 +217,12 @@ export class OrchestratorService extends EventEmitter {
   }
 
   private async initializeServices(): Promise<void> {
+    // Initialize middleware system first
+    if (!this.middlewareInitialized) {
+      await MiddlewareBootstrap.initialize(this.policyManager);
+      this.middlewareInitialized = true;
+    }
+
     // Initialize all services in background
     toolService.setWorkingDirectory(this.context.workingDirectory);
     planningService.setWorkingDirectory(this.context.workingDirectory);
@@ -231,6 +239,25 @@ export class OrchestratorService extends EventEmitter {
     this.context.isProcessing = true;
 
     try {
+      // Execute through middleware pipeline for all operations
+      const moduleContext: ModuleContext = {
+        ...this.context,
+        policyManager: this.policyManager
+      };
+
+      const middlewareResult = await middlewareManager.execute(
+        input,
+        [input], // args array
+        moduleContext,
+        input.startsWith('/') ? 'command' : 
+        input.startsWith('@') ? 'agent' : 'command'
+      );
+
+      if (!middlewareResult.success) {
+        console.log(chalk.red(`❌ Operation blocked: ${middlewareResult.error?.message || 'Unknown error'}`));
+        return;
+      }
+
       // Handle slash commands
       if (input.startsWith('/')) {
         await this.handleCommand(input);
@@ -249,6 +276,8 @@ export class OrchestratorService extends EventEmitter {
       // Handle natural language requests
       await this.handleNaturalLanguageRequest(input);
 
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error processing input: ${error.message}`));
     } finally {
       this.context.isProcessing = false;
     }
@@ -267,6 +296,9 @@ export class OrchestratorService extends EventEmitter {
         break;
       case 'agents':
         await this.showActiveAgents();
+        break;
+      case 'middleware':
+        await this.showMiddlewareStatus();
         break;
       default:
         // Delegate to module manager
@@ -717,9 +749,42 @@ export class OrchestratorService extends EventEmitter {
     return [hits.length ? hits : allSuggestions, line];
   }
 
+  private async showMiddlewareStatus(): Promise<void> {
+    console.log(chalk.cyan.bold('\n🔧 Middleware System Status'));
+    console.log(chalk.gray('─'.repeat(60)));
+
+    // Show middleware manager status
+    middlewareManager.showStatus();
+    
+    // Show recent middleware events
+    const history = middlewareManager.getExecutionHistory(10);
+    if (history.length > 0) {
+      console.log(chalk.white.bold('\nRecent Middleware Events:'));
+      history.forEach(event => {
+        const icon = event.type === 'complete' ? '✅' : 
+                   event.type === 'error' ? '❌' : 
+                   event.type === 'start' ? '🔄' : '⏭️';
+        const duration = event.duration ? ` (${event.duration}ms)` : '';
+        console.log(`  ${icon} ${event.middlewareName}: ${event.type}${duration}`);
+      });
+    }
+
+    // Show performance metrics
+    const summary = middlewareManager.getMetricsSummary();
+    console.log(chalk.white.bold('\nPerformance Summary:'));
+    console.log(`  Requests processed: ${summary.totalRequests}`);
+    console.log(`  Success rate: ${((1 - summary.overallErrorRate) * 100).toFixed(1)}%`);
+    console.log(`  Average response time: ${summary.averageResponseTime.toFixed(1)}ms`);
+  }
+
   private showGoodbye(): void {
     const activeAgents = this.activeAgentTasks.size;
     const toolsUsed = toolService.getExecutionHistory().length;
+
+    // Shutdown middleware system
+    if (this.middlewareInitialized) {
+      MiddlewareBootstrap.shutdown();
+    }
 
     console.log(boxen(
       `${chalk.cyanBright('🎛️  AI Development Orchestrator')}\n\n` +

@@ -20,6 +20,7 @@ import { advancedUI } from '../ui/advanced-cli-ui';
 import { toolService } from '../services/tool-service';
 import { simpleConfigManager } from '../core/config-manager';
 import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator';
+import { initializeVMSelector, vmSelector } from '../virtualized-agents/vm-selector';
 import { ContainerManager } from '../virtualized-agents/container-manager';
 import { WebSearchProvider } from '../core/web-search-provider';
 import { visionProvider } from '../providers/vision';
@@ -125,12 +126,18 @@ export class SlashCommandHandler {
   private commands: Map<string, (args: string[]) => Promise<CommandResult>> = new Map();
   private agentManager: AgentManager;
   private vmOrchestrator: VMOrchestrator;
+  private cliInstance: any; // Reference to main CLI instance
 
-  constructor() {
+  constructor(cliInstance?: any) {
+    this.cliInstance = cliInstance;
     this.agentManager = new AgentManager(configManager);
     registerAgents(this.agentManager);
     const containerManager = new ContainerManager();
     this.vmOrchestrator = new VMOrchestrator(containerManager);
+    
+    // Initialize VM selector with the orchestrator
+    initializeVMSelector(this.vmOrchestrator);
+    
     this.registerCommands();
   }
 
@@ -221,6 +228,16 @@ export class SlashCommandHandler {
     this.commands.set('vm-create-pr', this.vmCreatePRCommand.bind(this));
     this.commands.set('vm-logs', this.vmLogsCommand.bind(this));
     this.commands.set('vm-mode', this.vmModeCommand.bind(this));
+    this.commands.set('vm-switch', this.vmSwitchCommand.bind(this));
+    this.commands.set('vm-dashboard', this.vmDashboardCommand.bind(this));
+    this.commands.set('vm-select', this.vmSelectCommand.bind(this));
+    this.commands.set('vm-status', this.vmStatusCommand.bind(this));
+    this.commands.set('vm-exec', this.vmExecCommand.bind(this));
+    this.commands.set('vm-ls', this.vmLsCommand.bind(this));
+    this.commands.set('vm-broadcast', this.vmBroadcastCommand.bind(this));
+    this.commands.set('vm-health', this.vmHealthCommand.bind(this));
+    this.commands.set('vm-backup', this.vmBackupCommand.bind(this));
+    this.commands.set('vm-stats', this.vmStatsCommand.bind(this));
 
     // Vision/Image operations
     this.commands.set('analyze-image', this.analyzeImageCommand.bind(this));
@@ -376,6 +393,16 @@ ${chalk.cyan('/vm-remove <id>')} - Remove container
 ${chalk.cyan('/vm-connect <id>')} - Connect to container
 ${chalk.cyan('/vm-create-pr <id> "<title>" "<desc>" [branch] [base] [draft]')} - Create PR from container
 ${chalk.cyan('/vm-mode')} - Enter VM chat mode
+${chalk.cyan('/vm-switch')} - Switch to different VM
+${chalk.cyan('/vm-dashboard')} - Show VM dashboard with status
+${chalk.cyan('/vm-select [id]')} - Select VM for targeted chat
+${chalk.cyan('/vm-status [id]')} - Show detailed VM system status (OS-like)
+${chalk.cyan('/vm-exec <command>')} - Execute command in selected VM
+${chalk.cyan('/vm-ls [directory]')} - List files in VM directory
+${chalk.cyan('/vm-broadcast <message>')} - Send message to all active VMs
+${chalk.cyan('/vm-health')} - Run health check on all VMs
+${chalk.cyan('/vm-backup [id]')} - Backup VM session state
+${chalk.cyan('/vm-stats')} - Show VM session statistics
 
 ${chalk.blue.bold('Security Commands:')}
 ${chalk.cyan('/security [status|set|help]')} - Manage security settings
@@ -1786,6 +1813,252 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   getVMOrchestrator() {
     return this.vmOrchestrator;
+  }
+
+  // New VM Selection Commands
+  private async vmSwitchCommand(): Promise<CommandResult> {
+    // Call the enhanced VM Switch Panel from nik-cli.ts
+    if (this.cliInstance && this.cliInstance.showVMSwitchPanel) {
+      await this.cliInstance.showVMSwitchPanel();
+    } else {
+      // Fallback to simple switch
+      console.log(chalk.blue('🔄 Switching VM...'));
+      
+      try {
+        const selectedVM = await vmSelector.switchVM();
+        if (selectedVM) {
+          console.log(chalk.green(`✅ Switched to VM: ${selectedVM.name}`));
+          console.log(chalk.gray(`Container: ${selectedVM.containerId.slice(0, 12)} | Repository: ${selectedVM.repositoryUrl || 'N/A'}`));
+        } else {
+          console.log(chalk.gray('VM switch cancelled'));
+        }
+      } catch (error: any) {
+        console.log(chalk.red(`❌ Failed to switch VM: ${error.message}`));
+      }
+    }
+    
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  private async vmDashboardCommand(): Promise<CommandResult> {
+    // Call the enhanced VM Dashboard Panel from nik-cli.ts
+    if (this.cliInstance && this.cliInstance.showVMDashboardPanel) {
+      await this.cliInstance.showVMDashboardPanel();
+    } else {
+      // Fallback to simple dashboard
+      console.log(chalk.blue('🐳 VM Dashboard'));
+      
+      try {
+        await vmSelector.showVMDashboard();
+      } catch (error: any) {
+        console.log(chalk.red(`❌ Failed to show VM dashboard: ${error.message}`));
+      }
+    }
+    
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  private async vmSelectCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      console.log(chalk.blue('🎯 Interactive VM selection...'));
+      
+      try {
+        const selectedVM = await vmSelector.selectVM({ interactive: true, sortBy: 'activity' });
+        if (selectedVM) {
+          console.log(chalk.green(`✅ Selected VM: ${selectedVM.name}`));
+          console.log(chalk.gray(`Container: ${selectedVM.containerId.slice(0, 12)} | Repository: ${selectedVM.repositoryUrl || 'N/A'}`));
+        } else {
+          console.log(chalk.gray('VM selection cancelled'));
+        }
+      } catch (error: any) {
+        console.log(chalk.red(`❌ Failed to select VM: ${error.message}`));
+      }
+    } else {
+      const vmId = args[0];
+      console.log(chalk.blue(`🎯 Selecting VM: ${vmId}`));
+      
+      try {
+        const success = vmSelector.setSelectedVM(vmId);
+        if (success) {
+          console.log(chalk.green(`✅ Selected VM: ${vmId}`));
+        } else {
+          console.log(chalk.red(`❌ VM not found: ${vmId}`));
+          console.log(chalk.gray('Use /vm-list to see available VMs'));
+        }
+      } catch (error: any) {
+        console.log(chalk.red(`❌ Failed to select VM: ${error.message}`));
+      }
+    }
+    
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  // OS-like VM Commands
+  private async vmStatusCommand(args: string[]): Promise<CommandResult> {
+    const vmId = args[0];
+    
+    // Call the enhanced VM Status Panel from nik-cli.ts
+    if (this.cliInstance && this.cliInstance.showVMStatusPanel) {
+      await this.cliInstance.showVMStatusPanel(vmId);
+    } else {
+      // Fallback to simple status
+      console.log(chalk.blue('🖥️ VM System Status'));
+      
+      try {
+        await vmSelector.showVMSystemStatus(vmId);
+      } catch (error: any) {
+        console.log(chalk.red(`❌ Failed to show VM status: ${error.message}`));
+      }
+    }
+    
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  private async vmExecCommand(args: string[]): Promise<CommandResult> {
+    const command = args.join(' ');
+    
+    // Call the enhanced VM Exec Panel from nik-cli.ts
+    if (this.cliInstance && this.cliInstance.showVMExecPanel) {
+      await this.cliInstance.showVMExecPanel(command || undefined);
+    } else {
+      // Fallback to simple exec
+      if (args.length === 0) {
+        console.log(chalk.red('Usage: /vm-exec <command>'));
+        console.log(chalk.gray('Execute command in selected VM (OS-like terminal)'));
+        return { shouldExit: false, shouldUpdatePrompt: false };
+      }
+      
+      const selectedVM = vmSelector.getSelectedVM();
+      
+      if (!selectedVM) {
+        console.log(chalk.yellow('⚠️ No VM selected'));
+        console.log(chalk.gray('Use /vm-select to choose a VM first'));
+        return { shouldExit: false, shouldUpdatePrompt: false };
+      }
+      
+      console.log(chalk.blue(`🔧 Executing command in VM: ${selectedVM.name}`));
+      
+      try {
+        await vmSelector.executeVMCommand(selectedVM.id, command);
+      } catch (error: any) {
+        console.log(chalk.red(`❌ Command execution failed: ${error.message}`));
+      }
+    }
+    
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  private async vmLsCommand(args: string[]): Promise<CommandResult> {
+    const directory = args[0] || undefined;
+    
+    // Call the enhanced VM File Browser Panel from nik-cli.ts
+    if (this.cliInstance && this.cliInstance.showVMFileBrowserPanel) {
+      await this.cliInstance.showVMFileBrowserPanel(directory);
+    } else {
+      // Fallback to simple ls
+      const selectedVM = vmSelector.getSelectedVM();
+      
+      if (!selectedVM) {
+        console.log(chalk.yellow('⚠️ No VM selected'));
+        console.log(chalk.gray('Use /vm-select to choose a VM first'));
+        return { shouldExit: false, shouldUpdatePrompt: false };
+      }
+      
+      console.log(chalk.blue(`📁 Listing files in VM: ${selectedVM.name}`));
+      if (directory) {
+        console.log(chalk.gray(`Directory: ${directory}`));
+      }
+      
+      try {
+        const files = await vmSelector.listVMFiles(selectedVM.id, directory);
+        
+        if (files.length === 0) {
+          console.log(chalk.yellow('No files found or directory is empty'));
+        } else {
+          console.log(chalk.white('Files:'));
+          files.forEach(file => {
+            console.log(chalk.gray(`  ${file}`));
+          });
+        }
+      } catch (error: any) {
+        console.log(chalk.red(`❌ Failed to list files: ${error.message}`));
+      }
+    }
+    
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  // Advanced VM Commands
+  private async vmBroadcastCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      console.log(chalk.red('Usage: /vm-broadcast <message>'));
+      console.log(chalk.gray('Send message to all active VMs simultaneously'));
+      return { shouldExit: false, shouldUpdatePrompt: false };
+    }
+    
+    const message = args.join(' ');
+    console.log(chalk.blue('📢 Broadcasting message to all VMs...'));
+    
+    try {
+      await vmSelector.broadcastToAllVMs(message);
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Broadcast failed: ${error.message}`));
+    }
+    
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  private async vmHealthCommand(): Promise<CommandResult> {
+    console.log(chalk.blue('🏥 Running VM health check...'));
+    
+    try {
+      await vmSelector.performHealthCheckAll();
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Health check failed: ${error.message}`));
+    }
+    
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  private async vmBackupCommand(args: string[]): Promise<CommandResult> {
+    const vmId = args[0];
+    
+    if (!vmId) {
+      const selectedVM = vmSelector.getSelectedVM();
+      if (!selectedVM) {
+        console.log(chalk.red('Usage: /vm-backup [vm-id]'));
+        console.log(chalk.gray('Backup VM session (uses selected VM if no ID provided)'));
+        return { shouldExit: false, shouldUpdatePrompt: false };
+      }
+      
+      try {
+        const backupId = await vmSelector.backupVMSession(selectedVM.id);
+        console.log(chalk.green(`✅ Backup completed: ${backupId}`));
+      } catch (error: any) {
+        console.log(chalk.red(`❌ Backup failed: ${error.message}`));
+      }
+    } else {
+      try {
+        const backupId = await vmSelector.backupVMSession(vmId);
+        console.log(chalk.green(`✅ Backup completed: ${backupId}`));
+      } catch (error: any) {
+        console.log(chalk.red(`❌ Backup failed: ${error.message}`));
+      }
+    }
+    
+    return { shouldExit: false, shouldUpdatePrompt: false };
+  }
+
+  private async vmStatsCommand(): Promise<CommandResult> {
+    console.log(chalk.blue('📊 Generating VM session statistics...'));
+    
+    try {
+      await vmSelector.getVMSessionStats();
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Stats generation failed: ${error.message}`));
+    }
+    
+    return { shouldExit: false, shouldUpdatePrompt: false };
   }
 
   // Agent Factory Commands

@@ -56,6 +56,16 @@ export class LSPClient {
   private diagnostics: Map<string, LSPDiagnostic[]> = new Map();
   private isInitialized = false;
 
+  // Cache system
+  private hoverCache: Map<string, { result: any; timestamp: number }> = new Map();
+  private symbolsCache: Map<string, { result: LSPSymbol[]; timestamp: number }> = new Map();
+  private completionCache: Map<string, { result: any[]; timestamp: number }> = new Map();
+  private readonly CACHE_TTL = 30000; // 30 seconds
+
+  // Debouncing
+  private pendingRequests: Map<string, NodeJS.Timeout> = new Map();
+  private readonly DEBOUNCE_DELAY = 300; // 300ms
+
   constructor(server: LSPServerHandle, serverInfo: LSPServerInfo, workspaceRoot: string) {
     this.server = server;
     this.serverInfo = serverInfo;
@@ -209,11 +219,12 @@ export class LSPClient {
       const content = readFileSync(absolutePath, 'utf-8');
       const languageId = detectLanguageFromExtension(absolutePath);
 
-      // Close if already open
+      // Smart file opening - check if file is already open with same content
       if (this.openFiles.has(absolutePath)) {
-        await this.connection.sendNotification('textDocument/didClose', {
-          textDocument: { uri }
-        });
+        const currentVersion = this.openFiles.get(absolutePath)!;
+        // File already open, just update version if needed
+        this.openFiles.set(absolutePath, currentVersion + 1);
+        return;
       }
 
       // Open file
@@ -236,34 +247,81 @@ export class LSPClient {
   }
 
   async getHover(filePath: string, line: number, character: number): Promise<LSPHoverInfo | null> {
-    const uri = this.pathToUri(resolve(filePath));
+    const cacheKey = `${filePath}:${line}:${character}`;
 
-    try {
-      const result = await this.connection.sendRequest('textDocument/hover', {
-        textDocument: { uri },
-        position: { line, character }
-      });
-
-      return result || null;
-    } catch (error) {
-      return null;
+    // Check cache first
+    const cached = this.hoverCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {
+      return cached.result;
     }
+
+    // Debounce requests
+    return new Promise((resolvePromise) => {
+      const existingTimeout = this.pendingRequests.get(`hover:${cacheKey}`);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+      }
+
+      const timeout = setTimeout(async () => {
+        this.pendingRequests.delete(`hover:${cacheKey}`);
+
+        try {
+          const uri = this.pathToUri(resolve(filePath));
+          const result = await this.connection.sendRequest('textDocument/hover', {
+            textDocument: { uri },
+            position: { line, character }
+          });
+
+          // Cache the result
+          this.hoverCache.set(cacheKey, { result: result || null, timestamp: Date.now() });
+          resolvePromise(result || null);
+        } catch (error) {
+          resolvePromise(null);
+        }
+      }, this.DEBOUNCE_DELAY);
+
+      this.pendingRequests.set(`hover:${cacheKey}`, timeout);
+    });
   }
 
   async getCompletion(filePath: string, line: number, character: number): Promise<LSPCompletionItem[]> {
-    const uri = this.pathToUri(resolve(filePath));
+    const cacheKey = `${filePath}:${line}:${character}`;
 
-    try {
-      const result = await this.connection.sendRequest('textDocument/completion', {
-        textDocument: { uri },
-        position: { line, character },
-        context: { triggerKind: 1 } // Invoked
-      });
-
-      return result?.items || result || [];
-    } catch (error) {
-      return [];
+    // Check cache first
+    const cached = this.completionCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {
+      return cached.result;
     }
+
+    // Debounce requests
+    return new Promise((resolvePromise) => {
+      const existingTimeout = this.pendingRequests.get(`completion:${cacheKey}`);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+      }
+
+      const timeout = setTimeout(async () => {
+        this.pendingRequests.delete(`completion:${cacheKey}`);
+
+        try {
+          const uri = this.pathToUri(resolve(filePath));
+          const result = await this.connection.sendRequest('textDocument/completion', {
+            textDocument: { uri },
+            position: { line, character },
+            context: { triggerKind: 1 } // Invoked
+          });
+
+          const items = result?.items || result || [];
+          // Cache the result
+          this.completionCache.set(cacheKey, { result: items, timestamp: Date.now() });
+          resolvePromise(items);
+        } catch (error) {
+          resolvePromise([]);
+        }
+      }, this.DEBOUNCE_DELAY);
+
+      this.pendingRequests.set(`completion:${cacheKey}`, timeout);
+    });
   }
 
   async getWorkspaceSymbols(query: string): Promise<LSPSymbol[]> {
@@ -276,6 +334,12 @@ export class LSPClient {
   }
 
   async getDocumentSymbols(filePath: string): Promise<LSPSymbol[]> {
+    // Check cache first
+    const cached = this.symbolsCache.get(filePath);
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {
+      return cached.result;
+    }
+
     const uri = this.pathToUri(resolve(filePath));
 
     try {
@@ -283,7 +347,10 @@ export class LSPClient {
         textDocument: { uri }
       });
 
-      return result || [];
+      const symbols = result || [];
+      // Cache the result
+      this.symbolsCache.set(filePath, { result: symbols, timestamp: Date.now() });
+      return symbols;
     } catch (error) {
       return [];
     }
@@ -377,6 +444,16 @@ export class LSPClient {
 
   async shutdown(): Promise<void> {
     try {
+      // Clear all caches and pending requests
+      this.hoverCache.clear();
+      this.symbolsCache.clear();
+      this.completionCache.clear();
+
+      for (const timeout of this.pendingRequests.values()) {
+        clearTimeout(timeout);
+      }
+      this.pendingRequests.clear();
+
       if (this.isInitialized) {
         await this.connection.sendRequest('shutdown', null);
         await this.connection.sendNotification('exit', null);

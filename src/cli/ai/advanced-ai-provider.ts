@@ -1915,7 +1915,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`;
         if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg);
         else console.log(chalk.dim(msg));
-      } catch {}
+      } catch { }
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
@@ -1996,7 +1996,7 @@ Requirements:
     const configData = allModels[model];
 
     if (!configData) {
-      return { maxTokens: 8000, temperature: 0.7 }; // REDUCED default
+      return { maxTokens: 4000, temperature: 0.7 }; // REDUCED default
     }
 
     // Provider-specific token limits and settings
@@ -2004,24 +2004,24 @@ Requirements:
       case 'openai':
         // OpenAI models - REDUCED for lighter requests
         if (configData.model.includes('gpt-5')) {
-          return { maxTokens: 8192, temperature: 1 }; // REDUCED from 8192
+          return { maxTokens: 4096, temperature: 1 }; // REDUCED from 8192
         } else if (configData.model.includes('gpt-4')) {
           return { maxTokens: 4096, temperature: 1 }; // REDUCED from 4096
         }
-        return { maxTokens: 3000, temperature: 1 };
+        return { maxTokens: 4096, temperature: 1 };
 
       case 'anthropic':
         // Claude models - RIDOTTO per compatibilità con tutti i modelli
         if (configData.model.includes('claude-4') ||
           configData.model.includes('claude-4-sonnet') ||
           configData.model.includes('claude-sonnet-4')) {
-          return { maxTokens: 8000, temperature: 0.7 }; // RIDOTTO per compatibilità
+          return { maxTokens: 8192, temperature: 1 }; // RIDOTTO per compatibilità
         }
-        return { maxTokens: 8000, temperature: 0.7 }; // RIDOTTO per compatibilità con 8192 limit
+        return { maxTokens: 3096, temperature: 1 }; // RIDOTTO per compatibilità con 8192 limit
 
       case 'google':
         // Gemini models - AUMENTATO per risposte più complete
-        return { maxTokens: 8000, temperature: 0.7 }; // AUMENTATO da 1500
+        return { maxTokens: 4096, temperature: 0.7 }; // AUMENTATO da 1500
 
       case 'ollama':
         // Local models - AUMENTATO per risposte più complete
@@ -2039,7 +2039,7 @@ Requirements:
         return { maxTokens: 4000, temperature: 0.7 };
 
       default:
-        return { maxTokens: 8000, temperature: 0.7 }; // RIDOTTO per compatibilità universale
+        return { maxTokens: 4096, temperature: 0.7 }; // RIDOTTO per compatibilità universale
     }
   }
 
@@ -2065,7 +2065,7 @@ Requirements:
   // Build a provider-safe message array by enforcing hard character caps
   private sanitizeMessagesForProvider(provider: string, messages: CoreMessage[]): CoreMessage[] {
     const maxTotalChars = provider === 'openai' ? 800_000 : 400_000; // conservative caps
-    const maxPerMessage = provider === 'openai' ? 60_000 : 40_000;
+    const maxPerMessage = provider === 'openai' ? 60_000 : 30_000;
 
     const safeMessages: CoreMessage[] = [];
     let total = 0;
