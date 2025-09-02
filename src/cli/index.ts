@@ -135,7 +135,9 @@ function getCurrentVersion(): string {
   }
 }
 
-async function getLatestVersion(packageName: string = '@cadcamfun/nikcli'): Promise<string | null> {
+async function getLatestVersion(
+  packageName: string = '@cadcamfun/nikcli',
+): Promise<string | null> {
   try {
     // Get package info with all versions and tags
     const response = await fetch(`https://registry.npmjs.org/${packageName}`);
@@ -206,23 +208,28 @@ class IntroductionModule {
     const setupBox = boxen(
       chalk.yellow.bold('⚠️  API Key Required\n\n') +
       chalk.white('To use NikCLI, please set at least one API key:\n\n') +
-      chalk.green('• ANTHROPIC_API_KEY') + chalk.gray(' - for Claude models (recommended)\n') +
-      chalk.blue('• OPENAI_API_KEY') + chalk.gray(' - for GPT models\n') +
-      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') + chalk.gray(' - for Gemini models\n') +
-      chalk.cyan('• AI_GATEWAY_API_KEY') + chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
+      chalk.green('• ANTHROPIC_API_KEY') +
+      chalk.gray(' - for Claude models (recommended)\n') +
+      chalk.blue('• OPENAI_API_KEY') +
+      chalk.gray(' - for GPT models\n') +
+      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+      chalk.gray(' - for Gemini models\n') +
+      chalk.cyan('• AI_GATEWAY_API_KEY') +
+      chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
       chalk.white.bold('Setup Examples:\n') +
       chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
       chalk.dim('export OPENAI_API_KEY="your-key-here"\n') +
       chalk.dim('export GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"\n') +
       chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
-      chalk.cyan('Then run: ') + chalk.white.bold('npm start'),
+      chalk.cyan('Then run: ') +
+      chalk.white.bold('npm start'),
       {
         padding: 1,
         margin: 1,
         borderStyle: 'round',
         borderColor: 'yellow',
-        backgroundColor: '#2a1a00'
-      }
+        backgroundColor: '#2a1a00',
+      },
     );
 
     console.log(setupBox);
@@ -235,14 +242,16 @@ class IntroductionModule {
       chalk.gray('• Loading project context\n') +
       chalk.gray('• Preparing planning system\n') +
       chalk.gray('• Setting up tool integrations\n\n') +
-      chalk.cyan('Type ') + chalk.white.bold('/help') + chalk.cyan(' for available commands'),
+      chalk.cyan('Type ') +
+      chalk.white.bold('/help') +
+      chalk.cyan(' for available commands'),
       {
         padding: 1,
         margin: 1,
         borderStyle: 'round',
         borderColor: 'green',
-        backgroundColor: '#001a00'
-      }
+        backgroundColor: '#001a00',
+      },
     );
 
     console.log(startupBox);
@@ -280,29 +289,36 @@ class OnboardingModule {
   private static async showBetaWarning(): Promise<void> {
     const warningBox = boxen(
       chalk.red.bold('⚠️  BETA VERSION WARNING\n\n') +
-      chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
+      chalk.white(
+        'NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n',
+      ) +
       chalk.yellow.bold('Potential Risks:\n') +
       chalk.white('• File system modifications\n') +
       chalk.white('• Code generation may not always be optimal\n') +
       chalk.white('• AI responses may be inaccurate\n') +
       chalk.white('• System resource usage\n\n') +
       chalk.cyan('For detailed security information, visit:\n') +
-      chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
+      chalk.blue.underline(
+        'https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n',
+      ) +
       chalk.white('By continuing, you acknowledge these risks.'),
       {
         padding: 1,
         margin: 1,
         borderStyle: 'round',
         borderColor: 'red',
-        backgroundColor: '#2a0000'
-      }
+        backgroundColor: '#2a0000',
+      },
     );
 
     console.log(warningBox);
 
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const answer: string = await new Promise(resolve =>
-      rl.question(chalk.yellow('\nDo you want to continue? (y/N): '), resolve)
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    const answer: string = await new Promise((resolve) =>
+      rl.question(chalk.yellow('\nDo you want to continue? (y/N): '), resolve),
     );
     rl.close();
 
@@ -320,7 +336,8 @@ class OnboardingModule {
     const openaiKey = process.env.OPENAI_API_KEY;
     const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     const vercelKey = process.env.V0_API_KEY;
-    const gatewayKey = process.env.AI_GATEWAY_API_KEY || process.env.GATEWAY_API_KEY;
+    const gatewayKey =
+      process.env.AI_GATEWAY_API_KEY || process.env.GATEWAY_API_KEY;
 
     if (anthropicKey || openaiKey || googleKey || vercelKey || gatewayKey) {
       console.log(chalk.green('✅ API keys detected'));
@@ -343,11 +360,16 @@ class OnboardingModule {
 
     const setupBox = boxen(
       chalk.white.bold('Setup your API key:\n\n') +
-      chalk.green('• ANTHROPIC_API_KEY') + chalk.gray(' - for Claude models (recommended)\n') +
-      chalk.blue('• OPENAI_API_KEY') + chalk.gray(' - for GPT models\n') +
-      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') + chalk.gray(' - for Gemini models\n') +
-      chalk.cyan('• AI_GATEWAY_API_KEY') + chalk.gray(' - for Vercel AI Gateway (smart routing)\n') +
-      chalk.cyan('• V0_API_KEY') + chalk.gray(' - for Vercel models\n\n') +
+      chalk.green('• ANTHROPIC_API_KEY') +
+      chalk.gray(' - for Claude models (recommended)\n') +
+      chalk.blue('• OPENAI_API_KEY') +
+      chalk.gray(' - for GPT models\n') +
+      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+      chalk.gray(' - for Gemini models\n') +
+      chalk.cyan('• AI_GATEWAY_API_KEY') +
+      chalk.gray(' - for Vercel AI Gateway (smart routing)\n') +
+      chalk.cyan('• V0_API_KEY') +
+      chalk.gray(' - for Vercel models\n\n') +
       chalk.white.bold('Example:\n') +
       chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
       chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
@@ -357,15 +379,21 @@ class OnboardingModule {
         margin: 1,
         borderStyle: 'round',
         borderColor: 'yellow',
-        backgroundColor: '#2a1a00'
-      }
+        backgroundColor: '#2a1a00',
+      },
     );
 
     console.log(setupBox);
 
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const answer: string = await new Promise(resolve =>
-      rl.question(chalk.yellow('\nContinue without API keys? (y/N): '), resolve)
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    const answer: string = await new Promise((resolve) =>
+      rl.question(
+        chalk.yellow('\nContinue without API keys? (y/N): '),
+        resolve,
+      ),
     );
     rl.close();
 
@@ -393,7 +421,9 @@ class OnboardingModule {
         const version = process.version;
         const major = parseInt(version.slice(1).split('.')[0]);
         if (major < 18) {
-          console.log(chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`));
+          console.log(
+            chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`),
+          );
           return false;
         }
         console.log(chalk.green(`✅ Node.js ${version}`));
@@ -403,7 +433,9 @@ class OnboardingModule {
       const version = process.version;
       const major = parseInt(version.slice(1).split('.')[0]);
       if (major < 18) {
-        console.log(chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`));
+        console.log(
+          chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`),
+        );
         return false;
       }
       console.log(chalk.green(`✅ Node.js ${version}`));
@@ -442,14 +474,22 @@ class OnboardingModule {
 
     try {
       const models = configManager.get('models') as any;
-      let ollamaEntries = Object.entries(models).filter(([, cfg]: any) => cfg.provider === 'ollama');
+      let ollamaEntries = Object.entries(models).filter(
+        ([, cfg]: any) => cfg.provider === 'ollama',
+      );
 
       if (ollamaEntries.length > 0) {
         console.log(chalk.green('✅ Ollama models found in configuration'));
 
-        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-        const answer: string = await new Promise(resolve =>
-          rl.question(chalk.yellow('\nUse a local Ollama model? (Y/n): '), resolve)
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        });
+        const answer: string = await new Promise((resolve) =>
+          rl.question(
+            chalk.yellow('\nUse a local Ollama model? (Y/n): '),
+            resolve,
+          ),
         );
         rl.close();
 
@@ -461,9 +501,12 @@ class OnboardingModule {
             ollamaEntries.forEach(([name, cfg]: any, idx: number) => {
               console.log(`  [${idx + 1}] ${name} (${cfg.model})`);
             });
-            const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
-            const pick = await new Promise<string>(resolve =>
-              rl2.question('Select model number (default 1): ', resolve)
+            const rl2 = readline.createInterface({
+              input: process.stdin,
+              output: process.stdout,
+            });
+            const pick = await new Promise<string>((resolve) =>
+              rl2.question('Select model number (default 1): ', resolve),
             );
             rl2.close();
             const i = parseInt((pick || '1').trim(), 10);
@@ -473,22 +516,39 @@ class OnboardingModule {
           }
 
           configManager.setCurrentModel(chosenName);
-          console.log(chalk.green(`✅ Switched to Ollama model: ${chosenName}`));
+          console.log(
+            chalk.green(`✅ Switched to Ollama model: ${chosenName}`),
+          );
           return true;
         }
       } else {
         // No Ollama models configured - offer to add one
-        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-        const answer: string = await new Promise(resolve =>
-          rl.question(chalk.yellow('\nNo Ollama models configured. Add default model (llama3.1:8b)? (Y/n): '), resolve)
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        });
+        const answer: string = await new Promise((resolve) =>
+          rl.question(
+            chalk.yellow(
+              '\nNo Ollama models configured. Add default model (llama3.1:8b)? (Y/n): ',
+            ),
+            resolve,
+          ),
         );
         rl.close();
 
         if (!answer || answer.toLowerCase().startsWith('y')) {
           const defaultName = 'llama3.1:8b';
-          configManager.addModel(defaultName, { provider: 'ollama', model: 'llama3.1:8b' } as any);
+          configManager.addModel(defaultName, {
+            provider: 'ollama',
+            model: 'llama3.1:8b',
+          } as any);
           configManager.setCurrentModel(defaultName);
-          console.log(chalk.green(`✅ Added and switched to Ollama model: ${defaultName}`));
+          console.log(
+            chalk.green(
+              `✅ Added and switched to Ollama model: ${defaultName}`,
+            ),
+          );
           return true;
         }
       }
@@ -509,7 +569,9 @@ class OnboardingModule {
     const supabaseEnabled = config.supabase?.enabled;
 
     if (!redisEnabled && !supabaseEnabled) {
-      console.log(chalk.gray('ℹ️  Enhanced services (Redis, Supabase) are disabled'));
+      console.log(
+        chalk.gray('ℹ️  Enhanced services (Redis, Supabase) are disabled'),
+      );
       console.log(chalk.dim('   You can enable them later in configuration'));
       return;
     }
@@ -520,9 +582,15 @@ class OnboardingModule {
       try {
         // Test Redis connection during setup
         const redisConfig = config.redis;
-        console.log(chalk.gray(`   Host: ${redisConfig!.host}:${redisConfig!.port}`));
+        console.log(
+          chalk.gray(`   Host: ${redisConfig!.host}:${redisConfig!.port}`),
+        );
         console.log(chalk.gray(`   Database: ${redisConfig!.database}`));
-        console.log(chalk.gray(`   Fallback: ${redisConfig!.fallback.enabled ? 'Enabled' : 'Disabled'}`));
+        console.log(
+          chalk.gray(
+            `   Fallback: ${redisConfig!.fallback.enabled ? 'Enabled' : 'Disabled'}`,
+          ),
+        );
         console.log(chalk.green('   ✅ Redis configuration loaded'));
       } catch (error: any) {
         console.log(chalk.yellow(`   ⚠️ Redis configuration issue`));
@@ -534,7 +602,9 @@ class OnboardingModule {
       console.log(chalk.blue('🟢 Supabase Integration:'));
       try {
         const supabaseCredentials = configManager.getSupabaseCredentials();
-        const hasCredentials = Boolean(supabaseCredentials.url && supabaseCredentials.anonKey);
+        const hasCredentials = Boolean(
+          supabaseCredentials.url && supabaseCredentials.anonKey,
+        );
 
         if (hasCredentials) {
           console.log(chalk.green('   ✅ Supabase credentials found'));
@@ -551,24 +621,36 @@ class OnboardingModule {
           console.log(chalk.gray(`   Features: ${enabledFeatures.join(', ')}`));
         } else {
           console.log(chalk.yellow('   ⚠️ Supabase credentials not found'));
-          console.log(chalk.dim('   Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables'));
+          console.log(
+            chalk.dim(
+              '   Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables',
+            ),
+          );
         }
       } catch (error: any) {
         console.log(chalk.yellow(`   ⚠️ Supabase setup issue`));
       }
     }
 
-    console.log(chalk.dim('\nEnhanced services will be available during your session.'));
+    console.log(
+      chalk.dim('\nEnhanced services will be available during your session.'),
+    );
   }
 
   private static async setupAuthentication(): Promise<void> {
     console.log(chalk.cyan('🔐 Authentication Setup:'));
 
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
 
     try {
-      const authChoice = await new Promise<string>(resolve =>
-        rl.question(chalk.yellow('Would you like to sign in? (y/N): '), resolve)
+      const authChoice = await new Promise<string>((resolve) =>
+        rl.question(
+          chalk.yellow('Would you like to sign in? (y/N): '),
+          resolve,
+        ),
       );
 
       if (authChoice && authChoice.toLowerCase().startsWith('y')) {
@@ -577,8 +659,11 @@ class OnboardingModule {
         console.log('2. Create new account');
         console.log('3. Continue as guest');
 
-        const methodChoice = await new Promise<string>(resolve =>
-          rl.question(chalk.yellow('Select option (1-3, default 3): '), resolve)
+        const methodChoice = await new Promise<string>((resolve) =>
+          rl.question(
+            chalk.yellow('Select option (1-3, default 3): '),
+            resolve,
+          ),
         );
 
         switch (methodChoice.trim() || '3') {
@@ -591,14 +676,18 @@ class OnboardingModule {
           case '3':
           default:
             console.log(chalk.gray('   👤 Continuing as guest'));
-            console.log(chalk.dim('   You can sign in anytime with /auth command'));
+            console.log(
+              chalk.dim('   You can sign in anytime with /auth command'),
+            );
             break;
         }
       } else {
         console.log(chalk.gray('   👤 Authentication skipped'));
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`   ⚠️ Authentication setup failed: ${error.message}`));
+      console.log(
+        chalk.yellow(`   ⚠️ Authentication setup failed: ${error.message}`),
+      );
     } finally {
       rl.close();
     }
@@ -606,11 +695,11 @@ class OnboardingModule {
 
   private static async handleSignIn(rl: readline.Interface): Promise<void> {
     try {
-      const email = await new Promise<string>(resolve =>
-        rl.question('Email: ', resolve)
+      const email = await new Promise<string>((resolve) =>
+        rl.question('Email: ', resolve),
       );
 
-      const password = await new Promise<string>(resolve => {
+      const password = await new Promise<string>((resolve) => {
         rl.question('Password: ', (answer) => {
           resolve(answer);
         });
@@ -620,13 +709,23 @@ class OnboardingModule {
         console.log(chalk.blue('🔄 Signing in...'));
 
         // Initialize auth provider if not already done
-        const { authProvider } = await import('./providers/supabase/auth-provider');
+        const { authProvider } = await import(
+          './providers/supabase/auth-provider'
+        );
 
-        const result = await authProvider.signIn(email, password, { rememberMe: true });
+        const result = await authProvider.signIn(email, password, {
+          rememberMe: true,
+        });
 
         if (result) {
-          console.log(chalk.green(`   ✅ Welcome back, ${result.profile.email || result.profile.username}!`));
-          console.log(chalk.gray(`   Subscription: ${result.profile.subscription_tier}`));
+          console.log(
+            chalk.green(
+              `   ✅ Welcome back, ${result.profile.email || result.profile.username}!`,
+            ),
+          );
+          console.log(
+            chalk.gray(`   Subscription: ${result.profile.subscription_tier}`),
+          );
         } else {
           console.log(chalk.red('   ❌ Sign in failed'));
         }
@@ -638,30 +737,36 @@ class OnboardingModule {
 
   private static async handleSignUp(rl: readline.Interface): Promise<void> {
     try {
-      const email = await new Promise<string>(resolve =>
-        rl.question('Email: ', resolve)
+      const email = await new Promise<string>((resolve) =>
+        rl.question('Email: ', resolve),
       );
 
-      const password = await new Promise<string>(resolve =>
-        rl.question('Password: ', resolve)
+      const password = await new Promise<string>((resolve) =>
+        rl.question('Password: ', resolve),
       );
 
-      const username = await new Promise<string>(resolve =>
-        rl.question('Username (optional): ', resolve)
+      const username = await new Promise<string>((resolve) =>
+        rl.question('Username (optional): ', resolve),
       );
 
       if (email && password) {
         console.log(chalk.blue('🔄 Creating account...'));
 
         // Initialize auth provider if not already done
-        const { authProvider } = await import('./providers/supabase/auth-provider');
+        const { authProvider } = await import(
+          './providers/supabase/auth-provider'
+        );
 
-        const result = await authProvider.signUp(email, password, { username: username || undefined });
+        const result = await authProvider.signUp(email, password, {
+          username: username || undefined,
+        });
 
         if (result) {
           console.log(chalk.green(`   ✅ Account created successfully!`));
           console.log(chalk.gray(`   Welcome, ${result.profile.email}!`));
-          console.log(chalk.dim('   Check your email for verification (if required)'));
+          console.log(
+            chalk.dim('   Check your email for verification (if required)'),
+          );
         } else {
           console.log(chalk.red('   ❌ Account creation failed'));
         }
@@ -678,19 +783,26 @@ class OnboardingModule {
     try {
       const versionInfo = await getVersionInfo();
 
-      let versionContent = chalk.cyan.bold(`Current Version: `) + chalk.white(versionInfo.current);
+      let versionContent =
+        chalk.cyan.bold(`Current Version: `) + chalk.white(versionInfo.current);
 
       if (versionInfo.error) {
         versionContent += '\n' + chalk.yellow(`⚠️  ${versionInfo.error}`);
       } else if (versionInfo.latest) {
-        versionContent += '\n' + chalk.cyan(`Latest Version: `) + chalk.white(versionInfo.latest);
+        versionContent +=
+          '\n' +
+          chalk.cyan(`Latest Version: `) +
+          chalk.white(versionInfo.latest);
 
         if (versionInfo.hasUpdate) {
           versionContent += '\n\n' + chalk.green.bold('🚀 Update Available!');
-          versionContent += '\n' + chalk.white('Run the following command to update:');
-          versionContent += '\n' + chalk.yellow.bold('npm update -g @cadcamfun/nikcli');
+          versionContent +=
+            '\n' + chalk.white('Run the following command to update:');
+          versionContent +=
+            '\n' + chalk.yellow.bold('npm update -g @cadcamfun/nikcli');
         } else {
-          versionContent += '\n\n' + chalk.green('✅ You are using the latest version!');
+          versionContent +=
+            '\n\n' + chalk.green('✅ You are using the latest version!');
         }
       }
 
@@ -699,7 +811,7 @@ class OnboardingModule {
         margin: 1,
         borderStyle: 'round',
         borderColor: versionInfo.hasUpdate ? 'green' : 'cyan',
-        backgroundColor: versionInfo.hasUpdate ? '#001a00' : '#001a2a'
+        backgroundColor: versionInfo.hasUpdate ? '#001a00' : '#001a2a',
       });
 
       console.log(versionBox);
@@ -730,8 +842,15 @@ class SystemModule {
     const openaiKey = process.env.OPENAI_API_KEY;
     const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     const vercelKey = process.env.V0_API_KEY;
-    const gatewayKey = process.env.AI_GATEWAY_API_KEY || process.env.GATEWAY_API_KEY;
-    return !!(anthropicKey || openaiKey || googleKey || vercelKey || gatewayKey);
+    const gatewayKey =
+      process.env.AI_GATEWAY_API_KEY || process.env.GATEWAY_API_KEY;
+    return !!(
+      anthropicKey ||
+      openaiKey ||
+      googleKey ||
+      vercelKey ||
+      gatewayKey
+    );
   }
 
   static checkNodeVersion(): boolean {
@@ -752,7 +871,9 @@ class SystemModule {
     const major = parseInt(version.slice(1).split('.')[0]);
 
     if (major < 18) {
-      console.log(chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`));
+      console.log(
+        chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`),
+      );
       return false;
     }
 
@@ -780,42 +901,70 @@ class SystemModule {
       const res = await fetch(`${base}/api/tags`, { method: 'GET' } as any);
       if (!res.ok) {
         SystemModule.lastOllamaStatus = false;
-        console.log(chalk.red(`❌ Ollama reachable at ${base} but returned status ${res.status}`));
+        console.log(
+          chalk.red(
+            `❌ Ollama reachable at ${base} but returned status ${res.status}`,
+          ),
+        );
         return false;
       }
       const data: any = await res.json().catch(() => null);
       if (!data || !Array.isArray(data.models)) {
-        console.log(chalk.yellow('⚠️ Unexpected response from Ollama when listing models'));
+        console.log(
+          chalk.yellow(
+            '⚠️ Unexpected response from Ollama when listing models',
+          ),
+        );
       } else {
         const currentModel = configManager.get('currentModel');
         const modelCfg = (configManager.get('models') as any)[currentModel];
         const name = modelCfg?.model;
-        const present = data.models.some((m: any) => m?.name === name || m?.model === name);
+        const present = data.models.some(
+          (m: any) => m?.name === name || m?.model === name,
+        );
         if (!present && name) {
-          console.log(chalk.yellow(`⚠️ Ollama is running but model "${name}" is not present.`));
+          console.log(
+            chalk.yellow(
+              `⚠️ Ollama is running but model "${name}" is not present.`,
+            ),
+          );
           // Offer to pull the model now
-          const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-          const answer: string = await new Promise(resolve =>
-            rl.question(`Pull model now with "ollama pull ${name}"? (Y/n): `, resolve)
+          const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+          });
+          const answer: string = await new Promise((resolve) =>
+            rl.question(
+              `Pull model now with "ollama pull ${name}"? (Y/n): `,
+              resolve,
+            ),
           );
           rl.close();
 
           if (!answer || answer.toLowerCase().startsWith('y')) {
             console.log(chalk.blue(`⏳ Pulling model ${name}...`));
             const code: number = await new Promise<number>((resolve) => {
-              const child = spawn('ollama', ['pull', name], { stdio: 'inherit' });
+              const child = spawn('ollama', ['pull', name], {
+                stdio: 'inherit',
+              });
               child.on('close', (code) => resolve(code ?? 1));
               child.on('error', () => resolve(1));
             });
             if (code === 0) {
               console.log(chalk.green(`✅ Model ${name} pulled successfully`));
             } else {
-              console.log(chalk.red(`❌ Failed to pull model ${name}. You can try manually: ollama pull ${name}`));
+              console.log(
+                chalk.red(
+                  `❌ Failed to pull model ${name}. You can try manually: ollama pull ${name}`,
+                ),
+              );
               SystemModule.lastOllamaStatus = false;
               return false;
             }
           } else {
-            console.log(chalk.gray(`   You can pull it later with: ollama pull ${name}`));
+            console.log(
+              chalk.gray(`   You can pull it later with: ollama pull ${name}`),
+            );
             SystemModule.lastOllamaStatus = false;
             return false;
           }
@@ -828,7 +977,11 @@ class SystemModule {
       const host = process.env.OLLAMA_HOST || '127.0.0.1:11434';
       const base = host.startsWith('http') ? host : `http://${host}`;
       console.log(chalk.red(`❌ Ollama service not reachable at ${base}`));
-      console.log(chalk.gray('   Start it with "ollama serve" or open the Ollama app. Install: https://ollama.com'));
+      console.log(
+        chalk.gray(
+          '   Start it with "ollama serve" or open the Ollama app. Install: https://ollama.com',
+        ),
+      );
       SystemModule.lastOllamaStatus = false;
       return false;
     }
@@ -840,10 +993,10 @@ class SystemModule {
     const checks = [
       this.checkNodeVersion(),
       await this.checkApiKeys(),
-      await this.checkOllamaAvailability()
+      await this.checkOllamaAvailability(),
     ];
 
-    const allPassed = checks.every(r => r);
+    const allPassed = checks.every((r) => r);
 
     if (allPassed) {
       console.log(chalk.green('✅ All system checks passed'));
@@ -955,7 +1108,6 @@ class ServiceModule {
 
       // Initialize enhanced token cache
 
-
       // Initialize vision and image providers for autonomous capabilities
       try {
         // Import providers to make them available for autonomous chat
@@ -963,20 +1115,20 @@ class ServiceModule {
         const { imageGenerator } = await import('./providers/image');
 
         // Providers initialize automatically in their constructors
-        console.log(chalk.dim('   ✓ Vision & Image providers ready for autonomous use'));
+        console.log(
+          chalk.dim('   ✓ Vision & Image providers ready for autonomous use'),
+        );
 
         // Make providers globally accessible for chat
-        global.visionProvider = visionProvider;
-        global.imageGenerator = imageGenerator;
-
-      } catch (error: any) {
-
-      }
-
+        (global as any).visionProvider = visionProvider;
+        (global as any).imageGenerator = imageGenerator;
+      } catch (error: any) { }
     } catch (error: any) {
       console.log(chalk.red(`❌ Enhanced services failed`));
       // Don't throw error to allow system to continue with basic functionality
-      console.log(chalk.yellow('System will continue with basic services only'));
+      console.log(
+        chalk.yellow('System will continue with basic services only'),
+      );
     }
   }
 
@@ -987,12 +1139,15 @@ class ServiceModule {
 
     const steps = [
       { name: 'Services', fn: this.initializeServices.bind(this) },
-      { name: 'Enhanced Services', fn: this.initializeEnhancedServices.bind(this) },
+      {
+        name: 'Enhanced Services',
+        fn: this.initializeEnhancedServices.bind(this),
+      },
       { name: 'Agents', fn: this.initializeAgents.bind(this) },
       { name: 'Tools', fn: this.initializeTools.bind(this) },
       { name: 'Planning', fn: this.initializePlanning.bind(this) },
       { name: 'Security', fn: this.initializeSecurity.bind(this) },
-      { name: 'Context', fn: this.initializeContext.bind(this) }
+      { name: 'Context', fn: this.initializeContext.bind(this) },
     ];
 
     for (const step of steps) {
@@ -1028,7 +1183,14 @@ class StreamingModule extends EventEmitter {
       input: process.stdin,
       output: process.stdout,
       historySize: 300,
-      completer: this.autoComplete.bind(this),
+      completer: (
+        line: string,
+        callback: (err: any, result: [string[], string]) => void,
+      ) => {
+        this.autoComplete(line)
+          .then((result) => callback(null, result))
+          .catch((err) => callback(err, [[], line]));
+      },
     });
 
     this.context = {
@@ -1037,7 +1199,7 @@ class StreamingModule extends EventEmitter {
       planMode: false,
       autoAcceptEdits: true,
       contextLeft: 20,
-      maxContext: 100
+      maxContext: 100,
     };
 
     this.policyManager = new ExecutionPolicyManager(configManager);
@@ -1100,7 +1262,7 @@ class StreamingModule extends EventEmitter {
       this.queueMessage({
         type: 'system',
         content: `🤖 Agent ${task.agentType} started: ${task.task.slice(0, 50)}...`,
-        metadata: { agentId: task.id, agentType: task.agentType }
+        metadata: { agentId: task.id, agentType: task.agentType },
       });
     });
 
@@ -1110,7 +1272,7 @@ class StreamingModule extends EventEmitter {
         content: `📊 ${task.agentType}: ${update.progress}% ${update.description || ''}`,
         metadata: { agentId: task.id, progress: update.progress },
         agentId: task.id,
-        progress: update.progress
+        progress: update.progress,
       });
     });
   }
@@ -1120,7 +1282,7 @@ class StreamingModule extends EventEmitter {
       id: Date.now().toString(),
       timestamp: new Date(),
       status: 'queued',
-      ...message
+      ...message,
     } as StreamMessage;
 
     this.messageQueue.push(fullMessage);
@@ -1129,7 +1291,7 @@ class StreamingModule extends EventEmitter {
   private async queueUserInput(input: string): Promise<void> {
     this.queueMessage({
       type: 'user',
-      content: input
+      content: input,
     });
   }
 
@@ -1167,7 +1329,9 @@ class StreamingModule extends EventEmitter {
     }
 
     // Assistant status dot: green when active (with …), red when waiting for input
-    const statusDot = this.processingMessage ? chalk.green('●') + chalk.dim('…') : chalk.red('●');
+    const statusDot = this.processingMessage
+      ? chalk.green('●') + chalk.dim('…')
+      : chalk.red('●');
     const statusBadge = `asst:${statusDot}`;
 
     // Realistic prompt styling (no rainbow)
@@ -1176,13 +1340,44 @@ class StreamingModule extends EventEmitter {
     this.rl.prompt();
   }
 
-  private autoComplete(line: string): [string[], string] {
-    const commands = ['/status', '/agents', '/diff', '/accept', '/clear', '/help'];
-    const agents = ['@react-expert', '@backend-expert', '@frontend-expert', '@devops-expert', '@code-review', '@autonomous-coder'];
+  private async autoComplete(line: string): Promise<[string[], string]> {
+    try {
+      // Use the smart completion manager for intelligent completions
+      const { smartCompletionManager } = await import(
+        './core/smart-completion-manager'
+      );
 
-    const all = [...commands, ...agents];
-    const hits = all.filter(c => c.startsWith(line));
-    return [hits.length ? hits : all, line];
+      const completions = await smartCompletionManager.getCompletions(line, {
+        currentDirectory: process.cwd(),
+        interface: 'default',
+      });
+
+      // Convert to readline format
+      const suggestions = completions.map((comp) => comp.completion);
+      return [suggestions.length ? suggestions : [], line];
+    } catch (error) {
+      // Fallback to original static completion
+      const commands = [
+        '/status',
+        '/agents',
+        '/diff',
+        '/accept',
+        '/clear',
+        '/help',
+      ];
+      const agents = [
+        '@react-expert',
+        '@backend-expert',
+        '@frontend-expert',
+        '@devops-expert',
+        '@code-review',
+        '@autonomous-coder',
+      ];
+
+      const all = [...commands, ...agents];
+      const hits = all.filter((c) => c.startsWith(line));
+      return [hits.length ? hits : all, line];
+    }
   }
 
   private showCommandMenu(): void {
@@ -1201,16 +1396,17 @@ class StreamingModule extends EventEmitter {
         borderStyle: 'round',
         borderColor: 'cyan',
         title: chalk.cyan('Command Menu'),
-        titleAlignment: 'center'
-      })
+        titleAlignment: 'center',
+      }),
     );
   }
 
   private cycleMode(): void {
     this.context.planMode = !this.context.planMode;
-    console.log(this.context.planMode ?
-      chalk.green('\n✅ Plan mode enabled') :
-      chalk.yellow('\n⚠️ Plan mode disabled')
+    console.log(
+      this.context.planMode
+        ? chalk.green('\n✅ Plan mode enabled')
+        : chalk.yellow('\n⚠️ Plan mode disabled'),
     );
   }
 
@@ -1228,7 +1424,7 @@ class StreamingModule extends EventEmitter {
   }
 
   private processNextMessage(): void {
-    const message = this.messageQueue.find(m => m.status === 'queued');
+    const message = this.messageQueue.find((m) => m.status === 'queued');
     if (!message) return;
 
     this.processingMessage = true;
@@ -1249,7 +1445,11 @@ class StreamingModule extends EventEmitter {
     console.log(chalk.blue('\n👋 Shutting down orchestrator...'));
 
     if (this.activeAgents.size > 0) {
-      console.log(chalk.yellow(`⏳ Waiting for ${this.activeAgents.size} agents to finish...`));
+      console.log(
+        chalk.yellow(
+          `⏳ Waiting for ${this.activeAgents.size} agents to finish...`,
+        ),
+      );
     }
 
     console.log(chalk.green('✅ Goodbye!'));
@@ -1312,14 +1512,16 @@ class MainOrchestrator {
     }
   }
 
-
-
   async start(): Promise<void> {
     try {
       // Run onboarding flow
       const onboardingComplete = await OnboardingModule.runOnboarding();
       if (!onboardingComplete) {
-        console.log(chalk.yellow('\n⚠️ Onboarding incomplete. Please address the issues above.'));
+        console.log(
+          chalk.yellow(
+            '\n⚠️ Onboarding incomplete. Please address the issues above.',
+          ),
+        );
         process.exit(1);
       }
 
@@ -1330,7 +1532,9 @@ class MainOrchestrator {
       // Initialize all systems
       const initialized = await ServiceModule.initializeSystem();
       if (!initialized) {
-        console.log(chalk.red('\n❌ Cannot start - system initialization failed'));
+        console.log(
+          chalk.red('\n❌ Cannot start - system initialization failed'),
+        );
         process.exit(1);
       }
 
@@ -1344,15 +1548,11 @@ class MainOrchestrator {
 
       // Show quick start guide
 
-
-
-
       const cli = new NikCLI();
       await cli.startChat({
         // Enable structured UI mode from the start
-        structuredUI: true
+        structuredUI: true,
       });
-
     } catch (error: any) {
       console.error(chalk.red('❌ Failed to start orchestrator:'), error);
       process.exit(1);
@@ -1364,13 +1564,56 @@ class MainOrchestrator {
  * Main entry point function
  */
 async function main() {
+  // Parse command line arguments
+  const argv = process.argv.slice(2);
+
+  // Check for ACP mode
+  if (argv.includes('--acp') || argv.includes('acp') || process.env.NIKCLI_MODE === 'acp') {
+    try {
+      // Import ACP functionality
+      const { runAcpCli } = await import('./acp');
+      await runAcpCli();
+      return;
+    } catch (err: any) {
+      console.error(
+        chalk.red('ACP mode failed:'),
+        err?.message || err,
+      );
+      process.exit(1);
+    }
+  }
+
+  // Minimal non-interactive report mode for CI/VS Code
+  if (argv[0] === 'report' || argv.includes('--report')) {
+    try {
+      const { generateReports } = await import('./commands/report');
+      const getFlag = (name: string) => {
+        const i = argv.indexOf(`--${name}`);
+        return i !== -1 ? argv[i + 1] : undefined;
+      };
+      const out = getFlag('out');
+      const report = getFlag('report');
+      const depthStr = getFlag('depth');
+      const model = getFlag('model');
+      const depth = depthStr ? parseInt(depthStr, 10) : undefined;
+      await generateReports({ out, report, depth, model });
+      return;
+    } catch (err: any) {
+      console.error(
+        chalk.red('Report generation failed:'),
+        err?.message || err,
+      );
+      process.exit(1);
+    }
+  }
+
   const orchestrator = new MainOrchestrator();
   await orchestrator.start();
 }
 
 // Start the application
 if (require.main === module) {
-  main().catch(error => {
+  main().catch((error) => {
     console.error(chalk.red('❌ Startup failed:'), error);
     process.exit(1);
   });
@@ -1384,5 +1627,5 @@ export {
   OnboardingModule,
   SystemModule,
   ServiceModule,
-  StreamingModule
+  StreamingModule,
 };

@@ -36,7 +36,6 @@ releases/
 scripts/releases/
 *.tar.gz
 *.tgz
-nikcli-*
 nikcli-linux-*
 nikcli-macos-*
 nikcli-win-*
@@ -345,3 +344,6 @@ temp-scripts/
 # Project specific exclusions
 docs/supabase-schema.sql
 .vercel
+
+# Do not ignore this specific file (was accidentally added to .gitignore)
+!src/cli/acp/nikcli-agent.ts

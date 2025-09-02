@@ -47,7 +47,11 @@ export class OrchestratorService extends EventEmitter {
       input: process.stdin,
       output: process.stdout,
       historySize: 300,
-      completer: this.autoComplete.bind(this),
+      completer: (line: string, callback: (err: any, result: [string[], string]) => void) => {
+        this.autoComplete(line)
+          .then(result => callback(null, result))
+          .catch(err => callback(err, [[], line]));
+      },
     });
 
     this.context = {
@@ -740,13 +744,28 @@ export class OrchestratorService extends EventEmitter {
     return indicators;
   }
 
-  private autoComplete(line: string): [string[], string] {
-    const commands = this.moduleManager.getCommandNames();
-    const agents = agentService.getAvailableAgents().map(a => `@${a.name}`);
-    const allSuggestions = [...commands, ...agents];
+  private async autoComplete(line: string): Promise<[string[], string]> {
+    try {
+      // Use the smart completion manager for intelligent completions
+      const { smartCompletionManager } = await import('../core/smart-completion-manager');
+      
+      const completions = await smartCompletionManager.getCompletions(line, {
+        currentDirectory: this.context.workingDirectory,
+        interface: 'orchestrator'
+      });
 
-    const hits = allSuggestions.filter((c) => c.startsWith(line));
-    return [hits.length ? hits : allSuggestions, line];
+      // Convert to readline format
+      const suggestions = completions.map(comp => comp.completion);
+      return [suggestions.length ? suggestions : [], line];
+    } catch (error) {
+      // Fallback to original static completion
+      const commands = this.moduleManager.getCommandNames();
+      const agents = agentService.getAvailableAgents().map(a => `@${a.name}`);
+      const allSuggestions = [...commands, ...agents];
+
+      const hits = allSuggestions.filter((c) => c.startsWith(line));
+      return [hits.length ? hits : allSuggestions, line];
+    }
   }
 
   private async showMiddlewareStatus(): Promise<void> {

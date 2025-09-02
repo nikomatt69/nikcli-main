@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import chalk from 'chalk';
+import { modelProvider, ChatMessage } from '../ai/model-provider';
 
 // 📊 Command Prediction Schemas
 const CommandEntry = z.object({
@@ -38,7 +39,7 @@ const PredictionResult = z.object({
 
 type CommandEntry = z.infer<typeof CommandEntry>;
 type CommandPattern = z.infer<typeof CommandPattern>;
-type PredictionResult = z.infer<typeof PredictionResult>;
+export type PredictionResult = z.infer<typeof PredictionResult>;
 
 export class CommandPredictor {
     private commandHistory: CommandEntry[] = [];
@@ -47,6 +48,12 @@ export class CommandPredictor {
     private patternsFile: string;
     private maxHistorySize = 1000;
     private maxPatterns = 100;
+    
+    // AI Enhancement properties
+    private semanticCache = new Map<string, { predictions: PredictionResult[]; timestamp: number }>();
+    private readonly AI_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+    private lastAICall = 0;
+    private readonly AI_THROTTLE = 2000; // 2 seconds between AI calls
 
     constructor() {
         const configDir = join(homedir(), '.nikcli');
@@ -61,7 +68,7 @@ export class CommandPredictor {
     /**
      * 🎯 Predict next commands based on current input and context
      */
-    predictCommands(
+    async predictCommands(
         partialInput: string,
         context?: {
             directory?: string;
@@ -69,7 +76,7 @@ export class CommandPredictor {
             openFiles?: string[];
             projectType?: string;
         }
-    ): PredictionResult[] {
+    ): Promise<PredictionResult[]> {
         const predictions: PredictionResult[] = [];
 
         // 1. Recent commands prediction
@@ -92,10 +99,14 @@ export class CommandPredictor {
         const similarPredictions = this.predictFromSimilarity(partialInput, context);
         predictions.push(...similarPredictions);
 
+        // 6. AI semantic predictions (enhanced with throttling and caching)
+        const aiPredictions = await this.predictFromAI(partialInput, context);
+        predictions.push(...aiPredictions);
+
         // Deduplicate and sort by confidence
         const uniquePredictions = this.deduplicateAndRank(predictions);
 
-        return uniquePredictions.slice(0, 5); // Return top 5 predictions
+        return uniquePredictions.slice(0, 8); // Return top 8 predictions (increased for AI integration)
     }
 
     /**
@@ -150,11 +161,11 @@ export class CommandPredictor {
     /**
      * 🔄 Get command suggestions for autocomplete
      */
-    getSuggestions(
+    async getSuggestions(
         partialInput: string,
         limit: number = 10
-    ): string[] {
-        const predictions = this.predictCommands(partialInput);
+    ): Promise<string[]> {
+        const predictions = await this.predictCommands(partialInput);
         return predictions
             .filter(p => p.command.toLowerCase().startsWith(partialInput.toLowerCase()))
             .slice(0, limit)
@@ -350,6 +361,184 @@ export class CommandPredictor {
         });
 
         return predictions;
+    }
+
+    /**
+     * 🤖 AI-powered semantic predictions
+     */
+    private async predictFromAI(
+        partialInput: string,
+        context?: any
+    ): Promise<PredictionResult[]> {
+        // Skip AI predictions for very short inputs
+        if (partialInput.length < 2) return [];
+
+        // Check cache first
+        const cacheKey = this.getAICacheKey(partialInput, context);
+        const cached = this.semanticCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < this.AI_CACHE_TTL) {
+            return cached.predictions;
+        }
+
+        // Throttle AI calls
+        const now = Date.now();
+        if (now - this.lastAICall < this.AI_THROTTLE) {
+            return [];
+        }
+
+        try {
+            this.lastAICall = now;
+            const systemPrompt = this.buildAISystemPrompt();
+            const userPrompt = this.buildAIUserPrompt(partialInput, context);
+
+            const messages: ChatMessage[] = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ];
+
+            const response = await modelProvider.generateResponse({
+                messages,
+                temperature: 0.3,
+                maxTokens: 300,
+                scope: 'tool_light'
+            });
+
+            const aiPredictions = this.parseAIPredictions(response);
+            
+            // Cache the results
+            this.semanticCache.set(cacheKey, {
+                predictions: aiPredictions,
+                timestamp: now
+            });
+
+            // Clean old cache entries
+            this.cleanAICache();
+
+            return aiPredictions;
+
+        } catch (error) {
+            console.warn(chalk.yellow(`[Command Predictor AI] Error: ${error}`));
+            return [];
+        }
+    }
+
+    /**
+     * Build system prompt for AI predictions
+     */
+    private buildAISystemPrompt(): string {
+        return `You are a command prediction assistant for NikCLI, a professional AI development tool.
+
+Your role is to suggest the most likely next commands based on partial user input and context.
+
+NikCLI Commands include:
+- Slash commands: /help, /status, /agents, /clear, /exit, /plan, /auto, /diff, /accept
+- Agent commands: @universal-agent, @vm-agent  
+- File operations: ls, cd, mkdir, rm, mv, cp
+- Git operations: git add, git commit, git push, git pull, git status
+- Development: npm, yarn, node, python, cargo, go
+- System: sudo, chmod, ps, kill, top
+
+Consider:
+1. Command frequency and recency
+2. Project context (web, python, rust, etc.)
+3. Current directory and git branch
+4. Natural command sequences
+
+Respond with JSON only:
+{
+  "predictions": [
+    {
+      "command": "suggested_command",
+      "confidence": 0.85,
+      "reason": "brief_explanation",
+      "category": "recent|frequent|contextual|pattern|similar",
+      "requires_approval": false
+    }
+  ]
+}
+
+Provide 2-4 most relevant predictions, ranked by confidence.`;
+    }
+
+    /**
+     * Build user prompt for AI
+     */
+    private buildAIUserPrompt(partialInput: string, context?: any): string {
+        let prompt = `Predict commands for input: "${partialInput}"`;
+
+        if (context) {
+            if (context.directory) {
+                prompt += `\nCurrent directory: ${context.directory}`;
+            }
+            if (context.projectType) {
+                prompt += `\nProject type: ${context.projectType}`;
+            }
+            if (context.gitBranch) {
+                prompt += `\nGit branch: ${context.gitBranch}`;
+            }
+        }
+
+        // Add recent command context
+        const recentCommands = this.commandHistory.slice(0, 5).map(h => h.command);
+        if (recentCommands.length > 0) {
+            prompt += `\nRecent commands: ${recentCommands.join(', ')}`;
+        }
+
+        return prompt;
+    }
+
+    /**
+     * Parse AI response into predictions
+     */
+    private parseAIPredictions(response: string): PredictionResult[] {
+        try {
+            const jsonMatch = response.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) return [];
+
+            const parsed = JSON.parse(jsonMatch[0]);
+            const predictions = parsed.predictions || [];
+
+            return predictions.map((pred: any) => ({
+                command: pred.command || '',
+                confidence: Math.min(Math.max(pred.confidence || 0.5, 0), 1),
+                reason: pred.reason || 'AI suggestion',
+                category: pred.category || 'similar',
+                estimated_time: undefined,
+                requires_approval: pred.requires_approval || false
+            })).filter((pred: PredictionResult) => pred.command.trim() !== '');
+
+        } catch (error) {
+            console.warn(chalk.yellow(`[Command Predictor AI] Parse error: ${error}`));
+            return [];
+        }
+    }
+
+    /**
+     * Generate cache key for AI predictions
+     */
+    private getAICacheKey(partialInput: string, context?: any): string {
+        const keyData = {
+            input: partialInput,
+            dir: context?.directory,
+            project: context?.projectType,
+            branch: context?.gitBranch
+        };
+        const hash = require('crypto').createHash('md5')
+            .update(JSON.stringify(keyData))
+            .digest('hex');
+        return hash.substring(0, 12);
+    }
+
+    /**
+     * Clean expired cache entries
+     */
+    private cleanAICache(): void {
+        const now = Date.now();
+        for (const [key, entry] of this.semanticCache.entries()) {
+            if (now - entry.timestamp > this.AI_CACHE_TTL) {
+                this.semanticCache.delete(key);
+            }
+        }
     }
 
     // Helper Methods

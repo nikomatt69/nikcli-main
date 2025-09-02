@@ -5,7 +5,7 @@ Generated: 2025-08-28T16:15:53.119Z
 ## Project
 
 - Name: @cadcamfun/nikcli
-- Version: 0.5.0-beta
+- Version: 0.5.6-beta
 - Description: NikCLI - Context-Aware AI Development Assistant
 - Git Branch: main-0.3.3
 - Last Commit: 9250dc8 2025-08-28 0.4.0-beta
