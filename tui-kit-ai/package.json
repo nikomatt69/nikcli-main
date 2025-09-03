@@ -9,8 +9,8 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "yarn workspaces run build",
-    "clean": "yarn workspaces run clean",
+    "build": "npm run -ws --if-present build",
+    "clean": "npm run -ws --if-present clean",
     "test": "echo 'No tests yet'",
     "dev": "echo 'Run dev from examples/*'",
     "generate": "node scripts/generate.js"

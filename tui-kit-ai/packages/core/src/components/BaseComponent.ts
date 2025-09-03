@@ -25,13 +25,13 @@ export type Component<T extends Widgets.BlessedElement = Widgets.BlessedElement>
 };
 
 export function computeBlessedStyle(theme: Theme, props: StyleProps) {
-  const style: Widgets.MinimalElementStyle = {
+  const style: any = {
     bg: props.bg || theme.background,
     fg: props.fg || theme.foreground,
     border: {
       fg: props.borderColor || theme.border,
     },
-  } as Widgets.MinimalElementStyle;
+  } as any;
   return style;
 }
 
@@ -58,9 +58,9 @@ export function createBoxBase<T extends Widgets.BoxElement = Widgets.BoxElement>
     bottom: props.bottom,
     width: props.width,
     height: props.height,
-    border: props.borderStyle && props.borderStyle !== 'none' ? { type: props.borderStyle } : undefined,
-    padding: normalizePadding(props.padding),
-    style: computeBlessedStyle(theme, props),
+    border: props.borderStyle && props.borderStyle !== 'none' ? 'line' : undefined,
+    padding: normalizePadding(props.padding) as any,
+    style: computeBlessedStyle(theme, props) as any,
   }) as T;
 
   return {

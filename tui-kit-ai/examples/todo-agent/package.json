@@ -9,6 +9,7 @@
     "@tui-kit-ai/core": "*",
     "@tui-kit-ai/ai": "*",
     "@tui-kit-ai/agents": "*",
-    "tsx": "^4.17.0"
+    "tsx": "^4.17.0",
+    "blessed": "^0.1.81"
   }
 }
