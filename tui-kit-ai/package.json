@@ -1,0 +1,22 @@
+{
+  "name": "tui-kit-ai",
+  "private": true,
+  "version": "0.1.0",
+  "description": "TUI-Kit-AI Monorepo",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "scripts": {
+    "build": "yarn workspaces run build",
+    "clean": "yarn workspaces run clean",
+    "test": "echo 'No tests yet'",
+    "dev": "echo 'Run dev from examples/*'",
+    "generate": "node scripts/generate.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsx": "^4.17.0"
+  }
+}

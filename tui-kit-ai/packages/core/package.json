@@ -1,0 +1,20 @@
+{
+  "name": "@tui-kit-ai/core",
+  "version": "0.1.0",
+  "description": "Core TUI components and primitives",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "blessed": "^0.1.81"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "rimraf": "^6.0.1",
+    "@types/blessed": "^0.1.25"
+  }
+}

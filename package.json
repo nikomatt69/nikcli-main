@@ -1,29 +1,4 @@
 {
-  "name": "tui-kit-ai",
-  "private": true,
-  "version": "0.1.0",
-  "description": "A comprehensive Terminal User Interface (TUI) component library for building AI-powered CLI applications and agents.",
-  "license": "MIT",
-  "workspaces": [
-    "packages/*",
-    "examples/*"
-  ],
-  "scripts": {
-    "build": "yarn workspaces run build",
-    "clean": "yarn workspaces run clean",
-    "dev": "echo 'Run dev inside examples/* workspaces (e.g., yarn workspace @examples/todo-agent dev)'",
-    "test": "echo 'No tests yet'",
-    "generate": "node scripts/generate.js"
-  },
-  "engines": {
-    "node": ">=18.18.0"
-  },
-  "devDependencies": {
-    "tsx": "^4.17.0",
-    "typescript": "^5.5.4"
-  }
-}
-{
     "$schema": "https://json.schemastore.org/package",
     "name": "@cadcamfun/nikcli",
     "version": "0.5.0-beta",

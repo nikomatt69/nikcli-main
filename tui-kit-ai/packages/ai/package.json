@@ -1,0 +1,19 @@
+{
+  "name": "@tui-kit-ai/ai",
+  "version": "0.1.0",
+  "description": "AI-specific components and streaming",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "ai": "^3.4.33"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "rimraf": "^6.0.1"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@examples/todo-agent",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@tui-kit-ai/core": "*",
+    "@tui-kit-ai/ai": "*",
+    "@tui-kit-ai/agents": "*",
+    "tsx": "^4.17.0"
+  }
+}
