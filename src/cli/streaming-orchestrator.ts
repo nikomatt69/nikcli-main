@@ -707,7 +707,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     if (lower.includes('frontend') || lower.includes('ui')) return 'frontend-expert';
     if (lower.includes('deploy') || lower.includes('docker')) return 'devops-expert';
     if (lower.includes('review') || lower.includes('analyze')) return 'code-review';
-    return 'autonomous-coder';
+    return 'universal-agent';
   }
 
   private displayMessage(message: StreamMessage): void {

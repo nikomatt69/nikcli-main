@@ -159,7 +159,7 @@ export class OrchestratorService extends EventEmitter {
     // Listen to agent service events (only if NikCLI is not handling them)
     agentService.on('task_start', (task: AgentTask) => {
       this.activeAgentTasks.set(task.id, task);
-      
+
       // Avoid duplicate logging if NikCLI is active
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed;
       if (!nikCliActive) {
@@ -193,7 +193,7 @@ export class OrchestratorService extends EventEmitter {
       } else {
         console.log(chalk.red(`❌ Agent ${task.agentType} failed: ${task.error}`));
       }
-      
+
       // Check if all background tasks are complete and return to default mode
       this.checkAndReturnToDefaultMode();
     });
@@ -253,8 +253,8 @@ export class OrchestratorService extends EventEmitter {
         input,
         [input], // args array
         moduleContext,
-        input.startsWith('/') ? 'command' : 
-        input.startsWith('@') ? 'agent' : 'command'
+        input.startsWith('/') ? 'command' :
+          input.startsWith('@') ? 'agent' : 'command'
       );
 
       if (!middlewareResult.success) {
@@ -440,7 +440,7 @@ export class OrchestratorService extends EventEmitter {
     } else if (lowerInput.includes('review') || lowerInput.includes('analyze') || lowerInput.includes('check')) {
       return 'code-review';
     } else {
-      return 'autonomous-coder'; // Default fallback
+      return 'universal-agent'; // Default fallback
     }
   }
 
@@ -465,12 +465,12 @@ export class OrchestratorService extends EventEmitter {
     // Check if all agent tasks are completed (no active agents)
     const activeAgents = agentService.getActiveAgents();
     const queuedTasks = agentService.getQueuedTasks();
-    
+
     if (activeAgents.length === 0 && queuedTasks.length === 0) {
       // All background tasks completed, return to default mode with prompt
       console.log(chalk.gray('─'.repeat(50)));
       console.log(chalk.cyan('🏠 All background tasks completed. Returning to default mode.'));
-      
+
       // Ensure default mode explicitly
       this.context.planMode = false;
       this.context.autoAcceptEdits = false;
@@ -748,7 +748,7 @@ export class OrchestratorService extends EventEmitter {
     try {
       // Use the smart completion manager for intelligent completions
       const { smartCompletionManager } = await import('../core/smart-completion-manager');
-      
+
       const completions = await smartCompletionManager.getCompletions(line, {
         currentDirectory: this.context.workingDirectory,
         interface: 'orchestrator'
@@ -774,15 +774,15 @@ export class OrchestratorService extends EventEmitter {
 
     // Show middleware manager status
     middlewareManager.showStatus();
-    
+
     // Show recent middleware events
     const history = middlewareManager.getExecutionHistory(10);
     if (history.length > 0) {
       console.log(chalk.white.bold('\nRecent Middleware Events:'));
       history.forEach(event => {
-        const icon = event.type === 'complete' ? '✅' : 
-                   event.type === 'error' ? '❌' : 
-                   event.type === 'start' ? '🔄' : '⏭️';
+        const icon = event.type === 'complete' ? '✅' :
+          event.type === 'error' ? '❌' :
+            event.type === 'start' ? '🔄' : '⏭️';
         const duration = event.duration ? ` (${event.duration}ms)` : '';
         console.log(`  ${icon} ${event.middlewareName}: ${event.type}${duration}`);
       });

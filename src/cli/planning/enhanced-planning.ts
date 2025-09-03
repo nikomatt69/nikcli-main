@@ -839,7 +839,7 @@ Generate a comprehensive plan that is practical and executable.`
     if (text.includes('review') || text.includes('analyze') || text.includes('audit')) return 'code-review';
     if (text.includes('system') || text.includes('admin')) return 'system-admin';
     // default universal agent
-    return 'autonomous-coder';
+    return 'universal-agent';
   }
 
   /**
@@ -1214,7 +1214,7 @@ Generate a comprehensive plan that is practical and executable.`
       totalPlansExecuted: this.executionStats.totalPlans,
       successfulExecutions: this.executionStats.successfulPlans,
       failedExecutions: this.executionStats.failedPlans,
-      averageStepsPerPlan: plans.length > 0 ? 
+      averageStepsPerPlan: plans.length > 0 ?
         plans.reduce((sum, p) => sum + p.todos.length, 0) / plans.length : 0,
       averageExecutionTime: this.executionStats.averageExecutionTime
     };
