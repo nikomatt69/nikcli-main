@@ -20,7 +20,7 @@ export class Button implements Component<Widgets.ButtonElement> {
       mouse: props.mouse ?? true,
       keys: props.keys ?? true,
       shrink: true,
-      border: props.borderStyle && props.borderStyle !== 'none' ? { type: props.borderStyle } : undefined,
+      border: props.borderStyle && props.borderStyle !== 'none' ? 'line' : undefined,
       style: {
         ...computeBlessedStyle(theme, props),
         hover: { bg: theme.accent, fg: theme.background },

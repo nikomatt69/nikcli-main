@@ -23,7 +23,7 @@ export class TextInput implements Component<Widgets.TextboxElement> {
       value: props.value || '',
       secret: props.secret ?? false,
       style: computeBlessedStyle(theme, props),
-      border: props.borderStyle && props.borderStyle !== 'none' ? { type: props.borderStyle } : undefined,
+      border: props.borderStyle && props.borderStyle !== 'none' ? 'line' : undefined,
       top: props.top,
       left: props.left,
       right: props.right,

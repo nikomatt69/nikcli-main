@@ -14,10 +14,10 @@ export class Gauge implements Component {
 
   constructor(props: GaugeProps) {
     const theme = resolveTheme(props.theme);
-    const el = blessed.gauge({
+    const el = blessed.box({
       parent: props.parent,
       style: computeBlessedStyle(theme, props),
-      border: props.borderStyle && props.borderStyle !== 'none' ? { type: props.borderStyle } : undefined,
+      border: props.borderStyle && props.borderStyle !== 'none' ? 'line' : undefined,
       top: props.top,
       left: props.left,
       right: props.right,
@@ -25,15 +25,24 @@ export class Gauge implements Component {
       width: props.width,
       height: props.height,
       label: props.label,
+      tags: true,
     });
-    if (props.value !== undefined) el.setPercent(props.value);
+    if (props.value !== undefined) this.setValueInternal(el, props.value, props.suffix);
     this.el = el;
     this.theme = theme;
     this.destroy = () => el.destroy();
   }
 
   setValue(value: number) {
-    this.el.setPercent(Math.max(0, Math.min(100, value)));
-    this.el.screen.render();
+    this.setValueInternal(this.el, value);
+  }
+  private setValueInternal(el: any, value: number, suffix?: string) {
+    const v = Math.max(0, Math.min(100, value));
+    const width = typeof el.width === 'number' ? el.width : 30;
+    const barWidth = Math.max(1, (width as number) - 4);
+    const filled = Math.round((v / 100) * barWidth);
+    const text = `[${'█'.repeat(filled)}${' '.repeat(Math.max(0, barWidth - filled))}] ${v}%${suffix ? ` ${suffix}` : ''}`;
+    el.setContent(text);
+    el.screen.render();
   }
 }

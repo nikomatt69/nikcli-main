@@ -33,11 +33,11 @@ export class MultiSelect implements Component<Widgets.ListElement> {
       width: props.width,
       height: props.height,
       label: props.label,
-      border: props.borderStyle && props.borderStyle !== 'none' ? { type: props.borderStyle } : undefined,
+      border: props.borderStyle && props.borderStyle !== 'none' ? 'line' : undefined,
     });
     el.on('select', (_item, index) => {
       if (this.selected.has(index)) this.selected.delete(index); else this.selected.add(index);
-      this.renderSelections();
+      this.renderSelections(props.options);
       if (props.onChange) props.onChange(Array.from(this.selected).sort((a,b)=>a-b), Array.from(this.selected).sort((a,b)=>a-b).map(i => props.options[i]));
     });
     this.el = el;
@@ -45,13 +45,9 @@ export class MultiSelect implements Component<Widgets.ListElement> {
     this.destroy = () => el.destroy();
   }
 
-  private renderSelections() {
-    const items = this.el.getItems();
-    items.forEach((it, idx) => {
-      const text = it.getText().replace(/^\[.\] /, '');
-      const mark = this.selected.has(idx) ? '[x] ' : '[ ] ';
-      it.setText(mark + text);
-    });
+  private renderSelections(options: string[]) {
+    const items = options.map((text, idx) => `${this.selected.has(idx) ? '[x] ' : '[ ] '}${text}`);
+    this.el.setItems(items);
     this.el.screen.render();
   }
 }

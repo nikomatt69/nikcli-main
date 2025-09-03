@@ -14,6 +14,5 @@ export class Paragraph implements Component<Widgets.BoxElement> {
     this.theme = comp.theme;
     this.destroy = comp.destroy;
     this.el.setContent(props.text);
-    this.el.wrap = props.wrap ?? true;
   }
 }

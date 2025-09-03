@@ -31,7 +31,7 @@ export class Select implements Component<Widgets.ListElement> {
       width: props.width,
       height: props.height,
       label: props.label,
-      border: props.borderStyle && props.borderStyle !== 'none' ? { type: props.borderStyle } : undefined,
+      border: props.borderStyle && props.borderStyle !== 'none' ? 'line' : undefined,
     });
     if (props.onSelect) el.on('select', (item, index) => props.onSelect!(index, item.getText()));
     this.el = el;

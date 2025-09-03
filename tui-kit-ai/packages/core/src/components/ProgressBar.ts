@@ -5,7 +5,6 @@ import { resolveTheme } from '../theming/theme';
 export type ProgressBarProps = BaseProps & {
   value?: number; // 0..100
   orientation?: 'horizontal' | 'vertical';
-  filledChar?: string;
 };
 
 export class ProgressBar implements Component {
@@ -18,11 +17,8 @@ export class ProgressBar implements Component {
     const el = blessed.progressbar({
       parent: props.parent,
       orientation: props.orientation || 'horizontal',
-      filled: props.filledChar || '█',
-      ch: ' ',
-      pch: '█',
       style: computeBlessedStyle(theme, props),
-      border: props.borderStyle && props.borderStyle !== 'none' ? { type: props.borderStyle } : undefined,
+      border: props.borderStyle && props.borderStyle !== 'none' ? 'line' : undefined,
       top: props.top,
       left: props.left,
       right: props.right,

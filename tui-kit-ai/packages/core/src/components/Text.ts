@@ -18,7 +18,6 @@ export class Text implements Component<Widgets.BoxElement> {
     this.theme = comp.theme;
     this.destroy = comp.destroy;
     this.el.setContent(props.text);
-    if (props.align) this.el.align = props.align;
-    if (props.wrap !== undefined) this.el.wrap = props.wrap;
+    // alignment and wrap are not enforced due to typings; content aligns via blessed defaults
   }
 }

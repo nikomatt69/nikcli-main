@@ -5,22 +5,20 @@ import { resolveTheme } from '../theming/theme';
 export type MenuItem = { label: string; onSelect?: () => void };
 export type MenuProps = BaseProps & { items: MenuItem[] };
 
-export class Menu implements Component<Widgets.ListbarElement> {
-  el: Widgets.ListbarElement;
+export class Menu implements Component<Widgets.ListElement> {
+  el: Widgets.ListElement;
   theme: any;
   destroy: () => void;
 
   constructor(props: MenuProps) {
     const theme = resolveTheme(props.theme);
-    const commands: Record<string, () => void> = {};
-    props.items.forEach((it, i) => {
-      commands[`f${i + 1}`] = () => it.onSelect?.();
-    });
-    const el = blessed.listbar({
+    const el = blessed.list({
       parent: props.parent,
-      commands,
-      autoCommandKeys: true,
-      style: { ...computeBlessedStyle(theme, props), item: { bg: theme.border, fg: theme.foreground }, selected: { bg: theme.accent, fg: theme.background } },
+      items: props.items.map(i => i.label),
+      keys: true,
+      mouse: true,
+      interactive: true,
+      style: { ...computeBlessedStyle(theme, props), selected: { bg: theme.accent, fg: theme.background } },
       top: props.top,
       left: props.left,
       right: props.right,
@@ -28,8 +26,9 @@ export class Menu implements Component<Widgets.ListbarElement> {
       width: props.width,
       height: props.height,
       label: props.label,
-      border: props.borderStyle && props.borderStyle !== 'none' ? { type: props.borderStyle } : undefined,
+      border: props.borderStyle && props.borderStyle !== 'none' ? 'line' : undefined,
     });
+    el.on('select', (_item, index) => props.items[index]?.onSelect?.());
     this.el = el;
     this.theme = theme;
     this.destroy = () => el.destroy();

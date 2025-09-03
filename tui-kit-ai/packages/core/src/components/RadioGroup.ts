@@ -8,11 +8,11 @@ export type RadioGroupProps = BaseProps & {
   onChange?: (index: number, value: string) => void;
 };
 
-export class RadioGroup implements Component<Widgets.RadiosetElement> {
-  el: Widgets.RadiosetElement;
+export class RadioGroup implements Component<Widgets.RadioSetElement> {
+  el: Widgets.RadioSetElement;
   theme: any;
   destroy: () => void;
-  private buttons: Widgets.RadiobuttonElement[] = [];
+  private buttons: Widgets.RadioButtonElement[] = [];
 
   constructor(props: RadioGroupProps) {
     const theme = resolveTheme(props.theme);

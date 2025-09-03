@@ -19,7 +19,7 @@ export class Tree implements Component<Widgets.ListElement> {
       style: computeBlessedStyle(theme, props),
       keys: true,
       mouse: true,
-      border: props.borderStyle && props.borderStyle !== 'none' ? { type: props.borderStyle } : undefined,
+      border: props.borderStyle && props.borderStyle !== 'none' ? 'line' : undefined,
       top: props.top,
       left: props.left,
       right: props.right,

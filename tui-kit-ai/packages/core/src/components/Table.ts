@@ -24,7 +24,7 @@ export class Table implements Component<Widgets.TableElement> {
         header: { fg: theme.accent, bold: true },
         cell: { fg: theme.foreground },
       },
-      border: props.borderStyle && props.borderStyle !== 'none' ? { type: props.borderStyle } : undefined,
+      border: props.borderStyle && props.borderStyle !== 'none' ? 'line' : undefined,
       top: props.top,
       left: props.left,
       right: props.right,

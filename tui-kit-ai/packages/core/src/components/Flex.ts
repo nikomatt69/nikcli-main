@@ -16,7 +16,7 @@ export class Flex implements Component<Widgets.BoxElement> {
 
   constructor(props: FlexProps) {
     const theme = resolveTheme(props.theme);
-    const el = blessed.box({ parent: props.parent, style: computeBlessedStyle(theme, props), border: props.borderStyle && props.borderStyle !== 'none' ? { type: props.borderStyle } : undefined, top: props.top, left: props.left, right: props.right, bottom: props.bottom, width: props.width, height: props.height, label: props.label });
+    const el = blessed.box({ parent: props.parent, style: computeBlessedStyle(theme, props), border: props.borderStyle && props.borderStyle !== 'none' ? 'line' : undefined, top: props.top, left: props.left, right: props.right, bottom: props.bottom, width: props.width, height: props.height, label: props.label });
     this.el = el;
     this.theme = theme;
     this.destroy = () => el.destroy();
