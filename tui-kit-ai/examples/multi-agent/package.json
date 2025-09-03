@@ -1,0 +1,13 @@
+{
+  "name": "@examples/multi-agent",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@tui-kit-ai/core": "*",
+    "@tui-kit-ai/agents": "*",
+    "tsx": "^4.17.0"
+  }
+}
