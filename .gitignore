@@ -1,3 +1,15 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.env.*
+coverage/
+.turbo/
+.vscode/
+.idea/
+.yarn/
+.pnp.*
 # Dependencies
 node_modules/
 npm-debug.log*
