@@ -1,0 +1,88 @@
+---
+title: 'LogViewer'
+description: 'Scrollable log output viewer.'
+---
+
+## Overview
+
+Display and scroll application logs.
+
+## Import
+
+```ts
+import { LogViewer } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new LogViewer({ parent: screen, blessedProps: { content: 'log line 1' } as any });
+```
+
+## Live Preview
+
+<Snippet file="previews/logviewer.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- maxLines?: number — Retained lines (default 500).
+- autoScroll?: boolean — Scroll to bottom on push (default true).
+- timestamp?: boolean — Prefix lines with [HH:MM:SS].
+- BaseProps: scrollable container with label 'Logs' by default.
+
+## Methods
+
+- push(line), clear().
+- setMaxLines(n), setAutoScroll(bool), setTimestamp(bool).
+- getLogCount(), scrollToTop(), scrollToBottom().
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { LogViewer } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+const logs = new LogViewer({ parent: screen, top: 1, left: 2, width: 60, height: 10, label: 'Logs' });
+logs.push('Server started');
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts AutoScroll & Timestamp
+const lv = new LogViewer({ parent: screen, top: 1, left: 2, width: 60, height: 10, autoScroll: true, timestamp: true });
+lv.push('Connected');
+```
+
+```ts Trim Lines
+lv.setMaxLines(200);
+lv.clear();
+```
+
+</CodeGroup>
+
+## Testing
+
+```ts
+logs.push('A');
+logs.push('B');
+expect(logs.getLogCount()).toBeGreaterThan(0);
+```
+
+## Best Practices
+
+- Mantieni `maxLines` ragionevole (200–1000) per performance ottimali.

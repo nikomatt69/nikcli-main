@@ -1,5 +1,6 @@
 {
-  "name": "tui-core",
+  "$schema": "https://json.schemastore.org/package",
+  "name": "nikcli-tui",
   "version": "0.1.7",
   "description": "Core TUI components and primitives",
   "license": "MIT",

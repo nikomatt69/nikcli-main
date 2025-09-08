@@ -1,0 +1,1532 @@
+---
+title: 'Container Components'
+description: 'Master Modal, Scrollable, Tooltip, and container components'
+---
+
+## Container Components
+
+Container components organize and structure content, providing specialized layouts and interactive containers for your TUI application. They handle content overflow, user interactions, and visual organization.
+
+<CardGroup cols={3}>
+  <Card title="Modal" icon="square-check">
+    Dialog boxes and overlays
+  </Card>
+  <Card title="Scrollable" icon="scroll">
+    Scrollable content containers
+  </Card>
+  <Card title="Tooltip" icon="message-circle">
+    Contextual help and information
+  </Card>
+  <Card title="Collapsible" icon="chevrons-up-down">
+    Expandable content sections
+  </Card>
+  <Card title="HelpOverlay" icon="help-circle">
+    Context-sensitive help system
+  </Card>
+  <Card title="Stepper" icon="list-ordered">
+    Step-by-step process guides
+  </Card>
+</CardGroup>
+
+## Modal Component
+
+The `Modal` component creates dialog boxes, overlays, and popup windows for user interaction and content display.
+
+### Basic Modal Usage
+
+<CodeGroup>
+
+```typescript Simple Modal
+import { useTerminal, Modal, Button } from 'nikcli-tui';
+
+const { screen } = useTerminal();
+
+// Trigger button
+const openButton = new Button({
+  parent: screen,
+  top: 'center',
+  left: 'center',
+  content: 'Open Modal',
+  onPress: () => {
+    simpleModal.show();
+  }
+});
+
+// Simple modal
+const simpleModal = new Modal({
+  parent: screen,
+  title: 'Confirm Action',
+  content: 'Are you sure you want to proceed with this action?',
+  width: 50,
+  height: 12,
+  buttons: [
+    {
+      label: 'Confirm',
+      variant: 'primary',
+      action: () => {
+        console.log('Confirmed!');
+        simpleModal.close();
+      }
+    },
+    {
+      label: 'Cancel',
+      variant: 'secondary',
+      action: () => {
+        simpleModal.close();
+      }
+    }
+  ],
+  closable: true,
+  modal: true  // Block interaction with background
+});
+```
+
+```typescript Advanced Modal
+class AdvancedModal extends Modal {
+  private formData: any = {};
+  private validator: FormValidator;
+  
+  constructor(props: ModalProps) {
+    super({
+      ...props,
+      width: 70,
+      height: 25,
+      title: 'AI Configuration',
+      resizable: true,
+      draggable: true
+    });
+    
+    this.validator = new FormValidator();
+    this.createContent();
+    this.setupValidation();
+  }
+  
+  private createContent() {
+    // Form container
+    const form = new Box({
+      parent: this.contentArea.el,
+      top: 1,
+      left: 1,
+      right: 1,
+      bottom: 4,
+      scrollable: true
+    });
+    
+    // Provider selection
+    new Text({
+      parent: form.el,
+      top: 1,
+      left: 1,
+      content: 'AI Provider:'
+    });
+    
+    const providerSelect = new Select({
+      parent: form.el,
+      top: 2,
+      left: 1,
+      width: 30,
+      items: [
+        { value: 'openai', label: 'OpenAI GPT' },
+        { value: 'anthropic', label: 'Anthropic Claude' },
+        { value: 'ollama', label: 'Local Ollama' }
+      ],
+      onSelect: (item) => {
+        this.formData.provider = item.value;
+        this.updateModelOptions(item.value);
+        this.validateForm();
+      }
+    });
+    
+    // API Key input
+    new Text({
+      parent: form.el,
+      top: 4,
+      left: 1,
+      content: 'API Key:'
+    });
+    
+    const apiKeyInput = new TextInput({
+      parent: form.el,
+      top: 5,
+      left: 1,
+      right: 1,
+      password: true,
+      placeholder: 'Enter your API key...',
+      onChange: (value) => {
+        this.formData.apiKey = value;
+        this.validateForm();
+      }
+    });
+    
+    // Advanced settings toggle
+    const advancedToggle = new Collapsible({
+      parent: form.el,
+      top: 7,
+      left: 1,
+      right: 1,
+      title: 'Advanced Settings',
+      collapsed: true
+    });
+    
+    // Temperature slider
+    new Text({
+      parent: advancedToggle.contentArea.el,
+      top: 1,
+      left: 1,
+      content: 'Temperature: 0.7'
+    });
+    
+    const temperatureSlider = new Slider({
+      parent: advancedToggle.contentArea.el,
+      top: 2,
+      left: 1,
+      width: 40,
+      min: 0,
+      max: 2,
+      step: 0.1,
+      value: 0.7,
+      onChange: (value) => {
+        this.formData.temperature = value;
+      }
+    });
+    
+    // Custom buttons
+    this.setButtons([
+      {
+        label: 'Test Connection',
+        variant: 'secondary',
+        action: async () => {
+          await this.testConnection();
+        }
+      },
+      {
+        label: 'Save',
+        variant: 'primary',
+        disabled: true,
+        action: () => {
+          this.save();
+        }
+      },
+      {
+        label: 'Cancel',
+        variant: 'ghost',
+        action: () => {
+          this.close();
+        }
+      }
+    ]);
+  }
+  
+  private async testConnection() {
+    const testButton = this.getButton('Test Connection');
+    testButton.setLoading(true);
+    
+    try {
+      const result = await this.aiService.testConnection(this.formData);
+      this.showNotification(result.success ? 'Connection successful!' : 'Connection failed', 
+                          result.success ? 'success' : 'error');
+    } catch (error) {
+      this.showNotification(`Connection error: ${error.message}`, 'error');
+    } finally {
+      testButton.setLoading(false);
+    }
+  }
+  
+  private validateForm() {
+    const isValid = this.validator.validate(this.formData);
+    const saveButton = this.getButton('Save');
+    saveButton.setDisabled(!isValid);
+    
+    if (!isValid) {
+      const errors = this.validator.getErrors();
+      this.showErrors(errors);
+    }
+  }
+  
+  private save() {
+    if (this.validator.validate(this.formData)) {
+      this.emit('save', this.formData);
+      this.close();
+    }
+  }
+}
+
+// Usage
+const configModal = new AdvancedModal({
+  parent: screen,
+  onSave: (data) => {
+    saveConfiguration(data);
+  }
+});
+
+configModal.show();
+```
+
+```typescript Modal Manager
+class ModalManager {
+  private modals: Map<string, Modal> = new Map();
+  private modalStack: string[] = [];
+  private backdrop: Box;
+  
+  constructor(private screen: any) {
+    this.createBackdrop();
+  }
+  
+  private createBackdrop() {
+    this.backdrop = new Box({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      style: {
+        bg: 'black',
+        opacity: 0.7
+      },
+      hidden: true
+    });
+  }
+  
+  showModal(id: string, modal: Modal): void {
+    // Add to stack
+    this.modals.set(id, modal);
+    this.modalStack.push(id);
+    
+    // Show backdrop for first modal
+    if (this.modalStack.length === 1) {
+      this.backdrop.show();
+    }
+    
+    // Position modal
+    this.positionModal(modal);
+    
+    // Setup modal events
+    modal.on('close', () => {
+      this.closeModal(id);
+    });
+    
+    modal.on('keypress', (ch, key) => {
+      if (key.name === 'escape') {
+        this.closeTopModal();
+      }
+    });
+    
+    modal.show();
+    modal.focus();
+  }
+  
+  closeModal(id: string): void {
+    const modal = this.modals.get(id);
+    if (!modal) return;
+    
+    // Remove from stack
+    const index = this.modalStack.indexOf(id);
+    if (index > -1) {
+      this.modalStack.splice(index, 1);
+    }
+    
+    // Hide modal
+    modal.hide();
+    modal.destroy();
+    this.modals.delete(id);
+    
+    // Hide backdrop if no modals
+    if (this.modalStack.length === 0) {
+      this.backdrop.hide();
+    } else {
+      // Focus previous modal
+      const prevId = this.modalStack[this.modalStack.length - 1];
+      const prevModal = this.modals.get(prevId);
+      if (prevModal) {
+        prevModal.focus();
+      }
+    }
+  }
+  
+  closeTopModal(): void {
+    if (this.modalStack.length > 0) {
+      const topId = this.modalStack[this.modalStack.length - 1];
+      this.closeModal(topId);
+    }
+  }
+  
+  private positionModal(modal: Modal): void {
+    // Center modal with slight offset for stacking
+    const offset = (this.modalStack.length - 1) * 2;
+    modal.setPosition({
+      top: 'center',
+      left: 'center'
+    });
+  }
+}
+
+// Global modal manager
+const modalManager = new ModalManager(screen);
+
+// Usage
+modalManager.showModal('config', configModal);
+modalManager.showModal('confirm', confirmModal);
+```
+
+</CodeGroup>
+
+### Modal Properties
+
+<AccordionGroup>
+  <Accordion title="Basic Properties">
+    ```typescript
+    interface ModalProps extends BaseProps {
+      title?: string;
+      content?: string | Component;
+      
+      // Behavior
+      modal?: boolean;          // Block background interaction
+      closable?: boolean;       // Show close button
+      draggable?: boolean;      // Allow dragging
+      resizable?: boolean;      // Allow resizing
+      
+      // Buttons
+      buttons?: ModalButton[];
+      
+      // Animation
+      animation?: 'fade' | 'slide' | 'zoom' | 'none';
+      animationDuration?: number;
+      
+      // Events
+      onOpen?: () => void;
+      onClose?: () => void;
+      onResize?: (width: number, height: number) => void;
+      onMove?: (x: number, y: number) => void;
+    }
+    
+    interface ModalButton {
+      label: string;
+      variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+      action?: () => void | Promise<void>;
+      disabled?: boolean;
+      loading?: boolean;
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Modal Methods">
+    ```typescript
+    class Modal {
+      // Visibility
+      show(): void;
+      hide(): void;
+      close(): void;
+      toggle(): void;
+      
+      // Content management
+      setTitle(title: string): void;
+      setContent(content: string | Component): void;
+      
+      // Button management
+      setButtons(buttons: ModalButton[]): void;
+      getButton(label: string): Button | null;
+      enableButton(label: string): void;
+      disableButton(label: string): void;
+      
+      // Positioning
+      center(): void;
+      setPosition(x: number, y: number): void;
+      
+      // Size
+      setSize(width: number, height: number): void;
+      
+      // State queries
+      isVisible(): boolean;
+      isModal(): boolean;
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Modal Types">
+    ```typescript
+    // Confirmation modal
+    class ConfirmModal extends Modal {
+      static async confirm(
+        message: string,
+        options?: ConfirmOptions
+      ): Promise<boolean> {
+        return new Promise(resolve => {
+          const modal = new ConfirmModal({
+            parent: screen,
+            title: options?.title || 'Confirm',
+            content: message,
+            onConfirm: () => resolve(true),
+            onCancel: () => resolve(false)
+          });
+          
+          modal.show();
+        });
+      }
+    }
+    
+    // Alert modal
+    class AlertModal extends Modal {
+      static alert(message: string, type?: 'info' | 'warning' | 'error'): void {
+        const modal = new AlertModal({
+          parent: screen,
+          title: type?.toUpperCase() || 'ALERT',
+          content: message,
+          type
+        });
+        
+        modal.show();
+      }
+    }
+    
+    // Prompt modal
+    class PromptModal extends Modal {
+      static async prompt(
+        message: string,
+        defaultValue?: string
+      ): Promise<string | null> {
+        return new Promise(resolve => {
+          // Implementation for text input modal
+        });
+      }
+    }
+    
+    // Usage
+    const confirmed = await ConfirmModal.confirm('Delete this file?');
+    if (confirmed) {
+      deleteFile();
+    }
+    
+    AlertModal.alert('Operation completed successfully!', 'info');
+    
+    const filename = await PromptModal.prompt('Enter filename:', 'untitled.txt');
+    if (filename) {
+      createFile(filename);
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Scrollable Component
+
+The `Scrollable` component provides scrollable containers for content that exceeds the available display area.
+
+<CodeGroup>
+
+```typescript Basic Scrollable
+import { Scrollable, Text } from 'nikcli-tui';
+
+const scrollableContainer = new Scrollable({
+  parent: screen,
+  top: 2,
+  left: 2,
+  width: 50,
+  height: 20,
+  border: { type: 'line' },
+  label: ' Scrollable Content ',
+  scrollbar: true,
+  wheelScrollSpeed: 3
+});
+
+// Add lots of content
+for (let i = 1; i <= 100; i++) {
+  new Text({
+    parent: scrollableContainer.contentArea.el,
+    top: i - 1,
+    left: 1,
+    content: `Line ${i}: This is scrollable content that extends beyond the visible area.`
+  });
+}
+
+// Scroll controls
+screen.key(['up'], () => scrollableContainer.scroll(-1));
+screen.key(['down'], () => scrollableContainer.scroll(1));
+screen.key(['pageup'], () => scrollableContainer.scroll(-10));
+screen.key(['pagedown'], () => scrollableContainer.scroll(10));
+```
+
+```typescript Advanced Scrollable List
+class ScrollableList<T> extends Scrollable {
+  private items: T[] = [];
+  private itemHeight = 1;
+  private selectedIndex = 0;
+  private itemRenderer: (item: T, index: number) => Component;
+  
+  constructor(props: ScrollableListProps<T>) {
+    super(props);
+    
+    this.itemRenderer = props.itemRenderer;
+    this.itemHeight = props.itemHeight || 1;
+    
+    this.setupKeyHandlers();
+  }
+  
+  setItems(items: T[]) {
+    this.items = items;
+    this.renderItems();
+    this.selectedIndex = 0;
+    this.scrollToSelected();
+  }
+  
+  addItem(item: T) {
+    this.items.push(item);
+    this.renderItem(item, this.items.length - 1);
+  }
+  
+  removeItem(index: number) {
+    if (index >= 0 && index < this.items.length) {
+      this.items.splice(index, 1);
+      this.renderItems();
+      
+      // Adjust selected index
+      if (this.selectedIndex >= this.items.length) {
+        this.selectedIndex = Math.max(0, this.items.length - 1);
+      }
+      this.scrollToSelected();
+    }
+  }
+  
+  private renderItems() {
+    // Clear existing content
+    this.clearContent();
+    
+    // Render all items
+    this.items.forEach((item, index) => {
+      this.renderItem(item, index);
+    });
+  }
+  
+  private renderItem(item: T, index: number) {
+    const component = this.itemRenderer(item, index);
+    
+    // Position component
+    component.setPosition({
+      top: index * this.itemHeight,
+      left: 0,
+      right: 0,
+      height: this.itemHeight
+    });
+    
+    // Highlight selected item
+    if (index === this.selectedIndex) {
+      component.setStyle({ bg: 'blue', fg: 'white' });
+    }
+    
+    // Click handler
+    component.on('click', () => {
+      this.selectItem(index);
+    });
+  }
+  
+  private setupKeyHandlers() {
+    this.on('keypress', (ch, key) => {
+      switch (key.name) {
+        case 'up':
+          this.selectPrevious();
+          break;
+        case 'down':
+          this.selectNext();
+          break;
+        case 'home':
+          this.selectFirst();
+          break;
+        case 'end':
+          this.selectLast();
+          break;
+        case 'enter':
+          this.activateSelected();
+          break;
+      }
+    });
+  }
+  
+  private selectItem(index: number) {
+    if (index >= 0 && index < this.items.length) {
+      this.selectedIndex = index;
+      this.renderItems();
+      this.scrollToSelected();
+      this.emit('selectionChanged', this.items[index], index);
+    }
+  }
+  
+  private scrollToSelected() {
+    const targetY = this.selectedIndex * this.itemHeight;
+    const viewportHeight = this.height - 2; // Account for borders
+    
+    if (targetY < this.scrollTop) {
+      this.scrollTo(targetY);
+    } else if (targetY >= this.scrollTop + viewportHeight) {
+      this.scrollTo(targetY - viewportHeight + this.itemHeight);
+    }
+  }
+  
+  selectNext() {
+    this.selectItem(Math.min(this.selectedIndex + 1, this.items.length - 1));
+  }
+  
+  selectPrevious() {
+    this.selectItem(Math.max(this.selectedIndex - 1, 0));
+  }
+  
+  getSelectedItem(): T | null {
+    return this.items[this.selectedIndex] || null;
+  }
+}
+
+// Usage
+const fileList = new ScrollableList({
+  parent: container.el,
+  itemRenderer: (file: FileInfo, index: number) => {
+    return new Text({
+      content: `${file.icon} ${file.name} (${file.size})`,
+      style: file.isDirectory ? { fg: 'cyan' } : { fg: 'white' }
+    });
+  },
+  onSelectionChanged: (file, index) => {
+    console.log('Selected file:', file.name);
+  }
+});
+
+fileList.setItems([
+  { name: 'src', icon: '📁', isDirectory: true, size: '4 KB' },
+  { name: 'package.json', icon: '📄', isDirectory: false, size: '2 KB' },
+  { name: 'README.md', icon: '📄', isDirectory: false, size: '5 KB' }
+]);
+```
+
+</CodeGroup>
+
+## Tooltip Component
+
+The `Tooltip` component provides contextual information and help text for UI elements.
+
+<CodeGroup>
+
+```typescript Basic Tooltips
+import { Tooltip, Button } from 'nikcli-tui';
+
+// Button with tooltip
+const saveButton = new Button({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  content: '💾 Save'
+});
+
+const saveTooltip = new Tooltip({
+  parent: screen,
+  target: saveButton,
+  content: 'Save the current document (Ctrl+S)',
+  position: 'top',
+  delay: 1000
+});
+
+// Rich tooltip with formatting
+const aiButton = new Button({
+  parent: container.el,
+  top: 2,
+  left: 15,
+  content: '🤖 AI'
+});
+
+const aiTooltip = new Tooltip({
+  parent: screen,
+  target: aiButton,
+  title: 'AI Assistant',
+  content: 'Access AI-powered features:\n• Code completion\n• Error analysis\n• Documentation generation',
+  width: 35,
+  height: 6,
+  position: 'bottom',
+  arrow: true,
+  style: {
+    border: { fg: 'cyan' },
+    bg: 'black'
+  }
+});
+```
+
+```typescript Interactive Tooltip System
+class TooltipManager {
+  private tooltips: Map<Component, Tooltip> = new Map();
+  private activeTooltip: Tooltip | null = null;
+  private showDelay = 800;
+  private hideDelay = 200;
+  private showTimer: NodeJS.Timeout | null = null;
+  private hideTimer: NodeJS.Timeout | null = null;
+  
+  constructor(private screen: any) {}
+  
+  attach(target: Component, config: TooltipConfig) {
+    const tooltip = new Tooltip({
+      parent: this.screen,
+      target,
+      ...config,
+      hidden: true
+    });
+    
+    this.tooltips.set(target, tooltip);
+    
+    // Mouse enter/leave handlers
+    target.on('mouseenter', () => {
+      this.scheduleShow(tooltip);
+    });
+    
+    target.on('mouseleave', () => {
+      this.scheduleHide(tooltip);
+    });
+    
+    // Focus handlers for keyboard accessibility
+    target.on('focus', () => {
+      this.scheduleShow(tooltip);
+    });
+    
+    target.on('blur', () => {
+      this.scheduleHide(tooltip);
+    });
+    
+    return tooltip;
+  }
+  
+  private scheduleShow(tooltip: Tooltip) {
+    // Cancel any pending hide
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+    }
+    
+    // Schedule show
+    this.showTimer = setTimeout(() => {
+      this.showTooltip(tooltip);
+      this.showTimer = null;
+    }, this.showDelay);
+  }
+  
+  private scheduleHide(tooltip: Tooltip) {
+    // Cancel any pending show
+    if (this.showTimer) {
+      clearTimeout(this.showTimer);
+      this.showTimer = null;
+    }
+    
+    // Schedule hide
+    this.hideTimer = setTimeout(() => {
+      this.hideTooltip(tooltip);
+      this.hideTimer = null;
+    }, this.hideDelay);
+  }
+  
+  private showTooltip(tooltip: Tooltip) {
+    // Hide current tooltip
+    if (this.activeTooltip && this.activeTooltip !== tooltip) {
+      this.activeTooltip.hide();
+    }
+    
+    // Position and show new tooltip
+    this.positionTooltip(tooltip);
+    tooltip.show();
+    this.activeTooltip = tooltip;
+  }
+  
+  private hideTooltip(tooltip: Tooltip) {
+    if (this.activeTooltip === tooltip) {
+      tooltip.hide();
+      this.activeTooltip = null;
+    }
+  }
+  
+  private positionTooltip(tooltip: Tooltip) {
+    const target = tooltip.getTarget();
+    const targetBounds = target.getBounds();
+    const tooltipBounds = tooltip.getBounds();
+    
+    // Calculate optimal position
+    const position = this.calculateOptimalPosition(
+      targetBounds,
+      tooltipBounds,
+      this.screen.width,
+      this.screen.height
+    );
+    
+    tooltip.setPosition(position);
+  }
+  
+  private calculateOptimalPosition(
+    target: Bounds,
+    tooltip: Bounds,
+    screenWidth: number,
+    screenHeight: number
+  ): Position {
+    const positions = [
+      { name: 'top', x: target.x + target.width / 2 - tooltip.width / 2, y: target.y - tooltip.height - 1 },
+      { name: 'bottom', x: target.x + target.width / 2 - tooltip.width / 2, y: target.y + target.height + 1 },
+      { name: 'left', x: target.x - tooltip.width - 1, y: target.y + target.height / 2 - tooltip.height / 2 },
+      { name: 'right', x: target.x + target.width + 1, y: target.y + target.height / 2 - tooltip.height / 2 }
+    ];
+    
+    // Find position that fits on screen
+    for (const pos of positions) {
+      if (pos.x >= 0 && pos.y >= 0 && 
+          pos.x + tooltip.width <= screenWidth && 
+          pos.y + tooltip.height <= screenHeight) {
+        return { x: pos.x, y: pos.y };
+      }
+    }
+    
+    // Fallback to top position with adjustments
+    return {
+      x: Math.max(0, Math.min(target.x, screenWidth - tooltip.width)),
+      y: Math.max(0, target.y - tooltip.height - 1)
+    };
+  }
+}
+
+// Global tooltip manager
+const tooltipManager = new TooltipManager(screen);
+
+// Usage
+tooltipManager.attach(saveButton, {
+  content: 'Save document',
+  showDelay: 500
+});
+
+tooltipManager.attach(complexButton, {
+  title: 'Advanced Features',
+  content: 'Access advanced AI capabilities including code analysis and generation',
+  position: 'right',
+  width: 40
+});
+```
+
+</CodeGroup>
+
+## Collapsible Component
+
+The `Collapsible` component creates expandable sections for organizing content hierarchically.
+
+<CodeGroup>
+
+```typescript Basic Collapsible
+import { Collapsible } from 'nikcli-tui';
+
+const settingsSection = new Collapsible({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  right: 2,
+  title: '⚙️ Advanced Settings',
+  collapsed: true,
+  animationSpeed: 200
+});
+
+// Add content to collapsible
+new Text({
+  parent: settingsSection.contentArea.el,
+  top: 1,
+  left: 2,
+  content: 'Temperature: 0.7'
+});
+
+const temperatureSlider = new Slider({
+  parent: settingsSection.contentArea.el,
+  top: 2,
+  left: 2,
+  width: 40,
+  min: 0,
+  max: 2,
+  step: 0.1,
+  value: 0.7
+});
+
+new Text({
+  parent: settingsSection.contentArea.el,
+  top: 4,
+  left: 2,
+  content: 'Max Tokens: 2000'
+});
+
+const tokenInput = new TextInput({
+  parent: settingsSection.contentArea.el,
+  top: 5,
+  left: 2,
+  width: 20,
+  value: '2000'
+});
+```
+
+```typescript Nested Collapsible Sections
+class CollapsibleForm {
+  private container: Box;
+  private sections: Map<string, Collapsible> = new Map();
+  
+  constructor(parent: any) {
+    this.container = new Box({
+      parent,
+      border: { type: 'line' },
+      label: ' Configuration Form ',
+      scrollable: true
+    });
+    
+    this.createSections();
+  }
+  
+  private createSections() {
+    let yPos = 1;
+    
+    // AI Provider Section
+    const providerSection = new Collapsible({
+      parent: this.container.el,
+      top: yPos,
+      left: 1,
+      right: 1,
+      title: '🤖 AI Provider Settings',
+      collapsed: false,
+      onToggle: (collapsed) => {
+        this.handleSectionToggle('provider', collapsed);
+      }
+    });
+    
+    this.populateProviderSection(providerSection);
+    this.sections.set('provider', providerSection);
+    yPos += providerSection.getExpandedHeight() + 1;
+    
+    // Model Configuration Section
+    const modelSection = new Collapsible({
+      parent: this.container.el,
+      top: yPos,
+      left: 1,
+      right: 1,
+      title: '🧠 Model Configuration',
+      collapsed: true
+    });
+    
+    this.populateModelSection(modelSection);
+    this.sections.set('model', modelSection);
+    yPos += 3; // Collapsed height
+    
+    // Advanced Features Section
+    const advancedSection = new Collapsible({
+      parent: this.container.el,
+      top: yPos,
+      left: 1,
+      right: 1,
+      title: '🔬 Advanced Features',
+      collapsed: true
+    });
+    
+    this.populateAdvancedSection(advancedSection);
+    this.sections.set('advanced', advancedSection);
+  }
+  
+  private populateProviderSection(section: Collapsible) {
+    const providerSelect = new Select({
+      parent: section.contentArea.el,
+      top: 1,
+      left: 2,
+      width: 30,
+      label: 'Provider:',
+      items: [
+        { value: 'openai', label: 'OpenAI' },
+        { value: 'anthropic', label: 'Anthropic' },
+        { value: 'ollama', label: 'Ollama' }
+      ],
+      onSelect: (item) => {
+        this.handleProviderChange(item.value);
+      }
+    });
+    
+    const apiKeyInput = new TextInput({
+      parent: section.contentArea.el,
+      top: 3,
+      left: 2,
+      right: 2,
+      label: 'API Key:',
+      password: true,
+      placeholder: 'Enter your API key...'
+    });
+    
+    const testButton = new Button({
+      parent: section.contentArea.el,
+      top: 5,
+      left: 2,
+      content: 'Test Connection',
+      onPress: () => {
+        this.testConnection();
+      }
+    });
+  }
+  
+  private handleSectionToggle(sectionId: string, collapsed: boolean) {
+    // Adjust positions of subsequent sections
+    this.repositionSections();
+    
+    // Save state
+    this.saveCollapsedState(sectionId, collapsed);
+  }
+  
+  private repositionSections() {
+    let yPos = 1;
+    
+    this.sections.forEach(section => {
+      section.setTop(yPos);
+      yPos += section.isCollapsed() ? 3 : section.getExpandedHeight() + 1;
+    });
+  }
+  
+  expandAll() {
+    this.sections.forEach(section => {
+      section.expand();
+    });
+  }
+  
+  collapseAll() {
+    this.sections.forEach(section => {
+      section.collapse();
+    });
+  }
+}
+```
+
+</CodeGroup>
+
+## HelpOverlay Component
+
+The `HelpOverlay` component provides context-sensitive help and keyboard shortcut displays.
+
+<CodeGroup>
+
+```typescript Context Help System
+import { HelpOverlay } from 'nikcli-tui';
+
+class ContextualHelpSystem {
+  private helpOverlay: HelpOverlay;
+  private helpData: Map<string, HelpContent> = new Map();
+  private currentContext: string = 'default';
+  
+  constructor(private screen: any) {
+    this.helpOverlay = new HelpOverlay({
+      parent: screen,
+      hidden: true,
+      closable: true,
+      onClose: () => {
+        this.hideHelp();
+      }
+    });
+    
+    this.setupHelpData();
+    this.setupKeyHandlers();
+  }
+  
+  private setupHelpData() {
+    // Default help
+    this.helpData.set('default', {
+      title: 'TUI-Kit-AI Help',
+      sections: [
+        {
+          title: 'Navigation',
+          shortcuts: [
+            { key: 'Tab', description: 'Next element' },
+            { key: 'Shift+Tab', description: 'Previous element' },
+            { key: 'Enter', description: 'Activate/Select' },
+            { key: 'Esc', description: 'Cancel/Close' }
+          ]
+        },
+        {
+          title: 'General',
+          shortcuts: [
+            { key: 'F1', description: 'Show this help' },
+            { key: 'Ctrl+Q', description: 'Quit application' },
+            { key: 'Ctrl+R', description: 'Refresh' }
+          ]
+        }
+      ]
+    });
+    
+    // Chat context help
+    this.helpData.set('chat', {
+      title: 'AI Chat Help',
+      sections: [
+        {
+          title: 'Chat Commands',
+          shortcuts: [
+            { key: 'Enter', description: 'Send message' },
+            { key: 'Shift+Enter', description: 'New line' },
+            { key: 'Ctrl+L', description: 'Clear chat' },
+            { key: 'Ctrl+U', description: 'Clear input' }
+          ]
+        },
+        {
+          title: 'AI Features',
+          content: [
+            'Type /help for AI commands',
+            'Use @mention to reference previous messages',
+            'Press Ctrl+Space for autocomplete'
+          ]
+        }
+      ]
+    });
+    
+    // Settings context help
+    this.helpData.set('settings', {
+      title: 'Settings Help',
+      sections: [
+        {
+          title: 'Configuration',
+          content: [
+            'Changes are saved automatically',
+            'Use Tab to navigate between fields',
+            'Press F5 to reset to defaults'
+          ]
+        }
+      ]
+    });
+  }
+  
+  showHelp(context?: string) {
+    const contextKey = context || this.currentContext;
+    const helpContent = this.helpData.get(contextKey) || this.helpData.get('default')!;
+    
+    this.helpOverlay.setContent(helpContent);
+    this.helpOverlay.show();
+  }
+  
+  setContext(context: string) {
+    this.currentContext = context;
+  }
+  
+  private setupKeyHandlers() {
+    this.screen.key(['f1'], () => {
+      if (this.helpOverlay.isVisible()) {
+        this.hideHelp();
+      } else {
+        this.showHelp();
+      }
+    });
+  }
+  
+  private hideHelp() {
+    this.helpOverlay.hide();
+  }
+}
+
+// Usage
+const helpSystem = new ContextualHelpSystem(screen);
+
+// Set context when entering different areas
+chatComponent.on('focus', () => {
+  helpSystem.setContext('chat');
+});
+
+settingsPanel.on('focus', () => {
+  helpSystem.setContext('settings');
+});
+```
+
+</CodeGroup>
+
+## Stepper Component
+
+The `Stepper` component guides users through multi-step processes with visual progress indication.
+
+<CodeGroup>
+
+```typescript Setup Wizard with Stepper
+import { Stepper } from 'nikcli-tui';
+
+class SetupWizard {
+  private stepper: Stepper;
+  private currentStep = 0;
+  private stepData: any = {};
+  
+  constructor(parent: any) {
+    this.stepper = new Stepper({
+      parent,
+      steps: [
+        {
+          id: 'provider',
+          title: 'AI Provider',
+          description: 'Select your AI provider',
+          icon: '🤖'
+        },
+        {
+          id: 'config',
+          title: 'Configuration',
+          description: 'Configure provider settings',
+          icon: '⚙️'
+        },
+        {
+          id: 'test',
+          title: 'Test Connection',
+          description: 'Verify your setup',
+          icon: '🧪'
+        },
+        {
+          id: 'complete',
+          title: 'Complete',
+          description: 'Setup finished',
+          icon: '✅'
+        }
+      ],
+      currentStep: 0,
+      orientation: 'horizontal',
+      showProgress: true
+    });
+    
+    this.createStepContent();
+    this.setupNavigation();
+  }
+  
+  private createStepContent() {
+    // Step content container
+    const contentArea = new Box({
+      parent: this.stepper.parent,
+      top: this.stepper.height + 2,
+      left: 0,
+      right: 0,
+      bottom: 4,
+      border: { type: 'line' },
+      label: ' Setup '
+    });
+    
+    // Navigation buttons
+    const navArea = new Box({
+      parent: this.stepper.parent,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 3,
+      border: { type: 'line' }
+    });
+    
+    const backButton = new Button({
+      parent: navArea.el,
+      top: 0,
+      left: 2,
+      content: '← Back',
+      disabled: true,
+      onPress: () => {
+        this.previousStep();
+      }
+    });
+    
+    const nextButton = new Button({
+      parent: navArea.el,
+      top: 0,
+      right: 2,
+      content: 'Next →',
+      variant: 'primary',
+      onPress: () => {
+        this.nextStep();
+      }
+    });
+    
+    this.renderCurrentStep(contentArea);
+  }
+  
+  private renderCurrentStep(contentArea: Box) {
+    // Clear previous content
+    contentArea.children.forEach(child => child.destroy());
+    
+    const step = this.stepper.getCurrentStep();
+    
+    switch (step.id) {
+      case 'provider':
+        this.renderProviderStep(contentArea);
+        break;
+      case 'config':
+        this.renderConfigStep(contentArea);
+        break;
+      case 'test':
+        this.renderTestStep(contentArea);
+        break;
+      case 'complete':
+        this.renderCompleteStep(contentArea);
+        break;
+    }
+  }
+  
+  private renderProviderStep(container: Box) {
+    new Text({
+      parent: container.el,
+      top: 2,
+      left: 2,
+      content: 'Choose your AI provider:',
+      style: { bold: true }
+    });
+    
+    const providerSelect = new Select({
+      parent: container.el,
+      top: 4,
+      left: 2,
+      width: 40,
+      items: [
+        { value: 'openai', label: '🤖 OpenAI (GPT-4, GPT-3.5)' },
+        { value: 'anthropic', label: '🧠 Anthropic (Claude)' },
+        { value: 'ollama', label: '🏠 Local Ollama' }
+      ],
+      onSelect: (item) => {
+        this.stepData.provider = item.value;
+        this.validateCurrentStep();
+      }
+    });
+  }
+  
+  private async nextStep() {
+    if (await this.validateCurrentStep()) {
+      this.currentStep++;
+      this.stepper.setCurrentStep(this.currentStep);
+      this.renderCurrentStep(this.contentArea);
+      this.updateNavigation();
+    }
+  }
+  
+  private previousStep() {
+    if (this.currentStep > 0) {
+      this.currentStep--;
+      this.stepper.setCurrentStep(this.currentStep);
+      this.renderCurrentStep(this.contentArea);
+      this.updateNavigation();
+    }
+  }
+  
+  private async validateCurrentStep(): Promise<boolean> {
+    const step = this.stepper.getCurrentStep();
+    
+    switch (step.id) {
+      case 'provider':
+        return !!this.stepData.provider;
+      case 'config':
+        return this.validateConfig();
+      case 'test':
+        return await this.testConnection();
+      default:
+        return true;
+    }
+  }
+  
+  private updateNavigation() {
+    const isFirst = this.currentStep === 0;
+    const isLast = this.currentStep === this.stepper.getStepCount() - 1;
+    
+    this.backButton.setDisabled(isFirst);
+    this.nextButton.setContent(isLast ? 'Finish' : 'Next →');
+  }
+}
+```
+
+</CodeGroup>
+
+## Container Best Practices
+
+### 1. Modal Management
+
+```typescript
+class ModalStack {
+  private stack: Modal[] = [];
+  private zIndexCounter = 1000;
+  
+  push(modal: Modal) {
+    modal.setZIndex(this.zIndexCounter++);
+    this.stack.push(modal);
+    
+    // Disable interaction with previous modal
+    if (this.stack.length > 1) {
+      const previous = this.stack[this.stack.length - 2];
+      previous.setInteractive(false);
+    }
+  }
+  
+  pop(): Modal | null {
+    const modal = this.stack.pop();
+    
+    if (modal) {
+      modal.destroy();
+      
+      // Re-enable interaction with top modal
+      if (this.stack.length > 0) {
+        const top = this.stack[this.stack.length - 1];
+        top.setInteractive(true);
+        top.focus();
+      }
+    }
+    
+    return modal;
+  }
+}
+```
+
+### 2. Responsive Containers
+
+```typescript
+class ResponsiveContainer {
+  private breakpoints = {
+    small: 60,
+    medium: 100,
+    large: 140
+  };
+  
+  private currentSize: 'small' | 'medium' | 'large' = 'large';
+  
+  updateLayout(width: number, height: number) {
+    let newSize: typeof this.currentSize;
+    
+    if (width < this.breakpoints.small) {
+      newSize = 'small';
+    } else if (width < this.breakpoints.medium) {
+      newSize = 'medium';
+    } else {
+      newSize = 'large';
+    }
+    
+    if (newSize !== this.currentSize) {
+      this.currentSize = newSize;
+      this.applyResponsiveLayout();
+    }
+  }
+  
+  private applyResponsiveLayout() {
+    switch (this.currentSize) {
+      case 'small':
+        this.applyMobileLayout();
+        break;
+      case 'medium':
+        this.applyTabletLayout();
+        break;
+      case 'large':
+        this.applyDesktopLayout();
+        break;
+    }
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="AI Integration"
+    icon="brain"
+    href="/ai/overview"
+  >
+    Learn how to integrate AI services with your components
+  </Card>
+  <Card
+    title="Agent System"
+    icon="robot"
+    href="/agents/introduction"
+  >
+    Build intelligent agents using TUI-Kit-AI
+  </Card>
+  <Card
+    title="Complete Examples"
+    icon="code"
+    href="/examples/overview"
+  >
+    See container components in real applications
+  </Card>
+  <Card
+    title="Component Overview"
+    icon="palette"
+    href="/components/overview"
+  >
+    Review the complete component library
+  </Card>
+</CardGroup>

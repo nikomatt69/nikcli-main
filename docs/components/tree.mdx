@@ -1,0 +1,91 @@
+---
+title: 'Tree'
+description: 'Hierarchical tree view for nested data.'
+---
+
+## Overview
+
+Display nested nodes with expand/collapse.
+
+## Import
+
+```ts
+import { Tree } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Tree({ parent: screen, data: [{ label: 'Node 1', children: [{ label: 'Child' }] }] });
+```
+
+## Live Preview
+
+<Snippet file="previews/tree.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- data: Array of `{ label: string; children?: TreeNode[]; icon?: string; expanded?: boolean; selectable?: boolean; data?: any }`
+- onSelect?: (path: string[]) => void — Fires when a selectable node is chosen.
+- expandable?: boolean — Enable key toggling (default true).
+- defaultExpanded?: boolean — Expand all by default.
+- showIcons?: boolean — Display node icons.
+- indentSize?: number — Reserved; indentation width.
+- onExpand?: (node, expanded) => void — When a node expands.
+- onCollapse?: (node) => void — When a node collapses.
+
+## Methods
+
+- setData(data), addNode(parentPath, node), removeNode(path).
+- expand(path), collapse(path), expandAll(), collapseAll().
+- setNodeExpanded(path, bool), setNodeLabel(path, label), setNodeIcon(path, icon), setNodeSelectable(path, bool).
+- setNodeData(path, data), getNodeData(path), getNode(path).
+- isNodeExpanded(path), isNodeSelectable(path).
+- getExpandedNodesCount(), getTreeDepth(), getNodeCount().
+- findNodesByLabel(label), searchNodes(query).
+
+## Keyboard
+
+- Space/Enter: toggle expand/collapse on selected node when expandable.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Tree } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Tree({ parent: screen, top: 1, left: 2, width: 40, height: 12, data: [ { label: 'Node 1', children: [ { label: 'Child' } ] } ], defaultExpanded: true, showIcons: false });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Expand/Collapse API
+const tree = new Tree({ parent: screen, top: 1, left: 2, width: 40, height: 12, data: [ { label: 'src', children: [ { label: 'index.ts' } ] } ], expandable: true });
+tree.expand(['src']);
+```
+
+```ts Mutations
+tree.addNode(['src'], { label: 'app.ts' });
+tree.removeNode(['src','index.ts']);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Mantieni etichette brevi; usa `searchNodes` per trovare path profonde.

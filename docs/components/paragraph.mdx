@@ -1,0 +1,78 @@
+---
+title: 'Paragraph'
+description: 'Multi-line text block with wrapping.'
+---
+
+## Overview
+
+Render paragraphs with wrapping and borders.
+
+## Import
+
+```ts
+import { Paragraph } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Paragraph({ parent: screen, text: 'Paragraph content' });
+```
+
+## Live Preview
+
+<Snippet file="previews/paragraph.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- text?: string — Content.
+- wrap?: boolean — Simulated wrapping via formatting.
+- align?: 'left' | 'center' | 'right' — Simulated alignment.
+- lineSpacing?: number — Extra blank lines between lines.
+- BaseProps: layout.
+
+## Methods
+
+- setText(text), setAlignment(align), setLineSpacing(n), setWrap(bool).
+- appendText(text), prependText(text).
+- getText(), getTextLength(), getLineCount().
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Paragraph } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Paragraph({ parent: screen, top: 1, left: 2, text: 'Multiline text', align: 'left', lineSpacing: 1 });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Centered
+new Paragraph({ parent: screen, top: 1, left: 2, width: 40, text: 'Centered', align: 'center' });
+```
+
+```ts Right Aligned
+new Paragraph({ parent: screen, top: 3, left: 2, width: 40, text: 'Right', align: 'right' });
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Mantieni larghezza deterministica per un allineamento coerente.

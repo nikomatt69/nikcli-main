@@ -1,0 +1,182 @@
+---
+title: 'Checkbox'
+description: 'Boolean input with checked/unchecked states.'
+---
+
+## Overview
+
+Simple boolean toggle input.
+
+## Import
+
+```ts
+import { Checkbox } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Checkbox({ parent: screen, label: 'Accept terms' });
+```
+
+## Live Preview
+
+<Snippet file="previews/checkbox.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+### Checkbox-specific Props
+
+| Property | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `text` | `string` | No | - | Label content for the checkbox |
+| `checked` | `boolean` | No | `false` | Initial checked state |
+| `label` | `string` | No | - | Label text (from component-schemas and BasePropsSchema) |
+| `indeterminate` | `boolean` | No | - | Indeterminate state (from component-schemas) |
+| `onChange` | `(checked: boolean) => void` | No | - | Callback fired when checkbox state changes |
+
+### Inherited Base Props
+
+The Checkbox component extends `BasePropsSchema` and includes all standard TUI component properties:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `parent` | `blessed.Widgets.Node` | - | Parent blessed element |
+| `className` | `string` | - | CSS-like class name for styling |
+| `id` | `string` | - | Unique identifier |
+| `variant` | `ComponentVariant` | `"default"` | Component variant (primary, secondary, etc.) |
+| `size` | `ComponentSize` | - | Component size (xs, sm, md, lg, xl) |
+| `disabled` | `boolean` | `false` | Whether component is disabled |
+| `hidden` | `boolean` | `false` | Whether component is hidden |
+| `focusable` | `boolean` | `true` | Whether component can receive focus |
+| `keys` | `boolean` | `true` | Enable keyboard input |
+| `mouse` | `boolean` | `true` | Enable mouse input |
+
+### Layout & Positioning Props
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `top` | `TerminalUnit` | Top position |
+| `left` | `TerminalUnit` | Left position |
+| `right` | `TerminalUnit` | Right position |
+| `bottom` | `TerminalUnit` | Bottom position |
+| `width` | `TerminalUnit` | Component width |
+| `height` | `TerminalUnit` | Component height |
+| `padding` | `PaddingConfig` | Internal spacing |
+| `margin` | `PaddingConfig` | External spacing |
+
+### Style Props
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `bg` | `ColorValue` | Background color |
+| `fg` | `ColorValue` | Foreground color |
+| `border` | `BorderStyle` | Border configuration |
+| `borderColor` | `ColorValue` | Border color |
+| `borderStyle` | `"line" \| "double" \| "round" \| "bold" \| "classic" \| "none"` | Border style helper (defaults to "none") |
+| `style` | `TextStyle` | Text styling (bold, underline, etc.) |
+| `animation` | `AnimationType` | Animation type |
+
+## Zod Schema Validation
+
+The Checkbox component uses Zod for runtime type validation:
+
+```typescript
+import { CheckboxSchema } from 'nikcli-tui';
+
+const CheckboxSchema = BasePropsSchema.extend({
+  // Checkbox content
+  text: z.string().optional(),
+  
+  // Checkbox state
+  checked: z.boolean().optional(),
+  
+  // Event handlers
+  onChange: z.function().args(z.boolean()).returns(z.void()).optional(),
+}).strict();
+```
+
+## Methods
+
+### Instance Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `setText` | `text: string` | `void` | Updates the checkbox label text |
+| `setChecked` | `checked: boolean` | `void` | Sets the checked state |
+| `toggle` | - | `void` | Toggles the checkbox state |
+| `isChecked` | - | `boolean` | Returns current checked state |
+| `destroy` | - | `void` | Cleanup method from base component |
+
+### Inherited Methods (from BaseComponent)
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `setVariant` | `variant: ComponentVariant` | `void` | Updates component variant |
+| `setSize` | `size: ComponentSize` | `void` | Updates component size |
+| `setState` | `state: ComponentState` | `void` | Updates component state |
+| `getConfig` | - | `ComponentConfig` | Returns current configuration |
+| `update` | `props: Partial<CheckboxProps>` | `void` | Updates component properties |
+
+### Static Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `Checkbox.create` | `props: CheckboxProps` | `Checkbox` | Factory method to create new checkbox instance |
+
+## Events
+
+The Checkbox component supports the following events:
+
+- **check**: Fired when checkbox is checked (triggers onChange with `true`)
+- **uncheck**: Fired when checkbox is unchecked (triggers onChange with `false`)
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Checkbox } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Checkbox({ parent: screen, label: 'I agree', checked: false, onChange: v => console.log('checked:', v) });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+let accepted = false;
+const cb = new Checkbox({ parent: screen, top: 1, left: 2, label: 'Accept terms', checked: accepted, onChange: (v) => { accepted = v; } });
+```
+
+```typescript
+const t = new Checkbox({ parent: screen, top: 3, left: 2, label: 'Enable feature' });
+t.toggle(); // flips state
+```
+
+</CodeGroup>
+
+## Testing
+
+```ts
+const c = new Checkbox({ parent: screen, label: 'X' });
+c.setChecked(true);
+expect(c.isChecked()).toBe(true);
+```
+
+## Best Practices
+
+- Aggiungi scorciatoie da tastiera a livello di app per togglare rapidamente impostazioni comuni.

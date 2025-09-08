@@ -1,0 +1,72 @@
+---
+title: 'Heading'
+description: 'Styled heading text for section titles.'
+---
+
+## Overview
+
+Semantic headings with consistent styling.
+
+## Import
+
+```ts
+import { Heading } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Heading({ parent: screen, text: 'Section' });
+```
+
+## Live Preview
+
+<Snippet file="previews/heading.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- text: string — Heading text.
+- level?: 1 | 2 | 3 — Visual weight prefixing.
+- BaseProps: layout/theming.
+
+## Methods
+
+- setText(text, level?), setLevel(level).
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Heading } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Heading({ parent: screen, top: 1, left: 2, text: 'Section', level: 1 });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Levels
+new Heading({ parent: screen, top: 1, left: 2, text: 'H1', level: 1 });
+new Heading({ parent: screen, top: 2, left: 2, text: 'H2', level: 2 });
+new Heading({ parent: screen, top: 3, left: 2, text: 'H3', level: 3 });
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Usa Heading per titoli interni; usa `label` del container per etichette di sezione.

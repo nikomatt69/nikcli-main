@@ -1,0 +1,97 @@
+---
+title: 'Flex'
+description: 'Flexbox-like layout container for terminal UIs.'
+---
+
+## Overview
+
+Manage layout with direction, justify, align and gap.
+
+## Import
+
+```ts
+import { Flex } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Flex({ parent: screen, direction: 'row', gap: 2 });
+```
+
+## Live Preview
+
+<Snippet file="previews/flex.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- direction?: 'row' | 'column' — Layout direction (default row).
+- gap?: number — Spacing between children (cols/rows).
+- justify?: 'start' | 'center' | 'end' | 'space-between' | 'space-around'.
+- align?: 'start' | 'center' | 'end' | 'stretch'.
+- BaseProps: container layout/theming props.
+
+## Methods
+
+- setDirection(dir), setGap(n), setJustify(v), setAlign(v).
+- addChild(el), removeChild(el), reflow().
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Flex, Box } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+const row = new Flex({ parent: screen, top: 1, left: 2, width: 60, height: 6, direction: 'row', gap: 2, borderStyle: 'line' });
+new Box({ parent: row.el, width: 10, height: 3, label: 'A', borderStyle: 'line' });
+new Box({ parent: row.el, width: 14, height: 3, label: 'B', borderStyle: 'line' });
+row.reflow();
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+const col = new Flex({ parent: screen, top: 8, left: 2, width: 60, height: 10, direction: 'column', gap: 1, borderStyle: 'line' });
+new Box({ parent: col.el, height: 3, label: 'Header', borderStyle: 'line' });
+new Box({ parent: col.el, height: 5, label: 'Body', borderStyle: 'line' });
+new Box({ parent: col.el, height: 2, label: 'Footer', borderStyle: 'line' });
+col.reflow();
+```
+
+```typescript
+const bar = new Flex({ parent: screen, top: 20, left: 2, width: 60, height: 4, direction: 'row', gap: 2 });
+bar.setJustify('space-between');
+new Box({ parent: bar.el, width: 10, height: 3, label: '1', borderStyle: 'line' });
+new Box({ parent: bar.el, width: 10, height: 3, label: '2', borderStyle: 'line' });
+new Box({ parent: bar.el, width: 10, height: 3, label: '3', borderStyle: 'line' });
+bar.reflow();
+```
+
+</CodeGroup>
+
+## Testing
+
+```ts
+const f = new Flex({ parent: screen, direction: 'row', gap: 2 });
+f.setGap(4);
+f.reflow();
+```
+
+## Best Practices
+
+- Reflow dopo aver aggiunto/rimosso figli per riallineare il layout.

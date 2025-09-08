@@ -1,0 +1,84 @@
+---
+title: 'Gauge'
+description: 'Gauge meter to visualize percentage completion.'
+---
+
+## Overview
+
+Compact progress visualization for metrics.
+
+## Import
+
+```ts
+import { Gauge } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Gauge({ parent: screen, blessedProps: { filled: 30 } as any });
+```
+
+## Live Preview
+
+<Snippet file="previews/gauge.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- value?: number — 0..100; initial value.
+- suffix?: string — Appended text after percentage.
+- showPercentage?: boolean — Defaults true.
+- showBar?: boolean — Defaults true; when false, prints only percentage/text.
+- BaseProps: layout/theming.
+
+## Methods
+
+- setValue(n), setSuffix(text), setShowPercentage(bool), setShowBar(bool), getValue().
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Gauge } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Gauge({ parent: screen, top: 1, left: 2, width: 30, value: 45, showPercentage: true });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+const cpu = new Gauge({ parent: screen, top: 1, left: 2, width: 30, value: 73 });
+cpu.setSuffix('CPU');
+```
+
+```typescript
+new Gauge({ parent: screen, top: 3, left: 2, width: 30, value: 88, showBar: false });
+```
+
+</CodeGroup>
+
+## Testing
+
+```ts
+const g = new Gauge({ parent: screen });
+g.setValue(110); // clamped to 100
+```
+
+## Best Practices
+
+- Mantieni larghezze fisse per evitare jitter quando cambia la percentuale.

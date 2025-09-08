@@ -1,0 +1,77 @@
+---
+title: 'Scrollable'
+description: 'Scrollable container for large text content.'
+---
+
+## Overview
+
+Scroll long content areas.
+
+## Import
+
+```ts
+import { Scrollable } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Scrollable({ parent: screen, blessedProps: { content: '...' } as any });
+```
+
+## Live Preview
+
+<Snippet file="previews/scrollable.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- content?: string — Initial content.
+- scrollable?: boolean — Enable scrolling (default true).
+- alwaysScroll?: boolean — Keep scroll enabled even when short.
+- scrollableOptions?: `{ scrollbar?: { ch?, style? }, track?: { bg?, ch?, style? } }` — Reserved; styling hooks.
+
+## Methods
+
+- setContent(text), appendContent(text), prependContent(text), clearContent().
+- scrollToTop(), scrollToBottom(), scrollTo(percentage), scrollUp(lines), scrollDown(lines).
+- getScrollPosition(), getScrollHeight(), getVisibleHeight().
+- isScrollable(), setScrollable(bool), setAlwaysScroll(bool).
+- getContent(), getContentLength(), getLineCount(), isAtTop(), isAtBottom(), scrollToLine(lineNumber).
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Scrollable } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Scrollable({ parent: screen, top: 1, left: 2, width: 60, height: 10, content: 'Long text...\n...more' });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+const sc = new Scrollable({ parent: screen, top: 1, left: 2, width: 60, height: 10 });
+sc.appendContent('Line 1\n');
+sc.scrollToBottom();
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Aggiorna il contenuto in batch e fai render una sola volta per performance.

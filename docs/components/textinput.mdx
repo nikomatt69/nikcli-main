@@ -1,0 +1,90 @@
+---
+title: 'TextInput'
+description: 'Single-line text input with events.'
+---
+
+## Overview
+
+Capture single-line text with submit and change events.
+
+## Import
+
+```ts
+import { TextInput } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new TextInput({ parent: screen, label: 'Name' });
+```
+
+## Live Preview
+
+<Snippet file="previews/textinput.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- value?: string — Current input value.
+- placeholder?: string — Placeholder shown when empty.
+- onSubmit?: (value: string) => void — Fires on Enter.
+- onChange?: (value: string) => void — Fires on keypress; provides current value.
+- password?: boolean — Masks input (maps to blessed secret).
+- secret?: boolean — Back-compat alias for password.
+- BaseProps: position, variant, size, focus, disabled, borderStyle, label, keys, mouse, padding.
+
+## Methods
+
+- getValue(): string — Returns current value.
+- setValue(value): void — Updates value and re-renders.
+- focus(): void — Focuses the input.
+- update(newProps): void — Applies partial BaseProps.
+
+## Keyboard
+
+- Enter: triggers onSubmit.
+- Esc: restores focus to input (keeps focus in control).
+
+## Notes
+
+- When placeholder is supplied without value, component simulates placeholder styling and clears on focus.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { TextInput } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new TextInput({ parent: screen, top: 1, left: 2, width: 30, label: 'Name', onSubmit: v => console.log(v) });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Password
+new TextInput({ parent: screen, top: 3, left: 2, width: 30, label: 'Password', password: true });
+```
+
+```ts Validation
+const ti = new TextInput({ parent: screen, top: 5, left: 2, width: 30, onChange: v => { if (v.length > 10) console.log('too long'); } });
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Gestisci l’onChange con debounce per validazioni costose.

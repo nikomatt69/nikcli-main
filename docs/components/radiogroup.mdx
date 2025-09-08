@@ -1,0 +1,83 @@
+---
+title: 'RadioGroup'
+description: 'Mutually exclusive selection from a list.'
+---
+
+## Overview
+
+Choose a single option among many.
+
+## Import
+
+```ts
+import { RadioGroup } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new RadioGroup({ parent: screen, options: ['A','B','C'] });
+```
+
+## Live Preview
+
+<Snippet file="previews/radiogroup.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- options: Array of `string` — Radio options.
+- value?: number — Selected index.
+- onChange?: (index: number, value: string) => void — Fires on selection.
+- orientation?: 'vertical' | 'horizontal' — Layout direction.
+- spacing?: number — Gap between buttons.
+
+## Methods
+
+- setOptions(options), addOption(option), removeOption(index).
+- setValue(index), getValue(), getSelectedIndex(), getSelectedText().
+- setOrientation(dir), setSpacing(n), setOptionDisabled(index, bool).
+- clearSelection(), isOptionSelected(index), getOptionCount().
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { RadioGroup } from "nikcli-tui";
+```
+
+## Quick Start
+
+```ts
+new RadioGroup({ parent: screen, top: 1, left: 2, options: ['One','Two','Three'], onChange: (i, v) => console.log(i, v) ,
+});
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+new RadioGroup({ parent: screen, top: 1, left: 30, options: ['A','B','C'], orientation: 'horizontal', spacing: 4 ,
+});
+```
+
+```typescript
+const rg = new RadioGroup({ parent: screen, top: 3, left: 2, options: ['L','M','N'] ,
+});
+rg.setValue(2);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Usa RadioGroup per scelte mutualmente esclusive; per multi-selezione preferisci MultiSelect.

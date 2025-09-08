@@ -49,7 +49,7 @@ process.on('warning', (warning: any) => {
 });
 
 // Import TUI Bridge instead of boxen for enhanced terminal UI
-import { boxen } from './ui/tui-bridge';
+import boxen from 'boxen';
 import * as readline from 'readline';
 import { EventEmitter } from 'events';
 import { spawn } from 'child_process';

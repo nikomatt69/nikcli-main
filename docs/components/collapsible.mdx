@@ -1,0 +1,89 @@
+---
+title: 'Collapsible'
+description: 'Expandable/collapsible content section.'
+---
+
+## Overview
+
+Toggle visibility of content panels.
+
+## Import
+
+```ts
+import { Collapsible } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Collapsible({ parent: screen, title: 'Details', content: 'Hidden content' });
+```
+
+## Live Preview
+
+<Snippet file="previews/collapsible.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- title: string — Header label.
+- content?: string — Body content.
+- defaultOpen?: boolean — Initial expanded state (default true).
+- BaseProps: borderStyle defaults to line, label set from title.
+
+## Methods
+
+- toggle(), setContent(text), setTitle(text), setOpen(bool), isOpen().
+
+## Keyboard
+
+- Space/Enter: toggle open/closed when focused.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Collapsible } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Collapsible({ parent: screen, title: 'Details', content: 'Hidden content', defaultOpen: false });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+const cs = new Collapsible({ parent: screen, top: 1, left: 2, width: 50, title: 'Server', defaultOpen: true, content: 'uptime: 123d' });
+const nested = new Collapsible({ parent: cs.el, top: 2, left: 2, width: 44, title: 'Logs', defaultOpen: false, content: '...' });
+```
+
+```typescript
+const section = new Collapsible({ parent: screen, top: 8, left: 2, width: 50, title: 'Advanced', defaultOpen: false });
+section.setOpen(true);
+```
+
+</CodeGroup>
+
+## Testing
+
+```ts
+const c = new Collapsible({ parent: screen, title: 'X', defaultOpen: true });
+expect(c.isOpen()).toBe(true);
+c.toggle();
+```
+
+## Best Practices
+
+- Mantieni i titoli brevi e informativi; usa Paragraph all'interno per testo lungo.

@@ -1,0 +1,138 @@
+---
+title: "Card"
+description: "Card container with title, subtitle and content."
+---
+
+## Overview
+
+Structured content container for summaries, info and groups.
+
+## Import
+
+```ts
+import { Card } from "nikcli-tui";
+```
+
+## Usage
+
+```ts
+new Card({
+  parent: screen,
+  title: "Card",
+  subtitle: "Subtitle",
+  content: "Card content",
+});
+```
+
+## Live Preview
+
+<Snippet file="previews/card.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- title?: string — Card header title.
+- subtitle?: string — Secondary header text.
+- content?: string — Body content.
+- footer?: string — Footer text.
+- header?: boolean — Whether to render header region.
+- showFooter?: boolean — Whether to render footer region.
+- clickable?: boolean — Enables click events.
+- onClick?/onHover?/onFocus?: handlers.
+- selectable?: boolean — Toggles selected on click and calls onSelect.
+- selected?: boolean — Initial selection state.
+- onSelect?: (selected: boolean) => void — Selection callback.
+- headerStyle?/contentStyle?/footerStyle?: `Record<string, any>` — Region styles.
+- BaseProps: layout/theming props.
+
+## Methods
+
+- setCardVariant(variant), setCardStyle(style), setCardSize(size), setCardState(state).
+- setSelected(bool), setContent(text), setTitle(text), setSubtitle(text), setFooter(text).
+- getCardConfig(): returns variant/size/state/selected/clickable/selectable.
+- Static: createGrid(cards, `{ columns, spacing, alignment }`), createCarousel(cards, `{ spacing, autoScroll, scrollInterval }`).
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Card } from "nikcli-tui";
+```
+
+## Quick Start
+
+```ts
+new Card({ parent: screen, title: "Card", header: true, content: "Hello" });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+new Card({
+  parent: screen,
+  top: 1,
+  left: 2,
+  width: 40,
+  header: true,
+  title: "Users",
+  subtitle: "Active accounts",
+  content: "- alex taylor sky",
+  showFooter: true,
+  footer: "Updated just now",
+});
+```
+
+```typescript
+const item = new Card({
+  parent: screen,
+  top: 1,
+  left: 44,
+  width: 36,
+  header: true,
+  title: "Item",
+  clickable: true,
+  selectable: true,
+  onSelect: (s) => console.log("selected:", s),
+});
+item.setSelected(true);
+```
+
+```typescript
+import { darkTheme } from "nikcli-tui";
+const info = new Card({
+  parent: screen,
+  top: 14,
+  left: 2,
+  width: 40,
+  content: "Info",
+  theme: darkTheme,
+});
+info.setCardVariant("secondary");
+info.setCardStyle("outlined");
+```
+
+</CodeGroup>
+
+## Testing
+
+```ts
+const c = new Card({ parent: screen, content: "X" });
+c.setCardSize("sm");
+expect(c.getCardConfig().size).toBe("sm");
+c.setSelected(true);
+```
+
+## Best Practices
+
+- Usa `header`/`footer` solo quando servono per evitare rumore visivo.
+- Preferisci `outlined` o `ghost` per ridurre il contrasto in elenchi estesi.

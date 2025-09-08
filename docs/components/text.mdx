@@ -1,0 +1,131 @@
+---
+title: 'Text'
+description: 'Basic text display with markup and alignment.'
+---
+
+## Overview
+
+Render static or formatted text.
+
+## Import
+
+```ts
+import { Text } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Text({ parent: screen, content: 'Hello', align: 'center' });
+```
+
+## Live Preview
+
+<Snippet file="previews/text.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+### Text-specific Props
+
+| Property | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `content` | `string` | Yes | - | Text content to display (min 1 character) |
+| `align` | `"left" \| "center" \| "right"` | No | `"left"` | Text alignment |
+| `wrap` | `boolean` | No | `false` | Enable text wrapping |
+| `shrink` | `boolean` | No | - | Shrink text to fit (from component-schemas) |
+| `bold` | `boolean` | No | `false` | Apply bold styling |
+| `italic` | `boolean` | No | `false` | Apply italic styling |
+| `underline` | `boolean` | No | `false` | Apply underline styling |
+| `blink` | `boolean` | No | - | Apply blink styling (from component-schemas) |
+
+### Inherited Base Props
+
+The Text component extends `BasePropsSchema` and includes all standard TUI component properties:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `parent` | `blessed.Widgets.Node` | - | Parent blessed element |
+| `variant` | `ComponentVariant` | `"default"` | Component variant |
+| `size` | `ComponentSize` | - | Component size |
+| `bg` | `ColorValue` | - | Background color |
+| `fg` | `ColorValue` | - | Foreground color |
+| `borderStyle` | `"line" \| "double" \| "round" \| "bold" \| "classic" \| "none"` | `"none"` | Border style (defaults to none) |
+
+## Zod Schema Validation
+
+The Text component uses Zod for runtime type validation:
+
+```typescript
+import { TextSchema } from 'nikcli-tui';
+
+const TextSchema = BasePropsSchema.extend({
+  // Text content
+  content: z.string().min(1, "Text content cannot be empty"),
+  
+  // Text display options
+  align: z.enum(["left", "center", "right"]).optional(),
+  wrap: z.boolean().optional(),
+  
+  // Text styling
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
+}).strict();
+```
+
+## Methods
+
+### Instance Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `setText` | `text: string` | `void` | Updates the text content with ANSI sanitization |
+| `destroy` | - | `void` | Cleanup method from base component |
+
+### Static Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `Text.create` | `props: TextProps` | `Text` | Factory method to create new text instance |
+
+## Text Safety Features
+
+- **ANSI Sanitization**: Automatically strips unwanted ANSI sequences for safe rendering
+- **Unicode Support**: Handles Unicode characters properly
+- **Content Validation**: Ensures content is not empty via Zod schema
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Text } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Text({ parent: screen, top: 1, left: 2, content: 'Welcome' });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+new Text({ parent: screen, top: 2, left: 2, width: 30, content: 'Hello', align: 'center' });
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Usa Paragraph per testo lungo; Text per brevi etichette/valori.

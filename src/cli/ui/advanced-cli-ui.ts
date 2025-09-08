@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import boxen from '../ui/tui-bridge';
+import boxen from 'boxen';
 import ora, { Ora } from 'ora';
 import cliProgress from 'cli-progress';
 import * as readline from 'readline';
@@ -92,7 +92,7 @@ export class AdvancedCliUI {
     if (!this.vscodeStreamEnabled) return;
     try {
       const payload = typeof event === 'string' ? event : JSON.stringify(event);
-      console.log(`NIKCLI_EVENT:${payload}`);
+      process.stdout.write(`NIKCLI_EVENT:${payload}\n`);
     } catch { /* ignore */ }
   }
 
@@ -1122,7 +1122,7 @@ export class AdvancedCliUI {
   }
 
   private renderSinglePanel(panel: StructuredPanel): void {
-    const terminalWidth = process.stdout || 80;
+    const terminalWidth = process.stdout.columns || 80;
 
     console.log(boxen(
       this.formatPanelContent(panel),
@@ -1132,13 +1132,14 @@ export class AdvancedCliUI {
         padding: 1,
         borderStyle: 'round',
         borderColor: panel.borderColor || 'white',
-        width: Math.min((process.stdout.columns || 80) - 4, 120)
+        width: Math.min(terminalWidth - 4, 120)
       }
     ));
   }
 
   private renderDualLayout(panels: StructuredPanel[]): void {
-    const panelWidth = Math.floor((80 - 6) / 2);
+    const terminalWidth = process.stdout.columns || 80;
+    const panelWidth = Math.floor((terminalWidth - 6) / 2);
 
     panels.slice(0, 2).forEach(panel => {
       console.log(boxen(
@@ -1157,7 +1158,7 @@ export class AdvancedCliUI {
   }
 
   private renderTripleLayout(panels: StructuredPanel[]): void {
-    const terminalWidth = 80;
+    const terminalWidth = process.stdout.columns || 80;
     const panelWidth = Math.floor((terminalWidth - 8) / 3);
 
     panels.slice(0, 3).forEach(panel => {

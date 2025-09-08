@@ -1,0 +1,77 @@
+---
+title: 'Divider'
+description: 'Horizontal rule to separate content.'
+---
+
+## Overview
+
+Visual separator for grouping.
+
+## Import
+
+```ts
+import { Divider } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Divider({ parent: screen });
+```
+
+## Live Preview
+
+<Snippet file="previews/divider.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- orientation?: 'horizontal' | 'vertical' — Default horizontal.
+- text?: string — Optional centered text.
+- color?: string — Foreground style.
+- style?: 'solid' | 'dashed' | 'dotted' — Visual style (simple simulation).
+- char?: string — Back-compat; custom line character.
+- BaseProps: width/height to control span.
+
+## Notes
+
+- For vertical dividers set `height` and `orientation='vertical'`.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Divider } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Divider({ parent: screen, top: 2, left: 2, width: 40 });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts With Text
+new Divider({ parent: screen, top: 2, left: 2, width: 40, text: 'Section' });
+```
+
+```ts Vertical
+new Divider({ parent: screen, top: 1, left: 30, height: 8, orientation: 'vertical' });
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Preferisci Divider orizzontali come separatori discreti; evita l'overuse.

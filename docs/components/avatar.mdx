@@ -1,0 +1,179 @@
+---
+title: 'Avatar'
+description: 'Avatar component for displaying user initials or images in terminal UIs.'
+---
+
+## Overview
+
+The Avatar component renders a compact identity element (initials or glyph) useful for user lists and headers.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Avatar } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Avatar({ parent: screen, initials: 'NE' });
+```
+
+## Live Preview
+
+<Snippet file="previews/avatar.mdx" />
+
+## Run Locally
+
+- Quick preview: `npm run tsx:core-gallery`
+- Built preview: `npm run start:core-gallery`
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+import blessed from 'blessed';
+import { Avatar } from 'nikcli-tui';
+
+const screen = blessed.screen({ smartCSR: true, title: 'Avatar Demo' });
+const avatar = new Avatar({ parent: screen, top: 1, left: 2, initials: 'NE' });
+screen.key(['q','C-c'], () => process.exit(0));
+screen.render();
+```
+
+```typescript
+new Avatar({ parent: screen, top: 1, left: 2, initials: 'NE', size: 'sm' });
+new Avatar({ parent: screen, top: 1, left: 10, initials: 'NE', size: 'md' });
+new Avatar({ parent: screen, top: 1, left: 20, initials: 'NE', size: 'lg' });
+```
+
+```typescript
+import { darkTheme } from 'nikcli-tui';
+new Avatar({ parent: screen, top: 1, left: 2, initials: 'AI', theme: darkTheme, variant: 'primary' });
+```
+
+</CodeGroup>
+
+## Props
+
+### Avatar-specific Props
+
+| Property | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `src` | `string` | No | - | Image source URL (optional) |
+| `initials` | `string` | No | - | User initials to display (1-3 characters) |
+| `shape` | `"circle" \| "square"` | No | - | Avatar shape style |
+| `size` | `"sm" \| "md" \| "lg"` | No | `"md"` | Avatar size (from component-schemas.ts) |
+
+### Inherited Base Props
+
+The Avatar component extends `BasePropsSchema` and includes all standard TUI component properties:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `parent` | `blessed.Widgets.Node` | - | Parent blessed element |
+| `className` | `string` | - | CSS-like class name for styling |
+| `id` | `string` | - | Unique identifier |
+| `variant` | `ComponentVariant` | `"default"` | Component variant (primary, secondary, etc.) |
+| `disabled` | `boolean` | `false` | Whether component is disabled |
+| `hidden` | `boolean` | `false` | Whether component is hidden |
+| `focusable` | `boolean` | `true` | Whether component can receive focus |
+| `scrollable` | `boolean` | `false` | Whether component is scrollable |
+
+### Layout & Positioning Props
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `top` | `TerminalUnit` | Top position |
+| `left` | `TerminalUnit` | Left position |
+| `right` | `TerminalUnit` | Right position |
+| `bottom` | `TerminalUnit` | Bottom position |
+| `width` | `TerminalUnit` | Component width |
+| `height` | `TerminalUnit` | Component height |
+| `padding` | `PaddingConfig` | Internal spacing |
+| `margin` | `PaddingConfig` | External spacing |
+
+### Style Props
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `bg` | `ColorValue` | Background color |
+| `fg` | `ColorValue` | Foreground color |
+| `border` | `BorderStyle` | Border configuration |
+| `borderColor` | `ColorValue` | Border color |
+| `borderStyle` | `"line" \| "double" \| "round" \| "bold" \| "classic" \| "none"` | Border style helper |
+| `style` | `TextStyle` | Text styling (bold, underline, etc.) |
+| `animation` | `AnimationType` | Animation type |
+
+## Zod Schema Validation
+
+The Avatar component uses Zod for runtime type validation:
+
+```typescript
+import { AvatarSchema } from 'nikcli-tui';
+
+const AvatarSchema = BasePropsSchema.extend({
+  // Avatar content
+  src: z.string().optional(), // Image source
+  initials: z.string().min(1).max(3).optional(), // User initials
+  
+  // Avatar styling
+  shape: z.enum(["circle", "square"]).optional(),
+}).strict();
+```
+
+## Methods
+
+### Instance Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `setInitials` | `initials: string` | `void` | Updates the avatar initials content |
+| `setAvatarSize` | `size: "sm" \| "md" \| "lg"` | `void` | Changes avatar size and re-renders |
+| `destroy` | - | `void` | Cleanup method from base component |
+
+### Inherited Methods (from BaseComponent)
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `setVariant` | `variant: ComponentVariant` | `void` | Updates component variant |
+| `setSize` | `size: ComponentSize` | `void` | Updates component size |
+| `setState` | `state: ComponentState` | `void` | Updates component state |
+| `getConfig` | - | `ComponentConfig` | Returns current configuration |
+| `update` | `props: Partial<AvatarProps>` | `void` | Updates component properties |
+
+### Static Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `Avatar.create` | `props: AvatarProps` | `Avatar` | Factory method to create new avatar instance |
+
+## Keyboard & Accessibility
+
+- Focusable when parent container manages focus; navigation via Tab/Shift+Tab.
+- No interactive behavior by default (read-only visual element).
+
+## Theming
+
+- Honors global theme and BaseProps variant/tone for consistent brand styling.
+
+## Testing
+
+```ts
+// Mount and assert dimensions
+const a = new Avatar({ parent: screen, initials: 'QA', size: 'sm' });
+expect(a.el.width).toBe(3);
+expect(a.el.height).toBe(2);
+```
+
+## Best Practices
+
+- Keep initials to 2–3 chars per terminal width constraints.
+- Use size mapping (sm/md/lg) for consistent layout across views.
