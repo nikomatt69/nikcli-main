@@ -1,0 +1,9 @@
+%% Message truncation preserving system messages
+flowchart TD
+  A[All messages] --> B{Split by role}
+  B -->|system| S[System messages]
+  B -->|others| O[Non-system messages]
+  O --> T[Take from tail until within budget]
+  S --> M[Merge S + truncated O]
+  T --> M
+  M --> R[Send to provider]

@@ -1,3 +1,15 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.env.*
+coverage/
+.turbo/
+.vscode/
+.idea/
+.yarn/
+.pnp.*
 # Dependencies
 node_modules/
 npm-debug.log*
@@ -344,6 +356,9 @@ temp-scripts/
 # Project specific exclusions
 docs/supabase-schema.sql
 .vercel
+<<<<<<< Current (Your changes)
 
 # Do not ignore this specific file (was accidentally added to .gitignore)
 !src/cli/acp/nikcli-agent.ts
+=======
+>>>>>>> Incoming (Background Agent changes)

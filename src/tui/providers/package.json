@@ -1,0 +1,22 @@
+{
+  "name": "tui-providers",
+  "version": "0.1.7",
+  "description": "AI provider implementations",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "validate:tsc": "tsc --noEmit -p tsconfig.json",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "rimraf": "^6.0.1"
+  }
+}

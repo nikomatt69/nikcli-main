@@ -48,7 +48,8 @@ process.on('warning', (warning: any) => {
   }
 });
 
-import boxen from 'boxen';
+// Import TUI Bridge instead of boxen for enhanced terminal UI
+import { boxen } from './ui/tui-bridge';
 import * as readline from 'readline';
 import { EventEmitter } from 'events';
 import { spawn } from 'child_process';
@@ -205,6 +206,7 @@ class IntroductionModule {
   }
 
   static displayApiKeySetup() {
+    // Enhanced TUI version with better theming and structure
     const setupBox = boxen(
       chalk.yellow.bold('⚠️  API Key Required\n\n') +
       chalk.white('To use NikCLI, please set at least one API key:\n\n') +
@@ -229,6 +231,7 @@ class IntroductionModule {
         borderStyle: 'round',
         borderColor: 'yellow',
         backgroundColor: '#2a1a00',
+        title: 'API Configuration'
       },
     );
 
@@ -236,6 +239,7 @@ class IntroductionModule {
   }
 
   static displayStartupInfo() {
+    // Enhanced TUI version with status indicators
     const startupBox = boxen(
       chalk.green.bold('🚀 Starting NikCLI...\n\n') +
       chalk.white('Initializing autonomous AI assistant\n') +
@@ -251,6 +255,7 @@ class IntroductionModule {
         borderStyle: 'round',
         borderColor: 'green',
         backgroundColor: '#001a00',
+        title: 'System Status'
       },
     );
 
@@ -287,6 +292,7 @@ class OnboardingModule {
   }
 
   private static async showBetaWarning(): Promise<void> {
+    // Enhanced TUI version with warning styling
     const warningBox = boxen(
       chalk.red.bold('⚠️  BETA VERSION WARNING\n\n') +
       chalk.white(
@@ -308,6 +314,7 @@ class OnboardingModule {
         borderStyle: 'round',
         borderColor: 'red',
         backgroundColor: '#2a0000',
+        title: 'Security Notice'
       },
     );
 

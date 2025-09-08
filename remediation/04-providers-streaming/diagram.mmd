@@ -1,0 +1,16 @@
+%% Provider streaming with abort and timeout
+sequenceDiagram
+  participant Caller
+  participant Provider
+  participant Fetch as fetch/SSE
+  Caller->>Provider: stream({ signal, timeoutMs })
+  Provider->>Provider: add abort listener + set timeout
+  Provider->>Fetch: request with controller.signal
+  alt user aborts
+    Caller-->>Provider: signal.abort()
+    Provider->>Fetch: controller.abort()
+  else timeout
+    Provider->>Provider: timeout reached
+    Provider->>Fetch: controller.abort()
+  end
+ 

@@ -1,0 +1,8 @@
+%% Error toast lifecycle
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Showing : showError()
+  Showing --> Hiding : timeout fired
+  Showing --> Destroyed : destroy() clears timeout
+  Hiding --> Idle
+  Idle --> Destroyed : destroy()

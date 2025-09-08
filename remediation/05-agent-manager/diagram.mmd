@@ -1,0 +1,9 @@
+%% AgentManager destroy lifecycle
+sequenceDiagram
+  participant App
+  participant Manager
+  participant Agents
+  App->>Manager: destroy()
+  Manager->>Agents: stopAllAgents() (await)
+  Agents-->>Manager: stopped
+  Manager-->>App: clear maps/listeners

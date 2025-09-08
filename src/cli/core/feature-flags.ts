@@ -430,6 +430,76 @@ export class FeatureFlagManager extends EventEmitter {
         category: 'experimental',
         dependencies: ['tool-registry', 'advanced-validation'],
         rolloutPercentage: 10
+      },
+      // TUI Integration Feature Flags
+      {
+        name: 'TUI Components',
+        description: 'Enable TUI components to replace boxen usage with interactive terminal UI',
+        enabled: process.env.NIKCLI_TUI === 'true' || process.env.NODE_ENV === 'development',
+        category: 'ui',
+        environment: ['development', 'staging', 'production'],
+        rolloutPercentage: 100
+      },
+      {
+        name: 'TUI Enhanced Prompt',
+        description: 'Enable enhanced prompt with real-time status bars and progress tracking',
+        enabled: process.env.NIKCLI_TUI_PROMPT === 'true',
+        category: 'ui',
+        environment: ['development', 'staging'],
+        dependencies: ['tui-components'],
+        rolloutPercentage: 75
+      },
+      {
+        name: 'TUI Interactive Dashboard',
+        description: 'Enable interactive multi-panel dashboard with agent management',
+        enabled: process.env.NIKCLI_TUI_DASHBOARD === 'true',
+        category: 'ui',
+        environment: ['development'],
+        dependencies: ['tui-enhanced-prompt', 'tui-real-time-updates'],
+        rolloutPercentage: 50
+      },
+      {
+        name: 'TUI Real Time Updates',
+        description: 'Enable real-time progress tracking and live UI updates',
+        enabled: process.env.NIKCLI_TUI_UPDATES === 'true',
+        category: 'ui',
+        environment: ['development', 'staging'],
+        dependencies: ['tui-components'],
+        rolloutPercentage: 75
+      },
+      {
+        name: 'TUI File Operations',
+        description: 'Enable enhanced file operations with interactive tree and table views',
+        enabled: process.env.NIKCLI_TUI_FILE_OPS === 'true',
+        category: 'tools',
+        environment: ['development'],
+        dependencies: ['tui-components'],
+        rolloutPercentage: 25
+      },
+      {
+        name: 'TUI Diff Viewer',
+        description: 'Enable advanced diff viewer with syntax highlighting and interactive navigation',
+        enabled: process.env.NIKCLI_TUI_DIFF === 'true',
+        category: 'tools',
+        environment: ['development'],
+        dependencies: ['tui-components'],
+        rolloutPercentage: 25
+      },
+      {
+        name: 'TUI Debug Mode',
+        description: 'Enable debug mode for TUI components with detailed logging',
+        enabled: process.env.TUI_DEBUG === '1' || process.env.NODE_ENV === 'development',
+        category: 'experimental',
+        environment: ['development'],
+        rolloutPercentage: 100
+      },
+      {
+        name: 'TUI Performance Monitoring',
+        description: 'Enable performance monitoring for TUI component rendering',
+        enabled: process.env.TUI_PERF_MONITOR === 'true' || process.env.NODE_ENV === 'development',
+        category: 'performance',
+        environment: ['development'],
+        rolloutPercentage: 100
       }
     ];
 

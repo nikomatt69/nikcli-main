@@ -1,0 +1,14 @@
+%% High-level architecture for reference
+graph LR
+  User --> CLI[TUI App]
+  CLI --> UI[Components blessed]
+  CLI --> AI[AI Service]
+  CLI --> Agents[Agent Manager]
+  CLI --> Providers[LLM Providers]
+  UI --> Base[BaseComponent + theming]
+  AI --> Chat[ChatContainer + MessageHistory]
+  AI --> Stream[Streaming/Backpressure]
+  Providers --> OpenAI
+  Providers --> Anthropic
+  Providers --> Ollama
+  UI --> Screen[blessed.Screen]

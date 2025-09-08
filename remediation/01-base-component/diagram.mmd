@@ -1,0 +1,10 @@
+%% BaseComponent state/config flow (before vs after)
+sequenceDiagram
+  participant Caller
+  participant Comp as BaseComponent
+  Note right of Comp
+    BEFORE: updates local const; not persisted
+  end note
+  Caller->>Comp: update({ size: 'lg' })
+  Comp-->>Caller: getConfig() -> old variant/size
+  Note over Comp: AFTER: use mutable config object; recompute styles and persist
