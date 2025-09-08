@@ -1,6 +1,6 @@
 import * as readline from 'readline';
 import chalk from 'chalk';
-import boxen from 'boxen';
+import { boxen } from './ui/tui-bridge';
 import { configureSyntaxHighlighting } from './utils/syntax-highlighter';
 import ora, { Ora } from 'ora';
 import cliProgress from 'cli-progress';
