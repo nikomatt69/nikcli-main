@@ -604,15 +604,17 @@ export class OrchestratorService extends EventEmitter {
   private checkAPIKeys(): boolean {
     const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
     const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
+    const hasOpenRouterKey = !!process.env.OPENROUTER_API_KEY;
     const hasGoogleKey = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     const hasVercelKey = !!process.env.V0_API_KEY;
 
-    if (!hasAnthropicKey && !hasOpenAIKey && !hasGoogleKey && !hasVercelKey) {
+    if (!hasAnthropicKey && !hasOpenAIKey && !hasOpenRouterKey && !hasGoogleKey && !hasVercelKey) {
       console.log(boxen(
         `${chalk.red('⚠️  No API Keys Found')}\\n\\n` +
         `Please set at least one API key:\\n\\n` +
         `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\\n` +
         `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\\n` +
+        `${chalk.blue('• OPENROUTER_API_KEY')} - for OpenRouter models\\n` +
         `${chalk.blue('• GOOGLE_GENERATIVE_AI_API_KEY')} - for Gemini models`,
         {
           padding: 1,
@@ -628,6 +630,7 @@ export class OrchestratorService extends EventEmitter {
     const availableKeys = [];
     if (hasAnthropicKey) availableKeys.push(chalk.green('✓ Claude'));
     if (hasOpenAIKey) availableKeys.push(chalk.green('✓ GPT'));
+    if (hasOpenRouterKey) availableKeys.push(chalk.green('✓ OpenRouter'));
     if (hasGoogleKey) availableKeys.push(chalk.green('✓ Gemini'));
     if (hasVercelKey) availableKeys.push(chalk.green('✓ Vercel'));
     console.log(chalk.dim(`API Keys: ${availableKeys.join(', ')}`));

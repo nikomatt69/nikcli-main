@@ -394,10 +394,11 @@ class NikCLIAgent implements Agent {
     // Check if NikCLI has valid API keys configured
     const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
     const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
+    const hasOpenRouterKey = !!process.env.OPENROUTER_API_KEY;
     const hasGoogleKey = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-    if (!hasAnthropicKey && !hasOpenAIKey && !hasGoogleKey) {
-      throw new Error('No valid API keys found. Please set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY');
+    if (!hasAnthropicKey && !hasOpenAIKey && !hasOpenRouterKey && !hasGoogleKey) {
+      throw new Error('No valid API keys found. Please set ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY');
     }
   }
 

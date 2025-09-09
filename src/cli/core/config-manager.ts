@@ -692,6 +692,18 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'qwen/qwen3-coder',
     },
+    'x-ai/grok-4': {
+      provider: 'openrouter',
+      model: 'x-ai/grok-4',
+    },
+    'x-ai/grok-3': {
+      provider: 'openrouter',
+      model: 'x-ai/grok-3',
+    },
+    'x-ai/grok-3-mini': {
+      provider: 'openrouter',
+      model: 'x-ai/grok-3-mini',
+    },
     'openrouter/sonoma-sky-alpha': {
       provider: 'openrouter',
       model: 'openrouter/sonoma-sky-alpha',

@@ -141,6 +141,7 @@ Chiavi via ambiente (alternative a `/set-key`):
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
 export OPENAI_API_KEY="sk-..."
+export OPENROUTER_API_KEY="sk-..."
 export GOOGLE_GENERATIVE_AI_API_KEY="..."
 # Ollama: nessuna chiave, opzionale OLLAMA_HOST
 ```

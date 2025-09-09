@@ -341,12 +341,13 @@ class OnboardingModule {
 
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     const openaiKey = process.env.OPENAI_API_KEY;
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
     const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     const vercelKey = process.env.V0_API_KEY;
     const gatewayKey =
       process.env.AI_GATEWAY_API_KEY || process.env.GATEWAY_API_KEY;
 
-    if (anthropicKey || openaiKey || googleKey || vercelKey || gatewayKey) {
+    if (anthropicKey || openaiKey || openrouterKey || googleKey || vercelKey || gatewayKey) {
       console.log(chalk.green('✅ API keys detected'));
       return true;
     }
@@ -371,6 +372,8 @@ class OnboardingModule {
       chalk.gray(' - for Claude models (recommended)\n') +
       chalk.blue('• OPENAI_API_KEY') +
       chalk.gray(' - for GPT models\n') +
+      chalk.yellow('• OPENROUTER_API_KEY') +
+      chalk.gray(' - for OpenRouter models (multi-provider routing)\n') +
       chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
       chalk.gray(' - for Gemini models\n') +
       chalk.cyan('• AI_GATEWAY_API_KEY') +
@@ -379,6 +382,7 @@ class OnboardingModule {
       chalk.gray(' - for Vercel models\n\n') +
       chalk.white.bold('Example:\n') +
       chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
+      chalk.dim('export OPENROUTER_API_KEY="your-key-here"\n') +
       chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
       chalk.cyan('Or use Ollama for local models: ollama pull llama3.1:8b'),
       {
@@ -847,6 +851,7 @@ class SystemModule {
 
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     const openaiKey = process.env.OPENAI_API_KEY;
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
     const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     const vercelKey = process.env.V0_API_KEY;
     const gatewayKey =
@@ -854,6 +859,7 @@ class SystemModule {
     return !!(
       anthropicKey ||
       openaiKey ||
+      openrouterKey ||
       googleKey ||
       vercelKey ||
       gatewayKey

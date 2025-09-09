@@ -57,6 +57,19 @@ Questo documento descrive i secrets necessari per il funzionamento completo dei 
 
 **Uso**: Test di integrazione con AI providers
 
+### OPENROUTER_API_KEY (Opzionale)
+
+**Descrizione**: API key per test con OpenRouter  
+**Tipo**: Secret  
+**Come ottenerlo**:
+
+1. Vai su [openrouter.ai](https://openrouter.ai)
+2. Crea un account
+3. Genera un API key
+4. Aggiungi il token ai secrets
+
+**Uso**: Test di integrazione con AI providers
+
 ## 🔧 Configurazione Secrets
 
 ### Aggiungere Secrets al Repository
@@ -89,6 +102,7 @@ Dopo aver aggiunto i secrets, puoi verificare che funzionino:
 - [ ] CHROMA_API_KEY configurato (opzionale)
 - [ ] ANTHROPIC_API_KEY configurato (opzionale)
 - [ ] OPENAI_API_KEY configurato (opzionale)
+- [ ] OPENROUTER_API_KEY configurato (opzionale)
 - [ ] Workflow testati con PR
 - [ ] Release workflow verificato
 

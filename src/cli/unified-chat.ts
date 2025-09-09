@@ -84,6 +84,7 @@ export class UnifiedChatInterface extends EventEmitter {
   private workflowOrchestrator: WorkflowOrchestrator;
   private chatOrchestrator: ChatOrchestrator;
   private initialized = false;
+  private activeTimers: NodeJS.Timeout[] = [];
 
   constructor() {
     super();
@@ -364,6 +365,15 @@ export class UnifiedChatInterface extends EventEmitter {
     } finally {
       this.session.isExecuting = false;
       this.session.currentPlan = undefined;
+      
+      // Show prompt after execution completes
+      const timer = setTimeout(() => {
+        this.showPrompt();
+        // Remove from active timers
+        const index = this.activeTimers.indexOf(timer);
+        if (index > -1) this.activeTimers.splice(index, 1);
+      }, 100);
+      this.activeTimers.push(timer);
     }
   }
 
@@ -542,8 +552,12 @@ export class UnifiedChatInterface extends EventEmitter {
    */
   private executeInBackground(todos: any[], agentId: string): void {
     // Non-blocking execution
-    setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
+        // Remove from active timers at start
+        const index = this.activeTimers.indexOf(timer);
+        if (index > -1) this.activeTimers.splice(index, 1);
+        
         const { agentTodoManager } = await import('./core/agent-todo-manager');
         await agentTodoManager.executeTodos(agentId);
         console.log(chalk.green('\n✅ Background execution completed!'));
@@ -553,6 +567,7 @@ export class UnifiedChatInterface extends EventEmitter {
         this.addAssistantMessage(`Some background tasks encountered issues: ${error.message}`);
       }
     }, 100); // Small delay to avoid blocking the chat
+    this.activeTimers.push(timer);
   }
 
   /**
@@ -632,6 +647,8 @@ export class UnifiedChatInterface extends EventEmitter {
     this.session.isExecuting = false;
     this.session.currentPlan = undefined;
     this.session.promptQueue = [];
+    // Clean up any pending timers
+    this.cleanupTimers();
     console.log(chalk.yellow('⏹️  Execution stopped'));
   }
 
@@ -818,6 +835,26 @@ export class UnifiedChatInterface extends EventEmitter {
     } catch (error: any) {
       console.error(chalk.red('❌ Failed to start NikCLI:'), error);
       process.exit(1);
+    }
+  }
+
+  /**
+   * Clean up all active timers to prevent memory leaks
+   */
+  private cleanupTimers(): void {
+    this.activeTimers.forEach(timer => {
+      clearTimeout(timer);
+    });
+    this.activeTimers = [];
+  }
+
+  /**
+   * Shutdown cleanup
+   */
+  public shutdown(): void {
+    this.cleanupTimers();
+    if (this.rl) {
+      this.rl.close();
     }
   }
 }

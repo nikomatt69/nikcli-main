@@ -1,0 +1,49 @@
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Gateway as Vercel AI Gateway
+    participant Cache as Cache Layer (e.g., Vercel KV/Redis)
+    participant Router as Provider Router
+    participant Provider as AI Provider (e.g., OpenAI, Anthropic)
+    participant Streamer as Response Streamer
+    participant ErrorHandler as Error Handler
+
+    Note over Client,Gateway: Request Handling Flow<br/>Assumes TypeScript types: interface Request { prompt: string; model?: string; }<br/>interface Response { data: string; isStream: boolean; }<br/>Follows Vercel Edge Runtime patterns for serverless efficiency.
+
+    Client->>+Gateway: POST /api/chat (Request body with prompt, model, etc.)
+    Gateway->>Gateway: Validate request (e.g., auth, rate limiting)<br/>// TypeScript: if (!isValidRequest(req: Request)) throw new Error('Invalid request');
+
+    alt Cache Hit
+        Gateway->>+Cache: Check cache key (e.g., hash(prompt + model))
+        Cache-->>-Gateway: Return cached response (if TTL not expired)
+        Gateway->>+Streamer: Stream cached response to client<br/>// Production-ready: Use ReadableStream for efficient streaming
+        Streamer-->>-Client: Stream response chunks
+    else Cache Miss
+        Gateway->>+Cache: Cache miss - proceed to routing
+        Gateway->>+Router: Route to provider (e.g., based on model: OpenAI vs. Anthropic)<br/>// Complex logic: switch (model) { case 'gpt-4': routeToOpenAI(); ... }<br/>// Vercel pattern: Use dynamic routing with Edge Config for provider selection
+        Router->>+Provider: Forward request (e.g., via fetch to provider API)
+        
+        alt Provider Success
+            Provider-->>-Router: Stream response (e.g., SSE or chunked)<br/>// TypeScript: Response type includes stream: AsyncIterable<string>
+            Router-->>-Gateway: Relay stream
+            Gateway->>+Cache: Cache successful response (e.g., full response or summary)<br/>// Comment: Cache only non-sensitive data; respect TTL (e.g., 5min for dynamic AI responses)
+            Cache-->>-Gateway: Cache stored
+            Gateway->>+Streamer: Stream response to client<br/>// Production-ready: Handle backpressure with TransformStream
+            Streamer-->>-Client: Stream response chunks
+        else Provider Error (e.g., rate limit, API failure)
+            Provider-->>-Router: Error response (e.g., 429 or 500)
+            Router->>+ErrorHandler: Handle error (e.g., retry logic, fallback provider)<br/>// Complex logic: if (error.code === 429) { exponentialBackoffRetry(); } else if (fallbackAvailable) { routeToFallbackProvider(); }<br/>// Vercel pattern: Use Vercel Logs for error tracing; return structured error
+            alt Retry Success
+                ErrorHandler->>+Router: Retry with fallback provider
+                Router->>+Provider: Forward to fallback (loop back to Provider Success)
+            else Max Retries Exceeded
+                ErrorHandler-->>-Gateway: Return error (e.g., 502 Bad Gateway)<br/>// TypeScript: throw new AIProviderError(error.message, { retryCount: 3 });
+                Gateway->>Streamer: Stream error message to client (graceful degradation)
+                Streamer-->>-Client: Error stream or JSON error
+                Gateway->>Gateway: Log error for monitoring (e.g., Vercel Analytics)<br/>// Production-ready: Do not cache errors; implement circuit breaker pattern
+            end
+        end
+    end
+
+    Note over Client,Gateway: End of Flow<br/>Overall: Ensures low-latency with caching, resilient routing, and streaming for real-time AI responses.<br/>Error paths prevent full failures; uses TypeScript for type safety in implementation.
+```

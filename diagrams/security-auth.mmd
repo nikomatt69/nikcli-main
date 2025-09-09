@@ -1,0 +1,35 @@
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Gateway as Vercel AI Gateway (Edge)
+    participant Auth as Auth Service (e.g., JWT Provider)
+    participant RL as Rate Limiter (e.g., Upstash Redis)
+    participant Comp as Compliance Checker (e.g., External API)
+    participant AI as AI Model Backend
+
+    Client->>Gateway: 1. Incoming Request (with Authorization Header)
+    Note over Gateway: Parse and validate request headers
+    Gateway->>Auth: 2. Validate Token (JWT decode & verify)
+    Auth-->>Gateway: 3. Token Valid? (Yes/No)
+    alt Token Invalid
+        Gateway-->>Client: 401 Unauthorized
+    else Token Valid
+        Gateway->>RL: 4. Check Rate Limit (e.g., IP/User-based)
+        RL-->>Gateway: 5. Within Limits? (Yes/No)
+        alt Rate Limit Exceeded
+            Gateway-->>Client: 429 Too Many Requests
+        else Within Limits
+            Gateway->>Comp: 6. Run Compliance Checks (e.g., Prompt Safety)
+            Comp-->>Gateway: 7. Compliant? (Yes/No)
+            alt Non-Compliant
+                Gateway-->>Client: 403 Forbidden (Violation Detected)
+            else Compliant
+                Gateway->>RL: 8. Increment Rate Counter
+                Gateway->>AI: 9. Forward Request to AI Backend
+                AI-->>Gateway: 10. AI Response
+                Gateway-->>Client: 11. Secure Response (with Headers)
+            end
+        end
+    end
+```
