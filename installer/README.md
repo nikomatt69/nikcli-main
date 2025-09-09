@@ -13,7 +13,7 @@ Replace `USER_OR_ORG/REPO` with your GitHub path when publishing these scripts p
 type curl >/dev/null 2>&1 && curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
 
 # Or specify exact version
-type curl >/dev/null 2>&1 && curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 0.2.60-beta
+type curl >/dev/null 2>&1 && curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 0.5.8-beta
 ```
 
 ## Uninstall
