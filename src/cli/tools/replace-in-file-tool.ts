@@ -2,6 +2,8 @@ import { readFile, writeFile } from 'fs/promises';
 import { BaseTool, ToolExecutionResult } from './base-tool';
 import { sanitizePath } from './secure-file-tools';
 import { CliUI } from '../utils/cli-ui';
+import { DiffViewer, FileDiff } from '../ui/diff-viewer';
+import { diffManager } from '../ui/diff-manager';
 
 /**
  * Production-ready Replace In File Tool
@@ -56,8 +58,21 @@ export class ReplaceInFileTool extends BaseTool {
         throw new Error('No matches found for the search pattern');
       }
 
-      // Write modified content if changes were made
+      // Show a visual diff summary before writing changes
       if (replaceResult.matchCount > 0) {
+        const fileDiff: FileDiff = {
+          filePath: sanitizedPath,
+          originalContent,
+          newContent: replaceResult.newContent,
+          isNew: false,
+          isDeleted: false,
+        };
+        console.log('\n');
+        DiffViewer.showFileDiff(fileDiff, { compact: true });
+        // Also add to diff manager to surface in Advanced UI panels
+        diffManager.addFileDiff(sanitizedPath, originalContent, replaceResult.newContent);
+
+        // Write modified content
         await writeFile(sanitizedPath, replaceResult.newContent, 'utf8');
       }
 

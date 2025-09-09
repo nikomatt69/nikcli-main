@@ -17,6 +17,7 @@ export interface DiffOptions {
   showLineNumbers?: boolean;
   highlightWords?: boolean;
   compact?: boolean;
+  style?: 'enhanced' | 'simple';
 }
 
 export class DiffViewer {
@@ -26,7 +27,8 @@ export class DiffViewer {
   static showFileDiff(fileDiff: FileDiff, options: DiffOptions = {}): void {
     const { context = 3, showLineNumbers = true, highlightWords = true, compact = false } = options;
 
-    console.log(chalk.blue.bold(`\n📄 File: ${fileDiff.filePath}`));
+    console.log();
+    console.log(chalk.blue.bold(`📄 File: ${fileDiff.filePath}`));
     
     if (fileDiff.isNew) {
       console.log(chalk.green('✨ New file created'));
@@ -39,7 +41,10 @@ export class DiffViewer {
       return;
     }
 
-    // Generate line-by-line diff
+    // Choose rendering style
+    const style: 'enhanced' | 'simple' = options.style || 'enhanced';
+    
+    // Generate line-by-line diff (used for counts and simple mode)
     const diffResult = diff.diffLines(fileDiff.originalContent, fileDiff.newContent);
     
     if (diffResult.length === 1 && !diffResult[0].added && !diffResult[0].removed) {
@@ -47,41 +52,102 @@ export class DiffViewer {
       return;
     }
 
+    // Summary header similar to the example screenshot
+    const additions = diffResult.filter(p => p.added).reduce((a, p) => a + p.count!, 0);
+    const deletions = diffResult.filter(p => p.removed).reduce((a, p) => a + p.count!, 0);
+    const header = boxen(
+      `${chalk.bold('Update')}(${chalk.cyan(fileDiff.filePath)})\n` +
+      `${chalk.gray('Updated')} ${chalk.cyan(fileDiff.filePath)} ${chalk.gray('with')} ` +
+      `${chalk.green(`${additions} addition${additions === 1 ? '' : 's'}`)} ${chalk.gray('and')} ${chalk.red(`${deletions} removal${deletions === 1 ? '' : 's'}`)}`,
+      { padding: 1, borderStyle: 'round', borderColor: 'yellow' }
+    );
+    console.log(header);
     console.log(chalk.gray('─'.repeat(80)));
-    
-    let lineNumber = 1;
+
     let addedLines = 0;
     let removedLines = 0;
 
-    diffResult.forEach(part => {
-      const lines = part.value.split('\n').filter((line, index, arr) => 
-        index < arr.length - 1 || line.length > 0
+    if (style === 'enhanced') {
+      // Render enhanced unified diff with real line numbers using structuredPatch
+      const patch = diff.structuredPatch(
+        fileDiff.filePath,
+        fileDiff.filePath,
+        fileDiff.originalContent,
+        fileDiff.newContent,
+        '',
+        '',
+        { context: options.context ?? 3 }
       );
 
-      if (part.added) {
-        addedLines += lines.length;
-        lines.forEach(line => {
-          const lineNum = showLineNumbers ? chalk.green(`+${lineNumber.toString().padStart(4)} `) : '';
-          console.log(`${lineNum}${chalk.green(`+ ${line}`)}`);
-          lineNumber++;
-        });
-      } else if (part.removed) {
-        removedLines += lines.length;
-        lines.forEach(line => {
-          const lineNum = showLineNumbers ? chalk.red(`-${lineNumber.toString().padStart(4)} `) : '';
-          console.log(`${lineNum}${chalk.red(`- ${line}`)}`);
-        });
-      } else {
-        lines.forEach(line => {
-          const lineNum = showLineNumbers ? chalk.gray(` ${lineNumber.toString().padStart(4)} `) : '';
-          console.log(`${lineNum}${chalk.gray(`  ${line}`)}`);
-          lineNumber++;
-        });
+      for (const h of patch.hunks) {
+        console.log(chalk.cyan(`@@ -${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@`));
+
+        let oldNo = h.oldStart;
+        let newNo = h.newStart;
+        for (const raw of h.lines) {
+          const sign = raw[0];
+          const text = raw.slice(1);
+          if (sign === ' ') {
+            const num = showLineNumbers ? chalk.gray(String(oldNo).padStart(5)) + ' ' : '';
+            console.log(`${num}${chalk.gray(`  ${text}`)}`);
+            oldNo++; newNo++;
+          } else if (sign === '-') {
+            removedLines++;
+            const num = showLineNumbers ? chalk.red(String(oldNo).padStart(5)) + ' ' : '';
+            console.log(`${num}${chalk.bgRed.white(`- ${text}`)}`);
+            oldNo++;
+          } else if (sign === '+') {
+            addedLines++;
+            const num = showLineNumbers ? chalk.green(String(newNo).padStart(5)) + ' ' : '';
+            console.log(`${num}${chalk.bgGreen.black(`+ ${text}`)}`);
+            newNo++;
+          } else if (sign === '?') {
+            // Inline change markers - keep subtle
+            if (!compact) {
+              const num = showLineNumbers ? chalk.yellow('     ') + ' ' : '';
+              console.log(`${num}${chalk.yellow(`? ${text}`)}`);
+            }
+          }
+        }
       }
-    });
+    } else {
+      // Simple previous behavior
+      let lineNumber = 1;
+      diffResult.forEach(part => {
+        const lines = part.value.split('\n').filter((line, index, arr) => 
+          index < arr.length - 1 || line.length > 0
+        );
+
+        if (part.added) {
+          addedLines += lines.length;
+          lines.forEach(line => {
+            const lineNum = showLineNumbers ? chalk.green(`+${lineNumber.toString().padStart(4)} `) : '';
+            console.log(`${lineNum}${chalk.green(`+ ${line}`)}`);
+            lineNumber++;
+          });
+        } else if (part.removed) {
+          removedLines += lines.length;
+          lines.forEach(line => {
+            const lineNum = showLineNumbers ? chalk.red(`-${lineNumber.toString().padStart(4)} `) : '';
+            console.log(`${lineNum}${chalk.red(`- ${line}`)}`);
+          });
+        } else {
+          lines.forEach(line => {
+            const lineNum = showLineNumbers ? chalk.gray(` ${lineNumber.toString().padStart(4)} `) : '';
+            console.log(`${lineNum}${chalk.gray(`  ${line}`)}`);
+            lineNumber++;
+          });
+        }
+      });
+    }
 
     console.log(chalk.gray('─'.repeat(80)));
-    console.log(chalk.green(`+${addedLines} additions`) + chalk.gray(' | ') + chalk.red(`-${removedLines} deletions`));
+    console.log(
+      boxen(
+        `${chalk.green(`+${addedLines} additions`)} ${chalk.gray('|')} ${chalk.red(`-${removedLines} deletions`)}`,
+        { padding: 0, borderStyle: 'classic', borderColor: addedLines >= removedLines ? 'green' : 'red' }
+      )
+    );
   }
 
   /**

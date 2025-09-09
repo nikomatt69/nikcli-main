@@ -43,6 +43,8 @@ import FeedbackAwareTools from '../core/feedback-aware-tools';
 import { validatorManager, ValidationContext, ExtendedValidationResult } from '../core/validator-manager';
 import { TokenOptimizer, TokenOptimizationConfig, QuietCacheLogger } from '../core/performance-optimizer';
 import { ProgressiveTokenManager } from '../core/progressive-token-manager';
+import { DiffViewer, FileDiff } from '../ui/diff-viewer';
+import { diffManager } from '../ui/diff-manager';
 
 // 🧠 Import Cognitive Orchestration Types
 import type { TaskCognition, OrchestrationPlan } from '../automation/agents/universal-agent';
@@ -642,6 +644,42 @@ Respond in a helpful, professional manner with clear explanations and actionable
               backedUp = true;
               console.log(chalk.blue(`📁 Backup created: ${backupPath}`));
             }
+
+            // Prepare diff preview before writing
+            let existingContent = '';
+            let hasExisting = false;
+            try {
+              if (existsSync(fullPath)) {
+                existingContent = readFileSync(fullPath, 'utf-8');
+                hasExisting = true;
+              }
+            } catch { /* ignore */ }
+
+            // Show visual diff in stream/panels when content changed
+            try {
+              if (!hasExisting) {
+                const fd: FileDiff = {
+                  filePath: fullPath,
+                  originalContent: '',
+                  newContent: finalContent,
+                  isNew: true,
+                  isDeleted: false,
+                };
+                console.log('\n');
+                DiffViewer.showFileDiff(fd, { compact: true });
+              } else if (existingContent !== finalContent) {
+                const fd: FileDiff = {
+                  filePath: fullPath,
+                  originalContent: existingContent,
+                  newContent: finalContent,
+                  isNew: false,
+                  isDeleted: false,
+                };
+                console.log('\n');
+                DiffViewer.showFileDiff(fd, { compact: true });
+                diffManager.addFileDiff(fullPath, existingContent, finalContent);
+              }
+            } catch { /* ignore visual diff errors */ }
 
             // Write the validated file
             writeFileSync(fullPath, finalContent, 'utf-8');

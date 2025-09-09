@@ -42,7 +42,7 @@ nikcli-*
 temp-*
 temp-complete/
 temp-nikcli-*
-
+BOXEN_PANELS.md
 # All release files and directories
 releases/
 scripts/releases/

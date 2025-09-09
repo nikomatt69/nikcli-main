@@ -289,6 +289,30 @@ export class ToolRegistry {
       tags: ['modify', 'filesystem', 'replace']
     });
 
+    // Interactive edit tool with diff preview
+    this.registerTool('edit-tool', new EditTool(workingDirectory), {
+      description: 'Interactive edits with diff preview and backup',
+      category: 'filesystem',
+      riskLevel: 'medium',
+      reversible: true,
+      estimatedDuration: 3500,
+      requiredPermissions: ['write'],
+      supportedFileTypes: ['*'],
+      tags: ['edit', 'diff', 'interactive']
+    });
+
+    // Atomic multi-file edit tool
+    this.registerTool('multi-edit-tool', new MultiEditTool(workingDirectory), {
+      description: 'Apply multiple edits atomically with diff summaries',
+      category: 'filesystem',
+      riskLevel: 'high',
+      reversible: false,
+      estimatedDuration: 5000,
+      requiredPermissions: ['write'],
+      supportedFileTypes: ['*'],
+      tags: ['batch', 'edit', 'atomic']
+    });
+
     this.registerTool('run-command-tool', new RunCommandTool(workingDirectory), {
       description: 'Execute commands with whitelist security',
       category: 'system',
