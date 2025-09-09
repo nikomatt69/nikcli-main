@@ -78,6 +78,8 @@ import { redisProvider } from './providers/redis/redis-provider';
 import { enhancedTokenCache } from './core/enhanced-token-cache';
 import { memoryService } from './services/memory-service';
 import { snapshotService } from './services/snapshot-service';
+import { backgroundAgentService } from './services/background-agent-service';
+import { backgroundAgentConfigManager } from './services/background-agent-config-manager';
 
 // Global declarations for vision/image providers
 declare global {
@@ -1041,6 +1043,14 @@ class ServiceModule {
     await memoryService.initialize();
     await snapshotService.initialize();
 
+    // Initialize background agent service
+    try {
+      await backgroundAgentService.initialize();
+      console.log(chalk.dim('   Background agents configured'));
+    } catch (error: any) {
+      console.log(chalk.yellow(`   ⚠ Background agents warning: ${error.message}`));
+    }
+
     console.log(chalk.dim('   Core services configured'));
   }
 
@@ -1509,6 +1519,14 @@ class MainOrchestrator {
     console.log(chalk.yellow('\n🛑 Shutting down orchestrator...'));
 
     try {
+      // Stop background agents
+      try {
+        await backgroundAgentService.shutdown();
+        console.log(chalk.green('✅ Background agents stopped'));
+      } catch (error: any) {
+        console.log(chalk.yellow(`⚠️ Background agents shutdown warning: ${error.message}`));
+      }
+
       // Stop autonomous interface if running (not used in unified NikCLI entrypoint)
       // No specific stop required here
 

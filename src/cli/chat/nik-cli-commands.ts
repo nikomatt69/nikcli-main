@@ -29,6 +29,8 @@ import { memoryService } from '../services/memory-service';
 import { snapshotService } from '../services/snapshot-service';
 import { unifiedRAGSystem } from '../context/rag-system';
 import { ideDiagnosticIntegration } from '../integrations/ide-diagnostic-integration';
+import { BackgroundAgentsCommands } from '../commands/background-agents';
+import { BackgroundAgentType } from '../services/background-agent-service';
 import { resolve, join } from 'path';
 import { existsSync, statSync } from 'fs';
 
@@ -238,6 +240,20 @@ export class SlashCommandHandler {
     this.commands.set('vm-health', this.vmHealthCommand.bind(this));
     this.commands.set('vm-backup', this.vmBackupCommand.bind(this));
     this.commands.set('vm-stats', this.vmStatsCommand.bind(this));
+
+    // Background Agent Commands
+    this.commands.set('bg-agents', this.backgroundAgentsCommand.bind(this));
+    this.commands.set('bg-list', this.backgroundAgentsListCommand.bind(this));
+    this.commands.set('bg-status', this.backgroundAgentsStatusCommand.bind(this));
+    this.commands.set('bg-start', this.backgroundAgentsStartCommand.bind(this));
+    this.commands.set('bg-stop', this.backgroundAgentsStopCommand.bind(this));
+    this.commands.set('bg-pause', this.backgroundAgentsPauseCommand.bind(this));
+    this.commands.set('bg-resume', this.backgroundAgentsResumeCommand.bind(this));
+    this.commands.set('bg-create', this.backgroundAgentsCreateCommand.bind(this));
+    this.commands.set('bg-delete', this.backgroundAgentsDeleteCommand.bind(this));
+    this.commands.set('bg-show', this.backgroundAgentsShowCommand.bind(this));
+    this.commands.set('bg-queue', this.backgroundAgentsQueueCommand.bind(this));
+    this.commands.set('bg-init', this.backgroundAgentsInitCommand.bind(this));
 
     // Vision/Image operations
     this.commands.set('analyze-image', this.analyzeImageCommand.bind(this));
@@ -4756,5 +4772,164 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       default:
         return chalk.gray(status);
     }
+  }
+
+  // ====================== 🤖 BACKGROUND AGENT COMMANDS ======================
+
+  private async backgroundAgentsCommand(args: string[]): Promise<void> {
+    if (args.length === 0) {
+      await BackgroundAgentsCommands.showStatus();
+      return;
+    }
+
+    const subcommand = args[0];
+    const subArgs = args.slice(1);
+
+    switch (subcommand) {
+      case 'list':
+        await BackgroundAgentsCommands.listAgents();
+        break;
+      case 'status':
+        await BackgroundAgentsCommands.showStatus();
+        break;
+      case 'start':
+        if (subArgs.length === 0) {
+          await BackgroundAgentsCommands.startAll();
+        } else {
+          await BackgroundAgentsCommands.startAgent(subArgs[0]);
+        }
+        break;
+      case 'stop':
+        if (subArgs.length === 0) {
+          await BackgroundAgentsCommands.stopAll();
+        } else {
+          await BackgroundAgentsCommands.stopAgent(subArgs[0]);
+        }
+        break;
+      case 'pause':
+        if (subArgs.length === 0) {
+          console.log(chalk.yellow('Please specify an agent ID to pause'));
+        } else {
+          await BackgroundAgentsCommands.pauseAgent(subArgs[0]);
+        }
+        break;
+      case 'resume':
+        if (subArgs.length === 0) {
+          console.log(chalk.yellow('Please specify an agent ID to resume'));
+        } else {
+          await BackgroundAgentsCommands.resumeAgent(subArgs[0]);
+        }
+        break;
+      case 'create':
+        if (subArgs.length < 3) {
+          console.log(chalk.yellow('Usage: /bg-agents create <type> <name> <description>'));
+          console.log(chalk.gray('Types: file-watcher, code-analyzer, dependency-monitor, security-scanner, performance-monitor, documentation-generator, test-runner, build-monitor'));
+        } else {
+          const type = subArgs[0] as BackgroundAgentType;
+          const name = subArgs[1];
+          const description = subArgs.slice(2).join(' ');
+          await BackgroundAgentsCommands.createAgent(type, name, description);
+        }
+        break;
+      case 'delete':
+        if (subArgs.length === 0) {
+          console.log(chalk.yellow('Please specify an agent ID to delete'));
+        } else {
+          await BackgroundAgentsCommands.deleteAgent(subArgs[0]);
+        }
+        break;
+      case 'show':
+        if (subArgs.length === 0) {
+          console.log(chalk.yellow('Please specify an agent ID to show'));
+        } else {
+          await BackgroundAgentsCommands.showAgent(subArgs[0]);
+        }
+        break;
+      case 'queue':
+        await BackgroundAgentsCommands.showQueue();
+        break;
+      case 'init':
+        await BackgroundAgentsCommands.initializeDefaults();
+        break;
+      default:
+        console.log(chalk.yellow(`Unknown subcommand: ${subcommand}`));
+        console.log(chalk.gray('Available subcommands: list, status, start, stop, pause, resume, create, delete, show, queue, init'));
+    }
+  }
+
+  private async backgroundAgentsListCommand(args: string[]): Promise<void> {
+    await BackgroundAgentsCommands.listAgents();
+  }
+
+  private async backgroundAgentsStatusCommand(args: string[]): Promise<void> {
+    await BackgroundAgentsCommands.showStatus();
+  }
+
+  private async backgroundAgentsStartCommand(args: string[]): Promise<void> {
+    if (args.length === 0) {
+      await BackgroundAgentsCommands.startAll();
+    } else {
+      await BackgroundAgentsCommands.startAgent(args[0]);
+    }
+  }
+
+  private async backgroundAgentsStopCommand(args: string[]): Promise<void> {
+    if (args.length === 0) {
+      await BackgroundAgentsCommands.stopAll();
+    } else {
+      await BackgroundAgentsCommands.stopAgent(args[0]);
+    }
+  }
+
+  private async backgroundAgentsPauseCommand(args: string[]): Promise<void> {
+    if (args.length === 0) {
+      console.log(chalk.yellow('Please specify an agent ID to pause'));
+    } else {
+      await BackgroundAgentsCommands.pauseAgent(args[0]);
+    }
+  }
+
+  private async backgroundAgentsResumeCommand(args: string[]): Promise<void> {
+    if (args.length === 0) {
+      console.log(chalk.yellow('Please specify an agent ID to resume'));
+    } else {
+      await BackgroundAgentsCommands.resumeAgent(args[0]);
+    }
+  }
+
+  private async backgroundAgentsCreateCommand(args: string[]): Promise<void> {
+    if (args.length < 3) {
+      console.log(chalk.yellow('Usage: /bg-create <type> <name> <description>'));
+      console.log(chalk.gray('Types: file-watcher, code-analyzer, dependency-monitor, security-scanner, performance-monitor, documentation-generator, test-runner, build-monitor'));
+    } else {
+      const type = args[0] as BackgroundAgentType;
+      const name = args[1];
+      const description = args.slice(2).join(' ');
+      await BackgroundAgentsCommands.createAgent(type, name, description);
+    }
+  }
+
+  private async backgroundAgentsDeleteCommand(args: string[]): Promise<void> {
+    if (args.length === 0) {
+      console.log(chalk.yellow('Please specify an agent ID to delete'));
+    } else {
+      await BackgroundAgentsCommands.deleteAgent(args[0]);
+    }
+  }
+
+  private async backgroundAgentsShowCommand(args: string[]): Promise<void> {
+    if (args.length === 0) {
+      console.log(chalk.yellow('Please specify an agent ID to show'));
+    } else {
+      await BackgroundAgentsCommands.showAgent(args[0]);
+    }
+  }
+
+  private async backgroundAgentsQueueCommand(args: string[]): Promise<void> {
+    await BackgroundAgentsCommands.showQueue();
+  }
+
+  private async backgroundAgentsInitCommand(args: string[]): Promise<void> {
+    await BackgroundAgentsCommands.initializeDefaults();
   }
 }
