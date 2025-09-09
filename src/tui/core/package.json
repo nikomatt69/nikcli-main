@@ -20,14 +20,14 @@
   "dependencies": {
     "blessed": "^0.1.81",
     "class-variance-authority": "^0.7.0",
-    "clsx": "^2.0.0",
-    "tailwind-merge": "^2.0.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.6.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "typescript": "^5.9.2",
+    "@types/blessed": "^0.1.25",
     "rimraf": "^6.0.1",
-    "@types/blessed": "^0.1.25"
+    "typescript": "^5.9.2"
   },
   "files": [
     "dist",

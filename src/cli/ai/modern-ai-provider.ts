@@ -1,20 +1,18 @@
-import { anthropic } from '@ai-sdk/anthropic';
-import { openai } from '@ai-sdk/openai';
-import { google } from '@ai-sdk/google';
-import { vercel } from '@ai-sdk/vercel';
-import { generateObject, generateText, streamText, tool, CoreMessage, CoreTool } from 'ai';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createVercel } from '@ai-sdk/vercel';
+import { createGateway } from '@ai-sdk/gateway';
+import { generateText, streamText, tool, CoreMessage, CoreTool } from 'ai';
 import { z } from 'zod';
-import { gateway } from '@ai-sdk/gateway';
 import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from 'fs';
 import { join, relative, resolve, dirname } from 'path';
 import { execSync } from 'child_process';
-import chalk from 'chalk';
-import { modelProvider } from './model-provider';
 import { simpleConfigManager } from '../core/config-manager';
 import { PromptManager } from '../prompts/prompt-manager';
 
 export interface ModelConfig {
-  provider: 'openai' | 'anthropic' | 'google' | 'vercel' | 'gateway';
+  provider: 'openai' | 'anthropic' | 'google' | 'vercel' | 'gateway' | 'openrouter';
   model: string;
   temperature?: number;
   maxTokens?: number;
@@ -57,7 +55,7 @@ export class ModernAIProvider {
         execute: async ({ path }) => {
           try {
             // Load tool-specific prompt for context
-            const toolPrompt = await this.getToolPrompt('read_file', { path });
+            
 
             const fullPath = resolve(this.workingDirectory, path);
             if (!existsSync(fullPath)) {
@@ -86,7 +84,7 @@ export class ModernAIProvider {
         execute: async ({ path, content }) => {
           try {
             // Load tool-specific prompt for context
-            const toolPrompt = await this.getToolPrompt('write_file', { path, content: content.substring(0, 100) + '...' });
+            
 
             const fullPath = resolve(this.workingDirectory, path);
             const dir = dirname(fullPath);
@@ -383,21 +381,36 @@ export class ModernAIProvider {
       throw new Error(`No API key found for model ${model}`);
     }
 
-    switch (config.provider) {
-      case 'openai':
-        // OpenAI provider is already response-API compatible via model options; no chainable helper here.
-        return openai(config.model);
-      case 'anthropic':
-        return anthropic(config.model);
-      case 'google':
-        return google(config.model);
-      case 'vercel':
-        return vercel(config.model);
-      case 'gateway':
-        return gateway(config.model);
-      default:
-        throw new Error(`Unsupported provider: ${config.provider}`);
-    }
+switch (config.provider) {
+  case 'openai':
+    // OpenAI provider is already response-API compatible via model options; no chainable helper here.
+    const openaiProvider = createOpenAI({ apiKey });
+    return openaiProvider(config.model);
+  case 'anthropic':
+    const anthropicProvider = createAnthropic({ apiKey });
+    return anthropicProvider(config.model);
+  case 'google':
+    const googleProvider = createGoogleGenerativeAI({ apiKey });
+    return googleProvider(config.model);
+  case 'vercel':
+    const vercelProvider = createVercel({ apiKey });
+    return vercelProvider(config.model);
+  case 'gateway':
+    const gatewayProvider = createGateway({ apiKey });
+    return gatewayProvider(config.model);
+  case 'openrouter':
+    const openrouterProvider = createOpenAI({
+      apiKey,
+      baseURL: 'https://openrouter.ai/api/v1',
+      headers: {
+        'HTTP-Referer': 'https://nikcli.ai',  // Optional: for attribution
+        'X-Title': 'NikCLI',
+      },
+    });
+    return openrouterProvider(config.model);  // Assumes model like 'openai/gpt-4o'
+  default:
+    throw new Error(`Unsupported provider: ${config.provider}`);
+}
   }
 
   // Claude Code style streaming with tool support

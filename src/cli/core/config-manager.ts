@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 // Validation schemas
 const ModelConfigSchema = z.object({
-  provider: z.enum(['openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway']),
+  provider: z.enum(['openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway', 'openrouter']),
   model: z.string(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().min(1).max(8000).optional(),
@@ -29,7 +29,7 @@ const ConfigSchema = z.object({
   modelRouting: z.object({
     enabled: z.boolean().default(true),
     verbose: z.boolean().default(false),
-    mode: z.enum(['conservative','balanced','aggressive']).default('balanced')
+    mode: z.enum(['conservative', 'balanced', 'aggressive']).default('balanced')
   }).default({ enabled: true, verbose: false, mode: 'balanced' }),
   // MCP (Model Context Protocol) servers configuration - Claude Code/OpenCode compatible
   mcp: z.record(z.union([
@@ -615,6 +615,103 @@ export class SimpleConfigManager {
       provider: 'gateway',
       model: 'cline:cline/sonic-pro',
     },
+    // OpenRouter models
+    'anthropic/claude-4-sonnet': {
+      provider: 'openrouter',
+      model: 'anthropic/claude-4-sonnet',
+    },
+    'anthropic/claude-3.7-sonnet': {
+      provider: 'openrouter',
+      model: 'anthropic/claude-3.7-sonnet',
+    },
+    'anthropic/claude-3.5-sonnet': {
+      provider: 'openrouter',
+      model: 'anthropic/claude-3.5-sonnet',
+    },
+    'anthropic/claude-3.5-latest': {
+      provider: 'openrouter',
+      model: 'anthropic/claude-3.5-latest',
+    },
+    'openai/gpt-5': {
+      provider: 'openrouter',
+      model: 'openai/gpt-5',
+    },
+    'openai/gpt-5-mini-2025-08-07': {
+      provider: 'openrouter',
+      model: 'openai/gpt-5-mini-2025-08-07',
+    },
+    'meta-llama/llama-3.1-405b-instruct': {
+      provider: 'openrouter',
+      model: 'meta-llama/llama-3.1-405b-instruct',
+    },
+    'meta-llama/llama-3.1-70b-instruct': {
+      provider: 'openrouter',
+      model: 'meta-llama/llama-3.1-70b-instruct',
+    },
+    'meta-llama/llama-3.1-8b-instruct': {
+      provider: 'openrouter',
+      model: 'meta-llama/llama-3.1-8b-instruct',
+    },
+    'google/gemini-2.0-flash-exp': {
+      provider: 'openrouter',
+      model: 'google/gemini-2.0-flash-exp',
+    },
+    'google/gemini-1.5-pro': {
+      provider: 'openrouter',
+      model: 'google/gemini-1.5-pro',
+    },
+    'openai/gpt-oss-120b:free': {
+      provider: 'openrouter',
+      model: 'openai/gpt-oss-120b:free',
+    },
+    'z-ai/glm-4.5v': {
+      provider: 'openrouter',
+      model: 'z-ai/glm-4.5v',
+    },
+    'z-ai/glm-4.5': {
+      provider: 'openrouter',
+      model: 'z-ai/glm-4.5',
+    },
+    'mistralai/mistral-large': {
+      provider: 'openrouter',
+      model: 'mistralai/mistral-large',
+    },
+    'x-ai/grok-2': {
+      provider: 'openrouter',
+      model: 'x-ai/grok-2',
+    },
+    'deepseek/deepseek-chat-v3.1:free': {
+      provider: 'openrouter',
+      model: 'deepseek/deepseek-chat-v3.1:free',
+    },
+    'moonshotai/kimi-k2-0905': {
+      provider: 'openrouter',
+      model: 'moonshotai/kimi-k2-0905',
+    },
+    'qwen/qwen3-coder': {
+      provider: 'openrouter',
+      model: 'qwen/qwen3-coder',
+    },
+    'x-ai/grok-4': {
+      provider: 'openrouter',
+      model: 'x-ai/grok-4',
+    },
+    'x-ai/grok-3': {
+      provider: 'openrouter',
+      model: 'x-ai/grok-3',
+    },
+    'x-ai/grok-3-mini': {
+      provider: 'openrouter',
+      model: 'x-ai/grok-3-mini',
+    },
+    'openrouter/sonoma-sky-alpha': {
+      provider: 'openrouter',
+      model: 'openrouter/sonoma-sky-alpha',
+    },
+    'x-ai/grok-code-fast-1': {
+      provider: 'openrouter',
+      model: 'x-ai/grok-code-fast-1',
+    },
 
   };
 
@@ -844,6 +941,8 @@ export class SimpleConfigManager {
           return process.env.V0_API_KEY;
         case 'gateway':
           return process.env.GATEWAY_API_KEY;
+        case 'openrouter':
+          return process.env.OPENROUTER_API_KEY;
         case 'ollama':
           return undefined; // Ollama doesn't need API keys
       }

@@ -6,13 +6,13 @@ All notable changes to Nikcli will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.5.8-beta] - 2025-09-09
+## [1.0.0] - 2025-09-09
 
 ### 🔄 **Repository & Packaging**
 
 #### ✨ **Changed**
 
-- Bumped package version to **0.5.8-beta** (see package.json).
+- Bumped package version to **1.0.0** (see package.json).
 - Configured package publishing for the `beta` tag via `publishConfig`.
 - `main` and `bin` now point to `dist/cli/index.js` (packaged CLI entry).
 - `files` field limits published files to `dist/**` and `README.md` to reduce package size.

@@ -2007,23 +2007,40 @@ Requirements:
         const googleProvider = createGoogleGenerativeAI({ apiKey });
         return googleProvider(configData.model);
       }
-      case 'gateway': {
-        let apiKey = configManager.getApiKey(model);
-        if (!apiKey) {
-          const current = configManager.get('currentModel');
-          if (current && current !== model) apiKey = configManager.getApiKey(current);
-        }
-        if (!apiKey) throw new Error(`No API key found for provider Gateway (model ${model})`);
-        const gatewayProvider = createGateway({ apiKey });
-        return gatewayProvider(configData.model);
-      }
-      case 'ollama': {
-        // Ollama runs locally and does not require API keys
-        const ollamaProvider = createOllama({});
-        return ollamaProvider(configData.model);
-      }
-      default:
-        throw new Error(`Unsupported provider: ${configData.provider}`);
+case 'gateway': {
+  let apiKey = configManager.getApiKey(model);
+  if (!apiKey) {
+    const current = configManager.get('currentModel');
+    if (current && current !== model) apiKey = configManager.getApiKey(current);
+  }
+  if (!apiKey) throw new Error(`No API key found for provider Gateway (model ${model})`);
+  const gatewayProvider = createGateway({ apiKey });
+  return gatewayProvider(configData.model);
+}
+case 'openrouter': {
+  let apiKey = configManager.getApiKey(model);
+  if (!apiKey) {
+    const current = configManager.get('currentModel');
+    if (current && current !== model) apiKey = configManager.getApiKey(current);
+  }
+  if (!apiKey) throw new Error(`No API key found for provider OpenRouter (model ${model})`);
+  const openrouterProvider = createOpenAI({
+    apiKey,
+    baseURL: 'https://openrouter.ai/api/v1',
+    headers: {
+      'HTTP-Referer': 'https://nikcli.ai',  // Optional: for attribution
+      'X-Title': 'NikCLI',
+    },
+  });
+  return openrouterProvider(configData.model);  // Supports embeddings and structured outputs via OpenAI compatibility
+}
+case 'ollama': {
+  // Ollama runs locally and does not require API keys
+  const ollamaProvider = createOllama({});
+  return ollamaProvider(configData.model);
+}
+default:
+  throw new Error(`Unsupported provider: ${configData.provider}`);
     }
   }
 

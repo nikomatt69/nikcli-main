@@ -157,6 +157,9 @@ export class NikCLI {
     private enhancedFeaturesEnabled: boolean = true;
     private smartSuggestionsEnabled: boolean = true;
     private streamingOptimized: boolean = true;
+    
+    // Execution state management
+    private executionInProgress: boolean = false;
     private indicators: Map<string, StatusIndicator> = new Map();
     private liveUpdates: LiveUpdate[] = [];
     private spinners: Map<string, Ora> = new Map();
@@ -1891,7 +1894,7 @@ export class NikCLI {
                         console.log(chalk.yellow('↩️  Cancelled. Returning to default mode.'));
                     }
 
-                    this.showPrompt();
+                    this.renderPromptAfterOutput();
                 }
 
                 // Handle @ key for agent suggestions
@@ -1950,7 +1953,7 @@ export class NikCLI {
                         console.log(chalk.cyan('🏠 Already in default mode'));
                         this.stopAIOperation();
                     }
-                    this.showPrompt();
+                    this.renderPromptAfterOutput();
                     return; // Prevent other handlers from running
                 }
 
@@ -2577,7 +2580,7 @@ export class NikCLI {
         console.log(chalk.cyan('✨ Ready for new commands\n'));
 
         // Show prompt again
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -2635,7 +2638,7 @@ export class NikCLI {
             } finally {
                 this.assistantProcessing = false;
                 this.stopStatusBar();
-                this.showPrompt();
+                this.renderPromptAfterOutput();
             }
         });
 
@@ -3065,9 +3068,7 @@ export class NikCLI {
 
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -3082,9 +3083,7 @@ export class NikCLI {
 
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -3139,9 +3138,7 @@ export class NikCLI {
 
         // Ensure output is flushed and visible before showing prompt
         console.log();
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -3334,7 +3331,7 @@ export class NikCLI {
         console.log('');
         // Ensure output is flushed and visible before showing prompt
 
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -3426,11 +3423,11 @@ export class NikCLI {
 
                             this.stopAIOperation();
                             console.log(chalk.green(`\n✅ AI test launched (Task ID: ${taskId.slice(-6)})`));
-                            this.showPrompt();
+                            this.renderPromptAfterOutput();
                         } catch (error: any) {
                             this.stopAIOperation();
                             console.log(chalk.red(`\n❌ AI test failed: ${error.message}`));
-                            this.showPrompt();
+                            this.renderPromptAfterOutput();
                         }
                     } else {
                         await this.showTokenUsage();
@@ -3683,9 +3680,7 @@ export class NikCLI {
 
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -3722,9 +3717,7 @@ export class NikCLI {
 
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -3861,9 +3854,7 @@ export class NikCLI {
 
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -4106,25 +4097,34 @@ export class NikCLI {
             );
 
             if (approvalResult.approved) {
+                if (this.executionInProgress) {
+                    console.log(chalk.yellow('⚠️  Execution already in progress, please wait...'));
+                    return;
+                }
+                
+                this.executionInProgress = true;
                 console.log(chalk.green('\n🚀 Plan approved! Starting execution...'));
                 console.log(chalk.cyan('📋 Plan will be executed step by step'));
 
-                // Execute the plan directly without switching modes
-                await this.executePlanDirectly(plan.id);
+                try {
+                    // Execute the plan directly without switching modes
+                    await this.executePlanDirectly(plan.id);
+                } finally {
+                    this.executionInProgress = false;
+                }
 
                 // Show final summary
                 this.showExecutionSummary();
 
                 console.log(chalk.green.bold('\n🎉 Plan execution completed successfully!'));
-                process.stdout.write('');
-                await new Promise(resolve => setTimeout(resolve, 150));
-                this.showPrompt();
                 console.log(chalk.cyan('📄 Check the updated todo.md file for execution details'));
-
+                
                 // Reset mode and return to normal chat after successful execution
                 console.log(chalk.green('🔄 Returning to normal chat mode...'));
                 this.currentMode = 'default';
-                this.showPrompt();
+                
+                // Use renderPromptAfterOutput for consistent behavior
+                this.renderPromptAfterOutput();
 
             } else {
                 console.log(chalk.yellow('\n📝 Plan saved but not executed.'));
@@ -4157,9 +4157,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -4178,9 +4176,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -4252,9 +4248,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
     /**
      * Default mode: Unified Aggregator - observes and subscribes to all event sources
@@ -4473,17 +4467,27 @@ export class NikCLI {
                 // Use enhanced approval system
                 const approved = await enhancedPlanning.requestPlanApproval(plan.id);
                 if (approved) {
+                    if (this.executionInProgress) {
+                        console.log(chalk.yellow('⚠️  Execution already in progress, please wait...'));
+                        return;
+                    }
+                    
+                    this.executionInProgress = true;
                     console.log(chalk.green('\n🚀 Executing plan...'));
-                    await this.executeAdvancedPlan(plan.id);
+                    try {
+                        await this.executeAdvancedPlan(plan.id);
+                    } finally {
+                        this.executionInProgress = false;
+                    }
                     this.showExecutionSummary();
                     console.log(chalk.green.bold('\n🎉 Plan execution completed successfully!'));
-                    process.stdout.write('');
-                    await new Promise(resolve => setTimeout(resolve, 150));
-                    this.showPrompt();
-
+                    
                     // Reset mode and return to normal chat after successful execution
                     console.log(chalk.green('🔄 Returning to normal chat mode...'));
                     this.currentMode = 'default';
+                    
+                    // Use renderPromptAfterOutput for consistent behavior
+                    this.renderPromptAfterOutput();
 
                 } else {
                     console.log(chalk.yellow('\n📝 Plan saved but not executed.'));
@@ -4509,9 +4513,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -4529,9 +4531,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -4573,9 +4573,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -4665,9 +4663,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -4705,9 +4701,7 @@ export class NikCLI {
         console.log(panel);
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -4723,9 +4717,7 @@ export class NikCLI {
         });
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     /**
@@ -4754,9 +4746,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     // Command Handler Methods
@@ -5002,9 +4992,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     private async handleTerminalOperations(command: string, args: string[]): Promise<void> {
@@ -5142,9 +5130,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     private async handleProjectOperations(command: string, args: string[]): Promise<void> {
@@ -5440,9 +5426,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
     private async handleAdvancedFeatures(command: string, args: string[]): Promise<void> {
         try {
@@ -5684,9 +5668,7 @@ export class NikCLI {
         }
         // Ensure output is flushed and visible before showing prompt
         console.log(); // Extra newline for better separation
-        process.stdout.write('');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        this.showPrompt();
+        this.renderPromptAfterOutput();
     }
 
     private async handleDocSearchCommand(args: string[]): Promise<void> {
@@ -8756,7 +8738,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
         } else if (lowerModel.includes('gemini') || lowerModel.includes('google')) {
             return '🔵'; // Google/Gemini = blue dot
         } else {
-            return '⚪'; // Default = white dot
+            return '🟡'; // Default = white dot
         }
     }
 

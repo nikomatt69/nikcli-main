@@ -1,0 +1,48 @@
+```mermaid
+flowchart TD
+    %% Start of the setup process for Vercel AI Gateway
+    Start([Start: Vercel AI Gateway Setup]) --> Prerequisites{Prerequisites Met?}
+    
+    %% Prerequisites Section
+    Prerequisites -->|No| InstallCLI[Install Vercel CLI: npm i -g vercel]
+    InstallCLI --> Prerequisites
+    Prerequisites -->|Yes| Authenticate
+    
+    %% Authentication Section
+    Authenticate[Authenticate with Vercel:<br/>vercel login<br/>or use Dashboard at vercel.com] -->|CLI| VerifyAuthCLI[Verify: vercel whoami]
+    Authenticate -->|Dashboard| VerifyAuthDash[Sign in via Browser]
+    VerifyAuthCLI --> ProviderSetup
+    VerifyAuthDash --> ProviderSetup
+    
+    %% Provider Key Setup Section
+    ProviderSetup[Set up AI Provider Keys:<br/>- Obtain keys (e.g., OpenAI API Key)<br/>- For CLI: vercel env add <KEY_NAME><br/>- For Dashboard: Project Settings > Environment Variables<br/>Types: Use string for keys, e.g., process.env.OPENAI_API_KEY: string] -->|Multiple Providers| AddProviders[Add multiple providers:<br/>e.g., ANTHROPIC_API_KEY, GROK_API_KEY<br/>// Comment: Ensure keys are scoped to production/staging for security]
+    AddProviders --> ConfigGateway
+    ProviderSetup -->|Single Provider| ConfigGateway
+    
+    %% Configuration Section
+    ConfigGateway[Configure AI Gateway:<br/>- Create vercel.json or use @vercel/ai package<br/>- Define routes and providers in code:<br/>```typescript<br/>import { createOpenAI } from '@vercel/ai';<br/>const openai = createOpenAI({<br/>  apiKey: process.env.OPENAI_API_KEY,<br/>});<br/>// Comment: TypeScript ensures type safety for config objects<br/>```<br/>- Set up caching and rate limiting if needed] --> DeployChoice{Deploy via CLI or Dashboard?}
+    
+    %% Deployment Section
+    DeployChoice -->|CLI| DeployCLI[Deploy with CLI:<br/>vercel --prod<br/>// Comment: Use --prod for production; handles env vars automatically]
+    DeployChoice -->|Dashboard| DeployDash[Deploy via Dashboard:<br/>- Connect Git repo<br/>- Add env vars in Settings<br/>- Trigger deployment from repo push]
+    DeployCLI --> Integrate
+    DeployDash --> Integrate
+    
+    %% Integration Section
+    Integrate[Integrate with Vercel AI SDK:<br/>- Install: npm i ai<br/>- Use in app: streamText({ model: openai('gpt-4') })<br/>- Monitor in Dashboard: Logs, Analytics for Gateway usage<br/>// Comment: Production-ready: Enable observability with Vercel Speed Insights] --> VerifyDeployment{Deployment Successful?}
+    
+    %% Verification and End
+    VerifyDeployment -->|No| Troubleshoot[Troubleshoot:<br/>- Check env vars: vercel env ls<br/>- Logs: vercel logs<br/>- Common issues: Missing keys or auth scopes]
+    Troubleshoot --> ProviderSetup
+    VerifyDeployment -->|Yes| End([End: AI Gateway Ready<br/>Access via your Vercel deployment URL])
+    
+    %% Styling for best practices: Use subgraphs for sections if complex, but kept linear for clarity
+    %% Vercel patterns: Emphasize CLI for automation, Dashboard for visual setup
+    classDef vercelStep fill:#ff5e00,stroke:#333,stroke-width:2px,color:#fff
+    classDef decision fill:#ffd700,stroke:#333,stroke-width:2px
+    classDef end fill:#00ff00,stroke:#333,stroke-width:2px
+    
+    class Authenticate,ProviderSetup,ConfigGateway,DeployCLI,DeployDash,Integrate vercelStep
+    class Prerequisites,DeployChoice,VerifyDeployment decision
+    class Start,End end
+```

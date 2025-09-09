@@ -1,168 +1,116 @@
-# NikCLI Project Overview
+# NikCLI Commands Reference
 
-Generated: 2025-08-28T16:15:53.119Z
+## Overview
+NikCLI is an advanced AI-powered CLI tool for software development. Use slash commands (starting with `/`) in chat mode to interact. Commands are case-insensitive. For full usage, type `/help` in the CLI. This file is auto-generated from codebase analysis.
 
-## Project
+## Commands (Alphabetical)
 
-- Name: @cadcamfun/nikcli
-- Version: 0.5.8-beta
-- Description: NikCLI - Context-Aware AI Development Assistant
-- Git Branch: main-0.3.3
-- Last Commit: 9250dc8 2025-08-28 0.4.0-beta
+### /agent <agent-name> [options]
+- **Description**: Activates a specific AI agent for task execution (e.g., `/agent universal-agent "analyze code"`). Options: `--auto` for autonomous mode, `--plan` for planning first.
+- **Example**: `/agent ai-analysis "review my code"`
+- **Provider**: All (adapts to current provider, including OpenRouter for routed models).
 
-## Scripts
+### /analyze [path] [options]
+- **Description**: Performs comprehensive project/code analysis. Options: `--metrics` for code metrics, `--dependencies` for deps scan, `--security` for basic security check.
+- **Example**: `/analyze src/ --metrics --security`
+- **Provider**: All.
 
-- start: ts-node --project tsconfig.cli.json src/cli/index.ts
-- dev: npm start
-- build: tsc --project tsconfig.cli.json
-- prepublishOnly: npm run build
-- build:start: npm run build && node dist/cli/index.js
-- build:binary: node build-all.js
-- build:release: node scripts/build-release.js
-- test: vitest
-- test:run: vitest run
-- test:watch: vitest --watch
-- test:coherence: node tests/verify-coherence.js
-- test:system: node tests/verify-system.js
-- lint: eslint src --ext .ts,.tsx
+### /build [options]
+- **Description**: Builds the project using npm/yarn. Options: `--prod` for production build, `--watch` for development.
+- **Example**: `/build --prod`
+- **Provider**: All (uses execute_command tool).
 
-## Dependencies
+### /complete "partial command"
+- **Description**: Generates AI completions for partial input (e.g., code, commands). Uses current model for suggestions.
+- **Example**: `/complete "npm run "`
+- **Provider**: All.
 
-- Dependencies (56)
-  - @ai-sdk/anthropic
-  - @ai-sdk/gateway
-  - @ai-sdk/google
-  - @ai-sdk/openai
-  - @ai-sdk/vercel
-  - @chroma-core/default-embed
-  - @supabase/supabase-js
-  - @types/blessed
-  - @types/diff
-  - @types/inquirer
-  - @upstash/redis
-  - ai
-  - blessed
-  - boxen
-  - chalk
-  - chokidar
-  - chromadb
-  - cli-progress
-  - commander
-  - conf
-  - cors
-  - diff
-  - dotenv
-  - express
-  - express-rate-limit
-  - globby
-  - gradient-string
-  - helmet
-  - highlight.js
-  - ink
-  - ink-box
-  - ink-divider
-  - ink-select-input
-  - ink-spinner
-  - ink-table
-  - ink-text-input
-  - inquirer
-  - ioredis
-  - js-yaml
-  - jsonwebtoken
-  - keytar
-  - marked
-  - marked-terminal
-  - nanoid
-  - next
-  - ollama-ai-provider
-  - ora
-  - prismjs
-  - react
-  - react-dom
-  - ...
-- DevDependencies (27)
-  - @types/chalk
-  - @types/cli-progress
-  - @types/cors
-  - @types/express
-  - @types/glob
-  - @types/gradient-string
-  - @types/ioredis
-  - @types/js-yaml
-  - @types/jsonwebtoken
-  - @types/marked-terminal
-  - @types/react
-  - @types/react-dom
-  - @types/uuid
-  - @typescript-eslint/eslint-plugin
-  - @typescript-eslint/parser
-  - @vercel/ncc
-  - @vitest/coverage-v8
-  - @vitest/ui
-  - autoprefixer
-  - conf
-  - esbuild
-  - eslint
-  - pkg
-  - ts-node
-  - typescript
-  - vitest
-  - ws
+### /config [subcommand]
+- **Description**: Manages configuration. Subcommands: `show` to display current config, `model <name>` to set model, `key <provider> <key>` to set API key.
+- **Example**: `/config show` or `/config model openrouter-gpt-4o`
+- **Provider**: All.
 
-## Top-level Structure
+### /deploy [options]
+- **Description**: Deploys the project (uses npm run deploy or custom). Options: `--env production`.
+- **Example**: `/deploy --env staging`
+- **Provider**: All (uses execute_command).
 
-- .checkpoints/
-- .claude/
-- .git/
-- .github/
-- .nikcli/
-- .vscode/
-- bin/
-- database/
-- dist/
-- docs/
-- generated_images/
-- installer/
-- node_modules/
-- scripts/
-- src/
-- tests/
-- ~/
-- .DS_Store
-- .editorconfig
-- .env
-- .env.production
-- .eslintrc.js
-- .gitattributes
-- .gitignore
-- AGENTS.md
-- CHANGELOG.md
-- CLAUDE.md
-- LICENSE
-- NIKOCLI.md
-- README.md
-- README_EN.md
-- README_IT.md
-- RELEASE.md
-- RELEASE_README.md
-- SECURITY.md
-- create-release.sh
-- package-lock.json
-- package.json
-- pkg-config.json
-- tsconfig.cli.json
-- tsconfig.json
-- vitest.config.ts
+### /grep <pattern> [path]
+- **Description**: Searches files for pattern (uses grep tool). Options: `--files "*.ts"` for filter.
+- **Example**: `/grep "function add" src/`
+- **Provider**: All.
 
-## Code Stats
+### /help
+- **Description**: Shows this help with all commands listed alphabetically.
+- **Example**: `/help`
+- **Provider**: N/A.
 
-- Files: 34348
-- Directories: 3832
-- Test Files: 174
-- TypeScript Files: 7442
-- JavaScript Files: 13213
+### /init [options]
+- **Description**: Initializes project context (creates NIKOCLI.md). Options: `--force` to overwrite.
+- **Example**: `/init --force`
+- **Provider**: N/A.
+
+### /list [subcommand]
+- **Description**: Lists resources. Subcommands: `models` for AI models with status, `files` for workspace files, `agents` for available agents, `tools` for tools.
+- **Example**: `/list models` (shows OpenRouter prefixed models if set).
+- **Provider**: All.
+
+### /plan [options]
+- **Description**: Generates execution plan for a task. Options: `--execute` to run immediately, `--save <file>` to save plan.
+- **Example**: `/plan "add authentication"`
+- **Provider**: All (uses planning service).
+
+### /read-file <path>
+- **Description**: Reads and displays file content (safe read-only).
+- **Example**: `/read-file src/main.ts`
+- **Provider**: All.
+
+### /search <query> [options]
+- **Description**: Semantic search in codebase. Options: `--limit 10` for results count.
+- **Example**: `/search "login function"`
+- **Provider**: All (uses semantic_search tool).
+
+### /set-key <provider> <key>
+- **Description**: Sets API key for a provider (e.g., OpenRouter). Key is encrypted in config.
+- **Example**: `/set-key openrouter sk-or-v1-...`
+- **Provider**: All.
+
+### /set-model <model-name>
+- **Description**: Switches to a specific AI model (e.g., openrouter-claude-3-7-sonnet-20250219 for routed via OpenRouter).
+- **Example**: `/set-model openrouter-gpt-4o`
+- **Provider**: All.
+
+### /set-provider <provider>
+- **Description**: Sets the AI provider (e.g., openrouter for multi-model routing). Prompts for API key if needed.
+- **Example**: `/set-provider openrouter`
+- **Provider**: All (new integration).
+
+### /test [options]
+- **Description**: Runs project tests (npm test). Options: `--watch` for continuous.
+- **Example**: `/test`
+- **Provider**: All.
+
+### /todo [subcommand]
+- **Description**: Manages todos. Subcommands: `list` to show, `add <item>` to add, `complete <id>` to mark done.
+- **Example**: `/todo add "Fix bug in login"`
+- **Provider**: All.
+
+### /vm [subcommand]
+- **Description**: Manages VM/containers. Subcommands: `start <agent>` to start VM, `stop <id>` to stop, `list` for status.
+- **Example**: `/vm start universal-agent`
+- **Provider**: All.
+
+### /write-file <path> "content"
+- **Description**: Writes content to file (requires approval for safety).
+- **Example**: `/write-file newfile.ts "console.log('Hello');"`
+- **Provider**: All.
 
 ## Notes
+- **OpenRouter Specific**: After `/set-provider openrouter`, usa modelli prefixed (es. openrouter-gpt-4o). Router dinamico usa baseModel dal config senza hardcoding.
+- **Approval**: Comandi risky (write, execute) richiedono conferma.
+- **Help in CLI**: Digita `/help` per vedere questa lista in chat.
+- **Dynamic Routing**: Per OpenRouter, il router usa modelli configurati (es. openrouter-claude-3-7-sonnet-20250219) automaticamente.
 
-- This file is used by NikCLI to provide project context.
-- Update sections as needed, or regenerate with /init --force.
+Generated from codebase analysis (all slash commands in SlashCommandHandler). Run `/help` to see in CLI.
+
+**Generated**: $(date +%Y-%m-%dT%H:%M:%S.%3NZ)
