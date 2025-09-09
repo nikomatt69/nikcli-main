@@ -112,12 +112,12 @@ export class AgentTodoManager {
       goal.toLowerCase().includes('fai') ||
       goal.toLowerCase().includes('progetta');
 
-    if (goal.toLowerCase().includes('create') || goal.toLowerCase().includes('build') || 
-        goal.toLowerCase().includes('implement') || goal.toLowerCase().includes('develop') || 
-        goal.toLowerCase().includes('add') || goal.toLowerCase().includes('make') || 
-        goal.toLowerCase().includes('design') || goal.toLowerCase().includes('crea') || 
-        goal.toLowerCase().includes('implementa') || goal.toLowerCase().includes('sviluppa') || 
-        goal.toLowerCase().includes('aggiungi') || goal.toLowerCase().includes('progetta')) {
+    if (goal.toLowerCase().includes('create') || goal.toLowerCase().includes('build') ||
+      goal.toLowerCase().includes('implement') || goal.toLowerCase().includes('develop') ||
+      goal.toLowerCase().includes('add') || goal.toLowerCase().includes('make') ||
+      goal.toLowerCase().includes('design') || goal.toLowerCase().includes('crea') ||
+      goal.toLowerCase().includes('implementa') || goal.toLowerCase().includes('sviluppa') ||
+      goal.toLowerCase().includes('aggiungi') || goal.toLowerCase().includes('progetta')) {
       baseTodos.push(
         {
           title: 'Analyze requirements',
@@ -324,7 +324,7 @@ export class AgentTodoManager {
         }
       } catch (error) {
         // More visible fallback
-        console.log(chalk.cyan('\n┌─[💬 Ready for next input]'));  
+        console.log(chalk.cyan('\n┌─[💬 Ready for next input]'));
         console.log(chalk.cyan('└─❯ '));
         process.stdout.write('');
       }
@@ -367,7 +367,7 @@ export class AgentTodoManager {
       const { agentService } = await import('../services/agent-service');
 
       // Execute task using real agent service and get taskId
-      const taskId = await agentService.executeTask('autonomous-coder', `${todo.title}: ${todo.description}`);
+      const taskId = await agentService.executeTask('universal-agent', `${todo.title}: ${todo.description}`);
 
       // Poll for completion with timeout
       const maxWaitMs = 10 * 60 * 1000; // 10 minutes

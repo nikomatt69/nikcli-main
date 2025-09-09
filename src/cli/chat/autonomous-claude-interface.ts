@@ -56,7 +56,11 @@ export class AutonomousClaudeInterface {
       input: process.stdin,
       output: process.stdout,
       historySize: 300,
-      completer: this.autoComplete.bind(this),
+      completer: (line: string, callback: (err: any, result: [string[], string]) => void) => {
+        this.autoComplete(line)
+          .then(result => callback(null, result))
+          .catch(err => callback(err, [[], line]));
+      },
     });
 
     this.session = {
@@ -1186,22 +1190,36 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
   /**
    * Auto-complete function for readline
    */
-  private autoComplete(line: string): [string[], string] {
-    const commands = [
-      '/add-dir', '/agents', '/analyze', '/auto', '/bug', '/cd', '/clear', '/compact', '/config',
-      '/cost', '/doctor', '/exit', '/export', '/help', '/history', '/ls', '/model', '/pwd',
-      '/autonomous', '/context', '/plan', '/auto-accept', '/diff', '/accept', '/reject', '/quit'
-    ];
+  private async autoComplete(line: string): Promise<[string[], string]> {
+    try {
+      // Use the smart completion manager for intelligent completions
+      const { smartCompletionManager } = await import('../core/smart-completion-manager');
+      
+      const completions = await smartCompletionManager.getCompletions(line, {
+        currentDirectory: process.cwd(),
+        interface: 'autonomous'
+      });
 
-    const agentCommands = [
-      '@ai-analysis', '@code-review', '@backend-expert', '@frontend-expert', '@react-expert',
-      '@devops-expert', '@system-admin', '@autonomous-coder'
-    ];
+      // Convert to readline format
+      const suggestions = completions.map(comp => comp.completion);
+      return [suggestions.length ? suggestions : [], line];
+    } catch (error) {
+      // Fallback to original static completion
+      const commands = [
+        '/add-dir', '/agents', '/analyze', '/auto', '/bug', '/cd', '/clear', '/compact', '/config',
+        '/cost', '/doctor', '/exit', '/export', '/help', '/history', '/ls', '/model', '/pwd',
+        '/autonomous', '/context', '/plan', '/auto-accept', '/diff', '/accept', '/reject', '/quit'
+      ];
 
-    const allSuggestions = [...commands, ...agentCommands];
+      const agentCommands = [
+        '@ai-analysis', '@code-review', '@backend-expert', '@frontend-expert', '@react-expert',
+        '@devops-expert', '@system-admin', '@autonomous-coder'
+      ];
 
-    const hits = allSuggestions.filter((c) => c.startsWith(line));
-    return [hits.length ? hits : allSuggestions, line];
+      const allSuggestions = [...commands, ...agentCommands];
+      const hits = allSuggestions.filter((c) => c.startsWith(line));
+      return [hits.length ? hits : allSuggestions, line];
+    }
   }
 
   /**

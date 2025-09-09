@@ -1,0 +1,87 @@
+---
+title: 'Notification'
+description: 'Informational banner for alerts and messages.'
+---
+
+## Overview
+
+Transient or persistent notifications.
+
+## Import
+
+```ts
+import { Notification } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Notification({ parent: screen, message: 'Heads up!' });
+```
+
+## Live Preview
+
+<Snippet file="previews/notification.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- message: string — Body text.
+- title?: string — Label.
+- type?: 'info' | 'success' | 'warning' | 'error' — Visual accent.
+- duration?: number — Auto-close duration in ms.
+- autoClose?: boolean — Enable/disable timer (default true if duration set).
+- BaseProps: container styling.
+
+## Methods
+
+- setMessage(text), setTitle(text), setType(type).
+- setDuration(ms), setAutoClose(bool), close(), show(), hide().
+- getType(), getMessage().
+
+## Statics
+
+- Notification.info/success/warning/error(message, title?).
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Notification } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Notification({ parent: screen, title: 'Info', message: 'Saved', type: 'success', duration: 2000, autoClose: true });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+Notification.info('Network check');
+Notification.success('Deployed', 'Success');
+Notification.warning('High load');
+Notification.error('Failed');
+```
+
+```typescript
+const n = new Notification({ parent: screen, message: 'Sticky', autoClose: false });
+setTimeout(() => n.close(), 3000);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Usa `autoClose` per feedback transiente; evita stacking eccessivo.

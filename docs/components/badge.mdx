@@ -1,0 +1,168 @@
+---
+title: "Badge"
+description: "Badge component for status labeling and small inline indicators."
+---
+
+## Overview
+
+Compact label for statuses, categories, and annotations.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```typescript
+import { Badge } from "nikcli-tui";
+```
+
+## Quick Start
+
+```typescript
+new Badge({ parent: screen, text: "New", variant: "success" });
+```
+
+## Live Preview
+
+<Snippet file="previews/badge.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+new Badge({ parent: screen, top: 1, left: 2, text: "Info", variant: "info" });
+new Badge({
+  parent: screen,
+  top: 1,
+  left: 12,
+  text: "Warn",
+  variant: "warning",
+});
+new Badge({ parent: screen, top: 1, left: 22, text: "OK", variant: "success" });
+new Badge({ parent: screen, top: 1, left: 30, text: "Err", variant: "error" });
+```
+
+```typescript
+import { lightTheme } from "nikcli-tui";
+new Badge({
+  parent: screen,
+  top: 3,
+  left: 2,
+  text: "Muted",
+  variant: "muted",
+  theme: lightTheme,
+});
+```
+
+</CodeGroup>
+
+## Props
+
+### Badge-specific Props
+
+| Property | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `children` | `string \| any` | No | - | Badge content text or child components |
+| `dot` | `boolean` | No | `false` | Display as a dot indicator (● symbol) |
+| `rounded` | `boolean` | No | `false` | Apply rounded styling |
+| `count` | `number` | No | - | Show numeric count instead of text (must be >= 0) |
+| `text` | `string` | No | - | Badge text (from component-schemas.ts) |
+| `color` | `string` | No | - | Badge color override |
+
+### Inherited Base Props
+
+The Badge component extends `BasePropsSchema` and includes all standard TUI component properties:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `parent` | `blessed.Widgets.Node` | - | Parent blessed element |
+| `className` | `string` | - | CSS-like class name for styling |
+| `id` | `string` | - | Unique identifier |
+| `variant` | `ComponentVariant` | `"default"` | Component variant (primary, secondary, destructive, success, warning, error, info, etc.) |
+| `size` | `ComponentSize` | - | Component size (xs, sm, md, lg, xl) |
+| `disabled` | `boolean` | `false` | Whether component is disabled |
+| `hidden` | `boolean` | `false` | Whether component is hidden |
+| `focusable` | `boolean` | `true` | Whether component can receive focus |
+
+### Layout & Positioning Props
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `top` | `TerminalUnit` | Top position |
+| `left` | `TerminalUnit` | Left position |
+| `right` | `TerminalUnit` | Right position |
+| `bottom` | `TerminalUnit` | Bottom position |
+| `width` | `TerminalUnit` | Component width (defaults to "shrink") |
+| `height` | `TerminalUnit` | Component height (defaults to 1) |
+| `padding` | `PaddingConfig` | Internal spacing |
+| `margin` | `PaddingConfig` | External spacing |
+
+### Style Props
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `bg` | `ColorValue` | Background color |
+| `fg` | `ColorValue` | Foreground color |
+| `border` | `BorderStyle` | Border configuration |
+| `borderColor` | `ColorValue` | Border color |
+| `borderStyle` | `"line" \| "double" \| "round" \| "bold" \| "classic" \| "none"` | Border style helper (defaults to "none") |
+| `style` | `TextStyle` | Text styling (bold, underline, etc.) |
+| `animation` | `AnimationType` | Animation type |
+
+## Zod Schema Validation
+
+The Badge component uses Zod for runtime type validation:
+
+```typescript
+import { BadgeSchema } from 'nikcli-tui';
+
+const BadgeSchema = BasePropsSchema.extend({
+  // Content
+  children: z.union([z.string(), z.any()]).optional(),
+  
+  // Badge-specific styling
+  dot: z.boolean().optional(),
+  rounded: z.boolean().optional(),
+  count: z.number().min(0).optional(), // Show count instead of text
+}).strict();
+```
+
+## Methods
+
+### Instance Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `setContent` | `content: string` | `void` | Updates the badge text content |
+| `setCount` | `count: number` | `void` | Sets numeric count display (≥ 0) |
+| `setDot` | `dot: boolean` | `void` | Toggle dot indicator mode |
+| `destroy` | - | `void` | Cleanup method from base component |
+
+### Inherited Methods (from BaseComponent)
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `setVariant` | `variant: ComponentVariant` | `void` | Updates component variant |
+| `setSize` | `size: ComponentSize` | `void` | Updates component size |
+| `setState` | `state: ComponentState` | `void` | Updates component state |
+| `getConfig` | - | `ComponentConfig` | Returns current configuration |
+| `update` | `props: Partial<BadgeProps>` | `void` | Updates component properties |
+
+### Static Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `Badge.create` | `props: BadgeProps` | `Badge` | Factory method to create new badge instance |
+
+## Best Practices
+
+- Keep text short (≤ 10 chars) to prevent wrapping in narrow terminals.
+- Use tone/variant consistently across the app for predictable semantics.

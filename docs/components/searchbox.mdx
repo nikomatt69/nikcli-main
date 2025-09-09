@@ -1,0 +1,88 @@
+---
+title: 'SearchBox'
+description: 'Search input with optional suggestions.'
+---
+
+## Overview
+
+Quick search input field.
+
+## Import
+
+```ts
+import { SearchBox } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new SearchBox({ parent: screen, label: 'Search' });
+```
+
+## Live Preview
+
+<Snippet file="previews/searchbox.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- placeholder?: string — Placeholder text.
+- onChange?: (value: string) => void — Typing callback.
+- onSearch?: (value: string) => void — Enter/submit callback.
+- value?: string — Controlled value.
+- clearable?: boolean — Shows a clear button (default true).
+- searchIcon?: string — Optional leading icon (default '🔍').
+- width?: string | number — Container width (default 100%).
+- height?: number — Container height (default 3).
+
+## Methods
+
+- getValue(), setValue(value), clear().
+- setPlaceholder(text), focus(), blur().
+- setSearchIcon(icon), setClearable(bool).
+- search(): trigger onSearch with current value.
+- getDimensions(), setDimensions(w, h).
+
+## Keyboard
+
+- Enter: triggers onSearch if provided.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { SearchBox } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new SearchBox({ parent: screen, top: 1, left: 2, width: 40, onSearch: v => console.log('search:', v) });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+const sb = new SearchBox({ parent: screen, top: 1, left: 2, width: 50, value: 'init', onChange: v => console.log(v) });
+sb.setValue('hello');
+```
+
+```typescript
+new SearchBox({ parent: screen, top: 4, left: 2, width: 50, clearable: true, searchIcon: '🔎' });
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Debounce lato app le ricerche per ridurre chiamate superflue.

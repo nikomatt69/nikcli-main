@@ -5,6 +5,7 @@ import cliProgress from 'cli-progress';
 import * as readline from 'readline';
 import { highlight } from 'cli-highlight';
 import * as path from 'path';
+import { createPatch, diffLines } from 'diff';
 
 export interface StatusIndicator {
   id: string;
@@ -701,7 +702,7 @@ export class AdvancedCliUI {
    * Show file diff in structured panel
    */
   showFileDiff(filePath: string, oldContent: string, newContent: string): void {
-    const diffContent = this.generateDiffContent(oldContent, newContent);
+    const diffContent = this.generateUnifiedDiff(filePath, oldContent, newContent);
 
     this.panels.set('diff', {
       id: 'diff',
@@ -713,11 +714,25 @@ export class AdvancedCliUI {
       borderColor: 'yellow'
     });
 
+    // Also show a compact summary panel alongside the diff
+    const summary = this.buildDiffSummary(filePath, oldContent, newContent);
+    this.panels.set('diff-summary', {
+      id: 'diff-summary',
+      title: '✍️ Edit Summary',
+      content: summary,
+      type: 'status',
+      filePath,
+      visible: true,
+      borderColor: 'yellow',
+      pinned: true,
+      priority: 150,
+    });
 
     this.autoLayout();
 
     // Emit raw contents for accurate rendering in VS Code
     this.emitEvent({ type: 'panel', panel: 'diff', filePath, oldContent, newContent });
+    this.emitEvent({ type: 'panel', panel: 'diff-summary', filePath, summary });
   }
 
   /**
@@ -1200,6 +1215,10 @@ export class AdvancedCliUI {
         return chalk.red(line);
       } else if (line.startsWith('@@')) {
         return chalk.cyan(line);
+      } else if (line.startsWith('--- ')) {
+        return chalk.red(line);
+      } else if (line.startsWith('+++ ')) {
+        return chalk.green(line);
       } else {
         return chalk.gray(line);
       }
@@ -1264,26 +1283,57 @@ export class AdvancedCliUI {
     }).join('\n');
   }
 
-  private generateDiffContent(oldContent: string, newContent: string): string {
-    const lines1 = oldContent.split('\n');
-    const lines2 = newContent.split('\n');
-
-    let diff = '';
-    const maxLines = Math.max(lines1.length, lines2.length);
-
-    for (let i = 0; i < maxLines; i++) {
-      const line1 = lines1[i] || '';
-      const line2 = lines2[i] || '';
-
-      if (line1 !== line2) {
-        if (line1) diff += `-${line1}\n`;
-        if (line2) diff += `+${line2}\n`;
-      } else if (line1) {
-        diff += ` ${line1}\n`;
+  private generateUnifiedDiff(filePath: string, oldContent: string, newContent: string): string {
+    try {
+      // Use the diff package to create a unified patch with context
+      const patch = createPatch(filePath, oldContent, newContent, '', '', { context: 3 });
+      // createPatch includes a header; keep as-is for better UX
+      return patch.trimEnd();
+    } catch {
+      // Fallback to naive rendering when diff fails
+      const lines1 = oldContent.split('\n');
+      const lines2 = newContent.split('\n');
+      let out = '';
+      const maxLines = Math.max(lines1.length, lines2.length);
+      for (let i = 0; i < maxLines; i++) {
+        const a = lines1[i] || '';
+        const b = lines2[i] || '';
+        if (a !== b) {
+          if (a) out += `-${a}\n`;
+          if (b) out += `+${b}\n`;
+        } else if (a) {
+          out += ` ${a}\n`;
+        }
       }
+      return out;
     }
+  }
 
-    return diff;
+  private buildDiffSummary(filePath: string, oldContent: string, newContent: string): string {
+    const changes = diffLines(oldContent, newContent);
+    let added = 0;
+    let removed = 0;
+    let unchanged = 0;
+    for (const part of changes) {
+      const lines = part.value.split('\n');
+      const count = lines[lines.length - 1] === '' ? lines.length - 1 : lines.length;
+      if (part.added) added += count;
+      else if (part.removed) removed += count;
+      else unchanged += count;
+    }
+    const totalNew = newContent ? newContent.split('\n').length : 0;
+    const totalOld = oldContent ? oldContent.split('\n').length : 0;
+    const totalChanged = added + removed;
+    const changePct = (totalOld > 0) ? Math.min(100, Math.round((totalChanged / Math.max(1, totalOld)) * 100)) : (added > 0 ? 100 : 0);
+
+    const lines: string[] = [];
+    lines.push(`${chalk.cyan('File')}: ${path.basename(filePath)}`);
+    lines.push(`${chalk.gray('Path')}: ${filePath}`);
+    lines.push('');
+    lines.push(`${chalk.green(`+${added} additions`)} ${chalk.gray('|')} ${chalk.red(`-${removed} deletions`)} ${chalk.gray('|')} ${chalk.white(`${totalNew} lines total`)}`);
+    lines.push(`${chalk.gray('Change')} ${'█'.repeat(Math.max(1, Math.round(changePct / 5)))}${'░'.repeat(Math.max(0, 20 - Math.round(changePct / 5)))} ${chalk.yellow(`${changePct}%`)}`);
+
+    return lines.join('\n');
   }
 
   private detectLanguage(filePath: string): string {

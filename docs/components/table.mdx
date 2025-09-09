@@ -1,0 +1,93 @@
+---
+title: 'Table'
+description: 'Tabular data display with headers and rows.'
+---
+
+## Overview
+
+Display datasets with columns and rows.
+
+## Import
+
+```ts
+import { Table } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Table({ parent: screen, headers: ['Col A','Col B'], rows: [['A','1'],['B','2']] });
+```
+
+## Live Preview
+
+<Snippet file="previews/table.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- headers: string[] — Column headers.
+- rows: (string | number)[][] — Row data.
+- sortable?: boolean — Enable inline sort (press `s`).
+- sortColumn?: number — Initial sort column index or -1.
+- sortDirection?: 'asc' | 'desc' — Initial sort direction.
+- onSort?: (column, direction) => void — Sort callback.
+- selectable?: boolean — Enable row selection callbacks.
+- selectedRow?: number — Preselected row index; -1 for none.
+- onRowSelect?: (rowIndex, rowData) => void — Row selection callback.
+- onRowClick?: (rowIndex, rowData) => void — Row click callback.
+- BaseProps: position, label, borderStyle, keys, mouse.
+
+## Methods
+
+- setData(headers, rows), setHeaders(headers), setRows(rows).
+- addRow(row), removeRow(index), updateRow(index, row).
+- setCell(r, c, value), getCell(r, c).
+- setSortColumn(c), setSortDirection(dir), sortByColumn(c, dir), clearSort(), getSortInfo().
+- setSelectedRow(i), getSelectedRow(), getSelectedRowData().
+- setSortable(bool), setSelectable(bool).
+- getRowCount(), getColumnCount(), getTableDimensions(), isEmpty().
+
+## Keyboard
+
+- Arrow keys: navigate; Enter: select; `s`: toggle sorting if sortable.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Table } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Table({ parent: screen, top: 1, left: 2, headers: ['Name','Age'], rows: [['Alex', 31], ['Sky', 28]], sortable: true });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+new Table({ parent: screen, top: 1, left: 36, headers: ['A','B'], rows: [['1','2'],['3','4']], selectable: true, onRowSelect: (i, r) => console.log(i, r) });
+```
+
+```typescript
+const t = new Table({ parent: screen, top: 8, left: 2, headers: ['Name','Score'], rows: [['A', 10], ['B', 5]] });
+t.sortByColumn(1, 'desc');
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Mantieni le colonne strette e utilizza abbreviazioni per terminal stretti.

@@ -1,0 +1,70 @@
+---
+title: 'Spinner'
+description: 'Animated spinner indicating loading states.'
+---
+
+## Overview
+
+Show progress while tasks run.
+
+## Import
+
+```ts
+import { Spinner } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Spinner({ parent: screen, text: 'Loading...' });
+```
+
+## Live Preview
+
+<Snippet file="previews/spinner.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- text?: string — Optional label.
+- intervalMs?: number — Frame interval (default 80ms).
+
+## Methods
+
+- start(text?, intervalMs?), stop().
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Spinner } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Spinner({ parent: screen, top: 1, left: 2, text: 'Loading...' });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Slow
+const sp = new Spinner({ parent: screen, top: 1, left: 2 });
+sp.start('Sync', 150);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Mostra sempre un contesto (StatusBar/Label) per evitare ambiguità.

@@ -1,3 +1,15 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.env.*
+coverage/
+.turbo/
+.vscode/
+.idea/
+.yarn/
+.pnp.*
 # Dependencies
 node_modules/
 npm-debug.log*
@@ -30,13 +42,12 @@ nikcli-*
 temp-*
 temp-complete/
 temp-nikcli-*
-
+BOXEN_PANELS.md
 # All release files and directories
 releases/
 scripts/releases/
 *.tar.gz
 *.tgz
-nikcli-*
 nikcli-linux-*
 nikcli-macos-*
 nikcli-win-*
@@ -345,3 +356,45 @@ temp-scripts/
 # Project specific exclusions
 docs/supabase-schema.sql
 .vercel
+<<<<<<< Current (Your changes)
+
+# Do not ignore this specific file (was accidentally added to .gitignore)
+!src/cli/acp/nikcli-agent.ts
+=======
+>>>>>>> Incoming (Background Agent changes)
+src/tui/agents/package-lock.json
+src/tui/agents/package.json
+src/tui/agents/tsconfig.json
+src/tui/agents/src/index.ts
+src/tui/agents/src/base/BaseAgent.ts
+src/tui/agents/src/manager/AgentManager.ts
+src/tui/agents/src/todo/TodoAgent.ts
+src/tui/ai/package-lock.json
+src/tui/ai/package.json
+src/tui/ai/tsconfig.json
+src/tui/ai/src/index.ts
+src/tui/ai/src/chat/ChatContainer.ts
+src/tui/ai/src/chat/MessageBubble.ts
+src/tui/ai/src/chat/MessageHistory.ts
+src/tui/ai/src/components/ChatLayout.ts
+src/tui/ai/src/components/MessageList.ts
+src/tui/ai/src/components/PromptEditor.ts
+src/tui/ai/src/config/EnvironmentConfig.ts
+src/tui/ai/src/hooks/useChatTUI.ts
+src/tui/ai/src/streaming/AIService.ts
+src/tui/ai/src/streaming/StreamingText.ts
+src/tui/ai/src/tools/ToolOutput.ts
+src/tui/ai/src/tools/ToolProgress.ts
+src/tui/ai/src/tools/ToolSelector.ts
+src/tui/ai/src/types/ai-component-schemas.ts
+src/tui/ai/src/types/schemas.ts
+src/tui/ai/src/types/shims.d.ts
+src/tui/ai/src/validation/ProviderValidator.ts
+src/tui/providers/package-lock.json
+src/tui/providers/package.json
+src/tui/providers/tsconfig.json
+src/tui/providers/src/AnthropicProvider.ts
+src/tui/providers/src/index.ts
+src/tui/providers/src/OllamaProvider.ts
+src/tui/providers/src/OpenAIProvider.ts
+src/tui/providers/src/types/shims.d.ts

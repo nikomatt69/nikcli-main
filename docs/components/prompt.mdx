@@ -1,0 +1,86 @@
+---
+title: 'Prompt'
+description: 'Input prompt dialog for quick text entry.'
+---
+
+## Overview
+
+Collect single-line user input.
+
+## Import
+
+```ts
+import { Prompt } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Prompt({ parent: screen, message: 'Enter value', onSubmit: (v) => {} });
+```
+
+## Live Preview
+
+<Snippet file="previews/prompt.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- message: string — Prompt message.
+- onSubmit: (value: string) => void — Required submit handler.
+- placeholder?: string — Placeholder text.
+- defaultValue?: string — Initial input value.
+- width?: string | number — Default 70%.
+- height?: number — Default 7.
+- onCancel?: () => void — Esc handler.
+
+## Methods
+
+- setMessage(text), setValue(value), getValue(), setPlaceholder(text), setDefaultValue(value).
+- focus(), blur(), clear(), submit(), cancel().
+- setDimensions(w, h), show(), hide().
+
+## Keyboard
+
+- Enter: submit value.
+- Esc: cancel (if onCancel provided) and close.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Prompt } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Prompt({ parent: screen, message: 'Your name?', onSubmit: v => console.log(v) });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Confirm
+const confirm = Prompt.confirm('Proceed?', () => console.log('yes'), () => console.log('no'));
+```
+
+```ts Dimensions
+const p = new Prompt({ parent: screen, message: 'Value', onSubmit: () => {} });
+p.setDimensions('60%', 9);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Mantieni i prompt brevi; per form multi-campo usa Modal + TextInput.

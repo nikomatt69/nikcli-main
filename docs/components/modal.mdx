@@ -1,0 +1,87 @@
+---
+title: 'Modal'
+description: 'Overlay modal dialog for focused interactions.'
+---
+
+## Overview
+
+Display focused content on top of the UI.
+
+## Import
+
+```ts
+import { Modal } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Modal({ parent: screen, title: 'Action', content: 'Hello', closable: true });
+```
+
+## Live Preview
+
+<Snippet file="previews/modal.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- title?: string — Window label.
+- content?: string — Modal content body.
+- width?: string | number — Default 70%.
+- height?: string | number — Default 60%.
+- closable?: boolean — Enables Esc/q handlers.
+- onClose?: () => void — Called on close.
+- BaseProps: overlay fills screen.
+
+## Methods
+
+- setContent(text), setTitle(text), setDimensions(w, h).
+- show(), hide(), close().
+- setClosable(bool), addKeyHandler(keys, fn), removeKeyHandler(keys).
+
+## Keyboard
+
+- Esc, q: close (if closable).
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Modal } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+const m = new Modal({ parent: screen, title: 'Confirm', content: 'Are you sure?', closable: true });
+m.show();
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+const modal = new Modal({ parent: screen, title: 'Action' });
+setTimeout(() => modal.close(), 1200);
+```
+
+```typescript
+const modal2 = new Modal({ parent: screen, title: 'Large' });
+modal2.setDimensions('80%', '70%');
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Evita modali annidati; preferisci step sequenziali con Stepper o Tabs.

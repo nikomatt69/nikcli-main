@@ -1,0 +1,71 @@
+---
+title: 'ProgressBar'
+description: 'Linear progress indicator with percentage.'
+---
+
+## Overview
+
+Show task completion progress.
+
+## Import
+
+```ts
+import { ProgressBar } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new ProgressBar({ parent: screen, value: 60 });
+```
+
+## Live Preview
+
+<Snippet file="previews/progressbar.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- value?: number — 0..100 initial value.
+- orientation?: 'horizontal' | 'vertical' — Bar orientation.
+- BaseProps: label, borderStyle, layout.
+
+## Methods
+
+- setValue(n) — Throttled renders for smooth updates.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { ProgressBar } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+const p = new ProgressBar({ parent: screen, top: 1, left: 2, width: 40, value: 0 });
+let v = 0; const t = setInterval(() => { v += 10; p.setValue(v); if (v >= 100) clearInterval(t); }, 150);
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Vertical
+new ProgressBar({ parent: screen, top: 1, left: 44, height: 6, orientation: 'vertical', value: 60 });
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Aggiorna con una cadenza di 100–200ms per evitare flicker.

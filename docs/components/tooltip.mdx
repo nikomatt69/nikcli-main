@@ -1,0 +1,95 @@
+---
+title: 'Tooltip'
+description: 'Hover tooltip anchored to a target element.'
+---
+
+## Overview
+
+Provide contextual help on hover/focus.
+
+## Import
+
+```ts
+import { Tooltip } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+const target = new Box({ parent: screen, width: 20, height: 3 }).el;
+new Tooltip({ parent: screen, target, content: 'Tooltip' });
+```
+
+## Live Preview
+
+<Snippet file="previews/tooltip.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- content: string — Tooltip text (alias: text).
+- target: Widgets.BlessedElement — Element to anchor/trigger.
+- position?: 'top' | 'bottom' | 'left' | 'right' — Placement.
+- offset?: number — Gap from target (px/cols).
+- showDelay?: number — Hover delay before show (ms, default 500).
+- hideDelay?: number — Delay before hide (ms, default 100).
+- maxWidth?: number — Clamp width; truncates content.
+- arrow?: boolean — Adds directional arrow symbol.
+- BaseProps: position, variant, size, borderStyle, label.
+
+## Methods
+
+- show(), hide(), toggle(), forceShow(), forceHide().
+- setText(text), setPosition(pos), setOffset(n), setShowDelay(ms), setHideDelay(ms).
+- setMaxWidth(n), setArrow(bool), setTarget(el).
+- isTooltipVisible(), getText(), getPosition(), getOffset(), getShowDelay(), getHideDelay().
+
+## Behavior
+
+- Shows on target mouseover; hides on mouseout; destroys on target destroy.
+
+## Theming
+
+- Styled via BaseProps variant/size/borderStyle and theme tokens.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Tooltip, Box } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+const target = new Box({ parent: screen, top: 1, left: 2, width: 12, height: 3, borderStyle: 'line', label: 'Hover' }).el;
+new Tooltip({ parent: screen, content: 'Hello', target });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Positions
+new Tooltip({ parent: screen, content: 'Top', target, position: 'top' });
+new Tooltip({ parent: screen, content: 'Right', target, position: 'right' });
+```
+
+```ts Delays & Width
+const tt = new Tooltip({ parent: screen, content: 'Info', target, showDelay: 200, hideDelay: 50 });
+tt.setMaxWidth(20);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Evita tooltip persistenti; usa hideDelay basso per UI reattiva.

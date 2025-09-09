@@ -1,0 +1,695 @@
+---
+title: 'Component Overview'
+description: 'Complete guide to TUI-Kit-AI components with live examples and interactive documentation'
+---
+
+## Component Library
+
+TUI-Kit-AI provides **40+ pre-built components** organized into logical categories. Each component is designed for terminal interfaces with full TypeScript support and theming capabilities.
+
+<CardGroup cols={3}>
+  <Card
+    title="Layout"
+    icon="grid-2"
+    href="/components/layout"
+  >
+    Box, Flex, Grid, Panel - Structure your interface
+  </Card>
+  <Card
+    title="Input"
+    icon="keyboard"
+    href="/components/input"
+  >
+    TextInput, Select, Button - User interaction
+  </Card>
+  <Card
+    title="Display"
+    icon="eye"
+    href="/components/display"
+  >
+    Text, Heading, Table - Information display
+  </Card>
+  <Card
+    title="Feedback"
+    icon="loader"
+    href="/components/feedback"
+  >
+    Spinner, ProgressBar, Toast - User feedback
+  </Card>
+  <Card
+    title="Navigation"
+    icon="navigation"
+    href="/components/navigation"
+  >
+    Menu, Tabs, Tree - App navigation
+  </Card>
+  <Card
+    title="Containers"
+    icon="square"
+    href="/components/containers"
+  >
+    Modal, Scrollable, Tooltip - Content organization
+  </Card>
+</CardGroup>
+
+## Component Architecture
+
+All TUI-Kit-AI components follow a consistent architecture pattern:
+
+### Base Component Interface
+
+```typescript
+interface Component<T extends Widgets.Node> {
+  el: T;                    // Underlying blessed.js element
+  theme: ThemeConfig;       // Theme configuration
+  destroy: () => void;      // Cleanup method
+}
+
+interface BaseProps {
+  parent: Widgets.Node;     // Parent container (required)
+  theme?: ThemeConfig;      // Optional theme override
+  
+  // Position & Size (blessed.js compatible)
+  top?: string | number;
+  left?: string | number;
+  right?: string | number;
+  bottom?: string | number;
+  width?: string | number;
+  height?: string | number;
+  
+  // Styling
+  style?: StyleConfig;
+  border?: BorderConfig;
+  label?: string;
+  
+  // Behavior
+  hidden?: boolean;
+  clickable?: boolean;
+  focusable?: boolean;
+}
+```
+
+### Component Creation Pattern
+
+Every component follows this pattern:
+
+<CodeGroup>
+
+```typescript Basic Usage
+import { useTerminal, Box, Text } from 'nikcli-tui';
+
+// Initialize terminal
+const { screen } = useTerminal();
+
+// Create container
+const container = new Box({
+  parent: screen,
+  top: 'center',
+  left: 'center',
+  width: 50,
+  height: 10,
+  border: { type: 'line' },
+  label: ' My Component '
+});
+
+// Add content
+const text = new Text({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  content: 'Hello, TUI-Kit-AI!'
+});
+
+// Render
+screen.render();
+```
+
+```typescript With Theming
+import { darkTheme, Box, Text } from 'nikcli-tui';
+
+// Apply theme
+const themedContainer = new Box({
+  parent: screen,
+  theme: darkTheme,
+  border: { type: 'double' },
+  style: {
+    border: { fg: 'cyan' },
+    bg: 'black'
+  }
+});
+```
+
+```typescript Event Handling
+import { Button } from 'nikcli-tui';
+
+const button = new Button({
+  parent: container.el,
+  content: 'Click me!',
+  onPress: () => {
+    console.log('Button clicked!');
+  },
+  style: {
+    bg: 'blue',
+    fg: 'white'
+  }
+});
+```
+
+</CodeGroup>
+
+## Interactive Component Gallery
+
+Explore components with live previews and code examples:
+
+### Layout Components
+
+<Tabs>
+  <Tab title="Box">
+    The fundamental container component:
+    
+    ```typescript
+    const box = new Box({
+      parent: screen,
+      top: 2,
+      left: 2,
+      width: 30,
+      height: 8,
+      border: { type: 'line' },
+      label: ' Basic Box ',
+      style: {
+        border: { fg: 'green' }
+      }
+    });
+    ```
+    
+    **Use cases**: Containers, panels, dialogs, section dividers
+  </Tab>
+  
+  <Tab title="Flex">
+    Flexible layout container:
+    
+    ```typescript
+    const flexContainer = new Flex({
+      parent: screen,
+      direction: 'row',
+      justify: 'space-between',
+      align: 'center',
+      gap: 2
+    });
+    
+    // Add flex items
+    new Box({ parent: flexContainer.el, flex: 1 });
+    new Box({ parent: flexContainer.el, flex: 2 });
+    ```
+    
+    **Use cases**: Responsive layouts, toolbars, button groups
+  </Tab>
+  
+  <Tab title="Grid">
+    Grid-based layout system:
+    
+    ```typescript
+    const grid = new Grid({
+      parent: screen,
+      rows: 2,
+      cols: 3,
+      gap: 1
+    });
+    
+    // Grid automatically positions children
+    new Text({ parent: grid.el, content: 'Cell 1' });
+    new Text({ parent: grid.el, content: 'Cell 2' });
+    ```
+    
+    **Use cases**: Dashboards, form layouts, data grids
+  </Tab>
+</Tabs>
+
+### Input Components
+
+<Tabs>
+  <Tab title="TextInput">
+    Single-line text input:
+    
+    ```typescript
+    const input = new TextInput({
+      parent: container.el,
+      placeholder: 'Enter your message...',
+      onSubmit: (value) => {
+        console.log('User entered:', value);
+      },
+      onChange: (value) => {
+        // Real-time validation
+        if (value.length > 100) {
+          input.setError('Too long!');
+        }
+      }
+    });
+    ```
+    
+    **Features**: Placeholder text, validation, real-time onChange, submit handling
+  </Tab>
+  
+  <Tab title="Select">
+    Dropdown selection component:
+    
+    ```typescript
+    const select = new Select({
+      parent: container.el,
+      items: [
+        { value: 'gpt4', label: 'GPT-4' },
+        { value: 'claude', label: 'Claude 3' },
+        { value: 'llama', label: 'Llama 2' }
+      ],
+      onSelect: (item) => {
+        console.log('Selected:', item.value);
+      }
+    });
+    ```
+    
+    **Features**: Searchable options, custom labels, keyboard navigation
+  </Tab>
+  
+  <Tab title="Button">
+    Clickable button component:
+    
+    ```typescript
+    const button = new Button({
+      parent: container.el,
+      content: '🚀 Launch',
+      variant: 'primary',
+      onPress: async () => {
+        button.setLoading(true);
+        await performAction();
+        button.setLoading(false);
+      }
+    });
+    ```
+    
+    **Features**: Multiple variants, loading states, disabled states, icons
+  </Tab>
+</Tabs>
+
+### Display Components
+
+<Tabs>
+  <Tab title="Text">
+    Formatted text display:
+    
+    ```typescript
+    const text = new Text({
+      parent: container.el,
+      content: 'Welcome to {cyan-fg}TUI-Kit-AI{/}!',
+      markup: true,  // Enable color markup
+      wrap: true,    // Text wrapping
+      align: 'center'
+    });
+    ```
+    
+    **Features**: Color markup, text wrapping, alignment, rich formatting
+  </Tab>
+  
+  <Tab title="Table">
+    Tabular data display:
+    
+    ```typescript
+    const table = new Table({
+      parent: container.el,
+      headers: ['Name', 'Status', 'Progress'],
+      data: [
+        ['Task 1', '✅ Complete', '100%'],
+        ['Task 2', '🟡 In Progress', '75%'],
+        ['Task 3', '⏸️ Pending', '0%']
+      ],
+      columnWidths: [20, 15, 10],
+      sortable: true
+    });
+    ```
+    
+    **Features**: Sortable columns, custom widths, row selection, pagination
+  </Tab>
+</Tabs>
+
+### Feedback Components
+
+<Tabs>
+  <Tab title="Spinner">
+    Loading indicator:
+    
+    ```typescript
+    const spinner = new Spinner({
+      parent: container.el,
+      type: 'dots',
+      message: 'Processing AI request...',
+      color: 'cyan'
+    });
+    
+    spinner.start();
+    // ... async operation
+    spinner.stop();
+    ```
+    
+    **Types**: dots, line, arrow, bouncingBall, bouncingBar
+  </Tab>
+  
+  <Tab title="ProgressBar">
+    Progress visualization:
+    
+    ```typescript
+    const progress = new ProgressBar({
+      parent: container.el,
+      total: 100,
+      current: 0,
+      showPercentage: true,
+      color: 'green'
+    });
+    
+    // Update progress
+    progress.update(75); // 75%
+    ```
+    
+    **Features**: Percentage display, custom colors, smooth animations
+  </Tab>
+  
+  <Tab title="Toast">
+    Temporary notifications:
+    
+    ```typescript
+    const toast = new Toast({
+      parent: screen,
+      message: 'File saved successfully!',
+      type: 'success',
+      duration: 3000,
+      position: 'top-right'
+    });
+    
+    toast.show();
+    ```
+    
+    **Types**: success, error, warning, info
+  </Tab>
+</Tabs>
+
+## Component Composition
+
+Build complex interfaces by combining components:
+
+```typescript
+class ChatApplication {
+  private screen: any;
+  private chatContainer: ChatContainer;
+  private inputSection: Box;
+  private statusBar: StatusBar;
+
+  constructor() {
+    const { screen } = useTerminal();
+    this.screen = screen;
+    
+    this.createLayout();
+    this.setupEventHandlers();
+  }
+
+  private createLayout() {
+    // Main chat area
+    this.chatContainer = new ChatContainer({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 4,
+      border: { type: 'line' },
+      label: ' AI Chat '
+    });
+
+    // Input section
+    this.inputSection = new Box({
+      parent: this.screen,
+      bottom: 2,
+      left: 0,
+      right: 0,
+      height: 3,
+      border: { type: 'line' },
+      label: ' Message '
+    });
+
+    const input = new TextInput({
+      parent: this.inputSection.el,
+      top: 0,
+      left: 1,
+      right: 1,
+      height: 1,
+      placeholder: 'Type your message...',
+      onSubmit: (value) => this.handleMessage(value)
+    });
+
+    // Status bar
+    this.statusBar = new StatusBar({
+      parent: this.screen,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 1,
+      content: 'Ready to chat!'
+    });
+  }
+
+  private async handleMessage(message: string) {
+    // Add user message
+    this.chatContainer.addMessage({
+      role: 'user',
+      content: message
+    });
+
+    // Show typing indicator
+    this.statusBar.setContent('🤖 AI is thinking...');
+
+    // Get AI response
+    const response = await this.getAIResponse(message);
+    
+    // Add AI response
+    this.chatContainer.addMessage({
+      role: 'assistant',
+      content: response
+    });
+
+    this.statusBar.setContent('Ready to chat!');
+    this.screen.render();
+  }
+}
+```
+
+## Theming System
+
+Customize component appearance with the built-in theming system:
+
+### Built-in Themes
+
+<CodeGroup>
+
+```typescript Dark Theme
+import { darkTheme } from 'nikcli-tui';
+
+const component = new Box({
+  parent: screen,
+  theme: darkTheme
+});
+
+// Dark theme includes:
+// - Dark background colors
+// - Light text colors  
+// - Accent colors for borders
+// - High contrast for readability
+```
+
+```typescript Light Theme
+import { lightTheme } from 'nikcli-tui';
+
+const component = new Box({
+  parent: screen,
+  theme: lightTheme
+});
+
+// Light theme includes:
+// - Light background colors
+// - Dark text colors
+// - Subtle accent colors
+// - Optimized for bright environments
+```
+
+</CodeGroup>
+
+### Custom Themes
+
+Create your own themes:
+
+```typescript
+import { createTheme } from 'nikcli-tui';
+
+const customTheme = createTheme({
+  name: 'custom-ai-theme',
+  colors: {
+    primary: '#00ff88',      // Green accent
+    secondary: '#0088ff',    // Blue accent  
+    background: '#1a1a1a',   // Dark background
+    foreground: '#ffffff',   // White text
+    success: '#00ff00',      // Success green
+    warning: '#ffaa00',      // Warning orange
+    error: '#ff0000',        // Error red
+    muted: '#666666'         // Muted gray
+  },
+  
+  borders: {
+    style: 'single',         // Border style
+    focusStyle: 'double',    // Focused border
+    color: 'primary',        // Default border color
+    focusColor: 'secondary'  // Focused border color
+  },
+  
+  typography: {
+    heading: {
+      style: { bold: true, fg: 'primary' }
+    },
+    body: {
+      style: { fg: 'foreground' }
+    },
+    caption: {
+      style: { fg: 'muted' }
+    }
+  }
+});
+
+// Apply theme globally
+setGlobalTheme(customTheme);
+
+// Or apply to specific components
+const component = new Box({
+  parent: screen,
+  theme: customTheme
+});
+```
+
+## Best Practices
+
+### Component Lifecycle
+
+```typescript
+class ComponentManager {
+  private components: Set<any> = new Set();
+  
+  createComponent<T>(ComponentClass: new (...args: any[]) => T, props: any): T {
+    const component = new ComponentClass(props);
+    this.components.add(component);
+    return component;
+  }
+  
+  destroyComponent(component: any) {
+    if (component.destroy) {
+      component.destroy();
+    }
+    this.components.delete(component);
+  }
+  
+  cleanup() {
+    for (const component of this.components) {
+      this.destroyComponent(component);
+    }
+  }
+}
+
+// Always cleanup on app exit
+process.on('exit', () => {
+  componentManager.cleanup();
+});
+```
+
+### Performance Optimization
+
+```typescript
+class OptimizedApp {
+  private renderScheduled = false;
+  
+  // Batch rendering updates
+  scheduleRender() {
+    if (!this.renderScheduled) {
+      this.renderScheduled = true;
+      setImmediate(() => {
+        this.screen.render();
+        this.renderScheduled = false;
+      });
+    }
+  }
+  
+  // Efficient component updates
+  updateComponents(updates: ComponentUpdate[]) {
+    for (const update of updates) {
+      update.component.update(update.data);
+    }
+    this.scheduleRender(); // Single render call
+  }
+}
+```
+
+### Error Handling
+
+```typescript
+class ComponentErrorBoundary {
+  static wrap<T>(component: T, errorHandler: (error: Error) => void): T {
+    return new Proxy(component, {
+      get(target, prop) {
+        const value = target[prop];
+        
+        if (typeof value === 'function') {
+          return (...args: any[]) => {
+            try {
+              return value.apply(target, args);
+            } catch (error) {
+              errorHandler(error);
+            }
+          };
+        }
+        
+        return value;
+      }
+    });
+  }
+}
+
+// Usage
+const safeComponent = ComponentErrorBoundary.wrap(
+  new TextInput({ ... }),
+  (error) => console.error('Component error:', error)
+);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Layout Components"
+    icon="grid-2"
+    href="/components/layout"
+  >
+    Master Box, Flex, Grid, and Panel components
+  </Card>
+  <Card
+    title="Input Components"
+    icon="keyboard"
+    href="/components/input"
+  >
+    Learn TextInput, Select, Button, and form components
+  </Card>
+  <Card
+    title="Display Components"
+    icon="eye"
+    href="/components/display"
+  >
+    Explore Text, Table, and data visualization components
+  </Card>
+  <Card
+    title="Interactive Examples"
+    icon="play"
+    href="/examples/overview"
+  >
+    See components in action with complete examples
+  </Card>
+</CardGroup>

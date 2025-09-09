@@ -71,6 +71,7 @@ import { toolService } from './services/tool-service';
 import inquirer from 'inquirer';
 import { visionProvider } from './providers/vision';
 import { imageGenerator } from './providers/image';
+import { TOKEN_LIMITS } from './config/token-limits';
 
 // Configure syntax highlighting for terminal output
 configureSyntaxHighlighting();
@@ -213,7 +214,7 @@ export class NikCLI {
         // Initialize core managers
         this.configManager = simpleConfigManager;
         this.agentManager = new AgentManager(this.configManager);
-
+        this.toolchainTokenLimit = TOKEN_LIMITS.CHAT?.MAX_CONTEXT_TOKENS ?? 18000;
         // Initialize enhanced services
         this.enhancedSessionManager = new EnhancedSessionManager();
         this.isEnhancedMode = this.configManager.getRedisConfig().enabled || this.configManager.getSupabaseConfig().enabled;
@@ -752,7 +753,7 @@ export class NikCLI {
      */
     private showFileIfRelevant(filePath: string): void {
         // Only show files that are being actively worked on
-        const relevantExtensions = ['.ts', '.tsx', '.js', '.jsx', '.json', '.md'];
+        const relevantExtensions = ['.ts', '.tsx', '.js', '.jsx', '.json', '.md',];
         const ext = path.extname(filePath);
 
         if (relevantExtensions.includes(ext)) {
@@ -1120,7 +1121,7 @@ export class NikCLI {
     // Advanced UI Features Setup
     private setupAdvancedUIFeatures(): void {
         // Initialize advanced UI theme and features
-        this.advancedUI.isInteractiveMode = false; // Start in normal mode
+        this.advancedUI.isInteractiveMode = true; // Start in normal mode
 
         // Setup file watching capabilities
         this.setupFileWatching();
@@ -8559,7 +8560,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
 
         // Display status bar using process.stdout.write to avoid extra lines
         if (!this.isPrintingPanel) {
-            process.stdout.write(borderColor('╭' + '─'.repeat(terminalWidth - 2) + '╮') + '\n');
+            process.stdout.write(chalk.cyan('╭' + '─'.repeat(terminalWidth - 2) + '╮') + '\n');
 
             // Force exact width to prevent overflow
             const leftPart = ` ${finalStatusLeft}`;
@@ -8582,8 +8583,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
                 padding = 1;
             }
 
-            process.stdout.write(borderColor('│') + chalk.green(displayLeft) + ' '.repeat(padding) + chalk.gray(displayRight) + borderColor('│') + '\n');
-            process.stdout.write(borderColor('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n');
+            process.stdout.write(chalk.cyan('│') + chalk.green(displayLeft) + ' '.repeat(padding) + chalk.gray(displayRight) + chalk.cyan('│') + '\n');
+            process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n');
         }
 
         // Input prompt

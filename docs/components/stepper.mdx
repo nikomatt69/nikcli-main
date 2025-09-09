@@ -1,0 +1,84 @@
+---
+title: 'Stepper'
+description: 'Multi-step process indicator with active step.'
+---
+
+## Overview
+
+Visualize progress across steps.
+
+## Import
+
+```ts
+import { Stepper } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Stepper({ parent: screen, steps: [{ label: 'One' }, { label: 'Two' }], activeIndex: 0 });
+```
+
+## Live Preview
+
+<Snippet file="previews/stepper.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- steps: Array of `{ label: string; completed?: boolean; description?: string; icon?: string }` — Step items.
+- activeIndex?: number — Initially active step (default 0).
+- orientation?: 'horizontal' | 'vertical' — Layout direction.
+- showDescriptions?: boolean — Shows step descriptions below labels.
+- clickable?: boolean — Enables mouse click to activate steps.
+- onStepClick?: (index: number) => void — Click callback when clickable.
+- BaseProps: position, variant, size, borderStyle, label.
+
+## Methods
+
+- setActive(index), getActiveIndex(), getActiveStep().
+- next(), previous(), first(), last().
+- setSteps(steps), addStep(step), removeStep(index), updateStep(index, step).
+- completeStep(index), uncompleteStep(index).
+- setStepLabel(index, label), setStepDescription(index, text), setStepIcon(index, icon).
+- setOrientation(dir), setShowDescriptions(bool), setClickable(bool).
+- getStepCount(), getCompletedStepCount(), getProgressPercentage(), isAllCompleted(), isStepActive(i), isStepCompleted(i).
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Stepper } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Stepper({ parent: screen, top: 1, left: 2, steps: [ { label: 'One' }, { label: 'Two' } ], activeIndex: 0 });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+new Stepper({ parent: screen, top: 1, left: 2, steps: [ { label: 'Build' }, { label: 'Test' }, { label: 'Deploy' } ], orientation: 'horizontal' });
+```
+
+```typescript
+new Stepper({ parent: screen, top: 3, left: 2, steps: [ { label: 'A', description: 'First' }, { label: 'B' } ], showDescriptions: true, clickable: true, onStepClick: i => console.log(i) });
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Usa icone coerenti (●/✔/○) e non mescolare troppi stili.

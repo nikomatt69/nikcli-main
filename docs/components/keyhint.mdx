@@ -1,0 +1,75 @@
+---
+title: 'KeyHint'
+description: 'Inline key hints for keyboard shortcuts.'
+---
+
+## Overview
+
+Show keyboard shortcuts contextually.
+
+## Import
+
+```ts
+import { KeyHint } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new KeyHint({ parent: screen, hints: [{ key: 'q', label: 'quit' }] });
+```
+
+## Live Preview
+
+<Snippet file="previews/keyhint.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- hints: Array of `{ key: string; label: string }` — Key + label pairs.
+- separator?: string — Spacing string (default 3 spaces).
+- showBrackets?: boolean — Surround keys with [ ] (default true).
+
+## Methods
+
+- setHints(hints), addHint(hint), removeHint(key), clearHints().
+- setSeparator(text), setShowBrackets(bool).
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { KeyHint } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new KeyHint({ parent: screen, top: 1, left: 2, hints: [ { key: 'q', label: 'quit' }, { key: 'enter', label: 'select' } ] });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Compact
+new KeyHint({ parent: screen, top: 2, left: 2, hints: [ { key: 'h', label: 'help' }, { key: 'f', label: 'find' } ], separator: '  ' });
+```
+
+```ts No Brackets
+new KeyHint({ parent: screen, top: 3, left: 2, hints: [ { key: '←', label: 'back' }, { key: '→', label: 'next' } ], showBrackets: false });
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Mostra solo scorciatoie rilevanti al contesto attuale.

@@ -1,0 +1,1026 @@
+---
+title: 'Layout Components'
+description: 'Master Box, Flex, Grid, and Panel components for structuring your TUI application'
+---
+
+## Layout Components
+
+Layout components are the foundation of any TUI application. They provide structure, organization, and positioning for your interface elements.
+
+<CardGroup cols={2}>
+  <Card title="Box" icon="square">
+    The fundamental container component
+  </Card>
+  <Card title="Flex" icon="arrows-maximize">
+    Flexible layout with direction and alignment
+  </Card>
+  <Card title="Grid" icon="grid-2">
+    Grid-based layout system
+  </Card>
+  <Card title="Panel" icon="layout-panel-left">
+    Advanced container with header and footer
+  </Card>
+</CardGroup>
+
+## Box Component
+
+The `Box` component is the most fundamental layout component, providing a basic container with optional borders, labels, and styling.
+
+### Basic Usage
+
+<CodeGroup>
+
+```typescript Basic Box
+import { useTerminal, Box } from 'nikcli-tui';
+
+const { screen } = useTerminal();
+
+const basicBox = new Box({
+  parent: screen,
+  top: 2,
+  left: 2,
+  width: 30,
+  height: 8,
+  border: { type: 'line' },
+  label: ' Basic Box '
+});
+
+screen.render();
+```
+
+```typescript Styled Box
+const styledBox = new Box({
+  parent: screen,
+  top: 2,
+  left: 35,
+  width: 30,
+  height: 8,
+  border: { type: 'double' },
+  label: ' Styled Box ',
+  style: {
+    border: { fg: 'cyan' },
+    bg: 'black',
+    fg: 'white'
+  }
+});
+```
+
+```typescript Nested Boxes
+const outerBox = new Box({
+  parent: screen,
+  top: 'center',
+  left: 'center',
+  width: 50,
+  height: 15,
+  border: { type: 'line' },
+  label: ' Outer Container '
+});
+
+const innerBox = new Box({
+  parent: outerBox.el,
+  top: 2,
+  left: 2,
+  width: '80%',
+  height: '60%',
+  border: { type: 'line' },
+  label: ' Inner Box ',
+  style: {
+    border: { fg: 'green' }
+  }
+});
+```
+
+</CodeGroup>
+
+### Box Properties
+
+<AccordionGroup>
+  <Accordion title="Position & Size">
+    ```typescript
+    interface BoxPositionProps {
+      top?: string | number;     // '50%', 'center', 0, 10
+      left?: string | number;    // '50%', 'center', 0, 10
+      right?: string | number;   // Distance from right edge
+      bottom?: string | number;  // Distance from bottom edge
+      width?: string | number;   // '80%', 40, 'shrink'
+      height?: string | number;  // '60%', 20, 'shrink'
+    }
+    
+    // Examples
+    const centerBox = new Box({
+      parent: screen,
+      top: 'center',
+      left: 'center',
+      width: 40,
+      height: 12
+    });
+    
+    const fullWidthBox = new Box({
+      parent: screen,
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 5
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Borders & Labels">
+    ```typescript
+    interface BoxBorderProps {
+      border?: {
+        type: 'line' | 'double' | 'round' | 'single' | 'heavy';
+        left?: boolean;
+        right?: boolean;
+        top?: boolean;
+        bottom?: boolean;
+      };
+      label?: string;
+      labelSide?: 'left' | 'right' | 'center';
+    }
+    
+    // Examples
+    const borderedBox = new Box({
+      parent: screen,
+      border: {
+        type: 'double',
+        left: true,
+        right: true,
+        top: true,
+        bottom: false  // No bottom border
+      },
+      label: ' Custom Border ',
+      labelSide: 'center'
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Styling">
+    ```typescript
+    interface BoxStyleProps {
+      style?: {
+        fg?: string;           // Foreground color
+        bg?: string;           // Background color
+        bold?: boolean;        // Bold text
+        underline?: boolean;   // Underlined text
+        blink?: boolean;       // Blinking text
+        inverse?: boolean;     // Inverse colors
+        invisible?: boolean;   // Invisible text
+        border?: {
+          fg?: string;         // Border color
+          bg?: string;         // Border background
+        };
+        focus?: {
+          fg?: string;         // Focus foreground
+          bg?: string;         // Focus background
+          border?: { fg?: string; bg?: string; };
+        };
+      };
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Box Methods
+
+```typescript
+class Box {
+  // Content management
+  setContent(content: string): void;
+  getContent(): string;
+  
+  // Styling
+  setStyle(style: StyleConfig): void;
+  setLabel(label: string): void;
+  
+  // Visibility
+  show(): void;
+  hide(): void;
+  toggle(): void;
+  
+  // Position & Size
+  move(top: number, left: number): void;
+  resize(width: number, height: number): void;
+  
+  // Focus
+  focus(): void;
+  blur(): void;
+  
+  // Cleanup
+  destroy(): void;
+}
+
+// Usage example
+const box = new Box({ parent: screen, label: ' Dynamic Box ' });
+
+box.setContent('Hello, World!');
+box.setLabel(' Updated Label ');
+box.move(10, 10);
+box.resize(50, 15);
+box.focus();
+```
+
+## Flex Component
+
+The `Flex` component provides flexible layout capabilities similar to CSS Flexbox, allowing you to create responsive layouts that adapt to content and container size.
+
+### Basic Flexbox Layout
+
+<CodeGroup>
+
+```typescript Row Layout
+import { Flex, Box } from 'nikcli-tui';
+
+const rowContainer = new Flex({
+  parent: screen,
+  top: 2,
+  left: 2,
+  right: 2,
+  height: 10,
+  direction: 'row',
+  justify: 'space-between',
+  align: 'stretch',
+  gap: 1
+});
+
+// Add flex items
+new Box({
+  parent: rowContainer.el,
+  flex: 1,
+  border: { type: 'line' },
+  label: ' Item 1 '
+});
+
+new Box({
+  parent: rowContainer.el,
+  flex: 2,  // Takes 2x space
+  border: { type: 'line' },
+  label: ' Item 2 (2x) '
+});
+
+new Box({
+  parent: rowContainer.el,
+  flex: 1,
+  border: { type: 'line' },
+  label: ' Item 3 '
+});
+```
+
+```typescript Column Layout
+const columnContainer = new Flex({
+  parent: screen,
+  top: 2,
+  left: 2,
+  width: 30,
+  bottom: 2,
+  direction: 'column',
+  justify: 'flex-start',
+  align: 'stretch',
+  gap: 1
+});
+
+// Flex items stack vertically
+new Box({
+  parent: columnContainer.el,
+  height: 5,
+  border: { type: 'line' },
+  label: ' Header '
+});
+
+new Box({
+  parent: columnContainer.el,
+  flex: 1,  // Takes remaining space
+  border: { type: 'line' },
+  label: ' Content '
+});
+
+new Box({
+  parent: columnContainer.el,
+  height: 3,
+  border: { type: 'line' },
+  label: ' Footer '
+});
+```
+
+```typescript Responsive Toolbar
+const toolbar = new Flex({
+  parent: screen,
+  top: 0,
+  left: 0,
+  right: 0,
+  height: 3,
+  direction: 'row',
+  justify: 'space-between',
+  align: 'center',
+  style: { bg: 'blue' }
+});
+
+// Left section
+const leftSection = new Flex({
+  parent: toolbar.el,
+  direction: 'row',
+  gap: 2
+});
+
+new Text({
+  parent: leftSection.el,
+  content: '🚀 TUI-Kit-AI',
+  style: { fg: 'white', bold: true }
+});
+
+// Right section
+const rightSection = new Flex({
+  parent: toolbar.el,
+  direction: 'row',
+  gap: 1
+});
+
+new Button({
+  parent: rightSection.el,
+  content: 'Settings',
+  variant: 'ghost'
+});
+
+new Button({
+  parent: rightSection.el,
+  content: 'Help',
+  variant: 'ghost'
+});
+```
+
+</CodeGroup>
+
+### Flex Properties
+
+```typescript
+interface FlexProps extends BaseProps {
+  direction?: 'row' | 'column';
+  wrap?: 'wrap' | 'nowrap';
+  justify?: 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around' | 'space-evenly';
+  align?: 'stretch' | 'flex-start' | 'flex-end' | 'center' | 'baseline';
+  gap?: number;
+}
+
+interface FlexItemProps {
+  flex?: number;      // Flex grow factor
+  shrink?: number;    // Flex shrink factor
+  basis?: number;     // Flex basis (initial size)
+  align?: 'auto' | 'flex-start' | 'flex-end' | 'center' | 'baseline' | 'stretch';
+}
+```
+
+### Advanced Flex Layouts
+
+<CodeGroup>
+
+```typescript Dashboard Layout
+class DashboardLayout {
+  private screen: any;
+  private mainContainer: Flex;
+  
+  constructor(screen: any) {
+    this.screen = screen;
+    this.createLayout();
+  }
+  
+  private createLayout() {
+    // Main vertical layout
+    this.mainContainer = new Flex({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      direction: 'column'
+    });
+    
+    // Header
+    const header = new Box({
+      parent: this.mainContainer.el,
+      height: 3,
+      border: { type: 'line' },
+      label: ' Dashboard ',
+      style: { bg: 'blue' }
+    });
+    
+    // Main content area (horizontal split)
+    const contentArea = new Flex({
+      parent: this.mainContainer.el,
+      flex: 1,
+      direction: 'row',
+      gap: 1
+    });
+    
+    // Sidebar
+    const sidebar = new Box({
+      parent: contentArea.el,
+      width: 25,
+      border: { type: 'line' },
+      label: ' Navigation '
+    });
+    
+    // Main content (vertical split)
+    const mainContent = new Flex({
+      parent: contentArea.el,
+      flex: 1,
+      direction: 'column',
+      gap: 1
+    });
+    
+    // Content panels
+    const topPanel = new Box({
+      parent: mainContent.el,
+      height: 15,
+      border: { type: 'line' },
+      label: ' Main Content '
+    });
+    
+    const bottomPanel = new Flex({
+      parent: mainContent.el,
+      flex: 1,
+      direction: 'row',
+      gap: 1
+    });
+    
+    new Box({
+      parent: bottomPanel.el,
+      flex: 1,
+      border: { type: 'line' },
+      label: ' Stats '
+    });
+    
+    new Box({
+      parent: bottomPanel.el,
+      flex: 1,
+      border: { type: 'line' },
+      label: ' Logs '
+    });
+    
+    // Footer
+    const footer = new Box({
+      parent: this.mainContainer.el,
+      height: 3,
+      border: { type: 'line' },
+      label: ' Status ',
+      style: { bg: 'black' }
+    });
+  }
+}
+```
+
+```typescript Responsive Card Grid
+class CardGrid {
+  private container: Flex;
+  private cards: Box[] = [];
+  
+  constructor(parent: any, items: any[]) {
+    this.container = new Flex({
+      parent,
+      direction: 'row',
+      wrap: 'wrap',
+      justify: 'flex-start',
+      gap: 2
+    });
+    
+    this.createCards(items);
+  }
+  
+  private createCards(items: any[]) {
+    items.forEach((item, index) => {
+      const card = new Box({
+        parent: this.container.el,
+        width: 25,
+        height: 8,
+        border: { type: 'line' },
+        label: ` Card ${index + 1} `,
+        style: {
+          border: { fg: 'cyan' }
+        }
+      });
+      
+      new Text({
+        parent: card.el,
+        top: 1,
+        left: 2,
+        content: item.title,
+        style: { bold: true }
+      });
+      
+      new Text({
+        parent: card.el,
+        top: 3,
+        left: 2,
+        right: 2,
+        content: item.description,
+        wrap: true
+      });
+      
+      this.cards.push(card);
+    });
+  }
+  
+  updateCard(index: number, data: any) {
+    // Update specific card content
+  }
+}
+```
+
+</CodeGroup>
+
+## Grid Component
+
+The `Grid` component provides a grid-based layout system for organizing content in rows and columns.
+
+### Basic Grid Layout
+
+<CodeGroup>
+
+```typescript Simple Grid
+import { Grid, Box } from 'nikcli-tui';
+
+const grid = new Grid({
+  parent: screen,
+  top: 2,
+  left: 2,
+  right: 2,
+  bottom: 2,
+  rows: 3,
+  cols: 4,
+  gap: 1
+});
+
+// Grid items are automatically positioned
+for (let i = 0; i < 12; i++) {
+  new Box({
+    parent: grid.el,
+    border: { type: 'line' },
+    label: ` Cell ${i + 1} `
+  });
+}
+```
+
+```typescript Custom Grid Spans
+const grid = new Grid({
+  parent: screen,
+  rows: 3,
+  cols: 3,
+  gap: 1
+});
+
+// Header spans full width
+new Box({
+  parent: grid.el,
+  gridColumn: '1 / 4',  // Span all columns
+  height: 5,
+  border: { type: 'line' },
+  label: ' Header '
+});
+
+// Content area
+new Box({
+  parent: grid.el,
+  gridColumn: '1 / 3',  // Span 2 columns
+  gridRow: '2 / 4',     // Span 2 rows
+  border: { type: 'line' },
+  label: ' Main Content '
+});
+
+// Sidebar
+new Box({
+  parent: grid.el,
+  gridColumn: '3',
+  gridRow: '2 / 4',
+  border: { type: 'line' },
+  label: ' Sidebar '
+});
+```
+
+```typescript Responsive Grid
+class ResponsiveGrid {
+  private grid: Grid;
+  private items: Box[] = [];
+  
+  constructor(parent: any) {
+    this.grid = new Grid({
+      parent,
+      gap: 1
+    });
+    
+    this.updateLayout();
+    
+    // Listen for resize events
+    parent.on('resize', () => {
+      this.updateLayout();
+    });
+  }
+  
+  private updateLayout() {
+    const width = this.grid.el.width;
+    const height = this.grid.el.height;
+    
+    // Responsive column calculation
+    const cols = Math.max(1, Math.floor(width / 20));
+    const rows = Math.max(1, Math.floor(height / 8));
+    
+    this.grid.setLayout(rows, cols);
+  }
+  
+  addItem(content: string) {
+    const item = new Box({
+      parent: this.grid.el,
+      border: { type: 'line' },
+      label: ` ${content} `
+    });
+    
+    this.items.push(item);
+  }
+}
+```
+
+</CodeGroup>
+
+### Grid Properties
+
+```typescript
+interface GridProps extends BaseProps {
+  rows: number;
+  cols: number;
+  gap?: number;
+  rowGap?: number;
+  colGap?: number;
+  autoFlow?: 'row' | 'column' | 'dense';
+}
+
+interface GridItemProps {
+  gridRow?: string | number;      // '1', '2 / 4', 'span 2'
+  gridColumn?: string | number;   // '1', '1 / 3', 'span 3'
+  gridArea?: string;              // 'header', 'sidebar'
+}
+
+// Grid template areas
+const grid = new Grid({
+  parent: screen,
+  rows: 3,
+  cols: 3,
+  areas: [
+    'header header header',
+    'sidebar main main',
+    'footer footer footer'
+  ]
+});
+
+new Box({
+  parent: grid.el,
+  gridArea: 'header',
+  border: { type: 'line' },
+  label: ' Header '
+});
+```
+
+## Panel Component
+
+The `Panel` component is an advanced container with built-in header, content area, and footer sections.
+
+### Basic Panel
+
+<CodeGroup>
+
+```typescript Simple Panel
+import { Panel } from 'nikcli-tui';
+
+const panel = new Panel({
+  parent: screen,
+  top: 'center',
+  left: 'center',
+  width: 60,
+  height: 20,
+  title: 'AI Chat Assistant',
+  border: { type: 'double' }
+});
+
+// Header content
+panel.setHeader('🤖 AI Assistant - Status: Online');
+
+// Main content
+panel.setContent(`
+Welcome to the AI Chat Assistant!
+
+Available commands:
+• /help - Show this help
+• /clear - Clear conversation  
+• /model - Change AI model
+• /quit - Exit application
+
+Type your message and press Enter to start chatting.
+`);
+
+// Footer content
+panel.setFooter('Press Ctrl+C to quit | F1 for help');
+```
+
+```typescript Interactive Panel
+class InteractivePanel {
+  private panel: Panel;
+  private content: string = '';
+  
+  constructor(parent: any) {
+    this.panel = new Panel({
+      parent,
+      title: 'Interactive Panel',
+      resizable: true,
+      movable: true,
+      closable: true
+    });
+    
+    this.setupEventHandlers();
+  }
+  
+  private setupEventHandlers() {
+    // Close button
+    this.panel.on('close', () => {
+      this.panel.destroy();
+    });
+    
+    // Resize handling
+    this.panel.on('resize', (width, height) => {
+      this.updateLayout(width, height);
+    });
+    
+    // Key handlers
+    this.panel.on('key', (ch, key) => {
+      if (key.name === 'r') {
+        this.refresh();
+      }
+    });
+  }
+  
+  updateContent(newContent: string) {
+    this.content = newContent;
+    this.panel.setContent(this.content);
+  }
+  
+  private refresh() {
+    this.panel.setHeader(`Updated: ${new Date().toLocaleTimeString()}`);
+    this.panel.render();
+  }
+}
+```
+
+```typescript Panel with Tabs
+class TabbedPanel {
+  private panel: Panel;
+  private tabs: { [key: string]: string } = {};
+  private currentTab: string = '';
+  
+  constructor(parent: any) {
+    this.panel = new Panel({
+      parent,
+      title: 'Tabbed Interface',
+      showTabs: true
+    });
+  }
+  
+  addTab(id: string, title: string, content: string) {
+    this.tabs[id] = content;
+    this.panel.addTab(id, title);
+    
+    if (!this.currentTab) {
+      this.switchTab(id);
+    }
+  }
+  
+  switchTab(id: string) {
+    if (this.tabs[id]) {
+      this.currentTab = id;
+      this.panel.setActiveTab(id);
+      this.panel.setContent(this.tabs[id]);
+    }
+  }
+}
+
+// Usage
+const tabbedPanel = new TabbedPanel(screen);
+tabbedPanel.addTab('chat', 'Chat', 'Chat conversation content...');
+tabbedPanel.addTab('settings', 'Settings', 'Configuration options...');
+tabbedPanel.addTab('help', 'Help', 'Help documentation...');
+```
+
+</CodeGroup>
+
+### Panel Properties
+
+```typescript
+interface PanelProps extends BaseProps {
+  title?: string;
+  showHeader?: boolean;
+  showFooter?: boolean;
+  showTabs?: boolean;
+  resizable?: boolean;
+  movable?: boolean;
+  closable?: boolean;
+  minimizable?: boolean;
+  
+  headerHeight?: number;
+  footerHeight?: number;
+  
+  onClose?: () => void;
+  onResize?: (width: number, height: number) => void;
+  onMove?: (top: number, left: number) => void;
+}
+```
+
+## Layout Best Practices
+
+### 1. Responsive Design
+
+```typescript
+class ResponsiveLayout {
+  private screen: any;
+  private layout: 'mobile' | 'tablet' | 'desktop' = 'desktop';
+  
+  constructor(screen: any) {
+    this.screen = screen;
+    this.updateLayout();
+    
+    screen.on('resize', () => {
+      this.updateLayout();
+    });
+  }
+  
+  private updateLayout() {
+    const width = this.screen.width;
+    
+    // Determine layout breakpoints
+    if (width < 60) {
+      this.layout = 'mobile';
+    } else if (width < 100) {
+      this.layout = 'tablet';
+    } else {
+      this.layout = 'desktop';
+    }
+    
+    this.rebuildLayout();
+  }
+  
+  private rebuildLayout() {
+    // Clear existing layout
+    this.screen.children.forEach(child => child.destroy());
+    
+    switch (this.layout) {
+      case 'mobile':
+        this.createMobileLayout();
+        break;
+      case 'tablet':
+        this.createTabletLayout();
+        break;
+      case 'desktop':
+        this.createDesktopLayout();
+        break;
+    }
+    
+    this.screen.render();
+  }
+}
+```
+
+### 2. Component Composition
+
+```typescript
+class ComposedLayout {
+  private mainContainer: Flex;
+  private sidebar: Panel;
+  private contentArea: Flex;
+  
+  constructor(parent: any) {
+    // Main horizontal layout
+    this.mainContainer = new Flex({
+      parent,
+      direction: 'row',
+      gap: 1
+    });
+    
+    // Collapsible sidebar
+    this.sidebar = new Panel({
+      parent: this.mainContainer.el,
+      width: 30,
+      title: 'Navigation',
+      collapsible: true
+    });
+    
+    // Main content area
+    this.contentArea = new Flex({
+      parent: this.mainContainer.el,
+      flex: 1,
+      direction: 'column',
+      gap: 1
+    });
+    
+    this.populateContent();
+  }
+  
+  private populateContent() {
+    // Header panel
+    const header = new Panel({
+      parent: this.contentArea.el,
+      height: 5,
+      title: 'Header'
+    });
+    
+    // Content grid
+    const contentGrid = new Grid({
+      parent: this.contentArea.el,
+      flex: 1,
+      rows: 2,
+      cols: 2,
+      gap: 1
+    });
+    
+    // Add grid items
+    ['Panel 1', 'Panel 2', 'Panel 3', 'Panel 4'].forEach(title => {
+      new Panel({
+        parent: contentGrid.el,
+        title,
+        border: { type: 'line' }
+      });
+    });
+  }
+  
+  toggleSidebar() {
+    this.sidebar.toggle();
+    this.mainContainer.render();
+  }
+}
+```
+
+### 3. Memory Management
+
+```typescript
+class LayoutManager {
+  private layouts: Map<string, any> = new Map();
+  private currentLayout: string | null = null;
+  
+  registerLayout(id: string, layoutFactory: () => any) {
+    this.layouts.set(id, layoutFactory);
+  }
+  
+  switchLayout(id: string) {
+    // Cleanup current layout
+    if (this.currentLayout) {
+      const current = this.layouts.get(this.currentLayout);
+      if (current && current.destroy) {
+        current.destroy();
+      }
+    }
+    
+    // Create new layout
+    const layoutFactory = this.layouts.get(id);
+    if (layoutFactory) {
+      const newLayout = layoutFactory();
+      this.currentLayout = id;
+      return newLayout;
+    }
+  }
+  
+  cleanup() {
+    this.layouts.forEach((layout) => {
+      if (layout.destroy) {
+        layout.destroy();
+      }
+    });
+    this.layouts.clear();
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Input Components"
+    icon="keyboard"
+    href="/components/input"
+  >
+    Learn about TextInput, Select, Button, and other input components
+  </Card>
+  <Card
+    title="Display Components"
+    icon="eye"
+    href="/components/display"
+  >
+    Explore Text, Table, and data visualization components
+  </Card>
+  <Card
+    title="Build Your First App"
+    icon="play"
+    href="/getting-started/first-app"
+  >
+    Apply layout concepts in a complete application
+  </Card>
+  <Card
+    title="Examples"
+    icon="code"
+    href="/examples/overview"
+  >
+    See layout components in real applications
+  </Card>
+</CardGroup>

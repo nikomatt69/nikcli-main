@@ -19,29 +19,6 @@ npm install -g @cadcamfun/nikcli
 yarn global add @cadcamfun/nikcli
 ```
 
-### iOS App (Tauri)
-
-For iOS development and deployment:
-
-```bash
-# Navigate to the Tauri app directory
-cd terminal-tauri
-
-# Install dependencies
-npm install
-
-# Setup iOS development environment
-npm run ios:setup
-
-# Run on iOS Simulator
-npm run ios:dev
-
-# Build for iOS
-npm run ios:build
-```
-
-📖 **[Complete iOS Build Guide](terminal-tauri/IOS_BUILD_README.md)**
-
 ### First Run
 
 ```bash
@@ -93,8 +70,6 @@ nikcli
 - **Approval System**: Interactive confirmation for sensitive operations
 - **No Data Collection**: Your code and projects stay private
 
-
-
 ## 🤝 Community
 
 - **GitHub Issues**: [Bug reports and feature requests](https://github.com/nikomatt69/nikcli-main/issues)
@@ -107,4 +82,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Visit [nikcli.mintifly.app](https://nikcli.mintlify.app) for complete documentation, tutorials, and examples.**
+**Visit [nikcli.mintlify.app](https://nikcli.mintlify.app) for complete documentation, tutorials, and examples.**

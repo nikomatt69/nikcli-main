@@ -222,7 +222,7 @@
 
 ## 🔄 VERSION INFORMATION
 
-- **Current Version**: 0.5.0-beta
+- **Current Version**: 0.5.8-beta
 - **Release Date**: August 2025
 - **Beta Status**: Active development
 - **Stability**: Unstable - not for production use
@@ -244,4 +244,4 @@ By using this software, you acknowledge that:
 
 **Last Updated**: August 2025  
 **Security Version**: 1.0  
-**Beta Version**: 0.5.0-beta
+**Beta Version**: 0.5.8-beta

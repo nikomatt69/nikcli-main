@@ -1,0 +1,227 @@
+---
+title: 'Button'
+description: 'Clickable action button with variants and loading states.'
+---
+
+## Overview
+
+Triggers actions and commands with keyboard and mouse support.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Button } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Button({ parent: screen, text: 'Primary', variant: 'primary', onClick: () => console.log('clicked') });
+```
+
+## Live Preview
+
+<Snippet file="previews/button.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+import blessed from 'blessed';
+import { Button } from 'nikcli-tui';
+const screen = blessed.screen({ smartCSR: true, title: 'Button Demo' });
+screen.key(['q','C-c'], () => process.exit(0));
+
+new Button({ parent: screen, top: 1, left: 2, text: 'Default' });
+new Button({ parent: screen, top: 1, left: 14, text: 'Primary', variant: 'primary' });
+new Button({ parent: screen, top: 1, left: 28, text: 'Danger', variant: 'destructive' });
+new Button({ parent: screen, top: 3, left: 2, text: 'XS', size: 'xs' });
+new Button({ parent: screen, top: 3, left: 12, text: 'SM', size: 'sm' });
+new Button({ parent: screen, top: 3, left: 22, text: 'LG', size: 'lg' });
+screen.render();
+```
+
+```typescript
+const run = new Button({ parent: screen, top: 5, left: 2, text: 'Run', variant: 'primary' });
+run.setLoading(true, 'Processing...');
+setTimeout(() => run.setLoading(false), 1200);
+
+const del = new Button({ parent: screen, top: 5, left: 18, text: 'Delete', variant: 'destructive', disabled: true });
+```
+
+```typescript
+new Button({ parent: screen, top: 7, left: 2, text: 'Next', icon: '→', iconPosition: 'right' });
+new Button({ parent: screen, top: 9, left: 2, text: 'Submit', fullWidth: true, variant: 'success' });
+```
+
+</CodeGroup>
+
+## Props
+
+### Button-specific Props
+
+| Property | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `children` | `string \| any` | No | - | Button content text or child components (shadcn-style) |
+| `text` | `string` | No | - | Button text (from component-schemas.ts) |
+| `type` | `"button" \| "submit" \| "reset"` | No | `"button"` | Button type for form handling |
+| `onClick` | `() => void` | No | - | Click event handler |
+| `loading` | `boolean` | No | `false` | Show loading state |
+| `loadingText` | `string` | No | `"Loading..."` | Text displayed during loading |
+| `icon` | `string` | No | - | Icon or glyph to display with text |
+| `iconPosition` | `"left" \| "right"` | No | `"left"` | Icon placement relative to text |
+| `fullWidth` | `boolean` | No | `false` | Expand to 100% parent width |
+| `pressed` | `boolean` | No | - | Pressed state (from component-schemas) |
+| `hover` | `boolean` | No | - | Hover state (from component-schemas) |
+
+### Inherited Base Props
+
+The Button component extends `BasePropsSchema` and includes all standard TUI component properties:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `parent` | `blessed.Widgets.Node` | - | Parent blessed element |
+| `className` | `string` | - | CSS-like class name for styling |
+| `id` | `string` | - | Unique identifier |
+| `variant` | `ComponentVariant` | `"default"` | Component variant (primary, secondary, destructive, outline, ghost, link, success, warning, error, info) |
+| `size` | `ComponentSize` | - | Component size (xs, sm, md, lg, xl) |
+| `disabled` | `boolean` | `false` | Whether component is disabled |
+| `hidden` | `boolean` | `false` | Whether component is hidden |
+| `focusable` | `boolean` | `true` | Whether component can receive focus |
+| `keys` | `boolean` | `true` | Enable keyboard input |
+| `mouse` | `boolean` | `true` | Enable mouse input |
+
+### Layout & Positioning Props
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `top` | `TerminalUnit` | Top position |
+| `left` | `TerminalUnit` | Left position |
+| `right` | `TerminalUnit` | Right position |
+| `bottom` | `TerminalUnit` | Bottom position |
+| `width` | `TerminalUnit` | Component width (or 100% if fullWidth=true) |
+| `height` | `TerminalUnit` | Component height |
+| `padding` | `PaddingConfig` | Internal spacing |
+| `margin` | `PaddingConfig` | External spacing |
+
+### Style Props
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `bg` | `ColorValue` | Background color |
+| `fg` | `ColorValue` | Foreground color |
+| `border` | `BorderStyle` | Border configuration |
+| `borderColor` | `ColorValue` | Border color |
+| `borderStyle` | `"line" \| "double" \| "round" \| "bold" \| "classic" \| "none"` | Border style helper |
+| `style` | `TextStyle` | Text styling (bold, underline, etc.) |
+| `animation` | `AnimationType` | Animation type |
+
+## Zod Schema Validation
+
+The Button component uses Zod for runtime type validation:
+
+```typescript
+import { ButtonSchema } from 'nikcli-tui';
+
+const ButtonSchema = BasePropsSchema.extend({
+  // Content (shadcn-style: can be string or children)
+  children: z.union([z.string(), z.any()]).optional(),
+  
+  // Button behavior
+  type: z.enum(["button", "submit", "reset"]).optional(),
+  onClick: z.function().returns(z.void()).optional(),
+  
+  // Loading state
+  loading: z.boolean().optional(),
+  loadingText: z.string().optional(),
+  
+  // Icon support
+  icon: z.string().optional(),
+  iconPosition: z.enum(["left", "right"]).optional(),
+  
+  // Layout
+  fullWidth: z.boolean().optional(),
+  
+  // Button-specific blessed props
+  blessedProps: z.object({}).passthrough().optional(),
+}).strict();
+```
+
+## Methods
+
+### Instance Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `setText` | `text: string` | `void` | Updates the button label content |
+| `setLoading` | `loading: boolean, loadingText?: string` | `void` | Toggle loading state with optional custom text |
+| `setDisabled` | `disabled: boolean` | `void` | Enable or disable the button |
+| `setIcon` | `icon: string, position?: "left" \| "right"` | `void` | Set button icon and optional position |
+| `destroy` | - | `void` | Cleanup method from base component |
+
+### Inherited Methods (from BaseComponent)
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `setVariant` | `variant: ComponentVariant` | `void` | Updates component variant |
+| `setSize` | `size: ComponentSize` | `void` | Updates component size |
+| `setState` | `state: ComponentState` | `void` | Updates component state (default, hover, focus, active, disabled, loading) |
+| `getConfig` | - | `ComponentConfig` | Returns current configuration |
+| `update` | `props: Partial<ButtonProps>` | `void` | Updates component properties with re-render |
+
+### Static Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `Button.create` | `props: ButtonProps` | `Button` | Factory method to create new button instance |
+| `Button.createGroup` | `buttons: ButtonProps[], options?: GroupOptions` | `Button[]` | Create multiple buttons with automatic positioning |
+
+#### GroupOptions Interface
+
+```typescript
+interface GroupOptions {
+  direction?: "horizontal" | "vertical"; // Default: "horizontal"
+  spacing?: number; // Default: 1
+}
+```
+
+## Keyboard
+
+- press: triggered by Enter/Space when focused (blessed default).
+- Focus navigation via Tab/Shift+Tab if focusable.
+
+## Theming
+
+- Supports BaseProps variant, size, tone and theme overrides.
+- Honors borderStyle and style overrides via blessedProps.style.
+
+## Variants & Sizes Reference
+
+- Variants: default, destructive, outline, secondary, ghost, link, success, warning, info, primary.
+- Sizes: xs, sm, md, lg, xl.
+- States: default, hover, focus, active, disabled, loading.
+
+## Testing
+
+```ts
+const btn = new Button({ parent: screen, text: 'Save' });
+btn.setDisabled(true);
+expect(btn.getConfig().variant).toBeDefined();
+btn.setText('Save All');
+```
+
+## Best Practices
+
+- Keep labels concise; prefer icons only when universally understood.
+- Use `fullWidth` for forms and primary actions on narrow layouts.

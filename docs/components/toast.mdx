@@ -1,0 +1,89 @@
+---
+title: 'Toast'
+description: 'Transient notification popup for quick feedback.'
+---
+
+## Overview
+
+Temporary overlay notification.
+
+## Import
+
+```ts
+import { Toast } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Toast({ parent: screen, text: 'Saved!', type: 'success' });
+```
+
+## Live Preview
+
+<Snippet file="previews/toast.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- text: string — Message text.
+- durationMs?: number — Auto-close timeout in ms (default 2000; set 0 to disable).
+- type?: 'info' | 'success' | 'warning' | 'error' — Visual accent.
+- position?: 'top' | 'bottom' | 'center' — Vertical position.
+- closable?: boolean — Enables key to close (Esc/q/Enter/Space).
+- onClose?: () => void — Called when closed.
+- BaseProps: position, variant, size, label, borderStyle.
+
+## Methods
+
+- setText(text), setType(type), setDuration(ms), setPosition(pos), setClosable(bool).
+- show(), hide(), close(), pause(), resume().
+- getText(), getType().
+
+## Keyboard
+
+- Esc, q, Enter, Space: close (if closable).
+
+## Theming
+
+- Uses BaseProps variant/size/tone and borderStyle for look and feel.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Toast } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Toast({ parent: screen, text: 'Saved!', type: 'success', durationMs: 2000, position: 'top' });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Sticky & Manual Close
+const t = new Toast({ parent: screen, text: 'Sticky', durationMs: 0, closable: true });
+setTimeout(() => t.close(), 1500);
+```
+
+```ts Reposition
+const b = new Toast({ parent: screen, text: 'Bottom', position: 'bottom' });
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Non abusare dei Toast; per errori critici usa Notification o Modal.

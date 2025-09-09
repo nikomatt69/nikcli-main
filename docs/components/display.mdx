@@ -1,0 +1,991 @@
+---
+title: 'Display Components'
+description: 'Master Text, Heading, Table, and data visualization components'
+---
+
+## Display Components
+
+Display components are used to present information to users in various formats. They handle text rendering, data tables, and visual elements.
+
+<CardGroup cols={3}>
+  <Card title="Text" icon="type">
+    Formatted text with markup support
+  </Card>
+  <Card title="Heading" icon="heading">
+    Styled headings and titles
+  </Card>
+  <Card title="Paragraph" icon="align-left">
+    Multi-line text blocks
+  </Card>
+  <Card title="Table" icon="table">
+    Tabular data display
+  </Card>
+  <Card title="Tree" icon="folder-tree">
+    Hierarchical data visualization
+  </Card>
+  <Card title="Badge" icon="badge">
+    Status indicators and labels
+  </Card>
+  <Card title="Avatar" icon="user">
+    User profile images and initials
+  </Card>
+  <Card title="Divider" icon="minus">
+    Visual section separators
+  </Card>
+  <Card title="LogViewer" icon="scroll">
+    Scrollable log display
+  </Card>
+</CardGroup>
+
+## Text Component
+
+The `Text` component is the fundamental text display element with support for colors, formatting, and markup.
+
+### Basic Text Usage
+
+<CodeGroup>
+
+```typescript Basic Text
+import { useTerminal, Box, Text } from 'nikcli-tui';
+
+const { screen } = useTerminal();
+
+const container = new Box({
+  parent: screen,
+  top: 'center',
+  left: 'center',
+  width: 60,
+  height: 15,
+  border: { type: 'line' },
+  label: ' Text Examples '
+});
+
+// Simple text
+const simpleText = new Text({
+  parent: container.el,
+  top: 1,
+  left: 2,
+  content: 'Hello, TUI-Kit-AI!'
+});
+
+// Styled text
+const styledText = new Text({
+  parent: container.el,
+  top: 3,
+  left: 2,
+  content: 'This is bold and colored text',
+  style: {
+    fg: 'cyan',
+    bold: true
+  }
+});
+
+// Aligned text
+const centeredText = new Text({
+  parent: container.el,
+  top: 5,
+  left: 2,
+  right: 2,
+  content: 'This text is centered',
+  align: 'center'
+});
+```
+
+```typescript Markup Text
+// Text with color markup
+const markupText = new Text({
+  parent: container.el,
+  top: 7,
+  left: 2,
+  right: 2,
+  content: '{red-fg}Red text{/red-fg} and {blue-bg}blue background{/blue-bg}',
+  markup: true
+});
+
+// Text with tags
+const taggedText = new Text({
+  parent: container.el,
+  top: 9,
+  left: 2,
+  right: 2,
+  content: '{bold}Bold{/bold} {underline}underlined{/underline} {inverse}inverted{/inverse}',
+  markup: true
+});
+```
+
+```typescript Dynamic Text
+class DynamicTextDisplay {
+  private text: Text;
+  private updateInterval: NodeJS.Timeout;
+  
+  constructor(parent: any) {
+    this.text = new Text({
+      parent,
+      content: 'Loading...',
+      style: { fg: 'yellow' }
+    });
+    
+    this.startUpdating();
+  }
+  
+  private startUpdating() {
+    this.updateInterval = setInterval(() => {
+      const now = new Date().toLocaleTimeString();
+      this.text.setContent(`Current time: ${now}`);
+      this.text.setStyle({ fg: this.getTimeColor() });
+    }, 1000);
+  }
+  
+  private getTimeColor(): string {
+    const hour = new Date().getHours();
+    if (hour < 6) return 'blue';      // Night
+    if (hour < 12) return 'yellow';   // Morning
+    if (hour < 18) return 'green';    // Day
+    return 'orange';                  // Evening
+  }
+  
+  destroy() {
+    clearInterval(this.updateInterval);
+    this.text.destroy();
+  }
+}
+```
+
+</CodeGroup>
+
+### Text Properties
+
+<AccordionGroup>
+  <Accordion title="Content & Formatting">
+    ```typescript
+    interface TextProps extends BaseProps {
+      content: string;              // Text content
+      markup?: boolean;             // Enable markup parsing
+      wrap?: boolean;               // Enable text wrapping
+      align?: 'left' | 'center' | 'right';  // Text alignment
+      valign?: 'top' | 'middle' | 'bottom'; // Vertical alignment
+      
+      // Text processing
+      shrink?: boolean;             // Shrink to fit content
+      padding?: number | { top?: number; left?: number; right?: number; bottom?: number; };
+    }
+    
+    // Examples
+    const wrappedText = new Text({
+      parent: container.el,
+      content: 'This is a very long text that will wrap to multiple lines',
+      wrap: true,
+      width: 30
+    });
+    
+    const paddedText = new Text({
+      parent: container.el,
+      content: 'Padded text',
+      padding: { top: 1, left: 2, right: 2, bottom: 1 }
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Styling">
+    ```typescript
+    interface TextStyleProps {
+      style?: {
+        fg?: string;              // Foreground color
+        bg?: string;              // Background color
+        bold?: boolean;           // Bold text
+        underline?: boolean;      // Underlined text
+        blink?: boolean;          // Blinking text
+        inverse?: boolean;        // Inverse colors
+        invisible?: boolean;      // Invisible text
+        strikethrough?: boolean;  // Strikethrough text
+      };
+    }
+    
+    // Color examples
+    const colorfulText = new Text({
+      parent: container.el,
+      content: 'Colorful text',
+      style: {
+        fg: '#ff6b6b',           // Hex color
+        bg: 'black',             // Named color
+        bold: true,
+        underline: true
+      }
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Markup Syntax">
+    ```typescript
+    // Color markup
+    const colorMarkup = '{red-fg}Red{/red-fg} {blue-bg}Blue BG{/blue-bg}';
+    
+    // Style markup
+    const styleMarkup = '{bold}Bold{/bold} {underline}Under{/underline} {inverse}Inv{/inverse}';
+    
+    // Combined markup
+    const combinedMarkup = '{red-fg}{bold}Red Bold Text{/bold}{/red-fg}';
+    
+    // RGB/Hex colors
+    const hexMarkup = '{#ff6b6b-fg}Hex Color{/} {rgb(100,200,50)-bg}RGB BG{/}';
+    
+    const advancedText = new Text({
+      parent: container.el,
+      content: combinedMarkup,
+      markup: true
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Text Methods
+
+```typescript
+class Text {
+  // Content management
+  setContent(content: string): void;
+  getContent(): string;
+  appendContent(content: string): void;
+  clearContent(): void;
+  
+  // Styling
+  setStyle(style: StyleConfig): void;
+  setColor(fg: string, bg?: string): void;
+  
+  // Alignment
+  setAlign(align: 'left' | 'center' | 'right'): void;
+  setVAlign(valign: 'top' | 'middle' | 'bottom'): void;
+  
+  // Animation
+  animateText(text: string, speed?: number): Promise<void>;
+  typeWriter(text: string, speed?: number): Promise<void>;
+}
+
+// Usage
+const animatedText = new Text({ parent: container.el });
+
+// Typewriter effect
+await animatedText.typeWriter('Hello, World!', 100);
+
+// Text animation
+animatedText.animateText('New content appears here');
+```
+
+## Heading Component
+
+The `Heading` component provides styled headings with multiple levels and automatic styling.
+
+<CodeGroup>
+
+```typescript Heading Levels
+import { Heading } from 'nikcli-tui';
+
+// H1 - Main title
+const mainTitle = new Heading({
+  parent: container.el,
+  top: 1,
+  left: 2,
+  content: 'AI Chat Assistant',
+  level: 1
+});
+
+// H2 - Section title
+const sectionTitle = new Heading({
+  parent: container.el,
+  top: 4,
+  left: 2,
+  content: 'Configuration Settings',
+  level: 2
+});
+
+// H3 - Subsection
+const subsectionTitle = new Heading({
+  parent: container.el,
+  top: 7,
+  left: 2,
+  content: 'Model Selection',
+  level: 3
+});
+```
+
+```typescript Custom Heading Styles
+const customHeading = new Heading({
+  parent: container.el,
+  content: 'Custom Styled Heading',
+  level: 2,
+  style: {
+    fg: 'cyan',
+    bold: true,
+    underline: true
+  },
+  prefix: '🚀 ',
+  suffix: ' 🚀'
+});
+
+// Responsive heading
+class ResponsiveHeading extends Heading {
+  constructor(props: HeadingProps) {
+    super(props);
+    this.updateStyle();
+  }
+  
+  private updateStyle() {
+    const parentWidth = this.parent.width;
+    
+    if (parentWidth < 40) {
+      this.setLevel(3);  // Smaller heading for narrow screens
+    } else if (parentWidth < 80) {
+      this.setLevel(2);
+    } else {
+      this.setLevel(1);  // Large heading for wide screens
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+## Table Component
+
+The `Table` component provides powerful tabular data display with sorting, filtering, and pagination.
+
+### Basic Table
+
+<CodeGroup>
+
+```typescript Simple Table
+import { Table } from 'nikcli-tui';
+
+const simpleTable = new Table({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  right: 2,
+  height: 10,
+  headers: ['Name', 'Status', 'Progress'],
+  data: [
+    ['Task 1', '✅ Complete', '100%'],
+    ['Task 2', '🟡 In Progress', '75%'],
+    ['Task 3', '⏸️ Pending', '0%'],
+    ['Task 4', '🟡 In Progress', '45%']
+  ],
+  border: { type: 'line' }
+});
+```
+
+```typescript Advanced Table
+const advancedTable = new Table({
+  parent: container.el,
+  headers: [
+    { label: 'ID', key: 'id', width: 8, align: 'center' },
+    { label: 'Name', key: 'name', width: 20, sortable: true },
+    { label: 'Email', key: 'email', width: 30, sortable: true },
+    { label: 'Status', key: 'status', width: 12, align: 'center' },
+    { label: 'Actions', key: 'actions', width: 15, sortable: false }
+  ],
+  data: [
+    {
+      id: '001',
+      name: 'John Doe',
+      email: 'john@example.com',
+      status: '🟢 Active',
+      actions: '👁️ 📝 🗑️'
+    },
+    {
+      id: '002',
+      name: 'Jane Smith',
+      email: 'jane@example.com',
+      status: '🟡 Pending',
+      actions: '👁️ 📝 🗑️'
+    }
+  ],
+  sortable: true,
+  selectable: true,
+  searchable: true,
+  pagination: {
+    enabled: true,
+    pageSize: 10,
+    showInfo: true
+  },
+  onRowSelect: (row, index) => {
+    console.log('Selected row:', row);
+  },
+  onRowAction: (action, row, index) => {
+    console.log(`Action ${action} on row:`, row);
+  }
+});
+```
+
+```typescript Dynamic Table
+class DynamicTable extends Table {
+  private data: any[] = [];
+  private filteredData: any[] = [];
+  private currentFilter: string = '';
+  
+  constructor(props: TableProps) {
+    super(props);
+    this.setupEventHandlers();
+  }
+  
+  addRow(row: any) {
+    this.data.push(row);
+    this.applyFilter();
+    this.updateDisplay();
+  }
+  
+  removeRow(index: number) {
+    this.data.splice(index, 1);
+    this.applyFilter();
+    this.updateDisplay();
+  }
+  
+  updateRow(index: number, row: any) {
+    this.data[index] = { ...this.data[index], ...row };
+    this.applyFilter();
+    this.updateDisplay();
+  }
+  
+  setFilter(filter: string) {
+    this.currentFilter = filter.toLowerCase();
+    this.applyFilter();
+    this.updateDisplay();
+  }
+  
+  private applyFilter() {
+    if (!this.currentFilter) {
+      this.filteredData = [...this.data];
+      return;
+    }
+    
+    this.filteredData = this.data.filter(row => {
+      return Object.values(row).some(value =>
+        String(value).toLowerCase().includes(this.currentFilter)
+      );
+    });
+  }
+  
+  private updateDisplay() {
+    this.setData(this.filteredData);
+    this.render();
+  }
+}
+
+// Usage
+const userTable = new DynamicTable({
+  parent: container.el,
+  headers: ['Name', 'Email', 'Status'],
+  sortable: true
+});
+
+// Add data dynamically
+userTable.addRow({
+  name: 'Alice Johnson',
+  email: 'alice@example.com',
+  status: 'Active'
+});
+
+// Filter data
+userTable.setFilter('alice');
+```
+
+</CodeGroup>
+
+### Table Properties
+
+```typescript
+interface TableProps extends BaseProps {
+  headers: (string | TableHeader)[];
+  data: (any[] | Record<string, any>)[];
+  
+  // Display options
+  border?: BorderConfig;
+  showHeaders?: boolean;
+  alternatingRows?: boolean;
+  
+  // Interaction
+  sortable?: boolean;
+  selectable?: boolean;
+  searchable?: boolean;
+  
+  // Pagination
+  pagination?: {
+    enabled: boolean;
+    pageSize: number;
+    showInfo?: boolean;
+    showControls?: boolean;
+  };
+  
+  // Styling
+  headerStyle?: StyleConfig;
+  rowStyle?: StyleConfig;
+  selectedRowStyle?: StyleConfig;
+  
+  // Events
+  onRowSelect?: (row: any, index: number) => void;
+  onRowDoubleClick?: (row: any, index: number) => void;
+  onSort?: (column: string, direction: 'asc' | 'desc') => void;
+}
+
+interface TableHeader {
+  label: string;
+  key: string;
+  width?: number;
+  align?: 'left' | 'center' | 'right';
+  sortable?: boolean;
+  formatter?: (value: any, row: any) => string;
+}
+```
+
+## Tree Component
+
+The `Tree` component displays hierarchical data structures with expand/collapse functionality.
+
+<CodeGroup>
+
+```typescript Basic Tree
+import { Tree } from 'nikcli-tui';
+
+const fileTree = new Tree({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  width: 30,
+  bottom: 2,
+  border: { type: 'line' },
+  label: ' File Explorer ',
+  data: [
+    {
+      label: '📁 src',
+      expanded: true,
+      children: [
+        {
+          label: '📁 components',
+          children: [
+            { label: '📄 App.tsx' },
+            { label: '📄 Header.tsx' },
+            { label: '📄 Footer.tsx' }
+          ]
+        },
+        { label: '📄 index.ts' },
+        { label: '📄 config.ts' }
+      ]
+    },
+    {
+      label: '📁 docs',
+      children: [
+        { label: '📄 README.md' },
+        { label: '📄 CHANGELOG.md' }
+      ]
+    },
+    { label: '📄 package.json' }
+  ],
+  onSelect: (node, path) => {
+    console.log('Selected:', node.label, 'at path:', path);
+  }
+});
+```
+
+```typescript Interactive Tree
+class InteractiveTree extends Tree {
+  private contextMenu: Menu;
+  
+  constructor(props: TreeProps) {
+    super(props);
+    this.setupContextMenu();
+    this.setupEventHandlers();
+  }
+  
+  private setupContextMenu() {
+    this.contextMenu = new Menu({
+      parent: this.parent,
+      items: [
+        { label: '📝 Rename', action: 'rename' },
+        { label: '📁 New Folder', action: 'new-folder' },
+        { label: '📄 New File', action: 'new-file' },
+        { separator: true },
+        { label: '🗑️ Delete', action: 'delete', style: { fg: 'red' } }
+      ],
+      onSelect: (item) => this.handleContextAction(item.action)
+    });
+  }
+  
+  private setupEventHandlers() {
+    this.on('rightclick', (node, path) => {
+      this.selectedNode = { node, path };
+      this.showContextMenu();
+    });
+  }
+  
+  private handleContextAction(action: string) {
+    switch (action) {
+      case 'rename':
+        this.renameNode();
+        break;
+      case 'new-folder':
+        this.createFolder();
+        break;
+      case 'new-file':
+        this.createFile();
+        break;
+      case 'delete':
+        this.deleteNode();
+        break;
+    }
+  }
+  
+  private async renameNode() {
+    const newName = await this.promptForName('Rename', this.selectedNode.node.label);
+    if (newName) {
+      this.updateNodeLabel(this.selectedNode.path, newName);
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+## Badge Component
+
+The `Badge` component displays status indicators, counts, and labels.
+
+<CodeGroup>
+
+```typescript Basic Badges
+import { Badge } from 'nikcli-tui';
+
+// Status badges
+const successBadge = new Badge({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  content: 'Online',
+  variant: 'success'
+});
+
+const warningBadge = new Badge({
+  parent: container.el,
+  top: 2,
+  left: 12,
+  content: 'Warning',
+  variant: 'warning'
+});
+
+const errorBadge = new Badge({
+  parent: container.el,
+  top: 2,
+  left: 24,
+  content: 'Error',
+  variant: 'danger'
+});
+
+// Count badges
+const notificationBadge = new Badge({
+  parent: container.el,
+  top: 4,
+  left: 2,
+  content: '5',
+  variant: 'primary',
+  shape: 'circle'
+});
+```
+
+```typescript Dynamic Badge
+class StatusBadge extends Badge {
+  private status: 'online' | 'offline' | 'away' | 'busy';
+  private updateInterval: NodeJS.Timeout;
+  
+  constructor(parent: any) {
+    super({
+      parent,
+      content: 'Connecting...',
+      variant: 'warning'
+    });
+    
+    this.checkStatus();
+    this.startStatusCheck();
+  }
+  
+  private async checkStatus() {
+    try {
+      const response = await fetch('/api/status');
+      const data = await response.json();
+      this.updateStatus(data.status);
+    } catch {
+      this.updateStatus('offline');
+    }
+  }
+  
+  private updateStatus(status: string) {
+    this.status = status as any;
+    
+    const statusConfig = {
+      online: { content: '🟢 Online', variant: 'success' },
+      offline: { content: '🔴 Offline', variant: 'danger' },
+      away: { content: '🟡 Away', variant: 'warning' },
+      busy: { content: '🟠 Busy', variant: 'warning' }
+    };
+    
+    const config = statusConfig[this.status];
+    this.setContent(config.content);
+    this.setVariant(config.variant);
+  }
+  
+  private startStatusCheck() {
+    this.updateInterval = setInterval(() => {
+      this.checkStatus();
+    }, 30000); // Check every 30 seconds
+  }
+  
+  destroy() {
+    clearInterval(this.updateInterval);
+    super.destroy();
+  }
+}
+```
+
+</CodeGroup>
+
+## LogViewer Component
+
+The `LogViewer` component provides a scrollable, searchable log display with filtering and highlighting.
+
+<CodeGroup>
+
+```typescript Basic LogViewer
+import { LogViewer } from 'nikcli-tui';
+
+const logViewer = new LogViewer({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  right: 2,
+  bottom: 2,
+  border: { type: 'line' },
+  label: ' Application Logs ',
+  maxLines: 1000,          // Keep last 1000 lines
+  autoScroll: true,        // Auto-scroll to bottom
+  timestamps: true,        // Show timestamps
+  levelColors: true        // Color by log level
+});
+
+// Add log entries
+logViewer.addLog('info', 'Application started successfully');
+logViewer.addLog('warning', 'Configuration file not found, using defaults');
+logViewer.addLog('error', 'Failed to connect to database');
+logViewer.addLog('debug', 'Processing user request #1234');
+```
+
+```typescript Advanced LogViewer
+class AdvancedLogViewer extends LogViewer {
+  private filters: Set<string> = new Set();
+  private searchTerm: string = '';
+  
+  constructor(props: LogViewerProps) {
+    super(props);
+    this.setupFiltering();
+    this.setupSearch();
+  }
+  
+  setLevelFilter(levels: string[]) {
+    this.filters = new Set(levels);
+    this.applyFilters();
+  }
+  
+  search(term: string) {
+    this.searchTerm = term.toLowerCase();
+    this.applyFilters();
+  }
+  
+  private applyFilters() {
+    const filteredLogs = this.allLogs.filter(log => {
+      // Level filter
+      if (this.filters.size > 0 && !this.filters.has(log.level)) {
+        return false;
+      }
+      
+      // Search filter
+      if (this.searchTerm && !log.message.toLowerCase().includes(this.searchTerm)) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    this.setLogs(filteredLogs);
+  }
+  
+  exportLogs(): string {
+    return this.getVisibleLogs()
+      .map(log => `[${log.timestamp}] ${log.level.toUpperCase()}: ${log.message}`)
+      .join('\n');
+  }
+}
+
+// Usage with real-time logs
+const realtimeLogViewer = new AdvancedLogViewer({
+  parent: container.el,
+  maxLines: 500
+});
+
+// Connect to log stream
+const logStream = new EventSource('/api/logs/stream');
+logStream.onmessage = (event) => {
+  const logEntry = JSON.parse(event.data);
+  realtimeLogViewer.addLog(logEntry.level, logEntry.message);
+};
+```
+
+</CodeGroup>
+
+## Display Component Best Practices
+
+### 1. Performance Optimization
+
+```typescript
+class OptimizedDisplay {
+  private renderScheduled = false;
+  private updateQueue: DisplayUpdate[] = [];
+  
+  scheduleUpdate(update: DisplayUpdate) {
+    this.updateQueue.push(update);
+    
+    if (!this.renderScheduled) {
+      this.renderScheduled = true;
+      process.nextTick(() => {
+        this.processUpdates();
+        this.renderScheduled = false;
+      });
+    }
+  }
+  
+  private processUpdates() {
+    // Batch process all updates
+    const textUpdates = this.updateQueue.filter(u => u.type === 'text');
+    const styleUpdates = this.updateQueue.filter(u => u.type === 'style');
+    
+    // Apply updates efficiently
+    this.applyTextUpdates(textUpdates);
+    this.applyStyleUpdates(styleUpdates);
+    
+    // Clear queue
+    this.updateQueue = [];
+    
+    // Single render call
+    this.render();
+  }
+}
+```
+
+### 2. Accessibility
+
+```typescript
+class AccessibleText extends Text {
+  constructor(props: AccessibleTextProps) {
+    super(props);
+    this.setupAccessibility();
+  }
+  
+  private setupAccessibility() {
+    // Add ARIA labels
+    this.setAttribute('role', 'text');
+    this.setAttribute('aria-label', this.props.ariaLabel || this.content);
+    
+    // Screen reader support
+    if (this.props.readAloud) {
+      this.on('focus', () => {
+        this.announceContent();
+      });
+    }
+  }
+  
+  private announceContent() {
+    // Screen reader announcement
+    process.stdout.write(`\x1b]777;notify;${this.content}\x1b\\`);
+  }
+}
+```
+
+### 3. Responsive Design
+
+```typescript
+class ResponsiveTable extends Table {
+  private breakpoints = {
+    mobile: 60,
+    tablet: 100,
+    desktop: 140
+  };
+  
+  constructor(props: TableProps) {
+    super(props);
+    this.setupResponsive();
+  }
+  
+  private setupResponsive() {
+    this.parent.on('resize', () => {
+      this.updateLayout();
+    });
+    
+    this.updateLayout();
+  }
+  
+  private updateLayout() {
+    const width = this.parent.width;
+    
+    if (width < this.breakpoints.mobile) {
+      this.setMobileLayout();
+    } else if (width < this.breakpoints.tablet) {
+      this.setTabletLayout();
+    } else {
+      this.setDesktopLayout();
+    }
+  }
+  
+  private setMobileLayout() {
+    // Hide less important columns
+    this.hideColumns(['email', 'created_at']);
+    this.showColumns(['name', 'status']);
+  }
+  
+  private setTabletLayout() {
+    this.hideColumns(['created_at']);
+    this.showColumns(['name', 'email', 'status']);
+  }
+  
+  private setDesktopLayout() {
+    this.showAllColumns();
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Feedback Components"
+    icon="loader"
+    href="/components/feedback"
+  >
+    Learn about Spinner, ProgressBar, and user feedback components
+  </Card>
+  <Card
+    title="Navigation Components"
+    icon="navigation"
+    href="/components/navigation"
+  >
+    Master Menu, Tabs, and navigation components
+  </Card>
+  <Card
+    title="AI Integration"
+    icon="brain"
+    href="/ai/chat-components"
+  >
+    Combine display components with AI chat interfaces
+  </Card>
+  <Card
+    title="Complete Examples"
+    icon="code"
+    href="/examples/overview"
+  >
+    See display components in real applications
+  </Card>
+</CardGroup>

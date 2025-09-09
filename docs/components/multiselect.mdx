@@ -1,0 +1,85 @@
+---
+title: 'MultiSelect'
+description: 'Multi-select list input with keyboard navigation.'
+---
+
+## Overview
+
+Select multiple items from a list.
+
+## Import
+
+```ts
+import { MultiSelect } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new MultiSelect({ parent: screen, options: ['One','Two','Three'] });
+```
+
+## Live Preview
+
+<Snippet file="previews/multiselect.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- options: string[] — Options list.
+- selectedIndices?: number[] — Preselected indices.
+- maxSelections?: number — Max number of selections.
+- allowDeselect?: boolean — If false, selected items cannot be deselected.
+- onChange?: (indices: number[], values: string[]) => void — Fires on change.
+- BaseProps: container and list styling.
+
+## Methods
+
+- setOptions(options), addOption(option), removeOption(index).
+- setSelectedIndices(indices), getSelectedIndices(), getSelectedValues().
+- selectAll(), deselectAll(), toggleSelection(index), isSelected(index), getSelectionCount().
+
+## Keyboard
+
+- Up/Down: move pointer; Enter: toggle selection.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { MultiSelect } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new MultiSelect({ parent: screen, top: 1, left: 2, width: 24, height: 6, options: ['A','B','C'], onChange: (idxs, vals) => console.log(idxs, vals) });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Limits & Deselect
+new MultiSelect({ parent: screen, top: 1, left: 30, width: 24, height: 6, options: ['X','Y','Z'], maxSelections: 2, allowDeselect: true });
+```
+
+```ts Bulk Ops
+const ms = new MultiSelect({ parent: screen, top: 8, left: 2, width: 24, height: 6, options: ['one','two','three'] });
+ms.selectAll();
+ms.deselectAll();
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Mantieni l'altezza list limitata (6–10) con scroll per evitare overflow.

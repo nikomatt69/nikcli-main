@@ -1,0 +1,57 @@
+<Frame>
+  <div style={{
+    background: '#0f131a',
+    border: '1px solid #1f2430',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    boxShadow: '0 10px 30px rgba(0,0,0,.35)'
+  }}>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '10px 12px', background: '#0c1118', borderBottom: '1px solid #1f2430' }}>
+      <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f56' }} />
+      <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }} />
+      <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27c93f' }} />
+      <div style={{ marginLeft: 10, color: '#7aa2f7', fontWeight: 600 }}>Live Preview</div>
+    </div>
+    <div style={{ padding: 0 }}>
+      <iframe
+        title="Live Component Preview"
+        style={{ width: '100%', height: 280, border: 0 }}
+        sandbox="allow-scripts allow-same-origin"
+        srcDoc={`<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>
+          :root{color-scheme:dark}body{margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;background:#0b0e14;color:#e6e1cf}
+          .terminal{background:#0f131a;border:1px solid #1f2430}
+          .top{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#0c1118;border-bottom:1px solid #1f2430}
+          .dot{width:10px;height:10px;border-radius:50%}.red{background:#ff5f56}.yellow{background:#ffbd2e}.green{background:#27c93f}
+          .body{padding:14px;font-size:13px;line-height:1.6;min-height:180px}
+          .row{display:flex;align-items:center;gap:1ch}.btn{border:1px solid #2c3443;background:#0b0f16;color:#e6e1cf;padding:2px 6px;border-radius:4px;cursor:pointer}
+          .primary{border-color:#14b8a6;background:#14b8a6;color:#0b0e14}.destructive{border-color:#ef4444;background:#ef4444;color:#0b0e14}
+          .input{border:1px solid #2c3443;background:#0b0f16;color:#e6e1cf;padding:2px 6px;border-radius:4px;min-width:220px;outline:none}
+          .group{border:1px solid #2c3443;padding:8px;border-radius:6px;margin-bottom:8px}.label{color:#7aa2f7;margin-bottom:6px}
+          .bar{width:100%;height:8px;background:#111520;border:1px solid #2c3443;border-radius:4px;overflow:hidden}
+          .bar>div{height:100%;background:linear-gradient(90deg,#14b8a6,#22d3ee);width:0%;transition:width .12s linear}
+          .status{display:flex;gap:2ch;color:#a6accd;opacity:.9;border-top:1px solid #1f2430;padding-top:8px;margin-top:8px}
+        </style></head><body>
+        <div class="terminal"><div class="top"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div><div id="b" class="body"></div></div>
+        <script>
+          const el=(t,p={},c=[])=>{const n=document.createElement(t);Object.entries(p).forEach(([k,v])=>{if(k==='text')n.textContent=v;else if(k in n)n[k]=v;else n.setAttribute(k,v)});c.forEach(x=>n.appendChild(x));return n};
+          const b=document.getElementById('b');
+          let name;try{const r=new URL(document.referrer);const seg=r.pathname.split('/').filter(Boolean);name=(seg.pop()||'component').replace(/-/g,' ');name=name.replace(/\b\w/g,m=>m.toUpperCase());}catch{ name='Component'; }
+          const demos={
+            'Button':()=>{const info=el('div',{class:'label',text:'Press buttons'});const row=el('div',{class:'row'});const out=el('div',{style:'margin-top:8px;color:#a6accd;'});['Default',['Run','primary'],['Delete','destructive']].forEach(x=>{let t=x[0]||x;let cls=x[1]||'';const btn=el('button',{class:'btn '+cls,text:t});btn.addEventListener('click',()=>out.textContent='Pressed: '+t);row.appendChild(btn)});b.append(info,row,out);},
+            'Text Input':()=>{const g=el('div',{class:'group'});g.append(el('div',{class:'label',text:'Type and press Enter'}));const r=el('div',{class:'row'});const i=el('input',{class:'input',placeholder:'Your text...'});const o=el('div',{style:'margin-top:8px;color:#a6accd;'});i.addEventListener('keydown',e=>{if(e.key==='Enter'){o.textContent='Submitted: '+(i.value||'');i.value='';}});r.append(i);g.append(r,o);b.append(g);i.focus();},
+            'Spinner':()=>{const g=el('div',{class:'group'});const s=el('span',{text:'⠋'});const t=['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];let i=0;const id=setInterval(()=>{i=(i+1)%t.length;s.textContent=t[i];},80);g.append(el('div',{class:'label',text:'Loading...'}),el('div',{class:'row'},[s,el('span',{text:'Streaming tokens...'})]));b.append(g);window.addEventListener('unload',()=>clearInterval(id));},
+            'Progress Bar':()=>{const g=el('div',{class:'group'});g.append(el('div',{class:'label',text:'Task progress'}));const bar=el('div',{class:'bar'},[el('div')]);const o=el('div',{style:'margin-top:8px;color:#a6accd;'});g.append(bar,o);b.append(g);let v=0;const id=setInterval(()=>{v=(v+4)%104;bar.firstChild.style.width=Math.min(v,100)+'%';o.textContent=Math.min(v,100)+'%';},120);window.addEventListener('unload',()=>clearInterval(id));},
+            'Status Bar':()=>{const s=el('div',{class:'status'});s.append(el('span',{text:'Ln 10, Col 4'}),el('span',{text:'UTF-8'}),el('span',{text:'Spaces: 2'}),el('span',{text:'Terminal: 80x24'}));b.append(s);}
+          };
+          const map={'Textinput':'Text Input','Progressbar':'Progress Bar','Statusbar':'Status Bar'};const key=map[name]||name; (demos[key]||demos['Button'])();
+        </script></body></html>`}
+      />
+    </div>
+    <div style={{ padding: 12, fontSize: 12, lineHeight: 1.6, color: '#a6accd', borderTop: '1px solid #1f2430' }}>
+      <div>Per anteprima interattiva reale, esegui localmente:</div>
+      <div><span style={{ color: '#7fe7c4' }}>$</span> npm run tsx:core-gallery</div>
+      <div style={{ marginTop: 8, opacity: .9 }}>Oppure <code>npm run start:core-gallery</code> (build + run).</div>
+    </div>
+  </div>
+</Frame>
+

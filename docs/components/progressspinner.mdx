@@ -1,0 +1,77 @@
+---
+title: 'ProgressSpinner'
+description: 'Circular/dots spinner for loading states.'
+---
+
+## Overview
+
+Animated spinner for async work.
+
+## Import
+
+```ts
+import { ProgressSpinner } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new ProgressSpinner({ parent: screen });
+```
+
+## Live Preview
+
+<Snippet file="previews/progressspinner.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- text?: string — Base text.
+- intervalMs?: number — Frame interval (default 80ms).
+- bars?: string[] — Custom bar frames.
+- barCount?: number — Use only first N frames.
+
+## Methods
+
+- start(text?, intervalMs?), stop(), pause(), resume(), reset().
+- setText(text), setBars(frames), setBarCount(n), setInterval(ms), setCustomPattern(frames).
+- getCurrentBarIndex(), getCurrentBar(), isRunning().
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { ProgressSpinner } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new ProgressSpinner({ parent: screen, top: 1, left: 2, text: 'Loading' });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Fast Pattern
+const sp = new ProgressSpinner({ parent: screen, top: 1, left: 2, text: 'Fast', intervalMs: 50 });
+```
+
+```ts Custom Bars
+sp.setCustomPattern(['◐','◓','◑','◒']);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Usa spinner per operazioni brevi; combina con Text/StatusBar per contesto.

@@ -1,0 +1,77 @@
+---
+title: 'ProgressList'
+description: 'List of tasks with individual progress.'
+---
+
+## Overview
+
+Track progress across multiple items.
+
+## Import
+
+```ts
+import { ProgressList } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+// Define items and update as needed
+```
+
+## Live Preview
+
+<Snippet file="previews/progresslist.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- items: Array of `{ label: string; value: number; maxValue?: number; color?: string }` — Rows to render.
+- showPercentages?: boolean — Show % text column (default true).
+- showValues?: boolean — Show value/max text (default true).
+- barWidth?: number — Internal layout width for bars.
+- itemHeight?: number — Row height (default 2).
+
+## Methods
+
+- updateProgress(index, value, maxValue?), setItems(items), addItem(item), removeItem(index).
+- setItemLabel(index, label), setItemColor(index, color), setAllProgress(values), resetAll().
+- getItem(index), getAllItems(), getTotalProgress().
+- setShowPercentages(bool), setShowValues(bool), setBarWidth(n), setItemHeight(n).
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { ProgressList } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new ProgressList({ parent: screen, top: 1, left: 2, width: 60, height: 8, items: [ { label: 'Build', value: 70 }, { label: 'Test', value: 40 } ] });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Update Items
+const pl = new ProgressList({ parent: screen, top: 1, left: 2, width: 60, height: 8, items: [] });
+pl.addItem({ label: 'Step 1', value: 10 });
+pl.updateProgress(0, 60);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Mantieni `itemHeight` = 2 per densità ottimale; usa `barWidth` per testi lunghi.

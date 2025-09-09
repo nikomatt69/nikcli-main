@@ -205,10 +205,10 @@ export class UnifiedChatInterface extends EventEmitter {
       } else {
         // DEFAULT CHAT MODE: Check if task is complex, auto-generate todos if needed
         const isComplexTask = await this.assessTaskComplexity(input);
-        
+
         if (isComplexTask) {
           console.log(chalk.cyan('🧠 Detected complex task - auto-generating execution todos...'));
-          
+
           // Generate todos automatically and orchestrate background agents
           await this.autoGenerateTodosAndOrchestrate(input);
         } else {
@@ -463,29 +463,29 @@ export class UnifiedChatInterface extends EventEmitter {
    */
   private async assessTaskComplexity(input: string): Promise<boolean> {
     const lowerInput = input.toLowerCase();
-    
+
     // Keywords that indicate complex tasks
     const complexKeywords = [
       'create', 'build', 'implement', 'develop', 'generate', 'setup', 'configure',
       'refactor', 'migrate', 'deploy', 'install', 'integrate', 'design'
     ];
-    
+
     // Keywords that indicate simple tasks
     const simpleKeywords = [
       'show', 'list', 'check', 'status', 'help', 'what', 'how', 'explain', 'describe'
     ];
-    
+
     // Check for complex indicators
     const hasComplexKeywords = complexKeywords.some(keyword => lowerInput.includes(keyword));
     const hasSimpleKeywords = simpleKeywords.some(keyword => lowerInput.includes(keyword));
-    
+
     // Task is complex if:
     // - Contains complex keywords AND no simple keywords
     // - Is longer than 50 characters (likely detailed request)
     // - Contains multiple sentences
     const isLongTask = input.length > 50;
     const hasMultipleSentences = input.split(/[.!?]/).length > 2;
-    
+
     return (hasComplexKeywords && !hasSimpleKeywords) || isLongTask || hasMultipleSentences;
   }
 
@@ -496,24 +496,24 @@ export class UnifiedChatInterface extends EventEmitter {
     try {
       // Import the todo manager
       const { agentTodoManager } = await import('./core/agent-todo-manager');
-      
+
       // Create a universal agent ID for this task
       const universalAgentId = 'universal-agent';
-      
+
       // Generate todos using the Universal Agent cognitive capabilities
       console.log(chalk.blue('📋 Creating execution todos...'));
       const todos = await agentTodoManager.planTodos(universalAgentId, input);
-      
+
       // Display todos to user
       this.displayGeneratedTodos(todos);
-      
+
       // Start executing todos with background agents
       console.log(chalk.green('🚀 Starting background execution...'));
       this.addAssistantMessage(`I've broken down your request into ${todos.length} actionable steps and started working on them in the background. You can continue chatting while I work.`);
-      
+
       // Execute todos in background (non-blocking)
       this.executeInBackground(todos, universalAgentId);
-      
+
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to generate todos: ${error.message}`));
       // Fallback to direct response
