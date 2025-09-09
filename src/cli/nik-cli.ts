@@ -8756,7 +8756,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`
         } else if (lowerModel.includes('gemini') || lowerModel.includes('google')) {
             return '🔵'; // Google/Gemini = blue dot
         } else {
-            return '⚪'; // Default = white dot
+            return '🟡'; // Default = white dot
         }
     }
 

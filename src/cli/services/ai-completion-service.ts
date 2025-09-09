@@ -199,10 +199,21 @@ export class AICompletionService {
       });
 
       return this.parseAIResponse(response, enrichedContext);
-    } catch (error) {
-      console.warn(chalk.yellow(`[AI Completion] Model error: ${error}`));
-      return [];
+} catch (error: any) {
+  let errorMsg = error.message || 'Unknown error';
+  // Handle OpenRouter-specific errors
+  if (errorMsg.includes('OpenRouter') || errorMsg.includes('402') || errorMsg.includes('429')) {
+    if (errorMsg.includes('402')) {
+      errorMsg = 'OpenRouter: Insufficient credits. Please check your account balance.';
+    } else if (errorMsg.includes('429')) {
+      errorMsg = 'OpenRouter: Rate limit exceeded. Retrying may help.';
     }
+    console.warn(chalk.yellow(`[AI Completion] OpenRouter error: ${errorMsg}`));
+  } else {
+    console.warn(chalk.yellow(`[AI Completion] Model error: ${errorMsg}`));
+  }
+  return [];
+}
   }
 
   /**

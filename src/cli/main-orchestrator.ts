@@ -17,8 +17,10 @@ import { snapshotService } from './services/snapshot-service';
 import { diffManager } from './ui/diff-manager';
 import { VMOrchestrator } from './virtualized-agents/vm-orchestrator';
 import { ContainerManager } from './virtualized-agents/container-manager';
+import { simpleConfigManager as configManager } from './core/config-manager';
+import { modelProvider } from './ai/model-provider';
 
-class MainOrchestrator {
+export class MainOrchestrator {
   private streamOrchestrator: StreamingOrchestrator;
   private vmOrchestrator: VMOrchestrator;
   private containerManager: ContainerManager;
@@ -353,46 +355,54 @@ class MainOrchestrator {
     try {
       // Show startup banner
 
-
       // Wait for user to see banner
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Check system requirements
       const requirementsMet = await this.checkSystemRequirements();
       if (!requirementsMet) {
-        console.log(chalk.red('\\n❌ Cannot start - system requirements not met'));
+        console.log(chalk.red('\n❌ Cannot start - system requirements not met'));
         process.exit(1);
       }
 
       // Initialize all systems
       const initialized = await this.initializeSystem();
       if (!initialized) {
-        console.log(chalk.red('\\n❌ Cannot start - system initialization failed'));
+        console.log(chalk.red('\n❌ Cannot start - system initialization failed'));
         process.exit(1);
       }
 
       // Show quick start guide
 
-
       // Start the streaming orchestrator
-      console.log(chalk.blue.bold('🎛️ Starting Streaming Orchestrator...\\n'));
+      console.log(chalk.blue.bold('🎛️ Starting Streaming Orchestrator...\n'));
       await this.streamOrchestrator.start();
+
+      // Set default provider preference for OpenRouter if configured
+      const modelInfo = modelProvider.getCurrentModelInfo();
+      if (modelInfo.config.provider === 'openrouter') {
+        console.log(chalk.blue('🌐 Using OpenRouter for enhanced model routing'));
+        // Pass provider preference to orchestrator if supported
+        if (this.streamOrchestrator.addListener) {
+          this.streamOrchestrator.addListener('provider', (provider: string) => {
+            provider: { only: ['openrouter'] } // Force OpenRouter routing
+          });
+        }
+      }
 
     } catch (error: any) {
       console.error(chalk.red('❌ Failed to start orchestrator:'), error);
       process.exit(1);
     }
+
+
+    // Start if run directly
+    if (require.main === module) {
+      const orchestrator = new MainOrchestrator();
+      orchestrator.start().catch(error => {
+        console.error(chalk.red('❌ Startup failed:'), error);
+        process.exit(1);
+      });
+    }
   }
-}
-
-// Export for programmatic use
-export { MainOrchestrator };
-
-// Start if run directly
-if (require.main === module) {
-  const orchestrator = new MainOrchestrator();
-  orchestrator.start().catch(error => {
-    console.error(chalk.red('❌ Startup failed:'), error);
-    process.exit(1);
-  });
 }

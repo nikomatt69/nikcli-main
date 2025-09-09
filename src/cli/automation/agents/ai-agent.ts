@@ -1,5 +1,6 @@
 import { BaseAgent } from './base-agent';
 import { modelProvider, ChatMessage } from '../../ai/model-provider';
+import { configManager } from '@/cli/core/config-manager';
 
 export class AIAnalysisAgent extends BaseAgent {
   id = 'ai-analysis';
@@ -31,9 +32,16 @@ export class AIAnalysisAgent extends BaseAgent {
       const messages: ChatMessage[] = [
         { role: 'user', content: prompt },
       ];
+      const currentProvider = configManager.getCurrentModel();
+      const extraOptions: any = {};
+      if (currentProvider === 'openrouter') {
+        extraOptions.transforms = ['remove-latex']; // Clean output for CLI
+      }
+
       const text = await modelProvider.generateResponse({
         messages,
-        maxTokens: 500,
+        maxTokens: 1000,
+        ...extraOptions
       });
 
       return {

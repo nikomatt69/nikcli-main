@@ -3,7 +3,7 @@ import { ChatMessage } from './model-provider';
 export type ModelScope = 'chat_default' | 'planning' | 'code_gen' | 'tool_light' | 'tool_heavy' | 'vision';
 
 export interface ModelRouteInput {
-  provider: 'openai' | 'anthropic' | 'google' | 'ollama' | 'vercel' | 'gateway';
+  provider: 'openai' | 'anthropic' | 'google' | 'ollama' | 'vercel' | 'gateway' | 'openrouter';
   baseModel: string; // model id configured as current for provider
   messages: Array<Pick<ChatMessage, 'role' | 'content'>>;
   scope?: ModelScope;
@@ -56,6 +56,17 @@ function pickGoogle(_baseModel: string, tier: 'light' | 'medium' | 'heavy'): str
   return 'gemini-2.5-flash-lite';
 }
 
+function pickOpenRouter(baseModel: string, tier: 'light' | 'medium' | 'heavy', needsVision?: boolean): string {
+  // Dynamic: Use the configured baseModel (already prefixed in config for OpenRouter)
+  // No hardcoding - routes to any available model via OpenRouter
+  // For vision, prefer vision-capable if baseModel indicates, but keep dynamic
+  let selected = baseModel;
+  if (needsVision && baseModel.includes('gpt-4o')) {
+    selected = baseModel; // Keep if vision-capable
+  }
+  return selected; // e.g., returns 'openrouter-claude-3-7-sonnet-20250219' directly
+}
+
 function determineTier(tokens: number, scope?: ModelScope, content?: string): 'light' | 'medium' | 'heavy' {
   // Scope shortcuts override
   if (scope === 'tool_light') return 'light';
@@ -94,6 +105,10 @@ export class AdaptiveModelRouter {
       case 'google':
         selected = pickGoogle(input.baseModel, tier);
         reason = `google ${tier}`;
+        break;
+      case 'openrouter':
+        selected = pickOpenRouter(input.baseModel, tier, input.needsVision);
+        reason = `openrouter ${tier}`;
         break;
       case 'vercel':
       case 'gateway':

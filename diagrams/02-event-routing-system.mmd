@@ -1,0 +1,32 @@
+flowchart TD
+    A[Event Sources] --> B[Event Emitter]
+    B --> C[Event Router]
+    C --> D{Structured UI Active?}
+    D -->|Yes| E[AdvancedCliUI Panels]
+    D -->|No| F[Console Output]
+    
+    E --> G[Chat Panel]
+    E --> H[Files/Diffs Panel]
+    E --> I[Plan/Todos Panel]
+    E --> J[Approval Panel]
+    
+    F --> K[Console stdout]
+    
+    G --> L[Real-time Chat Updates]
+    H --> M[File Changes & Diffs]
+    I --> N[Todo Progress]
+    J --> O[Approval Requests]
+    
+    subgraph "Event Types"
+        P[Planning Events]
+        Q[Agent Events]
+        R[Tool Events]
+        S[Background Agent Events]
+        T[Chat Stream Events]
+    end
+    
+    P --> B
+    Q --> B
+    R --> B
+    S --> B
+    T --> B

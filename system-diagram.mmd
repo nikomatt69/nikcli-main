@@ -1,0 +1,53 @@
+```mermaid
+graph TD
+    subgraph "User Interaction Layer"
+        User[User Input via Terminal]
+        CLI[CLI Entrypoint bin/cli.ts]
+        TUI[Text UI Components dist/cli/ui/ e.g., Completion Display, Diff Viewer, Approval System]
+    end
+
+    subgraph "Core Processing Layer"
+        Parser[Command Parser & Input Handler]
+        Agents[AI Agents e.g., Claude Integration from AGENTS.md]
+        Tools[Tool Calling & Middleware AI SDK Core]
+        Gateway[AI Gateway Vercel for OpenAI-Compatible APIs]
+    end
+
+    subgraph "AI & Model Layer"
+        Models[LLM Models e.g., Claude Sonnet, Grok, GPT via OpenAI/Anthropic]
+        Embeddings[Embeddings & Prompt Engineering]
+        Generation[Text/Image/Speech Generation AI SDK]
+        Copilot[AI Copilot Features e.g., Code Gen, Suggestions, Semantic Search]
+    end
+
+    subgraph "Output & Storage Layer"
+        Outputs[TUI Rendering, Generated Images database/generated_images/, Logs]
+        DB[Database Schema database/ for Persistence]
+        Binaries[Built Binaries via pkg-config.json]
+    end
+
+    %% Flows
+    User --> CLI
+    CLI --> TUI
+    CLI --> Parser
+    Parser --> Agents
+    Agents --> Gateway
+    Gateway --> Models
+    Models --> Embeddings
+    Embeddings --> Generation
+    Generation --> Tools
+    Tools --> Copilot
+    Copilot --> Outputs
+    Outputs --> DB
+    Outputs --> Binaries
+
+    %% Styles
+    classDef userLayer fill:#e1f5fe
+    classDef coreLayer fill:#f3e5f5
+    classDef aiLayer fill:#e8f5e8
+    classDef outputLayer fill:#fff3e0
+    class User,CLI,TUI userLayer
+    class Parser,Agents,Tools,Gateway coreLayer
+    class Models,Embeddings,Generation,Copilot aiLayer
+    class Outputs,DB,Binaries outputLayer
+```

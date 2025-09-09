@@ -6,7 +6,7 @@ import { createOllama } from 'ollama-ai-provider';
 import { createVercel } from '@ai-sdk/vercel';
 import { ModelConfig, configManager } from '../core/config-manager';
 import { adaptiveModelRouter, ModelScope } from './adaptive-model-router';
-import { gateway } from '@ai-sdk/gateway';
+
 import { createGateway } from '@ai-sdk/gateway';
 import { z } from 'zod';
 
@@ -88,21 +88,36 @@ export class ModelProvider {
         const googleProvider = createGoogleGenerativeAI({ apiKey });
         return googleProvider(config.model);
       }
-      case 'gateway': {
-        const apiKey = configManager.getApiKey(currentModelName);
-        if (!apiKey) {
-          throw new Error(`API key not found for model: ${currentModelName} (Gateway). Use /set-key to configure.`);
-        }
-        const gatewayProvider = createGateway({ apiKey });
-        return gatewayProvider(config.model);
-      }
-      case 'ollama': {
-        // Ollama does not require API keys; assumes local daemon at default endpoint
-        const ollamaProvider = createOllama({});
-        return ollamaProvider(config.model);
-      }
-      default:
-        throw new Error(`Unsupported provider: ${config.provider}`);
+case 'gateway': {
+  const apiKey = configManager.getApiKey(currentModelName);
+  if (!apiKey) {
+    throw new Error(`API key not found for model: ${currentModelName} (Gateway). Use /set-key to configure.`);
+  }
+  const gatewayProvider = createGateway({ apiKey });
+  return gatewayProvider(config.model);
+}
+case 'openrouter': {
+  const apiKey = configManager.getApiKey(currentModelName);
+  if (!apiKey) {
+    throw new Error(`API key not found for model: ${currentModelName} (OpenRouter). Use /set-key to configure.`);
+  }
+  const openrouterProvider = createOpenAI({
+    apiKey,
+    baseURL: 'https://openrouter.ai/api/v1',
+    headers: {
+      'HTTP-Referer': 'https://nikcli.ai',  // Optional: for attribution
+      'X-Title': 'NikCLI',
+    },
+  });
+  return openrouterProvider(config.model);  // Assumes model like 'openai/gpt-4o'
+}
+case 'ollama': {
+  // Ollama does not require API keys; assumes local daemon at default endpoint
+  const ollamaProvider = createOllama({});
+  return ollamaProvider(config.model);
+}
+default:
+  throw new Error(`Unsupported provider: ${config.provider}`);
     }
   }
 
