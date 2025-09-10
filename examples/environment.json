@@ -1,0 +1,81 @@
+{
+  "snapshot": "auto",
+  "install": "yarn install",
+  "start": "",
+  "terminals": [
+    {
+      "name": "Dev Server", 
+      "command": "yarn dev",
+      "autoStart": false,
+      "persistent": true
+    },
+    {
+      "name": "Test Watch",
+      "command": "yarn test --watch",
+      "autoStart": false,
+      "persistent": true
+    },
+    {
+      "name": "Type Check",
+      "command": "yarn tsc --watch --noEmit",
+      "autoStart": false,
+      "persistent": true
+    }
+  ],
+  "secrets": [
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY", 
+    "NEXTAUTH_SECRET",
+    "DATABASE_URL"
+  ],
+  "node": "18",
+  "cache": [
+    "node_modules",
+    ".next", 
+    ".turbo",
+    "dist",
+    ".yarn/cache"
+  ],
+  "policies": {
+    "maxMemoryMB": 4096,
+    "maxCpuPercent": 80,
+    "networkPolicy": "restricted",
+    "allowedDomains": [
+      "registry.npmjs.org",
+      "yarnpkg.com", 
+      "github.com",
+      "api.openai.com",
+      "api.anthropic.com"
+    ],
+    "timeoutMinutes": 30,
+    "maxFileSize": 104857600,
+    "allowedCommands": [
+      "yarn",
+      "npm", 
+      "node",
+      "tsc",
+      "git"
+    ],
+    "blockedCommands": [
+      "rm -rf /",
+      "sudo rm",
+      "format",
+      "dd if=",
+      "shutdown"
+    ]
+  },
+  "hooks": {
+    "beforeInstall": [
+      "corepack enable"
+    ],
+    "afterInstall": [
+      "yarn husky install"
+    ],
+    "beforeStart": [],
+    "afterStart": [],
+    "beforeCommit": [
+      "yarn lint",
+      "yarn test"
+    ]
+  }
+}

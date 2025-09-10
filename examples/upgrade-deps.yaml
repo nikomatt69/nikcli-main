@@ -1,0 +1,36 @@
+name: "upgrade-deps"
+agent: "universal-agent"
+goals:
+  - "Aggiorna le dipendenze del progetto all'ultima versione"
+  - "Risolvi eventuali breaking changes"
+  - "Assicurati che build e test funzionino"
+limits:
+  max_tool_calls: 80
+  max_time_minutes: 40
+  max_memory_mb: 4096
+policy:
+  approve_commands: false
+  network_allow:
+    - "registry.npmjs.org"
+    - "yarnpkg.com"
+    - "github.com"
+  safe_mode: true
+steps:
+  - run: "nikcli /analyze-project"
+    timeout_minutes: 5
+  - run: "yarn outdated"
+    retry_on_failure: false
+  - run: "nikcli /auto 'aggiorna le dipendenze in modo incrementale e risolvi i breaking changes'"
+    timeout_minutes: 25
+  - run: "yarn build"
+    retry_on_failure: true
+    timeout_minutes: 5
+  - run: "yarn test"
+    retry_on_failure: true
+    timeout_minutes: 5
+commit:
+  message: "chore: aggiorna dipendenze (nikCLI background agent)"
+  open_pr: true
+  reviewers: ["@tech-lead"]
+  labels: ["dependencies", "automated", "maintenance"]
+  draft: false

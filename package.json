@@ -28,7 +28,18 @@
         "test:watch": "vitest --watch",
         "test:coherence": "node tests/verify-coherence.js",
         "test:system": "node tests/verify-system.js",
-        "lint": "eslint src --ext .ts,.tsx"
+        "lint": "eslint src --ext .ts,.tsx",
+        "nikctl": "ts-node --project tsconfig.cli.json src/cli/nikctl.ts",
+        "nikd": "ts-node --project tsconfig.cli.json src/cli/nikd.ts",
+        "daemon:start": "npm run nikd start",
+        "daemon:status": "npm run nikd status",
+        "bg:start": "npm run nikctl bg start",
+        "bg:list": "npm run nikctl bg list",
+        "bg:stats": "npm run nikctl bg stats",
+        "docker:build": "docker build -t nikcli-bg .",
+        "docker:up": "docker-compose up -d",
+        "docker:down": "docker-compose down",
+        "docker:logs": "docker-compose logs -f"
     },
     "engines": {
         "node": ">=18"
@@ -41,6 +52,7 @@
         "@ai-sdk/vercel": "^1.0.10",
         "@chroma-core/default-embed": "^0.1.8",
         "@supabase/supabase-js": "^2.55.0",
+        "@octokit/rest": "^20.0.2",
         "@types/blessed": "^0.1.25",
         "@types/diff": "^7.0.2",
         "@types/inquirer": "^9.0.7",
