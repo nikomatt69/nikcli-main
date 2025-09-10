@@ -2,25 +2,15 @@
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { BackgroundJob, JobStatus, JobLimits, HeadlessOptions } from './types';
+import { BackgroundJob, JobStatus, JobLimits, HeadlessOptions, CreateBackgroundJobRequest } from './types';
 import { EnvironmentParser } from './core/environment-parser';
 import { PlaybookParser } from './core/playbook-parser';
 import { agentService } from '../services/agent-service';
 import { toolService } from '../services/tool-service';
 import { memoryService } from '../services/memory-service';
-import { VmOrchestrator } from '../virtualized-agents/vm-orchestrator';
+import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator';
+import { ContainerManager } from '../virtualized-agents/container-manager';
 
-export interface CreateBackgroundJobRequest {
-  repo: string;
-  baseBranch: string;
-  task: string;
-  playbook?: string;
-  envVars?: Record<string, string>;
-  limits?: Partial<JobLimits>;
-  reviewers?: string[];
-  labels?: string[];
-  draft?: boolean;
-}
 
 export interface BackgroundJobStats {
   total: number;
@@ -33,13 +23,13 @@ export interface BackgroundJobStats {
 
 export class BackgroundAgentService extends EventEmitter {
   private jobs: Map<string, BackgroundJob> = new Map();
-  private vmOrchestrator: VmOrchestrator;
+  private vmOrchestrator: VMOrchestrator;
   private maxConcurrentJobs = 3;
   private runningJobs = 0;
 
   constructor() {
     super();
-    this.vmOrchestrator = new VmOrchestrator();
+    this.vmOrchestrator = new VMOrchestrator(new ContainerManager());
     this.initializeService();
   }
 
@@ -47,7 +37,7 @@ export class BackgroundAgentService extends EventEmitter {
     try {
       // Initialize VM orchestrator if available
       if (this.vmOrchestrator) {
-        await this.vmOrchestrator.initialize();
+        // VM orchestrator is initialized via constructor
       }
       this.emit('ready');
     } catch (error) {

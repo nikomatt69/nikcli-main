@@ -9,6 +9,8 @@ import { JobQueue } from '../queue/job-queue';
 import { GitHubIntegration } from '../github/github-integration';
 import { securityPolicy } from '../security/security-policy';
 import { BackgroundJob, JobStatus, CreateBackgroundJobRequest } from '../types';
+import { setupWebRoutes } from './web-routes';
+import { BackgroundAgentsWebSocketServer } from './websocket-server';
 
 export interface APIServerConfig {
   port: number;
@@ -43,6 +45,7 @@ export class BackgroundAgentsAPIServer {
   private jobQueue: JobQueue;
   private githubIntegration?: GitHubIntegration;
   private clients: Map<string, express.Response> = new Map();
+  private wsServer?: BackgroundAgentsWebSocketServer;
 
   constructor(config: APIServerConfig) {
     this.config = config;
@@ -137,6 +140,14 @@ export class BackgroundAgentsAPIServer {
     }
 
     this.app.use('/v1', v1);
+
+    // Setup web interface routes
+    setupWebRoutes(this.app);
+
+    // Serve Next.js static files in production
+    if (process.env.NODE_ENV === 'production') {
+      this.app.use(express.static('.next/static'));
+    }
 
     // 404 handler
     this.app.use('*', (req, res) => {
@@ -607,6 +618,11 @@ export class BackgroundAgentsAPIServer {
           console.log(`🚀 Background Agents API server running on port ${this.config.port}`);
           console.log(`📊 Health check: http://localhost:${this.config.port}/health`);
           console.log(`📋 API docs: http://localhost:${this.config.port}/v1`);
+          
+          // Initialize WebSocket server
+          this.wsServer = new BackgroundAgentsWebSocketServer(this.server);
+          console.log(`📡 WebSocket server ready on ws://localhost:${this.config.port}/ws`);
+          
           resolve();
         });
 
@@ -635,6 +651,11 @@ export class BackgroundAgentsAPIServer {
           response.end();
         }
         this.clients.clear();
+
+        // Shutdown WebSocket server
+        if (this.wsServer) {
+          this.wsServer.shutdown();
+        }
 
         this.server.close(() => {
           console.log('🛑 Background Agents API server stopped');

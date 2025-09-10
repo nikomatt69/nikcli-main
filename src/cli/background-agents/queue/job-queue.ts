@@ -54,10 +54,8 @@ export class JobQueue extends EventEmitter {
       port: this.config.redis.port,
       password: this.config.redis.password,
       db: this.config.redis.db || 0,
-      maxRetriesPerRequest: this.config.redis.maxRetriesPerRequest || 3,
-      retryDelayOnFailover: 100,
-      enableReadyCheck: false,
       maxRetriesPerRequest: null,
+      enableReadyCheck: false,
     });
 
     this.redis.on('connect', () => {

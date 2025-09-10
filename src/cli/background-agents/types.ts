@@ -84,6 +84,9 @@ export interface EnvironmentPolicies {
   networkPolicy?: 'restricted' | 'allow' | 'deny';
   allowedDomains?: string[];
   timeoutMinutes?: number;
+  allowedCommands?: string[];
+  blockedCommands?: string[];
+  maxFileSize?: number;
 }
 
 export interface NikPlaybook {
@@ -180,6 +183,20 @@ export interface HeadlessOptions {
   denyCommands?: string[];
   allowNetwork?: string[];
   safeMode?: boolean;
+}
+
+export interface CreateBackgroundJobRequest {
+  repo: string;
+  baseBranch: string;
+  workBranch?: string;
+  task: string;
+  playbook?: string;
+  envVars?: Record<string, string>;
+  limits?: Partial<JobLimits>;
+  priority?: number;
+  reviewers?: string[];
+  labels?: string[];
+  draft?: boolean;
 }
 
 export interface QueueStats {

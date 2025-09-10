@@ -185,7 +185,7 @@ export class PlaybookParser {
     });
 
     // Check commit configuration
-    if (playbook.commit.open_pr && playbook.commit.reviewers.length === 0) {
+    if (playbook.commit.open_pr && playbook.commit.reviewers?.length === 0) {
       warnings.push('PR will be opened but no reviewers specified');
     }
 

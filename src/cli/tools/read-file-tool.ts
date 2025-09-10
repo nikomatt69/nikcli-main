@@ -288,14 +288,14 @@ export class ReadFileTool extends BaseTool {
 
         try {
             // Check if vision provider is available
-            if (typeof global.visionProvider === 'undefined') {
+            if (typeof (global as any).visionProvider === 'undefined') {
                 console.log(chalk.yellow('⚠️ Vision provider not available for image analysis'));
                 return { error: 'Vision provider not available' };
             }
 
             console.log(chalk.blue(`👁️ Analyzing image: ${filePath}`));
 
-            const analysis = await global.visionProvider.analyzeImage(filePath, {
+            const analysis = await (global as any).visionProvider.analyzeImage(filePath, {
                 prompt: 'Provide a comprehensive analysis of this image including: description, objects, text content, colors, composition, and technical details.',
                 cache: true
             });

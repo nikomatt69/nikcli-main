@@ -277,7 +277,7 @@ export class GitHubIntegration {
         basehead: `${job.baseBranch}...${job.workBranch}`,
       });
 
-      return comparison.data.files && comparison.data.files.length > 0;
+      return Boolean(comparison.data.files && comparison.data.files.length > 0);
 
     } catch (error: any) {
       console.error(`Failed to check for changes:`, error.message);
