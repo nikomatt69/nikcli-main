@@ -27,9 +27,6 @@ export function setupWebRoutes(app: express.Application): void {
   webRouter.get('/snapshots/:id', getSnapshot);
   webRouter.delete('/snapshots/:id', deleteSnapshot);
 
-  // WebSocket endpoint
-  webRouter.get('/ws', handleWebSocketUpgrade);
-
   app.use('/api/v1/web', webRouter);
 }
 
@@ -66,7 +63,7 @@ async function getWebConfig(req: express.Request, res: express.Response): Promis
 async function updateWebConfig(req: express.Request, res: express.Response): Promise<void> {
   try {
     const updates = req.body;
-    
+
     // In a real implementation, this would persist to a store
     // For now, we'll just return the updated config
     const config: WebConfig = {
@@ -346,7 +343,7 @@ async function createSnapshot(req: express.Request, res: express.Response): Prom
 async function getSnapshot(req: express.Request, res: express.Response): Promise<void> {
   try {
     const { id } = req.params;
-    
+
     // Mock snapshot retrieval
     res.json({
       success: true,
@@ -377,7 +374,7 @@ async function getSnapshot(req: express.Request, res: express.Response): Promise
 async function deleteSnapshot(req: express.Request, res: express.Response): Promise<void> {
   try {
     const { id } = req.params;
-    
+
     // Mock snapshot deletion
     res.json({
       success: true,
@@ -392,10 +389,3 @@ async function deleteSnapshot(req: express.Request, res: express.Response): Prom
 }
 
 // WebSocket handler
-function handleWebSocketUpgrade(req: express.Request, res: express.Response): void {
-  res.status(426).json({
-    success: false,
-    error: 'WebSocket upgrade required',
-    message: 'This endpoint requires WebSocket upgrade',
-  });
-}

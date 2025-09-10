@@ -87,197 +87,238 @@ export default function DashboardPage() {
 
   return (
     <MainLayout>
-      <div className="flex-1 p-6">
-        {/* Header */}
-        <motion.div 
-          className="mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground mb-2">Background Agents</h1>
-              <p className="text-muted-foreground">
-                Create agents to edit and run code, asynchronously
+      <div className="min-h-full p-4 lg:p-8">
+        {/* Enhanced Header */}
+        <div className="mb-8 lg:mb-12">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-3">
+              <h1 className="text-3xl lg:text-4xl font-bold text-foreground">
+                Background Agents
+              </h1>
+              <p className="text-lg text-muted-foreground max-w-2xl">
+                Create intelligent agents to edit and run code asynchronously with enterprise-grade monitoring
               </p>
             </div>
-            
-            <div className="flex items-center space-x-3">
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               {!isConfigured && (
                 <Link href="/config">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto">
                     <Settings className="h-4 w-4 mr-2" />
                     Setup Required
                   </Button>
                 </Link>
               )}
               <Link href="/jobs">
-                <Button>
+                <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg">
                   <Plus className="h-4 w-4 mr-2" />
                   New Agent
                 </Button>
               </Link>
             </div>
           </div>
-        </motion.div>
-
-        {/* Configuration Warning */}
-        <AnimatePresence>
-          {!isConfigured && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-              className="mb-6"
-            >
-              <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-                <div className="flex items-center space-x-3">
-                  <AlertCircle className="h-5 w-5 text-destructive" />
-                  <div className="flex-1">
-                    <h3 className="font-medium text-foreground">Setup Required</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Configure your GitHub integration and default repository to start creating background agents.
-                    </p>
-                  </div>
-                  <Link href="/config">
-                    <Button size="sm">
-                      Configure Now
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="rounded-lg border bg-card p-6">
-            <div className="flex items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Total Jobs</h3>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-foreground">{stats?.total || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                +{stats?.weeklyActive || 0} this week
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-card p-6">
-            <div className="flex items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Active Jobs</h3>
-              <Zap className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-foreground">{stats?.active || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats?.todayActive || 0} started today
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-card p-6">
-            <div className="flex items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Completed</h3>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-foreground">{stats?.completed || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                ~{stats?.averageCompletionTime || 0}min avg duration
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-card p-6">
-            <div className="flex items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Failed</h3>
-              <XCircle className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-foreground">{stats?.failed || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats?.failed ? Math.round((stats.failed / (stats.total || 1)) * 100) : 0}% error rate
-              </p>
-            </div>
-          </div>
         </div>
 
-        {/* Recent Jobs Section */}
-        <div className="rounded-lg border bg-card">
-          <div className="flex items-center justify-between p-6 border-b border-border">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Recent Jobs</h2>
-              <p className="text-sm text-muted-foreground">
+        {/* Enhanced Configuration Warning */}
+        {!isConfigured && (
+          <div className="mb-8">
+            <div className="rounded-2xl border border-destructive/20 bg-gradient-to-r from-destructive/5 to-destructive/10 p-6 backdrop-blur-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <AlertCircle className="h-6 w-6 text-destructive flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <h3 className="text-lg font-semibold text-foreground">Setup Required</h3>
+                  <p className="text-muted-foreground">
+                    Configure your GitHub integration and default repository to start creating background agents.
+                  </p>
+                </div>
+                <Link href="/config">
+                  <Button size="lg" className="bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg">
+                    Configure Now
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {[
+            {
+              title: 'Total Jobs',
+              value: stats?.total || 0,
+              subtitle: `+${stats?.weeklyActive || 0} this week`,
+              icon: BarChart3,
+              color: 'text-blue-500',
+              bgColor: 'bg-blue-500/10',
+              borderColor: 'border-blue-500/20'
+            },
+            {
+              title: 'Active Jobs',
+              value: stats?.active || 0,
+              subtitle: `${stats?.todayActive || 0} started today`,
+              icon: Zap,
+              color: 'text-emerald-500',
+              bgColor: 'bg-emerald-500/10',
+              borderColor: 'border-emerald-500/20'
+            },
+            {
+              title: 'Completed',
+              value: stats?.completed || 0,
+              subtitle: `~${stats?.averageCompletionTime || 0}min avg duration`,
+              icon: Target,
+              color: 'text-green-500',
+              bgColor: 'bg-green-500/10',
+              borderColor: 'border-green-500/20'
+            },
+            {
+              title: 'Failed',
+              value: stats?.failed || 0,
+              subtitle: `${stats?.failed ? Math.round((stats.failed / (stats.total || 1)) * 100) : 0}% error rate`,
+              icon: XCircle,
+              color: 'text-red-500',
+              bgColor: 'bg-red-500/10',
+              borderColor: 'border-red-500/20'
+            }
+          ].map((stat) => (
+            <div
+              key={stat.title}
+              className={`rounded-2xl border ${stat.borderColor} bg-card/50 backdrop-blur-sm p-6 hover:shadow-lg transition-shadow duration-300`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  {stat.title}
+                </h3>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.bgColor}`}>
+                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-3xl font-bold text-foreground">
+                  {stat.value}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {stat.subtitle}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Enhanced Recent Jobs Section */}
+        <motion.div
+          className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.8 }}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 lg:p-8 border-b border-border/50">
+            <div className="space-y-2">
+              <h2 className="text-xl lg:text-2xl font-bold text-foreground">Recent Jobs</h2>
+              <p className="text-muted-foreground">
                 Your latest background agent executions
               </p>
             </div>
             <Link href="/jobs">
-              <Button variant="outline" size="sm">
-                View All
-                <ArrowUpRight className="h-4 w-4 ml-2" />
-              </Button>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Button variant="outline" size="lg" className="mt-4 sm:mt-0">
+                  View All
+                  <ArrowUpRight className="h-4 w-4 ml-2" />
+                </Button>
+              </motion.div>
             </Link>
           </div>
 
-          <div className="p-6">
+          <div className="p-6 lg:p-8">
             {recentJobs.length === 0 ? (
-              <div className="text-center py-12">
-                <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">No jobs yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  Create your first background agent to get started
+              <motion.div
+                className="text-center py-16"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 1 }}
+              >
+                <motion.div
+                  animate={{ rotate: [0, 10, -10, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                >
+                  <Activity className="h-16 w-16 text-muted-foreground mx-auto mb-6" />
+                </motion.div>
+                <h3 className="text-xl font-semibold text-foreground mb-3">No jobs yet</h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  Create your first background agent to get started with intelligent code automation
                 </p>
                 <Link href="/jobs">
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create First Agent
-                  </Button>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button size="lg" className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create First Agent
+                    </Button>
+                  </motion.div>
                 </Link>
-              </div>
+              </motion.div>
             ) : (
-              <div className="space-y-3">
-                {recentJobs.map((job) => (
-                  <div key={job.id} className="flex items-center justify-between p-4 rounded-md border bg-background">
-                    <div className="flex items-center space-x-4">
+              <div className="space-y-4">
+                {recentJobs.map((job, index) => (
+                  <motion.div
+                    key={job.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-6 rounded-xl border border-border/50 bg-background/50 hover:bg-background/80 transition-all duration-300"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 1 + index * 0.1 }}
+                    whileHover={{ scale: 1.01, y: -2 }}
+                  >
+                    <div className="flex items-center space-x-4 flex-1">
                       <div className="flex items-center space-x-3">
-                        <div className={`h-2 w-2 rounded-full ${
-                          job.status === 'succeeded' ? 'bg-green-500' :
-                          job.status === 'failed' ? 'bg-red-500' :
-                          job.status === 'running' ? 'bg-blue-500' :
-                          'bg-yellow-500'
-                        }`} />
-                        <span className={`px-2 py-1 text-xs font-medium rounded-md ${
-                          job.status === 'succeeded' ? 'bg-green-500/10 text-green-500' :
-                          job.status === 'failed' ? 'bg-red-500/10 text-red-500' :
-                          job.status === 'running' ? 'bg-blue-500/10 text-blue-500' :
-                          'bg-yellow-500/10 text-yellow-500'
-                        }`}>
+                        <motion.div
+                          className={`h-3 w-3 rounded-full ${job.status === 'succeeded' ? 'bg-emerald-500' :
+                              job.status === 'failed' ? 'bg-red-500' :
+                                job.status === 'running' ? 'bg-blue-500' :
+                                  'bg-yellow-500'
+                            }`}
+                          animate={{
+                            scale: job.status === 'running' ? [1, 1.2, 1] : 1,
+                            opacity: job.status === 'running' ? [1, 0.7, 1] : 1
+                          }}
+                          transition={{ duration: 2, repeat: job.status === 'running' ? Infinity : 0 }}
+                        />
+                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${job.status === 'succeeded' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
+                            job.status === 'failed' ? 'bg-red-500/10 text-red-600 border border-red-500/20' :
+                              job.status === 'running' ? 'bg-blue-500/10 text-blue-600 border border-blue-500/20' :
+                                'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20'
+                          }`}>
                           {job.status}
                         </span>
                       </div>
-                      <div>
-                        <p className="font-medium text-foreground">{job.task}</p>
-                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                          <span>{job.repo}</span>
-                          <span>•</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground truncate">{job.task}</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 text-sm text-muted-foreground">
+                          <span className="truncate">{job.repo}</span>
+                          <span className="hidden sm:inline">•</span>
                           <span>{new Date(job.createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      <ArrowUpRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+                    <motion.div
+                      className="mt-4 sm:mt-0"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <Button variant="ghost" size="lg">
+                        <ArrowUpRight className="h-4 w-4" />
+                      </Button>
+                    </motion.div>
+                  </motion.div>
                 ))}
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
     </MainLayout>
   );

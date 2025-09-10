@@ -93,26 +93,23 @@ export default function JobsPage() {
 
   return (
     <MainLayout>
-      <div className="flex-1 p-6">
-        {/* Header */}
-        <motion.div 
-          className="mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground mb-2">Background Agents</h1>
-              <p className="text-muted-foreground">
-                Manage and monitor your background agent executions
+      <div className="min-h-full p-4 lg:p-8">
+        {/* Enhanced Header */}
+        <div className="mb-8 lg:mb-12">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-3">
+              <h1 className="text-3xl lg:text-4xl font-bold text-foreground">
+                Background Agents
+              </h1>
+              <p className="text-lg text-muted-foreground max-w-2xl">
+                Manage and monitor your background agent executions with enterprise-grade tools
               </p>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               {!isConfigured && (
                 <Link href="/config">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto">
                     <Settings className="h-4 w-4 mr-2" />
                     Setup Required
                   </Button>
@@ -121,68 +118,74 @@ export default function JobsPage() {
               <Button
                 onClick={() => setShowCreateDialog(true)}
                 disabled={!isConfigured}
+                size="lg"
+                className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 New Agent
               </Button>
             </div>
           </div>
-        </motion.div>
+        </div>
 
-        {/* Create Job Dialog */}
+        {/* Enhanced Create Job Dialog */}
         <AnimatePresence>
           {showCreateDialog && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-              className="mb-6"
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+              className="mb-8"
             >
-              <div className="rounded-lg border bg-card p-6">
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold text-foreground">Create New Background Agent</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Describe the task you want the agent to perform
+              <div className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-8">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-foreground mb-2">Create New Background Agent</h2>
+                  <p className="text-muted-foreground">
+                    Describe the task you want the agent to perform with detailed instructions
                   </p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">
+                    <label className="text-base font-semibold text-foreground mb-3 block">
                       Repository
                     </label>
-                    <div className="flex items-center space-x-2 px-3 py-2 bg-background rounded-md border">
-                      <Github className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-foreground">
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-background/50 backdrop-blur-sm rounded-xl border border-border/50">
+                      <Github className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-foreground font-medium">
                         {config?.defaultRepository || 'No repository configured'}
                       </span>
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="task" className="text-sm font-medium text-foreground mb-2 block">
+                    <label htmlFor="task" className="text-base font-semibold text-foreground mb-3 block">
                       Task Description
                     </label>
                     <textarea
                       id="task"
                       value={newJobTask}
                       onChange={(e) => setNewJobTask(e.target.value)}
-                      placeholder="Describe what you want the agent to do..."
-                      className="w-full h-24 px-3 py-2 text-sm bg-background border border-border rounded-md resize-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground"
+                      placeholder="Describe what you want the agent to do in detail..."
+                      className="w-full h-32 px-4 py-3 text-sm bg-background/50 backdrop-blur-sm border border-border/50 rounded-xl resize-none focus:ring-2 focus:ring-primary focus:border-transparent text-foreground transition-all duration-200"
                     />
                   </div>
 
-                  <div className="flex items-center justify-end space-x-3 pt-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-4">
                     <Button
                       variant="outline"
+                      size="lg"
                       onClick={() => setShowCreateDialog(false)}
+                      className="w-full sm:w-auto"
                     >
                       Cancel
                     </Button>
                     <Button
                       onClick={handleCreateJob}
                       disabled={!newJobTask.trim() || creating}
+                      size="lg"
+                      className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg"
                     >
                       {creating ? (
                         <>
@@ -236,18 +239,16 @@ export default function JobsPage() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-3">
                         <div className="flex items-center space-x-2">
-                          <div className={`h-2 w-2 rounded-full ${
-                            job.status === 'succeeded' ? 'bg-green-500' :
+                          <div className={`h-2 w-2 rounded-full ${job.status === 'succeeded' ? 'bg-green-500' :
                             job.status === 'failed' ? 'bg-red-500' :
-                            job.status === 'running' ? 'bg-blue-500' :
-                            'bg-yellow-500'
-                          }`} />
-                          <span className={`px-2 py-1 text-xs font-medium rounded-md ${
-                            job.status === 'succeeded' ? 'bg-green-500/10 text-green-500' :
+                              job.status === 'running' ? 'bg-blue-500' :
+                                'bg-yellow-500'
+                            }`} />
+                          <span className={`px-2 py-1 text-xs font-medium rounded-md ${job.status === 'succeeded' ? 'bg-green-500/10 text-green-500' :
                             job.status === 'failed' ? 'bg-red-500/10 text-red-500' :
-                            job.status === 'running' ? 'bg-blue-500/10 text-blue-500' :
-                            'bg-yellow-500/10 text-yellow-500'
-                          }`}>
+                              job.status === 'running' ? 'bg-blue-500/10 text-blue-500' :
+                                'bg-yellow-500/10 text-yellow-500'
+                            }`}>
                             {job.status}
                           </span>
                         </div>

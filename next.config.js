@@ -2,20 +2,20 @@
 const nextConfig = {
   // Configure source directory for Next.js to find app directory
   basePath: '',
-  
+
   // TypeScript configuration  
   typescript: {
     // Allow production builds to successfully complete even if there are type errors
     ignoreBuildErrors: true,
   },
-  
+
   // ESLint configuration
   eslint: {
     // Warning: This allows production builds to successfully complete even if
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
-  
+
   // Custom webpack config
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     // Add aliases for better imports
@@ -26,13 +26,27 @@ const nextConfig = {
     };
     return config;
   },
-  
+
   // Build configuration
   distDir: '.next',
   productionBrowserSourceMaps: false,
-  
+
   // Ensure Next.js looks in the right place
   pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
+
+  // API proxy configuration for development
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/web/:path*',
+        destination: 'http://localhost:3000/api/v1/web/:path*',
+      },
+      {
+        source: '/api/v1/auth/:path*',
+        destination: 'http://localhost:3000/api/v1/auth/:path*',
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig

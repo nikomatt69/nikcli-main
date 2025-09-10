@@ -1,6 +1,6 @@
 # 🤖 nikCLI Background Agents
 
-Un sistema completo per l'esecuzione automatica di task di sviluppo in background, ispirato ai Background Agents di Cursor ma potenziato da nikCLI.
+Un sistema completo per l'esecuzione automatica di task di sviluppo in background.
 
 ## 🌟 Caratteristiche
 
@@ -135,27 +135,14 @@ open http://localhost:3001
       "autoStart": false
     }
   ],
-  "secrets": [
-    "OPENAI_API_KEY",
-    "DATABASE_URL",
-    "NEXTAUTH_SECRET"
-  ],
+  "secrets": ["OPENAI_API_KEY", "DATABASE_URL", "NEXTAUTH_SECRET"],
   "node": "18",
-  "cache": [
-    "node_modules",
-    ".next",
-    ".turbo",
-    "dist"
-  ],
+  "cache": ["node_modules", ".next", ".turbo", "dist"],
   "policies": {
     "maxMemoryMB": 4096,
     "maxCpuPercent": 80,
     "networkPolicy": "restricted",
-    "allowedDomains": [
-      "registry.npmjs.org",
-      "github.com",
-      "api.openai.com"
-    ],
+    "allowedDomains": ["registry.npmjs.org", "github.com", "api.openai.com"],
     "timeoutMinutes": 30,
     "allowedCommands": ["yarn", "npm", "git"],
     "blockedCommands": ["rm -rf", "sudo"]
@@ -168,7 +155,7 @@ open http://localhost:3001
 }
 ```
 
-### Playbook (.nik/playbooks/*.yaml)
+### Playbook (.nik/playbooks/\*.yaml)
 
 ```yaml
 name: "add-feature"
@@ -332,14 +319,17 @@ nikd start \
 ```typescript
 // Comandi automaticamente bloccati
 const blockedCommands = [
-  'rm -rf /', 'sudo rm', 'format', 'dd if=',
-  'shutdown', 'reboot', 'halt'
+  "rm -rf /",
+  "sudo rm",
+  "format",
+  "dd if=",
+  "shutdown",
+  "reboot",
+  "halt",
 ];
 
 // Comandi che richiedono approvazione
-const approvalRequired = [
-  'sudo', 'chmod 777', 'usermod', 'systemctl'
-];
+const approvalRequired = ["sudo", "chmod 777", "usermod", "systemctl"];
 ```
 
 ### Network Security
@@ -348,7 +338,7 @@ const approvalRequired = [
 {
   "allowedDomains": [
     "registry.npmjs.org",
-    "yarnpkg.com", 
+    "yarnpkg.com",
     "github.com",
     "api.openai.com",
     "api.anthropic.com"
@@ -381,9 +371,9 @@ docker-compose logs -f nikd-runner-1
 ```yaml
 # Helm chart disponibile in ./k8s/
 helm install nikcli-bg ./k8s/helm-chart \
-  --set api.replicas=2 \
-  --set runner.replicas=5 \
-  --set redis.enabled=true
+--set api.replicas=2 \
+--set runner.replicas=5 \
+--set redis.enabled=true
 ```
 
 ### Cloud Deploy
@@ -397,7 +387,7 @@ aws ecs create-cluster --cluster-name nikcli-bg
 gcloud run deploy nikcli-bg --source .
 # Configurazione in ./gcp/
 
-# Azure Container Instances  
+# Azure Container Instances
 az container create --resource-group nikbg --name nikcli-bg
 # Configurazione in ./azure/
 ```
@@ -417,16 +407,16 @@ az container create --resource-group nikbg --name nikcli-bg
 ```yaml
 # prometheus.yml
 scrape_configs:
-  - job_name: 'nikcli-bg'
+  - job_name: "nikcli-bg"
     static_configs:
-      - targets: ['localhost:3000']
-    metrics_path: '/metrics'
+      - targets: ["localhost:3000"]
+    metrics_path: "/metrics"
 ```
 
 ### Grafana Dashboards
 
 - **Job Overview**: Status, rates, durations
-- **System Health**: Resources, errors, latency  
+- **System Health**: Resources, errors, latency
 - **Cost Analysis**: Token usage e spesa API
 - **Security**: Violations e blocked commands
 
@@ -457,7 +447,7 @@ yarn test:e2e
 src/cli/background-agents/
 ├── api/                 # REST API server
 ├── core/                # Environment & Playbook parsers
-├── github/              # GitHub integration  
+├── github/              # GitHub integration
 ├── queue/               # Job queue (Redis/Local)
 ├── security/            # Security policies
 ├── types.ts             # TypeScript definitions
@@ -471,7 +461,7 @@ Vedi la cartella `examples/` per:
 - **Monorepo Setup**: Configurazione per progetti multi-package
 - **Next.js Project**: Environment e playbook specifici
 - **API Development**: Task per backend e testing
-- **Mobile App**: React Native e deployment  
+- **Mobile App**: React Native e deployment
 - **ML Project**: Python, Jupyter, model training
 
 ## 🆘 Troubleshooting

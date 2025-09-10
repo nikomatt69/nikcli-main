@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    /* Enhanced Light Theme - Enterprise Grade */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
@@ -13,7 +14,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96%;
@@ -30,12 +31,21 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 221.2 83.2% 53.3%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+    
+    /* Custom Enterprise Colors */
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 355.7 100% 97.3%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 89%;
+    --info: 199.4 89.1% 48.4%;
+    --info-foreground: 210 40% 98%;
   }
 
   .dark {
+    /* Enhanced Dark Theme - Cursor Inspired */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
@@ -45,7 +55,7 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -62,7 +72,15 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: 217.2 91.2% 59.8%;
+
+    /* Custom Enterprise Colors - Dark */
+    --success: 142.1 70.6% 45.3%;
+    --success-foreground: 144.9 80.4% 10%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 89%;
+    --info: 199.4 89.1% 48.4%;
+    --info-foreground: 210 40% 98%;
   }
 }
 
@@ -70,57 +88,259 @@
   * {
     @apply border-border;
   }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Enhanced Typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+  
+  /* Improved Focus States */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+  
+  /* Better Scrollbars */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-muted/50;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
   }
 }
 
-/* Custom styles for Background Agents */
-.bg-gradient-cursor {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+@layer components {
+  /* Enterprise Card Styles */
+  .card-enhanced {
+    @apply rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm shadow-sm hover:shadow-lg transition-all duration-300;
+  }
+  
+  .card-glass {
+    @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-800/20;
+  }
+  
+  /* Enhanced Button Styles */
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary/50 hover:bg-secondary text-secondary-foreground border border-border/50 hover:border-border transition-all duration-200;
+  }
+  
+  /* Status Indicators */
+  .status-running {
+    @apply bg-blue-500/10 text-blue-600 border border-blue-500/20;
+  }
+  
+  .status-completed {
+    @apply bg-emerald-500/10 text-emerald-600 border border-emerald-500/20;
+  }
+  
+  .status-failed {
+    @apply bg-red-500/10 text-red-600 border border-red-500/20;
+  }
+  
+  .status-queued {
+    @apply bg-yellow-500/10 text-yellow-600 border border-yellow-500/20;
+  }
+  
+  /* Dark mode status indicators */
+  .dark .status-running {
+    @apply bg-blue-500/20 text-blue-400 border-blue-500/30;
+  }
+  
+  .dark .status-completed {
+    @apply bg-emerald-500/20 text-emerald-400 border-emerald-500/30;
+  }
+  
+  .dark .status-failed {
+    @apply bg-red-500/20 text-red-400 border-red-500/30;
+  }
+  
+  .dark .status-queued {
+    @apply bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
+  }
+  
+  /* Navigation Styles */
+  .nav-item {
+    @apply flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98];
+  }
+  
+  .nav-item-active {
+    @apply bg-primary/10 text-primary border border-primary/20 shadow-sm;
+  }
+  
+  .nav-item-inactive {
+    @apply text-muted-foreground hover:bg-accent hover:text-accent-foreground;
+  }
+  
+  /* Form Elements */
+  .input-enhanced {
+    @apply border border-input bg-background/50 backdrop-blur-sm focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200;
+  }
+  
+  /* Loading States */
+  .loading-shimmer {
+    @apply animate-pulse bg-gradient-to-r from-muted via-muted/50 to-muted bg-[length:200%_100%];
+    animation: shimmer 2s infinite;
+  }
+  
+  /* Mobile Optimizations */
+  .mobile-optimized {
+    @apply touch-manipulation;
+  }
+  
+  /* Enterprise Gradients */
+  .gradient-primary {
+    @apply bg-gradient-to-br from-primary via-primary/90 to-primary/80;
+  }
+  
+  .gradient-success {
+    @apply bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700;
+  }
+  
+  .gradient-warning {
+    @apply bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700;
+  }
+  
+  .gradient-danger {
+    @apply bg-gradient-to-br from-red-500 via-red-600 to-red-700;
+  }
 }
 
-.job-status-running {
-  @apply bg-blue-100 text-blue-800 border-blue-200;
+@layer utilities {
+  /* Custom Utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  
+  /* Glass Effect */
+  .glass {
+    @apply bg-white/10 dark:bg-gray-900/10 backdrop-blur-md border border-white/20 dark:border-gray-800/20;
+  }
+  
+  /* Enhanced Shadows */
+  .shadow-enterprise {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+  
+  .dark .shadow-enterprise {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+  
+  /* Animation Utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
 }
 
-.job-status-completed {
-  @apply bg-green-100 text-green-800 border-green-200;
+/* Keyframe Animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
-.job-status-failed {
-  @apply bg-red-100 text-red-800 border-red-200;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.job-status-queued {
-  @apply bg-yellow-100 text-yellow-800 border-yellow-200;
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.sidebar-nav {
-  @apply flex flex-col space-y-1 p-2;
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-.sidebar-nav-item {
-  @apply flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground;
+/* Responsive Design Enhancements */
+@media (max-width: 640px) {
+  .mobile-padding {
+    @apply px-4 py-2;
+  }
+  
+  .mobile-text {
+    @apply text-sm;
+  }
+  
+  .mobile-spacing {
+    @apply space-y-3;
+  }
 }
 
-.sidebar-nav-item.active {
-  @apply bg-accent text-accent-foreground;
+@media (min-width: 1024px) {
+  .desktop-padding {
+    @apply px-8 py-6;
+  }
+  
+  .desktop-text {
+    @apply text-base;
+  }
+  
+  .desktop-spacing {
+    @apply space-y-6;
+  }
 }
 
-/* Dark mode specific adjustments */
-.dark .job-status-running {
-  @apply bg-blue-900 text-blue-200 border-blue-800;
-}
-
-.dark .job-status-completed {
-  @apply bg-green-900 text-green-200 border-green-800;
-}
-
-.dark .job-status-failed {
-  @apply bg-red-900 text-red-200 border-red-800;
-}
-
-.dark .job-status-queued {
-  @apply bg-yellow-900 text-yellow-200 border-yellow-800;
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-break {
+    page-break-before: always;
+  }
 }
