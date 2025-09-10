@@ -13,7 +13,7 @@
     ],
     "publishConfig": {
         "access": "public",
-        "tag": "beta"
+        "tag": "latest"
     },
     "scripts": {
         "start": "ts-node --project tsconfig.cli.json src/cli/index.ts",
@@ -44,7 +44,10 @@
         "docker:build": "docker build -t nikcli-bg .",
         "docker:up": "docker-compose up -d",
         "docker:down": "docker-compose down",
-        "docker:logs": "docker-compose logs -f"
+        "docker:logs": "docker-compose logs -f",
+        "config:check": "node -e \"console.log('Config check:', process.env.NODE_ENV || 'not set')\"",
+        "db:init": "mkdir -p database && echo 'Database directory created'",
+        "system:diagnose": "node -e \"console.log('Node:', process.version, 'Platform:', process.platform, 'Arch:', process.arch)\""
     },
     "engines": {
         "node": ">=18"

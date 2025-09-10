@@ -25,11 +25,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
-      <body className={`${inter.className} h-full bg-background text-foreground transition-colors duration-300`}>
+      <body
+        className={`${inter.className} h-full bg-background text-foreground transition-colors duration-300 antialiased`}
+      >
         <ThemeProvider defaultTheme="system" storageKey="nikcli-theme">
           <WebConfigProvider>
             <WebSocketProvider>
-              <main className="h-full">
+              <main className="h-full flex flex-col min-h-screen">
                 {children}
               </main>
             </WebSocketProvider>

@@ -361,6 +361,7 @@ export class GitHubIntegration {
   }
 
   /**
+   * 
    * Get job logs URL (this would point to your console)
    */
   private getJobLogsUrl(job: BackgroundJob): string {

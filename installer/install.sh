@@ -4,11 +4,11 @@ set -euo pipefail
 # NikCLI curl installer (beta)
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --tag beta
+#   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash 
 #   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 1.0.0
 
-TAG="beta"
-VERSION="0.3.2"
+
+VERSION="1.0.0"
 PACKAGE="@cadcamfun/nikcli"
 
 log() { echo -e "[NikCLI] $*"; }
@@ -23,8 +23,8 @@ Options:
   -h, --help             Show this help
 
 Examples:
-  bash install.sh --tag beta
-  bash install.sh --version 0.2.60-beta
+  
+  bash install.sh --version 1.0.0
 EOF
 }
 
