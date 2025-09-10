@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nikCLI Background Agents Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    <h1>nikCLI Background Agents</h1>
+                </div>
+                <div class="header-actions">
+                    <div class="status-indicator">
+                        <div class="status-dot" id="connectionStatus"></div>
+                        <span id="connectionText">Connecting...</span>
+                    </div>
+                    <button class="btn btn-primary" id="newJobBtn">
+                        <i class="fas fa-plus"></i>
+                        New Job
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="nav">
+                    <div class="nav-item active" data-tab="dashboard">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </div>
+                    <div class="nav-item" data-tab="jobs">
+                        <i class="fas fa-tasks"></i>
+                        <span>Jobs</span>
+                        <span class="badge" id="jobsBadge">0</span>
+                    </div>
+                    <div class="nav-item" data-tab="agents">
+                        <i class="fas fa-robot"></i>
+                        <span>Agents</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs">
+                        <i class="fas fa-file-alt"></i>
+                        <span>Logs</span>
+                    </div>
+                    <div class="nav-item" data-tab="settings">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Dashboard Tab -->
+                <div class="tab-content active" id="dashboard">
+                    <div class="dashboard-header">
+                        <h2>Dashboard</h2>
+                        <div class="dashboard-stats">
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-play-circle"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="runningJobs">0</div>
+                                    <div class="stat-label">Running</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="queuedJobs">0</div>
+                                    <div class="stat-label">Queued</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="completedJobs">0</div>
+                                    <div class="stat-label">Completed</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="failedJobs">0</div>
+                                    <div class="stat-label">Failed</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3>Recent Jobs</h3>
+                                <button class="btn btn-sm btn-secondary" onclick="switchTab('jobs')">View All</button>
+                            </div>
+                            <div class="card-content">
+                                <div id="recentJobsList" class="jobs-list">
+                                    <!-- Recent jobs will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <h3>System Status</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="status-grid">
+                                    <div class="status-item">
+                                        <span class="status-label">API Server</span>
+                                        <span class="status-value" id="apiStatus">Unknown</span>
+                                    </div>
+                                    <div class="status-item">
+                                        <span class="status-label">Queue</span>
+                                        <span class="status-value" id="queueStatus">Unknown</span>
+                                    </div>
+                                    <div class="status-item">
+                                        <span class="status-label">GitHub Integration</span>
+                                        <span class="status-value" id="githubStatus">Unknown</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Jobs Tab -->
+                <div class="tab-content" id="jobs">
+                    <div class="jobs-header">
+                        <h2>Background Jobs</h2>
+                        <div class="jobs-controls">
+                            <div class="filter-group">
+                                <select id="statusFilter" class="filter-select">
+                                    <option value="">All Status</option>
+                                    <option value="queued">Queued</option>
+                                    <option value="running">Running</option>
+                                    <option value="succeeded">Succeeded</option>
+                                    <option value="failed">Failed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                <input type="text" id="repoFilter" class="filter-input" placeholder="Filter by repository...">
+                            </div>
+                            <button class="btn btn-secondary" id="refreshJobsBtn">
+                                <i class="fas fa-sync-alt"></i>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="jobs-table-container">
+                        <table class="jobs-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Repository</th>
+                                    <th>Task</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Duration</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jobsTableBody">
+                                <!-- Jobs will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Agents Tab -->
+                <div class="tab-content" id="agents">
+                    <div class="agents-header">
+                        <h2>Available Agents</h2>
+                        <button class="btn btn-primary" id="createAgentBtn">
+                            <i class="fas fa-plus"></i>
+                            Create Agent
+                        </button>
+                    </div>
+
+                    <div class="agents-grid" id="agentsGrid">
+                        <!-- Agent cards will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Logs Tab -->
+                <div class="tab-content" id="logs">
+                    <div class="logs-header">
+                        <h2>System Logs</h2>
+                        <div class="logs-controls">
+                            <select id="logLevelFilter" class="filter-select">
+                                <option value="">All Levels</option>
+                                <option value="info">Info</option>
+                                <option value="warn">Warning</option>
+                                <option value="error">Error</option>
+                                <option value="debug">Debug</option>
+                            </select>
+                            <button class="btn btn-secondary" id="clearLogsBtn">
+                                <i class="fas fa-trash"></i>
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="logs-container">
+                        <div id="logsContent" class="logs-content">
+                            <!-- Logs will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div class="tab-content" id="settings">
+                    <div class="settings-header">
+                        <h2>Settings</h2>
+                    </div>
+
+                    <div class="settings-content">
+                        <div class="settings-section">
+                            <h3>API Configuration</h3>
+                            <div class="form-group">
+                                <label for="apiUrl">API URL</label>
+                                <input type="text" id="apiUrl" class="form-input" value="http://localhost:3000">
+                            </div>
+                            <div class="form-group">
+                                <label for="apiKey">API Key (Optional)</label>
+                                <input type="password" id="apiKey" class="form-input">
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h3>Display Options</h3>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="autoRefresh" checked>
+                                    <span class="checkmark"></span>
+                                    Auto-refresh dashboard
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="showNotifications" checked>
+                                    <span class="checkmark"></span>
+                                    Show notifications
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-actions">
+                            <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+                            <button class="btn btn-secondary" id="resetSettingsBtn">Reset to Defaults</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Job Details Modal -->
+        <div class="modal" id="jobDetailsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="jobDetailsTitle">Job Details</h3>
+                    <button class="modal-close" id="closeJobDetails">&times;</button>
+                </div>
+                <div class="modal-body" id="jobDetailsContent">
+                    <!-- Job details will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- New Job Modal -->
+        <div class="modal" id="newJobModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Create New Background Job</h3>
+                    <button class="modal-close" id="closeNewJob">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="newJobForm">
+                        <div class="form-group">
+                            <label for="jobRepo">Repository *</label>
+                            <input type="text" id="jobRepo" class="form-input" placeholder="owner/repo" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="jobBranch">Base Branch</label>
+                            <input type="text" id="jobBranch" class="form-input" value="main" placeholder="main">
+                        </div>
+                        <div class="form-group">
+                            <label for="jobTask">Task Description *</label>
+                            <textarea id="jobTask" class="form-textarea" rows="4" placeholder="Describe the task to be performed..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="jobPlaybook">Playbook</label>
+                            <select id="jobPlaybook" class="form-select">
+                                <option value="">Default</option>
+                                <option value="add-feature">Add Feature</option>
+                                <option value="fix-tests">Fix Tests</option>
+                                <option value="upgrade-deps">Upgrade Dependencies</option>
+                                <option value="security-audit">Security Audit</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="jobTimeLimit">Time Limit (minutes)</label>
+                                <input type="number" id="jobTimeLimit" class="form-input" value="30" min="5" max="120">
+                            </div>
+                            <div class="form-group">
+                                <label for="jobMemoryLimit">Memory Limit (MB)</label>
+                                <input type="number" id="jobMemoryLimit" class="form-input" value="2048" min="512" max="8192">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="jobReviewers">Reviewers (comma-separated)</label>
+                            <input type="text" id="jobReviewers" class="form-input" placeholder="@team1, @team2">
+                        </div>
+                        <div class="form-group">
+                            <label for="jobLabels">Labels (comma-separated)</label>
+                            <input type="text" id="jobLabels" class="form-input" placeholder="feature, automated">
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="jobDraft">
+                                <span class="checkmark"></span>
+                                Create as draft PR
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelNewJob">Cancel</button>
+                    <button class="btn btn-primary" id="submitNewJob">Create Job</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="notifications" id="notifications"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
