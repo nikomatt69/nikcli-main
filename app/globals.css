@@ -305,10 +305,27 @@
   }
 }
 
+/* Enhanced Padding Classes */
+.page-padding {
+  @apply px-6 py-8 lg:px-12 lg:py-12;
+}
+
+.section-padding {
+  @apply px-4 py-6 lg:px-8 lg:py-8;
+}
+
+.card-padding {
+  @apply p-6 lg:p-8;
+}
+
+.button-padding {
+  @apply px-6 py-3 lg:px-8 lg:py-4;
+}
+
 /* Responsive Design Enhancements */
 @media (max-width: 640px) {
   .mobile-padding {
-    @apply px-4 py-2;
+    @apply px-6 py-4;
   }
   
   .mobile-text {
@@ -316,13 +333,17 @@
   }
   
   .mobile-spacing {
-    @apply space-y-3;
+    @apply space-y-4;
+  }
+  
+  .mobile-card-padding {
+    @apply p-4;
   }
 }
 
 @media (min-width: 1024px) {
   .desktop-padding {
-    @apply px-8 py-6;
+    @apply px-12 py-10;
   }
   
   .desktop-text {
@@ -330,7 +351,11 @@
   }
   
   .desktop-spacing {
-    @apply space-y-6;
+    @apply space-y-8;
+  }
+  
+  .desktop-card-padding {
+    @apply p-10;
   }
 }
 

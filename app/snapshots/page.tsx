@@ -112,44 +112,52 @@ export default function SnapshotsPage() {
 
   return (
     <MainLayout>
-      <div className="p-8 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Project Snapshots</h1>
-            <p className="text-muted-foreground mt-2">
-              Create and manage project snapshots for safe agent operations
+      <div className="space-y-8">
+        {/* Enhanced Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-3">
+            <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+              Project Snapshots
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
+              Create and manage project snapshots for safe agent operations with enterprise-grade backup solutions
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             <Button
               variant="outline"
+              size="lg"
               onClick={fetchSnapshots}
               disabled={loading}
+              className="button-padding"
             >
-              <RefreshCw className={clsx("h-4 w-4 mr-2", loading && "animate-spin")} />
+              <RefreshCw className={clsx("h-5 w-5 mr-3", loading && "animate-spin")} />
               Refresh
             </Button>
 
             <Button
+              size="lg"
               onClick={() => setShowCreateDialog(true)}
               disabled={!config?.defaultRepository}
+              className="button-padding"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-5 w-5 mr-3" />
               Create Snapshot
             </Button>
           </div>
         </div>
 
-        {/* Info Card */}
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div>
-                <h3 className="font-medium text-blue-900">About Snapshots</h3>
-                <p className="text-sm text-blue-800 mt-1">
+        {/* Enhanced Info Card */}
+        <Card className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200/50 dark:border-blue-800/50">
+          <CardContent className="card-padding">
+            <div className="flex items-start space-x-4">
+              <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                <AlertCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-semibold text-blue-900 dark:text-blue-100">About Snapshots</h3>
+                <p className="text-base text-blue-800 dark:text-blue-200 leading-relaxed">
                   Snapshots create safe restore points before agents make changes to your code.
                   They're automatically created before background agent execution and can be manually created anytime.
                 </p>
@@ -158,42 +166,43 @@ export default function SnapshotsPage() {
           </CardContent>
         </Card>
 
-        {/* Create Snapshot Dialog */}
+        {/* Enhanced Create Snapshot Dialog */}
         {showCreateDialog && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Project Snapshot</CardTitle>
-              <CardDescription>
-                Create a snapshot of the current project state
+          <Card className="border-2 border-primary/20 bg-gradient-to-br from-card/50 to-card/30">
+            <CardHeader className="card-padding">
+              <CardTitle className="text-2xl">Create Project Snapshot</CardTitle>
+              <CardDescription className="text-base">
+                Create a snapshot of the current project state for safe agent operations
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">
+            <CardContent className="card-padding space-y-6">
+              <div className="space-y-2">
+                <label className="text-base font-semibold text-foreground">
                   Repository
                 </label>
-                <div className="flex items-center space-x-2">
-                  <Github className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
+                <div className="flex items-center space-x-3 p-4 rounded-xl bg-muted/30 border border-border/50">
+                  <Github className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-base font-medium">
                     {config?.defaultRepository || 'No repository configured'}
                   </span>
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="snapshot-name" className="text-sm font-medium mb-2 block">
+              <div className="space-y-3">
+                <label htmlFor="snapshot-name" className="text-base font-semibold text-foreground">
                   Snapshot Name *
                 </label>
                 <Input
                   id="snapshot-name"
+                  size="lg"
                   value={newSnapshot.name}
                   onChange={(e) => setNewSnapshot(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g., Pre-refactor snapshot"
                 />
               </div>
 
-              <div>
-                <label htmlFor="snapshot-description" className="text-sm font-medium mb-2 block">
+              <div className="space-y-3">
+                <label htmlFor="snapshot-description" className="text-base font-semibold text-foreground">
                   Description (Optional)
                 </label>
                 <textarea
@@ -201,11 +210,11 @@ export default function SnapshotsPage() {
                   value={newSnapshot.description}
                   onChange={(e) => setNewSnapshot(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Describe what this snapshot captures..."
-                  className="w-full h-20 px-3 py-2 text-sm border border-border rounded-md resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full h-24 px-4 py-3 text-base border border-border rounded-xl resize-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background/50"
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-3">
+              <div className="flex items-center justify-end space-x-4 pt-4">
                 <Button
                   variant="outline"
                   onClick={() => setShowCreateDialog(false)}
@@ -233,96 +242,123 @@ export default function SnapshotsPage() {
           </Card>
         )}
 
-        {/* Snapshots List */}
-        <div className="space-y-4">
+        {/* Enhanced Snapshots List with Better Organization */}
+        <div className="space-y-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Project Snapshots</h2>
+              <p className="text-muted-foreground mt-2">Manage your project backup points and restore operations</p>
+            </div>
+          </div>
+
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <div className="flex items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
             </div>
           ) : snapshots.length === 0 ? (
-            <Card>
-              <CardContent className="pt-12 pb-12">
-                <div className="text-center">
-                  <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No snapshots yet</h3>
-                  <p className="text-muted-foreground mb-6">
-                    Create your first project snapshot to enable safe agent operations
+            <Card className="border-2 border-dashed border-border/50">
+              <CardContent className="card-padding">
+                <div className="text-center py-12">
+                  <Camera className="h-20 w-20 text-muted-foreground mx-auto mb-6" />
+                  <h3 className="text-2xl font-semibold text-foreground mb-4">No snapshots yet</h3>
+                  <p className="text-muted-foreground mb-8 text-lg leading-relaxed max-w-lg mx-auto">
+                    Create your first project snapshot to enable safe agent operations and backup your code
                   </p>
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <Camera className="h-4 w-4 mr-2" />
+                  <Button size="xl" onClick={() => setShowCreateDialog(true)} className="button-padding">
+                    <Camera className="h-5 w-5 mr-3" />
                     Create First Snapshot
                   </Button>
                 </div>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {snapshots.map((snapshot) => (
-                <Card key={snapshot.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
+                <Card key={snapshot.id} className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-border/50">
+                  <CardHeader className="card-padding pb-4">
                     <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg line-clamp-1">
+                      <div className="space-y-2">
+                        <CardTitle className="text-xl line-clamp-1">
                           {snapshot.name}
                         </CardTitle>
-                        <CardDescription className="line-clamp-2 mt-1">
+                        <CardDescription className="line-clamp-2 text-base">
                           {snapshot.description || 'No description'}
                         </CardDescription>
                       </div>
-                      <Camera className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                      <div className="p-2 rounded-lg bg-muted/30">
+                        <Camera className="h-6 w-6 text-muted-foreground" />
+                      </div>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="space-y-4">
+                  <CardContent className="card-padding space-y-6">
                     {/* Repository Info */}
-                    <div className="flex items-center space-x-2 text-sm">
-                      <Github className="h-3 w-3 text-muted-foreground" />
-                      <span className="truncate">{snapshot.repository}</span>
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/20">
+                      <Github className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium truncate">{snapshot.repository}</span>
                     </div>
 
                     {/* Metadata Grid */}
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="flex items-center space-x-2">
-                        <FileText className="h-3 w-3 text-muted-foreground" />
-                        <span>{snapshot.metadata.totalFiles} files</span>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/10">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <div className="text-sm font-semibold">{snapshot.metadata.totalFiles}</div>
+                          <div className="text-xs text-muted-foreground">files</div>
+                        </div>
                       </div>
 
-                      <div className="flex items-center space-x-2">
-                        <HardDrive className="h-3 w-3 text-muted-foreground" />
-                        <span>{formatFileSize(snapshot.size)}</span>
+                      <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/10">
+                        <HardDrive className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <div className="text-sm font-semibold">{formatFileSize(snapshot.size)}</div>
+                          <div className="text-xs text-muted-foreground">size</div>
+                        </div>
                       </div>
 
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                        <span>{new Date(snapshot.createdAt).toLocaleDateString()}</span>
+                      <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/10">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <div className="text-sm font-semibold">{new Date(snapshot.createdAt).toLocaleDateString()}</div>
+                          <div className="text-xs text-muted-foreground">created</div>
+                        </div>
                       </div>
 
-                      <div className="flex items-center space-x-2">
-                        <Code className="h-3 w-3 text-muted-foreground" />
-                        <span>{snapshot.metadata.languages.slice(0, 2).join(', ')}</span>
+                      <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/10">
+                        <Code className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <div className="text-sm font-semibold">{snapshot.metadata.languages.slice(0, 2).join(', ')}</div>
+                          <div className="text-xs text-muted-foreground">languages</div>
+                        </div>
                       </div>
                     </div>
 
                     {/* Branch and Commit */}
-                    <div className="text-xs text-muted-foreground">
-                      <div>Branch: <span className="font-mono">{snapshot.branch}</span></div>
-                      <div>Commit: <span className="font-mono">{snapshot.commit}</span></div>
+                    <div className="space-y-2 p-3 rounded-lg bg-muted/10">
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Branch:</span>
+                        <span className="font-mono ml-2 text-foreground">{snapshot.branch}</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Commit:</span>
+                        <span className="font-mono ml-2 text-foreground">{snapshot.commit}</span>
+                      </div>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <Button size="sm" variant="outline">
-                        <Download className="h-3 w-3 mr-1" />
+                    <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                      <Button size="lg" variant="outline" className="button-padding">
+                        <Download className="h-4 w-4 mr-2" />
                         Restore
                       </Button>
 
                       <Button
-                        size="sm"
+                        size="lg"
                         variant="outline"
-                        className="text-red-600 hover:text-red-700"
+                        className="text-red-600 hover:text-red-700 button-padding"
                         onClick={() => handleDeleteSnapshot(snapshot.id)}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardContent>
@@ -332,54 +368,61 @@ export default function SnapshotsPage() {
           )}
         </div>
 
-        {/* Stats Summary */}
+        {/* Enhanced Stats Summary */}
         {snapshots.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Snapshot Statistics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {snapshots.length}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Total Snapshots
-                  </div>
-                </div>
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl lg:text-3xl font-bold text-foreground">Snapshot Statistics</h2>
+              <p className="text-muted-foreground mt-2">Overview of your project backup metrics</p>
+            </div>
 
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {formatFileSize(snapshots.reduce((acc, s) => acc + s.size, 0))}
+            <Card className="border-2 border-primary/10 bg-gradient-to-br from-card/50 to-card/30">
+              <CardHeader className="card-padding">
+                <CardTitle className="text-2xl">Storage Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="card-padding">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                  <div className="text-center p-6 rounded-xl bg-primary/5 border border-primary/10">
+                    <div className="text-4xl font-bold text-primary mb-2">
+                      {snapshots.length}
+                    </div>
+                    <div className="text-base text-muted-foreground font-medium">
+                      Total Snapshots
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    Total Storage
-                  </div>
-                </div>
 
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {Math.round(snapshots.reduce((acc, s) => acc + s.metadata.totalFiles, 0) / snapshots.length)}
+                  <div className="text-center p-6 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                    <div className="text-4xl font-bold text-emerald-600 mb-2">
+                      {formatFileSize(snapshots.reduce((acc, s) => acc + s.size, 0))}
+                    </div>
+                    <div className="text-base text-muted-foreground font-medium">
+                      Total Storage
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    Avg Files per Snapshot
-                  </div>
-                </div>
 
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {snapshots.filter(s =>
-                      new Date(s.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                    ).length}
+                  <div className="text-center p-6 rounded-xl bg-blue-500/5 border border-blue-500/10">
+                    <div className="text-4xl font-bold text-blue-600 mb-2">
+                      {Math.round(snapshots.reduce((acc, s) => acc + s.metadata.totalFiles, 0) / snapshots.length)}
+                    </div>
+                    <div className="text-base text-muted-foreground font-medium">
+                      Avg Files per Snapshot
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    This Week
+
+                  <div className="text-center p-6 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                    <div className="text-4xl font-bold text-amber-600 mb-2">
+                      {snapshots.filter(s =>
+                        new Date(s.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                      ).length}
+                    </div>
+                    <div className="text-base text-muted-foreground font-medium">
+                      This Week
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </MainLayout>

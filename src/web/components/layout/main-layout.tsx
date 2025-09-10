@@ -61,7 +61,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Enhanced Status Bar */}
         <motion.div
-          className="h-12 lg:h-14 bg-card/50 backdrop-blur-sm border-b border-border/50 flex items-center justify-between px-4 lg:px-6"
+          className="h-14 lg:h-16 bg-card/50 backdrop-blur-sm border-b border-border/50 flex items-center justify-between section-padding"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
@@ -100,7 +100,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
         {/* Main Content with Enhanced Padding */}
         <main className="flex-1 overflow-auto bg-background/50">
-          <div className="h-full">
+          <div className="h-full page-padding">
             {children}
           </div>
         </main>

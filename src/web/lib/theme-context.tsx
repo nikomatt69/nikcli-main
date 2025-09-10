@@ -39,7 +39,7 @@ export function ThemeProvider({
 
   useEffect(() => {
     setMounted(true);
-    
+
     // Load theme from localStorage
     try {
       const stored = localStorage.getItem(storageKey) as Theme;
@@ -56,23 +56,23 @@ export function ThemeProvider({
 
     const updateResolvedTheme = () => {
       let resolved: ResolvedTheme;
-      
+
       if (theme === 'system') {
         resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       } else {
         resolved = theme;
       }
-      
+
       setResolvedTheme(resolved);
-      
+
       // Apply theme class to document
       document.documentElement.classList.remove('light', 'dark');
       document.documentElement.classList.add(resolved);
-      
+
       // Update meta theme-color
       const metaThemeColor = document.querySelector('meta[name="theme-color"]');
       if (metaThemeColor) {
-        metaThemeColor.setAttribute('content', resolved === 'dark' ? '#0d0d0f' : '#f5f5f7');
+        metaThemeColor.setAttribute('content', resolved === 'dark' ? '#000000' : '#f5f5f7');
       }
     };
 
@@ -92,7 +92,7 @@ export function ThemeProvider({
 
   useEffect(() => {
     if (!mounted) return;
-    
+
     try {
       localStorage.setItem(storageKey, theme);
     } catch (error) {

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   keywords: ['AI', 'agents', 'background', 'code', 'automation'],
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#f5f5f7' },
-    { media: '(prefers-color-scheme: dark)', color: '#0d0d0f' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
   ],
 };
 

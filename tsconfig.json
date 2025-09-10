@@ -17,7 +17,6 @@
     "resolveJsonModule": true,
     "downlevelIteration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
     "baseUrl": "./src",
     "declaration": true,
     "sourceMap": true,
