@@ -1,0 +1,59 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "localhost",
+    "cors": {
+      "origin": [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001"
+      ],
+      "credentials": true
+    },
+    "rateLimit": {
+      "windowMs": 900000,
+      "max": 1000
+    }
+  },
+  "backgroundAgents": {
+    "maxConcurrentJobs": 3,
+    "defaultTimeLimit": 30,
+    "defaultMemoryLimit": 2048,
+    "retryAttempts": 3,
+    "retryDelay": 5000
+  },
+  "github": {
+    "enabled": false,
+    "appId": "",
+    "privateKey": "",
+    "installationId": "",
+    "webhookSecret": ""
+  },
+  "storage": {
+    "type": "local",
+    "artifacts": "./artifacts",
+    "snapshots": "./snapshots"
+  },
+  "security": {
+    "enableSandbox": true,
+    "allowedDomains": [
+      "registry.npmjs.org",
+      "github.com",
+      "api.openai.com",
+      "api.anthropic.com"
+    ],
+    "deniedCommands": [
+      "rm -rf /",
+      "sudo rm",
+      "format",
+      "shutdown",
+      "reboot"
+    ]
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "file": "./logs/background-agents.log"
+  }
+}

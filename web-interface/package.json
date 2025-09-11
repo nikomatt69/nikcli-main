@@ -1,0 +1,43 @@
+{
+  "name": "nikcli-background-agents-web",
+  "version": "1.0.0",
+  "description": "Web interface for nikCLI Background Agents management",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "serve": "python3 -m http.server 8080",
+    "dev": "node server.js",
+    "build": "echo 'No build step required for static files'",
+    "test": "echo 'No tests specified'"
+  },
+  "keywords": [
+    "nikcli",
+    "background-agents",
+    "ai",
+    "automation",
+    "web-interface",
+    "chat",
+    "dashboard"
+  ],
+  "author": "nikomatt69",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nikomatt69/nikcli-main"
+  },
+  "bugs": {
+    "url": "https://github.com/nikomatt69/nikcli-main/issues"
+  },
+  "homepage": "https://github.com/nikomatt69/nikcli-main#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
