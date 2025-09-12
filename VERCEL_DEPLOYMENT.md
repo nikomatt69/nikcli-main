@@ -55,14 +55,24 @@ If deployment fails:
 
 ### Backend Integration
 
-The web interface connects to the actual NikCLI backend server:
-- **API Endpoints**: All API calls go to the configured backend server
-- **WebSocket**: Real-time updates via WebSocket connection
-- **GitHub OAuth**: Real GitHub authentication integration
+The web interface uses API proxy routes that forward requests to the actual NikCLI backend server:
+- **API Proxy Routes**: All `/api/v1/*` requests are proxied to the backend server
+- **GitHub OAuth**: Redirects to backend GitHub authentication
+- **WebSocket**: Direct connection to backend WebSocket server
 - **Background Agents**: Live job monitoring and management
 - **Project Snapshots**: Real snapshot creation and management
 
 **Configuration**: Set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL` environment variables to point to your NikCLI backend server.
+
+### API Proxy Routes
+
+The interface includes proxy API routes that forward requests to your backend:
+- **Authentication**: `/api/v1/web/auth/github` → Backend OAuth
+- **Configuration**: `/api/v1/web/config` → Backend config management
+- **Repositories**: `/api/v1/web/repositories` → Backend GitHub repos
+- **Jobs**: `/api/v1/web/jobs` → Backend job management
+- **Snapshots**: `/api/v1/web/snapshots` → Backend snapshot management
+- **Health Check**: `/api/v1/health` → Backend health status
 
 ### Environment Variables
 
