@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { WebSocketMessage, WebBackgroundJob } from '../types';
+import { getWsUrl } from './backend-config';
 
 interface WebSocketContextType {
   connected: boolean;
@@ -21,9 +22,15 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
   const connect = useCallback(() => {
     try {
-      const wsUrl = process.env.NODE_ENV === 'production' 
-        ? `wss://${window.location.host}/ws`
-        : 'ws://localhost:3000/ws';
+      // Connect to the actual NikCLI backend WebSocket
+      const wsUrl = getWsUrl();
+      
+      // Don't try to connect if no URL is configured
+      if (!wsUrl) {
+        console.log('WebSocket URL not configured, skipping connection');
+        setConnected(false);
+        return;
+      }
       
       const ws = new WebSocket(wsUrl);
       
@@ -32,11 +39,16 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         setConnected(true);
       };
       
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected:', event.code, event.reason);
         setConnected(false);
-        // Reconnect after 3 seconds
-        setTimeout(connect, 3000);
+        
+        // Only reconnect if it wasn't a manual close
+        if (event.code !== 1000) {
+          // Exponential backoff for reconnection
+          const delay = Math.min(30000, 1000 * Math.pow(2, Math.floor(Date.now() / 10000) % 5));
+          setTimeout(connect, delay);
+        }
       };
       
       ws.onerror = (error) => {

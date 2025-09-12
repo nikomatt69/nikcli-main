@@ -16,6 +16,44 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  // Production optimizations
+  compress: true,
+  poweredByHeader: false,
+  generateEtags: false,
+  
+  // Image optimization
+  images: {
+    domains: ['github.com', 'avatars.githubusercontent.com'],
+    formats: ['image/webp', 'image/avif'],
+  },
+  
+  // Security headers
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'origin-when-cross-origin',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+        ],
+      },
+    ];
+  },
+
   // Custom webpack config
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     // Add aliases for better imports
@@ -24,6 +62,21 @@ const nextConfig = {
       '@web': './src/web',
       '@background-agents': './src/cli/background-agents',
     };
+    
+    // Production optimizations
+    if (!dev && !isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+        },
+      };
+    }
+    
     return config;
   },
 

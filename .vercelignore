@@ -1,0 +1,38 @@
+# CLI and backend files (not needed for web deployment)
+src/cli/
+src/tui/
+src/web-server.ts
+ecosystem.config.js
+
+# Development files
+*.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build artifacts
+dist/
+.next/cache/
+
+# Dependencies that aren't needed for web
+node_modules/
+
+# Documentation
+*.md
+docs/
+
+# Test files
+__tests__/
+*.test.*
+*.spec.*
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
