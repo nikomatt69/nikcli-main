@@ -2,6 +2,9 @@
   "version": 2,
   "framework": "nextjs",
   "regions": ["iad1"],
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": ".next",
+  "installCommand": "npm install --legacy-peer-deps",
   "env": {
     "NODE_ENV": "production"
   }

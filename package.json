@@ -25,6 +25,7 @@
         "build:release": "node scripts/build-release.js",
         "web:dev": "next dev --port 3001",
         "web:build": "next build",
+        "build:vercel": "next build",
         "web:start": "next start --port 3001",
         "web:server": "ts-node src/web-server.ts",
         "web:full": "concurrently \"npm run web:server\" \"npm run web:dev\"",
