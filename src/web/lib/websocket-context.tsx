@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { WebSocketMessage, WebBackgroundJob } from '../types';
+import { getWsUrl } from './backend-config';
 
 interface WebSocketContextType {
   connected: boolean;
@@ -21,9 +22,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
   const connect = useCallback(() => {
     try {
-      const wsUrl = process.env.NODE_ENV === 'production' 
-        ? `wss://${window.location.host}/ws`
-        : 'ws://localhost:3000/ws';
+      // Connect to the actual NikCLI backend WebSocket
+      const wsUrl = getWsUrl();
       
       const ws = new WebSocket(wsUrl);
       

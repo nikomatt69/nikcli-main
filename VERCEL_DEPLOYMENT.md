@@ -52,22 +52,36 @@ If deployment fails:
 - **Missing build script**: Added `build:vercel` script to package.json
 - **TypeScript errors**: Moved `typescript`, `@types/react`, and `@types/react-dom` from devDependencies to dependencies
 
-### API Routes
+### Backend Integration
 
-The web interface includes demo API routes for:
-- **Authentication**: `/api/v1/web/auth/github` (OAuth flow)
-- **Configuration**: `/api/v1/web/config` (settings management)
-- **Repositories**: `/api/v1/web/repositories` (GitHub repos)
-- **Jobs**: `/api/v1/web/jobs` (background agent jobs)
-- **Snapshots**: `/api/v1/web/snapshots` (project snapshots)
-- **Health Check**: `/api/v1/health` (system status)
+The web interface connects to the actual NikCLI backend server:
+- **API Endpoints**: All API calls go to the configured backend server
+- **WebSocket**: Real-time updates via WebSocket connection
+- **GitHub OAuth**: Real GitHub authentication integration
+- **Background Agents**: Live job monitoring and management
+- **Project Snapshots**: Real snapshot creation and management
 
-**Note**: These are demo API routes with mock data. For production use, connect to the actual NikCLI backend server.
+**Configuration**: Set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL` environment variables to point to your NikCLI backend server.
+
+### Environment Variables
+
+Configure these environment variables in Vercel:
+
+```bash
+# Backend API URL
+NEXT_PUBLIC_API_URL=https://your-nikcli-backend.com/api/v1
+
+# WebSocket URL  
+NEXT_PUBLIC_WS_URL=wss://your-nikcli-backend.com/ws
+
+# GitHub OAuth (optional)
+NEXT_PUBLIC_GITHUB_CLIENT_ID=your_github_client_id
+```
 
 ### Performance
 
 - **Bundle Size**: ~219kB first load JS
 - **Static Pages**: 7 static pages pre-rendered
 - **Dynamic Pages**: 1 dynamic page (jobs/[id])
-- **API Routes**: 8 dynamic API routes
+- **Backend Integration**: Real-time connection to NikCLI backend
 - **Optimizations**: Code splitting, compression, security headers

@@ -1,5 +1,6 @@
 // API client for Background Agents web interface
 import { WebConfig, GitHubRepository, ProjectSnapshot, CreateWebJobRequest, WebBackgroundJob } from '../types';
+import { getApiUrl } from './backend-config';
 
 export interface APIResponse<T = any> {
   success: boolean;
@@ -12,9 +13,8 @@ class APIClient {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = process.env.NODE_ENV === 'production' 
-      ? '/api/v1' 
-      : 'http://localhost:3000/api/v1';
+    // Connect to the actual NikCLI backend server
+    this.baseURL = getApiUrl();
   }
 
   private async request<T>(

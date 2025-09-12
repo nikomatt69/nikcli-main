@@ -3,6 +3,7 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { Sidebar } from './sidebar';
 import { useWebSocket } from '../../lib/websocket-context';
+import { BackendStatus } from '../backend-status';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
@@ -82,6 +83,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           </div>
 
           <div className="flex items-center space-x-4">
+            <BackendStatus />
             <motion.div
               className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-muted/50"
               whileHover={{ scale: 1.02 }}
@@ -92,7 +94,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 connected ? "bg-emerald-500 shadow-emerald-500/50 shadow-sm" : "bg-red-500 shadow-red-500/50 shadow-sm"
               )} />
               <span className="text-xs font-medium text-muted-foreground">
-                {connected ? "Connected" : "Disconnected"}
+                {connected ? "WebSocket Connected" : "WebSocket Disconnected"}
               </span>
             </motion.div>
           </div>
