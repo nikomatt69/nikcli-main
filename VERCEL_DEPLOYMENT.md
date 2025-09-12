@@ -76,18 +76,20 @@ The interface includes proxy API routes that forward requests to your backend:
 
 ### Environment Variables
 
-Configure these environment variables in Vercel:
+**REQUIRED**: Configure these environment variables in Vercel:
 
 ```bash
-# Backend API URL
+# Backend API URL (REQUIRED)
 NEXT_PUBLIC_API_URL=https://your-nikcli-backend.com/api/v1
 
-# WebSocket URL  
+# WebSocket URL (REQUIRED)
 NEXT_PUBLIC_WS_URL=wss://your-nikcli-backend.com/ws
 
 # GitHub OAuth (optional)
 NEXT_PUBLIC_GITHUB_CLIENT_ID=your_github_client_id
 ```
+
+**Important**: Without these environment variables, the interface will show configuration errors and cannot connect to your backend server.
 
 ### Performance
 

@@ -20,12 +20,12 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
-type TabType = 'github' | 'repositories' | 'models' | 'notifications';
+type TabType = 'backend' | 'github' | 'repositories' | 'models' | 'notifications';
 
 function ConfigPageContent() {
   const searchParams = useSearchParams();
   const { config, loading, updateConfig } = useWebConfig();
-  const [activeTab, setActiveTab] = useState<TabType>('github');
+  const [activeTab, setActiveTab] = useState<TabType>('backend');
   const [saving, setSaving] = useState(false);
   const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
   const [loadingRepos, setLoadingRepos] = useState(false);
@@ -33,7 +33,7 @@ function ConfigPageContent() {
   // Handle tab from URL params
   useEffect(() => {
     const tab = searchParams.get('tab') as TabType;
-    if (tab && ['github', 'repositories', 'models', 'notifications'].includes(tab)) {
+    if (tab && ['backend', 'github', 'repositories', 'models', 'notifications'].includes(tab)) {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -84,6 +84,7 @@ function ConfigPageContent() {
   };
 
   const tabs = [
+    { id: 'backend', name: 'Backend', icon: Settings },
     { id: 'github', name: 'GitHub', icon: Github },
     { id: 'repositories', name: 'Repositories', icon: Activity },
     { id: 'models', name: 'Models', icon: Settings },
@@ -139,6 +140,117 @@ function ConfigPageContent() {
 
           {/* Enhanced Content */}
           <div className="space-y-8">
+            {activeTab === 'backend' && (
+              <div>
+                <Card className="rounded-2xl border-border/50 bg-card/50 backdrop-blur-sm">
+                  <CardHeader className="p-8">
+                    <CardTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
+                      <Settings className="h-6 w-6 text-primary" />
+                      Backend Configuration
+                    </CardTitle>
+                    <CardDescription className="text-muted-foreground text-base">
+                      Configure your NikCLI backend server connection
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-8 pt-0">
+                    <div className="space-y-6">
+                      <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <h3 className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-2">
+                              Backend Server Required
+                            </h3>
+                            <p className="text-sm text-amber-700 dark:text-amber-300 mb-4">
+                              This web interface requires a running NikCLI backend server. 
+                              Please configure the environment variables to connect to your backend.
+                            </p>
+                            <div className="bg-amber-100 dark:bg-amber-900/30 rounded-lg p-4">
+                              <h4 className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-2">
+                                Required Environment Variables:
+                              </h4>
+                              <div className="space-y-2 text-sm font-mono">
+                                <div className="text-amber-800 dark:text-amber-200">
+                                  <span className="font-semibold">NEXT_PUBLIC_API_URL</span> = https://your-nikcli-backend.com/api/v1
+                                </div>
+                                <div className="text-amber-800 dark:text-amber-200">
+                                  <span className="font-semibold">NEXT_PUBLIC_WS_URL</span> = wss://your-nikcli-backend.com/ws
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card className="border-border/50">
+                          <CardHeader className="pb-4">
+                            <CardTitle className="text-lg">API Endpoint</CardTitle>
+                            <CardDescription>
+                              Backend API server URL
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-2">
+                              <Input 
+                                placeholder="https://your-nikcli-backend.com/api/v1"
+                                disabled
+                                className="font-mono text-sm"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Set NEXT_PUBLIC_API_URL environment variable
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border-border/50">
+                          <CardHeader className="pb-4">
+                            <CardTitle className="text-lg">WebSocket Endpoint</CardTitle>
+                            <CardDescription>
+                              Real-time updates connection
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-2">
+                              <Input 
+                                placeholder="wss://your-nikcli-backend.com/ws"
+                                disabled
+                                className="font-mono text-sm"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Set NEXT_PUBLIC_WS_URL environment variable
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+                        <div className="flex items-start gap-3">
+                          <ExternalLink className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                              Deployment Instructions
+                            </h3>
+                            <p className="text-sm text-blue-700 dark:text-blue-300 mb-4">
+                              To deploy this web interface with your NikCLI backend:
+                            </p>
+                            <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-2 list-decimal list-inside">
+                              <li>Deploy your NikCLI backend server</li>
+                              <li>Set the environment variables in your deployment platform</li>
+                              <li>Deploy this web interface</li>
+                              <li>The interface will automatically connect to your backend</li>
+                            </ol>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             {activeTab === 'github' && (
               <div>
                 <Card className="rounded-2xl border-border/50 bg-card/50 backdrop-blur-sm">
