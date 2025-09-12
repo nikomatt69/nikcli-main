@@ -52,9 +52,22 @@ If deployment fails:
 - **Missing build script**: Added `build:vercel` script to package.json
 - **TypeScript errors**: Moved `typescript`, `@types/react`, and `@types/react-dom` from devDependencies to dependencies
 
+### API Routes
+
+The web interface includes demo API routes for:
+- **Authentication**: `/api/v1/web/auth/github` (OAuth flow)
+- **Configuration**: `/api/v1/web/config` (settings management)
+- **Repositories**: `/api/v1/web/repositories` (GitHub repos)
+- **Jobs**: `/api/v1/web/jobs` (background agent jobs)
+- **Snapshots**: `/api/v1/web/snapshots` (project snapshots)
+- **Health Check**: `/api/v1/health` (system status)
+
+**Note**: These are demo API routes with mock data. For production use, connect to the actual NikCLI backend server.
+
 ### Performance
 
 - **Bundle Size**: ~219kB first load JS
 - **Static Pages**: 7 static pages pre-rendered
 - **Dynamic Pages**: 1 dynamic page (jobs/[id])
+- **API Routes**: 8 dynamic API routes
 - **Optimizations**: Code splitting, compression, security headers
