@@ -43,12 +43,14 @@ If deployment fails:
 2. Verify Next.js configuration in `next.config.js`
 3. Ensure all dependencies are properly listed
 4. **CSS Dependencies**: Make sure `autoprefixer`, `postcss`, and `tailwindcss` are in main dependencies (not devDependencies)
-5. Check Vercel build logs for specific errors
+5. **TypeScript Dependencies**: Ensure `typescript`, `@types/react`, and `@types/react-dom` are in main dependencies
+6. Check Vercel build logs for specific errors
 
 #### Common Issues Fixed:
 - **"Cannot find module 'autoprefixer'"**: Moved `autoprefixer` from devDependencies to dependencies
 - **PostCSS errors**: Ensure `postcss` and `tailwindcss` are in main dependencies
 - **Missing build script**: Added `build:vercel` script to package.json
+- **TypeScript errors**: Moved `typescript`, `@types/react`, and `@types/react-dom` from devDependencies to dependencies
 
 ### Performance
 
