@@ -9,6 +9,7 @@ This project is configured for automatic deployment on Vercel.
 - **Build Command**: `npm run build:vercel`
 - **Output Directory**: `.next`
 - **Framework**: Next.js 14
+- **Runtime**: Node.js 18.x (automatic)
 
 ### Environment Variables
 
