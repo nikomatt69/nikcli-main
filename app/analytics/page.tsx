@@ -16,7 +16,7 @@ import {
   Zap,
   Target,
   Timer,
-  Memory,
+  HardDrive,
   Cpu,
   Network,
   RefreshCw,

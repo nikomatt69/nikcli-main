@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MainLayout } from '../../src/web/components/layout/main-layout';
@@ -22,7 +22,7 @@ import { clsx } from 'clsx';
 
 type TabType = 'github' | 'repositories' | 'models' | 'notifications';
 
-export default function ConfigPage() {
+function ConfigPageContent() {
   const searchParams = useSearchParams();
   const { config, loading, updateConfig } = useWebConfig();
   const [activeTab, setActiveTab] = useState<TabType>('github');
@@ -428,5 +428,13 @@ export default function ConfigPage() {
         </div>
       </div>
     </MainLayout>
+  );
+}
+
+export default function ConfigPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ConfigPageContent />
+    </Suspense>
   );
 }

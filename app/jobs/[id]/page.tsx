@@ -27,7 +27,7 @@ import {
   Zap,
   Target,
   Timer,
-  Memory,
+  HardDrive,
   Cpu,
   Network,
   Database,
@@ -453,9 +453,9 @@ export default function JobDetailPage() {
                 <Card>
                   <CardContent className="p-6">
                     <div className="flex items-center space-x-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10">
-                        <Memory className="h-5 w-5 text-purple-500" />
-                      </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10">
+                  <HardDrive className="h-5 w-5 text-purple-500" />
+                </div>
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Memory Usage</p>
                         <p className="text-2xl font-bold text-foreground">
