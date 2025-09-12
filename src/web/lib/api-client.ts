@@ -22,6 +22,15 @@ class APIClient {
     options: RequestInit = {}
   ): Promise<APIResponse<T>> {
     try {
+      // Check if backend URL is configured
+      if (!this.baseURL) {
+        return {
+          success: false,
+          error: 'Backend not configured',
+          message: 'NEXT_PUBLIC_API_URL environment variable is not set. Please configure your NikCLI backend server URL.',
+        };
+      }
+
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         headers: {
           'Content-Type': 'application/json',

@@ -95,7 +95,28 @@ NEXT_PUBLIC_WS_URL=wss://your-nikcli-backend.com/ws
 NEXT_PUBLIC_GITHUB_CLIENT_ID=your_github_client_id
 ```
 
-**Important**: Without these environment variables, the interface will show configuration errors and cannot connect to your backend server.
+**Important**: Without these environment variables, the interface will:
+- Show a red configuration alert at the top of every page
+- Display "Backend Not Configured" status
+- Prevent WebSocket connections
+- Show helpful error messages for all API calls
+- Guide users to the Backend Configuration tab
+
+### Configuration Interface
+
+The web interface includes a built-in configuration guide:
+- **Backend Tab**: First tab in the configuration page
+- **Environment Variables**: Shows required variables with examples
+- **Deployment Instructions**: Step-by-step setup guide
+- **Status Indicators**: Visual feedback for configuration status
+
+### Troubleshooting
+
+**Common Issues:**
+1. **WebSocket 404 Errors**: `NEXT_PUBLIC_WS_URL` not set correctly
+2. **CORS Errors**: Backend server not configured for CORS
+3. **API 500 Errors**: Backend server not running or misconfigured
+4. **Configuration Alert**: Environment variables not set in deployment platform
 
 ### Performance
 

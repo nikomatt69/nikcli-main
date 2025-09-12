@@ -25,6 +25,13 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       // Connect to the actual NikCLI backend WebSocket
       const wsUrl = getWsUrl();
       
+      // Don't try to connect if no URL is configured
+      if (!wsUrl) {
+        console.log('WebSocket URL not configured, skipping connection');
+        setConnected(false);
+        return;
+      }
+      
       const ws = new WebSocket(wsUrl);
       
       ws.onopen = () => {

@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import { Sidebar } from './sidebar';
 import { useWebSocket } from '../../lib/websocket-context';
 import { BackendStatus } from '../backend-status';
+import { ConfigurationAlert } from '../configuration-status';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
@@ -103,6 +104,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         {/* Main Content with Enhanced Padding */}
         <main className="flex-1 overflow-auto bg-background/50">
           <div className="h-full page-padding">
+            <ConfigurationAlert />
             {children}
           </div>
         </main>
