@@ -66,13 +66,19 @@ The web interface uses API proxy routes that forward requests to the actual NikC
 
 ### API Proxy Routes
 
-The interface includes proxy API routes that forward requests to your backend:
+The interface includes robust proxy API routes that forward requests to your backend:
 - **Authentication**: `/api/v1/web/auth/github` → Backend OAuth
 - **Configuration**: `/api/v1/web/config` → Backend config management
 - **Repositories**: `/api/v1/web/repositories` → Backend GitHub repos
 - **Jobs**: `/api/v1/web/jobs` → Backend job management
 - **Snapshots**: `/api/v1/web/snapshots` → Backend snapshot management
 - **Health Check**: `/api/v1/health` → Backend health status
+
+**Enhanced Error Handling:**
+- ✅ **JSON Validation**: Checks for valid JSON responses
+- ✅ **Content-Type Validation**: Ensures backend returns JSON
+- ✅ **Connection Error Handling**: Graceful handling of backend unavailability
+- ✅ **Detailed Error Messages**: Helpful error messages for troubleshooting
 
 ### Environment Variables
 
