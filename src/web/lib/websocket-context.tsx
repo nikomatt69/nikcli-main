@@ -32,11 +32,16 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         setConnected(true);
       };
       
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected:', event.code, event.reason);
         setConnected(false);
-        // Reconnect after 3 seconds
-        setTimeout(connect, 3000);
+        
+        // Only reconnect if it wasn't a manual close
+        if (event.code !== 1000) {
+          // Exponential backoff for reconnection
+          const delay = Math.min(30000, 1000 * Math.pow(2, Math.floor(Date.now() / 10000) % 5));
+          setTimeout(connect, delay);
+        }
       };
       
       ws.onerror = (error) => {
