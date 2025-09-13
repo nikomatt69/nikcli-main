@@ -192,7 +192,8 @@ export class PlanExecutor {
     // Display plan details
     this.displayPlanForApproval(plan)
 
-    // Enable bypass for approval inputs
+    // Enable bypass for approval inputs and suspend main prompt
+    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
     inputQueue.enableBypass()
 
     try {
@@ -234,8 +235,9 @@ export class PlanExecutor {
         timestamp: new Date(),
       }
     } finally {
-      // Always disable bypass after approval
+      // Always disable bypass after approval and resume prompt cleanly
       inputQueue.disableBypass()
+      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
     }
   }
 
@@ -416,6 +418,7 @@ export class PlanExecutor {
   private async executeUserInput(step: ExecutionStep): Promise<any> {
     CliUI.stopSpinner()
 
+    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
     inputQueue.enableBypass()
     try {
       const answers = await inquirer.prompt([
@@ -434,6 +437,7 @@ export class PlanExecutor {
       return answers
     } finally {
       inputQueue.disableBypass()
+      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
     }
   }
 
@@ -460,6 +464,7 @@ export class PlanExecutor {
   ): Promise<'abort' | 'skip' | 'retry' | 'continue'> {
     CliUI.logError(`Step "${step.title}" failed: ${result.error?.message}`)
 
+    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
     inputQueue.enableBypass()
     try {
       // For non-critical steps, offer to continue
@@ -510,6 +515,7 @@ export class PlanExecutor {
       return 'abort'
     } finally {
       inputQueue.disableBypass()
+      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
     }
   }
 

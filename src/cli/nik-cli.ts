@@ -207,6 +207,11 @@ export class NikCLI {
     this.workingDirectory = process.cwd()
     this.projectContextFile = path.join(this.workingDirectory, 'NIKOCLI.md')
 
+    // Compact mode by default (cleaner output unless explicitly disabled)
+    try {
+      if (!process.env.NIKCLI_COMPACT) process.env.NIKCLI_COMPACT = '1'
+    } catch { }
+
     // Initialize core managers
     this.configManager = simpleConfigManager
     this.agentManager = new AgentManager(this.configManager)
@@ -660,28 +665,31 @@ export class NikCLI {
    * Initialize structured UI with 4 panels as per diagram: Chat/Status, Files/Diffs, Plan/Todos, Approval
    */
   private initializeStructuredUI(): void {
-    console.log(chalk.dim('🎨 Setting up AdvancedCliUI with 4 panels...'))
+    const compact = process.env.NIKCLI_COMPACT === '1' || this.currentMode === 'plan'
+    if (!compact) {
+      console.log(chalk.dim('🎨 Setting up AdvancedCliUI with 4 panels...'))
+    }
 
     // Enable interactive mode for structured panels
     this.advancedUI.startInteractiveMode()
 
     // Configure the 4 panels as shown in diagram:
     // 1. Panels: Chat, Status/Logs
-    advancedUI.logInfo('Panel Setup', 'Chat & Status/Logs panel configured')
+    if (!compact) advancedUI.logInfo('Panel Setup', 'Chat & Status/Logs panel configured')
 
     // 2. Panels: Files, Diffs
-    advancedUI.logInfo('Panel Setup', 'Files & Diffs panel configured')
+    if (!compact) advancedUI.logInfo('Panel Setup', 'Files & Diffs panel configured')
 
     // 3. Panels: Plan/Todos
-    advancedUI.logInfo('Panel Setup', 'Plan/Todos panel configured')
+    if (!compact) advancedUI.logInfo('Panel Setup', 'Plan/Todos panel configured')
 
     // 4. Panels: Approval (logs only, prompt via inquirer)
-    advancedUI.logInfo('Panel Setup', 'Approval panel configured (logs only)')
+    if (!compact) advancedUI.logInfo('Panel Setup', 'Approval panel configured (logs only)')
 
     // Set up real-time event listeners for UI updates
     this.setupUIEventListeners()
 
-    console.log(chalk.green('✅ AdvancedCliUI (MAIN UI OWNER) ready with 4 panels'))
+    if (!compact) console.log(chalk.green('✅ AdvancedCliUI (MAIN UI OWNER) ready with 4 panels'))
   }
 
   /**
@@ -714,13 +722,16 @@ export class NikCLI {
 
     agentService.on('file_written', (data) => {
       if (data.path && data.content) {
+        const isCompact = process.env.NIKCLI_COMPACT === '1'
+        const isTodo = path.basename(data.path).toLowerCase() === 'todo.md'
+        if (isCompact && isTodo) return
         if (data.originalContent) {
           // Show diff using advanced UI
           this.advancedUI.showFileDiff(data.path, data.originalContent, data.content)
           this.advancedUI.logSuccess(`File Updated: ${path.basename(data.path)}`, 'Diff displayed in panel')
         } else {
           // Show new file content
-          this.advancedUI.showFileContent(data.path, data.content)
+          if (!(isCompact && isTodo)) this.advancedUI.showFileContent(data.path, data.content)
           this.advancedUI.logSuccess(`File Created: ${path.basename(data.path)}`, 'Content displayed in panel')
         }
       }
@@ -770,9 +781,13 @@ export class NikCLI {
     const ext = path.extname(filePath)
 
     if (relevantExtensions.includes(ext)) {
+      const isCompact = process.env.NIKCLI_COMPACT === '1'
+      if (isCompact && path.basename(filePath).toLowerCase() === 'todo.md') return
       try {
         const content = require('node:fs').readFileSync(filePath, 'utf8')
-        this.advancedUI.showFileContent(filePath, content)
+        if (!(isCompact && path.basename(filePath).toLowerCase() === 'todo.md')) {
+          this.advancedUI.showFileContent(filePath, content)
+        }
       } catch (_error) {
         // File might be in use, skip
       }
@@ -787,6 +802,25 @@ export class NikCLI {
 
     process.on('SIGTERM', async () => {
       await this.shutdown()
+    })
+
+    // Always keep prompt alive on unexpected errors
+    process.on('unhandledRejection', (reason: any) => {
+      try {
+        console.log(require('chalk').red(`\n❌ Unhandled rejection: ${reason?.message || reason}`))
+      } catch { }
+      try {
+        this.renderPromptAfterOutput()
+      } catch { }
+    })
+
+    process.on('uncaughtException', (err: any) => {
+      try {
+        console.log(require('chalk').red(`\n❌ Uncaught exception: ${err?.message || err}`))
+      } catch { }
+      try {
+        this.renderPromptAfterOutput()
+      } catch { }
     })
   }
   // Bridge StreamingOrchestrator agent lifecycle events into NikCLI output
@@ -1263,6 +1297,7 @@ export class NikCLI {
       })
 
       watcher.on('change', (path: string) => {
+        const compact = process.env.NIKCLI_COMPACT === '1'
         this.addLiveUpdate({
           type: 'info',
           content: `✏️ File modified: ${path}`,
@@ -1271,7 +1306,7 @@ export class NikCLI {
 
         // Special handling for important files
         if (path === 'todo.md') {
-          console.log(chalk.cyan('🔄 Todo list updated'))
+          if (!compact) console.log(chalk.cyan('🔄 Todo list updated'))
         } else if (path === 'package.json') {
           console.log(chalk.blue('📦 Package configuration changed'))
         } else if (path === 'CLAUDE.md') {
@@ -1680,7 +1715,9 @@ export class NikCLI {
 
     if (recentUpdates.length === 0) return
 
-    console.log(chalk.blue.bold('📝 Recent Updates:'))
+    if (!(process.env.NIKCLI_COMPACT === '1' || this.currentMode === 'plan')) {
+      console.log(chalk.blue.bold('📝 Recent Updates:'))
+    }
     console.log(chalk.gray('─'.repeat(60)))
 
     recentUpdates.forEach((update) => {
@@ -4196,6 +4233,11 @@ export class NikCLI {
    * Plan mode: Generate comprehensive plan with todo.md and request approval
    */
   private async handlePlanMode(input: string): Promise<void> {
+    // Force compact mode for cleaner stream in plan flow
+    try {
+      process.env.NIKCLI_COMPACT = '1'
+      process.env.NIKCLI_SUPER_COMPACT = '1'
+    } catch { }
     console.log(chalk.blue('🎯 Entering Enhanced Planning Mode...'))
 
     try {
@@ -4204,49 +4246,29 @@ export class NikCLI {
       this.createStatusIndicator(planningId, 'Generating comprehensive plan', input)
       this.startAdvancedSpinner(planningId, 'Analyzing requirements and generating plan...')
 
-      // Generate comprehensive plan with todo.md
+      // Generate comprehensive plan with todo.md (compact output in chat flow)
       const plan = await enhancedPlanning.generatePlan(input, {
         maxTodos: 15,
         includeContext: true,
-        showDetails: true,
+        showDetails: false, // avoid verbose list in chat stream; dashboard will render todos
         saveTodoFile: true,
         todoFilePath: 'todo.md',
       })
 
       this.stopAdvancedSpinner(planningId, true, `Plan generated with ${plan.todos.length} todos`)
 
-      // Show plan summary
-      console.log(chalk.blue.bold('\n📋 Plan Generated:'))
-      console.log(chalk.green(`✓ Todo file saved: ${path.join(this.workingDirectory, 'todo.md')}`))
-      console.log(chalk.cyan(`📊 ${plan.todos.length} todos created`))
-      console.log(chalk.cyan(`⏱️  Estimated duration: ${Math.round(plan.estimatedTotalDuration)} minutes`))
-
-      // Request approval for execution using the enhanced approval system
-      const { approvalSystem } = await import('./ui/approval-system')
-
-      const planDetails = {
-        totalSteps: plan.todos.length,
-        estimatedDuration: plan.estimatedTotalDuration,
-        riskLevel: plan.riskAssessment?.overallRisk || 'medium',
-        categories: [...new Set(plan.todos.map((t) => t.category))],
-        priorities: this.calculatePriorityDistribution(plan.todos),
-        dependencies: plan.todos.filter((t) => t.dependencies.length > 0).length,
-        affectedFiles: plan.todos.flatMap((t) => t.files || []),
-        commands: plan.todos.flatMap((t) => t.commands || []),
+      // Show plan summary (only in non-compact mode)
+      if (process.env.NIKCLI_COMPACT !== '1') {
+        console.log(chalk.blue.bold('\n📋 Plan Generated:'))
+        console.log(chalk.green(`✓ Todo file saved: ${path.join(this.workingDirectory, 'todo.md')}`))
+        console.log(chalk.cyan(`📊 ${plan.todos.length} todos created`))
+        console.log(chalk.cyan(`⏱️  Estimated duration: ${Math.round(plan.estimatedTotalDuration)} minutes`))
       }
 
-      const approvalResult = await approvalSystem.requestPlanApproval(
-        `Execute Plan: ${plan.title}`,
-        `Execute ${plan.todos.length} tasks with enhanced risk analysis`,
-        planDetails,
-        {
-          showBreakdown: true,
-          showTimeline: true,
-          allowModification: true,
-        }
-      )
+      // Request approval via enhancedPlanning to keep single approval flow
+      const approved = await enhancedPlanning.requestPlanApproval(plan.id)
 
-      if (approvalResult.approved) {
+      if (approved) {
         if (this.executionInProgress) {
           console.log(chalk.yellow('⚠️  Execution already in progress, please wait...'))
           return
@@ -4254,7 +4276,6 @@ export class NikCLI {
 
         this.executionInProgress = true
         console.log(chalk.green('\n🚀 Plan approved! Starting execution...'))
-        console.log(chalk.cyan('📋 Plan will be executed step by step'))
 
         try {
           // Execute the plan directly without switching modes
@@ -4273,14 +4294,19 @@ export class NikCLI {
         console.log(chalk.green('🔄 Returning to normal chat mode...'))
         this.currentMode = 'default'
 
-        // Use renderPromptAfterOutput for consistent behavior
+        // Make sure input queue bypass is off and resume prompt cleanly
+        try {
+          inputQueue.disableBypass()
+        } catch (_) {
+          // ignore
+        }
         this.renderPromptAfterOutput()
       } else {
         console.log(chalk.yellow('\n📝 Plan saved but not executed.'))
-        console.log(chalk.gray('You can review the todo.md file and run `/plan execute` later.'))
-        console.log(chalk.gray('Or use `/auto [task]` to execute specific parts of the plan.'))
+        console.log(chalk.gray('Review todo.md or run `/plan execute` later.'))
 
         // Ask if they want to regenerate the plan
+        const { approvalSystem } = await import('./ui/approval-system')
         const regenerate = await approvalSystem.confirm(
           'Do you want to regenerate the plan with different requirements?',
           'This will create a new plan and overwrite the current todo.md',
@@ -4296,6 +4322,12 @@ export class NikCLI {
           // User declined regeneration, exit plan mode and return to default
           console.log(chalk.yellow('🔄 Exiting plan mode and returning to default mode...'))
           this.currentMode = 'default'
+          try {
+            // Ensure input is not bypassed anymore and promptly redraw prompt
+            inputQueue.disableBypass()
+          } catch (_) {
+            // ignore
+          }
           this.renderPromptAfterOutput()
         }
       }
@@ -9374,6 +9406,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     this.resumePromptAndRender()
   }
 
+  // (prompt watchdog removed)
+
   /**
    * Ensure panels print atomically, without the status frame interleaving
    */
@@ -13300,278 +13334,280 @@ Generated by NikCLI on ${new Date().toISOString()}
    */
   private async showInteractiveConfiguration(): Promise<void> {
     // Prevent user input queue interference during interactive prompts
+    try { this.suspendPrompt() } catch { }
+    try { inputQueue.enableBypass() } catch { }
+
     try {
-      inputQueue.enableBypass()
-    } catch {
-      /* ignore */
-    }
 
-    const sectionChoices = [
-      { name: 'General', value: 'general' },
-      { name: 'Auto Todos', value: 'autotodos' },
-      { name: 'Model Routing', value: 'routing' },
-      { name: 'Agents', value: 'agents' },
-      { name: 'Security', value: 'security' },
-      { name: 'Session Settings', value: 'session' },
-      { name: 'Sandbox', value: 'sandbox' },
-      { name: 'Models & Keys', value: 'models' },
-      { name: 'Exit', value: 'exit' },
-    ]
+      const sectionChoices = [
+        { name: 'General', value: 'general' },
+        { name: 'Auto Todos', value: 'autotodos' },
+        { name: 'Model Routing', value: 'routing' },
+        { name: 'Agents', value: 'agents' },
+        { name: 'Security', value: 'security' },
+        { name: 'Session Settings', value: 'session' },
+        { name: 'Sandbox', value: 'sandbox' },
+        { name: 'Models & Keys', value: 'models' },
+        { name: 'Exit', value: 'exit' },
+      ]
 
-    const asNumber = (v: any, min?: number, max?: number) => {
-      const n = Number(v)
-      if (!Number.isFinite(n)) return 'Enter a number'
-      if (min !== undefined && n < min) return `Min ${min}`
-      if (max !== undefined && n > max) return `Max ${max}`
-      return true
-    }
+      const asNumber = (v: any, min?: number, max?: number) => {
+        const n = Number(v)
+        if (!Number.isFinite(n)) return 'Enter a number'
+        if (min !== undefined && n < min) return `Min ${min}`
+        if (max !== undefined && n > max) return `Max ${max}`
+        return true
+      }
 
-    // Loop until user exits
-    let done = false
-    while (!done) {
-      const { section } = await inquirer.prompt<{ section: string }>([
-        {
-          type: 'list',
-          name: 'section',
-          message: 'Configuration — select section',
-          choices: sectionChoices,
-        },
-      ])
+      // Loop until user exits
+      let done = false
+      while (!done) {
+        const { section } = await inquirer.prompt<{ section: string }>([
+          {
+            type: 'list',
+            name: 'section',
+            message: 'Configuration — select section',
+            choices: sectionChoices,
+          },
+        ])
 
-      const cfg = this.configManager.getAll() as any
+        const cfg = this.configManager.getAll() as any
 
-      switch (section) {
-        case 'general': {
-          const ans = await inquirer.prompt([
-            {
-              type: 'input',
-              name: 'temperature',
-              message: 'Temperature (0–2)',
-              default: cfg.temperature,
-              validate: (v: any) => asNumber(v, 0, 2),
-            },
-            {
-              type: 'input',
-              name: 'maxTokens',
-              message: 'Max tokens',
-              default: cfg.maxTokens,
-              validate: (v: any) => asNumber(v, 1, 800000),
-            },
-            { type: 'confirm', name: 'chatHistory', message: 'Enable chat history?', default: cfg.chatHistory },
-            {
-              type: 'input',
-              name: 'maxHistoryLength',
-              message: 'Max history length',
-              default: cfg.maxHistoryLength,
-              validate: (v: any) => asNumber(v, 1, 5000),
-            },
-          ])
-          this.configManager.set('temperature', Number(ans.temperature) as any)
-          this.configManager.set('maxTokens', Number(ans.maxTokens) as any)
-          this.configManager.set('chatHistory', Boolean(ans.chatHistory) as any)
-          this.configManager.set('maxHistoryLength', Number(ans.maxHistoryLength) as any)
-          console.log(chalk.green('✅ Updated General settings'))
-          break
-        }
-        case 'autotodos': {
-          const current = !!cfg.autoTodo?.requireExplicitTrigger
-          const { requireExplicitTrigger } = await inquirer.prompt<{ requireExplicitTrigger: boolean }>([
-            {
-              type: 'confirm',
-              name: 'requireExplicitTrigger',
-              message: 'Require explicit "todo" to trigger?',
-              default: current,
-            },
-          ])
-          this.configManager.set('autoTodo', { ...(cfg.autoTodo || {}), requireExplicitTrigger } as any)
-          console.log(chalk.green('✅ Updated Auto Todos settings'))
-          break
-        }
-        case 'routing': {
-          const { enabled, verbose, mode } = await inquirer.prompt([
-            { type: 'confirm', name: 'enabled', message: 'Enable routing?', default: cfg.modelRouting.enabled },
-            { type: 'confirm', name: 'verbose', message: 'Verbose routing logs?', default: cfg.modelRouting.verbose },
-            {
-              type: 'list',
-              name: 'mode',
-              message: 'Routing mode',
-              choices: ['conservative', 'balanced', 'aggressive'],
-              default: cfg.modelRouting.mode,
-            },
-          ])
-          this.configManager.set('modelRouting', { enabled, verbose, mode } as any)
-          console.log(chalk.green('✅ Updated Model Routing'))
-          break
-        }
-        case 'agents': {
-          const { maxConcurrentAgents, enableGuidanceSystem, defaultAgentTimeout, logLevel } = await inquirer.prompt([
-            {
-              type: 'input',
-              name: 'maxConcurrentAgents',
-              message: 'Max concurrent agents',
-              default: cfg.maxConcurrentAgents,
-              validate: (v: any) => asNumber(v, 1, 10),
-            },
-            {
-              type: 'confirm',
-              name: 'enableGuidanceSystem',
-              message: 'Enable guidance system?',
-              default: cfg.enableGuidanceSystem,
-            },
-            {
-              type: 'input',
-              name: 'defaultAgentTimeout',
-              message: 'Default agent timeout (ms)',
-              default: cfg.defaultAgentTimeout,
-              validate: (v: any) => asNumber(v, 1000, 3600000),
-            },
-            {
-              type: 'list',
-              name: 'logLevel',
-              message: 'Log level',
-              choices: ['debug', 'info', 'warn', 'error'],
-              default: cfg.logLevel,
-            },
-          ])
-          this.configManager.set('maxConcurrentAgents', Number(maxConcurrentAgents) as any)
-          this.configManager.set('enableGuidanceSystem', Boolean(enableGuidanceSystem) as any)
-          this.configManager.set('defaultAgentTimeout', Number(defaultAgentTimeout) as any)
-          this.configManager.set('logLevel', logLevel as any)
-          console.log(chalk.green('✅ Updated Agent settings'))
-          break
-        }
-        case 'security': {
-          const { requireApprovalForNetwork, approvalPolicy, securityMode } = await inquirer.prompt([
-            {
-              type: 'confirm',
-              name: 'requireApprovalForNetwork',
-              message: 'Require approval for network requests?',
-              default: cfg.requireApprovalForNetwork,
-            },
-            {
-              type: 'list',
-              name: 'approvalPolicy',
-              message: 'Approval policy',
-              choices: ['strict', 'moderate', 'permissive'],
-              default: cfg.approvalPolicy,
-            },
-            {
-              type: 'list',
-              name: 'securityMode',
-              message: 'Security mode',
-              choices: ['safe', 'default', 'developer'],
-              default: cfg.securityMode,
-            },
-          ])
-          this.configManager.set('requireApprovalForNetwork', Boolean(requireApprovalForNetwork) as any)
-          this.configManager.set('approvalPolicy', approvalPolicy as any)
-          this.configManager.set('securityMode', securityMode as any)
-          console.log(chalk.green('✅ Updated Security settings'))
-          break
-        }
-        case 'session': {
-          const s = cfg.sessionSettings
-          const a = await inquirer.prompt([
-            {
-              type: 'input',
-              name: 'approvalTimeoutMs',
-              message: 'Approval timeout (ms)',
-              default: s.approvalTimeoutMs,
-              validate: (v: any) => asNumber(v, 5000, 300000),
-            },
-            {
-              type: 'input',
-              name: 'devModeTimeoutMs',
-              message: 'Dev mode timeout (ms)',
-              default: s.devModeTimeoutMs,
-              validate: (v: any) => asNumber(v, 60000, 7200000),
-            },
-            {
-              type: 'confirm',
-              name: 'batchApprovalEnabled',
-              message: 'Enable batch approvals?',
-              default: s.batchApprovalEnabled,
-            },
-            {
-              type: 'confirm',
-              name: 'autoApproveReadOnly',
-              message: 'Auto approve read-only?',
-              default: s.autoApproveReadOnly,
-            },
-          ])
-          this.configManager.set('sessionSettings', {
-            approvalTimeoutMs: Number(a.approvalTimeoutMs),
-            devModeTimeoutMs: Number(a.devModeTimeoutMs),
-            batchApprovalEnabled: Boolean(a.batchApprovalEnabled),
-            autoApproveReadOnly: Boolean(a.autoApproveReadOnly),
-          } as any)
-          console.log(chalk.green('✅ Updated Session settings'))
-          break
-        }
-        case 'sandbox': {
-          const s = cfg.sandbox
-          const a = await inquirer.prompt([
-            { type: 'confirm', name: 'enabled', message: 'Enable sandbox?', default: s.enabled },
-            { type: 'confirm', name: 'allowFileSystem', message: 'Allow file system?', default: s.allowFileSystem },
-            { type: 'confirm', name: 'allowNetwork', message: 'Allow network?', default: s.allowNetwork },
-            { type: 'confirm', name: 'allowCommands', message: 'Allow commands?', default: s.allowCommands },
-          ])
-          this.configManager.set('sandbox', { ...s, ...a } as any)
-          console.log(chalk.green('✅ Updated Sandbox settings'))
-          break
-        }
-        case 'models': {
-          const list = this.configManager.listModels()
-          if (!list || list.length === 0) {
-            console.log(chalk.yellow('No models configured'))
-            break
-          }
-          const { selection } = await inquirer.prompt<{ selection: string }>([
-            {
-              type: 'list',
-              name: 'selection',
-              message: 'Models',
-              choices: [
-                { name: 'Set current model', value: 'setcurrent' },
-                { name: 'Set API key', value: 'setkey' },
-                { name: 'Back', value: 'back' },
-              ],
-            },
-          ])
-          if (selection === 'setcurrent') {
-            const { model } = await inquirer.prompt<{ model: string }>([
+        switch (section) {
+          case 'general': {
+            const ans = await inquirer.prompt([
               {
-                type: 'list',
-                name: 'model',
-                message: 'Choose current model',
-                choices: list.map((m) => ({ name: `${m.name} (${(m.config as any).provider})`, value: m.name })),
-                default: this.configManager.getCurrentModel(),
+                type: 'input',
+                name: 'temperature',
+                message: 'Temperature (0–2)',
+                default: cfg.temperature,
+                validate: (v: any) => asNumber(v, 0, 2),
+              },
+              {
+                type: 'input',
+                name: 'maxTokens',
+                message: 'Max tokens',
+                default: cfg.maxTokens,
+                validate: (v: any) => asNumber(v, 1, 800000),
+              },
+              { type: 'confirm', name: 'chatHistory', message: 'Enable chat history?', default: cfg.chatHistory },
+              {
+                type: 'input',
+                name: 'maxHistoryLength',
+                message: 'Max history length',
+                default: cfg.maxHistoryLength,
+                validate: (v: any) => asNumber(v, 1, 5000),
               },
             ])
-            this.configManager.setCurrentModel(model)
-            try {
-              advancedAIProvider.setModel(model)
-            } catch {
-              /* ignore */
-            }
-            console.log(chalk.green(`✅ Current model set: ${model}`))
-          } else if (selection === 'setkey') {
-            await this.interactiveSetApiKey()
+            this.configManager.set('temperature', Number(ans.temperature) as any)
+            this.configManager.set('maxTokens', Number(ans.maxTokens) as any)
+            this.configManager.set('chatHistory', Boolean(ans.chatHistory) as any)
+            this.configManager.set('maxHistoryLength', Number(ans.maxHistoryLength) as any)
+            console.log(chalk.green('✅ Updated General settings'))
+            break
           }
-          break
+          case 'autotodos': {
+            const current = !!cfg.autoTodo?.requireExplicitTrigger
+            const { requireExplicitTrigger } = await inquirer.prompt<{ requireExplicitTrigger: boolean }>([
+              {
+                type: 'confirm',
+                name: 'requireExplicitTrigger',
+                message: 'Require explicit "todo" to trigger?',
+                default: current,
+              },
+            ])
+            this.configManager.set('autoTodo', { ...(cfg.autoTodo || {}), requireExplicitTrigger } as any)
+            console.log(chalk.green('✅ Updated Auto Todos settings'))
+            break
+          }
+          case 'routing': {
+            const { enabled, verbose, mode } = await inquirer.prompt([
+              { type: 'confirm', name: 'enabled', message: 'Enable routing?', default: cfg.modelRouting.enabled },
+              { type: 'confirm', name: 'verbose', message: 'Verbose routing logs?', default: cfg.modelRouting.verbose },
+              {
+                type: 'list',
+                name: 'mode',
+                message: 'Routing mode',
+                choices: ['conservative', 'balanced', 'aggressive'],
+                default: cfg.modelRouting.mode,
+              },
+            ])
+            this.configManager.set('modelRouting', { enabled, verbose, mode } as any)
+            console.log(chalk.green('✅ Updated Model Routing'))
+            break
+          }
+          case 'agents': {
+            const { maxConcurrentAgents, enableGuidanceSystem, defaultAgentTimeout, logLevel } = await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'maxConcurrentAgents',
+                message: 'Max concurrent agents',
+                default: cfg.maxConcurrentAgents,
+                validate: (v: any) => asNumber(v, 1, 10),
+              },
+              {
+                type: 'confirm',
+                name: 'enableGuidanceSystem',
+                message: 'Enable guidance system?',
+                default: cfg.enableGuidanceSystem,
+              },
+              {
+                type: 'input',
+                name: 'defaultAgentTimeout',
+                message: 'Default agent timeout (ms)',
+                default: cfg.defaultAgentTimeout,
+                validate: (v: any) => asNumber(v, 1000, 3600000),
+              },
+              {
+                type: 'list',
+                name: 'logLevel',
+                message: 'Log level',
+                choices: ['debug', 'info', 'warn', 'error'],
+                default: cfg.logLevel,
+              },
+            ])
+            this.configManager.set('maxConcurrentAgents', Number(maxConcurrentAgents) as any)
+            this.configManager.set('enableGuidanceSystem', Boolean(enableGuidanceSystem) as any)
+            this.configManager.set('defaultAgentTimeout', Number(defaultAgentTimeout) as any)
+            this.configManager.set('logLevel', logLevel as any)
+            console.log(chalk.green('✅ Updated Agent settings'))
+            break
+          }
+          case 'security': {
+            const { requireApprovalForNetwork, approvalPolicy, securityMode } = await inquirer.prompt([
+              {
+                type: 'confirm',
+                name: 'requireApprovalForNetwork',
+                message: 'Require approval for network requests?',
+                default: cfg.requireApprovalForNetwork,
+              },
+              {
+                type: 'list',
+                name: 'approvalPolicy',
+                message: 'Approval policy',
+                choices: ['strict', 'moderate', 'permissive'],
+                default: cfg.approvalPolicy,
+              },
+              {
+                type: 'list',
+                name: 'securityMode',
+                message: 'Security mode',
+                choices: ['safe', 'default', 'developer'],
+                default: cfg.securityMode,
+              },
+            ])
+            this.configManager.set('requireApprovalForNetwork', Boolean(requireApprovalForNetwork) as any)
+            this.configManager.set('approvalPolicy', approvalPolicy as any)
+            this.configManager.set('securityMode', securityMode as any)
+            console.log(chalk.green('✅ Updated Security settings'))
+            break
+          }
+          case 'session': {
+            const s = cfg.sessionSettings
+            const a = await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'approvalTimeoutMs',
+                message: 'Approval timeout (ms)',
+                default: s.approvalTimeoutMs,
+                validate: (v: any) => asNumber(v, 5000, 300000),
+              },
+              {
+                type: 'input',
+                name: 'devModeTimeoutMs',
+                message: 'Dev mode timeout (ms)',
+                default: s.devModeTimeoutMs,
+                validate: (v: any) => asNumber(v, 60000, 7200000),
+              },
+              {
+                type: 'confirm',
+                name: 'batchApprovalEnabled',
+                message: 'Enable batch approvals?',
+                default: s.batchApprovalEnabled,
+              },
+              {
+                type: 'confirm',
+                name: 'autoApproveReadOnly',
+                message: 'Auto approve read-only?',
+                default: s.autoApproveReadOnly,
+              },
+            ])
+            this.configManager.set('sessionSettings', {
+              approvalTimeoutMs: Number(a.approvalTimeoutMs),
+              devModeTimeoutMs: Number(a.devModeTimeoutMs),
+              batchApprovalEnabled: Boolean(a.batchApprovalEnabled),
+              autoApproveReadOnly: Boolean(a.autoApproveReadOnly),
+            } as any)
+            console.log(chalk.green('✅ Updated Session settings'))
+            break
+          }
+          case 'sandbox': {
+            const s = cfg.sandbox
+            const a = await inquirer.prompt([
+              { type: 'confirm', name: 'enabled', message: 'Enable sandbox?', default: s.enabled },
+              { type: 'confirm', name: 'allowFileSystem', message: 'Allow file system?', default: s.allowFileSystem },
+              { type: 'confirm', name: 'allowNetwork', message: 'Allow network?', default: s.allowNetwork },
+              { type: 'confirm', name: 'allowCommands', message: 'Allow commands?', default: s.allowCommands },
+            ])
+            this.configManager.set('sandbox', { ...s, ...a } as any)
+            console.log(chalk.green('✅ Updated Sandbox settings'))
+            break
+          }
+          case 'models': {
+            const list = this.configManager.listModels()
+            if (!list || list.length === 0) {
+              console.log(chalk.yellow('No models configured'))
+              break
+            }
+            const { selection } = await inquirer.prompt<{ selection: string }>([
+              {
+                type: 'list',
+                name: 'selection',
+                message: 'Models',
+                choices: [
+                  { name: 'Set current model', value: 'setcurrent' },
+                  { name: 'Set API key', value: 'setkey' },
+                  { name: 'Back', value: 'back' },
+                ],
+              },
+            ])
+            if (selection === 'setcurrent') {
+              const { model } = await inquirer.prompt<{ model: string }>([
+                {
+                  type: 'list',
+                  name: 'model',
+                  message: 'Choose current model',
+                  choices: list.map((m) => ({ name: `${m.name} (${(m.config as any).provider})`, value: m.name })),
+                  default: this.configManager.getCurrentModel(),
+                },
+              ])
+              this.configManager.setCurrentModel(model)
+              try {
+                advancedAIProvider.setModel(model)
+              } catch {
+                /* ignore */
+              }
+              console.log(chalk.green(`✅ Current model set: ${model}`))
+            } else if (selection === 'setkey') {
+              await this.interactiveSetApiKey()
+            }
+            break
+          }
+          case 'exit':
+          default:
+            done = true
+            break
         }
-        case 'exit':
-        default:
-          done = true
-          break
       }
+
+      console.log(chalk.dim('Exited interactive configuration'))
+    } finally {
+      // Always disable bypass and restore prompt
+      try { inputQueue.disableBypass() } catch { }
+      process.stdout.write('')
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      this.renderPromptAfterOutput()
     }
-
-    console.log(chalk.dim('Exited interactive configuration'))
-
-    process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    this.renderPromptAfterOutput()
   }
 
   /**
@@ -13687,7 +13723,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         provider = ans.provider
       } finally {
         inputQueue.disableBypass()
-        this.resumePromptAndRender()
+        this.renderPromptAfterOutput()
       }
 
       // If provider doesn't require a key (ollama), show info and exit
@@ -13746,7 +13782,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         modelName = ans2.model
       } finally {
         inputQueue.disableBypass()
-        this.resumePromptAndRender()
+        this.renderPromptAfterOutput()
       }
 
       // Panel: enter API key (masked)
@@ -13777,7 +13813,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         apiKey = ans3.apiKey.trim()
       } finally {
         inputQueue.disableBypass()
-        this.resumePromptAndRender()
+        this.renderPromptAfterOutput()
       }
 
       configManager.setApiKey(modelName, apiKey)
@@ -13824,10 +13860,10 @@ Generated by NikCLI on ${new Date().toISOString()}
           borderColor: 'red',
         })
       )
+    } finally {
+      try { inputQueue.disableBypass() } catch { }
+      this.resumePromptAndRender()
     }
-    process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    this.renderPromptAfterOutput()
   }
 
   /**

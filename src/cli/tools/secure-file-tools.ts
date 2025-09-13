@@ -63,6 +63,7 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
 
   // Start batch approval process
   batchApprovalState.approvalInProgress = true
+  try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
   inputQueue.enableBypass()
 
   try {
@@ -90,6 +91,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
   } finally {
     inputQueue.disableBypass()
     batchApprovalState.approvalInProgress = false
+    // Ensure prompt resumes cleanly after batch approval
+    try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
   }
 }
 

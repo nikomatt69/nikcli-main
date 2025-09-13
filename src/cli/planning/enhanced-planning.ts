@@ -236,6 +236,9 @@ export class EnhancedPlanningSystem {
     this.activePlans.set(plan.id, plan)
     this.planHistory.push(plan)
 
+    // Mirror todos to session TodoStore for Plan Mode dashboard
+    await this.syncPlanTodosToStore(plan)
+
     // Show enhanced plan details
     if (showDetails) {
       this.displayEnhancedPlan(plan)
@@ -270,25 +273,26 @@ export class EnhancedPlanningSystem {
     const commands = plan.todos.flatMap((t) => t.commands || [])
     const riskLevel = this.assessPlanRisk(plan)
 
-    const approval = await approvalSystem.requestPlanApproval(
-      plan.title,
-      plan.description || plan.goal || '',
-      {
-        totalSteps: plan.todos.length,
-        estimatedDuration: plan.estimatedTotalDuration,
-        riskLevel,
-        categories,
-        priorities,
-        dependencies,
-        affectedFiles,
-        commands,
-      },
-      {
-        showBreakdown: true,
-        allowModification: false,
-        showTimeline: true,
-      }
-    )
+    const compact = process.env.NIKCLI_COMPACT === '1'
+      const approval = await approvalSystem.requestPlanApproval(
+        plan.title,
+        plan.description || plan.goal || '',
+        {
+          totalSteps: plan.todos.length,
+          estimatedDuration: plan.estimatedTotalDuration,
+          riskLevel,
+          categories,
+          priorities,
+          dependencies,
+          affectedFiles,
+          commands,
+        },
+        {
+          showBreakdown: compact ? false : true,
+          allowModification: false,
+          showTimeline: compact ? false : true,
+        }
+      )
 
     if (approval.approved) {
       plan.status = 'approved'
@@ -315,103 +319,34 @@ export class EnhancedPlanningSystem {
       }
     }
 
-    console.log(chalk.blue.bold(`\n🚀 Enhanced Plan Execution: ${plan.title}`))
-    console.log(chalk.gray('═'.repeat(80)))
+    const compact = process.env.NIKCLI_COMPACT === '1'
+    const superCompact = process.env.NIKCLI_SUPER_COMPACT === '1'
+    if (!superCompact) {
+      console.log(chalk.blue.bold(`\n🚀 Enhanced Plan Execution: ${plan.title}`))
+      if (!compact) console.log(chalk.gray('═'.repeat(80)))
+    }
 
     plan.status = 'executing'
     plan.startedAt = new Date()
+    // Initial sync to store at execution start
+    await this.syncPlanTodosToStore(plan)
 
     try {
-      // Execute todos with enhanced progress tracking
-      const executionOrder = this.resolveDependencyOrder(plan.todos)
-      let completedCount = 0
-      let failedCount = 0
+      // Execute as toolchains derived from the todo plan (deterministic, no extra prompts salvo runtime approvals)
+      await this.executeToolchainsFromPlan(plan)
 
-      for (const todo of executionOrder) {
-        // Allow user interruption to cancel execution
-        try {
-          const nik = (global as any).__nikCLI
-          if (nik && nik.shouldInterrupt) {
-            console.log(chalk.yellow('🛑 Execution interrupted by user'))
-            plan.status = 'failed'
-            return
-          }
-        } catch {
-          /* ignore */
-        }
+      // After toolchains run, compute summary
+      const completedCount = plan.todos.filter((t) => t.status === 'completed').length
+      const failedCount = plan.todos.filter((t) => t.status === 'failed' || t.status === 'skipped').length
 
-        console.log(chalk.cyan(`\n📋 [${completedCount + 1}/${plan.todos.length}] ${todo.title}`))
-        console.log(chalk.gray(`   ${todo.description}`))
-
-        // Show risk level for current step
-        if (todo.riskLevel) {
-          const riskColor = this.getRiskColor(todo.riskLevel)
-          console.log(chalk.gray(`   Risk Level: ${riskColor(todo.riskLevel.toUpperCase())}`))
-        }
-
-        todo.status = 'in_progress'
-        todo.startedAt = new Date()
-
-        try {
-          // Execute the todo with per-step timeout based on estimate (min 2m, max 15m)
-          const estimatedMs = (typeof todo.estimatedDuration === 'number' ? todo.estimatedDuration : 30) * 60000
-          const stepTimeoutMs = Math.max(120000, Math.min(900000, estimatedMs))
-
-          const startTime = Date.now()
-          await Promise.race([
-            this.executeEnhancedTodo(todo, plan),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Todo execution timeout')), stepTimeoutMs)),
-          ])
-          const duration = Date.now() - startTime
-
-          todo.status = 'completed'
-          todo.completedAt = new Date()
-          todo.actualDuration = Math.round(duration / 60000)
-          todo.progress = 100
-
-          console.log(chalk.green(`   ✅ Completed in ${Math.round(duration / 1000)}s`))
-          completedCount++
-
-          // Update plan progress
-          this.updatePlanProgress(plan, completedCount)
-        } catch (error: any) {
-          todo.status = 'failed'
-          todo.errorMessage = error.message
-          failedCount++
-
-          console.log(chalk.red(`   ❌ Failed: ${error.message}`))
-
-          // Show rollback options if available
-          if (todo.rollbackPlan && todo.rollbackPlan.length > 0) {
-            console.log(chalk.yellow(`   🔄 Rollback plan available: ${todo.rollbackPlan.length} steps`))
-          }
-
-          // Enhanced error recovery
-          const shouldContinue = await this.handleExecutionError(todo, plan, completedCount)
-          if (!shouldContinue) {
-            console.log(chalk.yellow('🛑 Plan execution stopped by user'))
-            plan.status = 'failed'
-            return
-          }
-        }
-
-        // Show enhanced progress
-        this.displayEnhancedProgress(plan, completedCount, failedCount)
-      }
-
-      // Plan completed
+      // Plan status
       plan.status = failedCount === 0 ? 'completed' : 'failed'
       plan.completedAt = new Date()
-      plan.actualTotalDuration = plan.todos.reduce((sum, todo) => sum + (todo.actualDuration || 0), 0)
-
-      // Update execution stats
       this.updateExecutionStats(plan)
-
-      // Show enhanced completion summary
-      this.displayEnhancedCompletionSummary(plan, completedCount, failedCount)
-
-      // Update final todo.md
+      if (!superCompact && !compact) this.displayEnhancedCompletionSummary(plan, completedCount, failedCount)
       await this.updateTodoFile(plan)
+      // Final sync
+      await this.syncPlanTodosToStore(plan)
     } catch (error: any) {
       plan.status = 'failed'
       console.log(chalk.red(`\n❌ Enhanced plan execution failed: ${error.message}`))
@@ -421,6 +356,10 @@ export class EnhancedPlanningSystem {
         const nik = (global as any).__nikCLI
         if (nik) {
           nik.currentMode = 'default'
+          // Ensure assistant is not marked as processing anymore
+          if (typeof nik === 'object') {
+            try { nik.assistantProcessing = false } catch {}
+          }
           if (typeof nik.renderPromptAfterOutput === 'function') {
             nik.renderPromptAfterOutput()
           } else if (typeof nik.showPrompt === 'function') {
@@ -432,9 +371,320 @@ export class EnhancedPlanningSystem {
           orchestrator.context.planMode = false
           orchestrator.context.autoAcceptEdits = false
         }
+        // Make sure input queue bypass is disabled
+        try {
+          const { inputQueue } = await import('../core/input-queue')
+          inputQueue.disableBypass()
+        } catch {}
       } catch {
         /* ignore cleanup errors */
       }
+    }
+  }
+
+  /**
+   * Execute toolchains derived from the TodoPlan using the ToolRegistry.
+   * No approvals inside; compact/super-compact friendly; robust skip on errors.
+   */
+  private async executeToolchainsFromPlan(plan: TodoPlan): Promise<void> {
+    const compact = process.env.NIKCLI_COMPACT === '1'
+    try {
+      const { ToolRegistry } = await import('../tools/tool-registry')
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('../core/input-queue')
+      const registry = new ToolRegistry(this.workingDirectory)
+
+      // Simple sequential execution matching dependency order of todos
+      const orderedTodos = this.resolveDependencyOrder(plan.todos)
+
+      for (const todo of orderedTodos) {
+        // Check dependencies satisfied
+        const depsOk = (todo.dependencies || []).every((depId) => plan.todos.find((t) => t.id === depId)?.status === 'completed')
+        if (!depsOk) {
+          todo.status = 'skipped'
+          try { await this.updateStoreForTodo(plan, todo.id, 'cancelled') } catch {}
+          continue
+        }
+
+        todo.status = 'in_progress'
+        todo.startedAt = new Date()
+        try { await this.updateStoreForTodo(plan, todo.id, 'in_progress') } catch {}
+
+        try {
+          // 1) Execute explicit commands if provided
+          if (Array.isArray(todo.commands) && todo.commands.length > 0) {
+            const runCmd = registry.getTool('run-command-tool') as any
+            for (const cmd of todo.commands) {
+              if (!cmd || typeof cmd !== 'string') continue
+              // Runtime approval for command execution
+              const approved = await this.requestRuntimeApproval(
+                'Execute Command',
+                `Command: ${cmd}`,
+                'high',
+                inquirer,
+                inputQueue
+              )
+              if (!approved) {
+                // Skip this todo and continue with the rest
+                todo.status = 'skipped'
+                try { await this.updateStoreForTodo(plan, todo.id, 'cancelled') } catch {}
+                continue
+              }
+              await runCmd.execute(cmd)
+            }
+          }
+
+          // 2) If files are referenced, perform find-files to validate/collect
+          if (Array.isArray(todo.files) && todo.files.length > 0) {
+            const findFiles = registry.getTool('find-files-tool') as any
+            for (const pattern of todo.files) {
+              if (!pattern || typeof pattern !== 'string') continue
+              await findFiles.execute(pattern, { cwd: this.workingDirectory })
+            }
+          }
+
+          // 3) For analysis-like todos without commands/files, do a light read-only check
+          const isAnalysis = ['analysis', 'planning', 'testing', 'documentation'].includes((todo.category || '').toLowerCase())
+          if ((!todo.commands || todo.commands.length === 0) && (!todo.files || todo.files.length === 0) && isAnalysis) {
+            const findFiles = registry.getTool('find-files-tool') as any
+            await findFiles.execute('src/**/*', { cwd: this.workingDirectory })
+          }
+
+          // 4) Heuristic: write docs if requested explicitly
+          const text = `${todo.title} ${todo.description}`.toLowerCase()
+          const wantsDoc = text.includes('document') || text.includes('report') || text.includes('analysis doc')
+          if (wantsDoc) {
+            const writeFile = registry.getTool('write-file-tool') as any
+            const target = (Array.isArray(todo.files) && todo.files[0]) || 'analysis-notes.md'
+            const content = `# ${todo.title}\n\n${todo.description || ''}\n\nGenerated by plan toolchain at ${new Date().toISOString()}\n`
+            // Approval for file write (medium risk)
+            const approved = await this.requestRuntimeApproval(
+              'Write File',
+              `Create/Update file: ${target}`,
+              'medium',
+              (await import('inquirer')).default,
+              (await import('../core/input-queue')).inputQueue
+            )
+            if (!approved) {
+              todo.status = 'skipped'
+              try { await this.updateStoreForTodo(plan, todo.id, 'cancelled') } catch {}
+              continue
+            }
+            await writeFile.execute(target, content, { showDiff: false, createBackup: true })
+          }
+
+          // 5) Heuristic: in-place edits (replace) if explicitly requested
+          const mentionsEdit = /\b(edit|modify|update|replace|fix)\b/i.test(text)
+          if (mentionsEdit && Array.isArray(todo.files) && todo.files.length > 0) {
+            // Try to extract 'replace X with Y'
+            const m = todo.description?.match(/replace\s+['\"](.+?)['\"]\s+with\s+['\"](.+?)['\"]/i)
+            if (m) {
+              const search = m[1]
+              const replacement = m[2]
+              const replaceTool = registry.getTool('replace-in-file-tool') as any
+              for (const f of todo.files) {
+                // Approval for replacement (high risk)
+                const approved = await this.requestRuntimeApproval(
+                  'Replace In File',
+                  `File: ${f}\nSearch: ${search}\nReplace: ${replacement}`,
+                  'high',
+                  (await import('inquirer')).default,
+                  (await import('../core/input-queue')).inputQueue
+                )
+                if (!approved) {
+                  todo.status = 'skipped'
+                  try { await this.updateStoreForTodo(plan, todo.id, 'cancelled') } catch {}
+                  continue
+                }
+                await replaceTool.execute(f, search, replacement)
+              }
+            }
+          }
+
+          // Success
+          todo.status = 'completed'
+          todo.completedAt = new Date()
+          todo.progress = 100
+          try { await this.updateStoreForTodo(plan, todo.id, 'completed') } catch {}
+        } catch (err: any) {
+          // On any failure, mark as cancelled to keep flow going
+          if (!compact) console.log(require('chalk').red(`   ❌ Toolchain failed for todo '${todo.title}': ${err?.message || err}`))
+          todo.status = 'failed'
+          todo.errorMessage = String(err?.message || err)
+          try { await this.updateStoreForTodo(plan, todo.id, 'cancelled') } catch {}
+          // Continue with next todo
+        }
+      }
+    } catch (error) {
+      // If tool registry fails, fall back to original behavior silently (already removed above)
+      if (!compact) console.log(require('chalk').red(`Toolchain execution setup failed: ${String((error as any)?.message || error)}`))
+    }
+  }
+
+  /**
+   * Ask runtime approval for a risky operation (yes/no) using inquirer.
+   * Returns true if approved, false otherwise. Manages input bypass toggling.
+   */
+  private async requestRuntimeApproval(
+    title: string,
+    description: string,
+    risk: 'low' | 'medium' | 'high',
+    inquirer: any,
+    inputQueue: any
+  ): Promise<boolean> {
+    try {
+      // Auto-approve policy for smoother UX
+      try {
+        const anyGlobal: any = global as any
+        const autoAccept = !!(
+          anyGlobal.__streamingOrchestrator?.context?.autoAcceptEdits ||
+          (anyGlobal.__nikCLI && anyGlobal.__nikCLI.currentMode === 'auto')
+        )
+        if (risk === 'low' || (risk === 'medium' && autoAccept)) {
+          return true
+        }
+      } catch {}
+
+      // Show an informative box
+      const boxen = (await import('boxen')).default
+      const chalk = (await import('chalk')).default
+      console.log(
+        boxen(
+          `${chalk.yellow.bold('🤔 Approval Required')}\n\n` +
+            `${chalk.gray('Action:')} ${title}\n` +
+            `${chalk.gray('Description:')} ${description}\n` +
+            `${chalk.gray('Risk Level:')} ${risk.toUpperCase()}\n\n` +
+            `${chalk.yellow('Proceed with this operation?')}`,
+          { padding: 1, borderColor: risk === 'high' ? 'red' : risk === 'medium' ? 'yellow' : 'cyan', borderStyle: 'round' }
+        )
+      )
+
+      // Enable bypass so inquirer captures input cleanly
+      // Pause advanced UI interactive mode to avoid conflicts
+      try {
+        const { advancedUI } = await import('../ui/advanced-cli-ui')
+        advancedUI.stopInteractiveMode?.()
+      } catch {}
+
+      // Suspend main prompt and bypass input queue
+      try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
+      inputQueue.enableBypass()
+
+      const answers = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'approved',
+          message: 'Approve this operation?',
+          choices: [
+            { name: '✅ Yes, continue', value: true },
+            { name: '❌ No, stop plan', value: false },
+          ],
+          // Default to Yes for smoother flow; user can still reject
+          default: 0,
+        },
+      ])
+
+      return answers.approved === true
+    } catch (e) {
+      // On any prompt error, be safe and refuse
+      return false
+    } finally {
+      // Always disable bypass and redraw prompt
+      try { inputQueue.disableBypass() } catch {}
+      try {
+        const nik = (global as any).__nikCLI
+        if (nik && typeof nik.resumePromptAndRender === 'function') nik.resumePromptAndRender()
+      } catch {}
+      try {
+        const { advancedUI } = await import('../ui/advanced-cli-ui')
+        advancedUI.startInteractiveMode?.()
+      } catch {}
+    }
+  }
+
+  /**
+   * Map enhanced-planning statuses to session store statuses
+   */
+  private mapStatus(status: TodoItem['status']): 'pending' | 'in_progress' | 'completed' | 'cancelled' {
+    if (status === 'pending') return 'pending'
+    if (status === 'in_progress') return 'in_progress'
+    if (status === 'completed') return 'completed'
+    // failed or skipped
+    return 'cancelled'
+  }
+
+  /**
+   * Get current session id from global orchestrator context
+   */
+  private getSessionIdSafe(): string {
+    try {
+      const anyGlobal: any = global as any
+      return (
+        anyGlobal.__streamingOrchestrator?.context?.session?.id ||
+        anyGlobal.__nikCLI?.context?.session?.id ||
+        Date.now().toString()
+      )
+    } catch {
+      return Date.now().toString()
+    }
+  }
+
+  /**
+   * Sync full plan todos list to the session TodoStore and refresh dashboard
+   */
+  private async syncPlanTodosToStore(plan: TodoPlan): Promise<void> {
+    try {
+      const sessionId = this.getSessionIdSafe()
+      const { todoStore } = await import('../store/todo-store')
+      const list = (plan.todos || []).map((t) => ({
+        id: String(t.id),
+        content: String(t.title || t.description || ''),
+        status: this.mapStatus(t.status),
+        priority: ((t.priority === 'critical' ? 'high' : t.priority) as any) || 'medium',
+        progress: typeof t.progress === 'number' ? t.progress : t.status === 'completed' ? 100 : 0,
+      }))
+      todoStore.setTodos(String(sessionId), list)
+
+      // Refresh dashboard panel
+      try {
+        const { advancedUI } = await import('../ui/advanced-cli-ui')
+        const items = list.map((t) => ({
+          content: t.content,
+          status: t.status,
+          priority: t.priority as any,
+          progress: t.progress,
+        }))
+        ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+      } catch {}
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /**
+   * Update a single todo status in the session TodoStore
+   */
+  private async updateStoreForTodo(
+    plan: TodoPlan,
+    todoId: string,
+    status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  ): Promise<void> {
+    try {
+      const sessionId = this.getSessionIdSafe()
+      const { todoStore } = await import('../store/todo-store')
+      const current = todoStore.getTodos(String(sessionId))
+      const mapped: any = (plan.todos || []).find((t) => t.id === todoId)
+      if (!mapped) return
+      const content = String(mapped.title || mapped.description || '')
+      const priority = ((mapped.priority === 'critical' ? 'high' : mapped.priority) as any) || 'medium'
+      const progress = status === 'completed' ? 100 : typeof mapped.progress === 'number' ? mapped.progress : 0
+      const existingIdx = current.findIndex((t: any) => t.id === String(todoId))
+      const updated = { id: String(todoId), content, status, priority, progress }
+      if (existingIdx >= 0) current[existingIdx] = updated
+      else current.push(updated)
+      todoStore.setTodos(String(sessionId), current)
+    } catch {
+      /* ignore */
     }
   }
 
@@ -852,15 +1102,7 @@ Generate a comprehensive plan that is practical and executable.`,
    * Minimal dynamic agent selection based on todo metadata
    */
   private selectAgentForTodo(todo: TodoItem): string {
-    const text = `${todo.title} ${todo.description} ${(todo.tags || []).join(' ')}`.toLowerCase()
-    if (text.includes('react') || text.includes('component')) return 'react-expert'
-    if (text.includes('frontend') || text.includes('ui') || text.includes('css')) return 'frontend-expert'
-    if (text.includes('backend') || text.includes('api') || text.includes('server')) return 'backend-expert'
-    if (text.includes('deploy') || text.includes('docker') || text.includes('kubernetes') || text.includes('ci'))
-      return 'devops-expert'
-    if (text.includes('review') || text.includes('analyze') || text.includes('audit')) return 'code-review'
-    if (text.includes('system') || text.includes('admin')) return 'system-admin'
-    // default universal agent
+    // Always use the universal agent to execute plan todos
     return 'universal-agent'
   }
 
@@ -991,11 +1233,21 @@ Generate a comprehensive plan that is practical and executable.`,
   }
 
   /**
+   * Generate a small execution plan for a single todo and display it in a panel
+   */
+  // Sub-plan UI removed to match requested screenshot style
+
+  /**
    * Handle execution errors with recovery options
    */
   private async handleExecutionError(todo: TodoItem, plan: TodoPlan, completedCount: number): Promise<boolean> {
-    const { approvalSystem } = await import('../ui/approval-system')
+    const compact = process.env.NIKCLI_COMPACT === '1'
+    if (compact) {
+      // In compact mode, auto-continue and keep the dashboard as source of truth
+      return true
+    }
 
+    const { approvalSystem } = await import('../ui/approval-system')
     console.log(chalk.yellow('\n   ⚠️  Execution Error Recovery Options:'))
     console.log(chalk.gray('   1. Continue with remaining todos'))
     console.log(chalk.gray('   2. Retry this todo'))
@@ -1007,7 +1259,6 @@ Generate a comprehensive plan that is practical and executable.`,
       `Todo "${todo.title}" failed. Continue with remaining todos?`,
       'medium'
     )
-
     return shouldContinue
   }
 

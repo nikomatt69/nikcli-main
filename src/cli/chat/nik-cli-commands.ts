@@ -189,6 +189,8 @@ export class SlashCommandHandler {
     this.commands.set('plan', this.planCommand.bind(this))
     this.commands.set('todo', this.todoCommand.bind(this))
     this.commands.set('todos', this.todosCommand.bind(this))
+    this.commands.set('compact', this.compactCommand.bind(this))
+    this.commands.set('super-compact', this.superCompactCommand.bind(this))
     this.commands.set('approval', this.approvalCommand.bind(this))
 
     // Security Commands
@@ -719,7 +721,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         ])
       } finally {
         inputQueue.disableBypass()
-        nik?.resumePromptAndRender?.()
+        nik?.renderPromptAfterOutput?.()
       }
 
       const setIfProvided = (label: string, key: string | undefined, setter: (v: string) => void) => {
@@ -2573,6 +2575,23 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             const latestPlan = plans[plans.length - 1]
 
             if (!latestPlan) {
+              // Fallback: if session todos exist, just show the dashboard instead of executing
+              try {
+                const { todoStore } = await import('../store/todo-store')
+                const sessionId = ((global as any).__streamingOrchestrator?.context?.session?.id) || `${Date.now()}`
+                const list = todoStore.getTodos(String(sessionId))
+                if (list.length > 0) {
+                  const { advancedUI } = await import('../ui/advanced-cli-ui')
+                  const items = list.map((t) => ({
+                    content: t.content,
+                    status: t.status,
+                    priority: t.priority as any,
+                    progress: t.progress,
+                  }))
+                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                  return { shouldExit: false, shouldUpdatePrompt: false }
+                }
+              } catch {}
               console.log(chalk.yellow('No active plans found. Create one with /plan create <goal>'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
@@ -2660,6 +2679,29 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         case 'ls': {
           const plans = enhancedPlanning.getActivePlans()
           if (plans.length === 0) {
+            // Fallback to session todos
+            try {
+              const { todoStore } = await import('../store/todo-store')
+              const sessionId = ((global as any).__streamingOrchestrator?.context?.session?.id) || `${Date.now()}`
+              const list = todoStore.getTodos(String(sessionId))
+              if (list.length > 0) {
+                console.log(chalk.blue.bold('Todo List (Session):'))
+                const completed = list.filter((t) => t.status === 'completed').length
+                const inProgress = list.filter((t) => t.status === 'in_progress').length
+                const pending = list.filter((t) => t.status === 'pending').length
+                const cancelled = list.filter((t) => t.status === 'cancelled').length
+                console.log(`   ✅ ${completed} | 🔄 ${inProgress} | ⏳ ${pending} | 🛑 ${cancelled}`)
+                const { advancedUI } = await import('../ui/advanced-cli-ui')
+                const items = list.map((t) => ({
+                  content: t.content,
+                  status: t.status,
+                  priority: t.priority,
+                  progress: t.progress,
+                }))
+                ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                return { shouldExit: false, shouldUpdatePrompt: false }
+              }
+            } catch {}
             console.log(chalk.gray('No todo lists found'))
             return { shouldExit: false, shouldUpdatePrompt: false }
           }
@@ -2691,12 +2733,33 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                 const todoItems = latestPlan.todos.map((t: any) => ({
                   content: t.title || t.description,
                   status: t.status,
+                  priority: (t as any).priority,
+                  progress: (t as any).progress,
                 }))
-                ;(advancedUI as any).showTodos?.(todoItems, latestPlan.title || 'Update Todos')
+                ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
               } catch {}
               enhancedPlanning.showPlanStatus(latestPlan.id)
             } else {
-              console.log(chalk.yellow('No todo lists found'))
+              // Fallback to session todos
+              try {
+                const { todoStore } = await import('../store/todo-store')
+                const sessionId = ((global as any).__streamingOrchestrator?.context?.session?.id) || `${Date.now()}`
+                const list = todoStore.getTodos(String(sessionId))
+                if (list.length > 0) {
+                  const { advancedUI } = await import('../ui/advanced-cli-ui')
+                  const items = list.map((t) => ({
+                    content: t.content,
+                    status: t.status,
+                    priority: t.priority,
+                    progress: t.progress,
+                  }))
+                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                } else {
+                  console.log(chalk.yellow('No todo lists found'))
+                }
+              } catch {
+                console.log(chalk.yellow('No todo lists found'))
+              }
             }
           } else {
             const plans = enhancedPlanning.getActivePlans()
@@ -2707,8 +2770,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                 const todoItems = target.todos.map((t: any) => ({
                   content: t.title || t.description,
                   status: t.status,
+                  priority: (t as any).priority,
+                  progress: (t as any).progress,
                 }))
-                ;(advancedUI as any).showTodos?.(todoItems, target.title || 'Update Todos')
+                ;(advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
               } catch {}
             }
             enhancedPlanning.showPlanStatus(planId)
@@ -2746,6 +2811,44 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async todosCommand(args: string[]): Promise<CommandResult> {
     // Alias for /todo list
     return await this.todoCommand(['list', ...args])
+  }
+
+  private async compactCommand(args: string[]): Promise<CommandResult> {
+    const sub = (args[0] || '').toLowerCase()
+    if (sub === 'on') {
+      process.env.NIKCLI_COMPACT = '1'
+      console.log(chalk.green('✅ compact mode ON'))
+    } else if (sub === 'off') {
+      delete (process.env as any).NIKCLI_COMPACT
+      console.log(chalk.yellow('⚠️ compact mode OFF'))
+    } else {
+      console.log(chalk.blue('Usage: /compact on|off'))
+      console.log(chalk.gray(`Current: ${process.env.NIKCLI_COMPACT === '1' ? 'ON' : 'OFF'}`))
+    }
+    try {
+      const nik = (global as any).__nikCLI
+      nik?.renderPromptAfterOutput?.()
+    } catch {}
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async superCompactCommand(args: string[]): Promise<CommandResult> {
+    const sub = (args[0] || '').toLowerCase()
+    if (sub === 'on') {
+      process.env.NIKCLI_SUPER_COMPACT = '1'
+      console.log(chalk.green('✅ super-compact mode ON'))
+    } else if (sub === 'off') {
+      delete (process.env as any).NIKCLI_SUPER_COMPACT
+      console.log(chalk.yellow('⚠️ super-compact mode OFF'))
+    } else {
+      console.log(chalk.blue('Usage: /super-compact on|off'))
+      console.log(chalk.gray(`Current: ${process.env.NIKCLI_SUPER_COMPACT === '1' ? 'ON' : 'OFF'}`))
+    }
+    try {
+      const nik = (global as any).__nikCLI
+      nik?.renderPromptAfterOutput?.()
+    } catch {}
+    return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async approvalCommand(args: string[]): Promise<CommandResult> {
@@ -3548,7 +3651,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         ])
       } finally {
         inputQueue.disableBypass()
-        nik?.resumePromptAndRender?.()
+        nik?.renderPromptAfterOutput?.()
       }
 
       // Analyze the selected image
@@ -3822,7 +3925,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
               },
             ])
             inputQueue.disableBypass()
-            nik?.resumePromptAndRender?.()
+            nik?.renderPromptAfterOutput?.()
 
             const useRes = await secureTools.executeCoinbaseAgentKit('use-wallet', { address: ans.address })
             const usePanel = this.formatWeb3UseWalletPanel(useRes)

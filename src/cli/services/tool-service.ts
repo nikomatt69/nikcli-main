@@ -238,6 +238,7 @@ export class ToolService {
   }
 
   async executeTool(toolName: string, args: any): Promise<any> {
+    const compact = process.env.NIKCLI_COMPACT === '1'
     const tool = this.tools.get(toolName)
     if (!tool) {
       throw new Error(`Tool '${toolName}' not found`)
@@ -258,7 +259,7 @@ export class ToolService {
     let timeoutHandle: NodeJS.Timeout | undefined
 
     try {
-      console.log(chalk.blue(`🔧 Executing ${toolName}...`))
+      if (!compact) console.log(chalk.blue(`🔧 Executing ${toolName}...`))
 
       const timed = new Promise<any>((resolve, reject) => {
         timeoutHandle = setTimeout(
@@ -274,7 +275,7 @@ export class ToolService {
       execution.result = result
 
       const duration = execution.endTime.getTime() - execution.startTime.getTime()
-      console.log(chalk.green(`✅ ${toolName} completed (${duration}ms)`))
+      if (!compact) console.log(chalk.green(`✅ ${toolName} completed (${duration}ms)`))
 
       return result
     } catch (error: any) {
@@ -282,7 +283,7 @@ export class ToolService {
       execution.status = 'failed'
       execution.error = error.message
 
-      console.log(chalk.red(`❌ ${toolName} failed: ${error.message}`))
+      if (!compact) console.log(chalk.red(`❌ ${toolName} failed: ${error.message}`))
       throw error
     } finally {
       if (timeoutHandle) clearTimeout(timeoutHandle)

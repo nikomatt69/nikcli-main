@@ -11,6 +11,8 @@ import { agentService } from './services/agent-service'
 import { lspService } from './services/lsp-service'
 import { memoryService } from './services/memory-service'
 import { planningService } from './services/planning-service'
+// Register session todo tools (todoread/todowrite)
+import './tools/todo-tools'
 import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
 import { StreamingOrchestrator } from './streaming-orchestrator'

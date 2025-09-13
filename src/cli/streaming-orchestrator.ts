@@ -657,25 +657,41 @@ class StreamingOrchestratorImpl extends EventEmitter {
       })
 
       try {
-        const plan = await planningService.createPlan(input, {
-          showProgress: false,
-          autoExecute: this.context.autonomous,
-          confirmSteps: false,
+        // Use enhanced planning pipeline for toolchain execution
+        const { enhancedPlanning } = await import('./planning/enhanced-planning')
+        const plan = await enhancedPlanning.generatePlan(input, {
+          maxTodos: 15,
+          includeContext: true,
+          showDetails: false,
+          saveTodoFile: true,
+          todoFilePath: 'todo.md',
         })
 
-        this.queueMessage({
-          type: 'system',
-          content: `📋 Generated plan with ${plan.steps.length} steps`,
-        })
+        // Request approval (interactive)
+        const approved = await enhancedPlanning.requestPlanApproval(plan.id)
+        if (!approved) {
+          // Return to prompt immediately
+          // Disable bypass if any approval was open
+          import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => {})
+          // Ensure we are back to default mode explicitly
+          this.context.planMode = false
+          this.context.autoAcceptEdits = false
+          // Reset processing flag and show orchestrator prompt
+          this.processingMessage = false
+          try {
+            const nik = (global as any).__nikCLI
+            if (nik && typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
+          } catch {}
+          this.showPrompt()
+          return
+        }
 
-        // Execute plan
-        setTimeout(async () => {
-          await planningService.executePlan(plan.id, {
-            showProgress: true,
-            autoExecute: true,
-            confirmSteps: false,
-          })
-        }, 1000)
+        // Execute plan as toolchains (internally handles runtime approvals)
+        await enhancedPlanning.executePlan(plan.id)
+        // After execution ensure prompt is visible
+        import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => {})
+        this.processingMessage = false
+        this.showPrompt()
       } catch (error: any) {
         this.queueMessage({
           type: 'error',
@@ -944,6 +960,10 @@ class StreamingOrchestratorImpl extends EventEmitter {
     if (!this.context.planMode && !this.context.autoAcceptEdits && !this.context.vmMode) {
       // Manual → Plan
       this.context.planMode = true
+      try {
+        process.env.NIKCLI_COMPACT = '1'
+        process.env.NIKCLI_SUPER_COMPACT = '1'
+      } catch {}
       console.log(chalk.green('\\n✅ plan mode on ') + chalk.dim('(shift+tab to cycle)'))
     } else if (this.context.planMode && !this.context.autoAcceptEdits && !this.context.vmMode) {
       // Plan → Auto-accept
@@ -963,6 +983,19 @@ class StreamingOrchestratorImpl extends EventEmitter {
       this.context.autoAcceptEdits = false
       this.context.vmMode = false
       diffManager.setAutoAccept(false)
+      try {
+        delete (process.env as any).NIKCLI_COMPACT
+        delete (process.env as any).NIKCLI_SUPER_COMPACT
+      } catch {}
+      // Reset processing and show prompt to accept new input
+      this.processingMessage = false
+      import('./core/input-queue')
+        .then(({ inputQueue }) => inputQueue.disableBypass())
+        .then(() => {
+          try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
+        })
+        .catch(() => {})
+      this.showPrompt()
 
       // Cleanup VM agent when exiting VM mode
       if (this.activeVMAgent) {

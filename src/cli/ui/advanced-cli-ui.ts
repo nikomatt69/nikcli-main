@@ -863,10 +863,125 @@ export class AdvancedCliUI {
   }
 
   /**
+   * Show a richer Todo Dashboard panel (grouped + summary + progress),
+   * designed to mirror Claude Code/plan-mode style.
+   */
+  showTodoDashboard(
+    todos: Array<{
+      content?: string
+      title?: string
+      status?: string
+      priority?: string
+      progress?: number
+    }>,
+    title: string = 'Plan Todos'
+  ): void {
+    const items = (todos || []).map((t) => ({
+      text: (t.title || t.content || '').trim(),
+      status: (t.status || 'pending').toLowerCase(),
+      priority: (t.priority || '').toLowerCase(),
+      progress: typeof t.progress === 'number' ? Math.max(0, Math.min(100, Math.round(t.progress))) : undefined,
+    })).filter((x) => x.text)
+
+    // Order pending by priority (high -> medium -> low)
+    const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 }
+    const byStatus = {
+      completed: items.filter((i) => i.status === 'completed'),
+      in_progress: items.filter((i) => i.status === 'in_progress'),
+      pending: items
+        .filter((i) => i.status === 'pending')
+        .sort((a, b) => (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9)),
+      failed: items.filter((i) => i.status === 'failed' || i.status === 'cancelled' || i.status === 'skipped'),
+    }
+
+    const total = items.length
+    const completed = byStatus.completed.length
+    const inProgress = byStatus.in_progress.length
+    const pending = byStatus.pending.length
+    const failed = byStatus.failed.length
+    const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0
+
+    const pctBar = this.createProgressBarString(progressPct, 30)
+
+    const prioBadge = (p?: string) => {
+      const label = p === 'high' ? 'HIGH' : p === 'medium' ? 'MED' : p === 'low' ? 'LOW' : ''
+      if (!label) return ''
+      if (p === 'high') return chalk.bgRed.black(` ${label} `)
+      if (p === 'medium') return chalk.bgYellow.black(` ${label} `)
+      return chalk.bgBlue.white(` ${label} `)
+    }
+
+    const statusIcon = (s: string) =>
+      s === 'completed' ? '✅' : s === 'in_progress' ? '🔄' : s === 'failed' ? '❌' : '⏳'
+
+    const fmt = (s: string) => {
+      if (s === 'completed') return this.theme.success.strikethrough
+      if (s === 'failed') return this.theme.error
+      if (s === 'in_progress') return this.theme.primary
+      return this.theme.info
+    }
+
+    const section = (
+      heading: string,
+      arr: typeof items,
+      opts?: { limit?: number; showBadges?: boolean; showBars?: boolean }
+    ) => {
+      const limit = opts?.limit
+      const list = typeof limit === 'number' ? arr.slice(0, limit) : arr
+      if (list.length === 0) return ''
+      const lines: string[] = []
+      lines.push(this.theme.secondary.bold(heading))
+      list.forEach((i) => {
+        const bar = opts?.showBars && i.status === 'in_progress' && typeof i.progress === 'number'
+          ? ` ${this.theme.muted('[' + '█'.repeat(Math.floor(i.progress / 5)) + '░'.repeat(20 - Math.floor(i.progress / 5)) + `] ${i.progress}%`)}`
+          : ''
+        const badge = opts?.showBadges ? ` ${prioBadge(i.priority)}` : ''
+        lines.push(`  ${statusIcon(i.status)}${badge} ${fmt(i.status)(i.text)}${bar}`)
+      })
+      return lines.join('\n')
+    }
+
+    const lines: string[] = []
+    // Header: progress and counts
+    lines.push(chalk.bold('Progress'))
+    lines.push(pctBar)
+    lines.push(
+      `${chalk.green('✅ ' + completed)}   ${chalk.blue('🔄 ' + inProgress)}   ${chalk.cyan('⏳ ' + pending)}   ${chalk.red('🛑 ' + failed)}   ${chalk.gray('• Total ' + total)}`
+    )
+    lines.push(chalk.gray('─'.repeat(60)))
+    // Sections
+    const inProgSection = section('In Progress', byStatus.in_progress, { showBars: true, showBadges: true })
+    if (inProgSection) lines.push(inProgSection, '')
+    const nextUpSection = section('Next Up', byStatus.pending, { limit: 8, showBadges: true })
+    if (nextUpSection) lines.push(nextUpSection, '')
+    const completedSection = section('Completed', byStatus.completed, { limit: 8 })
+    if (completedSection) lines.push(completedSection, '')
+    const failedSection = section('Cancelled/Failed', byStatus.failed)
+    if (failedSection) lines.push(failedSection)
+
+    const content = lines.join('\n')
+
+    this.panels.set('todos', {
+      id: 'todos',
+      title: `📋 ${title}`,
+      content,
+      type: 'todos',
+      visible: true,
+      borderColor: 'cyan',
+      pinned: true,
+      priority: 120,
+    })
+
+    this.autoLayout()
+    this.emitEvent({ type: 'panel', panel: 'todos', title, items })
+  }
+
+  /**
    * Parse a markdown Todo file (todo.md) and render as Todos panel
    */
   showTodosFromMarkdown(markdown: string, title: string = 'Todo Plan'): void {
     try {
+      const compact = process.env.NIKCLI_COMPACT === '1'
       const items: Array<{ content: string; status?: string }> = []
       const lines = markdown.split(/\r?\n/)
       let inTodos = false
@@ -916,10 +1031,12 @@ export class AdvancedCliUI {
       if (items.length > 0) {
         this.showTodos(items, title)
       } else {
-        this.showFileContent('todo.md', markdown)
+        // In compact mode, avoid dumping full todo.md content panel
+        if (!compact) this.showFileContent('todo.md', markdown)
       }
     } catch {
-      this.showFileContent('todo.md', markdown)
+      const compact = process.env.NIKCLI_COMPACT === '1'
+      if (!compact) this.showFileContent('todo.md', markdown)
     }
   }
 

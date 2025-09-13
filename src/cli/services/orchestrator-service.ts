@@ -11,6 +11,8 @@ import { type AgentTask, agentService } from './agent-service'
 import { lspService } from './lsp-service'
 import { planningService } from './planning-service'
 import { toolService } from './tool-service'
+// Ensure session todo tools are registered for Plan Mode
+import '../tools/todo-tools'
 
 export interface OrchestratorContext {
   workingDirectory: string
@@ -35,6 +37,7 @@ export class OrchestratorService extends EventEmitter {
   private activeAgentTasks: Map<string, AgentTask> = new Map()
   private originalRawMode?: boolean
   private keypressHandler?: (str: string, key: any) => void
+  private todoStoreUnsubscribe?: () => void
 
   constructor() {
     super()
@@ -338,6 +341,8 @@ export class OrchestratorService extends EventEmitter {
     }
 
     if (this.context.planMode) {
+      // Enable compact stream to reduce noisy logs in plan mode
+      try { process.env.NIKCLI_COMPACT = '1' } catch {}
       try {
         // Create execution plan first
         console.log(chalk.cyan('🎯 Plan Mode: Creating execution plan...'))
@@ -669,14 +674,123 @@ export class OrchestratorService extends EventEmitter {
   private togglePlanMode(): void {
     this.context.planMode = !this.context.planMode
     if (this.context.planMode) {
+      try {
+        process.env.NIKCLI_COMPACT = '1'
+        process.env.NIKCLI_SUPER_COMPACT = '1'
+      } catch {}
       console.log(chalk.green('\n🎯 Enhanced Plan Mode Enabled'))
       console.log(chalk.cyan('   • Comprehensive plan generation with risk analysis'))
       console.log(chalk.cyan('   • Step-by-step execution with progress tracking'))
       console.log(chalk.cyan('   • Enhanced approval system with detailed breakdown'))
       console.log(chalk.dim('   (shift+tab to cycle modes)'))
+      console.log(chalk.gray('   Tip: use tools "todoread" and "todowrite" to manage the session TODOs'))
+      // Show Todo Dashboard (session store preferred) or fallback to existing plans
+      setTimeout(async () => {
+        try {
+          const { advancedUI } = await import('../ui/advanced-cli-ui')
+          // Switch to interactive redraw to avoid duplicated panels in stream
+          // Note: do not alter readline state here
+          advancedUI.startInteractiveMode()
+          let todos: Array<{ content?: string; status?: string; priority?: string; progress?: number }> = []
+          let title = 'Plan Todos'
+
+          // 1) Prefer session TodoStore (Claude-style)
+          try {
+            const { todoStore } = await import('../store/todo-store')
+            const sessionId = (this.context.session && this.context.session.id) || `${Date.now()}`
+            const list = todoStore.getTodos(String(sessionId))
+            if (list && list.length > 0) {
+              todos = list.map((t) => ({
+                content: t.content,
+                status: t.status,
+                priority: t.priority,
+                progress: t.progress,
+              }))
+            }
+          } catch {}
+
+          // 2) If store empty, prefer enhancedPlanning
+          if (todos.length === 0) {
+            try {
+              const { enhancedPlanning } = await import('../planning/enhanced-planning')
+              const plans = enhancedPlanning.getActivePlans?.() || []
+              const latest = plans[plans.length - 1]
+              if (latest && latest.todos) {
+                title = latest.title || title
+                todos = latest.todos.map((t: any) => ({
+                  content: t.title || t.description,
+                  status: t.status,
+                  priority: t.priority,
+                  progress: t.progress,
+                }))
+              }
+            } catch {}
+          }
+
+          // 3) If still empty, fallback: planningService active plans
+          if (todos.length === 0) {
+            try {
+              const { planningService } = await import('./planning-service')
+              const plans = planningService.getActivePlans?.() || []
+              const latest = plans[plans.length - 1]
+              if (latest && latest.todos) {
+                title = latest.title || title
+                todos = latest.todos.map((t: any) => ({
+                  content: t.title || t.description,
+                  status: t.status,
+                  priority: t.priority,
+                  progress: t.progress,
+                }))
+              }
+            } catch {}
+          }
+
+          ;(advancedUI as any).showTodoDashboard?.(todos, title)
+
+          // Attach live updates: refresh dashboard when session todos change
+          try {
+            const { todoStore } = await import('../store/todo-store')
+            const handler = async ({ sessionId }: { sessionId: string }) => {
+              try {
+                const list = todoStore.getTodos(sessionId)
+                const items = list.map((t) => ({
+                  content: t.content,
+                  status: t.status,
+                  priority: t.priority,
+                  progress: t.progress,
+                }))
+                ;(advancedUI as any).showTodoDashboard?.(items, title)
+              } catch {}
+            }
+            todoStore.on('update', handler)
+            this.todoStoreUnsubscribe = () => todoStore.off('update', handler)
+          } catch {}
+        } catch {}
+      }, 0)
     } else {
       console.log(chalk.yellow('\n⚠️  Plan Mode Disabled'))
       console.log(chalk.gray('   • Returning to standard mode'))
+      try {
+        delete (process.env as any).NIKCLI_COMPACT
+        delete (process.env as any).NIKCLI_SUPER_COMPACT
+      } catch {}
+      // Ensure input bypass is disabled and prompt resumed
+      import('../core/input-queue')
+        .then(({ inputQueue }) => inputQueue.disableBypass())
+        .catch(() => {})
+      try {
+        const nik = (global as any).__nikCLI
+        if (nik && typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
+      } catch {}
+      // Disable compact stream
+      try { delete (process.env as any).NIKCLI_COMPACT } catch {}
+      // Remove live updates listener if present
+      if (this.todoStoreUnsubscribe) {
+        try {
+          this.todoStoreUnsubscribe()
+        } catch {}
+        this.todoStoreUnsubscribe = undefined
+      }
     }
     this.updateModuleContext()
   }

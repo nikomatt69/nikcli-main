@@ -37,6 +37,7 @@ export class GuidanceManager {
   private workingDirectory: string
   private globalGuidanceDir: string
   private onContextUpdate?: (context: GuidanceContext) => void
+  private lastContextLogAt: number = 0
 
   constructor(workingDirectory: string, globalGuidanceDir?: string) {
     this.workingDirectory = workingDirectory
@@ -307,11 +308,16 @@ export class GuidanceManager {
       lastUpdated: new Date(),
     }
 
-    console.log(
-      chalk.green(
-        `🔄 Guidance context updated (${globalGuidance.length + projectGuidance.length + subdirGuidance.length} files)`
+    // Throttle log to avoid spamming during rapid updates
+    const now = Date.now()
+    if (now - this.lastContextLogAt > 1500) {
+      this.lastContextLogAt = now
+      console.log(
+        chalk.green(
+          `🔄 Guidance context updated (${globalGuidance.length + projectGuidance.length + subdirGuidance.length} files)`
+        )
       )
-    )
+    }
 
     // Notify listeners
     if (this.onContextUpdate && this.currentContext) {

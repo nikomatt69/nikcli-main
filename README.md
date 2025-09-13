@@ -44,6 +44,20 @@ nikcli
 - **📊 Multiple AI Providers**: Claude, GPT, Gemini, Ollama support
 - **🚀 Production Ready**: Comprehensive testing and enterprise-grade architecture
 
+### 🆕 New CLI UI Enhancements (v1.1.0+)
+
+NikCLI now features an advanced, interactive CLI interface with rich UI components for better user experience, especially in VM management and code review workflows:
+
+- **VM Status Indicator**: Real-time monitoring of virtual machine states directly in the CLI, with visual indicators for status, performance, and alerts.
+- **Completion Display**: Intelligent auto-completion suggestions with contextual previews, making command input faster and more intuitive.
+- **VM Keyboard Controls**: Seamless keyboard shortcuts for VM operations, including start/stop, snapshot management, and console access.
+- **Advanced CLI UI**: Modern, terminal-friendly UI with dynamic layouts, progress bars, and interactive panels for complex tasks.
+- **Approval System**: Enhanced interactive approvals for sensitive actions, with clear diff previews and one-click confirmations.
+- **Diff Viewer & Manager**: Built-in side-by-side diff comparison for code changes, merges, and version control, integrated into the CLI workflow.
+- **ACP Integration**: Access Control Panel (ACP) services with Zed editor hooks for secure, collaborative editing sessions.
+
+These features make NikCLI ideal for developers working with virtual environments, code reviews, and interactive AI-driven terminals.
+
 ## 🎯 Quick Examples
 
 ```bash
@@ -58,6 +72,12 @@ nikcli
 
 # Project analysis
 /analyze-project
+
+# View VM status with new UI
+/vm status --watch
+
+# Use diff viewer for changes
+/diff compare --file myfile.js
 
 # Help and commands
 /help
@@ -82,4 +102,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Visit [nikcli.mintlify.app](https://nikcli.mintlify.app) for complete documentation, tutorials, and examples.**
+**Visit [nikcli.mintifly.app](https://nikcli.mintlify.app) for complete documentation, tutorials, and examples.**

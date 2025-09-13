@@ -555,6 +555,30 @@ export class UnifiedChatInterface extends EventEmitter {
       }
     })
     console.log('')
+
+    // Sync to session TodoStore and show dashboard in Plan Mode style
+    try {
+      const globalAny: any = global as any
+      const sessionId = globalAny.__streamingOrchestrator?.context?.session?.id || `${Date.now()}`
+      const { todoStore } = require('./store/todo-store')
+      const list = todos.map((t: any, i: number) => ({
+        id: String(t.id || i + 1),
+        content: String(t.title || t.description || ''),
+        status: (t.status || 'pending') as any,
+        priority: ((t.priority === 'critical' ? 'high' : t.priority) || 'medium') as any,
+        progress: typeof t.progress === 'number' ? t.progress : 0,
+      }))
+      todoStore.setTodos(String(sessionId), list)
+      import('./ui/advanced-cli-ui').then(({ advancedUI }) => {
+        const items = list.map((t: any) => ({
+          content: t.content,
+          status: t.status,
+          priority: t.priority,
+          progress: t.progress,
+        }))
+        ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+      })
+    } catch {}
   }
 
   /**

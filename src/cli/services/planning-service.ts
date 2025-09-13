@@ -28,7 +28,43 @@ export class PlanningService {
    * Initialize available tools from ToolService
    */
   private initializeTools(): void {
-    this.availableTools = toolService.getAvailableTools()
+    try {
+      const { ToolRegistry } = require('../tools/tool-registry')
+      const registry = new ToolRegistry(this.workingDirectory)
+      const names: string[] = registry.listTools()
+      this.availableTools = names.map((name) => {
+        const meta = registry.getToolMetadata(name) as any
+        const category = (meta?.category || 'general') as
+          | 'file'
+          | 'command'
+          | 'analysis'
+          | 'git'
+          | 'package'
+          | 'system'
+        // Map registry categories to planning categories
+        const categoryMap: Record<string, 'file' | 'command' | 'analysis' | 'git' | 'package'> = {
+          filesystem: 'file',
+          system: 'command',
+          ai: 'analysis',
+          blockchain: 'command',
+          general: 'analysis',
+        }
+        const mappedCategory = categoryMap[category] || 'analysis'
+        return {
+          name,
+          description: meta?.description || `${name} tool`,
+          category: mappedCategory,
+          handler: async (args: any) => {
+            const tool = registry.getTool(name) as any
+            if (!tool || typeof tool.execute !== 'function') throw new Error(`Tool '${name}' not available`)
+            return await tool.execute.apply(tool, Array.isArray(args) ? args : [args])
+          },
+        }
+      })
+    } catch {
+      // Fallback to legacy toolService if registry init fails
+      this.availableTools = toolService.getAvailableTools()
+    }
   }
 
   /**
@@ -141,10 +177,62 @@ export class PlanningService {
     }
 
     const plan = await this.planGenerator.generatePlan(context)
+    // Ensure plan has todos derived from steps for UI/dashboard purposes
+    if (!plan.todos || plan.todos.length === 0) {
+      try {
+        const todos = plan.steps.map((step) => ({
+          id: nanoid(),
+          title: step.title,
+          description: step.description,
+          status: 'pending' as const,
+          priority: (step.riskLevel === 'high' ? 'high' : step.riskLevel === 'medium' ? 'medium' : 'low') as
+            | 'low'
+            | 'medium'
+            | 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          progress: 0,
+        }))
+        plan.todos = todos
+      } catch {
+        // leave as is
+      }
+    }
     this.activePlans.set(plan.id, plan)
+
+    // Sync with session TodoStore (Claude-style) for Plan Mode cohesion
+    try {
+      const globalAny: any = global as any
+      const sessionId =
+        globalAny.__streamingOrchestrator?.context?.session?.id ||
+        globalAny.__nikCLI?.context?.session?.id ||
+        `${Date.now()}`
+      const { todoStore } = await import('../store/todo-store')
+      const list = (plan.todos || []).map((t: any) => ({
+        id: String(t.id || nanoid()),
+        content: String(t.title || t.description || ''),
+        status: (t.status || 'pending') as any,
+        priority: (t.priority || 'medium') as any,
+        progress: typeof t.progress === 'number' ? t.progress : 0,
+      }))
+      if (list.length > 0) {
+        todoStore.setTodos(String(sessionId), list)
+      }
+    } catch {}
 
     if (options.showProgress) {
       this.displayPlan(plan)
+      // Show dashboard panel if UI is available
+      try {
+        const { advancedUI } = await import('../ui/advanced-cli-ui')
+        const todoItems = (plan.todos || []).map((t) => ({
+          content: (t as any).title || (t as any).description,
+          status: (t as any).status,
+          priority: (t as any).priority,
+          progress: (t as any).progress,
+        }))
+        ;(advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
+      } catch {}
     }
 
     return plan
@@ -160,35 +248,108 @@ export class PlanningService {
       return
     }
 
-    console.log(chalk.green(`🚀 Executing plan: ${plan.title}`))
+    const superCompact = process.env.NIKCLI_SUPER_COMPACT === '1'
+    if (!superCompact) console.log(chalk.green(`🚀 Executing plan: ${plan.title}`))
 
     try {
       // Use autonomous planner for execution with streaming
       for await (const event of this.autonomousPlanner.executePlan(plan)) {
         switch (event.type) {
           case 'plan_start':
-            console.log(chalk.cyan(`📋 Starting: ${event.planId}`))
+            if (!superCompact) console.log(chalk.cyan(`📋 Starting: ${event.planId}`))
+            try {
+              const { advancedUI } = await import('../ui/advanced-cli-ui')
+              const items = (plan.todos || []).map((t) => ({
+                content: (t as any).title || (t as any).description,
+                status: (t as any).status,
+                priority: (t as any).priority,
+                progress: (t as any).progress,
+              }))
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'plan_created':
-            console.log(chalk.blue(`🔄 ${event.result}`))
+            if (!superCompact) console.log(chalk.blue(`🔄 ${event.result}`))
             break
           case 'todo_start':
-            console.log(chalk.green(`✅ ${event.todoId}`))
+            if (!superCompact) console.log(chalk.green(`✅ ${event.todoId}`))
+            try {
+              const { advancedUI } = await import('../ui/advanced-cli-ui')
+              const items = (plan.todos || []).map((t) => ({
+                content: (t as any).title || (t as any).description,
+                status: (t as any).status,
+                priority: (t as any).priority,
+                progress: (t as any).progress,
+              }))
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'todo_progress':
-            console.log(chalk.red(`🔄 ${event.progress}`))
+            if (!superCompact) console.log(chalk.red(`🔄 ${event.progress}`))
+            try {
+              const { advancedUI } = await import('../ui/advanced-cli-ui')
+              const items = (plan.todos || []).map((t) => ({
+                content: (t as any).title || (t as any).description,
+                status: (t as any).status,
+                priority: (t as any).priority,
+                progress: (t as any).progress,
+              }))
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'todo_complete':
-            console.log(chalk.green(`✅ Todo completed`))
+            if (!superCompact) console.log(chalk.green(`✅ Todo completed`))
+            try {
+              const { advancedUI } = await import('../ui/advanced-cli-ui')
+              const items = (plan.todos || []).map((t) => ({
+                content: (t as any).title || (t as any).description,
+                status: (t as any).status,
+                priority: (t as any).priority,
+                progress: (t as any).progress,
+              }))
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'plan_failed':
-            console.log(chalk.red(`❌ Plan execution failed: ${event.error}`))
+            if (!superCompact) console.log(chalk.red(`❌ Plan execution failed: ${event.error}`))
+            try {
+              const { advancedUI } = await import('../ui/advanced-cli-ui')
+              const items = (plan.todos || []).map((t) => ({
+                content: (t as any).title || (t as any).description,
+                status: (t as any).status,
+                priority: (t as any).priority,
+                progress: (t as any).progress,
+              }))
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
         }
       }
     } catch (error: any) {
       console.log(chalk.red(`❌ Plan execution error: ${error.message}`))
       plan.status = 'failed'
+      // Ensure prompt is restored on error
+      try {
+        const nik = (global as any).__nikCLI
+        if (nik) {
+          try { nik.assistantProcessing = false } catch {}
+          if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
+        }
+      } catch {}
+    } finally {
+      // Always render prompt after execution cycle
+      try {
+        const nik = (global as any).__nikCLI
+        if (nik) {
+          try { nik.assistantProcessing = false } catch {}
+          if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
+        }
+        // Disable possible bypass and resume prompt
+        try {
+          const { inputQueue } = await import('../core/input-queue')
+          inputQueue.disableBypass()
+        } catch {}
+      } catch {}
     }
   }
 
@@ -257,6 +418,23 @@ export class PlanningService {
         id: nanoid(),
       }
       plan.todos.push(newTodo)
+      // Sync to session TodoStore
+      try {
+        const globalAny: any = global as any
+        const sessionId =
+          globalAny.__streamingOrchestrator?.context?.session?.id ||
+          globalAny.__nikCLI?.context?.session?.id ||
+          `${Date.now()}`
+        const { todoStore } = require('../store/todo-store')
+        const list = (plan.todos || []).map((t: any) => ({
+          id: String(t.id),
+          content: String(t.title || t.description || ''),
+          status: t.status,
+          priority: (t.priority || 'medium') as any,
+          progress: typeof t.progress === 'number' ? t.progress : 0,
+        }))
+        todoStore.setTodos(String(sessionId), list)
+      } catch {}
     }
   }
 
@@ -269,6 +447,23 @@ export class PlanningService {
       const todo = plan.todos.find((t) => t.id === todoId)
       if (todo) {
         todo.status = status
+        // Sync to session TodoStore
+        try {
+          const globalAny: any = global as any
+          const sessionId =
+            globalAny.__streamingOrchestrator?.context?.session?.id ||
+            globalAny.__nikCLI?.context?.session?.id ||
+            `${Date.now()}`
+          const { todoStore } = require('../store/todo-store')
+          const list = (plan.todos || []).map((t: any) => ({
+            id: String(t.id),
+            content: String(t.title || t.description || ''),
+            status: t.status,
+            priority: (t.priority || 'medium') as any,
+            progress: typeof t.progress === 'number' ? t.progress : 0,
+          }))
+          todoStore.setTodos(String(sessionId), list)
+        } catch {}
       }
     }
   }

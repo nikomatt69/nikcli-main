@@ -461,8 +461,10 @@ export class PlanningManager extends EventEmitter {
       const todoItems = (plan.todos || []).map((t) => ({
         content: (t as any).title || (t as any).description,
         status: (t as any).status,
+        priority: (t as any).priority,
+        progress: (t as any).progress,
       }))
-      ;(advancedUI as any).showTodos?.(todoItems, plan.title || 'Update Todos')
+      ;(advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
     } catch (error: any) {
       if (this.config.logLevel === 'debug') {
         CliUI.logError(`Failed to render todos UI: ${error?.message || error}`)

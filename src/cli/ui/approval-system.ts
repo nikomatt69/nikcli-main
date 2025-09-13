@@ -589,6 +589,8 @@ export class ApprovalSystem extends EventEmitter {
       })
     })
 
+    // Suspend main prompt and enable bypass to avoid interleaving
+    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
     inputQueue.enableBypass()
     try {
       const answers = await inquirer.prompt([
@@ -612,10 +614,7 @@ export class ApprovalSystem extends EventEmitter {
     } finally {
       inputQueue.disableBypass()
       // Restore prompt after approval interaction
-      const nik = (global as any).__nikCLI
-      if (nik && typeof nik.resumePromptAndRender === 'function') {
-        nik.resumePromptAndRender()
-      }
+      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
     }
   }
 
@@ -634,6 +633,8 @@ export class ApprovalSystem extends EventEmitter {
       })
     })
 
+    // Suspend main prompt and enable bypass to avoid interleaving
+    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
     inputQueue.enableBypass()
     try {
       const answers = await inquirer.prompt([
@@ -653,10 +654,7 @@ export class ApprovalSystem extends EventEmitter {
     } finally {
       inputQueue.disableBypass()
       // Restore prompt after approval interaction
-      const nik = (global as any).__nikCLI
-      if (nik && typeof nik.resumePromptAndRender === 'function') {
-        nik.resumePromptAndRender()
-      }
+      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
     }
   }
 
@@ -827,9 +825,9 @@ export class ApprovalSystem extends EventEmitter {
     console.log(
       boxen(
         `${riskIcon} ${chalk.bold(request.title)}\n\n` +
-          `${chalk.gray('Description:')} ${request.description}\n` +
-          `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
-          `${chalk.gray('Actions:')} ${request.actions.length}`,
+        `${chalk.gray('Description:')} ${request.description}\n` +
+        `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
+        `${chalk.gray('Actions:')} ${request.actions.length}`,
         {
           padding: 1,
           margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -857,12 +855,13 @@ export class ApprovalSystem extends EventEmitter {
         console.log(`  📁 Working Directory: ${request.context.workingDirectory}`)
       }
       if (request.context.affectedFiles && request.context.affectedFiles.length > 0) {
-        console.log(`  📄 Affected Files: ${request.context.affectedFiles.length}`)
-        request.context.affectedFiles.slice(0, 5).forEach((file) => {
+        const unique = Array.from(new Set(request.context.affectedFiles))
+        console.log(`  📄 Affected Files: ${unique.length}`)
+        unique.slice(0, 5).forEach((file) => {
           console.log(`     • ${file}`)
         })
-        if (request.context.affectedFiles.length > 5) {
-          console.log(`     ... and ${request.context.affectedFiles.length - 5} more files`)
+        if (unique.length > 5) {
+          console.log(`     ... and ${unique.length - 5} more files`)
         }
       }
       if (request.context.estimatedDuration) {
@@ -885,13 +884,13 @@ export class ApprovalSystem extends EventEmitter {
     console.log(
       boxen(
         `${riskIcon} ${chalk.bold('🤔 Plan Execution Approval Required')}\n\n` +
-          `${chalk.gray('Plan:')} ${chalk.white.bold(request.title.replace('Execute Plan: ', ''))}\n` +
-          `${chalk.gray('Description:')} ${request.description}\n` +
-          `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
-          `${chalk.gray('Total Steps:')} ${chalk.cyan(planDetails.totalSteps)}\n` +
-          `${chalk.gray('Estimated Duration:')} ${chalk.cyan(Math.round(planDetails.estimatedDuration) + ' minutes')}\n\n` +
-          `${chalk.yellow.bold('⚠️  This will execute all steps automatically!\n')}` +
-          `${chalk.gray('The plan will switch to auto mode and run without further prompts.')}`,
+        `${chalk.gray('Plan:')} ${chalk.white.bold(request.title.replace('Execute Plan: ', ''))}\n` +
+        `${chalk.gray('Description:')} ${request.description}\n` +
+        `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
+        `${chalk.gray('Total Steps:')} ${chalk.cyan(planDetails.totalSteps)}\n` +
+        `${chalk.gray('Estimated Duration:')} ${chalk.cyan(Math.round(planDetails.estimatedDuration) + ' minutes')}\n\n` +
+        `${chalk.yellow.bold('⚠️  This will execute all steps automatically!\n')}` +
+        `${chalk.gray('The plan will switch to auto mode and run without further prompts.')}`,
         {
           padding: 1,
           margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -943,19 +942,20 @@ export class ApprovalSystem extends EventEmitter {
 
     // Affected files
     if (planDetails.affectedFiles && planDetails.affectedFiles.length > 0) {
+      const files = Array.from(new Set(planDetails.affectedFiles))
       console.log(chalk.blue.bold('\n📄 Files to be Modified:'))
-      planDetails.affectedFiles.slice(0, 10).forEach((file: string) => {
+      files.slice(0, 10).forEach((file: string | any) => {
         console.log(`  • ${file}`)
       })
-      if (planDetails.affectedFiles.length > 10) {
-        console.log(`  ... and ${planDetails.affectedFiles.length - 10} more files`)
+      if (files.length > 10) {
+        console.log(`  ... and ${files.length - 10} more files`)
       }
     }
 
     // Commands to be executed
     if (planDetails.commands && planDetails.commands.length > 0) {
       console.log(chalk.blue.bold('\n⚡ Commands to be Executed:'))
-      planDetails.commands.slice(0, 5).forEach((cmd: string) => {
+      planDetails.commands.slice(0, 5).forEach((cmd: string | any) => {
         console.log(`  • ${cmd}`)
       })
       if (planDetails.commands.length > 5) {
@@ -1044,13 +1044,13 @@ export class ApprovalSystem extends EventEmitter {
         choices:
           request.type === 'plan'
             ? [
-                { name: '✅ Yes, execute the plan now', value: true },
-                { name: '❌ No, return to default mode', value: false },
-              ]
+              { name: '✅ Yes, execute the plan now', value: true },
+              { name: '❌ No, return to default mode', value: false },
+            ]
             : [
-                { name: 'Yes', value: true },
-                { name: 'No', value: false },
-              ],
+              { name: 'Yes', value: true },
+              { name: 'No', value: false },
+            ],
         default: request.type === 'plan' ? 1 : request.riskLevel === 'low' ? 0 : 1,
         prefix: '  ',
       },
@@ -1082,8 +1082,16 @@ export class ApprovalSystem extends EventEmitter {
       })
     }
 
+    // Pause advanced UI interactive mode to avoid overwriting inquirer prompt
+    try {
+      const { advancedUI } = await import('./advanced-cli-ui')
+      advancedUI.stopInteractiveMode?.()
+    } catch {}
+
     inputQueue.enableBypass()
     try {
+      // Small separation to ensure prompt draws on a fresh line
+      try { process.stdout.write('\n') } catch {}
       const answers = await inquirer.prompt(questions)
 
       const approved = answers.approved && answers.confirmHighRisk !== false
@@ -1116,9 +1124,14 @@ export class ApprovalSystem extends EventEmitter {
       inputQueue.disableBypass()
       // Restore prompt after approval interaction
       const nik = (global as any).__nikCLI
-      if (nik && typeof nik.resumePromptAndRender === 'function') {
-        nik.resumePromptAndRender()
+      if (nik && typeof nik.renderPromptAfterOutput === 'function') {
+        nik.renderPromptAfterOutput()
       }
+      // Resume advanced UI interactive mode if needed
+      try {
+        const { advancedUI } = await import('./advanced-cli-ui')
+        advancedUI.startInteractiveMode?.()
+      } catch {}
     }
   }
 
@@ -1400,8 +1413,8 @@ export class ApprovalSystem extends EventEmitter {
     // Header with enterprise branding
     const header = boxen(
       chalk.cyanBright.bold('🏢 ENTERPRISE APPROVAL SYSTEM') +
-        '\n' +
-        chalk.white('Advanced Workflow Management & Risk Assessment'),
+      '\n' +
+      chalk.white('Advanced Workflow Management & Risk Assessment'),
       {
         padding: 1,
         margin: 1,
@@ -1569,7 +1582,8 @@ export class ApprovalSystem extends EventEmitter {
     // Enhanced UI for enterprise approval
     this.displayEnterpriseApprovalRequest(request)
 
-    // Enable bypass for approval inputs
+    // Enable bypass for approval inputs and suspend prompt
+    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
     inputQueue.enableBypass()
 
     try {
@@ -1599,6 +1613,7 @@ export class ApprovalSystem extends EventEmitter {
       inputQueue.disableBypass()
       this.activeWorkflows.delete(request.id)
       this.pendingRequests.delete(request.id)
+      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
     }
   }
 
