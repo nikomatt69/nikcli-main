@@ -26,7 +26,7 @@ import { type DocumentationEntry, docLibrary } from './core/documentation-librar
 import { enhancedTokenCache } from './core/enhanced-token-cache'
 import { inputQueue } from './core/input-queue'
 import { type McpServerConfig, mcpClient } from './core/mcp-client'
-import { pasteSummarizer } from './core/paste-summarizer'
+
 import { QuietCacheLogger, TokenOptimizer } from './core/performance-optimizer'
 import { tokenCache } from './core/token-cache'
 import { toolRouter } from './core/tool-router'
@@ -226,8 +226,8 @@ export class NikCLI {
     // Register agents
     registerAgents(this.agentManager)
 
-    // Expose this instance globally for command handlers
-    ;(global as any).__nikCLI = this
+      // Expose this instance globally for command handlers
+      ; (global as any).__nikCLI = this
 
     this.setupEventHandlers()
     // Bridge orchestrator events into NikCLI output
@@ -253,14 +253,14 @@ export class NikCLI {
     // Render initial prompt
     this.renderPromptArea()
 
-    // Expose NikCLI globally for token management
-    ;(global as any).__nikcli = this
+      // Expose NikCLI globally for token management
+      ; (global as any).__nikcli = this
 
     // Patch inquirer to avoid status bar redraw during interactive prompts
     try {
       const originalPrompt = (inquirer as any).prompt?.bind(inquirer)
       if (originalPrompt) {
-        ;(inquirer as any).prompt = async (...args: any[]) => {
+        ; (inquirer as any).prompt = async (...args: any[]) => {
           this.isInquirerActive = true
           this.stopStatusBar()
           try {
@@ -1645,9 +1645,9 @@ export class NikCLI {
   private showAdvancedHeader(): void {
     const header = boxen(
       `${chalk.cyanBright.bold('🤖 NikCLI')} ${chalk.gray('v0.3.1-beta')}\n` +
-        `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
-        `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
-        `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
+      `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
+      `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
+      `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
       {
         padding: 1,
         margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -1916,22 +1916,22 @@ export class NikCLI {
           // Kill any running subprocesses started by tools
           try {
             const procs = toolsManager.getRunningProcesses?.() || []
-            ;(async () => {
-              let killed = 0
-              await Promise.all(
-                procs.map(async (p: any) => {
-                  try {
-                    const ok = await toolsManager.killProcess?.(p.pid)
-                    if (ok) killed++
-                  } catch {
-                    /* ignore */
-                  }
-                })
-              )
-              if (killed > 0) {
-                console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
-              }
-            })()
+              ; (async () => {
+                let killed = 0
+                await Promise.all(
+                  procs.map(async (p: any) => {
+                    try {
+                      const ok = await toolsManager.killProcess?.(p.pid)
+                      if (ok) killed++
+                    } catch {
+                      /* ignore */
+                    }
+                  })
+                )
+                if (killed > 0) {
+                  console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
+                }
+              })()
           } catch {
             /* ignore */
           }
@@ -2010,54 +2010,49 @@ export class NikCLI {
       })
     }
 
+
+
+
+
+
+
+
+
     this.rl?.on('line', async (input) => {
-      const trimmed = input.trim()
+      const trimmed = input.trim();
 
       if (!trimmed) {
-        this.renderPromptAfterOutput()
-        return
+        this.renderPromptAfterOutput();
+        return;
       }
 
       // Set user input as active when user sends a message
-      this.userInputActive = true
-      this.renderPromptAfterOutput()
+      this.userInputActive = true;
+      this.renderPromptAfterOutput();
 
       // Se il bypass è abilitato, ignora completamente l'input
       if (inputQueue.isBypassEnabled()) {
-        this.userInputActive = false
-        this.renderPromptAfterOutput()
-        return
+        this.userInputActive = false;
+        this.renderPromptAfterOutput();
+        return;
       }
 
       // Apply token optimization to user input
-      let optimizedInput = trimmed
-      if (trimmed.length > 20 && !trimmed.startsWith('/')) {
-        // Don't optimize commands
-        const optimizer = this.getTokenOptimizer()
+      let optimizedInput = trimmed;
+      if (trimmed.length > 20 && !trimmed.startsWith('/')) { // Don't optimize commands
+        const optimizer = this.getTokenOptimizer();
         if (optimizer) {
           try {
-            const optimizationResult = await optimizer.optimizePrompt(trimmed)
-            optimizedInput = optimizationResult.content
+            const optimizationResult = await optimizer.optimizePrompt(trimmed);
+            optimizedInput = optimizationResult.content;
 
             if (optimizationResult.tokensSaved > 5) {
-              QuietCacheLogger.logCacheSave(optimizationResult.tokensSaved)
+              QuietCacheLogger.logCacheSave(optimizationResult.tokensSaved);
             }
           } catch (error) {
             // Silent fail - use original input
-            console.debug('Token optimization failed:', error)
+            console.debug('Token optimization failed:', error);
           }
-        }
-      }
-
-      // Check for long pasted text and create attachment if needed
-      if (!trimmed.startsWith('/') && !trimmed.startsWith('@') && !trimmed.startsWith('*')) {
-        if (pasteSummarizer.shouldSummarizePastedText(optimizedInput)) {
-          const { summary, attachmentId } = pasteSummarizer.createPasteAttachment(optimizedInput)
-          console.log(chalk.gray(`📋 Long paste detected, created attachment: ${summary}`))
-          optimizedInput = summary
-
-          // Store attachment ID for potential expansion
-          this.lastPasteAttachmentId = attachmentId
         }
       }
 
@@ -2065,60 +2060,56 @@ export class NikCLI {
       // ma rispetta il bypass per approval inputs
       if (this.assistantProcessing && inputQueue.shouldQueue(trimmed)) {
         // Determina priorità basata sul contenuto
-        let priority: 'high' | 'normal' | 'low' = 'normal'
+        let priority: 'high' | 'normal' | 'low' = 'normal';
         if (trimmed.startsWith('/') || trimmed.startsWith('@')) {
-          priority = 'high' // Comandi e agenti hanno priorità alta
+          priority = 'high'; // Comandi e agenti hanno priorità alta
         } else if (trimmed.toLowerCase().includes('urgent') || trimmed.toLowerCase().includes('stop')) {
-          priority = 'high'
+          priority = 'high';
         } else if (trimmed.toLowerCase().includes('later') || trimmed.toLowerCase().includes('low priority')) {
-          priority = 'low'
+          priority = 'low';
         }
 
-        const _queueId = inputQueue.enqueue(trimmed, priority, 'user')
-        console.log(
-          chalk.cyan(
-            `📥 Input queued (${priority} priority): ${trimmed.substring(0, 40)}${trimmed.length > 40 ? '...' : ''}`
-          )
-        )
-        this.renderPromptAfterOutput()
-        return
+        const queueId = inputQueue.enqueue(trimmed, priority, 'user');
+        console.log(chalk.cyan(`📥 Input queued (${priority} priority): ${trimmed.substring(0, 40)}${trimmed.length > 40 ? '...' : ''}`));
+        this.renderPromptAfterOutput();
+        return;
       }
 
       // Indicate assistant is processing while handling the input
-      this.userInputActive = false // User input is no longer active
-      this.assistantProcessing = true
-      this.startStatusBar()
-      this.renderPromptAfterOutput()
+      this.userInputActive = false; // User input is no longer active
+      this.assistantProcessing = true;
+      this.startStatusBar();
+      this.renderPromptAfterOutput();
 
       try {
         // Route slash and agent-prefixed commands, otherwise treat as chat
         if (trimmed.startsWith('/')) {
-          await this.dispatchSlash(trimmed)
+          await this.dispatchSlash(trimmed);
         } else if (trimmed.startsWith('@')) {
-          await this.dispatchAt(trimmed)
+          await this.dispatchAt(trimmed);
         } else if (trimmed.startsWith('*')) {
-          await this.dispatchStar(trimmed)
+          await this.dispatchStar(trimmed);
         } else {
           // Use optimized input for chat
-          await this.handleChatInput(optimizedInput)
+          await this.handleChatInput(optimizedInput);
         }
       } finally {
         // Done processing; return to idle
-        this.assistantProcessing = false
-        this.stopStatusBar()
-        this.renderPromptAfterOutput()
+        this.assistantProcessing = false;
+        this.stopStatusBar();
+        this.renderPromptAfterOutput();
 
         // Processa input dalla queue se disponibili
-        this.processQueuedInputs()
+        this.processQueuedInputs();
       }
-    })
+    });
 
     this.rl?.on('SIGINT', async () => {
-      await this.shutdown()
-    })
+      await this.shutdown();
+    });
 
     // Show initial prompt immediately
-    this.renderPromptAfterOutput()
+    this.renderPromptAfterOutput();
   }
 
   /**
@@ -4357,11 +4348,11 @@ export class NikCLI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\n\n` +
-        `${chalk.green('✅ Completed:')} ${completed}\n` +
-        `${chalk.red('❌ Failed:')} ${failed}\n` +
-        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
-        `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
-        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+      `${chalk.green('✅ Completed:')} ${completed}\n` +
+      `${chalk.red('❌ Failed:')} ${failed}\n` +
+      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
+      `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
+      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -4707,21 +4698,21 @@ export class NikCLI {
         console.log(
           chalk.cyan(`📋 Generated plan with ${plan.steps.length} steps (id: ${plan.id}). Executing in background...`)
         )
-        // Fire-and-forget execution to keep CLI responsive
-        ;(async () => {
-          try {
-            await planningService.executePlan(plan.id, {
-              showProgress: true,
-              autoExecute: true,
-              confirmSteps: false,
-            })
-            console.log(chalk.green('✅ Background plan execution completed'))
-          } catch (err: any) {
-            console.log(chalk.red(`❌ Plan execution error: ${err.message}`))
-          }
-          // Ensure prompt is restored after background execution
-          this.renderPromptAfterOutput()
-        })()
+          // Fire-and-forget execution to keep CLI responsive
+          ; (async () => {
+            try {
+              await planningService.executePlan(plan.id, {
+                showProgress: true,
+                autoExecute: true,
+                confirmSteps: false,
+              })
+              console.log(chalk.green('✅ Background plan execution completed'))
+            } catch (err: any) {
+              console.log(chalk.red(`❌ Plan execution error: ${err.message}`))
+            }
+            // Ensure prompt is restored after background execution
+            this.renderPromptAfterOutput()
+          })()
       } else {
         // Direct autonomous execution - select best agent and launch
         const selected = this.agentManager.findBestAgentForTask(task as any)
@@ -5667,9 +5658,9 @@ export class NikCLI {
               console.log(
                 boxen(
                   `Provider: ${provider}\n` +
-                    `Model: ${modelCfg?.model || modelName}\n` +
-                    `API key not configured.\n` +
-                    `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
+                  `Model: ${modelCfg?.model || modelName}\n` +
+                  `API key not configured.\n` +
+                  `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
                   { title: '🔑 API Key Missing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
                 )
               )
@@ -6605,10 +6596,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     console.log(
       boxen(
         `${chalk.blue.bold(plan.title)}\n\n` +
-          `${chalk.gray('Goal:')} ${plan.goal}\n` +
-          `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
-          `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
-          `${chalk.gray('Status:')} ${this.getPlanStatusColor(plan.status)(plan.status.toUpperCase())}`,
+        `${chalk.gray('Goal:')} ${plan.goal}\n` +
+        `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
+        `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
+        `${chalk.gray('Status:')} ${this.getPlanStatusColor(plan.status)(plan.status.toUpperCase())}`,
         {
           padding: 1,
           margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -7432,9 +7423,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Session Tokens:')}\n` +
-            `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
-            `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
-            `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
+          `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
+          `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
+          `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
           {
             padding: 1,
             margin: 1,
@@ -7449,10 +7440,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         chalk.white(
           'Model'.padEnd(30) +
-            'Total Cost'.padStart(12) +
-            'Input Cost'.padStart(12) +
-            'Output Cost'.padStart(12) +
-            'Provider'.padStart(15)
+          'Total Cost'.padStart(12) +
+          'Input Cost'.padStart(12) +
+          'Output Cost'.padStart(12) +
+          'Provider'.padStart(15)
         )
       )
       console.log(chalk.gray('─'.repeat(90)))
@@ -7513,13 +7504,13 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Current Model:')}\n` +
-            `${chalk.white(pricing.displayName)}\n\n` +
-            `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
-            `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
-            `${chalk.yellow('Examples:')}\n` +
-            `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
-            `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
-            `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
+          `${chalk.white(pricing.displayName)}\n\n` +
+          `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
+          `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
+          `${chalk.yellow('Examples:')}\n` +
+          `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
+          `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
+          `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
           {
             padding: 1,
             margin: 1,
@@ -7562,9 +7553,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Estimation Parameters:')}\n` +
-            `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
-            `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
-            `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
+          `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
+          `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
+          `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
           {
             padding: 1,
             margin: 1,
@@ -7648,17 +7639,17 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         console.log(
           boxen(
             `${chalk.cyan.bold('🔮 Advanced Cache System Statistics')}\n\n` +
-              `${chalk.magenta('📦 Full Response Cache:')}\n` +
-              `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
-              `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
-              `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
-              `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
-              `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
-              `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
-              `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
-              `${chalk.green.bold('💰 Total Savings:')}\n` +
-              `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
-              `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
+            `${chalk.magenta('📦 Full Response Cache:')}\n` +
+            `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
+            `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
+            `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
+            `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
+            `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
+            `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
+            `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
+            `${chalk.green.bold('💰 Total Savings:')}\n` +
+            `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
+            `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
             {
               padding: 1,
               margin: 1,
@@ -7707,16 +7698,16 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         console.log(
           boxen(
             `${chalk.cyan('Current Session Token Usage')}\n\n` +
-              `Messages: ${chalk.white(session.messages.length.toLocaleString())}\n` +
-              `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
-              `Est. Tokens: ${chalk.white(estimatedTokens.toLocaleString())}\n` +
-              `Usage: ${usagePercent > 75 ? chalk.red(`${usagePercent}%`) : usagePercent > 50 ? chalk.yellow(`${usagePercent}%`) : chalk.green(`${usagePercent}%`)}\n` +
-              `Limit: ${chalk.gray(tokenLimit.toLocaleString())}\n\n` +
-              `${chalk.yellow('💰 Real-time Cost:')}\n` +
-              `Model: ${chalk.white(currentCost.model)}\n` +
-              `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(4))}\n` +
-              `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(4))}\n` +
-              `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(4))}`,
+            `Messages: ${chalk.white(session.messages.length.toLocaleString())}\n` +
+            `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
+            `Est. Tokens: ${chalk.white(estimatedTokens.toLocaleString())}\n` +
+            `Usage: ${usagePercent > 75 ? chalk.red(`${usagePercent}%`) : usagePercent > 50 ? chalk.yellow(`${usagePercent}%`) : chalk.green(`${usagePercent}%`)}\n` +
+            `Limit: ${chalk.gray(tokenLimit.toLocaleString())}\n\n` +
+            `${chalk.yellow('💰 Real-time Cost:')}\n` +
+            `Model: ${chalk.white(currentCost.model)}\n` +
+            `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(4))}\n` +
+            `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(4))}\n` +
+            `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(4))}`,
             {
               padding: 1,
               margin: 1,
@@ -7826,7 +7817,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
               const c = calc(userTokens, assistantTokens, name)
               const avgPer1K = (c.totalCost / sessionTokens) * 1000
               lines.push(`${c.model}  avg $/1K: $${avgPer1K.toFixed(4)}  total: $${c.totalCost.toFixed(4)}`)
-            } catch {}
+            } catch { }
           })
           if (lines.length > 0) {
             console.log(
@@ -7839,7 +7830,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
               })
             )
           }
-        } catch {}
+        } catch { }
 
         // Recommendations
         if (estimatedTokens > 150000) {
@@ -8708,6 +8699,16 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       ['/safe-mode', 'Enable safe mode (maximum security)'],
       ['/clear-approvals', 'Clear session approvals'],
 
+      // Blockchain & Web3 Commands
+      ['/web3 status', 'Show Coinbase AgentKit status'],
+      ['/web3 init', 'Initialize AgentKit (CDP keys required)'],
+      ['/web3 wallet', 'Show wallet address and network'],
+      ['/web3 balance', 'Check wallet balance'],
+      ['/web3 transfer <amount> <to> [--token ETH|USDC|WETH]', 'Transfer tokens (with confirmation)'],
+      ['/web3 chat "message"', 'Natural language blockchain request'],
+      ['/web3 wallets', 'List known wallets and pick one'],
+      ['/web3 use-wallet <0x...>', 'Use a specific wallet by address'],
+
       // Advanced Features
       ['/enhanced [command]', 'Enhanced AI features (smart suggestions, analytics)'],
       ['/stream [clear]', 'Show/clear agent streams'],
@@ -8751,9 +8752,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     addGroup('📸 Snapshot Management:', 73, 77)
     addGroup('👁️ Vision & Image Analysis:', 77, 79)
     addGroup('📚 Documentation Management:', 79, 91)
-    addGroup('🔒 Security Commands:', 96, 100)
-    addGroup('🔧 Advanced Features:', 100, 105)
-    addGroup('📋 Basic Commands:', 105, commands.length)
+    addGroup('🔧 IDE Diagnostics:', 91, 97)
+    addGroup('🔒 Security Commands:', 97, 101)
+    addGroup('🔗 Blockchain & Web3:', 101, 109)
+    addGroup('🔧 Advanced Features:', 109, 114)
+    addGroup('📋 Basic Commands:', 114, commands.length)
 
     lines.push('💡 Shortcuts: Ctrl+C exit | Esc interrupt | Cmd+Esc default')
 
@@ -8778,12 +8781,12 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     console.log(
       boxen(
         `${title}\n${subtitle}\n\n` +
-          `${enhancedBadge}\n\n` +
-          `${wrapBlue('Mode:')} ${chalk.yellow(this.currentMode)}\n` +
-          `${wrapBlue('Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n` +
-          `${wrapBlue('Directory:')} ${chalk.cyan(path.basename(this.workingDirectory))}\n\n` +
-          `${chalk.dim('Type /help for commands or start chatting!')}\n` +
-          `${chalk.dim('Use Shift+Tab to cycle modes: default → auto → plan')}`,
+        `${enhancedBadge}\n\n` +
+        `${wrapBlue('Mode:')} ${chalk.yellow(this.currentMode)}\n` +
+        `${wrapBlue('Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n` +
+        `${wrapBlue('Directory:')} ${chalk.cyan(path.basename(this.workingDirectory))}\n\n` +
+        `${chalk.dim('Type /help for commands or start chatting!')}\n` +
+        `${chalk.dim('Use Shift+Tab to cycle modes: default → auto → plan')}`,
         {
           padding: 1,
           margin: 1,
@@ -8840,7 +8843,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         // Setup basic project structure
         const basicPackageJson = {
           name: path.basename(this.workingDirectory),
-          version: '1.0.0',
+          version: '1.1.0',
           description: 'Project managed by NikCLI',
           scripts: {
             start: 'node index.js',
@@ -9206,11 +9209,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
       process.stdout.write(
         chalk.cyan('│') +
-          chalk.green(displayLeft) +
-          ' '.repeat(padding) +
-          chalk.gray(displayRight) +
-          chalk.cyan('│') +
-          '\n'
+        chalk.green(displayLeft) +
+        ' '.repeat(padding) +
+        chalk.gray(displayRight) +
+        chalk.cyan('│') +
+        '\n'
       )
       process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n')
     }
@@ -9597,11 +9600,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
       process.stdout.write(
         chalk.cyan('│') +
-          chalk.green(displayLeft) +
-          ' '.repeat(padding) +
-          chalk.gray(displayRight) +
-          chalk.cyan('  │') +
-          '\n'
+        chalk.green(displayLeft) +
+        ' '.repeat(padding) +
+        chalk.gray(displayRight) +
+        chalk.cyan('  │') +
+        '\n'
       )
       process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n')
     }
@@ -9879,8 +9882,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       this.updateSpinnerText(operation)
     }, 500)
 
-    // Store interval for cleanup
-    ;(this.activeSpinner as any)._interval = interval
+      // Store interval for cleanup
+      ; (this.activeSpinner as any)._interval = interval
   }
 
   /**
@@ -13988,6 +13991,6 @@ let globalNikCLI: NikCLI | null = null
 // Export function to set global instance
 export function setGlobalNikCLI(instance: NikCLI): void {
   globalNikCLI = instance
-  // Use consistent global variable name
-  ;(global as any).__nikCLI = instance
+    // Use consistent global variable name
+    ; (global as any).__nikCLI = instance
 }

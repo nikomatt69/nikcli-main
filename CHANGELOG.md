@@ -1,10 +1,84 @@
-// TODO: Consider refactoring for reduced complexity
-
 # 📝 Changelog - Nikcli
 
 All notable changes to Nikcli will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
+
+## [1.1.0] - 2025-01-27
+
+### 🔗 **Coinbase AgentKit Integration**
+
+#### ✨ **Added**
+
+##### **Blockchain Operations Support**
+
+- **Coinbase AgentKit Provider**: New provider for blockchain operations and Web3 integration
+
+  - Support for Ethereum, Polygon, and other EVM-compatible networks
+  - Wallet management and transaction handling
+  - Smart contract interaction capabilities
+  - DeFi protocol integration
+  - NFT operations support
+
+- **Coinbase AgentKit Tool**: Comprehensive tool for blockchain operations
+  - `coinbase-agentkit-tool.ts` with 595 lines of functionality
+  - Secure wallet operations with key management
+  - Transaction signing and broadcasting
+  - Smart contract deployment and interaction
+  - Token operations (ERC-20, ERC-721, ERC-1155)
+  - DeFi protocol interactions (Uniswap, Aave, Compound)
+
+##### **Enhanced AI Provider Configuration**
+
+- **Updated Modern AI Provider**: Enhanced with maxTokens configuration
+  - Improved token management for better response quality
+  - Optimized AI model responses with proper token limits
+  - Better handling of long-form content and complex queries
+
+##### **Repository Cleanup**
+
+- **Clean Git History**: Removed large binary files from repository
+  - Eliminated 187MB binary file that exceeded GitHub limits
+  - Fresh Git initialization for clean history
+  - Updated .gitignore to prevent future binary commits
+  - Optimized repository size and performance
+
+#### 🔧 **Technical Improvements**
+
+##### **Blockchain Integration Architecture**
+
+- **Provider Pattern**: Modular blockchain provider system
+- **Tool Registry Integration**: Seamless integration with existing tool system
+- **Security First**: Secure key management and transaction handling
+- **Multi-Network Support**: Extensible architecture for multiple blockchains
+
+##### **Build System**
+
+- **Clean Build Process**: Optimized build without binary dependencies
+- **Package Optimization**: Reduced package size and improved distribution
+- **GitHub Integration**: Proper repository structure for collaboration
+
+#### 📦 **Dependencies**
+
+- **Coinbase AgentKit**: Blockchain operations and Web3 integration
+- **Enhanced AI SDK**: Updated AI provider configurations
+- **Security Libraries**: Secure key management and encryption
+
+#### 🛡️ **Security**
+
+- **Secure Key Storage**: Encrypted wallet key management
+- **Transaction Validation**: Comprehensive transaction security checks
+- **Path Sanitization**: Secure file and path handling
+- **API Key Protection**: Secure storage of blockchain API keys
+
+#### 📚 **Documentation**
+
+- **Integration Guide**: Comprehensive documentation for blockchain operations
+- **API Reference**: Complete API documentation for Coinbase AgentKit
+- **Security Guidelines**: Best practices for blockchain operations
+- **Examples**: Real-world usage examples and workflows
+
+---
 
 ## [1.0.0] - 2025-09-09
 
