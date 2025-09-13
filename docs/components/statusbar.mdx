@@ -1,0 +1,77 @@
+---
+title: 'StatusBar'
+description: 'One-line status bar for app state and hints.'
+---
+
+## Overview
+
+Display status information and tips.
+
+## Import
+
+```ts
+import { StatusBar } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new StatusBar({ parent: screen, content: 'Ready' });
+```
+
+## Live Preview
+
+<Snippet file="previews/statusbar.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- items: Array of `{ text: string; color?: string; icon?: string; clickable?: boolean; onClick?: () => void }`
+- separator?: string — Text between items (default `  |  `).
+- showIcons?: boolean — Prepend icons.
+- itemSpacing?: number — Reserved; items use separator.
+
+## Methods
+
+- setItems(items), addItem(item), removeItem(index), updateItem(index, item).
+- setItemText(i, text), setItemColor(i, color), setItemIcon(i, icon), setItemClickable(i, bool, onClick?).
+- setSeparator(text), setShowIcons(bool), setItemSpacing(n), clearItems().
+- getItemCount(), getItem(i), getAllItems(), findItemByText(text).
+- getStatusBarWidth(), setStatusBarWidth(width).
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { StatusBar } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new StatusBar({ parent: screen, bottom: 0, left: 0, right: 0, items: [ { text: 'Ready' }, { text: 'q: quit', color: 'gray' } ] });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Clickable Items
+new StatusBar({ parent: screen, bottom: 0, left: 0, right: 0, showIcons: true,
+  items: [ { text: '⚙ Settings', clickable: true, onClick: () => console.log('settings') } ]
+});
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Mantieni il contenuto poco intrusivo (altezza 1) e leggibile.

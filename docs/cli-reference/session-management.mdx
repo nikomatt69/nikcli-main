@@ -1,0 +1,384 @@
+---
+title: "Session Management"
+description: "Comprehensive session control and history management in NikCLI"
+icon: "clock"
+---
+
+## Overview
+
+NikCLI's session management system provides comprehensive control over chat sessions, conversation history, and workspace state. The system enables persistent conversations, context preservation, session recovery, and advanced collaboration features across multiple projects and timeframes.
+
+<CardGroup cols={2}>
+  <Card title="Session Persistence" icon="save">
+    Automatic session saving and recovery
+  </Card>
+  <Card title="History Management" icon="clock-rotate-left">
+    Complete conversation history and search
+  </Card>
+  <Card title="Context Preservation" icon="brain">
+    Maintain workspace context between sessions
+  </Card>
+  <Card title="Collaboration" icon="users">
+    Share and collaborate on sessions
+  </Card>
+</CardGroup>
+
+## Core Session Commands
+
+### `/new` - Create New Session
+
+Start new chat sessions with optional configuration and context initialization.
+
+<Tabs>
+  <Tab title="Basic Session Creation">
+    ```bash # Create new session /new # Create with custom title /new "React
+    Component Development" /new "API Integration Project" /new "Database
+    Migration Planning" # Create with description /new "Frontend Refactoring"
+    --description "Modernize React components and improve performance" ```
+  </Tab>
+
+{" "}
+<Tab title="Session Templates">
+  ```bash # Create from template /new --template frontend-development /new
+  --template api-development /new --template debugging-session # Available
+  templates /new --list-templates /new --template-info frontend-development #
+  Create custom template /new --save-template "full-stack-development" --agents
+  "universal-agent,react-expert,backend-expert" --context "src/,api/,tests/" ```
+</Tab>
+
+  <Tab title="Session Configuration">
+    ```bash # Configure session parameters /new "Performance Optimization"
+    --model claude-3-sonnet --temperature 0.3 --max-history 1000 # Set session
+    workspace /new "Component Library" --workspace "packages/ui/" --context
+    "components/,hooks/,utils/" # Configure agents for session /new "Full Stack
+    Development" --agents "react-expert,backend-expert" --auto-mode false
+    --approval-required true ```
+  </Tab>
+</Tabs>
+
+### `/sessions` - Session Management
+
+List, organize, and manage multiple chat sessions with advanced filtering and search.
+
+<AccordionGroup>
+  <Tab >
+    ```bash # List all sessions /sessions # List with detailed information
+    /sessions --detailed /sessions --verbose --with-stats # List recent sessions
+    /sessions --recent 10 /sessions --today /sessions --this-week ``` **Output
+    Example:** ``` Recent Sessions:
+    ┌──────────────────────┬─────────────────────┬──────────┬─────────┬──────────────┐
+    │ ID │ Title │ Created │ Messages│ Last Activity│
+    ├──────────────────────┼─────────────────────┼──────────┼─────────┼──────────────┤
+    │ ses_abc123 │ React Components │ 2h ago │ 45 │ 15m ago │ │ ses_def456 │ API
+    Development │ 1d ago │ 78 │ 3h ago │ │ ses_ghi789 │ Database Migration │ 3d
+    ago │ 23 │ 1d ago │
+    └──────────────────────┴─────────────────────┴──────────┴─────────┴──────────────┘
+    ```
+  </Tab>
+
+{" "}
+<Accordion title="Session Filtering">
+  ```bash # Filter by project /sessions --project "e-commerce" /sessions
+  --workspace "/path/to/project" # Filter by agent usage /sessions --agent
+  react-expert /sessions --multi-agent # Filter by content /sessions --search
+  "authentication" /sessions --contains "typescript" # Filter by date range
+  /sessions --since "2024-01-01" /sessions --between "2024-01-01" "2024-01-31"
+  ```
+</Accordion>
+
+  <Accordion title="Session Organization">
+    ```bash # Organize by tags /sessions --tag frontend /sessions --tag
+    "react,typescript" # Organize by categories /sessions --category development
+    /sessions --category debugging /sessions --category planning # Archive old
+    sessions /sessions --archive --older-than 30d /sessions --archive ses_abc123
+    # Star important sessions /sessions --star ses_def456 /sessions --starred
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### `/load` - Session Loading
+
+Load and resume previous chat sessions with full context restoration.
+
+<Tabs>
+  <Tab title="Basic Session Loading">
+    ```bash # Load by session ID /load ses_abc123 # Load by title (fuzzy match)
+    /load "React Components" /load "API Dev" # Load most recent session /load
+    --recent /load --last ```
+  </Tab>
+
+{" "}
+<Tab title="Interactive Session Selection">
+  ```bash # Interactive session picker /load --interactive /load --picker
+  --recent 20 # Search and load /load --search "authentication" /load --find
+  "react component" # Load with preview /load --preview ses_abc123 /load
+  --preview --interactive ```
+</Tab>
+
+  <Tab title="Context Restoration">
+    ```bash # Load with full context restoration /load ses_abc123
+    --restore-context /load ses_abc123 --restore-agents --restore-workspace #
+    Selective context loading /load ses_abc123 --restore-agents-only /load
+    ses_abc123 --restore-workspace-only # Load with conflict resolution /load
+    ses_abc123 --merge-context /load ses_abc123 --resolve-conflicts auto ```
+  </Tab>
+</Tabs>
+
+### `/save` - Session Persistence
+
+Manually save session state with custom metadata and organization.
+
+<AccordionGroup>
+  <Accordion title="Session Saving">
+    ```bash # Save current session /save # Save with custom title /save "React
+    Hook Implementation" # Save with metadata /save "Authentication System"
+    --description "JWT implementation with refresh tokens" --tags
+    "auth,jwt,security" --category development ```
+  </Accordion>
+
+{" "}
+<Accordion title="Save Options">
+  ```bash # Save with compression /save --compress --optimize-history # Save
+  snapshot only (no full history) /save --snapshot "Current Progress" # Save
+  with external references /save --include-files --include-context /save
+  --embed-workspace-state ```
+</Accordion>
+
+  <Accordion title="Auto-Save Configuration">
+    ```bash # Configure auto-save /save --auto-save enable /save
+    --auto-save-interval 10m /save --auto-save-on-exit true # Auto-save policies
+    /save --auto-save-policy significant-changes /save --auto-save-threshold
+    5-messages ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Session Features
+
+### `/export` - Session Export
+
+Export sessions in various formats for sharing, backup, and integration.
+
+<Tabs>
+  <Tab title="Export Formats">
+    ```bash # Export as Markdown /export ses_abc123 --format markdown /export
+    ses_abc123 --markdown --file "session-export.md" # Export as JSON /export
+    ses_abc123 --format json --pretty /export --json --include-metadata
+    --include-context # Export as HTML /export ses_abc123 --format html --styled
+    /export --html --include-code-highlighting ```
+  </Tab>
+
+{" "}
+<Tab title="Export Options">
+  ```bash # Export with filtering /export ses_abc123 --messages-only /export
+  ses_abc123 --exclude-system-messages /export ses_abc123
+  --important-messages-only # Export date range /export ses_abc123 --from
+  "2024-01-01" --to "2024-01-31" /export ses_abc123 --last 20-messages # Export
+  with anonymization /export ses_abc123 --anonymize --remove-paths /export
+  ses_abc123 --sanitize --remove-sensitive ```
+</Tab>
+
+  <Tab title="Batch Export">
+    ```bash # Export multiple sessions /export --sessions ses_abc123,ses_def456
+    --format markdown /export --all-sessions --archive-format zip # Export by
+    criteria /export --tag frontend --format markdown /export --project
+    "e-commerce" --format json /export --recent 30d --format html ```
+  </Tab>
+</Tabs>
+
+### `/import` - Session Import
+
+Import sessions from various sources and formats for migration and sharing.
+
+<AccordionGroup>
+  <Accordion title="Import Sources">
+    ```bash # Import from file /import session-backup.json /import
+    conversation-export.md --format markdown # Import from URL /import
+    https://example.com/session-export.json /import --url --validate --preview #
+    Import from clipboard /import --clipboard --format auto-detect ```
+  </Accordion>
+
+{" "}
+<Accordion title="Import Options">
+  ```bash # Import with validation /import session.json --validate
+  --check-integrity # Import with merge options /import session.json
+  --merge-with-current /import session.json --create-new-session # Import with
+  transformations /import session.json --update-timestamps /import session.json
+  --resolve-references ```
+</Accordion>
+
+  <Accordion title="Migration Import">
+    ```bash # Import from other CLI tools /import --from-chatgpt
+    conversation.json /import --from-claude-desktop session.json # Import from
+    version control /import --from-git-history --branch main --path docs/ #
+    Import from backup systems /import --from-backup backup-2024-01-15.zip ```
+  </Accordion>
+</AccordionGroup>
+
+### `/fork` - Session Branching
+
+Create session branches for exploring different approaches and maintaining conversation variants.
+
+<Tabs>
+  <Tab title="Basic Forking">
+    ```bash # Fork current session /fork "Alternative Implementation" # Fork
+    specific session /fork ses_abc123 "Performance Optimization Branch" # Fork
+    from specific message /fork --from-message 25 "Different Approach" ```
+  </Tab>
+
+{" "}
+<Tab title="Branch Management">
+  ```bash # List session branches /fork --list /fork --branches --tree-view #
+  Switch between branches /fork --switch branch-name /fork --checkout
+  ses_def456_branch1 # Merge branches /fork --merge branch-name /fork --merge
+  --strategy selective ```
+</Tab>
+
+  <Tab title="Branch Operations">
+    ```bash # Compare branches /fork --compare main alternative /fork --diff
+    --show-changes # Delete branches /fork --delete old-branch /fork --cleanup
+    --unused-branches # Branch metadata /fork --info branch-name /fork --history
+    --branch main ```
+  </Tab>
+</Tabs>
+
+## History and Search
+
+### `/history` - Conversation History
+
+Access and manage comprehensive conversation history with advanced search and analysis.
+
+<AccordionGroup>
+  <Accordion title="History Viewing">
+    ```bash # Show session history /history # Show detailed history /history
+    --detailed --with-timestamps /history --verbose --include-metadata # Show
+    specific range /history --last 20 /history --from-message 10 --to-message 30
+    /history --today /history --since "2024-01-01" ```
+  </Accordion>
+
+{" "}
+<Accordion title="History Search">
+  ```bash # Search conversation history /history search "react component"
+  /history --search "authentication" --case-sensitive # Search by message type
+  /history --user-messages "TODO" /history --agent-responses "function" /history
+  --system-messages "error" # Search with context /history search "database"
+  --context 3 /history --find "optimization" --show-surrounding ```
+</Accordion>
+
+  <Accordion title="History Analysis">
+    ```bash # Analyze conversation patterns /history analyze /history --patterns
+    --topics --trends # Generate conversation summary /history summary /history
+    --summarize --key-points --decisions # Extract action items /history actions
+    /history --todos --next-steps --follow-ups ```
+  </Accordion>
+</AccordionGroup>
+
+### `/search-sessions` - Cross-Session Search
+
+Search across all sessions for specific content, patterns, or solutions.
+
+<Tabs>
+  <Tab title="Content Search">
+    ```bash # Search across all sessions /search-sessions "react hooks"
+    /search-sessions "authentication implementation" # Advanced search with
+    filters /search-sessions "database migration" --sessions-with-tag backend
+    --recent 30d # Search with regular expressions /search-sessions --regex
+    "function\s+\w+Component" /search-sessions --pattern "interface\s+\w+Props"
+    ```
+  </Tab>
+
+{" "}
+<Tab title="Semantic Search">
+  ```bash # Semantic content search /search-sessions --semantic "user
+  authentication patterns" /search-sessions --meaning "performance optimization
+  techniques" # Similar problem search /search-sessions --similar-to-current
+  /search-sessions --related-topics # Solution search /search-sessions
+  --solutions-for "state management" /search-sessions --examples-of "error
+  handling" ```
+</Tab>
+
+  <Tab title="Search Results">
+    ```bash # Format search results /search-sessions "typescript"
+    --results-format summary /search-sessions "testing" --results-format
+    detailed /search-sessions "deployment" --results-format snippets # Search
+    result actions /search-sessions "components" --open-session-on-select
+    /search-sessions "API" --create-reference-collection ```
+  </Tab>
+</Tabs>
+
+## Real-World Examples
+
+### Session Workflow Management
+
+```bash
+# Create specialized development sessions
+/new "React Component Library" --template frontend-development --agents "react-expert"
+/new "API Backend Development" --template api-development --agents "backend-expert"
+/new "Database Migration" --template database-development --agents "database-expert"
+
+# Switch between sessions based on current task
+/load "React Component Library"
+> "Create a reusable Button component with variants"
+
+/load "API Backend Development"
+> "Implement user authentication endpoints"
+
+/load "Database Migration"
+> "Migrate user table to include new fields"
+```
+
+### Session Collaboration
+
+```bash
+# Share session with team members
+/share ses_abc123 --with "developer@company.com" --read-only
+/share ses_def456 --team "frontend-team" --comment-only
+
+# Export session for documentation
+/export ses_abc123 --format markdown --file "component-development-guide.md"
+/export ses_def456 --format html --styled --file "api-documentation.html"
+
+# Import shared sessions
+/import "team-session-export.json" --merge-with-current
+/import "https://company-wiki.com/session-export.md" --format markdown
+```
+
+### Session History Analysis
+
+```bash
+# Analyze development patterns
+/history analyze --patterns --topics --trends
+
+# Search for specific solutions
+/search-sessions "authentication implementation" --recent 30d
+/search-sessions --semantic "performance optimization" --sessions-with-tag frontend
+
+# Extract action items from sessions
+/history actions --todos --next-steps --follow-ups
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/cli-reference/configuration">
+    Learn about NikCLI configuration and customization options
+  </Card>
+  <Card title="MCP Protocol" icon="plug" href="/cli-reference/mcp-protocol">
+    Explore Model Context Protocol integration and features
+  </Card>
+  <Card
+    title="Advanced Features"
+    icon="rocket"
+    href="/cli-reference/advanced-features"
+  >
+    Discover advanced CLI capabilities and power-user features
+  </Card>
+  <Card title="Token Management" icon="coins" href="/advanced/token-management">
+    Understand token management and optimization strategies
+  </Card>
+</CardGroup>
+
+<Tip>
+  Use `/sessions --recent` to quickly access your most recent work, and consider
+  using session templates to standardize your workflow setup for different types
+  of projects.
+</Tip>

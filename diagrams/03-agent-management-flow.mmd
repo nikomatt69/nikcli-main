@@ -1,0 +1,48 @@
+flowchart TD
+    A[User Requests Agent] --> B[AgentFactory.findBestAgent]
+    B --> C[Capability Assessment]
+    C --> D[Task Analysis]
+    D --> E[Agent Selection]
+    E --> F[Agent Instantiation]
+    F --> G[Agent Execution]
+    G --> H[Tool Integration]
+    H --> I[Result Processing]
+    I --> J[Response Delivery]
+    
+    subgraph "Agent Factory"
+        B
+        C
+        D
+        E
+        F
+    end
+    
+    subgraph "Execution"
+        G
+        H
+        I
+    end
+    
+    subgraph "Delivery"
+        J
+    end
+    
+    C --> K[Context Awareness]
+    K --> L[Memory Integration]
+    L --> M[Workspace Context]
+    
+    H --> N[Tool Router]
+    N --> O[Available Tools]
+    
+    O --> P[File Operations]
+    O --> Q[Terminal Commands]
+    O --> R[Git Integration]
+    O --> S[Package Management]
+    O --> T[Code Analysis]
+    
+    I --> U[Validation Manager]
+    U --> V[Security Check]
+    V --> W[Approval System]
+    
+    J --> X[Streaming Orchestrator]
+    X --> Y[UI Update]

@@ -1,0 +1,630 @@
+---
+title: 'Chat Interface'
+description: 'Master the interactive chat interface for AI-assisted development'
+icon: 'comments'
+---
+
+## Chat Interface Overview
+
+The NikCLI chat interface is your primary tool for interacting with AI agents. It provides a natural language interface that understands development context and can execute complex tasks through simple conversation.
+
+<CardGroup cols={2}>
+  <Card title="Natural Language" icon="comment-dots">
+    Communicate with AI using everyday language
+  </Card>
+  <Card title="Context Awareness" icon="brain">
+    Automatically understands your project structure
+  </Card>
+  <Card title="Real-time Feedback" icon="stream">
+    Get live progress updates during task execution
+  </Card>
+  <Card title="Interactive Approval" icon="shield-check">
+    Review and approve changes before execution
+  </Card>
+</CardGroup>
+
+## Starting a Chat Session
+
+### Basic Startup
+
+```bash
+# Start NikCLI
+nikcli
+
+# You'll see the welcome screen
+╭─────────────────────────────────────────────────────╮
+│                                                     │
+│                   🚀 NikCLI v0.1.4                  │
+│          Context-Aware AI Development Assistant     │
+│                                                     │
+╰─────────────────────────────────────────────────────╯
+
+✅ Node.js 18.17.0 (compatible)
+✅ Git 2.42.0 (detected)
+✅ Anthropic API (configured)
+✅ Project context (auto-detected)
+
+Ready for autonomous development! Type /help for commands.
+
+>
+```
+
+### Chat Modes
+
+<Tabs>
+  <Tab title="💬 Default Chat">
+    **Interactive Mode** - Standard conversational interface
+    
+    ```
+    > Create a React component for user authentication
+    
+    🔍 Analyzing project structure...
+    📁 Found React TypeScript project
+    🎯 Creating authentication component...
+    
+    Would you like me to:
+    1. Create a simple login form
+    2. Include registration functionality
+    3. Add password reset features
+    
+    Please specify your requirements.
+    ```
+    
+    **Features:**
+    - Step-by-step guidance
+    - Clarification requests
+    - Manual approval for changes
+    - Learning-friendly explanations
+  </Tab>
+  
+  <Tab title="📋 Planning Mode">
+    **Strategic Planning** - Create detailed plans before execution
+    
+    ```
+    > /plan
+    > Implement user authentication system
+    
+    📋 Creating comprehensive plan...
+    
+    ## Authentication System Implementation Plan
+    
+    ### Phase 1: Backend Setup
+    - JWT token management
+    - User model and database schema
+    - Authentication middleware
+    
+    ### Phase 2: API Endpoints
+    - Registration endpoint
+    - Login endpoint
+    - Token refresh logic
+    
+    ### Phase 3: Frontend Integration
+    - Login/register forms
+    - Protected route wrapper
+    - Authentication context
+    
+    Do you want to proceed with this plan? (y/n)
+    ```
+  </Tab>
+  
+  <Tab title="🤖 Autonomous Mode">
+    **Independent Execution** - AI works with minimal supervision
+    
+    ```
+    > /auto
+    > Build a complete blog system with posts, comments, and admin panel
+    
+    🤖 Autonomous mode activated
+    📋 Planning blog system architecture...
+    
+    Executing plan:
+    ├── ✅ Database models created
+    ├── 🔄 API endpoints implementation
+    ├── ⏳ Frontend components
+    └── ⏳ Admin dashboard
+    
+    Progress: 35% complete
+    ```
+  </Tab>
+</Tabs>
+
+## Communication Patterns
+
+### Effective Communication
+
+<AccordionGroup>
+  <Accordion title="Be Specific and Detailed">
+    **Good Examples:**
+    ```
+    > Create a responsive navigation component with mobile hamburger menu,
+      dropdown submenus, and smooth animations using Framer Motion
+    
+    > Implement user authentication with JWT tokens, email verification,
+      password reset, and role-based access control
+    
+    > Add real-time notifications using WebSockets with toast messages,
+      sound alerts, and browser push notifications
+    ```
+    
+    **What Makes These Effective:**
+    - Clear functionality requirements
+    - Specific technology mentions
+    - Implementation details included
+  </Accordion>
+  
+  <Accordion title="Provide Context and Constraints">
+    **Context Examples:**
+    ```
+    > Following the same pattern as UserCard.tsx, create a ProductCard
+      component with image, title, price, and add-to-cart functionality
+    
+    > Using our existing error handling pattern from authService.ts,
+      add error handling to the payment processing flow
+    
+    > Without adding new dependencies, implement a simple modal system
+      that works with our current React setup
+    ```
+    
+    **Benefits:**
+    - Maintains code consistency
+    - Respects existing patterns
+    - Works within constraints
+  </Accordion>
+  
+  <Accordion title="Reference Existing Code">
+    **Reference Examples:**
+    ```
+    > Look at the UserService.ts file and create a similar ProductService
+      with CRUD operations for products
+    
+    > Examine the current authentication flow and add OAuth login
+      options while maintaining the same user experience
+    
+    > Based on the styling in components/Button.tsx, create consistent
+      Input and Select components
+    ```
+    
+    **Why This Works:**
+    - Leverages existing patterns
+    - Maintains consistency
+    - Reduces learning curve
+  </Accordion>
+</AccordionGroup>
+
+### Advanced Communication
+
+<Tabs>
+  <Tab title="Multi-step Requests">
+    Break complex tasks into steps:
+    
+    ```
+    > I need to implement a dashboard. First, create the layout structure
+      with header, sidebar, and main content areas
+    
+    [After completion]
+    
+    > Now add the sidebar navigation with menu items for users, products,
+      orders, and analytics
+    
+    [After completion]
+    
+    > Finally, create placeholder components for each dashboard section
+      with proper routing
+    ```
+  </Tab>
+  
+  <Tab title="Iterative Development">
+    Build features incrementally:
+    
+    ```
+    > Start with a basic search component that just has an input field
+    
+    [Reviews the basic implementation]
+    
+    > Now add autocomplete functionality with debounced API calls
+    
+    [Tests the autocomplete]
+    
+    > Add keyboard navigation and highlighting for search results
+    ```
+  </Tab>
+  
+  <Tab title="Alternative Approaches">
+    Request multiple options:
+    
+    ```
+    > Show me three different approaches for implementing state management
+      in this React app: Redux Toolkit, Zustand, and Context API
+    
+    > I need a modal system. Can you show me implementations using
+      React Portal, a third-party library, and a pure CSS approach?
+    ```
+  </Tab>
+</Tabs>
+
+## Real-time Interaction Features
+
+### Progress Tracking
+
+NikCLI provides real-time updates during task execution:
+
+```
+> Create a complete e-commerce checkout flow
+
+🔍 Analyzing project structure...
+📁 Found Next.js project with Stripe integration
+🎯 Planning checkout implementation...
+
+Progress Updates:
+├── ✅ Cart summary component (2 minutes ago)
+├── 🔄 Payment form with Stripe Elements (in progress)
+│   └── 📝 Adding form validation
+│   └── 🔗 Integrating Stripe API
+├── ⏳ Order confirmation page
+└── ⏳ Email notification system
+
+Current: Implementing secure payment processing...
+```
+
+### Interactive Approvals
+
+<AccordionGroup>
+  <Accordion title="File Change Approvals">
+    ```
+    📝 Ready to modify the following files:
+    
+    ┌─ src/components/CheckoutForm.tsx (new file)
+    ├─ src/pages/checkout.tsx (modify)
+    ├─ src/styles/checkout.css (new file)
+    └─ package.json (add stripe dependency)
+    
+    Changes summary:
+    • Create checkout form component
+    • Add Stripe payment integration
+    • Update routing for checkout page
+    • Install required dependencies
+    
+    Do you want to proceed? (y/n/details)
+    ```
+  </Accordion>
+  
+  <Accordion title="Command Execution Approvals">
+    ```
+    🔧 Ready to execute the following commands:
+    
+    1. npm install @stripe/stripe-js @stripe/react-stripe-js
+    2. npm run build
+    3. npm test -- checkout
+    
+    These commands will:
+    • Install Stripe payment dependencies
+    • Build the project with new changes
+    • Run tests for checkout functionality
+    
+    Approve execution? (y/n/individual)
+    ```
+  </Accordion>
+  
+  <Accordion title="Security Approvals">
+    ```
+    🛡️ Security approval required:
+    
+    The following operation requires elevated permissions:
+    • Modifying environment variables
+    • Adding API keys to .env file
+    • Creating webhook endpoints
+    
+    Risk level: MEDIUM
+    Reason: Adding external service integration
+    
+    Continue with security review? (y/n/review)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Error Handling and Recovery
+
+<Tabs>
+  <Tab title="Graceful Error Handling">
+    ```
+    ❌ Error encountered during component creation:
+    
+    Error: Cannot find module 'styled-components'
+    
+    🔄 Auto-recovery options:
+    1. Install styled-components dependency
+    2. Switch to CSS modules approach
+    3. Use inline styles temporarily
+    
+    How would you like to proceed? (1/2/3/manual)
+    ```
+  </Tab>
+  
+  <Tab title="Conflict Resolution">
+    ```
+    ⚠️ Merge conflict detected:
+    
+    File: src/components/Header.tsx
+    Conflict: Existing navigation vs. new navigation
+    
+    Options:
+    1. Keep existing and integrate new features
+    2. Replace with new implementation
+    3. Show both versions for manual merge
+    
+    Choose resolution strategy: (1/2/3)
+    ```
+  </Tab>
+  
+  <Tab title="Validation Failures">
+    ```
+    ⚠️ Code validation failed:
+    
+    TypeScript errors found:
+    • src/types/user.ts:15 - Property 'email' is missing
+    • src/components/Form.tsx:23 - Type mismatch in props
+    
+    🔧 Auto-fix available:
+    1. Add missing type definitions
+    2. Update component prop types
+    
+    Apply auto-fixes? (y/n/review)
+    ```
+  </Tab>
+</Tabs>
+
+## Keyboard Shortcuts and Navigation
+
+### Essential Shortcuts
+
+<CardGroup cols={2}>
+  <Card title="Mode Switching" icon="keyboard">
+    **Shift + Tab**: Cycle through modes
+    - Default Chat → Planning → Autonomous
+    
+    **ESC**: Return to default chat mode
+  </Card>
+  
+  <Card title="Command Access" icon="terminal">
+    **/**: Open command menu
+    
+    **Ctrl + C**: Stop current operation
+    
+    **↑/↓**: Navigate command history
+  </Card>
+  
+  <Card title="Quick Actions" icon="bolt">
+    **Tab**: Auto-complete commands/paths
+    
+    **Ctrl + L**: Clear screen
+    
+    **Ctrl + D**: Exit NikCLI
+  </Card>
+  
+  <Card title="Navigation" icon="arrows">
+    **Ctrl + R**: Search command history
+    
+    **Ctrl + A**: Move to line beginning
+    
+    **Ctrl + E**: Move to line end
+  </Card>
+</CardGroup>
+
+### Command Completion
+
+NikCLI provides intelligent auto-completion:
+
+<Tabs>
+  <Tab title="Command Completion">
+    ```bash
+    > /ag[Tab]
+    Completions:
+    /agent    - Run specific agent
+    /agents   - List available agents
+    /auto     - Autonomous mode
+    
+    > /agent [Tab]
+    Available agents:
+    universal-agent    - Full-stack development
+    react-expert      - React specialization
+    backend-agent     - API development
+    ```
+  </Tab>
+  
+  <Tab title="File Path Completion">
+    ```bash
+    > /read src/[Tab]
+    Available paths:
+    src/components/   src/hooks/      src/pages/
+    src/services/     src/styles/     src/types/
+    
+    > /read src/components/[Tab]
+    Available files:
+    Button.tsx       Header.tsx      Navigation.tsx
+    Footer.tsx       Modal.tsx       Form.tsx
+    ```
+  </Tab>
+  
+  <Tab title="Context-Aware Suggestions">
+    ```bash
+    > Create a component for [Tab]
+    Suggestions based on project:
+    - user authentication (missing)
+    - shopping cart (in progress)
+    - product catalog (planned)
+    - payment form (discussed earlier)
+    ```
+  </Tab>
+</Tabs>
+
+## Customization and Preferences
+
+### Chat Appearance
+
+<AccordionGroup>
+  <Accordion title="Color Themes">
+    ```bash
+    # Set color scheme
+    nikcli config set color-scheme dark
+    nikcli config set color-scheme light
+    nikcli config set color-scheme auto
+    
+    # Custom color configuration
+    nikcli config set colors.primary "#4EC5F1"
+    nikcli config set colors.success "#00D4AA"
+    nikcli config set colors.warning "#FFB800"
+    ```
+  </Accordion>
+  
+  <Accordion title="Display Preferences">
+    ```bash
+    # Enable/disable animations
+    nikcli config set animations true
+    
+    # Set verbose output
+    nikcli config set verbose-output true
+    
+    # Configure progress indicators
+    nikcli config set show-progress true
+    nikcli config set progress-style detailed
+    ```
+  </Accordion>
+  
+  <Accordion title="Interaction Settings">
+    ```bash
+    # Auto-approval settings
+    nikcli config set auto-approve-low-risk true
+    
+    # Confirmation preferences
+    nikcli config set require-confirmation false
+    
+    # Timeout settings
+    nikcli config set response-timeout 120
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Session Management
+
+<Tabs>
+  <Tab title="Session Persistence">
+    ```bash
+    # Enable chat history
+    /history on
+    
+    # Save current session
+    /save-session "authentication-implementation"
+    
+    # Load previous session
+    /load-session "authentication-implementation"
+    
+    # List all sessions
+    /sessions
+    ```
+  </Tab>
+  
+  <Tab title="Context Management">
+    ```bash
+    # Set project context
+    /context src/ tests/
+    
+    # Clear context cache
+    /context clear
+    
+    # Auto-detect project type
+    /context analyze
+    ```
+  </Tab>
+  
+  <Tab title="Export and Sharing">
+    ```bash
+    # Export session to markdown
+    /export session-summary.md
+    
+    # Export with code snippets
+    /export --include-code implementation-guide.md
+    
+    # Share session (anonymous)
+    /share --anonymous
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Start Simple" icon="seedling">
+    Begin with basic requests and gradually increase complexity
+    
+    **Example progression:**
+    1. "Create a button component"
+    2. "Add click handlers and props"
+    3. "Include loading states and variants"
+    4. "Add accessibility features"
+  </Card>
+  
+  <Card title="Use Planning Mode" icon="clipboard-list">
+    For complex features, use planning mode first
+    
+    ```bash
+    /plan create "user authentication system"
+    # Review the plan
+    /plan execute
+    ```
+  </Card>
+  
+  <Card title="Provide Feedback" icon="comment">
+    Help NikCLI learn your preferences
+    
+    "This looks good, but can you make the styling more consistent with our design system?"
+    
+    "Perfect! Use this same pattern for the other components."
+  </Card>
+  
+  <Card title="Review Changes" icon="eye">
+    Always review generated code before final approval
+    
+    ```bash
+    # Review diffs are shown automatically in the UI
+    # To clear cached approvals in this session:
+    /clear-approvals
+    ```
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Autonomous Mode"
+    icon="robot"
+    href="/user-guide/autonomous-mode"
+  >
+    Learn how to use autonomous mode for complex tasks
+  </Card>
+  <Card
+    title="Workflow Patterns"
+    icon="workflow"
+    href="/user-guide/workflow-patterns"
+  >
+    Discover proven patterns for different scenarios
+  </Card>
+  <Card
+    title="CLI Commands"
+    icon="terminal"
+    href="/cli-reference/commands-overview"
+  >
+    Master all available commands and shortcuts
+  </Card>
+  <Card
+    title="Examples"
+    icon="code"
+    href="/examples/basic-workflows"
+  >
+    See practical examples of chat interactions
+  </Card>
+</CardGroup>
+
+<Tip>
+  The chat interface learns from your interactions. The more you use it, the better it becomes at understanding your coding style and project requirements.
+</Tip>

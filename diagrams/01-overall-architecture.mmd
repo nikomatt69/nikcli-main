@@ -1,0 +1,121 @@
+graph TD
+    A[User Input] --> B[CLI Interface]
+    B --> C[Slash Command Handler]
+    C --> D[Mode Manager]
+    D --> E[Default Mode]
+    D --> F[Plan Mode]
+    D --> G[Auto Mode]
+    D --> H[VM Mode]
+    
+    E --> I[Chat Input Processor]
+    I --> J[Tool Router]
+    J --> K[Tools Manager]
+    K --> L[File Operations]
+    K --> M[Terminal Commands]
+    K --> N[Git Integration]
+    K --> O[Package Manager]
+    K --> P[Code Generation]
+    
+    F --> Q[Planning Manager]
+    Q --> R[Enhanced Planning]
+    R --> S[Todo Generation]
+    S --> T[Execution Plan]
+    T --> U[Approval System]
+    U --> V[Plan Executor]
+    V --> W[Agent Orchestrator]
+    
+    G --> X[Autonomous Executor]
+    X --> Y[Agent Factory]
+    Y --> Z[Agent Manager]
+    Z --> AA[Universal Agent]
+    Z --> BB[Specialized Agents]
+    
+    H --> CC[VM Selector]
+    CC --> DD[VM Orchestrator]
+    DD --> EE[Container Bridge]
+    EE --> FF[VM Agents]
+    
+    J --> GG[Model Provider]
+    GG --> HH[Advanced AI Provider]
+    HH --> II[AI Model Streaming]
+    
+    K --> JJ[Token Cache]
+    JJ --> KK[Redis Provider]
+    KK --> LL[Enhanced Token Cache]
+    
+    L --> MM[Workspace Context]
+    MM --> NN[Docs Context Manager]
+    NN --> OO[Documentation Library]
+    
+    M --> PP[Input Queue]
+    PP --> QQ[Event Emitter]
+    QQ --> RR[Streaming Orchestrator]
+    
+    N --> SS[Memory Service]
+    SS --> TT[Enhanced Session Manager]
+    
+    O --> UU[Snapshot Service]
+    
+    P --> VV[Git Workflow]
+    
+    AA --> WW
+    BB --> WW
+    
+    II --> XX[Response Streaming]
+    XX --> YY[Advanced UI]
+    YY --> ZZ[Console Output]
+    YY --> AAA[Structured Panels]
+    
+    Z --> BBB[Agent Service]
+    BBB --> CCC[Background Agents]
+    
+    RR --> DDD[Event Bridge]
+    DDD --> EEE[Live Updates]
+    
+    subgraph "Core Services"
+        GG
+        HH
+        KK
+        LL
+        MM
+        NN
+        OO
+        PP
+        QQ
+        RR
+        SS
+        TT
+        UU
+    end
+    
+    subgraph "UI System"
+        YY
+        ZZ
+        AAA
+    end
+    
+    subgraph "Agents & Planning"
+        Y
+        Z
+        Q
+        R
+        S
+        T
+        U
+        V
+        W
+    end
+    
+    subgraph "Tools & Integration"
+        J
+        K
+        L
+        M
+        N
+        O
+        P
+        VV
+    end
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style YY fill:#bbf,stroke:#333,stroke-width:2px

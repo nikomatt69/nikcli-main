@@ -1,0 +1,98 @@
+```mermaid
+flowchart TD
+    A[User Input: Prompt via CLI] --> B{Is Slash Command?}
+    B -->|Yes e.g. /plan task| C[DispatchSlash: Parse Command & Args]
+    C --> D{Valid Command?}
+    D -->|No| E[Error: Invalid Command - Show Help & Return to Input]
+    D -->|Yes| F[Execute Command Logic]
+    F --> G{Command Type?}
+    G -->|Mode Switch e.g. /auto| H[Switch Mode: Update Session State]
+    H --> I[Re-prompt for Input in New Mode]
+    G -->|File Op e.g. /read file| J[Tool Manager: Call File Tool e.g. read_file]
+    J --> K{Success?}
+    K -->|No e.g. File Not Found| L[Error: Handle Exception - Log & User Feedback]
+    K -->|Yes| M[Format Output for UI Panels e.g. Files Panel]
+    G -->|Exit/quit| N[Graceful Exit: Cleanup Resources & Quit]
+    G -->|Other e.g. /auth signin| O[External Service Call e.g. Supabase Auth]
+    O --> P{Auth Success?}
+    P -->|No| Q[Error: Auth Failed - Retry or Fallback]
+    P -->|Yes| R[Update User Session & Profile]
+    
+    B -->|No - Normal Message| S[Process as Normal Chat Input]
+    S --> T{Current Mode?}
+    
+    T -->|Default Mode| U[Event Emitter: Emit 'user_message' Event]
+    T -->|Plan Mode| V[Planning Manager: Generate Todo Plan from Prompt]
+    V --> W{Plan Requires Approval?}
+    W -->|Yes e.g. Sensitive Actions| X[Approval Workflow: Wait for /approve]
+    X -->|Denied| Y[Abort Plan - Notify User]
+    X -->|Approved| Z[Execute Plan Steps Sequentially]
+    W -->|No| Z
+    Z --> AA[Integrate with Agent Execution]
+    
+    T -->|Auto Mode| BB[Autonomous Execution: Skip Planning, Direct Agent Call]
+    BB --> CC{Edge: Interrupt? e.g. Ctrl+C or /clear| DD[Interrupt Handler: Cancel & Reset State]
+    CC -->|No| EE[Proceed to Agent Processing]
+    
+    T -->|VM Mode| FF[VM Bridge: Route to Containerized Agent]
+    FF --> GG{VM Healthy?}
+    GG -->|No| HH[Error: VM Down - Fallback to Local or Notify]
+    GG -->|Yes| II[Execute in VM & Stream Response]
+    
+    U --> JJ[Event Router: Route to Handlers]
+    JJ --> KK[Security Check: Scan for Risks e.g. Code Injection]
+    KK --> LL{Risky?}
+    LL -->|Yes| MM[Require Approval or Block - Log Incident]
+    LL -->|No| NN[Token Cache Check: Hit?]
+    NN -->|Yes| OO[Use Cached Response if Valid]
+    OO --> PP[Generate Final Output]
+    NN -->|No| QQ[Memory Service: Load Context e.g. Session History, Docs]
+    QQ --> RR[Agent Manager: Select Agent e.g. Based on Prompt Analysis]
+    RR --> SS{Agent Type?}
+    SS -->|Single Agent| TT[Invoke Agent: Generate Response via AI Provider]
+    SS -->|Parallel Agents e.g. /parallel| UU[Orchestrator: Run Multiple Agents Concurrently]
+    UU --> VV[Merge Responses: Aggregate & Dedup]
+    VV --> WW[Tool Calls? e.g. /run command]
+    WW -->|Yes| XX[Tool Manager: Execute Tool with Safety Checks]
+    XX --> YY{Tool Success?}
+    YY -->|No e.g. Timeout, Permission Denied| ZZ[Error Handling: Retry or Fallback Response]
+    YY -->|Yes| AAA[Incorporate Tool Output into Agent Context]
+    TT --> BBB[Error in AI Call? e.g. Rate Limit, Invalid API Key]
+    BBB -->|Yes| CCC[Handle AI Error: Fallback Provider or User Notification]
+    BBB -->|No| DDD[Post-Process: Token Estimation, Caching New Response]
+    DDD --> EEE[Format Response: Structured for 4-Panel UI Chat/Files/Plan/Approval]
+    AAA --> DDD
+    
+    PP --> EEE
+    Z --> EEE
+    EE --> EEE
+    II --> EEE
+    R --> EEE
+    M --> EEE
+    
+    EEE --> FFF[Display Response: Stream to Console/UI Panels]
+    FFF --> GGG{User Satisfied? Edge: Loop Back}
+    GGG -->|No e.g. Follow-up Prompt| A
+    GGG -->|Yes or /exit| HHH[End Session or Continue Monitoring]
+    
+    %% Edge Cases Grouped
+    subgraph "Common Edge Cases"
+        E
+        L
+        Q
+        Y
+        DD
+        HH
+        MM
+        ZZ
+        CCC
+    end
+    
+    %% Styling
+    classDef errorNode fill:#ff9999
+    classDef successNode fill:#99ff99
+    classDef decisionNode fill:#ffff99
+    class E,L,Q,Y,DD,HH,MM,ZZ,CCC errorNode
+    class A,S,U,V,BB,FF,J,O,TT,UU,XX,DD successNode
+    class B,D,G,T,LL,NN,SS,WW,BBB,GG decisionNode
+```

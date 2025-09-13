@@ -1,0 +1,74 @@
+---
+title: 'ProgressDots'
+description: 'Animated dot progress indicator.'
+---
+
+## Overview
+
+Lightweight indeterminate progress.
+
+## Import
+
+```ts
+import { ProgressDots } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new ProgressDots({ parent: screen });
+```
+
+## Live Preview
+
+<Snippet file="previews/progressdots.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- text?: string — Base text prefix.
+- intervalMs?: number — Animation interval (default 300ms).
+- dots?: string[] — Dot frames; default ['', '.', '..', '...'].
+- dotCount?: number — Use only first N frames.
+
+## Methods
+
+- start(text?, intervalMs?), stop(), pause(), resume(), reset().
+- setText(text), setDots(frames), setDotCount(n), setInterval(ms).
+- getCurrentDotIndex(), getCurrentDots(), isRunning().
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { ProgressDots } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new ProgressDots({ parent: screen, top: 1, left: 2, text: 'Loading' });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Custom Pattern
+const dots = new ProgressDots({ parent: screen, top: 1, left: 2, text: 'AI' });
+dots.setDots(['','·','··','···']);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Usa dots per operazioni < 3s; per durate maggiori preferisci ProgressBar.

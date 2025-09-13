@@ -1,0 +1,447 @@
+---
+title: "VM Agent"
+description: "Secure virtualized development agent for isolated coding environments"
+icon: "container"
+---
+
+## Overview
+
+The VM Agent (Secure Virtualized Agent) is NikCLI's specialized agent for autonomous development in isolated virtualized environments. It provides secure, containerized development capabilities with complete repository management and pull request automation.
+
+<CardGroup cols={2}>
+  <Card title="Isolated Execution" icon="shield">
+    Secure development in containerized environments
+  </Card>
+  <Card title="Repository Management" icon="git-branch">
+    Complete Git operations and repository analysis
+  </Card>
+  <Card title="Pull Request Automation" icon="git-pull-request">
+    Automated PR creation and management
+  </Card>
+  <Card title="Secure Communication" icon="lock">
+    API key proxying and token budget management
+  </Card>
+</CardGroup>
+
+## Core Capabilities
+
+The VM Agent provides **20 specialized capabilities** for virtualized development:
+
+### VM-Specific Capabilities
+- **vm-management** - Container lifecycle management
+- **container-orchestration** - Docker container coordination
+- **isolated-execution** - Secure isolated code execution
+- **repository-cloning** - Git repository cloning and setup
+- **vscode-server** - Remote VS Code server integration
+- **autonomous-development** - Self-directed development tasks
+- **pull-request-automation** - Automated PR workflows
+
+### Repository Analysis and Management
+- **repository-analysis** - Deep codebase analysis
+- **dependency-management** - Package and dependency handling
+- **testing-automation** - Automated test execution
+- **documentation-generation** - Auto-generated documentation
+- **code-quality-analysis** - Code quality assessment
+
+### Security Capabilities
+- **secure-api-communication** - Secure external API calls
+- **token-budget-management** - Resource usage control
+- **audit-logging** - Complete activity logging
+- **resource-isolation** - Container resource limits
+- **credential-management** - Secure credential handling
+
+### Development Workflows
+- **full-stack-development** - Complete application development
+- **ci-cd-integration** - Pipeline integration
+- **git-operations** - Advanced Git workflows
+- **package-management** - Dependency installation and management
+- **environment-setup** - Development environment configuration
+
+## Usage Examples
+
+### VM Container Operations
+
+<Tabs>
+  <Tab title="Create VM Container">
+    ```bash
+    # Create new VM container from repository
+    /vm-create https://github.com/user/repo.git
+    
+    # Create VM with specific configuration
+    /vm-create https://github.com/user/repo.git --config "
+      memory: 2GB
+      cpu: 2 cores
+      timeout: 30 minutes
+    "
+    ```
+  </Tab>
+  
+  <Tab title="Container Management">
+    ```bash
+    # List active containers
+    /vm-list
+    
+    # Connect to specific container
+    /vm-connect container-123
+    
+    # Monitor container status
+    /vm-status container-123
+    ```
+  </Tab>
+  
+  <Tab title="Development Tasks">
+    ```bash
+    # Run development task in VM
+    /agent vm-agent "Analyze this codebase and implement user authentication with proper tests"
+    
+    # Create feature in isolated environment
+    /agent vm-agent "Add search functionality to the application with proper error handling"
+    ```
+  </Tab>
+</Tabs>
+
+### Pull Request Automation
+
+<AccordionGroup>
+  <Accordion title="Automated PR Creation">
+    ```bash
+    # Create pull request from VM container
+    /vm-create-pr container-123 "Add user authentication" "
+    Implemented complete user authentication system with:
+    - JWT token-based authentication
+    - Password hashing with bcrypt
+    - Login/logout endpoints
+    - Protected route middleware
+    - Comprehensive tests
+    "
+    ```
+  </Accordion>
+  
+  <Accordion title="Feature Development Workflow">
+    ```bash
+    # Complete feature development workflow
+    /agent vm-agent "
+    1. Clone repository and analyze structure
+    2. Implement new feature: shopping cart functionality
+    3. Add comprehensive unit and integration tests
+    4. Update documentation
+    5. Create pull request with detailed description
+    "
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## VM Agent Configuration
+
+### Security Settings
+
+<Tabs>
+  <Tab title="Permission Model">
+    ```bash
+    # VM Agent operates with restricted permissions:
+    
+    File Access:
+    - Read: ✅ /workspace/* (container only)
+    - Write: ✅ /workspace/* (container only)  
+    - Delete: ❌ (container isolation)
+    
+    Commands:
+    - Allowed: git, npm, yarn, docker, code-server
+    - Blocked: rm -rf, sudo, su, chmod 777
+    
+    Network:
+    - Allowed: github.com, npmjs.com, yarnpkg.com
+    - API calls via secure proxy
+    ```
+  </Tab>
+  
+  <Tab title="Resource Limits">
+    ```bash
+    # Default resource constraints:
+    
+    Container Limits:
+    - Memory: 2GB default
+    - CPU: 2 cores default
+    - Disk: 10GB workspace
+    - Network: Limited external access
+    
+    Execution:
+    - Max concurrent tasks: 1
+    - Default timeout: 30 minutes
+    - Token budget: 50,000 tokens
+    - Retry attempts: 2
+    ```
+  </Tab>
+</Tabs>
+
+### Configuration Options
+
+<AccordionGroup>
+  <Accordion title="Container Configuration">
+    ```bash
+    # Configure VM container settings
+    /vm-config --memory 4GB --cpu 4 --timeout 60
+    
+    # Set environment variables
+    /vm-config --env "NODE_ENV=development,DEBUG=true"
+    
+    # Configure networking
+    /vm-config --network-isolation --allowed-domains "api.example.com"
+    ```
+  </Accordion>
+  
+  <Accordion title="Development Environment">
+    ```bash
+    # Setup development tools
+    /vm-setup-dev --tools "node,python,git,docker"
+    
+    # Configure VS Code server
+    /vm-vscode --extensions "ms-python.python,bradlc.vscode-tailwindcss"
+    
+    # Install project dependencies
+    /vm-install-deps --auto-detect
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Real-World Examples
+
+### Full-Stack Feature Development
+
+```bash
+# Complete feature development in isolated VM
+/agent vm-agent "Clone the e-commerce repository and implement the following:
+
+1. Backend API endpoints for product reviews
+   - POST /api/reviews (create review)
+   - GET /api/products/:id/reviews (get product reviews)  
+   - PUT /api/reviews/:id (update review)
+   - DELETE /api/reviews/:id (delete review)
+
+2. Frontend React components
+   - ReviewList component to display reviews
+   - ReviewForm component for adding reviews
+   - StarRating component for ratings
+   - Integration with existing product pages
+
+3. Database integration
+   - Create reviews table with proper foreign keys
+   - Add database migrations
+   - Implement proper indexing for performance
+
+4. Testing
+   - Unit tests for API endpoints
+   - React component tests with Testing Library
+   - Integration tests for complete workflow
+
+5. Documentation
+   - Update API documentation
+   - Add component documentation
+   - Update README with new features
+
+6. Create pull request with detailed description"
+```
+
+### Legacy Code Modernization
+
+```bash
+# Modernize legacy codebase in secure environment
+/agent vm-agent "Analyze this legacy Node.js application and modernize it:
+
+1. Code Analysis
+   - Identify outdated patterns and dependencies
+   - Assess security vulnerabilities
+   - Document current architecture
+
+2. Modernization Steps
+   - Update to latest Node.js LTS
+   - Migrate to modern JavaScript (ES2022+)
+   - Replace callbacks with async/await
+   - Update dependencies to latest versions
+   - Implement proper error handling
+
+3. Add Missing Features
+   - Proper logging with structured logs
+   - Health check endpoints
+   - Graceful shutdown handling
+   - Configuration management with environment variables
+
+4. Improve Code Quality
+   - Add ESLint and Prettier configuration
+   - Implement TypeScript for better type safety
+   - Add comprehensive test coverage
+   - Refactor large functions into smaller modules
+
+5. Create comprehensive PR with migration guide"
+```
+
+## Comparison with Universal Agent
+
+| Feature | Universal Agent | VM Agent |
+|---------|----------------|----------|
+| **Execution Environment** | Host system | Isolated container |
+| **Security Model** | Configurable permissions | Strict container isolation |
+| **Capabilities** | 35 comprehensive | 20 specialized for VMs |
+| **Use Case** | General development tasks | Secure/isolated development |
+| **Repository Access** | Direct file system | Container-based cloning |
+| **Pull Request Creation** | Manual process | Automated workflow |
+| **Resource Isolation** | Host limitations | Container boundaries |
+| **API Communication** | Direct API calls | Proxied through secure gateway |
+
+## Best Practices
+
+### When to Use VM Agent
+
+<CardGroup cols={2}>
+  <Card title="Secure Development" icon="shield-check">
+    Use VM Agent for projects requiring strict isolation and security
+    
+    ```bash
+    # Secure client project development
+    /agent vm-agent "Work on sensitive client codebase with strict security requirements"
+    ```
+  </Card>
+  
+  <Card title="Repository Automation" icon="robot">
+    Perfect for automated repository analysis and PR creation
+    
+    ```bash
+    # Automated repository improvements
+    /agent vm-agent "Analyze repository for security issues and create fixes via PR"
+    ```
+  </Card>
+  
+  <Card title="Clean Environment" icon="broom">
+    Ideal for testing in clean, reproducible environments
+    
+    ```bash
+    # Fresh environment testing
+    /agent vm-agent "Test new feature in clean environment without affecting host"
+    ```
+  </Card>
+  
+  <Card title="Resource Isolation" icon="container">
+    Use when you need guaranteed resource limits and isolation
+    
+    ```bash
+    # Resource-controlled development
+    /agent vm-agent "Develop memory-intensive feature with strict resource limits"
+    ```
+  </Card>
+</CardGroup>
+
+### VM Agent Limitations
+
+<AccordionGroup>
+  <Accordion title="Performance Considerations">
+    - Container overhead may impact performance
+    - Network latency for external API calls
+    - Limited to container resources
+    - Slower file system operations compared to host
+  </Accordion>
+  
+  <Accordion title="Feature Limitations">
+    - Cannot modify host system configuration
+    - Limited network access to approved domains
+    - No direct access to host file system
+    - Restricted command execution capabilities
+  </Accordion>
+  
+  <Accordion title="Resource Constraints">
+    - Maximum 50,000 token budget per session
+    - Default 30-minute timeout for operations
+    - Limited to single concurrent task
+    - Container resource limits apply
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Container Creation Failed">
+    **Problem:** VM container fails to start
+    
+    **Solutions:**
+    ```bash
+    # Check Docker daemon status
+    /system-status --docker
+    
+    # Verify repository URL accessibility
+    /test-connectivity https://github.com/user/repo.git
+    
+    # Check available resources
+    /system-resources --available
+    ```
+  </Accordion>
+  
+  <Accordion title="Connection Timeout">
+    **Problem:** Container connection times out
+    
+    **Solutions:**
+    ```bash
+    # Increase timeout
+    /vm-config --timeout 60
+    
+    # Check container status
+    /vm-status container-id
+    
+    # Restart container if needed
+    /vm-restart container-id
+    ```
+  </Accordion>
+  
+  <Accordion title="Resource Exceeded">
+    **Problem:** Container runs out of resources
+    
+    **Solutions:**
+    ```bash
+    # Increase container resources
+    /vm-config --memory 4GB --cpu 4
+    
+    # Monitor resource usage
+    /vm-monitor container-id --resources
+    
+    # Clean up container
+    /vm-cleanup container-id
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Universal Agent"
+    icon="robot"
+    href="/agent-system/universal-agent"
+  >
+    Learn about the comprehensive Universal Agent
+  </Card>
+  <Card
+    title="Agent Architecture"
+    icon="sitemap"
+    href="/agent-system/architecture"
+  >
+    Understand the agent system architecture
+  </Card>
+  <Card
+    title="Advanced Examples"
+    icon="code"
+    href="/examples/vm-development"
+  >
+    See advanced VM Agent development examples
+  </Card>
+  <Card
+    title="Security Guide"
+    icon="shield"
+    href="/security/vm-security"
+  >
+    Learn about VM security best practices
+  </Card>
+</CardGroup>
+
+<Tip>
+  The VM Agent is ideal for secure, isolated development tasks where you need guaranteed resource limits and container-based execution. Use it for sensitive projects or when you need reproducible, clean development environments.
+</Tip>

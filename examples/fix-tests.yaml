@@ -1,0 +1,36 @@
+name: "fix-tests"
+agent: "universal-agent"
+goals:
+  - "Analizza e risolvi i test falliti nel progetto"
+  - "Assicurati che tutti i test passino"
+  - "Mantieni la qualità del codice e lo stile"
+limits:
+  max_tool_calls: 50
+  max_time_minutes: 25
+  max_memory_mb: 2048
+policy:
+  approve_commands: false
+  network_allow: 
+    - "registry.npmjs.org"
+    - "yarnpkg.com"
+  safe_mode: true
+  file_restrictions:
+    - "!package.json"
+    - "!yarn.lock"
+    - "!.env*"
+steps:
+  - run: "nikcli /analyze-project"
+    timeout_minutes: 5
+  - run: "yarn test"
+    retry_on_failure: false
+  - run: "nikcli /auto 'analizza i test falliti e correggili mantenendo lo stile del codice'"
+    timeout_minutes: 15
+  - run: "yarn test"
+    retry_on_failure: true
+    timeout_minutes: 5
+commit:
+  message: "fix: risolvi test falliti (nikCLI background agent)"
+  open_pr: true
+  reviewers: ["@maintainer"]
+  labels: ["automated", "tests", "fix"]
+  draft: false

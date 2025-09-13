@@ -1,0 +1,785 @@
+---
+title: 'Core APIs'
+description: 'Complete reference for NikCLI core APIs and interfaces'
+icon: 'code'
+---
+
+## API Overview
+
+NikCLI provides a comprehensive set of APIs for integrating with external tools, extending functionality, and building custom applications. The APIs are designed following TypeScript-first principles with full type safety and extensive documentation.
+
+<CardGroup cols={2}>
+  <Card title="Agent APIs" icon="robot">
+    Create, manage, and interact with AI agents
+  </Card>
+  <Card title="Tool APIs" icon="tools">
+    Extend functionality with custom tools
+  </Card>
+  <Card title="Configuration APIs" icon="gear">
+    Manage settings and preferences programmatically
+  </Card>
+  <Card title="Streaming APIs" icon="stream">
+    Real-time communication and progress tracking
+  </Card>
+</CardGroup>
+
+## Core Interfaces
+
+### AgentTask Interface
+
+Represents a task that can be executed by an agent:
+
+```typescript
+interface AgentTask {
+  /** Unique identifier for the task */
+  id: string;
+  
+  /** Human-readable description of the task */
+  description: string;
+  
+  /** Task type for routing to appropriate agent */
+  type?: 'development' | 'analysis' | 'refactoring' | 'testing' | 'documentation';
+  
+  /** Priority level (1-10, 10 = highest) */
+  priority?: number;
+  
+  /** Project context and workspace information */
+  context: WorkspaceContext;
+  
+  /** Specific requirements and constraints */
+  requirements?: TaskRequirements;
+  
+  /** Files to focus on (optional) */
+  focusFiles?: string[];
+  
+  /** Expected deliverables */
+  deliverables?: string[];
+  
+  /** Timeout in milliseconds */
+  timeout?: number;
+  
+  /** Recovery strategy in case of failure */
+  recoveryStrategy?: RecoveryStrategy;
+  
+  /** Custom metadata */
+  metadata?: Record<string, any>;
+}
+```
+
+### WorkspaceContext Interface
+
+Provides context about the current project and environment:
+
+```typescript
+interface WorkspaceContext {
+  /** Absolute path to the project root */
+  projectRoot: string;
+  
+  /** Detected project type */
+  projectType: ProjectType;
+  
+  /** Technology stack information */
+  techStack: TechStack;
+  
+  /** Package.json contents (if available) */
+  packageJson?: PackageJson;
+  
+  /** Git repository information */
+  gitInfo?: GitInfo;
+  
+  /** Environment configuration */
+  environment: EnvironmentInfo;
+  
+  /** File structure summary */
+  fileStructure: FileStructure;
+  
+  /** Recent changes */
+  recentChanges?: RecentChanges[];
+  
+  /** Coding patterns and conventions */
+  patterns: CodingPatterns;
+}
+```
+
+### AgentExecution Interface
+
+Represents the execution of a task by an agent:
+
+```typescript
+interface AgentExecution {
+  /** Execution identifier */
+  id: string;
+  
+  /** Associated task */
+  taskId: string;
+  
+  /** Executing agent */
+  agentId: string;
+  
+  /** Current execution status */
+  status: ExecutionStatus;
+  
+  /** Start timestamp */
+  startedAt: number;
+  
+  /** Completion timestamp (if finished) */
+  completedAt?: number;
+  
+  /** Progress percentage (0-100) */
+  progress: number;
+  
+  /** Current execution stage */
+  currentStage: string;
+  
+  /** Execution results */
+  results?: ExecutionResult[];
+  
+  /** Any errors encountered */
+  errors?: AgentError[];
+  
+  /** Performance metrics */
+  metrics: ExecutionMetrics;
+  
+  /** Real-time event stream */
+  stream: EventEmitter;
+}
+```
+
+## Agent Management APIs
+
+### AgentService
+
+Central service for managing agent lifecycle and operations:
+
+<AccordionGroup>
+  <Accordion title="Creating Agents">
+    ```typescript
+    class AgentService {
+      /**
+       * Create a new agent instance
+       */
+      async createAgent(config: AgentConfig): Promise<BaseAgent> {
+        const agent = await this.agentFactory.createAgent(config);
+        this.registerAgent(agent);
+        return agent;
+      }
+      
+      /**
+       * Create agent from blueprint
+       */
+      async createFromBlueprint(
+        blueprintId: string,
+        overrides?: Partial<AgentConfig>
+      ): Promise<BaseAgent> {
+        const blueprint = await this.getBlueprintById(blueprintId);
+        const config = { ...blueprint.config, ...overrides };
+        return this.createAgent(config);
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Managing Agents">
+    ```typescript
+    /**
+     * Get all registered agents
+     */
+    getAgents(): BaseAgent[] {
+      return Array.from(this.agents.values());
+    }
+    
+    /**
+     * Find agent by ID
+     */
+    getAgent(agentId: string): BaseAgent | null {
+      return this.agents.get(agentId) || null;
+    }
+    
+    /**
+     * Find agents by capability
+     */
+    findAgentsByCapability(capability: AgentCapability): BaseAgent[] {
+      return this.getAgents().filter(agent => 
+        agent.hasCapability(capability)
+      );
+    }
+    
+    /**
+     * Remove agent from registry
+     */
+    async removeAgent(agentId: string): Promise<void> {
+      const agent = this.getAgent(agentId);
+      if (agent) {
+        await agent.cleanup();
+        this.agents.delete(agentId);
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Task Execution">
+    ```typescript
+    /**
+     * Execute task with best suitable agent
+     */
+    async executeTask(task: AgentTask): Promise<AgentExecution> {
+      const agent = this.findBestAgent(task);
+      if (!agent) {
+        throw new Error(`No suitable agent found for task: ${task.type}`);
+      }
+      
+      return await agent.executeTask(task);
+    }
+    
+    /**
+     * Execute task with specific agent
+     */
+    async executeTaskWithAgent(
+      agentId: string,
+      task: AgentTask
+    ): Promise<AgentExecution> {
+      const agent = this.getAgent(agentId);
+      if (!agent) {
+        throw new Error(`Agent not found: ${agentId}`);
+      }
+      
+      return await agent.executeTask(task);
+    }
+    
+    /**
+     * Execute multiple tasks in parallel
+     */
+    async executeParallel(tasks: AgentTask[]): Promise<AgentExecution[]> {
+      const executions = tasks.map(task => this.executeTask(task));
+      return await Promise.all(executions);
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### BaseAgent Interface
+
+All agents implement the BaseAgent interface:
+
+```typescript
+abstract class BaseAgent {
+  /** Agent unique identifier */
+  readonly id: string;
+  
+  /** Agent name and description */
+  readonly name: string;
+  readonly description: string;
+  
+  /** Agent capabilities */
+  abstract getCapabilities(): AgentCapability[];
+  
+  /** Agent permissions */
+  abstract getPermissions(): AgentPermissions;
+  
+  /**
+   * Execute a task
+   */
+  abstract executeTask(task: AgentTask): Promise<AgentExecution>;
+  
+  /**
+   * Check if agent can handle a specific task
+   */
+  abstract canHandleTask(task: AgentTask): boolean;
+  
+  /**
+   * Get current status
+   */
+  abstract getStatus(): AgentStatus;
+  
+  /**
+   * Cleanup resources
+   */
+  abstract cleanup(): Promise<void>;
+  
+  /**
+   * Configure agent settings
+   */
+  configure(config: Partial<AgentConfig>): void {
+    Object.assign(this.config, config);
+  }
+  
+  /**
+   * Check if agent has specific capability
+   */
+  hasCapability(capability: AgentCapability): boolean {
+    return this.getCapabilities().includes(capability);
+  }
+  
+  /**
+   * Subscribe to agent events
+   */
+  on(event: string, listener: (...args: any[]) => void): void {
+    this.eventEmitter.on(event, listener);
+  }
+  
+  /**
+   * Emit agent event
+   */
+  protected emit(event: string, ...args: any[]): void {
+    this.eventEmitter.emit(event, ...args);
+  }
+}
+```
+
+## Tool System APIs
+
+### ToolService
+
+Manages the tool system and provides secure tool execution:
+
+<AccordionGroup>
+  <Accordion title="Tool Registration">
+    ```typescript
+    class ToolService {
+      /**
+       * Register a new tool
+       */
+      registerTool(tool: BaseTool): void {
+        this.validateTool(tool);
+        this.tools.set(tool.name, tool);
+        this.emit('tool-registered', tool);
+      }
+      
+      /**
+       * Get available tools for agent
+       */
+      getToolsForAgent(agent: BaseAgent): BaseTool[] {
+        const permissions = agent.getPermissions();
+        return Array.from(this.tools.values()).filter(tool =>
+          this.hasPermission(permissions, tool)
+        );
+      }
+      
+      /**
+       * Execute tool with security checks
+       */
+      async executeTool(
+        toolName: string,
+        args: any[],
+        agent: BaseAgent
+      ): Promise<ToolResult> {
+        const tool = this.getTool(toolName);
+        if (!tool) {
+          throw new Error(`Tool not found: ${toolName}`);
+        }
+        
+        // Security validation
+        await this.validateExecution(tool, args, agent);
+        
+        // Execute with timeout and error handling
+        return await this.executeWithSafety(tool, args, agent);
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Tool Interface">
+    ```typescript
+    interface BaseTool {
+      /** Tool unique name */
+      name: string;
+      
+      /** Tool description */
+      description: string;
+      
+      /** Required permissions */
+      requiredPermissions: Permission[];
+      
+      /** Input schema validation */
+      inputSchema: JSONSchema;
+      
+      /** Output schema validation */
+      outputSchema: JSONSchema;
+      
+      /**
+       * Execute the tool
+       */
+      execute(args: any[], context: ToolContext): Promise<ToolResult>;
+      
+      /**
+       * Validate tool arguments
+       */
+      validate(args: any[]): ValidationResult;
+      
+      /**
+       * Check if tool is available
+       */
+      isAvailable(): boolean;
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Security and Permissions">
+    ```typescript
+    interface ToolContext {
+      /** Executing agent */
+      agent: BaseAgent;
+      
+      /** Current workspace */
+      workspace: WorkspaceContext;
+      
+      /** Execution environment */
+      environment: EnvironmentInfo;
+      
+      /** Security policies */
+      policies: SecurityPolicy[];
+      
+      /** Approval system */
+      approvalSystem: ApprovalSystem;
+    }
+    
+    interface ToolResult {
+      /** Execution success status */
+      success: boolean;
+      
+      /** Result data */
+      data?: any;
+      
+      /** Error information */
+      error?: Error;
+      
+      /** Execution metrics */
+      metrics: {
+        executionTime: number;
+        memoryUsage: number;
+        cpuUsage: number;
+      };
+      
+      /** Security audit trail */
+      auditTrail: AuditEvent[];
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Configuration APIs
+
+### ConfigManager
+
+Provides programmatic access to configuration management:
+
+<AccordionGroup>
+  <Accordion title="Configuration Access">
+    ```typescript
+    class ConfigManager {
+      /**
+       * Get configuration value
+       */
+      get<T = any>(key: string, defaultValue?: T): T {
+        return this.config.get(key, defaultValue);
+      }
+      
+      /**
+       * Set configuration value
+       */
+      set(key: string, value: any): void {
+        this.config.set(key, value);
+        this.save();
+      }
+      
+      /**
+       * Get all configuration
+       */
+      getAll(): Record<string, any> {
+        return { ...this.config.store };
+      }
+      
+      /**
+       * Reset configuration
+       */
+      reset(): void {
+        this.config.clear();
+        this.loadDefaults();
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Provider Management">
+    ```typescript
+    /**
+     * Configure AI provider
+     */
+    configureProvider(
+      provider: AIProvider,
+      config: ProviderConfig
+    ): void {
+      this.validateProviderConfig(provider, config);
+      this.set(`providers.${provider}`, config);
+    }
+    
+    /**
+     * Get provider configuration
+     */
+    getProviderConfig(provider: AIProvider): ProviderConfig | null {
+      return this.get(`providers.${provider}`, null);
+    }
+    
+    /**
+     * Test provider connection
+     */
+    async testProvider(provider: AIProvider): Promise<ConnectionTest> {
+      const config = this.getProviderConfig(provider);
+      if (!config) {
+        throw new Error(`Provider not configured: ${provider}`);
+      }
+      
+      return await this.connectionTester.test(provider, config);
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Security Configuration">
+    ```typescript
+    /**
+     * Set security mode
+     */
+    setSecurityMode(mode: SecurityMode): void {
+      this.set('security.mode', mode);
+      this.applySecurityPolicies(mode);
+    }
+    
+    /**
+     * Configure execution policies
+     */
+    setExecutionPolicy(policy: ExecutionPolicy): void {
+      this.validatePolicy(policy);
+      this.set('security.executionPolicy', policy);
+    }
+    
+    /**
+     * Enable/disable auto-approval
+     */
+    setAutoApproval(enabled: boolean, riskLevel?: RiskLevel): void {
+      this.set('security.autoApproval.enabled', enabled);
+      if (riskLevel) {
+        this.set('security.autoApproval.maxRiskLevel', riskLevel);
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Streaming APIs
+
+### Real-time Communication
+
+NikCLI provides real-time APIs for monitoring agent progress and system events:
+
+<AccordionGroup>
+  <Accordion title="Agent Streams">
+    ```typescript
+    interface AgentStream {
+      /** Agent identifier */
+      agentId: string;
+      
+      /** Task identifier */
+      taskId: string;
+      
+      /** Subscribe to progress updates */
+      onProgress(callback: (progress: ProgressUpdate) => void): void;
+      
+      /** Subscribe to stage changes */
+      onStage(callback: (stage: StageUpdate) => void): void;
+      
+      /** Subscribe to results */
+      onResult(callback: (result: ExecutionResult) => void): void;
+      
+      /** Subscribe to errors */
+      onError(callback: (error: AgentError) => void): void;
+      
+      /** Subscribe to completion */
+      onComplete(callback: (execution: AgentExecution) => void): void;
+      
+      /** Unsubscribe from all events */
+      close(): void;
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="System Events">
+    ```typescript
+    interface SystemEventStream {
+      /** Subscribe to agent lifecycle events */
+      onAgentEvent(callback: (event: AgentEvent) => void): void;
+      
+      /** Subscribe to configuration changes */
+      onConfigChange(callback: (change: ConfigChange) => void): void;
+      
+      /** Subscribe to security events */
+      onSecurityEvent(callback: (event: SecurityEvent) => void): void;
+      
+      /** Subscribe to tool executions */
+      onToolExecution(callback: (execution: ToolExecution) => void): void;
+      
+      /** Subscribe to performance metrics */
+      onMetrics(callback: (metrics: SystemMetrics) => void): void;
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Stream Management">
+    ```typescript
+    class StreamManager {
+      /**
+       * Create agent stream
+       */
+      createAgentStream(
+        agentId: string,
+        taskId: string
+      ): AgentStream {
+        const stream = new AgentStreamImpl(agentId, taskId);
+        this.streams.set(`${agentId}:${taskId}`, stream);
+        return stream;
+      }
+      
+      /**
+       * Get system event stream
+       */
+      getSystemStream(): SystemEventStream {
+        return this.systemStream;
+      }
+      
+      /**
+       * Close all streams
+       */
+      closeAll(): void {
+        for (const stream of this.streams.values()) {
+          stream.close();
+        }
+        this.streams.clear();
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Error Handling
+
+### Error Types and Recovery
+
+<AccordionGroup>
+  <Accordion title="Error Classification">
+    ```typescript
+    enum ErrorType {
+      VALIDATION_ERROR = 'validation_error',
+      PERMISSION_DENIED = 'permission_denied',
+      RESOURCE_NOT_FOUND = 'resource_not_found',
+      EXECUTION_TIMEOUT = 'execution_timeout',
+      AGENT_UNAVAILABLE = 'agent_unavailable',
+      TOOL_ERROR = 'tool_error',
+      CONFIGURATION_ERROR = 'configuration_error',
+      NETWORK_ERROR = 'network_error',
+      UNKNOWN_ERROR = 'unknown_error'
+    }
+    
+    class NikCLIError extends Error {
+      constructor(
+        message: string,
+        public readonly type: ErrorType,
+        public readonly code: string,
+        public readonly details?: any,
+        public readonly recoverable: boolean = false
+      ) {
+        super(message);
+        this.name = 'NikCLIError';
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Recovery Strategies">
+    ```typescript
+    interface RecoveryStrategy {
+      /** Maximum number of retry attempts */
+      maxRetries: number;
+      
+      /** Backoff strategy */
+      backoffStrategy: 'linear' | 'exponential' | 'fixed';
+      
+      /** Base delay in milliseconds */
+      baseDelay: number;
+      
+      /** Fallback operations */
+      fallbackOperations?: Operation[];
+      
+      /** User notification settings */
+      notifyUser: boolean;
+      
+      /** Custom recovery handler */
+      customHandler?: (error: NikCLIError) => Promise<any>;
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Error Handling Utilities">
+    ```typescript
+    /**
+     * Execute operation with automatic retry
+     */
+    async function withRetry<T>(
+      operation: () => Promise<T>,
+      strategy: RecoveryStrategy
+    ): Promise<T> {
+      let lastError: Error;
+      
+      for (let attempt = 0; attempt <= strategy.maxRetries; attempt++) {
+        try {
+          return await operation();
+        } catch (error) {
+          lastError = error;
+          
+          if (attempt < strategy.maxRetries && isRetryable(error)) {
+            const delay = calculateDelay(attempt, strategy);
+            await sleep(delay);
+          }
+        }
+      }
+      
+      throw lastError;
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Tool System"
+    icon="tools"
+    href="/api-reference/tool-system"
+  >
+    Learn about the tool system and creating custom tools
+  </Card>
+  <Card
+    title="Streaming APIs"
+    icon="stream"
+    href="/api-reference/streaming"
+  >
+    Master real-time communication and progress tracking
+  </Card>
+  <Card
+    title="Integrations"
+    icon="plug"
+    href="/api-reference/integrations"
+  >
+    Integrate NikCLI with external tools and services
+  </Card>
+  <Card
+    title="Examples"
+    icon="code"
+    href="/examples/integration-examples"
+  >
+    See practical examples of API usage
+  </Card>
+</CardGroup>
+
+<Tip>
+  All APIs are fully typed with TypeScript. Use your IDE's IntelliSense for comprehensive autocomplete and documentation while developing.
+</Tip>

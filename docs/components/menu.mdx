@@ -1,0 +1,87 @@
+---
+title: 'Menu'
+description: 'Menu component for navigational choices.'
+---
+
+## Overview
+
+Present simple menus and choices.
+
+## Import
+
+```ts
+import { Menu } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+// See Tabs/Select for common patterns
+```
+
+## Live Preview
+
+<Snippet file="previews/menu.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- items: Array of `{ label: string; onSelect?: () => void; disabled?: boolean; shortcut?: string }`
+- selectedIndex?: number — Initially selected item.
+- onSelect?: (index, item) => void — Selection callback.
+- BaseProps: position, borderStyle, label.
+
+## Methods
+
+- setItems(items), addItem(item), removeItem(index), updateItem(index, item).
+- selectItem(index), getSelectedIndex(), getSelectedItem().
+- setItemDisabled(index, disabled), clearItems().
+
+## Keyboard
+
+- Up/Down: navigate; Enter: select.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Menu } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Menu({ parent: screen, top: 1, left: 2, width: 24, height: 6, items: [ { label: 'Open' }, { label: 'Save' }, { label: 'Exit' } ] });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+new Menu({ parent: screen, top: 1, left: 28, width: 28, height: 6,
+  items: [
+    { label: 'New', shortcut: 'n' },
+    { label: 'Delete', shortcut: 'del', disabled: true },
+  ],
+});
+```
+
+```typescript
+new Menu({ parent: screen, top: 8, left: 2, width: 24, height: 6,
+  items: [ { label: 'A' }, { label: 'B' } ], onSelect: (i, item) => console.log(i, item.label) });
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Indica le scorciatoie direttamente nelle label per rendere scopribili le azioni.

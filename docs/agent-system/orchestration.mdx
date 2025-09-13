@@ -1,0 +1,602 @@
+---
+title: 'Agent Orchestration'
+description: 'Advanced multi-agent coordination and workflow orchestration'
+icon: 'sitemap'
+---
+
+## Overview
+
+Agent orchestration in NikCLI enables sophisticated coordination between multiple AI agents to handle complex, multi-faceted development tasks. The orchestration system manages agent communication, task distribution, conflict resolution, and result integration.
+
+<CardGroup cols={2}>
+  <Card title="Multi-Agent Coordination" icon="users-cog">
+    Seamless collaboration between specialized agents
+  </Card>
+  <Card title="Workflow Management" icon="flow-chart">
+    Define and execute complex development workflows
+  </Card>
+  <Card title="Conflict Resolution" icon="balance-scale">
+    Automatic resolution of agent conflicts and disagreements
+  </Card>
+  <Card title="Result Integration" icon="merge">
+    Intelligent merging and synthesis of agent outputs
+  </Card>
+</CardGroup>
+
+## Orchestration Patterns
+
+### Sequential Orchestration
+
+<Tabs>
+  <Tab title="Pipeline Pattern">
+    ```bash
+    # Sequential agent pipeline
+    /orchestrate sequence "full-stack-authentication" --agents "
+      backend-expert: Create authentication API with JWT
+      react-expert: Build login/register components  
+      security-expert: Review and harden security
+      testing-expert: Create comprehensive test suite
+    "
+    ```
+  </Tab>
+  
+  <Tab title="Handoff Pattern">
+    ```bash
+    # Agent-to-agent handoff
+    /orchestrate handoff --from backend-expert --to react-expert --task "
+      Backend expert will create API endpoints, then hand off API specification 
+      to React expert for frontend implementation
+    "
+    ```
+  </Tab>
+</Tabs>
+
+### Parallel Orchestration
+
+<AccordionGroup>
+  <Accordion title="Concurrent Development">
+    ```bash
+    # Parallel agent execution
+    /orchestrate parallel "microservices-development" --agents "
+      backend-expert: User service API
+      backend-expert: Product service API  
+      backend-expert: Order service API
+      react-expert: Admin dashboard
+      devops-expert: Container orchestration
+    " --max-concurrent 3
+    ```
+  </Accordion>
+  
+  <Accordion title="Race Condition Handling">
+    ```bash
+    # Multiple approaches, best result wins
+    /orchestrate race "performance-optimization" --agents "
+      performance-expert: Database optimization approach
+      react-expert: Frontend optimization approach
+      backend-expert: Caching optimization approach
+    " --select-best-result
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Hierarchical Orchestration
+
+<Tabs>
+  <Tab title="Supervisor Pattern">
+    ```bash
+    # Supervisor agent coordinates others
+    /orchestrate supervisor universal-agent --subordinates "
+      react-expert: Frontend development
+      backend-expert: API development
+      devops-expert: Infrastructure setup
+    " --task "Build complete e-commerce platform"
+    ```
+  </Tab>
+  
+  <Tab title="Expert Consultation">
+    ```bash
+    # Primary agent consults experts
+    /orchestrate consultation universal-agent --experts "
+      security-expert: Security review
+      performance-expert: Performance analysis
+      testing-expert: Test strategy
+    " --task "Implement payment processing system"
+    ```
+  </Tab>
+</Tabs>
+
+## Advanced Workflow Design
+
+### Conditional Workflows
+
+<AccordionGroup>
+  <Accordion title="Decision Trees">
+    ```bash
+    # Conditional agent selection
+    /orchestrate conditional "project-setup" --rules "
+      if project.type == 'react': use react-expert
+      if project.type == 'vue': use vue-expert
+      if project.database == 'postgres': include database-expert
+      if project.deployment == 'aws': include devops-expert
+    "
+    ```
+  </Accordion>
+  
+  <Accordion title="Adaptive Workflows">
+    ```bash
+    # Workflow adapts based on results
+    /orchestrate adaptive "code-review" --adaptation "
+      if security-issues-found: add security-expert
+      if performance-issues-found: add performance-expert
+      if test-coverage-low: add testing-expert
+    "
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Feedback Loops
+
+<Tabs>
+  <Tab title="Iterative Refinement">
+    ```bash
+    # Continuous improvement loop
+    /orchestrate iterative "component-development" --loop "
+      react-expert: Create component
+      testing-expert: Test component
+      performance-expert: Analyze performance
+      react-expert: Refine based on feedback
+    " --max-iterations 3
+    ```
+  </Tab>
+  
+  <Tab title="Quality Gates">
+    ```bash
+    # Quality checkpoints
+    /orchestrate quality-gates "deployment-pipeline" --gates "
+      code-review: security-expert approval required
+      performance-test: performance-expert approval required
+      integration-test: testing-expert approval required
+    "
+    ```
+  </Tab>
+</Tabs>
+
+## Communication Protocols
+
+### Inter-Agent Communication
+
+<AccordionGroup>
+  <Accordion title="Message Passing">
+    ```bash
+    # Configure agent communication
+    /orchestrate communication --protocol message-passing --format "
+      {
+        'from': 'agent-id',
+        'to': 'agent-id', 
+        'type': 'task-completion|question|result',
+        'data': 'message-content',
+        'context': 'relevant-context'
+      }
+    "
+    ```
+  </Accordion>
+  
+  <Accordion title="Shared Context">
+    ```bash
+    # Shared workspace for agents
+    /orchestrate shared-context --workspace "project-context" --access "
+      react-expert: read-write components/
+      backend-expert: read-write api/
+      testing-expert: read-write tests/
+      all-agents: read project-docs/
+    "
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Conflict Resolution
+
+<Tabs>
+  <Tab title="Voting Systems">
+    ```bash
+    # Democratic decision making
+    /orchestrate conflict-resolution voting --scenario "
+      Issue: Choice between REST vs GraphQL API
+      Participants: backend-expert, react-expert, performance-expert
+      Resolution: Majority vote with expert weighting
+    "
+    ```
+  </Tab>
+  
+  <Tab title="Expert Arbitration">
+    ```bash
+    # Expert arbitration
+    /orchestrate conflict-resolution arbitration --arbiter universal-agent --scenario "
+      Conflict: Security vs Performance trade-off
+      Agents: security-expert (favor security), performance-expert (favor speed)
+      Arbitrator: universal-agent (balanced decision)
+    "
+    ```
+  </Tab>
+</Tabs>
+
+## Workflow Templates
+
+### Development Lifecycle Templates
+
+<AccordionGroup>
+  <Accordion title="Full-Stack Development">
+    ```yaml
+    # full-stack-workflow.yml
+    name: "Full-Stack Development"
+    phases:
+      planning:
+        agents: [universal-agent]
+        tasks: ["analyze requirements", "create architecture"]
+      backend:
+        agents: [backend-expert]
+        depends_on: [planning]
+        tasks: ["API development", "database schema"]
+      frontend:
+        agents: [react-expert]
+        depends_on: [backend]
+        tasks: ["component development", "integration"]
+      testing:
+        agents: [testing-expert]
+        depends_on: [backend, frontend]
+        tasks: ["unit tests", "integration tests"]
+      deployment:
+        agents: [devops-expert]
+        depends_on: [testing]
+        tasks: ["containerization", "CI/CD setup"]
+    ```
+  </Accordion>
+  
+  <Accordion title="Code Review Workflow">
+    ```yaml
+    # code-review-workflow.yml
+    name: "Comprehensive Code Review"
+    agents:
+      primary: [universal-agent]
+      specialists: [security-expert, performance-expert, testing-expert]
+    workflow:
+      - step: initial-review
+        agent: universal-agent
+        output: overall-assessment
+      - step: security-review
+        agent: security-expert
+        condition: security-concerns-detected
+      - step: performance-review
+        agent: performance-expert
+        condition: performance-concerns-detected
+      - step: final-integration
+        agent: universal-agent
+        inputs: [all-specialist-reviews]
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Specialized Workflows
+
+<Tabs>
+  <Tab title="Microservices Deployment">
+    ```bash
+    # Microservices orchestration
+    /orchestrate template microservices-deployment --services "
+      user-service: backend-expert
+      product-service: backend-expert
+      order-service: backend-expert
+      api-gateway: devops-expert
+      frontend: react-expert
+      monitoring: devops-expert
+    " --coordination "service-mesh"
+    ```
+  </Tab>
+  
+  <Tab title="Performance Optimization">
+    ```bash
+    # Performance optimization workflow
+    /orchestrate template performance-optimization --phases "
+      analysis: performance-expert (identify bottlenecks)
+      database: database-expert (query optimization)
+      frontend: react-expert (bundle optimization)
+      caching: backend-expert (caching strategy)
+      validation: performance-expert (benchmark results)
+    "
+    ```
+  </Tab>
+</Tabs>
+
+## Monitoring and Control
+
+### Orchestration Dashboard
+
+<AccordionGroup>
+  <Accordion title="Real-Time Monitoring">
+    ```bash
+    # Orchestration monitoring
+    /orchestrate dashboard --real-time --metrics "
+      agent-utilization
+      task-completion-rate
+      workflow-progress
+      resource-usage
+      error-rates
+    "
+    ```
+  </Accordion>
+  
+  <Accordion title="Workflow Control">
+    ```bash
+    # Workflow control operations
+    /orchestrate control --workflow workflow-id --action "
+      pause: Pause workflow execution
+      resume: Resume paused workflow
+      abort: Stop workflow and cleanup
+      restart: Restart from last checkpoint
+      debug: Enable detailed logging
+    "
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Performance Analytics
+
+<Tabs>
+  <Tab title="Workflow Metrics">
+    ```bash
+    # Analyze workflow performance
+    /orchestrate analytics --workflow-id abc123 --metrics "
+      total-duration: 45m 23s
+      agent-utilization: 87%
+      parallel-efficiency: 92%
+      bottlenecks: [database-design: 15m]
+      success-rate: 98%
+    "
+    ```
+  </Tab>
+  
+  <Tab title="Agent Coordination Metrics">
+    ```bash
+    # Agent interaction analysis
+    /orchestrate analytics --coordination --metrics "
+      handoff-efficiency: 94%
+      communication-overhead: 12%
+      conflict-resolution-time: 2m avg
+      result-integration-success: 96%
+    "
+    ```
+  </Tab>
+</Tabs>
+
+## Real-World Examples
+
+### E-commerce Platform Development
+
+```bash
+# Complete e-commerce orchestration
+/orchestrate sequence "e-commerce-platform" --agents "
+  universal-agent: Project planning and architecture design
+  backend-expert: User authentication and product APIs
+  react-expert: Product catalog and shopping cart UI
+  backend-expert: Payment processing and order management
+  react-expert: User dashboard and order tracking
+  security-expert: Security audit and vulnerability assessment
+  testing-expert: End-to-end testing and quality assurance
+  devops-expert: Production deployment and monitoring setup
+" --parallel-phases "backend-expert,react-expert" --quality-gates
+```
+
+### Microservices Migration
+
+```bash
+# Legacy to microservices migration
+/orchestrate parallel "microservices-migration" --agents "
+  universal-agent: Migration strategy and planning
+  backend-expert: API gateway implementation
+  backend-expert: User service extraction
+  backend-expert: Product service extraction
+  backend-expert: Order service extraction
+  react-expert: Frontend service integration
+  devops-expert: Container orchestration setup
+  testing-expert: Integration testing strategy
+" --dependencies "
+  api-gateway → user-service,product-service,order-service
+  frontend → api-gateway
+  testing → all-services
+" --rollback-strategy "blue-green"
+```
+
+### Performance Optimization Sprint
+
+```bash
+# Multi-agent performance optimization
+/orchestrate iterative "performance-optimization" --agents "
+  performance-expert: Performance analysis and bottleneck identification
+  backend-expert: Database query optimization and caching
+  react-expert: Frontend bundle optimization and lazy loading
+  devops-expert: Infrastructure scaling and monitoring
+  testing-expert: Performance testing and benchmarking
+" --iterations 3 --success-criteria "
+  page-load-time < 2s
+  api-response-time < 200ms
+  bundle-size < 500kb
+  lighthouse-score > 90
+"
+```
+
+## Best Practices
+
+### Effective Orchestration Design
+
+<CardGroup cols={2}>
+  <Card title="Clear Task Boundaries" icon="border">
+    Define clear responsibilities and interfaces between agents
+    
+    ```bash
+    # Well-defined boundaries
+    /orchestrate plan "e-commerce" --boundaries "
+      backend-expert: API + database only
+      react-expert: UI components + state only
+      devops-expert: deployment + monitoring only
+    "
+    ```
+  </Card>
+  
+  <Card title="Proper Dependencies" icon="link">
+    Establish correct dependency relationships between tasks
+    
+    ```bash
+    # Dependency management
+    /orchestrate dependencies "
+      database-schema → api-endpoints → frontend-integration → testing
+    " --parallel-where-possible
+    ```
+  </Card>
+  
+  <Card title="Error Handling" icon="exclamation-triangle">
+    Implement robust error handling and recovery mechanisms
+    
+    ```bash
+    # Error handling strategy
+    /orchestrate error-handling --strategy "
+      retry: 3 attempts with exponential backoff
+      fallback: switch to universal-agent if specialist fails
+      checkpoint: save progress every 10 minutes
+    "
+    ```
+  </Card>
+  
+  <Card title="Resource Management" icon="gauge">
+    Monitor and manage computational resources effectively
+    
+    ```bash
+    # Resource limits
+    /orchestrate resources --limits "
+      max-concurrent-agents: 5
+      memory-per-agent: 2GB
+      timeout-per-task: 30m
+    "
+    ```
+  </Card>
+</CardGroup>
+
+### Optimization Strategies
+
+<Tabs>
+  <Tab title="Parallel Optimization">
+    ```bash
+    # Maximize parallelization
+    /orchestrate optimize --parallel --analysis "
+      identify-independent-tasks
+      maximize-agent-utilization
+      minimize-waiting-time
+      balance-workload
+    "
+    ```
+  </Tab>
+  
+  <Tab title="Communication Optimization">
+    ```bash
+    # Reduce communication overhead
+    /orchestrate optimize --communication --strategies "
+      batch-messages
+      compress-context
+      cache-common-data
+      async-where-possible
+    "
+    ```
+  </Tab>
+</Tabs>
+
+## Advanced Features
+
+### Machine Learning Integration
+
+<AccordionGroup>
+  <Accordion title="Predictive Orchestration">
+    ```bash
+    # ML-powered workflow optimization
+    /orchestrate ml-optimization --features "
+      historical-performance-data
+      agent-specialization-patterns
+      task-complexity-analysis
+      resource-usage-prediction
+    " --optimize "workflow-efficiency"
+    ```
+  </Accordion>
+  
+  <Accordion title="Adaptive Agent Selection">
+    ```bash
+    # Intelligent agent selection
+    /orchestrate adaptive-selection --criteria "
+      task-complexity
+      agent-current-load
+      historical-success-rate
+      estimated-completion-time
+    "
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Custom Orchestration Patterns
+
+<Tabs>
+  <Tab title="Event-Driven Orchestration">
+    ```bash
+    # Event-driven workflows
+    /orchestrate event-driven --triggers "
+      code-commit: trigger-testing-workflow
+      test-failure: notify-relevant-agents
+      deployment-success: trigger-monitoring-setup
+    "
+    ```
+  </Tab>
+  
+  <Tab title="Reactive Orchestration">
+    ```bash
+    # Reactive workflow adjustment
+    /orchestrate reactive --rules "
+      if agent-overloaded: redistribute-tasks
+      if deadline-approaching: increase-parallelism
+      if quality-issues: add-review-agents
+    "
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="VM Agent"
+    icon="container"
+    href="/agent-system/specialized-agents"
+  >
+    Learn about the VM Agent for secure isolated development
+  </Card>
+  <Card
+    title="Advanced Automation"
+    icon="robot"
+    href="/examples/advanced-automation"
+  >
+    See complex orchestration examples in action
+  </Card>
+  <Card
+    title="Performance Optimization"
+    icon="zap"
+    href="/troubleshooting/performance"
+  >
+    Optimize orchestration performance and efficiency
+  </Card>
+  <Card
+    title="API Integration"
+    icon="plug"
+    href="/api-reference/integrations"
+  >
+    Integrate orchestration with external systems
+  </Card>
+</CardGroup>
+
+<Tip>
+  Start with simple sequential workflows, then gradually introduce parallel and conditional patterns. The orchestration system is most effective when agents have clearly defined roles and responsibilities.
+</Tip>

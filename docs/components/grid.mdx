@@ -1,0 +1,91 @@
+---
+title: 'Grid'
+description: 'Grid layout for structured dashboards and forms.'
+---
+
+## Overview
+
+Rows/columns-based layout helper.
+
+## Import
+
+```ts
+import { Grid } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Grid({ parent: screen, rows: 2, cols: 3, gap: 1 });
+```
+
+## Live Preview
+
+<Snippet file="previews/grid.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- columns: number — Number of columns.
+- rows: number — Number of rows.
+- gap?: number — Spacing between cells.
+- autoSize?: boolean — Reserved; manual layout by default.
+- BaseProps: container styling/layout.
+
+## Methods
+
+- setDimensions(cols, rows), setGap(n).
+- addChildAt(child, c, r), removeChild(child), getChildAt(c, r).
+- reflow().
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Grid, Box, Text } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+const grid = new Grid({ parent: screen, top: 1, left: 2, width: 60, height: 12, columns: 3, rows: 2, gap: 1, borderStyle: 'line' });
+new Text({ parent: grid.el, content: 'A' });
+new Text({ parent: grid.el, content: 'B' });
+new Text({ parent: grid.el, content: 'C' });
+grid.reflow();
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Add Child At
+const cell = new Box({ parent: screen, width: 10, height: 3, borderStyle: 'line', label: 'X' }).el;
+grid.addChildAt(cell, 1, 1);
+```
+
+```ts Gap Tuning
+grid.setGap(2);
+grid.reflow();
+```
+
+</CodeGroup>
+
+## Testing
+
+```ts
+grid.setDimensions(4, 3);
+expect(grid.getConfig).toBeDefined();
+```
+
+## Best Practices
+
+- Mantieni `width/height` espliciti sul Grid per calcoli di cella affidabili.

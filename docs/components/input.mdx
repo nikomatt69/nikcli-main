@@ -1,0 +1,1092 @@
+---
+title: 'Input Components'
+description: 'Master user interaction with TextInput, Select, Button, and form components'
+---
+
+## Input Components
+
+Input components handle user interaction and data collection. They provide intuitive interfaces for text entry, selection, and action triggering.
+
+<CardGroup cols={3}>
+  <Card title="TextInput" icon="type">
+    Single-line text input with validation
+  </Card>
+  <Card title="Select" icon="chevron-down">
+    Dropdown selection component
+  </Card>
+  <Card title="Button" icon="mouse-pointer">
+    Clickable action buttons
+  </Card>
+  <Card title="Checkbox" icon="check-square">
+    Boolean selection input
+  </Card>
+  <Card title="RadioGroup" icon="circle-dot">
+    Single choice from multiple options
+  </Card>
+  <Card title="MultiSelect" icon="list-checks">
+    Multiple item selection
+  </Card>
+</CardGroup>
+
+## TextInput Component
+
+The `TextInput` component provides single-line text entry with validation, placeholders, and event handling.
+
+### Basic Usage
+
+<CodeGroup>
+
+```typescript Basic TextInput
+import { useTerminal, Box, TextInput } from 'nikcli-tui';
+
+const { screen } = useTerminal();
+
+const container = new Box({
+  parent: screen,
+  top: 'center',
+  left: 'center',
+  width: 60,
+  height: 12,
+  border: { type: 'line' },
+  label: ' Text Input Example '
+});
+
+const nameInput = new TextInput({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  right: 2,
+  height: 1,
+  placeholder: 'Enter your name...',
+  onSubmit: (value) => {
+    console.log('Name entered:', value);
+  },
+  onChange: (value) => {
+    console.log('Input changed:', value);
+  }
+});
+
+nameInput.focus();
+screen.render();
+```
+
+```typescript Validated TextInput
+const emailInput = new TextInput({
+  parent: container.el,
+  top: 5,
+  left: 2,
+  right: 2,
+  height: 1,
+  placeholder: 'Enter your email...',
+  validator: (value) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!value) return { isValid: true }; // Allow empty
+    if (!emailRegex.test(value)) {
+      return {
+        isValid: false,
+        message: 'Please enter a valid email address'
+      };
+    }
+    return { isValid: true };
+  },
+  onSubmit: (value) => {
+    if (emailInput.isValid()) {
+      console.log('Valid email:', value);
+    }
+  },
+  style: {
+    invalid: { bg: 'red', fg: 'white' }
+  }
+});
+```
+
+```typescript Password Input
+const passwordInput = new TextInput({
+  parent: container.el,
+  top: 8,
+  left: 2,
+  right: 2,
+  height: 1,
+  placeholder: 'Enter password...',
+  password: true,  // Hide input characters
+  minLength: 8,
+  onSubmit: (value) => {
+    if (value.length >= 8) {
+      console.log('Password accepted');
+    } else {
+      passwordInput.setError('Password must be at least 8 characters');
+    }
+  }
+});
+```
+
+</CodeGroup>
+
+### TextInput Properties
+
+<AccordionGroup>
+  <Accordion title="Basic Properties">
+    ```typescript
+    interface TextInputProps extends BaseProps {
+      placeholder?: string;          // Placeholder text
+      value?: string;               // Initial value
+      maxLength?: number;           // Maximum character limit
+      minLength?: number;           // Minimum character limit
+      password?: boolean;           // Hide input characters
+      disabled?: boolean;           // Disable input
+      readonly?: boolean;           // Read-only mode
+    }
+    
+    // Example
+    const input = new TextInput({
+      parent: container.el,
+      placeholder: 'Type here...',
+      maxLength: 100,
+      value: 'Initial text',
+      disabled: false
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Validation">
+    ```typescript
+    interface ValidationResult {
+      isValid: boolean;
+      message?: string;
+    }
+    
+    type Validator = (value: string) => ValidationResult;
+    
+    interface TextInputValidationProps {
+      validator?: Validator;
+      required?: boolean;
+      pattern?: RegExp;
+      customValidators?: Validator[];
+    }
+    
+    // Built-in validators
+    const urlInput = new TextInput({
+      parent: container.el,
+      validator: (value) => {
+        try {
+          new URL(value);
+          return { isValid: true };
+        } catch {
+          return { isValid: false, message: 'Invalid URL' };
+        }
+      }
+    });
+    
+    // Multiple validators
+    const strongPasswordInput = new TextInput({
+      parent: container.el,
+      customValidators: [
+        (value) => value.length >= 8 
+          ? { isValid: true } 
+          : { isValid: false, message: 'At least 8 characters' },
+        (value) => /[A-Z]/.test(value)
+          ? { isValid: true }
+          : { isValid: false, message: 'Must contain uppercase' },
+        (value) => /[0-9]/.test(value)
+          ? { isValid: true }
+          : { isValid: false, message: 'Must contain number' }
+      ]
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Event Handlers">
+    ```typescript
+    interface TextInputEventProps {
+      onSubmit?: (value: string) => void;      // Enter key pressed
+      onChange?: (value: string) => void;      // Value changed
+      onFocus?: () => void;                    // Input focused
+      onBlur?: () => void;                     // Input lost focus
+      onKeyPress?: (ch: string, key: any) => void;  // Key pressed
+      onValidation?: (result: ValidationResult) => void;  // Validation result
+    }
+    
+    const interactiveInput = new TextInput({
+      parent: container.el,
+      onChange: (value) => {
+        // Real-time character count
+        counter.setContent(`${value.length}/100 characters`);
+      },
+      onFocus: () => {
+        input.setStyle({ border: { fg: 'cyan' } });
+      },
+      onBlur: () => {
+        input.setStyle({ border: { fg: 'gray' } });
+      },
+      onKeyPress: (ch, key) => {
+        if (key.name === 'tab') {
+          // Handle tab completion
+          handleTabCompletion(input.getValue());
+        }
+      }
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### TextInput Methods
+
+```typescript
+class TextInput {
+  // Value management
+  getValue(): string;
+  setValue(value: string): void;
+  clearValue(): void;
+  
+  // Validation
+  validate(): ValidationResult;
+  isValid(): boolean;
+  setError(message: string): void;
+  clearError(): void;
+  
+  // State management
+  setDisabled(disabled: boolean): void;
+  setReadonly(readonly: boolean): void;
+  setPlaceholder(placeholder: string): void;
+  
+  // Focus management
+  focus(): void;
+  blur(): void;
+  isFocused(): boolean;
+  
+  // Styling
+  setStyle(style: StyleConfig): void;
+  
+  // Autocomplete/Suggestions
+  setSuggestions(suggestions: string[]): void;
+  showSuggestions(): void;
+  hideSuggestions(): void;
+}
+
+// Usage examples
+const input = new TextInput({ parent: container.el });
+
+input.setValue('Hello, World!');
+console.log(input.getValue()); // "Hello, World!"
+
+if (!input.isValid()) {
+  input.setError('Please enter valid data');
+}
+
+input.setSuggestions(['apple', 'banana', 'cherry']);
+input.focus();
+```
+
+## Select Component
+
+The `Select` component provides dropdown selection functionality with search capabilities and custom styling.
+
+### Basic Select
+
+<CodeGroup>
+
+```typescript Simple Select
+import { Select } from 'nikcli-tui';
+
+const modelSelect = new Select({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  width: 30,
+  height: 1,
+  items: [
+    'GPT-4',
+    'GPT-3.5 Turbo',
+    'Claude 3 Opus',
+    'Claude 3 Sonnet',
+    'Llama 2 70B'
+  ],
+  onSelect: (item, index) => {
+    console.log(`Selected: ${item} (index: ${index})`);
+  }
+});
+```
+
+```typescript Object-based Select
+interface SelectOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+  group?: string;
+}
+
+const aiProviderSelect = new Select<SelectOption>({
+  parent: container.el,
+  items: [
+    { value: 'openai', label: '🤖 OpenAI GPT-4' },
+    { value: 'anthropic', label: '🧠 Anthropic Claude' },
+    { value: 'ollama', label: '🏠 Local Ollama', disabled: false },
+    { value: 'custom', label: '⚙️ Custom Provider', disabled: true }
+  ],
+  displayProperty: 'label',
+  valueProperty: 'value',
+  onSelect: (option) => {
+    console.log(`Provider selected: ${option.value}`);
+    updateAIProvider(option.value);
+  }
+});
+```
+
+```typescript Grouped Select
+const commandSelect = new Select({
+  parent: container.el,
+  items: [
+    { group: 'File Operations', value: 'file:new', label: 'New File' },
+    { group: 'File Operations', value: 'file:open', label: 'Open File' },
+    { group: 'File Operations', value: 'file:save', label: 'Save File' },
+    { group: 'AI Commands', value: 'ai:chat', label: 'Start Chat' },
+    { group: 'AI Commands', value: 'ai:complete', label: 'Complete Text' },
+    { group: 'AI Commands', value: 'ai:analyze', label: 'Analyze Code' }
+  ],
+  showGroups: true,
+  searchable: true,
+  onSelect: (item) => {
+    executeCommand(item.value);
+  }
+});
+```
+
+</CodeGroup>
+
+### Select Properties
+
+```typescript
+interface SelectProps<T = string> extends BaseProps {
+  items: T[];
+  selected?: number;              // Initially selected index
+  placeholder?: string;           // Placeholder text when nothing selected
+  searchable?: boolean;          // Enable search/filter functionality
+  multiple?: boolean;            // Allow multiple selections
+  showGroups?: boolean;          // Show group headers
+  maxHeight?: number;            // Maximum dropdown height
+  
+  // For object items
+  displayProperty?: keyof T;     // Property to display
+  valueProperty?: keyof T;       // Property to use as value
+  groupProperty?: keyof T;       // Property for grouping
+  
+  // Event handlers
+  onSelect?: (item: T, index?: number) => void;
+  onOpen?: () => void;
+  onClose?: () => void;
+  onSearch?: (query: string) => void;
+}
+```
+
+### Advanced Select Features
+
+<CodeGroup>
+
+```typescript Searchable Select
+const searchableSelect = new Select({
+  parent: container.el,
+  items: countries,
+  searchable: true,
+  placeholder: 'Search countries...',
+  onSearch: (query) => {
+    // Custom search logic
+    const filtered = countries.filter(country =>
+      country.toLowerCase().includes(query.toLowerCase())
+    );
+    searchableSelect.updateItems(filtered);
+  },
+  noResultsText: 'No countries found'
+});
+```
+
+```typescript Multi-Select
+const multiSelect = new Select({
+  parent: container.el,
+  items: ['JavaScript', 'Python', 'Rust', 'Go', 'TypeScript'],
+  multiple: true,
+  onSelect: (selectedItems) => {
+    console.log('Selected languages:', selectedItems);
+    updateLanguagePreferences(selectedItems);
+  }
+});
+
+// Methods for multi-select
+multiSelect.selectAll();
+multiSelect.clearSelection();
+multiSelect.getSelected(); // Returns array of selected items
+```
+
+```typescript Async Select
+class AsyncSelect extends Select {
+  private loading = false;
+  
+  constructor(props: AsyncSelectProps) {
+    super(props);
+    this.loadItems();
+  }
+  
+  private async loadItems() {
+    this.setLoading(true);
+    
+    try {
+      const items = await this.props.loadItems();
+      this.updateItems(items);
+    } catch (error) {
+      this.showError('Failed to load options');
+    } finally {
+      this.setLoading(false);
+    }
+  }
+  
+  private setLoading(loading: boolean) {
+    this.loading = loading;
+    if (loading) {
+      this.setPlaceholder('Loading...');
+      this.setDisabled(true);
+    } else {
+      this.setPlaceholder(this.props.placeholder);
+      this.setDisabled(false);
+    }
+  }
+}
+
+// Usage
+const asyncModelSelect = new AsyncSelect({
+  parent: container.el,
+  loadItems: async () => {
+    const response = await fetch('/api/ai-models');
+    return response.json();
+  },
+  onSelect: (model) => {
+    setActiveModel(model);
+  }
+});
+```
+
+</CodeGroup>
+
+## Button Component
+
+The `Button` component provides clickable interface elements with multiple variants and states.
+
+### Basic Buttons
+
+<CodeGroup>
+
+```typescript Button Variants
+import { Button } from 'nikcli-tui';
+
+// Primary button
+const primaryButton = new Button({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  width: 20,
+  height: 3,
+  content: 'Start Chat',
+  variant: 'primary',
+  onPress: () => {
+    startChatSession();
+  }
+});
+
+// Secondary button
+const secondaryButton = new Button({
+  parent: container.el,
+  top: 2,
+  left: 25,
+  width: 20,
+  height: 3,
+  content: 'Settings',
+  variant: 'secondary',
+  onPress: () => {
+    openSettings();
+  }
+});
+
+// Danger button
+const dangerButton = new Button({
+  parent: container.el,
+  top: 2,
+  left: 48,
+  width: 20,
+  height: 3,
+  content: 'Clear Chat',
+  variant: 'danger',
+  onPress: () => {
+    confirmClearChat();
+  }
+});
+```
+
+```typescript Icon Buttons
+// Button with icon
+const saveButton = new Button({
+  parent: container.el,
+  content: '💾 Save',
+  variant: 'primary',
+  onPress: () => saveDocument()
+});
+
+// Icon-only button
+const helpButton = new Button({
+  parent: container.el,
+  content: '❓',
+  variant: 'ghost',
+  width: 5,
+  height: 3,
+  tooltip: 'Show help',
+  onPress: () => showHelp()
+});
+
+// Loading button
+const submitButton = new Button({
+  parent: container.el,
+  content: 'Submit',
+  onPress: async () => {
+    submitButton.setLoading(true);
+    try {
+      await submitForm();
+    } finally {
+      submitButton.setLoading(false);
+    }
+  }
+});
+```
+
+```typescript Button Groups
+class ButtonGroup {
+  private container: Flex;
+  private buttons: Button[] = [];
+  
+  constructor(parent: any, buttons: ButtonConfig[]) {
+    this.container = new Flex({
+      parent,
+      direction: 'row',
+      gap: 1
+    });
+    
+    this.createButtons(buttons);
+  }
+  
+  private createButtons(configs: ButtonConfig[]) {
+    configs.forEach((config, index) => {
+      const button = new Button({
+        parent: this.container.el,
+        ...config,
+        onPress: () => {
+          this.handleButtonPress(index, config);
+        }
+      });
+      
+      this.buttons.push(button);
+    });
+  }
+  
+  private handleButtonPress(index: number, config: ButtonConfig) {
+    // Handle exclusive selection for toggle groups
+    if (config.toggle) {
+      this.buttons.forEach((btn, i) => {
+        btn.setActive(i === index);
+      });
+    }
+    
+    config.onPress?.(index);
+  }
+}
+
+// Usage
+const toolbarButtons = new ButtonGroup(toolbar.el, [
+  { content: '📝 Edit', toggle: true, onPress: () => setMode('edit') },
+  { content: '👁 View', toggle: true, onPress: () => setMode('view') },
+  { content: '🔍 Search', toggle: true, onPress: () => setMode('search') }
+]);
+```
+
+</CodeGroup>
+
+### Button Properties
+
+```typescript
+interface ButtonProps extends BaseProps {
+  content: string;
+  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'ghost' | 'link';
+  size?: 'small' | 'medium' | 'large';
+  disabled?: boolean;
+  loading?: boolean;
+  active?: boolean;
+  toggle?: boolean;           // Toggle button behavior
+  tooltip?: string;           // Tooltip text
+  
+  // Event handlers
+  onPress?: () => void | Promise<void>;
+  onHover?: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
+}
+```
+
+### Button States
+
+```typescript
+class Button {
+  // State management
+  setDisabled(disabled: boolean): void;
+  setLoading(loading: boolean): void;
+  setActive(active: boolean): void;
+  
+  // Content management
+  setContent(content: string): void;
+  setTooltip(tooltip: string): void;
+  
+  // Styling
+  setVariant(variant: ButtonVariant): void;
+  setSize(size: ButtonSize): void;
+  
+  // Programmatic actions
+  click(): void;
+  focus(): void;
+  blur(): void;
+}
+
+// Usage
+const dynamicButton = new Button({
+  parent: container.el,
+  content: 'Click me'
+});
+
+// Update button state
+dynamicButton.setLoading(true);
+dynamicButton.setContent('Processing...');
+dynamicButton.setDisabled(true);
+
+// Later...
+dynamicButton.setLoading(false);
+dynamicButton.setContent('Done!');
+dynamicButton.setDisabled(false);
+```
+
+## Form Components
+
+### Checkbox Component
+
+<CodeGroup>
+
+```typescript Basic Checkbox
+import { Checkbox } from 'nikcli-tui';
+
+const enableAI = new Checkbox({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  label: 'Enable AI assistance',
+  checked: true,
+  onChange: (checked) => {
+    console.log('AI assistance:', checked ? 'enabled' : 'disabled');
+    toggleAIFeatures(checked);
+  }
+});
+```
+
+```typescript Checkbox Group
+class CheckboxGroup {
+  private checkboxes: Checkbox[] = [];
+  private onChange: (values: string[]) => void;
+  
+  constructor(parent: any, options: CheckboxOption[], onChange: (values: string[]) => void) {
+    this.onChange = onChange;
+    this.createCheckboxes(parent, options);
+  }
+  
+  private createCheckboxes(parent: any, options: CheckboxOption[]) {
+    options.forEach((option, index) => {
+      const checkbox = new Checkbox({
+        parent,
+        top: index * 2,
+        label: option.label,
+        value: option.value,
+        checked: option.checked || false,
+        onChange: () => this.handleChange()
+      });
+      
+      this.checkboxes.push(checkbox);
+    });
+  }
+  
+  private handleChange() {
+    const values = this.checkboxes
+      .filter(cb => cb.isChecked())
+      .map(cb => cb.getValue());
+    
+    this.onChange(values);
+  }
+  
+  getValues(): string[] {
+    return this.checkboxes
+      .filter(cb => cb.isChecked())
+      .map(cb => cb.getValue());
+  }
+}
+
+// Usage
+const featuresGroup = new CheckboxGroup(
+  container.el,
+  [
+    { label: 'Code completion', value: 'completion', checked: true },
+    { label: 'Error detection', value: 'errors', checked: true },
+    { label: 'Code formatting', value: 'formatting', checked: false },
+    { label: 'Documentation generation', value: 'docs', checked: false }
+  ],
+  (selectedFeatures) => {
+    console.log('Selected features:', selectedFeatures);
+    updateFeatureSettings(selectedFeatures);
+  }
+);
+```
+
+</CodeGroup>
+
+### RadioGroup Component
+
+<CodeGroup>
+
+```typescript Basic RadioGroup
+import { RadioGroup } from 'nikcli-tui';
+
+const themeSelector = new RadioGroup({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  label: 'Theme Selection',
+  options: [
+    { label: '🌙 Dark Theme', value: 'dark' },
+    { label: '☀️ Light Theme', value: 'light' },
+    { label: '🎨 Auto Theme', value: 'auto' }
+  ],
+  selected: 'dark',
+  onChange: (value) => {
+    console.log('Theme changed to:', value);
+    applyTheme(value);
+  }
+});
+```
+
+```typescript Advanced RadioGroup
+class AdvancedRadioGroup extends RadioGroup {
+  private descriptions: { [key: string]: string } = {};
+  private descriptionBox: Text;
+  
+  constructor(props: AdvancedRadioGroupProps) {
+    super(props);
+    
+    this.descriptions = props.descriptions || {};
+    
+    // Create description box
+    this.descriptionBox = new Text({
+      parent: props.parent,
+      top: this.el.top + this.el.height + 1,
+      left: this.el.left,
+      right: this.el.right,
+      height: 3,
+      border: { type: 'line' },
+      label: ' Description ',
+      wrap: true
+    });
+    
+    this.showDescription(this.getSelected());
+  }
+  
+  protected handleSelectionChange(value: string) {
+    super.handleSelectionChange(value);
+    this.showDescription(value);
+  }
+  
+  private showDescription(value: string) {
+    const description = this.descriptions[value] || 'No description available.';
+    this.descriptionBox.setContent(description);
+  }
+}
+
+// Usage
+const modelSelector = new AdvancedRadioGroup({
+  parent: container.el,
+  label: 'AI Model Selection',
+  options: [
+    { label: 'GPT-4', value: 'gpt-4' },
+    { label: 'Claude 3 Opus', value: 'claude-3-opus' },
+    { label: 'Llama 2 70B', value: 'llama-2-70b' }
+  ],
+  descriptions: {
+    'gpt-4': 'OpenAI\'s most advanced model with superior reasoning and creativity.',
+    'claude-3-opus': 'Anthropic\'s most powerful model, excellent for complex tasks.',
+    'llama-2-70b': 'Meta\'s open-source model, good for general tasks and privacy.'
+  }
+});
+```
+
+</CodeGroup>
+
+## Form Composition
+
+### Complete Form Example
+
+```typescript
+class AIConfigurationForm {
+  private form: Box;
+  private providerSelect: Select;
+  private modelInput: TextInput;
+  private temperatureSlider: Slider;
+  private featuresGroup: CheckboxGroup;
+  private submitButton: Button;
+  private cancelButton: Button;
+  
+  constructor(parent: any) {
+    this.createForm(parent);
+    this.setupValidation();
+    this.setupEventHandlers();
+  }
+  
+  private createForm(parent: any) {
+    this.form = new Box({
+      parent,
+      top: 'center',
+      left: 'center',
+      width: 80,
+      height: 25,
+      border: { type: 'double' },
+      label: ' AI Configuration '
+    });
+    
+    // Provider selection
+    new Text({
+      parent: this.form.el,
+      top: 2,
+      left: 2,
+      content: 'AI Provider:'
+    });
+    
+    this.providerSelect = new Select({
+      parent: this.form.el,
+      top: 3,
+      left: 2,
+      width: 35,
+      items: [
+        { value: 'openai', label: 'OpenAI' },
+        { value: 'anthropic', label: 'Anthropic' },
+        { value: 'ollama', label: 'Local Ollama' }
+      ]
+    });
+    
+    // API Key input
+    new Text({
+      parent: this.form.el,
+      top: 5,
+      left: 2,
+      content: 'API Key:'
+    });
+    
+    this.modelInput = new TextInput({
+      parent: this.form.el,
+      top: 6,
+      left: 2,
+      right: 2,
+      password: true,
+      placeholder: 'Enter your API key...'
+    });
+    
+    // Temperature slider
+    new Text({
+      parent: this.form.el,
+      top: 8,
+      left: 2,
+      content: 'Temperature: 0.7'
+    });
+    
+    this.temperatureSlider = new Slider({
+      parent: this.form.el,
+      top: 9,
+      left: 2,
+      width: 35,
+      min: 0,
+      max: 2,
+      step: 0.1,
+      value: 0.7
+    });
+    
+    // Features checkboxes
+    new Text({
+      parent: this.form.el,
+      top: 11,
+      left: 2,
+      content: 'Features:'
+    });
+    
+    this.featuresGroup = new CheckboxGroup(
+      this.form.el,
+      [
+        { label: 'Streaming responses', value: 'streaming' },
+        { label: 'Context memory', value: 'memory' },
+        { label: 'Function calling', value: 'functions' }
+      ]
+    );
+    
+    // Buttons
+    const buttonContainer = new Flex({
+      parent: this.form.el,
+      bottom: 2,
+      right: 2,
+      direction: 'row',
+      gap: 2
+    });
+    
+    this.cancelButton = new Button({
+      parent: buttonContainer.el,
+      content: 'Cancel',
+      variant: 'secondary',
+      onPress: () => this.cancel()
+    });
+    
+    this.submitButton = new Button({
+      parent: buttonContainer.el,
+      content: 'Save',
+      variant: 'primary',
+      onPress: () => this.submit()
+    });
+  }
+  
+  private async submit() {
+    if (!this.validateForm()) {
+      return;
+    }
+    
+    this.submitButton.setLoading(true);
+    
+    try {
+      const config = this.getFormData();
+      await saveConfiguration(config);
+      this.close();
+    } catch (error) {
+      this.showError(error.message);
+    } finally {
+      this.submitButton.setLoading(false);
+    }
+  }
+  
+  private validateForm(): boolean {
+    // Validation logic
+    return true;
+  }
+  
+  private getFormData() {
+    return {
+      provider: this.providerSelect.getSelected(),
+      apiKey: this.modelInput.getValue(),
+      temperature: this.temperatureSlider.getValue(),
+      features: this.featuresGroup.getValues()
+    };
+  }
+}
+```
+
+## Input Validation & Error Handling
+
+### Validation Framework
+
+```typescript
+class FormValidator {
+  private rules: ValidationRule[] = [];
+  private errors: { [field: string]: string } = {};
+  
+  addRule(field: string, rule: ValidationRule) {
+    this.rules.push({ field, ...rule });
+  }
+  
+  validate(data: { [key: string]: any }): boolean {
+    this.errors = {};
+    
+    for (const rule of this.rules) {
+      const value = data[rule.field];
+      const result = rule.validate(value);
+      
+      if (!result.isValid) {
+        this.errors[rule.field] = result.message || 'Invalid value';
+      }
+    }
+    
+    return Object.keys(this.errors).length === 0;
+  }
+  
+  getErrors(): { [field: string]: string } {
+    return this.errors;
+  }
+  
+  getError(field: string): string | undefined {
+    return this.errors[field];
+  }
+}
+
+// Usage
+const validator = new FormValidator();
+
+validator.addRule('email', {
+  validate: (value) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return {
+      isValid: emailRegex.test(value),
+      message: 'Please enter a valid email address'
+    };
+  }
+});
+
+validator.addRule('password', {
+  validate: (value) => ({
+    isValid: value && value.length >= 8,
+    message: 'Password must be at least 8 characters'
+  })
+});
+
+// In form submission
+if (validator.validate(formData)) {
+  // Submit form
+} else {
+  // Show errors
+  const errors = validator.getErrors();
+  Object.keys(errors).forEach(field => {
+    const input = this.inputs[field];
+    input.setError(errors[field]);
+  });
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Display Components"
+    icon="eye"
+    href="/components/display"
+  >
+    Learn about Text, Table, and data visualization components
+  </Card>
+  <Card
+    title="Feedback Components"
+    icon="loader"
+    href="/components/feedback"
+  >
+    Master Spinner, ProgressBar, and user feedback components
+  </Card>
+  <Card
+    title="Complete Form Example"
+    icon="form-input"
+    href="/examples/todo-app"
+  >
+    See input components in a real application
+  </Card>
+  <Card
+    title="AI Integration"
+    icon="brain"
+    href="/ai/overview"
+  >
+    Combine input components with AI services
+  </Card>
+</CardGroup>

@@ -1,0 +1,295 @@
+name: Security Monitoring & Compliance
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: "Type of security scan"
+        required: true
+        default: "full"
+        type: choice
+        options:
+          - full
+          - quick
+          - compliance
+
+env:
+  NODE_VERSION: "18"
+
+jobs:
+  sast-scanning:
+    name: SAST Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript,typescript
+          queries: security-extended,security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:javascript"
+
+  dependency-scanning:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=moderate --json > npm-audit-results.json || true
+
+      - name: Check for vulnerabilities
+        run: |
+          if [ -f "npm-audit-results.json" ]; then
+            VULN_COUNT=$(jq '.metadata.vulnerabilities.total' npm-audit-results.json)
+            if [ "$VULN_COUNT" -gt 0 ]; then
+              echo "❌ Found $VULN_COUNT vulnerabilities in npm audit"
+              exit 1
+            fi
+          fi
+
+      - name: Upload vulnerability reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vulnerability-reports
+          path: npm-audit-results.json
+          retention-days: 30
+
+  secrets-detection:
+    name: Enhanced Secrets Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          extra_args: --only-verified
+
+      - name: Check for hardcoded secrets
+        run: |
+          SECRETS_FOUND=$(grep -r -i -E "(api_key|secret|password|token|private_key)" src/ || true)
+          if [ ! -z "$SECRETS_FOUND" ]; then
+            echo "❌ Potential secrets found in source code:"
+            echo "$SECRETS_FOUND"
+            exit 1
+          fi
+
+  compliance-check:
+    name: Compliance Framework Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: GDPR Compliance Check
+        run: |
+          GDPR_PATTERNS=("data-protection" "privacy" "consent" "right-to-be-forgotten")
+          for pattern in "${GDPR_PATTERNS[@]}"; do
+            if ! grep -r -i "$pattern" src/ > /dev/null; then
+              echo "⚠️ GDPR compliance pattern not found: $pattern"
+            fi
+          done
+
+      - name: SOC2 Compliance Check
+        run: |
+          SOC2_PATTERNS=("audit" "logging" "access-control" "encryption")
+          for pattern in "${SOC2_PATTERNS[@]}"; do
+            if ! grep -r -i "$pattern" src/ > /dev/null; then
+              echo "⚠️ SOC2 compliance pattern not found: $pattern"
+            fi
+          done
+
+  security-policy-check:
+    name: Security Policy Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate security files
+        run: |
+          REQUIRED_FILES=("SECURITY.md" "PRODUCTION-READINESS-ANALYSIS.md")
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Missing required security file: $file"
+              exit 1
+            fi
+          done
+
+      - name: Validate input sanitization
+        run: |
+          VALIDATION=$(grep -r -E "(zod|validation|sanitize)" src/cli/ || true)
+          if [ -z "$VALIDATION" ]; then
+            echo "⚠️ Input validation patterns not found"
+          fi
+
+  security-metrics:
+    name: Security Metrics Collection
+    runs-on: ubuntu-latest
+    needs:
+      [
+        sast-scanning,
+        dependency-scanning,
+        secrets-detection,
+        compliance-check,
+        security-policy-check,
+      ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download security reports
+        uses: actions/download-artifact@v4
+        with:
+          name: vulnerability-reports
+          path: ./reports
+
+      - name: Generate security metrics
+        run: |
+          echo "# Security Metrics Report" > security-metrics.md
+          echo "Generated: $(date)" >> security-metrics.md
+          echo "" >> security-metrics.md
+
+          if [ -f "reports/npm-audit-results.json" ]; then
+            NPM_VULNS=$(jq '.metadata.vulnerabilities.total' reports/npm-audit-results.json)
+            echo "## NPM Audit" >> security-metrics.md
+            echo "- Total vulnerabilities: $NPM_VULNS" >> security-metrics.md
+          fi
+
+          TOTAL_VULNS=${NPM_VULNS:-0}
+          if [ $TOTAL_VULNS -eq 0 ]; then
+            SECURITY_SCORE=100
+          else
+            SECURITY_SCORE=$((100 - TOTAL_VULNS * 10))
+            if [ $SECURITY_SCORE -lt 0 ]; then
+              SECURITY_SCORE=0
+            fi
+          fi
+
+          echo "" >> security-metrics.md
+          echo "## Overall Security Score" >> security-metrics.md
+          echo "- Score: $SECURITY_SCORE/100" >> security-metrics.md
+
+          echo "" >> security-metrics.md
+          echo "## Security Scan Summary" >> security-metrics.md
+          echo "- ✅ SAST (CodeQL): Completed" >> security-metrics.md
+          echo "- ✅ Dependency scanning (npm audit): Completed" >> security-metrics.md
+          echo "- ✅ Secrets detection (TruffleHog): Completed" >> security-metrics.md
+          echo "- ✅ Security policy validation: Completed" >> security-metrics.md
+          echo "- ✅ Compliance framework check: Completed" >> security-metrics.md
+
+      - name: Upload security metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-metrics
+          path: security-metrics.md
+          retention-days: 30
+
+      - name: Comment on PR with security summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let summary = '## 🔒 Security Scan Results\n\n';
+
+            try {
+              const metrics = fs.readFileSync('security-metrics.md', 'utf8');
+              summary += metrics;
+            } catch (error) {
+              summary += '⚠️ Security metrics not available\n';
+            }
+
+            summary += '\n---\n';
+            summary += '🔍 **Security scans completed:**\n';
+            summary += '- ✅ SAST (CodeQL)\n';
+            summary += '- ✅ Dependency scanning (npm audit)\n';
+            summary += '- ✅ Secrets detection (TruffleHog)\n';
+            summary += '- ✅ Security policy validation\n';
+            summary += '- ✅ Compliance framework check\n';
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+  security-alerting:
+    name: Security Alerting
+    runs-on: ubuntu-latest
+    needs: [security-metrics]
+    if: always()
+
+    steps:
+      - name: Check security score
+        run: |
+          actions/download-artifact@v4
+          name: security-metrics
+          path: ./reports
+
+          if [ -f "reports/security-metrics.md" ]; then
+            SCORE=$(grep "Score:" reports/security-metrics.md | grep -o '[0-9]\+')
+            if [ "$SCORE" -lt 80 ]; then
+              echo "🚨 Security score $SCORE is below threshold of 80"
+              exit 1
+            fi
+          fi
+
+      - name: Send security alert
+        if: failure()
+        run: |
+          echo "🚨 Security alert: Issues detected in security scan"
+
+      - name: Security scan passed
+        if: success()
+        run: |
+          echo "✅ Security scan completed successfully"
+          echo "🔒 All security checks passed"

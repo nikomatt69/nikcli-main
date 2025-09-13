@@ -1,0 +1,866 @@
+---
+title: 'File Operations'
+description: 'Complete guide to file system operations in NikCLI'
+icon: 'folder'
+---
+
+## File Operations Overview
+
+NikCLI provides secure, powerful file system operations with built-in safety measures and intelligent context awareness. All file operations respect security policies and provide approval workflows when needed.
+
+<CardGroup cols={2}>
+  <Card title="Read Operations" icon="eye">
+    View file contents and directory listings
+  </Card>
+  <Card title="Write Operations" icon="edit">
+    Create and modify files with approval workflows
+  </Card>
+  <Card title="Search Operations" icon="search">
+    Find files and search content across your project
+  </Card>
+  <Card title="Batch Operations" icon="layer-group">
+    Perform operations on multiple files efficiently
+  </Card>
+</CardGroup>
+
+## Read Operations
+
+### `/read` - Read File Contents
+
+<AccordionGroup>
+  <Accordion title="Basic File Reading">
+    ```bash
+    # Read entire file
+    /read src/components/Button.tsx
+    
+    # Read specific lines (useful for large files)
+    /read src/utils/helpers.ts 1-50
+    /read package.json 10-20
+    
+    # Read with syntax highlighting
+    /read src/api/auth.js --highlight
+    ```
+    
+    **Output Example:**
+    ```typescript
+    📁 src/components/Button.tsx (45 lines)
+    ───────────────────────────────────────────
+      1│ import React from 'react';
+      2│ import { ButtonProps } from '../types/components';
+      3│ import styles from './Button.module.css';
+      4│ 
+      5│ export const Button: React.FC<ButtonProps> = ({
+      6│   children,
+      7│   variant = 'primary',
+      8│   size = 'medium',
+      9│   disabled = false,
+     10│   onClick,
+     11│   ...props
+     12│ }) => {
+     13│   return (
+     14│     <button
+     15│       className={`${styles.button} ${styles[variant]} ${styles[size]}`}
+     16│       disabled={disabled}
+     17│       onClick={onClick}
+     18│       {...props}
+     19│     >
+     20│       {children}
+     21│     </button>
+     22│   );
+     23│ };
+    ───────────────────────────────────────────
+    ```
+  </Accordion>
+  
+  <Accordion title="Advanced Reading Options">
+    ```bash
+    # Read multiple files
+    /read src/components/*.tsx
+    /read "src/**/*.ts" --recursive
+    
+    # Read with filters
+    /read src/api/auth.js --functions-only
+    /read src/types/index.ts --exports-only
+    /read src/components/Form.tsx --comments-only
+    
+    # Read file metadata
+    /read src/main.ts --info
+    ```
+    
+    **Metadata Output:**
+    ```
+    📋 File Information: src/main.ts
+    ───────────────────────────────────────
+    Size: 2.3 KB (2,345 bytes)
+    Lines: 87 (72 code, 12 comments, 3 blank)
+    Created: 2024-03-15 10:30:22
+    Modified: 2024-03-20 14:45:33
+    Type: TypeScript
+    Encoding: UTF-8
+    Dependencies: 8 imports
+    Exports: 3 functions, 1 interface
+    ───────────────────────────────────────
+    ```
+  </Accordion>
+  
+  <Accordion title="Binary and Image Files">
+    ```bash
+    # View image files (shows file info + opens in viewer)
+    /read assets/logo.png
+    /read public/images/hero.jpg
+    
+    # View binary file information
+    /read dist/app.js --binary-info
+    
+    # View package contents
+    /read package-lock.json --summary
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### `/ls` - List Directory Contents
+
+<Tabs>
+  <Tab title="Basic Listing">
+    ```bash
+    # List current directory
+    /ls
+    
+    # List specific directory
+    /ls src/
+    /ls src/components/
+    
+    # List with details
+    /ls src/ --details
+    /ls --all  # Include hidden files
+    ```
+    
+    **Output Example:**
+    ```
+    📁 src/ (12 items)
+    ┌─────────────────────────────────────────────────────────┐
+    │ Name                Type        Size      Modified       │
+    ├─────────────────────────────────────────────────────────┤
+    │ 📁 components/      Directory   -         2 hours ago    │
+    │ 📁 hooks/          Directory   -         1 day ago      │
+    │ 📁 pages/          Directory   -         3 hours ago    │
+    │ 📁 services/       Directory   -         2 days ago     │
+    │ 📁 types/          Directory   -         1 day ago      │
+    │ 📁 utils/          Directory   -         5 hours ago    │
+    │ 📄 App.tsx         TypeScript  3.2 KB    30 min ago     │
+    │ 📄 index.tsx       TypeScript  1.8 KB    2 hours ago    │
+    │ 📄 main.css        CSS         2.1 KB    1 day ago      │
+    │ 📄 vite-env.d.ts   TypeScript  158 B     1 week ago     │
+    └─────────────────────────────────────────────────────────┘
+    ```
+  </Tab>
+  
+  <Tab title="Advanced Listing">
+    ```bash
+    # Tree view
+    /ls src/ --tree
+    /ls --tree --depth 3
+    
+    # Filter by type
+    /ls src/ --type typescript
+    /ls assets/ --type image
+    /ls --type directory
+    
+    # Sort options
+    /ls src/ --sort size
+    /ls src/ --sort modified
+    /ls src/ --sort name
+    ```
+    
+    **Tree View Example:**
+    ```
+    📁 src/
+    ├── 📁 components/
+    │   ├── 📄 Button.tsx
+    │   ├── 📄 Form.tsx
+    │   ├── 📄 Modal.tsx
+    │   └── 📁 ui/
+    │       ├── 📄 Input.tsx
+    │       └── 📄 Select.tsx
+    ├── 📁 hooks/
+    │   ├── 📄 useAuth.ts
+    │   ├── 📄 useApi.ts
+    │   └── 📄 useLocalStorage.ts
+    ├── 📁 pages/
+    │   ├── 📄 Home.tsx
+    │   ├── 📄 Login.tsx
+    │   └── 📄 Dashboard.tsx
+    └── 📄 App.tsx
+    ```
+  </Tab>
+  
+  <Tab title="Statistics and Analysis">
+    ```bash
+    # Directory statistics
+    /ls src/ --stats
+    
+    # File type breakdown
+    /ls --analysis
+    
+    # Large files identification
+    /ls --large-files
+    ```
+    
+    **Statistics Example:**
+    ```
+    📊 Directory Analysis: src/
+    ───────────────────────────────────────
+    Total Items: 47 files, 12 directories
+    Total Size: 234.5 KB
+    
+    File Types:
+    ├── TypeScript: 32 files (68%)
+    ├── CSS: 8 files (17%)
+    ├── JSON: 4 files (9%)
+    └── Other: 3 files (6%)
+    
+    Largest Files:
+    ├── App.tsx (8.3 KB)
+    ├── main.css (6.1 KB)
+    └── types/api.ts (4.7 KB)
+    
+    Last Modified: 30 minutes ago
+    ───────────────────────────────────────
+    ```
+  </Tab>
+</Tabs>
+
+## Write Operations
+
+### `/write` - Create/Modify Files
+
+<AccordionGroup>
+  <Accordion title="File Creation">
+    ```bash
+    # Create new file with content
+    /write src/utils/logger.ts "export const logger = console;"
+    
+    # Create file with multi-line content
+    /write src/components/Header.tsx """
+    import React from 'react';
+    
+    export const Header: React.FC = () => {
+      return (
+        <header>
+          <h1>My App</h1>
+        </header>
+      );
+    };
+    """
+    
+    # Create from template
+    /write src/pages/NewPage.tsx --template react-page
+    ```
+    
+    **Approval Workflow:**
+    ```
+    📝 File Creation Request
+    ───────────────────────────────────────
+    Operation: Create new file
+    Path: src/utils/logger.ts
+    Size: 145 bytes
+    Type: TypeScript
+    
+    Content Preview:
+    ┌─────────────────────────────────────┐
+    │ export const logger = {             │
+    │   info: (msg: string) => console.  │
+    │   error: (msg: string) => console. │
+    │   warn: (msg: string) => console.  │
+    │ };                                  │
+    └─────────────────────────────────────┘
+    
+    Impact Assessment:
+    ├── New dependency: None
+    ├── Breaking changes: None
+    ├── Security risk: Low
+    └── Test coverage: Manual testing required
+    
+    Approve file creation? (y/n/edit)
+    ```
+  </Accordion>
+  
+  <Accordion title="File Modification">
+    ```bash
+    # Overwrite entire file
+    /write src/config/api.ts "export const API_URL = 'https://api.example.com';"
+    
+    # Append to file
+    /write src/types/user.ts --append "export interface Admin extends User { role: 'admin' }"
+    
+    # Insert at specific line
+    /write src/main.ts --insert-at 5 "import './styles/global.css';"
+    
+    # Replace specific content
+    /write src/config/database.ts --replace "localhost" "production-db.example.com"
+    ```
+    
+    **Modification Approval:**
+    ```
+    📝 File Modification Request
+    ───────────────────────────────────────
+    Operation: Modify existing file
+    Path: src/config/api.ts
+    
+    Changes:
+    ┌─────────────────────────────────────┐
+    │ - export const API_URL = 'http://lo │
+    │ + export const API_URL = 'https://a │
+    │                                     │
+    │ + export const API_TIMEOUT = 5000;  │
+    └─────────────────────────────────────┘
+    
+    Impact: Production configuration change
+    Risk Level: MEDIUM
+    
+    Backup created: .nikcli/backups/api.ts.20240320-143022
+    
+    Approve changes? (y/n/review)
+    ```
+  </Accordion>
+  
+  <Accordion title="Batch File Operations">
+    ```bash
+    # Create multiple files from template
+    /write-batch src/components/ --template component --names "Modal,Tooltip,Spinner"
+    
+    # Update multiple files with same change
+    /write-batch "src/**/*.ts" --replace "old-import" "new-import"
+    
+    # Create file structure
+    /write-structure """
+    src/
+      components/
+        Button.tsx: [react-component template]
+        Input.tsx: [react-component template]
+      hooks/
+        useAuth.ts: [custom-hook template]
+      types/
+        index.ts: [type-definitions template]
+    """
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### `/edit` - Interactive File Editing
+
+<Tabs>
+  <Tab title="In-place Editing">
+    ```bash
+    # Open file in system editor
+    /edit src/components/App.tsx
+    
+    # Edit specific lines
+    /edit src/config/settings.ts --lines 10-20
+    
+    # Edit with specific editor
+    /edit src/styles/main.css --editor code
+    /edit README.md --editor vim
+    ```
+    
+    **Interactive Editing Session:**
+    ```
+    📝 Interactive Edit: src/components/App.tsx
+    ───────────────────────────────────────
+    Opening in VS Code...
+    
+    ⏳ Waiting for editor to close...
+    
+    ✅ File modified (3 changes detected)
+    
+    Changes Summary:
+    ├── Line 15: Added import statement
+    ├── Line 23: Modified component props
+    └── Line 31: Added new method
+    
+    Review changes? (y/n/diff)
+    ```
+  </Tab>
+  
+  <Tab title="Guided Editing">
+    ```bash
+    # AI-assisted editing
+    /edit src/api/auth.ts --guided
+    
+    # Fix specific issues
+    /edit src/components/Form.tsx --fix typescript-errors
+    /edit src/styles/app.css --fix lint-warnings
+    
+    # Apply specific transformations
+    /edit src/utils/helpers.ts --transform "convert to arrow functions"
+    ```
+    
+    **Guided Editing Example:**
+    ```
+    🎯 Guided Edit: src/api/auth.ts
+    ───────────────────────────────────────
+    Analyzing file for improvement opportunities...
+    
+    Found Issues:
+    ├── ⚠️  Line 23: Missing error handling
+    ├── ⚠️  Line 31: Unused import statement
+    ├── 💡 Line 45: Can optimize async/await pattern
+    └── 💡 Line 52: Add type annotation for better safety
+    
+    Apply suggested fixes? (y/n/selective)
+    
+    > selective
+    
+    Select fixes to apply:
+    [✓] Add error handling (Line 23)
+    [✓] Remove unused import (Line 31)  
+    [ ] Optimize async pattern (Line 45)
+    [✓] Add type annotation (Line 52)
+    
+    Apply selected fixes? (y/n)
+    ```
+  </Tab>
+</Tabs>
+
+## Search Operations
+
+### `/search` or `/grep` - Content Search
+
+<AccordionGroup>
+  <Accordion title="Basic Search">
+    ```bash
+    # Search for text in files
+    /search "function handleLogin"
+    /grep "interface User"
+    
+    # Search in specific directories
+    /search "useState" src/components/
+    /grep "TODO" src/ --recursive
+    
+    # Case-insensitive search
+    /search "react" --ignore-case
+    /grep "API_KEY" --case-insensitive
+    ```
+    
+    **Search Results:**
+    ```
+    🔍 Search Results: "useState"
+    ───────────────────────────────────────
+    Found 12 matches in 8 files
+    
+    📄 src/components/LoginForm.tsx (3 matches)
+    ├── Line 8:   const [email, setEmail] = useState('');
+    ├── Line 9:   const [password, setPassword] = useState('');
+    └── Line 10:  const [loading, setLoading] = useState(false);
+    
+    📄 src/components/UserProfile.tsx (2 matches)
+    ├── Line 15:  const [user, setUser] = useState<User | null>(null);
+    └── Line 16:  const [editing, setEditing] = useState(false);
+    
+    📄 src/hooks/useAuth.ts (4 matches)
+    ├── Line 5:   const [token, setToken] = useState<string | null>(null);
+    ├── Line 6:   const [user, setUser] = useState<User | null>(null);
+    ├── Line 7:   const [loading, setLoading] = useState(true);
+    └── Line 8:   const [error, setError] = useState<string | null>(null);
+    
+    Show more results? (y/n/open)
+    ```
+  </Accordion>
+  
+  <Accordion title="Advanced Search Patterns">
+    ```bash
+    # Regular expression search
+    /search "function\s+\w+\(" --regex
+    /grep "export\s+(const|function)\s+\w+" --regex
+    
+    # Search by file type
+    /search "console.log" --type typescript
+    /grep "margin:" --type css
+    
+    # Exclude patterns
+    /search "debug" --exclude "*.test.ts" --exclude "node_modules"
+    
+    # Search with context
+    /search "error" --context 3  # 3 lines before and after
+    /grep "TODO" --before 2 --after 1
+    ```
+  </Accordion>
+  
+  <Accordion title="Structured Search">
+    ```bash
+    # Search for specific code patterns
+    /search --pattern "react-component-definition"
+    /search --pattern "function-with-async"
+    /search --pattern "import-statement"
+    
+    # Search for dependencies
+    /search --dependencies "react"
+    /search --unused-imports
+    /search --unused-variables
+    
+    # Search for security issues
+    /search --security-patterns
+    /search --potential-vulnerabilities
+    ```
+    
+    **Pattern Search Results:**
+    ```
+    🔍 Pattern Search: "react-component-definition"
+    ───────────────────────────────────────
+    Found 15 React components
+    
+    📄 src/components/Button.tsx
+    ├── Component: Button (Functional Component)
+    ├── Props: ButtonProps interface
+    ├── Exports: Named export
+    └── Uses: React.FC pattern
+    
+    📄 src/components/Modal.tsx
+    ├── Component: Modal (Functional Component)
+    ├── Props: ModalProps interface  
+    ├── Exports: Default export
+    └── Uses: forwardRef pattern
+    
+    📄 src/pages/Dashboard.tsx
+    ├── Component: Dashboard (Functional Component)
+    ├── Props: No props interface
+    ├── Exports: Default export
+    └── Uses: Basic function declaration
+    
+    Analysis Summary:
+    ├── Functional Components: 15 (100%)
+    ├── Class Components: 0 (0%)
+    ├── Components with Props: 12 (80%)
+    └── Components with TypeScript: 15 (100%)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### `/search` (files) - Find Files by Name
+
+<Tabs>
+  <Tab title="Basic File Finding">
+    ```bash
+    # Find files by name (using glob)
+    /search "Button.tsx"
+    /search "*.css"
+    /search "test.*"
+    
+    # Search in specific directories
+    /search "*.ts" src/
+    /search "package.json" --recursive
+    
+    # Find by partial name (content grep supports patterns)
+    /search "component" --ignore-case
+    ```
+    
+    **Results:**
+    ```
+    📁 Find Results: "*.tsx"
+    ───────────────────────────────────────
+    Found 23 files
+    
+    📄 src/components/
+    ├── Button.tsx (2.3 KB)
+    ├── Modal.tsx (4.1 KB)
+    ├── Form.tsx (5.2 KB)
+    ├── Header.tsx (1.8 KB)
+    └── Navigation.tsx (3.4 KB)
+    
+    📄 src/pages/
+    ├── Home.tsx (6.7 KB)
+    ├── Login.tsx (3.9 KB)
+    ├── Dashboard.tsx (8.2 KB)
+    └── Profile.tsx (4.5 KB)
+    
+    📄 src/
+    ├── App.tsx (2.1 KB)
+    └── main.tsx (0.8 KB)
+    
+    Total: 23 files, 52.9 KB
+    ```
+  </Tab>
+  
+  <Tab title="Advanced Search">
+    ```bash
+    # Content options and filters
+    /search --regex "function\\s+\\w+\("
+    /search "useState" --type typescript
+    
+    # Exclude patterns
+    /search "*.js" --exclude node_modules --exclude dist
+    
+    # Execute related commands manually with /run
+    /run "npm test"
+    /run "eslint src/**/*.tsx"
+    ```
+  </Tab>
+</Tabs>
+
+## Security and Permissions
+
+### File Access Control
+
+<AccordionGroup>
+  <Accordion title="Permission Levels">
+    ```bash
+    # Check current permissions
+    /permissions
+    
+    # View file-specific permissions
+    /permissions src/config/secrets.ts
+    
+    # Request elevated permissions
+    /request-permission write-config
+    /request-permission read-sensitive
+    ```
+    
+    **Permission Status:**
+    ```
+    🔒 File Operation Permissions
+    ───────────────────────────────────────
+    Current Security Level: 🛡️ Default
+    
+    Read Permissions:
+    ├── ✅ Source code files (src/*)
+    ├── ✅ Configuration files (*.json, *.yaml)
+    ├── ✅ Documentation (*.md, docs/*)
+    ├── ⚠️  Environment files (.env.*) - Approval required
+    └── ❌ System files (/etc, /usr) - Blocked
+    
+    Write Permissions:
+    ├── ✅ Source code files (src/*)
+    ├── ⚠️  Configuration files - Approval required
+    ├── ⚠️  Package files (package.json) - Approval required
+    ├── ❌ Environment files - Blocked in default mode
+    └── ❌ System files - Always blocked
+    
+    Special Operations:
+    ├── ✅ File backups - Automatic
+    ├── ✅ Syntax validation - Automatic
+    ├── ⚠️  Bulk operations - Approval required
+    └── ⚠️  Destructive operations - Approval required
+    ```
+  </Accordion>
+  
+  <Accordion title="Approval Workflows">
+    ```
+    🛡️ Security Approval Required
+    ───────────────────────────────────────
+    Operation: Modify configuration file
+    File: package.json
+    Risk Level: MEDIUM
+    
+    Requested Changes:
+    ┌─────────────────────────────────────┐
+    │ + "express": "^4.18.2",            │
+    │ + "cors": "^2.8.5",                │
+    │ + "dotenv": "^16.0.3"              │
+    └─────────────────────────────────────┘
+    
+    Impact Analysis:
+    ├── New dependencies: 3 packages
+    ├── Security scan: ✅ No vulnerabilities
+    ├── Bundle size impact: +245 KB
+    ├── Breaking changes: None detected
+    └── Backup created: ✅
+    
+    Options:
+    [A] Approve and continue
+    [R] Reject operation
+    [M] Modify request
+    [I] Show detailed impact analysis
+    
+    Choice: _
+    ```
+  </Accordion>
+  
+  <Accordion title="Backup and Recovery">
+    ```bash
+    # Manual backup
+    /backup src/components/
+    /backup package.json
+    
+    # List backups
+    /backups list
+    /backups list --recent
+    
+    # Restore from backup
+    /restore package.json
+    /restore src/components/Button.tsx --version 2024-03-20-14:30
+    
+    # Compare with backup
+    /diff-backup src/config/api.ts
+    ```
+    
+    **Backup Management:**
+    ```
+    📦 Backup Management
+    ───────────────────────────────────────
+    Auto-backup: ✅ Enabled (before destructive operations)
+    Backup Location: .nikcli/backups/
+    Retention: 30 days (configurable)
+    
+    Recent Backups:
+    ├── 2024-03-20 14:30 - package.json (dependency update)
+    ├── 2024-03-20 13:45 - src/api/auth.ts (refactoring)
+    ├── 2024-03-20 12:15 - src/components/ (batch update)
+    ├── 2024-03-20 10:30 - .env.example (configuration)
+    └── 2024-03-19 16:20 - src/types/user.ts (type changes)
+    
+    Storage Used: 2.3 MB / 100 MB limit
+    
+    Commands:
+    [L] List all backups
+    [R] Restore specific backup
+    [C] Clean old backups
+    [S] Show backup settings
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance and Optimization
+
+### Efficient File Operations
+
+<CardGroup cols={2}>
+  <Card title="Batch Operations" icon="layer-group">
+    **Process multiple files efficiently**
+    
+    ```bash
+    # Batch read
+    /read src/components/*.tsx --batch
+    
+    # Batch search
+    /search "useState" src/ --batch --parallel
+    
+    # Batch write with template
+    /write-batch --template component --count 5
+    ```
+  </Card>
+  
+  <Card title="Streaming Operations" icon="stream">
+    **Handle large files efficiently**
+    
+    ```bash
+    # Stream large file content
+    /read logs/app.log --stream
+    
+    # Tail file content
+    /tail logs/error.log --follow
+    
+    # Process in chunks
+    /search "error" logs/ --chunk-size 1MB
+    ```
+  </Card>
+</CardGroup>
+
+### Caching and Optimization
+
+<Tabs>
+  <Tab title="File Caching">
+    ```bash
+    # Enable file content caching
+    nikcli config set file-cache.enabled true
+    nikcli config set file-cache.max-size 100MB
+    
+    # Clear file cache
+    /cache clear --files
+    /cache clear --search-results
+    
+    # Cache statistics
+    /cache stats
+    ```
+  </Tab>
+  
+  <Tab title="Search Optimization">
+    ```bash
+    # Index files for faster search
+    /index src/ --build
+    /index update
+    
+    # Search with index
+    /search "function" --use-index
+    
+    # Index statistics
+    /index stats
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Safety First" icon="shield">
+    **Always prioritize data safety**
+    
+    - Review changes before approval
+    - Use backups for important files  
+    - Test in development first
+    - Understand permission implications
+  </Card>
+  
+  <Card title="Efficiency" icon="bolt">
+    **Optimize your file operations**
+    
+    - Use batch operations for multiple files
+    - Leverage caching for repeated operations
+    - Use specific paths to reduce search scope
+    - Enable indexing for frequent searches
+  </Card>
+  
+  <Card title="Organization" icon="folder-tree">
+    **Maintain clean file structure**
+    
+    - Use consistent naming conventions
+    - Organize files logically
+    - Regular cleanup of temporary files
+    - Document file organization patterns
+  </Card>
+  
+  <Card title="Collaboration" icon="users">
+    **Team-friendly practices**
+    
+    - Document file changes clearly
+    - Use meaningful commit messages
+    - Coordinate on file modifications
+    - Share file operation patterns
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Terminal Operations"
+    icon="terminal"
+    href="/cli-reference/terminal-ops"
+  >
+    Learn command execution and terminal integration
+  </Card>
+  <Card
+    title="Project Operations"
+    icon="folder-code"
+    href="/cli-reference/project-ops"
+  >
+    Master project-level operations and management
+  </Card>
+  <Card
+    title="Advanced Configuration"
+    icon="gear"
+    href="/advanced/configuration"
+  >
+    Configure file operation security and preferences
+  </Card>
+  <Card
+    title="Workflow Patterns"
+    icon="workflow"
+    href="/user-guide/workflow-patterns"
+  >
+    Integrate file operations into development workflows
+  </Card>
+</CardGroup>
+
+<Warning>
+  File operations in NikCLI respect security policies and may require approval for sensitive files. Always review changes before approving destructive operations.
+</Warning>

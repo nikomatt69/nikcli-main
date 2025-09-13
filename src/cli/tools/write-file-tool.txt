@@ -1,0 +1,138 @@
+# Write File Tool Documentation
+
+## Purpose
+Production-ready file writing tool with enterprise-grade features including backup, validation, rollback, and LSP/Context integration.
+
+## Capabilities
+- Safe file writing with automatic backup creation
+- Real-time validation using Zod schemas and custom validators
+- Automatic rollback on errors
+- LSP integration for code intelligence
+- Context-aware RAG system integration
+- Multi-file write operations with transaction-like behavior
+- Content transformation and formatting
+- Diff visualization before writing
+- Permission checking and security validation
+
+## Usage Patterns
+
+### When to Use
+- Writing any file content to the filesystem
+- Creating new files or modifying existing files
+- Need automatic backup and rollback capabilities
+- Require validation before writing (syntax, formatting, security)
+- Writing multiple files in a coordinated manner
+- Need LSP analysis integration for code files
+
+### When NOT to Use
+- Simple append operations (use append method instead)
+- Binary file operations (not optimized for binary data)
+- Temporary file operations that don't need persistence
+- Operations that should bypass validation
+
+## Examples
+
+### Basic File Writing
+```typescript
+await writeFileTool.execute('/path/to/file.ts', `
+export const example = 'Hello World';
+`, {
+  createBackup: true,
+  verifyWrite: true,
+  showDiff: true
+});
+```
+
+### Writing with Validation
+```typescript
+await writeFileTool.execute('/path/to/component.tsx', reactComponentCode, {
+  validators: [
+    ContentValidators.autoValidator,
+    ContentValidators.codeQuality
+  ],
+  transformers: [
+    // Auto-formatting transformers
+  ]
+});
+```
+
+### Multiple File Write
+```typescript
+await writeFileTool.writeMultiple([
+  { path: '/src/component.tsx', content: componentCode },
+  { path: '/src/types.ts', content: typesCode },
+  { path: '/tests/component.test.tsx', content: testCode }
+], {
+  rollbackOnPartialFailure: true,
+  stopOnFirstError: false
+});
+```
+
+## Internal Management Features
+
+### Validation Pipeline
+1. **Input Validation**: Zod schema validation for all parameters
+2. **Path Sanitization**: Security validation of file paths
+3. **Content Validation**: Custom validators for code quality, syntax, security
+4. **LSP Analysis**: Real-time code intelligence and diagnostics
+5. **Context Recording**: RAG system integration for workspace learning
+
+### Error Handling
+- Automatic rollback on write failures
+- Comprehensive error logging with context
+- Non-blocking validation warnings vs. blocking errors
+- Resource cleanup on failures
+
+### Performance Features
+- Diff calculation and display
+- Backup management with automatic cleanup
+- Write verification for critical files
+- Metrics tracking (execution time, success rate)
+
+### Security Features
+- Path traversal prevention
+- Content sanitization options
+- Permission checking before operations
+- Sandbox compatibility
+
+## Configuration Options
+
+### WriteFileOptions
+- `encoding`: File encoding (default: 'utf8')
+- `mode`: File permissions (default: 0o644)
+- `createBackup`: Enable automatic backup (default: true)
+- `autoRollback`: Rollback on errors (default: true)
+- `verifyWrite`: Verify content after writing (default: false)
+- `showDiff`: Display diff before writing (default: true)
+- `validators`: Array of content validators
+- `transformers`: Array of content transformers
+- `stopOnFirstError`: Stop on first validation error (default: false)
+
+### Integration Features
+- **LSP Integration**: Automatic code analysis and diagnostics
+- **Context Awareness**: Workspace memory and learning
+- **Validator Manager**: Centralized validation with auto-formatting
+- **Advanced UI**: Structured diff display and progress indicators
+
+## Best Practices
+
+### For Agent Implementations
+1. Always use validation for code files
+2. Enable backup for important modifications
+3. Use showDiff for transparency
+4. Handle errors gracefully with rollback
+5. Record operations in context for learning
+
+### For Tool Composition
+1. Combine with read-file-tool for modification workflows
+2. Use with LSP tools for code intelligence
+3. Integrate with version control operations
+4. Coordinate with formatter and linter tools
+
+### Performance Optimization
+1. Use writeMultiple for bulk operations
+2. Enable caching for repeated validations
+3. Optimize validators for file types
+4. Use appropriate encoding for content type
+
+This tool represents enterprise-level file operations with comprehensive safety, validation, and integration features essential for autonomous development workflows.

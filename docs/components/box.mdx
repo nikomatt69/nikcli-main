@@ -1,0 +1,194 @@
+---
+title: 'Box'
+description: 'Fundamental container with border, label and layout options.'
+---
+
+## Overview
+
+Base container for structuring terminal layouts.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Box } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Box({ parent: screen, width: 40, height: 8, borderStyle: 'line', label: ' Box ' });
+```
+
+## Live Preview
+
+<Snippet file="previews/box.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+import blessed from 'blessed';
+import { Box, Text } from 'nikcli-tui';
+const screen = blessed.screen({ smartCSR: true });
+const container = new Box({ parent: screen, top: 1, left: 2, width: 50, height: 12, borderStyle: 'line', label: 'Container' });
+new Text({ parent: container.el, top: 1, left: 2, content: 'Hello Box' });
+screen.key(['q','C-c'], () => process.exit(0));
+screen.render();
+```
+
+```typescript
+import { darkTheme } from 'nikcli-tui';
+new Box({ parent: screen, top: 1, left: 2, width: 40, height: 8, borderStyle: 'line', theme: darkTheme, variant: 'primary' });
+```
+
+```typescript
+const panel = new Box({ parent: screen, top: 1, left: 2, height: 8, width: 40, borderStyle: 'line', label: 'Streaming' });
+panel.setContent('First token...');
+// Width is stabilized to avoid layout shifts while appending
+panel.setContent('More tokens arriving...');
+```
+
+</CodeGroup>
+
+## Props
+
+### Box-specific Props
+
+| Property | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `content` | `string` | No | - | Initial content text for the box |
+| `label` | `string` | No | - | Label text displayed in border (from component-schemas) |
+| `scrollable` | `boolean` | No | - | Enable scrolling functionality |
+| `alwaysScroll` | `boolean` | No | - | Always show scroll indicators (from component-schemas) |
+| `scrollableOptions` | `ScrollableOptions` | No | - | Advanced scrolling configuration |
+
+#### ScrollableOptions Interface
+
+```typescript
+interface ScrollableOptions {
+  scrollbar?: {
+    style?: Record<string, any>;
+    ch?: string; // Character used for scrollbar
+  };
+  track?: {
+    style?: Record<string, any>;
+    ch?: string; // Character used for track
+  };
+}
+```
+
+### Inherited Base Props
+
+The Box component extends `BasePropsSchema` and includes all standard TUI component properties:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `parent` | `blessed.Widgets.Node` | - | Parent blessed element |
+| `className` | `string` | - | CSS-like class name for styling |
+| `id` | `string` | - | Unique identifier |
+| `variant` | `ComponentVariant` | `"default"` | Component variant (primary, secondary, etc.) |
+| `size` | `ComponentSize` | - | Component size (xs, sm, md, lg, xl) |
+| `disabled` | `boolean` | `false` | Whether component is disabled |
+| `hidden` | `boolean` | `false` | Whether component is hidden |
+| `focusable` | `boolean` | `true` | Whether component can receive focus |
+| `scrollable` | `boolean` | `false` | Whether component is scrollable |
+
+### Layout & Positioning Props
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `top` | `TerminalUnit` | Top position (number, percentage, or alignment) |
+| `left` | `TerminalUnit` | Left position |
+| `right` | `TerminalUnit` | Right position |
+| `bottom` | `TerminalUnit` | Bottom position |
+| `width` | `TerminalUnit` | Component width |
+| `height` | `TerminalUnit` | Component height |
+| `padding` | `PaddingConfig` | Internal spacing |
+| `margin` | `PaddingConfig` | External spacing |
+
+### Style Props
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `bg` | `ColorValue` | Background color |
+| `fg` | `ColorValue` | Foreground color |
+| `border` | `BorderStyle` | Border configuration |
+| `borderColor` | `ColorValue` | Border color |
+| `borderStyle` | `"line" \| "double" \| "round" \| "bold" \| "classic" \| "none"` | Border style helper |
+| `style` | `TextStyle` | Text styling (bold, underline, etc.) |
+| `animation` | `AnimationType` | Animation type |
+
+## Zod Schema Validation
+
+The Box component uses Zod for runtime type validation:
+
+```typescript
+import { BoxSchema } from 'nikcli-tui';
+
+const BoxSchema = BasePropsSchema.extend({
+  // Content
+  content: z.string().optional(),
+  
+  // Box-specific styling
+  scrollable: z.boolean().optional(),
+  scrollableOptions: z.object({
+    scrollbar: z.object({
+      style: z.record(z.any()).optional(),
+      ch: z.string().optional(),
+    }).optional(),
+    track: z.object({
+      style: z.record(z.any()).optional(),
+      ch: z.string().optional(),
+    }).optional(),
+  }).optional(),
+}).strict();
+```
+
+## Methods
+
+### Instance Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `setContent` | `content: string` | `void` | Sets content with stable width management (streaming-friendly) |
+| `destroy` | - | `void` | Cleanup method from base component |
+
+### Inherited Methods (from BaseComponent)
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `setVariant` | `variant: ComponentVariant` | `void` | Updates component variant |
+| `setSize` | `size: ComponentSize` | `void` | Updates component size |
+| `setState` | `state: ComponentState` | `void` | Updates component state |
+| `getConfig` | - | `ComponentConfig` | Returns current configuration |
+| `update` | `props: Partial<BoxProps>` | `void` | Updates component properties |
+
+### Static Methods
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `Box.create` | `props: BoxProps` | `Box` | Factory method to create new box instance |
+
+## Streaming-friendly Features
+
+The Box component includes special handling for streaming content:
+
+- **Width stabilization**: Tracks maximum content width to prevent layout shifts
+- **Safe rendering**: Uses safe render methods to avoid screen corruption
+- **Minimum width**: Sets minimum width automatically based on content tracking
+
+## Best Practices
+
+- Prefer Box as a container; use Panel/Card for more opinionated UI.
+- Use `label` for semantic section titles; combine with `Heading` for in-content titles.

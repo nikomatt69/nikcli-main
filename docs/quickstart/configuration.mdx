@@ -1,0 +1,482 @@
+---
+title: 'Configuration'
+description: 'Customize NikCLI settings and preferences'
+icon: 'gear'
+---
+
+## Configuration Overview
+
+NikCLI stores configuration at `~/.nikcli/config.json` and supports environment variables. During a session, use slash commands for quick changes. The schema and defaults are enforced by a Zod schema in `src/cli/core/config-manager.ts`.
+
+## Configuration Methods
+
+<CardGroup cols={3}>
+  <Card title="Environment Variables" icon="code">
+    Set API keys and global settings via environment variables
+  </Card>
+  <Card title="Config Files" icon="file-text">
+    Persistent settings stored in JSON configuration files
+  </Card>
+  <Card title="Interactive Commands" icon="terminal">
+    Use built-in commands to modify settings on the fly
+  </Card>
+</CardGroup>
+
+## Environment Variables
+
+### AI Provider Configuration
+
+<Tabs>
+  <Tab title="Anthropic Claude">
+    ```bash
+    # Primary API key
+    export ANTHROPIC_API_KEY="sk-ant-api03-..."
+    
+    # Optional: Custom base URL
+    export ANTHROPIC_BASE_URL="https://api.anthropic.com"
+    
+    # Optional: Default model
+    export ANTHROPIC_MODEL="claude-3-sonnet-20240229"
+    ```
+  </Tab>
+  
+  <Tab title="OpenAI GPT">
+    ```bash
+    # API key
+    export OPENAI_API_KEY="sk-..."
+    
+    # Optional: Organization ID
+    export OPENAI_ORG_ID="org-..."
+    
+    # Optional: Custom base URL
+    export OPENAI_BASE_URL="https://api.openai.com/v1"
+    
+    # Optional: Default model
+    export OPENAI_MODEL="gpt-4"
+    ```
+  </Tab>
+  
+  <Tab title="Google Gemini">
+    ```bash
+    # API key
+    export GOOGLE_GENERATIVE_AI_API_KEY="..."
+    
+    # Optional: Default model
+    export GOOGLE_MODEL="gemini-pro"
+    ```
+  </Tab>
+  
+  <Tab title="Ollama">
+    ```bash
+    # Host (default daemon binds 127.0.0.1:11434)
+    export OLLAMA_HOST="127.0.0.1:11434"
+    ```
+  </Tab>
+</Tabs>
+
+### General Configuration (env)
+
+```bash
+# Example toggles
+export LOG_LEVEL="info"
+export APPROVAL_POLICY="moderate"
+```
+
+## Configuration Files
+
+NikCLI stores configuration in JSON files located in `~/.nikcli/`:
+
+### Main Configuration (`config.json`)
+
+```json
+{
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-3-sonnet-20240229",
+  "autoApprove": false,
+  "logLevel": "info",
+  "tokenLimit": 100000,
+  "defaultMode": "chat",
+  "colorScheme": "auto",
+  "enableTelemetry": true,
+  "cacheEnabled": true,
+  "cacheTTL": 3600,
+  "mcpServers": []
+}
+```
+
+### Provider Configuration (`providers.json`)
+
+```json
+{
+  "anthropic": {
+    "apiKey": "encrypted:...",
+    "baseUrl": "https://api.anthropic.com",
+    "models": ["claude-3-opus-20240229", "claude-3-sonnet-20240229"],
+    "defaultModel": "claude-3-sonnet-20240229",
+    "tokenLimits": {
+      "claude-3-opus-20240229": 200000,
+      "claude-3-sonnet-20240229": 200000
+    }
+  },
+  "openai": {
+    "apiKey": "encrypted:...",
+    "baseUrl": "https://api.openai.com/v1",
+    "models": ["gpt-4", "gpt-3.5-turbo"],
+    "defaultModel": "gpt-4"
+  }
+}
+```
+
+### Agent Configuration (`agents.json`)
+
+```json
+{
+  "universal": {
+    "enabled": true,
+    "permissions": {
+      "fileRead": true,
+      "fileWrite": true,
+      "commandExecution": true,
+      "networkAccess": false
+    },
+    "securityPolicies": {
+      "allowedCommands": ["npm", "git", "node"],
+      "blockedCommands": ["rm -rf", "sudo"],
+      "allowedPaths": ["."],
+      "blockedPaths": ["/etc", "/usr"]
+    }
+  },
+  "specialized": {
+    "react": { "enabled": true },
+    "backend": { "enabled": true },
+    "devops": { "enabled": false }
+  }
+}
+```
+
+## Interactive Configuration
+
+### Configuration Commands
+
+Use built-in commands to view and modify settings:
+
+<Tabs>
+  <Tab title="View Configuration">
+    ```bash
+    # View all configuration
+    nikcli config list
+    
+    # View specific setting
+    nikcli config get defaultProvider
+    
+    # View provider settings
+    nikcli config get providers.anthropic
+    ```
+  </Tab>
+  
+  <Tab title="Modify Configuration">
+    ```bash
+    # Set default provider
+    nikcli config set defaultProvider anthropic
+    
+    # Set API key
+    nikcli config set providers.anthropic.apiKey "your-key"
+    
+    # Enable auto-approval
+    nikcli config set autoApprove true
+    
+    # Set log level
+    nikcli config set logLevel debug
+    ```
+  </Tab>
+  
+  <Tab title="Reset Configuration">
+    ```bash
+    # Reset all settings
+    nikcli config reset
+    
+    # Reset specific provider
+    nikcli config reset providers.openai
+    
+    # Reset to defaults
+    nikcli config reset --defaults
+    ```
+  </Tab>
+</Tabs>
+
+### In-Chat Configuration
+
+You can also modify settings during a chat session:
+
+```
+> /config set defaultModel claude-3-opus-20240229
+> /config enable autoApprove
+> /config list providers
+```
+
+## Advanced Configuration
+
+### Security Policies
+
+Configure execution policies for safe autonomous operation:
+
+```json
+{
+  "executionPolicies": {
+    "allowedCommands": [
+      "npm",
+      "yarn",
+      "git",
+      "node",
+      "tsc",
+      "eslint",
+      "prettier"
+    ],
+    "blockedCommands": [
+      "rm -rf",
+      "sudo",
+      "chmod 777",
+      "curl | sh"
+    ],
+    "allowedPaths": [
+      ".",
+      "./src",
+      "./tests",
+      "./docs"
+    ],
+    "blockedPaths": [
+      "/etc",
+      "/usr",
+      "/var",
+      "~/.ssh"
+    ],
+    "requireApproval": [
+      "package.json",
+      "tsconfig.json",
+      ".gitignore"
+    ]
+  }
+}
+```
+
+### Token Management
+
+Configure context and token limits:
+
+```json
+{
+  "tokenManagement": {
+    "globalLimit": 100000,
+    "perProviderLimits": {
+      "anthropic": 200000,
+      "openai": 128000,
+      "google": 32000
+    },
+    "contextWindow": 32000,
+    "reserveTokens": 4000,
+    "compressionEnabled": true,
+    "cacheStrategy": "lru"
+  }
+}
+```
+
+### MCP (Model Context Protocol) Servers
+
+Configure external MCP servers for extended functionality:
+
+```json
+{
+  "mcpServers": [
+    {
+      "name": "filesystem",
+      "command": "node",
+      "args": ["./mcp-servers/filesystem.js"],
+      "env": {
+        "ALLOWED_PATHS": "./src,./docs"
+      }
+    },
+    {
+      "name": "git",
+      "command": "git-mcp-server",
+      "args": ["--repo", "."]
+    },
+    {
+      "name": "web-search",
+      "command": "web-search-mcp",
+      "env": {
+        "SEARCH_API_KEY": "your-key"
+      }
+    }
+  ]
+}
+```
+
+## Profile-Based Configuration
+
+Create different configuration profiles for various workflows:
+
+### Development Profile
+
+```bash
+# Create development profile
+nikcli profile create development
+
+# Configure for local development
+nikcli profile set development defaultProvider ollama
+nikcli profile set development defaultModel llama2
+nikcli profile set development autoApprove true
+nikcli profile set development logLevel debug
+
+# Switch to development profile
+nikcli profile use development
+```
+
+### Production Profile
+
+```bash
+# Create production profile
+nikcli profile create production
+
+# Configure for production use
+nikcli profile set production defaultProvider anthropic
+nikcli profile set production defaultModel claude-3-opus-20240229
+nikcli profile set production autoApprove false
+nikcli profile set production logLevel warn
+
+# Switch to production profile
+nikcli profile use production
+```
+
+## Project-Specific Configuration
+
+Create `.nikcli.json` in your project root for project-specific settings:
+
+```json
+{
+  "extends": "~/.nikcli/config.json",
+  "projectName": "my-awesome-app",
+  "defaultAgent": "react",
+  "preferences": {
+    "codeStyle": "typescript",
+    "testFramework": "vitest",
+    "uiLibrary": "tailwindcss"
+  },
+  "customPrompts": {
+    "component": "Create a React component following our design system patterns",
+    "api": "Implement API endpoint with proper error handling and validation"
+  },
+  "workflowTemplates": {
+    "feature": [
+      "Create component",
+      "Add tests",
+      "Update documentation",
+      "Run linting and formatting"
+    ]
+  }
+}
+```
+
+## Configuration Validation
+
+NikCLI validates configuration on startup and provides helpful error messages:
+
+```bash
+# Validate current configuration
+nikcli config validate
+
+# Check specific provider configuration
+nikcli config validate providers.anthropic
+
+# Verbose validation with suggestions
+nikcli config validate --verbose
+```
+
+## Configuration Backup and Restore
+
+### Backup Configuration
+
+```bash
+# Backup all configuration
+nikcli config backup ~/nikcli-backup.json
+
+# Backup specific profile
+nikcli config backup ~/dev-profile.json --profile development
+```
+
+### Restore Configuration
+
+```bash
+# Restore from backup
+nikcli config restore ~/nikcli-backup.json
+
+# Restore specific profile
+nikcli config restore ~/dev-profile.json --profile development
+```
+
+## Troubleshooting Configuration
+
+<AccordionGroup>
+  <Accordion title="API Key Not Working">
+    1. Verify the key is correctly set:
+    ```bash
+    nikcli config get providers.anthropic.apiKey
+    ```
+    
+    2. Test the connection:
+    ```bash
+    nikcli test connection anthropic
+    ```
+    
+    3. Check for environment variable conflicts:
+    ```bash
+    echo $ANTHROPIC_API_KEY
+    ```
+  </Accordion>
+  
+  <Accordion title="Configuration File Corrupted">
+    1. Reset to defaults:
+    ```bash
+    nikcli config reset --defaults
+    ```
+    
+    2. Or restore from backup:
+    ```bash
+    nikcli config restore ~/backup.json
+    ```
+  </Accordion>
+  
+  <Accordion title="Permission Errors">
+    1. Check file permissions:
+    ```bash
+    ls -la ~/.nikcli/
+    ```
+    
+    2. Fix permissions if needed:
+    ```bash
+    chmod 600 ~/.nikcli/config.json
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="User Guide"
+    icon="book-open"
+    href="/user-guide/overview"
+  >
+    Learn how to use NikCLI effectively in your development workflow
+  </Card>
+  <Card
+    title="CLI Reference"
+    icon="terminal"
+    href="/cli-reference/commands-overview"
+  >
+    Complete reference for all NikCLI commands and options
+  </Card>
+</CardGroup>
+
+<Tip>
+  Configuration changes take effect immediately. You don't need to restart NikCLI for most settings to apply.
+</Tip>

@@ -1,0 +1,38 @@
+<svg width="800" height="400" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lightGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4EC5F1;stop-opacity:0.1" />
+      <stop offset="100%" style="stop-color:#1f39ff;stop-opacity:0.1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="800" height="400" fill="url(#lightGradient)" />
+  
+  <!-- ASCII Art Banner -->
+  <text x="50" y="120" font-family="'Courier New', monospace" font-size="14" fill="#1f39ff" font-weight="bold">
+    <tspan x="50" dy="0">███╗   ██╗██╗██╗  ██╗ ██████╗██╗     ██╗</tspan>
+    <tspan x="50" dy="18">████╗  ██║██║██║ ██╔╝██╔════╝██║     ██║</tspan>
+    <tspan x="50" dy="18">██╔██╗ ██║██║█████╔╝ ██║     ██║     ██║</tspan>
+    <tspan x="50" dy="18">██║╚██╗██║██║██╔═██╗ ██║     ██║     ██║</tspan>
+    <tspan x="50" dy="18">██║ ╚████║██║██║  ██╗╚██████╗███████╗██║</tspan>
+    <tspan x="50" dy="18">╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝╚═╝</tspan>
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="50" y="260" font-family="'Segoe UI', -apple-system, sans-serif" font-size="24" fill="#4EC5F1" font-weight="600">
+    Context-Aware AI Development Assistant
+  </text>
+  
+  <!-- Description -->
+  <text x="50" y="290" font-family="'Segoe UI', -apple-system, sans-serif" font-size="16" fill="#666">
+    <tspan x="50" dy="0">Autonomous development with intelligent AI agents</tspan>
+    <tspan x="50" dy="22">Multi-agent orchestration for complex tasks</tspan>
+    <tspan x="50" dy="22">Production-ready with enterprise security</tspan>
+  </text>
+  
+  <!-- Decorative elements -->
+  <circle cx="700" cy="100" r="40" fill="#4EC5F1" opacity="0.1" />
+  <circle cx="720" cy="120" r="20" fill="#1f39ff" opacity="0.1" />
+  <circle cx="680" cy="140" r="15" fill="#4EC5F1" opacity="0.2" />
+</svg>

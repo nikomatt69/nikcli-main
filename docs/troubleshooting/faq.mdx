@@ -1,0 +1,742 @@
+---
+title: 'Frequently Asked Questions'
+description: 'Common questions and solutions for NikCLI users'
+icon: 'circle-question'
+---
+
+## Getting Started
+
+### Installation and Setup
+
+<AccordionGroup>
+  <Accordion title="How do I install NikCLI?">
+    **Quick Installation:**
+    ```bash
+    npm install -g @cadcamfun/nikcli
+    ```
+    
+    **Alternative Methods:**
+    - Binary download from GitHub releases
+    - Docker container: `docker run -it nikcli/cli`
+    - Build from source: Clone repo and run `npm run build`
+    
+    **System Requirements:**
+    - Node.js 18 or higher
+    - At least 4GB RAM recommended
+    - Internet connection for AI model access
+  </Accordion>
+  
+  <Accordion title="Which AI model should I use?">
+    **Recommended Models by Use Case:**
+    
+    | Use Case | Primary | Alternative |
+    |----------|---------|-------------|
+    | General Development | Claude 3.5 Sonnet | GPT-4 |
+    | Code Generation | Claude 3.5 Sonnet | GPT-4 Turbo |
+    | Learning/Education | Claude 3.5 Sonnet | GPT-4 |
+    | Quick Tasks | Claude 3 Haiku | GPT-3.5 Turbo |
+    | Local/Offline | Ollama (Llama 2) | CodeLlama |
+    
+    **Setup:**
+    ```bash
+    # Set your preferred model
+    /config set ai.default-model claude-3-5-sonnet
+    
+    # Configure API key
+    /set-key anthropic your-api-key-here
+    ```
+  </Accordion>
+  
+  <Accordion title="How do I configure API keys securely?">
+    **Secure API Key Setup:**
+    ```bash
+    # Method 1: Command-line (encrypted storage)
+    /set-key anthropic sk-ant-api03-...
+    /set-key openai sk-...
+    
+    # Method 2: Environment variables
+    export ANTHROPIC_API_KEY="sk-ant-api03-..."
+    export OPENAI_API_KEY="sk-..."
+    
+    # Method 3: Configuration file
+    /config import --file secure-config.json
+    ```
+    
+    **Security Features:**
+    - Keys are encrypted at rest
+    - Never logged in plaintext
+    - Automatic key rotation support
+    - Secure key sharing in teams
+  </Accordion>
+</AccordionGroup>
+
+## Using NikCLI Effectively
+
+### Agent Selection and Usage
+
+<AccordionGroup>
+  <Accordion title="When should I use the Universal Agent vs Specialized Agents?">
+    **Use Universal Agent When:**
+    - Learning NikCLI capabilities
+    - Working on multi-domain tasks
+    - Need general full-stack assistance
+    - Prototyping or exploring ideas
+    
+    **Use Specialized Agents When:**
+    - Deep expertise required (e.g., React patterns)
+    - Performance is critical
+    - Following specific framework conventions
+    - Complex domain-specific tasks
+    
+    **Examples:**
+    ```bash
+    # Universal Agent - good for general tasks
+    /agent universal-agent "Create a simple blog application"
+    
+    # React Expert - better for React-specific optimization
+    /agent react-expert "Optimize this component for 10k+ list items"
+    ```
+  </Accordion>
+  
+  <Accordion title="How do I get better results from agents?">
+    **Best Practices for Agent Interaction:**
+    
+    1. **Be Specific:**
+    ```bash
+    # Vague request
+    "Create a component"
+    
+    # Specific request
+    "Create a React TypeScript component for user profile editing with form validation using Formik and Material-UI styling"
+    ```
+    
+    2. **Provide Context:**
+    ```bash
+    # Set workspace context
+    /context set "src/components/,src/hooks/"
+    
+    # Include relevant files
+    /read src/types/User.ts
+    "Using the User type, create a profile component..."
+    ```
+    
+    3. **Iterate and Refine:**
+    ```bash
+    # Follow up with improvements
+    "Add loading states and error handling to the previous component"
+    "Make this component responsive for mobile devices"
+    ```
+    
+    4. **Specify Quality Requirements:**
+    ```bash
+    "...with comprehensive unit tests, accessibility support, and JSDoc documentation"
+    ```
+  </Accordion>
+  
+  <Accordion title="How do I handle agent conflicts or disagreements?">
+    **When Agents Disagree:**
+    
+    1. **Use Orchestration:**
+    ```bash
+    /orchestrate consultation universal-agent --experts "react-expert,backend-agent"
+    --task "Design authentication system"
+    ```
+    
+    2. **Request Comparison:**
+    ```bash
+    /agent universal-agent "Compare the React and Vue approaches suggested by the experts and recommend the best choice for our project"
+    ```
+    
+    3. **Seek Domain Expert Opinion:**
+    ```bash
+    /agent security-expert "Review both authentication approaches and recommend the most secure option"
+    ```
+    
+    4. **Make Informed Decision:**
+    Use your own expertise and project constraints to choose the best approach.
+  </Accordion>
+</AccordionGroup>
+
+### Performance and Optimization
+
+<AccordionGroup>
+  <Accordion title="Why are responses slow sometimes?">
+    **Common Causes and Solutions:**
+    
+    **Large Context Size:**
+    ```bash
+    # Check current context
+    /context analyze
+    
+    # Optimize context
+    /context optimize --reduce-noise --focus-relevant
+    ```
+    
+    **Complex Requests:**
+    ```bash
+    # Break down complex tasks
+    "First, create the basic component structure"
+    "Now add the form validation logic"
+    "Finally, add styling and responsive design"
+    ```
+    
+    **Model Selection:**
+    ```bash
+    # Use faster model for simple tasks
+    /model claude-3-haiku  # Faster but less capable
+    /model claude-3-sonnet  # Balanced speed and quality
+    ```
+    
+    **Network Issues:**
+    - Check internet connection
+    - Try different AI provider
+    - Use local models with Ollama
+  </Accordion>
+  
+  <Accordion title="How can I optimize token usage and costs?">
+    **Token Optimization Strategies:**
+    
+    1. **Context Management:**
+    ```bash
+    # Set focused context
+    /context set "src/components/" --max-files 20
+    
+    # Clear unnecessary context
+    /context clear --keep-essential
+    ```
+    
+    2. **Use Appropriate Models:**
+    ```bash
+    # For simple tasks
+    /model claude-3-haiku
+    
+    # For complex reasoning
+    /model claude-3-5-sonnet
+    ```
+    
+    3. **Enable Caching:**
+    ```bash
+    /config set cache.enabled true
+    /config set cache.smart-deduplication true
+    ```
+    
+    4. **Monitor Usage:**
+    ```bash
+    /stats tokens --detailed --cost-analysis
+    ```
+  </Accordion>
+  
+  <Accordion title="How do I improve code quality from agents?">
+    **Quality Enhancement Techniques:**
+    
+    1. **Set Quality Standards:**
+    ```bash
+    /system "You are a senior developer who follows clean code principles, writes comprehensive tests, and prioritizes maintainability"
+    ```
+    
+    2. **Request Reviews:**
+    ```bash
+    /agent security-expert "Review this code for security vulnerabilities"
+    /agent performance-expert "Analyze this code for performance improvements"
+    ```
+    
+    3. **Use Quality Gates:**
+    ```bash
+    /orchestrate quality-gates "feature-development" --gates "
+      code-review: universal-agent
+      security-review: security-expert  
+      performance-review: performance-expert
+    "
+    ```
+    
+    4. **Iterative Improvement:**
+    ```bash
+    "Review the previous code and suggest improvements for better error handling and user experience"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Common Issues and Solutions
+
+### Technical Problems
+
+<AccordionGroup>
+  <Accordion title="NikCLI won't start or crashes frequently">
+    **Troubleshooting Steps:**
+    
+    1. **Check Node.js Version:**
+    ```bash
+    node --version  # Should be 18+
+    npm --version
+    ```
+    
+    2. **Clear Cache and Reinstall:**
+    ```bash
+    npm cache clean --force
+    npm uninstall -g @cadcamfun/nikcli
+    npm install -g @cadcamfun/nikcli
+    ```
+    
+    3. **Check Permissions:**
+    ```bash
+    # On macOS/Linux
+    sudo chown -R $(whoami) ~/.npm
+    
+    # On Windows (as Administrator)
+    npm install -g @cadcamfun/nikcli --force
+    ```
+    
+    4. **Debug Mode:**
+    ```bash
+    nikcli --debug --verbose
+    /debug enable --level verbose --components all
+    ```
+    
+    5. **Check System Resources:**
+    - Ensure sufficient RAM (4GB+ recommended)
+    - Check disk space
+    - Close other resource-intensive applications
+  </Accordion>
+  
+  <Accordion title="API errors or authentication failures">
+    **Common API Issues:**
+    
+    **Invalid API Key:**
+    ```bash
+    # Verify API key is set
+    /config api-keys
+    
+    # Test API connection
+    /debug api-test anthropic
+    
+    # Reset API key
+    /set-key anthropic new-api-key-here
+    ```
+    
+    **Rate Limiting:**
+    ```bash
+    # Check rate limits
+    /stats api --rate-limits --usage
+    
+    # Configure retry strategy
+    /config set api.retry-attempts 3
+    /config set api.retry-delay 2000
+    ```
+    
+    **Network Issues:**
+    ```bash
+    # Test connectivity
+    /debug network-test
+    
+    # Configure proxy if needed
+    /config set network.proxy "http://proxy.company.com:8080"
+    ```
+  </Accordion>
+  
+  <Accordion title="File operations not working">
+    **File System Issues:**
+    
+    **Permission Errors:**
+    ```bash
+    # Check current permissions
+    /security status
+    
+    # Enable developer mode temporarily
+    /dev-mode enable 60  # 60 minutes
+    
+    # Add safe paths
+    /config set security.allowed-paths "src/,docs/,tests/"
+    ```
+    
+    **Path Issues:**
+    ```bash
+    # Check current directory
+    /pwd
+    
+    # Set workspace context
+    /context set "/full/path/to/project"
+    
+    # Use absolute paths
+    /read /Users/username/project/src/App.tsx
+    ```
+    
+    **File Not Found:**
+    ```bash
+    # List files in directory
+    /run ls -la
+    
+    # Search for files
+    /search-files "component.tsx"
+    
+    # Check if file exists
+    /run test -f "src/App.tsx" && echo "exists" || echo "not found"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Workflow and Usage Issues
+
+<AccordionGroup>
+  <Accordion title="Agents produce inconsistent or low-quality code">
+    **Quality Improvement Strategies:**
+    
+    1. **Improve Prompting:**
+    ```bash
+    # Instead of: "Create a component"
+    # Use: "Create a React TypeScript functional component for user authentication with proper error handling, loading states, and form validation using Formik"
+    ```
+    
+    2. **Provide Better Context:**
+    ```bash
+    /context set "src/" --include "*.tsx,*.ts" --exclude "*.test.*"
+    /read src/types/User.ts  # Show existing patterns
+    ```
+    
+    3. **Use Review Process:**
+    ```bash
+    /agent react-expert "Create the component"
+    # Then:
+    /agent universal-agent "Review and improve this component for better error handling and accessibility"
+    ```
+    
+    4. **Set Standards:**
+    ```bash
+    /system "Follow these coding standards: use functional components, TypeScript strict mode, comprehensive error handling, and accessibility best practices"
+    ```
+  </Accordion>
+  
+  <Accordion title="How do I handle large projects or codebases?">
+    **Large Project Strategies:**
+    
+    1. **Use Focused Context:**
+    ```bash
+    # Focus on specific areas
+    /context set "src/components/auth/" --recursive false
+    
+    # Work incrementally
+    /agent react-expert "Focus only on the login component in src/components/auth/"
+    ```
+    
+    2. **Break Down Tasks:**
+    ```bash
+    # Instead of: "Refactor the entire application"
+    # Use:
+    "Analyze the authentication module and suggest refactoring approach"
+    "Refactor the login component following the suggested approach"
+    "Update related components to use the new authentication pattern"
+    ```
+    
+    3. **Use Parallel Processing:**
+    ```bash
+    /parallel "react-expert,backend-agent" "Modernize frontend and API simultaneously"
+    ```
+    
+    4. **Leverage Workspace Features:**
+    ```bash
+    /workspace analyze --structure --dependencies
+    /monorepo analyze --packages --dependencies
+    ```
+  </Accordion>
+  
+  <Accordion title="Session management and history issues">
+    **Session Management Best Practices:**
+    
+    **Organizing Sessions:**
+    ```bash
+    # Use descriptive titles
+    /new "React Component Library Development"
+    
+    # Tag sessions
+    /sessions --tag "frontend,react,components"
+    
+    # Star important sessions
+    /sessions --star current-session-id
+    ```
+    
+    **Session Recovery:**
+    ```bash
+    # List recent sessions
+    /sessions --recent 10
+    
+    # Search sessions
+    /search-sessions "authentication component"
+    
+    # Load with context restoration
+    /load session-id --restore-context
+    ```
+    
+    **Export/Import:**
+    ```bash
+    # Export session for backup
+    /export session-id --format markdown --file "session-backup.md"
+    
+    # Import from backup
+    /import session-backup.md --create-new-session
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Usage
+
+### Enterprise and Team Usage
+
+<AccordionGroup>
+  <Accordion title="How do I set up NikCLI for a team?">
+    **Team Setup Process:**
+    
+    1. **Central Configuration:**
+    ```bash
+    # Create shared configuration
+    /config export --file team-config.json
+    
+    # Include security policies
+    /security export --policies --file team-security.json
+    ```
+    
+    2. **User Management:**
+    ```bash
+    # Set up user roles (Enterprise)
+    /enterprise users add developer@company.com --role developer
+    /enterprise teams create frontend-team
+    ```
+    
+    3. **Shared Resources:**
+    ```bash
+    # Configure shared agents
+    /agent-factory create-team-agent "Company React Expert"
+    
+    # Set up shared workflows
+    /workflow export company-workflow --share-with-team
+    ```
+    
+    4. **Collaboration:**
+    ```bash
+    # Enable session sharing
+    /share session-id --team frontend-team
+    
+    # Set up collaborative sessions
+    /collaborate start "Sprint Planning" --invite team@company.com
+    ```
+  </Accordion>
+  
+  <Accordion title="Can I customize agents for specific technologies or patterns?">
+    **Agent Customization Options:**
+    
+    1. **Configure Existing Agents:**
+    ```bash
+    # Customize React expert for your stack
+    /agent-config react-expert --prefer-frameworks "nextjs,typescript,tailwind"
+    /agent-config react-expert --coding-style "functional,hooks,strict-types"
+    ```
+    
+    2. **Create Custom Agents:**
+    ```bash
+    # Create specialized agent
+    /create-agent "Company React Expert" 
+                  --base react-expert
+                  --context "company-style-guide.md"
+                  --skills "nextjs,typescript,tailwind,jest"
+    ```
+    
+    3. **Agent Templates:**
+    ```bash
+    # Save agent configuration as template
+    /agent-factory save-template react-expert "company-react-template"
+    
+    # Deploy from template
+    /launch-agent company-react-template "Create dashboard component"
+    ```
+    
+    4. **Training and Feedback:**
+    ```bash
+    # Provide feedback to improve agent performance
+    /agent-learning feedback react-expert --rating 4 --comment "Good but needs better error handling"
+    ```
+  </Accordion>
+  
+  <Accordion title="How do I integrate NikCLI with existing development tools?">
+    **Integration Options:**
+    
+    **IDE Integration:**
+    ```bash
+    # VS Code extension (if available)
+    /setup ide vscode --extensions --settings
+    
+    # Command palette integration
+    /config set ide.integration.vscode true
+    ```
+    
+    **CI/CD Integration:**
+    ```bash
+    # GitHub Actions
+    /setup github-actions --workflow nikcli-review
+    
+    # GitLab CI/CD  
+    /setup gitlab-ci --stage code-review --agent security-expert
+    ```
+    
+    **API Integration:**
+    ```bash
+    # Start API server
+    /api server start --port 3001
+    
+    # Webhook setup
+    /api webhooks create --url https://company.com/webhook --events "session.created"
+    ```
+    
+    **Custom Scripts:**
+    ```bash
+    # Use NikCLI SDK
+    npm install @nikcli/sdk
+    
+    # Example integration script
+    const cli = new NikCLI({ apiKey: process.env.NIKCLI_API_KEY });
+    await cli.agents.execute('react-expert', { task: 'review PR' });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Getting Help
+
+### Support Resources
+
+<CardGroup cols={2}>
+  <Card title="Documentation" icon="book">
+    Comprehensive guides and references
+    
+    - [User Guide](/user-guide/overview)
+    - [CLI Reference](/cli-reference/commands-overview)  
+    - [Agent System](/agent-system/architecture)
+    - [API Documentation](/api-reference/core-apis)
+  </Card>
+  
+  <Card title="Community" icon="users">
+    Connect with other NikCLI users
+    
+    - [GitHub Discussions](https://github.com/cadcamfun/nikcli/discussions)
+    - [Discord Community](https://discord.gg/nikcli)
+    - [Stack Overflow](https://stackoverflow.com/questions/tagged/nikcli)
+  </Card>
+  
+  <Card title="Bug Reports" icon="bug">
+    Report issues and bugs
+    
+    - [GitHub Issues](https://github.com/cadcamfun/nikcli/issues)
+    - Include: NikCLI version, OS, error messages
+    - Use issue templates for better support
+  </Card>
+  
+  <Card title="Feature Requests" icon="lightbulb">
+    Suggest new features and improvements
+    
+    - [Feature Requests](https://github.com/cadcamfun/nikcli/issues/new?template=feature_request.md)
+    - [Roadmap Discussion](https://github.com/cadcamfun/nikcli/discussions/categories/roadmap)
+  </Card>
+</CardGroup>
+
+### Getting Better Support
+
+<AccordionGroup>
+  <Accordion title="How to report bugs effectively">
+    **Include These Details:**
+    
+    1. **Environment Information:**
+    ```bash
+    nikcli --version
+    node --version
+    npm --version
+    # Operating System and version
+    ```
+    
+    2. **Reproduction Steps:**
+    ```bash
+    # Exact commands that cause the issue
+    /agent react-expert "create component"  # This fails
+    # Expected behavior vs actual behavior
+    ```
+    
+    3. **Error Messages:**
+    ```bash
+    # Full error messages and stack traces
+    /debug enable --capture-logs --file debug.log
+    # Include the debug.log file
+    ```
+    
+    4. **Configuration:**
+    ```bash
+    # Sanitized configuration (remove API keys)
+    /config export --sanitized --file config-debug.json
+    ```
+  </Accordion>
+  
+  <Accordion title="How to request new features">
+    **Feature Request Best Practices:**
+    
+    1. **Clear Use Case:**
+       - Describe the problem you're trying to solve
+       - Explain why existing features don't work
+       - Provide specific examples
+    
+    2. **Proposed Solution:**
+       - Suggest implementation approach
+       - Consider edge cases and limitations
+       - Think about user experience
+    
+    3. **Impact Assessment:**
+       - Who would benefit from this feature?
+       - How often would it be used?
+       - What's the workaround currently?
+    
+    **Example Good Feature Request:**
+    ```
+    Title: Add support for Svelte components in React Expert agent
+    
+    Problem: Currently working on a project that uses Svelte components 
+    within a React application, but the React Expert agent doesn't 
+    understand Svelte syntax and patterns.
+    
+    Solution: Extend React Expert with Svelte knowledge or create a 
+    dedicated Svelte Expert agent.
+    
+    Impact: Would help teams using Svelte with React, especially in 
+    micro-frontend architectures.
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="User Guide"
+    icon="map"
+    href="/user-guide/overview"
+  >
+    Complete guide to using NikCLI effectively
+  </Card>
+  <Card
+    title="Troubleshooting"
+    icon="wrench"
+    href="/troubleshooting/common-issues"
+  >
+    Detailed troubleshooting guides and solutions
+  </Card>
+  <Card
+    title="Examples"
+    icon="play"
+    href="/examples/basic-workflows"
+  >
+    Practical examples and real-world scenarios
+  </Card>
+  <Card
+    title="Contributing"
+    icon="heart"
+    href="/contributing/development"
+  >
+    Help improve NikCLI for everyone
+  </Card>
+</CardGroup>
+
+<Tip>
+  If you can't find an answer here, try the built-in help system with `/help` or search the documentation. The community is also very helpful for questions not covered in the documentation.
+</Tip>

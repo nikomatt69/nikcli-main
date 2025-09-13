@@ -1,0 +1,64 @@
+---
+title: 'Breadcrumb'
+description: 'Breadcrumb navigation for hierarchical paths.'
+---
+
+## Overview
+
+Displays the current location within a hierarchy.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Breadcrumb } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Breadcrumb({ parent: screen, items: [ { label: 'Home', id: 'home' }, { label: 'Library', id: 'lib' } ] });
+```
+
+## Live Preview
+
+<Snippet file="previews/breadcrumb.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Production Examples
+
+<CodeGroup>
+
+```typescript
+const trail = new Breadcrumb({ parent: screen, top: 1, left: 2, items: [ { id: 'home', label: 'Home' } ] });
+trail.addItem({ id: 'library', label: 'Library' });
+trail.addItem({ id: 'data', label: 'Data' });
+```
+
+```typescript
+new Breadcrumb({ parent: screen, top: 2, left: 2, items: [ { id: 'a', label: 'A' }, { id: 'b', label: 'B' } ], separator: ' / ' });
+```
+
+</CodeGroup>
+
+## Props
+
+- items: Array of `{ id: string; label: string; href?: string; disabled?: boolean }` — Breadcrumb segments.
+- separator?: string — Text separator between items (default `›`).
+- BaseProps: variant, size, position, height=1, etc.
+
+## Methods
+
+- setItems(items), addItem(item), removeLastItem(), clear().
+
+## Best Practices
+
+- Avoid long labels; trim or abbreviate to fit small terminals.

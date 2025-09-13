@@ -1,0 +1,70 @@
+---
+title: 'StatusIndicator'
+description: 'Inline status indicator with text and color.'
+---
+
+## Overview
+
+Highlight status such as success, warning, or error.
+
+## Import
+
+```ts
+import { StatusIndicator } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new StatusIndicator({ parent: screen, status: 'success', text: 'OK' });
+```
+
+## Live Preview
+
+<Snippet file="previews/statusindicator.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- status: 'idle' | 'running' | 'success' | 'warning' | 'error' — Visual state.
+- text?: string — Optional label.
+
+## Methods
+
+- setStatus(status, text?).
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { StatusIndicator } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new StatusIndicator({ parent: screen, top: 1, left: 2, status: 'success', text: 'OK' });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Dynamic
+const st = new StatusIndicator({ parent: screen, top: 1, left: 2, status: 'running', text: 'Working' });
+setTimeout(() => st.setStatus('success', 'Done'), 1500);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Combina con LogViewer/Toast per contesto operativo.

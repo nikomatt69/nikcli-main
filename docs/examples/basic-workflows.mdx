@@ -1,0 +1,783 @@
+---
+title: 'Basic Workflows'
+description: 'Common development workflows and usage patterns with NikCLI'
+icon: 'workflow'
+---
+
+## Common Development Scenarios
+
+This guide demonstrates the most common development workflows using NikCLI, from simple tasks to complex project implementations.
+
+<CardGroup cols={2}>
+  <Card title="Component Development" icon="react">
+    Creating React components and UI elements
+  </Card>
+  <Card title="API Development" icon="server">
+    Building REST APIs and backend services
+  </Card>
+  <Card title="Bug Fixing" icon="bug">
+    Debugging and resolving code issues
+  </Card>
+  <Card title="Refactoring" icon="code">
+    Code optimization and structure improvements
+  </Card>
+</CardGroup>
+
+## Frontend Development Workflows
+
+### Creating React Components
+
+<Steps>
+  <Step title="Simple Component Creation">
+    Start with a basic component request:
+    
+    ```
+    > Create a Button component with variants for primary, secondary, and danger
+    ```
+    
+    **NikCLI Response:**
+    ```
+    🔍 Analyzing project structure...
+    📁 Found React TypeScript project with Tailwind CSS
+    🎯 Creating Button component with variants...
+    ✏️  Writing Button.tsx...
+    📝 Adding TypeScript interfaces...
+    🎨 Implementing Tailwind styles...
+    ✅ Button component created successfully
+    ```
+    
+    **Generated Files:**
+    - `src/components/Button.tsx`
+    - `src/components/Button.stories.tsx` (if Storybook detected)
+    - `src/components/__tests__/Button.test.tsx` (if testing setup found)
+  </Step>
+  
+  <Step title="Complex Component with State">
+    Request a more complex component:
+    
+    ```
+    > Create a SearchableSelect component with async data loading, 
+      filtering, and keyboard navigation
+    ```
+    
+    **Features Implemented:**
+    - Async data fetching with loading states
+    - Real-time search filtering
+    - Keyboard navigation (arrow keys, enter, escape)
+    - Accessibility attributes
+    - TypeScript interfaces
+    - Custom hooks for state management
+  </Step>
+  
+  <Step title="Form Components">
+    Create form components with validation:
+    
+    ```
+    > Create a user registration form with email, password, 
+      and confirm password fields. Include validation and error handling
+    ```
+    
+    **NikCLI Implementation:**
+    - Form validation with yup or zod (based on project)
+    - Error handling and display
+    - Form submission logic
+    - Loading states and feedback
+    - Accessibility compliance
+  </Step>
+</Steps>
+
+### State Management Integration
+
+<Tabs>
+  <Tab title="Redux Toolkit">
+    ```
+    > Add user authentication state management using Redux Toolkit
+    ```
+    
+    **Generated Files:**
+    ```
+    src/store/
+    ├── slices/
+    │   └── authSlice.ts
+    ├── api/
+    │   └── authApi.ts
+    └── store.ts
+    ```
+    
+    **Features:**
+    - RTK Query for API calls
+    - Authentication slice with actions
+    - Typed hooks and selectors
+    - Middleware configuration
+  </Tab>
+  
+  <Tab title="Zustand">
+    ```
+    > Implement shopping cart state management with Zustand
+    ```
+    
+    **Implementation:**
+    ```typescript
+    // Generated store/cartStore.ts
+    interface CartState {
+      items: CartItem[];
+      total: number;
+      addItem: (product: Product) => void;
+      removeItem: (id: string) => void;
+      updateQuantity: (id: string, quantity: number) => void;
+      clearCart: () => void;
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Context API">
+    ```
+    > Create a theme context for dark/light mode switching
+    ```
+    
+    **Generated Structure:**
+    ```
+    src/contexts/
+    ├── ThemeContext.tsx
+    ├── ThemeProvider.tsx
+    └── useTheme.ts
+    ```
+  </Tab>
+</Tabs>
+
+### Styling and Layout
+
+<AccordionGroup>
+  <Accordion title="Responsive Layouts">
+    ```
+    > Create a responsive dashboard layout with sidebar navigation, 
+      header, and main content area
+    ```
+    
+    **NikCLI Approach:**
+    - Detects CSS framework (Tailwind, Styled-components, etc.)
+    - Implements mobile-first responsive design
+    - Adds proper semantic HTML structure
+    - Includes accessibility features
+    - Provides hover and focus states
+  </Accordion>
+  
+  <Accordion title="Component Libraries">
+    ```
+    > Create a design system with consistent button, input, 
+      and card components using our brand colors
+    ```
+    
+    **Generated Design System:**
+    - Consistent component API
+    - Theme configuration
+    - Size and variant systems
+    - Documentation with Storybook
+    - TypeScript prop interfaces
+  </Accordion>
+  
+  <Accordion title="Animation and Interactions">
+    ```
+    > Add smooth animations to the modal component with 
+      fade-in/fade-out and scale effects
+    ```
+    
+    **Implementation Options:**
+    - Framer Motion integration
+    - CSS animations
+    - React Transition Group
+    - Custom animation hooks
+  </Accordion>
+</AccordionGroup>
+
+## Backend Development Workflows
+
+### API Development
+
+<Steps>
+  <Step title="REST API Creation">
+    Create a complete REST API:
+    
+    ```
+    > Create a REST API for a blog system with posts, comments, 
+      and user authentication using Express.js and MongoDB
+    ```
+    
+    **Generated Structure:**
+    ```
+    src/
+    ├── routes/
+    │   ├── auth.ts
+    │   ├── posts.ts
+    │   └── comments.ts
+    ├── models/
+    │   ├── User.ts
+    │   ├── Post.ts
+    │   └── Comment.ts
+    ├── middleware/
+    │   ├── auth.ts
+    │   └── validation.ts
+    └── controllers/
+        ├── authController.ts
+        ├── postController.ts
+        └── commentController.ts
+    ```
+  </Step>
+  
+  <Step title="Database Integration">
+    Add database operations:
+    
+    ```
+    > Add pagination, sorting, and filtering to the posts API
+    ```
+    
+    **Enhanced Features:**
+    - Query parameter parsing
+    - Database query optimization
+    - Response formatting
+    - Error handling
+    - Input validation
+  </Step>
+  
+  <Step title="Testing Implementation">
+    Add comprehensive testing:
+    
+    ```
+    > Add unit and integration tests for the blog API
+    ```
+    
+    **Test Coverage:**
+    - Route testing with supertest
+    - Database mocking
+    - Authentication testing
+    - Error scenario testing
+    - Performance testing
+  </Step>
+</Steps>
+
+### Database Operations
+
+<Tabs>
+  <Tab title="MongoDB with Mongoose">
+    ```
+    > Create user profile management with MongoDB, 
+      including avatar upload and profile settings
+    ```
+    
+    **Implementation:**
+    - Mongoose schemas with validation
+    - File upload handling with multer
+    - Image processing with sharp
+    - Cloud storage integration
+    - Indexed queries for performance
+  </Tab>
+  
+  <Tab title="PostgreSQL with Prisma">
+    ```
+    > Implement e-commerce product catalog with categories, 
+      inventory, and pricing using PostgreSQL
+    ```
+    
+    **Features:**
+    - Prisma schema design
+    - Complex relationships
+    - Query optimization
+    - Transaction handling
+    - Migration management
+  </Tab>
+  
+  <Tab title="Redis for Caching">
+    ```
+    > Add Redis caching to improve API performance
+    ```
+    
+    **Caching Strategy:**
+    - Query result caching
+    - Session management
+    - Rate limiting
+    - Real-time features
+    - Cache invalidation
+  </Tab>
+</Tabs>
+
+### Authentication and Security
+
+<AccordionGroup>
+  <Accordion title="JWT Authentication">
+    ```
+    > Implement JWT-based authentication with refresh tokens, 
+      email verification, and password reset
+    ```
+    
+    **Security Features:**
+    - Secure token generation
+    - Refresh token rotation
+    - Email verification flow
+    - Password reset with expiration
+    - Rate limiting for auth endpoints
+    - Secure cookie handling
+  </Accordion>
+  
+  <Accordion title="Role-Based Access Control">
+    ```
+    > Add role-based permissions system with admin, 
+      moderator, and user roles
+    ```
+    
+    **RBAC Implementation:**
+    - Role definition and management
+    - Permission checking middleware
+    - Resource-based permissions
+    - Dynamic role assignment
+    - Audit logging
+  </Accordion>
+  
+  <Accordion title="OAuth Integration">
+    ```
+    > Add Google and GitHub OAuth login options
+    ```
+    
+    **OAuth Features:**
+    - Multiple provider support
+    - Account linking
+    - Profile data synchronization
+    - Secure token storage
+    - Fallback authentication
+  </Accordion>
+</AccordionGroup>
+
+## Full-Stack Integration Workflows
+
+### End-to-End Feature Development
+
+<Steps>
+  <Step title="Feature Planning">
+    Start with a comprehensive feature request:
+    
+    ```
+    > Implement a real-time chat system with private messages, 
+      group chats, and file sharing
+    ```
+    
+    **NikCLI Planning:**
+    ```
+    📋 Analyzing chat system requirements...
+    
+    Frontend Components:
+    ├── ChatList - List of conversations
+    ├── ChatWindow - Message display and input
+    ├── FileUpload - File sharing component
+    └── UserList - Online users display
+    
+    Backend Services:
+    ├── WebSocket server setup
+    ├── Message API endpoints
+    ├── File upload handling
+    └── Real-time event management
+    
+    Database Schema:
+    ├── Users and authentication
+    ├── Conversations and participants
+    ├── Messages with metadata
+    └── File attachments
+    ```
+  </Step>
+  
+  <Step title="Coordinated Implementation">
+    NikCLI implements frontend and backend in coordination:
+    
+    **Frontend Implementation:**
+    - WebSocket client setup
+    - Real-time message updates
+    - File upload with progress
+    - Responsive chat interface
+    - Typing indicators
+    
+    **Backend Implementation:**
+    - Socket.io server configuration
+    - Message broadcasting logic
+    - File storage and retrieval
+    - User presence tracking
+    - Rate limiting and validation
+  </Step>
+  
+  <Step title="Testing and Integration">
+    Comprehensive testing across the stack:
+    
+    ```
+    > Add end-to-end tests for the chat system
+    ```
+    
+    **Test Coverage:**
+    - WebSocket connection testing
+    - Message delivery verification
+    - File upload functionality
+    - Multiple user scenarios
+    - Error handling validation
+  </Step>
+</Steps>
+
+### DevOps and Deployment
+
+<Tabs>
+  <Tab title="Docker Setup">
+    ```
+    > Create Docker configuration for development and production
+    ```
+    
+    **Generated Files:**
+    ```
+    docker/
+    ├── Dockerfile
+    ├── docker-compose.yml
+    ├── docker-compose.dev.yml
+    └── .dockerignore
+    ```
+    
+    **Features:**
+    - Multi-stage builds
+    - Development hot-reload
+    - Environment-specific configs
+    - Health checks
+    - Volume management
+  </Tab>
+  
+  <Tab title="CI/CD Pipeline">
+    ```
+    > Set up GitHub Actions for testing, building, and deployment
+    ```
+    
+    **Pipeline Stages:**
+    ```yaml
+    # .github/workflows/main.yml
+    - Test: Unit and integration tests
+    - Build: Docker image creation
+    - Security: Vulnerability scanning
+    - Deploy: Staging and production
+    - Monitor: Health checks
+    ```
+  </Tab>
+  
+  <Tab title="Environment Configuration">
+    ```
+    > Configure environment variables and secrets management
+    ```
+    
+    **Configuration:**
+    - Environment-specific variables
+    - Secret management
+    - Configuration validation
+    - Local development setup
+    - Production security
+  </Tab>
+</Tabs>
+
+## Bug Fixing Workflows
+
+### Debugging Process
+
+<Steps>
+  <Step title="Issue Analysis">
+    Describe the problem:
+    
+    ```
+    > The user login is failing intermittently with a 500 error. 
+      The logs show database connection timeouts
+    ```
+    
+    **NikCLI Analysis:**
+    ```
+    🔍 Analyzing authentication flow...
+    📁 Found login route in src/routes/auth.ts
+    🗄️  Checking database connection in src/config/database.ts
+    📊 Examining error logs and patterns...
+    
+    Issues identified:
+    ├── Database connection pool exhaustion
+    ├── Missing connection timeout configuration
+    └── Lack of retry logic for transient errors
+    ```
+  </Step>
+  
+  <Step title="Root Cause Identification">
+    NikCLI investigates the underlying cause:
+    
+    ```
+    🔎 Root cause analysis:
+    
+    Primary Issue:
+    └── Database connection pool size too small for concurrent users
+    
+    Contributing Factors:
+    ├── Long-running queries without timeouts
+    ├── Connections not properly released
+    └── No connection health monitoring
+    ```
+  </Step>
+  
+  <Step title="Fix Implementation">
+    Apply comprehensive fixes:
+    
+    **Database Configuration:**
+    ```typescript
+    // Enhanced connection pool settings
+    mongoose.connect(DB_URL, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      bufferMaxEntries: 0
+    });
+    ```
+    
+    **Error Handling:**
+    ```typescript
+    // Retry logic for database operations
+    const retryOperation = async (operation, maxRetries = 3) => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          return await operation();
+        } catch (error) {
+          if (attempt === maxRetries) throw error;
+          await delay(attempt * 1000);
+        }
+      }
+    };
+    ```
+  </Step>
+  
+  <Step title="Testing and Validation">
+    Verify the fix:
+    
+    ```
+    > Add tests to prevent this issue from recurring
+    ```
+    
+    **Prevention Measures:**
+    - Connection pool monitoring
+    - Database health checks
+    - Load testing
+    - Error rate alerting
+    - Performance benchmarks
+  </Step>
+</Steps>
+
+### Performance Optimization
+
+<AccordionGroup>
+  <Accordion title="Frontend Performance">
+    ```
+    > The dashboard is loading slowly. Optimize performance 
+      and reduce bundle size
+    ```
+    
+    **Optimization Strategies:**
+    - Component lazy loading
+    - Bundle analysis and splitting
+    - Image optimization
+    - Memoization of expensive calculations
+    - Virtual scrolling for large lists
+    - Service worker caching
+  </Accordion>
+  
+  <Accordion title="Backend Performance">
+    ```
+    > API responses are slow. Optimize database queries 
+      and add caching
+    ```
+    
+    **Performance Improvements:**
+    - Query optimization and indexing
+    - Redis caching strategy
+    - Response compression
+    - Connection pooling
+    - Background job processing
+    - CDN integration
+  </Accordion>
+  
+  <Accordion title="Bundle Optimization">
+    ```
+    > Analyze and reduce the JavaScript bundle size
+    ```
+    
+    **Bundle Analysis:**
+    - Webpack bundle analyzer
+    - Tree shaking optimization
+    - Dependency audit
+    - Code splitting strategies
+    - Import optimization
+    - Polyfill analysis
+  </Accordion>
+</AccordionGroup>
+
+## Maintenance Workflows
+
+### Code Refactoring
+
+<Tabs>
+  <Tab title="Structure Refactoring">
+    ```
+    > Refactor the components directory to follow 
+      atomic design principles
+    ```
+    
+    **Refactoring Plan:**
+    ```
+    src/components/
+    ├── atoms/          # Basic building blocks
+    ├── molecules/      # Simple combinations
+    ├── organisms/      # Complex components
+    ├── templates/      # Layout structures
+    └── pages/          # Complete pages
+    ```
+  </Tab>
+  
+  <Tab title="API Refactoring">
+    ```
+    > Refactor the API to use a more RESTful design 
+      and improve error handling
+    ```
+    
+    **Improvements:**
+    - Consistent endpoint naming
+    - Standard HTTP status codes
+    - Unified error response format
+    - API versioning strategy
+    - Input validation middleware
+    - Response serialization
+  </Tab>
+  
+  <Tab title="Database Refactoring">
+    ```
+    > Optimize the database schema and add proper indexing
+    ```
+    
+    **Schema Optimization:**
+    - Normalize database structure
+    - Add performance indexes
+    - Optimize query patterns
+    - Implement data archiving
+    - Add foreign key constraints
+    - Update migration scripts
+  </Tab>
+</Tabs>
+
+### Testing Implementation
+
+<AccordionGroup>
+  <Accordion title="Unit Testing">
+    ```
+    > Add comprehensive unit tests for the user service
+    ```
+    
+    **Test Coverage:**
+    - Function logic testing
+    - Edge case handling
+    - Mock dependencies
+    - Assertion libraries
+    - Coverage reporting
+    - Continuous integration
+  </Accordion>
+  
+  <Accordion title="Integration Testing">
+    ```
+    > Create integration tests for the authentication flow
+    ```
+    
+    **Integration Tests:**
+    - API endpoint testing
+    - Database interaction
+    - External service mocking
+    - End-to-end scenarios
+    - Error condition testing
+    - Performance benchmarks
+  </Accordion>
+  
+  <Accordion title="E2E Testing">
+    ```
+    > Add Playwright tests for the complete user journey
+    ```
+    
+    **E2E Test Scenarios:**
+    - User registration and login
+    - Core feature workflows
+    - Cross-browser testing
+    - Mobile responsiveness
+    - Performance testing
+    - Accessibility validation
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Clear Communication" icon="comments">
+    **Be Specific**: Provide detailed requirements
+    
+    **Good**: "Create a responsive product card with image, title, price, and add-to-cart functionality"
+    
+    **Better**: "Create a product card component that displays product image (with lazy loading), title, formatted price, star rating, and add-to-cart button with loading state"
+  </Card>
+  
+  <Card title="Incremental Development" icon="steps">
+    **Start Simple**: Build features incrementally
+    
+    1. Basic functionality first
+    2. Add error handling
+    3. Implement loading states
+    4. Add accessibility features
+    5. Optimize performance
+  </Card>
+  
+  <Card title="Context Awareness" icon="brain">
+    **Reference Existing Code**: Help NikCLI understand patterns
+    
+    "Follow the same pattern as UserCard.tsx"
+    "Use the same error handling as in authService.ts"
+    "Match the styling approach in the existing components"
+  </Card>
+  
+  <Card title="Testing Focus" icon="shield-check">
+    **Include Testing**: Always consider testing
+    
+    "Include unit tests for this component"
+    "Add integration tests for the API endpoints"
+    "Ensure the feature has proper error handling"
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Advanced Automation"
+    icon="robot"
+    href="/examples/advanced-automation"
+  >
+    Learn complex multi-agent workflows and automation patterns
+  </Card>
+  <Card
+    title="Integration Examples"
+    icon="plug"
+    href="/examples/integration-examples"
+  >
+    Explore integrations with external tools and services
+  </Card>
+  <Card
+    title="Real-World Scenarios"
+    icon="world"
+    href="/examples/real-world-scenarios"
+  >
+    See how NikCLI handles production-level challenges
+  </Card>
+  <Card
+    title="CLI Reference"
+    icon="terminal"
+    href="/cli-reference/commands-overview"
+  >
+    Master all available commands and features
+  </Card>
+</CardGroup>
+
+<Tip>
+  Remember that NikCLI learns from your project structure and coding patterns. The more you use it within a project, the better it becomes at understanding your specific requirements and conventions.
+</Tip>

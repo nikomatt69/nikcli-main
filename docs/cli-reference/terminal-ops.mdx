@@ -1,0 +1,678 @@
+---
+title: "Terminal Operations"
+description: "Execute and manage terminal commands safely in NikCLI"
+icon: "terminal"
+---
+
+## Overview
+
+NikCLI provides powerful terminal operation capabilities that allow you to execute system commands, manage processes, and interact with your development environment directly from the chat interface. All terminal operations include built-in security policies and approval workflows.
+
+<CardGroup cols={2}>
+  <Card title="Command Execution" icon="play">
+    Execute terminal commands with security policies
+  </Card>
+  <Card title="Process Management" icon="list-check">
+    Monitor and control running processes
+  </Card>
+  <Card title="Security Policies" icon="shield-check">
+    Built-in protection against harmful commands
+  </Card>
+  <Card title="Output Streaming" icon="stream">
+    Real-time command output with progress tracking
+  </Card>
+</CardGroup>
+
+## Terminal Commands
+
+### `/run` - Execute Commands
+
+Execute terminal commands with built-in security and approval workflows.
+
+<Tabs>
+  <Tab title="Basic Usage">
+    ```bash # Basic command execution /run ls -la /run pwd /run whoami #
+    Development commands /run npm install /run npm test /run npm run build # Git
+    operations /run git status /run git add . /run git commit -m "Update
+    documentation" ```
+  </Tab>
+
+{" "}
+<Tab title="Advanced Options">
+  ```bash # Execute with specific working directory /run --cwd=/path/to/project
+  npm test # Execute with environment variables /run --env NODE_ENV=production
+  npm run build # Execute with timeout (in seconds) /run --timeout=60 npm run
+  build # Execute in background /run --background npm run dev # Execute with
+  approval bypass (developer mode only) /run --force rm -rf node_modules ```
+</Tab>
+
+  <Tab title="Interactive Commands">
+    ```bash # Interactive package installation /run npm init /run npx
+    create-react-app my-app # Interactive Git operations /run git rebase -i
+    HEAD~3 /run git add -i # System diagnostics /run htop /run docker logs -f
+    container-name ```
+  </Tab>
+</Tabs>
+
+### `/sh` - Shell Alias
+
+Convenient alias for `/run` command with identical functionality.
+
+```bash
+# These commands are equivalent
+/sh npm test
+/run npm test
+
+# Shell scripting
+/sh "cd src && find . -name '*.ts' | wc -l"
+/sh "grep -r 'TODO' src/ | head -10"
+```
+
+### `/kill` - Process Management
+
+Terminate running background processes by PID or name.
+
+<AccordionGroup>
+  <Accordion title="Kill by Process ID">
+    ```bash # Kill specific process by PID /kill 1234 /kill 5678 # Kill with
+    specific signal /kill -TERM 1234 /kill -KILL 5678 /kill -USR1 9999 ```
+  </Accordion>
+
+{" "}
+<Accordion title="Kill by Process Name">
+  ```bash # Kill processes by name /kill node /kill "npm run dev" /kill
+  docker-compose # Kill all matching processes /kill --all node /kill --pattern
+  "npm.*dev" ```
+</Accordion>
+
+  <Accordion title="Interactive Process Management">
+    ```bash # List running processes /kill --list # Interactive process
+    selection /kill --interactive # Show process tree /kill --tree ```
+  </Accordion>
+</AccordionGroup>
+
+### `/ps` - Process List
+
+Display running processes with filtering and sorting options.
+
+```bash
+# List all processes
+/ps
+
+# List processes by user
+/ps --user $(whoami)
+
+# List processes by name pattern
+/ps --name node
+/ps --pattern "npm.*"
+
+# List with detailed information
+/ps --detailed
+/ps --tree
+/ps --sort cpu
+/ps --sort memory
+```
+
+### `/env` - Environment Variables
+
+Manage environment variables for the current session.
+
+<Tabs>
+  <Tab title="View Variables">
+    ```bash # Show all environment variables /env # Show specific variables /env
+    PATH /env NODE_ENV /env API_KEY # Search variables by pattern /env --pattern
+    "npm.*" /env --pattern ".*key.*" ```
+  </Tab>
+
+{" "}
+<Tab title="Set Variables">
+  ```bash # Set environment variable /env NODE_ENV=development /env
+  API_URL=https://api.example.com /env DEBUG=true # Set multiple variables /env
+  NODE_ENV=production API_URL=https://prod.api.com # Set from file /env --file
+  .env.local /env --file config/.env.production ```
+</Tab>
+
+  <Tab title="Advanced Management">
+    ```bash # Export variables to shell /env --export NODE_ENV=production #
+    Unset variables /env --unset DEBUG /env --unset API_KEY # Save current
+    environment /env --save .env.backup # Load environment from file /env --load
+    .env.production ```
+  </Tab>
+</Tabs>
+
+### `/pwd` - Working Directory
+
+Display and manage the current working directory.
+
+```bash
+# Show current directory
+/pwd
+
+# Show with full path resolution
+/pwd --resolved
+
+# Show directory tree
+/pwd --tree
+
+# Show directory with git status
+/pwd --git
+```
+
+### `/cd` - Change Directory
+
+Change the working directory for subsequent commands.
+
+<AccordionGroup>
+  <Accordion title="Basic Navigation">
+    ```bash # Change to specific directory /cd /path/to/project /cd
+    ~/Documents/projects /cd ./src/components # Navigate relative to current
+    directory /cd .. /cd ../.. /cd ./nested/folder # Go to home directory /cd ~
+    /cd ```
+  </Accordion>
+
+{" "}
+<Accordion title="Smart Navigation">
+  ```bash # Auto-complete with Tab key /cd src/comp[Tab] → /cd src/components/ #
+  Navigate to git root /cd --git-root # Navigate to project root (finds
+  package.json, etc.) /cd --project-root # Navigate to previous directory /cd -
+  ```
+</Accordion>
+
+  <Accordion title="Directory History">
+    ```bash # Show directory history /cd --history # Navigate to recent
+    directory by index /cd --history 2 /cd --history 5 # Clear directory history
+    /cd --clear-history ```
+  </Accordion>
+</AccordionGroup>
+
+### `/which` - Command Location
+
+Find the location of executable commands and check availability.
+
+```bash
+# Find command location
+/which node
+/which npm
+/which git
+/which docker
+
+# Check multiple commands
+/which node npm git python
+
+# Show all matching executables
+/which --all python
+
+# Check command exists
+/which --exists docker-compose
+```
+
+### `/exec` - Execute with Context
+
+Execute commands with enhanced context awareness and logging.
+
+<Tabs>
+  <Tab title="Context Execution">
+    ```bash # Execute with project context /exec npm test /exec yarn build /exec
+    docker-compose up # Execute with enhanced logging /exec --log npm run build
+    /exec --verbose docker build . # Execute with performance monitoring /exec
+    --profile npm run build /exec --time ./benchmark.sh ```
+  </Tab>
+
+{" "}
+<Tab title="Conditional Execution">
+  ```bash # Execute only if condition is met /exec --if-exists package.json npm
+  install /exec --if-not-exists node_modules npm install /exec
+  --if-command-exists docker docker ps # Execute with retry logic /exec --retry
+  3 npm run flaky-test /exec --retry-delay 5 curl https://api.example.com ```
+</Tab>
+
+  <Tab title="Pipeline Execution">
+    ```bash # Chain commands with && /exec "npm run build && npm run test" #
+    Pipe commands /exec "cat package.json | jq '.dependencies'" # Complex shell
+    operations /exec "find src -name '*.ts' | xargs grep -l 'TODO' | head -5"
+    ```
+  </Tab>
+</Tabs>
+
+## Security Policies
+
+### Command Approval
+
+NikCLI implements multi-level command approval based on risk assessment:
+
+<Tabs>
+  <Tab title="Safe Commands">
+    **Automatically Approved:** ```bash ls, pwd, whoami, cat, grep, find npm
+    test, npm run build, npm install git status, git log, git diff node
+    --version, npm --version ```
+  </Tab>
+
+{" "}
+<Tab title="Moderate Risk">
+  **Requires Confirmation:** ```bash rm, mv, cp (with multiple files) npm
+  publish, npm run deploy git push, git merge, git rebase docker build, docker
+  run chmod, chown (limited scope) ```
+</Tab>
+
+{" "}
+<Tab title="High Risk">
+  **Requires Explicit Approval:** ```bash rm -rf, sudo commands system
+  configuration changes network operations (curl, wget with write) database
+  operations production deployments ```
+</Tab>
+
+  <Tab title="Blocked Commands">
+    **Never Allowed:** ```bash format, fdisk, dd system shutdown/reboot kernel
+    modifications security bypass attempts malicious patterns ```
+  </Tab>
+</Tabs>
+
+### Security Modes
+
+Configure security levels for different development scenarios:
+
+<AccordionGroup>
+  <Accordion title="Safe Mode (Default)">
+    ```bash /safe-mode ``` **Characteristics:** - Maximum security restrictions
+    - Approval required for all file modifications - No system-level commands -
+    Sandboxed execution environment - Comprehensive audit logging
+  </Accordion>
+
+{" "}
+<Accordion title="Developer Mode">
+  ```bash /dev-mode enable 60 # Enable for 60 minutes ``` **Characteristics:** -
+  Reduced security restrictions - Streamlined approval process - Access to
+  system commands - Enhanced development tools - Time-limited activation
+</Accordion>
+
+  <Accordion title="Custom Security Policies">
+    ```bash /security set approval-mode selective /security set
+    command-execution restricted /security set file-operations safe ```
+    **Options:** - `approval-mode`: none, selective, strict -
+    `command-execution`: blocked, restricted, allowed - `file-operations`:
+    readonly, safe, unrestricted
+  </Accordion>
+</AccordionGroup>
+
+## Command Output Management
+
+### Streaming Output
+
+Real-time command output with progress tracking:
+
+```bash
+# Stream output in real-time
+/run --stream npm run build
+/run --stream docker build .
+/run --stream npm test -- --watch
+
+# Control output buffering
+/run --buffer-lines 100 npm run build
+/run --no-buffer tail -f log.txt
+```
+
+### Output Formatting
+
+Control how command output is displayed:
+
+<Tabs>
+  <Tab title="Display Options">
+    ```bash # Syntax highlighting for common outputs /run --highlight cat
+    package.json /run --highlight git log --oneline # Compact output format /run
+    --compact npm list /run --compact docker ps # Verbose output with metadata
+    /run --verbose npm run build /run --debug docker-compose up ```
+  </Tab>
+
+  <Tab title="Output Processing">
+    ```bash # Filter output /run --grep "error" npm run build /run --filter
+    "warning" npm test # Limit output lines /run --head 20 npm run build /run
+    --tail 50 docker logs container # Save output to file /run --save build.log
+    npm run build /run --append test.log npm test ```
+  </Tab>
+</Tabs>
+
+### Output History
+
+Access and manage command output history:
+
+```bash
+# Show recent command outputs
+/output list
+/output history
+
+# View specific command output
+/output show 123
+/output replay "npm run build"
+
+# Search output history
+/output search "error"
+/output grep "warning"
+
+# Export output
+/output export build-logs.txt
+/output save 123 command-output.txt
+```
+
+## Process Monitoring
+
+### Background Process Management
+
+Monitor and manage long-running processes:
+
+<AccordionGroup>
+  <Accordion title="Starting Background Processes">
+    ```bash # Start development server in background /run --background npm run
+    dev /run --bg docker-compose up /run --daemon pm2 start app.js # Start with
+    custom process name /run --background --name "dev-server" npm run dev /run
+    --bg --name "api-server" node server.js ```
+  </Accordion>
+
+{" "}
+<Accordion title="Monitoring Processes">
+  ```bash # List background processes /process list /process status # Show
+  detailed process information /process info dev-server /process logs api-server
+  # Monitor process resources /process monitor /process top ```
+</Accordion>
+
+  <Accordion title="Process Control">
+    ```bash # Stop background processes /process stop dev-server /process kill
+    api-server # Restart processes /process restart dev-server /process reload
+    api-server # Process health checks /process health /process ping dev-server
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Performance Monitoring
+
+Track resource usage and performance metrics:
+
+```bash
+# System resource usage
+/monitor cpu
+/monitor memory
+/monitor disk
+/monitor network
+
+# Process-specific monitoring
+/monitor process dev-server
+/monitor --pid 1234
+
+# Performance profiling
+/profile npm run build
+/profile --flame-graph node app.js
+/profile --memory-usage npm test
+```
+
+## Integration with Development Tools
+
+### Package Managers
+
+Enhanced support for common package managers:
+
+<Tabs>
+  <Tab title="npm Integration">
+    ```bash # Smart npm commands /npm install express /npm run build /npm test
+    -- --coverage # npm with enhanced features /npm --profile install # Profile
+    installation /npm --verify audit # Verify after audit /npm --update outdated
+    # Update outdated packages ```
+  </Tab>
+
+{" "}
+<Tab title="yarn Integration">
+  ```bash # Yarn commands /yarn add lodash /yarn build /yarn test --watchAll #
+  Yarn workspace support /yarn workspace frontend build /yarn workspaces run
+  test ```
+</Tab>
+
+  <Tab title="pnpm Integration">
+    ```bash # pnpm commands /pnpm install /pnpm run dev /pnpm test # pnpm
+    workspace commands /pnpm --recursive build /pnpm --filter frontend test ```
+  </Tab>
+</Tabs>
+
+### Version Control
+
+Git integration with enhanced features:
+
+<AccordionGroup>
+  <Accordion title="Enhanced Git Commands">
+    ```bash # Git with context awareness /git status --porcelain /git diff
+    --staged /git log --graph --oneline # Smart git operations /git --auto-stage
+    commit -m "Update features" /git --interactive rebase HEAD~3 /git
+    --force-with-lease push origin main ```
+  </Accordion>
+
+  <Accordion title="Git Workflow Integration">
+    ```bash # Feature branch workflow /git feature start new-feature /git
+    feature finish new-feature # Hotfix workflow /git hotfix start critical-bug
+    /git hotfix finish critical-bug # Release workflow /git release start v1.2.0
+    /git release finish v1.2.0 ```
+  </Accordion>
+</AccordionGroup>
+
+### Docker Integration
+
+Container management with enhanced monitoring:
+
+```bash
+# Docker commands with enhancements
+/docker ps --format "table"
+/docker logs --follow --tail 100 container
+/docker exec -it container /bin/bash
+
+# Docker Compose integration
+/docker-compose --profile dev up
+/docker-compose logs --follow service
+/docker-compose exec service bash
+
+# Container health monitoring
+/docker health container-name
+/docker stats --no-stream
+/docker system df
+```
+
+## Real-World Examples
+
+### Development Workflow
+
+```bash
+# Complete development workflow
+/run npm install
+/run npm run build
+/run npm test -- --coverage
+/run npm run lint --fix
+
+# Git workflow
+/run git add .
+/run git commit -m "Update components and tests"
+/run git push origin feature-branch
+
+# Docker development
+/run docker-compose up -d
+/run docker logs -f app
+/run docker exec -it app bash
+```
+
+### Process Management
+
+```bash
+# Start development environment
+/run --background --name "dev-server" npm run dev
+/run --background --name "api-server" node server.js
+
+# Monitor processes
+/process list
+/process monitor
+
+# Stop development environment
+/process stop dev-server
+/process stop api-server
+```
+
+### Environment Management
+
+```bash
+# Set up development environment
+/env NODE_ENV=development
+/env DEBUG=true
+/env API_URL=http://localhost:3000
+
+# Switch to production environment
+/env NODE_ENV=production
+/env API_URL=https://api.production.com
+
+# Save environment configuration
+/env --save .env.development
+/env --save .env.production
+```
+
+## Best Practices
+
+### Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Command Verification" icon="shield-check">
+    Always review commands before execution, especially in production
+    environments ```bash # Use --dry-run when available /run --dry-run rm -rf
+    old-files/ /run --preview docker-compose up ```
+  </Card>
+
+{" "}
+<Card title="Environment Isolation" icon="box">
+  Use proper environment separation and variable management ```bash # Isolate
+  environments /env --file .env.development /run --env-file .env.production npm
+  run deploy ```
+</Card>
+
+{" "}
+<Card title="Output Sanitization" icon="eye-slash">
+  Be cautious with sensitive information in command outputs ```bash # Mask
+  sensitive outputs /run --mask-secrets env /run --no-log curl -H
+  "Authorization: Bearer $TOKEN" ```
+</Card>
+
+  <Card title="Audit Logging" icon="file-text">
+    Maintain comprehensive audit logs for security compliance ```bash # Enable
+    detailed logging /security audit enable /run --audit-log
+    critical-operation.sh ```
+  </Card>
+</CardGroup>
+
+### Performance Optimization
+
+<Tabs>
+  <Tab title="Command Optimization">
+    ```bash # Use efficient commands /run --parallel npm run build:components
+    /run --jobs 4 npm run test # Optimize resource usage /run --memory-limit 1G
+    node build.js /run --cpu-limit 0.5 npm run build ```
+  </Tab>
+
+{" "}
+<Tab title="Output Management">
+  ```bash # Efficient output handling /run --buffer-size 8192 npm run build /run
+  --compress-output docker build . /run --stream-threshold 1000 npm test ```
+</Tab>
+
+  <Tab title="Process Management">
+    ```bash # Efficient process handling /process --auto-restart dev-server
+    /process --health-check api-server /process --resource-limits background-job
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Command Not Found">
+    **Problem:** Command execution fails with "command not found" **Solutions:**
+    ```bash # Check command availability /which command-name # Check PATH
+    environment /env PATH # Use full path /run /usr/local/bin/node --version #
+    Install missing commands /run which brew && brew install missing-package ```
+  </Accordion>
+
+{" "}
+<Accordion title="Permission Denied">
+  **Problem:** Command fails due to insufficient permissions **Solutions:**
+  ```bash # Check file permissions /run ls -la file-or-directory # Use
+  appropriate permissions /run chmod +x script.sh # Run with proper user context
+  /run --user $(whoami) command # Use sudo when necessary (with approval) /run
+  sudo command # Requires approval ```
+</Accordion>
+
+{" "}
+<Accordion title="Process Hanging">
+  **Problem:** Commands hang or become unresponsive **Solutions:** ```bash # Use
+  timeout /run --timeout 30 slow-command # Run in background with monitoring
+  /run --background --monitor npm run dev # Kill hanging processes /kill
+  --pattern "hanging-process" /process kill --force process-name ```
+</Accordion>
+
+  <Accordion title="Output Buffer Issues">
+    **Problem:** Large output causes memory or display issues **Solutions:**
+    ```bash # Limit output /run --head 100 command-with-large-output # Stream
+    output /run --stream --buffer-lines 50 npm run build # Save to file /run
+    --save output.txt command ```
+  </Accordion>
+</AccordionGroup>
+
+### Debugging Commands
+
+Enable detailed debugging for command execution:
+
+```bash
+# Enable debug mode
+/debug terminal enable
+
+# Show command parsing
+/debug command "npm run build"
+
+# Trace command execution
+/trace /run npm test
+
+# Profile command performance
+/profile --detailed npm run build
+
+# Inspect security policies
+/debug security check "rm file.txt"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Project Operations"
+    icon="folder-tree"
+    href="/cli-reference/project-ops"
+  >
+    Learn about project-level operations and management
+  </Card>
+  <Card
+    title="Agent Management"
+    icon="users"
+    href="/cli-reference/agent-management"
+  >
+    Discover AI agent orchestration and control
+  </Card>
+  <Card
+    title="Session Management"
+    icon="clock"
+    href="/cli-reference/session-management"
+  >
+    Master session control and history management
+  </Card>
+  <Card
+    title="Advanced Features"
+    icon="rocket"
+    href="/cli-reference/advanced-features"
+  >
+    Explore advanced CLI capabilities and integrations
+  </Card>
+</CardGroup>
+
+<Tip>
+  Use `/run --help` to see all available options for command execution. The help
+  system is context-aware and will show relevant flags based on your current
+  environment and security settings.
+</Tip>

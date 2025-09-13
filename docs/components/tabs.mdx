@@ -1,0 +1,87 @@
+---
+title: 'Tabs'
+description: 'Tabbed navigation container with render functions.'
+---
+
+## Overview
+
+Switch between content panes.
+
+## Import
+
+```ts
+import { Tabs } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Tabs({ parent: screen, tabs: [ { id: 't1', label: 'Tab 1', render: (p) => blessed.box({ parent: p, content: 'Tab 1' }) } ] });
+```
+
+## Live Preview
+
+<Snippet file="previews/tabs.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- tabs: Array of `{ id: string; label: string; render(parent): void; icon?: string; disabled?: boolean }` — Tab descriptors.
+- activeId?: string — Initially active tab id.
+- onChange?: (id: string) => void — Fires when active tab changes.
+- orientation?: 'horizontal' | 'vertical' — Header layout.
+- tabHeight?: number — Header height for horizontal orientation.
+- BaseProps: position, variant, size, borderStyle, label.
+
+## Methods
+
+- setActiveTab(id), getActiveTab(), getActiveTabId().
+- setTabs(tabs), addTab(tab), removeTab(id), updateTab(id, updates).
+- setTabLabel(id, label), setTabIcon(id, icon), setTabDisabled(id, disabled).
+- setOrientation(orientation), setTabHeight(h).
+- nextTab(), previousTab(), firstTab(), lastTab().
+
+## Keyboard
+
+- Up/Down/Left/Right: navigate header (blessed list default).
+- Enter: select highlighted tab.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Tabs } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Tabs({ parent: screen, top: 1, left: 2, tabs: [ { id: 't1', label: 'One', render: (p) => blessed.box({ parent: p, content: 'One' }) }, { id: 't2', label: 'Two', render: (p) => blessed.box({ parent: p, content: 'Two' }) } ] });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Vertical Tabs
+new Tabs({ parent: screen, top: 1, left: 2, orientation: 'vertical', tabs: [ { id: 'a', label: 'A', render: p => blessed.box({ parent: p, content: 'A' }) }, { id: 'b', label: 'B', render: p => blessed.box({ parent: p, content: 'B' }) } ] });
+```
+
+```ts Programmatic Control
+const tb = new Tabs({ parent: screen, top: 10, left: 2, tabs: [ { id: 'x', label: 'X', render: p => blessed.box({ parent: p, content: 'X' }) }, { id: 'y', label: 'Y', render: p => blessed.box({ parent: p, content: 'Y' }) } ] });
+tb.setActiveTab('y');
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Etichette corte e contenuti leggeri per garantire performance e leggibilità.

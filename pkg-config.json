@@ -1,0 +1,11 @@
+{
+  "scripts": ["dist/cli/index.js"],
+  "assets": ["dist/**/*", "node_modules/**/*"],
+  "targets": ["node18-linux-x64", "node18-macos-x64", "node18-macos-arm64", "node18-win-x64"],
+  "outputPath": "releases",
+  "options": {
+    "compress": "GZip",
+    "public": true
+  },
+  "hooks": ["dist/cli/hooks/**/*"]
+}

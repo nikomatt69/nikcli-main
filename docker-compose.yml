@@ -1,0 +1,157 @@
+version: '3.8'
+
+services:
+  # nikCLI Background Agents API
+  nikd-api:
+    build: 
+      context: .
+      target: runtime
+    container_name: nikd-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_URL=postgresql://nikd:password@postgres:5432/nikd
+      - GITHUB_APP_ID=${GITHUB_APP_ID}
+      - GITHUB_PRIVATE_KEY_PATH=/secrets/github-private-key.pem
+      - GITHUB_INSTALLATION_ID=${GITHUB_INSTALLATION_ID}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./workspace:/workspace
+      - ./secrets:/secrets:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+    command: ["node", "dist/cli/nikd.js", "start", "--redis", "redis://redis:6379"]
+
+  # nikCLI Background Agents Runner (additional instances)
+  nikd-runner-1:
+    build: 
+      context: .
+      target: runtime
+    container_name: nikd-runner-1
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - WORKSPACE_DIR=/workspace
+      - MAX_CONCURRENT_JOBS=2
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./workspace:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - redis
+      - nikd-api
+    restart: unless-stopped
+    command: ["node", "dist/cli/background-agents/runner.js"]
+
+  nikd-runner-2:
+    build: 
+      context: .
+      target: runtime
+    container_name: nikd-runner-2
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - WORKSPACE_DIR=/workspace
+      - MAX_CONCURRENT_JOBS=2
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./workspace:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - redis
+      - nikd-api
+    restart: unless-stopped
+    command: ["node", "dist/cli/background-agents/runner.js"]
+
+  # Redis for job queue and caching
+  redis:
+    image: redis:7-alpine
+    container_name: nikd-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # PostgreSQL for job persistence and metadata
+  postgres:
+    image: postgres:15-alpine
+    container_name: nikd-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=nikd
+      - POSTGRES_USER=nikd
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    restart: unless-stopped
+
+  # Web Console (optional)
+  console:
+    build:
+      context: ./console
+      dockerfile: Dockerfile
+    container_name: nikd-console
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+      - NODE_ENV=production
+    depends_on:
+      - nikd-api
+    restart: unless-stopped
+
+  # Monitoring with Prometheus (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: nikd-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  # Grafana for dashboards (optional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: nikd-grafana
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  default:
+    name: nikd-network

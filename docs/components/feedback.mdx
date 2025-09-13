@@ -1,0 +1,1077 @@
+---
+title: 'Feedback Components'
+description: 'Master Spinner, ProgressBar, Toast, and user feedback components'
+---
+
+## Feedback Components
+
+Feedback components provide visual indicators to communicate application state, progress, and user notifications. They enhance user experience by keeping users informed about ongoing processes.
+
+<CardGroup cols={3}>
+  <Card title="Spinner" icon="loader">
+    Animated loading indicators
+  </Card>
+  <Card title="ProgressBar" icon="trending-up">
+    Progress visualization with percentages
+  </Card>
+  <Card title="ProgressSpinner" icon="circle-notch">
+    Circular progress indicators
+  </Card>
+  <Card title="ProgressDots" icon="more-horizontal">
+    Animated dot sequences
+  </Card>
+  <Card title="ProgressList" icon="list">
+    Step-by-step progress tracking
+  </Card>
+  <Card title="Toast" icon="message-square">
+    Temporary notification messages
+  </Card>
+  <Card title="Notification" icon="bell">
+    Persistent notification system
+  </Card>
+  <Card title="StatusIndicator" icon="activity">
+    Real-time status displays
+  </Card>
+  <Card title="StatusBar" icon="bar-chart">
+    Application status bar
+  </Card>
+</CardGroup>
+
+## Spinner Component
+
+The `Spinner` component provides animated loading indicators with various styles and customization options.
+
+### Basic Spinner Usage
+
+<CodeGroup>
+
+```typescript Basic Spinners
+import { useTerminal, Box, Spinner } from 'nikcli-tui';
+
+const { screen } = useTerminal();
+
+const container = new Box({
+  parent: screen,
+  top: 'center',
+  left: 'center',
+  width: 60,
+  height: 20,
+  border: { type: 'line' },
+  label: ' Spinner Examples '
+});
+
+// Basic spinner
+const basicSpinner = new Spinner({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  type: 'dots'
+});
+
+// Spinner with message
+const messageSpinner = new Spinner({
+  parent: container.el,
+  top: 4,
+  left: 2,
+  type: 'line',
+  message: 'Loading AI models...',
+  color: 'cyan'
+});
+
+// Custom spinner
+const customSpinner = new Spinner({
+  parent: container.el,
+  top: 6,
+  left: 2,
+  frames: ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'],
+  interval: 200,
+  message: 'Processing with custom animation'
+});
+
+// Start all spinners
+basicSpinner.start();
+messageSpinner.start();
+customSpinner.start();
+```
+
+```typescript Dynamic Spinner
+class DynamicSpinner {
+  private spinner: Spinner;
+  private stages = [
+    { message: 'Initializing...', type: 'dots', color: 'yellow' },
+    { message: 'Loading configuration...', type: 'line', color: 'blue' },
+    { message: 'Connecting to AI...', type: 'arrow', color: 'cyan' },
+    { message: 'Ready!', type: 'success', color: 'green' }
+  ];
+  private currentStage = 0;
+  
+  constructor(parent: any) {
+    this.spinner = new Spinner({
+      parent,
+      ...this.stages[0]
+    });
+  }
+  
+  async start() {
+    for (let i = 0; i < this.stages.length; i++) {
+      this.currentStage = i;
+      this.updateSpinner();
+      this.spinner.start();
+      
+      // Simulate work
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      if (i < this.stages.length - 1) {
+        this.spinner.stop();
+      }
+    }
+    
+    // Final success state
+    this.spinner.setSuccess('Initialization complete!');
+  }
+  
+  private updateSpinner() {
+    const stage = this.stages[this.currentStage];
+    this.spinner.setMessage(stage.message);
+    this.spinner.setType(stage.type);
+    this.spinner.setColor(stage.color);
+  }
+}
+```
+
+```typescript AI Response Spinner
+class AIResponseSpinner {
+  private spinner: Spinner;
+  private isStreaming = false;
+  private streamingChars = ['▁', '▃', '▄', '▅', '▆', '▇', '█', '▇', '▆', '▅', '▄', '▃'];
+  
+  constructor(parent: any) {
+    this.spinner = new Spinner({
+      parent,
+      message: 'AI is thinking...',
+      color: 'cyan'
+    });
+  }
+  
+  startThinking() {
+    this.spinner.setFrames(['🧠', '💭', '🤔', '💡']);
+    this.spinner.setMessage('AI is thinking...');
+    this.spinner.start();
+  }
+  
+  startStreaming() {
+    this.isStreaming = true;
+    this.spinner.setFrames(this.streamingChars);
+    this.spinner.setMessage('Streaming response...');
+    this.spinner.setInterval(100);
+  }
+  
+  setProgress(percentage: number) {
+    if (this.isStreaming) {
+      this.spinner.setMessage(`Streaming response... ${percentage}%`);
+    }
+  }
+  
+  complete() {
+    this.spinner.stop();
+    this.spinner.setSuccess('Response received!');
+    
+    // Auto-hide after 2 seconds
+    setTimeout(() => {
+      this.spinner.hide();
+    }, 2000);
+  }
+  
+  error(message: string) {
+    this.spinner.stop();
+    this.spinner.setError(message || 'AI request failed');
+  }
+}
+```
+
+</CodeGroup>
+
+### Spinner Properties
+
+<AccordionGroup>
+  <Accordion title="Basic Properties">
+    ```typescript
+    interface SpinnerProps extends BaseProps {
+      type?: 'dots' | 'line' | 'arrow' | 'bouncingBall' | 'bouncingBar' | 'star' | 'custom';
+      message?: string;
+      color?: string;
+      interval?: number;        // Animation speed in milliseconds
+      frames?: string[];        // Custom animation frames
+      position?: 'left' | 'right' | 'center';  // Position relative to message
+    }
+    
+    // Built-in spinner types
+    const dotSpinner = new Spinner({ type: 'dots' });        // ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏
+    const lineSpinner = new Spinner({ type: 'line' });       // ─\|/
+    const arrowSpinner = new Spinner({ type: 'arrow' });     // ←↖↑↗→↘↓↙
+    const ballSpinner = new Spinner({ type: 'bouncingBall' });  // ( ●    ) (  ●   ) (   ●  )
+    ```
+  </Accordion>
+  
+  <Accordion title="Custom Frames">
+    ```typescript
+    // Emoji spinners
+    const emojiSpinner = new Spinner({
+      frames: ['🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛'],
+      interval: 100
+    });
+    
+    // Weather spinner
+    const weatherSpinner = new Spinner({
+      frames: ['☀️ ', '⛅ ', '🌤️ ', '☁️ ', '🌧️ ', '⛈️ ', '🌩️ '],
+      message: 'Checking weather...'
+    });
+    
+    // Loading bar spinner
+    const progressSpinner = new Spinner({
+      frames: [
+        '[    ]',
+        '[=   ]',
+        '[==  ]',
+        '[=== ]',
+        '[====]',
+        '[ ===]',
+        '[  ==]',
+        '[   =]',
+        '[    ]'
+      ],
+      interval: 150
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="State Management">
+    ```typescript
+    class Spinner {
+      // Control methods
+      start(): void;
+      stop(): void;
+      pause(): void;
+      resume(): void;
+      
+      // State methods
+      setMessage(message: string): void;
+      setColor(color: string): void;
+      setType(type: SpinnerType): void;
+      setFrames(frames: string[]): void;
+      setInterval(interval: number): void;
+      
+      // Status methods
+      setSuccess(message?: string): void;
+      setError(message?: string): void;
+      setWarning(message?: string): void;
+      
+      // Visibility
+      show(): void;
+      hide(): void;
+      
+      // State queries
+      isRunning(): boolean;
+      isPaused(): boolean;
+      isVisible(): boolean;
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## ProgressBar Component
+
+The `ProgressBar` component visualizes progress with customizable styling and value display.
+
+### Basic ProgressBar Usage
+
+<CodeGroup>
+
+```typescript Basic Progress Bars
+import { ProgressBar } from 'nikcli-tui';
+
+// Simple progress bar
+const basicProgress = new ProgressBar({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  width: 40,
+  height: 1,
+  value: 0,
+  max: 100,
+  showPercentage: true,
+  color: 'green'
+});
+
+// Styled progress bar
+const styledProgress = new ProgressBar({
+  parent: container.el,
+  top: 5,
+  left: 2,
+  width: 40,
+  height: 3,
+  value: 65,
+  max: 100,
+  label: 'Download Progress',
+  showPercentage: true,
+  showValue: true,
+  color: 'cyan',
+  bgColor: 'gray',
+  border: { type: 'line' }
+});
+
+// Animate progress
+let progress = 0;
+const interval = setInterval(() => {
+  progress += Math.random() * 10;
+  if (progress >= 100) {
+    progress = 100;
+    clearInterval(interval);
+  }
+  basicProgress.setValue(progress);
+}, 200);
+```
+
+```typescript Multi-step Progress
+class MultiStepProgress {
+  private progressBar: ProgressBar;
+  private steps: string[] = [];
+  private currentStep = 0;
+  private stepProgress: { [key: string]: number } = {};
+  
+  constructor(parent: any, steps: string[]) {
+    this.steps = steps;
+    
+    this.progressBar = new ProgressBar({
+      parent,
+      width: 60,
+      height: 3,
+      max: steps.length * 100, // 100 points per step
+      showPercentage: true,
+      label: 'Overall Progress',
+      border: { type: 'line' }
+    });
+    
+    this.updateDisplay();
+  }
+  
+  setStepProgress(stepIndex: number, progress: number) {
+    const stepName = this.steps[stepIndex];
+    this.stepProgress[stepName] = Math.max(0, Math.min(100, progress));
+    
+    const totalProgress = this.calculateTotalProgress();
+    this.progressBar.setValue(totalProgress);
+    this.updateDisplay();
+  }
+  
+  completeStep(stepIndex: number) {
+    this.setStepProgress(stepIndex, 100);
+    if (stepIndex < this.steps.length - 1) {
+      this.currentStep = stepIndex + 1;
+    }
+  }
+  
+  private calculateTotalProgress(): number {
+    return Object.values(this.stepProgress).reduce((sum, progress) => sum + progress, 0);
+  }
+  
+  private updateDisplay() {
+    const currentStepName = this.steps[this.currentStep];
+    const currentStepProgress = this.stepProgress[currentStepName] || 0;
+    
+    this.progressBar.setLabel(
+      `Step ${this.currentStep + 1}/${this.steps.length}: ${currentStepName} (${Math.round(currentStepProgress)}%)`
+    );
+  }
+}
+
+// Usage
+const installer = new MultiStepProgress(container.el, [
+  'Downloading packages',
+  'Installing dependencies',
+  'Configuring settings',
+  'Finalizing setup'
+]);
+
+// Simulate installation process
+installer.setStepProgress(0, 50);  // 50% of step 1
+installer.completeStep(0);         // Complete step 1
+installer.setStepProgress(1, 75);  // 75% of step 2
+```
+
+```typescript Real-time Progress
+class RealTimeProgress {
+  private progressBar: ProgressBar;
+  private startTime: number;
+  private estimatedDuration: number;
+  
+  constructor(parent: any, estimatedDuration: number) {
+    this.estimatedDuration = estimatedDuration;
+    this.startTime = Date.now();
+    
+    this.progressBar = new ProgressBar({
+      parent,
+      width: 50,
+      height: 3,
+      max: 100,
+      showPercentage: true,
+      showETA: true,
+      color: 'blue',
+      border: { type: 'line' }
+    });
+    
+    this.startTracking();
+  }
+  
+  private startTracking() {
+    const updateInterval = setInterval(() => {
+      const elapsed = Date.now() - this.startTime;
+      const progress = Math.min(100, (elapsed / this.estimatedDuration) * 100);
+      
+      this.progressBar.setValue(progress);
+      this.updateETA(elapsed, progress);
+      
+      if (progress >= 100) {
+        clearInterval(updateInterval);
+        this.progressBar.setLabel('Completed!');
+      }
+    }, 100);
+  }
+  
+  private updateETA(elapsed: number, progress: number) {
+    if (progress > 0 && progress < 100) {
+      const remainingTime = ((elapsed / progress) * (100 - progress));
+      const eta = Math.round(remainingTime / 1000);
+      this.progressBar.setLabel(`Processing... ETA: ${eta}s`);
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+### ProgressBar Properties
+
+```typescript
+interface ProgressBarProps extends BaseProps {
+  value: number;
+  max?: number;              // Maximum value (default: 100)
+  min?: number;              // Minimum value (default: 0)
+  
+  // Display options
+  label?: string;            // Progress bar label
+  showPercentage?: boolean;  // Show percentage text
+  showValue?: boolean;       // Show current/max values
+  showETA?: boolean;         // Show estimated time remaining
+  
+  // Styling
+  color?: string;            // Progress fill color
+  bgColor?: string;          // Background color
+  textColor?: string;        // Text color
+  
+  // Animation
+  animated?: boolean;        // Enable smooth transitions
+  animationSpeed?: number;   // Animation duration in ms
+  
+  // Formatting
+  valueFormatter?: (value: number, max: number) => string;
+  percentageFormatter?: (percentage: number) => string;
+}
+```
+
+## Toast Component
+
+The `Toast` component provides temporary notification messages with automatic dismissal and positioning.
+
+<CodeGroup>
+
+```typescript Basic Toast
+import { Toast } from 'nikcli-tui';
+
+// Success toast
+const successToast = new Toast({
+  parent: screen,
+  message: 'File saved successfully!',
+  type: 'success',
+  duration: 3000,
+  position: 'top-right'
+});
+
+successToast.show();
+
+// Error toast
+const errorToast = new Toast({
+  parent: screen,
+  message: 'Failed to connect to server',
+  type: 'error',
+  duration: 5000,
+  position: 'bottom-center',
+  closable: true
+});
+
+errorToast.show();
+```
+
+```typescript Toast Manager
+class ToastManager {
+  private toasts: Map<string, Toast> = new Map();
+  private maxToasts = 5;
+  private defaultDuration = 4000;
+  
+  constructor(private screen: any) {}
+  
+  success(message: string, options?: ToastOptions): string {
+    return this.show(message, 'success', options);
+  }
+  
+  error(message: string, options?: ToastOptions): string {
+    return this.show(message, 'error', options);
+  }
+  
+  warning(message: string, options?: ToastOptions): string {
+    return this.show(message, 'warning', options);
+  }
+  
+  info(message: string, options?: ToastOptions): string {
+    return this.show(message, 'info', options);
+  }
+  
+  private show(message: string, type: ToastType, options: ToastOptions = {}): string {
+    // Limit number of toasts
+    if (this.toasts.size >= this.maxToasts) {
+      this.dismissOldest();
+    }
+    
+    const id = this.generateId();
+    const toast = new Toast({
+      parent: this.screen,
+      message,
+      type,
+      duration: options.duration || this.defaultDuration,
+      position: options.position || 'top-right',
+      closable: options.closable !== false,
+      onDismiss: () => {
+        this.toasts.delete(id);
+        this.repositionToasts();
+      }
+    });
+    
+    this.toasts.set(id, toast);
+    this.positionToast(toast, this.toasts.size - 1);
+    toast.show();
+    
+    return id;
+  }
+  
+  dismiss(id: string) {
+    const toast = this.toasts.get(id);
+    if (toast) {
+      toast.dismiss();
+      this.toasts.delete(id);
+      this.repositionToasts();
+    }
+  }
+  
+  dismissAll() {
+    this.toasts.forEach(toast => toast.dismiss());
+    this.toasts.clear();
+  }
+  
+  private positionToast(toast: Toast, index: number) {
+    const spacing = 4; // Height of each toast + margin
+    toast.setPosition({
+      top: 2 + (index * spacing),
+      right: 2
+    });
+  }
+  
+  private repositionToasts() {
+    let index = 0;
+    this.toasts.forEach(toast => {
+      this.positionToast(toast, index++);
+    });
+  }
+}
+
+// Global toast manager
+const toastManager = new ToastManager(screen);
+
+// Usage
+toastManager.success('AI model loaded successfully!');
+toastManager.error('Failed to process request', { duration: 10000 });
+toastManager.warning('API rate limit approaching');
+
+// Dismiss specific toast
+const toastId = toastManager.info('Processing...');
+setTimeout(() => {
+  toastManager.dismiss(toastId);
+  toastManager.success('Processing complete!');
+}, 2000);
+```
+
+</CodeGroup>
+
+## StatusIndicator Component
+
+The `StatusIndicator` component displays real-time status information with colors and animations.
+
+<CodeGroup>
+
+```typescript Basic Status Indicators
+import { StatusIndicator } from 'nikcli-tui';
+
+// Connection status
+const connectionStatus = new StatusIndicator({
+  parent: container.el,
+  top: 2,
+  left: 2,
+  label: 'Connection',
+  status: 'connected',
+  color: 'green',
+  blinking: false
+});
+
+// AI Model status
+const aiStatus = new StatusIndicator({
+  parent: container.el,
+  top: 2,
+  left: 20,
+  label: 'AI Model',
+  status: 'loading',
+  color: 'yellow',
+  blinking: true,
+  icon: '🤖'
+});
+
+// System health
+const healthStatus = new StatusIndicator({
+  parent: container.el,
+  top: 2,
+  left: 38,
+  label: 'System',
+  status: 'healthy',
+  color: 'green',
+  showIcon: true
+});
+```
+
+```typescript Dynamic Status System
+class SystemStatusMonitor {
+  private indicators: Map<string, StatusIndicator> = new Map();
+  private updateInterval: NodeJS.Timeout;
+  
+  constructor(private parent: any) {
+    this.setupIndicators();
+    this.startMonitoring();
+  }
+  
+  private setupIndicators() {
+    const services = [
+      { name: 'API', x: 2 },
+      { name: 'Database', x: 15 },
+      { name: 'AI Service', x: 30 },
+      { name: 'Cache', x: 45 }
+    ];
+    
+    services.forEach(service => {
+      const indicator = new StatusIndicator({
+        parent: this.parent,
+        top: 2,
+        left: service.x,
+        label: service.name,
+        status: 'checking',
+        color: 'yellow',
+        blinking: true
+      });
+      
+      this.indicators.set(service.name, indicator);
+    });
+  }
+  
+  private startMonitoring() {
+    this.updateInterval = setInterval(async () => {
+      await this.checkAllServices();
+    }, 5000);
+    
+    // Initial check
+    this.checkAllServices();
+  }
+  
+  private async checkAllServices() {
+    const checks = Array.from(this.indicators.keys()).map(async (serviceName) => {
+      const status = await this.checkService(serviceName);
+      this.updateServiceStatus(serviceName, status);
+    });
+    
+    await Promise.all(checks);
+  }
+  
+  private async checkService(serviceName: string): Promise<ServiceStatus> {
+    try {
+      const response = await fetch(`/api/health/${serviceName.toLowerCase()}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          status: data.healthy ? 'healthy' : 'unhealthy',
+          message: data.message,
+          responseTime: data.responseTime
+        };
+      } else {
+        return { status: 'unhealthy', message: 'Service unavailable' };
+      }
+    } catch (error) {
+      return { status: 'error', message: error.message };
+    }
+  }
+  
+  private updateServiceStatus(serviceName: string, status: ServiceStatus) {
+    const indicator = this.indicators.get(serviceName);
+    if (!indicator) return;
+    
+    const statusConfig = {
+      healthy: { color: 'green', icon: '✅', blinking: false },
+      unhealthy: { color: 'yellow', icon: '⚠️', blinking: true },
+      error: { color: 'red', icon: '❌', blinking: true },
+      checking: { color: 'blue', icon: '🔄', blinking: true }
+    };
+    
+    const config = statusConfig[status.status];
+    indicator.setStatus(status.status);
+    indicator.setColor(config.color);
+    indicator.setIcon(config.icon);
+    indicator.setBlinking(config.blinking);
+    indicator.setTooltip(`${serviceName}: ${status.message}`);
+  }
+  
+  destroy() {
+    clearInterval(this.updateInterval);
+    this.indicators.forEach(indicator => indicator.destroy());
+  }
+}
+```
+
+</CodeGroup>
+
+## Notification Component
+
+The `Notification` component provides a persistent notification system with action buttons and rich content.
+
+<CodeGroup>
+
+```typescript Advanced Notifications
+import { Notification } from 'nikcli-tui';
+
+const updateNotification = new Notification({
+  parent: screen,
+  title: 'Update Available',
+  message: 'A new version of TUI-Kit-AI is available (v2.1.0)',
+  type: 'info',
+  persistent: true,
+  position: 'center',
+  actions: [
+    {
+      label: 'Update Now',
+      variant: 'primary',
+      action: () => {
+        startUpdate();
+        updateNotification.dismiss();
+      }
+    },
+    {
+      label: 'Later',
+      variant: 'secondary',
+      action: () => {
+        scheduleUpdateReminder();
+        updateNotification.dismiss();
+      }
+    }
+  ]
+});
+
+updateNotification.show();
+```
+
+```typescript Notification Center
+class NotificationCenter {
+  private notifications: Notification[] = [];
+  private container: Box;
+  
+  constructor(private parent: any) {
+    this.container = new Box({
+      parent,
+      top: 5,
+      right: 2,
+      width: 50,
+      height: '80%',
+      border: { type: 'line' },
+      label: ' Notifications ',
+      scrollable: true
+    });
+  }
+  
+  addNotification(config: NotificationConfig) {
+    const notification = new Notification({
+      parent: this.container.el,
+      ...config,
+      onDismiss: () => {
+        this.removeNotification(notification);
+      }
+    });
+    
+    this.notifications.unshift(notification);
+    this.repositionNotifications();
+    
+    return notification;
+  }
+  
+  private removeNotification(notification: Notification) {
+    const index = this.notifications.indexOf(notification);
+    if (index > -1) {
+      this.notifications.splice(index, 1);
+      notification.destroy();
+      this.repositionNotifications();
+    }
+  }
+  
+  private repositionNotifications() {
+    let yPos = 1;
+    this.notifications.forEach(notification => {
+      notification.setPosition({ top: yPos, left: 1 });
+      yPos += notification.getHeight() + 1;
+    });
+  }
+  
+  clear() {
+    this.notifications.forEach(n => n.destroy());
+    this.notifications = [];
+  }
+}
+
+// Usage
+const notificationCenter = new NotificationCenter(screen);
+
+notificationCenter.addNotification({
+  title: 'AI Response',
+  message: 'Your code analysis is complete',
+  type: 'success',
+  icon: '🤖'
+});
+
+notificationCenter.addNotification({
+  title: 'Warning',
+  message: 'High token usage detected',
+  type: 'warning',
+  actions: [
+    { label: 'View Usage', action: () => showUsage() }
+  ]
+});
+```
+
+</CodeGroup>
+
+## Feedback Component Best Practices
+
+### 1. Progress Tracking
+
+```typescript
+class ProgressTracker {
+  private progressBar: ProgressBar;
+  private spinner: Spinner;
+  private statusText: Text;
+  
+  constructor(parent: any) {
+    this.setupComponents(parent);
+  }
+  
+  async trackAsyncOperation<T>(
+    operation: () => Promise<T>,
+    options: ProgressOptions
+  ): Promise<T> {
+    try {
+      // Start progress indication
+      this.startProgress(options);
+      
+      // Execute operation with progress callbacks
+      const result = await operation();
+      
+      // Complete progress
+      this.completeProgress('Operation completed successfully');
+      
+      return result;
+    } catch (error) {
+      // Handle error
+      this.errorProgress(error.message);
+      throw error;
+    }
+  }
+  
+  private startProgress(options: ProgressOptions) {
+    if (options.determinate) {
+      this.progressBar.show();
+      this.progressBar.setValue(0);
+      this.spinner.hide();
+    } else {
+      this.spinner.show();
+      this.spinner.start();
+      this.progressBar.hide();
+    }
+    
+    this.statusText.setContent(options.message || 'Processing...');
+  }
+  
+  updateProgress(value: number, message?: string) {
+    this.progressBar.setValue(value);
+    if (message) {
+      this.statusText.setContent(message);
+    }
+  }
+}
+```
+
+### 2. User Feedback Patterns
+
+```typescript
+class FeedbackOrchestrator {
+  private toastManager: ToastManager;
+  private statusBar: StatusBar;
+  private loadingOverlay: Modal;
+  
+  async withFeedback<T>(
+    operation: () => Promise<T>,
+    feedback: FeedbackConfig
+  ): Promise<T> {
+    // Show loading state
+    if (feedback.blocking) {
+      this.showLoadingOverlay(feedback.loadingMessage);
+    } else {
+      this.statusBar.setMessage(feedback.loadingMessage);
+    }
+    
+    try {
+      const result = await operation();
+      
+      // Show success feedback
+      if (feedback.successMessage) {
+        this.toastManager.success(feedback.successMessage);
+      }
+      
+      return result;
+    } catch (error) {
+      // Show error feedback
+      this.toastManager.error(
+        feedback.errorMessage || `Operation failed: ${error.message}`
+      );
+      
+      throw error;
+    } finally {
+      // Clean up loading state
+      this.hideLoadingOverlay();
+      this.statusBar.clearMessage();
+    }
+  }
+}
+
+// Usage
+const feedback = new FeedbackOrchestrator(screen);
+
+await feedback.withFeedback(
+  () => saveDocument(),
+  {
+    loadingMessage: 'Saving document...',
+    successMessage: 'Document saved successfully!',
+    errorMessage: 'Failed to save document',
+    blocking: true
+  }
+);
+```
+
+### 3. Performance Monitoring
+
+```typescript
+class PerformanceMonitor {
+  private metrics: Map<string, PerformanceMetric> = new Map();
+  private displayComponents: Map<string, StatusIndicator> = new Map();
+  
+  startOperation(name: string) {
+    this.metrics.set(name, {
+      startTime: performance.now(),
+      status: 'running'
+    });
+    
+    this.updateDisplay(name);
+  }
+  
+  endOperation(name: string, success: boolean = true) {
+    const metric = this.metrics.get(name);
+    if (metric) {
+      metric.endTime = performance.now();
+      metric.duration = metric.endTime - metric.startTime;
+      metric.status = success ? 'completed' : 'failed';
+      
+      this.updateDisplay(name);
+      
+      // Log performance
+      console.log(`${name}: ${metric.duration.toFixed(2)}ms`);
+    }
+  }
+  
+  private updateDisplay(name: string) {
+    let indicator = this.displayComponents.get(name);
+    const metric = this.metrics.get(name);
+    
+    if (!indicator) {
+      indicator = new StatusIndicator({
+        parent: this.parent,
+        label: name
+      });
+      this.displayComponents.set(name, indicator);
+    }
+    
+    // Update indicator based on metric
+    if (metric.status === 'running') {
+      indicator.setStatus('processing');
+      indicator.setBlinking(true);
+    } else if (metric.status === 'completed') {
+      indicator.setStatus('success');
+      indicator.setBlinking(false);
+    } else {
+      indicator.setStatus('error');
+      indicator.setBlinking(false);
+    }
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Navigation Components"
+    icon="navigation"
+    href="/components/navigation"
+  >
+    Learn about Menu, Tabs, and navigation components
+  </Card>
+  <Card
+    title="Container Components"
+    icon="square"
+    href="/components/containers"
+  >
+    Master Modal, Scrollable, and container components
+  </Card>
+  <Card
+    title="AI Integration"
+    icon="brain"
+    href="/ai/streaming"
+  >
+    Combine feedback components with AI streaming
+  </Card>
+  <Card
+    title="Complete Examples"
+    icon="code"
+    href="/examples/chat-assistant"
+  >
+    See feedback components in AI applications
+  </Card>
+</CardGroup>

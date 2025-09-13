@@ -1,0 +1,88 @@
+---
+title: 'Select'
+description: 'Dropdown selection with keyboard navigation.'
+---
+
+## Overview
+
+Pick one option from a list.
+
+## Import
+
+```ts
+import { Select } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new Select({ parent: screen, options: ['One','Two','Three'] });
+```
+
+## Live Preview
+
+<Snippet file="previews/select.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- options: string[] — List items to select from.
+- onSelect?: (index: number, value: string) => void — Fires on selection.
+- placeholder?: string — Placeholder entry when nothing selected.
+- selectedIndex?: number — Preselect index; -1 for none.
+- searchable?: boolean — Enables inline search mode (`/` to start, `Esc` to exit).
+- maxHeight?: number — Constrains list height.
+- BaseProps: position, variant, size, borderStyle, label, keys, mouse.
+
+## Methods
+
+- setOptions(options), addOption(option), removeOption(index).
+- setSelectedIndex(index), getSelectedIndex(), getSelectedValue().
+- filterOptions(filter), clearFilter().
+- setPlaceholder(text), setSearchable(bool), setMaxHeight(h).
+
+## Keyboard
+
+- Up/Down: navigate options.
+- Enter: select item.
+- `/`: enter search mode (if searchable); `Esc`: exit.
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { Select } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+new Select({ parent: screen, top: 1, left: 2, width: 24, options: ['One','Two','Three'], onSelect: (i, v) => console.log(i, v) });
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Searchable
+new Select({ parent: screen, top: 1, left: 30, width: 24, options: ['alpha','beta','gamma'], searchable: true, placeholder: 'Pick one' });
+```
+
+```ts Programmatic Selection
+const s = new Select({ parent: screen, top: 4, left: 2, width: 24, options: ['A','B','C'] });
+s.setSelectedIndex(1);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Usa `placeholder` per indicare lo stato non selezionato; limita le opzioni visibili con `maxHeight`.

@@ -1,0 +1,256 @@
+---
+title: "Installation"
+description: "Install and set up NikCLI on your system"
+icon: "download"
+---
+
+## System Requirements
+
+Before installing NikCLI, ensure your system meets these requirements:
+
+<CardGroup cols={2}>
+  <Card title="Node.js 18+" icon="node-js">
+    NikCLI requires Node.js version 18 or higher for modern JavaScript features
+    and optimal performance.
+  </Card>
+  <Card title="Git" icon="git-alt">
+    Git is required for autonomous development features and version control
+    operations.
+  </Card>
+  <Card title="Terminal" icon="terminal">
+    A modern terminal with color support and UTF-8 encoding for the best
+    experience.
+  </Card>
+  <Card title="API Keys" icon="key">
+    At least one AI provider API key (Anthropic, OpenAI, Google, or local
+    Ollama).
+  </Card>
+</CardGroup>
+
+## Installation Methods
+
+### NPM Global Installation (Recommended)
+
+The easiest way to install NikCLI is via npm:
+
+```bash
+npm install -g @cadcamfun/nikcli
+```
+
+<Note>
+  Global installation allows you to use the `nikcli` command from anywhere in
+  your terminal.
+</Note>
+
+### Yarn Global Installation (alternative)
+
+If you prefer Yarn:
+
+```bash
+yarn global add @cadcamfun/nikcli
+```
+
+### Curl Installer (beta)
+
+You can install the npm package globally using the provided installer scripts:
+
+```bash
+# Install latest beta
+curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
+
+# Or specify exact version
+curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 1.0.0
+```
+
+### Development Installation
+
+For contributing to NikCLI or running from source:
+
+```bash
+# Clone the repository
+git clone https://github.com/nikomatt69/nikcli-main.git
+cd nikcli-main
+
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Link globally for development
+npm link
+```
+
+## Verification
+
+Verify your installation by running the CLI:
+
+```bash
+nikcli
+```
+
+NikCLI will start, display onboarding and system checks, and show the prompt.
+
+## API Key Configuration
+
+NikCLI requires at least one AI provider API key. Choose your preferred provider:
+
+<Tabs>
+  <Tab title="Anthropic Claude (Recommended)">
+    1. Get your API key from [Anthropic Console](https://console.anthropic.com)
+    2. Set the environment variable:
+    ```bash
+    export ANTHROPIC_API_KEY="your-api-key-here"
+    ```
+    <Tip>
+      Add this to your shell profile (`.bashrc`, `.zshrc`, etc.) to persist
+      across sessions.
+    </Tip>
+  </Tab>
+
+{" "}
+
+<Tab title="OpenAI GPT">
+  1. Get your API key from [OpenAI
+  Platform](https://platform.openai.com/api-keys) 2. Set the environment
+  variable: ```bash export OPENAI_API_KEY="your-api-key-here" ```
+</Tab>
+
+{" "}
+
+<Tab title="Google Gemini">
+  1. Get your API key from [Google AI
+  Studio](https://aistudio.google.com/app/apikey) 2. Set the environment
+  variable: ```bash export GOOGLE_GENERATIVE_AI_API_KEY="your-api-key-here" ```
+</Tab>
+
+  <Tab title="Ollama (Local)">
+    1. Install Ollama from [ollama.ai](https://ollama.ai)
+    2. Start the daemon: `ollama serve`
+    3. Pull a model:
+    ```bash
+    ollama pull llama3.1:8b
+    ```
+    4. No API key required for local models!
+  </Tab>
+</Tabs>
+
+## Shell Profile Configuration
+
+For persistent environment variables, add your API key to your shell profile:
+
+<Tabs>
+  <Tab title="Bash">
+    ```bash
+    echo 'export ANTHROPIC_API_KEY="your-api-key-here"' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+  </Tab>
+
+{" "}
+
+<Tab title="Zsh">
+  ```bash echo 'export ANTHROPIC_API_KEY="your-api-key-here"' >> ~/.zshrc source
+  ~/.zshrc ```
+</Tab>
+
+  <Tab title="Fish">
+    ```bash
+    echo 'set -gx ANTHROPIC_API_KEY "your-api-key-here"' >> ~/.config/fish/config.fish
+    source ~/.config/fish/config.fish
+    ```
+  </Tab>
+</Tabs>
+
+## First Run
+
+Start NikCLI for the first time:
+
+```bash
+nikcli
+```
+
+You should see onboarding, system checks, and the welcome prompt:
+
+```
+╭─────────────────────────────────────────────────────╮
+│                                                     │
+│                   🚀 NikCLI                         │
+│          Context-Aware AI Development Assistant     │
+│                                                     │
+╰─────────────────────────────────────────────────────╯
+
+✅ Node.js 18.17.0 (compatible)
+✅ Git 2.42.0 (detected)
+✅ AI Provider (configured)
+✅ Project context (auto-detected)
+
+Ready! Type /help for commands.
+
+>
+```
+
+## Troubleshooting Installation
+
+<AccordionGroup>
+  <Accordion title="Permission Denied Errors">
+    If you encounter permission errors during installation:
+    ```bash
+    # For npm
+    sudo npm install -g @cadcamfun/nikcli
+    
+    # Or configure npm to use a different directory
+    mkdir ~/.npm-global
+    npm config set prefix '~/.npm-global'
+    echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+  </Accordion>
+
+{" "}
+
+<Accordion title="Node.js Version Issues">
+  If you have an older Node.js version: ```bash # Using Node Version Manager
+  (nvm) curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh
+  | bash source ~/.bashrc nvm install 18 nvm use 18 ```
+</Accordion>
+
+{" "}
+
+<Accordion title="API Key Not Detected">
+  If NikCLI doesn't detect your API key: 1. Verify the environment variable is
+  set: ```bash echo $ANTHROPIC_API_KEY ``` 2. Restart your terminal or source
+  your profile: ```bash source ~/.bashrc # or ~/.zshrc ``` 3. Set via slash
+  command inside NikCLI: ```bash /set-key claude-sonnet-4-20250514 "your-key"
+  ```
+</Accordion>
+
+  <Accordion title="Binary Execution Issues">
+    If the binary doesn't execute:
+    1. Check if it's executable:
+    ```bash
+    ls -la /usr/local/bin/nikcli
+    ```
+    2. Make it executable if needed:
+    ```bash
+    chmod +x /usr/local/bin/nikcli
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="First Steps" icon="rocket" href="/quickstart/first-steps">
+    Learn the basics and try your first AI-assisted development task
+  </Card>
+  <Card title="Configuration" icon="gear" href="/quickstart/configuration">
+    Customize NikCLI settings for your development workflow
+  </Card>
+</CardGroup>
+
+<Note>
+  Having trouble? Check our [troubleshooting
+  guide](/troubleshooting/common-issues) or [open an
+  issue](https://github.com/nikomatt69/nikcli-main/issues) on GitHub.
+</Note>

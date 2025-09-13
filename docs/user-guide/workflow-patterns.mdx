@@ -1,0 +1,843 @@
+---
+title: 'Workflow Patterns'
+description: 'Proven patterns and best practices for different development scenarios'
+icon: 'workflow'
+---
+
+## Workflow Overview
+
+NikCLI supports various workflow patterns optimized for different development scenarios. These proven patterns help you maximize productivity while maintaining code quality and consistency.
+
+<CardGroup cols={2}>
+  <Card title="Feature Development" icon="code">
+    End-to-end feature implementation workflows
+  </Card>
+  <Card title="Maintenance & Refactoring" icon="wrench">
+    Code improvement and optimization patterns
+  </Card>
+  <Card title="Bug Fixing" icon="bug">
+    Systematic debugging and issue resolution
+  </Card>
+  <Card title="Project Setup" icon="rocket">
+    New project initialization and configuration
+  </Card>
+</CardGroup>
+
+## Development Workflow Patterns
+
+### 1. Feature Development Workflow
+
+<Steps>
+  <Step title="Requirements Analysis">
+    Start with clear feature requirements and planning
+    
+    ```
+    > /plan create "User authentication with social login"
+    
+    📋 Feature Analysis:
+    ├── Authentication methods (email, Google, GitHub)
+    ├── User registration and login flows
+    ├── Session management and security
+    ├── Password reset functionality
+    └── User profile management
+    
+    Estimated complexity: Medium-High
+    Implementation time: 3-4 hours
+    ```
+  </Step>
+  
+  <Step title="Architecture Planning">
+    Define technical architecture and approach
+    
+    ```
+    > Plan the technical implementation approach
+    
+    🏗️ Architecture Plan:
+    
+    Backend Components:
+    ├── User model with Mongoose/Prisma
+    ├── JWT authentication middleware
+    ├── OAuth integration (Passport.js)
+    ├── Email verification system
+    └── Password reset with secure tokens
+    
+    Frontend Components:
+    ├── Authentication forms (login/register)
+    ├── Social login buttons
+    ├── Protected route wrapper
+    ├── User profile management
+    └── Authentication context/store
+    ```
+  </Step>
+  
+  <Step title="Implementation Phase">
+    Execute the plan with coordinated development
+    
+    ```
+    > /auto "Implement the authentication system according to the plan"
+    
+    🤖 Multi-agent execution:
+    
+    Backend Agent:
+    ├── ✅ User model with validation
+    ├── ✅ JWT middleware setup
+    ├── 🔄 OAuth configuration
+    └── ⏳ Email service integration
+    
+    Frontend Agent:
+    ├── ✅ Login/register forms
+    ├── 🔄 Social login integration
+    └── ⏳ Authentication context
+    
+    Integration Agent:
+    ├── 🔄 API endpoint testing
+    └── ⏳ E2E flow validation
+    ```
+  </Step>
+  
+  <Step title="Testing & Validation">
+    Comprehensive testing and quality assurance
+    
+    ```
+    > Add comprehensive tests for the authentication system
+    
+    🧪 Testing Implementation:
+    
+    Unit Tests:
+    ├── User model validation
+    ├── JWT token generation/verification
+    ├── Password hashing functions
+    └── OAuth callback handling
+    
+    Integration Tests:
+    ├── Login/logout flows
+    ├── Registration with email verification
+    ├── Password reset workflow
+    └── Social login integration
+    
+    E2E Tests:
+    ├── Complete user journey
+    ├── Cross-browser compatibility
+    └── Mobile responsiveness
+    ```
+  </Step>
+  
+  <Step title="Documentation & Deployment">
+    Finalize with documentation and deployment preparation
+    
+    ```
+    > Document the authentication system and prepare for deployment
+    
+    📚 Documentation:
+    ├── API endpoint documentation
+    ├── Frontend component usage
+    ├── Configuration guide
+    └── Security considerations
+    
+    🚀 Deployment Prep:
+    ├── Environment variable setup
+    ├── Database migration scripts
+    ├── Security configuration
+    └── Monitoring setup
+    ```
+  </Step>
+</Steps>
+
+### 2. Bug Fix Workflow
+
+<Tabs>
+  <Tab title="Issue Investigation">
+    Systematic approach to understanding the problem
+    
+    ```
+    > The user login is failing intermittently with 500 errors
+    
+    🔍 Bug Investigation Process:
+    
+    1. Reproduce the Issue:
+    ├── Gather error logs and stack traces
+    ├── Identify reproduction steps
+    ├── Check environment differences
+    └── Document failure patterns
+    
+    2. Root Cause Analysis:
+    ├── Database connection analysis
+    ├── Authentication middleware review
+    ├── Rate limiting investigation
+    └── Concurrent request handling
+    
+    3. Impact Assessment:
+    ├── Affected user percentage
+    ├── Business impact analysis
+    ├── Temporary workaround options
+    └── Fix priority determination
+    ```
+  </Tab>
+  
+  <Tab title="Solution Development">
+    Develop and test the fix
+    
+    ```
+    > Implement a fix for the intermittent login failures
+    
+    🛠️ Solution Implementation:
+    
+    Root Cause: Database connection pool exhaustion
+    
+    Immediate Fix:
+    ├── Increase connection pool size
+    ├── Add connection timeout handling
+    ├── Implement retry logic for transient failures
+    └── Add connection health monitoring
+    
+    Long-term Improvements:
+    ├── Database query optimization
+    ├── Caching layer implementation
+    ├── Load balancing improvements
+    └── Performance monitoring alerts
+    
+    Testing Strategy:
+    ├── Load testing with concurrent users
+    ├── Connection pool stress testing
+    ├── Failure scenario simulation
+    └── Performance regression testing
+    ```
+  </Tab>
+  
+  <Tab title="Validation & Monitoring">
+    Ensure the fix works and prevent regression
+    
+    ```
+    > Validate the fix and add monitoring to prevent recurrence
+    
+    ✅ Validation Process:
+    
+    Immediate Validation:
+    ├── Manual testing of login flow
+    ├── Load testing with high concurrency
+    ├── Database connection monitoring
+    └── Error rate analysis
+    
+    Monitoring Implementation:
+    ├── Connection pool metrics
+    ├── Response time alerts
+    ├── Error rate thresholds
+    └── Database performance tracking
+    
+    Prevention Measures:
+    ├── Automated load testing in CI/CD
+    ├── Performance regression tests
+    ├── Proactive monitoring alerts
+    └── Regular performance audits
+    ```
+  </Tab>
+</Tabs>
+
+### 3. Refactoring Workflow
+
+<AccordionGroup>
+  <Accordion title="Code Quality Assessment">
+    Analyze current state and identify improvement opportunities
+    
+    ```
+    > Analyze the codebase and suggest refactoring opportunities
+    
+    📊 Code Quality Analysis:
+    
+    Technical Debt Assessment:
+    ├── Cyclomatic complexity analysis
+    ├── Code duplication detection
+    ├── Dependency analysis
+    ├── Test coverage evaluation
+    └── Performance bottleneck identification
+    
+    Refactoring Opportunities:
+    ├── Extract common components/utilities
+    ├── Improve error handling patterns
+    ├── Optimize database queries
+    ├── Enhance type safety
+    └── Modernize legacy code patterns
+    
+    Priority Matrix:
+    ├── High Impact, Low Effort: Quick wins
+    ├── High Impact, High Effort: Major initiatives
+    ├── Low Impact, Low Effort: Maintenance tasks
+    └── Low Impact, High Effort: Avoid unless necessary
+    ```
+  </Accordion>
+  
+  <Accordion title="Incremental Refactoring">
+    Systematic approach to code improvement
+    
+    ```
+    > Refactor the user management system to improve maintainability
+    
+    🔄 Incremental Refactoring Plan:
+    
+    Phase 1: Foundation (1-2 days)
+    ├── Extract reusable validation functions
+    ├── Standardize error handling
+    ├── Improve type definitions
+    └── Add comprehensive tests
+    
+    Phase 2: Structure (2-3 days)
+    ├── Separate concerns (controllers/services)
+    ├── Implement repository pattern
+    ├── Extract business logic
+    └── Optimize database operations
+    
+    Phase 3: Enhancement (1-2 days)
+    ├── Add caching layer
+    ├── Improve API design
+    ├── Enhance security measures
+    └── Performance optimization
+    
+    Safety Measures:
+    ├── Comprehensive test coverage before changes
+    ├── Feature flags for gradual rollout
+    ├── Database backup before migrations
+    └── Rollback plan preparation
+    ```
+  </Accordion>
+  
+  <Accordion title="Performance Optimization">
+    Systematic performance improvement workflow
+    
+    ```
+    > Optimize application performance across frontend and backend
+    
+    ⚡ Performance Optimization Workflow:
+    
+    1. Baseline Measurement:
+    ├── Load time analysis
+    ├── Bundle size audit
+    ├── Database query profiling
+    ├── Memory usage monitoring
+    └── API response time tracking
+    
+    2. Frontend Optimization:
+    ├── Code splitting implementation
+    ├── Image optimization and lazy loading
+    ├── Component memoization
+    ├── Bundle analysis and tree shaking
+    └── Service worker caching
+    
+    3. Backend Optimization:
+    ├── Database indexing and query optimization
+    ├── Redis caching implementation
+    ├── API response compression
+    ├── Connection pooling optimization
+    └── Background job processing
+    
+    4. Infrastructure Optimization:
+    ├── CDN configuration
+    ├── Load balancer setup
+    ├── Database replication
+    └── Monitoring and alerting
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Project Setup Patterns
+
+### Full-Stack Application Setup
+
+<Steps>
+  <Step title="Project Initialization">
+    Set up the project structure and tooling
+    
+    ```
+    > /auto "Create a new full-stack TypeScript application with React frontend and Node.js backend"
+    
+    🏗️ Project Structure Creation:
+    
+    ├── client/ (React TypeScript)
+    │   ├── src/
+    │   │   ├── components/
+    │   │   ├── pages/
+    │   │   ├── hooks/
+    │   │   ├── services/
+    │   │   └── types/
+    │   ├── public/
+    │   └── package.json
+    │
+    ├── server/ (Node.js TypeScript)
+    │   ├── src/
+    │   │   ├── routes/
+    │   │   ├── models/
+    │   │   ├── middleware/
+    │   │   ├── services/
+    │   │   └── types/
+    │   └── package.json
+    │
+    ├── shared/ (Common types and utilities)
+    ├── docker-compose.yml
+    └── README.md
+    ```
+  </Step>
+  
+  <Step title="Development Environment">
+    Configure development tools and workflows
+    
+    ```
+    > Set up development environment with TypeScript, ESLint, Prettier, and testing
+    
+    🛠️ Development Configuration:
+    
+    Code Quality:
+    ├── TypeScript strict configuration
+    ├── ESLint with TypeScript rules
+    ├── Prettier formatting
+    ├── Husky pre-commit hooks
+    └── Lint-staged for optimized checks
+    
+    Testing Setup:
+    ├── Vitest for unit testing
+    ├── Testing Library for React components
+    ├── Supertest for API testing
+    ├── Playwright for E2E testing
+    └── Coverage reporting configuration
+    
+    Development Tools:
+    ├── Hot reload for both client and server
+    ├── Environment variable management
+    ├── Database setup with Docker
+    ├── API documentation with OpenAPI
+    └── Development scripts and aliases
+    ```
+  </Step>
+  
+  <Step title="CI/CD Pipeline">
+    Automated testing and deployment pipeline
+    
+    ```
+    > Set up CI/CD pipeline with GitHub Actions
+    
+    🚀 CI/CD Configuration:
+    
+    Continuous Integration:
+    ├── Automated testing on pull requests
+    ├── Code quality checks (lint, format)
+    ├── Type checking validation
+    ├── Security vulnerability scanning
+    └── Build verification
+    
+    Continuous Deployment:
+    ├── Staging environment deployment
+    ├── Production deployment with approval
+    ├── Database migration automation
+    ├── Health check validation
+    └── Rollback capability
+    
+    Monitoring & Alerts:
+    ├── Application performance monitoring
+    ├── Error tracking and reporting
+    ├── Uptime monitoring
+    ├── Performance regression alerts
+    └── Security incident notifications
+    ```
+  </Step>
+</Steps>
+
+### Microservices Architecture
+
+<Tabs>
+  <Tab title="Service Design">
+    Design microservices architecture
+    
+    ```
+    > Design a microservices architecture for an e-commerce platform
+    
+    🏛️ Microservices Design:
+    
+    Core Services:
+    ├── User Service (authentication, profiles)
+    ├── Product Service (catalog, inventory)
+    ├── Order Service (cart, checkout, orders)
+    ├── Payment Service (payment processing)
+    ├── Notification Service (email, SMS, push)
+    └── Analytics Service (tracking, reporting)
+    
+    Infrastructure Services:
+    ├── API Gateway (routing, authentication)
+    ├── Service Discovery (Consul/Eureka)
+    ├── Configuration Service (centralized config)
+    ├── Logging Service (centralized logging)
+    └── Monitoring Service (metrics, health checks)
+    
+    Communication Patterns:
+    ├── Synchronous: REST APIs for real-time operations
+    ├── Asynchronous: Message queues for event processing
+    ├── Event Sourcing: For audit trails and state reconstruction
+    └── CQRS: Separate read/write models for optimization
+    ```
+  </Tab>
+  
+  <Tab title="Implementation Strategy">
+    Implement services incrementally
+    
+    ```
+    > Implement the microservices architecture incrementally
+    
+    📦 Implementation Phases:
+    
+    Phase 1: Core Foundation
+    ├── API Gateway setup with Kong/Nginx
+    ├── Service discovery implementation
+    ├── Shared authentication service
+    ├── Database per service setup
+    └── Inter-service communication protocols
+    
+    Phase 2: Business Services
+    ├── User service with authentication
+    ├── Product service with catalog management
+    ├── Order service with state management
+    ├── Payment service integration
+    └── Basic notification service
+    
+    Phase 3: Advanced Features
+    ├── Event sourcing implementation
+    ├── CQRS pattern for read/write separation
+    ├── Advanced monitoring and observability
+    ├── Circuit breaker pattern
+    └── Distributed tracing
+    
+    Phase 4: Optimization
+    ├── Performance optimization
+    ├── Caching strategies
+    ├── Load balancing
+    └── Auto-scaling configuration
+    ```
+  </Tab>
+  
+  <Tab title="DevOps Integration">
+    Container orchestration and deployment
+    
+    ```
+    > Set up container orchestration with Kubernetes
+    
+    🐳 Container Orchestration:
+    
+    Containerization:
+    ├── Dockerfile for each service
+    ├── Multi-stage builds for optimization
+    ├── Base image standardization
+    ├── Security scanning integration
+    └── Image versioning strategy
+    
+    Kubernetes Configuration:
+    ├── Deployment manifests
+    ├── Service discovery setup
+    ├── ConfigMap and Secret management
+    ├── Ingress controller configuration
+    └── Horizontal Pod Autoscaler
+    
+    Monitoring & Observability:
+    ├── Prometheus metrics collection
+    ├── Grafana dashboards
+    ├── Jaeger distributed tracing
+    ├── ELK stack for logging
+    └── Alert manager configuration
+    ```
+  </Tab>
+</Tabs>
+
+## Team Collaboration Patterns
+
+### Code Review Workflow
+
+<AccordionGroup>
+  <Accordion title="Pre-Review Preparation">
+    Prepare code for effective review
+    
+    ```
+    > Prepare my changes for code review
+    
+    📝 Pre-Review Checklist:
+    
+    Code Quality:
+    ├── Self-review for obvious issues
+    ├── Run all tests and ensure they pass
+    ├── Verify linting and formatting compliance
+    ├── Check for TODOs and incomplete features
+    └── Validate TypeScript compilation
+    
+    Documentation:
+    ├── Update relevant documentation
+    ├── Add or update code comments
+    ├── Create/update API documentation
+    ├── Update changelog if applicable
+    └── Ensure commit messages are descriptive
+    
+    Testing:
+    ├── Add tests for new functionality
+    ├── Update existing tests if needed
+    ├── Verify test coverage meets requirements
+    ├── Include integration/E2E tests where appropriate
+    └── Test edge cases and error scenarios
+    ```
+  </Accordion>
+  
+  <Accordion title="Review Process">
+    Systematic code review approach
+    
+    ```
+    > Conduct a thorough code review
+    
+    🔍 Review Process:
+    
+    Architecture Review:
+    ├── Evaluate design decisions
+    ├── Check consistency with existing patterns
+    ├── Assess scalability implications
+    ├── Review security considerations
+    └── Validate performance impact
+    
+    Code Quality Review:
+    ├── Check for code clarity and readability
+    ├── Evaluate error handling
+    ├── Review naming conventions
+    ├── Assess code reusability
+    └── Validate best practices adherence
+    
+    Testing Review:
+    ├── Evaluate test coverage
+    ├── Review test quality and maintainability
+    ├── Check for missing test scenarios
+    ├── Validate test isolation
+    └── Assess integration test coverage
+    
+    Documentation Review:
+    ├── Check API documentation accuracy
+    ├── Review code comments usefulness
+    ├── Validate README updates
+    └── Ensure examples are working
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Pair Programming with AI
+
+<Tabs>
+  <Tab title="AI-Assisted Development">
+    Collaborative development with AI assistance
+    
+    ```
+    > Let's work together on implementing the payment processing feature
+    
+    👥 Pair Programming Session:
+    
+    Session Setup:
+    ├── Define clear objectives and scope
+    ├── Establish roles (driver/navigator)
+    ├── Set up shared development environment
+    ├── Prepare relevant documentation and resources
+    └── Configure AI assistant preferences
+    
+    Development Process:
+    ├── Break down tasks into small chunks
+    ├── Implement incrementally with AI assistance
+    ├── Continuous testing and validation
+    ├── Regular refactoring and cleanup
+    └── Document decisions and learnings
+    
+    Quality Assurance:
+    ├── Continuous code review
+    ├── Test-driven development approach
+    ├── Security consideration validation
+    ├── Performance impact assessment
+    └── Maintainability evaluation
+    ```
+  </Tab>
+  
+  <Tab title="Knowledge Sharing">
+    Learn and share knowledge during development
+    
+    ```
+    > Explain the implementation approach while we build
+    
+    📚 Knowledge Sharing Process:
+    
+    Explanation During Development:
+    ├── Explain design decisions in real-time
+    ├── Share relevant patterns and best practices
+    ├── Discuss alternative approaches
+    ├── Highlight potential pitfalls
+    └── Demonstrate debugging techniques
+    
+    Documentation Generation:
+    ├── Auto-generate code documentation
+    ├── Create decision logs
+    ├── Document lessons learned
+    ├── Share reusable patterns
+    └── Create troubleshooting guides
+    
+    Team Knowledge Base:
+    ├── Update team wiki with new patterns
+    ├── Share useful code snippets
+    ├── Document configuration procedures
+    ├── Create onboarding materials
+    └── Maintain architecture decision records
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices by Scenario
+
+<CardGroup cols={2}>
+  <Card title="Feature Development" icon="code">
+    **Structured Approach**
+    - Start with planning mode
+    - Break into manageable phases  
+    - Use autonomous mode for implementation
+    - Include comprehensive testing
+    
+    **Quality Gates**
+    - Code review checkpoints
+    - Automated testing validation
+    - Performance impact assessment
+    - Security consideration review
+  </Card>
+  
+  <Card title="Bug Fixing" icon="bug">
+    **Investigation First**
+    - Reproduce reliably
+    - Understand root cause
+    - Assess impact and urgency
+    - Plan comprehensive fix
+    
+    **Prevention Focus**
+    - Add tests for the bug scenario
+    - Implement monitoring/alerts
+    - Document the issue and solution
+    - Review related code areas
+  </Card>
+  
+  <Card title="Refactoring" icon="wrench">
+    **Safety First**
+    - Comprehensive test coverage
+    - Incremental changes
+    - Feature flags for gradual rollout
+    - Rollback plan preparation
+    
+    **Value Focused**
+    - Clear improvement objectives
+    - Measurable success criteria
+    - Stakeholder communication
+    - Documentation updates
+  </Card>
+  
+  <Card title="New Projects" icon="rocket">
+    **Foundation First**
+    - Solid project structure
+    - Development tooling setup
+    - CI/CD pipeline early
+    - Documentation from start
+    
+    **Growth Oriented**
+    - Scalable architecture
+    - Monitoring and observability
+    - Security by design
+    - Performance considerations
+  </Card>
+</CardGroup>
+
+## Workflow Customization
+
+### Custom Workflow Templates
+
+<AccordionGroup>
+  <Accordion title="Creating Custom Workflows">
+    ```json
+    // ~/.nikcli/workflows/feature-development.json
+    {
+      "name": "Feature Development Workflow",
+      "description": "End-to-end feature implementation",
+      "phases": [
+        {
+          "name": "Planning",
+          "mode": "plan",
+          "agents": ["planner-agent"],
+          "checkpoints": ["requirements-review", "architecture-approval"]
+        },
+        {
+          "name": "Implementation", 
+          "mode": "autonomous",
+          "agents": ["universal-agent", "frontend-agent", "backend-agent"],
+          "parallel": true,
+          "checkpoints": ["code-review", "test-coverage"]
+        },
+        {
+          "name": "Integration",
+          "mode": "chat",
+          "agents": ["integration-agent"],
+          "checkpoints": ["e2e-tests", "performance-validation"]
+        }
+      ],
+      "quality_gates": {
+        "test_coverage": 80,
+        "code_quality": "A",
+        "security_scan": "pass"
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Workflow Automation">
+    ```bash
+    # Activate custom workflow
+    nikcli workflow use feature-development
+    
+    # Run workflow with parameters
+    nikcli workflow run feature-development \
+      --feature "user authentication" \
+      --complexity high \
+      --timeline "3 days"
+    
+    # Monitor workflow progress
+    nikcli workflow status
+    
+    # Customize workflow for project
+    nikcli workflow customize feature-development \
+      --add-checkpoint security-review \
+      --set-coverage 90
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="CLI Commands"
+    icon="terminal"
+    href="/cli-reference/commands-overview"
+  >
+    Master all available commands for workflow automation
+  </Card>
+  <Card
+    title="Agent System"
+    icon="users"
+    href="/agent-system/architecture"
+  >
+    Understand how agents work together in workflows
+  </Card>
+  <Card
+    title="Examples"
+    icon="code"
+    href="/examples/basic-workflows"
+  >
+    See practical examples of workflow implementations
+  </Card>
+  <Card
+    title="Advanced Features"
+    icon="gear"
+    href="/advanced/configuration"
+  >
+    Configure advanced workflow automation features
+  </Card>
+</CardGroup>
+
+<Tip>
+  Workflows are most effective when tailored to your team's specific needs. Start with the provided templates and customize them based on your project requirements and team preferences.
+</Tip>

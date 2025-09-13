@@ -1,0 +1,726 @@
+---
+title: 'Token Management'
+description: 'Comprehensive guide to optimizing token usage and managing costs in NikCLI'
+icon: 'coins'
+---
+
+## Overview
+
+Token management is crucial for optimizing performance and controlling costs when using AI models in NikCLI. This guide covers strategies for efficient token usage, cost optimization, and monitoring across different AI providers.
+
+<CardGroup cols={2}>
+  <Card title="Usage Optimization" icon="chart-line">
+    Optimize token usage with smart context management and caching
+  </Card>
+  <Card title="Cost Control" icon="dollar-sign">
+    Monitor and control costs across multiple AI providers
+  </Card>
+  <Card title="Performance Tuning" icon="zap">
+    Balance quality and efficiency for optimal performance
+  </Card>
+  <Card title="Analytics & Monitoring" icon="bar-chart">
+    Track usage patterns and identify optimization opportunities
+  </Card>
+</CardGroup>
+
+## Token Fundamentals
+
+### Understanding Token Costs
+
+<Tabs>
+  <Tab title="Provider Comparison">
+    | Provider | Model | Input (per 1M tokens) | Output (per 1M tokens) | Context Window |
+    |----------|-------|----------------------|------------------------|----------------|
+    | Anthropic | Claude 3.5 Sonnet | $3.00 | $15.00 | 200K |
+    | Anthropic | Claude 3 Haiku | $0.25 | $1.25 | 200K |
+    | OpenAI | GPT-4 Turbo | $10.00 | $30.00 | 128K |
+    | OpenAI | GPT-3.5 Turbo | $0.50 | $1.50 | 16K |
+    | Google | Gemini Pro | $0.50 | $1.50 | 32K |
+    
+    **Cost Optimization Strategy:**
+    - Use Claude 3 Haiku for simple tasks (85% cost reduction)
+    - Use Claude 3.5 Sonnet for complex reasoning
+    - Leverage larger context windows to reduce round trips
+  </Tab>
+  
+  <Tab title="Token Usage Patterns">
+    ```bash
+    # Analyze your token usage patterns
+    /stats tokens --detailed --time-range 30d
+    
+    # Output example:
+    Token Usage Summary (Last 30 Days):
+    ┌─────────────────┬─────────────┬─────────────┬──────────────┐
+    │ Model           │ Input       │ Output      │ Total Cost   │
+    ├─────────────────┼─────────────┼─────────────┼──────────────┤
+    │ Claude 3.5 Sonnet│ 2.5M tokens │ 450K tokens │ $14.25      │
+    │ Claude 3 Haiku  │ 800K tokens │ 120K tokens │ $0.35       │
+    │ GPT-4 Turbo     │ 500K tokens │ 80K tokens  │ $7.40       │
+    └─────────────────┴─────────────┴─────────────┴──────────────┘
+    
+    Top Token Consumers:
+    1. Code generation: 45% of usage
+    2. Code review: 25% of usage  
+    3. Documentation: 20% of usage
+    4. Debugging: 10% of usage
+    ```
+  </Tab>
+  
+  <Tab title="Token Estimation">
+    ```bash
+    # Estimate tokens before execution
+    /estimate-tokens "Create a React component with TypeScript, tests, and documentation"
+    
+    # Output:
+    Estimated Token Usage:
+    - Context: ~2,500 tokens
+    - Task description: ~25 tokens
+    - Expected response: ~1,200-2,000 tokens
+    - Total estimated: ~3,725-4,525 tokens
+    - Estimated cost: $0.056-$0.068 (Claude 3.5 Sonnet)
+    
+    # Get estimates for different models
+    /estimate-tokens --compare-models "complex development task"
+    ```
+  </Tab>
+</Tabs>
+
+### Token Optimization Configuration
+
+<AccordionGroup>
+  <Accordion title="Smart Model Selection">
+    ```bash
+    # Configure automatic model selection based on task complexity
+    /config set ai.smart-model-selection true
+    /config set ai.model-selection-strategy cost-optimized
+    
+    # Define model selection rules
+    /config set ai.selection-rules '{
+      "simple-tasks": "claude-3-haiku",
+      "code-generation": "claude-3-5-sonnet", 
+      "complex-reasoning": "claude-3-5-sonnet",
+      "quick-questions": "claude-3-haiku"
+    }'
+    
+    # Set cost thresholds
+    /config set ai.cost-threshold.warning 0.10
+    /config set ai.cost-threshold.max 1.00
+    ```
+  </Accordion>
+  
+  <Accordion title="Context Management">
+    ```bash
+    # Optimize context window usage
+    /config set context.max-tokens 8000
+    /config set context.optimization-strategy smart-pruning
+    /config set context.relevance-threshold 0.7
+    
+    # Configure context compression
+    /config set context.compression.enabled true
+    /config set context.compression.algorithm semantic
+    /config set context.compression.ratio 0.3
+    
+    # Set up context caching
+    /config set cache.context.enabled true
+    /config set cache.context.ttl 3600  # 1 hour
+    /config set cache.similarity-threshold 0.85
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Context Optimization Strategies
+
+### Smart Context Management
+
+<Tabs>
+  <Tab title="Context Pruning">
+    ```bash
+    # Enable intelligent context pruning
+    /context optimize --strategy relevance-based
+    /context prune --keep-essential --remove-redundant
+    
+    # Analyze current context efficiency  
+    /context analyze --show-relevance --show-tokens
+    
+    # Output example:
+    Context Analysis:
+    ┌──────────────────────┬─────────┬────────────┬─────────────┐
+    │ File                 │ Tokens  │ Relevance  │ Keep/Remove │
+    ├──────────────────────┼─────────┼────────────┼─────────────┤
+    │ src/App.tsx          │ 450     │ 0.95       │ Keep        │
+    │ src/utils/helpers.ts │ 320     │ 0.85       │ Keep        │
+    │ package.json         │ 180     │ 0.40       │ Remove      │
+    │ README.md            │ 280     │ 0.30       │ Remove      │
+    └──────────────────────┴─────────┴────────────┴─────────────┘
+    
+    Optimization Result: 810 tokens saved (35% reduction)
+    ```
+  </Tab>
+  
+  <Tab title="Dynamic Context Loading">
+    ```bash
+    # Configure dynamic context loading
+    /config set context.dynamic-loading true
+    /config set context.load-on-demand true
+    /config set context.preload-predictions true
+    
+    # Set up context prediction
+    /context configure --predict-needs --cache-predictions
+    
+    # Example: Context loaded based on task type
+    Task: "Create React component"
+    → Auto-loads: React files, component patterns, TypeScript types
+    → Skips: Backend files, database schemas, deployment configs
+    ```
+  </Tab>
+  
+  <Tab title="Context Compression">
+    ```bash
+    # Enable semantic compression
+    /context compress --algorithm semantic --ratio 0.4
+    
+    # Configure compression settings
+    /config set context.compression.preserve-code true
+    /config set context.compression.preserve-structure true
+    /config set context.compression.min-relevance 0.6
+    
+    # Monitor compression effectiveness
+    /context compression-stats --show-ratios --show-quality
+    ```
+  </Tab>
+</Tabs>
+
+### Context Caching
+
+<AccordionGroup>
+  <Accordion title="Intelligent Caching">
+    ```typescript
+    // Context caching configuration
+    interface ContextCacheConfig {
+      enabled: boolean;
+      ttl: number;                    // Time to live in seconds
+      maxSize: number;                // Maximum cache entries
+      similarityThreshold: number;    // Minimum similarity for cache hit
+      compressionEnabled: boolean;    // Compress cached contexts
+      persistToDisk: boolean;         // Persist cache across sessions
+    }
+    
+    const cacheConfig: ContextCacheConfig = {
+      enabled: true,
+      ttl: 3600,                     // 1 hour
+      maxSize: 1000,                 // 1000 cached contexts
+      similarityThreshold: 0.85,     // 85% similarity for reuse
+      compressionEnabled: true,
+      persistToDisk: true
+    };
+    ```
+    
+    **Cache Hit Examples:**
+    ```bash
+    # First request - cache miss
+    /agent react-expert "create login component" 
+    # Context: 2,500 tokens, Cost: $0.038
+    
+    # Similar request - cache hit
+    /agent react-expert "create signup component"
+    # Context: 150 tokens (cached), Cost: $0.003 (90% savings)
+    ```
+  </Accordion>
+  
+  <Accordion title="Cache Analytics">
+    ```bash
+    # View cache performance
+    /cache stats --context --detailed
+    
+    # Output:
+    Context Cache Performance (Last 7 Days):
+    - Cache Hits: 847 (73.2%)
+    - Cache Misses: 310 (26.8%)
+    - Average Token Savings: 1,850 per hit
+    - Total Tokens Saved: 1,567,950
+    - Cost Savings: $47.04
+    - Cache Size: 156MB (compressed)
+    
+    # Cache optimization suggestions
+    /cache optimize --suggestions --auto-tune
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Cost Monitoring and Budgeting
+
+### Usage Tracking
+
+<Tabs>
+  <Tab title="Real-Time Monitoring">
+    ```bash
+    # Enable real-time cost monitoring
+    /config set monitoring.cost-tracking.enabled true
+    /config set monitoring.cost-tracking.real-time true
+    /config set monitoring.cost-tracking.alerts true
+    
+    # Set up cost alerts
+    /alerts create cost-warning --threshold 10.00 --period daily
+    /alerts create cost-limit --threshold 50.00 --period monthly --action pause
+    
+    # Monitor current usage
+    /stats cost --live --breakdown-by-model
+    
+    # Real-time output:
+    Current Session Costs:
+    - Claude 3.5 Sonnet: $2.45 (18 requests)
+    - Claude 3 Haiku: $0.12 (45 requests)
+    - Total Session: $2.57
+    - Daily Total: $8.43 / $10.00 (84% of budget)
+    - Monthly Total: $127.85 / $200.00 (64% of budget)
+    ```
+  </Tab>
+  
+  <Tab title="Budget Management">
+    ```bash
+    # Set up budget controls
+    /budget create monthly --limit 200.00 --currency USD
+    /budget create project --limit 50.00 --project e-commerce
+    /budget create team --limit 100.00 --team frontend
+    
+    # Configure budget alerts
+    /budget alert --at 50% --type warning
+    /budget alert --at 80% --type urgent
+    /budget alert --at 95% --type critical --action slow-down
+    /budget alert --at 100% --type limit --action pause
+    
+    # View budget status
+    /budget status --all --detailed
+    ```
+  </Tab>
+  
+  <Tab title="Cost Optimization Recommendations">
+    ```bash
+    # Get cost optimization suggestions
+    /optimize costs --analyze-usage --suggest-improvements
+    
+    # Output:
+    Cost Optimization Recommendations:
+    
+    1. Model Selection (Potential Savings: 35%)
+       - Switch 60% of simple tasks to Claude 3 Haiku
+       - Use GPT-3.5 Turbo for basic code review
+       - Estimated monthly savings: $42.00
+    
+    2. Context Optimization (Potential Savings: 25%)
+       - Enable smart context pruning
+       - Implement context caching
+       - Estimated monthly savings: $30.00
+    
+    3. Batch Processing (Potential Savings: 15%)
+       - Combine related requests
+       - Use parallel processing for independent tasks
+       - Estimated monthly savings: $18.00
+    
+    Total Potential Monthly Savings: $90.00 (45% reduction)
+    ```
+  </Tab>
+</Tabs>
+
+### Cost Analysis and Reporting
+
+<AccordionGroup>
+  <Accordion title="Detailed Cost Reports">
+    ```bash
+    # Generate comprehensive cost report
+    /report cost --period monthly --detailed --export pdf
+    
+    # Report includes:
+    # - Usage by model and provider
+    # - Cost trends and projections
+    # - Top consuming agents and tasks
+    # - Optimization opportunities
+    # - Comparative analysis with previous periods
+    
+    # Custom report queries
+    /report cost --filter "agent:react-expert" --time-range "last-week"
+    /report cost --group-by "project" --show-trends
+    /report cost --compare-periods "this-month:last-month"
+    ```
+  </Accordion>
+  
+  <Accordion title="Cost Allocation">
+    ```bash
+    # Allocate costs to projects/teams
+    /cost allocate --project e-commerce --percentage 40
+    /cost allocate --team frontend --based-on-usage
+    /cost allocate --department engineering --overhead 0.15
+    
+    # View allocation breakdown
+    /cost allocation --summary --export csv
+    
+    # Output:
+    Cost Allocation Summary (October 2024):
+    ┌─────────────┬──────────────┬─────────────┬────────────┐
+    │ Project     │ Direct Costs │ Allocated   │ Total      │
+    ├─────────────┼──────────────┼─────────────┼────────────┤
+    │ E-commerce  │ $48.50       │ $12.75      │ $61.25     │
+    │ Mobile App  │ $32.20       │ $8.45       │ $40.65     │
+    │ API Gateway │ $19.80       │ $5.20       │ $25.00     │
+    │ Unallocated │ $15.30       │ $4.02       │ $19.32     │
+    └─────────────┴──────────────┴─────────────┴────────────┘
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Token Optimization
+
+### Response Optimization
+
+<Tabs>
+  <Tab title="Output Control">
+    ```bash
+    # Control response length and format
+    /config set ai.response.max-tokens 2000
+    /config set ai.response.prefer-concise true
+    /config set ai.response.avoid-repetition true
+    
+    # Configure output formatting
+    /config set ai.response.format-code true
+    /config set ai.response.include-explanations selective
+    /config set ai.response.verbosity medium
+    
+    # Task-specific optimizations
+    /agent react-expert "create component" --concise --code-only
+    /agent universal-agent "explain concept" --detailed --educational
+    ```
+  </Tab>
+  
+  <Tab title="Streaming Optimization">
+    ```bash
+    # Optimize streaming for token efficiency
+    /config set streaming.optimization.enabled true
+    /config set streaming.optimization.early-stop true
+    /config set streaming.optimization.quality-threshold 0.85
+    
+    # Configure streaming buffering
+    /config set streaming.buffer.size 512
+    /config set streaming.buffer.flush-interval 100ms
+    /config set streaming.compression.enabled true
+    ```
+  </Tab>
+  
+  <Tab title="Multi-Turn Optimization">
+    ```bash
+    # Optimize multi-turn conversations
+    /config set conversation.context-management smart
+    /config set conversation.history-compression true
+    /config set conversation.relevance-pruning true
+    
+    # Configure conversation memory
+    /config set conversation.max-history-tokens 4000
+    /config set conversation.summary-threshold 8000
+    /config set conversation.context-refresh-interval 10
+    ```
+  </Tab>
+</Tabs>
+
+### Batch Processing
+
+<AccordionGroup>
+  <Accordion title="Request Batching">
+    ```bash
+    # Enable intelligent request batching
+    /config set batching.enabled true
+    /config set batching.max-batch-size 5
+    /config set batching.wait-time 2000  # 2 seconds
+    
+    # Configure batching strategies
+    /config set batching.strategy similarity-based
+    /config set batching.similarity-threshold 0.7
+    /config set batching.max-wait-time 5000
+    
+    # Example: Batching similar requests
+    /agent react-expert "create button component"
+    /agent react-expert "create input component"  
+    /agent react-expert "create modal component"
+    # → Batched into single request: "create button, input, and modal components"
+    # Token savings: ~40% compared to individual requests
+    ```
+  </Accordion>
+  
+  <Accordion title="Parallel Processing">
+    ```bash
+    # Configure parallel processing for independent tasks
+    /config set parallel.enabled true
+    /config set parallel.max-concurrent 3
+    /config set parallel.load-balancing true
+    
+    # Parallel execution with shared context
+    /parallel "backend-agent,react-expert" "build authentication system" 
+           --shared-context "user-requirements.md"
+           --optimize-tokens
+    
+    # Token optimization in parallel execution:
+    # - Shared context loaded once (instead of per agent)
+    # - Results cached for cross-agent reference
+    # - Duplicate processing eliminated
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Provider-Specific Optimizations
+
+### Anthropic Claude Optimization
+
+<Tabs>
+  <Tab title="Claude-Specific Features">
+    ```bash
+    # Optimize for Claude's strengths
+    /config set anthropic.use-xml-formatting true
+    /config set anthropic.structured-output true
+    /config set anthropic.thinking-blocks false  # Reduce token usage
+    
+    # Claude cost optimization
+    /config set anthropic.prefer-haiku-for-simple true
+    /config set anthropic.sonnet-threshold-complexity 0.7
+    /config set anthropic.context-optimization claude-specific
+    ```
+  </Tab>
+  
+  <Tab title="Context Window Usage">
+    ```bash
+    # Maximize Claude's large context window
+    /config set anthropic.context-window-usage efficient
+    /config set anthropic.long-context-strategies enabled
+    /config set anthropic.context-reuse-patterns true
+    
+    # Example: Process multiple files in single request
+    /context set "src/" --recursive --max-files 50
+    /agent universal-agent "analyze and refactor all components for consistency"
+    # Uses large context window efficiently instead of multiple requests
+    ```
+  </Tab>
+</Tabs>
+
+### OpenAI GPT Optimization
+
+<AccordionGroup>
+  <Accordion title="GPT-Specific Settings">
+    ```bash
+    # Optimize for GPT models
+    /config set openai.use-function-calling true
+    /config set openai.structured-output true  
+    /config set openai.json-mode-when-applicable true
+    
+    # Model selection optimization
+    /config set openai.use-35-turbo-for-simple true
+    /config set openai.gpt4-threshold-complexity 0.8
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Token Analytics and Insights
+
+### Advanced Analytics
+
+<Tabs>
+  <Tab title="Usage Pattern Analysis">
+    ```bash
+    # Analyze usage patterns for optimization
+    /analytics tokens --patterns --time-range 90d
+    
+    # Pattern Analysis Results:
+    Usage Patterns Identified:
+    
+    1. Peak Usage: 2-4 PM EST (45% of daily usage)
+       - Mostly code generation and review tasks
+       - Recommendation: Pre-cache common contexts
+    
+    2. Recurring Tasks: Component creation (35% of requests)
+       - Similar patterns with slight variations
+       - Recommendation: Create template-based optimization
+    
+    3. Context Inefficiency: Large context windows with low relevance
+       - Average relevance: 0.42 (target: 0.70+)
+       - Recommendation: Enable smart context pruning
+    
+    4. Model Misallocation: Complex models for simple tasks
+       - 23% of Haiku-suitable tasks using Sonnet
+       - Potential savings: $28/month
+    ```
+  </Tab>
+  
+  <Tab title="Predictive Analytics">
+    ```bash
+    # Enable predictive token usage analytics
+    /analytics predict --based-on-history --forecast-days 30
+    
+    # Predictive Analysis:
+    Token Usage Forecast (Next 30 Days):
+    
+    Based on Historical Patterns:
+    - Estimated Total Tokens: 8.5M ± 1.2M
+    - Estimated Cost: $142.50 ± $28.00
+    - Peak Usage Days: Tuesdays, Wednesdays
+    
+    Optimization Opportunities:
+    - Smart caching could save: 1.8M tokens ($31.50)
+    - Model optimization could save: 25% cost
+    - Context optimization could save: 35% tokens
+    
+    Recommended Actions:
+    1. Enable all optimization features before month-end
+    2. Review and optimize most expensive workflows
+    3. Consider upgrading to team caching features
+    ```
+  </Tab>
+</Tabs>
+
+### ROI Analysis
+
+<AccordionGroup>
+  <Accordion title="Value Assessment">
+    ```bash
+    # Calculate return on investment
+    /analytics roi --calculate-value --time-saved --quality-improvement
+    
+    # ROI Analysis Results:
+    Development Productivity Analysis (Last Quarter):
+    
+    Time Savings:
+    - Code generation: 240 hours saved
+    - Code review: 120 hours saved  
+    - Documentation: 80 hours saved
+    - Debugging assistance: 160 hours saved
+    - Total: 600 hours saved
+    
+    Cost Analysis:
+    - NikCLI token costs: $427.50
+    - Developer time value: $75/hour average
+    - Time value saved: $45,000
+    
+    ROI Calculation:
+    - Investment: $427.50
+    - Return: $45,000
+    - ROI: 10,525% or 105x return
+    
+    Quality Improvements:
+    - Code quality score: +23%
+    - Bug reduction: -34%
+    - Test coverage: +18%
+    - Documentation completeness: +45%
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+### Token Efficiency Guidelines
+
+<CardGroup cols={2}>
+  <Card title="Context Optimization" icon="compress">
+    Keep context focused and relevant to the task
+    
+    ```bash
+    # Good: Focused context
+    /context set "src/components/auth/" --include "*.tsx,*.ts"
+    
+    # Avoid: Over-broad context  
+    /context set "." --recursive --all-files
+    ```
+  </Card>
+  
+  <Card title="Model Selection" icon="brain">
+    Choose the right model for each task complexity
+    
+    ```bash
+    # Simple tasks → Haiku
+    /model claude-3-haiku
+    "Fix this typo in the comment"
+    
+    # Complex reasoning → Sonnet
+    /model claude-3-5-sonnet  
+    "Design architecture for microservices system"
+    ```
+  </Card>
+  
+  <Card title="Caching Strategy" icon="database">
+    Implement intelligent caching for repeated patterns
+    
+    ```bash
+    # Enable context and response caching
+    /config set cache.context.enabled true
+    /config set cache.responses.enabled true
+    /config set cache.similarity-threshold 0.85
+    ```
+  </Card>
+  
+  <Card title="Batch Processing" icon="layers">
+    Group similar tasks for efficient processing
+    
+    ```bash
+    # Batch similar component requests
+    /agent react-expert "create button, input, and select components with consistent styling"
+    ```
+  </Card>
+</CardGroup>
+
+### Monitoring Best Practices
+
+<Tabs>
+  <Tab title="Continuous Monitoring">
+    ```bash
+    # Set up comprehensive monitoring
+    /monitor enable --cost-tracking --usage-patterns --optimization-opportunities
+    
+    # Configure alerts for various thresholds
+    /alerts create --type cost-spike --threshold 200% --period 1h
+    /alerts create --type unusual-usage --threshold 3-sigma
+    /alerts create --type optimization-opportunity --min-savings 10.00
+    ```
+  </Tab>
+  
+  <Tab title="Regular Reviews">
+    ```bash
+    # Schedule regular token usage reviews
+    /schedule weekly-review --day monday --time 9am --report cost-optimization
+    /schedule monthly-review --report comprehensive-usage --auto-optimize
+    
+    # Quick health checks
+    /health-check tokens --quick --recommendations
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Caching Systems"
+    icon="database"
+    href="/advanced/caching"
+  >
+    Deep dive into NikCLI's caching mechanisms and optimization
+  </Card>
+  <Card
+    title="Performance Troubleshooting"
+    icon="zap"
+    href="/troubleshooting/performance"
+  >
+    Troubleshoot and optimize performance issues
+  </Card>
+  <Card
+    title="Configuration Guide"
+    icon="gear"
+    href="/advanced/configuration"
+  >
+    Advanced configuration options and tuning
+  </Card>
+  <Card
+    title="Cost Optimization"
+    icon="chart-line"
+    href="/examples/advanced-automation"
+  >
+    Learn advanced cost optimization techniques
+  </Card>
+</CardGroup>
+
+<Tip>
+  Start with basic optimizations like context pruning and smart model selection, then gradually implement advanced features like caching and batch processing. Monitor your token usage regularly to identify optimization opportunities.
+</Tip>

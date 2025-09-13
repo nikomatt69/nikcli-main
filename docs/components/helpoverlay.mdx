@@ -1,0 +1,82 @@
+---
+title: 'HelpOverlay'
+description: 'Contextual overlay to show help and hints.'
+---
+
+## Overview
+
+Display helpful hints and shortcuts.
+
+## Import
+
+```ts
+import { HelpOverlay } from 'nikcli-tui';
+```
+
+## Usage
+
+```ts
+new HelpOverlay({ parent: screen, content: 'Help overlay' });
+```
+
+## Live Preview
+
+<Snippet file="previews/helpoverlay.mdx" />
+
+## Run Locally
+
+`npm run tsx:core-gallery`
+
+## Props
+
+- content: string — Markdown/text content.
+- title?: string — Window label.
+- width?/height?: dims — Defaults to 80% viewport.
+- onClose?: () => void — Callback on close.
+- BaseProps: overlay fills screen; inner box styled.
+
+## Methods
+
+- setContent(text), setTitle(text), show(), hide(), close().
+
+## Keyboard
+
+- Esc, q: close overlay (when closable).
+
+## Installation
+
+```bash
+npm i nikcli-tui
+```
+
+## Import
+
+```ts
+import { HelpOverlay } from 'nikcli-tui';
+```
+
+## Quick Start
+
+```ts
+const help = new HelpOverlay({ parent: screen, content: 'Press q to quit', title: 'Help' });
+help.show();
+```
+
+## Production Examples
+
+<CodeGroup>
+
+```ts Custom Size
+new HelpOverlay({ parent: screen, content: 'Docs...', title: 'Help', width: '70%', height: '70%' }).show();
+```
+
+```ts Programmatic Close
+const h = new HelpOverlay({ parent: screen, content: '...', onClose: () => console.log('closed') });
+setTimeout(() => h.close(), 1000);
+```
+
+</CodeGroup>
+
+## Best Practices
+
+- Rendi il contenuto scrollabile e sintetico; evita muri di testo.

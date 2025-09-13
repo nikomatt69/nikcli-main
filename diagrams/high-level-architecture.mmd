@@ -1,0 +1,98 @@
+```mermaid
+graph TD
+    %% High-level architecture diagram for Vercel AI Gateway
+    %% This follows Mermaid best practices: uses subgraphs for logical grouping,
+    %% top-down (TD) direction for readability, solid lines for data flow,
+    %% dotted lines for monitoring/observability, and clear node labels.
+    %% Nodes represent components; edges show interactions.
+    %% Designed for production docs: concise, scalable, and integrable into Vercel docs/Markdown.
+    %% Vercel patterns: Emphasizes edge deployment integration (e.g., Vercel Deployments)
+    %% and AI SDK routing, aligning with serverless/edge runtime patterns.
+    %% No TypeScript types here as this is a diagramming language (Mermaid);
+    %% for TS integration, see example in docs: e.g., type GatewayRequest = { provider: 'openai' | 'anthropic'; ... }
+    %% Complex logic comment: Request flow - Router handles incoming requests from AI SDK/Deployments,
+    %% checks Cache (hit/miss logic), routes to Providers if miss, caches response, and logs via Observability.
+
+    %% Vercel Ecosystem subgraph (entry points)
+    subgraph "Vercel Ecosystem"
+        direction TB
+        Deployments[Vercel Deployments<br/>(Edge Functions, Serverless Apps)]
+        SDK[AI SDK<br/>(Client/Server-side AI Calls)]
+    end
+
+    %% AI Gateway subgraph (core system)
+    subgraph "Vercel AI Gateway"
+        direction TB
+        subgraph "Core Components"
+            direction TB
+            Router[Request Router<br/>(Routes to Providers, Load Balancing)]
+            Cache[Caching Layer<br/>(Response Caching, TTL Management)]
+            Observability[Observability Tools<br/>(Metrics, Logs, Tracing - e.g., Vercel Analytics)]
+        end
+    end
+
+    %% AI Providers subgraph (external integrations)
+    subgraph "AI Providers"
+        direction TB
+        OpenAI[OpenAI API<br/>(e.g., GPT Models)]
+        Anthropic[Anthropic API<br/>(e.g., Claude Models)]
+    end
+
+    %% Primary data flow: Bidirectional for request/response
+    SDK -->|API Requests| Router
+    Deployments -->|Edge Runtime Calls| Router
+    Router -->|Cache Check| Cache
+    Cache -->|Cache Miss - Route to Provider| OpenAI
+    Cache -->|Cache Miss - Route to Provider| Anthropic
+    OpenAI -->|API Response| Cache
+    Anthropic -->|API Response| Cache
+    Cache -->|Cache Hit/Miss Resolved| Router
+    Router -->|Responses| SDK
+    Router -->|Responses| Deployments
+
+    %% Observability monitoring (dotted lines for non-data flows)
+    Observability -.->|Monitors Requests/Responses| Router
+    Observability -.->|Monitors Cache Hits/Misses| Cache
+    Observability -.->|Traces API Calls| OpenAI
+    Observability -.->|Traces API Calls| Anthropic
+
+    %% Styling for production readability (Mermaid best practice)
+    classDef vercelComponent fill:#0066ff,stroke:#fff,stroke-width:2px,color:#fff
+    classDef providerComponent fill:#ff6b35,stroke:#fff,stroke-width:2px,color:#fff
+    classDef observabilityComponent fill:#4ecdc4,stroke:#fff,stroke-width:2px,color:#000
+
+    class Deployments,SDK,Router,Cache vercelComponent
+    class OpenAI,Anthropic providerComponent
+    class Observability observabilityComponent
+```
+
+### Documentation Notes
+- **Mermaid Best Practices Followed**: Subgraphs for modularity, clear labels with `<br/>` for multi-line, consistent direction (TB within subgraphs for hierarchy), and semantic styling via `classDef` for visual distinction in rendered docs (e.g., Vercel-themed colors). Avoids overly complex edges; focuses on high-level flow.
+- **Vercel Patterns**: Diagram highlights integration with Vercel Deployments (e.g., Edge Functions for low-latency routing) and AI SDK (for seamless AI call abstraction), aligning with Vercel's serverless/edge architecture. Caching layer implies Vercel KV/Edge Config patterns for production caching.
+- **TypeScript Integration Example** (for docs completeness, as per requirements – this is not Mermaid but a companion snippet for TypeScript usage in Vercel projects):
+  ```typescript
+  // Example TypeScript types for AI Gateway interactions (production-ready, with JSDoc comments)
+  // Complex logic: Provider routing uses union types; caching handled via optional TTL.
+
+  /**
+   * Configuration for Vercel AI Gateway requests.
+   * Integrates with AI SDK for provider abstraction.
+   */
+  export interface GatewayConfig {
+    provider: 'openai' | 'anthropic';  // Supported providers as per diagram
+    model?: string;  // e.g., 'gpt-4' or 'claude-3'
+    apiKey: string;  // Stored securely via Vercel Environment Variables
+  }
+
+  /**
+   * Request payload routed through the Gateway.
+   * Router handles validation; Cache checks for existing responses.
+   */
+  export interface GatewayRequest extends GatewayConfig {
+    prompt: string;
+    maxTokens?: number;
+    cacheTtl?: number;  // Seconds for caching layer (Vercel KV integration)
+  }
+
+  /**
+   * Response from
