@@ -386,6 +386,50 @@ export class ToolService {
     const searchPath = path.resolve(this.workingDirectory, args.path || '.')
     const matches: string[] = []
 
+    // Convert glob-like pattern (e.g., **/*.{ts,tsx}) to RegExp
+    const globToRegex = (glob: string): RegExp => {
+      const toSource = (g: string): string => {
+        let src = ''
+        for (let i = 0; i < g.length; i++) {
+          const ch = g[i]
+          if (ch === '*') {
+            if (g[i + 1] === '*') {
+              src += '.*'
+              i++
+            } else {
+              src += '[^/]*'
+            }
+          } else if (ch === '?') {
+            src += '.'
+          } else if (ch === '{') {
+            // Brace expansion
+            let j = i + 1
+            let level = 1
+            let inner = ''
+            while (j < g.length && level > 0) {
+              const c = g[j]
+              if (c === '{') level++
+              else if (c === '}') level--
+              if (level > 0) inner += c
+              j++
+            }
+            const parts = inner.split(',').map((part) => toSource(part))
+            src += '(?:' + parts.join('|') + ')'
+            i = j - 1
+          } else if ('\\^$.|+()[]'.includes(ch)) {
+            src += '\\' + ch
+          } else {
+            src += ch
+          }
+        }
+        return src
+      }
+      return new RegExp('^' + toSource(glob) + '$')
+    }
+
+    const patternRegex = globToRegex(args.pattern)
+    const ignoreDirs = new Set(['node_modules', '.git', 'dist', 'build', '.next', 'out', 'coverage'])
+
     const searchRecursive = (dir: string) => {
       try {
         const items = fs.readdirSync(dir, { withFileTypes: true })
@@ -395,9 +439,11 @@ export class ToolService {
           const relativePath = path.relative(this.workingDirectory, fullPath)
 
           if (item.isDirectory()) {
-            searchRecursive(fullPath)
-          } else if (item.name.includes(args.pattern) || relativePath.includes(args.pattern)) {
-            matches.push(relativePath)
+            if (!ignoreDirs.has(item.name)) searchRecursive(fullPath)
+          } else {
+            if (patternRegex.test(relativePath.replace(/\\/g, '/'))) {
+              matches.push(relativePath)
+            }
           }
         }
       } catch {
@@ -532,7 +578,7 @@ export class ToolService {
       let fileCount = 0
 
       const analyzeDir = (dir: string, depth = 0) => {
-        if (depth > 3) return // Limit recursion depth
+        if (depth > 10) return // Increase recursion depth for deeper analysis
 
         try {
           const items = fs.readdirSync(dir, { withFileTypes: true })
