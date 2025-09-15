@@ -93,7 +93,7 @@ async function startDaemon(options: NikdOptions) {
 }
 
 async function main() {
-  program.name('nikd').description('Background Agent Runner Daemon for nikCLI').version('0.1.1')
+  program.name('nikd').description('Background Agent Runner Daemon for nikCLI').version('0.1.2')
 
   program
     .command('start')

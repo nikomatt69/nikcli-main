@@ -44,7 +44,7 @@ nikcli
 - **📊 Multiple AI Providers**: Claude, GPT, Gemini, Ollama support
 - **🚀 Production Ready**: Comprehensive testing and enterprise-grade architecture
 
-### 🆕 New CLI UI Enhancements (v0.1.1+)
+### 🆕 New CLI UI Enhancements (v0.1.2+)
 
 NikCLI now features an advanced, interactive CLI interface with rich UI components for better user experience, especially in VM management and code review workflows:
 

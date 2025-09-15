@@ -8913,7 +8913,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         // Setup basic project structure
         const basicPackageJson = {
           name: path.basename(this.workingDirectory),
-          version: '0.1.1',
+          version: '0.1.2',
           description: 'Project managed by NikCLI',
           scripts: {
             start: 'node index.js',

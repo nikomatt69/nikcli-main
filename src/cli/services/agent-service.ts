@@ -1031,10 +1031,7 @@ export class AgentService extends EventEmitter {
     }
   }
 
-  private analyzeDiffForIssues(
-    diff: any,
-    files: Array<string | { path: string; status?: string }>
-  ): string[] {
+  private analyzeDiffForIssues(diff: any, files: Array<string | { path: string; status?: string }>): string[] {
     const paths = files.map((f: any) => (typeof f === 'string' ? f : f?.path || ''))
     const findings: string[] = []
     if (paths.includes('package.json')) {
