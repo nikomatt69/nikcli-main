@@ -44,7 +44,6 @@ export class ModernAIProvider {
     }
   }
 
-
   // Core file operations tools - Claude Code style
   private getFileOperationsTools(): Record<string, CoreTool> {
     return {
@@ -206,16 +205,22 @@ export class ModernAIProvider {
       }),
 
       coinbase_blockchain: tool({
-        description: 'Execute blockchain operations using Coinbase AgentKit - supports wallet info, transfers, balances, and DeFi operations',
+        description:
+          'Execute blockchain operations using Coinbase AgentKit - supports wallet info, transfers, balances, and DeFi operations',
         parameters: z.object({
-          action: z.string().describe('The blockchain action to perform: init, chat, wallet-info, transfer, balance, status, reset'),
-          params: z.any().optional().describe('Parameters for the blockchain action (e.g., {to: "0x...", amount: "0.1"} for transfers)'),
+          action: z
+            .string()
+            .describe('The blockchain action to perform: init, chat, wallet-info, transfer, balance, status, reset'),
+          params: z
+            .any()
+            .optional()
+            .describe('Parameters for the blockchain action (e.g., {to: "0x...", amount: "0.1"} for transfers)'),
         }),
         execute: async ({ action, params = {} }) => {
           try {
             const { secureTools } = await import('../tools/secure-tools-registry')
             const result = await secureTools.executeCoinbaseAgentKit(action, params)
-            
+
             if (result.success) {
               return {
                 success: true,
@@ -535,7 +540,6 @@ export class ModernAIProvider {
   setModel(modelName: string): void {
     this.currentModel = modelName
   }
-
 
   // Get current model info
   getCurrentModelInfo() {

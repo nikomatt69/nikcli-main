@@ -10,6 +10,7 @@ import { contextManager } from '../core/context-manager'
 import { ExecutionPolicyManager } from '../policies/execution-policy'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
+import { createStringPushStream, renderChatStreamToTerminal } from '../ui/streamdown-renderer'
 import { configureSyntaxHighlighting } from '../utils/syntax-highlighter'
 
 // Configure syntax highlighting for terminal output
@@ -902,6 +903,13 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     this.isProcessing = true
 
     try {
+      // Bridge event stream into a push-driven text stream for Streamdown adapter
+      const bridge = createStringPushStream()
+      const renderPromise = renderChatStreamToTerminal(bridge.generator, {
+        isCancelled: () => !this.isProcessing,
+        enableMinimalRerender: false,
+      })
+
       for await (const event of modernAgentOrchestrator.executeTaskStreaming(agentName, task)) {
         this.session.executionHistory.push(event)
 
@@ -910,24 +918,31 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
             console.log(chalk.cyan(`🚀 ${agentName} initialized and ready`))
             break
           case 'text':
-            if (event.content) {
-              process.stdout.write(event.content)
-            }
+            if (event.content) bridge.push(event.content)
             break
           case 'tool':
+            bridge.push('\n')
             console.log(chalk.blue(`\\n🔧 ${event.content}`))
             break
           case 'result':
+            bridge.push('\n')
             console.log(chalk.green(`✅ ${event.content}`))
             break
           case 'complete':
+            bridge.end()
+            await renderPromise
             console.log(chalk.green(`\\n\\n🎉 ${agentName} completed autonomously!`))
             break
           case 'error':
+            bridge.end()
+            await renderPromise
             console.log(chalk.red(`\\n❌ Agent error: ${event.content}`))
             break
         }
       }
+      // Ensure renderer finishes if loop exits normally
+      bridge.end()
+      await renderPromise
     } catch (error: any) {
       console.log(chalk.red(`\\n❌ Agent execution failed: ${error.message}`))
     } finally {
@@ -949,6 +964,13 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     this.isProcessing = true
 
     try {
+      // Bridge event stream into a push-driven text stream for Streamdown adapter
+      const bridge = createStringPushStream()
+      const renderPromise = renderChatStreamToTerminal(bridge.generator, {
+        isCancelled: () => !this.isProcessing,
+        enableMinimalRerender: false,
+      })
+
       for await (const event of advancedAIProvider.executeAutonomousTask(task)) {
         this.session.executionHistory.push(event)
 
@@ -960,24 +982,31 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
             console.log(chalk.magenta(`💭 ${event.content}`))
             break
           case 'text_delta':
-            if (event.content) {
-              process.stdout.write(event.content)
-            }
+            if (event.content) bridge.push(event.content)
             break
           case 'tool_call':
+            bridge.push('\n')
             this.handleToolCall(event)
             break
           case 'tool_result':
+            bridge.push('\n')
             this.handleToolResult(event)
             break
           case 'complete':
+            bridge.end()
+            await renderPromise
             console.log(chalk.green('\\n🎉 Autonomous execution completed!'))
             break
           case 'error':
+            bridge.end()
+            await renderPromise
             console.log(chalk.red(`\\n❌ Error: ${event.error}`))
             break
         }
       }
+      // Ensure renderer finishes if loop exits normally
+      bridge.end()
+      await renderPromise
     } catch (error: any) {
       console.log(chalk.red(`\\n❌ Autonomous execution failed: ${error.message}`))
     } finally {

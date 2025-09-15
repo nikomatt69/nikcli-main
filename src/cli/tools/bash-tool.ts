@@ -145,7 +145,9 @@ export class BashTool extends BaseTool {
 
       // Mostra analisi rischi e richiedi conferma quando non skipConfirmation
       if (!params.skipConfirmation && (!analysis.safe || analysis.risks.length > 0)) {
-        try { (global as any).__nikCLI?.suspendPrompt?.() } catch { }
+        try {
+          ;(global as any).__nikCLI?.suspendPrompt?.()
+        } catch {}
         const inquirer = await import('inquirer')
         const { inputQueue } = await import('../core/input-queue')
         inputQueue.enableBypass()
@@ -187,7 +189,9 @@ export class BashTool extends BaseTool {
           }
         } finally {
           inputQueue.disableBypass()
-          try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch { }
+          try {
+            ;(global as any).__nikCLI?.resumePromptAndRender?.()
+          } catch {}
         }
       }
 
@@ -332,7 +336,9 @@ export class BashTool extends BaseTool {
           const text = data.toString()
           stdout += text
           if (options.stream) {
-            try { process.stdout.write(text) } catch { }
+            try {
+              process.stdout.write(text)
+            } catch {}
           }
           // Limita output per evitare memory overflow
           if (stdout.length > MAX_OUTPUT_LENGTH) {

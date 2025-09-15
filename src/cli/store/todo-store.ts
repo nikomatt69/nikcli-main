@@ -34,4 +34,3 @@ class TodoStore extends EventEmitter {
 }
 
 export const todoStore = new TodoStore()
-

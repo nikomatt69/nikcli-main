@@ -15,23 +15,21 @@
 
 import chalk from 'chalk'
 
-export {
-  CoinbaseAgentKitTool,
-} from './coinbase-agentkit-tool'
-export { JsonPatchTool } from './json-patch-tool'
+export { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
 export { GitTools } from './git-tools'
-export { MultiReadTool } from './multi-read-tool'
 export {
   ImageGenerationTool,
   type ImageGenerationToolOptions,
   type ImageGenerationToolResult,
 } from './image-generation-tool'
+export { JsonPatchTool } from './json-patch-tool'
 // Export migration utilities
 export {
   createSecureToolsManager,
   ToolsMigration,
   toolsManager, // deprecated, for backward compatibility
 } from './migration-to-secure-tools'
+export { MultiReadTool } from './multi-read-tool'
 export {
   type BatchSession,
   type CommandOptions,

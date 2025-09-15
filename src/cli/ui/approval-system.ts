@@ -590,7 +590,9 @@ export class ApprovalSystem extends EventEmitter {
     })
 
     // Suspend main prompt and enable bypass to avoid interleaving
-    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
+    try {
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       const answers = await inquirer.prompt([
@@ -614,7 +616,9 @@ export class ApprovalSystem extends EventEmitter {
     } finally {
       inputQueue.disableBypass()
       // Restore prompt after approval interaction
-      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
+      try {
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 
@@ -634,7 +638,9 @@ export class ApprovalSystem extends EventEmitter {
     })
 
     // Suspend main prompt and enable bypass to avoid interleaving
-    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
+    try {
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       const answers = await inquirer.prompt([
@@ -654,7 +660,9 @@ export class ApprovalSystem extends EventEmitter {
     } finally {
       inputQueue.disableBypass()
       // Restore prompt after approval interaction
-      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
+      try {
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 
@@ -825,9 +833,9 @@ export class ApprovalSystem extends EventEmitter {
     console.log(
       boxen(
         `${riskIcon} ${chalk.bold(request.title)}\n\n` +
-        `${chalk.gray('Description:')} ${request.description}\n` +
-        `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
-        `${chalk.gray('Actions:')} ${request.actions.length}`,
+          `${chalk.gray('Description:')} ${request.description}\n` +
+          `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
+          `${chalk.gray('Actions:')} ${request.actions.length}`,
         {
           padding: 1,
           margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -884,13 +892,13 @@ export class ApprovalSystem extends EventEmitter {
     console.log(
       boxen(
         `${riskIcon} ${chalk.bold('🤔 Plan Execution Approval Required')}\n\n` +
-        `${chalk.gray('Plan:')} ${chalk.white.bold(request.title.replace('Execute Plan: ', ''))}\n` +
-        `${chalk.gray('Description:')} ${request.description}\n` +
-        `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
-        `${chalk.gray('Total Steps:')} ${chalk.cyan(planDetails.totalSteps)}\n` +
-        `${chalk.gray('Estimated Duration:')} ${chalk.cyan(Math.round(planDetails.estimatedDuration) + ' minutes')}\n\n` +
-        `${chalk.yellow.bold('⚠️  This will execute all steps automatically!\n')}` +
-        `${chalk.gray('The plan will switch to auto mode and run without further prompts.')}`,
+          `${chalk.gray('Plan:')} ${chalk.white.bold(request.title.replace('Execute Plan: ', ''))}\n` +
+          `${chalk.gray('Description:')} ${request.description}\n` +
+          `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
+          `${chalk.gray('Total Steps:')} ${chalk.cyan(planDetails.totalSteps)}\n` +
+          `${chalk.gray('Estimated Duration:')} ${chalk.cyan(Math.round(planDetails.estimatedDuration) + ' minutes')}\n\n` +
+          `${chalk.yellow.bold('⚠️  This will execute all steps automatically!\n')}` +
+          `${chalk.gray('The plan will switch to auto mode and run without further prompts.')}`,
         {
           padding: 1,
           margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -1044,13 +1052,13 @@ export class ApprovalSystem extends EventEmitter {
         choices:
           request.type === 'plan'
             ? [
-              { name: '✅ Yes, execute the plan now', value: true },
-              { name: '❌ No, return to default mode', value: false },
-            ]
+                { name: '✅ Yes, execute the plan now', value: true },
+                { name: '❌ No, return to default mode', value: false },
+              ]
             : [
-              { name: 'Yes', value: true },
-              { name: 'No', value: false },
-            ],
+                { name: 'Yes', value: true },
+                { name: 'No', value: false },
+              ],
         default: request.type === 'plan' ? 1 : request.riskLevel === 'low' ? 0 : 1,
         prefix: '  ',
       },
@@ -1091,7 +1099,9 @@ export class ApprovalSystem extends EventEmitter {
     inputQueue.enableBypass()
     try {
       // Small separation to ensure prompt draws on a fresh line
-      try { process.stdout.write('\n') } catch {}
+      try {
+        process.stdout.write('\n')
+      } catch {}
       const answers = await inquirer.prompt(questions)
 
       const approved = answers.approved && answers.confirmHighRisk !== false
@@ -1413,8 +1423,8 @@ export class ApprovalSystem extends EventEmitter {
     // Header with enterprise branding
     const header = boxen(
       chalk.cyanBright.bold('🏢 ENTERPRISE APPROVAL SYSTEM') +
-      '\n' +
-      chalk.white('Advanced Workflow Management & Risk Assessment'),
+        '\n' +
+        chalk.white('Advanced Workflow Management & Risk Assessment'),
       {
         padding: 1,
         margin: 1,
@@ -1583,7 +1593,9 @@ export class ApprovalSystem extends EventEmitter {
     this.displayEnterpriseApprovalRequest(request)
 
     // Enable bypass for approval inputs and suspend prompt
-    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
+    try {
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
 
     try {
@@ -1613,7 +1625,9 @@ export class ApprovalSystem extends EventEmitter {
       inputQueue.disableBypass()
       this.activeWorkflows.delete(request.id)
       this.pendingRequests.delete(request.id)
-      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
+      try {
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 

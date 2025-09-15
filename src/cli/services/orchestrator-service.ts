@@ -342,7 +342,9 @@ export class OrchestratorService extends EventEmitter {
 
     if (this.context.planMode) {
       // Enable compact stream to reduce noisy logs in plan mode
-      try { process.env.NIKCLI_COMPACT = '1' } catch {}
+      try {
+        process.env.NIKCLI_COMPACT = '1'
+      } catch {}
       try {
         // Create execution plan first
         console.log(chalk.cyan('🎯 Plan Mode: Creating execution plan...'))
@@ -775,15 +777,15 @@ export class OrchestratorService extends EventEmitter {
         delete (process.env as any).NIKCLI_SUPER_COMPACT
       } catch {}
       // Ensure input bypass is disabled and prompt resumed
-      import('../core/input-queue')
-        .then(({ inputQueue }) => inputQueue.disableBypass())
-        .catch(() => {})
+      import('../core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => {})
       try {
         const nik = (global as any).__nikCLI
         if (nik && typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
       } catch {}
       // Disable compact stream
-      try { delete (process.env as any).NIKCLI_COMPACT } catch {}
+      try {
+        delete (process.env as any).NIKCLI_COMPACT
+      } catch {}
       // Remove live updates listener if present
       if (this.todoStoreUnsubscribe) {
         try {

@@ -205,7 +205,9 @@ export class MultiReadTool extends BaseTool {
                   match: m[0],
                   column: m.index,
                   beforeContext: contextLines ? lines.slice(Math.max(0, i - contextLines), i) : undefined,
-                  afterContext: contextLines ? lines.slice(i + 1, Math.min(lines.length, i + 1 + contextLines)) : undefined,
+                  afterContext: contextLines
+                    ? lines.slice(i + 1, Math.min(lines.length, i + 1 + contextLines))
+                    : undefined,
                 })
                 regex.lastIndex = 0
               }
@@ -229,9 +231,7 @@ export class MultiReadTool extends BaseTool {
         totalRead: results.length,
         skipped,
         files: results,
-        ...(search
-          ? { search: { pattern: params.pattern!, totalMatches, filesWithMatches } }
-          : {}),
+        ...(search ? { search: { pattern: params.pattern!, totalMatches, filesWithMatches } } : {}),
       }
 
       CliUI.logSuccess(`📖 Read ${results.length}/${filtered.length} files${search ? `, ${totalMatches} matches` : ''}`)
@@ -271,4 +271,3 @@ export class MultiReadTool extends BaseTool {
 }
 
 export default MultiReadTool
-

@@ -4,6 +4,7 @@ import { marked } from 'marked'
 import TerminalRenderer from 'marked-terminal'
 import * as readline from 'readline'
 import { modelProvider } from '../ai/model-provider'
+import { renderChatStreamToTerminal } from '../ui/streamdown-renderer'
 import { chatManager } from './chat-manager'
 import { SlashCommandHandler } from './nik-cli-commands'
 
@@ -139,16 +140,13 @@ ${chalk.gray('Type your message or use slash commands...')}
       console.log(chalk.blue('\n🤖 '))
 
       this.isStreaming = true
-      let responseText = ''
-
-      // Stream the response
+      // Stream the response (through Streamdown adapter).
       const messages = chatManager.getContextMessages()
-      for await (const chunk of modelProvider.streamResponse({ messages })) {
-        if (!this.isStreaming) break
-
-        process.stdout.write(chunk)
-        responseText += chunk
-      }
+      const generator = modelProvider.streamResponse({ messages })
+      const responseText = await renderChatStreamToTerminal(generator, {
+        isCancelled: () => !this.isStreaming,
+        enableMinimalRerender: false, // keep behavior as close as possible to current
+      })
 
       this.isStreaming = false
       console.log('\n') // New line after streaming

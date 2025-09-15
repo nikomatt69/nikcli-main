@@ -34,13 +34,7 @@ export class PlanningService {
       const names: string[] = registry.listTools()
       this.availableTools = names.map((name) => {
         const meta = registry.getToolMetadata(name) as any
-        const category = (meta?.category || 'general') as
-          | 'file'
-          | 'command'
-          | 'analysis'
-          | 'git'
-          | 'package'
-          | 'system'
+        const category = (meta?.category || 'general') as 'file' | 'command' | 'analysis' | 'git' | 'package' | 'system'
         // Map registry categories to planning categories
         const categoryMap: Record<string, 'file' | 'command' | 'analysis' | 'git' | 'package'> = {
           filesystem: 'file',
@@ -332,7 +326,9 @@ export class PlanningService {
       try {
         const nik = (global as any).__nikCLI
         if (nik) {
-          try { nik.assistantProcessing = false } catch {}
+          try {
+            nik.assistantProcessing = false
+          } catch {}
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
       } catch {}
@@ -341,7 +337,9 @@ export class PlanningService {
       try {
         const nik = (global as any).__nikCLI
         if (nik) {
-          try { nik.assistantProcessing = false } catch {}
+          try {
+            nik.assistantProcessing = false
+          } catch {}
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
         // Disable possible bypass and resume prompt

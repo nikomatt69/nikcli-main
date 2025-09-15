@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
-import { toolService, type ToolCapability } from '../services/tool-service'
-import { todoStore, type SessionTodo, type TodoStatus, type TodoPriority } from '../store/todo-store'
+import { type ToolCapability, toolService } from '../services/tool-service'
+import { type SessionTodo, type TodoPriority, type TodoStatus, todoStore } from '../store/todo-store'
 
 function getSessionId(): string {
   try {
@@ -84,4 +84,3 @@ export function registerTodoTools(): void {
 
 // Auto-register on import
 registerTodoTools()
-

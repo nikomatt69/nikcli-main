@@ -32,7 +32,7 @@ try {
   // Optional providers (may not be present in all versions)
   try {
     defillamaActionProvider = (agentkit as any).defillamaActionProvider
-  } catch { }
+  } catch {}
 } catch {
   // AgentKit not installed
 }
@@ -43,11 +43,12 @@ try {
 } catch {
   // Vercel SDK not installed
 }
+
 import * as fs from 'node:fs'
 import { join } from 'node:path'
+import type { CoreTool } from 'ai'
 import type { Address, Hex, LocalAccount } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import type { CoreTool } from 'ai'
 
 // Configure a file to persist the agent's Smart Wallet + Private Key data
 const WALLET_DATA_FILE = '.nikcli/nikcli-wallet-data.txt'
@@ -191,7 +192,12 @@ export class CoinbaseAgentKitProvider {
   /**
    * Append or upsert an address into the local wallet list file
    */
-  private appendToWalletList(entry: { address: string; ownerAddress?: string; networkId?: string; updatedAt?: string }) {
+  private appendToWalletList(entry: {
+    address: string
+    ownerAddress?: string
+    networkId?: string
+    updatedAt?: string
+  }) {
     try {
       let list: any[] = []
       if (fs.existsSync(this.walletListFile)) {

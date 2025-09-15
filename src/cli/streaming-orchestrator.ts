@@ -1012,7 +1012,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
       import('./core/input-queue')
         .then(({ inputQueue }) => inputQueue.disableBypass())
         .then(() => {
-          try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
+          try {
+            ;(global as any).__nikCLI?.resumePromptAndRender?.()
+          } catch {}
         })
         .catch(() => {})
       this.showPrompt()
