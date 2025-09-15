@@ -274,25 +274,25 @@ export class EnhancedPlanningSystem {
     const riskLevel = this.assessPlanRisk(plan)
 
     const compact = process.env.NIKCLI_COMPACT === '1'
-      const approval = await approvalSystem.requestPlanApproval(
-        plan.title,
-        plan.description || plan.goal || '',
-        {
-          totalSteps: plan.todos.length,
-          estimatedDuration: plan.estimatedTotalDuration,
-          riskLevel,
-          categories,
-          priorities,
-          dependencies,
-          affectedFiles,
-          commands,
-        },
-        {
-          showBreakdown: compact ? false : true,
-          allowModification: false,
-          showTimeline: compact ? false : true,
-        }
-      )
+    const approval = await approvalSystem.requestPlanApproval(
+      plan.title,
+      plan.description || plan.goal || '',
+      {
+        totalSteps: plan.todos.length,
+        estimatedDuration: plan.estimatedTotalDuration,
+        riskLevel,
+        categories,
+        priorities,
+        dependencies,
+        affectedFiles,
+        commands,
+      },
+      {
+        showBreakdown: compact ? false : true,
+        allowModification: false,
+        showTimeline: compact ? false : true,
+      }
+    )
 
     if (approval.approved) {
       plan.status = 'approved'
@@ -358,7 +358,9 @@ export class EnhancedPlanningSystem {
           nik.currentMode = 'default'
           // Ensure assistant is not marked as processing anymore
           if (typeof nik === 'object') {
-            try { nik.assistantProcessing = false } catch {}
+            try {
+              nik.assistantProcessing = false
+            } catch {}
           }
           if (typeof nik.renderPromptAfterOutput === 'function') {
             nik.renderPromptAfterOutput()
@@ -399,16 +401,22 @@ export class EnhancedPlanningSystem {
 
       for (const todo of orderedTodos) {
         // Check dependencies satisfied
-        const depsOk = (todo.dependencies || []).every((depId) => plan.todos.find((t) => t.id === depId)?.status === 'completed')
+        const depsOk = (todo.dependencies || []).every(
+          (depId) => plan.todos.find((t) => t.id === depId)?.status === 'completed'
+        )
         if (!depsOk) {
           todo.status = 'skipped'
-          try { await this.updateStoreForTodo(plan, todo.id, 'cancelled') } catch {}
+          try {
+            await this.updateStoreForTodo(plan, todo.id, 'cancelled')
+          } catch {}
           continue
         }
 
         todo.status = 'in_progress'
         todo.startedAt = new Date()
-        try { await this.updateStoreForTodo(plan, todo.id, 'in_progress') } catch {}
+        try {
+          await this.updateStoreForTodo(plan, todo.id, 'in_progress')
+        } catch {}
 
         try {
           // 1) Execute explicit commands if provided
@@ -427,7 +435,9 @@ export class EnhancedPlanningSystem {
               if (!approved) {
                 // Skip this todo and continue with the rest
                 todo.status = 'skipped'
-                try { await this.updateStoreForTodo(plan, todo.id, 'cancelled') } catch {}
+                try {
+                  await this.updateStoreForTodo(plan, todo.id, 'cancelled')
+                } catch {}
                 continue
               }
               await runCmd.execute(cmd)
@@ -444,8 +454,14 @@ export class EnhancedPlanningSystem {
           }
 
           // 3) For analysis-like todos without commands/files, do a light read-only check
-          const isAnalysis = ['analysis', 'planning', 'testing', 'documentation'].includes((todo.category || '').toLowerCase())
-          if ((!todo.commands || todo.commands.length === 0) && (!todo.files || todo.files.length === 0) && isAnalysis) {
+          const isAnalysis = ['analysis', 'planning', 'testing', 'documentation'].includes(
+            (todo.category || '').toLowerCase()
+          )
+          if (
+            (!todo.commands || todo.commands.length === 0) &&
+            (!todo.files || todo.files.length === 0) &&
+            isAnalysis
+          ) {
             const findFiles = registry.getTool('find-files-tool') as any
             await findFiles.execute('src/**/*', { cwd: this.workingDirectory })
           }
@@ -467,7 +483,9 @@ export class EnhancedPlanningSystem {
             )
             if (!approved) {
               todo.status = 'skipped'
-              try { await this.updateStoreForTodo(plan, todo.id, 'cancelled') } catch {}
+              try {
+                await this.updateStoreForTodo(plan, todo.id, 'cancelled')
+              } catch {}
               continue
             }
             await writeFile.execute(target, content, { showDiff: false, createBackup: true })
@@ -493,7 +511,9 @@ export class EnhancedPlanningSystem {
                 )
                 if (!approved) {
                   todo.status = 'skipped'
-                  try { await this.updateStoreForTodo(plan, todo.id, 'cancelled') } catch {}
+                  try {
+                    await this.updateStoreForTodo(plan, todo.id, 'cancelled')
+                  } catch {}
                   continue
                 }
                 await replaceTool.execute(f, search, replacement)
@@ -505,19 +525,27 @@ export class EnhancedPlanningSystem {
           todo.status = 'completed'
           todo.completedAt = new Date()
           todo.progress = 100
-          try { await this.updateStoreForTodo(plan, todo.id, 'completed') } catch {}
+          try {
+            await this.updateStoreForTodo(plan, todo.id, 'completed')
+          } catch {}
         } catch (err: any) {
           // On any failure, mark as cancelled to keep flow going
-          if (!compact) console.log(require('chalk').red(`   ❌ Toolchain failed for todo '${todo.title}': ${err?.message || err}`))
+          if (!compact)
+            console.log(require('chalk').red(`   ❌ Toolchain failed for todo '${todo.title}': ${err?.message || err}`))
           todo.status = 'failed'
           todo.errorMessage = String(err?.message || err)
-          try { await this.updateStoreForTodo(plan, todo.id, 'cancelled') } catch {}
+          try {
+            await this.updateStoreForTodo(plan, todo.id, 'cancelled')
+          } catch {}
           // Continue with next todo
         }
       }
     } catch (error) {
       // If tool registry fails, fall back to original behavior silently (already removed above)
-      if (!compact) console.log(require('chalk').red(`Toolchain execution setup failed: ${String((error as any)?.message || error)}`))
+      if (!compact)
+        console.log(
+          require('chalk').red(`Toolchain execution setup failed: ${String((error as any)?.message || error)}`)
+        )
     }
   }
 
@@ -555,7 +583,11 @@ export class EnhancedPlanningSystem {
             `${chalk.gray('Description:')} ${description}\n` +
             `${chalk.gray('Risk Level:')} ${risk.toUpperCase()}\n\n` +
             `${chalk.yellow('Proceed with this operation?')}`,
-          { padding: 1, borderColor: risk === 'high' ? 'red' : risk === 'medium' ? 'yellow' : 'cyan', borderStyle: 'round' }
+          {
+            padding: 1,
+            borderColor: risk === 'high' ? 'red' : risk === 'medium' ? 'yellow' : 'cyan',
+            borderStyle: 'round',
+          }
         )
       )
 
@@ -567,7 +599,9 @@ export class EnhancedPlanningSystem {
       } catch {}
 
       // Suspend main prompt and bypass input queue
-      try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
+      try {
+        ;(global as any).__nikCLI?.suspendPrompt?.()
+      } catch {}
       inputQueue.enableBypass()
 
       const answers = await inquirer.prompt([
@@ -590,7 +624,9 @@ export class EnhancedPlanningSystem {
       return false
     } finally {
       // Always disable bypass and redraw prompt
-      try { inputQueue.disableBypass() } catch {}
+      try {
+        inputQueue.disableBypass()
+      } catch {}
       try {
         const nik = (global as any).__nikCLI
         if (nik && typeof nik.resumePromptAndRender === 'function') nik.resumePromptAndRender()

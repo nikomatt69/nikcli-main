@@ -1,8 +1,8 @@
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { type AgentTask, agentService } from '../services/agent-service'
-import type { ToolRegistry } from '../tools/tool-registry'
 import { secureTools } from '../tools/secure-tools-registry'
+import type { ToolRegistry } from '../tools/tool-registry'
 import { CliUI } from '../utils/cli-ui'
 import type {
   ExecutionPlan,
@@ -194,7 +194,9 @@ export class PlanExecutor {
     this.displayPlanForApproval(plan)
 
     // Enable bypass for approval inputs and suspend main prompt
-    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
+    try {
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
 
     try {
@@ -238,7 +240,9 @@ export class PlanExecutor {
     } finally {
       // Always disable bypass after approval and resume prompt cleanly
       inputQueue.disableBypass()
-      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
+      try {
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 
@@ -427,7 +431,10 @@ export class PlanExecutor {
           if (!args || typeof args.message !== 'string') {
             throw new Error("git commit requires 'message' in args")
           }
-          return { routed: true, result: await secureTools.gitCommit(args as { message: string; add?: string[]; allowEmpty?: boolean }) }
+          return {
+            routed: true,
+            result: await secureTools.gitCommit(args as { message: string; add?: string[]; allowEmpty?: boolean }),
+          }
         }
         case 'applypatch':
         case 'apply_patch':
@@ -481,7 +488,9 @@ export class PlanExecutor {
   private async executeUserInput(step: ExecutionStep): Promise<any> {
     CliUI.stopSpinner()
 
-    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
+    try {
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       const answers = await inquirer.prompt([
@@ -500,7 +509,9 @@ export class PlanExecutor {
       return answers
     } finally {
       inputQueue.disableBypass()
-      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
+      try {
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 
@@ -527,7 +538,9 @@ export class PlanExecutor {
   ): Promise<'abort' | 'skip' | 'retry' | 'continue'> {
     CliUI.logError(`Step "${step.title}" failed: ${result.error?.message}`)
 
-    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
+    try {
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       // For non-critical steps, offer to continue
@@ -578,7 +591,9 @@ export class PlanExecutor {
       return 'abort'
     } finally {
       inputQueue.disableBypass()
-      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
+      try {
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 

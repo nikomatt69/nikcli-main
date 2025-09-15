@@ -1,10 +1,10 @@
-import chalk from 'chalk'
-import { BaseTool, ToolExecutionResult } from './base-tool'
-import { CoinbaseAgentKitProvider } from '../onchain/coinbase-agentkit-provider'
-import { generateText } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import type { CoreMessage } from 'ai'
+import { generateText } from 'ai'
+import chalk from 'chalk'
 import { configManager } from '../core/config-manager'
+import { CoinbaseAgentKitProvider } from '../onchain/coinbase-agentkit-provider'
+import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 /**
  * CoinbaseAgentKitTool - Official Coinbase AgentKit Integration as NikCLI Tool
@@ -40,7 +40,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
 
   /**
    * Execute blockchain operations using official Coinbase AgentKit
-   * 
+   *
    * @param action - The action to perform: 'init', 'chat', 'wallet-info', 'transfer', etc.
    * @param params - Parameters for the action
    */
@@ -132,12 +132,13 @@ export class CoinbaseAgentKitTool extends BaseTool {
             configManager.getApiKey('cdp_wallet_secret')
           if (walletFromConfig) process.env.CDP_WALLET_SECRET = walletFromConfig
         }
-      } catch { }
+      } catch {}
 
       // Check if dependencies are installed
       const isInstalled = await CoinbaseAgentKitProvider.isInstalled()
       if (!isInstalled) {
-        const error = 'Coinbase AgentKit not installed. Run: npm install @coinbase/agentkit @coinbase/agentkit-vercel-ai-sdk'
+        const error =
+          'Coinbase AgentKit not installed. Run: npm install @coinbase/agentkit @coinbase/agentkit-vercel-ai-sdk'
         console.log(chalk.red(`❌ ${error}`))
         return {
           success: false,
@@ -183,7 +184,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
           const saved = configManager.getApiKey('coinbase_wallet_address')
           if (saved) walletAddress = saved
         }
-      } catch { }
+      } catch {}
       await this.agentKitProvider.initialize({ walletAddress })
 
       // Create official agent configuration (like Coinbase CLI)
@@ -226,7 +227,6 @@ export class CoinbaseAgentKitTool extends BaseTool {
           parameters: params,
         },
       }
-
     } catch (error: any) {
       console.log(chalk.red(`❌ AgentKit initialization failed: ${error.message}`))
 
@@ -298,7 +298,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
         this.conversationMessages = this.conversationMessages.slice(-20)
       }
       let toolsUsed: string[] = []
-      const toolsUsedNames = (toolsUsed && toolsUsed.length > 0) ? ` [${toolsUsed.join(', ')}]` : ''
+      const toolsUsedNames = toolsUsed && toolsUsed.length > 0 ? ` [${toolsUsed.join(', ')}]` : ''
       console.log(chalk.green(`✅ Response generated (${toolCalls.length} tool calls)${toolsUsedNames}`))
 
       // Extract tool names if available
@@ -310,7 +310,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
             .filter(Boolean)
             .map((s: string) => String(s))
         }
-      } catch { }
+      } catch {}
 
       return {
         success: true,
@@ -327,7 +327,6 @@ export class CoinbaseAgentKitTool extends BaseTool {
           parameters: { message, options },
         },
       }
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Chat processing failed: ${error.message}`))
 
@@ -380,7 +379,6 @@ export class CoinbaseAgentKitTool extends BaseTool {
           parameters: params,
         },
       }
-
     } catch (error: any) {
       return {
         success: false,
@@ -514,16 +512,13 @@ export class CoinbaseAgentKitTool extends BaseTool {
         conversationLength: this.conversationMessages.length,
         agentConfigured: !!this.agent,
         walletConnected: !!this.agentKitProvider,
-        selectedWallet:
-          ((): string | undefined => {
-            try {
-              return (
-                configManager.getApiKey('coinbase_wallet_address') || process.env.CDP_WALLET_ADDRESS
-              )
-            } catch {
-              return process.env.CDP_WALLET_ADDRESS
-            }
-          })(),
+        selectedWallet: ((): string | undefined => {
+          try {
+            return configManager.getApiKey('coinbase_wallet_address') || process.env.CDP_WALLET_ADDRESS
+          } catch {
+            return process.env.CDP_WALLET_ADDRESS
+          }
+        })(),
         message: this.isInitialized
           ? 'AgentKit tool is ready for blockchain operations'
           : 'AgentKit tool not initialized. Use action "init" first.',
@@ -585,10 +580,14 @@ export const coinbaseAgentKitToolConfig = {
 }
 
 export type CoinbaseAgentKitToolAction =
-  | 'init' | 'initialize'
-  | 'chat' | 'message'
-  | 'wallet-info' | 'wallet'
+  | 'init'
+  | 'initialize'
+  | 'chat'
+  | 'message'
+  | 'wallet-info'
+  | 'wallet'
   | 'balance'
-  | 'transfer' | 'send'
+  | 'transfer'
+  | 'send'
   | 'status'
   | 'reset'

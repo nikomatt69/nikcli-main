@@ -20,8 +20,8 @@ import { registerAgents } from '../register-agents'
 import { memoryService } from '../services/memory-service'
 import { snapshotService } from '../services/snapshot-service'
 import { toolService } from '../services/tool-service'
-import { toolsManager } from '../tools/tools-manager'
 import { secureTools } from '../tools/secure-tools-registry'
+import { toolsManager } from '../tools/tools-manager'
 import type { AgentTask } from '../types/types'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { approvalSystem } from '../ui/approval-system'
@@ -680,10 +680,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const nik: any = (global as any).__nikCLI
       nik?.beginPanelOutput?.()
       console.log(
-        boxen(
-          'Enter your Coinbase CDP credentials. Values are stored encrypted. Leave blank to keep current.',
-          { title: '🔑 Set Coinbase Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
-        )
+        boxen('Enter your Coinbase CDP credentials. Values are stored encrypted. Leave blank to keep current.', {
+          title: '🔑 Set Coinbase Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
       )
       nik?.endPanelOutput?.()
 
@@ -2578,7 +2581,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
               // Fallback: if session todos exist, just show the dashboard instead of executing
               try {
                 const { todoStore } = await import('../store/todo-store')
-                const sessionId = ((global as any).__streamingOrchestrator?.context?.session?.id) || `${Date.now()}`
+                const sessionId = (global as any).__streamingOrchestrator?.context?.session?.id || `${Date.now()}`
                 const list = todoStore.getTodos(String(sessionId))
                 if (list.length > 0) {
                   const { advancedUI } = await import('../ui/advanced-cli-ui')
@@ -2682,7 +2685,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             // Fallback to session todos
             try {
               const { todoStore } = await import('../store/todo-store')
-              const sessionId = ((global as any).__streamingOrchestrator?.context?.session?.id) || `${Date.now()}`
+              const sessionId = (global as any).__streamingOrchestrator?.context?.session?.id || `${Date.now()}`
               const list = todoStore.getTodos(String(sessionId))
               if (list.length > 0) {
                 console.log(chalk.blue.bold('Todo List (Session):'))
@@ -2743,7 +2746,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
               // Fallback to session todos
               try {
                 const { todoStore } = await import('../store/todo-store')
-                const sessionId = ((global as any).__streamingOrchestrator?.context?.session?.id) || `${Date.now()}`
+                const sessionId = (global as any).__streamingOrchestrator?.context?.session?.id || `${Date.now()}`
                 const list = todoStore.getTodos(String(sessionId))
                 if (list.length > 0) {
                   const { advancedUI } = await import('../ui/advanced-cli-ui')
@@ -4006,9 +4009,16 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(content)
       } else if (false && sub === 'defi') {
         // Defi-specific commands intentionally disabled. Use /web3 chat and the agent's tools.
-        const panel = boxen('DeFi commands are not exposed directly. Use /web3 chat and the agent will use available action providers (e.g., DefiLlama) automatically.', {
-          title: 'Web3', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow'
-        })
+        const panel = boxen(
+          'DeFi commands are not exposed directly. Use /web3 chat and the agent will use available action providers (e.g., DefiLlama) automatically.',
+          {
+            title: 'Web3',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }
+        )
         console.log(panel)
         return { shouldExit: false, shouldUpdatePrompt: false }
       } else {
@@ -4022,7 +4032,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(panel)
       }
     } catch (error: any) {
-      const panel = boxen(`Failed to execute web3 command: ${error.message}` +
+      const panel = boxen(
+        `Failed to execute web3 command: ${error.message}` +
           '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
         { title: 'Web3 Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
       )
@@ -4188,7 +4199,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const calls = typeof dataBlock.toolCalls === 'number' ? dataBlock.toolCalls : 0
       const results = typeof dataBlock.toolResults === 'number' ? dataBlock.toolResults : 0
       const toolsUsed = Array.isArray(dataBlock.toolsUsed) ? dataBlock.toolsUsed : []
-      lines.push(chalk.gray(`Tools: calls=${calls}, results=${results}${toolsUsed.length ? `, used=${toolsUsed.join(', ')}` : ''}`))
+      lines.push(
+        chalk.gray(
+          `Tools: calls=${calls}, results=${results}${toolsUsed.length ? `, used=${toolsUsed.join(', ')}` : ''}`
+        )
+      )
       if (dataBlock?.response) {
         lines.push('')
         lines.push(chalk.white(dataBlock.response))

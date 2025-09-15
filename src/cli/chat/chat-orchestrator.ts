@@ -106,8 +106,8 @@ export class ChatOrchestrator {
         version: '0.1.1',
         currentTasks: 0,
         maxConcurrentTasks: 1,
-        initialize: async () => { },
-        cleanup: async () => { },
+        initialize: async () => {},
+        cleanup: async () => {},
         executeTodo: async (todo) => {
           try {
             const INIT_DELAY = 500

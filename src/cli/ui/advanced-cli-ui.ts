@@ -876,12 +876,14 @@ export class AdvancedCliUI {
     }>,
     title: string = 'Plan Todos'
   ): void {
-    const items = (todos || []).map((t) => ({
-      text: (t.title || t.content || '').trim(),
-      status: (t.status || 'pending').toLowerCase(),
-      priority: (t.priority || '').toLowerCase(),
-      progress: typeof t.progress === 'number' ? Math.max(0, Math.min(100, Math.round(t.progress))) : undefined,
-    })).filter((x) => x.text)
+    const items = (todos || [])
+      .map((t) => ({
+        text: (t.title || t.content || '').trim(),
+        status: (t.status || 'pending').toLowerCase(),
+        priority: (t.priority || '').toLowerCase(),
+        progress: typeof t.progress === 'number' ? Math.max(0, Math.min(100, Math.round(t.progress))) : undefined,
+      }))
+      .filter((x) => x.text)
 
     // Order pending by priority (high -> medium -> low)
     const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 }
@@ -932,9 +934,10 @@ export class AdvancedCliUI {
       const lines: string[] = []
       lines.push(this.theme.secondary.bold(heading))
       list.forEach((i) => {
-        const bar = opts?.showBars && i.status === 'in_progress' && typeof i.progress === 'number'
-          ? ` ${this.theme.muted('[' + '█'.repeat(Math.floor(i.progress / 5)) + '░'.repeat(20 - Math.floor(i.progress / 5)) + `] ${i.progress}%`)}`
-          : ''
+        const bar =
+          opts?.showBars && i.status === 'in_progress' && typeof i.progress === 'number'
+            ? ` ${this.theme.muted('[' + '█'.repeat(Math.floor(i.progress / 5)) + '░'.repeat(20 - Math.floor(i.progress / 5)) + `] ${i.progress}%`)}`
+            : ''
         const badge = opts?.showBadges ? ` ${prioBadge(i.priority)}` : ''
         lines.push(`  ${statusIcon(i.status)}${badge} ${fmt(i.status)(i.text)}${bar}`)
       })

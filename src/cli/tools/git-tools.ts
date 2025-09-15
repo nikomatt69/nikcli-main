@@ -6,7 +6,7 @@ import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-import { SecureCommandTool, type CommandResult } from './secure-command-tool'
+import { type CommandResult, SecureCommandTool } from './secure-command-tool'
 
 export type GitAction = 'status' | 'diff' | 'commit' | 'applyPatch'
 
@@ -103,7 +103,13 @@ export class GitTools extends BaseTool {
     }
   }
 
-  private parseStatus(res: CommandResult): { branch?: string; ahead?: number; behind?: number; changes: any[]; summary: string } {
+  private parseStatus(res: CommandResult): {
+    branch?: string
+    ahead?: number
+    behind?: number
+    changes: any[]
+    summary: string
+  } {
     const lines = res.stdout.split('\n')
     let branch: string | undefined
     let ahead = 0
@@ -144,21 +150,45 @@ export class GitTools extends BaseTool {
     const status = await this.status()
     const changes = status.data?.changes || []
     if (changes.length === 0) {
-      return { success: false, error: 'No changes to commit', data: null, metadata: { executionTime: 0, toolName: this.getName(), parameters: { action: 'commit' } } }
+      return {
+        success: false,
+        error: 'No changes to commit',
+        data: null,
+        metadata: { executionTime: 0, toolName: this.getName(), parameters: { action: 'commit' } },
+      }
     }
 
-    try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
+    try {
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       console.log(chalk.blue(`\n📝 Commit message:`))
       console.log(chalk.gray(args.message))
       const { confirmed } = await inquirer.prompt([
-        { type: 'list', name: 'confirmed', message: `Commit ${changes.length} changes?`, choices: [ { name: 'Yes', value: true }, { name: 'No', value: false } ], default: 1 },
+        {
+          type: 'list',
+          name: 'confirmed',
+          message: `Commit ${changes.length} changes?`,
+          choices: [
+            { name: 'Yes', value: true },
+            { name: 'No', value: false },
+          ],
+          default: 1,
+        },
       ])
-      if (!confirmed) return { success: false, error: 'Commit cancelled by user', data: null, metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: { action: 'commit' } } }
+      if (!confirmed)
+        return {
+          success: false,
+          error: 'Commit cancelled by user',
+          data: null,
+          metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: { action: 'commit' } },
+        }
     } finally {
       inputQueue.disableBypass()
-      try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
+      try {
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
 
     // Optionally add files
@@ -166,7 +196,9 @@ export class GitTools extends BaseTool {
       await this.runner.execute(`git add -- ${args.add.join(' ')}`, { skipConfirmation: true })
     }
     const allowEmptyFlag = args.allowEmpty ? ' --allow-empty' : ''
-    const res = await this.runner.execute(`git commit -m ${JSON.stringify(args.message)}${allowEmptyFlag}`, { skipConfirmation: true })
+    const res = await this.runner.execute(`git commit -m ${JSON.stringify(args.message)}${allowEmptyFlag}`, {
+      skipConfirmation: true,
+    })
     return {
       success: res.exitCode === 0,
       data: { stdout: res.stdout, stderr: res.stderr },
@@ -184,26 +216,64 @@ export class GitTools extends BaseTool {
     try {
       const check = await this.runner.execute(`git apply --check ${JSON.stringify(tmp)}`, { skipConfirmation: true })
       if (check.exitCode !== 0) {
-        return { success: false, error: 'Patch does not apply cleanly', data: { stderr: check.stderr }, metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: { action: 'applyPatch' } } }
+        return {
+          success: false,
+          error: 'Patch does not apply cleanly',
+          data: { stderr: check.stderr },
+          metadata: {
+            executionTime: Date.now() - start,
+            toolName: this.getName(),
+            parameters: { action: 'applyPatch' },
+          },
+        }
       }
 
       // Confirm application
-      try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
+      try {
+        ;(global as any).__nikCLI?.suspendPrompt?.()
+      } catch {}
       inputQueue.enableBypass()
       try {
         const { confirmed } = await inquirer.prompt([
-          { type: 'list', name: 'confirmed', message: 'Apply patch to working tree?', choices: [ { name: 'Yes', value: true }, { name: 'No', value: false } ], default: 1 },
+          {
+            type: 'list',
+            name: 'confirmed',
+            message: 'Apply patch to working tree?',
+            choices: [
+              { name: 'Yes', value: true },
+              { name: 'No', value: false },
+            ],
+            default: 1,
+          },
         ])
-        if (!confirmed) return { success: false, error: 'Patch application cancelled', data: null, metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: { action: 'applyPatch' } } }
+        if (!confirmed)
+          return {
+            success: false,
+            error: 'Patch application cancelled',
+            data: null,
+            metadata: {
+              executionTime: Date.now() - start,
+              toolName: this.getName(),
+              parameters: { action: 'applyPatch' },
+            },
+          }
       } finally {
         inputQueue.disableBypass()
-        try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
+        try {
+          ;(global as any).__nikCLI?.resumePromptAndRender?.()
+        } catch {}
       }
 
       const res = await this.runner.execute(`git apply ${JSON.stringify(tmp)}`, { skipConfirmation: true })
-      return { success: res.exitCode === 0, data: { stdout: res.stdout, stderr: res.stderr }, metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: { action: 'applyPatch' } } }
+      return {
+        success: res.exitCode === 0,
+        data: { stdout: res.stdout, stderr: res.stderr },
+        metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: { action: 'applyPatch' } },
+      }
     } finally {
-      try { fs.unlinkSync(tmp) } catch {}
+      try {
+        fs.unlinkSync(tmp)
+      } catch {}
     }
   }
 

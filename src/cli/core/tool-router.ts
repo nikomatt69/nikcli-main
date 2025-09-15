@@ -345,11 +345,7 @@ export class ToolRouter extends EventEmitter {
       ],
       priority: 7,
       description: 'Blockchain/Web3 operations via Coinbase AgentKit',
-      examples: [
-        'check my wallet balance',
-        'transfer 0.1 ETH to 0x...',
-        'use coinbase agentkit to send usdc',
-      ],
+      examples: ['check my wallet balance', 'transfer 0.1 ETH to 0x...', 'use coinbase agentkit to send usdc'],
     },
   ]
 

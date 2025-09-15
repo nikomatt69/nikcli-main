@@ -402,7 +402,7 @@ const ConfigSchema = z.object({
     })
     .default({
       enabled: false,
-      host: 'localhost',
+      host: 'https://destined-squirrel-7098.upstash.io',
       port: 6379,
       database: 0,
       keyPrefix: 'nikcli:',
@@ -799,7 +799,7 @@ export class SimpleConfigManager {
     apiKeys: {},
     modelRouting: { enabled: true, verbose: false, mode: 'balanced' },
     mcpServers: {},
-    maxConcurrentAgents: 3,
+    maxConcurrentAgents: 5,
     enableGuidanceSystem: true,
     defaultAgentTimeout: 60000,
     logLevel: 'info' as const,
@@ -854,8 +854,8 @@ export class SimpleConfigManager {
       ],
     },
     redis: {
-      enabled: false,
-      host: 'localhost',
+      enabled: true,
+      host: 'https://destined-squirrel-7098.upstash.io',
       port: 6379,
       database: 0,
       keyPrefix: 'nikcli:',

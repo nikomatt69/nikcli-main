@@ -1031,26 +1031,31 @@ export class AgentService extends EventEmitter {
     }
   }
 
-  private analyzeDiffForIssues(diff: any, files: string[]): string[] {
-    const findings = []
-    if (files.includes('package.json')) {
+  private analyzeDiffForIssues(
+    diff: any,
+    files: Array<string | { path: string; status?: string }>
+  ): string[] {
+    const paths = files.map((f: any) => (typeof f === 'string' ? f : f?.path || ''))
+    const findings: string[] = []
+    if (paths.includes('package.json')) {
       findings.push('Package dependencies modified - verify security and compatibility')
     }
-    if (files.some((f) => f.includes('.env'))) {
+    if (paths.some((p) => typeof p === 'string' && p.includes('.env'))) {
       findings.push('Environment files changed - ensure no secrets are exposed')
     }
-    if (files.some((f) => f.endsWith('.ts') || f.endsWith('.js'))) {
+    if (paths.some((p) => typeof p === 'string' && (p.endsWith('.ts') || p.endsWith('.js')))) {
       findings.push('Code files modified - review for logic errors and performance impact')
     }
     return findings.length > 0 ? findings : ['Code changes appear standard - no major concerns identified']
   }
 
-  private performSecurityReview(files: string[]): string[] {
-    const securityIssues = []
-    if (files.some((f) => f.includes('auth') || f.includes('login'))) {
+  private performSecurityReview(files: Array<string | { path: string; status?: string }>): string[] {
+    const paths = files.map((f: any) => (typeof f === 'string' ? f : f?.path || ''))
+    const securityIssues: string[] = []
+    if (paths.some((p) => typeof p === 'string' && (p.includes('auth') || p.includes('login')))) {
       securityIssues.push('Authentication-related files - verify proper input validation')
     }
-    if (files.some((f) => f.includes('api') || f.includes('route'))) {
+    if (paths.some((p) => typeof p === 'string' && (p.includes('api') || p.includes('route')))) {
       securityIssues.push('API endpoints modified - ensure proper authorization checks')
     }
     return securityIssues.length > 0 ? securityIssues : ['No obvious security concerns identified']

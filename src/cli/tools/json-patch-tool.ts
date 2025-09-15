@@ -128,12 +128,22 @@ export class JsonPatchTool extends BaseTool {
 
       // Confirmation unless previewOnly
       if (!params.previewOnly && !params.skipConfirmation) {
-        try { (global as any).__nikCLI?.suspendPrompt?.() } catch {}
+        try {
+          ;(global as any).__nikCLI?.suspendPrompt?.()
+        } catch {}
         inputQueue.enableBypass()
         try {
           const { confirmed } = await inquirer.prompt([
-            { type: 'list', name: 'confirmed', message: 'Apply JSON patch to file?', choices: [
-              { name: 'Yes', value: true }, { name: 'No', value: false }], default: 1 },
+            {
+              type: 'list',
+              name: 'confirmed',
+              message: 'Apply JSON patch to file?',
+              choices: [
+                { name: 'Yes', value: true },
+                { name: 'No', value: false },
+              ],
+              default: 1,
+            },
           ])
           if (!confirmed) {
             return {
@@ -145,7 +155,9 @@ export class JsonPatchTool extends BaseTool {
           }
         } finally {
           inputQueue.disableBypass()
-          try { (global as any).__nikCLI?.resumePromptAndRender?.() } catch {}
+          try {
+            ;(global as any).__nikCLI?.resumePromptAndRender?.()
+          } catch {}
         }
       }
 
