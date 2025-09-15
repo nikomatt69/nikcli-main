@@ -1194,8 +1194,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
           if (abortSignal?.aborted) {
             yield {
               type: 'error',
-              error: 'Interrupted by user',
-              content: 'Stream processing interrupted',
+              error: 'Stream interrupted',
+              content: '⏹️ Streaming stopped by user. You can start a new conversation anytime.',
             }
             break
           }
@@ -1392,10 +1392,11 @@ Respond in a helpful, professional manner with clear explanations and actionable
           }
         } catch (deltaError: any) {
           // Stream delta error occurred
+          const friendlyMessage = this.getFriendlyErrorMessage(deltaError.message)
           yield {
             type: 'error',
-            error: deltaError.message,
-            content: `Stream error: ${deltaError.message}`,
+            error: 'Streaming issue',
+            content: friendlyMessage,
           }
         }
       }
@@ -1405,8 +1406,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
         // No text received from model
         yield {
           type: 'error',
-          error: 'Empty response',
-          content: 'No text was generated - possible parameter mismatch',
+          error: 'No response',
+          content: '🤔 No response was generated. Try rephrasing your question or check your API keys.',
         }
       }
 
@@ -1423,10 +1424,11 @@ Respond in a helpful, professional manner with clear explanations and actionable
       }
     } catch (error: any) {
       console.error(`Provider error (${this.getCurrentModelInfo().config.provider}):`, error)
+      const friendlyMessage = this.getFriendlyErrorMessage(error.message)
       yield {
         type: 'error',
-        error: error.message,
-        content: `System error: ${error.message} (Provider: ${this.getCurrentModelInfo().config.provider})`,
+        error: 'System error',
+        content: friendlyMessage,
       }
     }
   }
@@ -1622,6 +1624,46 @@ Stay within project directory.`,
     } catch {
       return '[unstringifiable context]'
     }
+  }
+
+  /**
+   * Convert technical error messages to user-friendly ones with helpful suggestions
+   */
+  private getFriendlyErrorMessage(errorMessage: string): string {
+    const lowerError = errorMessage.toLowerCase()
+
+    // Token limit errors
+    if (lowerError.includes('token') || lowerError.includes('limit') || lowerError.includes('too long')) {
+      return '📏 Message too long. Try breaking it into smaller, more specific questions.'
+    }
+
+    // Network/connection errors
+    if (lowerError.includes('network') || lowerError.includes('connection') || lowerError.includes('timeout')) {
+      return '🌐 Connection issue. Check your internet connection and try again.'
+    }
+
+    // API key errors
+    if (lowerError.includes('api key') || lowerError.includes('auth') || lowerError.includes('unauthorized')) {
+      return '🔑 API key issue. Check your configuration with `/config` command.'
+    }
+
+    // Rate limit errors
+    if (lowerError.includes('rate limit') || lowerError.includes('quota')) {
+      return '⏳ Rate limit reached. Please wait a moment and try again.'
+    }
+
+    // Model not found
+    if (lowerError.includes('model not found') || lowerError.includes('invalid model')) {
+      return '🤖 Model not available. Try switching models with `/models` command.'
+    }
+
+    // Generic server errors
+    if (lowerError.includes('500') || lowerError.includes('server error')) {
+      return '⚠️ Server temporarily unavailable. Please try again in a few moments.'
+    }
+
+    // Default fallback with suggestion
+    return `❌ ${errorMessage} • Try rephrasing your request or check your configuration.`
   }
 
   // Helper methods for intelligent analysis
