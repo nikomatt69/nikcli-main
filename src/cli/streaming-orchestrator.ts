@@ -550,48 +550,68 @@ class StreamingOrchestratorImpl extends EventEmitter {
         let hasContent = false
         let streamBuffer = ''
 
-        try {
-          this.queueMessage({
-            type: 'system',
-            content: `🌊 Starting AI streaming...`,
-          })
+        let retryCount = 0
+        const maxRetries = 3
 
-          for await (const chunk of this.activeVMAgent.processChatMessageStreaming(message)) {
-            CliUI.logDebug(`📦 Received chunk: ${chunk ? chunk.slice(0, 50) : 'null'}...`)
-
-            if (chunk && chunk.trim()) {
-              hasContent = true
-              streamBuffer += chunk
-
-              // Create streaming message for VM content
+        while (retryCount < maxRetries && !hasContent) {
+          try {
+            if (retryCount > 0) {
               this.queueMessage({
-                type: 'vm',
-                content: chunk,
-                metadata: {
-                  isStreaming: true,
-                  vmAgentId: this.activeVMAgent.id,
-                  chunkLength: chunk.length,
-                },
+                type: 'system',
+                content: `🔄 Retry attempt ${retryCount}/${maxRetries} for VM Agent streaming...`,
               })
+              // Exponential backoff
+              await new Promise((resolve) => setTimeout(resolve, Math.pow(2, retryCount) * 1000))
+            } else {
+              this.queueMessage({
+                type: 'system',
+                content: `🌊 Starting AI streaming...`,
+              })
+            }
 
-              // Small delay to prevent flooding
-              await new Promise((resolve) => setTimeout(resolve, 50))
+            for await (const chunk of this.activeVMAgent.processChatMessageStreaming(message)) {
+              CliUI.logDebug(`📦 Received chunk: ${chunk ? chunk.slice(0, 50) : 'null'}...`)
+
+              if (chunk && chunk.trim()) {
+                hasContent = true
+                streamBuffer += chunk
+
+                // Create streaming message for VM content
+                this.queueMessage({
+                  type: 'vm',
+                  content: chunk,
+                  metadata: {
+                    isStreaming: true,
+                    vmAgentId: this.activeVMAgent.id,
+                    chunkLength: chunk.length,
+                  },
+                })
+
+                // Reduced delay to improve responsiveness
+                await new Promise((resolve) => setTimeout(resolve, 25))
+              }
+            }
+
+            if (hasContent) {
+              this.queueMessage({
+                type: 'system',
+                content: `✅ VM Agent ${this.activeVMAgent.id.slice(-8)}: Streaming completed (${streamBuffer.length} chars)`,
+              })
+              break // Success, exit retry loop
+            }
+          } catch (streamError: any) {
+            retryCount++
+            CliUI.logError(`❌ Streaming error attempt ${retryCount}: ${streamError.message}`)
+
+            if (retryCount >= maxRetries) {
+              this.queueMessage({
+                type: 'error',
+                content: `❌ VM Agent streaming failed after ${maxRetries} attempts: ${streamError.message}`,
+              })
+              hasContent = false
+              break
             }
           }
-
-          this.queueMessage({
-            type: 'system',
-            content: `✅ VM Agent ${this.activeVMAgent.id.slice(-8)}: Streaming completed (${streamBuffer.length} chars)`,
-          })
-        } catch (streamError: any) {
-          CliUI.logError(`❌ Streaming error details: ${streamError.message}`)
-          this.queueMessage({
-            type: 'error',
-            content: `❌ VM Agent streaming error: ${streamError.message}`,
-          })
-
-          // Fallback to non-streaming
-          hasContent = false
         }
 
         // If no streaming content, show placeholder

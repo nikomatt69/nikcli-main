@@ -2,7 +2,7 @@
 
 **Transform your development workflow with intelligent AI agents that understand your code, execute commands, and build applications autonomously.**
 
-[![npm](https://img.shields.io/npm/v/@cadcamfun/nikcli)](https://www.npmjs.com/package/@cadcamfun/nikcli)
+[![npm](https://img.shields.io/npm/v/@nicomatt69/nikcli)](https://www.npmjs.com/package/@nicomatt69/nikcli)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -13,10 +13,10 @@
 
 ```bash
 # Global installation (recommended)
-npm install -g @cadcamfun/nikcli
+npm install -g @nicomatt69/nikcli
 
 # Or with yarn
-yarn global add @cadcamfun/nikcli
+yarn global add @nicomatt69/nikcli
 ```
 
 ### First Run
@@ -44,7 +44,7 @@ nikcli
 - **📊 Multiple AI Providers**: Claude, GPT, Gemini, Ollama support
 - **🚀 Production Ready**: Comprehensive testing and enterprise-grade architecture
 
-### 🆕 New CLI UI Enhancements (v1.1.0+)
+### 🆕 New CLI UI Enhancements (v0.1.0+)
 
 NikCLI now features an advanced, interactive CLI interface with rich UI components for better user experience, especially in VM management and code review workflows:
 

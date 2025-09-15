@@ -273,7 +273,7 @@ export default UserProfile;`
 
     const newContent = `{
   "name": "my-app",
-  "version": "1.1.0",
+  "version": "0.1.0",
   "description": "A modern web application with enhanced features",
   "scripts": {
     "start": "node server.js",

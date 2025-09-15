@@ -5,11 +5,11 @@ set -euo pipefail
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
 #   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash 
-#   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 1.1.0
+#   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 0.1.0
 
 
-VERSION="1.1.0"
-PACKAGE="@cadcamfun/nikcli"
+VERSION="0.1.0"
+PACKAGE="@nicomatt69/nikcli"
 
 log() { echo -e "[NikCLI] $*"; }
 err() { echo -e "[NikCLI][ERROR] $*" >&2; }
@@ -24,7 +24,7 @@ Options:
 
 Examples:
   
-  bash install.sh --version 1.1.0
+  bash install.sh --version 0.1.0
 EOF
 }
 

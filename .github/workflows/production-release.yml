@@ -362,7 +362,7 @@ jobs:
 
             **Using npm:**
             ```bash
-            npm install -g @cadcamfun/nikcli
+            npm install -g @nicomatt69/nikcli
             ```
 
             **Direct binary:**

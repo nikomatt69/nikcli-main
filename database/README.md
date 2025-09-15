@@ -5,11 +5,12 @@ This directory contains the complete database schema and migrations for NikCLI's
 ## 📋 Overview
 
 The database schema enables:
+
 - **User Management** - Enhanced profiles with quotas and preferences
 - **Session Storage** - Chat sessions with metadata and versioning
 - **Agent Blueprints** - Shareable AI agent configurations
 - **Vector Search** - Semantic document search with pgvector
-- **Collaboration** - Team workspaces and real-time features  
+- **Collaboration** - Team workspaces and real-time features
 - **Analytics** - Usage metrics and performance tracking
 - **Security** - Audit logs and row-level security
 
@@ -32,7 +33,7 @@ If you prefer incremental setup:
 -- Step 1: Basic tables
 \i migrations/001_initial_schema.sql
 
--- Step 2: Advanced features  
+-- Step 2: Advanced features
 \i migrations/002_agent_blueprints.sql
 
 -- Step 3: Vector search
@@ -50,28 +51,31 @@ Add featured blueprints and demo content:
 
 ## 📊 Database Tables
 
-| Table | Purpose | Key Features |
-|-------|---------|--------------|
-| `user_profiles` | Enhanced user management | Quotas, preferences, subscription tiers |
-| `chat_sessions` | Session storage | JSONB content, versioning, sharing |
-| `agent_blueprints` | AI agent templates | Public marketplace, ratings, usage stats |
-| `metrics` | Analytics & usage | Event tracking, performance metrics |
-| `documents` | Vector search | pgvector embeddings, semantic search |
-| `user_integrations` | API key management | Encrypted storage, usage tracking |
-| `workspaces` | Team collaboration | Multi-user workspaces, permissions |
-| `workspace_members` | Workspace membership | Role-based access control |
-| `audit_logs` | Security auditing | Action tracking, compliance |
+| Table               | Purpose                  | Key Features                             |
+| ------------------- | ------------------------ | ---------------------------------------- |
+| `user_profiles`     | Enhanced user management | Quotas, preferences, subscription tiers  |
+| `chat_sessions`     | Session storage          | JSONB content, versioning, sharing       |
+| `agent_blueprints`  | AI agent templates       | Public marketplace, ratings, usage stats |
+| `metrics`           | Analytics & usage        | Event tracking, performance metrics      |
+| `documents`         | Vector search            | pgvector embeddings, semantic search     |
+| `user_integrations` | API key management       | Encrypted storage, usage tracking        |
+| `workspaces`        | Team collaboration       | Multi-user workspaces, permissions       |
+| `workspace_members` | Workspace membership     | Role-based access control                |
+| `audit_logs`        | Security auditing        | Action tracking, compliance              |
 
 ## 🔐 Security Features
 
 ### Row Level Security (RLS)
+
 All tables have RLS enabled with policies ensuring:
+
 - Users can only access their own data
 - Public content is appropriately shared
 - Workspace members have proper access
 - Admin functions are restricted
 
 ### Data Protection
+
 - **Encrypted integrations** - API keys stored securely
 - **Audit trails** - All actions logged
 - **Input validation** - Database constraints prevent invalid data
@@ -80,6 +84,7 @@ All tables have RLS enabled with policies ensuring:
 ## 🔍 Advanced Features
 
 ### Vector Search
+
 ```sql
 -- Semantic document search example
 SELECT * FROM search_documents(
@@ -91,18 +96,21 @@ SELECT * FROM search_documents(
 ```
 
 ### Real-time Subscriptions
+
 ```javascript
 // Listen for session changes
 supabase
-  .channel('session-changes')
-  .on('postgres_changes', 
-    { event: '*', schema: 'public', table: 'chat_sessions' },
-    payload => console.log('Session updated:', payload)
+  .channel("session-changes")
+  .on(
+    "postgres_changes",
+    { event: "*", schema: "public", table: "chat_sessions" },
+    (payload) => console.log("Session updated:", payload)
   )
-  .subscribe()
+  .subscribe();
 ```
 
 ### Usage Analytics
+
 ```sql
 -- Get user statistics
 SELECT * FROM get_user_stats('user-id');
@@ -114,27 +122,30 @@ SELECT * FROM popular_blueprints LIMIT 10;
 ## 📈 Performance Optimization
 
 ### Indexes
+
 - **B-tree indexes** on frequently queried columns
-- **GIN indexes** for JSONB and array columns  
+- **GIN indexes** for JSONB and array columns
 - **Vector indexes** for similarity search
 - **Composite indexes** for complex queries
 
 ### Query Performance
+
 ```sql
 -- Optimized session queries
-EXPLAIN ANALYZE SELECT * FROM chat_sessions 
-WHERE user_id = $1 AND status = 'active' 
+EXPLAIN ANALYZE SELECT * FROM chat_sessions
+WHERE user_id = $1 AND status = 'active'
 ORDER BY updated_at DESC;
 
 -- Vector search performance
-EXPLAIN ANALYZE SELECT * FROM documents 
-WHERE embedding <=> $1 < 0.2 
+EXPLAIN ANALYZE SELECT * FROM documents
+WHERE embedding <=> $1 < 0.2
 ORDER BY embedding <=> $1 LIMIT 10;
 ```
 
 ## 🔧 Maintenance
 
 ### Regular Tasks
+
 ```sql
 -- Update table statistics
 ANALYZE;
@@ -143,16 +154,17 @@ ANALYZE;
 REINDEX INDEX idx_documents_embedding;
 
 -- Clean old audit logs (quarterly)
-DELETE FROM audit_logs 
+DELETE FROM audit_logs
 WHERE created_at < NOW() - INTERVAL '90 days';
 ```
 
 ### Monitoring Queries
+
 ```sql
 -- Check table sizes
-SELECT schemaname, tablename, 
+SELECT schemaname, tablename,
        pg_total_relation_size(schemaname||'.'||tablename) as size_bytes
-FROM pg_tables 
+FROM pg_tables
 WHERE schemaname = 'public'
 ORDER BY size_bytes DESC;
 
@@ -168,12 +180,12 @@ To add fields to existing tables:
 
 ```sql
 -- Example: Add custom field to user_profiles
-ALTER TABLE user_profiles 
+ALTER TABLE user_profiles
 ADD COLUMN custom_data JSONB DEFAULT '{}'::jsonb;
 
 -- Update RLS policy if needed
 DROP POLICY IF EXISTS "Users can manage own profile" ON user_profiles;
-CREATE POLICY "Users can manage own profile" ON user_profiles 
+CREATE POLICY "Users can manage own profile" ON user_profiles
 FOR ALL USING (auth.uid() = id);
 ```
 
@@ -184,7 +196,7 @@ Add new agent categories:
 ```sql
 -- Insert custom blueprint
 INSERT INTO agent_blueprints (
-    name, agent_type, category, 
+    name, agent_type, category,
     configuration, is_public
 ) VALUES (
     'Custom Agent', 'custom-type', 'specialized',
@@ -194,18 +206,18 @@ INSERT INTO agent_blueprints (
 
 ## 📚 Schema Versions
 
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0.0 | 2024-01-18 | Initial schema with basic tables |
-| 1.1.0 | 2024-01-18 | Added agent blueprints and workspaces |
-| 1.2.0 | 2024-01-18 | Vector search and audit logging |
+| Version | Date       | Changes                               |
+| ------- | ---------- | ------------------------------------- |
+| 1.0.0   | 2024-01-18 | Initial schema with basic tables      |
+| 0.1.0   | 2024-01-18 | Added agent blueprints and workspaces |
+| 1.2.0   | 2024-01-18 | Vector search and audit logging       |
 
 ## 🤝 Contributing
 
 When modifying the schema:
 
 1. **Create migrations** for any changes
-2. **Update RLS policies** as needed  
+2. **Update RLS policies** as needed
 3. **Test performance** with realistic data
 4. **Document changes** in this README
 5. **Version appropriately** following semver

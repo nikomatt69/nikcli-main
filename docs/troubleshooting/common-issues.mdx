@@ -1,7 +1,7 @@
 ---
-title: 'Common Issues'
-description: 'Solutions to frequently encountered problems with NikCLI'
-icon: 'wrench'
+title: "Common Issues"
+description: "Solutions to frequently encountered problems with NikCLI"
+icon: "wrench"
 ---
 
 ## Quick Diagnostics
@@ -10,18 +10,10 @@ If you're experiencing issues with NikCLI, start with these diagnostic commands:
 
 <CardGroup cols={2}>
   <Card title="System Check" icon="stethoscope">
-    ```bash
-    nikcli --version
-    nikcli config list
-    nikcli debug
-    ```
+    ```bash nikcli --version nikcli config list nikcli debug ```
   </Card>
   <Card title="Connection Test" icon="wifi">
-    ```bash
-    nikcli test connection
-    nikcli models
-    nikcli agents
-    ```
+    ```bash nikcli test connection nikcli models nikcli agents ```
   </Card>
 </CardGroup>
 
@@ -31,142 +23,68 @@ If you're experiencing issues with NikCLI, start with these diagnostic commands:
 
 <AccordionGroup>
   <Accordion title="Error: Node.js version 18+ required">
-    **Problem:** NikCLI requires Node.js 18 or higher
-    
-    **Symptoms:**
-    ```bash
-    Error: NikCLI requires Node.js version 18 or higher. 
-    Current version: v16.14.0
-    ```
-    
-    **Solutions:**
-    
+    **Problem:** NikCLI requires Node.js 18 or higher **Symptoms:** ```bash
+    Error: NikCLI requires Node.js version 18 or higher. Current version:
+    v16.14.0 ``` **Solutions:**
     <Tabs>
       <Tab title="Using NVM (Recommended)">
-        ```bash
-        # Install Node Version Manager
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-        
-        # Restart terminal or source profile
-        source ~/.bashrc
-        
-        # Install and use Node.js 18
-        nvm install 18
-        nvm use 18
-        nvm alias default 18
-        
-        # Verify installation
-        node --version  # Should show v18.x.x
-        ```
+        ```bash # Install Node Version Manager curl -o-
+        https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash #
+        Restart terminal or source profile source ~/.bashrc # Install and use
+        Node.js 18 nvm install 18 nvm use 18 nvm alias default 18 # Verify
+        installation node --version # Should show v18.x.x ```
       </Tab>
-      
+
       <Tab title="Using Homebrew (macOS)">
-        ```bash
-        # Update Homebrew
-        brew update
-        
-        # Install Node.js 18
-        brew install node@18
-        
-        # Link the version
-        brew link node@18 --force
-        
-        # Verify installation
-        node --version
-        ```
+        ```bash # Update Homebrew brew update # Install Node.js 18 brew install
+        node@18 # Link the version brew link node@18 --force # Verify
+        installation node --version ```
       </Tab>
-      
+
       <Tab title="Using Official Installer">
-        1. Download Node.js 18+ from [nodejs.org](https://nodejs.org)
-        2. Run the installer for your operating system
-        3. Restart your terminal
-        4. Verify with `node --version`
+        1. Download Node.js 18+ from [nodejs.org](https://nodejs.org) 2. Run the
+        installer for your operating system 3. Restart your terminal 4. Verify
+        with `node --version`
       </Tab>
     </Tabs>
   </Accordion>
-  
+
   <Accordion title="Permission Denied During Installation">
     **Problem:** Insufficient permissions for global npm installation
-    
-    **Symptoms:**
-    ```bash
-    npm ERR! Error: EACCES: permission denied, mkdir '/usr/local/lib/node_modules'
-    ```
-    
-    **Solutions:**
-    
+    **Symptoms:** ```bash npm ERR! Error: EACCES: permission denied, mkdir
+    '/usr/local/lib/node_modules' ``` **Solutions:**
     <Tabs>
       <Tab title="Configure npm Directory (Recommended)">
-        ```bash
-        # Create a directory for global installations
-        mkdir ~/.npm-global
-        
-        # Configure npm to use the new directory
-        npm config set prefix '~/.npm-global'
-        
-        # Add to your shell profile
-        echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
-        source ~/.bashrc
-        
-        # Install NikCLI
-        npm install -g @cadcamfun/nikcli
-        ```
+        ```bash # Create a directory for global installations mkdir
+        ~/.npm-global # Configure npm to use the new directory npm config set
+        prefix '~/.npm-global' # Add to your shell profile echo 'export
+        PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc source ~/.bashrc # Install
+        NikCLI npm install -g @nicomatt69/nikcli ```
       </Tab>
-      
+
       <Tab title="Use Sudo (Not Recommended)">
-        ```bash
-        # Only use if other methods fail
-        sudo npm install -g @cadcamfun/nikcli
-        
-        # Fix ownership issues
-        sudo chown -R $(whoami) $(npm config get prefix)/{lib/node_modules,bin,share}
+        ```bash # Only use if other methods fail sudo npm install -g
+        @nicomatt69/nikcli # Fix ownership issues sudo chown -R $(whoami) $(npm
+        config get prefix)/{(lib / node_modules, bin, share)}
         ```
       </Tab>
-      
+
       <Tab title="Use npx (Alternative)">
-        ```bash
-        # Run without global installation
-        npx @cadcamfun/nikcli
-        
-        # Create an alias for convenience
-        echo 'alias nikcli="npx @cadcamfun/nikcli"' >> ~/.bashrc
-        source ~/.bashrc
-        ```
+        ```bash # Run without global installation npx @nicomatt69/nikcli #
+        Create an alias for convenience echo 'alias nikcli="npx
+        @nicomatt69/nikcli"' >> ~/.bashrc source ~/.bashrc ```
       </Tab>
     </Tabs>
   </Accordion>
-  
+
   <Accordion title="Command Not Found After Installation">
-    **Problem:** NikCLI installed but not found in PATH
-    
-    **Symptoms:**
-    ```bash
-    bash: nikcli: command not found
-    ```
-    
-    **Solutions:**
-    
-    1. **Check Installation Location:**
-    ```bash
-    npm list -g @cadcamfun/nikcli
-    npm config get prefix
-    ```
-    
-    2. **Add to PATH:**
-    ```bash
-    # Find npm bin directory
-    npm bin -g
-    
-    # Add to PATH (adjust path as needed)
-    echo 'export PATH=$(npm bin -g):$PATH' >> ~/.bashrc
-    source ~/.bashrc
-    ```
-    
-    3. **Verify PATH Configuration:**
-    ```bash
-    echo $PATH
-    which nikcli
-    ```
+    **Problem:** NikCLI installed but not found in PATH **Symptoms:** ```bash
+    bash: nikcli: command not found ``` **Solutions:** 1. **Check Installation
+    Location:** ```bash npm list -g @nicomatt69/nikcli npm config get prefix ```
+    2. **Add to PATH:** ```bash # Find npm bin directory npm bin -g # Add to
+    PATH (adjust path as needed) echo 'export PATH=$(npm bin -g):$PATH' >>
+    ~/.bashrc source ~/.bashrc ``` 3. **Verify PATH Configuration:** ```bash
+    echo $PATH which nikcli ```
   </Accordion>
 </AccordionGroup>
 
@@ -176,123 +94,52 @@ If you're experiencing issues with NikCLI, start with these diagnostic commands:
 
 <AccordionGroup>
   <Accordion title="API Key Not Detected">
-    **Problem:** NikCLI cannot find your API key
-    
-    **Symptoms:**
-    ```bash
-    Error: No API key configured. Please set your API key.
-    Available providers: anthropic, openai, google
-    ```
-    
-    **Solutions:**
-    
+    **Problem:** NikCLI cannot find your API key **Symptoms:** ```bash Error: No
+    API key configured. Please set your API key. Available providers: anthropic,
+    openai, google ``` **Solutions:**
     <Tabs>
       <Tab title="Environment Variables">
-        ```bash
-        # Set API key in environment
-        export ANTHROPIC_API_KEY="sk-ant-api03-..."
-        
-        # Make it persistent
-        echo 'export ANTHROPIC_API_KEY="your-key"' >> ~/.bashrc
-        source ~/.bashrc
-        
-        # Verify it's set
-        echo $ANTHROPIC_API_KEY
-        ```
+        ```bash # Set API key in environment export
+        ANTHROPIC_API_KEY="sk-ant-api03-..." # Make it persistent echo 'export
+        ANTHROPIC_API_KEY="your-key"' >> ~/.bashrc source ~/.bashrc # Verify
+        it's set echo $ANTHROPIC_API_KEY ```
       </Tab>
-      
+
       <Tab title="Configuration Command">
-        ```bash
-        # Set via NikCLI command
-        nikcli config set anthropic-api-key "sk-ant-api03-..."
-        
-        # Verify configuration
-        nikcli config get anthropic-api-key
-        ```
+        ```bash # Set via NikCLI command nikcli config set anthropic-api-key
+        "sk-ant-api03-..." # Verify configuration nikcli config get
+        anthropic-api-key ```
       </Tab>
-      
+
       <Tab title="Interactive Setup">
-        ```bash
-        # Run debug command for guided setup
-        nikcli debug
-        
-        # Follow the prompts to configure API keys
-        ```
+        ```bash # Run debug command for guided setup nikcli debug # Follow the
+        prompts to configure API keys ```
       </Tab>
     </Tabs>
   </Accordion>
-  
+
   <Accordion title="Invalid API Key Error">
     **Problem:** API key is invalid or has insufficient permissions
-    
-    **Symptoms:**
-    ```bash
-    Error: Invalid API key or insufficient permissions
-    Status: 401 Unauthorized
-    ```
-    
-    **Solutions:**
-    
-    1. **Verify API Key:**
-    ```bash
-    # Check current configuration
-    nikcli debug
-    
-    # Test specific provider
-    nikcli test connection anthropic
-    ```
-    
-    2. **Check API Key Format:**
-    - **Anthropic**: Should start with `sk-ant-api03-`
-    - **OpenAI**: Should start with `sk-`
-    - **Google**: Should be a string without specific prefix
-    
-    3. **Verify Permissions:**
-    - Ensure API key has required scopes
-    - Check usage limits and quotas
-    - Verify account status
-    
-    4. **Generate New Key:**
-    - Go to your provider's console
-    - Generate a new API key
-    - Update NikCLI configuration
+    **Symptoms:** ```bash Error: Invalid API key or insufficient permissions
+    Status: 401 Unauthorized ``` **Solutions:** 1. **Verify API Key:** ```bash #
+    Check current configuration nikcli debug # Test specific provider nikcli
+    test connection anthropic ``` 2. **Check API Key Format:** - **Anthropic**:
+    Should start with `sk-ant-api03-` - **OpenAI**: Should start with `sk-` -
+    **Google**: Should be a string without specific prefix 3. **Verify
+    Permissions:** - Ensure API key has required scopes - Check usage limits and
+    quotas - Verify account status 4. **Generate New Key:** - Go to your
+    provider's console - Generate a new API key - Update NikCLI configuration
   </Accordion>
-  
+
   <Accordion title="Rate Limiting Issues">
-    **Problem:** API requests are being rate limited
-    
-    **Symptoms:**
-    ```bash
-    Error: Rate limit exceeded
-    Status: 429 Too Many Requests
-    Retry after: 60 seconds
-    ```
-    
-    **Solutions:**
-    
-    1. **Check Usage:**
-    ```bash
-    nikcli stats
-    ```
-    
-    2. **Reduce Request Frequency:**
-    ```bash
-    # Set longer delays between requests
-    nikcli config set request-delay 2000
-    
-    # Reduce token limits
-    nikcli config set token-limit 50000
-    ```
-    
-    3. **Use Alternative Provider:**
-    ```bash
-    # Switch to different provider
-    nikcli model openai:gpt-4
-    ```
-    
-    4. **Upgrade Plan:**
-    - Consider upgrading your API plan
-    - Check provider pricing and limits
+    **Problem:** API requests are being rate limited **Symptoms:** ```bash
+    Error: Rate limit exceeded Status: 429 Too Many Requests Retry after: 60
+    seconds ``` **Solutions:** 1. **Check Usage:** ```bash nikcli stats ``` 2.
+    **Reduce Request Frequency:** ```bash # Set longer delays between requests
+    nikcli config set request-delay 2000 # Reduce token limits nikcli config set
+    token-limit 50000 ``` 3. **Use Alternative Provider:** ```bash # Switch to
+    different provider nikcli model openai:gpt-4 ``` 4. **Upgrade Plan:** -
+    Consider upgrading your API plan - Check provider pricing and limits
   </Accordion>
 </AccordionGroup>
 
@@ -437,143 +284,42 @@ If you're experiencing issues with NikCLI, start with these diagnostic commands:
 
 <AccordionGroup>
   <Accordion title="AI Responses Taking Too Long">
-    **Problem:** AI model responses are slow or timing out
-    
-    **Symptoms:**
-    ```bash
-    Request timeout after 120 seconds
-    Retrying with exponential backoff...
-    ```
-    
-    **Solutions:**
-    
-    1. **Check Network Connection:**
-    ```bash
-    # Test internet connectivity
-    ping google.com
-    
-    # Test specific provider
-    curl -I https://api.anthropic.com
-    ```
-    
-    2. **Optimize Request Settings:**
-    ```bash
-    # Reduce token limits
-    nikcli config set token-limit 50000
-    
-    # Increase timeout
-    nikcli config set request-timeout 180000
-    
-    # Use faster model
-    nikcli model claude-3-haiku
-    ```
-    
-    3. **Clear Cache:**
-    ```bash
-    # Clear response cache
-    nikcli cache clear
-    
-    # Reset configuration
-    nikcli config reset
-    ```
-    
-    4. **Switch Providers:**
-    ```bash
-    # Try different provider
-    nikcli model openai:gpt-3.5-turbo
-    ```
+    **Problem:** AI model responses are slow or timing out **Symptoms:** ```bash
+    Request timeout after 120 seconds Retrying with exponential backoff... ```
+    **Solutions:** 1. **Check Network Connection:** ```bash # Test internet
+    connectivity ping google.com # Test specific provider curl -I
+    https://api.anthropic.com ``` 2. **Optimize Request Settings:** ```bash #
+    Reduce token limits nikcli config set token-limit 50000 # Increase timeout
+    nikcli config set request-timeout 180000 # Use faster model nikcli model
+    claude-3-haiku ``` 3. **Clear Cache:** ```bash # Clear response cache nikcli
+    cache clear # Reset configuration nikcli config reset ``` 4. **Switch
+    Providers:** ```bash # Try different provider nikcli model
+    openai:gpt-3.5-turbo ```
   </Accordion>
-  
+
   <Accordion title="High Memory Usage">
-    **Problem:** NikCLI consuming excessive memory
-    
-    **Symptoms:**
-    ```bash
-    Warning: High memory usage detected (>2GB)
-    Consider restarting or reducing context size
-    ```
-    
-    **Solutions:**
-    
-    1. **Monitor Memory Usage:**
-    ```bash
-    # Check system memory
-    top -p $(pgrep node)
-    
-    # Check NikCLI stats
-    nikcli stats
-    ```
-    
-    2. **Reduce Context Size:**
-    ```bash
-    # Limit context
-    nikcli config set context-limit 32000
-    
-    # Clear chat history
-    /clear
-    
-    # Start new session
-    /new
-    ```
-    
-    3. **Restart Application:**
-    ```bash
-    # Clean restart
-    /quit
-    nikcli
-    ```
-    
-    4. **Optimize Configuration:**
-    ```bash
-    # Disable caching temporarily
-    nikcli config set cache-enabled false
-    
-    # Reduce parallel operations
-    nikcli config set max-parallel-agents 2
-    ```
+    **Problem:** NikCLI consuming excessive memory **Symptoms:** ```bash
+    Warning: High memory usage detected (>2GB) Consider restarting or reducing
+    context size ``` **Solutions:** 1. **Monitor Memory Usage:** ```bash # Check
+    system memory top -p $(pgrep node) # Check NikCLI stats nikcli stats ``` 2.
+    **Reduce Context Size:** ```bash # Limit context nikcli config set
+    context-limit 32000 # Clear chat history /clear # Start new session /new ```
+    3. **Restart Application:** ```bash # Clean restart /quit nikcli ``` 4.
+    **Optimize Configuration:** ```bash # Disable caching temporarily nikcli
+    config set cache-enabled false # Reduce parallel operations nikcli config
+    set max-parallel-agents 2 ```
   </Accordion>
-  
+
   <Accordion title="Cache Issues">
-    **Problem:** Outdated or corrupted cache causing problems
-    
-    **Symptoms:**
-    ```bash
-    Warning: Cache integrity check failed
-    Inconsistent responses detected
-    ```
-    
-    **Solutions:**
-    
-    1. **Clear All Caches:**
-    ```bash
-    # Clear response cache
-    nikcli cache clear
-    
-    # Clear context cache
-    nikcli cache clear --context
-    
-    # Clear all caches
-    nikcli cache clear --all
-    ```
-    
-    2. **Reset Cache Directory:**
-    ```bash
-    # Remove cache directory
-    rm -rf ~/.nikcli/cache/
-    
-    # Restart NikCLI
-    nikcli
-    ```
-    
-    3. **Disable Caching:**
-    ```bash
-    # Temporary disable
-    nikcli config set cache-enabled false
-    
-    # Test without cache
-    # Re-enable if needed
-    nikcli config set cache-enabled true
-    ```
+    **Problem:** Outdated or corrupted cache causing problems **Symptoms:**
+    ```bash Warning: Cache integrity check failed Inconsistent responses
+    detected ``` **Solutions:** 1. **Clear All Caches:** ```bash # Clear
+    response cache nikcli cache clear # Clear context cache nikcli cache clear
+    --context # Clear all caches nikcli cache clear --all ``` 2. **Reset Cache
+    Directory:** ```bash # Remove cache directory rm -rf ~/.nikcli/cache/ #
+    Restart NikCLI nikcli ``` 3. **Disable Caching:** ```bash # Temporary
+    disable nikcli config set cache-enabled false # Test without cache #
+    Re-enable if needed nikcli config set cache-enabled true ```
   </Accordion>
 </AccordionGroup>
 
@@ -661,15 +407,16 @@ If you're experiencing issues with NikCLI, start with these diagnostic commands:
     # Or clear cached approvals and retry
     /clear-approvals
     ```
-    
+
     4. **Review Security Policies:**
     ```bash
     # Show current policies
     /security policies
-    
+
     # Reset to defaults
     /security reset
     ```
+
   </Accordion>
   
   <Accordion title="Task Execution Failures">
@@ -724,87 +471,29 @@ If you're experiencing issues with NikCLI, start with these diagnostic commands:
 
 <AccordionGroup>
   <Accordion title="Invalid Configuration Format">
-    **Problem:** Configuration file is corrupted or invalid
-    
-    **Symptoms:**
-    ```bash
-    Error: Invalid configuration format
-    Failed to parse config.json
-    ```
-    
-    **Solutions:**
-    
-    1. **Validate Configuration:**
-    ```bash
-    # Check configuration
-    nikcli config validate
-    
-    # Show current config
-    cat ~/.nikcli/config.json
-    ```
-    
-    2. **Reset Configuration:**
-    ```bash
-    # Backup current config
-    cp ~/.nikcli/config.json ~/.nikcli/config.json.backup
-    
-    # Reset to defaults
-    nikcli config reset
-    ```
-    
-    3. **Manual Fix:**
-    ```bash
-    # Edit configuration manually
-    nano ~/.nikcli/config.json
-    
-    # Validate JSON format
-    cat ~/.nikcli/config.json | jq .
-    ```
-    
-    4. **Restore from Backup:**
-    ```bash
-    # If you have a backup
-    cp ~/.nikcli/config.json.backup ~/.nikcli/config.json
-    ```
+    **Problem:** Configuration file is corrupted or invalid **Symptoms:**
+    ```bash Error: Invalid configuration format Failed to parse config.json ```
+    **Solutions:** 1. **Validate Configuration:** ```bash # Check configuration
+    nikcli config validate # Show current config cat ~/.nikcli/config.json ```
+    2. **Reset Configuration:** ```bash # Backup current config cp
+    ~/.nikcli/config.json ~/.nikcli/config.json.backup # Reset to defaults
+    nikcli config reset ``` 3. **Manual Fix:** ```bash # Edit configuration
+    manually nano ~/.nikcli/config.json # Validate JSON format cat
+    ~/.nikcli/config.json | jq . ``` 4. **Restore from Backup:** ```bash # If
+    you have a backup cp ~/.nikcli/config.json.backup ~/.nikcli/config.json ```
   </Accordion>
-  
+
   <Accordion title="Environment Variable Conflicts">
-    **Problem:** Environment variables overriding configuration
-    
-    **Symptoms:**
-    ```bash
-    Warning: Environment variable NIKCLI_MODEL overriding config
-    Using model: claude-3-opus instead of configured gpt-4
-    ```
-    
-    **Solutions:**
-    
-    1. **Check Environment Variables:**
-    ```bash
-    # List all NikCLI environment variables
-    env | grep NIKCLI
-    env | grep ANTHROPIC
-    env | grep OPENAI
-    ```
-    
-    2. **Unset Conflicting Variables:**
-    ```bash
-    # Temporary unset
-    unset NIKCLI_MODEL
-    unset ANTHROPIC_API_KEY
-    
-    # Remove from profile
-    nano ~/.bashrc  # Remove export lines
-    ```
-    
-    3. **Use Configuration Priority:**
-    ```bash
-    # Force use of config file
-    nikcli --ignore-env
-    
-    # Or set explicit precedence
-    nikcli config set prefer-config-over-env true
-    ```
+    **Problem:** Environment variables overriding configuration **Symptoms:**
+    ```bash Warning: Environment variable NIKCLI_MODEL overriding config Using
+    model: claude-3-opus instead of configured gpt-4 ``` **Solutions:** 1.
+    **Check Environment Variables:** ```bash # List all NikCLI environment
+    variables env | grep NIKCLI env | grep ANTHROPIC env | grep OPENAI ``` 2.
+    **Unset Conflicting Variables:** ```bash # Temporary unset unset
+    NIKCLI_MODEL unset ANTHROPIC_API_KEY # Remove from profile nano ~/.bashrc #
+    Remove export lines ``` 3. **Use Configuration Priority:** ```bash # Force
+    use of config file nikcli --ignore-env # Or set explicit precedence nikcli
+    config set prefer-config-over-env true ```
   </Accordion>
 </AccordionGroup>
 
@@ -816,36 +505,19 @@ When reporting issues, include this diagnostic information:
 
 <Tabs>
   <Tab title="System Information">
-    ```bash
-    # Collect system info
-    nikcli --version
-    node --version
-    npm --version
-    git --version
-    echo $SHELL
-    uname -a
-    ```
+    ```bash # Collect system info nikcli --version node --version npm --version
+    git --version echo $SHELL uname -a ```
   </Tab>
-  
+
   <Tab title="Configuration Details">
-    ```bash
-    # Configuration details
-    nikcli config list
-    nikcli debug
-    nikcli models
-    nikcli agents
-    ```
+    ```bash # Configuration details nikcli config list nikcli debug nikcli
+    models nikcli agents ```
   </Tab>
-  
+
   <Tab title="Error Logs">
-    ```bash
-    # Recent logs
-    tail -50 ~/.nikcli/logs/error.log
-    tail -50 ~/.nikcli/logs/debug.log
-    
-    # Session logs
-    tail -50 ~/.nikcli/sessions/current.log
-    ```
+    ```bash # Recent logs tail -50 ~/.nikcli/logs/error.log tail -50
+    ~/.nikcli/logs/debug.log # Session logs tail -50
+    ~/.nikcli/sessions/current.log ```
   </Tab>
 </Tabs>
 
@@ -853,46 +525,26 @@ When reporting issues, include this diagnostic information:
 
 <CardGroup cols={2}>
   <Card title="GitHub Issues" icon="github">
-    **For bugs and feature requests**
-    
-    [Open an issue](https://github.com/cadcamfun/nikcli/issues)
-    
-    Include:
-    - Detailed problem description
-    - Steps to reproduce
-    - System information
-    - Error logs
+    **For bugs and feature requests** [Open an
+    issue](https://github.com/cadcamfun/nikcli/issues) Include: - Detailed
+    problem description - Steps to reproduce - System information - Error logs
   </Card>
-  
+
   <Card title="Documentation" icon="book">
-    **Complete guides and references**
-    
-    - [User Guide](/user-guide/overview)
-    - [CLI Reference](/cli-reference/commands-overview)
-    - [API Documentation](/api-reference/core-apis)
-    - [Examples](/examples/basic-workflows)
+    **Complete guides and references** - [User Guide](/user-guide/overview) -
+    [CLI Reference](/cli-reference/commands-overview) - [API
+    Documentation](/api-reference/core-apis) -
+    [Examples](/examples/basic-workflows)
   </Card>
-  
+
   <Card title="Community Discord" icon="discord">
-    **Chat with other users**
-    
-    [Join Discord](https://discord.gg/nikcli)
-    
-    - Quick help and tips
-    - Share workflows
-    - Feature discussions
-    - Community support
+    **Chat with other users** [Join Discord](https://discord.gg/nikcli) - Quick
+    help and tips - Share workflows - Feature discussions - Community support
   </Card>
-  
+
   <Card title="Stack Overflow" icon="stack-overflow">
-    **Technical questions**
-    
-    Use tag: `nikcli`
-    
-    - Programming-related questions
-    - Integration help
-    - Best practices
-    - Code examples
+    **Technical questions** Use tag: `nikcli` - Programming-related questions -
+    Integration help - Best practices - Code examples
   </Card>
 </CardGroup>
 
@@ -906,18 +558,10 @@ When reporting issues, include this diagnostic information:
   >
     Learn how to optimize NikCLI performance
   </Card>
-  <Card
-    title="Debugging Guide"
-    icon="bug"
-    href="/troubleshooting/debugging"
-  >
+  <Card title="Debugging Guide" icon="bug" href="/troubleshooting/debugging">
     Advanced debugging techniques and tools
   </Card>
-  <Card
-    title="FAQ"
-    icon="question"
-    href="/troubleshooting/faq"
-  >
+  <Card title="FAQ" icon="question" href="/troubleshooting/faq">
     Frequently asked questions and quick answers
   </Card>
   <Card
@@ -930,5 +574,7 @@ When reporting issues, include this diagnostic information:
 </CardGroup>
 
 <Note>
-  If you cannot find a solution to your problem, don't hesitate to reach out through our support channels. The NikCLI community is helpful and responsive to user questions.
+  If you cannot find a solution to your problem, don't hesitate to reach out
+  through our support channels. The NikCLI community is helpful and responsive
+  to user questions.
 </Note>

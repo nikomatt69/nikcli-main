@@ -12,7 +12,7 @@ NikCLI is a powerful command-line interface designed to enhance developer produc
 - **TypeScript**: ^5.3
 - **Binary**: `nikcli` (built via Node.js and pkg)
 - **Configuration Path**: `~/.nikcli/config.json`
-- **NPM Package**: `@cadcamfun/nikcli`
+- **NPM Package**: `@nicomatt69/nikcli`
 
 ---
 

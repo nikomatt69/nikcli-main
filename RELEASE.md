@@ -1,4 +1,4 @@
-# NikCLI v1.1.0 Release
+# NikCLI v0.1.0 Release
 
 **Context-Aware AI Development Assistant with Multi-Agent System**
 

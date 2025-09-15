@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@cadcamfun/nikcli",
-  "version": "1.1.0",
+  "name": "@nicomatt69/nikcli",
+  "version": "0.1.0",
   "description": "NikCLI - Context-Aware AI Development Assistant",
   "author": "nikomatt69",
   "license": "MIT",
@@ -73,7 +73,6 @@
     "@ai-sdk/google": "^0.0.54",
     "@ai-sdk/openai": "^0.0.66",
     "@ai-sdk/vercel": "^1.0.10",
-    "@cadcamfun/nikcli": "^1.1.0",
     "@chroma-core/default-embed": "^0.1.8",
     "@coinbase/agentkit": "^0.10.1",
     "@coinbase/agentkit-vercel-ai-sdk": "^0.1.0",

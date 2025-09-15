@@ -713,10 +713,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                    isValid: validationResult.isValid,
-                    errors: validationResult.errors,
-                    warnings: validationResult.warnings,
-                  }
+                  isValid: validationResult.isValid,
+                  errors: validationResult.errors,
+                  warnings: validationResult.warnings,
+                }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -1021,8 +1021,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
     // Optimize messages for performance
     const optimizedMessages = await this.performanceOptimizer.optimizeMessages(enhancedMessages)
 
-    // Apply AGGRESSIVE truncation to prevent prompt length errors
-    const truncatedMessages = await this.truncateMessages(optimizedMessages, 80000) // ULTRA REDUCED: 80k tokens safety margin
+    // Apply truncation to prevent prompt length errors
+    const truncatedMessages = await this.truncateMessages(optimizedMessages, 120000) // 120k tokens limit
 
     const routingCfg = configManager.get('modelRouting')
     const effectiveModelName = routingCfg?.enabled
@@ -1046,8 +1046,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                  .join('')
+                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -1171,10 +1171,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
         model,
         messages: finalMessages,
         tools,
-        maxToolRoundtrips: isAnalysisRequest ? 25 : 50, // Increased for deeper analysis and toolchains
+        maxToolRoundtrips: isAnalysisRequest ? 40 : 60, // Increased for deeper analysis and toolchains
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => {},
+        onStepFinish: (_evt: any) => { },
       }
       if (provider !== 'openai') {
         streamOpts.maxTokens = params.maxTokens
@@ -1184,7 +1184,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
       let currentToolCalls: ToolCallPart[] = []
       let accumulatedText = ''
       let toolCallCount = 0
-      const maxToolCallsForAnalysis = 30 // Increased limit for comprehensive analysis
+      const maxToolCallsForAnalysis = 50 // Slightly increased limit for comprehensive analysis
 
       const approxCharLimit = provider === 'openai' ? params.maxTokens * 4 : Number.POSITIVE_INFINITY
       let truncatedByCap = false
@@ -1347,10 +1347,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                          .map((part) =>
-                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                          )
-                          .join('')
+                        .map((part) =>
+                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                        )
+                        .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -1931,8 +1931,8 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? this.resolveAdaptiveModel('code_gen', [
-            { role: 'user', content: `${type}: ${description} (${language})` } as any,
-          ])
+          { role: 'user', content: `${type}: ${description} (${language})` } as any,
+        ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -1986,7 +1986,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
         else console.log(chalk.dim(msg))
-      } catch {}
+      } catch { }
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.

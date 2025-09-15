@@ -6,7 +6,7 @@
 - TypeScript: ^5.3
 - Binario: `nikcli` (build con Node.js e pkg)
 - Config: `~/.nikcli/config.json`
-- Pacchetto: `@cadcamfun/nikcli`
+- Pacchetto: `@nicomatt69/nikcli`
 
 ---
 
