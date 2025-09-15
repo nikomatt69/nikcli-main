@@ -1,0 +1,26 @@
+# JSON/YAML Patch Tool Documentation
+
+## Purpose
+Apply structured patches (add/replace/remove) to JSON and YAML configuration files with diff and backup.
+
+## Capabilities
+- Supports .json, .yaml, .yml
+- JSON Pointer paths (arrays with indexes and '-')
+- Backup and diff preview
+- Optional confirmation and preview-only mode
+
+## Usage
+```ts
+await jsonPatchTool.execute({
+  filePath: 'package.json',
+  operations: [
+    { op: 'add', path: '/scripts/build', value: 'tsc -b' },
+  ],
+  createBackup: true,
+})
+```
+
+## Best Practices
+- Use via `secureTools.applyConfigPatch(...)` per tracking e conferme
+- Verifica i percorsi con previewOnly prima di scrivere
+

@@ -2,6 +2,7 @@ import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { type AgentTask, agentService } from '../services/agent-service'
 import type { ToolRegistry } from '../tools/tool-registry'
+import { secureTools } from '../tools/secure-tools-registry'
 import { CliUI } from '../utils/cli-ui'
 import type {
   ExecutionPlan,
@@ -384,6 +385,10 @@ export class PlanExecutor {
       throw new Error('Tool step missing toolName')
     }
 
+    // Best practice: route sensitive tools via SecureToolsRegistry wrappers
+    const routed = await this.trySecureRoute(step)
+    if (routed.routed) return routed.result
+
     const tool = this.toolRegistry.getTool(step.toolName)
     if (!tool) {
       throw new Error(`Tool not found: ${step.toolName}`)
@@ -397,6 +402,64 @@ export class PlanExecutor {
     const executionPromise = tool.execute(...(step.toolArgs ? Object.values(step.toolArgs) : []))
 
     return Promise.race([executionPromise, timeoutPromise])
+  }
+
+  /**
+   * Route certain tool names to secureTools wrappers for audit, confirmation and allow-listing.
+   */
+  private async trySecureRoute(step: ExecutionStep): Promise<{ routed: boolean; result?: any }> {
+    const name = String(step.toolName)
+    const args = step.toolArgs || {}
+
+    // Normalize common aliases
+    const n = name.toLowerCase()
+
+    // Git operations via wrappers
+    if (n === 'git-tools' || n === 'git_workflow' || n === 'git') {
+      const action = String(args.action || '').toLowerCase()
+      if (!action) return { routed: false }
+      switch (action) {
+        case 'status':
+          return { routed: true, result: await secureTools.gitStatus() }
+        case 'diff':
+          return { routed: true, result: await secureTools.gitDiff(args.args || {}) }
+        case 'commit': {
+          if (!args || typeof args.message !== 'string') {
+            throw new Error("git commit requires 'message' in args")
+          }
+          return { routed: true, result: await secureTools.gitCommit(args as { message: string; add?: string[]; allowEmpty?: boolean }) }
+        }
+        case 'applypatch':
+        case 'apply_patch':
+          return { routed: true, result: await secureTools.gitApplyPatch(args.patch) }
+        default:
+          return { routed: false }
+      }
+    }
+
+    // Config patch (JSON/YAML) via wrapper
+    if (n === 'json-patch-tool' || n === 'config_patch') {
+      const { filePath, operations, options } = args as any
+      if (filePath && Array.isArray(operations)) {
+        return { routed: true, result: await secureTools.applyConfigPatch(filePath, operations, options || {}) }
+      }
+      return { routed: false }
+    }
+
+    // Command execution via secure command wrapper
+    if (n === 'bash-tool' || n === 'run-command-tool' || n === 'bash' || n === 'run_command') {
+      const { command, options } = args as any
+      if (typeof command === 'string' && command.trim()) {
+        return { routed: true, result: await secureTools.executeCommand(command, options || {}) }
+      }
+      // Sequence
+      if (Array.isArray(args.commands) && args.commands.length > 0) {
+        return { routed: true, result: await secureTools.executeCommandSequence(args.commands, args.options || {}) }
+      }
+      return { routed: false }
+    }
+
+    return { routed: false }
   }
 
   /**

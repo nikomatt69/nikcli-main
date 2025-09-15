@@ -1,0 +1,19 @@
+# Run Command Tool Documentation
+
+## Purpose
+Execute system commands with allow-listing and safety checks (legacy; prefer SecureCommandTool/BashTool).
+
+## Capabilities
+- Command allow-listing
+- Timeout and environment control
+- Basic output capture
+
+## Usage
+```ts
+const res = await runCommandTool.execute({ command: 'npm test', timeout: 120000 })
+```
+
+## Best Practices
+- Prefer `secureTools.executeCommand(...)` for audited execution
+- Avoid dangerous commands; keep to read-only where possible
+

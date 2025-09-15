@@ -1,0 +1,21 @@
+# Replace In File Tool Documentation
+
+## Purpose
+Apply one or more find/replace operations within a single file with optional backup.
+
+## Capabilities
+- Multiple replacements with string or regex
+- Optional global flag per replacement
+- Backup file creation
+
+## Usage
+```ts
+const res = await replaceInFileTool.execute('config.ts', [
+  { find: 'API_URL', replace: 'API_BASE', global: true },
+])
+```
+
+## Best Practices
+- Prefer regex with care; test on preview or backups
+- Combine with git-tools for reviewing diffs
+

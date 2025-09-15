@@ -1,0 +1,20 @@
+# Coinbase AgentKit Tool Documentation
+
+## Purpose
+Expose onchain operations via Coinbase AgentKit (wallet info, transfers, chat).
+
+## Capabilities
+- Wallet status and balances
+- Transfers and interactions (subject to configuration)
+- Chat-like helper for workflows
+
+## Usage
+```ts
+await coinbaseAgentKitTool.execute('status')
+await coinbaseAgentKitTool.execute('transfer', { to: '0x...', amount: '0.01' })
+```
+
+## Best Practices
+- Use testnets for automation
+- Never embed secrets; use env/secure storage
+

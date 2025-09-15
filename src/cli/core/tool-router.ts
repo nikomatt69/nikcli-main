@@ -208,6 +208,29 @@ export class ToolRouter extends EventEmitter {
       examples: ['analyze Git workflow', 'repository status', 'commit history'],
     },
 
+    // Config Patch (JSON/YAML)
+    {
+      tool: 'config_patch',
+      keywords: [
+        'config',
+        'configuration',
+        'settings',
+        'env',
+        'yaml',
+        'yml',
+        'json',
+        'patch',
+        'update key',
+        'set value',
+        'add script',
+        'dependencies',
+        'scripts',
+      ],
+      priority: 7,
+      description: 'Apply structured patch to JSON/YAML configuration files',
+      examples: ['add script to package.json', 'set env in config.yaml', 'patch settings.json'],
+    },
+
     // File Operations
     {
       tool: 'read_file',
@@ -215,6 +238,15 @@ export class ToolRouter extends EventEmitter {
       priority: 5,
       description: 'File reading',
       examples: ['read package.json', 'show file content', 'view configuration'],
+    },
+
+    // Multi-read (batch)
+    {
+      tool: 'multi_read',
+      keywords: ['multi read', 'batch read', 'analyze files', 'collect contents', 'inspect many files'],
+      priority: 6,
+      description: 'Read multiple files with search and context',
+      examples: ['read multiple files', 'batch analyze src/**/*.ts'],
     },
 
     {
@@ -225,12 +257,44 @@ export class ToolRouter extends EventEmitter {
       examples: ['create new component', 'generate function', 'write configuration file'],
     },
 
+    // Edit/Replace/Multi-Edit
+    {
+      tool: 'edit_file',
+      keywords: ['edit', 'modify', 'change', 'update', 'apply patch', 'diff'],
+      priority: 6,
+      description: 'Edit file with diff and backup',
+      examples: ['edit src/app.ts', 'update code block', 'apply change to function'],
+    },
+    {
+      tool: 'replace_in_file',
+      keywords: ['replace', 'regex', 'pattern', 'in-file', 'substitute'],
+      priority: 6,
+      description: 'Replace content in files with validation and backup',
+      examples: ['replace API_URL in .env', 'regex replace across file'],
+    },
+    {
+      tool: 'multi_edit',
+      keywords: ['multi', 'batch', 'atomic', 'transaction', 'multiple files'],
+      priority: 5,
+      description: 'Apply multiple edits atomically',
+      examples: ['batch replace across files', 'atomic patch multiple files'],
+    },
+
     {
       tool: 'explore_directory',
       keywords: ['explore', 'list', 'structure', 'directory', 'folder', 'path', 'find', 'search', 'file', 'files'],
       priority: 4,
       description: 'Directory exploration',
       examples: ['explore project structure', 'list files in folder', 'find TypeScript files'],
+    },
+
+    // Find files (glob)
+    {
+      tool: 'find_files',
+      keywords: ['glob', 'pattern', 'find files', '*.ts', '*.json', 'globby'],
+      priority: 5,
+      description: 'Find files matching glob patterns',
+      examples: ['find *.ts in src', 'glob **/*.spec.ts'],
     },
 
     // Command Execution
@@ -330,6 +394,37 @@ export class ToolRouter extends EventEmitter {
         return priorityB - priorityA
       })
       .slice(0, 3) // Return top 3 recommendations
+  }
+
+  /** Resolve router alias to actual ToolRegistry name */
+  private resolveToolAlias(name: string): string {
+    const map: Record<string, string> = {
+      // Friendly -> Registered tool names
+      Read: 'read-file-tool',
+      Write: 'write-file-tool',
+      LS: 'list-tool',
+      Grep: 'grep-tool',
+      Glob: 'find-files-tool',
+      Bash: 'bash-tool',
+      blockchain_web3: 'coinbase-agentkit-tool',
+      git_workflow: 'git-tools',
+      config_patch: 'json-patch-tool',
+      run_command: 'run-command-tool',
+      read_file: 'read-file-tool',
+      multi_read: 'multi-read-tool',
+      write_file: 'write-file-tool',
+      explore_directory: 'list-tool',
+      find_files: 'find-files-tool',
+      edit_file: 'edit-tool',
+      replace_in_file: 'replace-in-file-tool',
+      Edit: 'edit-tool',
+      Replace: 'replace-in-file-tool',
+      MultiEdit: 'multi-edit-tool',
+      multi_edit: 'multi-edit-tool',
+      analyze_image: 'vision-analysis-tool',
+      generate_image: 'image-generation-tool',
+    }
+    return map[name] || name
   }
 
   // Calculate confidence score for tool recommendation
@@ -737,6 +832,28 @@ export class ToolRouter extends EventEmitter {
         alternatives: ['LS', 'Grep'],
       },
       {
+        name: 'git_workflow',
+        category: 'git' as const,
+        securityLevel: 'moderate' as const,
+        keywords: ['git', 'commit', 'status', 'diff', 'patch', 'apply', 'repository', 'branch'],
+        capabilities: ['git-status', 'git-diff', 'git-commit', 'git-apply'],
+        estimatedDuration: 15,
+        requiresApproval: true,
+        workspaceRestricted: true,
+        alternatives: [],
+      },
+      {
+        name: 'config_patch',
+        category: 'file' as const,
+        securityLevel: 'moderate' as const,
+        keywords: ['config', 'yaml', 'yml', 'json', 'patch', 'settings', 'scripts', 'dependencies', 'env'],
+        capabilities: ['config-update', 'json-patch', 'yaml-patch'],
+        estimatedDuration: 10,
+        requiresApproval: true,
+        workspaceRestricted: true,
+        alternatives: ['Write', 'Edit'],
+      },
+      {
         name: 'Write',
         category: 'file' as const,
         securityLevel: 'moderate' as const,
@@ -746,6 +863,39 @@ export class ToolRouter extends EventEmitter {
         requiresApproval: true,
         workspaceRestricted: true,
         alternatives: ['Edit', 'MultiEdit'],
+      },
+      {
+        name: 'Edit',
+        category: 'file' as const,
+        securityLevel: 'moderate' as const,
+        keywords: ['edit', 'modify', 'change', 'update', 'diff'],
+        capabilities: ['edit', 'diff', 'backup'],
+        estimatedDuration: 12,
+        requiresApproval: true,
+        workspaceRestricted: true,
+        alternatives: ['Replace', 'MultiEdit'],
+      },
+      {
+        name: 'Replace',
+        category: 'file' as const,
+        securityLevel: 'moderate' as const,
+        keywords: ['replace', 'regex', 'pattern', 'substitute'],
+        capabilities: ['replace', 'backup'],
+        estimatedDuration: 10,
+        requiresApproval: true,
+        workspaceRestricted: true,
+        alternatives: ['Edit'],
+      },
+      {
+        name: 'MultiEdit',
+        category: 'file' as const,
+        securityLevel: 'risky' as const,
+        keywords: ['multi', 'batch', 'atomic', 'transaction'],
+        capabilities: ['batch-edit', 'atomic'],
+        estimatedDuration: 20,
+        requiresApproval: true,
+        workspaceRestricted: true,
+        alternatives: ['Edit', 'Replace'],
       },
       {
         name: 'Bash',
@@ -768,6 +918,17 @@ export class ToolRouter extends EventEmitter {
         requiresApproval: false,
         workspaceRestricted: true,
         alternatives: ['Glob'],
+      },
+      {
+        name: 'Glob',
+        category: 'search' as const,
+        securityLevel: 'safe' as const,
+        keywords: ['glob', 'pattern', 'find files', '*.ts', '*.json', '**/*.tsx'],
+        capabilities: ['file-search', 'glob'],
+        estimatedDuration: 8,
+        requiresApproval: false,
+        workspaceRestricted: true,
+        alternatives: ['Grep'],
       },
       {
         name: 'LS',
@@ -1144,12 +1305,13 @@ export class ToolRouter extends EventEmitter {
     const validatedTools: string[] = []
 
     for (const toolName of toolNames) {
-      const validation = this.toolRegistry.validateTool(toolName, ['read', 'write', 'execute'])
+      const resolved = this.resolveToolAlias(toolName)
+      const validation = this.toolRegistry.validateTool(resolved, ['read', 'write', 'execute'])
 
       if (validation.isValid) {
-        validatedTools.push(toolName)
+        validatedTools.push(resolved)
       } else {
-        console.log(chalk.yellow(`⚠️ Tool ${toolName} validation failed:`, validation.errors))
+        console.log(chalk.yellow(`⚠️ Tool ${resolved} validation failed:`, validation.errors))
       }
     }
 

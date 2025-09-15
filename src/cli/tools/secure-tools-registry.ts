@@ -5,6 +5,10 @@ export type { BatchSession } from './secure-command-tool'
 
 import { type BatchSession, type CommandResult, SecureCommandTool } from '.'
 import { FindFilesTool } from './find-files-tool'
+import { JsonPatchTool } from './json-patch-tool'
+import { GitTools } from './git-tools'
+import { MultiReadTool } from './multi-read-tool'
+import { GrepTool, type GrepResult, type GrepToolParams } from './grep-tool'
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
 
 /**
@@ -47,6 +51,10 @@ export class SecureToolsRegistry {
   private secureCommandTool: SecureCommandTool
   private findFilesTool: FindFilesTool
   private coinbaseAgentKitTool: CoinbaseAgentKitTool
+  private jsonPatchTool: JsonPatchTool
+  private gitTools: GitTools
+  private multiReadTool: MultiReadTool
+  private grepTool: GrepTool
   private executionHistory: ToolResult[] = []
 
   constructor(workingDir?: string) {
@@ -60,9 +68,114 @@ export class SecureToolsRegistry {
     this.secureCommandTool = new SecureCommandTool(this.workingDirectory)
     this.findFilesTool = new FindFilesTool(this.workingDirectory)
     this.coinbaseAgentKitTool = new CoinbaseAgentKitTool(this.workingDirectory)
+    this.jsonPatchTool = new JsonPatchTool(this.workingDirectory)
+    this.gitTools = new GitTools(this.workingDirectory)
+    this.multiReadTool = new MultiReadTool(this.workingDirectory)
+    this.grepTool = new GrepTool(this.workingDirectory)
 
     console.log(chalk.green('🔒 Secure Tools Registry initialized'))
     console.log(chalk.gray(`📁 Working directory: ${this.workingDirectory}`))
+  }
+
+  /**
+   * Apply structured patch to JSON/YAML files with confirmation
+   */
+  async applyConfigPatch(
+    filePath: string,
+    operations: Array<{ op: 'add' | 'replace' | 'remove'; path: string; value?: any }>,
+    options: { skipConfirmation?: boolean; createBackup?: boolean; previewOnly?: boolean; allowMissing?: boolean } = {}
+  ): Promise<
+    ToolResult<{
+      changes: number
+      backupPath?: string
+    }>
+  > {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+    return this.executeWithTracking(
+      'ApplyConfigPatch',
+      async () => {
+        const res = await this.jsonPatchTool.execute({
+          filePath,
+          operations: operations as any,
+          createBackup: options.createBackup,
+          previewOnly: options.previewOnly,
+          allowMissing: options.allowMissing,
+          skipConfirmation: options.skipConfirmation,
+        })
+        if (!res.success) throw new Error(res.error || 'Patch failed')
+        return res.data as { changes: number; backupPath?: string }
+      },
+      context,
+      { pathValidated: true, userConfirmed: !options.skipConfirmation }
+    )
+  }
+
+  /**
+   * Git status via secure wrapper
+   */
+  async gitStatus(): Promise<ToolResult<any>> {
+    const context = this.createContext('safe')
+    return this.executeWithTracking(
+      'GitStatus',
+      async () => {
+        const res = await this.gitTools.execute({ action: 'status' })
+        if (!res.success) throw new Error(res.error || 'git status failed')
+        return res.data
+      },
+      context,
+      { pathValidated: true, userConfirmed: false, commandAnalyzed: true }
+    )
+  }
+
+  /**
+   * Git diff via secure wrapper
+   */
+  async gitDiff(args: { staged?: boolean; pathspec?: string[] } = {}): Promise<ToolResult<any>> {
+    const context = this.createContext('safe')
+    return this.executeWithTracking(
+      'GitDiff',
+      async () => {
+        const res = await this.gitTools.execute({ action: 'diff', args })
+        if (!res.success) throw new Error(res.error || 'git diff failed')
+        return res.data
+      },
+      context,
+      { pathValidated: true, userConfirmed: false, commandAnalyzed: true }
+    )
+  }
+
+  /**
+   * Git commit with confirmation prompt
+   */
+  async gitCommit(args: { message: string; add?: string[]; allowEmpty?: boolean }): Promise<ToolResult<any>> {
+    const context = this.createContext('confirmed')
+    return this.executeWithTracking(
+      'GitCommit',
+      async () => {
+        const res = await this.gitTools.execute({ action: 'commit', args })
+        if (!res.success) throw new Error(res.error || 'git commit failed')
+        return res.data
+      },
+      context,
+      { pathValidated: true, userConfirmed: true, commandAnalyzed: true }
+    )
+  }
+
+  /**
+   * Apply a unified diff patch safely
+   */
+  async gitApplyPatch(patch: string): Promise<ToolResult<any>> {
+    const context = this.createContext('confirmed')
+    return this.executeWithTracking(
+      'GitApplyPatch',
+      async () => {
+        const res = await this.gitTools.execute({ action: 'applyPatch', args: { patch } })
+        if (!res.success) throw new Error(res.error || 'git apply failed')
+        return res.data
+      },
+      context,
+      { pathValidated: true, userConfirmed: true, commandAnalyzed: true }
+    )
   }
 
   /**
@@ -403,6 +516,42 @@ export class SecureToolsRegistry {
     } catch (error: any) {
       return { valid: false, error: error.message }
     }
+  }
+
+  /**
+   * Read multiple files safely with optional pattern search
+   */
+  async multiRead(
+    params: import('./multi-read-tool').MultiReadParams
+  ): Promise<ToolResult<import('./multi-read-tool').MultiReadResult>> {
+    const context = this.createContext('safe')
+    return this.executeWithTracking(
+      'MultiRead',
+      async () => {
+        const res = await this.multiReadTool.execute(params)
+        if (!res.success) throw new Error(res.error || 'multi-read failed')
+        return res.data as any
+      },
+      context,
+      { pathValidated: true, userConfirmed: false }
+    )
+  }
+
+  /**
+   * Grep with safety, ignore patterns and context
+   */
+  async grep(params: GrepToolParams): Promise<ToolResult<GrepResult>> {
+    const context = this.createContext('safe')
+    return this.executeWithTracking(
+      'Grep',
+      async () => {
+        const res = await this.grepTool.execute(params)
+        if (!res.success) throw new Error(res.error || 'grep failed')
+        return res.data as GrepResult
+      },
+      context,
+      { pathValidated: true, userConfirmed: false }
+    )
   }
 
   /**

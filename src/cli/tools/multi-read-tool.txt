@@ -1,0 +1,25 @@
+# Multi Read Tool Documentation
+
+## Purpose
+Read multiple files safely with optional search and context lines, for batch analysis workflows.
+
+## Capabilities
+- Input as files[] and/or globs[] with root
+- Ignore patterns and hidden files toggle
+- Size limits to avoid large reads
+- Optional search pattern with regex/word/case and context lines
+
+## Usage
+```ts
+const res = await multiReadTool.execute({
+  globs: ['src/**/*.ts'],
+  pattern: 'TODO',
+  contextLines: 2,
+  includeHidden: false,
+})
+```
+
+## Best Practices
+- Use together con grep-tool per query mirate
+- Imposta limiti dimensione per performance
+

@@ -1,0 +1,27 @@
+# Edit Tool Documentation
+
+## Purpose
+Perform targeted text replacements with diff preview, validation, and backups.
+
+## Capabilities
+- Replace first or all occurrences
+- Diff preview via DiffViewer
+- Optional syntax validation (JSON/TS/YAML)
+- Backup and atomic write
+
+## Usage
+```ts
+const res = await editTool.execute({
+  filePath: 'src/app.ts',
+  oldString: 'foo',
+  newString: 'bar',
+  replaceAll: true,
+  createBackup: true,
+  validateSyntax: true,
+})
+```
+
+## Best Practices
+- Enable backups for important files
+- Validate syntax for code/config files
+

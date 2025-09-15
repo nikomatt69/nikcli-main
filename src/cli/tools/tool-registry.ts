@@ -5,6 +5,12 @@ import { EditTool } from './edit-tool'
 import { FindFilesTool } from './find-files-tool'
 import { ImageGenerationTool } from './image-generation-tool'
 import { MultiEditTool } from './multi-edit-tool'
+import { MultiReadTool } from './multi-read-tool'
+import { JsonPatchTool } from './json-patch-tool'
+import { GitTools } from './git-tools'
+import { ListTool } from './list-tool'
+import { GrepTool } from './grep-tool'
+import { BashTool } from './bash-tool'
 import { ReadFileTool } from './read-file-tool'
 import { ReplaceInFileTool } from './replace-in-file-tool'
 import { RunCommandTool } from './run-command-tool'
@@ -47,7 +53,7 @@ export class ToolRegistry {
       estimatedDuration: metadata?.estimatedDuration || 5000,
       requiredPermissions: metadata?.requiredPermissions || [],
       supportedFileTypes: metadata?.supportedFileTypes || [],
-      version: metadata?.version || '0.1.0',
+      version: metadata?.version || '0.1.1',
       author: metadata?.author || 'system',
       tags: metadata?.tags || [],
     })
@@ -187,7 +193,7 @@ export class ToolRegistry {
     return {
       tools: Array.from(this.toolMetadata.values()),
       exportedAt: new Date(),
-      version: '0.1.0',
+      version: '0.1.1',
     }
   }
 
@@ -304,6 +310,18 @@ export class ToolRegistry {
       tags: ['batch', 'edit', 'atomic'],
     })
 
+    // Multi read tool
+    this.registerTool('multi-read-tool', new MultiReadTool(workingDirectory), {
+      description: 'Read multiple files safely with search/context',
+      category: 'filesystem',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 4000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['read', 'batch', 'analysis'],
+    })
+
     this.registerTool('run-command-tool', new RunCommandTool(workingDirectory), {
       description: 'Execute commands with whitelist security',
       category: 'system',
@@ -313,6 +331,42 @@ export class ToolRegistry {
       requiredPermissions: ['execute'],
       supportedFileTypes: ['*'],
       tags: ['command', 'system', 'execute'],
+    })
+
+    // Bash tool (interactive command exec with analysis)
+    this.registerTool('bash-tool', new BashTool(workingDirectory), {
+      description: 'Execute shell commands with analysis, confirmation and streaming',
+      category: 'system',
+      riskLevel: 'high',
+      reversible: false,
+      estimatedDuration: 6000,
+      requiredPermissions: ['execute'],
+      supportedFileTypes: ['*'],
+      tags: ['bash', 'shell', 'command', 'execute'],
+    })
+
+    // JSON Patch tool (safe structured edits)
+    this.registerTool('json-patch-tool', new JsonPatchTool(workingDirectory), {
+      description: 'Apply RFC6902-like JSON patches with diff/backup',
+      category: 'filesystem',
+      riskLevel: 'medium',
+      reversible: true,
+      estimatedDuration: 2500,
+      requiredPermissions: ['write'],
+      supportedFileTypes: ['json'],
+      tags: ['json', 'patch', 'config'],
+    })
+
+    // Git tools (safe wrappers)
+    this.registerTool('git-tools', new GitTools(workingDirectory), {
+      description: 'Safe Git operations: status, diff, commit, applyPatch (no push)',
+      category: 'vcs',
+      riskLevel: 'medium',
+      reversible: false,
+      estimatedDuration: 3000,
+      requiredPermissions: ['execute'],
+      supportedFileTypes: ['*'],
+      tags: ['git', 'vcs', 'diff', 'commit'],
     })
 
     this.registerTool('delete-file-tool', new MockTool(workingDirectory), {
@@ -358,6 +412,30 @@ export class ToolRegistry {
       requiredPermissions: ['network', 'execute'],
       supportedFileTypes: ['*'],
       tags: ['blockchain', 'crypto', 'coinbase', 'agentkit', 'defi', 'wallet', 'transactions'],
+    })
+
+    // List directory tool
+    this.registerTool('list-tool', new ListTool(workingDirectory), {
+      description: 'List files and directories with intelligent ignore patterns',
+      category: 'filesystem',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 1500,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['list', 'ls', 'filesystem', 'explore'],
+    })
+
+    // Grep tool
+    this.registerTool('grep-tool', new GrepTool(workingDirectory), {
+      description: 'Search text patterns across files with context and ignores',
+      category: 'search',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 2500,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['grep', 'search', 'pattern'],
     })
 
     CliUI.logInfo(`Initialized tool registry with ${this.tools.size} tools`)

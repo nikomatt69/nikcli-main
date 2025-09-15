@@ -1,0 +1,19 @@
+# Vision Analysis Tool Documentation
+
+## Purpose
+AI-powered image analysis for screenshots and assets (classification, OCR-like cues, descriptions).
+
+## Capabilities
+- Supports common image formats
+- Model-agnostic provider integration
+- Returns structured annotations
+
+## Usage
+```ts
+const res = await visionAnalysisTool.execute({ path: 'screenshot.png' })
+```
+
+## Best Practices
+- Use for UI review and asset audits
+- Combine with grep/list for contextual references
+

@@ -1,0 +1,27 @@
+# Grep Tool Documentation
+
+## Purpose
+Advanced search across files with ignore patterns, context lines, and performance safeguards.
+
+## Capabilities
+- Search by string or regex with case/word options
+- Context lines before/after matches
+- Smart ignore (node_modules, dist, .git, etc.)
+- Size limits and binary detection
+- Detailed results with file, line, column
+
+## Usage
+```ts
+const result = await grepTool.execute({
+  pattern: 'TODO',
+  path: 'src',
+  include: '*.{ts,tsx}',
+  caseSensitive: false,
+  contextLines: 2,
+})
+```
+
+## Best Practices
+- Narrow by include patterns to improve performance
+- Use context lines for code review-friendly results
+

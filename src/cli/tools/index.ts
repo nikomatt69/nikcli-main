@@ -18,6 +18,9 @@ import chalk from 'chalk'
 export {
   CoinbaseAgentKitTool,
 } from './coinbase-agentkit-tool'
+export { JsonPatchTool } from './json-patch-tool'
+export { GitTools } from './git-tools'
+export { MultiReadTool } from './multi-read-tool'
 export {
   ImageGenerationTool,
   type ImageGenerationToolOptions,

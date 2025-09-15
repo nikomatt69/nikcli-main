@@ -699,10 +699,15 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'anthropic/claude-3.5-latest',
     },
+    'nvidia/nemotron-nano-9b-v2:free': {
+      provider: 'openrouter',
+      model: 'nvidia/nemotron-nano-9b-v2:free',
+    },
     'openai/gpt-5': {
       provider: 'openrouter',
       model: 'openai/gpt-5',
     },
+
     'openai/gpt-5-mini-2025-08-07': {
       provider: 'openrouter',
       model: 'openai/gpt-5-mini-2025-08-07',

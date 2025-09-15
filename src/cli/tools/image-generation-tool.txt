@@ -1,0 +1,22 @@
+# Image Generation Tool Documentation
+
+## Purpose
+Generate images from text prompts using supported models.
+
+## Capabilities
+- Prompt-based generation
+- Size/format options
+- Saves to disk
+
+## Usage
+```ts
+const res = await imageGenerationTool.execute({
+  prompt: 'A logo with clean geometric shapes',
+  size: '1024x1024',
+})
+```
+
+## Best Practices
+- Keep prompts explicit and concise
+- Version outputs in git when used for docs
+

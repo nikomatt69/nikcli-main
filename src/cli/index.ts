@@ -200,7 +200,7 @@ class IntroductionModule {
   static displayApiKeySetup() {
     // Enhanced TUI version with better theming and structure
     const setupBox = boxen(
-      chalk.yellow.bold('⚠️  API Key Required\n\n') +
+      chalk.yellow.bold('  API Key Required\n\n') +
       chalk.white('To use NikCLI, please set at least one API key:\n\n') +
       chalk.green('• ANTHROPIC_API_KEY') +
       chalk.gray(' - for Claude models (recommended)\n') +
@@ -286,7 +286,7 @@ class OnboardingModule {
   private static async showBetaWarning(): Promise<void> {
     // Enhanced TUI version with warning styling
     const warningBox = boxen(
-      chalk.red.bold('⚠️  BETA VERSION WARNING\n\n') +
+      chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
       chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
       chalk.yellow.bold('Potential Risks:\n') +
       chalk.white('• File system modifications\n') +

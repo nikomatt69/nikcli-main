@@ -1,0 +1,19 @@
+# Snapshot Tools Documentation
+
+## Purpose
+Create, restore, compare and manage project snapshots for safe experimentation.
+
+## Tools
+- createSnapshotTool, restoreSnapshotTool, listSnapshotsTool
+- compareSnapshotsTool, deleteSnapshotTool, getSnapshotStatsTool
+
+## Usage
+```ts
+await createSnapshotTool.execute({ name: 'before-refactor', type: 'dev' })
+const list = await listSnapshotsTool.execute({ limit: 5 })
+```
+
+## Best Practices
+- Create snapshots before risky refactors
+- Use templates to standardize snapshot content
+

@@ -1,0 +1,18 @@
+# Docs Request Tools Documentation
+
+## Purpose
+Allow agents to request documentation and report gaps for continuous improvement.
+
+## Tools
+- docsRequestTool: fetch and suggest docs (local/cloud)
+- docsGapReportTool: report missing concepts and impact
+
+## Usage
+```ts
+await aiDocsTools.request.execute({ concept: 'Vite config', context: 'optimize build' })
+```
+
+## Best Practices
+- Provide clear concept and context for better matches
+- Use gap reports for recurring unknowns
+

@@ -1,0 +1,19 @@
+# Find Files Tool Documentation
+
+## Purpose
+Globby-powered file discovery using glob patterns within the working directory.
+
+## Capabilities
+- Glob patterns with cwd control
+- Only files (excludes directories)
+- Optional UI display of results
+
+## Usage
+```ts
+const files = await findFilesTool.execute('src/**/*.test.ts', { cwd: process.cwd() })
+```
+
+## Best Practices
+- Combine with grep or multi-read for analysis pipelines
+- Keep globs specific to reduce overhead
+

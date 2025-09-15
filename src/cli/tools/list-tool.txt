@@ -1,0 +1,27 @@
+# List Tool Documentation
+
+## Purpose
+List files and directories with intelligent ignore patterns and sorting.
+
+## Capabilities
+- Recursive listing with depth control
+- Hidden files toggle
+- Ignore patterns (standard + custom)
+- Sorting by name/size/modified
+- Structured directory tree output
+
+## Usage
+```ts
+const res = await listTool.execute({
+  path: '.',
+  maxDepth: 3,
+  includeHidden: false,
+  ignore: ['*.log'],
+  sortBy: 'modified',
+})
+```
+
+## Best Practices
+- Keep depth conservative to avoid noise
+- Extend ignore list for project specifics
+

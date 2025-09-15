@@ -1,0 +1,26 @@
+# Bash Tool Documentation
+
+## Purpose
+Secure shell command execution with analysis, confirmation, streaming output, and pipefail handling.
+
+## Capabilities
+- Allowlist/denylist with risky pattern detection
+- Optional confirmation prompt with risk summary
+- Streaming stdout, bounded output buffering
+- `set -euo pipefail` support for robust pipelines
+- Working directory and environment control
+
+## Usage
+```ts
+const res = await bashTool.execute({
+  command: 'npm run build',
+  streamOutput: true,
+  usePipefail: true,
+})
+```
+
+## Best Practices
+- Prefer SecureToolsRegistry: `secureTools.executeCommand('...')`
+- Keep commands short and explicit; avoid wildcards
+- Use `skipConfirmation` only for safe, read-only commands
+

@@ -1,0 +1,19 @@
+# Secure Command Tool Documentation
+
+## Purpose
+Execute commands with allow‑listing, risk analysis, batching and one-time approvals.
+
+## Capabilities
+- Safe/dangerous command sets with pattern detection
+- Batch sessions with single approval and async execution
+- History and analysis helpers
+
+## Usage
+```ts
+await secureCommandTool.execute('npm test', { skipConfirmation: false })
+```
+
+## Best Practices
+- Prefer batch sessions for multi-command workflows
+- Avoid dangerous commands unless explicitly approved
+

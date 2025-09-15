@@ -398,6 +398,15 @@ export class EnhancedToolRouter extends ToolRouter {
       additionalCapabilities.push('package_management')
     }
 
+    // Config update detection (JSON/YAML/env)
+    if (
+      targetObjects.some((obj) =>
+        ['.yaml', '.yml', '.json', 'config', 'configuration', '.env', 'settings'].some((kw) => obj.includes(kw))
+      )
+    ) {
+      additionalCapabilities.push('config_update')
+    }
+
     return [...new Set([...baseCapabilities, ...additionalCapabilities])]
   }
 

@@ -5778,8 +5778,14 @@ export class NikCLI {
     try {
       switch (command) {
         case 'agents': {
-          this.showAgentsPanel()
-          break
+          // Ensure panel prints atomically and prompt re-renders once
+          this.beginPanelOutput()
+          try {
+            this.showAgentsPanel()
+          } finally {
+            this.endPanelOutput()
+          }
+          return
         }
         case 'agent': {
           if (args.length < 2) {
@@ -5805,12 +5811,22 @@ export class NikCLI {
           break
         }
         case 'factory': {
-          this.showFactoryPanel()
-          break
+          this.beginPanelOutput()
+          try {
+            this.showFactoryPanel()
+          } finally {
+            this.endPanelOutput()
+          }
+          return
         }
         case 'blueprints': {
-          this.showBlueprintsPanel()
-          break
+          this.beginPanelOutput()
+          try {
+            this.showBlueprintsPanel()
+          } finally {
+            this.endPanelOutput()
+          }
+          return
         }
         case 'create-agent': {
           if (args.length < 2) {
@@ -5869,39 +5885,44 @@ export class NikCLI {
           break
         }
         case 'context': {
-          if (args.length === 0) {
-            const ctx = workspaceContext.getContextForAgent('cli', 10)
-            const lines: string[] = []
-            lines.push(`📁 Root: ${this.workingDirectory}`)
-            lines.push(`🎯 Selected Paths (${ctx.selectedPaths.length}):`)
-            ctx.selectedPaths.forEach((p) => lines.push(`• ${p}`))
-            lines.push('')
-            lines.push('Tip: /context <paths...> to set paths')
+          this.beginPanelOutput()
+          try {
+            if (args.length === 0) {
+              const ctx = workspaceContext.getContextForAgent('cli', 10)
+              const lines: string[] = []
+              lines.push(`📁 Root: ${this.workingDirectory}`)
+              lines.push(`🎯 Selected Paths (${ctx.selectedPaths.length}):`)
+              ctx.selectedPaths.forEach((p) => lines.push(`• ${p}`))
+              lines.push('')
+              lines.push('Tip: /context <paths...> to set paths')
 
-            console.log(
-              boxen(lines.join('\n'), {
-                title: '🌍 Workspace Context',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'green',
-              })
-            )
-            return
+              console.log(
+                boxen(lines.join('\n'), {
+                  title: '🌍 Workspace Context',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'green',
+                })
+              )
+            } else {
+              const paths = args
+              await workspaceContext.selectPaths(paths)
+              const confirm = [`Updated selected paths (${paths.length}):`, ...paths.map((p) => `• ${p}`)].join('\n')
+              console.log(
+                boxen(confirm, {
+                  title: '🌍 Workspace Context Updated',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'green',
+                })
+              )
+            }
+          } finally {
+            this.endPanelOutput()
           }
-          const paths = args
-          await workspaceContext.selectPaths(paths)
-          const confirm = [`Updated selected paths (${paths.length}):`, ...paths.map((p) => `• ${p}`)].join('\n')
-          console.log(
-            boxen(confirm, {
-              title: '🌍 Workspace Context Updated',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'green',
-            })
-          )
-          break
+          return
         }
         case 'stream': {
           if (args.length > 0 && args[0] === 'clear') {
@@ -5909,18 +5930,24 @@ export class NikCLI {
             activeAgents.forEach((agentId) => {
               agentStream.clearAgentStream(agentId)
             })
-            console.log(
-              boxen('All agent streams cleared', {
-                title: '📡 Agent Streams',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'green',
-              })
-            )
+            this.beginPanelOutput()
+            try {
+              console.log(
+                boxen('All agent streams cleared', {
+                  title: '📡 Agent Streams',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'green',
+                })
+              )
+            } finally {
+              this.endPanelOutput()
+            }
+            return
           } else {
             agentStream.showLiveDashboard()
-            console.log(
+            this.printPanel(
               boxen('Live dashboard opened in terminal', {
                 title: '📡 Agent Streams',
                 padding: 1,
@@ -5971,11 +5998,7 @@ export class NikCLI {
   private async handleDocsCommand(args: string[]): Promise<void> {
     try {
       if (args.length === 0) {
-        // Show help and status
-        console.log(chalk.blue.bold('\n📚 Documentation System'))
-        console.log(chalk.gray('─'.repeat(50)))
-
-        // Show status as a panel
+        // Show help and status as a single panel, with proper prompt spacing
         const stats = docLibrary.getStats()
         const lines: string[] = []
         lines.push(`📖 Library: ${stats.totalDocs} documents`)
@@ -5996,7 +6019,7 @@ export class NikCLI {
         lines.push('/doc-unload [names|--all]  - Unload docs')
         lines.push('/doc-suggest <query>       - Suggest docs')
 
-        console.log(
+        this.printPanel(
           boxen(lines.join('\n'), {
             title: '📚 Documentation System',
             padding: 1,
@@ -6188,7 +6211,7 @@ export class NikCLI {
         const msg = category
           ? `No documents found in category: ${category}`
           : 'No documents in library\nUse /doc-add <url> to add documentation'
-        console.log(
+        this.printPanel(
           boxen(msg, { title: '📋 Documentation', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' })
         )
         return
@@ -6207,13 +6230,12 @@ export class NikCLI {
           lines.push(`   Added: ${doc.timestamp.toLocaleDateString()}`)
         })
       const title = `📋 Documentation List${category ? ` (Category: ${category})` : ''}`
-      console.log(boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }))
+      this.printPanel(boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }))
+      return
     } catch (error: any) {
       console.error(chalk.red(`❌ List error: ${error.message}`))
     }
-    process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    this.renderPromptAfterOutput()
+    // panel already handled prompt redraw
   }
 
   private async handleDocTagCommand(args: string[]): Promise<void> {
@@ -8777,7 +8799,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     addGroup('📋 Blueprint Management:', 28, 34)
     addGroup('🐳 VM Container Management:', 34, 42)
     addGroup('📝 Session Management:', 42, 53)
-    addGroup('⚙️ Configuration:', 53, 57)
+    addGroup('🔧 Configuration:', 53, 57)
     addGroup('🔮 MCP (Model Context Protocol):', 57, 63)
     addGroup('🧠 Memory & Personalization:', 63, 71)
     addGroup('🔍 Context & Indexing:', 71, 73)
@@ -8875,7 +8897,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         // Setup basic project structure
         const basicPackageJson = {
           name: path.basename(this.workingDirectory),
-          version: '0.1.0',
+          version: '0.1.1',
           description: 'Project managed by NikCLI',
           scripts: {
             start: 'node index.js',
@@ -9404,6 +9426,16 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
   public endPanelOutput(): void {
     this.isPrintingPanel = false
     this.resumePromptAndRender()
+  }
+
+  // Print a boxed panel with proper prompt spacing (like /models)
+  private printPanel(content: string): void {
+    this.beginPanelOutput()
+    try {
+      console.log(content)
+    } finally {
+      this.endPanelOutput()
+    }
   }
 
   // (prompt watchdog removed)
@@ -10727,7 +10759,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         borderColor: 'magenta',
       })
 
-      console.log(historyBox)
+      this.printPanel(historyBox)
     } catch (error: any) {
       if (error.message.includes('not a git repository')) {
         console.log(chalk.yellow('⚠️  This directory is not a git repository'))
@@ -13118,7 +13150,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       borderStyle: 'round',
       borderColor: 'blue',
     })
-
+    // printed via begin/end guards at call site
     console.log(agentsBox)
   }
 
@@ -13142,7 +13174,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       borderStyle: 'round',
       borderColor: 'yellow',
     })
-
+    // printed via begin/end guards at call site
     console.log(factoryBox)
   }
 
@@ -13168,7 +13200,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       borderStyle: 'round',
       borderColor: 'magenta',
     })
-
+    // printed via begin/end guards at call site
     console.log(blueprintsBox)
   }
 
@@ -13180,7 +13212,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       const cfg = configManager.getConfig()
 
       const lines: string[] = []
-      lines.push(chalk.cyan.bold('⚙️ System Configuration'))
+      lines.push(chalk.cyan.bold('⚙️  System Configuration'))
       lines.push(chalk.gray('─'.repeat(60)))
 
       // 1) General
@@ -13315,14 +13347,13 @@ Generated by NikCLI on ${new Date().toISOString()}
       })
 
       const configBox = boxen(lines.join('\n'), {
-        title: '⚙️ Configuration Panel',
+        title: '⚙️  Configuration Panel',
         padding: 1,
         margin: 1,
         borderStyle: 'round',
         borderColor: 'cyan',
       })
-
-      console.log(configBox)
+      this.printPanel(configBox)
       console.log(chalk.gray('Tip: Use /config interactive to edit settings'))
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to show configuration: ${error.message}`))
@@ -13639,7 +13670,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         modelsContent += `     ${chalk.gray(`Model: ${(config as any).model}`)}\n`
 
         if (!hasKey) {
-          modelsContent += `     ${chalk.red('⚠️  API key required')}\n`
+          modelsContent += `     ${chalk.red('🚨  API key required')}\n`
         }
         modelsContent += '\n'
       })
@@ -13657,7 +13688,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         borderColor: 'blue',
       })
 
-      console.log(modelsBox)
+      this.printPanel(modelsBox)
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to show models: ${error.message}`))
     }
@@ -13670,7 +13701,7 @@ Generated by NikCLI on ${new Date().toISOString()}
     try {
       const all = configManager.listModels()
       if (!all || all.length === 0) {
-        console.log(
+        this.printPanel(
           boxen('No models configured. Use /models to review configuration.', {
             title: '🔑 Set API Key',
             padding: 1,
@@ -13694,7 +13725,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       const providers = Array.from(byProvider.keys()).sort()
 
       // Panel: provider selection
-      console.log(
+      this.printPanel(
         boxen('Select the provider to configure the API key.', {
           title: '🔑 Set API Key – Provider',
           padding: 1,
@@ -13728,7 +13759,7 @@ Generated by NikCLI on ${new Date().toISOString()}
 
       // If provider doesn't require a key (ollama), show info and exit
       if (provider === 'ollama') {
-        console.log(
+        this.printPanel(
           boxen('Ollama provider does not require API keys.', {
             title: 'ℹ️ No Key Required',
             padding: 1,
@@ -13755,7 +13786,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       }
 
       // Panel: model selection
-      console.log(
+      this.printPanel(
         boxen(`Provider: ${provider}\nSelect the model to attach the key.`, {
           title: '🔑 Set API Key – Model',
           padding: 1,
@@ -13786,7 +13817,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       }
 
       // Panel: enter API key (masked)
-      console.log(
+      this.printPanel(
         boxen(`Model: ${modelName}\nEnter the API key for ${provider}. It will be stored encrypted.`, {
           title: '🔑 Set API Key – Secret',
           padding: 1,
@@ -13841,7 +13872,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         chalk.gray(`Stored encrypted in ~/.nikcli/config.json  |  ${tip}`),
       ].join('\n')
 
-      console.log(
+      this.printPanel(
         boxen(content, {
           title: '✅ API Key Saved',
           padding: 1,
@@ -13851,7 +13882,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         })
       )
     } catch (error: any) {
-      console.log(
+      this.printPanel(
         boxen(`Failed to set API key: ${error.message}`, {
           title: '❌ Set API Key',
           padding: 1,
@@ -13875,7 +13906,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       const { inputQueue } = await import('./core/input-queue')
 
       // Header panel
-      console.log(
+      this.printPanel(
         boxen(
           'Configure Coinbase CDP credentials. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
           { title: '🔑 Set Coinbase Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }

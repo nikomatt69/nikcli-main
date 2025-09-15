@@ -1,0 +1,27 @@
+# Multi Edit Tool Documentation
+
+## Purpose
+Apply multiple edit operations transactionally across files with rollback support.
+
+## Capabilities
+- Batch operations with per-file results
+- Optional rollback on first error
+- Optional syntax validation
+- Shared backup management
+
+## Usage
+```ts
+const res = await multiEditTool.execute({
+  operations: [
+    { filePath: 'a.ts', oldString: 'x', newString: 'y', replaceAll: true },
+    { filePath: 'b.ts', oldString: 'old', newString: 'new' },
+  ],
+  createBackup: true,
+  rollbackOnError: true,
+})
+```
+
+## Best Practices
+- Keep operations small and atomic
+- Use rollback in CI-unsafe sequences
+

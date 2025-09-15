@@ -1,0 +1,19 @@
+# Smart Docs Tools Documentation
+
+## Purpose
+Help agents search and load documentation (local/shared) and inspect current docs context.
+
+## Tools
+- smartDocsSearchTool: search docs and optionally auto-load
+- smartDocsLoadTool: load specific docs
+- smartDocsContextTool: show context and suggestions
+
+## Usage
+```ts
+const res = await smartDocsTools.search.execute({ query: 'react hooks', autoLoad: true })
+```
+
+## Best Practices
+- Limit maxResults for focused context
+- Use context tool to avoid overload
+
