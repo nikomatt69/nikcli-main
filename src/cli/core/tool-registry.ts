@@ -5,7 +5,7 @@ import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
-import { ImageGenerationTool, VisionAnalysisTool } from '../tools'
+import { BrowserbaseTool, ImageGenerationTool, VisionAnalysisTool } from '../tools'
 import type { ToolExecutionResult } from '../tools/base-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { logger } from '../utils/logger'
@@ -47,6 +47,7 @@ export const ToolMetadataSchema = z.object({
     'image-analysis',
     'text-analysis',
     'image-generation',
+    'web-browsing',
   ]),
   tags: z.array(z.string()).default([]),
   capabilities: z.array(z.string()).default([]),
@@ -525,6 +526,27 @@ export class ToolRegistry {
           maxExecutionTime: 300000,
           maxMemoryUsage: 512 * 1024 * 1024,
           requiresApproval: false,
+        },
+      })
+
+      await this.registerTool(BrowserbaseTool, {
+        name: 'browse-web',
+        description: 'Web browsing automation and AI-powered content analysis with Browserbase',
+        category: 'web-browsing',
+        capabilities: ['web-browsing', 'content-extraction', 'ai-analysis', 'web-automation'],
+        permissions: {
+          canReadFiles: false,
+          canWriteFiles: false,
+          canDeleteFiles: false,
+          canExecuteCommands: false,
+          allowedPaths: [],
+          forbiddenPaths: [],
+          allowedCommands: [],
+          forbiddenCommands: [],
+          canAccessNetwork: true,
+          maxExecutionTime: 60000, // 1 minute for web operations
+          maxMemoryUsage: 512 * 1024 * 1024,
+          requiresApproval: true,
         },
       })
     } catch (error: any) {

@@ -211,7 +211,7 @@ export class NikCLI {
     // Compact mode by default (cleaner output unless explicitly disabled)
     try {
       if (!process.env.NIKCLI_COMPACT) process.env.NIKCLI_COMPACT = '1'
-    } catch {}
+    } catch { }
 
     // Initialize core managers
     this.configManager = simpleConfigManager
@@ -232,8 +232,8 @@ export class NikCLI {
     // Register agents
     registerAgents(this.agentManager)
 
-    // Expose this instance globally for command handlers
-    ;(global as any).__nikCLI = this
+      // Expose this instance globally for command handlers
+      ; (global as any).__nikCLI = this
 
     this.setupEventHandlers()
     // Bridge orchestrator events into NikCLI output
@@ -259,14 +259,14 @@ export class NikCLI {
     // Render initial prompt
     this.renderPromptArea()
 
-    // Expose NikCLI globally for token management
-    ;(global as any).__nikcli = this
+      // Expose NikCLI globally for token management
+      ; (global as any).__nikcli = this
 
     // Patch inquirer to avoid status bar redraw during interactive prompts
     try {
       const originalPrompt = (inquirer as any).prompt?.bind(inquirer)
       if (originalPrompt) {
-        ;(inquirer as any).prompt = async (...args: any[]) => {
+        ; (inquirer as any).prompt = async (...args: any[]) => {
           this.isInquirerActive = true
           this.stopStatusBar()
           try {
@@ -809,19 +809,19 @@ export class NikCLI {
     process.on('unhandledRejection', (reason: any) => {
       try {
         console.log(require('chalk').red(`\n❌ Unhandled rejection: ${reason?.message || reason}`))
-      } catch {}
+      } catch { }
       try {
         this.renderPromptAfterOutput()
-      } catch {}
+      } catch { }
     })
 
     process.on('uncaughtException', (err: any) => {
       try {
         console.log(require('chalk').red(`\n❌ Uncaught exception: ${err?.message || err}`))
-      } catch {}
+      } catch { }
       try {
         this.renderPromptAfterOutput()
-      } catch {}
+      } catch { }
     })
   }
   // Bridge StreamingOrchestrator agent lifecycle events into NikCLI output
@@ -1681,9 +1681,9 @@ export class NikCLI {
   private showAdvancedHeader(): void {
     const header = boxen(
       `${chalk.cyanBright.bold('🤖 NikCLI')} ${chalk.gray('v0.3.1-beta')}\n` +
-        `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
-        `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
-        `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
+      `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
+      `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
+      `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
       {
         padding: 1,
         margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -1954,22 +1954,22 @@ export class NikCLI {
           // Kill any running subprocesses started by tools
           try {
             const procs = toolsManager.getRunningProcesses?.() || []
-            ;(async () => {
-              let killed = 0
-              await Promise.all(
-                procs.map(async (p: any) => {
-                  try {
-                    const ok = await toolsManager.killProcess?.(p.pid)
-                    if (ok) killed++
-                  } catch {
-                    /* ignore */
-                  }
-                })
-              )
-              if (killed > 0) {
-                console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
-              }
-            })()
+              ; (async () => {
+                let killed = 0
+                await Promise.all(
+                  procs.map(async (p: any) => {
+                    try {
+                      const ok = await toolsManager.killProcess?.(p.pid)
+                      if (ok) killed++
+                    } catch {
+                      /* ignore */
+                    }
+                  })
+                )
+                if (killed > 0) {
+                  console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
+                }
+              })()
           } catch {
             /* ignore */
           }
@@ -2172,6 +2172,7 @@ export class NikCLI {
       lines.push('  /web3 wallets         Pick a wallet')
       lines.push('  /doc-search <query>   Search docs')
       lines.push('  /set-coin-keys        Configure Coinbase keys')
+      lines.push('  /set-key-bb           Configure Browserbase keys')
       lines.push('  /queue status         Input queue status')
 
       const panel = boxen(lines.join('\n'), {
@@ -2999,6 +3000,21 @@ export class NikCLI {
 
         case 'set-coin-keys': {
           await this.interactiveSetCoinbaseKeys()
+          break
+        }
+
+        case 'set-key-bb': {
+          await this.interactiveSetBrowserbaseKeys()
+          break
+        }
+
+        case 'browse': {
+          await this.handleBrowseCommand(args)
+          break
+        }
+
+        case 'web-analyze': {
+          await this.handleWebAnalyzeCommand(args)
           break
         }
 
@@ -4235,7 +4251,7 @@ export class NikCLI {
     try {
       process.env.NIKCLI_COMPACT = '1'
       process.env.NIKCLI_SUPER_COMPACT = '1'
-    } catch {}
+    } catch { }
     console.log(chalk.blue('🎯 Entering Enhanced Planning Mode...'))
 
     try {
@@ -4378,11 +4394,11 @@ export class NikCLI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\n\n` +
-        `${chalk.green('✅ Completed:')} ${completed}\n` +
-        `${chalk.red('❌ Failed:')} ${failed}\n` +
-        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
-        `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
-        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+      `${chalk.green('✅ Completed:')} ${completed}\n` +
+      `${chalk.red('❌ Failed:')} ${failed}\n` +
+      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
+      `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
+      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -4739,21 +4755,21 @@ export class NikCLI {
         console.log(
           chalk.cyan(`📋 Generated plan with ${plan.steps.length} steps (id: ${plan.id}). Executing in background...`)
         )
-        // Fire-and-forget execution to keep CLI responsive
-        ;(async () => {
-          try {
-            await planningService.executePlan(plan.id, {
-              showProgress: true,
-              autoExecute: true,
-              confirmSteps: false,
-            })
-            console.log(chalk.green('✅ Background plan execution completed'))
-          } catch (err: any) {
-            console.log(chalk.red(`❌ Plan execution error: ${err.message}`))
-          }
-          // Ensure prompt is restored after background execution
-          this.renderPromptAfterOutput()
-        })()
+          // Fire-and-forget execution to keep CLI responsive
+          ; (async () => {
+            try {
+              await planningService.executePlan(plan.id, {
+                showProgress: true,
+                autoExecute: true,
+                confirmSteps: false,
+              })
+              console.log(chalk.green('✅ Background plan execution completed'))
+            } catch (err: any) {
+              console.log(chalk.red(`❌ Plan execution error: ${err.message}`))
+            }
+            // Ensure prompt is restored after background execution
+            this.renderPromptAfterOutput()
+          })()
       } else {
         // Direct autonomous execution - select best agent and launch
         const selected = this.agentManager.findBestAgentForTask(task as any)
@@ -5699,9 +5715,9 @@ export class NikCLI {
               console.log(
                 boxen(
                   `Provider: ${provider}\n` +
-                    `Model: ${modelCfg?.model || modelName}\n` +
-                    `API key not configured.\n` +
-                    `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
+                  `Model: ${modelCfg?.model || modelName}\n` +
+                  `API key not configured.\n` +
+                  `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
                   { title: '🔑 API Key Missing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
                 )
               )
@@ -6666,10 +6682,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     console.log(
       boxen(
         `${chalk.blue.bold(plan.title)}\n\n` +
-          `${chalk.gray('Goal:')} ${plan.goal}\n` +
-          `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
-          `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
-          `${chalk.gray('Status:')} ${this.getPlanStatusColor(plan.status)(plan.status.toUpperCase())}`,
+        `${chalk.gray('Goal:')} ${plan.goal}\n` +
+        `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
+        `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
+        `${chalk.gray('Status:')} ${this.getPlanStatusColor(plan.status)(plan.status.toUpperCase())}`,
         {
           padding: 1,
           margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -7493,9 +7509,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Session Tokens:')}\n` +
-            `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
-            `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
-            `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
+          `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
+          `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
+          `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
           {
             padding: 1,
             margin: 1,
@@ -7510,10 +7526,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         chalk.white(
           'Model'.padEnd(30) +
-            'Total Cost'.padStart(12) +
-            'Input Cost'.padStart(12) +
-            'Output Cost'.padStart(12) +
-            'Provider'.padStart(15)
+          'Total Cost'.padStart(12) +
+          'Input Cost'.padStart(12) +
+          'Output Cost'.padStart(12) +
+          'Provider'.padStart(15)
         )
       )
       console.log(chalk.gray('─'.repeat(90)))
@@ -7574,13 +7590,13 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Current Model:')}\n` +
-            `${chalk.white(pricing.displayName)}\n\n` +
-            `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
-            `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
-            `${chalk.yellow('Examples:')}\n` +
-            `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
-            `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
-            `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
+          `${chalk.white(pricing.displayName)}\n\n` +
+          `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
+          `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
+          `${chalk.yellow('Examples:')}\n` +
+          `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
+          `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
+          `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
           {
             padding: 1,
             margin: 1,
@@ -7623,9 +7639,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Estimation Parameters:')}\n` +
-            `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
-            `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
-            `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
+          `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
+          `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
+          `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
           {
             padding: 1,
             margin: 1,
@@ -7709,17 +7725,17 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         console.log(
           boxen(
             `${chalk.cyan.bold('🔮 Advanced Cache System Statistics')}\n\n` +
-              `${chalk.magenta('📦 Full Response Cache:')}\n` +
-              `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
-              `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
-              `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
-              `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
-              `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
-              `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
-              `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
-              `${chalk.green.bold('💰 Total Savings:')}\n` +
-              `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
-              `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
+            `${chalk.magenta('📦 Full Response Cache:')}\n` +
+            `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
+            `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
+            `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
+            `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
+            `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
+            `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
+            `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
+            `${chalk.green.bold('💰 Total Savings:')}\n` +
+            `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
+            `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
             {
               padding: 1,
               margin: 1,
@@ -7768,16 +7784,16 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         console.log(
           boxen(
             `${chalk.cyan('Current Session Token Usage')}\n\n` +
-              `Messages: ${chalk.white(session.messages.length.toLocaleString())}\n` +
-              `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
-              `Est. Tokens: ${chalk.white(estimatedTokens.toLocaleString())}\n` +
-              `Usage: ${usagePercent > 75 ? chalk.red(`${usagePercent}%`) : usagePercent > 50 ? chalk.yellow(`${usagePercent}%`) : chalk.green(`${usagePercent}%`)}\n` +
-              `Limit: ${chalk.gray(tokenLimit.toLocaleString())}\n\n` +
-              `${chalk.yellow('💰 Real-time Cost:')}\n` +
-              `Model: ${chalk.white(currentCost.model)}\n` +
-              `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(4))}\n` +
-              `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(4))}\n` +
-              `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(4))}`,
+            `Messages: ${chalk.white(session.messages.length.toLocaleString())}\n` +
+            `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
+            `Est. Tokens: ${chalk.white(estimatedTokens.toLocaleString())}\n` +
+            `Usage: ${usagePercent > 75 ? chalk.red(`${usagePercent}%`) : usagePercent > 50 ? chalk.yellow(`${usagePercent}%`) : chalk.green(`${usagePercent}%`)}\n` +
+            `Limit: ${chalk.gray(tokenLimit.toLocaleString())}\n\n` +
+            `${chalk.yellow('💰 Real-time Cost:')}\n` +
+            `Model: ${chalk.white(currentCost.model)}\n` +
+            `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(4))}\n` +
+            `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(4))}\n` +
+            `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(4))}`,
             {
               padding: 1,
               margin: 1,
@@ -7887,7 +7903,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
               const c = calc(userTokens, assistantTokens, name)
               const avgPer1K = (c.totalCost / sessionTokens) * 1000
               lines.push(`${c.model}  avg $/1K: $${avgPer1K.toFixed(4)}  total: $${c.totalCost.toFixed(4)}`)
-            } catch {}
+            } catch { }
           })
           if (lines.length > 0) {
             console.log(
@@ -7900,7 +7916,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
               })
             )
           }
-        } catch {}
+        } catch { }
 
         // Recommendations
         if (estimatedTokens > 150000) {
@@ -8778,6 +8794,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       ['/web3 chat "message"', 'Natural language blockchain request'],
       ['/web3 wallets', 'List known wallets and pick one'],
       ['/web3 use-wallet <0x...>', 'Use a specific wallet by address'],
+      ['/set-coin-keys', 'Configure Coinbase CDP API keys'],
 
       // Advanced Features
       ['/enhanced [command]', 'Enhanced AI features (smart suggestions, analytics)'],
@@ -8785,6 +8802,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       ['/approval [test]', 'Approval system controls'],
       ['/todo [command]', 'Todo list operations'],
       ['/todos [on|off|status]', 'Show lists; toggle auto‑todos'],
+
+      // Web Browsing & Analysis (Browserbase)
+      ['/set-key-bb', 'Configure Browserbase API credentials'],
+      ['/browse <url>', 'Browse web page and extract content'],
+      ['/web-analyze <url>', 'Browse and analyze web page with AI'],
 
       // Basic Commands
       ['/init [--force]', 'Initialize project context'],
@@ -8826,7 +8848,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     addGroup('🔒 Security Commands:', 97, 101)
     addGroup('🔗 Blockchain & Web3:', 101, 109)
     addGroup('🔧 Advanced Features:', 109, 114)
-    addGroup('📋 Basic Commands:', 114, commands.length)
+    addGroup('🌐 Web Browsing & Analysis:', 114, 117)
+    addGroup('📋 Basic Commands:', 117, commands.length)
 
     lines.push('💡 Shortcuts: Ctrl+C exit | Esc interrupt | Cmd+Esc default')
 
@@ -8851,12 +8874,12 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     console.log(
       boxen(
         `${title}\n${subtitle}\n\n` +
-          `${enhancedBadge}\n\n` +
-          `${wrapBlue('Mode:')} ${chalk.yellow(this.currentMode)}\n` +
-          `${wrapBlue('Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n` +
-          `${wrapBlue('Directory:')} ${chalk.cyan(path.basename(this.workingDirectory))}\n\n` +
-          `${chalk.dim('Type /help for commands or start chatting!')}\n` +
-          `${chalk.dim('Use Shift+Tab to cycle modes: default → auto → plan')}`,
+        `${enhancedBadge}\n\n` +
+        `${wrapBlue('Mode:')} ${chalk.yellow(this.currentMode)}\n` +
+        `${wrapBlue('Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n` +
+        `${wrapBlue('Directory:')} ${chalk.cyan(path.basename(this.workingDirectory))}\n\n` +
+        `${chalk.dim('Type /help for commands or start chatting!')}\n` +
+        `${chalk.dim('Use Shift+Tab to cycle modes: default → auto → plan')}`,
         {
           padding: 1,
           margin: 1,
@@ -9279,11 +9302,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
       process.stdout.write(
         chalk.cyan('│') +
-          chalk.green(displayLeft) +
-          ' '.repeat(padding) +
-          chalk.gray(displayRight) +
-          chalk.cyan('│') +
-          '\n'
+        chalk.green(displayLeft) +
+        ' '.repeat(padding) +
+        chalk.gray(displayRight) +
+        chalk.cyan('│') +
+        '\n'
       )
       process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n')
     }
@@ -9682,11 +9705,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
       process.stdout.write(
         chalk.cyan('│') +
-          chalk.green(displayLeft) +
-          ' '.repeat(padding) +
-          chalk.gray(displayRight) +
-          chalk.cyan('  │') +
-          '\n'
+        chalk.green(displayLeft) +
+        ' '.repeat(padding) +
+        chalk.gray(displayRight) +
+        chalk.cyan('  │') +
+        '\n'
       )
       process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n')
     }
@@ -9964,8 +9987,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       this.updateSpinnerText(operation)
     }, 500)
 
-    // Store interval for cleanup
-    ;(this.activeSpinner as any)._interval = interval
+      // Store interval for cleanup
+      ; (this.activeSpinner as any)._interval = interval
   }
 
   /**
@@ -13350,9 +13373,71 @@ Generated by NikCLI on ${new Date().toISOString()}
         `   Auto Load For Agents: ${cfg.cloudDocs.autoLoadForAgents ? 'on' : 'off'}  Smart Suggestions: ${cfg.cloudDocs.smartSuggestions ? 'on' : 'off'}`
       )
 
-      // 12) Models & Keys (sorted by name)
+      // 12) AI Providers & API Keys
       lines.push('')
-      lines.push(chalk.green('12) Models & API Keys'))
+      lines.push(chalk.green('12) AI Providers & API Keys'))
+      const anthropicKey = configManager.getApiKey('anthropic') || process.env.ANTHROPIC_API_KEY
+      const openaiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
+      const googleKey = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY
+      const gatewayKey = configManager.getApiKey('gateway') || process.env.AI_GATEWAY_API_KEY
+      const v0Key = configManager.getApiKey('vercel') || process.env.V0_API_KEY
+      const ollamaHost = process.env.OLLAMA_HOST || '127.0.0.1:11434'
+
+      lines.push(`   Anthropic (Claude): ${anthropicKey ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   OpenAI (GPT): ${openaiKey ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   Google (Gemini): ${googleKey ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   AI Gateway: ${gatewayKey ? chalk.green('✅ configured') : chalk.gray('❌ optional')}`)
+      lines.push(`   V0 (Vercel): ${v0Key ? chalk.green('✅ configured') : chalk.gray('❌ optional')}`)
+      lines.push(`   Ollama: ${chalk.cyan(ollamaHost)} ${ollamaHost ? chalk.gray('(local)') : chalk.red('❌ missing')}`)
+
+      // 13) Blockchain & Web3 (Coinbase)
+      lines.push('')
+      lines.push(chalk.green('13) Blockchain & Web3 (Coinbase)'))
+      const coinbaseId = configManager.getApiKey('coinbase_id')
+      const coinbaseSecret = configManager.getApiKey('coinbase_secret')
+      const coinbaseWallet = configManager.getApiKey('coinbase_wallet_secret')
+      lines.push(`   CDP API Key ID: ${coinbaseId ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   CDP API Key Secret: ${coinbaseSecret ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   CDP Wallet Secret: ${coinbaseWallet ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      const coinbaseReady = coinbaseId && coinbaseSecret && coinbaseWallet
+      lines.push(`   Status: ${coinbaseReady ? chalk.green('Ready for Web3 operations') : chalk.yellow('Configure with /set-coin-keys')}`)
+
+      // 14) Web Browsing & Analysis (Browserbase)
+      lines.push('')
+      lines.push(chalk.green('14) Web Browsing & Analysis (Browserbase)'))
+      const browserbaseKey = configManager.getApiKey('browserbase')
+      const browserbaseProject = configManager.getApiKey('browserbase_project_id')
+      lines.push(`   API Key: ${browserbaseKey ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   Project ID: ${browserbaseProject ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      const browserbaseReady = browserbaseKey && browserbaseProject
+      lines.push(`   Status: ${browserbaseReady ? chalk.green('Ready for web browsing') : chalk.yellow('Configure with /set-key-bb')}`)
+      if (browserbaseReady) {
+        const availableProviders = ['claude', 'openai', 'google'].filter(p => configManager.getApiKey(p))
+        lines.push(`   AI Providers: ${availableProviders.length > 0 ? chalk.cyan(availableProviders.join(', ')) : chalk.gray('none available')}`)
+      }
+
+      // 15) Vector Database & Memory (ChromaDB)
+      lines.push('')
+      lines.push(chalk.green('15) Vector Database & Memory (ChromaDB)'))
+      const chromaUrl = process.env.CHROMA_URL || 'http://localhost:8005'
+      const chromaApiKey = process.env.CHROMA_API_KEY || process.env.CHROMA_CLOUD_API_KEY
+      lines.push(`   URL: ${chalk.cyan(chromaUrl)}`)
+      lines.push(`   API Key: ${chromaApiKey ? chalk.green('✅ configured') : chalk.gray('❌ optional (local)')}`)
+      lines.push(`   Status: ${chromaUrl.includes('localhost') ? chalk.yellow('Local instance') : chalk.green('Cloud instance')}`)
+
+      // 16) Cache Services (Upstash Redis)
+      lines.push('')
+      lines.push(chalk.green('16) Cache Services (Upstash Redis)'))
+      const upstashUrl = process.env.UPSTASH_REDIS_REST_URL
+      const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN
+      lines.push(`   REST URL: ${upstashUrl ? chalk.green('✅ configured') : chalk.gray('❌ optional')}`)
+      lines.push(`   REST Token: ${upstashToken ? chalk.green('✅ configured') : chalk.gray('❌ optional')}`)
+      const upstashReady = upstashUrl && upstashToken
+      lines.push(`   Status: ${upstashReady ? chalk.green('Cloud Redis ready') : chalk.gray('Using local Redis fallback')}`)
+
+      // 17) Models & API Keys (sorted by name)
+      lines.push('')
+      lines.push(chalk.green('17) Models & API Keys'))
       const modelEntries = Object.entries(cfg.models).sort((a, b) => a[0].localeCompare(b[0]))
       modelEntries.forEach(([name, mc]) => {
         const isCurrent = name === cfg.currentModel
@@ -13383,10 +13468,10 @@ Generated by NikCLI on ${new Date().toISOString()}
     // Prevent user input queue interference during interactive prompts
     try {
       this.suspendPrompt()
-    } catch {}
+    } catch { }
     try {
       inputQueue.enableBypass()
-    } catch {}
+    } catch { }
 
     try {
       const sectionChoices = [
@@ -13655,7 +13740,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       // Always disable bypass and restore prompt
       try {
         inputQueue.disableBypass()
-      } catch {}
+      } catch { }
       process.stdout.write('')
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
@@ -13915,7 +14000,7 @@ Generated by NikCLI on ${new Date().toISOString()}
     } finally {
       try {
         inputQueue.disableBypass()
-      } catch {}
+      } catch { }
       this.resumePromptAndRender()
     }
   }
@@ -14017,6 +14102,204 @@ Generated by NikCLI on ${new Date().toISOString()}
     }
     this.renderPromptAfterOutput()
   }
+
+  /**
+   * Interactive Browserbase credentials setup
+   */
+  private async interactiveSetBrowserbaseKeys(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('./core/input-queue')
+
+      // Header panel
+      this.printPanel(
+        boxen(
+          'Configure Browserbase credentials. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
+          { title: '🌐 Set Browserbase Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+        )
+      )
+
+      const currentApiKey = configManager.getApiKey('browserbase')
+      const currentProjectId = configManager.getApiKey('browserbase_project_id')
+
+      // Suspend prompt for interactive input
+      this.suspendPrompt()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'password',
+            name: 'apiKey',
+            message: 'BROWSERBASE_API_KEY',
+            mask: '*',
+            suffix: currentApiKey ? chalk.gray(' (configured)') : '',
+          },
+          {
+            type: 'input',
+            name: 'projectId',
+            message: 'BROWSERBASE_PROJECT_ID',
+            suffix: currentProjectId ? chalk.gray(' (configured)') : '',
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        this.resumePromptAndRender()
+      }
+
+      const setIfProvided = (label: string, value: string | undefined, setter: (v: string) => void) => {
+        if (value && value.trim().length > 0) {
+          setter(value.trim())
+          console.log(chalk.green(`✅ Saved ${label}`))
+        } else {
+          console.log(chalk.gray(`⏭️  Skipped ${label}`))
+        }
+      }
+
+      setIfProvided('BROWSERBASE_API_KEY', answers.apiKey, (v) => {
+        configManager.setApiKey('browserbase', v)
+        process.env.BROWSERBASE_API_KEY = v
+      })
+      setIfProvided('BROWSERBASE_PROJECT_ID', answers.projectId, (v) => {
+        configManager.setApiKey('browserbase_project_id', v)
+        process.env.BROWSERBASE_PROJECT_ID = v
+      })
+
+      console.log(
+        boxen('Browserbase keys updated. You can now browse and analyze web content!', {
+          title: '✅ Keys Saved',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to set Browserbase keys: ${error.message}`, {
+          title: '❌ Set Browserbase Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    this.renderPromptAfterOutput()
+  }
+
+  /**
+   * Handle browse command to extract content from URL
+   */
+  private async handleBrowseCommand(args: string[]): Promise<void> {
+    if (args.length < 1) {
+      console.log(chalk.red('Usage: /browse <url>'))
+      console.log(chalk.gray('Example: /browse https://example.com'))
+      return
+    }
+
+    const url = args[0]
+    try {
+      console.log(chalk.blue(`🌐 Browsing ${url}...`))
+
+      // Check if Browserbase is configured
+      const providers = configManager.getBrowserbaseCredentials()
+      if (!providers || providers.apiKey === undefined || providers.projectId === undefined) {
+        console.log(chalk.yellow('⚠️ Browserbase not configured. Use /set-key-bb to configure API credentials.'))
+        return
+      }
+
+      const result = await toolService.executeTool(url, {
+        analysisType: 'summary',
+        skipConfirmation: true
+      })
+
+      if (result.success) {
+        console.log(chalk.green('✅ Page content extracted:'))
+        console.log(chalk.gray('─'.repeat(60)))
+        console.log(result.data?.content || 'No content extracted')
+        console.log(chalk.gray('─'.repeat(60)))
+
+        if (result.data?.title) {
+          console.log(chalk.blue(`📄 Title: ${result.data.title}`))
+        }
+
+        if (result.data?.metadata) {
+          console.log(chalk.gray(`🔗 URL: ${result.data.metadata.url}`))
+          console.log(chalk.gray(`⏱️ Processing time: ${result.data.metadata.processing_time_ms}ms`))
+        }
+      } else {
+        console.log(chalk.red(`❌ Failed to browse: ${result.error}`))
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to browse: ${error.message}`))
+    }
+  }
+
+  /**
+   * Handle web-analyze command to browse and analyze with AI
+   */
+  private async handleWebAnalyzeCommand(args: string[]): Promise<void> {
+    if (args.length < 1) {
+      console.log(chalk.red('Usage: /web-analyze <url> [provider]'))
+      console.log(chalk.gray('Example: /web-analyze https://example.com claude'))
+      console.log(chalk.gray('Providers: claude, openai, google, openrouter'))
+      return
+    }
+
+    const url = args[0]
+    const provider = args[1] || 'claude'
+
+    try {
+      console.log(chalk.blue(`🌐 Analyzing ${url} with ${provider.toUpperCase()}...`))
+
+      // Check if Browserbase is configured
+      const providers = configManager.getBrowserbaseCredentials()
+      if (!providers || providers.apiKey === undefined || providers.projectId === undefined) {
+        console.log(chalk.yellow('⚠️ Browserbase not configured. Use /set-key-bb to configure API credentials.'))
+        return
+      }
+
+      const result = await toolService.executeTool(url, {
+        url,
+        options: {
+          analysisProvider: provider as 'claude' | 'openai' | 'google' | 'openrouter',
+          analysisType: 'detailed',
+          customPrompt: 'Analyze this webpage content and provide insights about its purpose, key information, and any notable features.',
+          skipConfirmation: true
+        }
+      })
+
+      if (result.success) {
+        console.log(chalk.green('✅ Page analyzed successfully:'))
+        console.log(chalk.gray('─'.repeat(60)))
+
+        if (result.data?.content) {
+          console.log(chalk.white('📝 Page Content:'))
+          console.log(result.data.content.substring(0, 500) + (result.data.content.length > 500 ? '...' : ''))
+          console.log('')
+        }
+
+        if (result.data?.analysis) {
+          console.log(chalk.blue('🤖 AI Analysis:'))
+          console.log(result.data.analysis)
+        }
+
+        console.log(chalk.gray('─'.repeat(60)))
+
+        if (result.data?.metadata) {
+          console.log(chalk.gray(`🔗 URL: ${result.data.metadata.url}`))
+          console.log(chalk.gray(`🤖 Provider: ${result.data.metadata.ai_provider}`))
+          console.log(chalk.gray(`⏱️ Processing time: ${result.data.metadata.processing_time_ms}ms`))
+        }
+      } else {
+        console.log(chalk.red(`❌ Failed to analyze: ${result.error}`))
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to analyze: ${error.message}`))
+    }
+  }
+
   /**
    * Show current model details and pricing in a panel
    */
@@ -14081,6 +14364,6 @@ let globalNikCLI: NikCLI | null = null
 // Export function to set global instance
 export function setGlobalNikCLI(instance: NikCLI): void {
   globalNikCLI = instance
-  // Use consistent global variable name
-  ;(global as any).__nikCLI = instance
+    // Use consistent global variable name
+    ; (global as any).__nikCLI = instance
 }

@@ -316,6 +316,9 @@ ${chalk.cyan('/set-key coinbase-id <key>')} - Set Coinbase CDP_API_KEY_ID
 ${chalk.cyan('/set-key coinbase-secret <key>')} - Set Coinbase CDP_API_KEY_SECRET
 ${chalk.cyan('/set-key coinbase-wallet-secret <key>')} - Set Coinbase CDP_WALLET_SECRET
 ${chalk.cyan('/set-key coinbase')} - Interactive wizard for Coinbase keys
+${chalk.cyan('/set-key browserbase-api-key <key>')} - Set Browserbase API key
+${chalk.cyan('/set-key browserbase-project-id <id>')} - Set Browserbase Project ID
+${chalk.cyan('/set-key browserbase')} - Interactive wizard for Browserbase keys
 
 ${chalk.blue.bold('Configuration:')}
 ${chalk.cyan('/config')} - Show current configuration
@@ -632,14 +635,22 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
+    if (args.length === 1 && ['browserbase', 'browserbase-keys'].includes(args[0].toLowerCase())) {
+      await this.interactiveSetBrowserbaseKeys()
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
     if (args.length < 2) {
-      console.log(chalk.red('Usage: /set-key <model|coinbase-id|coinbase-secret|coinbase-wallet-secret> <api-key>'))
+      console.log(chalk.red('Usage: /set-key <model|coinbase-id|coinbase-secret|coinbase-wallet-secret|browserbase-api-key|browserbase-project-id> <api-key>'))
       console.log(chalk.gray('Examples:'))
       console.log(chalk.gray('  /set-key claude-3-5-sonnet sk-ant-...'))
       console.log(chalk.gray('  /set-key coinbase-id your_cdp_api_key_id'))
       console.log(chalk.gray('  /set-key coinbase-secret your_cdp_api_key_secret'))
       console.log(chalk.gray('  /set-key coinbase-wallet-secret your_cdp_wallet_secret'))
       console.log(chalk.gray('  /set-key coinbase   # interactive wizard'))
+      console.log(chalk.gray('  /set-key browserbase-api-key your_browserbase_api_key'))
+      console.log(chalk.gray('  /set-key browserbase-project-id your_project_id'))
+      console.log(chalk.gray('  /set-key browserbase   # interactive wizard'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -658,6 +669,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         configManager.setApiKey('coinbase_wallet_secret', apiKey)
         process.env.CDP_WALLET_SECRET = apiKey
         console.log(chalk.green('✅ Coinbase CDP_WALLET_SECRET set'))
+      } else if (['browserbase-api-key', 'browserbase-key', 'bb-api-key'].includes(keyName)) {
+        configManager.setApiKey('browserbase', apiKey)
+        process.env.BROWSERBASE_API_KEY = apiKey
+        console.log(chalk.green('✅ Browserbase API key set'))
+      } else if (['browserbase-project-id', 'bb-project-id', 'browserbase-project'].includes(keyName)) {
+        configManager.setApiKey('browserbase_project_id', apiKey)
+        process.env.BROWSERBASE_PROJECT_ID = apiKey
+        console.log(chalk.green('✅ Browserbase Project ID set'))
       } else {
         configManager.setApiKey(name, apiKey)
         console.log(chalk.green(`✅ API key set for ${name}`))
@@ -762,6 +781,92 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(
         boxen(`Failed to set Coinbase keys: ${error.message}`, {
           title: '❌ Set Coinbase Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  private async interactiveSetBrowserbaseKeys(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('../core/input-queue')
+
+      const nik: any = (global as any).__nikCLI
+      nik?.beginPanelOutput?.()
+      console.log(
+        boxen('Enter your Browserbase credentials. Values are stored encrypted. Leave blank to keep current.', {
+          title: '🌐 Set Browserbase Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+      nik?.endPanelOutput?.()
+
+      const currentApiKey = configManager.getApiKey('browserbase')
+      const currentProjectId = configManager.getApiKey('browserbase_project_id')
+
+      // Suspend prompt for interactive input
+      nik?.suspendPrompt?.()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'password',
+            name: 'apiKey',
+            message: 'BROWSERBASE_API_KEY',
+            mask: '*',
+            suffix: currentApiKey ? chalk.gray(' (configured)') : '',
+          },
+          {
+            type: 'input',
+            name: 'projectId',
+            message: 'BROWSERBASE_PROJECT_ID',
+            suffix: currentProjectId ? chalk.gray(' (configured)') : '',
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        nik?.renderPromptAfterOutput?.()
+      }
+
+      const setIfProvided = (label: string, key: string | undefined, setter: (v: string) => void) => {
+        if (key && key.trim().length > 0) {
+          setter(key.trim())
+          console.log(chalk.green(`✅ Saved ${label}`))
+        } else {
+          console.log(chalk.gray(`⏭️  Skipped ${label}`))
+        }
+      }
+
+      setIfProvided('BROWSERBASE_API_KEY', answers.apiKey, (v) => {
+        configManager.setApiKey('browserbase', v)
+        process.env.BROWSERBASE_API_KEY = v
+      })
+      setIfProvided('BROWSERBASE_PROJECT_ID', answers.projectId, (v) => {
+        configManager.setApiKey('browserbase_project_id', v)
+        process.env.BROWSERBASE_PROJECT_ID = v
+      })
+
+      console.log(
+        boxen('Browserbase keys updated. You can now browse and analyze web content!', {
+          title: '✅ Keys Saved',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to set Browserbase keys: ${error.message}`, {
+          title: '❌ Set Browserbase Keys',
           padding: 1,
           margin: 1,
           borderStyle: 'round',

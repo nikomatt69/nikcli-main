@@ -61,7 +61,7 @@ function pickOpenRouter(baseModel: string, tier: 'light' | 'medium' | 'heavy', n
   // No hardcoding - routes to any available model via OpenRouter
   // For vision, prefer vision-capable if baseModel indicates, but keep dynamic
   let selected = baseModel
-  if (needsVision && baseModel.includes('gpt-4o')) {
+  if (needsVision && baseModel.includes('claude-3-5-sonnet-latest')) {
     selected = baseModel // Keep if vision-capable
   }
   return selected // e.g., returns 'openrouter-claude-3-7-sonnet-20250219' directly

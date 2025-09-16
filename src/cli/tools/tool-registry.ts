@@ -1,6 +1,7 @@
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { BashTool } from './bash-tool'
+import { BrowserbaseTool } from './browserbase-tool'
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
 import { EditTool } from './edit-tool'
 import { FindFilesTool } from './find-files-tool'
@@ -412,6 +413,17 @@ export class ToolRegistry {
       requiredPermissions: ['network', 'execute'],
       supportedFileTypes: ['*'],
       tags: ['blockchain', 'crypto', 'coinbase', 'agentkit', 'defi', 'wallet', 'transactions'],
+    })
+
+    this.registerTool('browserbase-tool', new BrowserbaseTool(workingDirectory), {
+      description: 'Web browsing automation and AI-powered content analysis using Browserbase',
+      category: 'ai',
+      riskLevel: 'medium',
+      reversible: true,
+      estimatedDuration: 10000,
+      requiredPermissions: ['network', 'read'],
+      supportedFileTypes: ['*'],
+      tags: ['web', 'browsing', 'ai', 'content', 'analysis', 'browserbase', 'automation'],
     })
 
     // List directory tool

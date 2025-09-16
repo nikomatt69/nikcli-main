@@ -748,6 +748,10 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'mistralai/mistral-large',
     },
+    'qwen/qwen3-next-80b-a3b-thinking': {
+      provider: 'openrouter',
+      model: 'qwen/qwen3-next-80b-a3b-thinking',
+    },
     'x-ai/grok-2': {
       provider: 'openrouter',
       model: 'x-ai/grok-2',
@@ -1037,6 +1041,11 @@ export class SimpleConfigManager {
       }
     }
 
+    // Check for special services (not model-specific)
+    if (model === 'browserbase') {
+      return process.env.BROWSERBASE_API_KEY
+    }
+
     return undefined
   }
 
@@ -1162,6 +1171,14 @@ export class SimpleConfigManager {
       url: supabaseConfig.url || process.env.SUPABASE_URL,
       anonKey: supabaseConfig.anonKey || process.env.SUPABASE_ANON_KEY,
       serviceRoleKey: supabaseConfig.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY,
+    }
+  }
+
+  // Browserbase configuration management
+  getBrowserbaseCredentials(): { apiKey?: string; projectId?: string } {
+    return {
+      apiKey: this.getApiKey('browserbase') || process.env.BROWSERBASE_API_KEY,
+      projectId: process.env.BROWSERBASE_PROJECT_ID,
     }
   }
 }

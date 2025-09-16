@@ -10,6 +10,7 @@ import { GitTools } from './git-tools'
 import { type GrepResult, GrepTool, type GrepToolParams } from './grep-tool'
 import { JsonPatchTool } from './json-patch-tool'
 import { MultiReadTool } from './multi-read-tool'
+import { BrowserbaseTool, type BrowserbaseToolResult } from './browserbase-tool'
 
 /**
  * Tool execution context with security metadata
@@ -55,6 +56,7 @@ export class SecureToolsRegistry {
   private gitTools: GitTools
   private multiReadTool: MultiReadTool
   private grepTool: GrepTool
+  private browserbaseTool: BrowserbaseTool
   private executionHistory: ToolResult[] = []
 
   constructor(workingDir?: string) {
@@ -72,6 +74,7 @@ export class SecureToolsRegistry {
     this.gitTools = new GitTools(this.workingDirectory)
     this.multiReadTool = new MultiReadTool(this.workingDirectory)
     this.grepTool = new GrepTool(this.workingDirectory)
+    this.browserbaseTool = new BrowserbaseTool(this.workingDirectory)
 
     console.log(chalk.green('🔒 Secure Tools Registry initialized'))
     console.log(chalk.gray(`📁 Working directory: ${this.workingDirectory}`))
@@ -643,6 +646,195 @@ export class SecureToolsRegistry {
     console.log(chalk.red(`Failed Operations: ${stats.failedOperations}`))
     console.log(chalk.blue(`Path Validation Rate: ${(stats.pathValidationRate * 100).toFixed(1)}%`))
     console.log(chalk.blue(`User Confirmation Rate: ${(stats.userConfirmationRate * 100).toFixed(1)}%`))
+  }
+
+  /**
+   * Browse URL and analyze with Browserbase
+   */
+  async browseAndAnalyze(
+    url: string,
+    options: {
+      analysisProvider?: 'claude' | 'openai' | 'google' | 'openrouter'
+      analysisType?: 'summary' | 'detailed' | 'technical' | 'custom'
+      customPrompt?: string
+      skipConfirmation?: boolean
+    } = {}
+  ): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+
+    return this.executeWithTracking(
+      'BrowseAndAnalyze',
+      async () => {
+        const res = await this.browserbaseTool.browseAndAnalyze(url, {
+          analysisOptions: {
+            provider: options.analysisProvider,
+            analysisType: options.analysisType,
+            prompt: options.customPrompt,
+          },
+        })
+        if (!res.success) throw new Error(res.error || 'Browse and analyze failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: !options.skipConfirmation,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Create Browserbase session
+   */
+  async createBrowserbaseSession(
+    options: {
+      timeout?: number
+      keepAlive?: boolean
+      skipConfirmation?: boolean
+    } = {}
+  ): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+
+    return this.executeWithTracking(
+      'CreateBrowserbaseSession',
+      async () => {
+        const res = await this.browserbaseTool.createSession({
+          timeout: options.timeout,
+          keepAlive: options.keepAlive,
+        })
+        if (!res.success) throw new Error(res.error || 'Session creation failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: !options.skipConfirmation,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Navigate and extract content with Browserbase
+   */
+  async navigateAndExtract(
+    sessionId: string,
+    url: string,
+    options: {
+      waitFor?: number
+      selector?: string
+      screenshot?: boolean
+      skipConfirmation?: boolean
+    } = {}
+  ): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+
+    return this.executeWithTracking(
+      'NavigateAndExtract',
+      async () => {
+        const res = await this.browserbaseTool.navigateAndExtract(sessionId, url, {
+          waitFor: options.waitFor,
+          selector: options.selector,
+          screenshot: options.screenshot,
+        })
+        if (!res.success) throw new Error(res.error || 'Navigate and extract failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: !options.skipConfirmation,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Close Browserbase session
+   */
+  async closeBrowserbaseSession(
+    sessionId: string,
+    options: {
+      skipConfirmation?: boolean
+    } = {}
+  ): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+
+    return this.executeWithTracking(
+      'CloseBrowserbaseSession',
+      async () => {
+        const res = await this.browserbaseTool.closeSession(sessionId)
+        if (!res.success) throw new Error(res.error || 'Session close failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: !options.skipConfirmation,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Get Browserbase session status
+   */
+  async getBrowserbaseSession(
+    sessionId: string
+  ): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext('safe')
+
+    return this.executeWithTracking(
+      'GetBrowserbaseSession',
+      async () => {
+        const res = await this.browserbaseTool.getSession(sessionId)
+        if (!res.success) throw new Error(res.error || 'Get session failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: false,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Get Browserbase available providers
+   */
+  getBrowserbaseProviders(): string[] {
+    return this.browserbaseTool.getAvailableProviders()
+  }
+
+  /**
+   * Get active Browserbase sessions
+   */
+  getActiveBrowserbaseSessions(): any[] {
+    return this.browserbaseTool.getActiveSessions()
+  }
+
+  /**
+   * Cleanup expired Browserbase sessions
+   */
+  async cleanupExpiredBrowserbaseSessions(): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext('safe')
+
+    return this.executeWithTracking(
+      'CleanupExpiredBrowserbaseSessions',
+      async () => {
+        const res = await this.browserbaseTool.cleanupExpiredSessions()
+        if (!res.success) throw new Error(res.error || 'Cleanup failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: false,
+        commandAnalyzed: true,
+      }
+    )
   }
 }
 
