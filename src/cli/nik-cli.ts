@@ -1084,8 +1084,8 @@ export class NikCLI {
         break
 
       case 'bg_agent_tool_call':
-        const toolParams = eventData.parameters ? ` ${JSON.stringify(eventData.parameters)}` : ''
-        advancedUI.logInfo('Background Tool', `🛠️ ${eventData.agentId}: ${eventData.toolName}${toolParams}`)
+        const toolDetails = this.formatToolDetails(eventData.toolName, eventData.parameters)
+        advancedUI.logInfo('Background Tool', `🛠️ ${eventData.agentId}: ${toolDetails}`)
         break
 
       case 'bg_agent_orchestrated':
@@ -1145,8 +1145,8 @@ export class NikCLI {
         break
 
       case 'bg_agent_tool_call':
-        const toolParamsConsole = eventData.parameters ? ` ${JSON.stringify(eventData.parameters)}` : ''
-        console.log(chalk.dim(`  🛠️ Background Tool: ${eventData.agentId} → ${eventData.toolName}${toolParamsConsole}`))
+        const bgToolDetails = this.formatToolDetails(eventData.toolName, eventData.parameters)
+        console.log(chalk.dim(`  🛠️ Background Tool: ${eventData.agentId} → ${bgToolDetails}`))
         break
 
       case 'bg_agent_orchestrated':
@@ -4561,8 +4561,9 @@ export class NikCLI {
             const toolMessage = `🛠️ Tool call: ${ev.content}`
             console.log(`\n${chalk.blue(toolMessage)}`)
 
-            // Log to structured UI
-            advancedUI.logInfo('Tool Call', ev.content)
+            // Log to structured UI with detailed tool information
+            const toolDetails = this.formatToolDetails(ev.toolName || '', ev.toolArgs)
+            advancedUI.logInfo('Tool Call', toolDetails)
 
             // Check if tool call involves background agents
             if (ev.metadata?.backgroundAgents) {
@@ -6868,7 +6869,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         if (event.type === 'text_delta' && event.content) {
           _responseText += event.content
         } else if (event.type === 'tool_call') {
-          console.log(chalk.cyan(`   🛠️ Tool: ${event.toolName}`))
+          const toolDetails = this.formatToolDetails(event.toolName || '', event.toolArgs)
+          console.log(chalk.cyan(`   🛠️ Tool: ${toolDetails}`))
         } else if (event.type === 'tool_result') {
           console.log(chalk.gray(`   ↪ Result from ${event.toolName}`))
         } else if (event.type === 'error') {
@@ -8936,7 +8938,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         // Setup basic project structure
         const basicPackageJson = {
           name: path.basename(this.workingDirectory),
-          version: '0.1.2',
+          version: '0.1.3',
           description: 'Project managed by NikCLI',
           scripts: {
             start: 'node index.js',
@@ -9850,6 +9852,93 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         }
       }
     }, 50)
+  }
+
+  /**
+   * Format tool details for logging
+   */
+  private formatToolDetails(toolName: string, toolArgs: any): string {
+    if (!toolName || !toolArgs) return toolName || 'unknown'
+
+    switch (toolName) {
+      case 'explore_directory':
+        const path = toolArgs.path || '.'
+        const depth = toolArgs.depth ? ` (depth: ${toolArgs.depth})` : ''
+        return `explore_directory: ${path}${depth}`
+
+      case 'execute_command':
+        const command = toolArgs.command || toolArgs.cmd || 'unknown command'
+        // Truncate very long commands
+        const truncatedCommand = command.length > 50 ? command.substring(0, 50) + '...' : command
+        return `execute_command: ${truncatedCommand}`
+
+      case 'read_file':
+        const filePath = toolArgs.path || toolArgs.file_path || 'unknown file'
+        return `read_file: ${filePath}`
+
+      case 'write_file':
+        const writeFilePath = toolArgs.path || toolArgs.file_path || 'unknown file'
+        return `write_file: ${writeFilePath}`
+
+      case 'web_search':
+        const query = toolArgs.query || toolArgs.q || 'unknown query'
+        const truncatedQuery = query.length > 40 ? query.substring(0, 40) + '...' : query
+        return `web_search: "${truncatedQuery}"`
+
+      case 'git_workFlow':
+        const operation = toolArgs.operation || toolArgs.action || 'unknown operation'
+        return `git_workFlow: ${operation}`
+
+      case 'code_analysis':
+        const analysisPath = toolArgs.path || toolArgs.file || 'project'
+        return `code_analysis: ${analysisPath}`
+
+      case 'find_files':
+        const pattern = toolArgs.pattern || toolArgs.query || 'unknown pattern'
+        return `find_files: ${pattern}`
+
+      case 'manage_packages':
+        const packageAction = toolArgs.action || 'unknown action'
+        const packageName = toolArgs.package || toolArgs.name || ''
+        return `manage_packages: ${packageAction}${packageName ? ` ${packageName}` : ''}`
+
+      case 'analyze_project':
+        return `analyze_project: ${toolArgs.scope || 'full project'}`
+
+      case 'semantic_search':
+        const searchQuery = toolArgs.query || toolArgs.search || 'unknown query'
+        return `semantic_search: "${searchQuery}"`
+
+      case 'dependency_analysis':
+        const depPath = toolArgs.path || toolArgs.project || 'project'
+        return `dependency_analysis: ${depPath}`
+
+      case 'git_workflow':
+        const gitAction = toolArgs.action || toolArgs.operation || 'unknown action'
+        const gitFiles = toolArgs.files ? ` (${toolArgs.files.length} files)` : ''
+        return `git_workflow: ${gitAction}${gitFiles}`
+
+      case 'ide_context':
+        const ideScope = toolArgs.scope || toolArgs.context || 'workspace'
+        return `ide_context: ${ideScope}`
+
+      case 'edit_file':
+        const editPath = toolArgs.path || toolArgs.file_path || 'unknown file'
+        return `edit_file: ${editPath}`
+
+      case 'multi_edit':
+        const multiEditPath = toolArgs.path || toolArgs.file_path || 'unknown file'
+        const editCount = toolArgs.edits ? ` (${toolArgs.edits.length} edits)` : ''
+        return `multi_edit: ${multiEditPath}${editCount}`
+
+      default:
+        // For other tools, try to show the most relevant parameter
+        if (toolArgs.path) return `${toolName}: ${toolArgs.path}`
+        if (toolArgs.query) return `${toolName}: ${toolArgs.query}`
+        if (toolArgs.command) return `${toolName}: ${toolArgs.command}`
+        if (toolArgs.file_path) return `${toolName}: ${toolArgs.file_path}`
+        return toolName
+    }
   }
 
   /**

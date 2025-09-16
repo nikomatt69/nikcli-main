@@ -4,13 +4,14 @@ import { Readability } from '@mozilla/readability'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+
 import { type CoreMessage, generateObject } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { simpleConfigManager } from '../../core/config-manager'
 import { redisProvider } from '../redis/redis-provider'
 import { ModelProvider } from '@/cli/ai/model-provider'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 
 export interface BrowserbaseSession {
   id: string

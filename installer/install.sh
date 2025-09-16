@@ -5,10 +5,10 @@ set -euo pipefail
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
 #   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash 
-#   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 0.1.2
+#   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 0.1.3
 
 
-VERSION="0.1.2"
+VERSION="0.1.3"
 PACKAGE="@nicomatt69/nikcli"
 
 log() { echo -e "[NikCLI] $*"; }
@@ -24,7 +24,7 @@ Options:
 
 Examples:
   
-  bash install.sh --version 0.1.2
+  bash install.sh --version 0.1.3
 EOF
 }
 
