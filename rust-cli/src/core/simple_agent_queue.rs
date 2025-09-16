@@ -1,0 +1,1 @@
+// Placeholder for simple agent queue functionality

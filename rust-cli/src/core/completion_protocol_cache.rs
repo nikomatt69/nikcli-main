@@ -1,0 +1,1 @@
+// Placeholder for completion protocol cache functionality

@@ -1,0 +1,126 @@
+[package]
+name = "nik-cli"
+version = "0.1.0"
+edition = "2021"
+authors = ["NikCLI Team"]
+description = "Unified Autonomous AI Development Assistant - Rust Implementation"
+license = "MIT"
+
+[[bin]]
+name = "nik-cli"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "stream", "rustls-tls"], default-features = false }
+hyper = { version = "0.14", features = ["full"] }
+
+# JSON handling
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# CLI and terminal UI
+clap = { version = "4.0", features = ["derive"] }
+dialoguer = "0.11"
+console = "0.15"
+indicatif = "0.17"
+crossterm = "0.27"
+ratatui = "0.24"
+
+# File system and path handling
+walkdir = "2.3"
+glob = "0.3"
+tempfile = "3.8"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+log = "0.4"
+
+# Configuration
+config = "0.13"
+dotenv = "0.15"
+
+# Database and caching
+redis = { version = "0.24", features = ["tokio-comp"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# String manipulation and regex
+regex = "1.10"
+syntect = "5.1"
+
+# Process and command execution
+which = "4.4"
+subprocess = "0.2"
+
+# WebSocket support
+tokio-tungstenite = { version = "0.20", features = ["rustls-tls-native-roots"], default-features = false }
+tungstenite = "0.20"
+
+# Encryption and security
+ring = "0.17"
+base64 = "0.20"
+
+# AI/ML related
+tiktoken-rs = "0.5"
+
+# Environment variables
+env_logger = "0.10"
+
+# Serialization formats
+toml = "0.8"
+yaml-rust = "0.4"
+
+# Networking
+url = "2.4"
+
+# Memory management
+bytes = "1.5"
+
+# Async streams
+futures-util = "0.3"
+tokio-stream = "0.1"
+
+# Terminal colors and styling
+colored = "2.0"
+owo-colors = "3.0"
+
+# File watching
+notify = "6.1"
+
+# Process management
+sysinfo = "0.29"
+
+# Web framework (for API endpoints)
+warp = "0.3"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "fs"] }
+
+# Database migrations
+# migrations = "0.1"
+
+# Testing
+tokio-test = "0.4"
+
+[dev-dependencies]
+tempfile = "3.8"
+tokio-test = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

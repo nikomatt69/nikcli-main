@@ -1,0 +1,12 @@
+/workspace/rust-cli/target/debug/deps/fancy_regex-2b9cbade44aee83d.d: /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/lib.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/analyze.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/compile.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/error.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/expand.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/parse.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/replacer.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/vm.rs
+
+/workspace/rust-cli/target/debug/deps/libfancy_regex-2b9cbade44aee83d.rmeta: /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/lib.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/analyze.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/compile.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/error.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/expand.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/parse.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/replacer.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/vm.rs
+
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/lib.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/analyze.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/compile.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/error.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/expand.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/parse.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/replacer.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fancy-regex-0.12.0/src/vm.rs:
