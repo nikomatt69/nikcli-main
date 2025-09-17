@@ -3,12 +3,22 @@
     "api/index.ts": {
       "maxDuration": 30,
       "memory": 1024
+    },
+    "api/**/*.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
     }
   },
-  "deploymentProtection": {
-    "vercel": false,
-    "password": false
-  },
+  "rewrites": [
+    {
+      "source": "/mobile",
+      "destination": "/api/mobile"
+    },
+    {
+      "source": "/terminal",
+      "destination": "/api/terminal"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",

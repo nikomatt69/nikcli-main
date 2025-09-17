@@ -34,6 +34,10 @@ export interface EnhancedSessionData {
     models?: string[]
     tags?: string[]
     version?: number
+    deviceType?: 'mobile' | 'desktop' | 'tablet'
+    sessionType?: 'ssh' | 'local' | 'web'
+    tmuxSessionId?: string
+    screenDimensions?: { width: number, height: number }
   }
   syncStatus: 'local' | 'synced' | 'conflict' | 'pending'
   cloudId?: string
@@ -56,6 +60,9 @@ export class EnhancedSessionManager extends EventEmitter {
   private cacheTTL = 300 // 5 minutes cache for sessions
   private autoSyncEnabled = true
   private currentUserId?: string
+  private isMobileSession = false
+  private sessionType: 'ssh' | 'local' | 'web' = 'local'
+  private screenDimensions = { width: 80, height: 24 }
 
   constructor(dir?: string) {
     super()
@@ -64,7 +71,100 @@ export class EnhancedSessionManager extends EventEmitter {
     const supabaseConfig = simpleConfigManager.getSupabaseConfig()
     this.autoSyncEnabled = supabaseConfig.enabled && supabaseConfig.features.database
 
+    this.detectEnvironment()
     this.setupEventHandlers()
+  }
+
+  /**
+   * Detect mobile/SSH environment and session type
+   */
+  private detectEnvironment(): void {
+    // Detect SSH session
+    if (process.env.SSH_CLIENT || process.env.SSH_TTY || process.env.SSH_CONNECTION) {
+      this.sessionType = 'ssh'
+    }
+
+    // Detect screen dimensions
+    this.screenDimensions = {
+      width: process.stdout.columns || 80,
+      height: process.stdout.rows || 24
+    }
+
+    // Detect mobile based on screen size and environment
+    this.isMobileSession = this.detectMobileEnvironment()
+
+    if (this.isMobileSession) {
+      console.log(chalk.blue('📱 Mobile session detected - optimizing interface'))
+    }
+  }
+
+  /**
+   * Detect if running in mobile environment
+   */
+  private detectMobileEnvironment(): boolean {
+    // Mobile screen typically <= 120 characters wide
+    const isMobileScreen = this.screenDimensions.width <= 120
+
+    // Common mobile terminal environment variables
+    const mobileTerminals = ['termius', 'termux', 'ish', 'juicessh']
+    const termProgram = (process.env.TERM_PROGRAM || '').toLowerCase()
+    const isMobileTerminal = mobileTerminals.some(mobile => termProgram.includes(mobile))
+
+    // SSH from mobile device patterns
+    const sshClient = process.env.SSH_CLIENT || ''
+    const isMobileSSH = this.sessionType === 'ssh' && isMobileScreen
+
+    return isMobileScreen || isMobileTerminal || isMobileSSH
+  }
+
+  /**
+   * Get mobile session status
+   */
+  isMobile(): boolean {
+    return this.isMobileSession
+  }
+
+  /**
+   * Get session type
+   */
+  getSessionType(): 'ssh' | 'local' | 'web' {
+    return this.sessionType
+  }
+
+  /**
+   * Get screen dimensions
+   */
+  getScreenDimensions(): { width: number, height: number } {
+    return { ...this.screenDimensions }
+  }
+
+  /**
+   * Create tmux session for persistence (SSH sessions)
+   */
+  async createTmuxSession(sessionName?: string): Promise<string | null> {
+    if (this.sessionType !== 'ssh') return null
+
+    try {
+      const { execSync } = await import('node:child_process')
+      const tmuxSessionId = sessionName || `nikcli-${Date.now()}`
+
+      // Check if tmux is available
+      try {
+        execSync('which tmux', { stdio: 'ignore' })
+      } catch {
+        console.log(chalk.yellow('⚠️ tmux not available - session persistence limited'))
+        return null
+      }
+
+      // Create tmux session
+      execSync(`tmux new-session -d -s "${tmuxSessionId}"`, { stdio: 'ignore' })
+      console.log(chalk.green(`✅ tmux session created: ${tmuxSessionId}`))
+
+      return tmuxSessionId
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Failed to create tmux session: ${error.message}`))
+      return null
+    }
   }
 
   /**
@@ -533,6 +633,9 @@ export class EnhancedSessionManager extends EventEmitter {
       metadata: {
         version: 1,
         tags: options?.tags || [],
+        deviceType: this.isMobileSession ? 'mobile' : 'desktop',
+        sessionType: this.sessionType,
+        screenDimensions: this.screenDimensions,
       },
       syncStatus: 'pending',
     }
