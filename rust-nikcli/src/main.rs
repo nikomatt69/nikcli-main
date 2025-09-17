@@ -11,6 +11,7 @@ use colored::*;
 use std::process;
 use tracing::{error, info};
 
+mod agents;
 mod cli;
 mod core;
 mod error;

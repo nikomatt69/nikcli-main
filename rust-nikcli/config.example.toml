@@ -1,0 +1,128 @@
+# NikCLI Configuration Example
+# Copy this file to ~/.config/nikcli/nikcli.toml or use nikcli config commands
+
+# Current AI model
+current_model = "default-openai"
+
+# AI model settings
+temperature = 0.7
+max_tokens = 8000
+
+# Chat settings
+chat_history = true
+max_history_length = 100
+system_prompt = "You are NikCLI, an advanced AI development assistant. Help users with coding tasks, project analysis, and development workflows."
+
+# Workspace settings
+auto_analyze_workspace = true
+enable_auto_approve = false
+preferred_agent = "universal-agent"
+
+# Model configurations
+[models.default-openai]
+provider = "OpenAi"
+model = "gpt-4o"
+temperature = 0.7
+max_tokens = 4096
+
+[models.default-anthropic]
+provider = "Anthropic"
+model = "claude-3-5-sonnet-20240620"
+temperature = 0.7
+max_tokens = 4096
+
+[models.default-ollama]
+provider = "Ollama"
+model = "llama3.1:8b"
+temperature = 0.7
+max_tokens = 4096
+
+# API keys (set via nikcli config add-api-key)
+# [api_keys]
+# OPENAI_API_KEY = "sk-your-key-here"
+# ANTHROPIC_API_KEY = "sk-ant-your-key-here"
+
+# Model routing configuration
+[model_routing]
+enabled = true
+verbose = false
+mode = "balanced"  # conservative, balanced, aggressive
+
+# Redis configuration (optional)
+[redis]
+enabled = false
+host = "127.0.0.1"
+port = 6379
+database = 0
+
+[redis.fallback]
+enabled = true
+path = "nikcli_redis_fallback.json"
+
+# Supabase configuration (optional)
+[supabase]
+enabled = false
+# url = "https://your-project.supabase.co"
+# anon_key = "your-anon-key"
+
+[supabase.features]
+auth = true
+vector_db = true
+real_time = false
+
+# Agent configurations
+[agents.universal-agent]
+autonomy_level = "fully-autonomous"
+max_concurrent_tasks = 3
+default_timeout = 300000
+log_level = "info"
+
+[agents.universal-agent.retry_policy]
+max_attempts = 3
+backoff_ms = 1000
+backoff_multiplier = 2.0
+retryable_errors = ["timeout", "network", "temporary"]
+
+[agents.universal-agent.permissions]
+can_read_files = true
+can_write_files = true
+can_delete_files = true
+allowed_paths = ["*"]
+forbidden_paths = ["/etc", "/system"]
+can_execute_commands = true
+allowed_commands = ["*"]
+forbidden_commands = ["rm -rf /", "format", "fdisk"]
+can_access_network = true
+allowed_domains = ["*"]
+can_install_packages = true
+can_modify_config = true
+can_access_secrets = false
+
+# VM and container settings
+[vm]
+enabled = false
+default_image = "nikcli-dev:latest"
+max_containers = 5
+default_timeout = 1800000
+
+# Security settings
+[security]
+safe_mode = false
+require_approval = true
+max_file_size = 10485760  # 10MB
+allowed_extensions = [".rs", ".toml", ".md", ".json", ".yaml", ".yml"]
+
+# Performance settings
+[performance]
+enable_caching = true
+cache_size = 1000
+enable_compression = true
+max_memory_usage = 1073741824  # 1GB
+
+# Logging settings
+[logging]
+level = "info"
+format = "json"
+file = "nikcli.log"
+max_size = 10485760  # 10MB
+max_files = 5

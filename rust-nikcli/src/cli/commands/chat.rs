@@ -6,6 +6,9 @@ use dialoguer::{Confirm, Input, Select};
 use std::io::{self, Write};
 use tracing::{debug, info, warn};
 
+mod slash_commands;
+use slash_commands::*;
+
 /// Execute chat command
 pub async fn execute(args: ChatArgs) -> NikCliResult<()> {
     info!("Starting chat session");
@@ -213,25 +216,146 @@ fn display_prompt(session: &ChatSession) {
            format!("{}{}", modes, auto_accept).yellow());
 }
 
-/// Handle special commands
+/// Handle special commands - Complete implementation of all slash commands
 async fn handle_command(command: &str, session: &ChatSession) -> NikCliResult<()> {
     let parts: Vec<&str> = command.split_whitespace().collect();
+    if parts.is_empty() {
+        return Ok(());
+    }
+    
     let cmd = parts[0];
+    let args = &parts[1..];
     
     match cmd {
-        "/help" => {
-            show_help();
-        }
-        "/status" => {
-            show_status(session);
-        }
-        "/clear" => {
-            clear_screen();
-        }
-        "/exit" | "/quit" => {
-            println!("{}", "Goodbye!".green().bold());
-            std::process::exit(0);
-        }
+        // Basic commands
+        "/help" => help_command().await?,
+        "/quit" | "/exit" => quit_command().await?,
+        "/clear" => clear_command().await?,
+        "/default" => default_mode_command().await?,
+        
+        // Model and configuration commands
+        "/model" => model_command(args).await?,
+        "/models" => models_command().await?,
+        "/set-key" => set_key_command(args).await?,
+        "/config" => config_command().await?,
+        "/temp" => temperature_command(args).await?,
+        "/router" => router_command(args).await?,
+        
+        // Session management
+        "/new" => new_session_command(args).await?,
+        "/sessions" => sessions_command().await?,
+        "/export" => export_command(args).await?,
+        "/history" => history_command(args).await?,
+        
+        // System and stats
+        "/system" => system_command(args).await?,
+        "/stats" => stats_command().await?,
+        "/debug" => debug_command().await?,
+        
+        // Agent commands
+        "/agent" => agent_command(args).await?,
+        "/agents" => list_agents_command().await?,
+        "/auto" => autonomous_command(args).await?,
+        "/parallel" => parallel_command(args).await?,
+        "/factory" => factory_command().await?,
+        "/create-agent" => create_agent_command(args).await?,
+        "/launch-agent" => launch_agent_command(args).await?,
+        
+        // File operations
+        "/read" => read_file_command(args).await?,
+        "/write" => write_file_command(args).await?,
+        "/edit" => edit_file_command(args).await?,
+        "/ls" => list_files_command(args).await?,
+        "/search" => search_command(args).await?,
+        
+        // Command execution
+        "/run" => run_command_command(args).await?,
+        "/install" => install_command(args).await?,
+        "/npm" => npm_command(args).await?,
+        "/yarn" => yarn_command(args).await?,
+        "/git" => git_command(args).await?,
+        "/docker" => docker_command(args).await?,
+        "/process" => process_command().await?,
+        "/kill" => kill_command(args).await?,
+        "/build" => build_command().await?,
+        "/test" => test_command(args).await?,
+        "/lint" => lint_command().await?,
+        "/create-project" => create_project_command(args).await?,
+        
+        // VM and container commands
+        "/vm" => vm_command(args).await?,
+        "/vm-create" => vm_create_command(args).await?,
+        "/vm-list" => vm_list_command().await?,
+        "/vm-stop" => vm_stop_command(args).await?,
+        "/vm-remove" => vm_remove_command(args).await?,
+        "/vm-connect" => vm_connect_command(args).await?,
+        "/vm-logs" => vm_logs_command(args).await?,
+        "/vm-mode" => vm_mode_command().await?,
+        "/vm-switch" => vm_switch_command().await?,
+        "/vm-dashboard" => vm_dashboard_command().await?,
+        "/vm-select" => vm_select_command(args).await?,
+        "/vm-status" => vm_status_command(args).await?,
+        "/vm-exec" => vm_exec_command(args).await?,
+        "/vm-ls" => vm_ls_command(args).await?,
+        "/vm-broadcast" => vm_broadcast_command(args).await?,
+        "/vm-health" => vm_health_command().await?,
+        "/vm-backup" => vm_backup_command(args).await?,
+        "/vm-stats" => vm_stats_command().await?,
+        "/vm-create-pr" => vm_create_pr_command(args).await?,
+        
+        // Planning and todo
+        "/plan" => plan_command(args).await?,
+        "/todo" => todo_command(args).await?,
+        "/todos" => todos_command(args).await?,
+        "/compact" => compact_command(args).await?,
+        "/super-compact" => super_compact_command(args).await?,
+        "/approval" => approval_command(args).await?,
+        
+        // Security and modes
+        "/security" => security_command(args).await?,
+        "/dev-mode" => dev_mode_command(args).await?,
+        "/safe-mode" => safe_mode_command().await?,
+        "/clear-approvals" => clear_approvals_command().await?,
+        
+        // Blueprint system
+        "/blueprints" => blueprints_command().await?,
+        "/blueprint" => blueprint_command(args).await?,
+        "/delete-blueprint" => delete_blueprint_command(args).await?,
+        "/export-blueprint" => export_blueprint_command(args).await?,
+        "/import-blueprint" => import_blueprint_command(args).await?,
+        "/search-blueprints" => search_blueprints_command(args).await?,
+        
+        // Context and streaming
+        "/context" => context_command(args).await?,
+        "/stream" => stream_command(args).await?,
+        
+        // Image and vision
+        "/analyze-image" => analyze_image_command(args).await?,
+        "/images" => images_command().await?,
+        "/generate-image" => generate_image_command(args).await?,
+        
+        // Web3 features
+        "/web3" => web3_command(args).await?,
+        
+        // Memory system
+        "/remember" => remember_command(args).await?,
+        "/recall" => recall_command(args).await?,
+        "/memory" => memory_command(args).await?,
+        "/forget" => forget_command(args).await?,
+        
+        // Snapshot system
+        "/snapshot" => snapshot_command(args).await?,
+        "/restore" => restore_command(args).await?,
+        "/list-snapshots" => list_snapshots_command(args).await?,
+        
+        // Diagnostic system
+        "/index" => index_command(args).await?,
+        "/diagnostic" => diagnostic_command(args).await?,
+        "/monitor" => monitor_command(args).await?,
+        "/diagnostic-status" => diagnostic_status_command().await?,
+        "/start-diagnostic" => start_diagnostic_monitoring(args).await?,
+        "/stop-diagnostic" => stop_diagnostic_monitoring(args).await?,
+        
         _ => {
             println!("{}", format!("Unknown command: {}", cmd).red());
             println!("{}", "Type '/help' for available commands.".dim());

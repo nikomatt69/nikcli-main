@@ -63,6 +63,7 @@ base64 = "0.21"
 sha2 = "0.10"
 hex = "0.4"
 textwrap = "0.16"
+async-trait = "0.1"
 
 # AI and ML (for future extensions)
 # Note: These would be added based on specific AI provider needs
@@ -71,6 +72,10 @@ textwrap = "0.16"
 tempfile = "3.0"
 assert_cmd = "2.0"
 predicates = "3.0"
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
 mockito = "1.0"
 
 [profile.release]
