@@ -1,0 +1,81 @@
+[package]
+name = "nikcli"
+version = "0.1.0"
+edition = "2021"
+authors = ["nikomatt69"]
+description = "NikCLI - Context-Aware AI Development Assistant"
+license = "MIT"
+repository = "https://github.com/nikomatt69/nikcli-main"
+keywords = ["cli", "ai", "development", "assistant", "autonomous"]
+categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "nikcli"
+path = "src/main.rs"
+
+[dependencies]
+# CLI and argument parsing
+clap = { version = "4.4", features = ["derive", "color", "suggestions"] }
+clap-num = "1.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+yaml-rust = "0.4"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "stream"] }
+
+# File system and I/O
+walkdir = "2.0"
+glob = "0.3"
+regex = "1.0"
+
+# Terminal UI and formatting
+colored = "2.0"
+indicatif = "0.17"
+console = "0.15"
+dialoguer = "0.11"
+crossterm = "0.27"
+
+# Configuration and environment
+config = "0.14"
+dirs = "5.0"
+home = "0.5"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.21"
+sha2 = "0.10"
+hex = "0.4"
+textwrap = "0.16"
+
+# AI and ML (for future extensions)
+# Note: These would be added based on specific AI provider needs
+
+[dev-dependencies]
+tempfile = "3.0"
+assert_cmd = "2.0"
+predicates = "3.0"
+mockito = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
