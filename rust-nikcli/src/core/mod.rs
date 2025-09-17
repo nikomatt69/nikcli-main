@@ -1,6 +1,24 @@
+pub mod agent_manager;
 pub mod config;
 pub mod logger;
+pub mod tool_router;
+pub mod performance_optimizer;
+pub mod context_enhancer;
+pub mod documentation_library;
+pub mod documentation_tool;
+pub mod ide_context_enricher;
+pub mod progressive_token_manager;
+pub mod smart_cache_manager;
+pub mod validator_manager;
+pub mod web_search_provider;
+pub mod prompt_manager;
+pub mod types;
 pub mod utils;
 
+pub use agent_manager::*;
 pub use config::ConfigManager;
 pub use logger::Logger;
+pub use tool_router::*;
+pub use performance_optimizer::*;
+pub use validator_manager::*;
+pub use types::*;

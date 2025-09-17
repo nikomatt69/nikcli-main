@@ -15,6 +15,7 @@ mod ai;
 mod agents;
 mod chat;
 mod cli;
+mod context;
 mod core;
 mod error;
 mod utils;
