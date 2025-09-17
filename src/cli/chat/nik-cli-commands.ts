@@ -641,7 +641,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     if (args.length < 2) {
-      console.log(chalk.red('Usage: /set-key <model|coinbase-id|coinbase-secret|coinbase-wallet-secret|browserbase-api-key|browserbase-project-id> <api-key>'))
+      console.log(
+        chalk.red(
+          'Usage: /set-key <model|coinbase-id|coinbase-secret|coinbase-wallet-secret|browserbase-api-key|browserbase-project-id> <api-key>'
+        )
+      )
       console.log(chalk.gray('Examples:'))
       console.log(chalk.gray('  /set-key claude-3-5-sonnet sk-ant-...'))
       console.log(chalk.gray('  /set-key coinbase-id your_cdp_api_key_id'))

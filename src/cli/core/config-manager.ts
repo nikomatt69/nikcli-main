@@ -100,6 +100,20 @@ const ConfigSchema = z.object({
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   requireApprovalForNetwork: z.boolean().default(true),
   approvalPolicy: z.enum(['strict', 'moderate', 'permissive']).default('moderate'),
+  // Embedding provider configuration
+  embeddingProvider: z
+    .object({
+      default: z.enum(['openai', 'google', 'anthropic', 'openrouter']).default('openai'),
+      fallbackChain: z.array(z.enum(['openai', 'google', 'anthropic', 'openrouter'])).default(['openai', 'openrouter', 'google']),
+      costOptimization: z.boolean().default(true),
+      autoSwitchOnFailure: z.boolean().default(true),
+    })
+    .default({
+      default: 'openai',
+      fallbackChain: ['openai', 'openrouter', 'google'],
+      costOptimization: true,
+      autoSwitchOnFailure: true,
+    }),
   // Security configuration for different modes
   securityMode: z.enum(['safe', 'default', 'developer']).default('safe'),
   toolApprovalPolicies: z
@@ -402,7 +416,7 @@ const ConfigSchema = z.object({
     })
     .default({
       enabled: false,
-      host: 'https://destined-squirrel-7098.upstash.io',
+      host: 'localhost',
       port: 6379,
       database: 0,
       keyPrefix: 'nikcli:',
@@ -695,6 +709,10 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'anthropic/claude-3.5-sonnet',
     },
+    'google/gemini-2.5-flash': {
+      provider: 'openrouter',
+      model: 'google/gemini-2.5-flash',
+    },
     'anthropic/claude-3.5-latest': {
       provider: 'openrouter',
       model: 'anthropic/claude-3.5-latest',
@@ -791,7 +809,7 @@ export class SimpleConfigManager {
   }
 
   private defaultConfig: ConfigType = {
-    currentModel: 'claude-3-7-sonnet-20250219',
+    currentModel: 'claude-3-5-sonnet-latest',
     temperature: 1,
     maxTokens: 8000,
     chatHistory: true,
@@ -809,6 +827,12 @@ export class SimpleConfigManager {
     logLevel: 'info' as const,
     requireApprovalForNetwork: true,
     approvalPolicy: 'moderate' as const,
+    embeddingProvider: {
+      default: 'openai',
+      fallbackChain: ['openai', 'openrouter', 'google'],
+      costOptimization: true,
+      autoSwitchOnFailure: true,
+    },
     securityMode: 'safe' as const,
     toolApprovalPolicies: {
       fileOperations: 'risky' as const,
@@ -858,8 +882,8 @@ export class SimpleConfigManager {
       ],
     },
     redis: {
-      enabled: true,
-      host: 'https://destined-squirrel-7098.upstash.io',
+      enabled: false,
+      host: 'localhost',
       port: 6379,
       database: 0,
       keyPrefix: 'nikcli:',
@@ -959,6 +983,7 @@ export class SimpleConfigManager {
 
     // Load or create config
     this.loadConfig()
+    this.applySmartDefaults()
   }
 
   private loadConfig(): void {
@@ -974,6 +999,24 @@ export class SimpleConfigManager {
     } catch (_error) {
       console.warn(chalk.yellow('Warning: Failed to load config, using defaults'))
       this.config = { ...this.defaultConfig }
+    }
+  }
+
+  private applySmartDefaults(): void {
+    // Detect CI/CD environment
+    const isCI = !!(process.env.CI || process.env.GITHUB_ACTIONS || process.env.GITLAB_CI)
+
+    if (isCI) {
+      this.config.enableAutoApprove = true
+      this.config.requireApprovalForNetwork = false
+      this.config.approvalPolicy = 'permissive'
+    }
+
+    // Detect development environment
+    const isDev = process.env.NODE_ENV === 'development'
+    if (isDev) {
+      this.config.logLevel = 'debug'
+      this.config.maxHistoryLength = 200
     }
   }
 

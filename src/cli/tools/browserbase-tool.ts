@@ -1,12 +1,12 @@
-import { z } from 'zod'
 import chalk from 'chalk'
-import { BaseTool, type ToolExecutionResult } from './base-tool'
+import { z } from 'zod'
 import {
-  browserbaseProvider,
-  type BrowserbaseSession,
-  type BrowserbaseContentResult,
   type BrowserbaseAIAnalysis,
+  type BrowserbaseContentResult,
+  type BrowserbaseSession,
+  browserbaseProvider,
 } from '../providers/browserbase/browserbase-provider'
+import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 // Zod schemas for type validation
 export const BrowserbaseSessionOptionsSchema = z.object({
@@ -24,43 +24,52 @@ export const BrowserbaseNavigateOptionsSchema = z.object({
 export const BrowserbaseAnalysisOptionsSchema = z.object({
   provider: z.enum(['claude', 'openai', 'google', 'openrouter']).optional().describe('AI provider for analysis'),
   prompt: z.string().optional().describe('Custom analysis prompt'),
-  analysisType: z.enum(['summary', 'detailed', 'technical', 'custom']).optional().describe('Type of analysis to perform'),
+  analysisType: z
+    .enum(['summary', 'detailed', 'technical', 'custom'])
+    .optional()
+    .describe('Type of analysis to perform'),
 })
 
 export const BrowserbaseToolResultSchema = z.object({
   success: z.boolean(),
-  session: z.object({
-    id: z.string(),
-    status: z.enum(['running', 'finished', 'failed']),
-    connectUrl: z.string(),
-    createdAt: z.string(),
-    expiresAt: z.string(),
-  }).optional(),
-  content: z.object({
-    url: z.string(),
-    title: z.string(),
-    textContent: z.string(),
-    excerpt: z.string(),
-    metadata: z.object({
-      processingTime: z.number(),
-      contentLength: z.number(),
-      extractionMethod: z.string(),
-    }),
-  }).optional(),
-  analysis: z.object({
-    summary: z.string(),
-    keyPoints: z.array(z.string()),
-    topics: z.array(z.string()),
-    sentiment: z.enum(['positive', 'negative', 'neutral']),
-    actionItems: z.array(z.string()),
-    questions: z.array(z.string()),
-    confidence: z.number(),
-    metadata: z.object({
-      modelUsed: z.string(),
-      processingTime: z.number(),
-      contentLength: z.number(),
-    }),
-  }).optional(),
+  session: z
+    .object({
+      id: z.string(),
+      status: z.enum(['running', 'finished', 'failed']),
+      connectUrl: z.string(),
+      createdAt: z.string(),
+      expiresAt: z.string(),
+    })
+    .optional(),
+  content: z
+    .object({
+      url: z.string(),
+      title: z.string(),
+      textContent: z.string(),
+      excerpt: z.string(),
+      metadata: z.object({
+        processingTime: z.number(),
+        contentLength: z.number(),
+        extractionMethod: z.string(),
+      }),
+    })
+    .optional(),
+  analysis: z
+    .object({
+      summary: z.string(),
+      keyPoints: z.array(z.string()),
+      topics: z.array(z.string()),
+      sentiment: z.enum(['positive', 'negative', 'neutral']),
+      actionItems: z.array(z.string()),
+      questions: z.array(z.string()),
+      confidence: z.number(),
+      metadata: z.object({
+        modelUsed: z.string(),
+        processingTime: z.number(),
+        contentLength: z.number(),
+      }),
+    })
+    .optional(),
   error: z.string().optional(),
 })
 
@@ -325,7 +334,7 @@ export class BrowserbaseTool extends BaseTool {
       return this.handleError(error, startTime, { url, options })
     } finally {
       // Cleanup session if requested
-      if (sessionId && sessionId !== '' && (options.closeSession !== false)) {
+      if (sessionId && sessionId !== '' && options.closeSession !== false) {
         try {
           await browserbaseProvider.closeSession(sessionId)
         } catch (cleanupError) {

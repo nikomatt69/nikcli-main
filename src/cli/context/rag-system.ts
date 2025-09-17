@@ -17,6 +17,9 @@ import { CliUI } from '../utils/cli-ui'
 import type { FileEmbedding, WorkspaceContext } from './workspace-rag'
 import { WorkspaceRAG } from './workspace-rag'
 
+// Import AI SDK unified embedding provider
+import { aiSdkEmbeddingProvider, AiSdkEmbeddingProvider } from './ai-sdk-embedding-provider'
+
 // Unified RAG interfaces
 export interface UnifiedRAGConfig {
   useVectorDB: boolean
@@ -54,99 +57,48 @@ export interface RAGAnalysisResult {
   fallbackMode: boolean
 }
 
-class OpenAIEmbeddingFunction implements EmbeddingFunction {
-  private apiKey: string
-  private model: string = 'text-embedding-3-small' // Most cost-effective OpenAI embedding model
-  private maxTokens: number = 8191 // Max tokens per request for this model
-  private batchSize: number = 100 // Process in batches to avoid rate limits
+// AI SDK Embedding Function wrapper for ChromaDB compatibility
+class AiSdkEmbeddingFunction implements EmbeddingFunction {
+  private provider: AiSdkEmbeddingProvider
 
-  constructor() {
-    this.apiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY || ''
-    if (!this.apiKey) {
-      throw new Error('OpenAI API key not found. Set it using: npm run cli set-key openai YOUR_API_KEY')
-    }
+  constructor(provider: AiSdkEmbeddingProvider) {
+    this.provider = provider
   }
 
   async generate(texts: string[]): Promise<number[][]> {
-    if (texts.length === 0) return []
-
     try {
-      // Process texts in batches to avoid rate limits and token limits
-      const results: number[][] = []
-
-      for (let i = 0; i < texts.length; i += this.batchSize) {
-        const batch = texts.slice(i, i + this.batchSize)
-        const batchResults = await this.generateBatch(batch)
-        results.push(...batchResults)
-
-        // Add small delay between batches to respect rate limits
-        if (i + this.batchSize < texts.length) {
-          await new Promise((resolve) => setTimeout(resolve, 100))
-        }
-      }
-
-      return results
+      return await this.provider.generate(texts)
     } catch (error: any) {
-      CliUI.logError(`Embedding generation failed: ${error.message}`)
+      CliUI.logError(`AI SDK embedding generation failed: ${error.message}`)
       throw error
     }
   }
 
-  private async generateBatch(texts: string[]): Promise<number[][]> {
-    // Truncate texts that are too long to avoid token limit
-    const processedTexts = texts.map((text) => this.truncateText(text))
-
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: this.model,
-        input: processedTexts,
-      }),
-    })
-
-    if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`OpenAI API error: ${response.status} - ${error}`)
-    }
-
-    const data = await response.json()
-    return (data as any).data.map((item: any) => item.embedding)
-  }
-
-  private truncateText(text: string): string {
-    // Rough estimation: 1 token ≈ 4 characters for English text
-    const maxChars = this.maxTokens * 4
-    if (text.length <= maxChars) return text
-
-    // Truncate and add indication
-    return text.substring(0, maxChars - 50) + '\n[... content truncated ...]'
-  }
-
-  // Utility method to estimate cost
-  static estimateCost(input: string[] | number): number {
-    // Validate input
+  // Utility method to estimate cost using AI SDK provider
+  static estimateCost(input: string[] | number, provider: string = 'openai'): number {
     if (typeof input === 'number' && input < 0) {
       throw new Error('Character count cannot be negative')
     }
     if (Array.isArray(input) && input.length === 0) {
       return 0
     }
-    const totalChars = typeof input === 'number' ? input : input.reduce((sum, text) => sum + text.length, 0)
-    const estimatedTokens = Math.ceil(totalChars / 4) // Rough estimation
-    const costPer1KTokens = 0.00002 // $0.00002 per 1K tokens for text-embedding-3-small
-    return (estimatedTokens / 1000) * costPer1KTokens
+
+    const texts = typeof input === 'number' ? ['x'.repeat(input)] : input
+    return AiSdkEmbeddingProvider.estimateCost(texts, provider)
   }
 }
 
-// Lazy embedder initialization to avoid throwing at import time
-let _embedder: OpenAIEmbeddingFunction | null = null
-function getEmbedder(): OpenAIEmbeddingFunction {
+// Unified embedder initialization
+let _embedder: AiSdkEmbeddingFunction | null = null
+function getEmbedder(): AiSdkEmbeddingFunction {
   if (_embedder) return _embedder
-  _embedder = new OpenAIEmbeddingFunction()
+
+  // Check if any embedding providers are available
+  if (aiSdkEmbeddingProvider.getAvailableProviders().length === 0) {
+    throw new Error('No embedding providers configured. RAG will use local analysis only.')
+  }
+
+  _embedder = new AiSdkEmbeddingFunction(aiSdkEmbeddingProvider)
   return _embedder
 }
 
@@ -224,7 +176,7 @@ async function _estimateIndexingCost(files: string[], projectPath: string): Prom
   const avgCharsPerFile = totalChars / processedFiles
   const estimatedTotalChars = avgCharsPerFile * files.length
 
-  return OpenAIEmbeddingFunction.estimateCost(estimatedTotalChars)
+  return AiSdkEmbeddingFunction.estimateCost(estimatedTotalChars)
 }
 
 function isBinaryFile(content: string): boolean {
@@ -243,7 +195,7 @@ export class UnifiedRAGSystem {
   private config: UnifiedRAGConfig
   private workspaceRAG: any // WorkspaceRAG instance
   private vectorClient: ChromaClient | CloudClient | null = null
-  private embeddingFunction: OpenAIEmbeddingFunction | null = null
+  private embeddingFunction: AiSdkEmbeddingFunction | null = null
   private embeddingsCache: Map<string, number[]> = new Map()
   private analysisCache: Map<string, RAGAnalysisResult> = new Map()
   private lastAnalysis: number = 0
@@ -286,7 +238,7 @@ export class UnifiedRAGSystem {
 
           // Test ChromaDB connection and verify embeddings (real API calls)
           await this.testChromaConnection()
-          await this.testOpenAIEmbeddings()
+          await this.testAiSdkEmbeddings()
           console.log(chalk.green('✅ Vector DB client initialized'))
         } catch (_error: any) {
           console.log(
@@ -343,21 +295,23 @@ export class UnifiedRAGSystem {
   }
 
   /**
-   * Test OpenAI embeddings with real API call
+   * Test AI SDK embeddings with real API call
    */
-  private async testOpenAIEmbeddings(): Promise<void> {
+  private async testAiSdkEmbeddings(): Promise<void> {
     if (!this.embeddingFunction) {
       throw new Error('Embedding function not initialized')
     }
 
     try {
-      // Check if API key is configured
-      const apiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
-      if (!apiKey) {
-        throw new Error('OpenAI API key not configured')
+      // Check if any providers are available
+      const availableProviders = aiSdkEmbeddingProvider.getAvailableProviders()
+      if (availableProviders.length === 0) {
+        throw new Error('No embedding providers configured')
       }
 
-      console.log(chalk.gray(`✓ API key: ${apiKey.slice(0, 8)}...`))
+      const currentProvider = aiSdkEmbeddingProvider.getCurrentProvider()
+      console.log(chalk.gray(`✓ Testing provider: ${currentProvider}`))
+      console.log(chalk.gray(`✓ Available providers: ${availableProviders.join(', ')}`))
 
       // Make real API call with minimal test data
       const testText = 'test embedding'
@@ -370,22 +324,18 @@ export class UnifiedRAGSystem {
       }
 
       const embeddingDimension = embeddings[0].length
-      const expectedDimension = 1536 // text-embedding-3-small dimension
-
-      if (embeddingDimension !== expectedDimension) {
-        console.log(
-          chalk.yellow(`⚠️ Unexpected embedding dimension: ${embeddingDimension} (expected: ${expectedDimension})`)
-        )
-      }
 
       // Calculate real cost
-      const actualCost = OpenAIEmbeddingFunction.estimateCost([testText])
+      const actualCost = AiSdkEmbeddingFunction.estimateCost([testText], currentProvider || 'openai')
 
-      console.log(chalk.gray(`✓ OpenAI embeddings working (${duration}ms)`))
-      console.log(chalk.gray(`✓ Model: text-embedding-3-small, dimension: ${embeddingDimension}`))
+      console.log(chalk.gray(`✓ AI SDK embeddings working (${duration}ms)`))
+      console.log(chalk.gray(`✓ Provider: ${currentProvider}, dimension: ${embeddingDimension}`))
       console.log(chalk.gray(`✓ Test cost: $${actualCost.toFixed(8)}`))
+
+      // Show provider stats
+      aiSdkEmbeddingProvider.logStatus()
     } catch (error: any) {
-      throw new Error(`OpenAI embedding test failed: ${error.message}`)
+      throw new Error(`AI SDK embedding test failed: ${error.message}`)
     }
   }
 
@@ -535,7 +485,7 @@ export class UnifiedRAGSystem {
           const content = await readFile(fullPath, 'utf-8')
 
           // Estimate cost before processing
-          const estimatedCost = OpenAIEmbeddingFunction.estimateCost([content])
+          const estimatedCost = AiSdkEmbeddingFunction.estimateCost([content])
           if (totalCost + estimatedCost > this.config.costThreshold) {
             console.log(chalk.yellow(`⚠️ Cost threshold reached, stopping indexing`))
             break
@@ -742,8 +692,8 @@ export class UnifiedRAGSystem {
     const avgFilesInProject = 100
     const totalChars = avgFileSize * avgFilesInProject
 
-    const oldCost = OpenAIEmbeddingFunction.estimateCost(totalChars * 1.8) // Old approach with more chunks
-    const newCost = OpenAIEmbeddingFunction.estimateCost(totalChars * 1.2) // New optimized approach
+    const oldCost = AiSdkEmbeddingFunction.estimateCost(totalChars * 1.8) // Old approach with more chunks
+    const newCost = AiSdkEmbeddingFunction.estimateCost(totalChars * 1.2) // New optimized approach
     const savings = ((oldCost - newCost) / oldCost) * 100
 
     console.log(

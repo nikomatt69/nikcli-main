@@ -1,17 +1,17 @@
 import { EventEmitter } from 'node:events'
-import { JSDOM } from 'jsdom'
-import { Readability } from '@mozilla/readability'
 import { createAnthropic } from '@ai-sdk/anthropic'
-import { createOpenAI } from '@ai-sdk/openai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createOpenAI } from '@ai-sdk/openai'
+import { Readability } from '@mozilla/readability'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 
 import { type CoreMessage, generateObject } from 'ai'
 import chalk from 'chalk'
+import { JSDOM } from 'jsdom'
 import { z } from 'zod'
+import { ModelProvider } from '@/cli/ai/model-provider'
 import { simpleConfigManager } from '../../core/config-manager'
 import { redisProvider } from '../redis/redis-provider'
-import { ModelProvider } from '@/cli/ai/model-provider'
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 
 export interface BrowserbaseSession {
   id: string
@@ -97,11 +97,9 @@ export class BrowserbaseProvider extends EventEmitter {
   /**
    * Create a new browser session
    */
-  async createSession(options: {
-    timeout?: number
-    keepAlive?: boolean
-    proxied?: boolean
-  } = {}): Promise<BrowserbaseSession> {
+  async createSession(
+    options: { timeout?: number; keepAlive?: boolean; proxied?: boolean } = {}
+  ): Promise<BrowserbaseSession> {
     this.validateConfig()
 
     try {
@@ -375,11 +373,9 @@ export class BrowserbaseProvider extends EventEmitter {
   /**
    * Analyze content with Claude
    */
-  private async analyzeWithClaude(
-    content: BrowserbaseContentResult,
-    options: any
-  ): Promise<BrowserbaseAIAnalysis> {
-    const apiKey = simpleConfigManager.getApiKey('claude-3-5-sonnet-latest') || simpleConfigManager.getApiKey('anthropic')
+  private async analyzeWithClaude(content: BrowserbaseContentResult, options: any): Promise<BrowserbaseAIAnalysis> {
+    const apiKey =
+      simpleConfigManager.getApiKey('claude-3-5-sonnet-latest') || simpleConfigManager.getApiKey('anthropic')
 
     if (!apiKey) {
       throw new Error('Anthropic API key not configured')
@@ -422,10 +418,7 @@ export class BrowserbaseProvider extends EventEmitter {
   /**
    * Analyze content with OpenAI
    */
-  private async analyzeWithOpenAI(
-    content: BrowserbaseContentResult,
-    options: any
-  ): Promise<BrowserbaseAIAnalysis> {
+  private async analyzeWithOpenAI(content: BrowserbaseContentResult, options: any): Promise<BrowserbaseAIAnalysis> {
     const apiKey = simpleConfigManager.getApiKey('gpt-4o') || simpleConfigManager.getApiKey('openai')
 
     if (!apiKey) {
@@ -469,10 +462,7 @@ export class BrowserbaseProvider extends EventEmitter {
   /**
    * Analyze content with Google Gemini
    */
-  private async analyzeWithGoogle(
-    content: BrowserbaseContentResult,
-    options: any
-  ): Promise<BrowserbaseAIAnalysis> {
+  private async analyzeWithGoogle(content: BrowserbaseContentResult, options: any): Promise<BrowserbaseAIAnalysis> {
     const apiKey = simpleConfigManager.getApiKey('gemini-1.5-pro') || simpleConfigManager.getApiKey('google')
 
     if (!apiKey) {
@@ -516,10 +506,7 @@ export class BrowserbaseProvider extends EventEmitter {
   /**
    * Analyze content with OpenRouter AI
    */
-  private async analyzeWithOpenRouter(
-    content: BrowserbaseContentResult,
-    options: any
-  ): Promise<BrowserbaseAIAnalysis> {
+  private async analyzeWithOpenRouter(content: BrowserbaseContentResult, options: any): Promise<BrowserbaseAIAnalysis> {
     const apiKey = simpleConfigManager.getApiKey('openrouter') || simpleConfigManager.getApiKey('OPENROUTER_API_KEY')
 
     if (!apiKey) {
@@ -638,27 +625,29 @@ export class BrowserbaseProvider extends EventEmitter {
 
     // Check Anthropic
     try {
-      const anthropicKey = simpleConfigManager.getApiKey('claude-3-5-sonnet-latest') || simpleConfigManager.getApiKey('anthropic')
+      const anthropicKey =
+        simpleConfigManager.getApiKey('claude-3-5-sonnet-latest') || simpleConfigManager.getApiKey('anthropic')
       if (anthropicKey) providers.push('claude')
-    } catch { }
+    } catch {}
 
     // Check OpenAI
     try {
       const openaiKey = simpleConfigManager.getApiKey('gpt-4o') || simpleConfigManager.getApiKey('openai')
       if (openaiKey) providers.push('openai')
-    } catch { }
+    } catch {}
 
     // Check Google
     try {
       const googleKey = simpleConfigManager.getApiKey('gemini-1.5-pro') || simpleConfigManager.getApiKey('google')
       if (googleKey) providers.push('google')
-    } catch { }
+    } catch {}
 
     // Check OpenRouter
     try {
-      const openrouterKey = simpleConfigManager.getApiKey('openrouter') || simpleConfigManager.getApiKey('OPENROUTER_API_KEY')
+      const openrouterKey =
+        simpleConfigManager.getApiKey('openrouter') || simpleConfigManager.getApiKey('OPENROUTER_API_KEY')
       if (openrouterKey) providers.push('openrouter')
-    } catch { }
+    } catch {}
 
     return providers
   }

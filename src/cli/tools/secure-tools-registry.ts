@@ -4,13 +4,13 @@ import { ListDirectoryTool, ReadFileTool, ReplaceInFileTool, sanitizePath, Write
 export type { BatchSession } from './secure-command-tool'
 
 import { type BatchSession, type CommandResult, SecureCommandTool } from '.'
+import { BrowserbaseTool, type BrowserbaseToolResult } from './browserbase-tool'
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
 import { FindFilesTool } from './find-files-tool'
 import { GitTools } from './git-tools'
 import { type GrepResult, GrepTool, type GrepToolParams } from './grep-tool'
 import { JsonPatchTool } from './json-patch-tool'
 import { MultiReadTool } from './multi-read-tool'
-import { BrowserbaseTool, type BrowserbaseToolResult } from './browserbase-tool'
 
 /**
  * Tool execution context with security metadata
@@ -688,11 +688,7 @@ export class SecureToolsRegistry {
    * Create Browserbase session
    */
   async createBrowserbaseSession(
-    options: {
-      timeout?: number
-      keepAlive?: boolean
-      skipConfirmation?: boolean
-    } = {}
+    options: { timeout?: number; keepAlive?: boolean; skipConfirmation?: boolean } = {}
   ): Promise<ToolResult<BrowserbaseToolResult>> {
     const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
 
@@ -780,9 +776,7 @@ export class SecureToolsRegistry {
   /**
    * Get Browserbase session status
    */
-  async getBrowserbaseSession(
-    sessionId: string
-  ): Promise<ToolResult<BrowserbaseToolResult>> {
+  async getBrowserbaseSession(sessionId: string): Promise<ToolResult<BrowserbaseToolResult>> {
     const context = this.createContext('safe')
 
     return this.executeWithTracking(

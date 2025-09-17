@@ -16,10 +16,10 @@
 import chalk from 'chalk'
 
 export {
-  BrowserbaseTool,
-  type BrowserbaseSessionOptions,
-  type BrowserbaseNavigateOptions,
   type BrowserbaseAnalysisOptions,
+  type BrowserbaseNavigateOptions,
+  type BrowserbaseSessionOptions,
+  BrowserbaseTool,
   type BrowserbaseToolResult,
 } from './browserbase-tool'
 export { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'

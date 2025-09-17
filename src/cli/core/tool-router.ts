@@ -1371,8 +1371,8 @@ export class ToolRouter extends EventEmitter {
       case 'browse_web':
         if (intentAnalysis.targetObjects?.length > 0) {
           // Look for URL-like objects
-          const urlObject = intentAnalysis.targetObjects.find((obj: string) =>
-            obj.startsWith('http://') || obj.startsWith('https://')
+          const urlObject = intentAnalysis.targetObjects.find(
+            (obj: string) => obj.startsWith('http://') || obj.startsWith('https://')
           )
           if (urlObject) {
             params.url = urlObject

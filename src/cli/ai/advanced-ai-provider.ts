@@ -1327,7 +1327,17 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
             case 'step-finish':
               if (delta.isContinued) {
-                // Step completed, continue to next
+                yield {
+                  type: 'thinking',
+                  content: 'Step completed, continuing to next step...',
+                  metadata: { stepContinued: true },
+                }
+              } else {
+                yield {
+                  type: 'thinking',
+                  content: 'Step finished successfully.',
+                  metadata: { stepCompleted: true },
+                }
               }
               break
 
