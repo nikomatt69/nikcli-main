@@ -1479,7 +1479,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async searchCommand(args: string[]): Promise<CommandResult> {
     if (args.length === 0) {
       console.log(chalk.red('Usage:'))
-      console.log(chalk.gray('  /search <query> [directory]'))
+      console.log(chalk.gray('  /search <query> [directory] - Enhanced semantic + text search'))
+      console.log(chalk.gray('  /search --semantic <query> [directory] - Semantic search only'))
+      console.log(chalk.gray('  /search --text <query> [directory] - Text search only'))
       console.log(
         chalk.gray(
           '  /search --web <query> [--type general|technical|documentation|stackoverflow] [--mode results|answer] [--includeContent] [--maxContentBytes N] [--maxResults N]'
@@ -1488,9 +1490,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
-    // Parse flags for web search
+    // Parse flags for web search and search type
     const webFlags = new Set(['--web', '--type', '--mode', '--includeContent', '--maxContentBytes', '--maxResults'])
+    const searchFlags = new Set(['--semantic', '--text'])
     const hasWebFlag = args.some((a) => a.startsWith('--') && webFlags.has(a.split('=')[0]))
+    const hasSearchFlag = args.some((a) => a.startsWith('--') && searchFlags.has(a.split('=')[0]))
 
     if (hasWebFlag) {
       try {
@@ -1593,29 +1597,66 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
     }
 
-    // Default: file search (grep-like)
+    // Default: enhanced semantic search with RAG integration
     try {
       const query = args[0]
       const directory = args[1] || '.'
 
-      console.log(chalk.blue(`🔍 Searching for "${query}" in ${directory}...`))
+      console.log(chalk.blue(`🔍 Enhanced search for "${query}" in ${directory}...`))
 
-      const results = await toolsManager.searchInFiles(query, directory)
+      // First try RAG-powered semantic search
+      let semanticResults: any[] = []
+      try {
+        console.log(chalk.gray('🧠 Attempting semantic search...'))
+        semanticResults = await unifiedRAGSystem.search(query, {
+          limit: 10,
+          semanticOnly: false,
+          workingDirectory: directory === '.' ? process.cwd() : directory
+        })
+      } catch (error) {
+        console.log(chalk.yellow('⚠️ Semantic search unavailable, using traditional search'))
+      }
 
-      if (results.length === 0) {
+      // Fallback to traditional grep-like search
+      const traditionalResults = await toolsManager.searchInFiles(query, directory)
+
+      // Combine and display results
+      if (semanticResults.length === 0 && traditionalResults.length === 0) {
         console.log(chalk.yellow('No matches found'))
       } else {
-        console.log(chalk.green(`Found ${results.length} matches:`))
-        console.log(chalk.gray('─'.repeat(50)))
+        let totalDisplayed = 0
 
-        results.slice(0, 20).forEach((result) => {
-          // Limit to 20 results
-          console.log(chalk.cyan(`${result.file}:${result.line}`))
-          console.log(`  ${result.content}`)
-        })
+        // Display semantic results first
+        if (semanticResults.length > 0) {
+          console.log(chalk.green(`🧠 Semantic Results (${semanticResults.length}):`))
+          console.log(chalk.gray('─'.repeat(50)))
 
-        if (results.length > 20) {
-          console.log(chalk.gray(`... and ${results.length - 20} more matches`))
+          semanticResults.slice(0, 10).forEach((result, index) => {
+            console.log(chalk.cyan(`${index + 1}. ${result.path} (score: ${(result.score * 100).toFixed(1)}%)`))
+            console.log(chalk.gray(`   ${result.content.substring(0, 150)}...`))
+            totalDisplayed++
+          })
+
+          if (semanticResults.length > 10) {
+            console.log(chalk.gray(`... and ${semanticResults.length - 10} more semantic matches`))
+          }
+          console.log()
+        }
+
+        // Display traditional results if any
+        if (traditionalResults.length > 0 && totalDisplayed < 20) {
+          console.log(chalk.green(`🔍 Text Matches (${traditionalResults.length}):`))
+          console.log(chalk.gray('─'.repeat(50)))
+
+          const remaining = 20 - totalDisplayed
+          traditionalResults.slice(0, remaining).forEach((result) => {
+            console.log(chalk.cyan(`${result.file}:${result.line}`))
+            console.log(`  ${result.content}`)
+          })
+
+          if (traditionalResults.length > remaining) {
+            console.log(chalk.gray(`... and ${traditionalResults.length - remaining} more text matches`))
+          }
         }
       }
     } catch (error: any) {

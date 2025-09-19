@@ -2,6 +2,10 @@ import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { type MemoryEntry, type MemorySearchOptions, type MemorySearchResult, mem0Provider } from '../providers/memory'
 
+// Import RAG and semantic capabilities for enhanced memory
+import { semanticSearchEngine } from '../context/semantic-search-engine'
+import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
+
 export interface ConversationContext {
   sessionId: string
   userId?: string
@@ -144,6 +148,16 @@ export class MemoryService extends EventEmitter {
   async searchMemories(query: string, options: MemorySearchOptions = {}): Promise<MemorySearchResult[]> {
     if (!this.isInitialized) await this.initialize()
 
+    // Enhanced semantic search integration
+    let enhancedQuery = query
+    try {
+      const queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
+      enhancedQuery = queryAnalysis.expandedQuery || query
+      console.log(chalk.dim(`🧠 Enhanced memory query: "${query}" → "${enhancedQuery}"`))
+    } catch {
+      // Fall back to original query if semantic analysis fails
+    }
+
     // Enhance search with current session context
     const enhancedOptions: MemorySearchOptions = {
       ...options,
@@ -161,7 +175,7 @@ export class MemoryService extends EventEmitter {
       }
     }
 
-    const results = await mem0Provider.searchMemories(enhancedOptions)
+    const results = await mem0Provider.searchMemories({ ...enhancedOptions, query: enhancedQuery })
 
     // Post-process results for context awareness
     const contextualResults = await this.addContextualRelevance(results, query)
@@ -173,6 +187,81 @@ export class MemoryService extends EventEmitter {
     })
 
     return contextualResults
+  }
+
+  /**
+   * Enhanced memory addition with semantic embedding
+   */
+  async addSemanticMemory(
+    content: string,
+    metadata: Partial<MemoryEntry['metadata']> = {}
+  ): Promise<string> {
+    try {
+      // Generate semantic embedding for better retrieval
+      const embedding = await unifiedEmbeddingInterface.generateEmbedding(content)
+
+      const enhancedMetadata = {
+        ...metadata,
+        embedding: embedding.vector,
+        embeddingModel: embedding.model,
+        semanticHash: embedding.hash
+      }
+
+      return await this.addMemory(content, enhancedMetadata)
+    } catch (error) {
+      // Fallback to regular memory addition
+      console.log(chalk.yellow('⚠️ Semantic embedding failed, using standard memory'))
+      return await this.addMemory(content, metadata)
+    }
+  }
+
+  /**
+   * Search memories using semantic similarity
+   */
+  async searchSemanticMemories(
+    query: string,
+    options: MemorySearchOptions & { useSemanticOnly?: boolean } = {}
+  ): Promise<MemorySearchResult[]> {
+    try {
+      if (options.useSemanticOnly) {
+        // Pure semantic search using embeddings
+        const queryEmbedding = await unifiedEmbeddingInterface.generateEmbedding(query)
+
+        // Get all memories and compute semantic similarity
+        const allMemories = await mem0Provider.searchMemories({
+          query: '',
+          limit: 100,
+          userId: options.userId
+        })
+
+        const semanticResults = []
+        for (const memoryResult of allMemories) {
+          if ((memoryResult.memory.metadata as any).embedding) {
+            const similarity = unifiedEmbeddingInterface.calculateSimilarity(
+              queryEmbedding.vector,
+              (memoryResult.memory.metadata as any).embedding
+            )
+
+            if (similarity > 0.3) { // Similarity threshold
+              semanticResults.push({
+                ...memoryResult,
+                score: similarity
+              })
+            }
+          }
+        }
+
+        return semanticResults
+          .sort((a, b) => b.score - a.score)
+          .slice(0, options.limit || 10)
+      } else {
+        // Hybrid: semantic + traditional search
+        return await this.searchMemories(query, options)
+      }
+    } catch (error) {
+      console.log(chalk.yellow('⚠️ Semantic memory search failed, using traditional search'))
+      return await this.searchMemories(query, options)
+    }
   }
 
   /**
@@ -251,6 +340,23 @@ export class MemoryService extends EventEmitter {
       // Update existing personalization based on content
       await this.incrementalPersonalizationUpdate(currentPersonalization, content)
     }
+  }
+
+  /**
+   * Enhanced user fact storage with semantic capabilities
+   */
+  async rememberUserFactSemantic(
+    userId: string,
+    fact: string,
+    category: 'preference' | 'personal' | 'professional' | 'context' = 'personal'
+  ): Promise<string> {
+    return await this.addSemanticMemory(fact, {
+      source: 'user',
+      importance: 8,
+      tags: ['user_fact', category, userId],
+      userId,
+      context: 'user_profile',
+    })
   }
 
   /**
