@@ -1,7 +1,8 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import boxen from 'boxen'
 import chalk from 'chalk'
+import { parse as parseDotenv } from 'dotenv'
 import { z } from 'zod'
 import { modelProvider } from '../ai/model-provider'
 import { unifiedRAGSystem } from '../context/rag-system'
@@ -185,6 +186,7 @@ export class SlashCommandHandler {
     this.commands.set('models', this.modelsCommand.bind(this))
     this.commands.set('set-key', this.setKeyCommand.bind(this))
     this.commands.set('config', this.configCommand.bind(this))
+    this.commands.set('env', this.envCommand.bind(this))
     this.commands.set('new', this.newSessionCommand.bind(this))
     this.commands.set('sessions', this.sessionsCommand.bind(this))
     this.commands.set('export', this.exportCommand.bind(this))
@@ -355,6 +357,7 @@ ${chalk.cyan('/set-key browserbase')} - Interactive wizard for Browserbase keys
 
 ${chalk.blue.bold('Configuration:')}
 ${chalk.cyan('/config')} - Show current configuration
+${chalk.cyan('/env <path>')} - Import .env file and persist variables
 ${chalk.cyan('/router [status|on|off|verbose|mode <m>]')} - Adaptive model router controls
 ${chalk.cyan('/debug')} - Debug API key configuration
 ${chalk.cyan('/temp <0.0-2.0>')} - Set temperature (creativity)
@@ -924,6 +927,76 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async configCommand(): Promise<CommandResult> {
     console.log(configManager.getConfig())
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async envCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      console.log(chalk.red('Usage: /env <path-to-env-file>'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const providedPath = args[0]
+    const resolvedPath = resolve(process.cwd(), providedPath)
+
+    if (!existsSync(resolvedPath)) {
+      console.log(chalk.red(`❌ Env file not found: ${providedPath}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const stats = statSync(resolvedPath)
+    if (!stats.isFile()) {
+      console.log(chalk.red(`❌ Path is not a file: ${providedPath}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const raw = readFileSync(resolvedPath, 'utf8')
+      const parsed = parseDotenv(raw)
+      const variables: Record<string, string> = {}
+
+      for (const [rawKey, value] of Object.entries(parsed)) {
+        const key = rawKey.trim()
+        if (!key) continue
+        variables[key] = value
+      }
+
+      const total = Object.keys(variables).length
+      if (total === 0) {
+        console.log(chalk.yellow('⚠️  No environment variables found in file'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const { added, updated } = configManager.storeEnvironmentVariables(resolvedPath, variables)
+      const skipped = Math.max(total - added - updated, 0)
+
+      console.log(
+        boxen(
+          `${chalk.green('Environment variables imported successfully')}` +
+            `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
+            `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
+            `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
+          {
+            title: '✅ Env Saved',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          }
+        )
+      )
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to import environment variables: ${error.message}`, {
+          title: '❌ Env Import Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 

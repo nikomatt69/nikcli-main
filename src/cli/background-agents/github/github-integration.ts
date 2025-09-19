@@ -28,7 +28,7 @@ export class GitHubIntegration {
     this.config = config
     this.octokit = new Octokit({
       auth: this.generateJWT(),
-      userAgent: 'nikCLI-background-agents/0.1.2',
+      userAgent: 'nikCLI-background-agents/0.1.4',
     })
   }
 
@@ -64,7 +64,7 @@ export class GitHubIntegration {
     const token = await this.getInstallationToken()
     return new Octokit({
       auth: token,
-      userAgent: 'nikCLI-background-agents/0.1.2',
+      userAgent: 'nikCLI-background-agents/0.1.4',
     })
   }
 

@@ -109,7 +109,7 @@ export class BackgroundAgentsAPIServer {
       res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        version: '0.1.2',
+        version: '0.1.4',
         uptime: process.uptime(),
       })
     })

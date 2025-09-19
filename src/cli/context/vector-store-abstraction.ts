@@ -126,25 +126,51 @@ class ChromaDBVectorStore extends VectorStore {
       const version = await this.client.version()
       console.log(chalk.green(`✅ ChromaDB connected (version: ${version})`))
 
-      // Get or create collection
+      // Get or create collection with embedding function
       try {
         this.collection = await this.client.getCollection({
           name: this.config.collectionName
         })
-        console.log(chalk.gray(`📂 Using existing collection: ${this.config.collectionName}`))
-      } catch {
-        this.collection = await this.client.createCollection({
-          name: this.config.collectionName,
-          embeddingFunction: {
-            generate: async (texts: string[]) => {
-              const results = await unifiedEmbeddingInterface.generateEmbeddings(
-                texts.map(text => ({ text }))
-              )
-              return results.map(r => r.vector)
-            }
+        
+        // Check if collection has embedding function configured by testing a simple operation
+        try {
+          // Try to add a test document to verify embedding function works
+          await this.collection.add({
+            ids: ['test-embedding-check'],
+            documents: ['test'],
+            metadatas: [{ test: true }]
+          })
+          // Clean up test document
+          await this.collection.delete({ ids: ['test-embedding-check'] })
+          console.log(chalk.gray(`📂 Using existing collection: ${this.config.collectionName}`))
+        } catch (embeddingError) {
+          // Collection exists but has no embedding function, recreate it
+          console.log(chalk.yellow(`⚠️ Collection ${this.config.collectionName} lacks embedding function, recreating...`))
+          try {
+            await this.client.deleteCollection({ name: this.config.collectionName })
+          } catch (deleteError) {
+            console.log(chalk.yellow(`⚠️ Failed to delete collection, will attempt recreation anyway`))
           }
-        })
-        console.log(chalk.green(`✅ Created new collection: ${this.config.collectionName}`))
+          throw new Error('Recreate collection')
+        }
+      } catch (createError) {
+        try {
+          this.collection = await this.client.createCollection({
+            name: this.config.collectionName,
+            embeddingFunction: {
+              generate: async (texts: string[]) => {
+                const results = await unifiedEmbeddingInterface.generateEmbeddings(
+                  texts.map(text => ({ text }))
+                )
+                return results.map(r => r.vector)
+              }
+            }
+          })
+          console.log(chalk.green(`✅ Created new collection: ${this.config.collectionName}`))
+        } catch (finalError) {
+          console.error(chalk.red(`❌ Failed to create collection: ${(finalError as Error).message}`))
+          throw finalError
+        }
       }
 
       return true
@@ -218,11 +244,26 @@ class ChromaDBVectorStore extends VectorStore {
         timestamp: doc.timestamp.toISOString()
       }))
 
-      await this.collection.add({
-        ids,
-        documents: texts,
-        metadatas
-      })
+      // Check if documents have pre-computed embeddings
+      const hasEmbeddings = documents.some(doc => doc.embedding && doc.embedding.length > 0)
+      
+      if (hasEmbeddings) {
+        // Use pre-computed embeddings
+        const embeddings = documents.map(doc => doc.embedding || [])
+        await this.collection.add({
+          ids,
+          documents: texts,
+          metadatas,
+          embeddings
+        })
+      } else {
+        // Let ChromaDB generate embeddings using the configured function
+        await this.collection.add({
+          ids,
+          documents: texts,
+          metadatas
+        })
+      }
 
       this.stats.indexedDocuments += documents.length
       return true

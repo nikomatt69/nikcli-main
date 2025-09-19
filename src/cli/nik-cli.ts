@@ -11,7 +11,7 @@ import { modelProvider } from './ai/model-provider'
 import { ModernAgentOrchestrator } from './automation/agents/modern-agent-system'
 import { chatManager } from './chat/chat-manager'
 import { SlashCommandHandler } from './chat/nik-cli-commands'
-import { TOKEN_LIMITS } from './config/token-limits'
+import { calculateTokenCost, MODEL_COSTS, TOKEN_LIMITS } from './config/token-limits'
 import { docsContextManager } from './context/docs-context-manager'
 import { workspaceContext } from './context/workspace-context'
 import { agentFactory } from './core/agent-factory'
@@ -22,10 +22,12 @@ import { createCloudDocsProvider, getCloudDocsProvider } from './core/cloud-docs
 import { completionCache } from './core/completion-protocol-cache'
 // Import existing modules
 import { configManager, type SimpleConfigManager, simpleConfigManager } from './core/config-manager'
+import { contextTokenManager } from './core/context-token-manager'
 import { type DocumentationEntry, docLibrary } from './core/documentation-library'
 import { enhancedTokenCache } from './core/enhanced-token-cache'
 import { inputQueue } from './core/input-queue'
 import { type McpServerConfig, mcpClient } from './core/mcp-client'
+import { universalTokenizer } from './core/universal-tokenizer-service'
 
 import { secureTools } from './tools/secure-tools-registry'
 
@@ -55,6 +57,7 @@ import { toolsManager } from './tools/tools-manager'
 import { advancedUI } from './ui/advanced-cli-ui'
 import { approvalSystem } from './ui/approval-system'
 import { createStringPushStream, renderChatStreamToTerminal } from './ui/streamdown-renderer'
+import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
 import { configureSyntaxHighlighting } from './utils/syntax-highlighter'
 import {
   formatAgent,
@@ -151,6 +154,7 @@ export class NikCLI {
   // Enhanced features
   private enhancedFeaturesEnabled: boolean = true
   private smartSuggestionsEnabled: boolean = true
+  private tokenDisplay = createConsoleTokenDisplay()  // Real-time token display
   private streamingOptimized: boolean = true
 
   // Execution state management
@@ -233,6 +237,9 @@ export class NikCLI {
 
     // Register agents
     registerAgents(this.agentManager)
+
+    // Initialize token tracking system
+    this.initializeTokenTrackingSystem()
 
       // Expose this instance globally for command handlers
       ; (global as any).__nikCLI = this
@@ -2140,6 +2147,10 @@ export class NikCLI {
         // Done processing; return to idle
         this.assistantProcessing = false
         this.stopStatusBar()
+
+        // Update token display with current session stats
+        this.updateTokenDisplay()
+
         this.renderPromptAfterOutput()
 
         // Processa input dalla queue se disponibili
@@ -3945,6 +3956,19 @@ export class NikCLI {
    */
   private async handleChatInput(input: string): Promise<void> {
     try {
+      // Start token session if not already active
+      if (!contextTokenManager.getCurrentSession()) {
+        await this.startTokenSession()
+      }
+
+      // Track input message tokens
+      try {
+        const inputMessage = { role: 'user' as const, content: input }
+        await contextTokenManager.trackMessage(inputMessage)
+      } catch (error) {
+        console.debug('Token tracking failed for input:', error)
+      }
+
       // Load relevant project context for enhanced chat responses
       const relevantContext = await this.getRelevantProjectContext(input)
       const enhancedInput = relevantContext ? `${input}\n\nContext: ${relevantContext}` : input
@@ -4669,6 +4693,14 @@ export class NikCLI {
         // Save assistant message to history
         if (assistantText.trim().length > 0) {
           chatManager.addMessage(assistantText.trim(), 'assistant')
+
+          // Track assistant response tokens
+          try {
+            const assistantMessage = { role: 'assistant' as const, content: assistantText.trim() }
+            await contextTokenManager.trackMessage(assistantMessage, undefined, true) // isOutput = true
+          } catch (error) {
+            console.debug('Token tracking failed for assistant response:', error)
+          }
         }
 
         console.log() // newline after streaming
@@ -7830,73 +7862,167 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
   }
 
   private async showTokenUsage(): Promise<void> {
-    console.log(chalk.blue('💰 Token Usage Analysis & Real Costs'))
+    console.log(chalk.blue('🔢 Advanced Token Analysis & Real-time Costs'))
 
     try {
-      const session = chatManager.getCurrentSession()
+      // Check if we have an active token tracking session
+      const tokenSession = contextTokenManager.getCurrentSession()
+      const chatSession = chatManager.getCurrentSession()
 
-      if (session) {
-        const totalChars = session.messages.reduce((sum, msg) => sum + msg.content.length, 0)
-        const estimatedTokens = Math.round(totalChars / 4)
-        const tokenLimit = 250000
-        const usagePercent = Math.round((estimatedTokens / tokenLimit) * 100)
+      if (tokenSession && chatSession) {
+        // Use precise tokenizer data
+        const currentModel = tokenSession.model
+        const currentProvider = tokenSession.provider
+        const limits = universalTokenizer.getModelLimits(currentModel, currentProvider)
 
-        // Calculate real costs for current model
+        // Get real-time statistics
+        const stats = contextTokenManager.getSessionStats()
+        if (stats && stats.session) {
+          const totalTokens = stats.session.totalInputTokens + stats.session.totalOutputTokens
+          const usagePercent = (totalTokens / limits.context) * 100
+
+          console.log(
+            boxen(
+              `${chalk.cyan('🎯 Precise Token Tracking Session')}\n\n` +
+              `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
+              `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
+              `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
+              `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
+              `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
+              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+              `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
+              `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
+              `Total Session Cost: ${chalk.yellow.bold('$' + stats.session.totalCost.toFixed(6))}\n` +
+              `Average per Message: ${chalk.green('$' + stats.costPerMessage.toFixed(6))}\n` +
+              `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
+              `Session Duration: ${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000) + ' min'}`,
+              {
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
+                title: '🔢 Universal Tokenizer'
+              }
+            )
+          )
+
+          // Context optimization recommendations
+          const optimization = contextTokenManager.analyzeContextOptimization()
+          if (optimization.shouldTrim || optimization.recommendation !== 'continue') {
+            console.log(
+              boxen(
+                `${chalk.yellow('⚡ Optimization Recommendations:')}\n\n` +
+                `Status: ${optimization.recommendation === 'continue' ? chalk.green('✅ Good') : chalk.yellow('⚠️  Attention needed')}\n` +
+                `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
+                `Reason: ${chalk.gray(optimization.reason)}`,
+                {
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'yellow',
+                  title: '🎛️  Smart Optimization'
+                }
+              )
+            )
+          }
+        }
+
+      } else if (chatSession) {
+        // Fallback to legacy analysis with improved precision
+        const totalChars = chatSession.messages.reduce((sum, msg) => sum + msg.content.length, 0)
         const currentModel = this.configManager.getCurrentModel()
+        const currentProvider = 'anthropic' // Fallback for now
+
+        // Try to get precise count for the conversation
+        let preciseTokens = 0
+        let isPrecise = false
+        try {
+          const coreMessages = chatSession.messages.map(m => ({
+            role: m.role as any,
+            content: m.content
+          }))
+          preciseTokens = await universalTokenizer.countMessagesTokens(coreMessages, currentModel, currentProvider)
+          isPrecise = true
+        } catch (error) {
+          console.warn('Precise counting failed, using character estimation')
+          preciseTokens = Math.round(totalChars / 4)
+        }
+
+        const limits = universalTokenizer.getModelLimits(currentModel, currentProvider)
+        const usagePercent = (preciseTokens / limits.context) * 100
+
+        // Calculate precise costs
         const userTokens = Math.round(
-          session.messages.filter((m) => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
+          chatSession.messages.filter(m => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
         )
         const assistantTokens = Math.round(
-          session.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
+          chatSession.messages.filter(m => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
         )
 
-        const { calculateTokenCost, getModelPricing, MODEL_COSTS } = await import('./config/token-limits')
-        const currentCost = calculateTokenCost(userTokens, assistantTokens, currentModel)
-        const modelPricing = getModelPricing(currentModel)
+        const currentCost = universalTokenizer.calculateCost(userTokens, assistantTokens, currentModel)
 
         console.log(
           boxen(
-            `${chalk.cyan('Current Session Token Usage')}\n\n` +
-            `Messages: ${chalk.white(session.messages.length.toLocaleString())}\n` +
+            `${chalk.cyan(`${isPrecise ? '🎯' : '📊'} Session Token Analysis`)}\n\n` +
+            `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
             `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
-            `Est. Tokens: ${chalk.white(estimatedTokens.toLocaleString())}\n` +
-            `Usage: ${usagePercent > 75 ? chalk.red(`${usagePercent}%`) : usagePercent > 50 ? chalk.yellow(`${usagePercent}%`) : chalk.green(`${usagePercent}%`)}\n` +
-            `Limit: ${chalk.gray(tokenLimit.toLocaleString())}\n\n` +
-            `${chalk.yellow('💰 Real-time Cost:')}\n` +
+            `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
+            `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+            `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+            `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
+            `${chalk.yellow('💰 Cost Analysis:')}\n` +
             `Model: ${chalk.white(currentCost.model)}\n` +
-            `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(4))}\n` +
-            `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(4))}\n` +
-            `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(4))}`,
+            `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(6))}\n` +
+            `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(6))}\n` +
+            `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(6))}\n\n` +
+            `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✅') : chalk.yellow('Character estimation (fallback)')}`,
             {
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: usagePercent > 75 ? 'red' : usagePercent > 50 ? 'yellow' : 'green',
+              borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
+              title: isPrecise ? '🔢 Precise Analysis' : '📊 Estimated Analysis'
             }
           )
         )
 
-        // Message breakdown with costs (panel)
-        {
-          const systemMsgs = session.messages.filter((m) => m.role === 'system')
-          const userMsgs = session.messages.filter((m) => m.role === 'user')
-          const assistantMsgs = session.messages.filter((m) => m.role === 'assistant')
-          const sysTokens = Math.round(systemMsgs.reduce((sum, m) => sum + m.content.length, 0) / 4)
-          const lines = [
-            `System: ${systemMsgs.length} (${sysTokens.toLocaleString()} tokens)`,
-            `User: ${userMsgs.length} (${userTokens.toLocaleString()} tokens) - $${currentCost.inputCost.toFixed(4)}`,
-            `Assistant: ${assistantMsgs.length} (${assistantTokens.toLocaleString()} tokens) - $${currentCost.outputCost.toFixed(4)}`,
-          ]
-          console.log(
-            boxen(lines.join('\n'), {
+        // Message breakdown
+        const systemMsgs = chatSession.messages.filter((m) => m.role === 'system')
+        const userMsgs = chatSession.messages.filter((m) => m.role === 'user')
+        const assistantMsgs = chatSession.messages.filter((m) => m.role === 'assistant')
+        const sysTokens = Math.round(systemMsgs.reduce((sum, m) => sum + m.content.length, 0) / 4)
+
+        console.log(
+          boxen(
+            `System: ${systemMsgs.length} messages (${sysTokens.toLocaleString()} tokens)\n` +
+            `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
+            `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
+            {
               title: '📋 Message Breakdown',
               padding: 1,
               margin: 1,
               borderStyle: 'round',
               borderColor: 'cyan',
-            })
+            }
           )
-        }
+        )
+
+        // Upgrade suggestion
+        console.log(
+          boxen(
+            `${chalk.yellow('💡 Tip:')} For more precise tracking, start a new session to enable\n` +
+            `real-time token monitoring with the Universal Tokenizer.\n\n` +
+            `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+              title: '🚀 Upgrade Available'
+            }
+          )
+        )
 
         // Model pricing comparison (panel)
         {
@@ -7914,13 +8040,15 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
           ]
           const lines: string[] = []
           comparisonModels.forEach((modelKey) => {
-            if (MODEL_COSTS[modelKey]) {
-              const cost = calculateTokenCost(userTokens, assistantTokens, modelKey)
+            try {
+              const cost = universalTokenizer.calculateCost(userTokens, assistantTokens, modelKey)
               const isCurrentModel = modelKey === currentModel
               const mark = isCurrentModel ? '→ ' : '  '
               lines.push(
                 `${mark}${cost.model}  $${cost.totalCost.toFixed(4)} (In $${cost.inputCost.toFixed(4)} | Out $${cost.outputCost.toFixed(4)})`
               )
+            } catch (error) {
+              // Skip models that don't have pricing info
             }
           })
           if (lines.length > 0) {
@@ -7941,16 +8069,17 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
           boxen(
             [
               `Model: ${currentCost.model}`,
-              `Input:  $${modelPricing.input.toFixed(2)} per 1M tokens`,
-              `Output: $${modelPricing.output.toFixed(2)} per 1M tokens`,
+              `Input Cost:  $${currentCost.inputCost.toFixed(6)}`,
+              `Output Cost: $${currentCost.outputCost.toFixed(6)}`,
+              `Total Cost:  $${currentCost.totalCost.toFixed(6)}`,
             ].join('\n'),
             { title: '🏷️ Current Model Pricing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
           )
         )
 
         // Cost projections
-        if (estimatedTokens > 10000) {
-          const projectedDailyCost = (currentCost.totalCost / estimatedTokens) * 50000 // Assuming 50k tokens/day
+        if (preciseTokens > 10000) {
+          const projectedDailyCost = (currentCost.totalCost / preciseTokens) * 50000 // Assuming 50k tokens/day
           const projectedMonthlyCost = projectedDailyCost * 30
           console.log(
             boxen(
@@ -7992,18 +8121,18 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         } catch { }
 
         // Recommendations
-        if (estimatedTokens > 150000) {
+        if (preciseTokens > 150000) {
           console.log(chalk.red('\n⚠️ CRITICAL: Very high token usage!'))
           console.log(chalk.yellow('Recommendations:'))
           console.log('  • Use /compact to compress session immediately')
           console.log('  • Start a new session with /new')
           console.log('  • Consider switching to a cheaper model for simple tasks')
-        } else if (estimatedTokens > 100000) {
+        } else if (preciseTokens > 100000) {
           console.log(chalk.yellow('\n⚠️ WARNING: High token usage'))
           console.log('Recommendations:')
           console.log('  • Consider using /compact soon')
           console.log('  • Auto-compaction will trigger at 100k tokens')
-        } else if (estimatedTokens > 50000) {
+        } else if (preciseTokens > 50000) {
           console.log(chalk.blue('\n💡 INFO: Moderate token usage'))
           console.log('  • Session is healthy')
           console.log('  • Auto-monitoring active')
@@ -8752,7 +8881,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       ['/docker <args>', 'Run docker commands'],
       ['/build', 'Build the current project'],
       ['/test [pattern]', 'Run tests with optional pattern'],
-      ['/lint', 'Run project linting'],
+
 
       // API Keys & Configuration
       ['/set-key <model> <key>', 'Set API key for AI models'],
@@ -8766,6 +8895,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       ['/models', 'List available AI models'],
       ['/model <name>', 'Switch to specific AI model'],
       ['/config [interactive]', 'Show/edit configuration'],
+      ['/env <path>', 'Import .env file and persist variables'],
       ['/temp <0.0-2.0>', 'Set AI model temperature'],
       ['/system <prompt>', 'Set custom system prompt'],
 
@@ -8975,7 +9105,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         // Setup basic project structure
         const basicPackageJson = {
           name: path.basename(this.workingDirectory),
-          version: '0.1.3',
+          version: '0.1.4',
           description: 'Project managed by NikCLI',
           scripts: {
             start: 'node index.js',
@@ -10167,6 +10297,106 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
     // Don't update UI during streaming to avoid duplicates
     // UI will be updated when streaming completes
+  }
+
+  /**
+   * Initialize token tracking system
+   */
+  private initializeTokenTrackingSystem(): void {
+    try {
+      // Setup event listeners for token tracking
+      contextTokenManager.on('session_started', (session) => {
+        console.log(chalk.dim(`🔢 Token tracking started for ${session.provider}:${session.model}`))
+        this.updateTokenDisplay()
+      })
+
+      contextTokenManager.on('warning_threshold_reached', ({ percentage, context }) => {
+        console.log(chalk.yellow(`⚠️  Token usage at ${percentage.toFixed(1)}% of context limit`))
+      })
+
+      contextTokenManager.on('critical_threshold_reached', ({ percentage, context }) => {
+        console.log(chalk.red(`🚨 Critical: Token usage at ${percentage.toFixed(1)}% - consider summarizing conversation`))
+      })
+
+      contextTokenManager.on('message_tracked', ({ messageInfo, session, optimization }) => {
+        if (optimization.shouldTrim) {
+          console.log(chalk.yellow(`💡 ${optimization.reason}`))
+        }
+        this.updateTokenDisplay()
+      })
+
+      // Initialize token display
+      this.tokenDisplay.reset()
+
+    } catch (error) {
+      console.debug('Token tracking system initialization failed:', error)
+    }
+  }
+
+  /**
+   * Start token session for current model
+   */
+  private async startTokenSession(): Promise<void> {
+    try {
+      const currentModel = this.configManager.getCurrentModel()
+      const currentProvider = 'anthropic' // Fallback for now
+
+      await contextTokenManager.startSession(currentProvider, currentModel)
+    } catch (error) {
+      console.debug('Failed to start token session:', error)
+    }
+  }
+
+  /**
+   * Update token display with current session stats
+   */
+  private updateTokenDisplay(): void {
+    try {
+      const tokenSession = contextTokenManager.getCurrentSession()
+      if (tokenSession) {
+        const stats = contextTokenManager.getSessionStats()
+        if (stats && stats.session) {
+          const totalTokens = stats.session.totalInputTokens + stats.session.totalOutputTokens
+          const limits = universalTokenizer.getModelLimits(tokenSession.model, tokenSession.provider)
+
+          this.tokenDisplay.update(
+            totalTokens,
+            limits.context,
+            tokenSession.provider,
+            tokenSession.model,
+            stats.session.totalCost
+          )
+        }
+      } else {
+        // Fallback to chat session
+        const chatSession = chatManager.getCurrentSession()
+        if (chatSession) {
+          const currentModel = this.configManager.getCurrentModel()
+          const currentProvider = 'anthropic' // Fallback for now
+
+          const userTokens = Math.round(
+            chatSession.messages.filter(m => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
+          )
+          const assistantTokens = Math.round(
+            chatSession.messages.filter(m => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
+          )
+          const totalTokens = userTokens + assistantTokens
+          const cost = universalTokenizer.calculateCost(userTokens, assistantTokens, currentModel).totalCost
+          const limits = universalTokenizer.getModelLimits(currentModel, currentProvider)
+
+          this.tokenDisplay.update(totalTokens, limits.context, currentProvider, currentModel, cost)
+        }
+      }
+    } catch (error) {
+      console.debug('Token display update failed:', error)
+    }
+  }
+
+  /**
+   * Show token display in console
+   */
+  private showTokenDisplay(): void {
+    this.tokenDisplay.log()
   }
 
   /**
@@ -12561,7 +12791,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         fullName: fullName || undefined,
         metadata: {
           source: 'nikcli',
-          version: '0.3.0-beta',
+          version: '0.1.4',
           created_at: new Date().toISOString(),
         },
       })

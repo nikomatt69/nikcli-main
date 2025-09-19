@@ -30,7 +30,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
   public readonly description: string
   public readonly capabilities: string[]
   public readonly specialization: string
-  public readonly version: string = '0.3.0-beta'
+  public readonly version: string = '0.1.4'
 
   // Agent properties
   public status: AgentStatus = 'initializing'
@@ -631,7 +631,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
   private emitVMCommunication(message: string): void {
     // Emit to global event bus for streaming orchestrator
     if (global && (global as any).__streamingOrchestrator) {
-      ;(global as any).__streamingOrchestrator.queueMessage({
+      ; (global as any).__streamingOrchestrator.queueMessage({
         type: 'vm',
         content: `[${this.id.slice(0, 8)}] ${message}`,
         metadata: {

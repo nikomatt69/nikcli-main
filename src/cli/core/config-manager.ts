@@ -26,6 +26,8 @@ const ConfigSchema = z.object({
   preferredAgent: z.string().optional(),
   models: z.record(ModelConfigSchema),
   apiKeys: z.record(z.string()).optional(),
+  environmentVariables: z.record(z.string()).default({}),
+  environmentSources: z.array(z.string()).default([]),
   modelRouting: z
     .object({
       enabled: z.boolean().default(true),
@@ -824,6 +826,8 @@ export class SimpleConfigManager {
     enableAutoApprove: false,
     models: this.defaultModels,
     apiKeys: {},
+    environmentVariables: {},
+    environmentSources: [],
     modelRouting: { enabled: true, verbose: false, mode: 'balanced' },
     mcpServers: {},
     maxConcurrentAgents: 5,
@@ -989,6 +993,7 @@ export class SimpleConfigManager {
     // Load or create config
     this.loadConfig()
     this.applySmartDefaults()
+    this.applyEnvironmentVariablesToProcess()
   }
 
   private loadConfig(): void {
@@ -1022,6 +1027,18 @@ export class SimpleConfigManager {
     if (isDev) {
       this.config.logLevel = 'debug'
       this.config.maxHistoryLength = 200
+    }
+  }
+
+  private applyEnvironmentVariablesToProcess(options: { overwriteProcess?: boolean } = {}): void {
+    const overwriteProcess = options.overwriteProcess ?? false
+    const stored = this.config.environmentVariables ?? {}
+
+    for (const [key, encryptedValue] of Object.entries(stored)) {
+      const value = KeyEncryption.decrypt(encryptedValue)
+      if (overwriteProcess || process.env[key] === undefined) {
+        process.env[key] = value
+      }
     }
   }
 
@@ -1095,6 +1112,59 @@ export class SimpleConfigManager {
     }
 
     return undefined
+  }
+
+  getEnvironmentVariables(): Record<string, string> {
+    const stored = this.config.environmentVariables ?? {}
+    const result: Record<string, string> = {}
+
+    for (const [key, encryptedValue] of Object.entries(stored)) {
+      result[key] = KeyEncryption.decrypt(encryptedValue)
+    }
+
+    return result
+  }
+
+  getEnvironmentSources(): string[] {
+    return [...(this.config.environmentSources ?? [])]
+  }
+
+  storeEnvironmentVariables(sourcePath: string, variables: Record<string, string>): { added: number; updated: number } {
+    if (!this.config.environmentVariables) {
+      this.config.environmentVariables = {}
+    }
+    if (!this.config.environmentSources) {
+      this.config.environmentSources = []
+    }
+
+    let added = 0
+    let updated = 0
+
+    for (const [key, value] of Object.entries(variables)) {
+      const encryptedValue = KeyEncryption.encrypt(value)
+      const existingEncrypted = this.config.environmentVariables[key]
+
+      if (!existingEncrypted) {
+        added += 1
+      } else {
+        const existingValue = KeyEncryption.decrypt(existingEncrypted)
+        if (existingValue !== value) {
+          updated += 1
+        }
+      }
+
+      this.config.environmentVariables[key] = encryptedValue
+    }
+
+    const resolvedPath = path.resolve(sourcePath)
+    if (!this.config.environmentSources.includes(resolvedPath)) {
+      this.config.environmentSources.push(resolvedPath)
+    }
+
+    this.saveConfig()
+    this.applyEnvironmentVariablesToProcess({ overwriteProcess: true })
+
+    return { added, updated }
   }
 
   // Cloud documentation API keys
