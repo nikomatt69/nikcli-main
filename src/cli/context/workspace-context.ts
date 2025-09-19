@@ -4,12 +4,11 @@ import * as fsPromises from 'node:fs/promises'
 import * as path from 'node:path'
 import chalk from 'chalk'
 import { toolsManager } from '../tools/tools-manager'
-import { unifiedRAGSystem } from './rag-system'
-
 // Import new unified components
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
-import { semanticSearchEngine, type QueryAnalysis } from './semantic-search-engine'
-import { unifiedEmbeddingInterface, type EmbeddingResult } from './unified-embedding-interface'
+import { unifiedRAGSystem } from './rag-system'
+import { type QueryAnalysis, semanticSearchEngine } from './semantic-search-engine'
+import { type EmbeddingResult, unifiedEmbeddingInterface } from './unified-embedding-interface'
 
 export interface FileContext {
   path: string
@@ -144,7 +143,7 @@ export class WorkspaceContextManager {
       excludeExtensions: [],
       excludeDirectories: ['node_modules', 'dist', 'build', '.cache', '.git'],
       excludePatterns: [],
-      customRules: []
+      customRules: [],
     })
 
     // Initialize RAG integration
@@ -935,7 +934,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
               dependencies: this.extractDependencies(content, language),
               exports: this.extractExports(content, language),
               hash: createHash('md5').update(content).digest('hex'),
-              lastAnalyzed: new Date()
+              lastAnalyzed: new Date(),
             }
 
             this.context.files.set(filePath, fileContext)
@@ -954,7 +953,6 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       }
 
       this.context.lastUpdated = new Date()
-
     } catch (error) {
       console.log(chalk.red('❌ Error refreshing workspace index:', error))
     }
@@ -996,7 +994,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
         lastAnalyzed: new Date(),
         functions: this.extractFunctions(content, language),
         classes: this.extractClasses(content, language),
-        types: this.extractTypes(content, language)
+        types: this.extractTypes(content, language),
       }
 
       return fileContext
@@ -1005,7 +1003,6 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       return null
     }
   }
-
 
   // Helper method to scan directory with file filter
   private async scanDirectoryWithFilter(dirPath: string): Promise<string[]> {
@@ -1060,7 +1057,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       '.cpp': 'cpp',
       '.c': 'c',
       '.php': 'php',
-      '.rb': 'ruby'
+      '.rb': 'ruby',
     }
     return langMap[ext] || 'text'
   }

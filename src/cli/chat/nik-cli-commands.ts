@@ -21,9 +21,9 @@ import { registerAgents } from '../register-agents'
 import { memoryService } from '../services/memory-service'
 import { snapshotService } from '../services/snapshot-service'
 import { toolService } from '../services/tool-service'
+import { extractFileIdFromUrl, figmaTool, isFigmaConfigured } from '../tools/figma-tool'
 import { secureTools } from '../tools/secure-tools-registry'
 import { toolsManager } from '../tools/tools-manager'
-import { figmaTool, extractFileIdFromUrl, isFigmaConfigured } from '../tools/figma-tool'
 import type { AgentTask } from '../types/types'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { approvalSystem } from '../ui/approval-system'
@@ -1684,7 +1684,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         semanticResults = await unifiedRAGSystem.search(query, {
           limit: 10,
           semanticOnly: false,
-          workingDirectory: directory === '.' ? process.cwd() : directory
+          workingDirectory: directory === '.' ? process.cwd() : directory,
         })
       } catch (error) {
         console.log(chalk.yellow('⚠️ Semantic search unavailable, using traditional search'))
@@ -5747,22 +5747,17 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     console.log(chalk.gray('─'.repeat(50)))
 
     const isConfigured = isFigmaConfigured()
-    const tokenStatus = isConfigured
-      ? chalk.green('✅ Configured')
-      : chalk.red('❌ Not configured')
+    const tokenStatus = isConfigured ? chalk.green('✅ Configured') : chalk.red('❌ Not configured')
 
     console.log(`${chalk.cyan('Figma API Token:')} ${tokenStatus}`)
 
     const v0Configured = !!process.env.V0_API_KEY
-    const v0Status = v0Configured
-      ? chalk.green('✅ Configured')
-      : chalk.yellow('⚠️  Optional - for AI code generation')
+    const v0Status = v0Configured ? chalk.green('✅ Configured') : chalk.yellow('⚠️  Optional - for AI code generation')
 
     console.log(`${chalk.cyan('Vercel v0 Integration:')} ${v0Status}`)
 
-    const desktopStatus = process.platform === 'darwin'
-      ? chalk.green('✅ Available (macOS)')
-      : chalk.gray('⚪ macOS only')
+    const desktopStatus =
+      process.platform === 'darwin' ? chalk.green('✅ Available (macOS)') : chalk.gray('⚪ macOS only')
 
     console.log(`${chalk.cyan('Desktop App Automation:')} ${desktopStatus}`)
 
@@ -5811,7 +5806,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const result = await figmaTool.execute({
         command: 'figma-info',
-        args: [fileId]
+        args: [fileId],
       })
 
       if (result.success && result.data) {
@@ -5838,7 +5833,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       } else {
         console.log(chalk.red(`❌ Failed to get file info: ${result.error}`))
       }
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Error: ${error.message}`))
     }
@@ -5874,7 +5868,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         fileId,
         format,
         outputPath,
-        scale: 1
+        scale: 1,
       }
 
       const validatedArgs = validateCommandArgs(FigmaExportSchema, exportData, 'figma-export')
@@ -5885,17 +5879,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       console.log(chalk.blue(`🎨 Exporting Figma designs as ${format.toUpperCase()}...`))
 
-      const execArgs: string[] = [
-        validatedArgs.fileId || fileId,
-        validatedArgs.format || format
-      ]
+      const execArgs: string[] = [validatedArgs.fileId || fileId, validatedArgs.format || format]
       if (validatedArgs.outputPath) {
         execArgs.push(validatedArgs.outputPath)
       }
 
       const result = await figmaTool.execute({
         command: 'figma-export',
-        args: execArgs
+        args: execArgs,
       })
 
       if (result.success) {
@@ -5915,7 +5906,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       } else {
         console.log(chalk.red(`❌ Export failed: ${result.error}`))
       }
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Error: ${error.message}`))
     }
@@ -5952,7 +5942,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         fileId,
         framework,
         library,
-        typescript: true
+        typescript: true,
       }
 
       const validatedArgs = validateCommandArgs(FigmaCodeGenSchema, codeGenData, 'figma-to-code')
@@ -5965,7 +5955,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const result = await figmaTool.execute({
         command: 'figma-to-code',
-        args: [validatedArgs.fileId, validatedArgs.framework || 'react', validatedArgs.library || 'shadcn']
+        args: [validatedArgs.fileId, validatedArgs.framework || 'react', validatedArgs.library || 'shadcn'],
       })
 
       if (result.success && result.generatedCode) {
@@ -5976,7 +5966,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       } else {
         console.log(chalk.red(`❌ Code generation failed: ${result.error}`))
       }
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Error: ${error.message}`))
     }
@@ -6008,7 +5997,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const result = await figmaTool.execute({
         command: 'figma-open',
-        args: [fileUrl]
+        args: [fileUrl],
       })
 
       if (result.success) {
@@ -6016,7 +6005,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       } else {
         console.log(chalk.red(`❌ Failed to open file: ${result.error}`))
       }
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Error: ${error.message}`))
     }
@@ -6052,7 +6040,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         format,
         includeColors: true,
         includeTypography: true,
-        includeSpacing: true
+        includeSpacing: true,
       }
 
       const validatedArgs = validateCommandArgs(FigmaTokensSchema, tokensData, 'figma-tokens')
@@ -6065,7 +6053,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const result = await figmaTool.execute({
         command: 'figma-tokens',
-        args: [validatedArgs.fileId, validatedArgs.format || 'json']
+        args: [validatedArgs.fileId, validatedArgs.format || 'json'],
       })
 
       if (result.success && result.tokens) {
@@ -6089,7 +6077,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       } else {
         console.log(chalk.red(`❌ Token extraction failed: ${result.error}`))
       }
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Error: ${error.message}`))
     }
@@ -6113,7 +6100,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const result = await figmaTool.execute({
         command: 'figma-create',
-        args: [componentPath, outputName]
+        args: [componentPath, outputName],
       })
 
       if (result.success && result.data) {
@@ -6135,21 +6122,23 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.gray('─'.repeat(50)))
         console.log(chalk.blue('📝 Design Tokens Found:'))
         if (data.designDescription.designTokens.colors.length > 0) {
-          console.log(`  ${chalk.green('Colors:')} ${data.designDescription.designTokens.colors.slice(0, 3).join(', ')}${data.designDescription.designTokens.colors.length > 3 ? '...' : ''}`)
+          console.log(
+            `  ${chalk.green('Colors:')} ${data.designDescription.designTokens.colors.slice(0, 3).join(', ')}${data.designDescription.designTokens.colors.length > 3 ? '...' : ''}`
+          )
         }
         if (data.designDescription.designTokens.spacing.length > 0) {
-          console.log(`  ${chalk.green('Spacing:')} ${data.designDescription.designTokens.spacing.slice(0, 3).join(', ')}${data.designDescription.designTokens.spacing.length > 3 ? '...' : ''}`)
+          console.log(
+            `  ${chalk.green('Spacing:')} ${data.designDescription.designTokens.spacing.slice(0, 3).join(', ')}${data.designDescription.designTokens.spacing.length > 3 ? '...' : ''}`
+          )
         }
 
         console.log('\n' + chalk.yellow('💡 Next steps:'))
         console.log('  • Open the generated preview image to see the design concept')
         console.log('  • Use the design specification to manually create the Figma file')
         console.log('  • Import the extracted design tokens into your design system')
-
       } else {
         console.log(chalk.red(`❌ Creation failed: ${result.error}`))
       }
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Error: ${error.message}`))
     }

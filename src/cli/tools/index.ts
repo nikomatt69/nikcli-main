@@ -24,14 +24,14 @@ export {
 } from './browserbase-tool'
 export { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
 export {
+  extractFileIdFromUrl,
   type FigmaCodeGenOptions,
   type FigmaDesktopOptions,
   type FigmaExportOptions,
   type FigmaTokensOptions,
-  type FigmaToolResult,
   FigmaTool,
+  type FigmaToolResult,
   figmaTool,
-  extractFileIdFromUrl,
   isFigmaConfigured,
   isValidFigmaFileId,
 } from './figma-tool'

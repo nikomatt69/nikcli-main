@@ -1,6 +1,6 @@
-import { embed } from 'ai'
-import { createOpenAI } from '@ai-sdk/openai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createOpenAI } from '@ai-sdk/openai'
+import { embed } from 'ai'
 import chalk from 'chalk'
 import { configManager } from '../core/config-manager'
 import { redisProvider } from '../providers/redis/redis-provider'
@@ -60,15 +60,15 @@ export class AiSdkEmbeddingProvider {
       costPer1KTokens: 0.000025,
     },
     anthropic: {
-      provider: 'anthropic',
-      model: 'claude-3-haiku-20240307', // Fallback to text generation if no embedding
+      provider: 'openai',
+      model: 'text-embedding-3-small', // Fallback to text generation if no embedding
       batchSize: 10,
       maxTokens: 1000,
       costPer1KTokens: 0.0001,
     },
     openrouter: {
       provider: 'openrouter',
-      model: 'text-embedding-3-small', // Uses OpenAI compatible embeddings
+      model: 'openai/text-embedding-3-small', // Uses OpenAI compatible embeddings
       batchSize: 50,
       maxTokens: 8191,
       costPer1KTokens: 0.00003, // Slightly higher than OpenAI direct
@@ -162,7 +162,11 @@ export class AiSdkEmbeddingProvider {
       return cachedResults as number[][]
     }
 
-    console.log(chalk.blue(`🔍 Cache: ${cachedResults.filter(r => r !== null).length}/${texts.length} hits, generating ${uncachedTexts.length} embeddings`))
+    console.log(
+      chalk.blue(
+        `🔍 Cache: ${cachedResults.filter((r) => r !== null).length}/${texts.length} hits, generating ${uncachedTexts.length} embeddings`
+      )
+    )
 
     try {
       const result = await this.generateWithProvider(uncachedTexts, this.currentProvider)
@@ -239,7 +243,11 @@ export class AiSdkEmbeddingProvider {
       }
 
       // All providers failed
-      this.updateStats({ embeddings: [], tokensUsed: 0, cost: 0, provider: this.currentProvider, model: '' }, Date.now() - startTime, false)
+      this.updateStats(
+        { embeddings: [], tokensUsed: 0, cost: 0, provider: this.currentProvider, model: '' },
+        Date.now() - startTime,
+        false
+      )
       throw new Error(`All embedding providers failed. Last error: ${error.message}`)
     }
   }
@@ -249,7 +257,7 @@ export class AiSdkEmbeddingProvider {
    */
   private async generateWithProvider(texts: string[], providerName: string): Promise<EmbeddingResult> {
     const config = this.providerConfigs[providerName]
-    const processedTexts = texts.map(text => this.truncateText(text, config.maxTokens))
+    const processedTexts = texts.map((text) => this.truncateText(text, config.maxTokens))
 
     // Create batches
     const batches: string[][] = []
@@ -287,7 +295,7 @@ export class AiSdkEmbeddingProvider {
 
       // Rate limiting between batch groups
       if (i + maxConcurrentBatches < batches.length) {
-        await new Promise(resolve => setTimeout(resolve, 50)) // Reduced delay for faster processing
+        await new Promise((resolve) => setTimeout(resolve, 50)) // Reduced delay for faster processing
       }
     }
 
@@ -391,7 +399,7 @@ export class AiSdkEmbeddingProvider {
             // OpenRouter uses OpenAI-compatible interface for embeddings
             const openrouterProvider = createOpenAI({
               apiKey,
-              baseURL: 'https://openrouter.ai/api/v1'
+              baseURL: 'https://openrouter.ai/api/v1',
             })
             const model = openrouterProvider.embedding(config.model)
 
@@ -436,7 +444,7 @@ export class AiSdkEmbeddingProvider {
       // Enhanced error handling
       if (error.message?.includes('rate limit')) {
         console.log(chalk.yellow(`⚠️ Rate limit reached for ${providerName}, waiting...`))
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        await new Promise((resolve) => setTimeout(resolve, 2000))
         // Retry once
         return this.generateBatch(texts, providerName)
       }
@@ -471,7 +479,8 @@ export class AiSdkEmbeddingProvider {
     this.stats.providerUsage[result.provider] = (this.stats.providerUsage[result.provider] || 0) + 1
 
     // Update average latency
-    this.stats.averageLatency = (this.stats.averageLatency * (this.stats.totalRequests - 1) + latency) / this.stats.totalRequests
+    this.stats.averageLatency =
+      (this.stats.averageLatency * (this.stats.totalRequests - 1) + latency) / this.stats.totalRequests
 
     // Update success rate
     const successCount = Math.round(this.stats.successRate * (this.stats.totalRequests - 1)) + (success ? 1 : 0)

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@nicomatt69/nikcli",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "NikCLI - Context-Aware AI Development Assistant",
   "author": "nikomatt69",
   "license": "MIT",
@@ -15,15 +15,23 @@
     "access": "public",
     "tag": "latest"
   },
+  "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=6.0.0",
+    "yarn": ">=1.0.0",
+    "pnpm": ">=8.0.0",
+    "bun": ">=1.0.0"
+  },
   "scripts": {
     "start": "ts-node --project tsconfig.cli.json src/cli/index.ts",
-    "dev": "npm start",
+    "dev": "pnpm start",
     "build": "tsc --project tsconfig.cli.json",
-    "prepublishOnly": "npm run build",
-    "build:start": "npm run build && node dist/cli/index.js",
+    "prepublishOnly": "pnpm run build",
+    "build:start": "pnpm run build && node dist/cli/index.js",
     "build:binary": "node scripts/build-all.js",
-    "build:pkg": "npm run build && mkdir -p public/bin && pkg dist/cli/index.js --target node18-macos-arm64 --output public/bin/nikcli-macos-arm64",
-    "build:pkg:all": "npm run build && mkdir -p public/bin && npm run pkg:macos:arm64 && npm run pkg:macos:x64 && npm run pkg:linux:x64 && npm run pkg:win:x64",
+    "build:pkg": "pnpm run build && mkdir -p public/bin && pkg dist/cli/index.js --target node18-macos-arm64 --output public/bin/nikcli-macos-arm64",
+    "build:pkg:all": "pnpm run build && mkdir -p public/bin && pnpm run pkg:macos:arm64 && pnpm run pkg:macos:x64 && pnpm run pkg:linux:x64 && pnpm run pkg:win:x64",
     "pkg:macos:arm64": "pkg dist/cli/index.js --target node18-macos-arm64 --output public/bin/nikcli-aarch64-apple-darwin",
     "pkg:macos:x64": "pkg dist/cli/index.js --target node18-macos-x64 --output public/bin/nikcli-x86_64-apple-darwin",
     "pkg:linux:x64": "pkg dist/cli/index.js --target node18-linux-x64 --output public/bin/nikcli-x86_64-linux",

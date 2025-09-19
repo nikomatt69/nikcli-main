@@ -3,8 +3,8 @@ import { mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import { type EnhancedSessionManager, type EnhancedSessionData } from '../persistence/enhanced-session-manager'
-import { tmuxIntegration, type TmuxSession } from './tmux-integration'
+import type { EnhancedSessionData, EnhancedSessionManager } from '../persistence/enhanced-session-manager'
+import { type TmuxSession, tmuxIntegration } from './tmux-integration'
 
 export interface SSHSessionInfo {
   clientIP: string
@@ -120,7 +120,7 @@ export class SSHSessionBridge {
         serverPort: parts[2],
         protocol: sshTty ? 'ssh' : 'unknown',
         isSecure: true,
-        startTime: new Date()
+        startTime: new Date(),
       }
     } catch (error) {
       console.log(chalk.yellow(`⚠️ Failed to parse SSH info: ${error}`))
@@ -138,7 +138,7 @@ export class SSHSessionBridge {
       backupInterval: 5, // 5 minutes
       maxBackups: 10,
       syncWithCloud: true,
-      tmuxIntegration: true
+      tmuxIntegration: true,
     }
 
     if (existsSync(this.configPath)) {
@@ -200,10 +200,12 @@ export class SSHSessionBridge {
         this.currentState = {
           ...stateData,
           connectionCount: (stateData.connectionCount || 0) + 1,
-          lastBackup: new Date(stateData.lastBackup)
+          lastBackup: new Date(stateData.lastBackup),
         }
 
-        console.log(chalk.green(`✅ Restored SSH session state (connection #${this.currentState?.connectionCount || 0})`))
+        console.log(
+          chalk.green(`✅ Restored SSH session state (connection #${this.currentState?.connectionCount || 0})`)
+        )
 
         // Try to restore tmux session
         if (this.currentState?.tmuxSessionName && tmuxIntegration.isAvailable()) {
@@ -239,7 +241,7 @@ export class SSHSessionBridge {
       const { execSync } = await import('node:child_process')
       gitBranch = execSync('git branch --show-current', {
         encoding: 'utf-8',
-        stdio: 'pipe'
+        stdio: 'pipe',
       }).trim()
     } catch {
       // Not in a git repo or git not available
@@ -254,8 +256,8 @@ export class SSHSessionBridge {
         deviceType: this.sessionManager.isMobile() ? 'mobile' : 'desktop',
         clientInfo: this.sshInfo,
         workspaceDir: process.cwd(),
-        gitBranch
-      }
+        gitBranch,
+      },
     }
 
     await this.saveSessionState()
@@ -298,7 +300,7 @@ export class SSHSessionBridge {
       const sessionName = `nikcli-ssh-${Date.now()}`
       tmuxSessionName = await tmuxIntegration.createSession({
         name: sessionName,
-        workingDir: process.cwd()
+        workingDir: process.cwd(),
       })
 
       if (tmuxSessionName && this.currentState) {
@@ -321,9 +323,12 @@ export class SSHSessionBridge {
       clearInterval(this.backupTimer)
     }
 
-    this.backupTimer = setInterval(async () => {
-      await this.createBackup()
-    }, this.config.backupInterval * 60 * 1000) // Convert minutes to milliseconds
+    this.backupTimer = setInterval(
+      async () => {
+        await this.createBackup()
+      },
+      this.config.backupInterval * 60 * 1000
+    ) // Convert minutes to milliseconds
 
     console.log(chalk.gray(`🕐 Auto-backup enabled (every ${this.config.backupInterval} minutes)`))
   }
@@ -338,8 +343,8 @@ export class SSHSessionBridge {
       const backupData = {
         timestamp: new Date().toISOString(),
         sessionState: this.currentState,
-        sessions: sessions.filter(s => s.syncStatus !== 'conflict'),
-        tmuxSessions: tmuxIntegration.isAvailable() ? tmuxIntegration.listSessions() : []
+        sessions: sessions.filter((s) => s.syncStatus !== 'conflict'),
+        tmuxSessions: tmuxIntegration.isAvailable() ? tmuxIntegration.listSessions() : [],
       }
 
       // Save backup
@@ -361,7 +366,6 @@ export class SSHSessionBridge {
       await this.cleanupOldBackups(backupDir)
 
       console.log(chalk.gray(`✅ Session backup created: ${backupFileName}`))
-
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ Backup failed: ${error.message}`))
     }
@@ -374,7 +378,7 @@ export class SSHSessionBridge {
     try {
       const { readdir, stat, unlink } = await import('node:fs/promises')
       const files = await readdir(backupDir)
-      const backupFiles = files.filter(f => f.startsWith('backup-') && f.endsWith('.json'))
+      const backupFiles = files.filter((f) => f.startsWith('backup-') && f.endsWith('.json'))
 
       if (backupFiles.length <= this.config.maxBackups) return
 
@@ -383,7 +387,7 @@ export class SSHSessionBridge {
         backupFiles.map(async (file) => ({
           file,
           path: join(backupDir, file),
-          mtime: (await stat(join(backupDir, file))).mtime
+          mtime: (await stat(join(backupDir, file))).mtime,
         }))
       )
 
@@ -397,7 +401,6 @@ export class SSHSessionBridge {
       if (toDelete.length > 0) {
         console.log(chalk.gray(`🗑️  Cleaned up ${toDelete.length} old backup(s)`))
       }
-
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ Backup cleanup failed: ${error.message}`))
     }
@@ -422,8 +425,10 @@ export class SSHSessionBridge {
       `  Uptime: ${uptime} minutes`,
       `  Last backup: ${this.currentState.lastBackup.toLocaleTimeString()}`,
       this.currentState.tmuxSessionName ? `  Tmux: ${this.currentState.tmuxSessionName}` : '',
-      this.currentState.metadata.gitBranch ? `  Git branch: ${this.currentState.metadata.gitBranch}` : ''
-    ].filter(Boolean).join('\n')
+      this.currentState.metadata.gitBranch ? `  Git branch: ${this.currentState.metadata.gitBranch}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
   }
 
   /**

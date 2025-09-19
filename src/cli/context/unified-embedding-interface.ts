@@ -1,10 +1,10 @@
-import { AiSdkEmbeddingProvider, aiSdkEmbeddingProvider } from './ai-sdk-embedding-provider'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { join } from 'node:path'
 import chalk from 'chalk'
+import { AiSdkEmbeddingProvider, aiSdkEmbeddingProvider } from './ai-sdk-embedding-provider'
 
 export interface EmbeddingConfig {
   provider: 'openai' | 'google' | 'anthropic' | 'openrouter'
@@ -48,11 +48,14 @@ export interface UnifiedEmbeddingStats {
   cacheHitRate: number
   averageLatency: number
   totalCost: number
-  byProvider: Record<string, {
-    count: number
-    cost: number
-    averageLatency: number
-  }>
+  byProvider: Record<
+    string,
+    {
+      count: number
+      cost: number
+      averageLatency: number
+    }
+  >
   lastOptimization: Date
 }
 
@@ -89,7 +92,7 @@ export class UnifiedEmbeddingInterface {
       batchSize: 100,
       cacheEnabled: true,
       persistenceEnabled: true,
-      ...config
+      ...config,
     }
 
     this.persistentCacheDir = join(homedir(), '.nikcli', 'embeddings')
@@ -119,11 +122,13 @@ export class UnifiedEmbeddingInterface {
       }
     }
 
-    console.log(chalk.blue(`🔍 Embeddings: ${results.length}/${queries.length} from cache, ${uncachedQueries.length} to generate`))
+    console.log(
+      chalk.blue(`🔍 Embeddings: ${results.length}/${queries.length} from cache, ${uncachedQueries.length} to generate`)
+    )
 
     // Generate embeddings for uncached queries
     if (uncachedQueries.length > 0) {
-      const texts = uncachedQueries.map(q => q.text)
+      const texts = uncachedQueries.map((q) => q.text)
 
       try {
         const embeddings = await this.provider.generate(texts)
@@ -144,7 +149,7 @@ export class UnifiedEmbeddingInterface {
               timestamp: new Date(),
               hash,
               cost: this.estimateCost(query.text, currentProvider),
-              tokensUsed: this.estimateTokens(query.text)
+              tokensUsed: this.estimateTokens(query.text),
             }
 
             results.push(result)
@@ -156,10 +161,13 @@ export class UnifiedEmbeddingInterface {
 
             this.updateStats(result, Date.now() - startTime)
           } else {
-            console.warn(chalk.yellow(`⚠️ Invalid embedding dimensions: expected ${this.config.dimensions}, got ${vector?.length || 0}`))
+            console.warn(
+              chalk.yellow(
+                `⚠️ Invalid embedding dimensions: expected ${this.config.dimensions}, got ${vector?.length || 0}`
+              )
+            )
           }
         }
-
       } catch (error) {
         console.error(chalk.red(`❌ Embedding generation failed: ${(error as Error).message}`))
         throw error
@@ -229,14 +237,12 @@ export class UnifiedEmbeddingInterface {
           id: candidate.id,
           score: similarity,
           metadata: candidate,
-          embedding: candidate
+          embedding: candidate,
         })
       }
     }
 
-    return results
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
+    return results.sort((a, b) => b.score - a.score).slice(0, limit)
   }
 
   /**
@@ -249,11 +255,13 @@ export class UnifiedEmbeddingInterface {
     }
 
     if (embedding.length !== this.config.dimensions) {
-      console.warn(chalk.yellow(`⚠️ Dimension mismatch from ${source}: expected ${this.config.dimensions}, got ${embedding.length}`))
+      console.warn(
+        chalk.yellow(`⚠️ Dimension mismatch from ${source}: expected ${this.config.dimensions}, got ${embedding.length}`)
+      )
       return false
     }
 
-    if (embedding.some(val => typeof val !== 'number' || !isFinite(val))) {
+    if (embedding.some((val) => typeof val !== 'number' || !isFinite(val))) {
       console.warn(chalk.yellow(`⚠️ Invalid embedding values from ${source}: contains non-finite numbers`))
       return false
     }
@@ -289,13 +297,16 @@ export class UnifiedEmbeddingInterface {
    * Get performance statistics
    */
   getStats(): UnifiedEmbeddingStats {
-    this.stats.averageLatency = this.queryLatencies.length > 0
-      ? this.queryLatencies.reduce((sum, lat) => sum + lat, 0) / this.queryLatencies.length
-      : 0
+    this.stats.averageLatency =
+      this.queryLatencies.length > 0
+        ? this.queryLatencies.reduce((sum, lat) => sum + lat, 0) / this.queryLatencies.length
+        : 0
 
-    this.stats.cacheHitRate = this.stats.totalQueries > 0
-      ? ((this.stats.totalQueries - Object.values(this.stats.byProvider).reduce((sum, p) => sum + p.count, 0)) / this.stats.totalQueries)
-      : 0
+    this.stats.cacheHitRate =
+      this.stats.totalQueries > 0
+        ? (this.stats.totalQueries - Object.values(this.stats.byProvider).reduce((sum, p) => sum + p.count, 0)) /
+          this.stats.totalQueries
+        : 0
 
     return { ...this.stats }
   }
@@ -359,7 +370,9 @@ export class UnifiedEmbeddingInterface {
     if (Object.keys(stats.byProvider).length > 0) {
       console.log(chalk.cyan('\nBy Provider:'))
       Object.entries(stats.byProvider).forEach(([provider, providerStats]) => {
-        console.log(`  ${provider}: ${providerStats.count} embeddings, $${providerStats.cost.toFixed(6)}, ${Math.round(providerStats.averageLatency)}ms avg`)
+        console.log(
+          `  ${provider}: ${providerStats.count} embeddings, $${providerStats.cost.toFixed(6)}, ${Math.round(providerStats.averageLatency)}ms avg`
+        )
       })
     }
 
@@ -421,14 +434,15 @@ export class UnifiedEmbeddingInterface {
       this.stats.byProvider[result.provider] = {
         count: 0,
         cost: 0,
-        averageLatency: 0
+        averageLatency: 0,
       }
     }
 
     const providerStats = this.stats.byProvider[result.provider]
     providerStats.count++
     providerStats.cost += result.cost
-    providerStats.averageLatency = (providerStats.averageLatency * (providerStats.count - 1) + latency) / providerStats.count
+    providerStats.averageLatency =
+      (providerStats.averageLatency * (providerStats.count - 1) + latency) / providerStats.count
   }
 
   private initializeStats(): UnifiedEmbeddingStats {
@@ -439,7 +453,7 @@ export class UnifiedEmbeddingInterface {
       averageLatency: 0,
       totalCost: 0,
       byProvider: {},
-      lastOptimization: new Date()
+      lastOptimization: new Date(),
     }
   }
 
@@ -491,7 +505,7 @@ export class UnifiedEmbeddingInterface {
       const data = {
         embeddings: Object.fromEntries(this.embeddingCache),
         stats: this.stats,
-        lastSaved: new Date()
+        lastSaved: new Date(),
       }
 
       await writeFile(cacheFile, JSON.stringify(data, null, 2))
@@ -506,7 +520,10 @@ export class UnifiedEmbeddingInterface {
 
     try {
       if (existsSync(cacheFile)) {
-        await writeFile(cacheFile, JSON.stringify({ embeddings: {}, stats: this.initializeStats(), lastSaved: new Date() }))
+        await writeFile(
+          cacheFile,
+          JSON.stringify({ embeddings: {}, stats: this.initializeStats(), lastSaved: new Date() })
+        )
       }
     } catch (error) {
       console.warn(chalk.yellow(`⚠️ Failed to clear persistent cache: ${error}`))

@@ -6,16 +6,16 @@
  * and integration with other system components.
  */
 
-import chalk from 'chalk'
 import { EventEmitter } from 'node:events'
+import chalk from 'chalk'
 import {
-  FigmaProvider,
+  type DesignTokens,
+  type FigmaExportResult,
+  type FigmaExportSettings,
+  type FigmaFileInfo,
+  type FigmaProvider,
   getFigmaProvider,
   isFigmaProviderConfigured,
-  type FigmaFileInfo,
-  type DesignTokens,
-  type FigmaExportSettings,
-  type FigmaExportResult
 } from '../providers/figma/figma-provider'
 
 // ==================== SERVICE INTERFACES ====================
@@ -55,7 +55,7 @@ export class FigmaService extends EventEmitter {
       enableCaching: true,
       cacheTimeout: 5 * 60 * 1000, // 5 minutes
       autoInitialize: true,
-      ...config
+      ...config,
     }
 
     if (this.config.autoInitialize) {
@@ -123,7 +123,7 @@ export class FigmaService extends EventEmitter {
 
     this.cache.set(key, {
       data,
-      timestamp: new Date()
+      timestamp: new Date(),
     })
   }
 
@@ -145,7 +145,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: false,
         error: 'Figma service not initialized',
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
 
@@ -157,7 +157,7 @@ export class FigmaService extends EventEmitter {
         success: true,
         data: cached,
         cached: true,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
 
@@ -172,7 +172,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: true,
         data,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     } catch (error: any) {
       this.emit('operation-error', { operation: 'getFileInfo', fileId, error: error.message })
@@ -180,7 +180,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: false,
         error: error.message,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
   }
@@ -197,7 +197,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: false,
         error: 'Figma service not initialized',
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
 
@@ -211,7 +211,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: true,
         data,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     } catch (error: any) {
       this.emit('operation-error', { operation: 'exportNodes', fileId, error: error.message })
@@ -219,7 +219,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: false,
         error: error.message,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
   }
@@ -232,7 +232,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: false,
         error: 'Figma service not initialized',
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
 
@@ -244,7 +244,7 @@ export class FigmaService extends EventEmitter {
         success: true,
         data: cached,
         cached: true,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
 
@@ -259,7 +259,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: true,
         data,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     } catch (error: any) {
       this.emit('operation-error', { operation: 'extractDesignTokens', fileId, error: error.message })
@@ -267,7 +267,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: false,
         error: error.message,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
   }
@@ -275,15 +275,12 @@ export class FigmaService extends EventEmitter {
   /**
    * Generate code from Figma designs using v0 API
    */
-  async generateCodeFromDesign(
-    fileId: string,
-    options: CodeGenerationOptions
-  ): Promise<FigmaOperationResult<string>> {
+  async generateCodeFromDesign(fileId: string, options: CodeGenerationOptions): Promise<FigmaOperationResult<string>> {
     if (!this.isInitialized || !this.provider) {
       return {
         success: false,
         error: 'Figma service not initialized',
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
 
@@ -292,7 +289,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: false,
         error: 'V0 API key not configured - required for code generation',
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
 
@@ -308,9 +305,9 @@ export class FigmaService extends EventEmitter {
       // Export key frames as images for v0
       const mainPageNodes = fileInfoResult.data.document?.children?.[0]?.children || []
       const frameIds = mainPageNodes
-        .filter(node => node.type === 'FRAME')
+        .filter((node) => node.type === 'FRAME')
         .slice(0, 3) // Limit to first 3 frames
-        .map(node => node.id)
+        .map((node) => node.id)
 
       if (frameIds.length === 0) {
         throw new Error('No frames found in the Figma file')
@@ -318,7 +315,7 @@ export class FigmaService extends EventEmitter {
 
       const exportResult = await this.exportNodes(fileId, frameIds, {
         format: 'png',
-        scale: 2
+        scale: 2,
       })
 
       if (!exportResult.success || !exportResult.data) {
@@ -338,7 +335,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: true,
         data: generatedCode,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     } catch (error: any) {
       this.emit('operation-error', { operation: 'generateCode', fileId, error: error.message })
@@ -346,7 +343,7 @@ export class FigmaService extends EventEmitter {
       return {
         success: false,
         error: error.message,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
   }
@@ -391,7 +388,7 @@ export default ${componentName}`
       initialized: this.isInitialized,
       configured: isFigmaProviderConfigured(),
       cacheSize: this.cache.size,
-      provider: !!this.provider
+      provider: !!this.provider,
     }
   }
 
@@ -403,7 +400,7 @@ export default ${componentName}`
       return {
         success: false,
         error: 'Service not initialized',
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
 
@@ -415,7 +412,7 @@ export default ${componentName}`
       return {
         success: true,
         data: true,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     } catch (error: any) {
       // This is expected to fail for test file ID
@@ -424,14 +421,14 @@ export default ${componentName}`
         return {
           success: true,
           data: true,
-          timestamp: new Date()
+          timestamp: new Date(),
         }
       }
 
       return {
         success: false,
         error: error.message,
-        timestamp: new Date()
+        timestamp: new Date(),
       }
     }
   }

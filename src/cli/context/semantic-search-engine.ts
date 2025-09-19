@@ -1,10 +1,10 @@
-import { unifiedEmbeddingInterface, type EmbeddingResult } from './unified-embedding-interface'
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { join } from 'node:path'
 import chalk from 'chalk'
+import { type EmbeddingResult, unifiedEmbeddingInterface } from './unified-embedding-interface'
 
 export interface QueryAnalysis {
   originalQuery: string
@@ -113,7 +113,7 @@ export class SemanticSearchEngine {
     averageProcessingTime: 0,
     cacheHitRate: 0,
     expansionRate: 0,
-    lastOptimization: new Date()
+    lastOptimization: new Date(),
   }
 
   private readonly CACHE_TTL = 1800000 // 30 minutes
@@ -135,7 +135,8 @@ export class SemanticSearchEngine {
     const cacheKey = this.generateCacheKey(query, context)
     const cached = this.queryCache.get(cacheKey)
     if (cached) {
-      this.stats.cacheHitRate = (this.stats.cacheHitRate * this.stats.queriesProcessed + 1) / (this.stats.queriesProcessed + 1)
+      this.stats.cacheHitRate =
+        (this.stats.cacheHitRate * this.stats.queriesProcessed + 1) / (this.stats.queriesProcessed + 1)
       return cached
     }
 
@@ -174,7 +175,7 @@ export class SemanticSearchEngine {
       technicalTerms,
       codePatterns,
       expandedQuery,
-      confidence
+      confidence,
     }
 
     // Cache the result
@@ -205,7 +206,7 @@ export class SemanticSearchEngine {
       contextScore: this.calculateContextScore(metadata, scoringContext),
       recencyScore: this.calculateRecencyScore(metadata),
       importanceScore: this.calculateImportanceScore(metadata),
-      diversityScore: this.calculateDiversityScore(content, queryAnalysis)
+      diversityScore: this.calculateDiversityScore(content, queryAnalysis),
     }
 
     // Weighted combination based on query intent
@@ -221,7 +222,7 @@ export class SemanticSearchEngine {
       score: finalScore,
       breakdown: scores,
       relevanceFactors,
-      metadata
+      metadata,
     }
   }
 
@@ -241,12 +242,12 @@ export class SemanticSearchEngine {
     }
 
     const expansion: SemanticExpansion = {
-      originalTerms: keywords.map(k => k.term),
+      originalTerms: keywords.map((k) => k.term),
       expandedTerms: [],
       synonyms: [],
       relatedConcepts: [],
       domainSpecific: [],
-      codeRelated: []
+      codeRelated: [],
     }
 
     // 1. Synonym expansion
@@ -294,50 +295,50 @@ export class SemanticSearchEngine {
         subtype: 'function_lookup',
         patterns: [/find.*(function|method|def)/, /search.*(function|method)/, /where.*is.*function/],
         keywords: ['function', 'method', 'find', 'search', 'locate'],
-        confidence: 0.9
+        confidence: 0.9,
       },
       {
         type: 'code_search' as const,
         subtype: 'class_lookup',
         patterns: [/find.*(class|interface|type)/, /search.*(class|interface)/, /where.*is.*class/],
         keywords: ['class', 'interface', 'type', 'find', 'search'],
-        confidence: 0.85
+        confidence: 0.85,
       },
       {
         type: 'implementation' as const,
         subtype: 'how_to_implement',
         patterns: [/how.*to.*implement/, /how.*to.*create/, /how.*to.*build/, /implement.*feature/],
         keywords: ['how', 'implement', 'create', 'build', 'make'],
-        confidence: 0.8
+        confidence: 0.8,
       },
       {
         type: 'debugging' as const,
         subtype: 'error_resolution',
         patterns: [/error/, /bug/, /issue/, /problem/, /fix/, /debug/, /troubleshoot/],
         keywords: ['error', 'bug', 'issue', 'problem', 'fix', 'debug'],
-        confidence: 0.85
+        confidence: 0.85,
       },
       {
         type: 'explanation' as const,
         subtype: 'code_explanation',
         patterns: [/what.*does/, /explain/, /describe/, /understand/, /what.*is/],
         keywords: ['what', 'explain', 'describe', 'understand', 'meaning'],
-        confidence: 0.7
+        confidence: 0.7,
       },
       {
         type: 'documentation' as const,
         subtype: 'api_docs',
         patterns: [/documentation/, /docs/, /api/, /reference/, /manual/],
         keywords: ['docs', 'documentation', 'api', 'reference', 'manual'],
-        confidence: 0.8
-      }
+        confidence: 0.8,
+      },
     ]
 
     let bestMatch: QueryIntent = {
       type: 'analysis',
       subtype: 'general',
       confidence: 0.5,
-      context: ['general']
+      context: ['general'],
     }
 
     for (const intentPattern of intentPatterns) {
@@ -354,9 +355,7 @@ export class SemanticSearchEngine {
       }
 
       // Keyword matching with TF-IDF-like weighting
-      const keywordMatches = intentPattern.keywords.filter(keyword =>
-        normalizedQuery.includes(keyword)
-      )
+      const keywordMatches = intentPattern.keywords.filter((keyword) => normalizedQuery.includes(keyword))
       score += (keywordMatches.length / intentPattern.keywords.length) * 0.6
 
       if (keywordMatches.length > 0) {
@@ -372,7 +371,7 @@ export class SemanticSearchEngine {
           type: intentPattern.type,
           subtype: intentPattern.subtype,
           confidence: score * intentPattern.confidence,
-          context: matchedContext
+          context: matchedContext,
         }
       }
     }
@@ -394,7 +393,7 @@ export class SemanticSearchEngine {
       { pattern: /([a-zA-Z_][a-zA-Z0-9_]*)\s*=/, type: 'variable' as const, confidence: 0.7 },
       { pattern: /([a-zA-Z_][a-zA-Z0-9_]*)\.(js|ts|py|java|cpp|rs)/, type: 'file' as const, confidence: 0.95 },
       { pattern: /(react|vue|angular|express|fastify|next\.js)/i, type: 'framework' as const, confidence: 0.9 },
-      { pattern: /(javascript|typescript|python|java|rust|go|cpp)/i, type: 'technology' as const, confidence: 0.85 }
+      { pattern: /(javascript|typescript|python|java|rust|go|cpp)/i, type: 'technology' as const, confidence: 0.85 },
     ]
 
     for (const { pattern, type, confidence } of codePatterns) {
@@ -407,7 +406,7 @@ export class SemanticSearchEngine {
           text: entityText,
           type,
           confidence,
-          variants
+          variants,
         })
       }
     }
@@ -426,20 +425,58 @@ export class SemanticSearchEngine {
    * Advanced keyword analysis with semantic weighting
    */
   private analyzeKeywords(query: string, entities: ExtractedEntity[]): QueryKeyword[] {
-    const words = query.toLowerCase()
+    const words = query
+      .toLowerCase()
       .replace(/[^\w\s]/g, ' ')
       .split(/\s+/)
-      .filter(word => word.length > 2)
+      .filter((word) => word.length > 2)
 
     const stopWords = new Set([
-      'the', 'is', 'at', 'which', 'on', 'are', 'as', 'was', 'were', 'been', 'be',
-      'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
-      'may', 'might', 'must', 'can', 'and', 'or', 'but', 'in', 'with', 'for', 'to',
-      'of', 'from', 'by', 'about', 'into', 'through', 'during', 'before', 'after'
+      'the',
+      'is',
+      'at',
+      'which',
+      'on',
+      'are',
+      'as',
+      'was',
+      'were',
+      'been',
+      'be',
+      'have',
+      'has',
+      'had',
+      'do',
+      'does',
+      'did',
+      'will',
+      'would',
+      'could',
+      'should',
+      'may',
+      'might',
+      'must',
+      'can',
+      'and',
+      'or',
+      'but',
+      'in',
+      'with',
+      'for',
+      'to',
+      'of',
+      'from',
+      'by',
+      'about',
+      'into',
+      'through',
+      'during',
+      'before',
+      'after',
     ])
 
     const keywords: QueryKeyword[] = []
-    const entityTexts = new Set(entities.map(e => e.text.toLowerCase()))
+    const entityTexts = new Set(entities.map((e) => e.text.toLowerCase()))
 
     for (const word of words) {
       if (stopWords.has(word) || word.length < 3) continue
@@ -470,13 +507,11 @@ export class SemanticSearchEngine {
         term: word,
         weight,
         category,
-        synonyms
+        synonyms,
       })
     }
 
-    return keywords
-      .sort((a, b) => b.weight - a.weight)
-      .slice(0, 20) // Keep top 20 keywords
+    return keywords.sort((a, b) => b.weight - a.weight).slice(0, 20) // Keep top 20 keywords
   }
 
   /**
@@ -487,14 +522,11 @@ export class SemanticSearchEngine {
       // Generate embeddings for query and content
       const [queryEmbedding, contentEmbedding] = await Promise.all([
         unifiedEmbeddingInterface.generateEmbedding(queryAnalysis.expandedQuery),
-        unifiedEmbeddingInterface.generateEmbedding(content.substring(0, 2000)) // Limit content size
+        unifiedEmbeddingInterface.generateEmbedding(content.substring(0, 2000)), // Limit content size
       ])
 
       // Calculate cosine similarity
-      const similarity = unifiedEmbeddingInterface.calculateSimilarity(
-        queryEmbedding.vector,
-        contentEmbedding.vector
-      )
+      const similarity = unifiedEmbeddingInterface.calculateSimilarity(queryEmbedding.vector, contentEmbedding.vector)
 
       // Apply query confidence as a multiplier
       return similarity * queryAnalysis.confidence
@@ -522,7 +554,7 @@ export class SemanticSearchEngine {
       // Position-based bonus (earlier matches get higher scores)
       const firstIndex = normalizedContent.indexOf(keyword.term)
       if (firstIndex !== -1) {
-        const positionBonus = Math.max(0, 1 - (firstIndex / normalizedContent.length)) * 0.2
+        const positionBonus = Math.max(0, 1 - firstIndex / normalizedContent.length) * 0.2
         keywordScore += positionBonus * keyword.weight
       }
 
@@ -566,20 +598,66 @@ export class SemanticSearchEngine {
 
   private isTechnicalTerm(word: string): boolean {
     const technicalWords = [
-      'api', 'database', 'server', 'client', 'framework', 'library', 'component',
-      'function', 'method', 'class', 'interface', 'variable', 'parameter',
-      'async', 'await', 'promise', 'callback', 'event', 'handler', 'hook',
-      'state', 'props', 'context', 'reducer', 'middleware', 'authentication',
-      'authorization', 'validation', 'serialization', 'deserialization'
+      'api',
+      'database',
+      'server',
+      'client',
+      'framework',
+      'library',
+      'component',
+      'function',
+      'method',
+      'class',
+      'interface',
+      'variable',
+      'parameter',
+      'async',
+      'await',
+      'promise',
+      'callback',
+      'event',
+      'handler',
+      'hook',
+      'state',
+      'props',
+      'context',
+      'reducer',
+      'middleware',
+      'authentication',
+      'authorization',
+      'validation',
+      'serialization',
+      'deserialization',
     ]
     return technicalWords.includes(word.toLowerCase())
   }
 
   private isCodeRelated(word: string): boolean {
     const codeWords = [
-      'function', 'class', 'method', 'variable', 'const', 'let', 'var', 'interface',
-      'type', 'import', 'export', 'return', 'if', 'else', 'for', 'while', 'try',
-      'catch', 'async', 'await', 'promise', 'callback', 'arrow', 'destructuring'
+      'function',
+      'class',
+      'method',
+      'variable',
+      'const',
+      'let',
+      'var',
+      'interface',
+      'type',
+      'import',
+      'export',
+      'return',
+      'if',
+      'else',
+      'for',
+      'while',
+      'try',
+      'catch',
+      'async',
+      'await',
+      'promise',
+      'callback',
+      'arrow',
+      'destructuring',
     ]
     return codeWords.includes(word.toLowerCase())
   }
@@ -607,8 +685,12 @@ export class SemanticSearchEngine {
     return createHash('md5').update(`${query}:${contextString}`).digest('hex')
   }
 
-  private generateExpansionCacheKey(query: string, entities: ExtractedEntity[], context?: Partial<ScoringContext>): string {
-    const entityString = entities.map(e => `${e.text}:${e.type}`).join(',')
+  private generateExpansionCacheKey(
+    query: string,
+    entities: ExtractedEntity[],
+    context?: Partial<ScoringContext>
+  ): string {
+    const entityString = entities.map((e) => `${e.text}:${e.type}`).join(',')
     const contextString = context ? JSON.stringify(context) : ''
     return createHash('md5').update(`${query}:${entityString}:${contextString}`).digest('hex')
   }
@@ -616,13 +698,25 @@ export class SemanticSearchEngine {
   private updatePerformanceStats(processingTime: number): void {
     this.stats.queriesProcessed++
     this.stats.averageProcessingTime =
-      (this.stats.averageProcessingTime * (this.stats.queriesProcessed - 1) + processingTime) / this.stats.queriesProcessed
+      (this.stats.averageProcessingTime * (this.stats.queriesProcessed - 1) + processingTime) /
+      this.stats.queriesProcessed
   }
 
   private logAnalysisDetails(analysis: QueryAnalysis): void {
-    console.log(chalk.gray(`  Intent: ${analysis.intent.type}:${analysis.intent.subtype} (${Math.round(analysis.intent.confidence * 100)}%)`))
-    console.log(chalk.gray(`  Entities: ${analysis.entities.map(e => `${e.text}(${e.type})`).join(', ')}`))
-    console.log(chalk.gray(`  Keywords: ${analysis.keywords.slice(0, 5).map(k => k.term).join(', ')}`))
+    console.log(
+      chalk.gray(
+        `  Intent: ${analysis.intent.type}:${analysis.intent.subtype} (${Math.round(analysis.intent.confidence * 100)}%)`
+      )
+    )
+    console.log(chalk.gray(`  Entities: ${analysis.entities.map((e) => `${e.text}(${e.type})`).join(', ')}`))
+    console.log(
+      chalk.gray(
+        `  Keywords: ${analysis.keywords
+          .slice(0, 5)
+          .map((k) => k.term)
+          .join(', ')}`
+      )
+    )
     console.log(chalk.gray(`  Technical terms: ${analysis.technicalTerms.join(', ')}`))
   }
 
@@ -658,8 +752,13 @@ export class SemanticSearchEngine {
     return []
   }
 
-  private calculateQueryConfidence(intent: QueryIntent, entities: ExtractedEntity[], keywords: QueryKeyword[], technicalTerms: string[]): number {
-    return Math.min(1.0, intent.confidence + (entities.length * 0.1) + (keywords.length * 0.05))
+  private calculateQueryConfidence(
+    intent: QueryIntent,
+    entities: ExtractedEntity[],
+    keywords: QueryKeyword[],
+    technicalTerms: string[]
+  ): number {
+    return Math.min(1.0, intent.confidence + entities.length * 0.1 + keywords.length * 0.05)
   }
 
   private analyzeQueryStructure(query: string, intentType: string): number {
@@ -680,7 +779,7 @@ export class SemanticSearchEngine {
 
   private deduplicateEntities(entities: ExtractedEntity[]): ExtractedEntity[] {
     const seen = new Set<string>()
-    return entities.filter(entity => {
+    return entities.filter((entity) => {
       const key = `${entity.text}:${entity.type}`
       if (seen.has(key)) return false
       seen.add(key)
@@ -731,7 +830,7 @@ export class SemanticSearchEngine {
       contextScore: 0.1,
       recencyScore: 0.1,
       importanceScore: 0.05,
-      diversityScore: 0.05
+      diversityScore: 0.05,
     }
   }
 

@@ -1,10 +1,9 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
-import { type MemoryEntry, type MemorySearchOptions, type MemorySearchResult, mem0Provider } from '../providers/memory'
-
 // Import RAG and semantic capabilities for enhanced memory
 import { semanticSearchEngine } from '../context/semantic-search-engine'
 import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
+import { type MemoryEntry, type MemorySearchOptions, type MemorySearchResult, mem0Provider } from '../providers/memory'
 
 export interface ConversationContext {
   sessionId: string
@@ -192,10 +191,7 @@ export class MemoryService extends EventEmitter {
   /**
    * Enhanced memory addition with semantic embedding
    */
-  async addSemanticMemory(
-    content: string,
-    metadata: Partial<MemoryEntry['metadata']> = {}
-  ): Promise<string> {
+  async addSemanticMemory(content: string, metadata: Partial<MemoryEntry['metadata']> = {}): Promise<string> {
     try {
       // Generate semantic embedding for better retrieval
       const embedding = await unifiedEmbeddingInterface.generateEmbedding(content)
@@ -204,7 +200,7 @@ export class MemoryService extends EventEmitter {
         ...metadata,
         embedding: embedding.vector,
         embeddingModel: embedding.model,
-        semanticHash: embedding.hash
+        semanticHash: embedding.hash,
       }
 
       return await this.addMemory(content, enhancedMetadata)
@@ -231,7 +227,7 @@ export class MemoryService extends EventEmitter {
         const allMemories = await mem0Provider.searchMemories({
           query: '',
           limit: 100,
-          userId: options.userId
+          userId: options.userId,
         })
 
         const semanticResults = []
@@ -242,18 +238,17 @@ export class MemoryService extends EventEmitter {
               (memoryResult.memory.metadata as any).embedding
             )
 
-            if (similarity > 0.3) { // Similarity threshold
+            if (similarity > 0.3) {
+              // Similarity threshold
               semanticResults.push({
                 ...memoryResult,
-                score: similarity
+                score: similarity,
               })
             }
           }
         }
 
-        return semanticResults
-          .sort((a, b) => b.score - a.score)
-          .slice(0, options.limit || 10)
+        return semanticResults.sort((a, b) => b.score - a.score).slice(0, options.limit || 10)
       } else {
         // Hybrid: semantic + traditional search
         return await this.searchMemories(query, options)

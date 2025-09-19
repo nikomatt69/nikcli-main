@@ -66,11 +66,11 @@ export class TmuxIntegration {
       mouseSupport: true,
       statusBar: true,
       keyBindings: {
-        'prefix': 'C-a', // Ctrl+A as prefix instead of default Ctrl+B
+        prefix: 'C-a', // Ctrl+A as prefix instead of default Ctrl+B
         'split-horizontal': '|',
         'split-vertical': '-',
         'reload-config': 'r',
-      }
+      },
     }
 
     if (existsSync(this.configPath)) {
@@ -188,11 +188,7 @@ set -g renumber-windows on
   /**
    * Create a new tmux session for NikCLI
    */
-  async createSession(options?: {
-    name?: string
-    workingDir?: string
-    command?: string
-  }): Promise<string | null> {
+  async createSession(options?: { name?: string; workingDir?: string; command?: string }): Promise<string | null> {
     if (!this.tmuxAvailable) {
       console.log(chalk.yellow('⚠️ tmux not available'))
       return null
@@ -224,7 +220,6 @@ set -g renumber-windows on
 
       console.log(chalk.green(`✅ tmux session created: ${sessionName}`))
       return sessionName
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to create tmux session: ${error.message}`))
       return null
@@ -250,7 +245,6 @@ set -g renumber-windows on
       this.currentSessionId = sessionName
       console.log(chalk.green(`✅ Attached to tmux session: ${sessionName}`))
       return true
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to attach to session: ${error.message}`))
       return false
@@ -292,7 +286,6 @@ set -g renumber-windows on
 
       console.log(chalk.green(`✅ tmux session killed: ${sessionName}`))
       return true
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to kill session: ${error.message}`))
       return false
@@ -306,13 +299,14 @@ set -g renumber-windows on
     if (!this.isAvailable) return []
 
     try {
-      const output = execSync('tmux list-sessions -F "#{session_id}|#{session_name}|#{session_windows}|#{session_created}|#{session_attached}|#{session_activity}"',
+      const output = execSync(
+        'tmux list-sessions -F "#{session_id}|#{session_name}|#{session_windows}|#{session_created}|#{session_attached}|#{session_activity}"',
         { encoding: 'utf-8' }
       ).trim()
 
       if (!output) return []
 
-      return output.split('\n').map(line => {
+      return output.split('\n').map((line) => {
         const [id, name, windows, created, attached, activity] = line.split('|')
 
         return {
@@ -321,10 +315,9 @@ set -g renumber-windows on
           windows: parseInt(windows, 10),
           created: new Date(parseInt(created, 10) * 1000),
           attached: attached !== '0',
-          lastActivity: new Date(parseInt(activity, 10) * 1000)
+          lastActivity: new Date(parseInt(activity, 10) * 1000),
         }
       })
-
     } catch {
       return []
     }
@@ -351,7 +344,8 @@ set -g renumber-windows on
     if (!this.isAvailable || !process.env.TMUX) return null
 
     try {
-      const output = execSync('tmux display-message -p "#{session_id}|#{session_name}|#{session_windows}|#{session_created}|#{session_attached}|#{session_activity}"',
+      const output = execSync(
+        'tmux display-message -p "#{session_id}|#{session_name}|#{session_windows}|#{session_created}|#{session_attached}|#{session_activity}"',
         { encoding: 'utf-8' }
       ).trim()
 
@@ -363,9 +357,8 @@ set -g renumber-windows on
         windows: parseInt(windows, 10),
         created: new Date(parseInt(created, 10) * 1000),
         attached: attached !== '0',
-        lastActivity: new Date(parseInt(activity, 10) * 1000)
+        lastActivity: new Date(parseInt(activity, 10) * 1000),
       }
-
     } catch {
       return null
     }
@@ -423,7 +416,8 @@ set -g renumber-windows on
 
     try {
       // Get session layout
-      const layout = execSync(`tmux list-windows -t "${sessionName}" -F "#{window_index}:#{window_name}:#{window_layout}"`,
+      const layout = execSync(
+        `tmux list-windows -t "${sessionName}" -F "#{window_index}:#{window_name}:#{window_layout}"`,
         { encoding: 'utf-8' }
       ).trim()
 
@@ -487,7 +481,7 @@ set -g renumber-windows on
 
     // Look for existing NikCLI sessions
     const sessions = this.listSessions()
-    const nikcliSessions = sessions.filter(s => s.name.startsWith(this.config.sessionPrefix))
+    const nikcliSessions = sessions.filter((s) => s.name.startsWith(this.config.sessionPrefix))
 
     if (nikcliSessions.length > 0) {
       // Attach to most recent session
@@ -501,7 +495,7 @@ set -g renumber-windows on
     // Create new session if none exist
     return await this.createSession({
       name: `${this.config.sessionPrefix}-${Date.now()}`,
-      workingDir: process.cwd()
+      workingDir: process.cwd(),
     })
   }
 }

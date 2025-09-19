@@ -216,7 +216,7 @@ export class FigmaProvider {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
+    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
   // ==================== PUBLIC API METHODS ====================
@@ -240,11 +240,7 @@ export class FigmaProvider {
   /**
    * Export nodes as images or other formats
    */
-  async exportNodes(
-    fileId: string,
-    nodeIds: string[],
-    settings: FigmaExportSettings
-  ): Promise<FigmaExportResult[]> {
+  async exportNodes(fileId: string, nodeIds: string[], settings: FigmaExportSettings): Promise<FigmaExportResult[]> {
     if (!this.isInitialized) {
       throw new Error('Figma provider not initialized')
     }
@@ -289,7 +285,7 @@ export class FigmaProvider {
         colors: [],
         typography: [],
         spacing: [],
-        shadows: []
+        shadows: [],
       }
 
       // Extract color tokens from styles
@@ -300,7 +296,7 @@ export class FigmaProvider {
               name: style.name.replace(/\//g, '-').toLowerCase(),
               value: '#000000', // Would need to extract actual color value
               type: 'color',
-              description: style.description
+              description: style.description,
             })
           } else if (style.styleType === 'TEXT') {
             tokens.typography.push({
@@ -308,7 +304,7 @@ export class FigmaProvider {
               fontFamily: 'Inter', // Would need to extract actual font
               fontSize: 16, // Would need to extract actual size
               fontWeight: 400, // Would need to extract actual weight
-              type: 'typography'
+              type: 'typography',
             })
           }
         }
@@ -336,7 +332,7 @@ export class FigmaProvider {
             tokens.colors.push({
               name: node.name.replace(/\s+/g, '-').toLowerCase(),
               value: hex,
-              type: 'color'
+              type: 'color',
             })
           }
         }
@@ -351,7 +347,7 @@ export class FigmaProvider {
           fontWeight: node.style.fontWeight || 400,
           lineHeight: node.style.lineHeight,
           letterSpacing: node.style.letterSpacing,
-          type: 'typography'
+          type: 'typography',
         })
       }
 
@@ -364,7 +360,7 @@ export class FigmaProvider {
             tokens.shadows.push({
               name: node.name.replace(/\s+/g, '-').toLowerCase(),
               value: `${effect.offset.x}px ${effect.offset.y}px ${effect.radius}px ${rgba}`,
-              type: 'shadow'
+              type: 'shadow',
             })
           }
         }
@@ -378,10 +374,15 @@ export class FigmaProvider {
   }
 
   private rgbToHex(r: number, g: number, b: number): string {
-    return '#' + [r, g, b].map(x => {
-      const hex = Math.round(x).toString(16)
-      return hex.length === 1 ? '0' + hex : hex
-    }).join('')
+    return (
+      '#' +
+      [r, g, b]
+        .map((x) => {
+          const hex = Math.round(x).toString(16)
+          return hex.length === 1 ? '0' + hex : hex
+        })
+        .join('')
+    )
   }
 
   /**
@@ -418,7 +419,7 @@ export class FigmaProvider {
     return {
       apiToken: !!this.config.apiToken,
       v0ApiKey: !!this.config.v0ApiKey,
-      initialized: this.isInitialized
+      initialized: this.isInitialized,
     }
   }
 }
@@ -441,7 +442,7 @@ export function createFigmaProvider(): FigmaProvider | null {
     v0ApiKey: process.env.V0_API_KEY,
     timeout: 30000,
     retryAttempts: 3,
-    rateLimitDelay: 1000
+    rateLimitDelay: 1000,
   }
 
   return new FigmaProvider(config)
@@ -459,10 +460,10 @@ export function isFigmaProviderConfigured(): boolean {
  */
 export function extractFileIdFromUrl(url: string): string | null {
   const patterns = [
-    /\/file\/([a-zA-Z0-9_-]+)/,      // Legacy format: /file/ID
-    /\/design\/([a-zA-Z0-9_-]+)/,    // New format: /design/ID
-    /\/proto\/([a-zA-Z0-9_-]+)/,     // Prototype format: /proto/ID
-    /figma\.com\/([a-zA-Z0-9_-]+)/   // Direct ID after domain
+    /\/file\/([a-zA-Z0-9_-]+)/, // Legacy format: /file/ID
+    /\/design\/([a-zA-Z0-9_-]+)/, // New format: /design/ID
+    /\/proto\/([a-zA-Z0-9_-]+)/, // Prototype format: /proto/ID
+    /figma\.com\/([a-zA-Z0-9_-]+)/, // Direct ID after domain
   ]
 
   for (const pattern of patterns) {

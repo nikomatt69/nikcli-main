@@ -1,9 +1,9 @@
 import { EventEmitter } from 'node:events'
-import { type CoreMessage } from 'ai'
+import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
-import { universalTokenizer, type TokenUsage, type ModelLimits } from './universal-tokenizer-service'
 import { adaptiveModelRouter, type ModelRouteDecision } from '../ai/adaptive-model-router'
 import { logger } from '../utils/logger'
+import { type ModelLimits, type TokenUsage, universalTokenizer } from './universal-tokenizer-service'
 
 export interface SessionContext {
   sessionId: string
@@ -46,7 +46,7 @@ export class ContextTokenManager extends EventEmitter {
   private conversationMessages: CoreMessage[] = []
 
   // Configuration
-  private readonly WARNING_THRESHOLD = 0.8  // 80%
+  private readonly WARNING_THRESHOLD = 0.8 // 80%
   private readonly CRITICAL_THRESHOLD = 0.9 // 90%
   private readonly MAX_MESSAGES_HISTORY = 100
 
@@ -76,7 +76,7 @@ export class ContextTokenManager extends EventEmitter {
 
     if (Array.isArray(content)) {
       return content
-        .map(part => {
+        .map((part) => {
           if (typeof part === 'string') return part
           if (part?.text) return part.text
           if (part?.type === 'text' && part?.text) return part.text
@@ -95,11 +95,7 @@ export class ContextTokenManager extends EventEmitter {
   /**
    * Start a new chat session with context tracking
    */
-  async startSession(
-    provider: string,
-    model: string,
-    sessionId?: string
-  ): Promise<SessionContext> {
+  async startSession(provider: string, model: string, sessionId?: string): Promise<SessionContext> {
     // End current session if exists
     if (this.currentSession) {
       await this.endSession()
@@ -117,7 +113,7 @@ export class ContextTokenManager extends EventEmitter {
       totalCost: 0,
       messageCount: 0,
       lastActivity: new Date(),
-      modelLimits: limits
+      modelLimits: limits,
     }
 
     // Clear history for new session
@@ -128,7 +124,7 @@ export class ContextTokenManager extends EventEmitter {
       sessionId: this.currentSession.sessionId,
       provider,
       model,
-      contextLimit: limits.context
+      contextLimit: limits.context,
     })
 
     this.emit('session_started', this.currentSession)
@@ -138,11 +134,7 @@ export class ContextTokenManager extends EventEmitter {
   /**
    * Track a new message and update session context
    */
-  async trackMessage(
-    message: CoreMessage,
-    messageId?: string,
-    isOutput: boolean = false
-  ): Promise<MessageTokenInfo> {
+  async trackMessage(message: CoreMessage, messageId?: string, isOutput: boolean = false): Promise<MessageTokenInfo> {
     if (!this.currentSession) {
       throw new Error('No active session. Call startSession() first.')
     }
@@ -177,7 +169,7 @@ export class ContextTokenManager extends EventEmitter {
       tokens,
       cost,
       timestamp: new Date(),
-      cumulativeTokens: this.currentSession.totalInputTokens + this.currentSession.totalOutputTokens
+      cumulativeTokens: this.currentSession.totalInputTokens + this.currentSession.totalOutputTokens,
     }
 
     // Store in history
@@ -193,19 +185,19 @@ export class ContextTokenManager extends EventEmitter {
     this.emit('message_tracked', {
       messageInfo,
       session: this.currentSession,
-      optimization
+      optimization,
     })
 
     // Emit warnings if needed
-    if (optimization.usagePercentage >= (this.CRITICAL_THRESHOLD * 100)) {
+    if (optimization.usagePercentage >= this.CRITICAL_THRESHOLD * 100) {
       this.emit('critical_threshold_reached', {
         session: this.currentSession,
-        optimization
+        optimization,
       })
-    } else if (optimization.usagePercentage >= (this.WARNING_THRESHOLD * 100)) {
+    } else if (optimization.usagePercentage >= this.WARNING_THRESHOLD * 100) {
       this.emit('warning_threshold_reached', {
         session: this.currentSession,
-        optimization
+        optimization,
       })
     }
 
@@ -238,7 +230,7 @@ export class ContextTokenManager extends EventEmitter {
     this.emit('conversation_tracked', {
       usage,
       session: this.currentSession,
-      optimization: this.analyzeContextOptimization()
+      optimization: this.analyzeContextOptimization(),
     })
 
     return usage
@@ -255,7 +247,7 @@ export class ContextTokenManager extends EventEmitter {
         maxTokens: 0,
         usagePercentage: 0,
         recommendation: 'continue',
-        reason: 'No active session'
+        reason: 'No active session',
       }
     }
 
@@ -267,11 +259,11 @@ export class ContextTokenManager extends EventEmitter {
     let reason = 'Token usage is within acceptable limits'
     let shouldTrim = false
 
-    if (usagePercentage >= (this.CRITICAL_THRESHOLD * 100)) {
+    if (usagePercentage >= this.CRITICAL_THRESHOLD * 100) {
       recommendation = 'summarize'
       reason = `Critical usage at ${usagePercentage.toFixed(1)}%. Consider summarizing conversation history.`
       shouldTrim = true
-    } else if (usagePercentage >= (this.WARNING_THRESHOLD * 100)) {
+    } else if (usagePercentage >= this.WARNING_THRESHOLD * 100) {
       recommendation = 'trim_context'
       reason = `High usage at ${usagePercentage.toFixed(1)}%. Consider trimming older messages.`
       shouldTrim = true
@@ -285,7 +277,7 @@ export class ContextTokenManager extends EventEmitter {
       maxTokens,
       usagePercentage,
       recommendation,
-      reason
+      reason,
     }
   }
 
@@ -303,7 +295,7 @@ export class ContextTokenManager extends EventEmitter {
         messages: [],
         removedCount: 0,
         tokensSaved: 0,
-        strategy: 'none'
+        strategy: 'none',
       }
     }
 
@@ -319,20 +311,24 @@ export class ContextTokenManager extends EventEmitter {
         messages: this.conversationMessages,
         removedCount: 0,
         tokensSaved: 0,
-        strategy: 'none'
+        strategy: 'none',
       }
     }
 
     // Strategy 1: Trim oldest messages (keep system + recent)
-    const systemMessages = this.conversationMessages.filter(m => m.role === 'system')
-    const nonSystemMessages = this.conversationMessages.filter(m => m.role !== 'system')
+    const systemMessages = this.conversationMessages.filter((m) => m.role === 'system')
+    const nonSystemMessages = this.conversationMessages.filter((m) => m.role !== 'system')
 
     let optimizedMessages: CoreMessage[] = [...systemMessages]
     let tokensUsed = 0
 
     // Add system message tokens
     for (const msg of systemMessages) {
-      tokensUsed += await universalTokenizer.countTokens(this.extractTextContent(msg.content), this.currentSession.model, this.currentSession.provider)
+      tokensUsed += await universalTokenizer.countTokens(
+        this.extractTextContent(msg.content),
+        this.currentSession.model,
+        this.currentSession.provider
+      )
     }
 
     // Add recent messages from the end
@@ -365,7 +361,7 @@ export class ContextTokenManager extends EventEmitter {
       messages: optimizedMessages,
       removedCount,
       tokensSaved,
-      strategy: 'trim_oldest'
+      strategy: 'trim_oldest',
     }
   }
 
@@ -388,17 +384,13 @@ export class ContextTokenManager extends EventEmitter {
 
     return {
       session: this.currentSession,
-      averageTokensPerMessage: this.currentSession.messageCount > 0
-        ? totalTokens / this.currentSession.messageCount
-        : 0,
-      tokensPerMinute: sessionDurationMinutes > 0
-        ? totalTokens / sessionDurationMinutes
-        : 0,
-      costPerMessage: this.currentSession.messageCount > 0
-        ? this.currentSession.totalCost / this.currentSession.messageCount
-        : 0,
+      averageTokensPerMessage:
+        this.currentSession.messageCount > 0 ? totalTokens / this.currentSession.messageCount : 0,
+      tokensPerMinute: sessionDurationMinutes > 0 ? totalTokens / sessionDurationMinutes : 0,
+      costPerMessage:
+        this.currentSession.messageCount > 0 ? this.currentSession.totalCost / this.currentSession.messageCount : 0,
       remainingContext: remainingTokens,
-      remainingPercentage: (remainingTokens / this.currentSession.modelLimits.context) * 100
+      remainingPercentage: (remainingTokens / this.currentSession.modelLimits.context) * 100,
     }
   }
 
@@ -413,8 +405,7 @@ export class ContextTokenManager extends EventEmitter {
    * Get message history
    */
   getMessageHistory(): MessageTokenInfo[] {
-    return Array.from(this.messageHistory.values())
-      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+    return Array.from(this.messageHistory.values()).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
   }
 
   /**
@@ -430,7 +421,7 @@ export class ContextTokenManager extends EventEmitter {
       duration: Date.now() - endedSession.startTime.getTime(),
       totalTokens: endedSession.totalInputTokens + endedSession.totalOutputTokens,
       totalCost: endedSession.totalCost,
-      messageCount: endedSession.messageCount
+      messageCount: endedSession.messageCount,
     })
 
     this.emit('session_ended', endedSession)
@@ -461,13 +452,13 @@ export class ContextTokenManager extends EventEmitter {
     logger.info('Switched model in active session', {
       sessionId: this.currentSession.sessionId,
       oldModel,
-      newModel: `${newProvider}:${newModel}`
+      newModel: `${newProvider}:${newModel}`,
     })
 
     this.emit('model_switched', {
       session: this.currentSession,
       oldModel,
-      newModel: `${newProvider}:${newModel}`
+      newModel: `${newProvider}:${newModel}`,
     })
 
     // Re-analyze optimization with new limits
@@ -487,18 +478,19 @@ export class ContextTokenManager extends EventEmitter {
     const percentage = (totalTokens / this.currentSession.modelLimits.context) * 100
     const cost = this.currentSession.totalCost
 
-    const tokenStr = totalTokens >= 1000 ? `${(totalTokens/1000).toFixed(1)}k` : totalTokens.toString()
-    const limitStr = this.currentSession.modelLimits.context >= 1000
-      ? `${(this.currentSession.modelLimits.context/1000).toFixed(0)}k`
-      : this.currentSession.modelLimits.context.toString()
+    const tokenStr = totalTokens >= 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
+    const limitStr =
+      this.currentSession.modelLimits.context >= 1000
+        ? `${(this.currentSession.modelLimits.context / 1000).toFixed(0)}k`
+        : this.currentSession.modelLimits.context.toString()
 
-    const colorFn = percentage >= 90 ? chalk.red :
-                   percentage >= 80 ? chalk.yellow :
-                   chalk.green
+    const colorFn = percentage >= 90 ? chalk.red : percentage >= 80 ? chalk.yellow : chalk.green
 
-    return colorFn(`${tokenStr}/${limitStr} (${percentage.toFixed(1)}%)`) +
-           chalk.cyan(` | $${cost.toFixed(4)}`) +
-           chalk.blue(` | ${this.currentSession.provider}:${this.currentSession.model}`)
+    return (
+      colorFn(`${tokenStr}/${limitStr} (${percentage.toFixed(1)}%)`) +
+      chalk.cyan(` | $${cost.toFixed(4)}`) +
+      chalk.blue(` | ${this.currentSession.provider}:${this.currentSession.model}`)
+    )
   }
 
   // Private helper methods
@@ -514,8 +506,9 @@ export class ContextTokenManager extends EventEmitter {
   private trimMessageHistory(): void {
     if (this.messageHistory.size <= this.MAX_MESSAGES_HISTORY) return
 
-    const entries = Array.from(this.messageHistory.entries())
-      .sort((a, b) => a[1].timestamp.getTime() - b[1].timestamp.getTime())
+    const entries = Array.from(this.messageHistory.entries()).sort(
+      (a, b) => a[1].timestamp.getTime() - b[1].timestamp.getTime()
+    )
 
     // Remove oldest entries
     const toRemove = entries.slice(0, entries.length - this.MAX_MESSAGES_HISTORY)

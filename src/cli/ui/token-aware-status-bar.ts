@@ -1,7 +1,7 @@
+import { EventEmitter } from 'node:events'
 import blessed, { type Widgets } from 'blessed'
 import chalk from 'chalk'
-import { EventEmitter } from 'node:events'
-import { universalTokenizer, type ModelLimits, type TokenUsage } from '../core/universal-tokenizer-service'
+import { type ModelLimits, type TokenUsage, universalTokenizer } from '../core/universal-tokenizer-service'
 import { logger } from '../utils/logger'
 
 export interface TokenDisplayOptions {
@@ -9,7 +9,7 @@ export interface TokenDisplayOptions {
   showCost?: boolean
   showModel?: boolean
   refreshInterval?: number
-  warningThreshold?: number  // 0.8 = 80%
+  warningThreshold?: number // 0.8 = 80%
   criticalThreshold?: number // 0.9 = 90%
 }
 
@@ -38,10 +38,7 @@ export class TokenAwareStatusBar extends EventEmitter {
   private refreshTimer: NodeJS.Timeout | null = null
   private isVisible: boolean = true
 
-  constructor(
-    screen: blessed.Widgets.Screen,
-    options: TokenDisplayOptions = {}
-  ) {
+  constructor(screen: blessed.Widgets.Screen, options: TokenDisplayOptions = {}) {
     super()
 
     this.screen = screen
@@ -52,7 +49,7 @@ export class TokenAwareStatusBar extends EventEmitter {
       refreshInterval: 1000, // 1 second
       warningThreshold: 0.8,
       criticalThreshold: 0.9,
-      ...options
+      ...options,
     }
 
     this.createStatusBar()
@@ -70,8 +67,8 @@ export class TokenAwareStatusBar extends EventEmitter {
       tags: true,
       style: {
         bg: 'black',
-        fg: 'white'
-      }
+        fg: 'white',
+      },
     })
 
     // Token usage display
@@ -83,8 +80,8 @@ export class TokenAwareStatusBar extends EventEmitter {
       height: 1,
       content: 'Tokens: --',
       style: {
-        fg: 'green'
-      }
+        fg: 'green',
+      },
     })
 
     // Cost display
@@ -96,8 +93,8 @@ export class TokenAwareStatusBar extends EventEmitter {
       height: 1,
       content: 'Cost: $0.00',
       style: {
-        fg: 'yellow'
-      }
+        fg: 'yellow',
+      },
     })
 
     // Model display
@@ -110,8 +107,8 @@ export class TokenAwareStatusBar extends EventEmitter {
       content: 'Model: --',
       align: 'right',
       style: {
-        fg: 'cyan'
-      }
+        fg: 'cyan',
+      },
     })
 
     // Make elements clickable for details
@@ -142,7 +139,7 @@ export class TokenAwareStatusBar extends EventEmitter {
       provider,
       model,
       estimatedCost,
-      sessionStartTime: this.tokenContext?.sessionStartTime || new Date()
+      sessionStartTime: this.tokenContext?.sessionStartTime || new Date(),
     }
 
     this.refreshDisplay()
@@ -153,13 +150,7 @@ export class TokenAwareStatusBar extends EventEmitter {
    * Update token context from TokenUsage object
    */
   updateFromTokenUsage(usage: TokenUsage, limits: ModelLimits): void {
-    this.updateTokenContext(
-      usage.promptTokens,
-      limits.context,
-      usage.provider,
-      usage.model,
-      usage.estimatedCost
-    )
+    this.updateTokenContext(usage.promptTokens, limits.context, usage.provider, usage.model, usage.estimatedCost)
   }
 
   /**
@@ -185,7 +176,7 @@ export class TokenAwareStatusBar extends EventEmitter {
       provider,
       model,
       estimatedCost: 0,
-      sessionStartTime: new Date()
+      sessionStartTime: new Date(),
     }
 
     this.refreshDisplay()
@@ -232,9 +223,9 @@ export class TokenAwareStatusBar extends EventEmitter {
   }
 
   private getTokenColor(percentage: number): string {
-    if (percentage >= (this.options.criticalThreshold! * 100)) {
+    if (percentage >= this.options.criticalThreshold! * 100) {
       return 'red'
-    } else if (percentage >= (this.options.warningThreshold! * 100)) {
+    } else if (percentage >= this.options.warningThreshold! * 100) {
       return 'yellow'
     } else {
       return 'green'
@@ -263,7 +254,7 @@ export class TokenAwareStatusBar extends EventEmitter {
       const available = maxWidth - provider.length - 1
 
       if (model.length > available) {
-        return `${provider}:${model.substring(0, available-2)}..`
+        return `${provider}:${model.substring(0, available - 2)}..`
       }
       return `${provider}:${model}`
     }
@@ -272,15 +263,15 @@ export class TokenAwareStatusBar extends EventEmitter {
   }
 
   private checkThresholds(percentage: number): void {
-    if (percentage >= (this.options.criticalThreshold! * 100)) {
+    if (percentage >= this.options.criticalThreshold! * 100) {
       this.emit('critical_threshold_reached', {
         percentage,
-        context: this.tokenContext
+        context: this.tokenContext,
       })
-    } else if (percentage >= (this.options.warningThreshold! * 100)) {
+    } else if (percentage >= this.options.warningThreshold! * 100) {
       this.emit('warning_threshold_reached', {
         percentage,
-        context: this.tokenContext
+        context: this.tokenContext,
       })
     }
   }
@@ -346,15 +337,14 @@ export class TokenAwareStatusBar extends EventEmitter {
     thresholdWarning: boolean
     thresholdCritical: boolean
   } {
-    const percentage = this.tokenContext ?
-      (this.tokenContext.currentTokens / this.tokenContext.maxTokens) * 100 : 0
+    const percentage = this.tokenContext ? (this.tokenContext.currentTokens / this.tokenContext.maxTokens) * 100 : 0
 
     return {
       context: this.tokenContext,
       sessionDuration: this.getSessionDuration(),
       tokenRate: this.getTokenRate(),
-      thresholdWarning: percentage >= (this.options.warningThreshold! * 100),
-      thresholdCritical: percentage >= (this.options.criticalThreshold! * 100)
+      thresholdWarning: percentage >= this.options.warningThreshold! * 100,
+      thresholdCritical: percentage >= this.options.criticalThreshold! * 100,
     }
   }
 
@@ -431,7 +421,7 @@ export function createConsoleTokenDisplay(): {
         provider,
         model,
         estimatedCost: cost,
-        sessionStartTime: context?.sessionStartTime || new Date()
+        sessionStartTime: context?.sessionStartTime || new Date(),
       }
     },
 
@@ -442,27 +432,25 @@ export function createConsoleTokenDisplay(): {
       }
 
       const percentage = (context.currentTokens / context.maxTokens) * 100
-      const formattedTokens = context.currentTokens >= 1000 ?
-        `${(context.currentTokens / 1000).toFixed(1)}k` :
-        context.currentTokens.toString()
+      const formattedTokens =
+        context.currentTokens >= 1000
+          ? `${(context.currentTokens / 1000).toFixed(1)}k`
+          : context.currentTokens.toString()
 
-      const formattedMax = context.maxTokens >= 1000 ?
-        `${(context.maxTokens / 1000).toFixed(1)}k` :
-        context.maxTokens.toString()
+      const formattedMax =
+        context.maxTokens >= 1000 ? `${(context.maxTokens / 1000).toFixed(1)}k` : context.maxTokens.toString()
 
-      const color = percentage >= 90 ? chalk.red :
-                   percentage >= 80 ? chalk.yellow :
-                   chalk.green
+      const color = percentage >= 90 ? chalk.red : percentage >= 80 ? chalk.yellow : chalk.green
 
       console.log(
         color(`🔢 Tokens: ${formattedTokens}/${formattedMax} (${percentage.toFixed(1)}%)`) +
-        chalk.cyan(` | 💰 $${context.estimatedCost.toFixed(4)}`) +
-        chalk.blue(` | 🤖 ${context.provider}:${context.model}`)
+          chalk.cyan(` | 💰 $${context.estimatedCost.toFixed(4)}`) +
+          chalk.blue(` | 🤖 ${context.provider}:${context.model}`)
       )
     },
 
     reset: () => {
       context = null
-    }
+    },
   }
 }

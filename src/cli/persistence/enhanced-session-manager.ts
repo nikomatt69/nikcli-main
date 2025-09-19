@@ -37,7 +37,7 @@ export interface EnhancedSessionData {
     deviceType?: 'mobile' | 'desktop' | 'tablet'
     sessionType?: 'ssh' | 'local' | 'web'
     tmuxSessionId?: string
-    screenDimensions?: { width: number, height: number }
+    screenDimensions?: { width: number; height: number }
   }
   syncStatus: 'local' | 'synced' | 'conflict' | 'pending'
   cloudId?: string
@@ -87,7 +87,7 @@ export class EnhancedSessionManager extends EventEmitter {
     // Detect screen dimensions
     this.screenDimensions = {
       width: process.stdout.columns || 80,
-      height: process.stdout.rows || 24
+      height: process.stdout.rows || 24,
     }
 
     // Detect mobile based on screen size and environment
@@ -108,7 +108,7 @@ export class EnhancedSessionManager extends EventEmitter {
     // Common mobile terminal environment variables
     const mobileTerminals = ['termius', 'termux', 'ish', 'juicessh']
     const termProgram = (process.env.TERM_PROGRAM || '').toLowerCase()
-    const isMobileTerminal = mobileTerminals.some(mobile => termProgram.includes(mobile))
+    const isMobileTerminal = mobileTerminals.some((mobile) => termProgram.includes(mobile))
 
     // SSH from mobile device patterns
     const sshClient = process.env.SSH_CLIENT || ''
@@ -134,7 +134,7 @@ export class EnhancedSessionManager extends EventEmitter {
   /**
    * Get screen dimensions
    */
-  getScreenDimensions(): { width: number, height: number } {
+  getScreenDimensions(): { width: number; height: number } {
     return { ...this.screenDimensions }
   }
 

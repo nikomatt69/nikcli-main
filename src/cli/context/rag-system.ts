@@ -2,23 +2,26 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join, resolve, relative, extname, basename, dirname } from 'node:path'
+import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
 import { TOKEN_LIMITS } from '../config/token-limits'
 import { configManager } from '../core/config-manager'
 import { CliUI } from '../utils/cli-ui'
+import { createFileFilter, type FileFilterSystem } from './file-filter-system'
+// Import semantic search engine and file filtering
+import { type QueryAnalysis, type ScoringContext, semanticSearchEngine } from './semantic-search-engine'
 
+// Import unified embedding and vector store infrastructure
+import { type EmbeddingResult, unifiedEmbeddingInterface } from './unified-embedding-interface'
+import {
+  createVectorStoreManager,
+  type VectorDocument,
+  type VectorSearchResult,
+  type VectorStoreManager,
+} from './vector-store-abstraction'
 // Import workspace analysis types for integration
 import type { FileEmbedding, WorkspaceContext } from './workspace-rag'
 import { WorkspaceRAG } from './workspace-rag'
-
-// Import unified embedding and vector store infrastructure
-import { unifiedEmbeddingInterface, type EmbeddingResult } from './unified-embedding-interface'
-import { createVectorStoreManager, type VectorStoreManager, type VectorDocument, type VectorSearchResult } from './vector-store-abstraction'
-
-// Import semantic search engine and file filtering
-import { semanticSearchEngine, type QueryAnalysis, type ScoringContext } from './semantic-search-engine'
-import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 
 // Unified RAG interfaces
 export interface UnifiedRAGConfig {
@@ -112,14 +115,14 @@ function createVectorStoreConfigs() {
         useCloud: true,
         apiKey: chromaApiKey,
         tenant: chromaTenant,
-        database: chromaDatabase
+        database: chromaDatabase,
       },
       collectionName: 'unified_project_index',
       embeddingDimensions: 1536,
       indexingBatchSize: 100,
       maxRetries: 3,
       healthCheckInterval: 300000,
-      autoFallback: true
+      autoFallback: true,
     })
   } else {
     // Local ChromaDB configuration
@@ -130,14 +133,14 @@ function createVectorStoreConfigs() {
         useCloud: false,
         host: host || 'localhost',
         port: parseInt(port) || 8005,
-        ssl: chromaUrl.startsWith('https')
+        ssl: chromaUrl.startsWith('https'),
       },
       collectionName: 'unified_project_index',
       embeddingDimensions: 1536,
       indexingBatchSize: 100,
       maxRetries: 3,
       healthCheckInterval: 300000,
-      autoFallback: true
+      autoFallback: true,
     })
   }
 
@@ -145,14 +148,14 @@ function createVectorStoreConfigs() {
   configs.push({
     provider: 'local' as const,
     connectionConfig: {
-      baseDir: join(homedir(), '.nikcli', 'vector-store')
+      baseDir: join(homedir(), '.nikcli', 'vector-store'),
     },
     collectionName: 'local_fallback',
     embeddingDimensions: 1536,
     indexingBatchSize: 50,
     maxRetries: 1,
     healthCheckInterval: 600000,
-    autoFallback: true
+    autoFallback: true,
   })
 
   return configs
@@ -221,7 +224,7 @@ export class UnifiedRAGSystem {
     totalLatency: 0,
     errors: 0,
     queryOptimizations: 0,
-    reranks: 0
+    reranks: 0,
   }
 
   constructor(config?: Partial<UnifiedRAGConfig>) {
@@ -259,16 +262,16 @@ export class UnifiedRAGSystem {
             pattern: /\.(json|yaml|yml|toml|env)$/,
             type: 'include',
             priority: 10,
-            reason: 'Important configuration files'
+            reason: 'Important configuration files',
           },
           {
             name: 'large_datasets',
             pattern: /\.(csv|json)$/,
             type: 'exclude',
             priority: 8,
-            reason: 'Large data files excluded by size'
-          }
-        ]
+            reason: 'Large data files excluded by size',
+          },
+        ],
       })
 
       console.log(chalk.blue('🔍 File filter system initialized'))
@@ -292,9 +295,7 @@ export class UnifiedRAGSystem {
             this.config.useVectorDB = false
           }
         } catch (error: any) {
-          console.log(
-            chalk.yellow(`⚠️ Vector DB unavailable: ${error.message}, using workspace analysis only`)
-          )
+          console.log(chalk.yellow(`⚠️ Vector DB unavailable: ${error.message}, using workspace analysis only`))
           this.config.useVectorDB = false
         }
       }
@@ -331,12 +332,18 @@ export class UnifiedRAGSystem {
       const embeddingResult = await unifiedEmbeddingInterface.generateEmbedding(testText)
       const duration = Date.now() - startTime
 
-      if (!embeddingResult || !embeddingResult.vector || embeddingResult.vector.length !== availableProviders.dimensions) {
+      if (
+        !embeddingResult ||
+        !embeddingResult.vector ||
+        embeddingResult.vector.length !== availableProviders.dimensions
+      ) {
         throw new Error('Invalid embedding response format')
       }
 
       console.log(chalk.gray(`✓ Unified embeddings working (${duration}ms)`))
-      console.log(chalk.gray(`✓ Dimension validation: ${embeddingResult.dimensions} = ${availableProviders.dimensions}`))
+      console.log(
+        chalk.gray(`✓ Dimension validation: ${embeddingResult.dimensions} = ${availableProviders.dimensions}`)
+      )
       console.log(chalk.gray(`✓ Test cost: $${embeddingResult.cost.toFixed(8)}`))
 
       // Show embedding interface stats
@@ -426,14 +433,18 @@ export class UnifiedRAGSystem {
     try {
       // Use semantic search engine for query analysis
       const queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
-      console.log(chalk.blue(`🧠 Query intent: ${queryAnalysis.intent.type} (${Math.round(queryAnalysis.confidence * 100)}% confidence)`))
+      console.log(
+        chalk.blue(
+          `🧠 Query intent: ${queryAnalysis.intent.type} (${Math.round(queryAnalysis.confidence * 100)}% confidence)`
+        )
+      )
 
       // Use the enhanced search with semantic analysis
       return await this.searchEnhanced(query, {
         limit,
         includeContent: true,
         semanticOnly: true,
-        queryAnalysis
+        queryAnalysis,
       })
     } catch (error) {
       console.log(chalk.yellow('⚠️ Semantic search failed, falling back to regular search'))
@@ -524,7 +535,7 @@ export class UnifiedRAGSystem {
       })
 
       // Check for cache hits
-      const cacheHits = results.filter(r => r.metadata.cached).length
+      const cacheHits = results.filter((r) => r.metadata.cached).length
       this.searchMetrics.cacheHits += cacheHits
 
       // 3. Hybrid scoring and deduplication with re-ranking tracking
@@ -541,10 +552,12 @@ export class UnifiedRAGSystem {
       this.searchMetrics.totalLatency += duration
       this.searchMetrics.averageLatency = this.searchMetrics.totalLatency / this.searchMetrics.totalSearches
 
-      console.log(chalk.green(
-        `✅ Found ${finalResults.length} results in ${duration}ms ` +
-        `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
-      ))
+      console.log(
+        chalk.green(
+          `✅ Found ${finalResults.length} results in ${duration}ms ` +
+            `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
+        )
+      )
 
       return finalResults
     } catch (error) {
@@ -602,7 +615,7 @@ export class UnifiedRAGSystem {
             language: this.detectLanguageFromPath(filePath),
             importance: this.calculateFileImportance(relativePath, content),
             lastModified: fileStats.mtime,
-            summary: `${this.detectLanguageFromPath(filePath)} file with ${content.split('\n').length} lines`
+            summary: `${this.detectLanguageFromPath(filePath)} file with ${content.split('\n').length} lines`,
           }
 
           // Chunk content intelligently based on file type
@@ -627,9 +640,9 @@ export class UnifiedRAGSystem {
                   lastModified: fileInfo.lastModified.toISOString(),
                   hash: this.generateFileHash(relativePath, chunk),
                   fileSize: fileStats.size,
-                  lines: chunk.split('\n').length
+                  lines: chunk.split('\n').length,
                 },
-                timestamp: new Date()
+                timestamp: new Date(),
               }
 
               documentsToIndex.push(vectorDoc)
@@ -1004,18 +1017,18 @@ export class UnifiedRAGSystem {
       '.graphql': 'graphql',
       '.gql': 'graphql',
       '.proto': 'protobuf',
-      '.sql': 'sql'
+      '.sql': 'sql',
     }
 
     // Special file name mappings
     const specialFiles: Record<string, string> = {
-      'dockerfile': 'docker',
-      'makefile': 'makefile',
+      dockerfile: 'docker',
+      makefile: 'makefile',
       'cmakelists.txt': 'cmake',
-      'rakefile': 'ruby',
-      'gemfile': 'ruby',
-      'procfile': 'config',
-      'vagrantfile': 'ruby',
+      rakefile: 'ruby',
+      gemfile: 'ruby',
+      procfile: 'config',
+      vagrantfile: 'ruby',
       'gruntfile.js': 'javascript',
       'gulpfile.js': 'javascript',
       'webpack.config.js': 'javascript',
@@ -1030,7 +1043,7 @@ export class UnifiedRAGSystem {
       'cargo.toml': 'toml',
       'pyproject.toml': 'toml',
       'build.gradle': 'gradle',
-      'pom.xml': 'xml'
+      'pom.xml': 'xml',
     }
 
     return specialFiles[fileName] || languageMap[ext] || 'text'
@@ -1183,13 +1196,13 @@ export class UnifiedRAGSystem {
           primaryLanguages: this.extractWorkspaceLanguages(),
           frameworks: this.extractWorkspaceFrameworks(),
           recentFiles: this.getRecentlyModifiedFiles(),
-          projectType: this.detectProjectType()
+          projectType: this.detectProjectType(),
         },
         userContext: {
           recentQueries: [],
           preferences: [],
-          expertise: []
-        }
+          expertise: [],
+        },
       }
 
       // Apply semantic scoring to results
@@ -1216,7 +1229,7 @@ export class UnifiedRAGSystem {
             semanticBreakdown: enhancedResult.breakdown,
             relevanceFactors: enhancedResult.relevanceFactors,
             queryIntent: queryAnalysis.intent.type,
-            queryConfidence: queryAnalysis.confidence
+            queryConfidence: queryAnalysis.confidence,
           },
         })
       }
@@ -1314,7 +1327,7 @@ export class UnifiedRAGSystem {
     try {
       const results = await this.vectorStoreManager.search(query, Math.min(limit, 20), 0.3)
 
-      const searchResults: RAGSearchResult[] = results.map(result => ({
+      const searchResults: RAGSearchResult[] = results.map((result) => ({
         source: result.metadata?.source || 'unknown',
         path: result.metadata?.source || 'unknown', // Add required path field
         content: result.content,
@@ -1328,7 +1341,7 @@ export class UnifiedRAGSystem {
           hash: result.metadata?.hash || '',
           lastModified: result.metadata?.lastModified ? new Date(result.metadata.lastModified) : new Date(),
           source: 'vector' as const,
-          fileType: result.metadata?.language || 'unknown'
+          fileType: result.metadata?.language || 'unknown',
         },
       }))
 
@@ -1338,7 +1351,6 @@ export class UnifiedRAGSystem {
       throw error
     }
   }
-
 
   private async searchWorkspace(query: string, limit: number): Promise<RAGSearchResult[]> {
     if (!this.workspaceRAG) return []
@@ -1393,21 +1405,17 @@ export class UnifiedRAGSystem {
    */
   private shouldRerank(query: string): boolean {
     return (
-      query.length > 50 ||                                    // Long queries benefit from re-ranking
-      query.split(/\s+/).length > 8 ||                        // Multi-word queries
-      /[.!?]/.test(query) ||                                 // Sentence-like queries
-      process.env.RAG_RERANK_ENABLED === 'true'              // Force enable via env var
+      query.length > 50 || // Long queries benefit from re-ranking
+      query.split(/\s+/).length > 8 || // Multi-word queries
+      /[.!?]/.test(query) || // Sentence-like queries
+      process.env.RAG_RERANK_ENABLED === 'true' // Force enable via env var
     )
   }
 
   /**
    * Apply intelligent re-ranking for complex queries
    */
-  private applyIntelligentReranking(
-    result: RAGSearchResult,
-    query: string,
-    queryWords: string[]
-  ): number {
+  private applyIntelligentReranking(result: RAGSearchResult, query: string, queryWords: string[]): number {
     let score = result.score
 
     const content = result.content.toLowerCase()
@@ -1438,10 +1446,10 @@ export class UnifiedRAGSystem {
 
     // 3. File type and importance weighting
     const fileTypeBoosts: Record<string, number> = {
-      'typescript': 0.15,
-      'javascript': 0.12,
-      'markdown': 0.08,
-      'json': 0.05,
+      typescript: 0.15,
+      javascript: 0.12,
+      markdown: 0.08,
+      json: 0.05,
     }
 
     score += fileTypeBoosts[result.metadata.fileType] || 0
@@ -1452,7 +1460,7 @@ export class UnifiedRAGSystem {
     // 5. Recency boost for recently modified files
     const daysSinceModified = (Date.now() - result.metadata.lastModified.getTime()) / (1000 * 60 * 60 * 24)
     if (daysSinceModified < 7) {
-      score += 0.1 * (7 - daysSinceModified) / 7
+      score += (0.1 * (7 - daysSinceModified)) / 7
     }
 
     return score
@@ -1461,11 +1469,7 @@ export class UnifiedRAGSystem {
   /**
    * Apply basic scoring for simple queries
    */
-  private applyBasicScoring(
-    result: RAGSearchResult,
-    query: string,
-    queryWords: string[]
-  ): number {
+  private applyBasicScoring(result: RAGSearchResult, query: string, queryWords: string[]): number {
     let score = result.score
 
     const content = result.content.toLowerCase()
@@ -1508,10 +1512,10 @@ export class UnifiedRAGSystem {
    */
   private shouldUseBM25(query: string): boolean {
     return (
-      /^[a-zA-Z\s]+$/.test(query) &&           // English text queries
-      query.split(/\s+/).length > 2 &&         // Multiple keywords
-      query.length > 10 &&                     // Substantial query length
-      process.env.RAG_BM25_ENABLED === 'true'  // Explicitly enabled
+      /^[a-zA-Z\s]+$/.test(query) && // English text queries
+      query.split(/\s+/).length > 2 && // Multiple keywords
+      query.length > 10 && // Substantial query length
+      process.env.RAG_BM25_ENABLED === 'true' // Explicitly enabled
     )
   }
 
@@ -1524,9 +1528,10 @@ export class UnifiedRAGSystem {
     try {
       console.log(chalk.gray('🔤 Performing BM25 sparse search'))
 
-      const queryTerms = query.toLowerCase()
+      const queryTerms = query
+        .toLowerCase()
         .split(/\s+/)
-        .filter(term => term.length > 2) // Filter out very short terms
+        .filter((term) => term.length > 2) // Filter out very short terms
 
       const results: Array<{ file: any; score: number }> = []
 
@@ -1535,7 +1540,7 @@ export class UnifiedRAGSystem {
         const content = file.content.toLowerCase()
         let score = 0
 
-        queryTerms.forEach(term => {
+        queryTerms.forEach((term) => {
           const termFreq = (content.match(new RegExp(term, 'g')) || []).length
           const docLength = content.length
           const avgDocLength = 2000 // Estimated average
@@ -1543,7 +1548,7 @@ export class UnifiedRAGSystem {
           if (termFreq > 0) {
             // Simplified BM25 formula
             const tf = termFreq / (termFreq + 1.2 * (0.25 + 0.75 * (docLength / avgDocLength)))
-            const idf = Math.log(1 + (this.workspaceRAG!.getContext().files.size / (termFreq + 1)))
+            const idf = Math.log(1 + this.workspaceRAG!.getContext().files.size / (termFreq + 1))
             score += tf * idf
           }
         })
@@ -1600,14 +1605,56 @@ export class UnifiedRAGSystem {
    */
   private removeStopWords(query: string): string {
     const stopWords = new Set([
-      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-      'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
-      'will', 'would', 'could', 'should', 'may', 'might', 'can', 'must',
-      'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they'
+      'the',
+      'a',
+      'an',
+      'and',
+      'or',
+      'but',
+      'in',
+      'on',
+      'at',
+      'to',
+      'for',
+      'of',
+      'with',
+      'by',
+      'is',
+      'are',
+      'was',
+      'were',
+      'be',
+      'been',
+      'being',
+      'have',
+      'has',
+      'had',
+      'do',
+      'does',
+      'did',
+      'will',
+      'would',
+      'could',
+      'should',
+      'may',
+      'might',
+      'can',
+      'must',
+      'this',
+      'that',
+      'these',
+      'those',
+      'i',
+      'you',
+      'he',
+      'she',
+      'it',
+      'we',
+      'they',
     ])
 
     const words = query.toLowerCase().split(/\s+/)
-    const filtered = words.filter(word => {
+    const filtered = words.filter((word) => {
       // Keep stop words if they're part of technical terms or phrases
       if (word.includes('-') || word.includes('_') || word.includes('.')) return true
       return !stopWords.has(word) || word.length < 3
@@ -1621,16 +1668,16 @@ export class UnifiedRAGSystem {
    */
   private expandSynonyms(query: string): string {
     const synonymMap: Record<string, string[]> = {
-      'function': ['method', 'procedure', 'func'],
-      'component': ['element', 'widget', 'part'],
-      'config': ['configuration', 'settings', 'setup'],
-      'error': ['bug', 'issue', 'problem', 'exception'],
-      'api': ['endpoint', 'service', 'interface'],
-      'database': ['db', 'datastore', 'storage'],
-      'user': ['client', 'customer', 'account'],
-      'create': ['make', 'build', 'generate', 'add'],
-      'delete': ['remove', 'destroy', 'drop'],
-      'update': ['modify', 'change', 'edit'],
+      function: ['method', 'procedure', 'func'],
+      component: ['element', 'widget', 'part'],
+      config: ['configuration', 'settings', 'setup'],
+      error: ['bug', 'issue', 'problem', 'exception'],
+      api: ['endpoint', 'service', 'interface'],
+      database: ['db', 'datastore', 'storage'],
+      user: ['client', 'customer', 'account'],
+      create: ['make', 'build', 'generate', 'add'],
+      delete: ['remove', 'destroy', 'drop'],
+      update: ['modify', 'change', 'edit'],
     }
 
     let expanded = query
@@ -1654,12 +1701,15 @@ export class UnifiedRAGSystem {
   private resolveTemporalReferences(query: string): string {
     const now = new Date()
     const replacements: Record<string, string> = {
-      'today': now.toLocaleDateString(),
-      'yesterday': new Date(now.getTime() - 86400000).toLocaleDateString(),
+      today: now.toLocaleDateString(),
+      yesterday: new Date(now.getTime() - 86400000).toLocaleDateString(),
       'this week': `week of ${new Date(now.getTime() - now.getDay() * 86400000).toLocaleDateString()}`,
       'last week': `week of ${new Date(now.getTime() - (now.getDay() + 7) * 86400000).toLocaleDateString()}`,
       'this month': now.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
-      'last month': new Date(now.getFullYear(), now.getMonth() - 1).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
+      'last month': new Date(now.getFullYear(), now.getMonth() - 1).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+      }),
     }
 
     let resolved = query
@@ -1710,14 +1760,16 @@ export class UnifiedRAGSystem {
       config: this.config,
       performance: {
         ...this.searchMetrics,
-        cacheHitRate: this.searchMetrics.totalSearches > 0
-          ? (this.searchMetrics.cacheHits / this.searchMetrics.totalSearches * 100).toFixed(1) + '%'
-          : '0%',
-        errorRate: this.searchMetrics.totalSearches > 0
-          ? (this.searchMetrics.errors / this.searchMetrics.totalSearches * 100).toFixed(1) + '%'
-          : '0%',
-        averageLatencyMs: Math.round(this.searchMetrics.averageLatency)
-      }
+        cacheHitRate:
+          this.searchMetrics.totalSearches > 0
+            ? ((this.searchMetrics.cacheHits / this.searchMetrics.totalSearches) * 100).toFixed(1) + '%'
+            : '0%',
+        errorRate:
+          this.searchMetrics.totalSearches > 0
+            ? ((this.searchMetrics.errors / this.searchMetrics.totalSearches) * 100).toFixed(1) + '%'
+            : '0%',
+        averageLatencyMs: Math.round(this.searchMetrics.averageLatency),
+      },
     }
   }
 
@@ -1738,15 +1790,16 @@ export class UnifiedRAGSystem {
         averageLatency: Math.round(this.searchMetrics.averageLatency),
         totalLatency: this.searchMetrics.totalLatency,
         errors: this.searchMetrics.errors,
-        errorRate: totalSearches > 0 ? ((this.searchMetrics.errors / totalSearches) * 100).toFixed(1) + '%' : '0%'
+        errorRate: totalSearches > 0 ? ((this.searchMetrics.errors / totalSearches) * 100).toFixed(1) + '%' : '0%',
       },
       optimization: {
         cacheHits: this.searchMetrics.cacheHits,
-        cacheHitRate: totalSearches > 0 ? ((this.searchMetrics.cacheHits / totalSearches) * 100).toFixed(1) + '%' : '0%',
+        cacheHitRate:
+          totalSearches > 0 ? ((this.searchMetrics.cacheHits / totalSearches) * 100).toFixed(1) + '%' : '0%',
         queryOptimizations: this.searchMetrics.queryOptimizations,
         reranks: this.searchMetrics.reranks,
-        rerankRate: totalSearches > 0 ? ((this.searchMetrics.reranks / totalSearches) * 100).toFixed(1) + '%' : '0%'
-      }
+        rerankRate: totalSearches > 0 ? ((this.searchMetrics.reranks / totalSearches) * 100).toFixed(1) + '%' : '0%',
+      },
     }
   }
 
@@ -1764,7 +1817,7 @@ export class UnifiedRAGSystem {
       totalLatency: 0,
       errors: 0,
       queryOptimizations: 0,
-      reranks: 0
+      reranks: 0,
     }
     console.log(chalk.green('✅ RAG performance metrics reset'))
   }
@@ -1780,9 +1833,15 @@ export class UnifiedRAGSystem {
 
     console.log(chalk.cyan('Search Distribution:'))
     console.log(`  Total Searches: ${metrics.searches.total}`)
-    console.log(`  Vector: ${metrics.searches.vector} (${((metrics.searches.vector / metrics.searches.total) * 100).toFixed(1)}%)`)
-    console.log(`  Workspace: ${metrics.searches.workspace} (${((metrics.searches.workspace / metrics.searches.total) * 100).toFixed(1)}%)`)
-    console.log(`  BM25: ${metrics.searches.bm25} (${((metrics.searches.bm25 / metrics.searches.total) * 100).toFixed(1)}%)`)
+    console.log(
+      `  Vector: ${metrics.searches.vector} (${((metrics.searches.vector / metrics.searches.total) * 100).toFixed(1)}%)`
+    )
+    console.log(
+      `  Workspace: ${metrics.searches.workspace} (${((metrics.searches.workspace / metrics.searches.total) * 100).toFixed(1)}%)`
+    )
+    console.log(
+      `  BM25: ${metrics.searches.bm25} (${((metrics.searches.bm25 / metrics.searches.total) * 100).toFixed(1)}%)`
+    )
 
     console.log(chalk.cyan('\nPerformance:'))
     console.log(`  Average Latency: ${metrics.performance.averageLatency}ms`)
@@ -1838,7 +1897,7 @@ export class UnifiedRAGSystem {
       latency,
       cache,
       errorRate: errorRateScore,
-      featureUsage
+      featureUsage,
     }
   }
 
@@ -1871,10 +1930,12 @@ export class UnifiedRAGSystem {
     // Apply token-aware truncation
     const truncatedResults = tokenAwareTruncate(results, maxTokens)
 
-    console.log(chalk.blue(
-      `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
-    ))
+    console.log(
+      chalk.blue(
+        `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
+          `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+      )
+    )
 
     return truncatedResults
   }
@@ -1935,11 +1996,9 @@ function tokenAwareTruncate(contexts: RAGSearchResult[], maxTokens: number): RAG
     if (totalTokens + estimatedTokens > maxTokens) {
       // Use sliding window to keep most relevant parts
       const remainingTokens = maxTokens - totalTokens
-      if (remainingTokens > 50) { // Minimum chunk size
-        const truncatedContent = truncateToTokensWithBoundaries(
-          context.content,
-          remainingTokens
-        )
+      if (remainingTokens > 50) {
+        // Minimum chunk size
+        const truncatedContent = truncateToTokensWithBoundaries(context.content, remainingTokens)
 
         truncated.push({
           ...context,
@@ -1948,8 +2007,8 @@ function tokenAwareTruncate(contexts: RAGSearchResult[], maxTokens: number): RAG
             ...context.metadata,
             truncated: true,
             originalLength: context.content.length,
-            truncatedLength: truncatedContent.length
-          }
+            truncatedLength: truncatedContent.length,
+          },
         })
       }
       break
@@ -1972,11 +2031,11 @@ function truncateToTokensWithBoundaries(text: string, maxTokens: number): string
 
   // Try to find semantic boundaries (sentences, paragraphs, code blocks)
   const boundaries = [
-    /\n\n/g,     // Paragraph breaks
-    /\.\s+/g,    // Sentence endings
-    /;\s*\n/g,   // Code statement endings
-    /\}\s*\n/g,  // Code block endings
-    /,\s+/g,     // Comma separations
+    /\n\n/g, // Paragraph breaks
+    /\.\s+/g, // Sentence endings
+    /;\s*\n/g, // Code statement endings
+    /\}\s*\n/g, // Code block endings
+    /,\s+/g, // Comma separations
   ]
 
   let bestCutoff = maxChars - 50 // Leave room for truncation notice

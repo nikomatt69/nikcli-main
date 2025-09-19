@@ -466,7 +466,7 @@ export class RedisProvider extends EventEmitter {
         provider,
         model,
         textHash,
-        cost
+        cost,
       }
 
       const serializedValue = JSON.stringify(vectorEntry)

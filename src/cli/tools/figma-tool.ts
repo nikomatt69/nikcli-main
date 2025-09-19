@@ -10,14 +10,14 @@
 
 import { spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import axios, { type AxiosInstance } from 'axios'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../core/config-manager'
-import { approvalSystem } from '../ui/approval-system'
 import { imageGenerator } from '../providers/image'
-import { readFileSync } from 'node:fs'
+import { approvalSystem } from '../ui/approval-system'
+
 // import { figmaService, type FigmaOperationResult } from '../services/figma-service'
 // Define our own context interface for this tool
 interface FigmaToolContext {
@@ -156,8 +156,8 @@ export class FigmaTool extends EventEmitter {
       v0Integration: {
         enabled: !!process.env.V0_API_KEY,
         apiKey: process.env.V0_API_KEY,
-        baseUrl: 'https://v0.dev/api'
-      }
+        baseUrl: 'https://v0.dev/api',
+      },
     }
 
     // Initialize Figma API client
@@ -166,13 +166,13 @@ export class FigmaTool extends EventEmitter {
       timeout: 30000,
       headers: {
         'X-Figma-Token': this.config.apiToken || '',
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     })
 
     // Setup request interceptor for rate limiting
     this.apiClient.interceptors.request.use(async (config) => {
-      await new Promise(resolve => setTimeout(resolve, this.config.rateLimitDelay))
+      await new Promise((resolve) => setTimeout(resolve, this.config.rateLimitDelay))
       return config
     })
   }
@@ -239,7 +239,7 @@ export class FigmaTool extends EventEmitter {
         last_modified: response.data.lastModified,
         thumbnail_url: response.data.thumbnailUrl,
         version: response.data.version,
-        role: response.data.role || 'viewer'
+        role: response.data.role || 'viewer',
       }
     } catch (error: any) {
       throw new Error(`Failed to get file info: ${error.message}`)
@@ -255,9 +255,7 @@ export class FigmaTool extends EventEmitter {
         throw new Error('Figma API token not configured. Set FIGMA_API_TOKEN environment variable.')
       }
 
-      const url = nodeIds && nodeIds.length > 0
-        ? `/files/${fileId}/nodes?ids=${nodeIds.join(',')}`
-        : `/files/${fileId}`
+      const url = nodeIds && nodeIds.length > 0 ? `/files/${fileId}/nodes?ids=${nodeIds.join(',')}` : `/files/${fileId}`
 
       const response = await this.apiClient.get(url)
 
@@ -287,7 +285,7 @@ export class FigmaTool extends EventEmitter {
         format,
         scale: scale.toString(),
         ...(options.version && { version: options.version }),
-        ...(options.use_absolute_bounds && { use_absolute_bounds: 'true' })
+        ...(options.use_absolute_bounds && { use_absolute_bounds: 'true' }),
       })
 
       if (nodeIds && nodeIds.length > 0) {
@@ -323,7 +321,7 @@ export class FigmaTool extends EventEmitter {
             nodeId,
             filePath,
             completed: exportedPaths.length,
-            total: Object.keys(exportUrls).length
+            total: Object.keys(exportUrls).length,
           })
         }
       }
@@ -352,7 +350,7 @@ export class FigmaTool extends EventEmitter {
         fileId,
         ...(nodeId && { nodeIds: [nodeId] }),
         format: 'png',
-        scale: 2
+        scale: 2,
       }
 
       const exportedPaths = await this.exportImages(exportOptions)
@@ -369,14 +367,14 @@ export class FigmaTool extends EventEmitter {
           framework,
           library,
           typescript,
-          prompt: `Generate ${framework} component code for this design using ${library} components`
+          prompt: `Generate ${framework} component code for this design using ${library} components`,
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.config.v0Integration.apiKey}`,
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${this.config.v0Integration.apiKey}`,
+            'Content-Type': 'application/json',
           },
-          timeout: 60000 // 60 seconds for code generation
+          timeout: 60000, // 60 seconds for code generation
         }
       )
 
@@ -510,7 +508,7 @@ export default FigmaComponent`
         includeTypography = true,
         includeSpacing = true,
         includeShadows = true,
-        outputFormat = 'json'
+        outputFormat = 'json',
       } = options
 
       // Get file data
@@ -564,7 +562,7 @@ export default FigmaComponent`
               hex: this.rgbToHex(r * 255, g * 255, b * 255),
               rgb: `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`,
               rgba: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a})`,
-              hsl: this.rgbToHsl(r * 255, g * 255, b * 255)
+              hsl: this.rgbToHsl(r * 255, g * 255, b * 255),
             }
           }
         })
@@ -594,7 +592,7 @@ export default FigmaComponent`
           lineHeight: style.lineHeight ? `${style.lineHeight}px` : 'normal',
           letterSpacing: style.letterSpacing ? `${style.letterSpacing}px` : 'normal',
           textAlign: style.textAlign || 'left',
-          textDecoration: style.textDecoration || 'none'
+          textDecoration: style.textDecoration || 'none',
         }
       }
 
@@ -651,7 +649,7 @@ export default FigmaComponent`
               offsetY: `${effect.offset?.y || 0}px`,
               blurRadius: `${effect.radius || 0}px`,
               color: effect.color ? this.rgbaToString(effect.color) : 'rgba(0,0,0,0.25)',
-              visible: effect.visible !== false
+              visible: effect.visible !== false,
             }
           }
         })
@@ -755,18 +753,23 @@ export default FigmaComponent`
       global: tokens,
       $themes: [],
       $metadata: {
-        tokenSetOrder: ['global']
-      }
+        tokenSetOrder: ['global'],
+      },
     }
   }
 
   // ==================== UTILITY METHODS ====================
 
   private rgbToHex(r: number, g: number, b: number): string {
-    return '#' + [r, g, b].map(x => {
-      const hex = Math.round(x).toString(16)
-      return hex.length === 1 ? '0' + hex : hex
-    }).join('')
+    return (
+      '#' +
+      [r, g, b]
+        .map((x) => {
+          const hex = Math.round(x).toString(16)
+          return hex.length === 1 ? '0' + hex : hex
+        })
+        .join('')
+    )
   }
 
   private rgbToHsl(r: number, g: number, b: number): string {
@@ -776,7 +779,9 @@ export default FigmaComponent`
 
     const max = Math.max(r, g, b)
     const min = Math.min(r, g, b)
-    let h: number, s: number, l = (max + min) / 2
+    let h: number,
+      s: number,
+      l = (max + min) / 2
 
     if (max === min) {
       h = s = 0 // achromatic
@@ -785,10 +790,17 @@ export default FigmaComponent`
       s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
 
       switch (max) {
-        case r: h = (g - b) / d + (g < b ? 6 : 0); break
-        case g: h = (b - r) / d + 2; break
-        case b: h = (r - g) / d + 4; break
-        default: h = 0
+        case r:
+          h = (g - b) / d + (g < b ? 6 : 0)
+          break
+        case g:
+          h = (b - r) / d + 2
+          break
+        case b:
+          h = (r - g) / d + 4
+          break
+        default:
+          h = 0
       }
 
       h /= 6
@@ -797,7 +809,7 @@ export default FigmaComponent`
     return `hsl(${Math.round(h * 360)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%)`
   }
 
-  private rgbaToString(color: { r: number, g: number, b: number, a?: number }): string {
+  private rgbaToString(color: { r: number; g: number; b: number; a?: number }): string {
     const { r, g, b, a = 1 } = color
     return `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a})`
   }
@@ -834,8 +846,8 @@ export default FigmaComponent`
         success: false,
         error: error.message,
         metadata: {
-          processingTime: Date.now() - startTime
-        }
+          processingTime: Date.now() - startTime,
+        },
       }
     }
   }
@@ -857,8 +869,8 @@ export default FigmaComponent`
       data: fileInfo,
       metadata: {
         figmaFileId: fileId,
-        processingTime: Date.now() - Date.now()
-      }
+        processingTime: Date.now() - Date.now(),
+      },
     }
   }
 
@@ -878,16 +890,18 @@ export default FigmaComponent`
       title: 'Figma Export Operation',
       description: `Export Figma file ${fileId} as ${format} images`,
       riskLevel: 'low',
-      actions: [{
-        type: 'network_request',
-        description: `Export designs from Figma file ${fileId}`,
-        details: {
-          method: 'GET',
-          url: `https://api.figma.com/v1/images/${fileId}`,
-          purpose: 'Export Figma designs as images'
+      actions: [
+        {
+          type: 'network_request',
+          description: `Export designs from Figma file ${fileId}`,
+          details: {
+            method: 'GET',
+            url: `https://api.figma.com/v1/images/${fileId}`,
+            purpose: 'Export Figma designs as images',
+          },
+          riskLevel: 'low',
         },
-        riskLevel: 'low'
-      }]
+      ],
     })
 
     // Add timeout to approval request
@@ -897,7 +911,7 @@ export default FigmaComponent`
 
     let response
     try {
-      response = await Promise.race([approvalPromise, timeoutPromise]) as any
+      response = (await Promise.race([approvalPromise, timeoutPromise])) as any
     } catch (error: any) {
       if (error.message.includes('timed out')) {
         console.log(chalk.yellow('⚠️ Approval request timed out, proceeding with export...'))
@@ -930,7 +944,7 @@ export default FigmaComponent`
       fileId,
       nodeIds,
       format: format as any,
-      outputPath
+      outputPath,
     }
 
     const exportedPaths = await this.exportImages(exportOptions)
@@ -943,8 +957,8 @@ export default FigmaComponent`
         figmaFileId: fileId,
         exportFormat: format,
         nodeCount: exportedPaths.length,
-        processingTime: Date.now() - startTime
-      }
+        processingTime: Date.now() - startTime,
+      },
     }
   }
 
@@ -962,7 +976,7 @@ export default FigmaComponent`
       fileId,
       framework: framework as any,
       library: library as any,
-      typescript: true
+      typescript: true,
     }
 
     const generatedCode = await this.generateCodeFromDesign(codeGenOptions)
@@ -975,8 +989,8 @@ export default FigmaComponent`
       data: { code: generatedCode },
       metadata: {
         figmaFileId: fileId,
-        processingTime: Date.now() - startTime
-      }
+        processingTime: Date.now() - startTime,
+      },
     }
   }
 
@@ -990,15 +1004,15 @@ export default FigmaComponent`
 
     const success = await this.automateDesktopApp({
       action: 'open',
-      fileUrl
+      fileUrl,
     })
 
     return {
       success,
       data: { opened: success },
       metadata: {
-        processingTime: Date.now() - startTime
-      }
+        processingTime: Date.now() - startTime,
+      },
     }
   }
 
@@ -1014,7 +1028,7 @@ export default FigmaComponent`
 
     const tokensOptions: FigmaTokensOptions = {
       fileId,
-      outputFormat: outputFormat as any
+      outputFormat: outputFormat as any,
     }
 
     const tokens = await this.extractDesignTokens(tokensOptions)
@@ -1027,8 +1041,8 @@ export default FigmaComponent`
       data: { tokens },
       metadata: {
         figmaFileId: fileId,
-        processingTime: Date.now() - startTime
-      }
+        processingTime: Date.now() - startTime,
+      },
     }
   }
 
@@ -1064,7 +1078,7 @@ export default FigmaComponent`
       size: '1792x1024',
       quality: 'hd',
       style: 'natural',
-      outputPath: resolve(process.cwd(), 'figma-previews')
+      outputPath: resolve(process.cwd(), 'figma-previews'),
     })
 
     console.log(chalk.green(`✅ Preview image generated: ${imageResult.localPath}`))
@@ -1081,12 +1095,12 @@ export default FigmaComponent`
         designDescription,
         previewImage: imageResult,
         figmaDesign,
-        generatedFiles: [imageResult.localPath]
+        generatedFiles: [imageResult.localPath],
       },
       metadata: {
         componentPath,
-        processingTime: Date.now() - startTime
-      }
+        processingTime: Date.now() - startTime,
+      },
     }
   }
 
@@ -1096,7 +1110,7 @@ export default FigmaComponent`
       /export\s+(?:default\s+)?(?:function\s+)?(\w+)/,
       /const\s+(\w+)\s*[:=]/,
       /function\s+(\w+)/,
-      /class\s+(\w+)/
+      /class\s+(\w+)/,
     ]
 
     for (const pattern of patterns) {
@@ -1109,7 +1123,10 @@ export default FigmaComponent`
     return 'ReactComponent'
   }
 
-  private async analyzeReactComponent(componentCode: string, componentName: string): Promise<{
+  private async analyzeReactComponent(
+    componentCode: string,
+    componentName: string
+  ): Promise<{
     componentAnalysis: string
     imagePrompt: string
     figmaElements: any[]
@@ -1141,24 +1158,26 @@ export default FigmaComponent`
     Show the component as it would appear in a real application interface. Clean, minimal, and user-friendly design.`
 
     // Extract potential Figma elements
-    const figmaElements = elements.map(element => ({
+    const figmaElements = elements.map((element) => ({
       type: element,
-      properties: this.getElementProperties(element, componentCode)
+      properties: this.getElementProperties(element, componentCode),
     }))
 
     // Extract design tokens from style classes
     const designTokens = {
-      spacing: styleClasses.filter(c => c.includes('p-') || c.includes('m-') || c.includes('gap')),
-      colors: styleClasses.filter(c => c.includes('bg-') || c.includes('text-') || c.includes('border-')),
-      typography: styleClasses.filter(c => c.includes('text-') || c.includes('font')),
-      layout: styleClasses.filter(c => c.includes('flex') || c.includes('grid') || c.includes('w-') || c.includes('h-'))
+      spacing: styleClasses.filter((c) => c.includes('p-') || c.includes('m-') || c.includes('gap')),
+      colors: styleClasses.filter((c) => c.includes('bg-') || c.includes('text-') || c.includes('border-')),
+      typography: styleClasses.filter((c) => c.includes('text-') || c.includes('font')),
+      layout: styleClasses.filter(
+        (c) => c.includes('flex') || c.includes('grid') || c.includes('w-') || c.includes('h-')
+      ),
     }
 
     return {
       componentAnalysis,
       imagePrompt,
       figmaElements,
-      designTokens
+      designTokens,
     }
   }
 
@@ -1184,7 +1203,7 @@ export default FigmaComponent`
 
     while ((match = classPattern.exec(componentCode)) !== null) {
       const classNames = match[1].split(/\s+/)
-      classNames.forEach(cls => classes.add(cls))
+      classNames.forEach((cls) => classes.add(cls))
     }
 
     return Array.from(classes)
@@ -1225,16 +1244,16 @@ export default FigmaComponent`
             y: 50,
             width: 200,
             height: 40,
-            fills: [{ type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.95 } }]
-          }))
-        }
+            fills: [{ type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.95 } }],
+          })),
+        },
       ],
       styles: {
         colors: designDescription.designTokens.colors,
         typography: designDescription.designTokens.typography,
-        spacing: designDescription.designTokens.spacing
+        spacing: designDescription.designTokens.spacing,
       },
-      note: 'This is a generated design specification based on React component analysis'
+      note: 'This is a generated design specification based on React component analysis',
     }
   }
 }
@@ -1258,10 +1277,10 @@ export function isValidFigmaFileId(fileId: string): boolean {
  */
 export function extractFileIdFromUrl(url: string): string | null {
   const patterns = [
-    /\/file\/([a-zA-Z0-9_-]+)/,      // Legacy format: /file/ID
-    /\/design\/([a-zA-Z0-9_-]+)/,    // New format: /design/ID
-    /\/proto\/([a-zA-Z0-9_-]+)/,     // Prototype format: /proto/ID
-    /figma\.com\/([a-zA-Z0-9_-]+)/   // Direct ID after domain
+    /\/file\/([a-zA-Z0-9_-]+)/, // Legacy format: /file/ID
+    /\/design\/([a-zA-Z0-9_-]+)/, // New format: /design/ID
+    /\/proto\/([a-zA-Z0-9_-]+)/, // Prototype format: /proto/ID
+    /figma\.com\/([a-zA-Z0-9_-]+)/, // Direct ID after domain
   ]
 
   for (const pattern of patterns) {

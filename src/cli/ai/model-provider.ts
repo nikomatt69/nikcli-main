@@ -156,7 +156,7 @@ export class ModelProvider {
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
         }
-      } catch { }
+      } catch {}
     }
     const effectiveConfig: ModelConfig = { ...currentModelConfig, model: effectiveModelId } as ModelConfig
     const model = this.getModel(effectiveConfig)
@@ -212,7 +212,7 @@ export class ModelProvider {
           const msg = `[Router] ${currentModelName} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch { }
+        } catch {}
       }
     }
     const effectiveConfig2: ModelConfig = { ...currentModelConfig, model: effectiveModelId2 } as ModelConfig
@@ -266,7 +266,7 @@ export class ModelProvider {
           const msg = `[Router] ${configManager.getCurrentModel()} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch { }
+        } catch {}
       }
     }
     const model = this.getModel({ ...currentModelConfig, model: effId3 } as ModelConfig)

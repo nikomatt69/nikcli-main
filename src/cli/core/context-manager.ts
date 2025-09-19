@@ -2,14 +2,13 @@ import path from 'node:path'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
 import { calculateTokenCost, getModelPricing, TOKEN_LIMITS } from '../config/token-limits'
-
+import { unifiedRAGSystem } from '../context/rag-system'
+import { semanticSearchEngine } from '../context/semantic-search-engine'
+import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
 // Import RAG and context systems for integration
 import { workspaceContext } from '../context/workspace-context'
 import { contextEnhancer, type SmartContext } from './context-enhancer'
 import { tokenTelemetry } from './token-telemetry'
-import { unifiedRAGSystem } from '../context/rag-system'
-import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
-import { semanticSearchEngine } from '../context/semantic-search-engine'
 
 /** Summary of workspace analysis. */
 export interface ContextSummary {
@@ -314,7 +313,7 @@ export class ContextManager {
         // Enhanced RAG integration metrics
         embeddingStats: this.getEmbeddingStats(),
         semanticAnalysis: this.getSemanticAnalysisStats(),
-        vectorStore: this.getVectorStoreStats()
+        vectorStore: this.getVectorStoreStats(),
       },
       smartContext,
       optimizationSteps,
@@ -1008,14 +1007,14 @@ export class ContextManager {
         cacheHitRate: stats.cacheHitRate || 0,
         totalQueries: stats.totalQueries || 0,
         averageLatency: stats.averageLatency || 0,
-        costSaved: stats.totalCost || 0
+        costSaved: stats.totalCost || 0,
       }
     } catch {
       return {
         cacheHitRate: 0,
         totalQueries: 0,
         averageLatency: 0,
-        costSaved: 0
+        costSaved: 0,
       }
     }
   }
@@ -1031,14 +1030,14 @@ export class ContextManager {
         queryConfidence: 0.8, // Default confidence
         intentDetected: 'analysis',
         entitiesFound: 0,
-        expansionRate: 1.0
+        expansionRate: 1.0,
       }
     } catch {
       return {
         queryConfidence: 0,
         intentDetected: 'unknown',
         entitiesFound: 0,
-        expansionRate: 0
+        expansionRate: 0,
       }
     }
   }
@@ -1054,14 +1053,14 @@ export class ContextManager {
         provider: 'local', // Default to local
         indexedDocuments: 0,
         searchLatency: 0,
-        uptime: Date.now() - this.lastWorkspaceAnalysis
+        uptime: Date.now() - this.lastWorkspaceAnalysis,
       }
     } catch {
       return {
         provider: 'unknown',
         indexedDocuments: 0,
         searchLatency: 0,
-        uptime: 0
+        uptime: 0,
       }
     }
   }

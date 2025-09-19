@@ -1,10 +1,10 @@
-import { unifiedEmbeddingInterface } from './unified-embedding-interface'
-import { ChromaClient, CloudClient } from 'chromadb'
 import { existsSync, mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { join } from 'node:path'
 import chalk from 'chalk'
+import { ChromaClient, CloudClient } from 'chromadb'
+import { unifiedEmbeddingInterface } from './unified-embedding-interface'
 
 export interface VectorDocument {
   id: string
@@ -84,7 +84,7 @@ abstract class VectorStore {
       uptime: 0,
       lastHealthCheck: new Date(),
       errors: 0,
-      totalCost: 0
+      totalCost: 0,
     }
   }
 
@@ -110,16 +110,18 @@ class ChromaDBVectorStore extends VectorStore {
         this.client = new CloudClient({
           apiKey: config.apiKey,
           tenant: config.tenant,
-          database: config.database || 'nikcli'
+          database: config.database || 'nikcli',
         })
         console.log(chalk.gray(`🔗 Connecting to ChromaDB Cloud (${config.tenant})`))
       } else {
         this.client = new ChromaClient({
           host: config.host || 'localhost',
           port: config.port || 8005,
-          ssl: config.ssl || false
+          ssl: config.ssl || false,
         })
-        console.log(chalk.gray(`🔗 Connecting to ChromaDB local (${config.host || 'localhost'}:${config.port || 8005})`))
+        console.log(
+          chalk.gray(`🔗 Connecting to ChromaDB local (${config.host || 'localhost'}:${config.port || 8005})`)
+        )
       }
 
       // Test connection
@@ -129,23 +131,25 @@ class ChromaDBVectorStore extends VectorStore {
       // Get or create collection with embedding function
       try {
         this.collection = await this.client.getCollection({
-          name: this.config.collectionName
+          name: this.config.collectionName,
         })
-        
+
         // Check if collection has embedding function configured by testing a simple operation
         try {
           // Try to add a test document to verify embedding function works
           await this.collection.add({
             ids: ['test-embedding-check'],
             documents: ['test'],
-            metadatas: [{ test: true }]
+            metadatas: [{ test: true }],
           })
           // Clean up test document
           await this.collection.delete({ ids: ['test-embedding-check'] })
           console.log(chalk.gray(`📂 Using existing collection: ${this.config.collectionName}`))
         } catch (embeddingError) {
           // Collection exists but has no embedding function, recreate it
-          console.log(chalk.yellow(`⚠️ Collection ${this.config.collectionName} lacks embedding function, recreating...`))
+          console.log(
+            chalk.yellow(`⚠️ Collection ${this.config.collectionName} lacks embedding function, recreating...`)
+          )
           try {
             await this.client.deleteCollection({ name: this.config.collectionName })
           } catch (deleteError) {
@@ -159,12 +163,10 @@ class ChromaDBVectorStore extends VectorStore {
             name: this.config.collectionName,
             embeddingFunction: {
               generate: async (texts: string[]) => {
-                const results = await unifiedEmbeddingInterface.generateEmbeddings(
-                  texts.map(text => ({ text }))
-                )
-                return results.map(r => r.vector)
-              }
-            }
+                const results = await unifiedEmbeddingInterface.generateEmbeddings(texts.map((text) => ({ text })))
+                return results.map((r) => r.vector)
+              },
+            },
           })
           console.log(chalk.green(`✅ Created new collection: ${this.config.collectionName}`))
         } catch (finalError) {
@@ -208,12 +210,10 @@ class ChromaDBVectorStore extends VectorStore {
         name,
         embeddingFunction: {
           generate: async (texts: string[]) => {
-            const results = await unifiedEmbeddingInterface.generateEmbeddings(
-              texts.map(text => ({ text }))
-            )
-            return results.map(r => r.vector)
-          }
-        }
+            const results = await unifiedEmbeddingInterface.generateEmbeddings(texts.map((text) => ({ text })))
+            return results.map((r) => r.vector)
+          },
+        },
       })
       return true
     } catch {
@@ -237,31 +237,31 @@ class ChromaDBVectorStore extends VectorStore {
     try {
       if (!this.collection) return false
 
-      const ids = documents.map(doc => doc.id)
-      const texts = documents.map(doc => doc.content)
-      const metadatas = documents.map(doc => ({
+      const ids = documents.map((doc) => doc.id)
+      const texts = documents.map((doc) => doc.content)
+      const metadatas = documents.map((doc) => ({
         ...doc.metadata,
-        timestamp: doc.timestamp.toISOString()
+        timestamp: doc.timestamp.toISOString(),
       }))
 
       // Check if documents have pre-computed embeddings
-      const hasEmbeddings = documents.some(doc => doc.embedding && doc.embedding.length > 0)
-      
+      const hasEmbeddings = documents.some((doc) => doc.embedding && doc.embedding.length > 0)
+
       if (hasEmbeddings) {
         // Use pre-computed embeddings
-        const embeddings = documents.map(doc => doc.embedding || [])
+        const embeddings = documents.map((doc) => doc.embedding || [])
         await this.collection.add({
           ids,
           documents: texts,
           metadatas,
-          embeddings
+          embeddings,
         })
       } else {
         // Let ChromaDB generate embeddings using the configured function
         await this.collection.add({
           ids,
           documents: texts,
-          metadatas
+          metadatas,
         })
       }
 
@@ -303,7 +303,7 @@ class ChromaDBVectorStore extends VectorStore {
 
       const results = await this.collection.query({
         queryTexts: [query],
-        nResults: limit
+        nResults: limit,
       })
 
       const searchResults: VectorSearchResult[] = []
@@ -318,7 +318,7 @@ class ChromaDBVectorStore extends VectorStore {
             id: results.ids?.[0]?.[i] || '',
             content: documents[i] || '',
             score,
-            metadata: metadatas[i] || {}
+            metadata: metadatas[i] || {},
           })
         }
       }
@@ -340,7 +340,7 @@ class ChromaDBVectorStore extends VectorStore {
 
       const results = await this.collection.query({
         queryEmbeddings: [embedding],
-        nResults: limit
+        nResults: limit,
       })
 
       const searchResults: VectorSearchResult[] = []
@@ -355,7 +355,7 @@ class ChromaDBVectorStore extends VectorStore {
             id: results.ids?.[0]?.[i] || '',
             content: documents[i] || '',
             score,
-            metadata: metadatas[i] || {}
+            metadata: metadatas[i] || {},
           })
         }
       }
@@ -379,7 +379,7 @@ class ChromaDBVectorStore extends VectorStore {
           id,
           content: results.documents[0],
           metadata: results.metadatas?.[0] || {},
-          timestamp: new Date(results.metadatas?.[0]?.timestamp || Date.now())
+          timestamp: new Date(results.metadatas?.[0]?.timestamp || Date.now()),
         }
       }
       return null
@@ -533,7 +533,7 @@ class LocalVectorStore extends VectorStore {
               content: doc.content,
               score: similarity,
               metadata: doc.metadata,
-              embedding: docEmbedding
+              embedding: docEmbedding,
             })
           }
         }
@@ -625,11 +625,11 @@ export class VectorStoreManager {
       indexingBatchSize: 100,
       maxRetries: 3,
       healthCheckInterval: 300000, // 5 minutes
-      autoFallback: true
+      autoFallback: true,
     }
 
     // Initialize stores based on configurations
-    configs.forEach(config => {
+    configs.forEach((config) => {
       switch (config.provider) {
         case 'chromadb':
           this.stores.push(new ChromaDBVectorStore(config))
@@ -754,7 +754,7 @@ export class VectorStoreManager {
    */
   getAllStats(): Record<string, VectorStoreStats> {
     const stats: Record<string, VectorStoreStats> = {}
-    this.stores.forEach(store => {
+    this.stores.forEach((store) => {
       const storeStats = store.getStats()
       stats[storeStats.provider] = storeStats
     })
@@ -765,9 +765,9 @@ export class VectorStoreManager {
    * Force fallback to a specific store
    */
   async fallbackTo(provider: string): Promise<boolean> {
-    const targetStore = this.stores.find(store => store.getStats().provider === provider)
+    const targetStore = this.stores.find((store) => store.getStats().provider === provider)
 
-    if (targetStore && await targetStore.healthCheck()) {
+    if (targetStore && (await targetStore.healthCheck())) {
       this.activeStore = targetStore
       console.log(chalk.blue(`🔄 Fallback to ${provider} vector store`))
       return true
@@ -786,11 +786,13 @@ export class VectorStoreManager {
       const isHealthy = await this.activeStore.healthCheck()
 
       if (!isHealthy) {
-        console.log(chalk.yellow(`⚠️ Vector store ${this.activeStore.getStats().provider} unhealthy, attempting fallback`))
+        console.log(
+          chalk.yellow(`⚠️ Vector store ${this.activeStore.getStats().provider} unhealthy, attempting fallback`)
+        )
 
         // Try to find a healthy alternative
         for (const store of this.stores) {
-          if (store !== this.activeStore && await store.healthCheck()) {
+          if (store !== this.activeStore && (await store.healthCheck())) {
             this.activeStore = store
             console.log(chalk.green(`✅ Fallback to ${store.getStats().provider} successful`))
             return
@@ -811,7 +813,7 @@ export class VectorStoreManager {
 
 // Export convenience function to create vector store manager
 export function createVectorStoreManager(configs: Partial<VectorStoreConfig>[]): VectorStoreManager {
-  const fullConfigs: VectorStoreConfig[] = configs.map(config => ({
+  const fullConfigs: VectorStoreConfig[] = configs.map((config) => ({
     provider: 'chromadb',
     connectionConfig: {},
     collectionName: 'nikcli_vectors',
@@ -820,7 +822,7 @@ export function createVectorStoreManager(configs: Partial<VectorStoreConfig>[]):
     maxRetries: 3,
     healthCheckInterval: 300000,
     autoFallback: true,
-    ...config
+    ...config,
   }))
 
   return new VectorStoreManager(fullConfigs)

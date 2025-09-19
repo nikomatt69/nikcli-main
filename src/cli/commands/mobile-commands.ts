@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { type EnhancedSessionManager } from '../persistence/enhanced-session-manager'
+import type { EnhancedSessionManager } from '../persistence/enhanced-session-manager'
 import { getMobileUI } from '../ui/mobile-ui-adapter'
 
 export interface MobileCommandAlias {
@@ -88,19 +88,19 @@ export class MobileCommandHandler {
         alias: '/mobile',
         command: '/mobile-mode',
         description: 'Toggle mobile optimizations',
-        mobileOnly: true
+        mobileOnly: true,
       },
       {
         alias: '/compact',
         command: '/compact-view',
         description: 'Toggle compact display',
-        mobileOnly: true
+        mobileOnly: true,
       },
       {
         alias: '/menu',
         command: '/mobile-menu',
         description: 'Show numbered selection menu',
-        mobileOnly: true
+        mobileOnly: true,
       },
 
       // Quick numbers for selection
@@ -132,7 +132,7 @@ export class MobileCommandHandler {
       return {
         success: true,
         originalCommand: alias.command,
-        output: this.expandAlias(alias, '')
+        output: this.expandAlias(alias, ''),
       }
     }
 
@@ -145,7 +145,7 @@ export class MobileCommandHandler {
       return {
         success: true,
         originalCommand: `${alias.command} ${args}`,
-        output: this.expandAlias(alias, args)
+        output: this.expandAlias(alias, args),
       }
     }
 
@@ -157,7 +157,7 @@ export class MobileCommandHandler {
         return {
           success: true,
           originalCommand: `/select ${selection + 1}`,
-          output: `/select ${selection + 1}`
+          output: `/select ${selection + 1}`,
         }
       }
     }
@@ -186,7 +186,7 @@ export class MobileCommandHandler {
       return aliases
     } else {
       // Return only non-mobile-only aliases for desktop
-      return aliases.filter(alias => !alias.mobileOnly)
+      return aliases.filter((alias) => !alias.mobileOnly)
     }
   }
 
@@ -197,16 +197,16 @@ export class MobileCommandHandler {
     const categories = new Map<string, MobileCommandAlias[]>()
 
     const categoryMap = {
-      'Essential': ['/q', '/h', '/s', '/c'],
-      'Files': ['/r', '/w', '/ls', '/find'],
-      'Execution': ['/run', '/cmd', '/test', '/build'],
-      'Models': ['/m', '/cfg', '/set'],
-      'Sessions': ['/save', '/load', '/list-sessions'],
-      'Agents': ['/a', '/ag', '/auto'],
-      'Planning': ['/p', '/todo'],
-      'Advanced': ['/snap', '/vm', '/debug'],
-      'Mobile': ['/mobile', '/compact', '/menu'],
-      'Selection': ['1', '2', '3', '4', '5'],
+      Essential: ['/q', '/h', '/s', '/c'],
+      Files: ['/r', '/w', '/ls', '/find'],
+      Execution: ['/run', '/cmd', '/test', '/build'],
+      Models: ['/m', '/cfg', '/set'],
+      Sessions: ['/save', '/load', '/list-sessions'],
+      Agents: ['/a', '/ag', '/auto'],
+      Planning: ['/p', '/todo'],
+      Advanced: ['/snap', '/vm', '/debug'],
+      Mobile: ['/mobile', '/compact', '/menu'],
+      Selection: ['1', '2', '3', '4', '5'],
     }
 
     for (const [category, aliasNames] of Object.entries(categoryMap)) {
@@ -263,7 +263,7 @@ export class MobileCommandHandler {
         commands.push({
           name: alias.alias,
           description: alias.description + (alias.requiresArgs ? ' (requires args)' : ''),
-          category
+          category,
         })
       }
     }
@@ -343,7 +343,7 @@ export class MobileCommandHandler {
         return {
           valid: false,
           error: `Command '${cmd}' requires arguments`,
-          suggestion: `Try: ${cmd} <arguments>`
+          suggestion: `Try: ${cmd} <arguments>`,
         }
       }
 
@@ -355,7 +355,7 @@ export class MobileCommandHandler {
     if (suggestions.length > 0) {
       return {
         valid: true, // Let it pass through, but provide suggestion
-        suggestion: `Did you mean: ${suggestions.slice(0, 3).join(', ')}?`
+        suggestion: `Did you mean: ${suggestions.slice(0, 3).join(', ')}?`,
       }
     }
 

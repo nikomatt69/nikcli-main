@@ -6,18 +6,81 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Package Manager](https://img.shields.io/badge/supports-npm%20%7C%20yarn%20%7C%20pnpm%20%7C%20bun-brightgreen)](https://www.npmjs.com/package/@nicomatt69/nikcli)
 
 ## 🚀 Quick Start
 
 ### Installation
 
+<details>
+<summary>🔧 <strong>Universal Installation (Any Package Manager)</strong></summary>
+
+#### Quick Install (Recommended)
+
 ```bash
-# Global installation (recommended)
+# Unix/macOS - Universal installer auto-detects best package manager
+curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
+
+# Windows PowerShell
+iwr -useb https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.ps1 | iex
+```
+
+#### Manual Installation
+
+Choose your preferred package manager:
+
+```bash
+# npm
 npm install -g @nicomatt69/nikcli
 
-# Or with yarn
+# yarn
 yarn global add @nicomatt69/nikcli
+
+# pnpm
+pnpm install -g @nicomatt69/nikcli
+
+# bun
+bun install -g @nicomatt69/nikcli
 ```
+
+#### Specify Package Manager
+
+```bash
+# Force specific package manager with installer
+curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s pnpm
+
+# Windows PowerShell with specific manager
+iwr -useb https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.ps1 | iex -PackageManager yarn
+```
+
+</details>
+
+<details>
+<summary>🛠️ <strong>Development Setup</strong></summary>
+
+```bash
+# Clone repository
+git clone https://github.com/nikomatt69/nikcli-main
+cd nikcli-main
+
+# Install dependencies (development uses pnpm for optimal performance)
+pnpm install
+
+# Build and start
+pnpm run build
+pnpm start
+```
+
+**Development Scripts:**
+- `pnpm start` - Start in development mode
+- `pnpm run dev` - Development with watch mode
+- `pnpm run build` - Compile TypeScript
+- `pnpm test` - Run tests
+- `pnpm run build:binary` - Create binary distribution
+
+> **Note**: Development uses pnpm for optimal performance, but NikCLI supports installation with any package manager.
+
+</details>
 
 ### First Run
 
@@ -42,6 +105,7 @@ nikcli
 - **🌟 Universal Agent**: Single comprehensive agent with 64+ capabilities
 - **🔒 Secure by Design**: Approval system for sensitive operations
 - **📊 Multiple AI Providers**: Claude, GPT, Gemini, Ollama support
+- **📦 Universal Package Manager Support**: Works with npm, yarn, pnpm, and bun
 - **🚀 Production Ready**: Comprehensive testing and enterprise-grade architecture
 
 ### 🆕 New CLI UI Enhancements (v+)
@@ -89,12 +153,45 @@ nikcli
 - **Encrypted API Keys**: Secure storage with AES-256-GCM
 - **Approval System**: Interactive confirmation for sensitive operations
 - **No Data Collection**: Your code and projects stay private
+- **Universal Compatibility**: Secure installation across all package managers
+
+<details>
+<summary>🔐 <strong>Installation Security</strong></summary>
+
+Our universal installers include security features:
+
+- **Automatic verification** of Node.js version requirements
+- **Package manager detection** and validation
+- **Fallback mechanisms** if primary installation fails
+- **No elevated privileges** required for global installation
+- **Source verification** from official npm registry
+
+**Installer Files:**
+- [`installer/install.sh`](installer/install.sh) - Unix/macOS universal installer
+- [`installer/install.ps1`](installer/install.ps1) - Windows PowerShell installer
+
+</details>
 
 ## 🤝 Community
 
 - **GitHub Issues**: [Bug reports and feature requests](https://github.com/nikomatt69/nikcli-main/issues)
 - **Documentation**: [Complete guides and API reference](https://nikcli.mintlify.app)
 - **Contributing**: [Development guidelines](https://nikcli.mintlify.app/contributing/development)
+
+<details>
+<summary>🔧 <strong>Project Configuration</strong></summary>
+
+**Package Manager Support:**
+- Development optimized with `pnpm` for faster builds and reduced disk usage
+- Universal installation support for all major package managers
+- Cross-platform compatibility with intelligent fallbacks
+
+**Key Files:**
+- [`package.json`](package.json) - Main package configuration with universal engine support
+- [`pnpm-workspace.yaml`](pnpm-workspace.yaml) - pnpm workspace configuration
+- [`.npmrc`](.npmrc) - npm/pnpm configuration for optimal development experience
+
+</details>
 
 ## 📄 License
 

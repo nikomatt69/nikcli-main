@@ -10,7 +10,7 @@ export const PromptMetadataSchema = z.object({
   name: z.string(),
   description: z.string(),
   category: z.enum(['tool', 'agent', 'system', 'validation', 'error-handling', 'reasoning']),
-  version: z.string().default('0.1.4'),
+  version: z.string().default('0.1.5'),
   author: z.string().optional(),
   tags: z.array(z.string()).default([]),
   language: z.string().default('en'),
@@ -456,7 +456,7 @@ Error Context:
             const [key, ...valueParts] = line.split(':')
             if (key && valueParts.length > 0) {
               const value = valueParts.join(':').trim()
-                ; (metadata as Record<string, any>)[key.trim()] = value.replace(/^["']|["']$/g, '')
+              ;(metadata as Record<string, any>)[key.trim()] = value.replace(/^["']|["']$/g, '')
             }
           }
           template = metadataMatch[2]

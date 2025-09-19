@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { type EnhancedSessionManager } from '../persistence/enhanced-session-manager'
+import type { EnhancedSessionManager } from '../persistence/enhanced-session-manager'
 
 export interface MobileUIConfig {
   maxLineLength: number
@@ -45,7 +45,7 @@ export class MobileUIAdapter {
       truncateAfter: width <= 60 ? 300 : 600, // Shorter on very small screens
       useCompactMode: width <= 80,
       showProgressBars: width > 50, // Hide on very small screens
-      enableNumberSelection: true
+      enableNumberSelection: true,
     }
   }
 
@@ -64,10 +64,13 @@ export class MobileUIAdapter {
   /**
    * Compress long output for mobile screens
    */
-  compressOutput(content: string, options?: {
-    preserveFormatting?: boolean
-    maxLines?: number
-  }): CompressedOutput {
+  compressOutput(
+    content: string,
+    options?: {
+      preserveFormatting?: boolean
+      maxLines?: number
+    }
+  ): CompressedOutput {
     const { preserveFormatting = false, maxLines } = options || {}
     const originalLength = content.length
 
@@ -76,7 +79,7 @@ export class MobileUIAdapter {
         content,
         truncated: false,
         originalLength,
-        compressionRatio: 1
+        compressionRatio: 1,
       }
     }
 
@@ -95,16 +98,14 @@ export class MobileUIAdapter {
     let truncated = false
     if (compressed.length > this.config.truncateAfter) {
       const cutPoint = this.findGoodCutPoint(compressed, this.config.truncateAfter)
-      compressed = compressed.substring(0, cutPoint) +
-        chalk.gray('\n\n[... content truncated for mobile view ...]')
+      compressed = compressed.substring(0, cutPoint) + chalk.gray('\n\n[... content truncated for mobile view ...]')
       truncated = true
     }
 
     // 4. Line limit for very small screens
     if (maxLines && compressed.split('\n').length > maxLines) {
       const lines = compressed.split('\n')
-      compressed = lines.slice(0, maxLines).join('\n') +
-        chalk.gray(`\n[... ${lines.length - maxLines} more lines ...]`)
+      compressed = lines.slice(0, maxLines).join('\n') + chalk.gray(`\n[... ${lines.length - maxLines} more lines ...]`)
       truncated = true
     }
 
@@ -112,7 +113,7 @@ export class MobileUIAdapter {
       content: compressed,
       truncated,
       originalLength,
-      compressionRatio: compressed.length / originalLength
+      compressionRatio: compressed.length / originalLength,
     }
   }
 
@@ -219,7 +220,7 @@ export class MobileUIAdapter {
       const restLines = wrapped.split('\n').slice(1)
 
       lines.push(`${number} ${firstLine}`)
-      restLines.forEach(line => {
+      restLines.forEach((line) => {
         lines.push(`   ${line}`) // Indent continuation lines
       })
     })
@@ -259,9 +260,7 @@ export class MobileUIAdapter {
 
       if (this.config.useCompactMode) {
         // Compact mode - one row per item
-        const values = entries.slice(0, maxColumns).map(([key, value]) =>
-          `${chalk.gray(key)}: ${value}`
-        )
+        const values = entries.slice(0, maxColumns).map(([key, value]) => `${chalk.gray(key)}: ${value}`)
         lines.push(values.join(' | '))
       } else {
         // Detailed mode - multiple lines per item

@@ -2,15 +2,14 @@ import { execSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import chalk from 'chalk'
-import { simpleConfigManager } from '../core/config-manager'
-import { ExecutionPolicyManager, type ToolApprovalRequest } from '../policies/execution-policy'
-import { ContentValidators } from '../tools/write-file-tool'
-import { type ApprovalRequest, type ApprovalResponse, ApprovalSystem } from '../ui/approval-system'
-
 // Import RAG and semantic search capabilities
 import { unifiedRAGSystem } from '../context/rag-system'
 import { semanticSearchEngine } from '../context/semantic-search-engine'
 import { workspaceContext } from '../context/workspace-context'
+import { simpleConfigManager } from '../core/config-manager'
+import { ExecutionPolicyManager, type ToolApprovalRequest } from '../policies/execution-policy'
+import { ContentValidators } from '../tools/write-file-tool'
+import { type ApprovalRequest, type ApprovalResponse, ApprovalSystem } from '../ui/approval-system'
 
 export interface ToolExecution {
   id: string
@@ -172,17 +171,17 @@ export class ToolService {
         query: args.query,
         limit: args.limit || 10,
         threshold: 0.3,
-        useRAG: true
+        useRAG: true,
       })
 
       return {
         success: true,
-        results: results.map(r => ({
+        results: results.map((r) => ({
           path: r.file.path,
           score: r.score,
           matchType: r.matchType,
-          snippet: r.snippet
-        }))
+          snippet: r.snippet,
+        })),
       }
     } catch (error: any) {
       return { success: false, error: error.message }
@@ -197,9 +196,9 @@ export class ToolService {
         analysis: {
           intent: analysis.intent.type,
           confidence: analysis.confidence,
-          entities: analysis.entities.map(e => ({ text: e.text, type: e.type })),
-          expandedQuery: analysis.expandedQuery
-        }
+          entities: analysis.entities.map((e) => ({ text: e.text, type: e.type })),
+          expandedQuery: analysis.expandedQuery,
+        },
       }
     } catch (error: any) {
       return { success: false, error: error.message }
@@ -211,17 +210,17 @@ export class ToolService {
       const results = await unifiedRAGSystem.search(args.query, {
         limit: args.options?.limit || 10,
         semanticOnly: args.options?.semanticOnly || false,
-        workingDirectory: this.workingDirectory
+        workingDirectory: this.workingDirectory,
       })
 
       return {
         success: true,
-        results: results.map(r => ({
+        results: results.map((r) => ({
           path: r.path,
           content: r.content.substring(0, 300),
           score: r.score,
-          metadata: r.metadata
-        }))
+          metadata: r.metadata,
+        })),
       }
     } catch (error: any) {
       return { success: false, error: error.message }
@@ -236,7 +235,7 @@ export class ToolService {
       return {
         success: true,
         indexed: result.indexedFiles || 0,
-        fallbackMode: result.fallbackMode || false
+        fallbackMode: result.fallbackMode || false,
       }
     } catch (error: any) {
       return { success: false, error: error.message }

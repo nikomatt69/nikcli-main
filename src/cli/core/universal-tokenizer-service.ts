@@ -1,11 +1,11 @@
 import { EventEmitter } from 'node:events'
-import { type CoreMessage } from 'ai'
 import { countTokens as anthropicCountTokens } from '@anthropic-ai/tokenizer'
-import { encode, decode } from 'gpt-tokenizer'
-import { encodingForModel } from 'js-tiktoken'
+import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
-import { logger } from '../utils/logger'
+import { decode, encode } from 'gpt-tokenizer'
+import { encodingForModel } from 'js-tiktoken'
 import { MODEL_COSTS, type ModelPricing } from '../config/token-limits'
+import { logger } from '../utils/logger'
 
 /**
  * Extract text content from complex content types
@@ -17,7 +17,7 @@ function extractTextContent(content: any): string {
 
   if (Array.isArray(content)) {
     return content
-      .map(part => {
+      .map((part) => {
         if (typeof part === 'string') return part
         if (part?.text) return part.text
         if (part?.type === 'text' && part?.text) return part.text
@@ -411,7 +411,7 @@ export class UniversalTokenizerService extends EventEmitter {
       enableCache: true,
       cacheSize: 1000,
       fallbackEnabled: true,
-      ...options
+      ...options,
     }
 
     this.initializeAdapters()
@@ -437,7 +437,7 @@ export class UniversalTokenizerService extends EventEmitter {
 
     if (Array.isArray(content)) {
       return content
-        .map(part => {
+        .map((part) => {
           if (typeof part === 'string') return part
           if (part?.text) return part.text
           if (part?.type === 'text' && part?.text) return part.text
@@ -475,7 +475,6 @@ export class UniversalTokenizerService extends EventEmitter {
 
       this.emit('token_count', { text: text.substring(0, 100), model, provider, tokens: tokenCount })
       return tokenCount
-
     } catch (error: any) {
       logger.error('Token counting failed', { error: error.message, model, provider })
 
@@ -499,7 +498,6 @@ export class UniversalTokenizerService extends EventEmitter {
 
       this.emit('messages_token_count', { messageCount: messages.length, model, provider, tokens: tokenCount })
       return tokenCount
-
     } catch (error: any) {
       logger.error('Messages token counting failed', { error: error.message, model, provider })
 
@@ -509,7 +507,7 @@ export class UniversalTokenizerService extends EventEmitter {
         for (const message of messages) {
           totalTokens += await this.countTokens(extractTextContent(message.content), model, provider)
         }
-        return totalTokens + (messages.length * 3) // Message overhead
+        return totalTokens + messages.length * 3 // Message overhead
       }
 
       throw error
@@ -525,14 +523,18 @@ export class UniversalTokenizerService extends EventEmitter {
 
     return {
       ...limits,
-      provider
+      provider,
     }
   }
 
   /**
    * Calculate cost estimation for token usage
    */
-  calculateCost(inputTokens: number, outputTokens: number, model: string): {
+  calculateCost(
+    inputTokens: number,
+    outputTokens: number,
+    model: string
+  ): {
     inputCost: number
     outputCost: number
     totalCost: number
@@ -548,7 +550,7 @@ export class UniversalTokenizerService extends EventEmitter {
       inputCost: Number(inputCost.toFixed(6)),
       outputCost: Number(outputCost.toFixed(6)),
       totalCost: Number(totalCost.toFixed(6)),
-      model: pricing.displayName
+      model: pricing.displayName,
     }
   }
 
@@ -571,7 +573,7 @@ export class UniversalTokenizerService extends EventEmitter {
       totalTokens,
       estimatedCost: cost.totalCost,
       model,
-      provider
+      provider,
     }
   }
 
@@ -590,7 +592,7 @@ export class UniversalTokenizerService extends EventEmitter {
   getCacheStats(): { size: number; hitRate: number } {
     return {
       size: this.cache.size,
-      hitRate: 0 // TODO: Track hit rate
+      hitRate: 0, // TODO: Track hit rate
     }
   }
 
@@ -604,9 +606,7 @@ export class UniversalTokenizerService extends EventEmitter {
   }
 
   private getCacheKey(text: string, model: string, provider: string): string {
-    const textHash = text.length > 100 ?
-      text.substring(0, 50) + text.substring(text.length - 50) :
-      text
+    const textHash = text.length > 100 ? text.substring(0, 50) + text.substring(text.length - 50) : text
     return `${provider}:${model}:${textHash.length}:${textHash.slice(0, 20)}`
   }
 

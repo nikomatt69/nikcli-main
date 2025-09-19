@@ -847,7 +847,7 @@ export class SecureToolsRegistry {
       async () => {
         const res = await this.figmaTool.execute({
           command: 'figma-info',
-          args: [fileId]
+          args: [fileId],
         })
         if (!res.success) throw new Error(res.error || 'Failed to get file info')
         return res
@@ -884,7 +884,7 @@ export class SecureToolsRegistry {
 
         const res = await this.figmaTool.execute({
           command: 'figma-export',
-          args
+          args,
         })
         if (!res.success) throw new Error(res.error || 'Export failed')
         return res
@@ -920,7 +920,7 @@ export class SecureToolsRegistry {
 
         const res = await this.figmaTool.execute({
           command: 'figma-to-code',
-          args
+          args,
         })
         if (!res.success) throw new Error(res.error || 'Code generation failed')
         return res
@@ -945,7 +945,7 @@ export class SecureToolsRegistry {
       async () => {
         const res = await this.figmaTool.execute({
           command: 'figma-open',
-          args: [fileUrl]
+          args: [fileUrl],
         })
         if (!res.success) throw new Error(res.error || 'Failed to open in desktop app')
         return res
@@ -981,7 +981,7 @@ export class SecureToolsRegistry {
 
         const res = await this.figmaTool.execute({
           command: 'figma-tokens',
-          args
+          args,
         })
         if (!res.success) throw new Error(res.error || 'Token extraction failed')
         return res
@@ -999,7 +999,9 @@ export class SecureToolsRegistry {
    * Check if Figma integration is configured
    */
   isFigmaConfigured(): boolean {
-    return !!(process.env.FIGMA_API_TOKEN || require('../core/config-manager').simpleConfigManager.get('figma.apiToken'))
+    return !!(
+      process.env.FIGMA_API_TOKEN || require('../core/config-manager').simpleConfigManager.get('figma.apiToken')
+    )
   }
 
   /**

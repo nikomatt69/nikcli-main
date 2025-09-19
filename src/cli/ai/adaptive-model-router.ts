@@ -1,7 +1,7 @@
 import type { CoreMessage } from 'ai'
-import type { ChatMessage } from './model-provider'
 import { universalTokenizer } from '../core/universal-tokenizer-service'
 import { logger } from '../utils/logger'
+import type { ChatMessage } from './model-provider'
 
 export type ModelScope = 'chat_default' | 'planning' | 'code_gen' | 'tool_light' | 'tool_heavy' | 'vision'
 
@@ -35,19 +35,18 @@ async function estimateTokensPrecise(
 ): Promise<{ tokens: number; method: 'precise' | 'fallback' }> {
   try {
     // Convert to CoreMessage format for tokenizer
-    const coreMessages: CoreMessage[] = messages.map(m => ({
+    const coreMessages: CoreMessage[] = messages.map((m) => ({
       role: m.role as any,
-      content: m.content
+      content: m.content,
     }))
 
     const tokens = await universalTokenizer.countMessagesTokens(coreMessages, model, provider)
     return { tokens, method: 'precise' }
-
   } catch (error: any) {
     logger.warn('Precise token counting failed, using fallback', {
       error: error.message,
       provider,
-      model
+      model,
     })
 
     // Fallback to improved character-based estimation
@@ -71,13 +70,13 @@ function estimateTokens(messages: Array<{ content: string }>): number {
  */
 function getCharTokenRatio(provider: string): number {
   const ratios: Record<string, number> = {
-    'openai': 3.5,     // GPT models are more efficient
-    'anthropic': 3.8,  // Claude models
-    'google': 4.2,     // Gemini is efficient
-    'ollama': 3.5,     // Similar to GPT
-    'vercel': 3.7,     // Mixed models
-    'gateway': 3.7,    // Mixed models
-    'openrouter': 3.7  // Mixed models
+    openai: 3.5, // GPT models are more efficient
+    anthropic: 3.8, // Claude models
+    google: 4.2, // Gemini is efficient
+    ollama: 3.5, // Similar to GPT
+    vercel: 3.7, // Mixed models
+    gateway: 3.7, // Mixed models
+    openrouter: 3.7, // Mixed models
   }
 
   return ratios[provider] || 4.0 // Default fallback
@@ -157,10 +156,12 @@ export class AdaptiveModelRouter {
    */
   async choose(input: ModelRouteInput): Promise<ModelRouteDecision> {
     // Filter and ensure messages have required properties
-    const validMessages = input.messages.filter(m => m.role && m.content).map(m => ({
-      role: m.role!,
-      content: m.content!
-    }))
+    const validMessages = input.messages
+      .filter((m) => m.role && m.content)
+      .map((m) => ({
+        role: m.role!,
+        content: m.content!,
+      }))
 
     // Get precise token count
     const { tokens, method } = await estimateTokensPrecise(validMessages, input.provider, input.baseModel)
@@ -211,7 +212,7 @@ export class AdaptiveModelRouter {
       estimatedTokens: tokens,
       actualTokens: method === 'precise' ? tokens : undefined,
       confidence: method === 'precise' ? 0.95 : 0.7,
-      tokenizationMethod: method
+      tokenizationMethod: method,
     }
   }
 
@@ -221,9 +222,11 @@ export class AdaptiveModelRouter {
    */
   chooseFast(input: ModelRouteInput): ModelRouteDecision {
     // Filter and ensure messages have required properties
-    const validMessages = input.messages.filter(m => m.role && m.content).map(m => ({
-      content: m.content!
-    }))
+    const validMessages = input.messages
+      .filter((m) => m.role && m.content)
+      .map((m) => ({
+        content: m.content!,
+      }))
 
     const tokens = estimateTokens(validMessages)
     const lastUser = [...input.messages].reverse().find((m) => m.role === 'user')?.content || ''
@@ -266,7 +269,7 @@ export class AdaptiveModelRouter {
       reason,
       estimatedTokens: tokens,
       confidence: 0.7,
-      tokenizationMethod: 'fallback'
+      tokenizationMethod: 'fallback',
     }
   }
 
@@ -284,7 +287,7 @@ export class AdaptiveModelRouter {
     recommendedTier: 'light' | 'medium' | 'heavy'
   }> {
     const limits = universalTokenizer.getModelLimits(decision.selectedModel, input.provider)
-    const usagePercentage = (decision.actualTokens || decision.estimatedTokens) / limits.context * 100
+    const usagePercentage = ((decision.actualTokens || decision.estimatedTokens) / limits.context) * 100
 
     // Get cost estimation (assuming 0 output tokens for input analysis)
     const cost = universalTokenizer.calculateCost(
@@ -298,7 +301,7 @@ export class AdaptiveModelRouter {
       contextLimit: limits.context,
       usagePercentage,
       estimatedCost: cost.inputCost,
-      recommendedTier: decision.tier
+      recommendedTier: decision.tier,
     }
   }
 }

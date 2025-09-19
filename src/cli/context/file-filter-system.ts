@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, statSync } from 'node:fs'
-import { join, extname, basename, dirname, relative } from 'node:path'
 import { createHash } from 'node:crypto'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import { basename, dirname, extname, join, relative } from 'node:path'
 import chalk from 'chalk'
 
 export interface FileFilterConfig {
@@ -94,30 +94,74 @@ export class FileFilterSystem {
     'logs',
     '*.log',
     '.DS_Store',
-    'Thumbs.db'
+    'Thumbs.db',
   ]
 
   private readonly BUILTIN_EXCLUDE_EXTENSIONS = [
     // Binary files
-    '.exe', '.dll', '.so', '.dylib', '.a', '.lib',
+    '.exe',
+    '.dll',
+    '.so',
+    '.dylib',
+    '.a',
+    '.lib',
     // Images
-    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp', '.ico', '.svg',
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.gif',
+    '.bmp',
+    '.tiff',
+    '.webp',
+    '.ico',
+    '.svg',
     // Videos
-    '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm',
+    '.mp4',
+    '.avi',
+    '.mov',
+    '.mkv',
+    '.wmv',
+    '.flv',
+    '.webm',
     // Audio
-    '.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma',
+    '.mp3',
+    '.wav',
+    '.flac',
+    '.aac',
+    '.ogg',
+    '.wma',
     // Archives
-    '.zip', '.tar', '.gz', '.rar', '.7z', '.bz2', '.xz',
+    '.zip',
+    '.tar',
+    '.gz',
+    '.rar',
+    '.7z',
+    '.bz2',
+    '.xz',
     // Documents
-    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.xls',
+    '.xlsx',
+    '.ppt',
+    '.pptx',
     // Fonts
-    '.ttf', '.otf', '.woff', '.woff2', '.eot',
+    '.ttf',
+    '.otf',
+    '.woff',
+    '.woff2',
+    '.eot',
     // Lock files
     '.lock',
     // Database files
-    '.db', '.sqlite', '.sqlite3',
+    '.db',
+    '.sqlite',
+    '.sqlite3',
     // Cache files
-    '.cache', '.temp', '.tmp'
+    '.cache',
+    '.temp',
+    '.tmp',
   ]
 
   private readonly BUILTIN_EXCLUDE_PATTERNS = [
@@ -163,34 +207,104 @@ export class FileFilterSystem {
     // Large data files
     /\.csv$/i,
     /\.json$/i, // Only large JSON files should be excluded by size
-    /\.xml$/i   // Only large XML files should be excluded by size
+    /\.xml$/i, // Only large XML files should be excluded by size
   ]
 
   private readonly INCLUDE_EXTENSIONS = [
     // Source code
-    '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs',
-    '.py', '.pyw', '.py3',
-    '.java', '.kt', '.scala',
-    '.cpp', '.cxx', '.cc', '.c', '.h', '.hpp', '.hxx',
-    '.rs', '.go', '.rb', '.php', '.swift', '.m', '.mm',
-    '.cs', '.fs', '.vb', '.dart', '.elm', '.ex', '.exs',
-    '.clj', '.cljs', '.hs', '.ml', '.mli', '.f90', '.f95',
+    '.js',
+    '.jsx',
+    '.ts',
+    '.tsx',
+    '.mjs',
+    '.cjs',
+    '.py',
+    '.pyw',
+    '.py3',
+    '.java',
+    '.kt',
+    '.scala',
+    '.cpp',
+    '.cxx',
+    '.cc',
+    '.c',
+    '.h',
+    '.hpp',
+    '.hxx',
+    '.rs',
+    '.go',
+    '.rb',
+    '.php',
+    '.swift',
+    '.m',
+    '.mm',
+    '.cs',
+    '.fs',
+    '.vb',
+    '.dart',
+    '.elm',
+    '.ex',
+    '.exs',
+    '.clj',
+    '.cljs',
+    '.hs',
+    '.ml',
+    '.mli',
+    '.f90',
+    '.f95',
     // Web technologies
-    '.html', '.htm', '.css', '.scss', '.sass', '.less',
-    '.vue', '.svelte', '.astro',
+    '.html',
+    '.htm',
+    '.css',
+    '.scss',
+    '.sass',
+    '.less',
+    '.vue',
+    '.svelte',
+    '.astro',
     // Configuration
-    '.json', '.yaml', '.yml', '.toml', '.ini', '.conf', '.config',
-    '.env', '.env.example', '.env.local', '.env.production',
+    '.json',
+    '.yaml',
+    '.yml',
+    '.toml',
+    '.ini',
+    '.conf',
+    '.config',
+    '.env',
+    '.env.example',
+    '.env.local',
+    '.env.production',
     // Documentation
-    '.md', '.mdx', '.rst', '.txt', '.adoc',
+    '.md',
+    '.mdx',
+    '.rst',
+    '.txt',
+    '.adoc',
     // Scripts
-    '.sh', '.bash', '.zsh', '.fish', '.ps1', '.bat', '.cmd',
+    '.sh',
+    '.bash',
+    '.zsh',
+    '.fish',
+    '.ps1',
+    '.bat',
+    '.cmd',
     // Data formats (small files only)
-    '.graphql', '.gql', '.proto',
+    '.graphql',
+    '.gql',
+    '.proto',
     // Build configs
-    '.dockerfile', '.dockerignore', '.gitignore', '.gitattributes',
-    'Makefile', 'CMakeLists.txt', 'build.gradle', 'pom.xml',
-    'package.json', 'tsconfig.json', 'webpack.config.js', 'vite.config.js'
+    '.dockerfile',
+    '.dockerignore',
+    '.gitignore',
+    '.gitattributes',
+    'Makefile',
+    'CMakeLists.txt',
+    'build.gradle',
+    'pom.xml',
+    'package.json',
+    'tsconfig.json',
+    'webpack.config.js',
+    'vite.config.js',
   ]
 
   constructor(projectRoot: string, config?: Partial<FileFilterConfig>) {
@@ -203,7 +317,7 @@ export class FileFilterSystem {
       excludeDirectories: this.BUILTIN_EXCLUDE_DIRS,
       excludePatterns: this.BUILTIN_EXCLUDE_PATTERNS,
       customRules: [],
-      ...config
+      ...config,
     }
 
     this.stats = this.initializeStats()
@@ -323,7 +437,7 @@ export class FileFilterSystem {
           allowed: false,
           reason: `File too large (${this.formatFileSize(fileSize)})`,
           rule: 'size_limit',
-          fileSize
+          fileSize,
         }
       }
 
@@ -333,22 +447,21 @@ export class FileFilterSystem {
           allowed: false,
           reason: 'Binary file detected',
           rule: 'binary_detection',
-          fileSize
+          fileSize,
         }
       }
 
       // 3. Check custom rules (highest priority)
       for (const rule of this.config.customRules.sort((a, b) => b.priority - a.priority)) {
-        const matches = typeof rule.pattern === 'string'
-          ? relativePath.includes(rule.pattern)
-          : rule.pattern.test(relativePath)
+        const matches =
+          typeof rule.pattern === 'string' ? relativePath.includes(rule.pattern) : rule.pattern.test(relativePath)
 
         if (matches) {
           return {
             allowed: rule.type === 'include',
             reason: rule.reason,
             rule: rule.name,
-            fileSize
+            fileSize,
           }
         }
       }
@@ -360,7 +473,7 @@ export class FileFilterSystem {
           reason: 'Excluded by .gitignore',
           rule: 'gitignore',
           fileSize,
-          isGitIgnored: true
+          isGitIgnored: true,
         }
       }
 
@@ -371,7 +484,7 @@ export class FileFilterSystem {
             allowed: false,
             reason: `Matches exclude pattern: ${pattern.source}`,
             rule: 'exclude_pattern',
-            fileSize
+            fileSize,
           }
         }
       }
@@ -382,7 +495,7 @@ export class FileFilterSystem {
           allowed: false,
           reason: `Excluded extension: ${fileExt}`,
           rule: 'exclude_extension',
-          fileSize
+          fileSize,
         }
       }
 
@@ -394,7 +507,7 @@ export class FileFilterSystem {
             allowed: true,
             reason: 'Important extensionless file',
             rule: 'important_file',
-            fileSize
+            fileSize,
           }
         }
 
@@ -402,18 +515,19 @@ export class FileFilterSystem {
           allowed: false,
           reason: `Extension not in include list: ${fileExt || 'no extension'}`,
           rule: 'extension_not_included',
-          fileSize
+          fileSize,
         }
       }
 
       // 8. Final content-based checks for specific file types
       if (fileExt === '.json' || fileExt === '.xml') {
-        if (fileSize > 100000) { // 100KB for data files
+        if (fileSize > 100000) {
+          // 100KB for data files
           return {
             allowed: false,
             reason: `Large data file (${this.formatFileSize(fileSize)})`,
             rule: 'large_data_file',
-            fileSize
+            fileSize,
           }
         }
       }
@@ -422,14 +536,13 @@ export class FileFilterSystem {
       return {
         allowed: true,
         reason: 'Passed all filter checks',
-        fileSize
+        fileSize,
       }
-
     } catch (error) {
       return {
         allowed: false,
         reason: `Cannot access file: ${error}`,
-        rule: 'access_error'
+        rule: 'access_error',
       }
     }
   }
@@ -461,9 +574,8 @@ export class FileFilterSystem {
     // Check custom rules
     for (const rule of this.config.customRules) {
       if (rule.type === 'exclude') {
-        const matches = typeof rule.pattern === 'string'
-          ? relativePath.includes(rule.pattern)
-          : rule.pattern.test(relativePath)
+        const matches =
+          typeof rule.pattern === 'string' ? relativePath.includes(rule.pattern) : rule.pattern.test(relativePath)
 
         if (matches) return true
       }
@@ -487,9 +599,9 @@ export class FileFilterSystem {
       const content = readFileSync(gitignorePath, 'utf-8')
       this.gitignoreRules = content
         .split('\n')
-        .map(line => line.trim())
-        .filter(line => line && !line.startsWith('#'))
-        .map(line => {
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#'))
+        .map((line) => {
           // Convert gitignore patterns to match our needs
           let pattern = line
           if (pattern.startsWith('/')) pattern = pattern.slice(1)
@@ -546,12 +658,14 @@ export class FileFilterSystem {
     }
 
     // File size heuristic (very large files are likely binary)
-    if (fileSize > 10 * 1024 * 1024) { // 10MB
+    if (fileSize > 10 * 1024 * 1024) {
+      // 10MB
       return true
     }
 
     // Content-based detection for smaller files
-    if (fileSize < 1024) { // Only check small files for performance
+    if (fileSize < 1024) {
+      // Only check small files for performance
       try {
         const buffer = readFileSync(filePath, { encoding: null })
         const slice = buffer.slice(0, Math.min(512, buffer.length))
@@ -570,7 +684,7 @@ export class FileFilterSystem {
           }
         }
 
-        return (nonPrintable / slice.length) > 0.3 // 30% threshold
+        return nonPrintable / slice.length > 0.3 // 30% threshold
       } catch {
         // If we can't read the file, assume it's binary
         return true
@@ -585,14 +699,28 @@ export class FileFilterSystem {
    */
   private isImportantExtensionlessFile(fileName: string): boolean {
     const importantFiles = [
-      'Dockerfile', 'Makefile', 'Rakefile', 'Gemfile', 'Procfile',
-      'Vagrantfile', 'Gruntfile', 'gulpfile', 'webpack.config',
-      'rollup.config', 'vite.config', 'jest.config', 'babel.config',
-      'LICENSE', 'README', 'CHANGELOG', 'CONTRIBUTING', 'AUTHORS'
+      'Dockerfile',
+      'Makefile',
+      'Rakefile',
+      'Gemfile',
+      'Procfile',
+      'Vagrantfile',
+      'Gruntfile',
+      'gulpfile',
+      'webpack.config',
+      'rollup.config',
+      'vite.config',
+      'jest.config',
+      'babel.config',
+      'LICENSE',
+      'README',
+      'CHANGELOG',
+      'CONTRIBUTING',
+      'AUTHORS',
     ]
 
-    return importantFiles.some(important =>
-      fileName === important || fileName.toLowerCase() === important.toLowerCase()
+    return importantFiles.some(
+      (important) => fileName === important || fileName.toLowerCase() === important.toLowerCase()
     )
   }
 
@@ -625,7 +753,7 @@ export class FileFilterSystem {
       binaryFiles: 0,
       totalSizeAllowed: 0,
       totalSizeExcluded: 0,
-      excludedByRule: new Map()
+      excludedByRule: new Map(),
     }
   }
 
@@ -647,13 +775,19 @@ export class FileFilterSystem {
 
     console.log(chalk.cyan('Overview:'))
     console.log(`  Total Scanned: ${stats.totalScanned.toLocaleString()}`)
-    console.log(`  Included: ${stats.allowed.toLocaleString()} (${((stats.allowed / stats.totalScanned) * 100).toFixed(1)}%)`)
-    console.log(`  Excluded: ${stats.excluded.toLocaleString()} (${((stats.excluded / stats.totalScanned) * 100).toFixed(1)}%)`)
+    console.log(
+      `  Included: ${stats.allowed.toLocaleString()} (${((stats.allowed / stats.totalScanned) * 100).toFixed(1)}%)`
+    )
+    console.log(
+      `  Excluded: ${stats.excluded.toLocaleString()} (${((stats.excluded / stats.totalScanned) * 100).toFixed(1)}%)`
+    )
 
     console.log(chalk.cyan('\nSize Analysis:'))
     console.log(`  Total Size Included: ${this.formatFileSize(stats.totalSizeAllowed)}`)
     console.log(`  Total Size Excluded: ${this.formatFileSize(stats.totalSizeExcluded)}`)
-    console.log(`  Space Saved: ${this.formatFileSize(stats.totalSizeExcluded)} (${((stats.totalSizeExcluded / (stats.totalSizeAllowed + stats.totalSizeExcluded)) * 100).toFixed(1)}%)`)
+    console.log(
+      `  Space Saved: ${this.formatFileSize(stats.totalSizeExcluded)} (${((stats.totalSizeExcluded / (stats.totalSizeAllowed + stats.totalSizeExcluded)) * 100).toFixed(1)}%)`
+    )
 
     console.log(chalk.cyan('\nExclusion Breakdown:'))
     console.log(`  Git Ignored: ${stats.gitIgnored.toLocaleString()}`)

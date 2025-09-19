@@ -27,13 +27,10 @@ import { type DocumentationEntry, docLibrary } from './core/documentation-librar
 import { enhancedTokenCache } from './core/enhanced-token-cache'
 import { inputQueue } from './core/input-queue'
 import { type McpServerConfig, mcpClient } from './core/mcp-client'
-import { universalTokenizer } from './core/universal-tokenizer-service'
-
-import { secureTools } from './tools/secure-tools-registry'
-
 import { QuietCacheLogger, TokenOptimizer } from './core/performance-optimizer'
 import { tokenCache } from './core/token-cache'
 import { toolRouter } from './core/tool-router'
+import { universalTokenizer } from './core/universal-tokenizer-service'
 import { validatorManager } from './core/validator-manager'
 import { WebSearchProvider } from './core/web-search-provider'
 import { getProjectHealthSummary, ideDiagnosticIntegration } from './integrations/ide-diagnostic-integration'
@@ -53,6 +50,7 @@ import { planningService } from './services/planning-service'
 import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
 import { StreamingOrchestrator } from './streaming-orchestrator'
+import { secureTools } from './tools/secure-tools-registry'
 import { toolsManager } from './tools/tools-manager'
 import { advancedUI } from './ui/advanced-cli-ui'
 import { approvalSystem } from './ui/approval-system'
@@ -154,7 +152,7 @@ export class NikCLI {
   // Enhanced features
   private enhancedFeaturesEnabled: boolean = true
   private smartSuggestionsEnabled: boolean = true
-  private tokenDisplay = createConsoleTokenDisplay()  // Real-time token display
+  private tokenDisplay = createConsoleTokenDisplay() // Real-time token display
   private streamingOptimized: boolean = true
 
   // Execution state management
@@ -217,7 +215,7 @@ export class NikCLI {
     // Compact mode by default (cleaner output unless explicitly disabled)
     try {
       if (!process.env.NIKCLI_COMPACT) process.env.NIKCLI_COMPACT = '1'
-    } catch { }
+    } catch {}
 
     // Initialize core managers
     this.configManager = simpleConfigManager
@@ -241,8 +239,8 @@ export class NikCLI {
     // Initialize token tracking system
     this.initializeTokenTrackingSystem()
 
-      // Expose this instance globally for command handlers
-      ; (global as any).__nikCLI = this
+    // Expose this instance globally for command handlers
+    ;(global as any).__nikCLI = this
 
     this.setupEventHandlers()
     // Bridge orchestrator events into NikCLI output
@@ -268,14 +266,14 @@ export class NikCLI {
     // Render initial prompt
     this.renderPromptArea()
 
-      // Expose NikCLI globally for token management
-      ; (global as any).__nikcli = this
+    // Expose NikCLI globally for token management
+    ;(global as any).__nikcli = this
 
     // Patch inquirer to avoid status bar redraw during interactive prompts
     try {
       const originalPrompt = (inquirer as any).prompt?.bind(inquirer)
       if (originalPrompt) {
-        ; (inquirer as any).prompt = async (...args: any[]) => {
+        ;(inquirer as any).prompt = async (...args: any[]) => {
           this.isInquirerActive = true
           this.stopStatusBar()
           try {
@@ -818,19 +816,19 @@ export class NikCLI {
     process.on('unhandledRejection', (reason: any) => {
       try {
         console.log(require('chalk').red(`\n❌ Unhandled rejection: ${reason?.message || reason}`))
-      } catch { }
+      } catch {}
       try {
         this.renderPromptAfterOutput()
-      } catch { }
+      } catch {}
     })
 
     process.on('uncaughtException', (err: any) => {
       try {
         console.log(require('chalk').red(`\n❌ Uncaught exception: ${err?.message || err}`))
-      } catch { }
+      } catch {}
       try {
         this.renderPromptAfterOutput()
-      } catch { }
+      } catch {}
     })
   }
   // Bridge StreamingOrchestrator agent lifecycle events into NikCLI output
@@ -1690,9 +1688,9 @@ export class NikCLI {
   private showAdvancedHeader(): void {
     const header = boxen(
       `${chalk.cyanBright.bold('🤖 NikCLI')} ${chalk.gray('v0.3.1-beta')}\n` +
-      `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
-      `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
-      `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
+        `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
+        `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
+        `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
       {
         padding: 1,
         margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -1963,22 +1961,22 @@ export class NikCLI {
           // Kill any running subprocesses started by tools
           try {
             const procs = toolsManager.getRunningProcesses?.() || []
-              ; (async () => {
-                let killed = 0
-                await Promise.all(
-                  procs.map(async (p: any) => {
-                    try {
-                      const ok = await toolsManager.killProcess?.(p.pid)
-                      if (ok) killed++
-                    } catch {
-                      /* ignore */
-                    }
-                  })
-                )
-                if (killed > 0) {
-                  console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
-                }
-              })()
+            ;(async () => {
+              let killed = 0
+              await Promise.all(
+                procs.map(async (p: any) => {
+                  try {
+                    const ok = await toolsManager.killProcess?.(p.pid)
+                    if (ok) killed++
+                  } catch {
+                    /* ignore */
+                  }
+                })
+              )
+              if (killed > 0) {
+                console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
+              }
+            })()
           } catch {
             /* ignore */
           }
@@ -2070,6 +2068,9 @@ export class NikCLI {
         this.renderPromptAfterOutput()
         return
       }
+
+      // 🛡️ EMERGENCY: Auto-enable compact mode for long/complex inputs to prevent "Message too long"
+      this.checkAndEnableCompactMode(trimmed)
 
       // Set user input as active when user sends a message
       this.userInputActive = true
@@ -2678,6 +2679,37 @@ export class NikCLI {
   private async autoAICodeGeneration(input: string): Promise<void> {
     console.log(chalk.cyan('🤖 AI Code Generation detected'))
     await this.executeAgent('universal', `generate code: ${input}`, {})
+  }
+
+  /**
+   * 🛡️ Check for long/complex inputs and auto-enable compact mode to prevent "Message too long"
+   */
+  private checkAndEnableCompactMode(input: string): void {
+    const complexPatterns = [
+      /analyze.*project|explore.*directory.*depth|code_analysis.*project/i,
+      /read.*multiple.*files?|read.*all.*files?/i,
+      /explore.*src.*depth.*[3-9]|explore.*depth.*[4-9]/i,
+      /git.*workflow.*unknown|analyze.*full.*codebase/i,
+      /comprehensive.*analysis|complete.*analysis|deep.*analysis/i,
+    ]
+
+    const shouldEnableCompact =
+      input.length > 200 || // Long input text
+      complexPatterns.some((pattern) => pattern.test(input)) || // Complex analysis request
+      (input.includes('analyze') && input.includes('project')) || // Project analysis
+      (input.includes('explore') && input.includes('depth')) || // Deep directory exploration
+      input.split(' ').length > 30 // Very long command
+
+    if (shouldEnableCompact && process.env.NIKCLI_COMPACT !== '1') {
+      console.log(chalk.yellow('🛡️ Auto-enabling compact mode for complex request to prevent token overflow'))
+      process.env.NIKCLI_COMPACT = '1'
+
+      // Also set super compact for very complex requests
+      if (input.length > 500 || input.split(' ').length > 50) {
+        console.log(chalk.yellow('🔥 Super compact mode enabled for very large request'))
+        process.env.NIKCLI_SUPER_COMPACT = '1'
+      }
+    }
   }
 
   /**
@@ -4318,7 +4350,7 @@ export class NikCLI {
     try {
       process.env.NIKCLI_COMPACT = '1'
       process.env.NIKCLI_SUPER_COMPACT = '1'
-    } catch { }
+    } catch {}
     console.log(chalk.blue('🎯 Entering Enhanced Planning Mode...'))
 
     try {
@@ -4461,11 +4493,11 @@ export class NikCLI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\n\n` +
-      `${chalk.green('✅ Completed:')} ${completed}\n` +
-      `${chalk.red('❌ Failed:')} ${failed}\n` +
-      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
-      `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
-      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+        `${chalk.green('✅ Completed:')} ${completed}\n` +
+        `${chalk.red('❌ Failed:')} ${failed}\n` +
+        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
+        `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
+        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -4831,21 +4863,21 @@ export class NikCLI {
         console.log(
           chalk.cyan(`📋 Generated plan with ${plan.steps.length} steps (id: ${plan.id}). Executing in background...`)
         )
-          // Fire-and-forget execution to keep CLI responsive
-          ; (async () => {
-            try {
-              await planningService.executePlan(plan.id, {
-                showProgress: true,
-                autoExecute: true,
-                confirmSteps: false,
-              })
-              console.log(chalk.green('✅ Background plan execution completed'))
-            } catch (err: any) {
-              console.log(chalk.red(`❌ Plan execution error: ${err.message}`))
-            }
-            // Ensure prompt is restored after background execution
-            this.renderPromptAfterOutput()
-          })()
+        // Fire-and-forget execution to keep CLI responsive
+        ;(async () => {
+          try {
+            await planningService.executePlan(plan.id, {
+              showProgress: true,
+              autoExecute: true,
+              confirmSteps: false,
+            })
+            console.log(chalk.green('✅ Background plan execution completed'))
+          } catch (err: any) {
+            console.log(chalk.red(`❌ Plan execution error: ${err.message}`))
+          }
+          // Ensure prompt is restored after background execution
+          this.renderPromptAfterOutput()
+        })()
       } else {
         // Direct autonomous execution - select best agent and launch
         const selected = this.agentManager.findBestAgentForTask(task as any)
@@ -5791,9 +5823,9 @@ export class NikCLI {
               console.log(
                 boxen(
                   `Provider: ${provider}\n` +
-                  `Model: ${modelCfg?.model || modelName}\n` +
-                  `API key not configured.\n` +
-                  `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
+                    `Model: ${modelCfg?.model || modelName}\n` +
+                    `API key not configured.\n` +
+                    `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
                   { title: '🔑 API Key Missing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
                 )
               )
@@ -5987,7 +6019,7 @@ export class NikCLI {
             if (args.length === 0) {
               const ctx = workspaceContext.getContextForAgent('cli', 10)
               const lines: string[] = []
-              lines.push(`📁 Root: ${this.workingDirectory}`)
+              lines.push(`${chalk.blue('📁')} Root: ${this.workingDirectory}`)
               lines.push(`🎯 Selected Paths (${ctx.selectedPaths.length}):`)
               ctx.selectedPaths.forEach((p) => lines.push(`• ${p}`))
               lines.push('')
@@ -6758,10 +6790,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     console.log(
       boxen(
         `${chalk.blue.bold(plan.title)}\n\n` +
-        `${chalk.gray('Goal:')} ${plan.goal}\n` +
-        `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
-        `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
-        `${chalk.gray('Status:')} ${this.getPlanStatusColor(plan.status)(plan.status.toUpperCase())}`,
+          `${chalk.gray('Goal:')} ${plan.goal}\n` +
+          `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
+          `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
+          `${chalk.gray('Status:')} ${this.getPlanStatusColor(plan.status)(plan.status.toUpperCase())}`,
         {
           padding: 1,
           margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -7586,9 +7618,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Session Tokens:')}\n` +
-          `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
-          `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
-          `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
+            `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
+            `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
+            `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
           {
             padding: 1,
             margin: 1,
@@ -7603,10 +7635,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         chalk.white(
           'Model'.padEnd(30) +
-          'Total Cost'.padStart(12) +
-          'Input Cost'.padStart(12) +
-          'Output Cost'.padStart(12) +
-          'Provider'.padStart(15)
+            'Total Cost'.padStart(12) +
+            'Input Cost'.padStart(12) +
+            'Output Cost'.padStart(12) +
+            'Provider'.padStart(15)
         )
       )
       console.log(chalk.gray('─'.repeat(90)))
@@ -7667,13 +7699,13 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Current Model:')}\n` +
-          `${chalk.white(pricing.displayName)}\n\n` +
-          `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
-          `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
-          `${chalk.yellow('Examples:')}\n` +
-          `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
-          `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
-          `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
+            `${chalk.white(pricing.displayName)}\n\n` +
+            `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
+            `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
+            `${chalk.yellow('Examples:')}\n` +
+            `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
+            `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
+            `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
           {
             padding: 1,
             margin: 1,
@@ -7716,9 +7748,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Estimation Parameters:')}\n` +
-          `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
-          `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
-          `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
+            `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
+            `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
+            `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
           {
             padding: 1,
             margin: 1,
@@ -7813,15 +7845,15 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
           const { cacheService } = await import('./services/cache-service')
           const cacheStats = await cacheService.getStats()
 
-          redisStats = `${chalk.red('🚀 Redis Cache:')}\n` +
+          redisStats =
+            `${chalk.red('🚀 Redis Cache:')}\n` +
             `  Status: ${cacheStats.redis.connected ? chalk.green('✅ Connected') : chalk.red('❌ Disconnected')}\n` +
             `  Enabled: ${cacheStats.redis.enabled ? chalk.green('✅ Yes') : chalk.yellow('⚠️ No')}\n` +
             `  Total Hits: ${chalk.green(cacheStats.totalHits.toLocaleString())}\n` +
             `  Hit Rate: ${chalk.blue(cacheStats.hitRate.toFixed(1))}%\n` +
             `  Fallback: ${cacheStats.fallback.enabled ? chalk.cyan('SmartCache') : chalk.gray('None')}\n\n`
         } catch (error) {
-          redisStats = `${chalk.red('🚀 Redis Cache:')}\n` +
-            `  Status: ${chalk.gray('Unavailable')}\n\n`
+          redisStats = `${chalk.red('🚀 Redis Cache:')}\n` + `  Status: ${chalk.gray('Unavailable')}\n\n`
         }
 
         const totalTokensSaved = stats.totalTokensSaved + completionStats.totalHits * 50 // Estimate 50 tokens saved per completion hit
@@ -7829,18 +7861,18 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         console.log(
           boxen(
             `${chalk.cyan.bold('🔮 Advanced Cache System Statistics')}\n\n` +
-            redisStats +
-            `${chalk.magenta('📦 Full Response Cache:')}\n` +
-            `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
-            `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
-            `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
-            `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
-            `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
-            `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
-            `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
-            `${chalk.green.bold('💰 Total Savings:')}\n` +
-            `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
-            `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
+              redisStats +
+              `${chalk.magenta('📦 Full Response Cache:')}\n` +
+              `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
+              `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
+              `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
+              `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
+              `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
+              `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
+              `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
+              `${chalk.green.bold('💰 Total Savings:')}\n` +
+              `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
+              `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
             {
               padding: 1,
               margin: 1,
@@ -7884,25 +7916,25 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
           console.log(
             boxen(
               `${chalk.cyan('🎯 Precise Token Tracking Session')}\n\n` +
-              `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
-              `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
-              `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
-              `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
-              `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
-              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-              `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
-              `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
-              `Total Session Cost: ${chalk.yellow.bold('$' + stats.session.totalCost.toFixed(6))}\n` +
-              `Average per Message: ${chalk.green('$' + stats.costPerMessage.toFixed(6))}\n` +
-              `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
-              `Session Duration: ${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000) + ' min'}`,
+                `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
+                `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
+                `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
+                `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
+                `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
+                `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+                `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+                `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
+                `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
+                `Total Session Cost: ${chalk.yellow.bold('$' + stats.session.totalCost.toFixed(6))}\n` +
+                `Average per Message: ${chalk.green('$' + stats.costPerMessage.toFixed(6))}\n` +
+                `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
+                `Session Duration: ${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000) + ' min'}`,
               {
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
                 borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
-                title: '🔢 Universal Tokenizer'
+                title: '🔢 Universal Tokenizer',
               }
             )
           )
@@ -7913,21 +7945,20 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
             console.log(
               boxen(
                 `${chalk.yellow('⚡ Optimization Recommendations:')}\n\n` +
-                `Status: ${optimization.recommendation === 'continue' ? chalk.green('✅ Good') : chalk.yellow('⚠️  Attention needed')}\n` +
-                `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
-                `Reason: ${chalk.gray(optimization.reason)}`,
+                  `Status: ${optimization.recommendation === 'continue' ? chalk.green('✅ Good') : chalk.yellow('⚠️  Attention needed')}\n` +
+                  `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
+                  `Reason: ${chalk.gray(optimization.reason)}`,
                 {
                   padding: 1,
                   margin: 1,
                   borderStyle: 'round',
                   borderColor: 'yellow',
-                  title: '🎛️  Smart Optimization'
+                  title: '🎛️  Smart Optimization',
                 }
               )
             )
           }
         }
-
       } else if (chatSession) {
         // Fallback to legacy analysis with improved precision
         const totalChars = chatSession.messages.reduce((sum, msg) => sum + msg.content.length, 0)
@@ -7938,9 +7969,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         let preciseTokens = 0
         let isPrecise = false
         try {
-          const coreMessages = chatSession.messages.map(m => ({
+          const coreMessages = chatSession.messages.map((m) => ({
             role: m.role as any,
-            content: m.content
+            content: m.content,
           }))
           preciseTokens = await universalTokenizer.countMessagesTokens(coreMessages, currentModel, currentProvider)
           isPrecise = true
@@ -7954,10 +7985,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
         // Calculate precise costs
         const userTokens = Math.round(
-          chatSession.messages.filter(m => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
+          chatSession.messages.filter((m) => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
         )
         const assistantTokens = Math.round(
-          chatSession.messages.filter(m => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
+          chatSession.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
         )
 
         const currentCost = universalTokenizer.calculateCost(userTokens, assistantTokens, currentModel)
@@ -7965,24 +7996,24 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         console.log(
           boxen(
             `${chalk.cyan(`${isPrecise ? '🎯' : '📊'} Session Token Analysis`)}\n\n` +
-            `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
-            `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
-            `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
-            `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-            `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-            `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
-            `${chalk.yellow('💰 Cost Analysis:')}\n` +
-            `Model: ${chalk.white(currentCost.model)}\n` +
-            `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(6))}\n` +
-            `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(6))}\n` +
-            `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(6))}\n\n` +
-            `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✅') : chalk.yellow('Character estimation (fallback)')}`,
+              `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
+              `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
+              `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
+              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+              `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
+              `${chalk.yellow('💰 Cost Analysis:')}\n` +
+              `Model: ${chalk.white(currentCost.model)}\n` +
+              `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(6))}\n` +
+              `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(6))}\n` +
+              `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(6))}\n\n` +
+              `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✅') : chalk.yellow('Character estimation (fallback)')}`,
             {
               padding: 1,
               margin: 1,
               borderStyle: 'round',
               borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
-              title: isPrecise ? '🔢 Precise Analysis' : '📊 Estimated Analysis'
+              title: isPrecise ? '🔢 Precise Analysis' : '📊 Estimated Analysis',
             }
           )
         )
@@ -7996,8 +8027,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         console.log(
           boxen(
             `System: ${systemMsgs.length} messages (${sysTokens.toLocaleString()} tokens)\n` +
-            `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
-            `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
+              `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
+              `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
             {
               title: '📋 Message Breakdown',
               padding: 1,
@@ -8012,14 +8043,14 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         console.log(
           boxen(
             `${chalk.yellow('💡 Tip:')} For more precise tracking, start a new session to enable\n` +
-            `real-time token monitoring with the Universal Tokenizer.\n\n` +
-            `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
+              `real-time token monitoring with the Universal Tokenizer.\n\n` +
+              `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
             {
               padding: 1,
               margin: 1,
               borderStyle: 'round',
               borderColor: 'yellow',
-              title: '🚀 Upgrade Available'
+              title: '🚀 Upgrade Available',
             }
           )
         )
@@ -8105,7 +8136,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
               const c = calc(userTokens, assistantTokens, name)
               const avgPer1K = (c.totalCost / sessionTokens) * 1000
               lines.push(`${c.model}  avg $/1K: $${avgPer1K.toFixed(4)}  total: $${c.totalCost.toFixed(4)}`)
-            } catch { }
+            } catch {}
           })
           if (lines.length > 0) {
             console.log(
@@ -8118,7 +8149,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
               })
             )
           }
-        } catch { }
+        } catch {}
 
         // Recommendations
         if (preciseTokens > 150000) {
@@ -8472,7 +8503,6 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         case 'export-config':
           await this.exportMcpConfig()
           break
-
 
         default:
           console.log(
@@ -8882,7 +8912,6 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       ['/build', 'Build the current project'],
       ['/test [pattern]', 'Run tests with optional pattern'],
 
-
       // API Keys & Configuration
       ['/set-key <model> <key>', 'Set API key for AI models'],
       ['/set-coin-keys', 'Configure Coinbase CDP API keys'],
@@ -9043,12 +9072,12 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     console.log(
       boxen(
         `${title}\n${subtitle}\n\n` +
-        `${enhancedBadge}\n\n` +
-        `${wrapBlue('Mode:')} ${chalk.yellow(this.currentMode)}\n` +
-        `${wrapBlue('Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n` +
-        `${wrapBlue('Directory:')} ${chalk.cyan(path.basename(this.workingDirectory))}\n\n` +
-        `${chalk.dim('Type /help for commands or start chatting!')}\n` +
-        `${chalk.dim('Use Shift+Tab to cycle modes: default → auto → plan')}`,
+          `${enhancedBadge}\n\n` +
+          `${wrapBlue('Mode:')} ${chalk.yellow(this.currentMode)}\n` +
+          `${wrapBlue('Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n` +
+          `${wrapBlue('Directory:')} ${chalk.cyan(path.basename(this.workingDirectory))}\n\n` +
+          `${chalk.dim('Type /help for commands or start chatting!')}\n` +
+          `${chalk.dim('Use Shift+Tab to cycle modes: default → auto → plan')}`,
         {
           padding: 1,
           margin: 1,
@@ -9105,7 +9134,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         // Setup basic project structure
         const basicPackageJson = {
           name: path.basename(this.workingDirectory),
-          version: '0.1.4',
+          version: '0.1.5',
           description: 'Project managed by NikCLI',
           scripts: {
             start: 'node index.js',
@@ -9369,10 +9398,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60)
     const totalTokens = this.sessionTokenUsage + this.contextTokens
     const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
-    const costDisplay = this.realTimeCost > 0 ? `$${this.realTimeCost.toFixed(4)}` : '$0.0000'
+    const costDisplay =
+      this.realTimeCost > 0 ? chalk.magenta(`$${this.realTimeCost.toFixed(4)}`) : chalk.magenta('$0.0000')
 
     const terminalWidth = process.stdout.columns || 120
-    const workingDir = path.basename(this.workingDirectory)
+    const workingDir = chalk.blue(path.basename(this.workingDirectory))
 
     // Mode info
     const modeIcon =
@@ -9402,12 +9432,23 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const modelColor = this.getProviderColor(currentModel)
     const modelDisplay = `${providerIcon} ${modelColor(currentModel)}`
 
-    // Create status bar
-    const statusLeft = `${modeIcon} ${readyText} | ${modelDisplay}${vmInfo}`
+    // Responsive layout based on terminal width
+    const layout = this.createResponsiveStatusLayout(terminalWidth)
+    const truncatedModel = this.truncateModelName(currentModel, layout.modelMaxLength)
+    const responsiveModelDisplay = `${providerIcon} ${modelColor(truncatedModel)}`
+
+    // Context and token rate info with responsive sizing
+    const contextInfo = this.renderContextProgressBar(layout.contextWidth, layout.useCompact)
+    const tokenRate = layout.showTokenRate ? ` | ${this.getTokenRate(layout.useCompact)}` : ''
+
+    // Create responsive status bar
+    const statusLeft = `${modeIcon} ${readyText} | ${responsiveModelDisplay} | ${contextInfo}${tokenRate}${vmInfo}`
     const queuePart = queueCount > 0 ? ` | 📥 ${queueCount}` : ''
-    const visionPart = ` | ${this.getVisionStatusIcon()}`
-    const imgPart = ` | ${this.getImageGenStatusIcon()}`
-    const statusRight = `💰 ${tokensDisplay} | ${costDisplay} | ⏱️ ${sessionDuration}m | 📁 ${workingDir}${queuePart}${visionPart}${imgPart}`
+    const visionIcon = this.getVisionStatusIcon()
+    const imgIcon = this.getImageGenStatusIcon()
+    const visionPart = layout.showVisionIcons && visionIcon ? ` | ${visionIcon}` : ''
+    const imgPart = layout.showVisionIcons && imgIcon ? ` | ${imgIcon}` : ''
+    const statusRight = `${costDisplay} | ⏱️ ${chalk.yellow(sessionDuration + 'm')} | ${chalk.blue('📁')} ${workingDir}${queuePart}${visionPart}${imgPart}`
     const statusPadding = Math.max(
       0,
       terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 3
@@ -9425,7 +9466,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       const availableRightSpace = Math.max(10, maxContentWidth - this._stripAnsi(statusLeft).length - 1)
       const plainStatusRight = this._stripAnsi(statusRight)
       if (plainStatusRight.length > availableRightSpace) {
-        const truncatedText = plainStatusRight.substring(0, availableRightSpace - 3) + '...'
+        const truncatedText = plainStatusRight.substring(0, availableRightSpace - 2) + '..'
         finalStatusRight = truncatedText
       }
       _finalStatusPadding = Math.max(
@@ -9448,34 +9489,49 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     if (!this.isPrintingPanel) {
       process.stdout.write(chalk.cyan('╭' + '─'.repeat(terminalWidth - 2) + '╮') + '\n')
 
-      // Force exact width to prevent overflow
+      // Force exact width to fill terminal completely
       const leftPart = ` ${finalStatusLeft}`
       const rightPart = finalStatusRight
-      const availableSpace = terminalWidth - 4 // 2 for borders, 2 for minimum spaces
-      const totalContentLength = this._stripAnsi(leftPart).length + this._stripAnsi(rightPart).length
+
+      // Calculate exact space needed (terminalWidth - 2 for borders)
+      const totalSpaceAvailable = terminalWidth - 2
+      const leftLength = this._stripAnsi(leftPart).length
+      const rightLength = this._stripAnsi(rightPart).length
 
       let displayLeft = leftPart
       let displayRight = rightPart
-      let padding = Math.max(1, availableSpace - totalContentLength)
 
-      // If still too long, truncate right part
-      if (totalContentLength >= availableSpace) {
-        const maxRightLength = availableSpace - this._stripAnsi(leftPart).length - 1
-        if (maxRightLength > 10) {
-          const plainRight = this._stripAnsi(rightPart)
-          displayRight =
-            plainRight.length > maxRightLength ? plainRight.substring(0, maxRightLength - 3) + '...' : plainRight
+      // If content is too long, truncate intelligently
+      if (leftLength + rightLength + 1 > totalSpaceAvailable) {
+        // Reserve space for right part (minimum 15 chars) and padding
+        const minRightSpace = Math.min(15, rightLength)
+        const maxLeftSpace = totalSpaceAvailable - minRightSpace - 1
+
+        if (leftLength > maxLeftSpace) {
+          const plainLeft = this._stripAnsi(leftPart)
+          displayLeft = ` ${plainLeft.substring(0, maxLeftSpace - 2)}..`
         }
-        padding = 1
+
+        const remainingSpace = totalSpaceAvailable - this._stripAnsi(displayLeft).length - 1
+        if (rightLength > remainingSpace) {
+          const plainRight = this._stripAnsi(rightPart)
+          displayRight = plainRight.substring(0, remainingSpace - 2) + '..'
+        }
       }
+
+      // Calculate exact padding to fill remaining space - limit max padding for better distribution
+      const finalLeftLength = this._stripAnsi(displayLeft).length
+      const finalRightLength = this._stripAnsi(displayRight).length
+      const calculatedPadding = totalSpaceAvailable - finalLeftLength - finalRightLength
+      const padding = Math.max(1, Math.min(calculatedPadding, Math.floor(terminalWidth * 0.4)))
 
       process.stdout.write(
         chalk.cyan('│') +
-        chalk.green(displayLeft) +
-        ' '.repeat(padding) +
-        chalk.gray(displayRight) +
-        chalk.cyan('│') +
-        '\n'
+          chalk.green(displayLeft) +
+          ' '.repeat(padding) +
+          chalk.gray(displayRight) +
+          chalk.cyan('│') +
+          '\n'
       )
       process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n')
     }
@@ -9573,7 +9629,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60) // minutes
     const totalTokens = this.sessionTokenUsage + this.contextTokens
     const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
-    const costDisplay = this.realTimeCost > 0 ? `$${this.realTimeCost.toFixed(4)}` : '$0.0000'
+    const costDisplay =
+      this.realTimeCost > 0 ? chalk.magenta(`$${this.realTimeCost.toFixed(4)}`) : chalk.magenta('$0.0000')
     const _sessionDisplay = ` | ${sessionDuration}m session`
 
     // Get current model info
@@ -9581,7 +9638,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const providerIcon = this.getProviderIcon(currentModel)
     const modelColor = this.getProviderColor(currentModel)
     // Create status bar content
-    const statusContent = `${currentFile} | ${contextInfo} | 📊 ${tokensDisplay} tokens | ${costDisplay} | ${providerIcon} ${modelColor(currentModel)} | ${this.getVisionStatusIcon()} | ${this.getImageGenStatusIcon()}`
+    const statusContent = `${currentFile} | ${contextInfo} | 📊 ${tokensDisplay} tokens | ${costDisplay} | ${providerIcon} ${modelColor(currentModel)}`
 
     // Calculate available width and truncate if necessary
     const maxWidth = width - 4 // Reserve space for borders
@@ -9700,6 +9757,139 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     return `[${'█'.repeat(filled)}${'░'.repeat(Math.max(0, width - filled))}]`
   }
 
+  // Context progress bar showing token usage with responsive sizing
+  private renderContextProgressBar(width: number = 10, compact: boolean = false): string {
+    const totalTokens = this.sessionTokenUsage + this.contextTokens
+    const currentModel = this.configManager.getCurrentModel()
+
+    // Get model limits - fallback to 120k for unknown models
+    let maxTokens = 120000
+    try {
+      // Detect provider from model name
+      let provider = 'anthropic'
+      if (currentModel.includes('gpt') || currentModel.includes('openai')) provider = 'openai'
+      else if (currentModel.includes('claude')) provider = 'anthropic'
+      else if (currentModel.includes('gemini')) provider = 'google'
+      else if (currentModel.includes('openrouter') || currentModel.includes('/')) provider = 'openrouter'
+
+      const limits = universalTokenizer.getModelLimits(currentModel, provider)
+      maxTokens = limits.context
+    } catch {
+      // Use fallback
+    }
+
+    const percentage = Math.min(100, (totalTokens / maxTokens) * 100)
+    const filled = Math.round((percentage / 100) * width)
+
+    // Color based on usage percentage
+    const getColor = (pct: number) => {
+      if (pct >= 90) return chalk.red
+      if (pct >= 80) return chalk.yellow
+      return chalk.green
+    }
+
+    const color = getColor(percentage)
+    const bar = `[${'█'.repeat(filled)}${'░'.repeat(Math.max(0, width - filled))}]`
+
+    // Format tokens (k/M notation)
+    const formatTokens = (tokens: number): string => {
+      if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`
+      if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`
+      return tokens.toString()
+    }
+
+    // Responsive format based on available space
+    if (compact) {
+      // Ultra compact for very small screens
+      return color(`${bar} ${percentage.toFixed(0)}%`)
+    } else {
+      // Standard format
+      return color(
+        `Context: ${bar} ${percentage.toFixed(0)}% (${formatTokens(totalTokens)}/${formatTokens(maxTokens)})`
+      )
+    }
+  }
+
+  // Calculate token usage rate (tokens per minute) with responsive format
+  private getTokenRate(compact: boolean = false): string {
+    const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60)
+    if (sessionDuration === 0) return compact ? '--' : 'Rate: --'
+
+    const totalTokens = this.sessionTokenUsage + this.contextTokens
+    const rate = Math.round(totalTokens / sessionDuration)
+
+    const formatRate = (r: number): string => {
+      if (r >= 1000) return `${(r / 1000).toFixed(1)}k/min`
+      return `${r}/min`
+    }
+
+    return compact ? formatRate(rate) : `Rate: ${formatRate(rate)}`
+  }
+
+  // Create responsive status layout based on terminal width
+  private createResponsiveStatusLayout(terminalWidth: number): {
+    contextWidth: number
+    useCompact: boolean
+    showTokenRate: boolean
+    showVisionIcons: boolean
+    modelMaxLength: number
+  } {
+    if (terminalWidth <= 60) {
+      // Ultra small - molto aggressivo
+      return {
+        contextWidth: 3,
+        useCompact: true,
+        showTokenRate: false,
+        showVisionIcons: false,
+        modelMaxLength: 8,
+      }
+    } else if (terminalWidth <= 80) {
+      // Small - più compatto
+      return {
+        contextWidth: 4,
+        useCompact: true,
+        showTokenRate: true,
+        showVisionIcons: false,
+        modelMaxLength: 16,
+      }
+    } else if (terminalWidth <= 120) {
+      // Medium
+      return {
+        contextWidth: 6,
+        useCompact: true,
+        showTokenRate: true,
+        showVisionIcons: false,
+        modelMaxLength: 25,
+      }
+    } else {
+      // Large
+      return {
+        contextWidth: 8,
+        useCompact: false,
+        showTokenRate: true,
+        showVisionIcons: true,
+        modelMaxLength: 35,
+      }
+    }
+  }
+
+  // Truncate model name intelligently
+  private truncateModelName(modelName: string, maxLength: number): string {
+    if (modelName.length <= maxLength) return modelName
+
+    // Try to preserve important parts
+    if (modelName.includes('/')) {
+      const parts = modelName.split('/')
+      if (parts.length === 2) {
+        const provider = parts[0].substring(0, Math.min(8, Math.floor(maxLength * 0.3)))
+        const model = parts[1].substring(0, maxLength - provider.length - 1)
+        return `${provider}/${model}`
+      }
+    }
+
+    return modelName.substring(0, maxLength - 2) + '..'
+  }
+
   private startStatusBar(): void {
     if (this.statusBarTimer) return
     this.statusBarStep = 0
@@ -9736,34 +9926,17 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
   }
 
   /**
-   * Vision status icon: 👁️🟢 if at least one provider key is configured and vision enabled, otherwise 👁️🔴
+   * Vision status icon: disabled to reduce status bar clutter
    */
   private getVisionStatusIcon(): string {
-    try {
-      const cfg = visionProvider.getConfig()
-      const providers = visionProvider.getAvailableProviders()
-      const ok = cfg.enabled && providers.length > 0
-      return ok ? '👁️ | 🟢' : '👁️ | 🔴'
-    } catch {
-      return '👁️ | 🔴'
-    }
+    return '' // Removed from status bar
   }
 
   /**
-   * Image generation status icon: 🎨🟢 if OpenAI image keys are present, otherwise 🎨🔴
+   * Image generation status icon: disabled to reduce status bar clutter
    */
   private getImageGenStatusIcon(): string {
-    try {
-      const hasKey = !!(
-        this.configManager.getApiKey('gpt-image-1') ||
-        this.configManager.getApiKey('dall-e-3') ||
-        this.configManager.getApiKey('dall-e-2') ||
-        this.configManager.getApiKey('openai')
-      )
-      return hasKey ? '🎨 | 🟢' : '🎨 | 🔴'
-    } catch {
-      return '🎨 | 🔴'
-    }
+    return '' // Removed from status bar
   }
 
   /**
@@ -9775,10 +9948,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60)
     const totalTokens = this.sessionTokenUsage + this.contextTokens
     const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
-    const costDisplay = this.realTimeCost > 0 ? `$${this.realTimeCost.toFixed(4)}` : '$0.0000'
+    const costDisplay =
+      this.realTimeCost > 0 ? chalk.magenta(`$${this.realTimeCost.toFixed(4)}`) : chalk.magenta('$0.0000')
 
     const terminalWidth = process.stdout.columns - 1 || 120
-    const workingDir = path.basename(this.workingDirectory)
+    const workingDir = chalk.blue(path.basename(this.workingDirectory))
 
     // Mode info
     const _modeIcon =
@@ -9814,13 +9988,24 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       }
     })()
 
+    // Responsive layout for renderPromptArea
+    const layout2 = this.createResponsiveStatusLayout(terminalWidth)
+    const truncatedModel2 = this.truncateModelName(currentModel2, layout2.modelMaxLength)
+    const responsiveModelDisplay2 = `${providerIcon2} ${modelColor2(truncatedModel2)}`
+
+    // Context and token rate info with responsive sizing
+    const contextInfo2 = this.renderContextProgressBar(layout2.contextWidth, layout2.useCompact)
+    const tokenRate2 = layout2.showTokenRate ? ` | ${this.getTokenRate(layout2.useCompact)}` : ''
+
     // Create status bar (hide Mode when DEFAULT)
     const modeSegment = this.currentMode === 'default' ? '' : ` | Mode: ${modeText}`
-    const statusLeft = `${statusIndicator} ${readyText}${modeSegment} | ${modelDisplay2}`
+    const statusLeft = `${statusIndicator} ${readyText}${modeSegment} | ${responsiveModelDisplay2} | ${contextInfo2}${tokenRate2}`
     const rightExtra = `${queueCount2 > 0 ? ` | 📥 ${queueCount2}` : ''}${runningAgents > 0 ? ` | 🤖 ${runningAgents}` : ''}`
-    const visionPart2 = ` | ${this.getVisionStatusIcon()}`
-    const imgPart2 = ` | ${this.getImageGenStatusIcon()}`
-    const statusRight = `💰 ${tokensDisplay} | ${costDisplay} | ⏱️ ${sessionDuration}m | 📁 ${workingDir}${rightExtra}${visionPart2}${imgPart2}`
+    const visionIcon2 = this.getVisionStatusIcon()
+    const imgIcon2 = this.getImageGenStatusIcon()
+    const visionPart2 = layout2.showVisionIcons && visionIcon2 ? ` | ${visionIcon2}` : ''
+    const imgPart2 = layout2.showVisionIcons && imgIcon2 ? ` | ${imgIcon2}` : ''
+    const statusRight = `${costDisplay} | ⏱️ ${chalk.yellow(sessionDuration + 'm')} | ${chalk.blue('📁')} ${workingDir}${rightExtra}${visionPart2}${imgPart2}`
     const statusPadding = Math.max(
       0,
       terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 3
@@ -9838,7 +10023,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       const availableRightSpace = Math.max(10, maxContentWidth - this._stripAnsi(statusLeft).length - 1)
       const plainStatusRight = this._stripAnsi(statusRight)
       if (plainStatusRight.length > availableRightSpace) {
-        const truncatedText = plainStatusRight.substring(0, availableRightSpace - 3) + '...'
+        const truncatedText = plainStatusRight.substring(0, availableRightSpace - 2) + '..'
         finalStatusRight = truncatedText
       }
       _finalStatusPadding = Math.max(
@@ -9859,7 +10044,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
       let displayLeft = leftPart
       let displayRight = rightPart
-      let padding = Math.max(1, availableSpace - totalContentLength)
+      let calculatedPadding = availableSpace - totalContentLength
+      let padding = Math.max(1, Math.min(calculatedPadding, Math.floor(terminalWidth * 0.4)))
 
       // If still too long, truncate right part
       if (totalContentLength >= availableSpace) {
@@ -9867,18 +10053,18 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         if (maxRightLength > 10) {
           const plainRight = this._stripAnsi(rightPart)
           displayRight =
-            plainRight.length > maxRightLength ? plainRight.substring(0, maxRightLength - 3) + '...' : plainRight
+            plainRight.length > maxRightLength ? plainRight.substring(0, maxRightLength - 2) + '..' : plainRight
         }
         padding = 1
       }
 
       process.stdout.write(
         chalk.cyan('│') +
-        chalk.green(displayLeft) +
-        ' '.repeat(padding) +
-        chalk.gray(displayRight) +
-        chalk.cyan('  │') +
-        '\n'
+          chalk.green(displayLeft) +
+          ' '.repeat(padding) +
+          chalk.gray(displayRight) +
+          chalk.cyan('│') +
+          '\n'
       )
       process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n')
     }
@@ -9894,7 +10080,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
    * Build the prompt string
    */
   private buildPrompt(): string {
-    const workingDir = path.basename(this.workingDirectory)
+    const workingDir = chalk.blue(path.basename(this.workingDirectory))
     const modeIcon =
       this.currentMode === 'auto' ? '🚀' : this.currentMode === 'plan' ? '🎯' : this.currentMode === 'vm' ? '🐳' : '💬'
     const _agentInfo = this.currentAgent ? `@${this.currentAgent}:` : ''
@@ -10243,8 +10429,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       this.updateSpinnerText(operation)
     }, 500)
 
-      // Store interval for cleanup
-      ; (this.activeSpinner as any)._interval = interval
+    // Store interval for cleanup
+    ;(this.activeSpinner as any)._interval = interval
   }
 
   /**
@@ -10315,7 +10501,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       })
 
       contextTokenManager.on('critical_threshold_reached', ({ percentage, context }) => {
-        console.log(chalk.red(`🚨 Critical: Token usage at ${percentage.toFixed(1)}% - consider summarizing conversation`))
+        console.log(
+          chalk.red(`🚨 Critical: Token usage at ${percentage.toFixed(1)}% - consider summarizing conversation`)
+        )
       })
 
       contextTokenManager.on('message_tracked', ({ messageInfo, session, optimization }) => {
@@ -10327,7 +10515,6 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
       // Initialize token display
       this.tokenDisplay.reset()
-
     } catch (error) {
       console.debug('Token tracking system initialization failed:', error)
     }
@@ -10375,10 +10562,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
           const currentProvider = 'anthropic' // Fallback for now
 
           const userTokens = Math.round(
-            chatSession.messages.filter(m => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
+            chatSession.messages.filter((m) => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
           )
           const assistantTokens = Math.round(
-            chatSession.messages.filter(m => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
+            chatSession.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
           )
           const totalTokens = userTokens + assistantTokens
           const cost = universalTokenizer.calculateCost(userTokens, assistantTokens, currentModel).totalCost
@@ -12791,7 +12978,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         fullName: fullName || undefined,
         metadata: {
           source: 'nikcli',
-          version: '0.1.4',
+          version: '0.1.5',
           created_at: new Date().toISOString(),
         },
       })
@@ -13834,10 +14021,10 @@ Generated by NikCLI on ${new Date().toISOString()}
     // Prevent user input queue interference during interactive prompts
     try {
       this.suspendPrompt()
-    } catch { }
+    } catch {}
     try {
       inputQueue.enableBypass()
-    } catch { }
+    } catch {}
 
     try {
       const sectionChoices = [
@@ -14106,7 +14293,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       // Always disable bypass and restore prompt
       try {
         inputQueue.disableBypass()
-      } catch { }
+      } catch {}
       process.stdout.write('')
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
@@ -14366,7 +14553,7 @@ Generated by NikCLI on ${new Date().toISOString()}
     } finally {
       try {
         inputQueue.disableBypass()
-      } catch { }
+      } catch {}
       this.resumePromptAndRender()
     }
   }
@@ -14638,7 +14825,6 @@ Generated by NikCLI on ${new Date().toISOString()}
       if (process.platform === 'darwin') {
         console.log(chalk.cyan('  /figma-open <url>') + chalk.gray(' - Open in desktop app (macOS)'))
       }
-
     } catch (error: any) {
       console.log(
         boxen(`Failed to set Figma keys: ${error.message}`, {
@@ -14738,7 +14924,6 @@ Generated by NikCLI on ${new Date().toISOString()}
         console.log(chalk.yellow(`\n⚠️ Redis connection test failed: ${error.message}`))
         console.log(chalk.gray('Cache will fall back to local memory storage'))
       }
-
     } catch (error: any) {
       console.log(
         boxen(`Failed to set Redis keys: ${error.message}`, {
@@ -14765,8 +14950,6 @@ Generated by NikCLI on ${new Date().toISOString()}
           { title: '🚀 Set Vector Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }
         )
       )
-
-
 
       // Suspend prompt for interactive input
       this.suspendPrompt()
@@ -14809,8 +14992,6 @@ Generated by NikCLI on ${new Date().toISOString()}
         }
       }
 
-
-
       console.log(
         boxen('Vector keys updated. Unified vector database with Upstash Vector is now available!', {
           title: '✅ Keys Saved',
@@ -14829,8 +15010,6 @@ Generated by NikCLI on ${new Date().toISOString()}
       console.log(chalk.cyan('  /recall') + chalk.gray(' - Search vector memory'))
 
       // Test Vector connection
-
-
     } catch (error: any) {
       console.log(
         boxen(`Failed to set Vector keys: ${error.message}`, {
@@ -14902,8 +15081,13 @@ Generated by NikCLI on ${new Date().toISOString()}
 
           if (stats.redis.health) {
             statusContent += `  Latency: ${chalk.blue(stats.redis.health.latency)}ms\n`
-            statusContent += `  Status: ${stats.redis.health.status === 'healthy' ? chalk.green('Healthy') :
-              stats.redis.health.status === 'degraded' ? chalk.yellow('Degraded') : chalk.red('Unhealthy')}\n`
+            statusContent += `  Status: ${
+              stats.redis.health.status === 'healthy'
+                ? chalk.green('Healthy')
+                : stats.redis.health.status === 'degraded'
+                  ? chalk.yellow('Degraded')
+                  : chalk.red('Unhealthy')
+            }\n`
           }
 
           statusContent += `\n${chalk.cyan('Performance:')}\n`
@@ -14938,7 +15122,6 @@ Generated by NikCLI on ${new Date().toISOString()}
         default:
           console.log(chalk.red('❌ Invalid Redis action. Use: enable, disable, or status'))
       }
-
     } catch (error: any) {
       console.log(
         boxen(`Failed to manage Redis cache: ${error.message}`, {
@@ -15151,7 +15334,9 @@ Generated by NikCLI on ${new Date().toISOString()}
         ...(isMacOS ? [`  ${chalk.yellow('/figma-open')} <url>         - Open in desktop app`] : []),
         '',
         figmaApiKey ? '' : `${chalk.yellow('Setup:')} /set-key-figma to configure API keys`,
-      ].filter(Boolean).join('\n')
+      ]
+        .filter(Boolean)
+        .join('\n')
 
       console.log(
         boxen(content, {
@@ -15188,22 +15373,24 @@ Generated by NikCLI on ${new Date().toISOString()}
         `${chalk.cyan('Design Tokens Extracted:')}`,
         '',
         `${chalk.green('Colors:')} ${tokens.colors?.length || 0} found`,
-        ...(tokens.colors?.slice(0, 3).map((color: any) =>
-          `  ${chalk.hex(color.value)('●')} ${color.name}: ${color.value}`
-        ) || []),
+        ...(tokens.colors
+          ?.slice(0, 3)
+          .map((color: any) => `  ${chalk.hex(color.value)('●')} ${color.name}: ${color.value}`) || []),
         tokens.colors?.length > 3 ? `  ${chalk.gray(`... and ${tokens.colors.length - 3} more`)}` : '',
         '',
         `${chalk.green('Typography:')} ${tokens.typography?.length || 0} styles found`,
-        ...(tokens.typography?.slice(0, 2).map((typo: any) =>
-          `  ${typo.name}: ${typo.fontSize}px / ${typo.fontFamily}`
-        ) || []),
+        ...(tokens.typography
+          ?.slice(0, 2)
+          .map((typo: any) => `  ${typo.name}: ${typo.fontSize}px / ${typo.fontFamily}`) || []),
         tokens.typography?.length > 2 ? `  ${chalk.gray(`... and ${tokens.typography.length - 2} more`)}` : '',
         '',
         `${chalk.green('Spacing:')} ${tokens.spacing?.length || 0} values found`,
         `${chalk.green('Shadows:')} ${tokens.shadows?.length || 0} effects found`,
         '',
         chalk.gray('Tip: Use these tokens in your CSS/design system'),
-      ].filter(Boolean).join('\n')
+      ]
+        .filter(Boolean)
+        .join('\n')
 
       console.log(
         boxen(content, {
@@ -15243,17 +15430,20 @@ Generated by NikCLI on ${new Date().toISOString()}
         '',
         `${chalk.cyan('Document Structure:')}`,
         `  Pages: ${fileInfo.document?.children?.length || 0}`,
-        ...(fileInfo.document?.children?.slice(0, 3).map((page: any) =>
-          `    📄 ${page.name} (${page.children?.length || 0} frames)`
-        ) || []),
-        fileInfo.document?.children?.length > 3 ?
-          `    ${chalk.gray(`... and ${fileInfo.document.children.length - 3} more pages`)}` : '',
+        ...(fileInfo.document?.children
+          ?.slice(0, 3)
+          .map((page: any) => `    📄 ${page.name} (${page.children?.length || 0} frames)`) || []),
+        fileInfo.document?.children?.length > 3
+          ? `    ${chalk.gray(`... and ${fileInfo.document.children.length - 3} more pages`)}`
+          : '',
         '',
         `${chalk.cyan('Components:')} ${fileInfo.components ? Object.keys(fileInfo.components).length : 0}`,
         `${chalk.cyan('Styles:')} ${fileInfo.styles ? Object.keys(fileInfo.styles).length : 0}`,
         '',
         chalk.gray('Use /figma-export to export designs or /figma-to-code to generate code'),
-      ].filter(Boolean).join('\n')
+      ]
+        .filter(Boolean)
+        .join('\n')
 
       console.log(
         boxen(content, {
@@ -15281,12 +15471,9 @@ Generated by NikCLI on ${new Date().toISOString()}
     this.renderPromptAfterOutput()
   }
 
-
-
   /**
    * Show status of all MCP servers
    */
-
 }
 
 // Global instance for access from other modules
@@ -15295,6 +15482,6 @@ let globalNikCLI: NikCLI | null = null
 // Export function to set global instance
 export function setGlobalNikCLI(instance: NikCLI): void {
   globalNikCLI = instance
-    // Use consistent global variable name
-    ; (global as any).__nikCLI = instance
+  // Use consistent global variable name
+  ;(global as any).__nikCLI = instance
 }

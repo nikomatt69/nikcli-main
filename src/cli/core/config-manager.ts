@@ -106,7 +106,9 @@ const ConfigSchema = z.object({
   embeddingProvider: z
     .object({
       default: z.enum(['openai', 'google', 'anthropic', 'openrouter']).default('openai'),
-      fallbackChain: z.array(z.enum(['openai', 'google', 'anthropic', 'openrouter'])).default(['openai', 'openrouter', 'google']),
+      fallbackChain: z
+        .array(z.enum(['openai', 'google', 'anthropic', 'openrouter']))
+        .default(['openai', 'openrouter', 'google']),
       costOptimization: z.boolean().default(true),
       autoSwitchOnFailure: z.boolean().default(true),
     })
@@ -808,11 +810,10 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'x-ai/grok-code-fast-1',
     },
-    "qwen/qwen3-coder-plus": {
-      provider: "openrouter",
-      model: "qwen/qwen3-coder-plus"
-
-    }
+    'qwen/qwen3-coder-plus': {
+      provider: 'openrouter',
+      model: 'qwen/qwen3-coder-plus',
+    },
   }
 
   private defaultConfig: ConfigType = {
