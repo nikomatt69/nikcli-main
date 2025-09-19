@@ -37,8 +37,6 @@ import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { compactAnalysis, safeStringifyContext } from '../utils/analysis-utils'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
-import { universalTokenizer, type TokenUsage } from '../core/universal-tokenizer-service'
-import { contextTokenManager, type SessionContext } from '../core/context-token-manager'
 
 // 🔧 Command System Schemas with Zod
 const CommandSchema = z.object({
@@ -129,44 +127,17 @@ export class AdvancedAIProvider implements AutonomousProvider {
     return s.length > maxChars ? s.slice(0, maxChars) + '…[truncated]' : s
   }
 
-  // Precise token counting using UniversalTokenizerService
-  private async countTokensPrecise(text: string, model?: string, provider?: string): Promise<number> {
+  // Approximate token counting (1 token ≈ 4 characters for most languages)
+  private estimateTokens(text: string): number {
     if (!text) return 0
-
-    const currentModel = model || this.currentModel
-    const currentProvider = provider || this.getCurrentModelInfo().config.provider
-
-    try {
-      return await universalTokenizer.countTokens(text, currentModel, currentProvider)
-    } catch (error) {
-      // Fallback to legacy estimation
-      return this.estimateTokensLegacy(text)
-    }
-  }
-
-  // Legacy token estimation for fallback
-  private estimateTokensLegacy(text: string): number {
-    if (!text) return 0
+    // More accurate estimation: count words, punctuation, special chars
     const words = text.split(/\s+/).filter((word) => word.length > 0)
     const specialChars = (text.match(/[{}[\](),.;:!?'"]/g) || []).length
-    return Math.ceil((words.length + specialChars * 0.5) * 1.3)
+    return Math.ceil((words.length + specialChars * 0.5) * 1.3) // Conservative estimate
   }
 
-  // Precise token counting for message arrays
-  private async countMessagesTokensPrecise(messages: CoreMessage[], model?: string, provider?: string): Promise<number> {
-    const currentModel = model || this.currentModel
-    const currentProvider = provider || this.getCurrentModelInfo().config.provider
-
-    try {
-      return await universalTokenizer.countMessagesTokens(messages, currentModel, currentProvider)
-    } catch (error) {
-      // Fallback to legacy estimation
-      return this.estimateMessagesTokensLegacy(messages)
-    }
-  }
-
-  // Legacy estimation method for backwards compatibility
-  private estimateMessagesTokensLegacy(messages: CoreMessage[]): number {
+  // Estimate total tokens in messages array
+  private estimateMessagesTokens(messages: CoreMessage[]): number {
     let totalTokens = 0
     for (const message of messages) {
       const content =
@@ -176,101 +147,17 @@ export class AdvancedAIProvider implements AutonomousProvider {
             ? message.content.map((part) => (typeof part === 'string' ? part : JSON.stringify(part))).join('')
             : JSON.stringify(message.content)
 
-      totalTokens += this.estimateTokensLegacy(content)
+      totalTokens += this.estimateTokens(content)
       totalTokens += 10 // Role, metadata overhead
     }
     return totalTokens
-  }
-
-  // Smart message truncation using precise token counting
-  private async smartTruncateMessages(
-    messages: CoreMessage[],
-    model: string,
-    provider: string,
-    maxTokens: number = 120000
-  ): Promise<CoreMessage[]> {
-    try {
-      // Get current token count
-      const currentTokens = await this.countMessagesTokensPrecise(messages, model, provider)
-
-      if (currentTokens <= maxTokens) {
-        return messages
-      }
-
-      // Use ContextTokenManager for intelligent optimization
-      const optimization = await contextTokenManager.getOptimizedContext(maxTokens)
-
-      if (optimization.messages.length > 0) {
-        console.log(chalk.blue(`🔧 Smart truncation: removed ${optimization.removedCount} messages, saved ${optimization.tokensSaved} tokens`))
-        return optimization.messages
-      }
-
-      // Fallback to legacy truncation
-      return await this.truncateMessages(messages, maxTokens)
-
-    } catch (error) {
-      console.warn('Smart truncation failed, using legacy method:', error)
-      return await this.truncateMessages(messages, maxTokens)
-    }
-  }
-
-  // Get comprehensive token usage statistics
-  async getTokenUsageStats(messages: CoreMessage[]): Promise<{
-    inputTokens: number
-    estimatedOutputTokens: number
-    totalTokens: number
-    cost: { input: number; output: number; total: number }
-    model: string
-    provider: string
-    contextUsage: number
-    recommendations: string[]
-  }> {
-    const currentModelInfo = this.getCurrentModelInfo()
-    const provider = currentModelInfo.config.provider
-    const model = currentModelInfo.name
-
-    const inputTokens = await this.countMessagesTokensPrecise(messages, model, provider)
-    const estimatedOutputTokens = Math.min(4096, inputTokens * 0.3) // Conservative estimate
-    const totalTokens = inputTokens + estimatedOutputTokens
-
-    const costInfo = universalTokenizer.calculateCost(inputTokens, estimatedOutputTokens, model)
-    const limits = universalTokenizer.getModelLimits(model, provider)
-    const contextUsage = (inputTokens / limits.context) * 100
-
-    const recommendations: string[] = []
-    if (contextUsage > 90) {
-      recommendations.push('Critical: Consider summarizing conversation or switching to a model with larger context')
-    } else if (contextUsage > 80) {
-      recommendations.push('Warning: Context usage high, consider trimming older messages')
-    } else if (contextUsage > 50) {
-      recommendations.push('Monitor: Context usage moderate, watch for continued growth')
-    }
-
-    if (costInfo.totalCost > 0.1) {
-      recommendations.push(`Cost notice: Estimated cost $${costInfo.totalCost.toFixed(4)} for this request`)
-    }
-
-    return {
-      inputTokens,
-      estimatedOutputTokens,
-      totalTokens,
-      cost: {
-        input: costInfo.inputCost,
-        output: costInfo.outputCost,
-        total: costInfo.totalCost
-      },
-      model,
-      provider,
-      contextUsage,
-      recommendations
-    }
   }
 
   // Intelligent message truncation with token optimization - AGGRESSIVE MODE
   private async truncateMessages(messages: CoreMessage[], maxTokens: number = 120000): Promise<CoreMessage[]> {
     // First apply token optimization to all messages
     const optimizedMessages = await this.optimizeMessages(messages)
-    const currentTokens = this.estimateMessagesTokensLegacy(optimizedMessages)
+    const currentTokens = this.estimateMessagesTokens(optimizedMessages)
 
     if (currentTokens <= maxTokens) {
       return optimizedMessages
@@ -294,12 +181,12 @@ export class AdvancedAIProvider implements AutonomousProvider {
 
     // Keep the most recent messages (MORE AGGRESSIVE sliding window)
     const recentMessages = nonSystemMessages.slice(-10) // REDUCED: Keep last 10 non-system messages
-    let accumulatedTokens = this.estimateMessagesTokensLegacy(truncatedMessages)
+    let accumulatedTokens = this.estimateMessagesTokens(truncatedMessages)
 
     // Add recent messages in reverse order until we hit the limit
     for (let i = recentMessages.length - 1; i >= 0; i--) {
       const msg = recentMessages[i]
-      const msgTokens = this.estimateTokensLegacy(typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content))
+      const msgTokens = this.estimateTokens(typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content))
 
       if (accumulatedTokens + msgTokens > maxTokens) {
         // Truncate this message if it's too long
@@ -333,7 +220,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
       const skippedCount = nonSystemMessages.length - 10
       truncatedMessages.splice(systemMessages.length, 0, {
         role: 'system' as const,
-        content: `[Conversation truncated: ${skippedCount} older messages removed to fit context limit. Total original: ${currentTokens} tokens, truncated to: ~${this.estimateMessagesTokensLegacy(truncatedMessages)} tokens]`,
+        content: `[Conversation truncated: ${skippedCount} older messages removed to fit context limit. Total original: ${currentTokens} tokens, truncated to: ~${this.estimateMessagesTokens(truncatedMessages)} tokens]`,
       })
     }
 
@@ -450,8 +337,8 @@ export class AdvancedAIProvider implements AutonomousProvider {
     const optimizedMessages = await this.optimizeMessages(enhancedMessages)
 
     // Calculate token savings
-    const originalTokens = this.estimateMessagesTokensLegacy(enhancedMessages)
-    const optimizedTokens = this.estimateMessagesTokensLegacy(optimizedMessages)
+    const originalTokens = this.estimateMessagesTokens(enhancedMessages)
+    const optimizedTokens = this.estimateMessagesTokens(optimizedMessages)
     const tokensSaved = originalTokens - optimizedTokens
 
     // Cache enhanced context
@@ -1128,51 +1015,14 @@ Respond in a helpful, professional manner with clear explanations and actionable
     const startTime = Date.now()
     this.performanceOptimizer.startMonitoring()
 
-    // Get current model info for tokenization
-    const currentModelInfo = this.getCurrentModelInfo()
-    const currentProvider = currentModelInfo.config.provider
-    const currentModel = currentModelInfo.name
-
-    // Start or update token tracking session
-    try {
-      if (!contextTokenManager.getCurrentSession()) {
-        await contextTokenManager.startSession(currentProvider, currentModel, sessionId)
-      }
-    } catch (error) {
-      console.warn('Token tracking session start failed:', error)
-    }
-
     // Enhance context with advanced intelligence
     const enhancedMessages = await this.enhanceContext(messages)
 
-    // Get precise token count for optimization
-    let inputTokens = 0
-    try {
-      inputTokens = await this.countMessagesTokensPrecise(enhancedMessages, currentModel, currentProvider)
-
-      // Emit token count event
-      yield {
-        type: 'start',
-        content: `📊 Input tokens: ${inputTokens}`,
-        metadata: { inputTokens, model: currentModel, provider: currentProvider }
-      }
-    } catch (error) {
-      inputTokens = this.estimateMessagesTokensLegacy(enhancedMessages)
-      console.warn('Precise token counting failed, using fallback:', inputTokens)
-    }
-
-    // Optimize messages for performance with precise token awareness
+    // Optimize messages for performance
     const optimizedMessages = await this.performanceOptimizer.optimizeMessages(enhancedMessages)
 
-    // Apply smart truncation using token-aware optimization
-    const truncatedMessages = await this.smartTruncateMessages(optimizedMessages, currentModel, currentProvider)
-
-    // Track the conversation context
-    try {
-      await contextTokenManager.trackConversation(truncatedMessages)
-    } catch (error) {
-      console.warn('Token tracking failed:', error)
-    }
+    // Apply truncation to prevent prompt length errors
+    const truncatedMessages = await this.truncateMessages(optimizedMessages, 120000) // 120k tokens limit
 
     const routingCfg = configManager.get('modelRouting')
     const effectiveModelName = routingCfg?.enabled
@@ -1241,8 +1091,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
       yield { type: 'start', content: 'Initializing autonomous AI assistant...' }
 
-      const originalTokens = this.estimateMessagesTokensLegacy(messages)
-      const truncatedTokens = this.estimateMessagesTokensLegacy(truncatedMessages)
+      const originalTokens = this.estimateMessagesTokens(messages)
+      const truncatedTokens = this.estimateMessagesTokens(truncatedMessages)
 
       // 🛡️ TOKEN GUARD: Check toolchain token limits before starting
       const globalNikCLI = (global as any).__nikcli
@@ -1326,7 +1176,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         abortSignal,
         onStepFinish: (_evt: any) => { },
       }
-      if (provider !== 'openai') {
+      if (provider !== 'openai' && provider !== 'openrouter') {
         streamOpts.maxTokens = params.maxTokens
       }
       const result = streamText(streamOpts)
@@ -1336,7 +1186,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
       let toolCallCount = 0
       const maxToolCallsForAnalysis = 50 // Slightly increased limit for comprehensive analysis
 
-      const approxCharLimit = provider === 'openai' ? params.maxTokens * 4 : Number.POSITIVE_INFINITY
+      const approxCharLimit = provider === 'openai' && this.getCurrentModelInfo().config.provider === 'openai' ? params.maxTokens * 4 : Number.POSITIVE_INFINITY
       let truncatedByCap = false
       for await (const delta of (await result).fullStream) {
         try {
@@ -1362,7 +1212,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     provider: this.getCurrentModelInfo().config.provider,
                   },
                 }
-                if (provider === 'openai' && accumulatedText.length >= approxCharLimit) {
+                if (provider === 'openai' && this.getCurrentModelInfo().config.provider === 'openai' && accumulatedText.length >= approxCharLimit) {
                   truncatedByCap = true
                   break
                 }
@@ -1573,7 +1423,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
       // End performance monitoring and log metrics
       const _metrics = this.performanceOptimizer.endMonitoring(sessionId, {
-        tokenCount: this.estimateMessagesTokensLegacy(truncatedMessages),
+        tokenCount: this.estimateMessagesTokens(truncatedMessages),
         toolCallCount,
         responseQuality: this.performanceOptimizer.analyzeResponseQuality(accumulatedText),
       })
@@ -2143,7 +1993,7 @@ Requirements:
         model,
         prompt: this.progressiveTokenManager.emergencyTruncate(codeGenPrompt, 120000),
       }
-      if (this.getCurrentModelInfo().config.provider !== 'openai') {
+      if (this.getCurrentModelInfo().config.provider !== 'openai' && this.getCurrentModelInfo().config.provider !== 'openrouter') {
         genOpts.maxTokens = Math.min(params.maxTokens, 2000)
       }
       const result = await generateText(genOpts)
@@ -2305,7 +2155,7 @@ Requirements:
       case 'anthropic':
         // Claude models - RIDOTTO per compatibilità con tutti i modelli
         if (
-          configData.model.includes('claude-4') ||
+          configData.model.includes('claude-3-5-sonnet-latest') ||
           configData.model.includes('claude-4-sonnet') ||
           configData.model.includes('claude-sonnet-4')
         ) {

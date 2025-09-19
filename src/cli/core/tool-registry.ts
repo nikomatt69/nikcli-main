@@ -370,6 +370,10 @@ export class ToolRegistry {
     return new Map([...this.tools.entries()].filter(([, tool]) => tool.metadata.isEnabled))
   }
 
+  getAllTools(): Map<string, ToolInstance> {
+    return new Map(this.tools.entries())
+  }
+
   searchTools(query: string): ToolInstance[] {
     const searchTerm = query.toLowerCase()
     return Array.from(this.tools.values()).filter(
