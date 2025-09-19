@@ -806,6 +806,11 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'x-ai/grok-code-fast-1',
     },
+    "qwen/qwen3-coder-plus": {
+      provider: "openrouter",
+      model: "qwen/qwen3-coder-plus"
+
+    }
   }
 
   private defaultConfig: ConfigType = {

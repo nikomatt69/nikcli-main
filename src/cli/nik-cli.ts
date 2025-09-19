@@ -27,6 +27,8 @@ import { enhancedTokenCache } from './core/enhanced-token-cache'
 import { inputQueue } from './core/input-queue'
 import { type McpServerConfig, mcpClient } from './core/mcp-client'
 
+import { secureTools } from './tools/secure-tools-registry'
+
 import { QuietCacheLogger, TokenOptimizer } from './core/performance-optimizer'
 import { tokenCache } from './core/token-cache'
 import { toolRouter } from './core/tool-router'
@@ -211,7 +213,7 @@ export class NikCLI {
     // Compact mode by default (cleaner output unless explicitly disabled)
     try {
       if (!process.env.NIKCLI_COMPACT) process.env.NIKCLI_COMPACT = '1'
-    } catch {}
+    } catch { }
 
     // Initialize core managers
     this.configManager = simpleConfigManager
@@ -232,8 +234,8 @@ export class NikCLI {
     // Register agents
     registerAgents(this.agentManager)
 
-    // Expose this instance globally for command handlers
-    ;(global as any).__nikCLI = this
+      // Expose this instance globally for command handlers
+      ; (global as any).__nikCLI = this
 
     this.setupEventHandlers()
     // Bridge orchestrator events into NikCLI output
@@ -259,14 +261,14 @@ export class NikCLI {
     // Render initial prompt
     this.renderPromptArea()
 
-    // Expose NikCLI globally for token management
-    ;(global as any).__nikcli = this
+      // Expose NikCLI globally for token management
+      ; (global as any).__nikcli = this
 
     // Patch inquirer to avoid status bar redraw during interactive prompts
     try {
       const originalPrompt = (inquirer as any).prompt?.bind(inquirer)
       if (originalPrompt) {
-        ;(inquirer as any).prompt = async (...args: any[]) => {
+        ; (inquirer as any).prompt = async (...args: any[]) => {
           this.isInquirerActive = true
           this.stopStatusBar()
           try {
@@ -809,19 +811,19 @@ export class NikCLI {
     process.on('unhandledRejection', (reason: any) => {
       try {
         console.log(require('chalk').red(`\n❌ Unhandled rejection: ${reason?.message || reason}`))
-      } catch {}
+      } catch { }
       try {
         this.renderPromptAfterOutput()
-      } catch {}
+      } catch { }
     })
 
     process.on('uncaughtException', (err: any) => {
       try {
         console.log(require('chalk').red(`\n❌ Uncaught exception: ${err?.message || err}`))
-      } catch {}
+      } catch { }
       try {
         this.renderPromptAfterOutput()
-      } catch {}
+      } catch { }
     })
   }
   // Bridge StreamingOrchestrator agent lifecycle events into NikCLI output
@@ -1681,9 +1683,9 @@ export class NikCLI {
   private showAdvancedHeader(): void {
     const header = boxen(
       `${chalk.cyanBright.bold('🤖 NikCLI')} ${chalk.gray('v0.3.1-beta')}\n` +
-        `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
-        `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
-        `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
+      `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
+      `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
+      `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
       {
         padding: 1,
         margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -1954,22 +1956,22 @@ export class NikCLI {
           // Kill any running subprocesses started by tools
           try {
             const procs = toolsManager.getRunningProcesses?.() || []
-            ;(async () => {
-              let killed = 0
-              await Promise.all(
-                procs.map(async (p: any) => {
-                  try {
-                    const ok = await toolsManager.killProcess?.(p.pid)
-                    if (ok) killed++
-                  } catch {
-                    /* ignore */
-                  }
-                })
-              )
-              if (killed > 0) {
-                console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
-              }
-            })()
+              ; (async () => {
+                let killed = 0
+                await Promise.all(
+                  procs.map(async (p: any) => {
+                    try {
+                      const ok = await toolsManager.killProcess?.(p.pid)
+                      if (ok) killed++
+                    } catch {
+                      /* ignore */
+                    }
+                  })
+                )
+                if (killed > 0) {
+                  console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
+                }
+              })()
           } catch {
             /* ignore */
           }
@@ -1995,10 +1997,16 @@ export class NikCLI {
 
         // Handle / key for slash command palette
 
-        // Handle ? key to show a quick cheat-sheet overlay
+        // Handle ? key to show a quick cheat-sheet overlay (only at start of line)
         if (chunk === '?' && !this.assistantProcessing) {
-          setTimeout(() => this.showCheatSheet(), 30)
-          return
+          // Check if ? is at the beginning of the line
+          const currentLine = this.rl?.line || ''
+          if (currentLine.length === 1 && currentLine === '?') {
+            // Clear the ? from the input line
+            this.rl?.write('', { ctrl: true, name: 'u' }) // Clear line
+            setTimeout(() => this.showCheatSheet(), 30)
+            return
+          }
         }
 
         // Handle Cmd+Tab for mode cycling (macOS)
@@ -2173,6 +2181,11 @@ export class NikCLI {
       lines.push('  /doc-search <query>   Search docs')
       lines.push('  /set-coin-keys        Configure Coinbase keys')
       lines.push('  /set-key-bb           Configure Browserbase keys')
+      lines.push('  /set-key-redis        Configure Redis/Upstash keys')
+      lines.push('  /set-vector-key       Configure Upstash Vector keys')
+      lines.push('  /redis-enable          Enable Redis caching')
+      lines.push('  /redis-disable         Disable Redis caching')
+      lines.push('  /redis-status          Show Redis status')
       lines.push('  /queue status         Input queue status')
 
       const panel = boxen(lines.join('\n'), {
@@ -3005,6 +3018,36 @@ export class NikCLI {
 
         case 'set-key-bb': {
           await this.interactiveSetBrowserbaseKeys()
+          break
+        }
+
+        case 'set-key-figma': {
+          await this.interactiveSetFigmaKeys()
+          break
+        }
+
+        case 'set-key-redis': {
+          await this.interactiveSetRedisKeys()
+          break
+        }
+
+        case 'set-vector-key': {
+          await this.interactiveSetVectorKeys()
+          break
+        }
+
+        case 'redis-enable': {
+          await this.manageRedisCache('enable')
+          break
+        }
+
+        case 'redis-disable': {
+          await this.manageRedisCache('disable')
+          break
+        }
+
+        case 'redis-status': {
+          await this.manageRedisCache('status')
           break
         }
 
@@ -4251,7 +4294,7 @@ export class NikCLI {
     try {
       process.env.NIKCLI_COMPACT = '1'
       process.env.NIKCLI_SUPER_COMPACT = '1'
-    } catch {}
+    } catch { }
     console.log(chalk.blue('🎯 Entering Enhanced Planning Mode...'))
 
     try {
@@ -4394,11 +4437,11 @@ export class NikCLI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\n\n` +
-        `${chalk.green('✅ Completed:')} ${completed}\n` +
-        `${chalk.red('❌ Failed:')} ${failed}\n` +
-        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
-        `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
-        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+      `${chalk.green('✅ Completed:')} ${completed}\n` +
+      `${chalk.red('❌ Failed:')} ${failed}\n` +
+      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
+      `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
+      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -4756,21 +4799,21 @@ export class NikCLI {
         console.log(
           chalk.cyan(`📋 Generated plan with ${plan.steps.length} steps (id: ${plan.id}). Executing in background...`)
         )
-        // Fire-and-forget execution to keep CLI responsive
-        ;(async () => {
-          try {
-            await planningService.executePlan(plan.id, {
-              showProgress: true,
-              autoExecute: true,
-              confirmSteps: false,
-            })
-            console.log(chalk.green('✅ Background plan execution completed'))
-          } catch (err: any) {
-            console.log(chalk.red(`❌ Plan execution error: ${err.message}`))
-          }
-          // Ensure prompt is restored after background execution
-          this.renderPromptAfterOutput()
-        })()
+          // Fire-and-forget execution to keep CLI responsive
+          ; (async () => {
+            try {
+              await planningService.executePlan(plan.id, {
+                showProgress: true,
+                autoExecute: true,
+                confirmSteps: false,
+              })
+              console.log(chalk.green('✅ Background plan execution completed'))
+            } catch (err: any) {
+              console.log(chalk.red(`❌ Plan execution error: ${err.message}`))
+            }
+            // Ensure prompt is restored after background execution
+            this.renderPromptAfterOutput()
+          })()
       } else {
         // Direct autonomous execution - select best agent and launch
         const selected = this.agentManager.findBestAgentForTask(task as any)
@@ -5716,9 +5759,9 @@ export class NikCLI {
               console.log(
                 boxen(
                   `Provider: ${provider}\n` +
-                    `Model: ${modelCfg?.model || modelName}\n` +
-                    `API key not configured.\n` +
-                    `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
+                  `Model: ${modelCfg?.model || modelName}\n` +
+                  `API key not configured.\n` +
+                  `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
                   { title: '🔑 API Key Missing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
                 )
               )
@@ -6683,10 +6726,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     console.log(
       boxen(
         `${chalk.blue.bold(plan.title)}\n\n` +
-          `${chalk.gray('Goal:')} ${plan.goal}\n` +
-          `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
-          `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
-          `${chalk.gray('Status:')} ${this.getPlanStatusColor(plan.status)(plan.status.toUpperCase())}`,
+        `${chalk.gray('Goal:')} ${plan.goal}\n` +
+        `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
+        `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
+        `${chalk.gray('Status:')} ${this.getPlanStatusColor(plan.status)(plan.status.toUpperCase())}`,
         {
           padding: 1,
           margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -7511,9 +7554,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Session Tokens:')}\n` +
-            `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
-            `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
-            `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
+          `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
+          `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
+          `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
           {
             padding: 1,
             margin: 1,
@@ -7528,10 +7571,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         chalk.white(
           'Model'.padEnd(30) +
-            'Total Cost'.padStart(12) +
-            'Input Cost'.padStart(12) +
-            'Output Cost'.padStart(12) +
-            'Provider'.padStart(15)
+          'Total Cost'.padStart(12) +
+          'Input Cost'.padStart(12) +
+          'Output Cost'.padStart(12) +
+          'Provider'.padStart(15)
         )
       )
       console.log(chalk.gray('─'.repeat(90)))
@@ -7592,13 +7635,13 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Current Model:')}\n` +
-            `${chalk.white(pricing.displayName)}\n\n` +
-            `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
-            `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
-            `${chalk.yellow('Examples:')}\n` +
-            `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
-            `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
-            `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
+          `${chalk.white(pricing.displayName)}\n\n` +
+          `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
+          `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
+          `${chalk.yellow('Examples:')}\n` +
+          `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
+          `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
+          `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
           {
             padding: 1,
             margin: 1,
@@ -7641,9 +7684,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         boxen(
           `${chalk.cyan('Estimation Parameters:')}\n` +
-            `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
-            `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
-            `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
+          `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
+          `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
+          `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
           {
             padding: 1,
             margin: 1,
@@ -7698,7 +7741,16 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     switch (action) {
       case 'clear':
         await Promise.all([tokenCache.clearCache(), completionCache.clearCache()])
-        console.log(chalk.green('✅ All caches cleared'))
+
+        // Also clear Redis cache if available
+        try {
+          const { cacheService } = await import('./services/cache-service')
+          await cacheService.clearAll()
+        } catch (error) {
+          // Redis cache service not available, silently continue
+        }
+
+        console.log(chalk.green('✅ All caches cleared (local + Redis)'))
         break
 
       case 'cleanup':
@@ -7722,22 +7774,41 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       default: // 'stats' or no argument
         const stats = tokenCache.getStats()
         const completionStats = completionCache.getStats()
+
+        // Get Redis cache stats
+        let redisStats = ''
+        try {
+          const { cacheService } = await import('./services/cache-service')
+          const cacheStats = await cacheService.getStats()
+
+          redisStats = `${chalk.red('🚀 Redis Cache:')}\n` +
+            `  Status: ${cacheStats.redis.connected ? chalk.green('✅ Connected') : chalk.red('❌ Disconnected')}\n` +
+            `  Enabled: ${cacheStats.redis.enabled ? chalk.green('✅ Yes') : chalk.yellow('⚠️ No')}\n` +
+            `  Total Hits: ${chalk.green(cacheStats.totalHits.toLocaleString())}\n` +
+            `  Hit Rate: ${chalk.blue(cacheStats.hitRate.toFixed(1))}%\n` +
+            `  Fallback: ${cacheStats.fallback.enabled ? chalk.cyan('SmartCache') : chalk.gray('None')}\n\n`
+        } catch (error) {
+          redisStats = `${chalk.red('🚀 Redis Cache:')}\n` +
+            `  Status: ${chalk.gray('Unavailable')}\n\n`
+        }
+
         const totalTokensSaved = stats.totalTokensSaved + completionStats.totalHits * 50 // Estimate 50 tokens saved per completion hit
 
         console.log(
           boxen(
             `${chalk.cyan.bold('🔮 Advanced Cache System Statistics')}\n\n` +
-              `${chalk.magenta('📦 Full Response Cache:')}\n` +
-              `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
-              `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
-              `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
-              `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
-              `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
-              `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
-              `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
-              `${chalk.green.bold('💰 Total Savings:')}\n` +
-              `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
-              `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
+            redisStats +
+            `${chalk.magenta('📦 Full Response Cache:')}\n` +
+            `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
+            `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
+            `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
+            `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
+            `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
+            `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
+            `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
+            `${chalk.green.bold('💰 Total Savings:')}\n` +
+            `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
+            `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
             {
               padding: 1,
               margin: 1,
@@ -7786,16 +7857,16 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         console.log(
           boxen(
             `${chalk.cyan('Current Session Token Usage')}\n\n` +
-              `Messages: ${chalk.white(session.messages.length.toLocaleString())}\n` +
-              `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
-              `Est. Tokens: ${chalk.white(estimatedTokens.toLocaleString())}\n` +
-              `Usage: ${usagePercent > 75 ? chalk.red(`${usagePercent}%`) : usagePercent > 50 ? chalk.yellow(`${usagePercent}%`) : chalk.green(`${usagePercent}%`)}\n` +
-              `Limit: ${chalk.gray(tokenLimit.toLocaleString())}\n\n` +
-              `${chalk.yellow('💰 Real-time Cost:')}\n` +
-              `Model: ${chalk.white(currentCost.model)}\n` +
-              `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(4))}\n` +
-              `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(4))}\n` +
-              `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(4))}`,
+            `Messages: ${chalk.white(session.messages.length.toLocaleString())}\n` +
+            `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
+            `Est. Tokens: ${chalk.white(estimatedTokens.toLocaleString())}\n` +
+            `Usage: ${usagePercent > 75 ? chalk.red(`${usagePercent}%`) : usagePercent > 50 ? chalk.yellow(`${usagePercent}%`) : chalk.green(`${usagePercent}%`)}\n` +
+            `Limit: ${chalk.gray(tokenLimit.toLocaleString())}\n\n` +
+            `${chalk.yellow('💰 Real-time Cost:')}\n` +
+            `Model: ${chalk.white(currentCost.model)}\n` +
+            `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(4))}\n` +
+            `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(4))}\n` +
+            `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(4))}`,
             {
               padding: 1,
               margin: 1,
@@ -7905,7 +7976,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
               const c = calc(userTokens, assistantTokens, name)
               const avgPer1K = (c.totalCost / sessionTokens) * 1000
               lines.push(`${c.model}  avg $/1K: $${avgPer1K.toFixed(4)}  total: $${c.totalCost.toFixed(4)}`)
-            } catch {}
+            } catch { }
           })
           if (lines.length > 0) {
             console.log(
@@ -7918,7 +7989,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
               })
             )
           }
-        } catch {}
+        } catch { }
 
         // Recommendations
         if (estimatedTokens > 150000) {
@@ -8180,9 +8251,15 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       lines.push('/mcp import-claude           - Import Claude config')
       lines.push('/mcp export-config           - Export Claude-style config')
       lines.push('')
+      lines.push('Code Generation:')
+      lines.push('/mcp generate <server>       - Generate tool wrappers')
+      lines.push('/mcp tools <server>          - List server tools')
+      lines.push('/mcp status                  - Show server statuses')
+      lines.push('')
       lines.push('Examples:')
       lines.push('/mcp add-local filesystem ["uvx","mcp-server-filesystem","--path","."]')
       lines.push('/mcp add-remote myapi https://api.example.com/mcp')
+      lines.push('/mcp generate filesystem     - Generate secure wrappers')
 
       console.log(
         boxen(lines.join('\n'), {
@@ -8266,6 +8343,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         case 'export-config':
           await this.exportMcpConfig()
           break
+
 
         default:
           console.log(
@@ -8653,171 +8731,131 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
   private showSlashHelp(): void {
     const commands = [
-      // Mode Commands
-      ['/plan [task]', 'Switch to plan mode or generate plan'],
-      ['/auto [task]', 'Switch to auto mode or execute task'],
-      ['/default', 'Switch to default mode'],
+      // Mode Control
+      ['/plan [task]', 'Switch to plan mode or generate execution plan'],
+      ['/auto [task]', 'Switch to autonomous mode or execute task'],
+      ['/default', 'Switch to default conversational mode'],
+      ['/vm', 'Switch to virtual machine development mode'],
 
       // File Operations
-      ['/read <file>', 'Read file contents'],
-      ['/write <file> <content>', 'Write content to file'],
-      ['/edit <file>', 'Edit file interactively'],
-      ['/ls [directory]', 'List files in directory'],
-      ['/search <query>', 'Search in files'],
+      ['/read <file> [options]', 'Read file contents with pagination support'],
+      ['/write <file> <content>', 'Write content to file with approval'],
+      ['/edit <file>', 'Open file in system editor (code/open)'],
+      ['/ls [directory]', 'List files and directories'],
+      ['/search <query> [dir]', 'Search text in files (grep functionality)'],
 
       // Terminal Operations
-      ['/run <command>', 'Execute terminal command'],
-      ['/install <packages>', 'Install npm/yarn packages'],
+      ['/run <command>', 'Execute terminal command with approval'],
       ['/npm <args>', 'Run npm commands'],
       ['/yarn <args>', 'Run yarn commands'],
       ['/git <args>', 'Run git commands'],
-      ['/commits [options]', 'Show git commit history in a panel'],
-      ['/git-history [options]', 'Show git commit history in a panel'],
       ['/docker <args>', 'Run docker commands'],
-      ['/ps', 'List running processes'],
-      ['/kill <pid>', 'Kill process by PID'],
+      ['/build', 'Build the current project'],
+      ['/test [pattern]', 'Run tests with optional pattern'],
+      ['/lint', 'Run project linting'],
 
-      // Project Operations
-      ['/build', 'Build the project'],
-      ['/test [pattern]', 'Run tests'],
-      ['/lint', 'Run linting'],
-      ['/create <type> <name>', 'Create new project'],
+      // API Keys & Configuration
+      ['/set-key <model> <key>', 'Set API key for AI models'],
+      ['/set-coin-keys', 'Configure Coinbase CDP API keys'],
+      ['/set-key-bb', 'Configure Browserbase API credentials'],
+      ['/set-key-figma', 'Configure Figma and v0 API credentials'],
+      ['/set-key-redis', 'Configure Redis/Upstash cache credentials'],
+      ['/set-vector-key', 'Configure Upstash Vector database credentials'],
+
+      // Models & AI Configuration
+      ['/models', 'List available AI models'],
+      ['/model <name>', 'Switch to specific AI model'],
+      ['/config [interactive]', 'Show/edit configuration'],
+      ['/temp <0.0-2.0>', 'Set AI model temperature'],
+      ['/system <prompt>', 'Set custom system prompt'],
+
+      // Cache & Performance
+      ['/cache [stats|clear|settings]', 'Manage token cache system'],
+      ['/redis-enable', 'Enable Redis caching'],
+      ['/redis-disable', 'Disable Redis caching'],
+      ['/redis-status', 'Show Redis cache status'],
+      ['/tokens', 'Show token usage and optimization'],
 
       // Agent Management
-      ['/agents', 'List available agents'],
-      ['/agent <name> <task>', 'Run specific agent'],
-      ['/parallel <agents> <task>', 'Run multiple agents'],
+      ['/agents', 'List all available agents'],
+      ['/agent <name> <task>', 'Run specific agent with task'],
       ['/factory', 'Show agent factory dashboard'],
-      ['/create-agent [--vm|--container] <name> <specialization>', 'Create new agent with explicit name'],
-      ['/launch-agent <id|name> [task]', 'Launch agent from blueprint'],
+      ['/blueprints', 'List and manage agent blueprints'],
+      ['/create-agent <name> <spec>', 'Create new specialized agent'],
+      ['/launch-agent <id>', 'Launch agent from blueprint'],
 
-      // Blueprint Management
-      ['/blueprints', 'List and manage all blueprints'],
-      ['/blueprint <id|name>', 'Show detailed blueprint information'],
-      ['/delete-blueprint <id|name>', 'Delete a blueprint'],
-      ['/export-blueprint <id|name> <file>', 'Export blueprint to file'],
-      ['/import-blueprint <file>', 'Import blueprint from file'],
-      ['/search-blueprints <query>', 'Search blueprints by capabilities'],
-
-      // VM Container Management
-      ['/vm', 'Show VM management help'],
-      ['/vm-create <repo-url>', 'Create a new VM container'],
-      ['/vm-list', 'List all active VM containers'],
-      ['/vm-stop <id>', 'Stop a specific VM container'],
-      ['/vm-remove <id>', 'Remove a VM container'],
-      ['/vm-connect <id>', 'Connect to a VM container'],
-      ['/vm-create-pr <id> "<title>" "<desc>" [branch] [base] [draft]', 'Create GitHub PR from VM container changes'],
-      ['/vm-mode', 'Enter VM chat mode'],
+      // Memory & Context
+      ['/remember "fact"', 'Store in long-term memory'],
+      ['/recall "query"', 'Search memories'],
+      ['/memory stats', 'Show memory statistics'],
+      ['/context <paths>', 'Select workspace context paths'],
+      ['/index <path>', 'Index files for better context'],
 
       // Session Management
       ['/new [title]', 'Start new chat session'],
       ['/sessions', 'List all sessions'],
-      ['/export [sessionId]', 'Export session to markdown'],
-      ['/stats', 'Show usage statistics'],
       ['/history <on|off>', 'Enable/disable chat history'],
+      ['/export [sessionId]', 'Export session to markdown'],
       ['/debug', 'Show debug information'],
-      ['/temp <0.0-2.0>', 'Set temperature'],
-      ['/system <prompt>', 'Set system prompt'],
-      ['/tokens', 'Show token usage and optimize'],
-      ['/compact', 'Force session compaction'],
-      ['/cache [stats|clear|settings]', 'Manage token cache system'],
+      ['/status', 'Show system status and health'],
 
-      // Model & Config
-      ['/models', 'List available models'],
-      ['/model <name>', 'Switch to model'],
-      ['/set-key <model> <key>', 'Set API key'],
-      ['/config [interactive , i]', 'Show configuration'],
+      // VM Container Operations
+      ['/vm-create <repo-url>', 'Create new VM container'],
+      ['/vm-list', 'List active containers'],
+      ['/vm-connect <id>', 'Connect to container'],
+      ['/vm-create-pr <id> "<title>" "<desc>"', 'Create PR from container'],
 
-      // MCP (Model Context Protocol)
-      ['/mcp servers', 'List configured MCP servers'],
-      ['/mcp test <server>', 'Test MCP server connection'],
-      ['/mcp call <server> <method>', 'Make MCP call'],
-      ['/mcp add <name> <type> <endpoint>', 'Add new MCP server'],
-      ['/mcp remove <name>', 'Remove MCP server'],
-      ['/mcp health', 'Check all server health'],
-
-      // Memory & Personalization
-      ['/remember "fact"', 'Store important information in long-term memory'],
-      ['/recall "query"', 'Search memories for relevant information'],
-      ['/memory stats', 'Show memory statistics'],
-      ['/memory config', 'Show memory configuration'],
-      ['/memory context', 'Show current session context'],
-      ['/memory personalization', 'Show user personalization data'],
-      ['/memory cleanup', 'Clean up old/unimportant memories'],
-      ['/forget <memory-id>', 'Delete a specific memory (use with caution)'],
-
-      // Context & Indexing
-      ['/context <paths>', 'Select workspace context paths'],
-      ['/index <path>', 'Index files in path for better context'],
-
-      // Snapshot Management
-      ['/snapshot <name> [type]', 'Create project snapshot (quick/full/dev/config)'],
-      ['/snap <name>', 'Alias for quick snapshot'],
-      ['/restore <snapshot-id>', 'Restore files from snapshot'],
-      ['/snapshots [query]', 'List available snapshots'],
-
-      // Vision & Image Analysis
-      ['/analyze-image <path>', 'Analyze image with AI vision models'],
-      ['/generate-image <prompt>', 'Generate images with AI (DALL-E 3, GPT-Image-1)'],
-
-      // Documentation Management
-      ['/docs', 'Documentation system help and status'],
-      ['/doc-search <query> [category]', 'Search documentation library'],
-      ['/doc-add <url> [category]', 'Add documentation from URL'],
-      ['/doc-stats [--detailed]', 'Show library statistics'],
-      ['/doc-list [category]', 'List available documentation'],
-      ['/doc-sync', 'Sync with cloud documentation library'],
-      ['/doc-load <names>', 'Load docs into AI agent context'],
-      ['/doc-context [--detailed]', 'Show AI context documentation'],
-      ['/doc-unload [names]', 'Remove docs from AI context'],
-      ['/doc-suggest <query>', 'Suggest relevant documentation'],
-      ['/doc-tag <id> <tags>', 'Manage document tags (coming soon)'],
-
-      // IDE Diagnostics
-      ['/diagnostic start [path]', 'Start IDE diagnostic monitoring (specific path or entire project)'],
-      ['/diagnostic stop [path]', 'Stop IDE diagnostic monitoring (specific path or all)'],
-      ['/diagnostic status', 'Show diagnostic monitoring status'],
-      ['/diagnostic run', 'Run comprehensive diagnostic scan'],
-      ['/monitor [path]', 'Alias for /diagnostic start'],
-      ['/diag-status', 'Alias for /diagnostic status'],
-
-      // Security Commands
-      ['/security [status|set|help]', 'Manage security settings'],
-      ['/dev-mode [enable|status|help]', 'Developer mode controls'],
-      ['/safe-mode', 'Enable safe mode (maximum security)'],
-      ['/clear-approvals', 'Clear session approvals'],
-
-      // Blockchain & Web3 Commands
-      ['/web3 status', 'Show Coinbase AgentKit status'],
-      ['/web3 init', 'Initialize AgentKit (CDP keys required)'],
-      ['/web3 wallet', 'Show wallet address and network'],
-      ['/web3 balance', 'Check wallet balance'],
-      ['/web3 transfer <amount> <to> [--token ETH|USDC|WETH]', 'Transfer tokens (with confirmation)'],
-      ['/web3 chat "message"', 'Natural language blockchain request'],
-      ['/web3 wallets', 'List known wallets and pick one'],
-      ['/web3 use-wallet <0x...>', 'Use a specific wallet by address'],
-      ['/set-coin-keys', 'Configure Coinbase CDP API keys'],
-
-      // Advanced Features
-      ['/enhanced [command]', 'Enhanced AI features (smart suggestions, analytics)'],
-      ['/stream [clear]', 'Show/clear agent streams'],
-      ['/approval [test]', 'Approval system controls'],
-      ['/todo [command]', 'Todo list operations'],
-      ['/todos [on|off|status]', 'Show lists; toggle auto‑todos'],
-
-      // Web Browsing & Analysis (Browserbase)
-      ['/set-key-bb', 'Configure Browserbase API credentials'],
+      // Web Browsing & Analysis
       ['/browse <url>', 'Browse web page and extract content'],
       ['/web-analyze <url>', 'Browse and analyze web page with AI'],
 
-      // Basic Commands
+      // Figma Design Integration
+      ['/figma-config', 'Show Figma API configuration status'],
+      ['/figma-info <file-id>', 'Get file information'],
+      ['/figma-export <file-id> [format]', 'Export designs'],
+      ['/figma-to-code <file-id>', 'Generate code from designs'],
+      ['/figma-create <component-path>', 'Create design from React component'],
+      ['/figma-tokens <file-id>', 'Extract design tokens'],
+
+      // Blockchain & Web3
+      ['/web3 status', 'Show Coinbase AgentKit status'],
+      ['/web3 wallet', 'Show wallet address and network'],
+      ['/web3 balance', 'Check wallet balance'],
+      ['/web3 transfer <amount> <to>', 'Transfer tokens'],
+
+      // Vision & Images
+      ['/analyze-image <path>', 'Analyze image with AI vision'],
+      ['/generate-image "prompt"', 'Generate image with AI'],
+
+      // Documentation
+      ['/docs', 'Documentation system help'],
+      ['/doc-search <query>', 'Search documentation'],
+      ['/doc-add <url>', 'Add documentation from URL'],
+
+      // Snapshots & Backup
+      ['/snapshot <name>', 'Create project snapshot'],
+      ['/restore <snapshot-id>', 'Restore from snapshot'],
+      ['/snapshots', 'List available snapshots'],
+
+      // Security & Development
+      ['/security [status|set]', 'Manage security settings'],
+      ['/dev-mode [enable|status]', 'Developer mode controls'],
+      ['/safe-mode', 'Enable safe mode (maximum security)'],
+
+      // IDE Integration
+      ['/diagnostic start', 'Start IDE diagnostic monitoring'],
+      ['/diagnostic status', 'Show diagnostic status'],
+      ['/monitor [path]', 'Monitor file changes'],
+
+      // Todo & Planning
+      ['/todo [command]', 'Todo list operations'],
+      ['/todos [on|off|status]', 'Show lists; toggle auto‑todos'],
+
+      // Basic System
       ['/init [--force]', 'Initialize project context'],
-      ['/status', 'Show system status'],
       ['/clear', 'Clear session context'],
-      ['/clear-session', 'Clear current chat session'],
       ['/help', 'Show this help'],
       ['/exit', 'Exit NikCLI'],
-      ['/quit', 'Quit NikCLI (alias for exit)'],
     ]
 
     const pad = (s: string) => s.padEnd(25)
@@ -8831,27 +8869,26 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       lines.push('')
     }
 
-    addGroup('🎯 Mode Control:', 0, 3)
-    addGroup('📁 File Operations:', 3, 8)
-    addGroup('⚡ Terminal Operations:', 8, 18)
-    addGroup('🔨 Project Operations:', 18, 22)
-    addGroup('🤖 Agent Management:', 22, 28)
-    addGroup('📋 Blueprint Management:', 28, 34)
-    addGroup('🐳 VM Container Management:', 34, 42)
-    addGroup('📝 Session Management:', 42, 53)
-    addGroup('🔧 Configuration:', 53, 57)
-    addGroup('🔮 MCP (Model Context Protocol):', 57, 63)
-    addGroup('🧠 Memory & Personalization:', 63, 71)
-    addGroup('🔍 Context & Indexing:', 71, 73)
-    addGroup('📸 Snapshot Management:', 73, 77)
-    addGroup('👁️ Vision & Image Analysis:', 77, 79)
-    addGroup('📚 Documentation Management:', 79, 91)
-    addGroup('🔧 IDE Diagnostics:', 91, 97)
-    addGroup('🔒 Security Commands:', 97, 101)
-    addGroup('🔗 Blockchain & Web3:', 101, 109)
-    addGroup('🔧 Advanced Features:', 109, 114)
-    addGroup('🌐 Web Browsing & Analysis:', 114, 117)
-    addGroup('📋 Basic Commands:', 117, commands.length)
+    addGroup('🎯 Mode Control:', 0, 4)
+    addGroup('📁 File Operations:', 4, 9)
+    addGroup('⚡ Terminal Operations:', 9, 17)
+    addGroup('🔑 API Keys & Configuration:', 17, 22)
+    addGroup('🤖 Models & AI Configuration:', 22, 27)
+    addGroup('🚀 Cache & Performance:', 27, 32)
+    addGroup('🧠 Agent Management:', 32, 38)
+    addGroup('💾 Memory & Context:', 38, 43)
+    addGroup('📝 Session Management:', 43, 49)
+    addGroup('🐳 VM Container Operations:', 49, 53)
+    addGroup('🌐 Web Browsing & Analysis:', 53, 55)
+    addGroup('🎨 Figma Design Integration:', 55, 61)
+    addGroup('🔗 Blockchain & Web3:', 61, 65)
+    addGroup('👁️ Vision & Images:', 65, 67)
+    addGroup('📚 Documentation:', 67, 70)
+    addGroup('📸 Snapshots & Backup:', 70, 73)
+    addGroup('🔒 Security & Development:', 73, 76)
+    addGroup('🔧 IDE Integration:', 76, 79)
+    addGroup('📋 Todo & Planning:', 79, 81)
+    addGroup('⚙️ Basic System:', 81, commands.length)
 
     lines.push('💡 Shortcuts: Ctrl+C exit | Esc interrupt | Cmd+Esc default')
 
@@ -8876,12 +8913,12 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     console.log(
       boxen(
         `${title}\n${subtitle}\n\n` +
-          `${enhancedBadge}\n\n` +
-          `${wrapBlue('Mode:')} ${chalk.yellow(this.currentMode)}\n` +
-          `${wrapBlue('Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n` +
-          `${wrapBlue('Directory:')} ${chalk.cyan(path.basename(this.workingDirectory))}\n\n` +
-          `${chalk.dim('Type /help for commands or start chatting!')}\n` +
-          `${chalk.dim('Use Shift+Tab to cycle modes: default → auto → plan')}`,
+        `${enhancedBadge}\n\n` +
+        `${wrapBlue('Mode:')} ${chalk.yellow(this.currentMode)}\n` +
+        `${wrapBlue('Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n` +
+        `${wrapBlue('Directory:')} ${chalk.cyan(path.basename(this.workingDirectory))}\n\n` +
+        `${chalk.dim('Type /help for commands or start chatting!')}\n` +
+        `${chalk.dim('Use Shift+Tab to cycle modes: default → auto → plan')}`,
         {
           padding: 1,
           margin: 1,
@@ -9304,11 +9341,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
       process.stdout.write(
         chalk.cyan('│') +
-          chalk.green(displayLeft) +
-          ' '.repeat(padding) +
-          chalk.gray(displayRight) +
-          chalk.cyan('│') +
-          '\n'
+        chalk.green(displayLeft) +
+        ' '.repeat(padding) +
+        chalk.gray(displayRight) +
+        chalk.cyan('│') +
+        '\n'
       )
       process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n')
     }
@@ -9707,11 +9744,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
       process.stdout.write(
         chalk.cyan('│') +
-          chalk.green(displayLeft) +
-          ' '.repeat(padding) +
-          chalk.gray(displayRight) +
-          chalk.cyan('  │') +
-          '\n'
+        chalk.green(displayLeft) +
+        ' '.repeat(padding) +
+        chalk.gray(displayRight) +
+        chalk.cyan('  │') +
+        '\n'
       )
       process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n')
     }
@@ -10076,8 +10113,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       this.updateSpinnerText(operation)
     }, 500)
 
-    // Store interval for cleanup
-    ;(this.activeSpinner as any)._interval = interval
+      // Store interval for cleanup
+      ; (this.activeSpinner as any)._interval = interval
   }
 
   /**
@@ -13567,10 +13604,10 @@ Generated by NikCLI on ${new Date().toISOString()}
     // Prevent user input queue interference during interactive prompts
     try {
       this.suspendPrompt()
-    } catch {}
+    } catch { }
     try {
       inputQueue.enableBypass()
-    } catch {}
+    } catch { }
 
     try {
       const sectionChoices = [
@@ -13839,7 +13876,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       // Always disable bypass and restore prompt
       try {
         inputQueue.disableBypass()
-      } catch {}
+      } catch { }
       process.stdout.write('')
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
@@ -14099,7 +14136,7 @@ Generated by NikCLI on ${new Date().toISOString()}
     } finally {
       try {
         inputQueue.disableBypass()
-      } catch {}
+      } catch { }
       this.resumePromptAndRender()
     }
   }
@@ -14288,6 +14325,405 @@ Generated by NikCLI on ${new Date().toISOString()}
   }
 
   /**
+   * Interactive Figma credentials setup
+   */
+  private async interactiveSetFigmaKeys(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('./core/input-queue')
+
+      // Header panel
+      this.printPanel(
+        boxen(
+          'Configure Figma and v0 credentials. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
+          { title: '🎨 Set Figma Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+        )
+      )
+
+      const currentFigmaKey = configManager.getApiKey('figma')
+      const currentV0Key = configManager.getApiKey('v0')
+
+      // Suspend prompt for interactive input
+      this.suspendPrompt()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'password',
+            name: 'figmaApiKey',
+            message: 'FIGMA_API_TOKEN',
+            mask: '*',
+            suffix: currentFigmaKey ? chalk.gray(' (configured)') : '',
+          },
+          {
+            type: 'password',
+            name: 'v0ApiKey',
+            message: 'V0_API_KEY (optional - for AI code generation)',
+            mask: '*',
+            suffix: currentV0Key ? chalk.gray(' (configured)') : '',
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        this.resumePromptAndRender()
+      }
+
+      const setIfProvided = (label: string, value: string | undefined, setter: (v: string) => void) => {
+        if (value && value.trim().length > 0) {
+          setter(value.trim())
+          console.log(chalk.green(`✅ Saved ${label}`))
+        } else {
+          console.log(chalk.gray(`⏭️  Skipped ${label}`))
+        }
+      }
+
+      setIfProvided('FIGMA_API_TOKEN', answers.figmaApiKey, (v) => {
+        configManager.setApiKey('figma', v)
+        process.env.FIGMA_API_TOKEN = v
+      })
+      setIfProvided('V0_API_KEY', answers.v0ApiKey, (v) => {
+        configManager.setApiKey('v0', v)
+        process.env.V0_API_KEY = v
+      })
+
+      console.log(
+        boxen('Figma keys updated. You can now export designs, generate code, and extract design tokens!', {
+          title: '✅ Keys Saved',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+
+      // Show usage instructions
+      console.log('\n' + chalk.blue.bold('🎨 Figma Commands Available:'))
+      console.log(chalk.cyan('  /figma-config') + chalk.gray(' - Show configuration status'))
+      console.log(chalk.cyan('  /figma-info <file-id>') + chalk.gray(' - Get file information'))
+      console.log(chalk.cyan('  /figma-export <file-id> [format]') + chalk.gray(' - Export designs'))
+      console.log(chalk.cyan('  /figma-to-code <file-id>') + chalk.gray(' - Generate code from designs'))
+      console.log(chalk.cyan('  /figma-create <component-path>') + chalk.gray(' - Create design from React component'))
+      console.log(chalk.cyan('  /figma-tokens <file-id>') + chalk.gray(' - Extract design tokens'))
+      if (process.platform === 'darwin') {
+        console.log(chalk.cyan('  /figma-open <url>') + chalk.gray(' - Open in desktop app (macOS)'))
+      }
+
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to set Figma keys: ${error.message}`, {
+          title: '❌ Set Figma Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    this.renderPromptAfterOutput()
+  }
+
+  private async interactiveSetRedisKeys(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('./core/input-queue')
+
+      // Header panel
+      this.printPanel(
+        boxen(
+          'Configure Upstash Redis credentials for enhanced caching. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
+          { title: '🚀 Set Redis Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
+        )
+      )
+
+      const currentRedisUrl = configManager.getApiKey('redis_url')
+      const currentRedisToken = configManager.getApiKey('redis_token')
+
+      // Suspend prompt for interactive input
+      this.suspendPrompt()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'redisUrl',
+            message: 'UPSTASH_REDIS_REST_URL',
+            suffix: currentRedisUrl ? chalk.gray(' (configured)') : '',
+          },
+          {
+            type: 'password',
+            name: 'redisToken',
+            message: 'UPSTASH_REDIS_REST_TOKEN',
+            mask: '*',
+            suffix: currentRedisToken ? chalk.gray(' (configured)') : '',
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        this.resumePromptAndRender()
+      }
+
+      const setIfProvided = (label: string, value: string | undefined, setter: (v: string) => void) => {
+        if (value && value.trim().length > 0) {
+          setter(value.trim())
+          console.log(chalk.green(`✅ Saved ${label}`))
+        } else {
+          console.log(chalk.gray(`⏭️  Skipped ${label}`))
+        }
+      }
+
+      setIfProvided('UPSTASH_REDIS_REST_URL', answers.redisUrl, (v) => {
+        configManager.setApiKey('redis_url', v)
+        process.env.UPSTASH_REDIS_REST_URL = v
+      })
+      setIfProvided('UPSTASH_REDIS_REST_TOKEN', answers.redisToken, (v) => {
+        configManager.setApiKey('redis_token', v)
+        process.env.UPSTASH_REDIS_REST_TOKEN = v
+      })
+
+      console.log(
+        boxen('Redis keys updated. Enhanced caching with Redis/Upstash is now available!', {
+          title: '✅ Keys Saved',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+
+      // Show usage instructions
+      console.log('\n' + chalk.blue.bold('🚀 Redis Commands Available:'))
+      console.log(chalk.cyan('  /cache') + chalk.gray(' - Show cache status and statistics'))
+      console.log(chalk.cyan('  /cache clear') + chalk.gray(' - Clear all caches'))
+      console.log(chalk.cyan('  /cache stats') + chalk.gray(' - Show detailed cache statistics'))
+      console.log(chalk.cyan('  /status') + chalk.gray(' - Show system status including Redis health'))
+
+      // Test Redis connection
+      try {
+        const { cacheService } = await import('./services/cache-service')
+        await cacheService.reconnectRedis()
+        console.log(chalk.green('\n✅ Redis connection tested successfully'))
+      } catch (error: any) {
+        console.log(chalk.yellow(`\n⚠️ Redis connection test failed: ${error.message}`))
+        console.log(chalk.gray('Cache will fall back to local memory storage'))
+      }
+
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to set Redis keys: ${error.message}`, {
+          title: '❌ Set Redis Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    this.renderPromptAfterOutput()
+  }
+
+  private async interactiveSetVectorKeys(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('./core/input-queue')
+
+      // Header panel
+      this.printPanel(
+        boxen(
+          'Configure Upstash Vector credentials for unified vector database. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
+          { title: '🚀 Set Vector Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }
+        )
+      )
+
+
+
+      // Suspend prompt for interactive input
+      this.suspendPrompt()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'vectorUrl',
+            message: 'UPSTASH_VECTOR_REST_URL',
+            suffix: chalk.gray(' (configured)'),
+            validate: (input: string) => {
+              if (!input.trim()) return true // Allow empty to keep current
+              if (!input.startsWith('https://')) {
+                return 'URL must start with https://'
+              }
+              return true
+            },
+          },
+          {
+            type: 'password',
+            name: 'vectorToken',
+            message: 'UPSTASH_VECTOR_REST_TOKEN',
+            mask: '*',
+            suffix: chalk.gray(' (configured)'),
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        this.resumePromptAndRender()
+      }
+
+      const setIfProvided = (label: string, value: string | undefined, setter: (v: string) => void) => {
+        if (value && value.trim().length > 0) {
+          setter(value.trim())
+          console.log(chalk.green(`✅ Saved ${label}`))
+        } else {
+          console.log(chalk.gray(`⏭️  Skipped ${label}`))
+        }
+      }
+
+
+
+      console.log(
+        boxen('Vector keys updated. Unified vector database with Upstash Vector is now available!', {
+          title: '✅ Keys Saved',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+
+      // Show usage instructions
+      console.log('\n' + chalk.blue.bold('🚀 Vector Commands Available:'))
+      console.log(chalk.cyan('  /status') + chalk.gray(' - Show system status including Vector health'))
+      console.log(chalk.cyan('  /agents') + chalk.gray(' - List agents (uses vector search)'))
+      console.log(chalk.cyan('  /remember') + chalk.gray(' - Store information in vector memory'))
+      console.log(chalk.cyan('  /recall') + chalk.gray(' - Search vector memory'))
+
+      // Test Vector connection
+
+
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to set Vector keys: ${error.message}`, {
+          title: '❌ Set Vector Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    this.renderPromptAfterOutput()
+  }
+
+  private async manageRedisCache(action: string): Promise<void> {
+    try {
+      const { cacheService } = await import('./services/cache-service')
+
+      switch (action) {
+        case 'enable':
+          // Enable Redis in config
+          simpleConfigManager.setRedisConfig({ enabled: true })
+
+          // Try to reconnect
+          await cacheService.reconnectRedis()
+
+          console.log(
+            boxen('Redis cache enabled successfully! The system will now use Redis for enhanced caching.', {
+              title: '✅ Redis Enabled',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            })
+          )
+
+          // Show current status
+          await this.manageRedisCache('status')
+          break
+
+        case 'disable':
+          // Disable Redis in config
+          simpleConfigManager.setRedisConfig({ enabled: false })
+
+          console.log(
+            boxen('Redis cache disabled. The system will fall back to local SmartCache for caching.', {
+              title: '⚠️ Redis Disabled',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+
+          // Show current status
+          await this.manageRedisCache('status')
+          break
+
+        case 'status':
+          const stats = await cacheService.getStats()
+          const health = cacheService.getHealthStatus()
+
+          let statusContent = `${chalk.red.bold('🚀 Redis Cache Status')}\n\n`
+
+          // Connection Status
+          statusContent += `${chalk.cyan('Connection:')}\n`
+          statusContent += `  Enabled: ${stats.redis.enabled ? chalk.green('✅ Yes') : chalk.red('❌ No')}\n`
+          statusContent += `  Connected: ${stats.redis.connected ? chalk.green('✅ Yes') : chalk.red('❌ No')}\n`
+
+          if (stats.redis.health) {
+            statusContent += `  Latency: ${chalk.blue(stats.redis.health.latency)}ms\n`
+            statusContent += `  Status: ${stats.redis.health.status === 'healthy' ? chalk.green('Healthy') :
+              stats.redis.health.status === 'degraded' ? chalk.yellow('Degraded') : chalk.red('Unhealthy')}\n`
+          }
+
+          statusContent += `\n${chalk.cyan('Performance:')}\n`
+          statusContent += `  Total Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n`
+          statusContent += `  Total Misses: ${chalk.yellow(stats.totalMisses.toLocaleString())}\n`
+          statusContent += `  Hit Rate: ${chalk.blue(stats.hitRate.toFixed(1))}%\n`
+
+          statusContent += `\n${chalk.cyan('Fallback:')}\n`
+          statusContent += `  SmartCache: ${stats.fallback.enabled ? chalk.green('✅ Available') : chalk.red('❌ Disabled')}\n`
+          statusContent += `  Overall Health: ${health.overall ? chalk.green('✅ Operational') : chalk.red('❌ Degraded')}\n`
+
+          console.log(
+            boxen(statusContent, {
+              title: '🚀 Redis Cache Status',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: stats.redis.connected ? 'green' : 'red',
+            })
+          )
+
+          // Show commands
+          console.log('\n' + chalk.blue.bold('🔧 Available Commands:'))
+          console.log(chalk.cyan('  /redis-enable') + chalk.gray('   - Enable Redis caching'))
+          console.log(chalk.cyan('  /redis-disable') + chalk.gray('  - Disable Redis caching'))
+          console.log(chalk.cyan('  /redis-status') + chalk.gray('   - Show detailed status'))
+          console.log(chalk.cyan('  /set-key-redis') + chalk.gray(' - Configure Redis credentials'))
+          console.log(chalk.cyan('  /cache') + chalk.gray('         - Show cache statistics'))
+          console.log(chalk.cyan('  /cache clear') + chalk.gray('   - Clear all caches'))
+          break
+
+        default:
+          console.log(chalk.red('❌ Invalid Redis action. Use: enable, disable, or status'))
+      }
+
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to manage Redis cache: ${error.message}`, {
+          title: '❌ Redis Management Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    this.renderPromptAfterOutput()
+  }
+
+  /**
    * Handle browse command to extract content from URL
    */
   private async handleBrowseCommand(args: string[]): Promise<void> {
@@ -14456,6 +14892,171 @@ Generated by NikCLI on ${new Date().toISOString()}
     await new Promise((resolve) => setTimeout(resolve, 150))
     this.renderPromptAfterOutput()
   }
+
+  /**
+   * Show Figma integration status and available commands panel
+   */
+  private async showFigmaStatusPanel(): Promise<void> {
+    try {
+      const figmaApiKey = configManager.getApiKey('figma')
+      const v0ApiKey = configManager.getApiKey('v0')
+      const isMacOS = process.platform === 'darwin'
+
+      const figmaStatus = figmaApiKey ? chalk.green('✓ Configured') : chalk.red('✗ Not configured')
+      const v0Status = v0ApiKey ? chalk.green('✓ Configured') : chalk.yellow('○ Optional')
+      const desktopStatus = isMacOS ? chalk.green('✓ Available') : chalk.gray('✗ macOS only')
+
+      const content = [
+        `${chalk.cyan('API Status:')}`,
+        `  Figma API: ${figmaStatus}`,
+        `  V0 API:    ${v0Status} ${chalk.gray('(for AI code generation)')}`,
+        `  Desktop:   ${desktopStatus}`,
+        '',
+        `${chalk.cyan('Available Commands:')}`,
+        `  ${chalk.yellow('/figma-info')} <file-id>      - Get file information`,
+        `  ${chalk.yellow('/figma-export')} <file-id>     - Export designs as images`,
+        `  ${chalk.yellow('/figma-to-code')} <file-id>    - Generate code from designs`,
+        `  ${chalk.yellow('/figma-create')} <component>   - Create design from React component`,
+        `  ${chalk.yellow('/figma-tokens')} <file-id>     - Extract design tokens`,
+        ...(isMacOS ? [`  ${chalk.yellow('/figma-open')} <url>         - Open in desktop app`] : []),
+        '',
+        figmaApiKey ? '' : `${chalk.yellow('Setup:')} /set-key-figma to configure API keys`,
+      ].filter(Boolean).join('\n')
+
+      console.log(
+        boxen(content, {
+          title: '🎨 Figma Integration',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'magenta',
+        })
+      )
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to show Figma status: ${error.message}`, {
+          title: '❌ Figma Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    console.log()
+    process.stdout.write('')
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    this.renderPromptAfterOutput()
+  }
+
+  /**
+   * Show Figma design tokens extraction results panel
+   */
+  private async showFigmaTokensPanel(tokens: any): Promise<void> {
+    try {
+      const content = [
+        `${chalk.cyan('Design Tokens Extracted:')}`,
+        '',
+        `${chalk.green('Colors:')} ${tokens.colors?.length || 0} found`,
+        ...(tokens.colors?.slice(0, 3).map((color: any) =>
+          `  ${chalk.hex(color.value)('●')} ${color.name}: ${color.value}`
+        ) || []),
+        tokens.colors?.length > 3 ? `  ${chalk.gray(`... and ${tokens.colors.length - 3} more`)}` : '',
+        '',
+        `${chalk.green('Typography:')} ${tokens.typography?.length || 0} styles found`,
+        ...(tokens.typography?.slice(0, 2).map((typo: any) =>
+          `  ${typo.name}: ${typo.fontSize}px / ${typo.fontFamily}`
+        ) || []),
+        tokens.typography?.length > 2 ? `  ${chalk.gray(`... and ${tokens.typography.length - 2} more`)}` : '',
+        '',
+        `${chalk.green('Spacing:')} ${tokens.spacing?.length || 0} values found`,
+        `${chalk.green('Shadows:')} ${tokens.shadows?.length || 0} effects found`,
+        '',
+        chalk.gray('Tip: Use these tokens in your CSS/design system'),
+      ].filter(Boolean).join('\n')
+
+      console.log(
+        boxen(content, {
+          title: '🎨 Design Tokens',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to show design tokens: ${error.message}`, {
+          title: '❌ Tokens Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    console.log()
+    process.stdout.write('')
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    this.renderPromptAfterOutput()
+  }
+
+  /**
+   * Show Figma file information panel
+   */
+  private async showFigmaFilePanel(fileInfo: any): Promise<void> {
+    try {
+      const content = [
+        `${chalk.green('Name:')} ${fileInfo.name}`,
+        `${chalk.green('Version:')} ${fileInfo.version}`,
+        `${chalk.green('Last Modified:')} ${new Date(fileInfo.lastModified).toLocaleString()}`,
+        '',
+        `${chalk.cyan('Document Structure:')}`,
+        `  Pages: ${fileInfo.document?.children?.length || 0}`,
+        ...(fileInfo.document?.children?.slice(0, 3).map((page: any) =>
+          `    📄 ${page.name} (${page.children?.length || 0} frames)`
+        ) || []),
+        fileInfo.document?.children?.length > 3 ?
+          `    ${chalk.gray(`... and ${fileInfo.document.children.length - 3} more pages`)}` : '',
+        '',
+        `${chalk.cyan('Components:')} ${fileInfo.components ? Object.keys(fileInfo.components).length : 0}`,
+        `${chalk.cyan('Styles:')} ${fileInfo.styles ? Object.keys(fileInfo.styles).length : 0}`,
+        '',
+        chalk.gray('Use /figma-export to export designs or /figma-to-code to generate code'),
+      ].filter(Boolean).join('\n')
+
+      console.log(
+        boxen(content, {
+          title: '📋 Figma File Info',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to show file info: ${error.message}`, {
+          title: '❌ File Info Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    console.log()
+    process.stdout.write('')
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    this.renderPromptAfterOutput()
+  }
+
+
+
+  /**
+   * Show status of all MCP servers
+   */
+
 }
 
 // Global instance for access from other modules
@@ -14464,6 +15065,6 @@ let globalNikCLI: NikCLI | null = null
 // Export function to set global instance
 export function setGlobalNikCLI(instance: NikCLI): void {
   globalNikCLI = instance
-  // Use consistent global variable name
-  ;(global as any).__nikCLI = instance
+    // Use consistent global variable name
+    ; (global as any).__nikCLI = instance
 }

@@ -3,6 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import chalk from 'chalk'
 import { configManager } from '../core/config-manager'
+import { redisProvider } from '../providers/redis/redis-provider'
 
 export interface EmbeddingConfig {
   provider: 'openai' | 'google' | 'anthropic' | 'openrouter'
@@ -123,7 +124,7 @@ export class AiSdkEmbeddingProvider {
   }
 
   /**
-   * Generate embeddings using the best available provider
+   * Generate embeddings using the best available provider with caching
    */
   async generate(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return []
@@ -135,28 +136,102 @@ export class AiSdkEmbeddingProvider {
     const startTime = Date.now()
     this.stats.totalRequests++
 
-    try {
-      const result = await this.generateWithProvider(texts, this.currentProvider)
+    // Check cache for each text
+    const config = this.providerConfigs[this.currentProvider]
+    const cachedResults: Array<number[] | null> = []
+    const uncachedTexts: string[] = []
+    const uncachedIndices: number[] = []
 
-      // Update stats
+    for (let i = 0; i < texts.length; i++) {
+      const text = texts[i]
+      const cached = await redisProvider.getCachedVector(text, this.currentProvider, config.model)
+
+      if (cached) {
+        cachedResults[i] = cached.embedding
+        console.log(chalk.gray(`💾 Cache hit for ${this.currentProvider}:${config.model}`))
+      } else {
+        cachedResults[i] = null
+        uncachedTexts.push(text)
+        uncachedIndices.push(i)
+      }
+    }
+
+    // If all results are cached, return immediately
+    if (uncachedTexts.length === 0) {
+      console.log(chalk.green(`✅ All ${texts.length} embeddings served from cache`))
+      return cachedResults as number[][]
+    }
+
+    console.log(chalk.blue(`🔍 Cache: ${cachedResults.filter(r => r !== null).length}/${texts.length} hits, generating ${uncachedTexts.length} embeddings`))
+
+    try {
+      const result = await this.generateWithProvider(uncachedTexts, this.currentProvider)
+
+      // Cache new embeddings
+      const cachePromises = uncachedTexts.map(async (text, idx) => {
+        const embedding = result.embeddings[idx]
+        if (embedding) {
+          await redisProvider.cacheVector(
+            text,
+            embedding,
+            this.currentProvider!,
+            config.model,
+            result.cost / uncachedTexts.length, // Proportional cost
+            300 // 5 min TTL
+          )
+        }
+      })
+
+      // Cache in background, don't wait
+      Promise.allSettled(cachePromises).catch(() => {
+        console.log(chalk.yellow('⚠️ Some embeddings failed to cache'))
+      })
+
+      // Merge cached and new results
+      const finalResults: number[][] = []
+      let uncachedIndex = 0
+
+      for (let i = 0; i < texts.length; i++) {
+        if (cachedResults[i] !== null) {
+          finalResults[i] = cachedResults[i]!
+        } else {
+          finalResults[i] = result.embeddings[uncachedIndex]
+          uncachedIndex++
+        }
+      }
+
+      // Update stats (only for uncached requests)
       this.updateStats(result, Date.now() - startTime, true)
 
-      return result.embeddings
+      return finalResults
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ Embedding failed with ${this.currentProvider}: ${error.message}`))
 
-      // Try fallback providers
+      // Try fallback providers for uncached texts only
       for (const provider of this.availableProviders) {
         if (provider !== this.currentProvider) {
           try {
             console.log(chalk.blue(`🔄 Trying fallback provider: ${provider}`))
-            const result = await this.generateWithProvider(texts, provider)
+            const result = await this.generateWithProvider(uncachedTexts, provider)
 
             // Update current provider to working one
             this.currentProvider = provider
             this.updateStats(result, Date.now() - startTime, true)
 
-            return result.embeddings
+            // Merge results and return
+            const finalResults: number[][] = []
+            let uncachedIndex = 0
+
+            for (let i = 0; i < texts.length; i++) {
+              if (cachedResults[i] !== null) {
+                finalResults[i] = cachedResults[i]!
+              } else {
+                finalResults[i] = result.embeddings[uncachedIndex]
+                uncachedIndex++
+              }
+            }
+
+            return finalResults
           } catch (fallbackError: any) {
             console.log(chalk.yellow(`⚠️ Fallback ${provider} also failed: ${fallbackError.message}`))
           }
@@ -170,26 +245,49 @@ export class AiSdkEmbeddingProvider {
   }
 
   /**
-   * Generate embeddings with a specific provider
+   * Generate embeddings with a specific provider using concurrent processing
    */
   private async generateWithProvider(texts: string[], providerName: string): Promise<EmbeddingResult> {
     const config = this.providerConfigs[providerName]
     const processedTexts = texts.map(text => this.truncateText(text, config.maxTokens))
 
-    // Process in batches to respect rate limits
+    // Create batches
+    const batches: string[][] = []
+    for (let i = 0; i < processedTexts.length; i += config.batchSize) {
+      batches.push(processedTexts.slice(i, i + config.batchSize))
+    }
+
+    // Process batches concurrently with controlled concurrency
+    const maxConcurrentBatches = Math.min(3, batches.length) // Limit to 3 concurrent batches
     const results: number[][] = []
     let totalTokens = 0
 
-    for (let i = 0; i < processedTexts.length; i += config.batchSize) {
-      const batch = processedTexts.slice(i, i + config.batchSize)
-      const batchResult = await this.generateBatch(batch, providerName)
+    // Use Promise pool for controlled concurrency
+    for (let i = 0; i < batches.length; i += maxConcurrentBatches) {
+      const batchGroup = batches.slice(i, i + maxConcurrentBatches)
 
-      results.push(...batchResult.embeddings)
-      totalTokens += batchResult.tokensUsed
+      const batchPromises = batchGroup.map(async (batch, batchIndex) => {
+        try {
+          const batchResult = await this.generateBatch(batch, providerName)
+          return { index: i + batchIndex, result: batchResult }
+        } catch (error) {
+          console.log(chalk.yellow(`⚠️ Batch ${i + batchIndex} failed: ${(error as Error).message}`))
+          throw error
+        }
+      })
 
-      // Rate limiting between batches
-      if (i + config.batchSize < processedTexts.length) {
-        await new Promise(resolve => setTimeout(resolve, 100))
+      // Wait for current batch group to complete
+      const batchResults = await Promise.all(batchPromises)
+
+      // Collect results in order
+      for (const { index, result } of batchResults.sort((a, b) => a.index - b.index)) {
+        results.push(...result.embeddings)
+        totalTokens += result.tokensUsed
+      }
+
+      // Rate limiting between batch groups
+      if (i + maxConcurrentBatches < batches.length) {
+        await new Promise(resolve => setTimeout(resolve, 50)) // Reduced delay for faster processing
       }
     }
 

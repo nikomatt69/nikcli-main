@@ -23,6 +23,18 @@ export {
   type BrowserbaseToolResult,
 } from './browserbase-tool'
 export { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
+export {
+  type FigmaCodeGenOptions,
+  type FigmaDesktopOptions,
+  type FigmaExportOptions,
+  type FigmaTokensOptions,
+  type FigmaToolResult,
+  FigmaTool,
+  figmaTool,
+  extractFileIdFromUrl,
+  isFigmaConfigured,
+  isValidFigmaFileId,
+} from './figma-tool'
 export { GitTools } from './git-tools'
 export {
   ImageGenerationTool,

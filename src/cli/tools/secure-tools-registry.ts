@@ -6,6 +6,7 @@ export type { BatchSession } from './secure-command-tool'
 import { type BatchSession, type CommandResult, SecureCommandTool } from '.'
 import { BrowserbaseTool, type BrowserbaseToolResult } from './browserbase-tool'
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
+import { FigmaTool, type FigmaToolResult } from './figma-tool'
 import { FindFilesTool } from './find-files-tool'
 import { GitTools } from './git-tools'
 import { type GrepResult, GrepTool, type GrepToolParams } from './grep-tool'
@@ -57,6 +58,7 @@ export class SecureToolsRegistry {
   private multiReadTool: MultiReadTool
   private grepTool: GrepTool
   private browserbaseTool: BrowserbaseTool
+  private figmaTool: FigmaTool
   private executionHistory: ToolResult[] = []
 
   constructor(workingDir?: string) {
@@ -75,6 +77,7 @@ export class SecureToolsRegistry {
     this.multiReadTool = new MultiReadTool(this.workingDirectory)
     this.grepTool = new GrepTool(this.workingDirectory)
     this.browserbaseTool = new BrowserbaseTool(this.workingDirectory)
+    this.figmaTool = new FigmaTool()
 
     console.log(chalk.green('🔒 Secure Tools Registry initialized'))
     console.log(chalk.gray(`📁 Working directory: ${this.workingDirectory}`))
@@ -829,6 +832,182 @@ export class SecureToolsRegistry {
         commandAnalyzed: true,
       }
     )
+  }
+
+  // ==================== FIGMA DESIGN TOOLS ====================
+
+  /**
+   * Get Figma file information
+   */
+  async figmaGetFileInfo(fileId: string): Promise<ToolResult<FigmaToolResult>> {
+    const context = this.createContext('safe')
+
+    return this.executeWithTracking(
+      'FigmaGetFileInfo',
+      async () => {
+        const res = await this.figmaTool.execute({
+          command: 'figma-info',
+          args: [fileId]
+        })
+        if (!res.success) throw new Error(res.error || 'Failed to get file info')
+        return res
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: false,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Export Figma designs to images
+   */
+  async figmaExportDesigns(
+    fileId: string,
+    options: {
+      format?: 'png' | 'jpg' | 'svg' | 'pdf'
+      outputPath?: string
+      scale?: number
+      nodeIds?: string[]
+    } = {}
+  ): Promise<ToolResult<FigmaToolResult>> {
+    const context = this.createContext('confirmed')
+
+    return this.executeWithTracking(
+      'FigmaExportDesigns',
+      async () => {
+        const args = [fileId]
+        if (options.format) args.push(options.format)
+        if (options.outputPath) args.push(options.outputPath)
+
+        const res = await this.figmaTool.execute({
+          command: 'figma-export',
+          args
+        })
+        if (!res.success) throw new Error(res.error || 'Export failed')
+        return res
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: true,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Generate code from Figma designs using AI
+   */
+  async figmaGenerateCode(
+    fileId: string,
+    options: {
+      framework?: 'react' | 'vue' | 'svelte' | 'html'
+      library?: 'shadcn' | 'chakra' | 'mantine' | 'custom'
+      nodeId?: string
+    } = {}
+  ): Promise<ToolResult<FigmaToolResult>> {
+    const context = this.createContext('safe')
+
+    return this.executeWithTracking(
+      'FigmaGenerateCode',
+      async () => {
+        const args = [fileId]
+        if (options.framework) args.push(options.framework)
+        if (options.library) args.push(options.library)
+
+        const res = await this.figmaTool.execute({
+          command: 'figma-to-code',
+          args
+        })
+        if (!res.success) throw new Error(res.error || 'Code generation failed')
+        return res
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: false,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Open Figma file in desktop app (macOS only)
+   */
+  async figmaOpenInDesktop(fileUrl: string): Promise<ToolResult<FigmaToolResult>> {
+    const context = this.createContext('confirmed')
+
+    return this.executeWithTracking(
+      'FigmaOpenInDesktop',
+      async () => {
+        const res = await this.figmaTool.execute({
+          command: 'figma-open',
+          args: [fileUrl]
+        })
+        if (!res.success) throw new Error(res.error || 'Failed to open in desktop app')
+        return res
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: true,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Extract design tokens from Figma file
+   */
+  async figmaExtractTokens(
+    fileId: string,
+    options: {
+      format?: 'json' | 'css' | 'scss' | 'tokens-studio'
+      includeColors?: boolean
+      includeTypography?: boolean
+      includeSpacing?: boolean
+    } = {}
+  ): Promise<ToolResult<FigmaToolResult>> {
+    const context = this.createContext('safe')
+
+    return this.executeWithTracking(
+      'FigmaExtractTokens',
+      async () => {
+        const args = [fileId]
+        if (options.format) args.push(options.format)
+
+        const res = await this.figmaTool.execute({
+          command: 'figma-tokens',
+          args
+        })
+        if (!res.success) throw new Error(res.error || 'Token extraction failed')
+        return res
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: false,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Check if Figma integration is configured
+   */
+  isFigmaConfigured(): boolean {
+    return !!(process.env.FIGMA_API_TOKEN || require('../core/config-manager').simpleConfigManager.get('figma.apiToken'))
+  }
+
+  /**
+   * Extract file ID from Figma URL
+   */
+  extractFigmaFileId(url: string): string | null {
+    const match = url.match(/\/file\/([a-zA-Z0-9_-]+)/)
+    return match ? match[1] : null
   }
 }
 

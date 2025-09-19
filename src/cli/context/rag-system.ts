@@ -45,6 +45,10 @@ export interface RAGSearchResult {
     importance: number
     lastModified: Date
     source: 'vector' | 'workspace' | 'hybrid'
+    truncated?: boolean
+    originalLength?: number
+    truncatedLength?: number
+    cached?: boolean
   }
 }
 
@@ -202,6 +206,20 @@ export class UnifiedRAGSystem {
   private readonly CACHE_TTL = 300000 // 5 minutes
   private readonly CACHE_DIR = join(homedir(), '.nikcli', 'embeddings')
   private fileHashCache: Map<string, string> = new Map()
+
+  // Performance monitoring
+  private searchMetrics = {
+    totalSearches: 0,
+    cacheHits: 0,
+    vectorSearches: 0,
+    workspaceSearches: 0,
+    bm25Searches: 0,
+    averageLatency: 0,
+    totalLatency: 0,
+    errors: 0,
+    queryOptimizations: 0,
+    reranks: 0
+  }
 
   constructor(config?: Partial<UnifiedRAGConfig>) {
     this.config = {
@@ -404,7 +422,7 @@ export class UnifiedRAGSystem {
   }
 
   /**
-   * Unified search combining vector and workspace approaches
+   * Unified search combining vector and workspace approaches with concurrent processing
    */
   async search(
     query: string,
@@ -415,32 +433,108 @@ export class UnifiedRAGSystem {
     }
   ): Promise<RAGSearchResult[]> {
     const { limit = 10, includeContent = true, semanticOnly = false } = options || {}
-    const results: RAGSearchResult[] = []
+    const startTime = Date.now()
+
+    // Initialize monitoring
+    this.searchMetrics.totalSearches++
+    let searchTypes: string[] = []
 
     console.log(chalk.blue(`🔍 Searching: "${query}"`))
 
-    // 1. Vector DB Search (if available)
-    if (this.config.useVectorDB && this.vectorClient && !semanticOnly) {
-      try {
-        const vectorResults = await this.searchVectorDB(query, Math.ceil(limit * 0.6))
-        results.push(...vectorResults)
-      } catch (_error) {
-        console.log(chalk.yellow('⚠️ Vector search failed, using workspace search'))
+    try {
+      // Apply query optimization pipeline
+      const optimizedQuery = this.optimizeQuery(query)
+      if (optimizedQuery !== query) {
+        this.searchMetrics.queryOptimizations++
+        console.log(chalk.gray(`🔧 Query optimized: "${query}" → "${optimizedQuery}"`))
       }
+
+      // Run hybrid searches concurrently (vector, workspace, and BM25)
+      const searchPromises: Promise<RAGSearchResult[]>[] = []
+
+      // 1. Vector DB Search (if available)
+      if (this.config.useVectorDB && this.vectorClient && !semanticOnly) {
+        searchTypes.push('vector')
+        this.searchMetrics.vectorSearches++
+        searchPromises.push(
+          this.searchVectorDB(optimizedQuery, Math.ceil(limit * 0.5)).catch(() => {
+            console.log(chalk.yellow('⚠️ Vector search failed'))
+            this.searchMetrics.errors++
+            return []
+          })
+        )
+      }
+
+      // 2. Workspace-based Search
+      if (this.config.enableWorkspaceAnalysis && this.workspaceRAG) {
+        searchTypes.push('workspace')
+        this.searchMetrics.workspaceSearches++
+        searchPromises.push(
+          this.searchWorkspace(optimizedQuery, Math.ceil(limit * 0.3)).catch(() => {
+            console.log(chalk.yellow('⚠️ Workspace search failed'))
+            this.searchMetrics.errors++
+            return []
+          })
+        )
+      }
+
+      // 3. BM25 Search (if conditions are met)
+      if (this.shouldUseBM25(optimizedQuery)) {
+        searchTypes.push('bm25')
+        this.searchMetrics.bm25Searches++
+        searchPromises.push(
+          this.bm25Search(optimizedQuery, Math.ceil(limit * 0.2)).catch(() => {
+            console.log(chalk.yellow('⚠️ BM25 search failed'))
+            this.searchMetrics.errors++
+            return []
+          })
+        )
+      }
+
+      // Wait for all searches to complete concurrently
+      const searchResults = await Promise.allSettled(searchPromises)
+
+      // Flatten results from successful searches
+      const results: RAGSearchResult[] = []
+      searchResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          results.push(...result.value)
+        }
+      })
+
+      // Check for cache hits
+      const cacheHits = results.filter(r => r.metadata.cached).length
+      this.searchMetrics.cacheHits += cacheHits
+
+      // 3. Hybrid scoring and deduplication with re-ranking tracking
+      const shouldRerank = this.shouldRerank(query)
+      if (shouldRerank) {
+        this.searchMetrics.reranks++
+      }
+
+      const uniqueResults = this.deduplicateAndRank(results, query)
+      const finalResults = uniqueResults.slice(0, limit)
+
+      // Update performance metrics
+      const duration = Date.now() - startTime
+      this.searchMetrics.totalLatency += duration
+      this.searchMetrics.averageLatency = this.searchMetrics.totalLatency / this.searchMetrics.totalSearches
+
+      console.log(chalk.green(
+        `✅ Found ${finalResults.length} results in ${duration}ms ` +
+        `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
+      ))
+
+      return finalResults
+    } catch (error) {
+      this.searchMetrics.errors++
+      const duration = Date.now() - startTime
+      this.searchMetrics.totalLatency += duration
+      this.searchMetrics.averageLatency = this.searchMetrics.totalLatency / this.searchMetrics.totalSearches
+
+      console.log(chalk.red(`❌ Search failed in ${duration}ms: ${(error as Error).message}`))
+      throw error
     }
-
-    // 2. Workspace-based Search
-    if (this.config.enableWorkspaceAnalysis && this.workspaceRAG) {
-      const workspaceResults = await this.searchWorkspace(query, Math.ceil(limit * 0.4))
-      results.push(...workspaceResults)
-    }
-
-    // 3. Hybrid scoring and deduplication
-    const uniqueResults = this.deduplicateAndRank(results, query)
-    const finalResults = uniqueResults.slice(0, limit)
-
-    console.log(chalk.green(`✅ Found ${finalResults.length} results`))
-    return finalResults
   }
 
   private async indexProjectWithVectorDB(
@@ -884,21 +978,302 @@ export class UnifiedRAGSystem {
         // Enhanced scoring based on query relevance
         let enhancedScore = result.score
 
-        // Boost score for exact query matches
-        const content = result.content.toLowerCase()
-        queryWords.forEach((word) => {
-          if (content.includes(word)) enhancedScore += 0.1
-          if (result.path.toLowerCase().includes(word)) enhancedScore += 0.2
-        })
-
-        // Boost score for important files
-        enhancedScore += (result.metadata.importance / 100) * 0.3
+        // Apply intelligent re-ranking if conditions are met
+        if (this.shouldRerank(query)) {
+          enhancedScore = this.applyIntelligentReranking(result, query, queryWords)
+        } else {
+          // Basic scoring for simple queries
+          enhancedScore = this.applyBasicScoring(result, query, queryWords)
+        }
 
         pathMap.set(result.path, { ...result, score: enhancedScore })
       }
     }
 
     return Array.from(pathMap.values()).sort((a, b) => b.score - a.score)
+  }
+
+  /**
+   * Determine if intelligent re-ranking should be applied
+   */
+  private shouldRerank(query: string): boolean {
+    return (
+      query.length > 50 ||                                    // Long queries benefit from re-ranking
+      query.split(/\s+/).length > 8 ||                        // Multi-word queries
+      /[.!?]/.test(query) ||                                 // Sentence-like queries
+      process.env.RAG_RERANK_ENABLED === 'true'              // Force enable via env var
+    )
+  }
+
+  /**
+   * Apply intelligent re-ranking for complex queries
+   */
+  private applyIntelligentReranking(
+    result: RAGSearchResult,
+    query: string,
+    queryWords: string[]
+  ): number {
+    let score = result.score
+
+    const content = result.content.toLowerCase()
+    const path = result.path.toLowerCase()
+
+    // 1. Semantic proximity scoring
+    const queryPhrases = this.extractPhrases(query)
+    queryPhrases.forEach((phrase) => {
+      if (content.includes(phrase.toLowerCase())) {
+        score += 0.3 * phrase.split(' ').length // Longer phrases get higher boost
+      }
+    })
+
+    // 2. Position-based scoring (earlier mentions are more relevant)
+    queryWords.forEach((word) => {
+      const contentIndex = content.indexOf(word)
+      const pathIndex = path.indexOf(word)
+
+      if (contentIndex >= 0) {
+        const positionBoost = Math.max(0.05, 0.2 - (contentIndex / content.length) * 0.15)
+        score += positionBoost
+      }
+
+      if (pathIndex >= 0) {
+        score += 0.25 // Path matches are highly relevant
+      }
+    })
+
+    // 3. File type and importance weighting
+    const fileTypeBoosts: Record<string, number> = {
+      'typescript': 0.15,
+      'javascript': 0.12,
+      'markdown': 0.08,
+      'json': 0.05,
+    }
+
+    score += fileTypeBoosts[result.metadata.fileType] || 0
+
+    // 4. Importance factor (0-100 scale)
+    score += (result.metadata.importance / 100) * 0.25
+
+    // 5. Recency boost for recently modified files
+    const daysSinceModified = (Date.now() - result.metadata.lastModified.getTime()) / (1000 * 60 * 60 * 24)
+    if (daysSinceModified < 7) {
+      score += 0.1 * (7 - daysSinceModified) / 7
+    }
+
+    return score
+  }
+
+  /**
+   * Apply basic scoring for simple queries
+   */
+  private applyBasicScoring(
+    result: RAGSearchResult,
+    query: string,
+    queryWords: string[]
+  ): number {
+    let score = result.score
+
+    const content = result.content.toLowerCase()
+    const path = result.path.toLowerCase()
+
+    // Simple word matching
+    queryWords.forEach((word) => {
+      if (content.includes(word)) score += 0.1
+      if (path.includes(word)) score += 0.2
+    })
+
+    // Basic importance boost
+    score += (result.metadata.importance / 100) * 0.3
+
+    return score
+  }
+
+  /**
+   * Extract meaningful phrases from query (2-4 word combinations)
+   */
+  private extractPhrases(query: string): string[] {
+    const words = query.toLowerCase().match(/\b\w+\b/g) || []
+    const phrases: string[] = []
+
+    // Extract 2-word phrases
+    for (let i = 0; i < words.length - 1; i++) {
+      phrases.push(`${words[i]} ${words[i + 1]}`)
+    }
+
+    // Extract 3-word phrases
+    for (let i = 0; i < words.length - 2; i++) {
+      phrases.push(`${words[i]} ${words[i + 1]} ${words[i + 2]}`)
+    }
+
+    return phrases
+  }
+
+  /**
+   * Determine if BM25 search should be used
+   */
+  private shouldUseBM25(query: string): boolean {
+    return (
+      /^[a-zA-Z\s]+$/.test(query) &&           // English text queries
+      query.split(/\s+/).length > 2 &&         // Multiple keywords
+      query.length > 10 &&                     // Substantial query length
+      process.env.RAG_BM25_ENABLED === 'true'  // Explicitly enabled
+    )
+  }
+
+  /**
+   * BM25 sparse search for keyword matching
+   */
+  private async bm25Search(query: string, limit: number): Promise<RAGSearchResult[]> {
+    if (!this.workspaceRAG) return []
+
+    try {
+      console.log(chalk.gray('🔤 Performing BM25 sparse search'))
+
+      const queryTerms = query.toLowerCase()
+        .split(/\s+/)
+        .filter(term => term.length > 2) // Filter out very short terms
+
+      const results: Array<{ file: any; score: number }> = []
+
+      // Simple BM25-like scoring for each file
+      for (const [, file] of this.workspaceRAG.getContext().files) {
+        const content = file.content.toLowerCase()
+        let score = 0
+
+        queryTerms.forEach(term => {
+          const termFreq = (content.match(new RegExp(term, 'g')) || []).length
+          const docLength = content.length
+          const avgDocLength = 2000 // Estimated average
+
+          if (termFreq > 0) {
+            // Simplified BM25 formula
+            const tf = termFreq / (termFreq + 1.2 * (0.25 + 0.75 * (docLength / avgDocLength)))
+            const idf = Math.log(1 + (this.workspaceRAG!.getContext().files.size / (termFreq + 1)))
+            score += tf * idf
+          }
+        })
+
+        if (score > 0) {
+          results.push({ file, score })
+        }
+      }
+
+      // Sort by BM25 score and convert to RAGSearchResult format
+      return results
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map(({ file, score }) => ({
+          content: file.content.substring(0, 1000) + (file.content.length > 1000 ? '...' : ''),
+          path: file.path,
+          score: score * 0.1, // Normalize score
+          metadata: {
+            fileType: file.language,
+            importance: file.importance,
+            lastModified: file.lastModified,
+            source: 'hybrid' as const,
+          },
+        }))
+    } catch (error) {
+      console.log(chalk.yellow(`⚠️ BM25 search error: ${(error as Error).message}`))
+      return []
+    }
+  }
+
+  /**
+   * Query optimization pipeline - enhance queries for better semantic search
+   */
+  private optimizeQuery(query: string): string {
+    let optimized = query.trim()
+
+    // 1. Remove common stop words for better semantic search
+    optimized = this.removeStopWords(optimized)
+
+    // 2. Expand synonyms for better recall (simple implementation)
+    optimized = this.expandSynonyms(optimized)
+
+    // 3. Resolve temporal references
+    optimized = this.resolveTemporalReferences(optimized)
+
+    // 4. Normalize whitespace
+    optimized = optimized.replace(/\s+/g, ' ').trim()
+
+    return optimized
+  }
+
+  /**
+   * Remove stop words that don't add semantic value
+   */
+  private removeStopWords(query: string): string {
+    const stopWords = new Set([
+      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+      'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
+      'will', 'would', 'could', 'should', 'may', 'might', 'can', 'must',
+      'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they'
+    ])
+
+    const words = query.toLowerCase().split(/\s+/)
+    const filtered = words.filter(word => {
+      // Keep stop words if they're part of technical terms or phrases
+      if (word.includes('-') || word.includes('_') || word.includes('.')) return true
+      return !stopWords.has(word) || word.length < 3
+    })
+
+    return filtered.join(' ')
+  }
+
+  /**
+   * Expand synonyms for better recall
+   */
+  private expandSynonyms(query: string): string {
+    const synonymMap: Record<string, string[]> = {
+      'function': ['method', 'procedure', 'func'],
+      'component': ['element', 'widget', 'part'],
+      'config': ['configuration', 'settings', 'setup'],
+      'error': ['bug', 'issue', 'problem', 'exception'],
+      'api': ['endpoint', 'service', 'interface'],
+      'database': ['db', 'datastore', 'storage'],
+      'user': ['client', 'customer', 'account'],
+      'create': ['make', 'build', 'generate', 'add'],
+      'delete': ['remove', 'destroy', 'drop'],
+      'update': ['modify', 'change', 'edit'],
+    }
+
+    let expanded = query
+    Object.entries(synonymMap).forEach(([term, synonyms]) => {
+      const regex = new RegExp(`\\b${term}\\b`, 'gi')
+      if (regex.test(expanded)) {
+        // Add most relevant synonym
+        const primarySynonym = synonyms[0]
+        if (!expanded.toLowerCase().includes(primarySynonym)) {
+          expanded = expanded.replace(regex, `${term} ${primarySynonym}`)
+        }
+      }
+    })
+
+    return expanded
+  }
+
+  /**
+   * Resolve temporal references to absolute dates
+   */
+  private resolveTemporalReferences(query: string): string {
+    const now = new Date()
+    const replacements: Record<string, string> = {
+      'today': now.toLocaleDateString(),
+      'yesterday': new Date(now.getTime() - 86400000).toLocaleDateString(),
+      'this week': `week of ${new Date(now.getTime() - now.getDay() * 86400000).toLocaleDateString()}`,
+      'last week': `week of ${new Date(now.getTime() - (now.getDay() + 7) * 86400000).toLocaleDateString()}`,
+      'this month': now.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
+      'last month': new Date(now.getFullYear(), now.getMonth() - 1).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
+    }
+
+    let resolved = query
+    Object.entries(replacements).forEach(([temporal, absolute]) => {
+      const regex = new RegExp(`\\b${temporal}\\b`, 'gi')
+      resolved = resolved.replace(regex, absolute)
+    })
+
+    return resolved
   }
 
   private createMinimalWorkspaceContext(projectPath: string): WorkspaceContext {
@@ -938,7 +1313,175 @@ export class UnifiedRAGSystem {
       vectorDBAvailable: !!this.vectorClient,
       workspaceRAGAvailable: !!this.workspaceRAG,
       config: this.config,
+      performance: {
+        ...this.searchMetrics,
+        cacheHitRate: this.searchMetrics.totalSearches > 0
+          ? (this.searchMetrics.cacheHits / this.searchMetrics.totalSearches * 100).toFixed(1) + '%'
+          : '0%',
+        errorRate: this.searchMetrics.totalSearches > 0
+          ? (this.searchMetrics.errors / this.searchMetrics.totalSearches * 100).toFixed(1) + '%'
+          : '0%',
+        averageLatencyMs: Math.round(this.searchMetrics.averageLatency)
+      }
     }
+  }
+
+  /**
+   * Get comprehensive performance metrics
+   */
+  getPerformanceMetrics() {
+    const totalSearches = this.searchMetrics.totalSearches
+
+    return {
+      searches: {
+        total: totalSearches,
+        vector: this.searchMetrics.vectorSearches,
+        workspace: this.searchMetrics.workspaceSearches,
+        bm25: this.searchMetrics.bm25Searches,
+      },
+      performance: {
+        averageLatency: Math.round(this.searchMetrics.averageLatency),
+        totalLatency: this.searchMetrics.totalLatency,
+        errors: this.searchMetrics.errors,
+        errorRate: totalSearches > 0 ? ((this.searchMetrics.errors / totalSearches) * 100).toFixed(1) + '%' : '0%'
+      },
+      optimization: {
+        cacheHits: this.searchMetrics.cacheHits,
+        cacheHitRate: totalSearches > 0 ? ((this.searchMetrics.cacheHits / totalSearches) * 100).toFixed(1) + '%' : '0%',
+        queryOptimizations: this.searchMetrics.queryOptimizations,
+        reranks: this.searchMetrics.reranks,
+        rerankRate: totalSearches > 0 ? ((this.searchMetrics.reranks / totalSearches) * 100).toFixed(1) + '%' : '0%'
+      }
+    }
+  }
+
+  /**
+   * Reset performance metrics
+   */
+  resetMetrics() {
+    this.searchMetrics = {
+      totalSearches: 0,
+      cacheHits: 0,
+      vectorSearches: 0,
+      workspaceSearches: 0,
+      bm25Searches: 0,
+      averageLatency: 0,
+      totalLatency: 0,
+      errors: 0,
+      queryOptimizations: 0,
+      reranks: 0
+    }
+    console.log(chalk.green('✅ RAG performance metrics reset'))
+  }
+
+  /**
+   * Log comprehensive performance report
+   */
+  logPerformanceReport() {
+    const metrics = this.getPerformanceMetrics()
+
+    console.log(chalk.blue.bold('\n📊 RAG Performance Report'))
+    console.log(chalk.gray('═'.repeat(50)))
+
+    console.log(chalk.cyan('Search Distribution:'))
+    console.log(`  Total Searches: ${metrics.searches.total}`)
+    console.log(`  Vector: ${metrics.searches.vector} (${((metrics.searches.vector / metrics.searches.total) * 100).toFixed(1)}%)`)
+    console.log(`  Workspace: ${metrics.searches.workspace} (${((metrics.searches.workspace / metrics.searches.total) * 100).toFixed(1)}%)`)
+    console.log(`  BM25: ${metrics.searches.bm25} (${((metrics.searches.bm25 / metrics.searches.total) * 100).toFixed(1)}%)`)
+
+    console.log(chalk.cyan('\nPerformance:'))
+    console.log(`  Average Latency: ${metrics.performance.averageLatency}ms`)
+    console.log(`  Error Rate: ${metrics.performance.errorRate}`)
+
+    console.log(chalk.cyan('\nOptimizations:'))
+    console.log(`  Cache Hit Rate: ${metrics.optimization.cacheHitRate}`)
+    console.log(`  Query Optimizations: ${metrics.optimization.queryOptimizations}`)
+    console.log(`  Re-rank Rate: ${metrics.optimization.rerankRate}`)
+
+    const efficiency = this.calculateEfficiencyScore(metrics)
+    console.log(chalk.cyan('\nEfficiency Score:'))
+    console.log(`  Overall: ${efficiency.overall}/100 ${this.getEfficiencyEmoji(efficiency.overall)}`)
+    console.log(`  Latency: ${efficiency.latency}/25`)
+    console.log(`  Cache: ${efficiency.cache}/25`)
+    console.log(`  Error Rate: ${efficiency.errorRate}/25`)
+    console.log(`  Feature Usage: ${efficiency.featureUsage}/25`)
+  }
+
+  /**
+   * Calculate efficiency score based on metrics
+   */
+  private calculateEfficiencyScore(metrics: ReturnType<typeof this.getPerformanceMetrics>) {
+    // Latency score (0-25): under 150ms = 25, 150-300ms = 20, 300-500ms = 15, 500+ = 10
+    let latency = 25
+    if (metrics.performance.averageLatency > 150) latency = 20
+    if (metrics.performance.averageLatency > 300) latency = 15
+    if (metrics.performance.averageLatency > 500) latency = 10
+
+    // Cache score (0-25): 60%+ = 25, 40-60% = 20, 20-40% = 15, <20% = 10
+    const cacheHitRate = parseFloat(metrics.optimization.cacheHitRate.replace('%', ''))
+    let cache = 10
+    if (cacheHitRate >= 60) cache = 25
+    else if (cacheHitRate >= 40) cache = 20
+    else if (cacheHitRate >= 20) cache = 15
+
+    // Error rate score (0-25): <1% = 25, 1-5% = 20, 5-10% = 15, >10% = 10
+    const errorRate = parseFloat(metrics.performance.errorRate.replace('%', ''))
+    let errorRateScore = 25
+    if (errorRate > 1) errorRateScore = 20
+    if (errorRate > 5) errorRateScore = 15
+    if (errorRate > 10) errorRateScore = 10
+
+    // Feature usage score (0-25): using all features = 25
+    const hasVector = metrics.searches.vector > 0
+    const hasWorkspace = metrics.searches.workspace > 0
+    const hasBM25 = metrics.searches.bm25 > 0
+    const hasOptimizations = metrics.optimization.queryOptimizations > 0
+    const featureUsage = (hasVector ? 7 : 0) + (hasWorkspace ? 6 : 0) + (hasBM25 ? 6 : 0) + (hasOptimizations ? 6 : 0)
+
+    return {
+      overall: latency + cache + errorRateScore + featureUsage,
+      latency,
+      cache,
+      errorRate: errorRateScore,
+      featureUsage
+    }
+  }
+
+  /**
+   * Get emoji for efficiency score
+   */
+  private getEfficiencyEmoji(score: number): string {
+    if (score >= 90) return '🚀'
+    if (score >= 80) return '⚡'
+    if (score >= 70) return '✅'
+    if (score >= 60) return '⚠️'
+    return '🐌'
+  }
+
+  /**
+   * Search with token-aware result truncation
+   */
+  async searchWithTokenLimit(
+    query: string,
+    maxTokens: number = 2000,
+    options?: {
+      limit?: number
+      includeContent?: boolean
+      semanticOnly?: boolean
+    }
+  ): Promise<RAGSearchResult[]> {
+    // Get initial results
+    const results = await this.search(query, options)
+
+    // Apply token-aware truncation
+    const truncatedResults = tokenAwareTruncate(results, maxTokens)
+
+    console.log(chalk.blue(
+      `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
+      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+    ))
+
+    return truncatedResults
   }
 }
 
@@ -980,8 +1523,85 @@ export async function search(query: string) {
 }
 
 // --- helpers ---
-function _estimateTokensFromChars(chars: number): number {
+function estimateTokensFromChars(chars: number): number {
   return Math.ceil(chars / 4)
+}
+
+/**
+ * Token-aware truncation with sliding window and semantic boundaries
+ */
+function tokenAwareTruncate(contexts: RAGSearchResult[], maxTokens: number): RAGSearchResult[] {
+  let totalTokens = 0
+  const truncated: RAGSearchResult[] = []
+
+  for (const context of contexts) {
+    const estimatedTokens = estimateTokensFromChars(context.content.length)
+
+    if (totalTokens + estimatedTokens > maxTokens) {
+      // Use sliding window to keep most relevant parts
+      const remainingTokens = maxTokens - totalTokens
+      if (remainingTokens > 50) { // Minimum chunk size
+        const truncatedContent = truncateToTokensWithBoundaries(
+          context.content,
+          remainingTokens
+        )
+
+        truncated.push({
+          ...context,
+          content: truncatedContent,
+          metadata: {
+            ...context.metadata,
+            truncated: true,
+            originalLength: context.content.length,
+            truncatedLength: truncatedContent.length
+          }
+        })
+      }
+      break
+    }
+
+    totalTokens += estimatedTokens
+    truncated.push(context)
+  }
+
+  return truncated
+}
+
+/**
+ * Truncate text to approximate token count while preserving semantic boundaries
+ */
+function truncateToTokensWithBoundaries(text: string, maxTokens: number): string {
+  const maxChars = maxTokens * 4 // Rough estimation: 1 token ≈ 4 characters
+
+  if (text.length <= maxChars) return text
+
+  // Try to find semantic boundaries (sentences, paragraphs, code blocks)
+  const boundaries = [
+    /\n\n/g,     // Paragraph breaks
+    /\.\s+/g,    // Sentence endings
+    /;\s*\n/g,   // Code statement endings
+    /\}\s*\n/g,  // Code block endings
+    /,\s+/g,     // Comma separations
+  ]
+
+  let bestCutoff = maxChars - 50 // Leave room for truncation notice
+
+  // Find the best boundary within the acceptable range
+  for (const boundary of boundaries) {
+    const matches = Array.from(text.matchAll(boundary))
+
+    for (const match of matches) {
+      const pos = match.index! + match[0].length
+      if (pos >= bestCutoff * 0.8 && pos <= bestCutoff) {
+        bestCutoff = pos
+        break
+      }
+    }
+
+    if (bestCutoff < maxChars - 50) break // Found good boundary
+  }
+
+  return text.substring(0, bestCutoff) + '\n[... content truncated for length ...]'
 }
 
 function chunkTextByTokens(text: string, chunkTokens: number, overlapTokens: number): string[] {

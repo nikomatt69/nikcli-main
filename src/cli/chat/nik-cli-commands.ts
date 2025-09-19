@@ -22,6 +22,7 @@ import { snapshotService } from '../services/snapshot-service'
 import { toolService } from '../services/tool-service'
 import { secureTools } from '../tools/secure-tools-registry'
 import { toolsManager } from '../tools/tools-manager'
+import { figmaTool, extractFileIdFromUrl, isFigmaConfigured } from '../tools/figma-tool'
 import type { AgentTask } from '../types/types'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { approvalSystem } from '../ui/approval-system'
@@ -91,6 +92,29 @@ const _ConfigCommandSchema = z.object({
   key: z.string().min(1),
   value: z.union([z.string(), z.number(), z.boolean()]).optional(),
   type: z.enum(['string', 'number', 'boolean']).optional(),
+})
+
+// Figma command schemas
+const FigmaExportSchema = z.object({
+  fileId: z.string().min(1),
+  format: z.enum(['png', 'jpg', 'svg', 'pdf']).default('png'),
+  outputPath: z.string().optional(),
+  scale: z.number().min(0.25).max(4).default(1),
+})
+
+const FigmaCodeGenSchema = z.object({
+  fileId: z.string().min(1),
+  framework: z.enum(['react', 'vue', 'svelte', 'html']).default('react'),
+  library: z.enum(['shadcn', 'chakra', 'mantine', 'custom']).default('shadcn'),
+  typescript: z.boolean().default(true),
+})
+
+const FigmaTokensSchema = z.object({
+  fileId: z.string().min(1),
+  format: z.enum(['json', 'css', 'scss', 'tokens-studio']).default('json'),
+  includeColors: z.boolean().default(true),
+  includeTypography: z.boolean().default(true),
+  includeSpacing: z.boolean().default(true),
 })
 
 // Helper function to validate and parse command arguments
@@ -280,6 +304,15 @@ export class SlashCommandHandler {
     this.commands.set('index', this.indexCommand.bind(this))
     // Router controls
     this.commands.set('router', this.routerCommand.bind(this))
+
+    // Figma design operations
+    this.commands.set('figma-info', this.figmaInfoCommand.bind(this))
+    this.commands.set('figma-export', this.figmaExportCommand.bind(this))
+    this.commands.set('figma-to-code', this.figmaToCodeCommand.bind(this))
+    this.commands.set('figma-open', this.figmaOpenCommand.bind(this))
+    this.commands.set('figma-tokens', this.figmaTokensCommand.bind(this))
+    this.commands.set('figma-config', this.figmaConfigCommand.bind(this))
+    this.commands.set('figma-create', this.figmaCreateCommand.bind(this))
   }
 
   async handle(input: string): Promise<CommandResult> {
@@ -431,6 +464,15 @@ ${chalk.cyan('/vm-broadcast <message>')} - Send message to all active VMs
 ${chalk.cyan('/vm-health')} - Run health check on all VMs
 ${chalk.cyan('/vm-backup [id]')} - Backup VM session state
 ${chalk.cyan('/vm-stats')} - Show VM session statistics
+
+${chalk.blue.bold('Figma Design Integration:')}
+${chalk.cyan('/figma-config')} - Show Figma API configuration status
+${chalk.cyan('/figma-info <file-id>')} - Get file information from Figma
+${chalk.cyan('/figma-export <file-id> [format] [output-path]')} - Export designs (png/svg/pdf)
+${chalk.cyan('/figma-to-code <file-id> [framework] [library]')} - Generate code from designs
+${chalk.cyan('/figma-open <file-url>')} - Open Figma file in desktop app (macOS)
+${chalk.cyan('/figma-tokens <file-id> [format]')} - Extract design tokens (json/css/scss)
+${chalk.cyan('/figma-create <component-path> [name]')} - Create Figma design from React component
 
 ${chalk.blue.bold('Security Commands:')}
 ${chalk.cyan('/security [status|set|help]')} - Manage security settings
@@ -5574,5 +5616,430 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       default:
         return chalk.gray(status)
     }
+  }
+
+  // ==================== FIGMA DESIGN INTEGRATION COMMANDS ====================
+
+  private async figmaConfigCommand(): Promise<CommandResult> {
+    // Use the panel from NikCLI instance if available
+    const nikCLI = (global as any).__nikCLI
+    if (nikCLI && typeof nikCLI.showFigmaStatusPanel === 'function') {
+      await nikCLI.showFigmaStatusPanel()
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    // Fallback to original implementation
+    console.log(chalk.blue.bold('🎨 Figma Integration Configuration'))
+    console.log(chalk.gray('─'.repeat(50)))
+
+    const isConfigured = isFigmaConfigured()
+    const tokenStatus = isConfigured
+      ? chalk.green('✅ Configured')
+      : chalk.red('❌ Not configured')
+
+    console.log(`${chalk.cyan('Figma API Token:')} ${tokenStatus}`)
+
+    const v0Configured = !!process.env.V0_API_KEY
+    const v0Status = v0Configured
+      ? chalk.green('✅ Configured')
+      : chalk.yellow('⚠️  Optional - for AI code generation')
+
+    console.log(`${chalk.cyan('Vercel v0 Integration:')} ${v0Status}`)
+
+    const desktopStatus = process.platform === 'darwin'
+      ? chalk.green('✅ Available (macOS)')
+      : chalk.gray('⚪ macOS only')
+
+    console.log(`${chalk.cyan('Desktop App Automation:')} ${desktopStatus}`)
+
+    console.log(chalk.gray('─'.repeat(50)))
+
+    if (!isConfigured) {
+      console.log(chalk.yellow('\n💡 Setup Instructions:'))
+      console.log(chalk.white('1. Get your Figma Personal Access Token:'))
+      console.log(chalk.gray('   https://www.figma.com/developers/api#access-tokens'))
+      console.log(chalk.white('2. Set the environment variable:'))
+      console.log(chalk.cyan('   export FIGMA_API_TOKEN="your-token-here"'))
+      console.log(chalk.white('3. Or use the config command:'))
+      console.log(chalk.cyan('   /set-key figma-api-token your-token-here'))
+    }
+
+    if (!v0Configured) {
+      console.log(chalk.yellow('\n🔧 Optional v0 Setup:'))
+      console.log(chalk.white('Set V0_API_KEY for AI-powered code generation from designs'))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async figmaInfoCommand(args: string[]): Promise<CommandResult> {
+    if (!isFigmaConfigured()) {
+      console.log(chalk.red('❌ Figma API not configured. Use /figma-config for setup instructions.'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    if (args.length === 0) {
+      console.log(chalk.red('❌ File ID or URL required'))
+      console.log(chalk.gray('Usage: /figma-info <file-id-or-url>'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const input = args[0]
+      const fileId = input.startsWith('http') ? extractFileIdFromUrl(input) : input
+
+      if (!fileId) {
+        console.log(chalk.red('❌ Could not extract valid file ID from input'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      console.log(chalk.blue('🔍 Fetching Figma file information...'))
+
+      const result = await figmaTool.execute({
+        command: 'figma-info',
+        args: [fileId]
+      })
+
+      if (result.success && result.data) {
+        const info = result.data
+
+        // Use the panel from NikCLI instance if available
+        const nikCLI = (global as any).__nikCLI
+        if (nikCLI && typeof nikCLI.showFigmaFilePanel === 'function') {
+          await nikCLI.showFigmaFilePanel(info)
+        } else {
+          // Fallback to original implementation
+          console.log(chalk.green('\n✅ File Information:'))
+          console.log(chalk.gray('─'.repeat(40)))
+          console.log(`${chalk.cyan('Name:')} ${info.name}`)
+          console.log(`${chalk.cyan('Key:')} ${info.key}`)
+          console.log(`${chalk.cyan('Version:')} ${info.version}`)
+          console.log(`${chalk.cyan('Last Modified:')} ${info.last_modified}`)
+          console.log(`${chalk.cyan('Role:')} ${info.role}`)
+
+          if (info.thumbnail_url) {
+            console.log(`${chalk.cyan('Thumbnail:')} ${info.thumbnail_url}`)
+          }
+        }
+      } else {
+        console.log(chalk.red(`❌ Failed to get file info: ${result.error}`))
+      }
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async figmaExportCommand(args: string[]): Promise<CommandResult> {
+    if (!isFigmaConfigured()) {
+      console.log(chalk.red('❌ Figma API not configured. Use /figma-config for setup instructions.'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    if (args.length === 0) {
+      console.log(chalk.red('❌ File ID or URL required'))
+      console.log(chalk.gray('Usage: /figma-export <file-id-or-url> [format] [output-path]'))
+      console.log(chalk.gray('Formats: png (default), jpg, svg, pdf'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const input = args[0]
+      const fileId = input.startsWith('http') ? extractFileIdFromUrl(input) : input
+      const format = args[1] || 'png'
+      const outputPath = args[2]
+
+      if (!fileId) {
+        console.log(chalk.red('❌ Could not extract valid file ID from input'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const exportData = {
+        fileId,
+        format,
+        outputPath,
+        scale: 1
+      }
+
+      const validatedArgs = validateCommandArgs(FigmaExportSchema, exportData, 'figma-export')
+
+      if (!validatedArgs) {
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      console.log(chalk.blue(`🎨 Exporting Figma designs as ${format.toUpperCase()}...`))
+
+      const execArgs: string[] = [
+        validatedArgs.fileId || fileId,
+        validatedArgs.format || format
+      ]
+      if (validatedArgs.outputPath) {
+        execArgs.push(validatedArgs.outputPath)
+      }
+
+      const result = await figmaTool.execute({
+        command: 'figma-export',
+        args: execArgs
+      })
+
+      if (result.success) {
+        console.log(chalk.green('\n✅ Export completed successfully!'))
+        if (result.exportPath) {
+          console.log(`${chalk.cyan('Exported to:')} ${result.exportPath}`)
+        }
+        if (result.data?.exportedFiles) {
+          console.log(`${chalk.cyan('Files exported:')} ${result.data.exportedFiles.length}`)
+          result.data.exportedFiles.slice(0, 5).forEach((file: string) => {
+            console.log(`  ${chalk.gray('•')} ${file}`)
+          })
+          if (result.data.exportedFiles.length > 5) {
+            console.log(`  ${chalk.gray(`... and ${result.data.exportedFiles.length - 5} more`)}`)
+          }
+        }
+      } else {
+        console.log(chalk.red(`❌ Export failed: ${result.error}`))
+      }
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async figmaToCodeCommand(args: string[]): Promise<CommandResult> {
+    if (!isFigmaConfigured()) {
+      console.log(chalk.red('❌ Figma API not configured. Use /figma-config for setup instructions.'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    if (args.length === 0) {
+      console.log(chalk.red('❌ File ID or URL required'))
+      console.log(chalk.gray('Usage: /figma-to-code <file-id-or-url> [framework] [library]'))
+      console.log(chalk.gray('Frameworks: react (default), vue, svelte, html'))
+      console.log(chalk.gray('Libraries: shadcn (default), chakra, mantine, custom'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const input = args[0]
+      const fileId = input.startsWith('http') ? extractFileIdFromUrl(input) : input
+      const framework = args[1] || 'react'
+      const library = args[2] || 'shadcn'
+
+      if (!fileId) {
+        console.log(chalk.red('❌ Could not extract valid file ID from input'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const codeGenData = {
+        fileId,
+        framework,
+        library,
+        typescript: true
+      }
+
+      const validatedArgs = validateCommandArgs(FigmaCodeGenSchema, codeGenData, 'figma-to-code')
+
+      if (!validatedArgs) {
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      console.log(chalk.blue(`🤖 Generating ${validatedArgs.framework} code with ${validatedArgs.library}...`))
+
+      const result = await figmaTool.execute({
+        command: 'figma-to-code',
+        args: [validatedArgs.fileId, validatedArgs.framework || 'react', validatedArgs.library || 'shadcn']
+      })
+
+      if (result.success && result.generatedCode) {
+        console.log(chalk.green('\n✅ Code generation completed!'))
+        console.log(chalk.gray('─'.repeat(50)))
+        console.log(result.generatedCode)
+        console.log(chalk.gray('─'.repeat(50)))
+      } else {
+        console.log(chalk.red(`❌ Code generation failed: ${result.error}`))
+      }
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async figmaOpenCommand(args: string[]): Promise<CommandResult> {
+    if (process.platform !== 'darwin') {
+      console.log(chalk.red('❌ Desktop app automation is only available on macOS'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    if (args.length === 0) {
+      console.log(chalk.red('❌ File URL required'))
+      console.log(chalk.gray('Usage: /figma-open <figma-file-url>'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const fileUrl = args[0]
+
+      if (!fileUrl.includes('figma.com')) {
+        console.log(chalk.red('❌ Invalid Figma URL'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      console.log(chalk.blue('🖥️  Opening Figma file in desktop app...'))
+
+      const result = await figmaTool.execute({
+        command: 'figma-open',
+        args: [fileUrl]
+      })
+
+      if (result.success) {
+        console.log(chalk.green('✅ File opened in Figma desktop app'))
+      } else {
+        console.log(chalk.red(`❌ Failed to open file: ${result.error}`))
+      }
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async figmaTokensCommand(args: string[]): Promise<CommandResult> {
+    if (!isFigmaConfigured()) {
+      console.log(chalk.red('❌ Figma API not configured. Use /figma-config for setup instructions.'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    if (args.length === 0) {
+      console.log(chalk.red('❌ File ID or URL required'))
+      console.log(chalk.gray('Usage: /figma-tokens <file-id-or-url> [format]'))
+      console.log(chalk.gray('Formats: json (default), css, scss, tokens-studio'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const input = args[0]
+      const fileId = input.startsWith('http') ? extractFileIdFromUrl(input) : input
+      const format = args[1] || 'json'
+
+      if (!fileId) {
+        console.log(chalk.red('❌ Could not extract valid file ID from input'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const tokensData = {
+        fileId,
+        format,
+        includeColors: true,
+        includeTypography: true,
+        includeSpacing: true
+      }
+
+      const validatedArgs = validateCommandArgs(FigmaTokensSchema, tokensData, 'figma-tokens')
+
+      if (!validatedArgs) {
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      console.log(chalk.blue(`🎯 Extracting design tokens as ${format.toUpperCase()}...`))
+
+      const result = await figmaTool.execute({
+        command: 'figma-tokens',
+        args: [validatedArgs.fileId, validatedArgs.format || 'json']
+      })
+
+      if (result.success && result.tokens) {
+        // Use the panel from NikCLI instance if available
+        const nikCLI = (global as any).__nikCLI
+        if (nikCLI && typeof nikCLI.showFigmaTokensPanel === 'function') {
+          await nikCLI.showFigmaTokensPanel(result.tokens)
+        } else {
+          // Fallback to original implementation
+          console.log(chalk.green('\n✅ Design tokens extracted!'))
+          console.log(chalk.gray('─'.repeat(50)))
+
+          if (typeof result.tokens === 'string') {
+            console.log(result.tokens)
+          } else {
+            console.log(JSON.stringify(result.tokens, null, 2))
+          }
+
+          console.log(chalk.gray('─'.repeat(50)))
+        }
+      } else {
+        console.log(chalk.red(`❌ Token extraction failed: ${result.error}`))
+      }
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async figmaCreateCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      console.log(chalk.red('❌ Component file path required'))
+      console.log(chalk.gray('Usage: /figma-create <component-path> [name]'))
+      console.log(chalk.gray('Example: /figma-create ./src/components/Button.tsx MyButton'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const componentPath = args[0]
+      const outputName = args[1]
+
+      console.log(chalk.blue(`🎨 Creating Figma design from React component...`))
+
+      const result = await figmaTool.execute({
+        command: 'figma-create',
+        args: [componentPath, outputName]
+      })
+
+      if (result.success && result.data) {
+        console.log(chalk.green('\n✅ Figma design creation completed!'))
+        console.log(chalk.gray('─'.repeat(50)))
+
+        const data = result.data
+        console.log(`${chalk.cyan('Component:')} ${data.componentName}`)
+        console.log(`${chalk.cyan('Analysis:')} ${data.designDescription.componentAnalysis}`)
+
+        if (data.previewImage && data.previewImage.localPath) {
+          console.log(`${chalk.cyan('Preview Image:')} ${data.previewImage.localPath}`)
+        }
+
+        if (data.figmaDesign) {
+          console.log(`${chalk.cyan('Design Elements:')} ${data.figmaDesign.frames[0].elements.length} elements`)
+        }
+
+        console.log(chalk.gray('─'.repeat(50)))
+        console.log(chalk.blue('📝 Design Tokens Found:'))
+        if (data.designDescription.designTokens.colors.length > 0) {
+          console.log(`  ${chalk.green('Colors:')} ${data.designDescription.designTokens.colors.slice(0, 3).join(', ')}${data.designDescription.designTokens.colors.length > 3 ? '...' : ''}`)
+        }
+        if (data.designDescription.designTokens.spacing.length > 0) {
+          console.log(`  ${chalk.green('Spacing:')} ${data.designDescription.designTokens.spacing.slice(0, 3).join(', ')}${data.designDescription.designTokens.spacing.length > 3 ? '...' : ''}`)
+        }
+
+        console.log('\n' + chalk.yellow('💡 Next steps:'))
+        console.log('  • Open the generated preview image to see the design concept')
+        console.log('  • Use the design specification to manually create the Figma file')
+        console.log('  • Import the extracted design tokens into your design system')
+
+      } else {
+        console.log(chalk.red(`❌ Creation failed: ${result.error}`))
+      }
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
   }
 }

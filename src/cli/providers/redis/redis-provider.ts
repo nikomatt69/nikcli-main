@@ -24,6 +24,16 @@ export interface CacheEntry<T = any> {
   metadata?: Record<string, any>
 }
 
+export interface VectorCacheEntry {
+  embedding: number[]
+  timestamp: number
+  ttl: number
+  provider: string
+  model: string
+  textHash: string
+  cost: number
+}
+
 export interface RedisHealth {
   connected: boolean
   latency: number
@@ -75,6 +85,8 @@ export class RedisProvider extends EventEmitter {
         // Use environment variables
         this.client = Redis.fromEnv()
         console.log(chalk.blue(`🔗 Connecting to Upstash Redis via environment...`))
+        console.log(chalk.gray(`   URL: ${process.env.UPSTASH_REDIS_REST_URL}`))
+        console.log(chalk.gray(`   Token: ${process.env.UPSTASH_REDIS_REST_TOKEN?.substring(0, 10)}...`))
       } else {
         throw new Error(
           'Upstash Redis configuration missing. Please provide url and token or set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.'
@@ -117,6 +129,15 @@ export class RedisProvider extends EventEmitter {
     this.connectionAttempts++
 
     console.log(chalk.red(`❌ Redis connection failed (attempt ${this.connectionAttempts}): ${error.message}`))
+
+    // Provide more specific troubleshooting info
+    if (error.message.includes('fetch failed')) {
+      console.log(chalk.yellow(`💡 Troubleshooting tips:`))
+      console.log(chalk.gray(`   • Check if your Upstash Redis instance is active`))
+      console.log(chalk.gray(`   • Verify URL format: https://your-endpoint.upstash.io`))
+      console.log(chalk.gray(`   • Ensure token is correct (check Upstash dashboard)`))
+      console.log(chalk.gray(`   • Try: /set-key-redis to reconfigure`))
+    }
 
     if (this.connectionAttempts >= this.config.maxRetries) {
       console.log(
@@ -405,6 +426,184 @@ export class RedisProvider extends EventEmitter {
 
     // Update config manager
     simpleConfigManager.setRedisConfig(newConfig)
+  }
+
+  // ===== VECTOR CACHE METHODS =====
+
+  /**
+   * Generate cache key for vector embedding
+   */
+  private generateVectorCacheKey(text: string, provider: string, model: string): string {
+    const crypto = require('node:crypto')
+    const textHash = crypto.createHash('sha256').update(text).digest('hex').substring(0, 16)
+    return `vector:${provider}:${model}:${textHash}`
+  }
+
+  /**
+   * Cache vector embedding with TTL
+   */
+  async cacheVector(
+    text: string,
+    embedding: number[],
+    provider: string,
+    model: string,
+    cost: number = 0,
+    ttl: number = 300 // 5 minutes default
+  ): Promise<boolean> {
+    if (!this.client || !this.isConnected) {
+      return false // Fail silently if Redis unavailable
+    }
+
+    try {
+      const crypto = require('node:crypto')
+      const textHash = crypto.createHash('sha256').update(text).digest('hex')
+      const cacheKey = this.generateVectorCacheKey(text, provider, model)
+
+      const vectorEntry: VectorCacheEntry = {
+        embedding,
+        timestamp: Date.now(),
+        ttl,
+        provider,
+        model,
+        textHash,
+        cost
+      }
+
+      const serializedValue = JSON.stringify(vectorEntry)
+      const finalKey = this.config.keyPrefix ? `${this.config.keyPrefix}${cacheKey}` : cacheKey
+
+      await this.client.setex(finalKey, ttl, serializedValue)
+      return true
+    } catch (error) {
+      console.log(chalk.yellow(`⚠️ Vector cache failed for ${provider}:${model}: ${(error as Error).message}`))
+      return false
+    }
+  }
+
+  /**
+   * Retrieve cached vector embedding
+   */
+  async getCachedVector(text: string, provider: string, model: string): Promise<VectorCacheEntry | null> {
+    if (!this.client || !this.isConnected) {
+      return null // Fail silently if Redis unavailable
+    }
+
+    try {
+      const cacheKey = this.generateVectorCacheKey(text, provider, model)
+      const finalKey = this.config.keyPrefix ? `${this.config.keyPrefix}${cacheKey}` : cacheKey
+      const serializedValue = await this.client.get(finalKey)
+
+      if (!serializedValue) {
+        return null
+      }
+
+      const vectorEntry: VectorCacheEntry = JSON.parse(serializedValue as string)
+
+      // Verify text matches (additional security)
+      const crypto = require('node:crypto')
+      const textHash = crypto.createHash('sha256').update(text).digest('hex')
+      if (vectorEntry.textHash !== textHash) {
+        console.log(chalk.yellow('⚠️ Vector cache hash mismatch, invalidating entry'))
+        await this.del(cacheKey)
+        return null
+      }
+
+      // Check TTL
+      const age = Date.now() - vectorEntry.timestamp
+      if (age > vectorEntry.ttl * 1000) {
+        await this.del(cacheKey) // Clean up expired entry
+        return null
+      }
+
+      return vectorEntry
+    } catch (error) {
+      console.log(chalk.yellow(`⚠️ Vector cache retrieval failed: ${(error as Error).message}`))
+      return null
+    }
+  }
+
+  /**
+   * Batch cache multiple vectors
+   */
+  async cacheVectorBatch(
+    vectors: Array<{
+      text: string
+      embedding: number[]
+      provider: string
+      model: string
+      cost?: number
+    }>,
+    ttl: number = 300
+  ): Promise<number> {
+    if (!this.client || !this.isConnected) {
+      return 0
+    }
+
+    let successCount = 0
+    const promises = vectors.map(async (vector) => {
+      const success = await this.cacheVector(
+        vector.text,
+        vector.embedding,
+        vector.provider,
+        vector.model,
+        vector.cost || 0,
+        ttl
+      )
+      if (success) successCount++
+    })
+
+    await Promise.allSettled(promises)
+    return successCount
+  }
+
+  /**
+   * Get vector cache statistics
+   */
+  async getVectorCacheStats(): Promise<{
+    totalKeys: number
+    cacheHitRate?: number
+    avgCacheAge?: number
+  }> {
+    if (!this.client || !this.isConnected) {
+      return { totalKeys: 0 }
+    }
+
+    try {
+      const pattern = this.config.keyPrefix ? `${this.config.keyPrefix}vector:*` : 'vector:*'
+      const keys = await this.client.keys(pattern)
+
+      return {
+        totalKeys: keys.length,
+        // Additional stats could be implemented with more Redis operations
+      }
+    } catch (error) {
+      console.log(chalk.yellow(`⚠️ Vector cache stats failed: ${(error as Error).message}`))
+      return { totalKeys: 0 }
+    }
+  }
+
+  /**
+   * Clear all vector cache entries
+   */
+  async clearVectorCache(): Promise<boolean> {
+    if (!this.client || !this.isConnected) {
+      return false
+    }
+
+    try {
+      const pattern = this.config.keyPrefix ? `${this.config.keyPrefix}vector:*` : 'vector:*'
+      const keys = await this.client.keys(pattern)
+
+      if (keys.length > 0) {
+        await this.client.del(...keys)
+        console.log(chalk.green(`✅ Cleared ${keys.length} vector cache entries`))
+      }
+
+      return true
+    } catch (error) {
+      console.log(chalk.red(`❌ Vector cache clear failed: ${(error as Error).message}`))
+      return false
+    }
   }
 }
 
