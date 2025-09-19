@@ -1,6 +1,7 @@
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { BashTool } from './bash-tool'
+import { BrowserbaseTool } from './browserbase-tool'
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
 import { EditTool } from './edit-tool'
 import { FindFilesTool } from './find-files-tool'
@@ -53,7 +54,7 @@ export class ToolRegistry {
       estimatedDuration: metadata?.estimatedDuration || 5000,
       requiredPermissions: metadata?.requiredPermissions || [],
       supportedFileTypes: metadata?.supportedFileTypes || [],
-      version: metadata?.version || '0.1.1',
+      version: metadata?.version || '0.1.5',
       author: metadata?.author || 'system',
       tags: metadata?.tags || [],
     })
@@ -193,7 +194,7 @@ export class ToolRegistry {
     return {
       tools: Array.from(this.toolMetadata.values()),
       exportedAt: new Date(),
-      version: '0.1.1',
+      version: '0.1.5',
     }
   }
 
@@ -412,6 +413,17 @@ export class ToolRegistry {
       requiredPermissions: ['network', 'execute'],
       supportedFileTypes: ['*'],
       tags: ['blockchain', 'crypto', 'coinbase', 'agentkit', 'defi', 'wallet', 'transactions'],
+    })
+
+    this.registerTool('browserbase-tool', new BrowserbaseTool(workingDirectory), {
+      description: 'Web browsing automation and AI-powered content analysis using Browserbase',
+      category: 'ai',
+      riskLevel: 'medium',
+      reversible: true,
+      estimatedDuration: 10000,
+      requiredPermissions: ['network', 'read'],
+      supportedFileTypes: ['*'],
+      tags: ['web', 'browsing', 'ai', 'content', 'analysis', 'browserbase', 'automation'],
     })
 
     // List directory tool

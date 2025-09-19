@@ -4,7 +4,9 @@ import { ListDirectoryTool, ReadFileTool, ReplaceInFileTool, sanitizePath, Write
 export type { BatchSession } from './secure-command-tool'
 
 import { type BatchSession, type CommandResult, SecureCommandTool } from '.'
+import { BrowserbaseTool, type BrowserbaseToolResult } from './browserbase-tool'
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
+import { FigmaTool, type FigmaToolResult } from './figma-tool'
 import { FindFilesTool } from './find-files-tool'
 import { GitTools } from './git-tools'
 import { type GrepResult, GrepTool, type GrepToolParams } from './grep-tool'
@@ -55,6 +57,8 @@ export class SecureToolsRegistry {
   private gitTools: GitTools
   private multiReadTool: MultiReadTool
   private grepTool: GrepTool
+  private browserbaseTool: BrowserbaseTool
+  private figmaTool: FigmaTool
   private executionHistory: ToolResult[] = []
 
   constructor(workingDir?: string) {
@@ -72,6 +76,8 @@ export class SecureToolsRegistry {
     this.gitTools = new GitTools(this.workingDirectory)
     this.multiReadTool = new MultiReadTool(this.workingDirectory)
     this.grepTool = new GrepTool(this.workingDirectory)
+    this.browserbaseTool = new BrowserbaseTool(this.workingDirectory)
+    this.figmaTool = new FigmaTool()
 
     console.log(chalk.green('🔒 Secure Tools Registry initialized'))
     console.log(chalk.gray(`📁 Working directory: ${this.workingDirectory}`))
@@ -643,6 +649,367 @@ export class SecureToolsRegistry {
     console.log(chalk.red(`Failed Operations: ${stats.failedOperations}`))
     console.log(chalk.blue(`Path Validation Rate: ${(stats.pathValidationRate * 100).toFixed(1)}%`))
     console.log(chalk.blue(`User Confirmation Rate: ${(stats.userConfirmationRate * 100).toFixed(1)}%`))
+  }
+
+  /**
+   * Browse URL and analyze with Browserbase
+   */
+  async browseAndAnalyze(
+    url: string,
+    options: {
+      analysisProvider?: 'claude' | 'openai' | 'google' | 'openrouter'
+      analysisType?: 'summary' | 'detailed' | 'technical' | 'custom'
+      customPrompt?: string
+      skipConfirmation?: boolean
+    } = {}
+  ): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+
+    return this.executeWithTracking(
+      'BrowseAndAnalyze',
+      async () => {
+        const res = await this.browserbaseTool.browseAndAnalyze(url, {
+          analysisOptions: {
+            provider: options.analysisProvider,
+            analysisType: options.analysisType,
+            prompt: options.customPrompt,
+          },
+        })
+        if (!res.success) throw new Error(res.error || 'Browse and analyze failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: !options.skipConfirmation,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Create Browserbase session
+   */
+  async createBrowserbaseSession(
+    options: { timeout?: number; keepAlive?: boolean; skipConfirmation?: boolean } = {}
+  ): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+
+    return this.executeWithTracking(
+      'CreateBrowserbaseSession',
+      async () => {
+        const res = await this.browserbaseTool.createSession({
+          timeout: options.timeout,
+          keepAlive: options.keepAlive,
+        })
+        if (!res.success) throw new Error(res.error || 'Session creation failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: !options.skipConfirmation,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Navigate and extract content with Browserbase
+   */
+  async navigateAndExtract(
+    sessionId: string,
+    url: string,
+    options: {
+      waitFor?: number
+      selector?: string
+      screenshot?: boolean
+      skipConfirmation?: boolean
+    } = {}
+  ): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+
+    return this.executeWithTracking(
+      'NavigateAndExtract',
+      async () => {
+        const res = await this.browserbaseTool.navigateAndExtract(sessionId, url, {
+          waitFor: options.waitFor,
+          selector: options.selector,
+          screenshot: options.screenshot,
+        })
+        if (!res.success) throw new Error(res.error || 'Navigate and extract failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: !options.skipConfirmation,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Close Browserbase session
+   */
+  async closeBrowserbaseSession(
+    sessionId: string,
+    options: {
+      skipConfirmation?: boolean
+    } = {}
+  ): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+
+    return this.executeWithTracking(
+      'CloseBrowserbaseSession',
+      async () => {
+        const res = await this.browserbaseTool.closeSession(sessionId)
+        if (!res.success) throw new Error(res.error || 'Session close failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: !options.skipConfirmation,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Get Browserbase session status
+   */
+  async getBrowserbaseSession(sessionId: string): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext('safe')
+
+    return this.executeWithTracking(
+      'GetBrowserbaseSession',
+      async () => {
+        const res = await this.browserbaseTool.getSession(sessionId)
+        if (!res.success) throw new Error(res.error || 'Get session failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: false,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Get Browserbase available providers
+   */
+  getBrowserbaseProviders(): string[] {
+    return this.browserbaseTool.getAvailableProviders()
+  }
+
+  /**
+   * Get active Browserbase sessions
+   */
+  getActiveBrowserbaseSessions(): any[] {
+    return this.browserbaseTool.getActiveSessions()
+  }
+
+  /**
+   * Cleanup expired Browserbase sessions
+   */
+  async cleanupExpiredBrowserbaseSessions(): Promise<ToolResult<BrowserbaseToolResult>> {
+    const context = this.createContext('safe')
+
+    return this.executeWithTracking(
+      'CleanupExpiredBrowserbaseSessions',
+      async () => {
+        const res = await this.browserbaseTool.cleanupExpiredSessions()
+        if (!res.success) throw new Error(res.error || 'Cleanup failed')
+        return res.data as BrowserbaseToolResult
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: false,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  // ==================== FIGMA DESIGN TOOLS ====================
+
+  /**
+   * Get Figma file information
+   */
+  async figmaGetFileInfo(fileId: string): Promise<ToolResult<FigmaToolResult>> {
+    const context = this.createContext('safe')
+
+    return this.executeWithTracking(
+      'FigmaGetFileInfo',
+      async () => {
+        const res = await this.figmaTool.execute({
+          command: 'figma-info',
+          args: [fileId],
+        })
+        if (!res.success) throw new Error(res.error || 'Failed to get file info')
+        return res
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: false,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Export Figma designs to images
+   */
+  async figmaExportDesigns(
+    fileId: string,
+    options: {
+      format?: 'png' | 'jpg' | 'svg' | 'pdf'
+      outputPath?: string
+      scale?: number
+      nodeIds?: string[]
+    } = {}
+  ): Promise<ToolResult<FigmaToolResult>> {
+    const context = this.createContext('confirmed')
+
+    return this.executeWithTracking(
+      'FigmaExportDesigns',
+      async () => {
+        const args = [fileId]
+        if (options.format) args.push(options.format)
+        if (options.outputPath) args.push(options.outputPath)
+
+        const res = await this.figmaTool.execute({
+          command: 'figma-export',
+          args,
+        })
+        if (!res.success) throw new Error(res.error || 'Export failed')
+        return res
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: true,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Generate code from Figma designs using AI
+   */
+  async figmaGenerateCode(
+    fileId: string,
+    options: {
+      framework?: 'react' | 'vue' | 'svelte' | 'html'
+      library?: 'shadcn' | 'chakra' | 'mantine' | 'custom'
+      nodeId?: string
+    } = {}
+  ): Promise<ToolResult<FigmaToolResult>> {
+    const context = this.createContext('safe')
+
+    return this.executeWithTracking(
+      'FigmaGenerateCode',
+      async () => {
+        const args = [fileId]
+        if (options.framework) args.push(options.framework)
+        if (options.library) args.push(options.library)
+
+        const res = await this.figmaTool.execute({
+          command: 'figma-to-code',
+          args,
+        })
+        if (!res.success) throw new Error(res.error || 'Code generation failed')
+        return res
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: false,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Open Figma file in desktop app (macOS only)
+   */
+  async figmaOpenInDesktop(fileUrl: string): Promise<ToolResult<FigmaToolResult>> {
+    const context = this.createContext('confirmed')
+
+    return this.executeWithTracking(
+      'FigmaOpenInDesktop',
+      async () => {
+        const res = await this.figmaTool.execute({
+          command: 'figma-open',
+          args: [fileUrl],
+        })
+        if (!res.success) throw new Error(res.error || 'Failed to open in desktop app')
+        return res
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: true,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Extract design tokens from Figma file
+   */
+  async figmaExtractTokens(
+    fileId: string,
+    options: {
+      format?: 'json' | 'css' | 'scss' | 'tokens-studio'
+      includeColors?: boolean
+      includeTypography?: boolean
+      includeSpacing?: boolean
+    } = {}
+  ): Promise<ToolResult<FigmaToolResult>> {
+    const context = this.createContext('safe')
+
+    return this.executeWithTracking(
+      'FigmaExtractTokens',
+      async () => {
+        const args = [fileId]
+        if (options.format) args.push(options.format)
+
+        const res = await this.figmaTool.execute({
+          command: 'figma-tokens',
+          args,
+        })
+        if (!res.success) throw new Error(res.error || 'Token extraction failed')
+        return res
+      },
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: false,
+        commandAnalyzed: true,
+      }
+    )
+  }
+
+  /**
+   * Check if Figma integration is configured
+   */
+  isFigmaConfigured(): boolean {
+    return !!(
+      process.env.FIGMA_API_TOKEN || require('../core/config-manager').simpleConfigManager.get('figma.apiToken')
+    )
+  }
+
+  /**
+   * Extract file ID from Figma URL
+   */
+  extractFigmaFileId(url: string): string | null {
+    const match = url.match(/\/file\/([a-zA-Z0-9_-]+)/)
+    return match ? match[1] : null
   }
 }
 

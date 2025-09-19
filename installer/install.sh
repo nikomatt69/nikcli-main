@@ -1,76 +1,142 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+# Universal NikCLI Installation Script
+# Supports npm, yarn, pnpm, and bun
 
-# NikCLI curl installer (beta)
-# Usage:
-#   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash 
-#   curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version 0.1.1
+set -e
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-VERSION="0.1.1"
-PACKAGE="@nicomatt69/nikcli"
+# Package managers to try in order of preference
+PACKAGE_MANAGERS=("pnpm" "bun" "yarn" "npm")
 
-log() { echo -e "[NikCLI] $*"; }
-err() { echo -e "[NikCLI][ERROR] $*" >&2; }
-usage() {
-  cat <<EOF
-NikCLI Installer
+echo -e "${BLUE}🚀 NikCLI Universal Installer${NC}"
+echo -e "${BLUE}================================${NC}"
 
-Options:
-  --tag <npm-tag>        NPM tag to install (default: beta)
-  --version <x.y.z>      Exact version to install (overrides --tag)
-  -h, --help             Show this help
-
-Examples:
-  
-  bash install.sh --version 0.1.1
-EOF
+# Function to check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
 }
 
-# Parse args
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --tag)
-      [[ $# -ge 2 ]] || { err "--tag requires a value"; exit 1; }
-      TAG="$2"; shift 2 ;;
-    --version)
-      [[ $# -ge 2 ]] || { err "--version requires a value"; exit 1; }
-      VERSION="$2"; shift 2 ;;
-    -h|--help)
-      usage; exit 0 ;;
-    *)
-      err "Unknown argument: $1"; usage; exit 1 ;;
-  esac
+# Function to get package manager version
+get_version() {
+    case $1 in
+        "npm")
+            npm --version 2>/dev/null
+            ;;
+        "yarn")
+            yarn --version 2>/dev/null
+            ;;
+        "pnpm")
+            pnpm --version 2>/dev/null
+            ;;
+        "bun")
+            bun --version 2>/dev/null
+            ;;
+    esac
+}
+
+# Function to install with specific package manager
+install_with_manager() {
+    local manager=$1
+    echo -e "${GREEN}📦 Installing NikCLI with ${manager}...${NC}"
+
+    case $manager in
+        "npm")
+            npm install -g @nicomatt69/nikcli
+            ;;
+        "yarn")
+            yarn global add @nicomatt69/nikcli
+            ;;
+        "pnpm")
+            pnpm install -g @nicomatt69/nikcli
+            ;;
+        "bun")
+            bun install -g @nicomatt69/nikcli
+            ;;
+    esac
+}
+
+# Check for Node.js
+if ! command_exists node; then
+    echo -e "${RED}❌ Node.js not found. Please install Node.js 18+ first.${NC}"
+    echo -e "${BLUE}Visit: https://nodejs.org/${NC}"
+    exit 1
+fi
+
+NODE_VERSION=$(node --version | cut -d'v' -f2 | cut -d'.' -f1)
+if [ "$NODE_VERSION" -lt 18 ]; then
+    echo -e "${RED}❌ Node.js 18+ required. Current version: $(node --version)${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Node.js $(node --version) detected${NC}"
+
+# Check available package managers
+echo -e "\n${BLUE}🔍 Checking available package managers...${NC}"
+available_managers=()
+
+for manager in "${PACKAGE_MANAGERS[@]}"; do
+    if command_exists "$manager"; then
+        version=$(get_version "$manager")
+        echo -e "${GREEN}✅ ${manager} ${version}${NC}"
+        available_managers+=("$manager")
+    else
+        echo -e "${YELLOW}⚠️  ${manager} not found${NC}"
+    fi
 done
 
-# Checks
-if ! command -v node >/dev/null 2>&1; then
-  err "Node.js is required. Please install Node.js >= 18 first: https://nodejs.org/en/download"; exit 1
-fi
-if ! command -v npm >/dev/null 2>&1; then
-  err "npm is required. Please install npm (bundled with Node.js)."; exit 1
+if [ ${#available_managers[@]} -eq 0 ]; then
+    echo -e "${RED}❌ No supported package managers found!${NC}"
+    echo -e "${BLUE}Please install one of: npm, yarn, pnpm, or bun${NC}"
+    exit 1
 fi
 
-NODE_MAJOR="$(node -p "process.versions.node.split('.')[0]")"
-if [[ -z "$NODE_MAJOR" ]] || (( NODE_MAJOR < 18 )); then
-  err "Node.js >= 18 is required. Detected: $(node -v 2>/dev/null || echo unknown)"; exit 1
+# Use the first available package manager
+preferred_manager=${available_managers[0]}
+
+# Allow user to override
+if [ "$1" ]; then
+    user_choice="$1"
+    if [[ " ${available_managers[@]} " =~ " ${user_choice} " ]]; then
+        preferred_manager="$user_choice"
+        echo -e "${BLUE}📋 Using user-specified package manager: ${preferred_manager}${NC}"
+    else
+        echo -e "${YELLOW}⚠️  ${user_choice} not available. Using ${preferred_manager} instead.${NC}"
+    fi
 fi
 
-TARGET="$PACKAGE@${TAG}"
-if [[ -n "$VERSION" ]]; then
-  TARGET="$PACKAGE@$VERSION"
-fi
+echo -e "\n${BLUE}📦 Installing with ${preferred_manager}...${NC}"
 
-log "Installing $TARGET globally via npm..."
-npm i -g "$TARGET"
-
-if command -v nikcli >/dev/null 2>&1; then
-  log "Installation complete. You can start with: nikcli"
-  log "Version: $(nikcli --version 2>/dev/null || echo installed)"
+# Install NikCLI
+if install_with_manager "$preferred_manager"; then
+    echo -e "\n${GREEN}🎉 NikCLI installed successfully!${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}🚀 Get started with: ${YELLOW}nikcli${NC}"
+    echo -e "${GREEN}📚 For help: ${YELLOW}nikcli --help${NC}"
+    echo -e "${GREEN}🔧 Configuration: ${YELLOW}nikcli /config${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 else
-  err "nikcli not found on PATH after install. Ensure your npm global bin is on PATH."
-  npm bin -g | sed 's/^/[NikCLI] Global npm bin: /'
-fi
+    echo -e "\n${RED}❌ Installation failed with ${preferred_manager}${NC}"
 
-log "Uninstall with: npm uninstall -g $PACKAGE"
+    # Try other managers
+    echo -e "${YELLOW}🔄 Trying alternative package managers...${NC}"
+    for manager in "${available_managers[@]}"; do
+        if [ "$manager" != "$preferred_manager" ]; then
+            echo -e "${BLUE}Trying ${manager}...${NC}"
+            if install_with_manager "$manager"; then
+                echo -e "\n${GREEN}🎉 NikCLI installed successfully with ${manager}!${NC}"
+                exit 0
+            fi
+        fi
+    done
+
+    echo -e "\n${RED}❌ Installation failed with all available package managers.${NC}"
+    echo -e "${BLUE}Please try manual installation:${NC}"
+    echo -e "${YELLOW}npm install -g @nicomatt69/nikcli${NC}"
+    exit 1
+fi

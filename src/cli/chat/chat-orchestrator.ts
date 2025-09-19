@@ -103,7 +103,7 @@ export class ChatOrchestrator {
         description: 'Planned tasks',
         specialization: 'general',
         capabilities: [],
-        version: '0.1.1',
+        version: '0.1.5',
         currentTasks: 0,
         maxConcurrentTasks: 1,
         initialize: async () => {},

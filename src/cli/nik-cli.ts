@@ -11,7 +11,7 @@ import { modelProvider } from './ai/model-provider'
 import { ModernAgentOrchestrator } from './automation/agents/modern-agent-system'
 import { chatManager } from './chat/chat-manager'
 import { SlashCommandHandler } from './chat/nik-cli-commands'
-import { TOKEN_LIMITS } from './config/token-limits'
+import { calculateTokenCost, MODEL_COSTS, TOKEN_LIMITS } from './config/token-limits'
 import { docsContextManager } from './context/docs-context-manager'
 import { workspaceContext } from './context/workspace-context'
 import { agentFactory } from './core/agent-factory'
@@ -22,14 +22,15 @@ import { createCloudDocsProvider, getCloudDocsProvider } from './core/cloud-docs
 import { completionCache } from './core/completion-protocol-cache'
 // Import existing modules
 import { configManager, type SimpleConfigManager, simpleConfigManager } from './core/config-manager'
+import { contextTokenManager } from './core/context-token-manager'
 import { type DocumentationEntry, docLibrary } from './core/documentation-library'
 import { enhancedTokenCache } from './core/enhanced-token-cache'
 import { inputQueue } from './core/input-queue'
 import { type McpServerConfig, mcpClient } from './core/mcp-client'
-
 import { QuietCacheLogger, TokenOptimizer } from './core/performance-optimizer'
 import { tokenCache } from './core/token-cache'
 import { toolRouter } from './core/tool-router'
+import { universalTokenizer } from './core/universal-tokenizer-service'
 import { validatorManager } from './core/validator-manager'
 import { WebSearchProvider } from './core/web-search-provider'
 import { getProjectHealthSummary, ideDiagnosticIntegration } from './integrations/ide-diagnostic-integration'
@@ -49,10 +50,12 @@ import { planningService } from './services/planning-service'
 import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
 import { StreamingOrchestrator } from './streaming-orchestrator'
+import { secureTools } from './tools/secure-tools-registry'
 import { toolsManager } from './tools/tools-manager'
 import { advancedUI } from './ui/advanced-cli-ui'
 import { approvalSystem } from './ui/approval-system'
 import { createStringPushStream, renderChatStreamToTerminal } from './ui/streamdown-renderer'
+import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
 import { configureSyntaxHighlighting } from './utils/syntax-highlighter'
 import {
   formatAgent,
@@ -149,6 +152,7 @@ export class NikCLI {
   // Enhanced features
   private enhancedFeaturesEnabled: boolean = true
   private smartSuggestionsEnabled: boolean = true
+  private tokenDisplay = createConsoleTokenDisplay() // Real-time token display
   private streamingOptimized: boolean = true
 
   // Execution state management
@@ -231,6 +235,9 @@ export class NikCLI {
 
     // Register agents
     registerAgents(this.agentManager)
+
+    // Initialize token tracking system
+    this.initializeTokenTrackingSystem()
 
     // Expose this instance globally for command handlers
     ;(global as any).__nikCLI = this
@@ -1084,8 +1091,8 @@ export class NikCLI {
         break
 
       case 'bg_agent_tool_call':
-        const toolParams = eventData.parameters ? ` ${JSON.stringify(eventData.parameters)}` : ''
-        advancedUI.logInfo('Background Tool', `🛠️ ${eventData.agentId}: ${eventData.toolName}${toolParams}`)
+        const toolDetails = this.formatToolDetails(eventData.toolName, eventData.parameters)
+        advancedUI.logInfo('Background Tool', `🛠️ ${eventData.agentId}: ${toolDetails}`)
         break
 
       case 'bg_agent_orchestrated':
@@ -1145,8 +1152,8 @@ export class NikCLI {
         break
 
       case 'bg_agent_tool_call':
-        const toolParamsConsole = eventData.parameters ? ` ${JSON.stringify(eventData.parameters)}` : ''
-        console.log(chalk.dim(`  🛠️ Background Tool: ${eventData.agentId} → ${eventData.toolName}${toolParamsConsole}`))
+        const bgToolDetails = this.formatToolDetails(eventData.toolName, eventData.parameters)
+        console.log(chalk.dim(`  🛠️ Background Tool: ${eventData.agentId} → ${bgToolDetails}`))
         break
 
       case 'bg_agent_orchestrated':
@@ -1995,10 +2002,16 @@ export class NikCLI {
 
         // Handle / key for slash command palette
 
-        // Handle ? key to show a quick cheat-sheet overlay
+        // Handle ? key to show a quick cheat-sheet overlay (only at start of line)
         if (chunk === '?' && !this.assistantProcessing) {
-          setTimeout(() => this.showCheatSheet(), 30)
-          return
+          // Check if ? is at the beginning of the line
+          const currentLine = this.rl?.line || ''
+          if (currentLine.length === 1 && currentLine === '?') {
+            // Clear the ? from the input line
+            this.rl?.write('', { ctrl: true, name: 'u' }) // Clear line
+            setTimeout(() => this.showCheatSheet(), 30)
+            return
+          }
         }
 
         // Handle Cmd+Tab for mode cycling (macOS)
@@ -2055,6 +2068,9 @@ export class NikCLI {
         this.renderPromptAfterOutput()
         return
       }
+
+      // 🛡️ EMERGENCY: Auto-enable compact mode for long/complex inputs to prevent "Message too long"
+      this.checkAndEnableCompactMode(trimmed)
 
       // Set user input as active when user sends a message
       this.userInputActive = true
@@ -2132,6 +2148,10 @@ export class NikCLI {
         // Done processing; return to idle
         this.assistantProcessing = false
         this.stopStatusBar()
+
+        // Update token display with current session stats
+        this.updateTokenDisplay()
+
         this.renderPromptAfterOutput()
 
         // Processa input dalla queue se disponibili
@@ -2172,6 +2192,12 @@ export class NikCLI {
       lines.push('  /web3 wallets         Pick a wallet')
       lines.push('  /doc-search <query>   Search docs')
       lines.push('  /set-coin-keys        Configure Coinbase keys')
+      lines.push('  /set-key-bb           Configure Browserbase keys')
+      lines.push('  /set-key-redis        Configure Redis/Upstash keys')
+      lines.push('  /set-vector-key       Configure Upstash Vector keys')
+      lines.push('  /redis-enable          Enable Redis caching')
+      lines.push('  /redis-disable         Disable Redis caching')
+      lines.push('  /redis-status          Show Redis status')
       lines.push('  /queue status         Input queue status')
 
       const panel = boxen(lines.join('\n'), {
@@ -2656,6 +2682,37 @@ export class NikCLI {
   }
 
   /**
+   * 🛡️ Check for long/complex inputs and auto-enable compact mode to prevent "Message too long"
+   */
+  private checkAndEnableCompactMode(input: string): void {
+    const complexPatterns = [
+      /analyze.*project|explore.*directory.*depth|code_analysis.*project/i,
+      /read.*multiple.*files?|read.*all.*files?/i,
+      /explore.*src.*depth.*[3-9]|explore.*depth.*[4-9]/i,
+      /git.*workflow.*unknown|analyze.*full.*codebase/i,
+      /comprehensive.*analysis|complete.*analysis|deep.*analysis/i,
+    ]
+
+    const shouldEnableCompact =
+      input.length > 200 || // Long input text
+      complexPatterns.some((pattern) => pattern.test(input)) || // Complex analysis request
+      (input.includes('analyze') && input.includes('project')) || // Project analysis
+      (input.includes('explore') && input.includes('depth')) || // Deep directory exploration
+      input.split(' ').length > 30 // Very long command
+
+    if (shouldEnableCompact && process.env.NIKCLI_COMPACT !== '1') {
+      console.log(chalk.yellow('🛡️ Auto-enabling compact mode for complex request to prevent token overflow'))
+      process.env.NIKCLI_COMPACT = '1'
+
+      // Also set super compact for very complex requests
+      if (input.length > 500 || input.split(' ').length > 50) {
+        console.log(chalk.yellow('🔥 Super compact mode enabled for very large request'))
+        process.env.NIKCLI_SUPER_COMPACT = '1'
+      }
+    }
+  }
+
+  /**
    * Interrupt current processing and stop all operations
    */
   private interruptProcessing(): void {
@@ -2999,6 +3056,51 @@ export class NikCLI {
 
         case 'set-coin-keys': {
           await this.interactiveSetCoinbaseKeys()
+          break
+        }
+
+        case 'set-key-bb': {
+          await this.interactiveSetBrowserbaseKeys()
+          break
+        }
+
+        case 'set-key-figma': {
+          await this.interactiveSetFigmaKeys()
+          break
+        }
+
+        case 'set-key-redis': {
+          await this.interactiveSetRedisKeys()
+          break
+        }
+
+        case 'set-vector-key': {
+          await this.interactiveSetVectorKeys()
+          break
+        }
+
+        case 'redis-enable': {
+          await this.manageRedisCache('enable')
+          break
+        }
+
+        case 'redis-disable': {
+          await this.manageRedisCache('disable')
+          break
+        }
+
+        case 'redis-status': {
+          await this.manageRedisCache('status')
+          break
+        }
+
+        case 'browse': {
+          await this.handleBrowseCommand(args)
+          break
+        }
+
+        case 'web-analyze': {
+          await this.handleWebAnalyzeCommand(args)
           break
         }
 
@@ -3886,6 +3988,19 @@ export class NikCLI {
    */
   private async handleChatInput(input: string): Promise<void> {
     try {
+      // Start token session if not already active
+      if (!contextTokenManager.getCurrentSession()) {
+        await this.startTokenSession()
+      }
+
+      // Track input message tokens
+      try {
+        const inputMessage = { role: 'user' as const, content: input }
+        await contextTokenManager.trackMessage(inputMessage)
+      } catch (error) {
+        console.debug('Token tracking failed for input:', error)
+      }
+
       // Load relevant project context for enhanced chat responses
       const relevantContext = await this.getRelevantProjectContext(input)
       const enhancedInput = relevantContext ? `${input}\n\nContext: ${relevantContext}` : input
@@ -4545,8 +4660,9 @@ export class NikCLI {
             const toolMessage = `🛠️ Tool call: ${ev.content}`
             console.log(`\n${chalk.blue(toolMessage)}`)
 
-            // Log to structured UI
-            advancedUI.logInfo('Tool Call', ev.content)
+            // Log to structured UI with detailed tool information
+            const toolDetails = this.formatToolDetails(ev.toolName || '', ev.toolArgs)
+            advancedUI.logInfo('Tool Call', toolDetails)
 
             // Check if tool call involves background agents
             if (ev.metadata?.backgroundAgents) {
@@ -4609,6 +4725,14 @@ export class NikCLI {
         // Save assistant message to history
         if (assistantText.trim().length > 0) {
           chatManager.addMessage(assistantText.trim(), 'assistant')
+
+          // Track assistant response tokens
+          try {
+            const assistantMessage = { role: 'assistant' as const, content: assistantText.trim() }
+            await contextTokenManager.trackMessage(assistantMessage, undefined, true) // isOutput = true
+          } catch (error) {
+            console.debug('Token tracking failed for assistant response:', error)
+          }
         }
 
         console.log() // newline after streaming
@@ -5895,7 +6019,7 @@ export class NikCLI {
             if (args.length === 0) {
               const ctx = workspaceContext.getContextForAgent('cli', 10)
               const lines: string[] = []
-              lines.push(`📁 Root: ${this.workingDirectory}`)
+              lines.push(`${chalk.blue('📁')} Root: ${this.workingDirectory}`)
               lines.push(`🎯 Selected Paths (${ctx.selectedPaths.length}):`)
               ctx.selectedPaths.forEach((p) => lines.push(`• ${p}`))
               lines.push('')
@@ -6852,7 +6976,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         if (event.type === 'text_delta' && event.content) {
           _responseText += event.content
         } else if (event.type === 'tool_call') {
-          console.log(chalk.cyan(`   🛠️ Tool: ${event.toolName}`))
+          const toolDetails = this.formatToolDetails(event.toolName || '', event.toolArgs)
+          console.log(chalk.cyan(`   🛠️ Tool: ${toolDetails}`))
         } else if (event.type === 'tool_result') {
           console.log(chalk.gray(`   ↪ Result from ${event.toolName}`))
         } else if (event.type === 'error') {
@@ -7680,7 +7805,16 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     switch (action) {
       case 'clear':
         await Promise.all([tokenCache.clearCache(), completionCache.clearCache()])
-        console.log(chalk.green('✅ All caches cleared'))
+
+        // Also clear Redis cache if available
+        try {
+          const { cacheService } = await import('./services/cache-service')
+          await cacheService.clearAll()
+        } catch (error) {
+          // Redis cache service not available, silently continue
+        }
+
+        console.log(chalk.green('✅ All caches cleared (local + Redis)'))
         break
 
       case 'cleanup':
@@ -7704,11 +7838,30 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       default: // 'stats' or no argument
         const stats = tokenCache.getStats()
         const completionStats = completionCache.getStats()
+
+        // Get Redis cache stats
+        let redisStats = ''
+        try {
+          const { cacheService } = await import('./services/cache-service')
+          const cacheStats = await cacheService.getStats()
+
+          redisStats =
+            `${chalk.red('🚀 Redis Cache:')}\n` +
+            `  Status: ${cacheStats.redis.connected ? chalk.green('✅ Connected') : chalk.red('❌ Disconnected')}\n` +
+            `  Enabled: ${cacheStats.redis.enabled ? chalk.green('✅ Yes') : chalk.yellow('⚠️ No')}\n` +
+            `  Total Hits: ${chalk.green(cacheStats.totalHits.toLocaleString())}\n` +
+            `  Hit Rate: ${chalk.blue(cacheStats.hitRate.toFixed(1))}%\n` +
+            `  Fallback: ${cacheStats.fallback.enabled ? chalk.cyan('SmartCache') : chalk.gray('None')}\n\n`
+        } catch (error) {
+          redisStats = `${chalk.red('🚀 Redis Cache:')}\n` + `  Status: ${chalk.gray('Unavailable')}\n\n`
+        }
+
         const totalTokensSaved = stats.totalTokensSaved + completionStats.totalHits * 50 // Estimate 50 tokens saved per completion hit
 
         console.log(
           boxen(
             `${chalk.cyan.bold('🔮 Advanced Cache System Statistics')}\n\n` +
+              redisStats +
               `${chalk.magenta('📦 Full Response Cache:')}\n` +
               `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
               `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
@@ -7741,73 +7894,166 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
   }
 
   private async showTokenUsage(): Promise<void> {
-    console.log(chalk.blue('💰 Token Usage Analysis & Real Costs'))
+    console.log(chalk.blue('🔢 Advanced Token Analysis & Real-time Costs'))
 
     try {
-      const session = chatManager.getCurrentSession()
+      // Check if we have an active token tracking session
+      const tokenSession = contextTokenManager.getCurrentSession()
+      const chatSession = chatManager.getCurrentSession()
 
-      if (session) {
-        const totalChars = session.messages.reduce((sum, msg) => sum + msg.content.length, 0)
-        const estimatedTokens = Math.round(totalChars / 4)
-        const tokenLimit = 250000
-        const usagePercent = Math.round((estimatedTokens / tokenLimit) * 100)
+      if (tokenSession && chatSession) {
+        // Use precise tokenizer data
+        const currentModel = tokenSession.model
+        const currentProvider = tokenSession.provider
+        const limits = universalTokenizer.getModelLimits(currentModel, currentProvider)
 
-        // Calculate real costs for current model
+        // Get real-time statistics
+        const stats = contextTokenManager.getSessionStats()
+        if (stats && stats.session) {
+          const totalTokens = stats.session.totalInputTokens + stats.session.totalOutputTokens
+          const usagePercent = (totalTokens / limits.context) * 100
+
+          console.log(
+            boxen(
+              `${chalk.cyan('🎯 Precise Token Tracking Session')}\n\n` +
+                `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
+                `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
+                `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
+                `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
+                `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
+                `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+                `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+                `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
+                `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
+                `Total Session Cost: ${chalk.yellow.bold('$' + stats.session.totalCost.toFixed(6))}\n` +
+                `Average per Message: ${chalk.green('$' + stats.costPerMessage.toFixed(6))}\n` +
+                `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
+                `Session Duration: ${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000) + ' min'}`,
+              {
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
+                title: '🔢 Universal Tokenizer',
+              }
+            )
+          )
+
+          // Context optimization recommendations
+          const optimization = contextTokenManager.analyzeContextOptimization()
+          if (optimization.shouldTrim || optimization.recommendation !== 'continue') {
+            console.log(
+              boxen(
+                `${chalk.yellow('⚡ Optimization Recommendations:')}\n\n` +
+                  `Status: ${optimization.recommendation === 'continue' ? chalk.green('✅ Good') : chalk.yellow('⚠️  Attention needed')}\n` +
+                  `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
+                  `Reason: ${chalk.gray(optimization.reason)}`,
+                {
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'yellow',
+                  title: '🎛️  Smart Optimization',
+                }
+              )
+            )
+          }
+        }
+      } else if (chatSession) {
+        // Fallback to legacy analysis with improved precision
+        const totalChars = chatSession.messages.reduce((sum, msg) => sum + msg.content.length, 0)
         const currentModel = this.configManager.getCurrentModel()
+        const currentProvider = 'anthropic' // Fallback for now
+
+        // Try to get precise count for the conversation
+        let preciseTokens = 0
+        let isPrecise = false
+        try {
+          const coreMessages = chatSession.messages.map((m) => ({
+            role: m.role as any,
+            content: m.content,
+          }))
+          preciseTokens = await universalTokenizer.countMessagesTokens(coreMessages, currentModel, currentProvider)
+          isPrecise = true
+        } catch (error) {
+          console.warn('Precise counting failed, using character estimation')
+          preciseTokens = Math.round(totalChars / 4)
+        }
+
+        const limits = universalTokenizer.getModelLimits(currentModel, currentProvider)
+        const usagePercent = (preciseTokens / limits.context) * 100
+
+        // Calculate precise costs
         const userTokens = Math.round(
-          session.messages.filter((m) => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
+          chatSession.messages.filter((m) => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
         )
         const assistantTokens = Math.round(
-          session.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
+          chatSession.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
         )
 
-        const { calculateTokenCost, getModelPricing, MODEL_COSTS } = await import('./config/token-limits')
-        const currentCost = calculateTokenCost(userTokens, assistantTokens, currentModel)
-        const modelPricing = getModelPricing(currentModel)
+        const currentCost = universalTokenizer.calculateCost(userTokens, assistantTokens, currentModel)
 
         console.log(
           boxen(
-            `${chalk.cyan('Current Session Token Usage')}\n\n` +
-              `Messages: ${chalk.white(session.messages.length.toLocaleString())}\n` +
+            `${chalk.cyan(`${isPrecise ? '🎯' : '📊'} Session Token Analysis`)}\n\n` +
+              `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
               `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
-              `Est. Tokens: ${chalk.white(estimatedTokens.toLocaleString())}\n` +
-              `Usage: ${usagePercent > 75 ? chalk.red(`${usagePercent}%`) : usagePercent > 50 ? chalk.yellow(`${usagePercent}%`) : chalk.green(`${usagePercent}%`)}\n` +
-              `Limit: ${chalk.gray(tokenLimit.toLocaleString())}\n\n` +
-              `${chalk.yellow('💰 Real-time Cost:')}\n` +
+              `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
+              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+              `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
+              `${chalk.yellow('💰 Cost Analysis:')}\n` +
               `Model: ${chalk.white(currentCost.model)}\n` +
-              `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(4))}\n` +
-              `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(4))}\n` +
-              `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(4))}`,
+              `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(6))}\n` +
+              `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(6))}\n` +
+              `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(6))}\n\n` +
+              `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✅') : chalk.yellow('Character estimation (fallback)')}`,
             {
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: usagePercent > 75 ? 'red' : usagePercent > 50 ? 'yellow' : 'green',
+              borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
+              title: isPrecise ? '🔢 Precise Analysis' : '📊 Estimated Analysis',
             }
           )
         )
 
-        // Message breakdown with costs (panel)
-        {
-          const systemMsgs = session.messages.filter((m) => m.role === 'system')
-          const userMsgs = session.messages.filter((m) => m.role === 'user')
-          const assistantMsgs = session.messages.filter((m) => m.role === 'assistant')
-          const sysTokens = Math.round(systemMsgs.reduce((sum, m) => sum + m.content.length, 0) / 4)
-          const lines = [
-            `System: ${systemMsgs.length} (${sysTokens.toLocaleString()} tokens)`,
-            `User: ${userMsgs.length} (${userTokens.toLocaleString()} tokens) - $${currentCost.inputCost.toFixed(4)}`,
-            `Assistant: ${assistantMsgs.length} (${assistantTokens.toLocaleString()} tokens) - $${currentCost.outputCost.toFixed(4)}`,
-          ]
-          console.log(
-            boxen(lines.join('\n'), {
+        // Message breakdown
+        const systemMsgs = chatSession.messages.filter((m) => m.role === 'system')
+        const userMsgs = chatSession.messages.filter((m) => m.role === 'user')
+        const assistantMsgs = chatSession.messages.filter((m) => m.role === 'assistant')
+        const sysTokens = Math.round(systemMsgs.reduce((sum, m) => sum + m.content.length, 0) / 4)
+
+        console.log(
+          boxen(
+            `System: ${systemMsgs.length} messages (${sysTokens.toLocaleString()} tokens)\n` +
+              `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
+              `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
+            {
               title: '📋 Message Breakdown',
               padding: 1,
               margin: 1,
               borderStyle: 'round',
               borderColor: 'cyan',
-            })
+            }
           )
-        }
+        )
+
+        // Upgrade suggestion
+        console.log(
+          boxen(
+            `${chalk.yellow('💡 Tip:')} For more precise tracking, start a new session to enable\n` +
+              `real-time token monitoring with the Universal Tokenizer.\n\n` +
+              `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+              title: '🚀 Upgrade Available',
+            }
+          )
+        )
 
         // Model pricing comparison (panel)
         {
@@ -7825,13 +8071,15 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
           ]
           const lines: string[] = []
           comparisonModels.forEach((modelKey) => {
-            if (MODEL_COSTS[modelKey]) {
-              const cost = calculateTokenCost(userTokens, assistantTokens, modelKey)
+            try {
+              const cost = universalTokenizer.calculateCost(userTokens, assistantTokens, modelKey)
               const isCurrentModel = modelKey === currentModel
               const mark = isCurrentModel ? '→ ' : '  '
               lines.push(
                 `${mark}${cost.model}  $${cost.totalCost.toFixed(4)} (In $${cost.inputCost.toFixed(4)} | Out $${cost.outputCost.toFixed(4)})`
               )
+            } catch (error) {
+              // Skip models that don't have pricing info
             }
           })
           if (lines.length > 0) {
@@ -7852,16 +8100,17 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
           boxen(
             [
               `Model: ${currentCost.model}`,
-              `Input:  $${modelPricing.input.toFixed(2)} per 1M tokens`,
-              `Output: $${modelPricing.output.toFixed(2)} per 1M tokens`,
+              `Input Cost:  $${currentCost.inputCost.toFixed(6)}`,
+              `Output Cost: $${currentCost.outputCost.toFixed(6)}`,
+              `Total Cost:  $${currentCost.totalCost.toFixed(6)}`,
             ].join('\n'),
             { title: '🏷️ Current Model Pricing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
           )
         )
 
         // Cost projections
-        if (estimatedTokens > 10000) {
-          const projectedDailyCost = (currentCost.totalCost / estimatedTokens) * 50000 // Assuming 50k tokens/day
+        if (preciseTokens > 10000) {
+          const projectedDailyCost = (currentCost.totalCost / preciseTokens) * 50000 // Assuming 50k tokens/day
           const projectedMonthlyCost = projectedDailyCost * 30
           console.log(
             boxen(
@@ -7903,18 +8152,18 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         } catch {}
 
         // Recommendations
-        if (estimatedTokens > 150000) {
+        if (preciseTokens > 150000) {
           console.log(chalk.red('\n⚠️ CRITICAL: Very high token usage!'))
           console.log(chalk.yellow('Recommendations:'))
           console.log('  • Use /compact to compress session immediately')
           console.log('  • Start a new session with /new')
           console.log('  • Consider switching to a cheaper model for simple tasks')
-        } else if (estimatedTokens > 100000) {
+        } else if (preciseTokens > 100000) {
           console.log(chalk.yellow('\n⚠️ WARNING: High token usage'))
           console.log('Recommendations:')
           console.log('  • Consider using /compact soon')
           console.log('  • Auto-compaction will trigger at 100k tokens')
-        } else if (estimatedTokens > 50000) {
+        } else if (preciseTokens > 50000) {
           console.log(chalk.blue('\n💡 INFO: Moderate token usage'))
           console.log('  • Session is healthy')
           console.log('  • Auto-monitoring active')
@@ -8162,9 +8411,15 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       lines.push('/mcp import-claude           - Import Claude config')
       lines.push('/mcp export-config           - Export Claude-style config')
       lines.push('')
+      lines.push('Code Generation:')
+      lines.push('/mcp generate <server>       - Generate tool wrappers')
+      lines.push('/mcp tools <server>          - List server tools')
+      lines.push('/mcp status                  - Show server statuses')
+      lines.push('')
       lines.push('Examples:')
       lines.push('/mcp add-local filesystem ["uvx","mcp-server-filesystem","--path","."]')
       lines.push('/mcp add-remote myapi https://api.example.com/mcp')
+      lines.push('/mcp generate filesystem     - Generate secure wrappers')
 
       console.log(
         boxen(lines.join('\n'), {
@@ -8635,165 +8890,131 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
   private showSlashHelp(): void {
     const commands = [
-      // Mode Commands
-      ['/plan [task]', 'Switch to plan mode or generate plan'],
-      ['/auto [task]', 'Switch to auto mode or execute task'],
-      ['/default', 'Switch to default mode'],
+      // Mode Control
+      ['/plan [task]', 'Switch to plan mode or generate execution plan'],
+      ['/auto [task]', 'Switch to autonomous mode or execute task'],
+      ['/default', 'Switch to default conversational mode'],
+      ['/vm', 'Switch to virtual machine development mode'],
 
       // File Operations
-      ['/read <file>', 'Read file contents'],
-      ['/write <file> <content>', 'Write content to file'],
-      ['/edit <file>', 'Edit file interactively'],
-      ['/ls [directory]', 'List files in directory'],
-      ['/search <query>', 'Search in files'],
+      ['/read <file> [options]', 'Read file contents with pagination support'],
+      ['/write <file> <content>', 'Write content to file with approval'],
+      ['/edit <file>', 'Open file in system editor (code/open)'],
+      ['/ls [directory]', 'List files and directories'],
+      ['/search <query> [dir]', 'Search text in files (grep functionality)'],
 
       // Terminal Operations
-      ['/run <command>', 'Execute terminal command'],
-      ['/install <packages>', 'Install npm/yarn packages'],
+      ['/run <command>', 'Execute terminal command with approval'],
       ['/npm <args>', 'Run npm commands'],
       ['/yarn <args>', 'Run yarn commands'],
       ['/git <args>', 'Run git commands'],
-      ['/commits [options]', 'Show git commit history in a panel'],
-      ['/git-history [options]', 'Show git commit history in a panel'],
       ['/docker <args>', 'Run docker commands'],
-      ['/ps', 'List running processes'],
-      ['/kill <pid>', 'Kill process by PID'],
+      ['/build', 'Build the current project'],
+      ['/test [pattern]', 'Run tests with optional pattern'],
 
-      // Project Operations
-      ['/build', 'Build the project'],
-      ['/test [pattern]', 'Run tests'],
-      ['/lint', 'Run linting'],
-      ['/create <type> <name>', 'Create new project'],
+      // API Keys & Configuration
+      ['/set-key <model> <key>', 'Set API key for AI models'],
+      ['/set-coin-keys', 'Configure Coinbase CDP API keys'],
+      ['/set-key-bb', 'Configure Browserbase API credentials'],
+      ['/set-key-figma', 'Configure Figma and v0 API credentials'],
+      ['/set-key-redis', 'Configure Redis/Upstash cache credentials'],
+      ['/set-vector-key', 'Configure Upstash Vector database credentials'],
+
+      // Models & AI Configuration
+      ['/models', 'List available AI models'],
+      ['/model <name>', 'Switch to specific AI model'],
+      ['/config [interactive]', 'Show/edit configuration'],
+      ['/env <path>', 'Import .env file and persist variables'],
+      ['/temp <0.0-2.0>', 'Set AI model temperature'],
+      ['/system <prompt>', 'Set custom system prompt'],
+
+      // Cache & Performance
+      ['/cache [stats|clear|settings]', 'Manage token cache system'],
+      ['/redis-enable', 'Enable Redis caching'],
+      ['/redis-disable', 'Disable Redis caching'],
+      ['/redis-status', 'Show Redis cache status'],
+      ['/tokens', 'Show token usage and optimization'],
 
       // Agent Management
-      ['/agents', 'List available agents'],
-      ['/agent <name> <task>', 'Run specific agent'],
-      ['/parallel <agents> <task>', 'Run multiple agents'],
+      ['/agents', 'List all available agents'],
+      ['/agent <name> <task>', 'Run specific agent with task'],
       ['/factory', 'Show agent factory dashboard'],
-      ['/create-agent [--vm|--container] <name> <specialization>', 'Create new agent with explicit name'],
-      ['/launch-agent <id|name> [task]', 'Launch agent from blueprint'],
+      ['/blueprints', 'List and manage agent blueprints'],
+      ['/create-agent <name> <spec>', 'Create new specialized agent'],
+      ['/launch-agent <id>', 'Launch agent from blueprint'],
 
-      // Blueprint Management
-      ['/blueprints', 'List and manage all blueprints'],
-      ['/blueprint <id|name>', 'Show detailed blueprint information'],
-      ['/delete-blueprint <id|name>', 'Delete a blueprint'],
-      ['/export-blueprint <id|name> <file>', 'Export blueprint to file'],
-      ['/import-blueprint <file>', 'Import blueprint from file'],
-      ['/search-blueprints <query>', 'Search blueprints by capabilities'],
-
-      // VM Container Management
-      ['/vm', 'Show VM management help'],
-      ['/vm-create <repo-url>', 'Create a new VM container'],
-      ['/vm-list', 'List all active VM containers'],
-      ['/vm-stop <id>', 'Stop a specific VM container'],
-      ['/vm-remove <id>', 'Remove a VM container'],
-      ['/vm-connect <id>', 'Connect to a VM container'],
-      ['/vm-create-pr <id> "<title>" "<desc>" [branch] [base] [draft]', 'Create GitHub PR from VM container changes'],
-      ['/vm-mode', 'Enter VM chat mode'],
+      // Memory & Context
+      ['/remember "fact"', 'Store in long-term memory'],
+      ['/recall "query"', 'Search memories'],
+      ['/memory stats', 'Show memory statistics'],
+      ['/context <paths>', 'Select workspace context paths'],
+      ['/index <path>', 'Index files for better context'],
 
       // Session Management
       ['/new [title]', 'Start new chat session'],
       ['/sessions', 'List all sessions'],
-      ['/export [sessionId]', 'Export session to markdown'],
-      ['/stats', 'Show usage statistics'],
       ['/history <on|off>', 'Enable/disable chat history'],
+      ['/export [sessionId]', 'Export session to markdown'],
       ['/debug', 'Show debug information'],
-      ['/temp <0.0-2.0>', 'Set temperature'],
-      ['/system <prompt>', 'Set system prompt'],
-      ['/tokens', 'Show token usage and optimize'],
-      ['/compact', 'Force session compaction'],
-      ['/cache [stats|clear|settings]', 'Manage token cache system'],
+      ['/status', 'Show system status and health'],
 
-      // Model & Config
-      ['/models', 'List available models'],
-      ['/model <name>', 'Switch to model'],
-      ['/set-key <model> <key>', 'Set API key'],
-      ['/config [interactive , i]', 'Show configuration'],
+      // VM Container Operations
+      ['/vm-create <repo-url>', 'Create new VM container'],
+      ['/vm-list', 'List active containers'],
+      ['/vm-connect <id>', 'Connect to container'],
+      ['/vm-create-pr <id> "<title>" "<desc>"', 'Create PR from container'],
 
-      // MCP (Model Context Protocol)
-      ['/mcp servers', 'List configured MCP servers'],
-      ['/mcp test <server>', 'Test MCP server connection'],
-      ['/mcp call <server> <method>', 'Make MCP call'],
-      ['/mcp add <name> <type> <endpoint>', 'Add new MCP server'],
-      ['/mcp remove <name>', 'Remove MCP server'],
-      ['/mcp health', 'Check all server health'],
+      // Web Browsing & Analysis
+      ['/browse <url>', 'Browse web page and extract content'],
+      ['/web-analyze <url>', 'Browse and analyze web page with AI'],
 
-      // Memory & Personalization
-      ['/remember "fact"', 'Store important information in long-term memory'],
-      ['/recall "query"', 'Search memories for relevant information'],
-      ['/memory stats', 'Show memory statistics'],
-      ['/memory config', 'Show memory configuration'],
-      ['/memory context', 'Show current session context'],
-      ['/memory personalization', 'Show user personalization data'],
-      ['/memory cleanup', 'Clean up old/unimportant memories'],
-      ['/forget <memory-id>', 'Delete a specific memory (use with caution)'],
+      // Figma Design Integration
+      ['/figma-config', 'Show Figma API configuration status'],
+      ['/figma-info <file-id>', 'Get file information'],
+      ['/figma-export <file-id> [format]', 'Export designs'],
+      ['/figma-to-code <file-id>', 'Generate code from designs'],
+      ['/figma-create <component-path>', 'Create design from React component'],
+      ['/figma-tokens <file-id>', 'Extract design tokens'],
 
-      // Context & Indexing
-      ['/context <paths>', 'Select workspace context paths'],
-      ['/index <path>', 'Index files in path for better context'],
-
-      // Snapshot Management
-      ['/snapshot <name> [type]', 'Create project snapshot (quick/full/dev/config)'],
-      ['/snap <name>', 'Alias for quick snapshot'],
-      ['/restore <snapshot-id>', 'Restore files from snapshot'],
-      ['/snapshots [query]', 'List available snapshots'],
-
-      // Vision & Image Analysis
-      ['/analyze-image <path>', 'Analyze image with AI vision models'],
-      ['/generate-image <prompt>', 'Generate images with AI (DALL-E 3, GPT-Image-1)'],
-
-      // Documentation Management
-      ['/docs', 'Documentation system help and status'],
-      ['/doc-search <query> [category]', 'Search documentation library'],
-      ['/doc-add <url> [category]', 'Add documentation from URL'],
-      ['/doc-stats [--detailed]', 'Show library statistics'],
-      ['/doc-list [category]', 'List available documentation'],
-      ['/doc-sync', 'Sync with cloud documentation library'],
-      ['/doc-load <names>', 'Load docs into AI agent context'],
-      ['/doc-context [--detailed]', 'Show AI context documentation'],
-      ['/doc-unload [names]', 'Remove docs from AI context'],
-      ['/doc-suggest <query>', 'Suggest relevant documentation'],
-      ['/doc-tag <id> <tags>', 'Manage document tags (coming soon)'],
-
-      // IDE Diagnostics
-      ['/diagnostic start [path]', 'Start IDE diagnostic monitoring (specific path or entire project)'],
-      ['/diagnostic stop [path]', 'Stop IDE diagnostic monitoring (specific path or all)'],
-      ['/diagnostic status', 'Show diagnostic monitoring status'],
-      ['/diagnostic run', 'Run comprehensive diagnostic scan'],
-      ['/monitor [path]', 'Alias for /diagnostic start'],
-      ['/diag-status', 'Alias for /diagnostic status'],
-
-      // Security Commands
-      ['/security [status|set|help]', 'Manage security settings'],
-      ['/dev-mode [enable|status|help]', 'Developer mode controls'],
-      ['/safe-mode', 'Enable safe mode (maximum security)'],
-      ['/clear-approvals', 'Clear session approvals'],
-
-      // Blockchain & Web3 Commands
+      // Blockchain & Web3
       ['/web3 status', 'Show Coinbase AgentKit status'],
-      ['/web3 init', 'Initialize AgentKit (CDP keys required)'],
       ['/web3 wallet', 'Show wallet address and network'],
       ['/web3 balance', 'Check wallet balance'],
-      ['/web3 transfer <amount> <to> [--token ETH|USDC|WETH]', 'Transfer tokens (with confirmation)'],
-      ['/web3 chat "message"', 'Natural language blockchain request'],
-      ['/web3 wallets', 'List known wallets and pick one'],
-      ['/web3 use-wallet <0x...>', 'Use a specific wallet by address'],
+      ['/web3 transfer <amount> <to>', 'Transfer tokens'],
 
-      // Advanced Features
-      ['/enhanced [command]', 'Enhanced AI features (smart suggestions, analytics)'],
-      ['/stream [clear]', 'Show/clear agent streams'],
-      ['/approval [test]', 'Approval system controls'],
+      // Vision & Images
+      ['/analyze-image <path>', 'Analyze image with AI vision'],
+      ['/generate-image "prompt"', 'Generate image with AI'],
+
+      // Documentation
+      ['/docs', 'Documentation system help'],
+      ['/doc-search <query>', 'Search documentation'],
+      ['/doc-add <url>', 'Add documentation from URL'],
+
+      // Snapshots & Backup
+      ['/snapshot <name>', 'Create project snapshot'],
+      ['/restore <snapshot-id>', 'Restore from snapshot'],
+      ['/snapshots', 'List available snapshots'],
+
+      // Security & Development
+      ['/security [status|set]', 'Manage security settings'],
+      ['/dev-mode [enable|status]', 'Developer mode controls'],
+      ['/safe-mode', 'Enable safe mode (maximum security)'],
+
+      // IDE Integration
+      ['/diagnostic start', 'Start IDE diagnostic monitoring'],
+      ['/diagnostic status', 'Show diagnostic status'],
+      ['/monitor [path]', 'Monitor file changes'],
+
+      // Todo & Planning
       ['/todo [command]', 'Todo list operations'],
       ['/todos [on|off|status]', 'Show lists; toggle auto‑todos'],
 
-      // Basic Commands
+      // Basic System
       ['/init [--force]', 'Initialize project context'],
-      ['/status', 'Show system status'],
       ['/clear', 'Clear session context'],
-      ['/clear-session', 'Clear current chat session'],
       ['/help', 'Show this help'],
       ['/exit', 'Exit NikCLI'],
-      ['/quit', 'Quit NikCLI (alias for exit)'],
     ]
 
     const pad = (s: string) => s.padEnd(25)
@@ -8807,26 +9028,26 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       lines.push('')
     }
 
-    addGroup('🎯 Mode Control:', 0, 3)
-    addGroup('📁 File Operations:', 3, 8)
-    addGroup('⚡ Terminal Operations:', 8, 18)
-    addGroup('🔨 Project Operations:', 18, 22)
-    addGroup('🤖 Agent Management:', 22, 28)
-    addGroup('📋 Blueprint Management:', 28, 34)
-    addGroup('🐳 VM Container Management:', 34, 42)
-    addGroup('📝 Session Management:', 42, 53)
-    addGroup('🔧 Configuration:', 53, 57)
-    addGroup('🔮 MCP (Model Context Protocol):', 57, 63)
-    addGroup('🧠 Memory & Personalization:', 63, 71)
-    addGroup('🔍 Context & Indexing:', 71, 73)
-    addGroup('📸 Snapshot Management:', 73, 77)
-    addGroup('👁️ Vision & Image Analysis:', 77, 79)
-    addGroup('📚 Documentation Management:', 79, 91)
-    addGroup('🔧 IDE Diagnostics:', 91, 97)
-    addGroup('🔒 Security Commands:', 97, 101)
-    addGroup('🔗 Blockchain & Web3:', 101, 109)
-    addGroup('🔧 Advanced Features:', 109, 114)
-    addGroup('📋 Basic Commands:', 114, commands.length)
+    addGroup('🎯 Mode Control:', 0, 4)
+    addGroup('📁 File Operations:', 4, 9)
+    addGroup('⚡ Terminal Operations:', 9, 17)
+    addGroup('🔑 API Keys & Configuration:', 17, 22)
+    addGroup('🤖 Models & AI Configuration:', 22, 27)
+    addGroup('🚀 Cache & Performance:', 27, 32)
+    addGroup('🧠 Agent Management:', 32, 38)
+    addGroup('💾 Memory & Context:', 38, 43)
+    addGroup('📝 Session Management:', 43, 49)
+    addGroup('🐳 VM Container Operations:', 49, 53)
+    addGroup('🌐 Web Browsing & Analysis:', 53, 55)
+    addGroup('🎨 Figma Design Integration:', 55, 61)
+    addGroup('🔗 Blockchain & Web3:', 61, 65)
+    addGroup('👁️ Vision & Images:', 65, 67)
+    addGroup('📚 Documentation:', 67, 70)
+    addGroup('📸 Snapshots & Backup:', 70, 73)
+    addGroup('🔒 Security & Development:', 73, 76)
+    addGroup('🔧 IDE Integration:', 76, 79)
+    addGroup('📋 Todo & Planning:', 79, 81)
+    addGroup('⚙️ Basic System:', 81, commands.length)
 
     lines.push('💡 Shortcuts: Ctrl+C exit | Esc interrupt | Cmd+Esc default')
 
@@ -8913,7 +9134,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         // Setup basic project structure
         const basicPackageJson = {
           name: path.basename(this.workingDirectory),
-          version: '0.1.1',
+          version: '0.1.5',
           description: 'Project managed by NikCLI',
           scripts: {
             start: 'node index.js',
@@ -9177,10 +9398,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60)
     const totalTokens = this.sessionTokenUsage + this.contextTokens
     const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
-    const costDisplay = this.realTimeCost > 0 ? `$${this.realTimeCost.toFixed(4)}` : '$0.0000'
+    const costDisplay =
+      this.realTimeCost > 0 ? chalk.magenta(`$${this.realTimeCost.toFixed(4)}`) : chalk.magenta('$0.0000')
 
     const terminalWidth = process.stdout.columns || 120
-    const workingDir = path.basename(this.workingDirectory)
+    const workingDir = chalk.blue(path.basename(this.workingDirectory))
 
     // Mode info
     const modeIcon =
@@ -9210,12 +9432,23 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const modelColor = this.getProviderColor(currentModel)
     const modelDisplay = `${providerIcon} ${modelColor(currentModel)}`
 
-    // Create status bar
-    const statusLeft = `${modeIcon} ${readyText} | ${modelDisplay}${vmInfo}`
+    // Responsive layout based on terminal width
+    const layout = this.createResponsiveStatusLayout(terminalWidth)
+    const truncatedModel = this.truncateModelName(currentModel, layout.modelMaxLength)
+    const responsiveModelDisplay = `${providerIcon} ${modelColor(truncatedModel)}`
+
+    // Context and token rate info with responsive sizing
+    const contextInfo = this.renderContextProgressBar(layout.contextWidth, layout.useCompact)
+    const tokenRate = layout.showTokenRate ? ` | ${this.getTokenRate(layout.useCompact)}` : ''
+
+    // Create responsive status bar
+    const statusLeft = `${modeIcon} ${readyText} | ${responsiveModelDisplay} | ${contextInfo}${tokenRate}${vmInfo}`
     const queuePart = queueCount > 0 ? ` | 📥 ${queueCount}` : ''
-    const visionPart = ` | ${this.getVisionStatusIcon()}`
-    const imgPart = ` | ${this.getImageGenStatusIcon()}`
-    const statusRight = `💰 ${tokensDisplay} | ${costDisplay} | ⏱️ ${sessionDuration}m | 📁 ${workingDir}${queuePart}${visionPart}${imgPart}`
+    const visionIcon = this.getVisionStatusIcon()
+    const imgIcon = this.getImageGenStatusIcon()
+    const visionPart = layout.showVisionIcons && visionIcon ? ` | ${visionIcon}` : ''
+    const imgPart = layout.showVisionIcons && imgIcon ? ` | ${imgIcon}` : ''
+    const statusRight = `${costDisplay} | ⏱️ ${chalk.yellow(sessionDuration + 'm')} | ${chalk.blue('📁')} ${workingDir}${queuePart}${visionPart}${imgPart}`
     const statusPadding = Math.max(
       0,
       terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 3
@@ -9233,7 +9466,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       const availableRightSpace = Math.max(10, maxContentWidth - this._stripAnsi(statusLeft).length - 1)
       const plainStatusRight = this._stripAnsi(statusRight)
       if (plainStatusRight.length > availableRightSpace) {
-        const truncatedText = plainStatusRight.substring(0, availableRightSpace - 3) + '...'
+        const truncatedText = plainStatusRight.substring(0, availableRightSpace - 2) + '..'
         finalStatusRight = truncatedText
       }
       _finalStatusPadding = Math.max(
@@ -9256,26 +9489,41 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     if (!this.isPrintingPanel) {
       process.stdout.write(chalk.cyan('╭' + '─'.repeat(terminalWidth - 2) + '╮') + '\n')
 
-      // Force exact width to prevent overflow
+      // Force exact width to fill terminal completely
       const leftPart = ` ${finalStatusLeft}`
       const rightPart = finalStatusRight
-      const availableSpace = terminalWidth - 4 // 2 for borders, 2 for minimum spaces
-      const totalContentLength = this._stripAnsi(leftPart).length + this._stripAnsi(rightPart).length
+
+      // Calculate exact space needed (terminalWidth - 2 for borders)
+      const totalSpaceAvailable = terminalWidth - 2
+      const leftLength = this._stripAnsi(leftPart).length
+      const rightLength = this._stripAnsi(rightPart).length
 
       let displayLeft = leftPart
       let displayRight = rightPart
-      let padding = Math.max(1, availableSpace - totalContentLength)
 
-      // If still too long, truncate right part
-      if (totalContentLength >= availableSpace) {
-        const maxRightLength = availableSpace - this._stripAnsi(leftPart).length - 1
-        if (maxRightLength > 10) {
-          const plainRight = this._stripAnsi(rightPart)
-          displayRight =
-            plainRight.length > maxRightLength ? plainRight.substring(0, maxRightLength - 3) + '...' : plainRight
+      // If content is too long, truncate intelligently
+      if (leftLength + rightLength + 1 > totalSpaceAvailable) {
+        // Reserve space for right part (minimum 15 chars) and padding
+        const minRightSpace = Math.min(15, rightLength)
+        const maxLeftSpace = totalSpaceAvailable - minRightSpace - 1
+
+        if (leftLength > maxLeftSpace) {
+          const plainLeft = this._stripAnsi(leftPart)
+          displayLeft = ` ${plainLeft.substring(0, maxLeftSpace - 2)}..`
         }
-        padding = 1
+
+        const remainingSpace = totalSpaceAvailable - this._stripAnsi(displayLeft).length - 1
+        if (rightLength > remainingSpace) {
+          const plainRight = this._stripAnsi(rightPart)
+          displayRight = plainRight.substring(0, remainingSpace - 2) + '..'
+        }
       }
+
+      // Calculate exact padding to fill remaining space - limit max padding for better distribution
+      const finalLeftLength = this._stripAnsi(displayLeft).length
+      const finalRightLength = this._stripAnsi(displayRight).length
+      const calculatedPadding = totalSpaceAvailable - finalLeftLength - finalRightLength
+      const padding = Math.max(1, Math.min(calculatedPadding, Math.floor(terminalWidth * 0.4)))
 
       process.stdout.write(
         chalk.cyan('│') +
@@ -9381,7 +9629,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60) // minutes
     const totalTokens = this.sessionTokenUsage + this.contextTokens
     const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
-    const costDisplay = this.realTimeCost > 0 ? `$${this.realTimeCost.toFixed(4)}` : '$0.0000'
+    const costDisplay =
+      this.realTimeCost > 0 ? chalk.magenta(`$${this.realTimeCost.toFixed(4)}`) : chalk.magenta('$0.0000')
     const _sessionDisplay = ` | ${sessionDuration}m session`
 
     // Get current model info
@@ -9389,7 +9638,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const providerIcon = this.getProviderIcon(currentModel)
     const modelColor = this.getProviderColor(currentModel)
     // Create status bar content
-    const statusContent = `${currentFile} | ${contextInfo} | 📊 ${tokensDisplay} tokens | ${costDisplay} | ${providerIcon} ${modelColor(currentModel)} | ${this.getVisionStatusIcon()} | ${this.getImageGenStatusIcon()}`
+    const statusContent = `${currentFile} | ${contextInfo} | 📊 ${tokensDisplay} tokens | ${costDisplay} | ${providerIcon} ${modelColor(currentModel)}`
 
     // Calculate available width and truncate if necessary
     const maxWidth = width - 4 // Reserve space for borders
@@ -9508,6 +9757,139 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     return `[${'█'.repeat(filled)}${'░'.repeat(Math.max(0, width - filled))}]`
   }
 
+  // Context progress bar showing token usage with responsive sizing
+  private renderContextProgressBar(width: number = 10, compact: boolean = false): string {
+    const totalTokens = this.sessionTokenUsage + this.contextTokens
+    const currentModel = this.configManager.getCurrentModel()
+
+    // Get model limits - fallback to 120k for unknown models
+    let maxTokens = 120000
+    try {
+      // Detect provider from model name
+      let provider = 'anthropic'
+      if (currentModel.includes('gpt') || currentModel.includes('openai')) provider = 'openai'
+      else if (currentModel.includes('claude')) provider = 'anthropic'
+      else if (currentModel.includes('gemini')) provider = 'google'
+      else if (currentModel.includes('openrouter') || currentModel.includes('/')) provider = 'openrouter'
+
+      const limits = universalTokenizer.getModelLimits(currentModel, provider)
+      maxTokens = limits.context
+    } catch {
+      // Use fallback
+    }
+
+    const percentage = Math.min(100, (totalTokens / maxTokens) * 100)
+    const filled = Math.round((percentage / 100) * width)
+
+    // Color based on usage percentage
+    const getColor = (pct: number) => {
+      if (pct >= 90) return chalk.red
+      if (pct >= 80) return chalk.yellow
+      return chalk.green
+    }
+
+    const color = getColor(percentage)
+    const bar = `[${'█'.repeat(filled)}${'░'.repeat(Math.max(0, width - filled))}]`
+
+    // Format tokens (k/M notation)
+    const formatTokens = (tokens: number): string => {
+      if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`
+      if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`
+      return tokens.toString()
+    }
+
+    // Responsive format based on available space
+    if (compact) {
+      // Ultra compact for very small screens
+      return color(`${bar} ${percentage.toFixed(0)}%`)
+    } else {
+      // Standard format
+      return color(
+        `Context: ${bar} ${percentage.toFixed(0)}% (${formatTokens(totalTokens)}/${formatTokens(maxTokens)})`
+      )
+    }
+  }
+
+  // Calculate token usage rate (tokens per minute) with responsive format
+  private getTokenRate(compact: boolean = false): string {
+    const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60)
+    if (sessionDuration === 0) return compact ? '--' : 'Rate: --'
+
+    const totalTokens = this.sessionTokenUsage + this.contextTokens
+    const rate = Math.round(totalTokens / sessionDuration)
+
+    const formatRate = (r: number): string => {
+      if (r >= 1000) return `${(r / 1000).toFixed(1)}k/min`
+      return `${r}/min`
+    }
+
+    return compact ? formatRate(rate) : `Rate: ${formatRate(rate)}`
+  }
+
+  // Create responsive status layout based on terminal width
+  private createResponsiveStatusLayout(terminalWidth: number): {
+    contextWidth: number
+    useCompact: boolean
+    showTokenRate: boolean
+    showVisionIcons: boolean
+    modelMaxLength: number
+  } {
+    if (terminalWidth <= 60) {
+      // Ultra small - molto aggressivo
+      return {
+        contextWidth: 3,
+        useCompact: true,
+        showTokenRate: false,
+        showVisionIcons: false,
+        modelMaxLength: 8,
+      }
+    } else if (terminalWidth <= 80) {
+      // Small - più compatto
+      return {
+        contextWidth: 4,
+        useCompact: true,
+        showTokenRate: true,
+        showVisionIcons: false,
+        modelMaxLength: 16,
+      }
+    } else if (terminalWidth <= 120) {
+      // Medium
+      return {
+        contextWidth: 6,
+        useCompact: true,
+        showTokenRate: true,
+        showVisionIcons: false,
+        modelMaxLength: 25,
+      }
+    } else {
+      // Large
+      return {
+        contextWidth: 8,
+        useCompact: false,
+        showTokenRate: true,
+        showVisionIcons: true,
+        modelMaxLength: 35,
+      }
+    }
+  }
+
+  // Truncate model name intelligently
+  private truncateModelName(modelName: string, maxLength: number): string {
+    if (modelName.length <= maxLength) return modelName
+
+    // Try to preserve important parts
+    if (modelName.includes('/')) {
+      const parts = modelName.split('/')
+      if (parts.length === 2) {
+        const provider = parts[0].substring(0, Math.min(8, Math.floor(maxLength * 0.3)))
+        const model = parts[1].substring(0, maxLength - provider.length - 1)
+        return `${provider}/${model}`
+      }
+    }
+
+    return modelName.substring(0, maxLength - 2) + '..'
+  }
+
   private startStatusBar(): void {
     if (this.statusBarTimer) return
     this.statusBarStep = 0
@@ -9544,34 +9926,17 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
   }
 
   /**
-   * Vision status icon: 👁️🟢 if at least one provider key is configured and vision enabled, otherwise 👁️🔴
+   * Vision status icon: disabled to reduce status bar clutter
    */
   private getVisionStatusIcon(): string {
-    try {
-      const cfg = visionProvider.getConfig()
-      const providers = visionProvider.getAvailableProviders()
-      const ok = cfg.enabled && providers.length > 0
-      return ok ? '👁️ | 🟢' : '👁️ | 🔴'
-    } catch {
-      return '👁️ | 🔴'
-    }
+    return '' // Removed from status bar
   }
 
   /**
-   * Image generation status icon: 🎨🟢 if OpenAI image keys are present, otherwise 🎨🔴
+   * Image generation status icon: disabled to reduce status bar clutter
    */
   private getImageGenStatusIcon(): string {
-    try {
-      const hasKey = !!(
-        this.configManager.getApiKey('gpt-image-1') ||
-        this.configManager.getApiKey('dall-e-3') ||
-        this.configManager.getApiKey('dall-e-2') ||
-        this.configManager.getApiKey('openai')
-      )
-      return hasKey ? '🎨 | 🟢' : '🎨 | 🔴'
-    } catch {
-      return '🎨 | 🔴'
-    }
+    return '' // Removed from status bar
   }
 
   /**
@@ -9583,10 +9948,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60)
     const totalTokens = this.sessionTokenUsage + this.contextTokens
     const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
-    const costDisplay = this.realTimeCost > 0 ? `$${this.realTimeCost.toFixed(4)}` : '$0.0000'
+    const costDisplay =
+      this.realTimeCost > 0 ? chalk.magenta(`$${this.realTimeCost.toFixed(4)}`) : chalk.magenta('$0.0000')
 
     const terminalWidth = process.stdout.columns - 1 || 120
-    const workingDir = path.basename(this.workingDirectory)
+    const workingDir = chalk.blue(path.basename(this.workingDirectory))
 
     // Mode info
     const _modeIcon =
@@ -9622,13 +9988,24 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       }
     })()
 
+    // Responsive layout for renderPromptArea
+    const layout2 = this.createResponsiveStatusLayout(terminalWidth)
+    const truncatedModel2 = this.truncateModelName(currentModel2, layout2.modelMaxLength)
+    const responsiveModelDisplay2 = `${providerIcon2} ${modelColor2(truncatedModel2)}`
+
+    // Context and token rate info with responsive sizing
+    const contextInfo2 = this.renderContextProgressBar(layout2.contextWidth, layout2.useCompact)
+    const tokenRate2 = layout2.showTokenRate ? ` | ${this.getTokenRate(layout2.useCompact)}` : ''
+
     // Create status bar (hide Mode when DEFAULT)
     const modeSegment = this.currentMode === 'default' ? '' : ` | Mode: ${modeText}`
-    const statusLeft = `${statusIndicator} ${readyText}${modeSegment} | ${modelDisplay2}`
+    const statusLeft = `${statusIndicator} ${readyText}${modeSegment} | ${responsiveModelDisplay2} | ${contextInfo2}${tokenRate2}`
     const rightExtra = `${queueCount2 > 0 ? ` | 📥 ${queueCount2}` : ''}${runningAgents > 0 ? ` | 🤖 ${runningAgents}` : ''}`
-    const visionPart2 = ` | ${this.getVisionStatusIcon()}`
-    const imgPart2 = ` | ${this.getImageGenStatusIcon()}`
-    const statusRight = `💰 ${tokensDisplay} | ${costDisplay} | ⏱️ ${sessionDuration}m | 📁 ${workingDir}${rightExtra}${visionPart2}${imgPart2}`
+    const visionIcon2 = this.getVisionStatusIcon()
+    const imgIcon2 = this.getImageGenStatusIcon()
+    const visionPart2 = layout2.showVisionIcons && visionIcon2 ? ` | ${visionIcon2}` : ''
+    const imgPart2 = layout2.showVisionIcons && imgIcon2 ? ` | ${imgIcon2}` : ''
+    const statusRight = `${costDisplay} | ⏱️ ${chalk.yellow(sessionDuration + 'm')} | ${chalk.blue('📁')} ${workingDir}${rightExtra}${visionPart2}${imgPart2}`
     const statusPadding = Math.max(
       0,
       terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 3
@@ -9646,7 +10023,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       const availableRightSpace = Math.max(10, maxContentWidth - this._stripAnsi(statusLeft).length - 1)
       const plainStatusRight = this._stripAnsi(statusRight)
       if (plainStatusRight.length > availableRightSpace) {
-        const truncatedText = plainStatusRight.substring(0, availableRightSpace - 3) + '...'
+        const truncatedText = plainStatusRight.substring(0, availableRightSpace - 2) + '..'
         finalStatusRight = truncatedText
       }
       _finalStatusPadding = Math.max(
@@ -9667,7 +10044,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
       let displayLeft = leftPart
       let displayRight = rightPart
-      let padding = Math.max(1, availableSpace - totalContentLength)
+      let calculatedPadding = availableSpace - totalContentLength
+      let padding = Math.max(1, Math.min(calculatedPadding, Math.floor(terminalWidth * 0.4)))
 
       // If still too long, truncate right part
       if (totalContentLength >= availableSpace) {
@@ -9675,7 +10053,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         if (maxRightLength > 10) {
           const plainRight = this._stripAnsi(rightPart)
           displayRight =
-            plainRight.length > maxRightLength ? plainRight.substring(0, maxRightLength - 3) + '...' : plainRight
+            plainRight.length > maxRightLength ? plainRight.substring(0, maxRightLength - 2) + '..' : plainRight
         }
         padding = 1
       }
@@ -9685,7 +10063,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
           chalk.green(displayLeft) +
           ' '.repeat(padding) +
           chalk.gray(displayRight) +
-          chalk.cyan('  │') +
+          chalk.cyan('│') +
           '\n'
       )
       process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n')
@@ -9702,7 +10080,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
    * Build the prompt string
    */
   private buildPrompt(): string {
-    const workingDir = path.basename(this.workingDirectory)
+    const workingDir = chalk.blue(path.basename(this.workingDirectory))
     const modeIcon =
       this.currentMode === 'auto' ? '🚀' : this.currentMode === 'plan' ? '🎯' : this.currentMode === 'vm' ? '🐳' : '💬'
     const _agentInfo = this.currentAgent ? `@${this.currentAgent}:` : ''
@@ -9827,6 +10205,93 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         }
       }
     }, 50)
+  }
+
+  /**
+   * Format tool details for logging
+   */
+  private formatToolDetails(toolName: string, toolArgs: any): string {
+    if (!toolName || !toolArgs) return toolName || 'unknown'
+
+    switch (toolName) {
+      case 'explore_directory':
+        const path = toolArgs.path || '.'
+        const depth = toolArgs.depth ? ` (depth: ${toolArgs.depth})` : ''
+        return `explore_directory: ${path}${depth}`
+
+      case 'execute_command':
+        const command = toolArgs.command || toolArgs.cmd || 'unknown command'
+        // Truncate very long commands
+        const truncatedCommand = command.length > 50 ? command.substring(0, 50) + '...' : command
+        return `execute_command: ${truncatedCommand}`
+
+      case 'read_file':
+        const filePath = toolArgs.path || toolArgs.file_path || 'unknown file'
+        return `read_file: ${filePath}`
+
+      case 'write_file':
+        const writeFilePath = toolArgs.path || toolArgs.file_path || 'unknown file'
+        return `write_file: ${writeFilePath}`
+
+      case 'web_search':
+        const query = toolArgs.query || toolArgs.q || 'unknown query'
+        const truncatedQuery = query.length > 40 ? query.substring(0, 40) + '...' : query
+        return `web_search: "${truncatedQuery}"`
+
+      case 'git_workFlow':
+        const operation = toolArgs.operation || toolArgs.action || 'unknown operation'
+        return `git_workFlow: ${operation}`
+
+      case 'code_analysis':
+        const analysisPath = toolArgs.path || toolArgs.file || 'project'
+        return `code_analysis: ${analysisPath}`
+
+      case 'find_files':
+        const pattern = toolArgs.pattern || toolArgs.query || 'unknown pattern'
+        return `find_files: ${pattern}`
+
+      case 'manage_packages':
+        const packageAction = toolArgs.action || 'unknown action'
+        const packageName = toolArgs.package || toolArgs.name || ''
+        return `manage_packages: ${packageAction}${packageName ? ` ${packageName}` : ''}`
+
+      case 'analyze_project':
+        return `analyze_project: ${toolArgs.scope || 'full project'}`
+
+      case 'semantic_search':
+        const searchQuery = toolArgs.query || toolArgs.search || 'unknown query'
+        return `semantic_search: "${searchQuery}"`
+
+      case 'dependency_analysis':
+        const depPath = toolArgs.path || toolArgs.project || 'project'
+        return `dependency_analysis: ${depPath}`
+
+      case 'git_workflow':
+        const gitAction = toolArgs.action || toolArgs.operation || 'unknown action'
+        const gitFiles = toolArgs.files ? ` (${toolArgs.files.length} files)` : ''
+        return `git_workflow: ${gitAction}${gitFiles}`
+
+      case 'ide_context':
+        const ideScope = toolArgs.scope || toolArgs.context || 'workspace'
+        return `ide_context: ${ideScope}`
+
+      case 'edit_file':
+        const editPath = toolArgs.path || toolArgs.file_path || 'unknown file'
+        return `edit_file: ${editPath}`
+
+      case 'multi_edit':
+        const multiEditPath = toolArgs.path || toolArgs.file_path || 'unknown file'
+        const editCount = toolArgs.edits ? ` (${toolArgs.edits.length} edits)` : ''
+        return `multi_edit: ${multiEditPath}${editCount}`
+
+      default:
+        // For other tools, try to show the most relevant parameter
+        if (toolArgs.path) return `${toolName}: ${toolArgs.path}`
+        if (toolArgs.query) return `${toolName}: ${toolArgs.query}`
+        if (toolArgs.command) return `${toolName}: ${toolArgs.command}`
+        if (toolArgs.file_path) return `${toolName}: ${toolArgs.file_path}`
+        return toolName
+    }
   }
 
   /**
@@ -10018,6 +10483,107 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
     // Don't update UI during streaming to avoid duplicates
     // UI will be updated when streaming completes
+  }
+
+  /**
+   * Initialize token tracking system
+   */
+  private initializeTokenTrackingSystem(): void {
+    try {
+      // Setup event listeners for token tracking
+      contextTokenManager.on('session_started', (session) => {
+        console.log(chalk.dim(`🔢 Token tracking started for ${session.provider}:${session.model}`))
+        this.updateTokenDisplay()
+      })
+
+      contextTokenManager.on('warning_threshold_reached', ({ percentage, context }) => {
+        console.log(chalk.yellow(`⚠️  Token usage at ${percentage.toFixed(1)}% of context limit`))
+      })
+
+      contextTokenManager.on('critical_threshold_reached', ({ percentage, context }) => {
+        console.log(
+          chalk.red(`🚨 Critical: Token usage at ${percentage.toFixed(1)}% - consider summarizing conversation`)
+        )
+      })
+
+      contextTokenManager.on('message_tracked', ({ messageInfo, session, optimization }) => {
+        if (optimization.shouldTrim) {
+          console.log(chalk.yellow(`💡 ${optimization.reason}`))
+        }
+        this.updateTokenDisplay()
+      })
+
+      // Initialize token display
+      this.tokenDisplay.reset()
+    } catch (error) {
+      console.debug('Token tracking system initialization failed:', error)
+    }
+  }
+
+  /**
+   * Start token session for current model
+   */
+  private async startTokenSession(): Promise<void> {
+    try {
+      const currentModel = this.configManager.getCurrentModel()
+      const currentProvider = 'anthropic' // Fallback for now
+
+      await contextTokenManager.startSession(currentProvider, currentModel)
+    } catch (error) {
+      console.debug('Failed to start token session:', error)
+    }
+  }
+
+  /**
+   * Update token display with current session stats
+   */
+  private updateTokenDisplay(): void {
+    try {
+      const tokenSession = contextTokenManager.getCurrentSession()
+      if (tokenSession) {
+        const stats = contextTokenManager.getSessionStats()
+        if (stats && stats.session) {
+          const totalTokens = stats.session.totalInputTokens + stats.session.totalOutputTokens
+          const limits = universalTokenizer.getModelLimits(tokenSession.model, tokenSession.provider)
+
+          this.tokenDisplay.update(
+            totalTokens,
+            limits.context,
+            tokenSession.provider,
+            tokenSession.model,
+            stats.session.totalCost
+          )
+        }
+      } else {
+        // Fallback to chat session
+        const chatSession = chatManager.getCurrentSession()
+        if (chatSession) {
+          const currentModel = this.configManager.getCurrentModel()
+          const currentProvider = 'anthropic' // Fallback for now
+
+          const userTokens = Math.round(
+            chatSession.messages.filter((m) => m.role === 'user').reduce((sum, m) => sum + m.content.length, 0) / 4
+          )
+          const assistantTokens = Math.round(
+            chatSession.messages.filter((m) => m.role === 'assistant').reduce((sum, m) => sum + m.content.length, 0) / 4
+          )
+          const totalTokens = userTokens + assistantTokens
+          const cost = universalTokenizer.calculateCost(userTokens, assistantTokens, currentModel).totalCost
+          const limits = universalTokenizer.getModelLimits(currentModel, currentProvider)
+
+          this.tokenDisplay.update(totalTokens, limits.context, currentProvider, currentModel, cost)
+        }
+      }
+    } catch (error) {
+      console.debug('Token display update failed:', error)
+    }
+  }
+
+  /**
+   * Show token display in console
+   */
+  private showTokenDisplay(): void {
+    this.tokenDisplay.log()
   }
 
   /**
@@ -12412,7 +12978,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         fullName: fullName || undefined,
         metadata: {
           source: 'nikcli',
-          version: '0.3.0-beta',
+          version: '0.1.5',
           created_at: new Date().toISOString(),
         },
       })
@@ -13350,9 +13916,81 @@ Generated by NikCLI on ${new Date().toISOString()}
         `   Auto Load For Agents: ${cfg.cloudDocs.autoLoadForAgents ? 'on' : 'off'}  Smart Suggestions: ${cfg.cloudDocs.smartSuggestions ? 'on' : 'off'}`
       )
 
-      // 12) Models & Keys (sorted by name)
+      // 12) AI Providers & API Keys
       lines.push('')
-      lines.push(chalk.green('12) Models & API Keys'))
+      lines.push(chalk.green('12) AI Providers & API Keys'))
+      const anthropicKey = configManager.getApiKey('anthropic') || process.env.ANTHROPIC_API_KEY
+      const openaiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
+      const googleKey = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY
+      const gatewayKey = configManager.getApiKey('gateway') || process.env.AI_GATEWAY_API_KEY
+      const v0Key = configManager.getApiKey('vercel') || process.env.V0_API_KEY
+      const ollamaHost = process.env.OLLAMA_HOST || '127.0.0.1:11434'
+
+      lines.push(`   Anthropic (Claude): ${anthropicKey ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   OpenAI (GPT): ${openaiKey ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   Google (Gemini): ${googleKey ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   AI Gateway: ${gatewayKey ? chalk.green('✅ configured') : chalk.gray('❌ optional')}`)
+      lines.push(`   V0 (Vercel): ${v0Key ? chalk.green('✅ configured') : chalk.gray('❌ optional')}`)
+      lines.push(`   Ollama: ${chalk.cyan(ollamaHost)} ${ollamaHost ? chalk.gray('(local)') : chalk.red('❌ missing')}`)
+
+      // 13) Blockchain & Web3 (Coinbase)
+      lines.push('')
+      lines.push(chalk.green('13) Blockchain & Web3 (Coinbase)'))
+      const coinbaseId = configManager.getApiKey('coinbase_id')
+      const coinbaseSecret = configManager.getApiKey('coinbase_secret')
+      const coinbaseWallet = configManager.getApiKey('coinbase_wallet_secret')
+      lines.push(`   CDP API Key ID: ${coinbaseId ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   CDP API Key Secret: ${coinbaseSecret ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   CDP Wallet Secret: ${coinbaseWallet ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      const coinbaseReady = coinbaseId && coinbaseSecret && coinbaseWallet
+      lines.push(
+        `   Status: ${coinbaseReady ? chalk.green('Ready for Web3 operations') : chalk.yellow('Configure with /set-coin-keys')}`
+      )
+
+      // 14) Web Browsing & Analysis (Browserbase)
+      lines.push('')
+      lines.push(chalk.green('14) Web Browsing & Analysis (Browserbase)'))
+      const browserbaseKey = configManager.getApiKey('browserbase')
+      const browserbaseProject = configManager.getApiKey('browserbase_project_id')
+      lines.push(`   API Key: ${browserbaseKey ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   Project ID: ${browserbaseProject ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      const browserbaseReady = browserbaseKey && browserbaseProject
+      lines.push(
+        `   Status: ${browserbaseReady ? chalk.green('Ready for web browsing') : chalk.yellow('Configure with /set-key-bb')}`
+      )
+      if (browserbaseReady) {
+        const availableProviders = ['claude', 'openai', 'google'].filter((p) => configManager.getApiKey(p))
+        lines.push(
+          `   AI Providers: ${availableProviders.length > 0 ? chalk.cyan(availableProviders.join(', ')) : chalk.gray('none available')}`
+        )
+      }
+
+      // 15) Vector Database & Memory (ChromaDB)
+      lines.push('')
+      lines.push(chalk.green('15) Vector Database & Memory (ChromaDB)'))
+      const chromaUrl = process.env.CHROMA_URL || 'http://localhost:8005'
+      const chromaApiKey = process.env.CHROMA_API_KEY || process.env.CHROMA_CLOUD_API_KEY
+      lines.push(`   URL: ${chalk.cyan(chromaUrl)}`)
+      lines.push(`   API Key: ${chromaApiKey ? chalk.green('✅ configured') : chalk.gray('❌ optional (local)')}`)
+      lines.push(
+        `   Status: ${chromaUrl.includes('localhost') ? chalk.yellow('Local instance') : chalk.green('Cloud instance')}`
+      )
+
+      // 16) Cache Services (Upstash Redis)
+      lines.push('')
+      lines.push(chalk.green('16) Cache Services (Upstash Redis)'))
+      const upstashUrl = process.env.UPSTASH_REDIS_REST_URL
+      const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN
+      lines.push(`   REST URL: ${upstashUrl ? chalk.green('✅ configured') : chalk.gray('❌ optional')}`)
+      lines.push(`   REST Token: ${upstashToken ? chalk.green('✅ configured') : chalk.gray('❌ optional')}`)
+      const upstashReady = upstashUrl && upstashToken
+      lines.push(
+        `   Status: ${upstashReady ? chalk.green('Cloud Redis ready') : chalk.gray('Using local Redis fallback')}`
+      )
+
+      // 17) Models & API Keys (sorted by name)
+      lines.push('')
+      lines.push(chalk.green('17) Models & API Keys'))
       const modelEntries = Object.entries(cfg.models).sort((a, b) => a[0].localeCompare(b[0]))
       modelEntries.forEach(([name, mc]) => {
         const isCurrent = name === cfg.currentModel
@@ -14017,6 +14655,600 @@ Generated by NikCLI on ${new Date().toISOString()}
     }
     this.renderPromptAfterOutput()
   }
+
+  /**
+   * Interactive Browserbase credentials setup
+   */
+  private async interactiveSetBrowserbaseKeys(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('./core/input-queue')
+
+      // Header panel
+      this.printPanel(
+        boxen(
+          'Configure Browserbase credentials. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
+          { title: '🌐 Set Browserbase Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+        )
+      )
+
+      const currentApiKey = configManager.getApiKey('browserbase')
+      const currentProjectId = configManager.getApiKey('browserbase_project_id')
+
+      // Suspend prompt for interactive input
+      this.suspendPrompt()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'password',
+            name: 'apiKey',
+            message: 'BROWSERBASE_API_KEY',
+            mask: '*',
+            suffix: currentApiKey ? chalk.gray(' (configured)') : '',
+          },
+          {
+            type: 'input',
+            name: 'projectId',
+            message: 'BROWSERBASE_PROJECT_ID',
+            suffix: currentProjectId ? chalk.gray(' (configured)') : '',
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        this.resumePromptAndRender()
+      }
+
+      const setIfProvided = (label: string, value: string | undefined, setter: (v: string) => void) => {
+        if (value && value.trim().length > 0) {
+          setter(value.trim())
+          console.log(chalk.green(`✅ Saved ${label}`))
+        } else {
+          console.log(chalk.gray(`⏭️  Skipped ${label}`))
+        }
+      }
+
+      setIfProvided('BROWSERBASE_API_KEY', answers.apiKey, (v) => {
+        configManager.setApiKey('browserbase', v)
+        process.env.BROWSERBASE_API_KEY = v
+      })
+      setIfProvided('BROWSERBASE_PROJECT_ID', answers.projectId, (v) => {
+        configManager.setApiKey('browserbase_project_id', v)
+        process.env.BROWSERBASE_PROJECT_ID = v
+      })
+
+      console.log(
+        boxen('Browserbase keys updated. You can now browse and analyze web content!', {
+          title: '✅ Keys Saved',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to set Browserbase keys: ${error.message}`, {
+          title: '❌ Set Browserbase Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    this.renderPromptAfterOutput()
+  }
+
+  /**
+   * Interactive Figma credentials setup
+   */
+  private async interactiveSetFigmaKeys(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('./core/input-queue')
+
+      // Header panel
+      this.printPanel(
+        boxen(
+          'Configure Figma and v0 credentials. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
+          { title: '🎨 Set Figma Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+        )
+      )
+
+      const currentFigmaKey = configManager.getApiKey('figma')
+      const currentV0Key = configManager.getApiKey('v0')
+
+      // Suspend prompt for interactive input
+      this.suspendPrompt()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'password',
+            name: 'figmaApiKey',
+            message: 'FIGMA_API_TOKEN',
+            mask: '*',
+            suffix: currentFigmaKey ? chalk.gray(' (configured)') : '',
+          },
+          {
+            type: 'password',
+            name: 'v0ApiKey',
+            message: 'V0_API_KEY (optional - for AI code generation)',
+            mask: '*',
+            suffix: currentV0Key ? chalk.gray(' (configured)') : '',
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        this.resumePromptAndRender()
+      }
+
+      const setIfProvided = (label: string, value: string | undefined, setter: (v: string) => void) => {
+        if (value && value.trim().length > 0) {
+          setter(value.trim())
+          console.log(chalk.green(`✅ Saved ${label}`))
+        } else {
+          console.log(chalk.gray(`⏭️  Skipped ${label}`))
+        }
+      }
+
+      setIfProvided('FIGMA_API_TOKEN', answers.figmaApiKey, (v) => {
+        configManager.setApiKey('figma', v)
+        process.env.FIGMA_API_TOKEN = v
+      })
+      setIfProvided('V0_API_KEY', answers.v0ApiKey, (v) => {
+        configManager.setApiKey('v0', v)
+        process.env.V0_API_KEY = v
+      })
+
+      console.log(
+        boxen('Figma keys updated. You can now export designs, generate code, and extract design tokens!', {
+          title: '✅ Keys Saved',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+
+      // Show usage instructions
+      console.log('\n' + chalk.blue.bold('🎨 Figma Commands Available:'))
+      console.log(chalk.cyan('  /figma-config') + chalk.gray(' - Show configuration status'))
+      console.log(chalk.cyan('  /figma-info <file-id>') + chalk.gray(' - Get file information'))
+      console.log(chalk.cyan('  /figma-export <file-id> [format]') + chalk.gray(' - Export designs'))
+      console.log(chalk.cyan('  /figma-to-code <file-id>') + chalk.gray(' - Generate code from designs'))
+      console.log(chalk.cyan('  /figma-create <component-path>') + chalk.gray(' - Create design from React component'))
+      console.log(chalk.cyan('  /figma-tokens <file-id>') + chalk.gray(' - Extract design tokens'))
+      if (process.platform === 'darwin') {
+        console.log(chalk.cyan('  /figma-open <url>') + chalk.gray(' - Open in desktop app (macOS)'))
+      }
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to set Figma keys: ${error.message}`, {
+          title: '❌ Set Figma Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    this.renderPromptAfterOutput()
+  }
+
+  private async interactiveSetRedisKeys(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('./core/input-queue')
+
+      // Header panel
+      this.printPanel(
+        boxen(
+          'Configure Upstash Redis credentials for enhanced caching. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
+          { title: '🚀 Set Redis Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
+        )
+      )
+
+      const currentRedisUrl = configManager.getApiKey('redis_url')
+      const currentRedisToken = configManager.getApiKey('redis_token')
+
+      // Suspend prompt for interactive input
+      this.suspendPrompt()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'redisUrl',
+            message: 'UPSTASH_REDIS_REST_URL',
+            suffix: currentRedisUrl ? chalk.gray(' (configured)') : '',
+          },
+          {
+            type: 'password',
+            name: 'redisToken',
+            message: 'UPSTASH_REDIS_REST_TOKEN',
+            mask: '*',
+            suffix: currentRedisToken ? chalk.gray(' (configured)') : '',
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        this.resumePromptAndRender()
+      }
+
+      const setIfProvided = (label: string, value: string | undefined, setter: (v: string) => void) => {
+        if (value && value.trim().length > 0) {
+          setter(value.trim())
+          console.log(chalk.green(`✅ Saved ${label}`))
+        } else {
+          console.log(chalk.gray(`⏭️  Skipped ${label}`))
+        }
+      }
+
+      setIfProvided('UPSTASH_REDIS_REST_URL', answers.redisUrl, (v) => {
+        configManager.setApiKey('redis_url', v)
+        process.env.UPSTASH_REDIS_REST_URL = v
+      })
+      setIfProvided('UPSTASH_REDIS_REST_TOKEN', answers.redisToken, (v) => {
+        configManager.setApiKey('redis_token', v)
+        process.env.UPSTASH_REDIS_REST_TOKEN = v
+      })
+
+      console.log(
+        boxen('Redis keys updated. Enhanced caching with Redis/Upstash is now available!', {
+          title: '✅ Keys Saved',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+
+      // Show usage instructions
+      console.log('\n' + chalk.blue.bold('🚀 Redis Commands Available:'))
+      console.log(chalk.cyan('  /cache') + chalk.gray(' - Show cache status and statistics'))
+      console.log(chalk.cyan('  /cache clear') + chalk.gray(' - Clear all caches'))
+      console.log(chalk.cyan('  /cache stats') + chalk.gray(' - Show detailed cache statistics'))
+      console.log(chalk.cyan('  /status') + chalk.gray(' - Show system status including Redis health'))
+
+      // Test Redis connection
+      try {
+        const { cacheService } = await import('./services/cache-service')
+        await cacheService.reconnectRedis()
+        console.log(chalk.green('\n✅ Redis connection tested successfully'))
+      } catch (error: any) {
+        console.log(chalk.yellow(`\n⚠️ Redis connection test failed: ${error.message}`))
+        console.log(chalk.gray('Cache will fall back to local memory storage'))
+      }
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to set Redis keys: ${error.message}`, {
+          title: '❌ Set Redis Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    this.renderPromptAfterOutput()
+  }
+
+  private async interactiveSetVectorKeys(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('./core/input-queue')
+
+      // Header panel
+      this.printPanel(
+        boxen(
+          'Configure Upstash Vector credentials for unified vector database. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
+          { title: '🚀 Set Vector Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }
+        )
+      )
+
+      // Suspend prompt for interactive input
+      this.suspendPrompt()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'vectorUrl',
+            message: 'UPSTASH_VECTOR_REST_URL',
+            suffix: chalk.gray(' (configured)'),
+            validate: (input: string) => {
+              if (!input.trim()) return true // Allow empty to keep current
+              if (!input.startsWith('https://')) {
+                return 'URL must start with https://'
+              }
+              return true
+            },
+          },
+          {
+            type: 'password',
+            name: 'vectorToken',
+            message: 'UPSTASH_VECTOR_REST_TOKEN',
+            mask: '*',
+            suffix: chalk.gray(' (configured)'),
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        this.resumePromptAndRender()
+      }
+
+      const setIfProvided = (label: string, value: string | undefined, setter: (v: string) => void) => {
+        if (value && value.trim().length > 0) {
+          setter(value.trim())
+          console.log(chalk.green(`✅ Saved ${label}`))
+        } else {
+          console.log(chalk.gray(`⏭️  Skipped ${label}`))
+        }
+      }
+
+      console.log(
+        boxen('Vector keys updated. Unified vector database with Upstash Vector is now available!', {
+          title: '✅ Keys Saved',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+
+      // Show usage instructions
+      console.log('\n' + chalk.blue.bold('🚀 Vector Commands Available:'))
+      console.log(chalk.cyan('  /status') + chalk.gray(' - Show system status including Vector health'))
+      console.log(chalk.cyan('  /agents') + chalk.gray(' - List agents (uses vector search)'))
+      console.log(chalk.cyan('  /remember') + chalk.gray(' - Store information in vector memory'))
+      console.log(chalk.cyan('  /recall') + chalk.gray(' - Search vector memory'))
+
+      // Test Vector connection
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to set Vector keys: ${error.message}`, {
+          title: '❌ Set Vector Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    this.renderPromptAfterOutput()
+  }
+
+  private async manageRedisCache(action: string): Promise<void> {
+    try {
+      const { cacheService } = await import('./services/cache-service')
+
+      switch (action) {
+        case 'enable':
+          // Enable Redis in config
+          simpleConfigManager.setRedisConfig({ enabled: true })
+
+          // Try to reconnect
+          await cacheService.reconnectRedis()
+
+          console.log(
+            boxen('Redis cache enabled successfully! The system will now use Redis for enhanced caching.', {
+              title: '✅ Redis Enabled',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            })
+          )
+
+          // Show current status
+          await this.manageRedisCache('status')
+          break
+
+        case 'disable':
+          // Disable Redis in config
+          simpleConfigManager.setRedisConfig({ enabled: false })
+
+          console.log(
+            boxen('Redis cache disabled. The system will fall back to local SmartCache for caching.', {
+              title: '⚠️ Redis Disabled',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+
+          // Show current status
+          await this.manageRedisCache('status')
+          break
+
+        case 'status':
+          const stats = await cacheService.getStats()
+          const health = cacheService.getHealthStatus()
+
+          let statusContent = `${chalk.red.bold('🚀 Redis Cache Status')}\n\n`
+
+          // Connection Status
+          statusContent += `${chalk.cyan('Connection:')}\n`
+          statusContent += `  Enabled: ${stats.redis.enabled ? chalk.green('✅ Yes') : chalk.red('❌ No')}\n`
+          statusContent += `  Connected: ${stats.redis.connected ? chalk.green('✅ Yes') : chalk.red('❌ No')}\n`
+
+          if (stats.redis.health) {
+            statusContent += `  Latency: ${chalk.blue(stats.redis.health.latency)}ms\n`
+            statusContent += `  Status: ${
+              stats.redis.health.status === 'healthy'
+                ? chalk.green('Healthy')
+                : stats.redis.health.status === 'degraded'
+                  ? chalk.yellow('Degraded')
+                  : chalk.red('Unhealthy')
+            }\n`
+          }
+
+          statusContent += `\n${chalk.cyan('Performance:')}\n`
+          statusContent += `  Total Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n`
+          statusContent += `  Total Misses: ${chalk.yellow(stats.totalMisses.toLocaleString())}\n`
+          statusContent += `  Hit Rate: ${chalk.blue(stats.hitRate.toFixed(1))}%\n`
+
+          statusContent += `\n${chalk.cyan('Fallback:')}\n`
+          statusContent += `  SmartCache: ${stats.fallback.enabled ? chalk.green('✅ Available') : chalk.red('❌ Disabled')}\n`
+          statusContent += `  Overall Health: ${health.overall ? chalk.green('✅ Operational') : chalk.red('❌ Degraded')}\n`
+
+          console.log(
+            boxen(statusContent, {
+              title: '🚀 Redis Cache Status',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: stats.redis.connected ? 'green' : 'red',
+            })
+          )
+
+          // Show commands
+          console.log('\n' + chalk.blue.bold('🔧 Available Commands:'))
+          console.log(chalk.cyan('  /redis-enable') + chalk.gray('   - Enable Redis caching'))
+          console.log(chalk.cyan('  /redis-disable') + chalk.gray('  - Disable Redis caching'))
+          console.log(chalk.cyan('  /redis-status') + chalk.gray('   - Show detailed status'))
+          console.log(chalk.cyan('  /set-key-redis') + chalk.gray(' - Configure Redis credentials'))
+          console.log(chalk.cyan('  /cache') + chalk.gray('         - Show cache statistics'))
+          console.log(chalk.cyan('  /cache clear') + chalk.gray('   - Clear all caches'))
+          break
+
+        default:
+          console.log(chalk.red('❌ Invalid Redis action. Use: enable, disable, or status'))
+      }
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to manage Redis cache: ${error.message}`, {
+          title: '❌ Redis Management Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    this.renderPromptAfterOutput()
+  }
+
+  /**
+   * Handle browse command to extract content from URL
+   */
+  private async handleBrowseCommand(args: string[]): Promise<void> {
+    if (args.length < 1) {
+      console.log(chalk.red('Usage: /browse <url>'))
+      console.log(chalk.gray('Example: /browse https://example.com'))
+      return
+    }
+
+    const url = args[0]
+    try {
+      console.log(chalk.blue(`🌐 Browsing ${url}...`))
+
+      // Check if Browserbase is configured
+      const providers = configManager.getBrowserbaseCredentials()
+      if (!providers || providers.apiKey === undefined || providers.projectId === undefined) {
+        console.log(chalk.yellow('⚠️ Browserbase not configured. Use /set-key-bb to configure API credentials.'))
+        return
+      }
+
+      const result = await toolService.executeTool(url, {
+        analysisType: 'summary',
+        skipConfirmation: true,
+      })
+
+      if (result.success) {
+        console.log(chalk.green('✅ Page content extracted:'))
+        console.log(chalk.gray('─'.repeat(60)))
+        console.log(result.data?.content || 'No content extracted')
+        console.log(chalk.gray('─'.repeat(60)))
+
+        if (result.data?.title) {
+          console.log(chalk.blue(`📄 Title: ${result.data.title}`))
+        }
+
+        if (result.data?.metadata) {
+          console.log(chalk.gray(`🔗 URL: ${result.data.metadata.url}`))
+          console.log(chalk.gray(`⏱️ Processing time: ${result.data.metadata.processing_time_ms}ms`))
+        }
+      } else {
+        console.log(chalk.red(`❌ Failed to browse: ${result.error}`))
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to browse: ${error.message}`))
+    }
+  }
+
+  /**
+   * Handle web-analyze command to browse and analyze with AI
+   */
+  private async handleWebAnalyzeCommand(args: string[]): Promise<void> {
+    if (args.length < 1) {
+      console.log(chalk.red('Usage: /web-analyze <url> [provider]'))
+      console.log(chalk.gray('Example: /web-analyze https://example.com claude'))
+      console.log(chalk.gray('Providers: claude, openai, google, openrouter'))
+      return
+    }
+
+    const url = args[0]
+    const provider = args[1] || 'claude'
+
+    try {
+      console.log(chalk.blue(`🌐 Analyzing ${url} with ${provider.toUpperCase()}...`))
+
+      // Check if Browserbase is configured
+      const providers = configManager.getBrowserbaseCredentials()
+      if (!providers || providers.apiKey === undefined || providers.projectId === undefined) {
+        console.log(chalk.yellow('⚠️ Browserbase not configured. Use /set-key-bb to configure API credentials.'))
+        return
+      }
+
+      const result = await toolService.executeTool(url, {
+        url,
+        options: {
+          analysisProvider: provider as 'claude' | 'openai' | 'google' | 'openrouter',
+          analysisType: 'detailed',
+          customPrompt:
+            'Analyze this webpage content and provide insights about its purpose, key information, and any notable features.',
+          skipConfirmation: true,
+        },
+      })
+
+      if (result.success) {
+        console.log(chalk.green('✅ Page analyzed successfully:'))
+        console.log(chalk.gray('─'.repeat(60)))
+
+        if (result.data?.content) {
+          console.log(chalk.white('📝 Page Content:'))
+          console.log(result.data.content.substring(0, 500) + (result.data.content.length > 500 ? '...' : ''))
+          console.log('')
+        }
+
+        if (result.data?.analysis) {
+          console.log(chalk.blue('🤖 AI Analysis:'))
+          console.log(result.data.analysis)
+        }
+
+        console.log(chalk.gray('─'.repeat(60)))
+
+        if (result.data?.metadata) {
+          console.log(chalk.gray(`🔗 URL: ${result.data.metadata.url}`))
+          console.log(chalk.gray(`🤖 Provider: ${result.data.metadata.ai_provider}`))
+          console.log(chalk.gray(`⏱️ Processing time: ${result.data.metadata.processing_time_ms}ms`))
+        }
+      } else {
+        console.log(chalk.red(`❌ Failed to analyze: ${result.error}`))
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to analyze: ${error.message}`))
+    }
+  }
+
   /**
    * Show current model details and pricing in a panel
    */
@@ -14073,6 +15305,175 @@ Generated by NikCLI on ${new Date().toISOString()}
     await new Promise((resolve) => setTimeout(resolve, 150))
     this.renderPromptAfterOutput()
   }
+
+  /**
+   * Show Figma integration status and available commands panel
+   */
+  private async showFigmaStatusPanel(): Promise<void> {
+    try {
+      const figmaApiKey = configManager.getApiKey('figma')
+      const v0ApiKey = configManager.getApiKey('v0')
+      const isMacOS = process.platform === 'darwin'
+
+      const figmaStatus = figmaApiKey ? chalk.green('✓ Configured') : chalk.red('✗ Not configured')
+      const v0Status = v0ApiKey ? chalk.green('✓ Configured') : chalk.yellow('○ Optional')
+      const desktopStatus = isMacOS ? chalk.green('✓ Available') : chalk.gray('✗ macOS only')
+
+      const content = [
+        `${chalk.cyan('API Status:')}`,
+        `  Figma API: ${figmaStatus}`,
+        `  V0 API:    ${v0Status} ${chalk.gray('(for AI code generation)')}`,
+        `  Desktop:   ${desktopStatus}`,
+        '',
+        `${chalk.cyan('Available Commands:')}`,
+        `  ${chalk.yellow('/figma-info')} <file-id>      - Get file information`,
+        `  ${chalk.yellow('/figma-export')} <file-id>     - Export designs as images`,
+        `  ${chalk.yellow('/figma-to-code')} <file-id>    - Generate code from designs`,
+        `  ${chalk.yellow('/figma-create')} <component>   - Create design from React component`,
+        `  ${chalk.yellow('/figma-tokens')} <file-id>     - Extract design tokens`,
+        ...(isMacOS ? [`  ${chalk.yellow('/figma-open')} <url>         - Open in desktop app`] : []),
+        '',
+        figmaApiKey ? '' : `${chalk.yellow('Setup:')} /set-key-figma to configure API keys`,
+      ]
+        .filter(Boolean)
+        .join('\n')
+
+      console.log(
+        boxen(content, {
+          title: '🎨 Figma Integration',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'magenta',
+        })
+      )
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to show Figma status: ${error.message}`, {
+          title: '❌ Figma Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    console.log()
+    process.stdout.write('')
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    this.renderPromptAfterOutput()
+  }
+
+  /**
+   * Show Figma design tokens extraction results panel
+   */
+  private async showFigmaTokensPanel(tokens: any): Promise<void> {
+    try {
+      const content = [
+        `${chalk.cyan('Design Tokens Extracted:')}`,
+        '',
+        `${chalk.green('Colors:')} ${tokens.colors?.length || 0} found`,
+        ...(tokens.colors
+          ?.slice(0, 3)
+          .map((color: any) => `  ${chalk.hex(color.value)('●')} ${color.name}: ${color.value}`) || []),
+        tokens.colors?.length > 3 ? `  ${chalk.gray(`... and ${tokens.colors.length - 3} more`)}` : '',
+        '',
+        `${chalk.green('Typography:')} ${tokens.typography?.length || 0} styles found`,
+        ...(tokens.typography
+          ?.slice(0, 2)
+          .map((typo: any) => `  ${typo.name}: ${typo.fontSize}px / ${typo.fontFamily}`) || []),
+        tokens.typography?.length > 2 ? `  ${chalk.gray(`... and ${tokens.typography.length - 2} more`)}` : '',
+        '',
+        `${chalk.green('Spacing:')} ${tokens.spacing?.length || 0} values found`,
+        `${chalk.green('Shadows:')} ${tokens.shadows?.length || 0} effects found`,
+        '',
+        chalk.gray('Tip: Use these tokens in your CSS/design system'),
+      ]
+        .filter(Boolean)
+        .join('\n')
+
+      console.log(
+        boxen(content, {
+          title: '🎨 Design Tokens',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to show design tokens: ${error.message}`, {
+          title: '❌ Tokens Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    console.log()
+    process.stdout.write('')
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    this.renderPromptAfterOutput()
+  }
+
+  /**
+   * Show Figma file information panel
+   */
+  private async showFigmaFilePanel(fileInfo: any): Promise<void> {
+    try {
+      const content = [
+        `${chalk.green('Name:')} ${fileInfo.name}`,
+        `${chalk.green('Version:')} ${fileInfo.version}`,
+        `${chalk.green('Last Modified:')} ${new Date(fileInfo.lastModified).toLocaleString()}`,
+        '',
+        `${chalk.cyan('Document Structure:')}`,
+        `  Pages: ${fileInfo.document?.children?.length || 0}`,
+        ...(fileInfo.document?.children
+          ?.slice(0, 3)
+          .map((page: any) => `    📄 ${page.name} (${page.children?.length || 0} frames)`) || []),
+        fileInfo.document?.children?.length > 3
+          ? `    ${chalk.gray(`... and ${fileInfo.document.children.length - 3} more pages`)}`
+          : '',
+        '',
+        `${chalk.cyan('Components:')} ${fileInfo.components ? Object.keys(fileInfo.components).length : 0}`,
+        `${chalk.cyan('Styles:')} ${fileInfo.styles ? Object.keys(fileInfo.styles).length : 0}`,
+        '',
+        chalk.gray('Use /figma-export to export designs or /figma-to-code to generate code'),
+      ]
+        .filter(Boolean)
+        .join('\n')
+
+      console.log(
+        boxen(content, {
+          title: '📋 Figma File Info',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
+    } catch (error: any) {
+      console.log(
+        boxen(`Failed to show file info: ${error.message}`, {
+          title: '❌ File Info Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    console.log()
+    process.stdout.write('')
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    this.renderPromptAfterOutput()
+  }
+
+  /**
+   * Show status of all MCP servers
+   */
 }
 
 // Global instance for access from other modules

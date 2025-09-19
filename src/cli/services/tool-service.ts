@@ -2,6 +2,10 @@ import { execSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import chalk from 'chalk'
+// Import RAG and semantic search capabilities
+import { unifiedRAGSystem } from '../context/rag-system'
+import { semanticSearchEngine } from '../context/semantic-search-engine'
+import { workspaceContext } from '../context/workspace-context'
 import { simpleConfigManager } from '../core/config-manager'
 import { ExecutionPolicyManager, type ToolApprovalRequest } from '../policies/execution-policy'
 import { ContentValidators } from '../tools/write-file-tool'
@@ -21,7 +25,7 @@ export interface ToolExecution {
 export interface ToolCapability {
   name: string
   description: string
-  category: 'file' | 'command' | 'analysis' | 'git' | 'package'
+  category: 'file' | 'command' | 'analysis' | 'git' | 'package' | 'semantic' | 'rag'
   handler: (args: any) => Promise<any>
 }
 
@@ -123,11 +127,119 @@ export class ToolService {
       category: 'analysis',
       handler: this.analyzeProject.bind(this),
     })
+
+    // Semantic search tools
+    this.registerTool({
+      name: 'semantic_search',
+      description: 'Search files using semantic understanding',
+      category: 'semantic',
+      handler: this.semanticSearch.bind(this),
+    })
+
+    this.registerTool({
+      name: 'analyze_query',
+      description: 'Analyze search query for intent and entities',
+      category: 'semantic',
+      handler: this.analyzeQuery.bind(this),
+    })
+
+    // RAG tools
+    this.registerTool({
+      name: 'rag_search',
+      description: 'Search codebase using RAG system',
+      category: 'rag',
+      handler: this.ragSearch.bind(this),
+    })
+
+    this.registerTool({
+      name: 'index_project',
+      description: 'Index project for better search',
+      category: 'rag',
+      handler: this.indexProject.bind(this),
+    })
   }
 
   registerTool(tool: ToolCapability): void {
     this.tools.set(tool.name, tool)
     console.log(chalk.dim(`🔧 Registered tool: ${tool.name}`))
+  }
+
+  // New semantic search capabilities
+  private async semanticSearch(args: { query: string; directory?: string; limit?: number }): Promise<any> {
+    try {
+      const results = await workspaceContext.searchSemantic({
+        query: args.query,
+        limit: args.limit || 10,
+        threshold: 0.3,
+        useRAG: true,
+      })
+
+      return {
+        success: true,
+        results: results.map((r) => ({
+          path: r.file.path,
+          score: r.score,
+          matchType: r.matchType,
+          snippet: r.snippet,
+        })),
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  private async analyzeQuery(args: { query: string }): Promise<any> {
+    try {
+      const analysis = await semanticSearchEngine.analyzeQuery(args.query)
+      return {
+        success: true,
+        analysis: {
+          intent: analysis.intent.type,
+          confidence: analysis.confidence,
+          entities: analysis.entities.map((e) => ({ text: e.text, type: e.type })),
+          expandedQuery: analysis.expandedQuery,
+        },
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  private async ragSearch(args: { query: string; options?: any }): Promise<any> {
+    try {
+      const results = await unifiedRAGSystem.search(args.query, {
+        limit: args.options?.limit || 10,
+        semanticOnly: args.options?.semanticOnly || false,
+        workingDirectory: this.workingDirectory,
+      })
+
+      return {
+        success: true,
+        results: results.map((r) => ({
+          path: r.path,
+          content: r.content.substring(0, 300),
+          score: r.score,
+          metadata: r.metadata,
+        })),
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  private async indexProject(args: { directory?: string }): Promise<any> {
+    try {
+      const targetDir = args.directory || this.workingDirectory
+      const result = await unifiedRAGSystem.analyzeProject(targetDir)
+
+      return {
+        success: true,
+        indexed: result.indexedFiles || 0,
+        fallbackMode: result.fallbackMode || false,
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
   }
 
   /**

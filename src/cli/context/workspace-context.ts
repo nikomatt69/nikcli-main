@@ -1,9 +1,14 @@
 import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
+import * as fsPromises from 'node:fs/promises'
 import * as path from 'node:path'
 import chalk from 'chalk'
 import { toolsManager } from '../tools/tools-manager'
+// Import new unified components
+import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 import { unifiedRAGSystem } from './rag-system'
+import { type QueryAnalysis, semanticSearchEngine } from './semantic-search-engine'
+import { type EmbeddingResult, unifiedEmbeddingInterface } from './unified-embedding-interface'
 
 export interface FileContext {
   path: string
@@ -98,6 +103,10 @@ export class WorkspaceContextManager {
   private readonly MAX_CACHE_SIZE = 1000
   private lastCacheCleanup = Date.now()
 
+  // Integrated components
+  private fileFilter: FileFilterSystem
+  private isInitialized = false
+
   // RAG integration
   private ragAnalysisPromise: Promise<any> | null = null
   private ragInitialized = false
@@ -125,8 +134,21 @@ export class WorkspaceContextManager {
       },
     }
 
+    // Initialize integrated components
+    this.fileFilter = createFileFilter(rootPath, {
+      respectGitignore: true,
+      maxFileSize: 1024 * 1024, // 1MB
+      maxTotalFiles: 1000,
+      includeExtensions: ['.ts', '.js', '.tsx', '.jsx', '.py', '.md', '.json', '.yaml', '.yml'],
+      excludeExtensions: [],
+      excludeDirectories: ['node_modules', 'dist', 'build', '.cache', '.git'],
+      excludePatterns: [],
+      customRules: [],
+    })
+
     // Initialize RAG integration
     this.initializeRAGIntegration()
+    this.initializeIntegratedComponents()
   }
 
   // Initialize RAG system integration
@@ -149,6 +171,24 @@ export class WorkspaceContextManager {
     }
   }
 
+  // Initialize integrated components
+  private async initializeIntegratedComponents(): Promise<void> {
+    try {
+      console.log(chalk.blue('🔧 Initializing integrated file filtering and semantic search...'))
+
+      // File filter is already initialized in constructor
+
+      // Pre-scan workspace to populate file filter context
+      await this.refreshWorkspaceIndex()
+
+      this.isInitialized = true
+      console.log(chalk.green('✅ Integrated components initialized successfully'))
+    } catch (error) {
+      console.log(chalk.yellow('⚠️ Failed to initialize integrated components:', error))
+      this.isInitialized = false
+    }
+  }
+
   // Enhanced semantic search with RAG integration
   async searchSemantic(options: SemanticSearchOptions): Promise<ContextSearchResult[]> {
     const { query, limit = 10, threshold = 0.3, useRAG = true } = options
@@ -165,6 +205,8 @@ export class WorkspaceContextManager {
       return cached.slice(0, limit)
     }
 
+    // Use semantic search engine for enhanced query analysis
+    const queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
     const results: ContextSearchResult[] = []
 
     // 1. RAG-based search (if available and enabled)
@@ -856,6 +898,168 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
     })
 
     return context
+  }
+
+  // Refresh workspace index with file filtering
+  async refreshWorkspaceIndex(): Promise<void> {
+    if (!this.isInitialized || !this.fileFilter) {
+      console.log(chalk.yellow('⚠️ File filter not initialized, skipping workspace refresh'))
+      return
+    }
+
+    console.log(chalk.blue('🔄 Refreshing workspace index with smart filtering...'))
+
+    try {
+      // Get filtered file list by scanning directory
+      const filteredFiles = await this.scanDirectoryWithFilter(this.context.rootPath)
+
+      console.log(chalk.green(`✅ Found ${filteredFiles.length} files after filtering`))
+
+      // Update file context with filtered results
+      for (const filePath of filteredFiles) {
+        if (!this.context.files.has(filePath)) {
+          try {
+            const stats = fs.statSync(filePath)
+            const content = fs.readFileSync(filePath, 'utf-8')
+            const language = this.getLanguageFromPath(filePath)
+
+            const fileContext: FileContext = {
+              path: filePath,
+              content,
+              size: stats.size,
+              modified: stats.mtime,
+              language,
+              importance: this.calculateFileImportance(filePath, content, language),
+              summary: await this.generateFileSummary(filePath, content, language),
+              dependencies: this.extractDependencies(content, language),
+              exports: this.extractExports(content, language),
+              hash: createHash('md5').update(content).digest('hex'),
+              lastAnalyzed: new Date(),
+            }
+
+            this.context.files.set(filePath, fileContext)
+          } catch (error) {
+            console.log(chalk.yellow(`⚠️ Error processing file ${filePath}:`, error))
+          }
+        }
+      }
+
+      // Remove files that are no longer valid
+      const existingPaths = Array.from(this.context.files.keys())
+      for (const filePath of existingPaths) {
+        if (!filteredFiles.includes(filePath)) {
+          this.context.files.delete(filePath)
+        }
+      }
+
+      this.context.lastUpdated = new Date()
+    } catch (error) {
+      console.log(chalk.red('❌ Error refreshing workspace index:', error))
+    }
+  }
+
+  // Enhanced file analysis with semantic integration
+  async analyzeFileWithSemantics(filePath: string): Promise<FileContext | null> {
+    if (!this.fileFilter || !this.fileFilter.shouldIncludeFile(filePath, this.context.rootPath)) {
+      return null
+    }
+
+    try {
+      const stats = fs.statSync(filePath)
+      const content = fs.readFileSync(filePath, 'utf-8')
+      const language = this.getLanguageFromPath(filePath)
+
+      // Generate semantic embedding using unified interface
+      let embedding: number[] | undefined
+      try {
+        const embeddingResult = await unifiedEmbeddingInterface.generateEmbedding(content)
+        embedding = embeddingResult.vector
+      } catch {
+        // Fallback to simple embedding
+        embedding = this.createSimpleEmbedding(content)
+      }
+
+      const fileContext: FileContext = {
+        path: filePath,
+        content,
+        size: stats.size,
+        modified: stats.mtime,
+        language,
+        importance: this.calculateFileImportance(filePath, content, language),
+        summary: await this.generateFileSummary(filePath, content, language),
+        dependencies: this.extractDependencies(content, language),
+        exports: this.extractExports(content, language),
+        hash: createHash('md5').update(content).digest('hex'),
+        embedding,
+        lastAnalyzed: new Date(),
+        functions: this.extractFunctions(content, language),
+        classes: this.extractClasses(content, language),
+        types: this.extractTypes(content, language),
+      }
+
+      return fileContext
+    } catch (error) {
+      console.log(chalk.yellow(`⚠️ Error analyzing file ${filePath}:`, error))
+      return null
+    }
+  }
+
+  // Helper method to scan directory with file filter
+  private async scanDirectoryWithFilter(dirPath: string): Promise<string[]> {
+    const filteredFiles: string[] = []
+
+    const scanDir = async (currentPath: string): Promise<void> => {
+      try {
+        const entries = await fsPromises.readdir(currentPath, { withFileTypes: true })
+
+        for (const entry of entries) {
+          const fullPath = path.join(currentPath, entry.name)
+
+          if (entry.isDirectory()) {
+            // Recursively scan subdirectories
+            await scanDir(fullPath)
+          } else if (entry.isFile()) {
+            // Check if file should be included
+            const result = this.fileFilter.shouldIncludeFile(fullPath, this.context.rootPath)
+            if (result.allowed) {
+              filteredFiles.push(fullPath)
+            }
+          }
+        }
+      } catch (error) {
+        // Skip directories that can't be read
+      }
+    }
+
+    await scanDir(dirPath)
+    return filteredFiles
+  }
+
+  // Helper method to get language from file path
+  private getLanguageFromPath(filePath: string): string {
+    const ext = path.extname(filePath).toLowerCase()
+    const langMap: Record<string, string> = {
+      '.ts': 'typescript',
+      '.tsx': 'typescript',
+      '.js': 'javascript',
+      '.jsx': 'javascript',
+      '.py': 'python',
+      '.md': 'markdown',
+      '.json': 'json',
+      '.yaml': 'yaml',
+      '.yml': 'yaml',
+      '.html': 'html',
+      '.css': 'css',
+      '.scss': 'scss',
+      '.rs': 'rust',
+      '.go': 'go',
+      '.java': 'java',
+      '.cpp': 'cpp',
+      '.c': 'c',
+      '.php': 'php',
+      '.rb': 'ruby',
+    }
+    return langMap[ext] || 'text'
   }
 
   // Watch for file changes in selected paths

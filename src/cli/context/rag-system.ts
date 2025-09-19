@@ -1,18 +1,24 @@
-import { ChromaClient, CloudClient, type EmbeddingFunction } from 'chromadb'
-// Register default embed provider for CloudClient (server-side embeddings)
-// This package is a side-effect import that wires up default embeddings
-// when using Chroma Cloud.
-import '@chroma-core/default-embed'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
 import { TOKEN_LIMITS } from '../config/token-limits'
 import { configManager } from '../core/config-manager'
 import { CliUI } from '../utils/cli-ui'
+import { createFileFilter, type FileFilterSystem } from './file-filter-system'
+// Import semantic search engine and file filtering
+import { type QueryAnalysis, type ScoringContext, semanticSearchEngine } from './semantic-search-engine'
 
+// Import unified embedding and vector store infrastructure
+import { type EmbeddingResult, unifiedEmbeddingInterface } from './unified-embedding-interface'
+import {
+  createVectorStoreManager,
+  type VectorDocument,
+  type VectorSearchResult,
+  type VectorStoreManager,
+} from './vector-store-abstraction'
 // Import workspace analysis types for integration
 import type { FileEmbedding, WorkspaceContext } from './workspace-rag'
 import { WorkspaceRAG } from './workspace-rag'
@@ -42,6 +48,24 @@ export interface RAGSearchResult {
     importance: number
     lastModified: Date
     source: 'vector' | 'workspace' | 'hybrid'
+    truncated?: boolean
+    originalLength?: number
+    truncatedLength?: number
+    cached?: boolean
+    // Semantic search enhancement fields
+    semanticBreakdown?: {
+      semanticScore: number
+      keywordScore: number
+      contextScore: number
+      recencyScore: number
+      importanceScore: number
+      diversityScore: number
+    }
+    relevanceFactors?: string[]
+    queryIntent?: string
+    queryConfidence?: number
+    hash?: string
+    language?: string
   }
 }
 
@@ -54,149 +78,87 @@ export interface RAGAnalysisResult {
   fallbackMode: boolean
 }
 
-class OpenAIEmbeddingFunction implements EmbeddingFunction {
-  private apiKey: string
-  private model: string = 'text-embedding-3-small' // Most cost-effective OpenAI embedding model
-  private maxTokens: number = 8191 // Max tokens per request for this model
-  private batchSize: number = 100 // Process in batches to avoid rate limits
-
-  constructor() {
-    this.apiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY || ''
-    if (!this.apiKey) {
-      throw new Error('OpenAI API key not found. Set it using: npm run cli set-key openai YOUR_API_KEY')
-    }
+// Enhanced cost estimation using unified embedding interface
+function estimateCost(input: string[] | number, provider: string = 'openai'): number {
+  if (typeof input === 'number' && input < 0) {
+    throw new Error('Character count cannot be negative')
+  }
+  if (Array.isArray(input) && input.length === 0) {
+    return 0
   }
 
-  async generate(texts: string[]): Promise<number[][]> {
-    if (texts.length === 0) return []
+  const texts = typeof input === 'number' ? ['x'.repeat(input)] : input
+  const totalChars = Array.isArray(texts) ? texts.reduce((sum, text) => sum + text.length, 0) : (texts as string).length
+  const estimatedTokens = Math.ceil(totalChars / 4)
 
-    try {
-      // Process texts in batches to avoid rate limits and token limits
-      const results: number[][] = []
-
-      for (let i = 0; i < texts.length; i += this.batchSize) {
-        const batch = texts.slice(i, i + this.batchSize)
-        const batchResults = await this.generateBatch(batch)
-        results.push(...batchResults)
-
-        // Add small delay between batches to respect rate limits
-        if (i + this.batchSize < texts.length) {
-          await new Promise((resolve) => setTimeout(resolve, 100))
-        }
-      }
-
-      return results
-    } catch (error: any) {
-      CliUI.logError(`Embedding generation failed: ${error.message}`)
-      throw error
-    }
-  }
-
-  private async generateBatch(texts: string[]): Promise<number[][]> {
-    // Truncate texts that are too long to avoid token limit
-    const processedTexts = texts.map((text) => this.truncateText(text))
-
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: this.model,
-        input: processedTexts,
-      }),
-    })
-
-    if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`OpenAI API error: ${response.status} - ${error}`)
-    }
-
-    const data = await response.json()
-    return (data as any).data.map((item: any) => item.embedding)
-  }
-
-  private truncateText(text: string): string {
-    // Rough estimation: 1 token ≈ 4 characters for English text
-    const maxChars = this.maxTokens * 4
-    if (text.length <= maxChars) return text
-
-    // Truncate and add indication
-    return text.substring(0, maxChars - 50) + '\n[... content truncated ...]'
-  }
-
-  // Utility method to estimate cost
-  static estimateCost(input: string[] | number): number {
-    // Validate input
-    if (typeof input === 'number' && input < 0) {
-      throw new Error('Character count cannot be negative')
-    }
-    if (Array.isArray(input) && input.length === 0) {
-      return 0
-    }
-    const totalChars = typeof input === 'number' ? input : input.reduce((sum, text) => sum + text.length, 0)
-    const estimatedTokens = Math.ceil(totalChars / 4) // Rough estimation
-    const costPer1KTokens = 0.00002 // $0.00002 per 1K tokens for text-embedding-3-small
-    return (estimatedTokens / 1000) * costPer1KTokens
-  }
+  // Use provider-specific pricing from unified embedding interface
+  const config = unifiedEmbeddingInterface.getConfig()
+  const costPer1K = provider === 'openai' ? 0.00002 : provider === 'google' ? 0.000025 : 0.00003
+  return (estimatedTokens / 1000) * costPer1K
 }
 
-// Lazy embedder initialization to avoid throwing at import time
-let _embedder: OpenAIEmbeddingFunction | null = null
-function getEmbedder(): OpenAIEmbeddingFunction {
-  if (_embedder) return _embedder
-  _embedder = new OpenAIEmbeddingFunction()
-  return _embedder
-}
+// Initialize vector store configurations based on environment
+function createVectorStoreConfigs() {
+  const configs = []
 
-// Resolve Chroma client: prefer local ChromaClient, fallback to CloudClient if needed
-function getClient() {
+  // ChromaDB configuration (primary)
   const chromaUrl = process.env.CHROMA_URL || 'http://localhost:8005'
+  const chromaApiKey = process.env.CHROMA_API_KEY || process.env.CHROMA_CLOUD_API_KEY
+  const chromaTenant = process.env.CHROMA_TENANT
+  const chromaDatabase = process.env.CHROMA_DATABASE || 'nikcli'
 
-  // Always prefer local ChromaDB if URL is configured
-  if (chromaUrl && chromaUrl !== 'http://localhost:8005') {
-    console.log(chalk.gray(`✓ Using local ChromaDB server at: ${chromaUrl}`))
-    return new ChromaClient({
-      host: 'localhost',
-      port: 8005,
-      ssl: false,
+  if (chromaApiKey && chromaTenant) {
+    // ChromaDB Cloud configuration
+    configs.push({
+      provider: 'chromadb' as const,
+      connectionConfig: {
+        useCloud: true,
+        apiKey: chromaApiKey,
+        tenant: chromaTenant,
+        database: chromaDatabase,
+      },
+      collectionName: 'unified_project_index',
+      embeddingDimensions: 1536,
+      indexingBatchSize: 100,
+      maxRetries: 3,
+      healthCheckInterval: 300000,
+      autoFallback: true,
+    })
+  } else {
+    // Local ChromaDB configuration
+    const [host, port] = chromaUrl.replace('http://', '').replace('https://', '').split(':')
+    configs.push({
+      provider: 'chromadb' as const,
+      connectionConfig: {
+        useCloud: false,
+        host: host || 'localhost',
+        port: parseInt(port) || 8005,
+        ssl: chromaUrl.startsWith('https'),
+      },
+      collectionName: 'unified_project_index',
+      embeddingDimensions: 1536,
+      indexingBatchSize: 100,
+      maxRetries: 3,
+      healthCheckInterval: 300000,
+      autoFallback: true,
     })
   }
 
-  // Check if local ChromaDB is running on default port
-  try {
-    console.log(chalk.gray(`✓ Using local ChromaDB server at: ${chromaUrl}`))
-    return new ChromaClient({
-      host: 'localhost',
-      port: 8005,
-      ssl: false,
-    })
-  } catch (_error) {
-    // Fallback to Cloud if local is not available
-    const apiKey = process.env.CHROMA_API_KEY || process.env.CHROMA_CLOUD_API_KEY
-    const tenant = process.env.CHROMA_TENANT
-    const database = process.env.CHROMA_DATABASE || 'agent-cli'
+  // Always add local fallback
+  configs.push({
+    provider: 'local' as const,
+    connectionConfig: {
+      baseDir: join(homedir(), '.nikcli', 'vector-store'),
+    },
+    collectionName: 'local_fallback',
+    embeddingDimensions: 1536,
+    indexingBatchSize: 50,
+    maxRetries: 1,
+    healthCheckInterval: 600000,
+    autoFallback: true,
+  })
 
-    if (apiKey && tenant) {
-      console.log(
-        chalk.gray(`⚠️ Local ChromaDB not available, falling back to Cloud - Tenant: ${tenant}, Database: ${database}`)
-      )
-      return new CloudClient({
-        apiKey,
-        tenant,
-        database,
-      })
-    }
-
-    // Final fallback to local with default settings
-    console.log(chalk.gray(`✓ Using local ChromaDB server at: ${chromaUrl}`))
-    return new ChromaClient({
-      host: 'localhost',
-      port: 8005,
-      ssl: false,
-    })
-  }
+  return configs
 }
 
 // Utility functions
@@ -224,7 +186,7 @@ async function _estimateIndexingCost(files: string[], projectPath: string): Prom
   const avgCharsPerFile = totalChars / processedFiles
   const estimatedTotalChars = avgCharsPerFile * files.length
 
-  return OpenAIEmbeddingFunction.estimateCost(estimatedTotalChars)
+  return estimateCost(estimatedTotalChars)
 }
 
 function isBinaryFile(content: string): boolean {
@@ -242,14 +204,28 @@ function isBinaryFile(content: string): boolean {
 export class UnifiedRAGSystem {
   private config: UnifiedRAGConfig
   private workspaceRAG: any // WorkspaceRAG instance
-  private vectorClient: ChromaClient | CloudClient | null = null
-  private embeddingFunction: OpenAIEmbeddingFunction | null = null
+  private vectorStoreManager: VectorStoreManager | null = null
+  private fileFilter: FileFilterSystem | null = null
   private embeddingsCache: Map<string, number[]> = new Map()
   private analysisCache: Map<string, RAGAnalysisResult> = new Map()
   private lastAnalysis: number = 0
   private readonly CACHE_TTL = 300000 // 5 minutes
   private readonly CACHE_DIR = join(homedir(), '.nikcli', 'embeddings')
   private fileHashCache: Map<string, string> = new Map()
+
+  // Performance monitoring
+  private searchMetrics = {
+    totalSearches: 0,
+    cacheHits: 0,
+    vectorSearches: 0,
+    workspaceSearches: 0,
+    bm25Searches: 0,
+    averageLatency: 0,
+    totalLatency: 0,
+    errors: 0,
+    queryOptimizations: 0,
+    reranks: 0,
+  }
 
   constructor(config?: Partial<UnifiedRAGConfig>) {
     this.config = {
@@ -273,25 +249,53 @@ export class UnifiedRAGSystem {
 
   private async initializeClients(): Promise<void> {
     try {
+      const projectRoot = process.cwd()
+
+      // Initialize intelligent file filter system
+      this.fileFilter = createFileFilter(projectRoot, {
+        respectGitignore: true,
+        maxFileSize: 1024 * 1024, // 1MB per file
+        maxTotalFiles: this.config.maxIndexFiles || 5000,
+        customRules: [
+          {
+            name: 'priority_configs',
+            pattern: /\.(json|yaml|yml|toml|env)$/,
+            type: 'include',
+            priority: 10,
+            reason: 'Important configuration files',
+          },
+          {
+            name: 'large_datasets',
+            pattern: /\.(csv|json)$/,
+            type: 'exclude',
+            priority: 8,
+            reason: 'Large data files excluded by size',
+          },
+        ],
+      })
+
+      console.log(chalk.blue('🔍 File filter system initialized'))
+
       // Initialize workspace RAG (local analysis)
       if (this.config.enableWorkspaceAnalysis) {
-        this.workspaceRAG = new WorkspaceRAG(process.cwd())
+        this.workspaceRAG = new WorkspaceRAG(projectRoot)
       }
 
-      // Initialize vector DB clients if configured
+      // Initialize unified vector store manager if configured
       if (this.config.useVectorDB) {
         try {
-          this.vectorClient = getClient()
-          this.embeddingFunction = getEmbedder()
+          const vectorConfigs = createVectorStoreConfigs()
+          this.vectorStoreManager = createVectorStoreManager(vectorConfigs)
 
-          // Test ChromaDB connection and verify embeddings (real API calls)
-          await this.testChromaConnection()
-          await this.testOpenAIEmbeddings()
-          console.log(chalk.green('✅ Vector DB client initialized'))
-        } catch (_error: any) {
-          console.log(
-            chalk.yellow(`⚠️ Vector DB unavailable: ChromaDB connection failed, using workspace analysis only`)
-          )
+          const initialized = await this.vectorStoreManager.initialize()
+          if (initialized) {
+            console.log(chalk.green('✅ Vector Store Manager initialized with fallback support'))
+          } else {
+            console.log(chalk.yellow('⚠️ Vector Store Manager failed to initialize, using workspace analysis only'))
+            this.config.useVectorDB = false
+          }
+        } catch (error: any) {
+          console.log(chalk.yellow(`⚠️ Vector DB unavailable: ${error.message}, using workspace analysis only`))
           this.config.useVectorDB = false
         }
       }
@@ -301,91 +305,51 @@ export class UnifiedRAGSystem {
   }
 
   /**
-   * Test ChromaDB connection and basic functionality
+   * Test vector store manager connectivity and embeddings
    */
-  private async testChromaConnection(): Promise<void> {
-    if (!this.vectorClient) {
-      throw new Error('Vector client not initialized')
+  private async testVectorStoreIntegration(): Promise<void> {
+    if (!this.vectorStoreManager) {
+      throw new Error('Vector store manager not initialized')
     }
 
     try {
-      // Test basic connection by getting version (real API call)
-      const version = await this.vectorClient.version()
-      console.log(chalk.gray(`✓ ChromaDB version: ${version}`))
-
-      // List existing collections to verify connection works (real API call)
-      const collections = await this.vectorClient.listCollections()
-      console.log(chalk.gray(`✓ Found ${collections.length} existing collections`))
-
-      // Log database configuration
-      const database = process.env.CHROMA_DATABASE || 'agent-cli'
-      console.log(chalk.gray(`✓ Using database: ${database}`))
-
-      // Check if our target collection exists
-      const targetCollection = collections.find((c) => c.name === 'unified_project_index')
-      if (targetCollection) {
-        console.log(chalk.gray(`✓ Target collection 'unified_project_index' exists`))
-        // Try to get collection details
-        try {
-          const _collection = await this.vectorClient.getCollection({
-            name: 'unified_project_index',
-          })
-          console.log(chalk.gray(`✓ Collection details retrieved successfully`))
-        } catch (error: any) {
-          console.log(chalk.yellow(`⚠️ Collection exists but may have issues: ${error.message}`))
-        }
-      } else {
-        console.log(chalk.gray(`✓ Target collection 'unified_project_index' will be created`))
-      }
-    } catch (error: any) {
-      throw new Error(`ChromaDB connection test failed: ${error.message}`)
-    }
-  }
-
-  /**
-   * Test OpenAI embeddings with real API call
-   */
-  private async testOpenAIEmbeddings(): Promise<void> {
-    if (!this.embeddingFunction) {
-      throw new Error('Embedding function not initialized')
-    }
-
-    try {
-      // Check if API key is configured
-      const apiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
-      if (!apiKey) {
-        throw new Error('OpenAI API key not configured')
+      // Test vector store connectivity
+      const stats = this.vectorStoreManager.getStats()
+      if (stats) {
+        console.log(chalk.gray(`✓ Vector store active: ${stats.provider}`))
+        console.log(chalk.gray(`✓ Documents count: ${stats.documentsCount}`))
       }
 
-      console.log(chalk.gray(`✓ API key: ${apiKey.slice(0, 8)}...`))
+      // Test unified embedding interface
+      const availableProviders = unifiedEmbeddingInterface.getConfig()
+      console.log(chalk.gray(`✓ Embedding provider: ${availableProviders.provider}`))
+      console.log(chalk.gray(`✓ Model: ${availableProviders.model}`))
+      console.log(chalk.gray(`✓ Dimensions: ${availableProviders.dimensions}`))
 
-      // Make real API call with minimal test data
-      const testText = 'test embedding'
+      // Test embedding generation with minimal data
+      const testText = 'test embedding integration'
       const startTime = Date.now()
-      const embeddings = await this.embeddingFunction.generate([testText])
+      const embeddingResult = await unifiedEmbeddingInterface.generateEmbedding(testText)
       const duration = Date.now() - startTime
 
-      if (!embeddings || embeddings.length !== 1 || !Array.isArray(embeddings[0])) {
+      if (
+        !embeddingResult ||
+        !embeddingResult.vector ||
+        embeddingResult.vector.length !== availableProviders.dimensions
+      ) {
         throw new Error('Invalid embedding response format')
       }
 
-      const embeddingDimension = embeddings[0].length
-      const expectedDimension = 1536 // text-embedding-3-small dimension
+      console.log(chalk.gray(`✓ Unified embeddings working (${duration}ms)`))
+      console.log(
+        chalk.gray(`✓ Dimension validation: ${embeddingResult.dimensions} = ${availableProviders.dimensions}`)
+      )
+      console.log(chalk.gray(`✓ Test cost: $${embeddingResult.cost.toFixed(8)}`))
 
-      if (embeddingDimension !== expectedDimension) {
-        console.log(
-          chalk.yellow(`⚠️ Unexpected embedding dimension: ${embeddingDimension} (expected: ${expectedDimension})`)
-        )
-      }
-
-      // Calculate real cost
-      const actualCost = OpenAIEmbeddingFunction.estimateCost([testText])
-
-      console.log(chalk.gray(`✓ OpenAI embeddings working (${duration}ms)`))
-      console.log(chalk.gray(`✓ Model: text-embedding-3-small, dimension: ${embeddingDimension}`))
-      console.log(chalk.gray(`✓ Test cost: $${actualCost.toFixed(8)}`))
+      // Show embedding interface stats
+      unifiedEmbeddingInterface.logStatus()
     } catch (error: any) {
-      throw new Error(`OpenAI embedding test failed: ${error.message}`)
+      throw new Error(`Vector store integration test failed: ${error.message}`)
     }
   }
 
@@ -420,9 +384,9 @@ export class UnifiedRAGSystem {
     }
 
     // 2. Vector DB Indexing (if available and cost-effective)
-    if (this.config.useVectorDB && this.vectorClient && this.embeddingFunction) {
+    if (this.config.useVectorDB && this.vectorStoreManager) {
       try {
-        const indexResult = await this.indexProjectWithVectorDB(projectPath, workspaceContext)
+        const indexResult = await this.indexProjectWithVectorStore(projectPath, workspaceContext)
         vectorDBStatus = indexResult.success ? 'available' : 'error'
         embeddingsCost = indexResult.cost
         indexedFiles = indexResult.indexedFiles
@@ -454,7 +418,42 @@ export class UnifiedRAGSystem {
   }
 
   /**
-   * Unified search combining vector and workspace approaches
+   * Enhanced semantic search using the semantic search engine
+   */
+  async searchSemantic(
+    query: string,
+    options?: {
+      limit?: number
+      threshold?: number
+      includeAnalysis?: boolean
+    }
+  ): Promise<RAGSearchResult[]> {
+    const { limit = 10, threshold = 0.3, includeAnalysis = true } = options || {}
+
+    try {
+      // Use semantic search engine for query analysis
+      const queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
+      console.log(
+        chalk.blue(
+          `🧠 Query intent: ${queryAnalysis.intent.type} (${Math.round(queryAnalysis.confidence * 100)}% confidence)`
+        )
+      )
+
+      // Use the enhanced search with semantic analysis
+      return await this.searchEnhanced(query, {
+        limit,
+        includeContent: true,
+        semanticOnly: true,
+        queryAnalysis,
+      })
+    } catch (error) {
+      console.log(chalk.yellow('⚠️ Semantic search failed, falling back to regular search'))
+      return await this.search(query, { limit })
+    }
+  }
+
+  /**
+   * Unified search combining vector and workspace approaches with concurrent processing
    */
   async search(
     query: string,
@@ -462,111 +461,241 @@ export class UnifiedRAGSystem {
       limit?: number
       includeContent?: boolean
       semanticOnly?: boolean
+      workingDirectory?: string
     }
   ): Promise<RAGSearchResult[]> {
     const { limit = 10, includeContent = true, semanticOnly = false } = options || {}
-    const results: RAGSearchResult[] = []
+    const startTime = Date.now()
+
+    // Initialize monitoring
+    this.searchMetrics.totalSearches++
+    let searchTypes: string[] = []
 
     console.log(chalk.blue(`🔍 Searching: "${query}"`))
 
-    // 1. Vector DB Search (if available)
-    if (this.config.useVectorDB && this.vectorClient && !semanticOnly) {
-      try {
-        const vectorResults = await this.searchVectorDB(query, Math.ceil(limit * 0.6))
-        results.push(...vectorResults)
-      } catch (_error) {
-        console.log(chalk.yellow('⚠️ Vector search failed, using workspace search'))
+    try {
+      // Apply query optimization pipeline
+      const optimizedQuery = this.optimizeQuery(query)
+      if (optimizedQuery !== query) {
+        this.searchMetrics.queryOptimizations++
+        console.log(chalk.gray(`🔧 Query optimized: "${query}" → "${optimizedQuery}"`))
       }
+
+      // Run hybrid searches concurrently (vector, workspace, and BM25)
+      const searchPromises: Promise<RAGSearchResult[]>[] = []
+
+      // 1. Vector Store Search (if available)
+      if (this.config.useVectorDB && this.vectorStoreManager && !semanticOnly) {
+        searchTypes.push('vector')
+        this.searchMetrics.vectorSearches++
+        searchPromises.push(
+          this.searchVectorStore(optimizedQuery, Math.ceil(limit * 0.5)).catch(() => {
+            console.log(chalk.yellow('⚠️ Vector search failed'))
+            this.searchMetrics.errors++
+            return []
+          })
+        )
+      }
+
+      // 2. Workspace-based Search
+      if (this.config.enableWorkspaceAnalysis && this.workspaceRAG) {
+        searchTypes.push('workspace')
+        this.searchMetrics.workspaceSearches++
+        searchPromises.push(
+          this.searchWorkspace(optimizedQuery, Math.ceil(limit * 0.3)).catch(() => {
+            console.log(chalk.yellow('⚠️ Workspace search failed'))
+            this.searchMetrics.errors++
+            return []
+          })
+        )
+      }
+
+      // 3. BM25 Search (if conditions are met)
+      if (this.shouldUseBM25(optimizedQuery)) {
+        searchTypes.push('bm25')
+        this.searchMetrics.bm25Searches++
+        searchPromises.push(
+          this.bm25Search(optimizedQuery, Math.ceil(limit * 0.2)).catch(() => {
+            console.log(chalk.yellow('⚠️ BM25 search failed'))
+            this.searchMetrics.errors++
+            return []
+          })
+        )
+      }
+
+      // Wait for all searches to complete concurrently
+      const searchResults = await Promise.allSettled(searchPromises)
+
+      // Flatten results from successful searches
+      const results: RAGSearchResult[] = []
+      searchResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          results.push(...result.value)
+        }
+      })
+
+      // Check for cache hits
+      const cacheHits = results.filter((r) => r.metadata.cached).length
+      this.searchMetrics.cacheHits += cacheHits
+
+      // 3. Hybrid scoring and deduplication with re-ranking tracking
+      const shouldRerank = this.shouldRerank(query)
+      if (shouldRerank) {
+        this.searchMetrics.reranks++
+      }
+
+      const uniqueResults = this.deduplicateAndRank(results, query)
+      const finalResults = uniqueResults.slice(0, limit)
+
+      // Update performance metrics
+      const duration = Date.now() - startTime
+      this.searchMetrics.totalLatency += duration
+      this.searchMetrics.averageLatency = this.searchMetrics.totalLatency / this.searchMetrics.totalSearches
+
+      console.log(
+        chalk.green(
+          `✅ Found ${finalResults.length} results in ${duration}ms ` +
+            `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
+        )
+      )
+
+      return finalResults
+    } catch (error) {
+      this.searchMetrics.errors++
+      const duration = Date.now() - startTime
+      this.searchMetrics.totalLatency += duration
+      this.searchMetrics.averageLatency = this.searchMetrics.totalLatency / this.searchMetrics.totalSearches
+
+      console.log(chalk.red(`❌ Search failed in ${duration}ms: ${(error as Error).message}`))
+      throw error
     }
-
-    // 2. Workspace-based Search
-    if (this.config.enableWorkspaceAnalysis && this.workspaceRAG) {
-      const workspaceResults = await this.searchWorkspace(query, Math.ceil(limit * 0.4))
-      results.push(...workspaceResults)
-    }
-
-    // 3. Hybrid scoring and deduplication
-    const uniqueResults = this.deduplicateAndRank(results, query)
-    const finalResults = uniqueResults.slice(0, limit)
-
-    console.log(chalk.green(`✅ Found ${finalResults.length} results`))
-    return finalResults
   }
 
-  private async indexProjectWithVectorDB(
+  private async indexProjectWithVectorStore(
     projectPath: string,
     workspaceContext: WorkspaceContext
   ): Promise<{ success: boolean; cost: number; indexedFiles: number }> {
     try {
-      if (!this.embeddingFunction) {
-        throw new Error('Embedding function not initialized')
+      if (!this.vectorStoreManager || !this.fileFilter) {
+        throw new Error('Vector store manager or file filter not initialized')
       }
 
-      // For local ChromaDB, use simpler collection creation
-      let collection
-      try {
-        // Try to get existing collection first
-        collection = await this.vectorClient!.getCollection({
-          name: 'unified_project_index',
-        })
-        console.log(chalk.gray('✓ Using existing collection: unified_project_index'))
-      } catch (_error) {
-        // Collection doesn't exist, create it with embedding function
-        console.log(chalk.gray('✓ Creating new collection: unified_project_index'))
-        collection = await this.vectorClient!.createCollection({
-          name: 'unified_project_index',
-          embeddingFunction: this.embeddingFunction,
-        })
-        console.log(chalk.green('✅ Collection created successfully with embedding function'))
-      }
+      console.log(chalk.cyan('📊 Starting intelligent vector store indexing...'))
 
-      // Use workspace analysis to prioritize important files
-      const importantFiles = Array.from(workspaceContext.files.values())
-        .filter((f) => f.importance > 30)
-        .sort((a, b) => b.importance - a.importance)
-        .slice(0, this.config.maxIndexFiles)
+      // Use intelligent file filtering to get indexable files
+      const filesToIndex = this.fileFilter.getFilesToIndex(projectPath)
+      console.log(chalk.blue(`📁 Found ${filesToIndex.length} files to index after filtering`))
+
+      // Show filtering statistics
+      this.fileFilter.logStats()
 
       let totalCost = 0
       let indexedCount = 0
+      const documentsToIndex: VectorDocument[] = []
 
-      for (const file of importantFiles) {
+      for (const filePath of filesToIndex) {
         try {
-          const fullPath = join(projectPath, file.path)
-          const content = await readFile(fullPath, 'utf-8')
+          const relativePath = relative(projectPath, filePath)
+          const content = await readFile(filePath, 'utf-8')
+
+          // Skip empty files
+          if (content.trim().length === 0) continue
 
           // Estimate cost before processing
-          const estimatedCost = OpenAIEmbeddingFunction.estimateCost([content])
+          const estimatedCost = estimateCost([content])
           if (totalCost + estimatedCost > this.config.costThreshold) {
-            console.log(chalk.yellow(`⚠️ Cost threshold reached, stopping indexing`))
+            console.log(chalk.yellow(`⚠️ Cost threshold reached at $${this.config.costThreshold}, stopping indexing`))
             break
           }
 
+          // Get file metadata from workspace context or create default
+          const fileStats = statSync(filePath)
+          const fileInfo = workspaceContext.files.get(relativePath) || {
+            path: relativePath,
+            language: this.detectLanguageFromPath(filePath),
+            importance: this.calculateFileImportance(relativePath, content),
+            lastModified: fileStats.mtime,
+            summary: `${this.detectLanguageFromPath(filePath)} file with ${content.split('\n').length} lines`,
+          }
+
           // Chunk content intelligently based on file type
-          const chunks = this.intelligentChunking(content, file.language)
+          const chunks = this.intelligentChunking(content, fileInfo.language)
 
           if (chunks.length > 0) {
-            const ids = chunks.map((_, idx) => `${file.path}#${idx}`)
-            const metadatas = chunks.map((chunk, idx) => ({
-              source: file.path,
-              size: chunk.length,
-              chunkIndex: idx,
-              totalChunks: chunks.length,
-              importance: file.importance,
-              language: file.language,
-              lastModified: file.lastModified.toISOString(),
-            }))
+            for (let idx = 0; idx < chunks.length; idx++) {
+              const chunk = chunks[idx]
+              const documentId = `${relativePath}#${idx}`
 
-            await collection.add({ ids, documents: chunks, metadatas })
+              const vectorDoc: VectorDocument = {
+                id: documentId,
+                content: chunk,
+                metadata: {
+                  source: relativePath,
+                  absolutePath: filePath,
+                  size: chunk.length,
+                  chunkIndex: idx,
+                  totalChunks: chunks.length,
+                  importance: fileInfo.importance,
+                  language: fileInfo.language,
+                  lastModified: fileInfo.lastModified.toISOString(),
+                  hash: this.generateFileHash(relativePath, chunk),
+                  fileSize: fileStats.size,
+                  lines: chunk.split('\n').length,
+                },
+                timestamp: new Date(),
+              }
+
+              documentsToIndex.push(vectorDoc)
+            }
+
             totalCost += estimatedCost
             indexedCount++
+
+            // Progress feedback for large indexing operations
+            if (indexedCount % 100 === 0) {
+              console.log(chalk.gray(`   Processed ${indexedCount} files, cost: $${totalCost.toFixed(6)}`))
+            }
           }
-        } catch (_fileError) {
-          console.log(chalk.yellow(`⚠️ Failed to index ${file.path}`))
+        } catch (fileError) {
+          console.log(chalk.yellow(`⚠️ Failed to index ${relative(projectPath, filePath)}: ${fileError}`))
         }
       }
 
+      // Batch index documents with progress tracking
+      if (documentsToIndex.length > 0) {
+        console.log(chalk.cyan(`📤 Uploading ${documentsToIndex.length} document chunks to vector store...`))
+
+        const batchSize = this.config.chunkSize || 50
+        let successfulBatches = 0
+
+        for (let i = 0; i < documentsToIndex.length; i += batchSize) {
+          const batch = documentsToIndex.slice(i, i + batchSize)
+          const batchNumber = Math.floor(i / batchSize) + 1
+          const totalBatches = Math.ceil(documentsToIndex.length / batchSize)
+
+          console.log(chalk.gray(`   Uploading batch ${batchNumber}/${totalBatches} (${batch.length} chunks)`))
+
+          const success = await this.vectorStoreManager.addDocuments(batch)
+
+          if (success) {
+            successfulBatches++
+          } else {
+            console.log(chalk.yellow(`⚠️ Failed to upload batch ${batchNumber}`))
+          }
+        }
+
+        const successRate = (successfulBatches / Math.ceil(documentsToIndex.length / batchSize)) * 100
+
+        console.log(chalk.green(`✅ Indexing complete!`))
+        console.log(chalk.gray(`   Files processed: ${indexedCount}`))
+        console.log(chalk.gray(`   Document chunks: ${documentsToIndex.length}`))
+        console.log(chalk.gray(`   Upload success rate: ${successRate.toFixed(1)}%`))
+        console.log(chalk.gray(`   Total cost: $${totalCost.toFixed(6)}`))
+      }
+
       return { success: true, cost: totalCost, indexedFiles: indexedCount }
-    } catch (_error) {
+    } catch (error) {
+      console.error(chalk.red(`❌ Vector store indexing failed: ${error}`))
       return { success: false, cost: 0, indexedFiles: 0 }
     }
   }
@@ -742,8 +871,8 @@ export class UnifiedRAGSystem {
     const avgFilesInProject = 100
     const totalChars = avgFileSize * avgFilesInProject
 
-    const oldCost = OpenAIEmbeddingFunction.estimateCost(totalChars * 1.8) // Old approach with more chunks
-    const newCost = OpenAIEmbeddingFunction.estimateCost(totalChars * 1.2) // New optimized approach
+    const oldCost = 0.05 // Estimate for old approach
+    const newCost = 0.03 // Estimate for new optimized approach
     const savings = ((oldCost - newCost) / oldCost) * 100
 
     console.log(
@@ -808,6 +937,336 @@ export class UnifiedRAGSystem {
     return false
   }
 
+  /**
+   * Detect programming language from file path
+   */
+  private detectLanguageFromPath(filePath: string): string {
+    const ext = extname(filePath).toLowerCase()
+    const fileName = basename(filePath).toLowerCase()
+
+    const languageMap: Record<string, string> = {
+      '.js': 'javascript',
+      '.jsx': 'javascript',
+      '.mjs': 'javascript',
+      '.cjs': 'javascript',
+      '.ts': 'typescript',
+      '.tsx': 'typescript',
+      '.py': 'python',
+      '.pyw': 'python',
+      '.py3': 'python',
+      '.java': 'java',
+      '.kt': 'kotlin',
+      '.scala': 'scala',
+      '.cpp': 'cpp',
+      '.cxx': 'cpp',
+      '.cc': 'cpp',
+      '.c': 'c',
+      '.h': 'c',
+      '.hpp': 'cpp',
+      '.hxx': 'cpp',
+      '.rs': 'rust',
+      '.go': 'go',
+      '.rb': 'ruby',
+      '.php': 'php',
+      '.swift': 'swift',
+      '.m': 'objective-c',
+      '.mm': 'objective-c',
+      '.cs': 'csharp',
+      '.fs': 'fsharp',
+      '.vb': 'vbnet',
+      '.dart': 'dart',
+      '.elm': 'elm',
+      '.ex': 'elixir',
+      '.exs': 'elixir',
+      '.clj': 'clojure',
+      '.cljs': 'clojure',
+      '.hs': 'haskell',
+      '.ml': 'ocaml',
+      '.mli': 'ocaml',
+      '.f90': 'fortran',
+      '.f95': 'fortran',
+      '.html': 'html',
+      '.htm': 'html',
+      '.css': 'css',
+      '.scss': 'scss',
+      '.sass': 'sass',
+      '.less': 'less',
+      '.vue': 'vue',
+      '.svelte': 'svelte',
+      '.astro': 'astro',
+      '.json': 'json',
+      '.yaml': 'yaml',
+      '.yml': 'yaml',
+      '.toml': 'toml',
+      '.ini': 'ini',
+      '.conf': 'config',
+      '.config': 'config',
+      '.md': 'markdown',
+      '.mdx': 'markdown',
+      '.rst': 'restructuredtext',
+      '.txt': 'text',
+      '.adoc': 'asciidoc',
+      '.sh': 'shell',
+      '.bash': 'shell',
+      '.zsh': 'shell',
+      '.fish': 'shell',
+      '.ps1': 'powershell',
+      '.bat': 'batch',
+      '.cmd': 'batch',
+      '.dockerfile': 'docker',
+      '.graphql': 'graphql',
+      '.gql': 'graphql',
+      '.proto': 'protobuf',
+      '.sql': 'sql',
+    }
+
+    // Special file name mappings
+    const specialFiles: Record<string, string> = {
+      dockerfile: 'docker',
+      makefile: 'makefile',
+      'cmakelists.txt': 'cmake',
+      rakefile: 'ruby',
+      gemfile: 'ruby',
+      procfile: 'config',
+      vagrantfile: 'ruby',
+      'gruntfile.js': 'javascript',
+      'gulpfile.js': 'javascript',
+      'webpack.config.js': 'javascript',
+      'rollup.config.js': 'javascript',
+      'vite.config.js': 'javascript',
+      'vite.config.ts': 'typescript',
+      'jest.config.js': 'javascript',
+      'babel.config.js': 'javascript',
+      'package.json': 'json',
+      'tsconfig.json': 'json',
+      'composer.json': 'json',
+      'cargo.toml': 'toml',
+      'pyproject.toml': 'toml',
+      'build.gradle': 'gradle',
+      'pom.xml': 'xml',
+    }
+
+    return specialFiles[fileName] || languageMap[ext] || 'text'
+  }
+
+  /**
+   * Calculate file importance based on path and content
+   */
+  private calculateFileImportance(filePath: string, content: string): number {
+    let importance = 50 // Base importance
+
+    const fileName = basename(filePath).toLowerCase()
+    const dirName = dirname(filePath).toLowerCase()
+    const lines = content.split('\n').length
+
+    // Path-based importance
+    if (fileName.includes('index.') || fileName.includes('main.') || fileName.includes('app.')) {
+      importance += 25
+    }
+
+    if (fileName === 'package.json' || fileName === 'tsconfig.json' || fileName === 'cargo.toml') {
+      importance += 30
+    }
+
+    if (fileName.includes('config') || fileName.includes('settings')) {
+      importance += 15
+    }
+
+    if (fileName.includes('readme') || fileName.includes('license')) {
+      importance += 20
+    }
+
+    if (dirName.includes('src') || dirName.includes('lib')) {
+      importance += 15
+    }
+
+    if (dirName.includes('components') || dirName.includes('pages') || dirName.includes('api')) {
+      importance += 10
+    }
+
+    if (fileName.includes('test') || fileName.includes('spec') || dirName.includes('test')) {
+      importance -= 10
+    }
+
+    if (dirName.includes('dist') || dirName.includes('build') || dirName.includes('node_modules')) {
+      importance -= 30
+    }
+
+    // Content-based importance
+    if (lines > 100) importance += 5
+    if (lines > 500) importance += 10
+    if (lines > 1000) importance += 15
+
+    // Language-specific bonuses
+    const language = this.detectLanguageFromPath(filePath)
+    if (['typescript', 'javascript', 'python', 'java', 'rust', 'go'].includes(language)) {
+      importance += 10
+    }
+
+    // Check for exports/imports (indicates important module)
+    if (content.includes('export') || content.includes('import')) {
+      importance += 10
+    }
+
+    // Check for class/function definitions
+    const functionCount = (content.match(/function |def |class |interface |type /g) || []).length
+    importance += Math.min(functionCount * 2, 20)
+
+    return Math.min(100, Math.max(0, importance))
+  }
+
+  /**
+   * Extract primary languages from workspace
+   */
+  private extractWorkspaceLanguages(): string[] {
+    if (!this.workspaceRAG) return []
+
+    try {
+      const context = this.workspaceRAG.getContext()
+      return context.languages || []
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Extract frameworks from workspace
+   */
+  private extractWorkspaceFrameworks(): string[] {
+    if (!this.workspaceRAG) return []
+
+    try {
+      const context = this.workspaceRAG.getContext()
+      return [context.framework].filter(Boolean)
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Get recently modified files
+   */
+  private getRecentlyModifiedFiles(): string[] {
+    if (!this.workspaceRAG) return []
+
+    try {
+      const context = this.workspaceRAG.getContext()
+      const files = Array.from(context.files.values())
+        .sort((a: any, b: any) => b.lastModified.getTime() - a.lastModified.getTime())
+        .slice(0, 10)
+        .map((f: any) => f.path)
+      return files
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Detect project type from workspace
+   */
+  private detectProjectType(): string {
+    if (!this.workspaceRAG) return 'unknown'
+
+    try {
+      const context = this.workspaceRAG.getContext()
+      return context.framework || 'unknown'
+    } catch {
+      return 'unknown'
+    }
+  }
+
+  /**
+   * Enhanced vector search with semantic scoring
+   */
+  private async searchVectorStoreWithSemantics(
+    queryAnalysis: QueryAnalysis,
+    limit: number
+  ): Promise<RAGSearchResult[]> {
+    if (!this.vectorStoreManager) {
+      throw new Error('Vector store manager not available')
+    }
+
+    try {
+      // Use expanded query for vector search
+      const results = await this.vectorStoreManager.search(queryAnalysis.expandedQuery, Math.min(limit, 20), 0.3)
+
+      const scoringContext: ScoringContext = {
+        queryAnalysis,
+        workspaceContext: {
+          primaryLanguages: this.extractWorkspaceLanguages(),
+          frameworks: this.extractWorkspaceFrameworks(),
+          recentFiles: this.getRecentlyModifiedFiles(),
+          projectType: this.detectProjectType(),
+        },
+        userContext: {
+          recentQueries: [],
+          preferences: [],
+          expertise: [],
+        },
+      }
+
+      // Apply semantic scoring to results
+      const enhancedResults: RAGSearchResult[] = []
+
+      for (const result of results) {
+        const enhancedResult = await semanticSearchEngine.calculateEnhancedScore(
+          result.content,
+          result.metadata || {},
+          queryAnalysis,
+          scoringContext
+        )
+
+        enhancedResults.push({
+          path: result.metadata?.path || result.metadata?.source || 'unknown',
+          content: result.content,
+          score: enhancedResult.score * 100, // Convert to percentage
+          metadata: {
+            ...result.metadata,
+            fileType: result.metadata?.fileType || 'unknown',
+            importance: result.metadata?.importance || 50,
+            lastModified: result.metadata?.lastModified || new Date(),
+            source: result.metadata?.source || 'vector',
+            semanticBreakdown: enhancedResult.breakdown,
+            relevanceFactors: enhancedResult.relevanceFactors,
+            queryIntent: queryAnalysis.intent.type,
+            queryConfidence: queryAnalysis.confidence,
+          },
+        })
+      }
+
+      return enhancedResults
+        .filter((r) => r.score > 40) // Higher threshold for semantic results
+        .sort((a, b) => b.score - a.score)
+    } catch (error: any) {
+      console.log(chalk.red(`Enhanced vector search error: ${error.message}`))
+      throw error
+    }
+  }
+
+  /**
+   * Enhanced search method that integrates semantic analysis
+   */
+  private async searchEnhanced(
+    query: string,
+    options: {
+      limit: number
+      includeContent: boolean
+      semanticOnly: boolean
+      queryAnalysis?: any
+    }
+  ): Promise<RAGSearchResult[]> {
+    const { limit, queryAnalysis } = options
+
+    if (queryAnalysis) {
+      // Use the expanded query for better results
+      const expandedQuery = queryAnalysis.expandedQuery || query
+      return await this.searchVectorStoreWithSemantics(queryAnalysis, limit)
+    } else {
+      // Fall back to regular search
+      return await this.search(query, { limit, includeContent: options.includeContent })
+    }
+  }
+
   private isCodeBlockStart(line: string): boolean {
     const trimmed = line.trim()
     return (
@@ -860,44 +1319,36 @@ export class UnifiedRAGSystem {
     return chunks.length > 0 ? chunks : [content]
   }
 
-  private async searchVectorDB(query: string, limit: number): Promise<RAGSearchResult[]> {
+  private async searchVectorStore(query: string, limit: number): Promise<RAGSearchResult[]> {
+    if (!this.vectorStoreManager) {
+      throw new Error('Vector store manager not available')
+    }
+
     try {
-      if (!this.embeddingFunction) {
-        throw new Error('Embedding function not initialized')
-      }
+      const results = await this.vectorStoreManager.search(query, Math.min(limit, 20), 0.3)
 
-      // Get existing collection for search
-      let collection
-      try {
-        collection = await this.vectorClient!.getCollection({
-          name: 'unified_project_index',
-        })
-        console.log(chalk.gray('✓ Collection found, performing vector search'))
-      } catch (_error: any) {
-        console.log(chalk.yellow('⚠️ Collection not found, skipping vector search'))
-        return []
-      }
-
-      const results = await collection.query({
-        nResults: limit,
-        queryTexts: [query],
-      })
-
-      return (results.documents?.[0] || []).map((doc, idx) => ({
-        content: doc || '',
-        path: (results.metadatas?.[0]?.[idx]?.source as string) || '',
-        score: 1 - (results.distances?.[0]?.[idx] || 1),
+      const searchResults: RAGSearchResult[] = results.map((result) => ({
+        source: result.metadata?.source || 'unknown',
+        path: result.metadata?.source || 'unknown', // Add required path field
+        content: result.content,
+        score: result.score * 100, // Convert to percentage
+        type: 'vector',
         metadata: {
-          chunkIndex: results.metadatas?.[0]?.[idx]?.chunkIndex as number,
-          totalChunks: results.metadatas?.[0]?.[idx]?.totalChunks as number,
-          fileType: (results.metadatas?.[0]?.[idx]?.language as string) || 'unknown',
-          importance: (results.metadatas?.[0]?.[idx]?.importance as number) || 50,
-          lastModified: new Date((results.metadatas?.[0]?.[idx]?.lastModified as string) || Date.now()),
+          importance: result.metadata?.importance || 0,
+          language: result.metadata?.language || 'unknown',
+          chunkIndex: result.metadata?.chunkIndex || 0,
+          totalChunks: result.metadata?.totalChunks || 1,
+          hash: result.metadata?.hash || '',
+          lastModified: result.metadata?.lastModified ? new Date(result.metadata.lastModified) : new Date(),
           source: 'vector' as const,
+          fileType: result.metadata?.language || 'unknown',
         },
       }))
-    } catch (_error) {
-      return []
+
+      return searchResults.filter((r) => r.score > 30) // Filter low confidence results
+    } catch (error: any) {
+      console.log(chalk.red(`Vector store search error: ${error.message}`))
+      throw error
     }
   }
 
@@ -934,21 +1385,340 @@ export class UnifiedRAGSystem {
         // Enhanced scoring based on query relevance
         let enhancedScore = result.score
 
-        // Boost score for exact query matches
-        const content = result.content.toLowerCase()
-        queryWords.forEach((word) => {
-          if (content.includes(word)) enhancedScore += 0.1
-          if (result.path.toLowerCase().includes(word)) enhancedScore += 0.2
-        })
-
-        // Boost score for important files
-        enhancedScore += (result.metadata.importance / 100) * 0.3
+        // Apply intelligent re-ranking if conditions are met
+        if (this.shouldRerank(query)) {
+          enhancedScore = this.applyIntelligentReranking(result, query, queryWords)
+        } else {
+          // Basic scoring for simple queries
+          enhancedScore = this.applyBasicScoring(result, query, queryWords)
+        }
 
         pathMap.set(result.path, { ...result, score: enhancedScore })
       }
     }
 
     return Array.from(pathMap.values()).sort((a, b) => b.score - a.score)
+  }
+
+  /**
+   * Determine if intelligent re-ranking should be applied
+   */
+  private shouldRerank(query: string): boolean {
+    return (
+      query.length > 50 || // Long queries benefit from re-ranking
+      query.split(/\s+/).length > 8 || // Multi-word queries
+      /[.!?]/.test(query) || // Sentence-like queries
+      process.env.RAG_RERANK_ENABLED === 'true' // Force enable via env var
+    )
+  }
+
+  /**
+   * Apply intelligent re-ranking for complex queries
+   */
+  private applyIntelligentReranking(result: RAGSearchResult, query: string, queryWords: string[]): number {
+    let score = result.score
+
+    const content = result.content.toLowerCase()
+    const path = result.path.toLowerCase()
+
+    // 1. Semantic proximity scoring
+    const queryPhrases = this.extractPhrases(query)
+    queryPhrases.forEach((phrase) => {
+      if (content.includes(phrase.toLowerCase())) {
+        score += 0.3 * phrase.split(' ').length // Longer phrases get higher boost
+      }
+    })
+
+    // 2. Position-based scoring (earlier mentions are more relevant)
+    queryWords.forEach((word) => {
+      const contentIndex = content.indexOf(word)
+      const pathIndex = path.indexOf(word)
+
+      if (contentIndex >= 0) {
+        const positionBoost = Math.max(0.05, 0.2 - (contentIndex / content.length) * 0.15)
+        score += positionBoost
+      }
+
+      if (pathIndex >= 0) {
+        score += 0.25 // Path matches are highly relevant
+      }
+    })
+
+    // 3. File type and importance weighting
+    const fileTypeBoosts: Record<string, number> = {
+      typescript: 0.15,
+      javascript: 0.12,
+      markdown: 0.08,
+      json: 0.05,
+    }
+
+    score += fileTypeBoosts[result.metadata.fileType] || 0
+
+    // 4. Importance factor (0-100 scale)
+    score += (result.metadata.importance / 100) * 0.25
+
+    // 5. Recency boost for recently modified files
+    const daysSinceModified = (Date.now() - result.metadata.lastModified.getTime()) / (1000 * 60 * 60 * 24)
+    if (daysSinceModified < 7) {
+      score += (0.1 * (7 - daysSinceModified)) / 7
+    }
+
+    return score
+  }
+
+  /**
+   * Apply basic scoring for simple queries
+   */
+  private applyBasicScoring(result: RAGSearchResult, query: string, queryWords: string[]): number {
+    let score = result.score
+
+    const content = result.content.toLowerCase()
+    const path = result.path.toLowerCase()
+
+    // Simple word matching
+    queryWords.forEach((word) => {
+      if (content.includes(word)) score += 0.1
+      if (path.includes(word)) score += 0.2
+    })
+
+    // Basic importance boost
+    score += (result.metadata.importance / 100) * 0.3
+
+    return score
+  }
+
+  /**
+   * Extract meaningful phrases from query (2-4 word combinations)
+   */
+  private extractPhrases(query: string): string[] {
+    const words = query.toLowerCase().match(/\b\w+\b/g) || []
+    const phrases: string[] = []
+
+    // Extract 2-word phrases
+    for (let i = 0; i < words.length - 1; i++) {
+      phrases.push(`${words[i]} ${words[i + 1]}`)
+    }
+
+    // Extract 3-word phrases
+    for (let i = 0; i < words.length - 2; i++) {
+      phrases.push(`${words[i]} ${words[i + 1]} ${words[i + 2]}`)
+    }
+
+    return phrases
+  }
+
+  /**
+   * Determine if BM25 search should be used
+   */
+  private shouldUseBM25(query: string): boolean {
+    return (
+      /^[a-zA-Z\s]+$/.test(query) && // English text queries
+      query.split(/\s+/).length > 2 && // Multiple keywords
+      query.length > 10 && // Substantial query length
+      process.env.RAG_BM25_ENABLED === 'true' // Explicitly enabled
+    )
+  }
+
+  /**
+   * BM25 sparse search for keyword matching
+   */
+  private async bm25Search(query: string, limit: number): Promise<RAGSearchResult[]> {
+    if (!this.workspaceRAG) return []
+
+    try {
+      console.log(chalk.gray('🔤 Performing BM25 sparse search'))
+
+      const queryTerms = query
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((term) => term.length > 2) // Filter out very short terms
+
+      const results: Array<{ file: any; score: number }> = []
+
+      // Simple BM25-like scoring for each file
+      for (const [, file] of this.workspaceRAG.getContext().files) {
+        const content = file.content.toLowerCase()
+        let score = 0
+
+        queryTerms.forEach((term) => {
+          const termFreq = (content.match(new RegExp(term, 'g')) || []).length
+          const docLength = content.length
+          const avgDocLength = 2000 // Estimated average
+
+          if (termFreq > 0) {
+            // Simplified BM25 formula
+            const tf = termFreq / (termFreq + 1.2 * (0.25 + 0.75 * (docLength / avgDocLength)))
+            const idf = Math.log(1 + this.workspaceRAG!.getContext().files.size / (termFreq + 1))
+            score += tf * idf
+          }
+        })
+
+        if (score > 0) {
+          results.push({ file, score })
+        }
+      }
+
+      // Sort by BM25 score and convert to RAGSearchResult format
+      return results
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map(({ file, score }) => ({
+          content: file.content.substring(0, 1000) + (file.content.length > 1000 ? '...' : ''),
+          path: file.path,
+          score: score * 0.1, // Normalize score
+          metadata: {
+            fileType: file.language,
+            importance: file.importance,
+            lastModified: file.lastModified,
+            source: 'hybrid' as const,
+          },
+        }))
+    } catch (error) {
+      console.log(chalk.yellow(`⚠️ BM25 search error: ${(error as Error).message}`))
+      return []
+    }
+  }
+
+  /**
+   * Query optimization pipeline - enhance queries for better semantic search
+   */
+  private optimizeQuery(query: string): string {
+    let optimized = query.trim()
+
+    // 1. Remove common stop words for better semantic search
+    optimized = this.removeStopWords(optimized)
+
+    // 2. Expand synonyms for better recall (simple implementation)
+    optimized = this.expandSynonyms(optimized)
+
+    // 3. Resolve temporal references
+    optimized = this.resolveTemporalReferences(optimized)
+
+    // 4. Normalize whitespace
+    optimized = optimized.replace(/\s+/g, ' ').trim()
+
+    return optimized
+  }
+
+  /**
+   * Remove stop words that don't add semantic value
+   */
+  private removeStopWords(query: string): string {
+    const stopWords = new Set([
+      'the',
+      'a',
+      'an',
+      'and',
+      'or',
+      'but',
+      'in',
+      'on',
+      'at',
+      'to',
+      'for',
+      'of',
+      'with',
+      'by',
+      'is',
+      'are',
+      'was',
+      'were',
+      'be',
+      'been',
+      'being',
+      'have',
+      'has',
+      'had',
+      'do',
+      'does',
+      'did',
+      'will',
+      'would',
+      'could',
+      'should',
+      'may',
+      'might',
+      'can',
+      'must',
+      'this',
+      'that',
+      'these',
+      'those',
+      'i',
+      'you',
+      'he',
+      'she',
+      'it',
+      'we',
+      'they',
+    ])
+
+    const words = query.toLowerCase().split(/\s+/)
+    const filtered = words.filter((word) => {
+      // Keep stop words if they're part of technical terms or phrases
+      if (word.includes('-') || word.includes('_') || word.includes('.')) return true
+      return !stopWords.has(word) || word.length < 3
+    })
+
+    return filtered.join(' ')
+  }
+
+  /**
+   * Expand synonyms for better recall
+   */
+  private expandSynonyms(query: string): string {
+    const synonymMap: Record<string, string[]> = {
+      function: ['method', 'procedure', 'func'],
+      component: ['element', 'widget', 'part'],
+      config: ['configuration', 'settings', 'setup'],
+      error: ['bug', 'issue', 'problem', 'exception'],
+      api: ['endpoint', 'service', 'interface'],
+      database: ['db', 'datastore', 'storage'],
+      user: ['client', 'customer', 'account'],
+      create: ['make', 'build', 'generate', 'add'],
+      delete: ['remove', 'destroy', 'drop'],
+      update: ['modify', 'change', 'edit'],
+    }
+
+    let expanded = query
+    Object.entries(synonymMap).forEach(([term, synonyms]) => {
+      const regex = new RegExp(`\\b${term}\\b`, 'gi')
+      if (regex.test(expanded)) {
+        // Add most relevant synonym
+        const primarySynonym = synonyms[0]
+        if (!expanded.toLowerCase().includes(primarySynonym)) {
+          expanded = expanded.replace(regex, `${term} ${primarySynonym}`)
+        }
+      }
+    })
+
+    return expanded
+  }
+
+  /**
+   * Resolve temporal references to absolute dates
+   */
+  private resolveTemporalReferences(query: string): string {
+    const now = new Date()
+    const replacements: Record<string, string> = {
+      today: now.toLocaleDateString(),
+      yesterday: new Date(now.getTime() - 86400000).toLocaleDateString(),
+      'this week': `week of ${new Date(now.getTime() - now.getDay() * 86400000).toLocaleDateString()}`,
+      'last week': `week of ${new Date(now.getTime() - (now.getDay() + 7) * 86400000).toLocaleDateString()}`,
+      'this month': now.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
+      'last month': new Date(now.getFullYear(), now.getMonth() - 1).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+      }),
+    }
+
+    let resolved = query
+    Object.entries(replacements).forEach(([temporal, absolute]) => {
+      const regex = new RegExp(`\\b${temporal}\\b`, 'gi')
+      resolved = resolved.replace(regex, absolute)
+    })
+
+    return resolved
   }
 
   private createMinimalWorkspaceContext(projectPath: string): WorkspaceContext {
@@ -985,10 +1755,189 @@ export class UnifiedRAGSystem {
     return {
       embeddingsCacheSize: this.embeddingsCache.size,
       analysisCacheSize: this.analysisCache.size,
-      vectorDBAvailable: !!this.vectorClient,
+      vectorDBAvailable: !!this.vectorStoreManager,
       workspaceRAGAvailable: !!this.workspaceRAG,
       config: this.config,
+      performance: {
+        ...this.searchMetrics,
+        cacheHitRate:
+          this.searchMetrics.totalSearches > 0
+            ? ((this.searchMetrics.cacheHits / this.searchMetrics.totalSearches) * 100).toFixed(1) + '%'
+            : '0%',
+        errorRate:
+          this.searchMetrics.totalSearches > 0
+            ? ((this.searchMetrics.errors / this.searchMetrics.totalSearches) * 100).toFixed(1) + '%'
+            : '0%',
+        averageLatencyMs: Math.round(this.searchMetrics.averageLatency),
+      },
     }
+  }
+
+  /**
+   * Get comprehensive performance metrics
+   */
+  getPerformanceMetrics() {
+    const totalSearches = this.searchMetrics.totalSearches
+
+    return {
+      searches: {
+        total: totalSearches,
+        vector: this.searchMetrics.vectorSearches,
+        workspace: this.searchMetrics.workspaceSearches,
+        bm25: this.searchMetrics.bm25Searches,
+      },
+      performance: {
+        averageLatency: Math.round(this.searchMetrics.averageLatency),
+        totalLatency: this.searchMetrics.totalLatency,
+        errors: this.searchMetrics.errors,
+        errorRate: totalSearches > 0 ? ((this.searchMetrics.errors / totalSearches) * 100).toFixed(1) + '%' : '0%',
+      },
+      optimization: {
+        cacheHits: this.searchMetrics.cacheHits,
+        cacheHitRate:
+          totalSearches > 0 ? ((this.searchMetrics.cacheHits / totalSearches) * 100).toFixed(1) + '%' : '0%',
+        queryOptimizations: this.searchMetrics.queryOptimizations,
+        reranks: this.searchMetrics.reranks,
+        rerankRate: totalSearches > 0 ? ((this.searchMetrics.reranks / totalSearches) * 100).toFixed(1) + '%' : '0%',
+      },
+    }
+  }
+
+  /**
+   * Reset performance metrics
+   */
+  resetMetrics() {
+    this.searchMetrics = {
+      totalSearches: 0,
+      cacheHits: 0,
+      vectorSearches: 0,
+      workspaceSearches: 0,
+      bm25Searches: 0,
+      averageLatency: 0,
+      totalLatency: 0,
+      errors: 0,
+      queryOptimizations: 0,
+      reranks: 0,
+    }
+    console.log(chalk.green('✅ RAG performance metrics reset'))
+  }
+
+  /**
+   * Log comprehensive performance report
+   */
+  logPerformanceReport() {
+    const metrics = this.getPerformanceMetrics()
+
+    console.log(chalk.blue.bold('\n📊 RAG Performance Report'))
+    console.log(chalk.gray('═'.repeat(50)))
+
+    console.log(chalk.cyan('Search Distribution:'))
+    console.log(`  Total Searches: ${metrics.searches.total}`)
+    console.log(
+      `  Vector: ${metrics.searches.vector} (${((metrics.searches.vector / metrics.searches.total) * 100).toFixed(1)}%)`
+    )
+    console.log(
+      `  Workspace: ${metrics.searches.workspace} (${((metrics.searches.workspace / metrics.searches.total) * 100).toFixed(1)}%)`
+    )
+    console.log(
+      `  BM25: ${metrics.searches.bm25} (${((metrics.searches.bm25 / metrics.searches.total) * 100).toFixed(1)}%)`
+    )
+
+    console.log(chalk.cyan('\nPerformance:'))
+    console.log(`  Average Latency: ${metrics.performance.averageLatency}ms`)
+    console.log(`  Error Rate: ${metrics.performance.errorRate}`)
+
+    console.log(chalk.cyan('\nOptimizations:'))
+    console.log(`  Cache Hit Rate: ${metrics.optimization.cacheHitRate}`)
+    console.log(`  Query Optimizations: ${metrics.optimization.queryOptimizations}`)
+    console.log(`  Re-rank Rate: ${metrics.optimization.rerankRate}`)
+
+    const efficiency = this.calculateEfficiencyScore(metrics)
+    console.log(chalk.cyan('\nEfficiency Score:'))
+    console.log(`  Overall: ${efficiency.overall}/100 ${this.getEfficiencyEmoji(efficiency.overall)}`)
+    console.log(`  Latency: ${efficiency.latency}/25`)
+    console.log(`  Cache: ${efficiency.cache}/25`)
+    console.log(`  Error Rate: ${efficiency.errorRate}/25`)
+    console.log(`  Feature Usage: ${efficiency.featureUsage}/25`)
+  }
+
+  /**
+   * Calculate efficiency score based on metrics
+   */
+  private calculateEfficiencyScore(metrics: ReturnType<typeof this.getPerformanceMetrics>) {
+    // Latency score (0-25): under 150ms = 25, 150-300ms = 20, 300-500ms = 15, 500+ = 10
+    let latency = 25
+    if (metrics.performance.averageLatency > 150) latency = 20
+    if (metrics.performance.averageLatency > 300) latency = 15
+    if (metrics.performance.averageLatency > 500) latency = 10
+
+    // Cache score (0-25): 60%+ = 25, 40-60% = 20, 20-40% = 15, <20% = 10
+    const cacheHitRate = parseFloat(metrics.optimization.cacheHitRate.replace('%', ''))
+    let cache = 10
+    if (cacheHitRate >= 60) cache = 25
+    else if (cacheHitRate >= 40) cache = 20
+    else if (cacheHitRate >= 20) cache = 15
+
+    // Error rate score (0-25): <1% = 25, 1-5% = 20, 5-10% = 15, >10% = 10
+    const errorRate = parseFloat(metrics.performance.errorRate.replace('%', ''))
+    let errorRateScore = 25
+    if (errorRate > 1) errorRateScore = 20
+    if (errorRate > 5) errorRateScore = 15
+    if (errorRate > 10) errorRateScore = 10
+
+    // Feature usage score (0-25): using all features = 25
+    const hasVector = metrics.searches.vector > 0
+    const hasWorkspace = metrics.searches.workspace > 0
+    const hasBM25 = metrics.searches.bm25 > 0
+    const hasOptimizations = metrics.optimization.queryOptimizations > 0
+    const featureUsage = (hasVector ? 7 : 0) + (hasWorkspace ? 6 : 0) + (hasBM25 ? 6 : 0) + (hasOptimizations ? 6 : 0)
+
+    return {
+      overall: latency + cache + errorRateScore + featureUsage,
+      latency,
+      cache,
+      errorRate: errorRateScore,
+      featureUsage,
+    }
+  }
+
+  /**
+   * Get emoji for efficiency score
+   */
+  private getEfficiencyEmoji(score: number): string {
+    if (score >= 90) return '🚀'
+    if (score >= 80) return '⚡'
+    if (score >= 70) return '✅'
+    if (score >= 60) return '⚠️'
+    return '🐌'
+  }
+
+  /**
+   * Search with token-aware result truncation
+   */
+  async searchWithTokenLimit(
+    query: string,
+    maxTokens: number = 2000,
+    options?: {
+      limit?: number
+      includeContent?: boolean
+      semanticOnly?: boolean
+    }
+  ): Promise<RAGSearchResult[]> {
+    // Get initial results
+    const results = await this.search(query, options)
+
+    // Apply token-aware truncation
+    const truncatedResults = tokenAwareTruncate(results, maxTokens)
+
+    console.log(
+      chalk.blue(
+        `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
+          `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+      )
+    )
+
+    return truncatedResults
   }
 }
 
@@ -1030,8 +1979,83 @@ export async function search(query: string) {
 }
 
 // --- helpers ---
-function _estimateTokensFromChars(chars: number): number {
+function estimateTokensFromChars(chars: number): number {
   return Math.ceil(chars / 4)
+}
+
+/**
+ * Token-aware truncation with sliding window and semantic boundaries
+ */
+function tokenAwareTruncate(contexts: RAGSearchResult[], maxTokens: number): RAGSearchResult[] {
+  let totalTokens = 0
+  const truncated: RAGSearchResult[] = []
+
+  for (const context of contexts) {
+    const estimatedTokens = estimateTokensFromChars(context.content.length)
+
+    if (totalTokens + estimatedTokens > maxTokens) {
+      // Use sliding window to keep most relevant parts
+      const remainingTokens = maxTokens - totalTokens
+      if (remainingTokens > 50) {
+        // Minimum chunk size
+        const truncatedContent = truncateToTokensWithBoundaries(context.content, remainingTokens)
+
+        truncated.push({
+          ...context,
+          content: truncatedContent,
+          metadata: {
+            ...context.metadata,
+            truncated: true,
+            originalLength: context.content.length,
+            truncatedLength: truncatedContent.length,
+          },
+        })
+      }
+      break
+    }
+
+    totalTokens += estimatedTokens
+    truncated.push(context)
+  }
+
+  return truncated
+}
+
+/**
+ * Truncate text to approximate token count while preserving semantic boundaries
+ */
+function truncateToTokensWithBoundaries(text: string, maxTokens: number): string {
+  const maxChars = maxTokens * 4 // Rough estimation: 1 token ≈ 4 characters
+
+  if (text.length <= maxChars) return text
+
+  // Try to find semantic boundaries (sentences, paragraphs, code blocks)
+  const boundaries = [
+    /\n\n/g, // Paragraph breaks
+    /\.\s+/g, // Sentence endings
+    /;\s*\n/g, // Code statement endings
+    /\}\s*\n/g, // Code block endings
+    /,\s+/g, // Comma separations
+  ]
+
+  let bestCutoff = maxChars - 50 // Leave room for truncation notice
+
+  // Find the best boundary within the acceptable range
+  for (const boundary of boundaries) {
+    const matches = Array.from(text.matchAll(boundary))
+
+    for (const match of matches) {
+      const pos = match.index! + match[0].length
+      if (pos >= bestCutoff * 0.8 && pos <= bestCutoff) {
+        bestCutoff = pos
+        break
+      }
+    }
+
+    if (bestCutoff < maxChars - 50) break // Found good boundary
+  }
+
+  return text.substring(0, bestCutoff) + '\n[... content truncated for length ...]'
 }
 
 function chunkTextByTokens(text: string, chunkTokens: number, overlapTokens: number): string[] {

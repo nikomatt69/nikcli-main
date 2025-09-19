@@ -1,41 +1,38 @@
 // TODO: Consider refactoring for reduced complexity
 // Web interface routes for Background Agents API
-import express from 'express';
-import type { GitHubRepository, WebConfig } from '../../../web/types';
-import { backgroundAgentService } from '../background-agent-service';
+import express from 'express'
+import type { GitHubRepository, WebConfig } from '../../../web/types'
+import { backgroundAgentService } from '../background-agent-service'
 
 export function setupWebRoutes(app: express.Application): void {
-  const webRouter = express.Router();
+  const webRouter = express.Router()
 
   // Configuration endpoints
-  webRouter.get('/config', getWebConfig);
-  webRouter.post('/config', updateWebConfig);
+  webRouter.get('/config', getWebConfig)
+  webRouter.post('/config', updateWebConfig)
 
   // GitHub integration endpoints
-  webRouter.get('/auth/github', initiateGitHubOAuth);
-  webRouter.get('/auth/github/callback', handleGitHubCallback);
-  webRouter.get('/repositories', getGitHubRepositories);
+  webRouter.get('/auth/github', initiateGitHubOAuth)
+  webRouter.get('/auth/github/callback', handleGitHubCallback)
+  webRouter.get('/repositories', getGitHubRepositories)
 
   // Job management endpoints
-  webRouter.get('/jobs', getWebJobs);
-  webRouter.post('/jobs', createWebJob);
-  webRouter.get('/jobs/:id', getWebJob);
-  webRouter.delete('/jobs/:id', cancelWebJob);
+  webRouter.get('/jobs', getWebJobs)
+  webRouter.post('/jobs', createWebJob)
+  webRouter.get('/jobs/:id', getWebJob)
+  webRouter.delete('/jobs/:id', cancelWebJob)
 
   // Snapshot endpoints
-  webRouter.get('/snapshots', getSnapshots);
-  webRouter.post('/snapshots', createSnapshot);
-  webRouter.get('/snapshots/:id', getSnapshot);
-  webRouter.delete('/snapshots/:id', deleteSnapshot);
+  webRouter.get('/snapshots', getSnapshots)
+  webRouter.post('/snapshots', createSnapshot)
+  webRouter.get('/snapshots/:id', getSnapshot)
+  webRouter.delete('/snapshots/:id', deleteSnapshot)
 
-  app.use('/api/v1/web', webRouter);
+  app.use('/api/v1/web', webRouter)
 }
 
 // Configuration handlers
-async function getWebConfig(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function getWebConfig(req: express.Request, res: express.Response): Promise<void> {
   try {
     // In a real implementation, this would load from a persistent store
     const config: WebConfig = {
@@ -50,26 +47,23 @@ async function getWebConfig(
         slack: false,
         email: false,
       },
-    };
+    }
 
     res.json({
       success: true,
       config,
-    });
+    })
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 
-async function updateWebConfig(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function updateWebConfig(req: express.Request, res: express.Response): Promise<void> {
   try {
-    const updates = req.body;
+    const updates = req.body
 
     // In a real implementation, this would persist to a store
     // For now, we'll just return the updated config
@@ -85,74 +79,65 @@ async function updateWebConfig(
         slack: updates.notifications?.slack || false,
         email: updates.notifications?.email || false,
       },
-    };
+    }
 
     res.json({
       success: true,
       config,
       message: 'Configuration updated successfully',
-    });
+    })
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 
 // GitHub OAuth handlers
-async function initiateGitHubOAuth(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function initiateGitHubOAuth(req: express.Request, res: express.Response): Promise<void> {
   try {
-    const clientId = process.env.GITHUB_CLIENT_ID;
+    const clientId = process.env.GITHUB_CLIENT_ID
     if (!clientId) {
-      throw new Error('GitHub OAuth not configured');
+      throw new Error('GitHub OAuth not configured')
     }
 
-    const redirectUri = `${req.protocol}://${req.get('host')}/api/v1/web/auth/github/callback`;
-    const scope = 'repo,user:read';
-    const state = Math.random().toString(36).substring(7);
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/v1/web/auth/github/callback`
+    const scope = 'repo,user:read'
+    const state = Math.random().toString(36).substring(7)
 
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${state}`;
+    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${state}`
 
-    res.redirect(authUrl);
+    res.redirect(authUrl)
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 
-async function handleGitHubCallback(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function handleGitHubCallback(req: express.Request, res: express.Response): Promise<void> {
   try {
-    const { code } = req.query;
+    const { code } = req.query
 
     if (!code) {
-      throw new Error('No authorization code received');
+      throw new Error('No authorization code received')
     }
 
     // Exchange code for token (implementation would go here)
     // For now, redirect back to config page
-    res.redirect('/config?tab=github&success=true');
+    res.redirect('/config?tab=github&success=true')
   } catch (_error: any) {
-    res.redirect('/config?tab=github&error=oauth_failed');
+    res.redirect('/config?tab=github&error=oauth_failed')
   }
 }
 
-async function getGitHubRepositories(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function getGitHubRepositories(req: express.Request, res: express.Response): Promise<void> {
   try {
-    const token = process.env.GITHUB_TOKEN;
+    const token = process.env.GITHUB_TOKEN
     if (!token) {
-      throw new Error('GitHub token not configured');
+      throw new Error('GitHub token not configured')
     }
 
     // Mock repositories for now - in real implementation would fetch from GitHub API
@@ -167,30 +152,27 @@ async function getGitHubRepositories(
         updated_at: new Date().toISOString(),
         language: 'TypeScript',
       },
-    ];
+    ]
 
     res.json({
       success: true,
       repositories,
-    });
+    })
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 
 // Job management handlers
-async function getWebJobs(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function getWebJobs(req: express.Request, res: express.Response): Promise<void> {
   try {
     const jobs = backgroundAgentService.listJobs({
       limit: parseInt(req.query.limit as string) || 50,
       offset: parseInt(req.query.offset as string) || 0,
-    });
+    })
 
     res.json({
       success: true,
@@ -200,63 +182,52 @@ async function getWebJobs(
         userInitiated: true,
         webLogs: [],
       })),
-    });
+    })
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 
-async function createWebJob(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function createWebJob(req: express.Request, res: express.Response): Promise<void> {
   try {
-    const {
-      repositoryName,
-      task,
-      baseBranch = 'main',
-      ...otherProps
-    } = req.body;
+    const { repositoryName, task, baseBranch = 'main', ...otherProps } = req.body
 
     const jobRequest = {
       repo: repositoryName,
       baseBranch,
       task,
       ...otherProps,
-    };
+    }
 
-    const jobId = await backgroundAgentService.createJob(jobRequest);
+    const jobId = await backgroundAgentService.createJob(jobRequest)
 
     res.json({
       success: true,
       jobId,
       message: 'Background job created successfully',
-    });
+    })
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 
-async function getWebJob(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function getWebJob(req: express.Request, res: express.Response): Promise<void> {
   try {
-    const { id } = req.params;
-    const job = backgroundAgentService.getJob(id);
+    const { id } = req.params
+    const job = backgroundAgentService.getJob(id)
 
     if (!job) {
       res.status(404).json({
         success: false,
         error: 'Job not found',
-      });
-      return;
+      })
+      return
     }
 
     res.json({
@@ -267,42 +238,34 @@ async function getWebJob(
         userInitiated: true,
         webLogs: [],
       },
-    });
+    })
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 
-async function cancelWebJob(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function cancelWebJob(req: express.Request, res: express.Response): Promise<void> {
   try {
-    const { id } = req.params;
-    const success = await backgroundAgentService.cancelJob(id);
+    const { id } = req.params
+    const success = await backgroundAgentService.cancelJob(id)
 
     res.json({
       success,
-      message: success
-        ? 'Job cancelled successfully'
-        : 'Job not found or cannot be cancelled',
-    });
+      message: success ? 'Job cancelled successfully' : 'Job not found or cannot be cancelled',
+    })
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 
 // Snapshot handlers (placeholder implementations)
-async function getSnapshots(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function getSnapshots(req: express.Request, res: express.Response): Promise<void> {
   try {
     // Mock snapshots - in real implementation would fetch from storage
     const snapshots = [
@@ -321,26 +284,23 @@ async function getSnapshots(
           lastModified: new Date(),
         },
       },
-    ];
+    ]
 
     res.json({
       success: true,
       snapshots,
-    });
+    })
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 
-async function createSnapshot(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function createSnapshot(req: express.Request, res: express.Response): Promise<void> {
   try {
-    const { name, repository, description } = req.body;
+    const { name, repository, description } = req.body
 
     // Mock snapshot creation
     const snapshot = {
@@ -357,27 +317,24 @@ async function createSnapshot(
         languages: ['TypeScript', 'JavaScript'],
         lastModified: new Date(),
       },
-    };
+    }
 
     res.json({
       success: true,
       snapshot,
       message: 'Snapshot created successfully',
-    });
+    })
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 
-async function getSnapshot(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function getSnapshot(req: express.Request, res: express.Response): Promise<void> {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
     // Mock snapshot retrieval
     res.json({
@@ -397,32 +354,29 @@ async function getSnapshot(
           lastModified: new Date(),
         },
       },
-    });
+    })
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 
-async function deleteSnapshot(
-  req: express.Request,
-  res: express.Response,
-): Promise<void> {
+async function deleteSnapshot(req: express.Request, res: express.Response): Promise<void> {
   try {
-    const { _ } = req.params;
+    const { _ } = req.params
 
     // Mock snapshot deletion
     res.json({
       success: true,
       message: 'Snapshot deleted successfully',
-    });
+    })
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    })
   }
 }
 

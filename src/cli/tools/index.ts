@@ -15,7 +15,26 @@
 
 import chalk from 'chalk'
 
+export {
+  type BrowserbaseAnalysisOptions,
+  type BrowserbaseNavigateOptions,
+  type BrowserbaseSessionOptions,
+  BrowserbaseTool,
+  type BrowserbaseToolResult,
+} from './browserbase-tool'
 export { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
+export {
+  extractFileIdFromUrl,
+  type FigmaCodeGenOptions,
+  type FigmaDesktopOptions,
+  type FigmaExportOptions,
+  type FigmaTokensOptions,
+  FigmaTool,
+  type FigmaToolResult,
+  figmaTool,
+  isFigmaConfigured,
+  isValidFigmaFileId,
+} from './figma-tool'
 export { GitTools } from './git-tools'
 export {
   ImageGenerationTool,

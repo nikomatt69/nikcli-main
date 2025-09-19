@@ -127,6 +127,36 @@ export class AdvancedAIProvider implements AutonomousProvider {
     return s.length > maxChars ? s.slice(0, maxChars) + '…[truncated]' : s
   }
 
+  // 🗜️ Compress tool results intelligently to prevent token overflow
+  private compressToolResult(result: any, toolName: string): any {
+    if (!result) return result
+
+    // Compress large text results
+    if (typeof result === 'string' && result.length > 1000) {
+      return this.truncateForPrompt(result, 800) + ' [compressed for token efficiency]'
+    }
+
+    // Compress object results
+    if (typeof result === 'object') {
+      const compressed: any = {}
+
+      // Keep essential fields and compress large ones
+      for (const [key, value] of Object.entries(result)) {
+        if (typeof value === 'string' && value.length > 500) {
+          compressed[key] = this.truncateForPrompt(value, 300) + ' [compressed]'
+        } else if (Array.isArray(value) && value.length > 10) {
+          compressed[key] = value.slice(0, 5).concat([`...and ${value.length - 5} more items [compressed]`])
+        } else {
+          compressed[key] = value
+        }
+      }
+
+      return compressed
+    }
+
+    return result
+  }
+
   // Approximate token counting (1 token ≈ 4 characters for most languages)
   private estimateTokens(text: string): number {
     if (!text) return 0
@@ -153,8 +183,8 @@ export class AdvancedAIProvider implements AutonomousProvider {
     return totalTokens
   }
 
-  // Intelligent message truncation with token optimization - AGGRESSIVE MODE
-  private async truncateMessages(messages: CoreMessage[], maxTokens: number = 120000): Promise<CoreMessage[]> {
+  // Intelligent message truncation with token optimization - ULTRA AGGRESSIVE MODE
+  private async truncateMessages(messages: CoreMessage[], maxTokens: number = 60000): Promise<CoreMessage[]> {
     // First apply token optimization to all messages
     const optimizedMessages = await this.optimizeMessages(messages)
     const currentTokens = this.estimateMessagesTokens(optimizedMessages)
@@ -216,8 +246,8 @@ export class AdvancedAIProvider implements AutonomousProvider {
     }
 
     // If we still need more space, add truncation summary
-    if (nonSystemMessages.length > 10) {
-      const skippedCount = nonSystemMessages.length - 10
+    if (nonSystemMessages.length > 6) {
+      const skippedCount = nonSystemMessages.length - 6
       truncatedMessages.splice(systemMessages.length, 0, {
         role: 'system' as const,
         content: `[Conversation truncated: ${skippedCount} older messages removed to fit context limit. Total original: ${currentTokens} tokens, truncated to: ~${this.estimateMessagesTokens(truncatedMessages)} tokens]`,
@@ -1021,12 +1051,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
     // Optimize messages for performance
     const optimizedMessages = await this.performanceOptimizer.optimizeMessages(enhancedMessages)
 
-    // Apply truncation to prevent prompt length errors
-    const truncatedMessages = await this.truncateMessages(optimizedMessages, 120000) // 120k tokens limit
+    // Apply truncation to prevent prompt length errors - ULTRA AGGRESSIVE
+    const truncatedMessages = await this.truncateMessages(optimizedMessages, 60000) // 60k tokens limit (reduced from 120k)
 
     const routingCfg = configManager.get('modelRouting')
     const effectiveModelName = routingCfg?.enabled
-      ? this.resolveAdaptiveModel('chat_default', truncatedMessages)
+      ? await this.resolveAdaptiveModel('chat_default', truncatedMessages)
       : undefined
     const model = this.getModel(effectiveModelName) as any
     const tools = this.getAdvancedTools()
@@ -1176,7 +1206,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         abortSignal,
         onStepFinish: (_evt: any) => {},
       }
-      if (provider !== 'openai') {
+      if (provider !== 'openai' && provider !== 'openrouter') {
         streamOpts.maxTokens = params.maxTokens
       }
       const result = streamText(streamOpts)
@@ -1184,9 +1214,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
       let currentToolCalls: ToolCallPart[] = []
       let accumulatedText = ''
       let toolCallCount = 0
-      const maxToolCallsForAnalysis = 50 // Slightly increased limit for comprehensive analysis
+      const maxToolCallsForAnalysis = 20 // REDUCED: Aggressive limit to prevent token overflow
 
-      const approxCharLimit = provider === 'openai' ? params.maxTokens * 4 : Number.POSITIVE_INFINITY
+      const approxCharLimit =
+        provider === 'openai' && this.getCurrentModelInfo().config.provider === 'openai'
+          ? params.maxTokens * 4
+          : Number.POSITIVE_INFINITY
       let truncatedByCap = false
       for await (const delta of (await result).fullStream) {
         try {
@@ -1212,7 +1245,11 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     provider: this.getCurrentModelInfo().config.provider,
                   },
                 }
-                if (provider === 'openai' && accumulatedText.length >= approxCharLimit) {
+                if (
+                  provider === 'openai' &&
+                  this.getCurrentModelInfo().config.provider === 'openai' &&
+                  accumulatedText.length >= approxCharLimit
+                ) {
                   truncatedByCap = true
                   break
                 }
@@ -1244,8 +1281,12 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 success: false, // Will be updated
               })
 
-              // Check if we're hitting tool call limits for analysis - use intelligent continuation
+              // 🚨 EMERGENCY: Check if we're hitting tool call limits for analysis - use intelligent continuation
               if (isAnalysisRequest && toolCallCount > maxToolCallsForAnalysis) {
+                yield {
+                  type: 'thinking',
+                  content: '🛡️ Tool call limit reached - switching to summary mode to prevent token overflow',
+                }
                 // Increment completed rounds
                 this.completedRounds++
 
@@ -1294,6 +1335,14 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 break
               }
 
+              // 🚨 Early warning when approaching limit
+              if (toolCallCount > maxToolCallsForAnalysis * 0.8) {
+                yield {
+                  type: 'thinking',
+                  content: `⚠️ Approaching tool call limit (${toolCallCount}/${maxToolCallsForAnalysis}) - will summarize soon`,
+                }
+              }
+
               yield {
                 type: 'tool_call',
                 toolName: delta.toolName,
@@ -1313,10 +1362,13 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 historyEntry.success = !!delta.argsTextDelta
               }
 
+              // 🗜️ Compress tool result to prevent token overflow
+              const compressedResult = this.compressToolResult(delta.argsTextDelta, toolCall?.toolName || 'unknown')
+
               yield {
                 type: 'tool_result',
                 toolName: toolCall?.toolName,
-                toolResult: delta.argsTextDelta,
+                toolResult: compressedResult,
                 content: `Completed ${toolCall?.toolName}`,
                 metadata: {
                   toolCallId: delta.toolCallId,
@@ -1327,7 +1379,17 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
             case 'step-finish':
               if (delta.isContinued) {
-                // Step completed, continue to next
+                yield {
+                  type: 'thinking',
+                  content: 'Step completed, continuing to next step...',
+                  metadata: { stepContinued: true },
+                }
+              } else {
+                yield {
+                  type: 'thinking',
+                  content: 'Step finished successfully.',
+                  metadata: { stepCompleted: true },
+                }
               }
               break
 
@@ -1972,7 +2034,7 @@ Requirements:
     try {
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
-        ? this.resolveAdaptiveModel('code_gen', [
+        ? await this.resolveAdaptiveModel('code_gen', [
             { role: 'user', content: `${type}: ${description} (${language})` } as any,
           ])
         : undefined
@@ -1983,7 +2045,10 @@ Requirements:
         model,
         prompt: this.progressiveTokenManager.emergencyTruncate(codeGenPrompt, 120000),
       }
-      if (this.getCurrentModelInfo().config.provider !== 'openai') {
+      if (
+        this.getCurrentModelInfo().config.provider !== 'openai' &&
+        this.getCurrentModelInfo().config.provider !== 'openrouter'
+      ) {
         genOpts.maxTokens = Math.min(params.maxTokens, 2000)
       }
       const result = await generateText(genOpts)
@@ -2002,7 +2067,7 @@ Requirements:
   }
 
   // Resolve adaptive model variant for given messages/scope using router
-  private resolveAdaptiveModel(scope: ModelScope, coreMessages: CoreMessage[]): string {
+  private async resolveAdaptiveModel(scope: ModelScope, coreMessages: CoreMessage[]): Promise<string> {
     try {
       const info = this.getCurrentModelInfo()
       const provider = info.config.provider as any
@@ -2020,7 +2085,7 @@ Requirements:
         content: toText(m.content),
       }))
 
-      const decision = adaptiveModelRouter.choose({ provider, baseModel, messages: simpleMessages as any, scope })
+      const decision = await adaptiveModelRouter.choose({ provider, baseModel, messages: simpleMessages as any, scope })
 
       // Log gently (if UI exists)
       try {
@@ -2105,7 +2170,7 @@ Requirements:
           apiKey,
           baseURL: 'https://openrouter.ai/api/v1',
           headers: {
-            'HTTP-Referer': 'https://nikcli.ai', // Optional: for attribution
+            'HTTP-Referer': 'https://nikcli.mintlify.app', // Optional: for attribution
             'X-Title': 'NikCLI',
           },
         })
@@ -2145,7 +2210,7 @@ Requirements:
       case 'anthropic':
         // Claude models - RIDOTTO per compatibilità con tutti i modelli
         if (
-          configData.model.includes('claude-4') ||
+          configData.model.includes('claude-3-5-sonnet-latest') ||
           configData.model.includes('claude-4-sonnet') ||
           configData.model.includes('claude-sonnet-4')
         ) {

@@ -26,6 +26,8 @@ const ConfigSchema = z.object({
   preferredAgent: z.string().optional(),
   models: z.record(ModelConfigSchema),
   apiKeys: z.record(z.string()).optional(),
+  environmentVariables: z.record(z.string()).default({}),
+  environmentSources: z.array(z.string()).default([]),
   modelRouting: z
     .object({
       enabled: z.boolean().default(true),
@@ -100,6 +102,22 @@ const ConfigSchema = z.object({
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   requireApprovalForNetwork: z.boolean().default(true),
   approvalPolicy: z.enum(['strict', 'moderate', 'permissive']).default('moderate'),
+  // Embedding provider configuration
+  embeddingProvider: z
+    .object({
+      default: z.enum(['openai', 'google', 'anthropic', 'openrouter']).default('openai'),
+      fallbackChain: z
+        .array(z.enum(['openai', 'google', 'anthropic', 'openrouter']))
+        .default(['openai', 'openrouter', 'google']),
+      costOptimization: z.boolean().default(true),
+      autoSwitchOnFailure: z.boolean().default(true),
+    })
+    .default({
+      default: 'openai',
+      fallbackChain: ['openai', 'openrouter', 'google'],
+      costOptimization: true,
+      autoSwitchOnFailure: true,
+    }),
   // Security configuration for different modes
   securityMode: z.enum(['safe', 'default', 'developer']).default('safe'),
   toolApprovalPolicies: z
@@ -402,7 +420,7 @@ const ConfigSchema = z.object({
     })
     .default({
       enabled: false,
-      host: 'https://destined-squirrel-7098.upstash.io',
+      host: 'localhost',
       port: 6379,
       database: 0,
       keyPrefix: 'nikcli:',
@@ -695,6 +713,10 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'anthropic/claude-3.5-sonnet',
     },
+    'google/gemini-2.5-flash': {
+      provider: 'openrouter',
+      model: 'google/gemini-2.5-flash',
+    },
     'anthropic/claude-3.5-latest': {
       provider: 'openrouter',
       model: 'anthropic/claude-3.5-latest',
@@ -748,6 +770,10 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'mistralai/mistral-large',
     },
+    'qwen/qwen3-next-80b-a3b-thinking': {
+      provider: 'openrouter',
+      model: 'qwen/qwen3-next-80b-a3b-thinking',
+    },
     'x-ai/grok-2': {
       provider: 'openrouter',
       model: 'x-ai/grok-2',
@@ -784,10 +810,14 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'x-ai/grok-code-fast-1',
     },
+    'qwen/qwen3-coder-plus': {
+      provider: 'openrouter',
+      model: 'qwen/qwen3-coder-plus',
+    },
   }
 
   private defaultConfig: ConfigType = {
-    currentModel: 'claude-3-7-sonnet-20250219',
+    currentModel: 'claude-3-5-sonnet-latest',
     temperature: 1,
     maxTokens: 8000,
     chatHistory: true,
@@ -797,6 +827,8 @@ export class SimpleConfigManager {
     enableAutoApprove: false,
     models: this.defaultModels,
     apiKeys: {},
+    environmentVariables: {},
+    environmentSources: [],
     modelRouting: { enabled: true, verbose: false, mode: 'balanced' },
     mcpServers: {},
     maxConcurrentAgents: 5,
@@ -805,6 +837,12 @@ export class SimpleConfigManager {
     logLevel: 'info' as const,
     requireApprovalForNetwork: true,
     approvalPolicy: 'moderate' as const,
+    embeddingProvider: {
+      default: 'openai',
+      fallbackChain: ['openai', 'openrouter', 'google'],
+      costOptimization: true,
+      autoSwitchOnFailure: true,
+    },
     securityMode: 'safe' as const,
     toolApprovalPolicies: {
       fileOperations: 'risky' as const,
@@ -854,8 +892,8 @@ export class SimpleConfigManager {
       ],
     },
     redis: {
-      enabled: true,
-      host: 'https://destined-squirrel-7098.upstash.io',
+      enabled: false,
+      host: 'localhost',
       port: 6379,
       database: 0,
       keyPrefix: 'nikcli:',
@@ -955,6 +993,8 @@ export class SimpleConfigManager {
 
     // Load or create config
     this.loadConfig()
+    this.applySmartDefaults()
+    this.applyEnvironmentVariablesToProcess()
   }
 
   private loadConfig(): void {
@@ -970,6 +1010,36 @@ export class SimpleConfigManager {
     } catch (_error) {
       console.warn(chalk.yellow('Warning: Failed to load config, using defaults'))
       this.config = { ...this.defaultConfig }
+    }
+  }
+
+  private applySmartDefaults(): void {
+    // Detect CI/CD environment
+    const isCI = !!(process.env.CI || process.env.GITHUB_ACTIONS || process.env.GITLAB_CI)
+
+    if (isCI) {
+      this.config.enableAutoApprove = true
+      this.config.requireApprovalForNetwork = false
+      this.config.approvalPolicy = 'permissive'
+    }
+
+    // Detect development environment
+    const isDev = process.env.NODE_ENV === 'development'
+    if (isDev) {
+      this.config.logLevel = 'debug'
+      this.config.maxHistoryLength = 200
+    }
+  }
+
+  private applyEnvironmentVariablesToProcess(options: { overwriteProcess?: boolean } = {}): void {
+    const overwriteProcess = options.overwriteProcess ?? false
+    const stored = this.config.environmentVariables ?? {}
+
+    for (const [key, encryptedValue] of Object.entries(stored)) {
+      const value = KeyEncryption.decrypt(encryptedValue)
+      if (overwriteProcess || process.env[key] === undefined) {
+        process.env[key] = value
+      }
     }
   }
 
@@ -1037,7 +1107,65 @@ export class SimpleConfigManager {
       }
     }
 
+    // Check for special services (not model-specific)
+    if (model === 'browserbase') {
+      return process.env.BROWSERBASE_API_KEY
+    }
+
     return undefined
+  }
+
+  getEnvironmentVariables(): Record<string, string> {
+    const stored = this.config.environmentVariables ?? {}
+    const result: Record<string, string> = {}
+
+    for (const [key, encryptedValue] of Object.entries(stored)) {
+      result[key] = KeyEncryption.decrypt(encryptedValue)
+    }
+
+    return result
+  }
+
+  getEnvironmentSources(): string[] {
+    return [...(this.config.environmentSources ?? [])]
+  }
+
+  storeEnvironmentVariables(sourcePath: string, variables: Record<string, string>): { added: number; updated: number } {
+    if (!this.config.environmentVariables) {
+      this.config.environmentVariables = {}
+    }
+    if (!this.config.environmentSources) {
+      this.config.environmentSources = []
+    }
+
+    let added = 0
+    let updated = 0
+
+    for (const [key, value] of Object.entries(variables)) {
+      const encryptedValue = KeyEncryption.encrypt(value)
+      const existingEncrypted = this.config.environmentVariables[key]
+
+      if (!existingEncrypted) {
+        added += 1
+      } else {
+        const existingValue = KeyEncryption.decrypt(existingEncrypted)
+        if (existingValue !== value) {
+          updated += 1
+        }
+      }
+
+      this.config.environmentVariables[key] = encryptedValue
+    }
+
+    const resolvedPath = path.resolve(sourcePath)
+    if (!this.config.environmentSources.includes(resolvedPath)) {
+      this.config.environmentSources.push(resolvedPath)
+    }
+
+    this.saveConfig()
+    this.applyEnvironmentVariablesToProcess({ overwriteProcess: true })
+
+    return { added, updated }
   }
 
   // Cloud documentation API keys
@@ -1162,6 +1290,14 @@ export class SimpleConfigManager {
       url: supabaseConfig.url || process.env.SUPABASE_URL,
       anonKey: supabaseConfig.anonKey || process.env.SUPABASE_ANON_KEY,
       serviceRoleKey: supabaseConfig.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY,
+    }
+  }
+
+  // Browserbase configuration management
+  getBrowserbaseCredentials(): { apiKey?: string; projectId?: string } {
+    return {
+      apiKey: this.getApiKey('browserbase') || process.env.BROWSERBASE_API_KEY,
+      projectId: process.env.BROWSERBASE_PROJECT_ID,
     }
   }
 }

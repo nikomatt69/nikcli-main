@@ -344,7 +344,7 @@ export class SmartCompletionManager {
    */
   private initializeStaticCommands(): void {
     // Default commands
-    const defaultCommands = ['/help', '/status', '/agents', '/clear', '/exit', '/models', '/config']
+    const defaultCommands = ['/help', '/status', '/agents', '/clear', '/exit', '/models', '/config', '/env']
 
     // Orchestrator service commands
     const orchestratorCommands = [...defaultCommands, '/diff', '/accept', '/middleware']

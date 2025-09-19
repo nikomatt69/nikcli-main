@@ -139,7 +139,7 @@ export class ModelProvider {
     const routingCfg = configManager.get('modelRouting')
     let effectiveModelId = currentModelConfig.model
     if (routingCfg?.enabled) {
-      const decision = adaptiveModelRouter.choose({
+      const decision = await adaptiveModelRouter.choose({
         provider: currentModelConfig.provider as any,
         baseModel: currentModelConfig.model,
         messages: validatedOptions.messages,
@@ -197,7 +197,7 @@ export class ModelProvider {
     const routingCfg2 = configManager.get('modelRouting')
     let effectiveModelId2 = currentModelConfig.model
     if (routingCfg2?.enabled) {
-      const decision = adaptiveModelRouter.choose({
+      const decision = await adaptiveModelRouter.choose({
         provider: currentModelConfig.provider as any,
         baseModel: currentModelConfig.model,
         messages: validatedOptions.messages,
@@ -251,7 +251,7 @@ export class ModelProvider {
     const routingCfg3 = configManager.get('modelRouting')
     let effId3 = currentModelConfig.model
     if (routingCfg3?.enabled) {
-      const decision = adaptiveModelRouter.choose({
+      const decision = await adaptiveModelRouter.choose({
         provider: currentModelConfig.provider as any,
         baseModel: currentModelConfig.model,
         messages: options.messages as any,

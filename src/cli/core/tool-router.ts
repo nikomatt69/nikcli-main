@@ -347,6 +347,92 @@ export class ToolRouter extends EventEmitter {
       description: 'Blockchain/Web3 operations via Coinbase AgentKit',
       examples: ['check my wallet balance', 'transfer 0.1 ETH to 0x...', 'use coinbase agentkit to send usdc'],
     },
+
+    // Web Browsing and Content Analysis (Browserbase)
+    {
+      tool: 'browse_web',
+      keywords: [
+        'browse',
+        'web',
+        'website',
+        'url',
+        'scrape',
+        'extract',
+        'analyze content',
+        'web page',
+        'browserbase',
+        'navigate',
+        'visit',
+        'load page',
+        'content analysis',
+        'web analysis',
+        'extract text',
+        'summarize webpage',
+      ],
+      priority: 8,
+      description: 'Web browsing automation and AI-powered content analysis',
+      examples: ['browse https://example.com', 'analyze web content', 'extract text from website', 'summarize webpage'],
+    },
+
+    // Figma Design Integration
+    {
+      tool: 'figma_design',
+      keywords: [
+        'figma',
+        'design',
+        'ui',
+        'ux',
+        'interface',
+        'mockup',
+        'prototype',
+        'export',
+        'generate code',
+        'design system',
+        'component',
+        'tokens',
+        'design tokens',
+        'colors',
+        'typography',
+        'spacing',
+        'styles',
+        'export png',
+        'export svg',
+        'code generation',
+        'figma to code',
+        'react component',
+        'component to figma',
+        'create figma from component',
+        'generate design from code',
+        'component preview',
+        'design from react',
+        'visual representation',
+        'mockup from component',
+        'shadcn',
+        'chakra',
+        'mantine',
+        'css',
+        'scss',
+        'design file',
+        'figma file',
+        'visual design',
+        'assets',
+        'export assets',
+        'v0',
+        'vercel v0',
+      ],
+      priority: 8,
+      description: 'Figma design file operations, export, and AI-powered code generation',
+      examples: [
+        'export figma design as PNG',
+        'generate React code from figma',
+        'extract design tokens from figma',
+        'open figma file in desktop app',
+        'create component from figma design',
+        'create figma design from React component',
+        'generate design preview from component file',
+        'get figma file information',
+      ],
+    },
   ]
 
   // Analyze user message and recommend tools
@@ -419,6 +505,9 @@ export class ToolRouter extends EventEmitter {
       multi_edit: 'multi-edit-tool',
       analyze_image: 'vision-analysis-tool',
       generate_image: 'image-generation-tool',
+      browse_web: 'browserbase-tool',
+      web_browse: 'browserbase-tool',
+      browserbase: 'browserbase-tool',
     }
     return map[name] || name
   }
@@ -475,6 +564,20 @@ export class ToolRouter extends EventEmitter {
         'base',
         'sepolia',
         'coinbase',
+      ],
+      browse_web: [
+        'website',
+        'webpage',
+        'url',
+        'link',
+        'content',
+        'text',
+        'analyze',
+        'extract',
+        'summarize',
+        'scrape',
+        'navigate',
+        'browse',
       ],
     }
 
@@ -559,6 +662,36 @@ export class ToolRouter extends EventEmitter {
           suggestions.action = 'chat'
           suggestions.params = { message: content }
         }
+        break
+      }
+
+      case 'browse_web': {
+        // Extract URL from content
+        const urlMatch = content.match(/(https?:\/\/[^\s]+)/i)
+        if (urlMatch) {
+          suggestions.url = urlMatch[1]
+        }
+
+        // Detect analysis type
+        const lower = content.toLowerCase()
+        if (/summary|summarize/.test(lower)) {
+          suggestions.analysisType = 'summary'
+        } else if (/detail|detailed|comprehensive/.test(lower)) {
+          suggestions.analysisType = 'detailed'
+        } else if (/technical/.test(lower)) {
+          suggestions.analysisType = 'technical'
+        }
+
+        // Detect AI provider preference
+        if (/claude/.test(lower)) {
+          suggestions.provider = 'claude'
+        } else if (/openai|gpt/.test(lower)) {
+          suggestions.provider = 'openai'
+        } else if (/google|gemini/.test(lower)) {
+          suggestions.provider = 'google'
+        }
+
+        suggestions.action = 'browseAndAnalyze'
         break
       }
     }
@@ -973,6 +1106,30 @@ export class ToolRouter extends EventEmitter {
         workspaceRestricted: false,
         alternatives: [],
       },
+      {
+        name: 'browse_web',
+        category: 'ai' as const,
+        securityLevel: 'moderate' as const,
+        keywords: [
+          'browse',
+          'web',
+          'website',
+          'url',
+          'scrape',
+          'extract',
+          'analyze',
+          'content',
+          'page',
+          'browserbase',
+          'navigate',
+          'visit',
+        ],
+        capabilities: ['web-browsing', 'content-extraction', 'ai-analysis', 'web-automation'],
+        estimatedDuration: 15,
+        requiresApproval: true,
+        workspaceRestricted: false,
+        alternatives: ['WebFetch'],
+      },
     ]
   }
 
@@ -1269,6 +1426,18 @@ export class ToolRouter extends EventEmitter {
         // Only suggest safe, common commands
         if (intentAnalysis.primaryAction === 'execute') {
           params.command = 'npm --version' // Safe fallback
+        }
+        break
+      case 'browse_web':
+        if (intentAnalysis.targetObjects?.length > 0) {
+          // Look for URL-like objects
+          const urlObject = intentAnalysis.targetObjects.find(
+            (obj: string) => obj.startsWith('http://') || obj.startsWith('https://')
+          )
+          if (urlObject) {
+            params.url = urlObject
+            params.action = 'browseAndAnalyze'
+          }
         }
         break
     }
