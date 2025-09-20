@@ -693,46 +693,44 @@ export class SimpleConfigManager {
       model: 'mistral:7b',
     },
     'gpt-oss:20b': {
-      provider: 'openai',
+      provider: 'openrouter',
       model: 'gpt-oss:20b',
     },
     gemma3n: {
-      provider: 'openai',
+      provider: 'openrouter',
       model: 'gemma3n',
     },
     'gemma3n-large': {
-      provider: 'openai',
+      provider: 'openrouter',
       model: 'gemma3n-large',
     },
-    'cline:cline/sonic': {
-      provider: 'gateway',
-      model: 'cline:cline/sonic',
-    },
-    'cline:cline/sonic-pro': {
-      provider: 'gateway',
-      model: 'cline:cline/sonic-pro',
-    },
+
     // OpenRouter models
-    'anthropic/claude-4-sonnet': {
+    'anthropic/claude-sonnet-4': {
       provider: 'openrouter',
-      model: 'anthropic/claude-4-sonnet',
+      model: 'anthropic/claude-sonnet-4',
+    },
+    'anthropic/claude-3.7-sonnet:thinking': {
+      provider: 'openrouter',
+      model: 'anthropic/claude-3.7-sonnet:thinking',
     },
     'anthropic/claude-3.7-sonnet': {
       provider: 'openrouter',
       model: 'anthropic/claude-3.7-sonnet',
     },
+    'anthropic/claude-opus-4.1': {
+      provider: 'openrouter',
+      model: 'anthropic/claude-opus-4.1',
+    },
     'anthropic/claude-3.5-sonnet': {
       provider: 'openrouter',
       model: 'anthropic/claude-3.5-sonnet',
     },
-    'google/gemini-2.5-flash': {
+    'google/gemini-2.5-flash-lite': {
       provider: 'openrouter',
-      model: 'google/gemini-2.5-flash',
+      model: 'google/gemini-2.5-flash-lite',
     },
-    'anthropic/claude-3.5-latest': {
-      provider: 'openrouter',
-      model: 'anthropic/claude-3.5-latest',
-    },
+
     'nvidia/nemotron-nano-9b-v2:free': {
       provider: 'openrouter',
       model: 'nvidia/nemotron-nano-9b-v2:free',
@@ -826,10 +824,14 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'qwen/qwen3-coder-plus',
     },
+    '@preset/nikcli': {
+      provider: 'openrouter',
+      model: '@preset/nikcli',
+    },
   }
 
   private defaultConfig: ConfigType = {
-    currentModel: 'claude-3-5-sonnet-latest',
+    currentModel: '@preset/nikcli',
     temperature: 1,
     maxTokens: 8000,
     chatHistory: true,
@@ -842,7 +844,7 @@ export class SimpleConfigManager {
     environmentVariables: {},
     environmentSources: [],
     modelRouting: { enabled: true, verbose: false, mode: 'balanced' },
-    reasoning: { enabled: true, autoDetect: true, showReasoningProcess: false, logReasoning: false },
+    reasoning: { enabled: true, autoDetect: true, showReasoningProcess: true, logReasoning: false },
     mcpServers: {},
     maxConcurrentAgents: 5,
     enableGuidanceSystem: true,

@@ -874,7 +874,8 @@ export class AdvancedCliUI {
       priority?: string
       progress?: number
     }>,
-    title: string = 'Plan Todos'
+    title: string = 'Plan Todos',
+    description?: string
   ): void {
     const items = (todos || [])
       .map((t) => ({
@@ -952,6 +953,17 @@ export class AdvancedCliUI {
       `${chalk.green('✅ ' + completed)}   ${chalk.blue('🔄 ' + inProgress)}   ${chalk.cyan('⏳ ' + pending)}   ${chalk.red('🛑 ' + failed)}   ${chalk.gray('• Total ' + total)}`
     )
     lines.push(chalk.gray('─'.repeat(60)))
+
+    // Summary section (if description provided)
+    if (description && description.trim()) {
+      lines.push(chalk.bold('Summary'))
+      // Wrap description text to fit within panel width
+      const maxWidth = 60
+      const wrappedDescription = this.wrapText(description.trim(), maxWidth)
+      lines.push(chalk.gray(wrappedDescription))
+      lines.push('')
+    }
+
     // Sections
     const inProgSection = section('In Progress', byStatus.in_progress, { showBars: true, showBadges: true })
     if (inProgSection) lines.push(inProgSection, '')
@@ -1918,6 +1930,26 @@ export class AdvancedCliUI {
       completed: agents.filter((a) => a.status === 'completed').length,
       errors: agents.filter((a) => a.status === 'error').length,
     }
+  }
+
+  private wrapText(text: string, maxWidth: number): string {
+    if (text.length <= maxWidth) return text
+
+    const words = text.split(' ')
+    const lines: string[] = []
+    let currentLine = ''
+
+    for (const word of words) {
+      if ((currentLine + word).length <= maxWidth) {
+        currentLine = currentLine ? `${currentLine} ${word}` : word
+      } else {
+        if (currentLine) lines.push(currentLine)
+        currentLine = word.length > maxWidth ? word.substring(0, maxWidth - 3) + '...' : word
+      }
+    }
+
+    if (currentLine) lines.push(currentLine)
+    return lines.join('\n  ')
   }
 }
 

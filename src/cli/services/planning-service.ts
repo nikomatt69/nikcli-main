@@ -239,7 +239,9 @@ export class PlanningService {
     // Sync with existing systems
     await this.syncPlanWithSystems(plan)
 
-    if (options.showProgress) {
+    // Show dashboard for TaskMaster plans or when showProgress is enabled
+    const isTaskMasterPlan = shouldUseTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable()
+    if (options.showProgress || isTaskMasterPlan) {
       this.displayPlan(plan)
       await this.showDashboard(plan)
     }

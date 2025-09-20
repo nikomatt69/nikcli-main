@@ -205,10 +205,46 @@ export class TaskMasterAdapter extends EventEmitter {
   async createEnhancedPlan(userRequest: string, context?: any): Promise<ExecutionPlan> {
     try {
       const taskMasterPlan = await this.taskMasterService.createPlan(userRequest, context)
-      return this.toExecutionPlan(taskMasterPlan)
+      const executionPlan = this.toExecutionPlan(taskMasterPlan)
+
+      // Show the compact panel with todos immediately after plan creation
+      await this.showCompactPanel(executionPlan)
+
+      return executionPlan
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ Enhanced planning failed: ${error.message}`))
       throw error
+    }
+  }
+
+  /**
+   * Show compact panel with todos from the execution plan
+   */
+  private async showCompactPanel(plan: ExecutionPlan): Promise<void> {
+    try {
+      const { advancedUI } = await import('../ui/advanced-cli-ui')
+
+      // Format todos for the dashboard with proper mapping
+      const todoItems = (plan.todos || []).map((todo: any) => ({
+        content: todo.title || todo.description || todo.content || 'Untitled task',
+        title: todo.title || todo.description || todo.content || 'Untitled task',
+        status: (todo.status || 'pending').toLowerCase(),
+        priority: (todo.priority || 'medium').toLowerCase(),
+        progress: typeof todo.progress === 'number' ? Math.max(0, Math.min(100, todo.progress)) : 0,
+      }))
+
+      // Show the compact panel with description
+      if (typeof advancedUI.showTodoDashboard === 'function') {
+        advancedUI.showTodoDashboard(
+          todoItems,
+          plan.title || 'TaskMaster Plan',
+          plan.description || 'AI-generated plan for task execution'
+        )
+      }
+
+    } catch (error: any) {
+      // Fallback: just log the error, don't throw to avoid breaking plan creation
+      console.log(chalk.gray(`ℹ️ Could not show compact panel: ${error.message}`))
     }
   }
 
