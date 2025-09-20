@@ -1,3 +1,4 @@
+// TODO: Consider refactoring for reduced complexity
 # NikCLI - Context-Aware AI Development Assistant
 
 **Transform your development workflow with intelligent AI agents that understand your code, execute commands, and build applications autonomously.**
@@ -72,6 +73,7 @@ pnpm start
 ```
 
 **Development Scripts:**
+
 - `pnpm start` - Start in development mode
 - `pnpm run dev` - Development with watch mode
 - `pnpm run build` - Compile TypeScript
@@ -90,7 +92,7 @@ nikcli
 
 ## 📚 Documentation
 
-**Complete documentation is available at [nikcli.mintifly.app](https://nikcli.mintlify.app)**
+**Complete documentation is available at [nikcli.mintlify.app](https://nikcli.mintlify.app)**
 
 - 📖 [Getting Started](https://nikcli.mintlify.app/quickstart/installation)
 - 🎯 [CLI Commands Reference](https://nikcli.mintlify.app/cli-reference/commands-overview)
@@ -167,6 +169,7 @@ Our universal installers include security features:
 - **Source verification** from official npm registry
 
 **Installer Files:**
+
 - [`installer/install.sh`](installer/install.sh) - Unix/macOS universal installer
 - [`installer/install.ps1`](installer/install.ps1) - Windows PowerShell installer
 
@@ -182,11 +185,13 @@ Our universal installers include security features:
 <summary>🔧 <strong>Project Configuration</strong></summary>
 
 **Package Manager Support:**
+
 - Development optimized with `pnpm` for faster builds and reduced disk usage
 - Universal installation support for all major package managers
 - Cross-platform compatibility with intelligent fallbacks
 
 **Key Files:**
+
 - [`package.json`](package.json) - Main package configuration with universal engine support
 - [`pnpm-workspace.yaml`](pnpm-workspace.yaml) - pnpm workspace configuration
 - [`.npmrc`](.npmrc) - npm/pnpm configuration for optimal development experience
@@ -199,4 +204,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Visit [nikcli.mintifly.app](https://nikcli.mintlify.app) for complete documentation, tutorials, and examples.**
+**Visit [nikcli.mintlify.app](https://nikcli.mintlify.app) for complete documentation, tutorials, and examples.**

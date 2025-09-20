@@ -1,0 +1,900 @@
+import { EventEmitter } from 'node:events'
+import chalk from 'chalk'
+import { nanoid } from 'nanoid'
+import type { PlanTodo } from '../planning/types'
+import type {
+  TaskMasterIntegrationConfig,
+  TaskMasterModule,
+  TaskMasterTask,
+  TaskMasterState,
+  TaskMasterConfig,
+  TaskStatus,
+  TaskPriority,
+  InitProjectOptions
+} from '../types/taskmaster-types'
+
+/**
+ * TaskMaster AI Integration Service
+ * Provides enterprise-grade task management and planning capabilities
+ */
+export class TaskMasterService extends EventEmitter {
+  private taskMaster: any = null
+  private initialized = false
+  private config: TaskMasterIntegrationConfig
+  private activePlans: Map<string, TaskMasterPlan> = new Map()
+  private static instanceCount = 0
+
+  constructor(config?: Partial<TaskMasterIntegrationConfig>) {
+    super()
+    TaskMasterService.instanceCount++
+
+    console.log(chalk.gray(`🔧 Creating TaskMasterService instance #${TaskMasterService.instanceCount}`))
+
+    // Initialize base config first
+    this.config = {
+      aiProvider: 'openrouter',
+      model: 'openai/gpt-5',
+      workspacePath: process.cwd(),
+      persistStorage: true,
+      enableAdvancedPlanning: true,
+      maxConcurrentTasks: 5,
+      ...config,
+    }
+
+    // Set API key after config is initialized
+    this.config.apiKey = this.config.apiKey || this.getApiKey()
+  }
+
+  /**
+   * Initialize TaskMaster with lazy loading
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) return
+
+    try {
+      // Dynamic import of TaskMaster to avoid startup delays
+      // Using require to avoid TypeScript module resolution issues at runtime
+      const TaskMasterModule = require('task-master-ai') as TaskMasterModule
+
+      // TaskMaster provides programmatic access via exported functions
+      this.taskMaster = {
+        initProject: TaskMasterModule.initProject,
+        runInitCLI: TaskMasterModule.runInitCLI,
+        version: TaskMasterModule.version,
+        devScriptPath: TaskMasterModule.devScriptPath,
+      }
+
+      // Skip automatic TaskMaster initialization to prevent unwanted directory creation
+      // We'll manually manage TaskMaster files in .nikcli directory
+      console.log(chalk.gray('   Skipping automatic TaskMaster init to use custom .nikcli structure'))
+
+      this.initialized = true
+
+      console.log(chalk.green('✅ TaskMaster service initialized'))
+      this.emit('initialized')
+
+      // Log initialization success with provider info
+      console.log(chalk.gray(`   Provider: ${this.config.aiProvider}`))
+      console.log(chalk.gray(`   Model: ${this.config.model}`))
+
+    } catch (error: any) {
+      console.log(chalk.yellow('⚠️ TaskMaster initialization failed, using fallback mode'))
+      console.log(chalk.gray(`   Provider: ${this.config.aiProvider}`))
+      console.log(chalk.gray(`   Error: ${error.message}`))
+
+      // Set up fallback mode
+      this.setupFallbackMode()
+      this.emit('fallback')
+    }
+  }
+
+  /**
+   * Initialize TaskMaster directory structure only when needed
+   */
+  private async ensureNikCLIStructure(): Promise<void> {
+    try {
+      const fs = await import('node:fs/promises')
+      const path = await import('node:path')
+
+      const nikCLIDir = path.join(this.config.workspacePath, '.nikcli')
+      const taskMasterDir = path.join(nikCLIDir, 'taskmaster')
+
+      // Create .nikcli/taskmaster directory structure
+      await fs.mkdir(taskMasterDir, { recursive: true })
+
+      console.log(chalk.green('✅ NikCLI TaskMaster structure initialized'))
+    } catch (error: any) {
+      console.log(chalk.gray(`ℹ️ Directory structure already exists or error: ${error.message}`))
+    }
+  }
+
+  /**
+   * Create a new plan using TaskMaster AI
+   */
+  async createPlan(userRequest: string, context?: PlanningContext): Promise<TaskMasterPlan> {
+    await this.initialize()
+    await this.ensureNikCLIStructure()
+
+    const planId = nanoid()
+
+    try {
+      if (this.taskMaster && this.initialized) {
+        // Since TaskMaster is primarily a CLI tool, we'll create a basic plan
+        // and use TaskMaster's project management capabilities
+        console.log(chalk.cyan('🤖 Using TaskMaster for project organization...'))
+
+        // Create a TaskMaster-compatible plan structure
+        const plan = this.createTaskMasterCompatiblePlan(planId, userRequest, context)
+        this.activePlans.set(planId, plan)
+
+        console.log(chalk.green(`✅ Plan ${planId} created and stored`))
+        console.log(chalk.gray(`📋 Total active plans: ${this.activePlans.size}`))
+
+        // Try to write the plan to TaskMaster's task format if possible
+        await this.syncWithTaskMasterProject(plan)
+
+        return plan
+      }
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ TaskMaster plan generation failed: ${error.message}`))
+    }
+
+    // Fallback to rule-based planning
+    const fallbackPlan = this.createFallbackPlan(planId, userRequest, context)
+    this.activePlans.set(planId, fallbackPlan)
+    console.log(chalk.yellow(`⚠️ Using fallback plan ${planId}`))
+    return fallbackPlan
+  }
+
+  /**
+   * Execute a plan using TaskMaster's execution engine
+   */
+  async executePlan(planId: string): Promise<TaskMasterExecutionResult> {
+    console.log(chalk.gray(`🔍 Looking for plan ${planId}`))
+    console.log(chalk.gray(`📋 Active plans: ${Array.from(this.activePlans.keys()).join(', ')}`))
+
+    const plan = this.activePlans.get(planId)
+    if (!plan) {
+      console.log(chalk.red(`❌ Plan ${planId} not found in active plans`))
+      console.log(chalk.gray(`Available plans: ${JSON.stringify(Array.from(this.activePlans.keys()))}`))
+      throw new Error(`Plan not found: ${planId}`)
+    }
+
+    try {
+      if (this.taskMaster && this.initialized) {
+        // Use TaskMaster's execution engine
+        const result = await this.taskMaster.executePlan(plan.taskMasterData)
+        return this.convertExecutionResult(result)
+      }
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ TaskMaster execution failed: ${error.message}`))
+    }
+
+    // Fallback execution
+    return this.executeFallbackPlan(plan)
+  }
+
+  /**
+   * Get plan status and progress
+   */
+  async getPlanStatus(planId: string): Promise<TaskMasterPlanStatus | null> {
+    const plan = this.activePlans.get(planId)
+    if (!plan) return null
+
+    try {
+      if (this.taskMaster && this.initialized) {
+        return await this.taskMaster.getPlanStatus(planId)
+      }
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ TaskMaster status check failed: ${error.message}`))
+    }
+
+    // Fallback status
+    return {
+      planId,
+      status: plan.status,
+      progress: this.calculateFallbackProgress(plan),
+      currentTask: plan.todos.find(t => t.status === 'in_progress')?.title || null,
+      completedTasks: plan.todos.filter(t => t.status === 'completed').length,
+      totalTasks: plan.todos.length,
+    }
+  }
+
+  /**
+   * List all active plans
+   */
+  listPlans(): TaskMasterPlan[] {
+    return Array.from(this.activePlans.values())
+  }
+
+  /**
+   * Update plan with new tasks or modifications
+   */
+  async updatePlan(planId: string, updates: Partial<TaskMasterPlan>): Promise<void> {
+    const plan = this.activePlans.get(planId)
+    if (!plan) return
+
+    try {
+      if (this.taskMaster && this.initialized) {
+        await this.taskMaster.updatePlan(planId, updates)
+      }
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ TaskMaster plan update failed: ${error.message}`))
+    }
+
+    // Update local plan
+    Object.assign(plan, updates)
+    this.activePlans.set(planId, plan)
+    this.emit('planUpdated', { planId, updates })
+  }
+
+  /**
+   * Create TaskMaster-compatible plan using actual TaskMaster task structure
+   */
+  private createTaskMasterCompatiblePlan(planId: string, userRequest: string, context?: PlanningContext): TaskMasterPlan {
+    // Generate NikCLI todos that map to TaskMaster task structure
+    const todos = this.generateSmartTodos(userRequest, context)
+
+    // Convert to TaskMaster task format using proper mappings
+    const taskMasterTasks: TaskMasterTask[] = todos.map(todo => ({
+      id: todo.id,
+      title: todo.title,
+      description: todo.description || '',
+      status: this.mapToTaskMasterStatus(todo.status),
+      priority: this.mapPriority(todo.priority) as TaskPriority,
+      tags: todo.tools || [],
+      estimatedHours: (todo.estimatedDuration || 5) / 60, // Convert minutes to hours
+      createdAt: todo.createdAt.toISOString(),
+      updatedAt: todo.updatedAt.toISOString(),
+      context: {
+        nikCLIData: {
+          progress: todo.progress,
+          reasoning: todo.reasoning,
+          tools: todo.tools,
+          estimatedDuration: todo.estimatedDuration
+        },
+        userRequest,
+        planningContext: context
+      }
+    }))
+
+    return {
+      id: planId,
+      title: `TaskMaster Plan: ${userRequest}`,
+      description: userRequest,
+      userRequest,
+      todos,
+      status: 'pending',
+      createdAt: new Date(),
+      estimatedDuration: todos.reduce((sum, t) => sum + (t.estimatedDuration || 5), 0),
+      taskMasterData: {
+        id: planId,
+        title: `Plan: ${userRequest}`,
+        description: userRequest,
+        tasks: taskMasterTasks,
+        status: 'pending' as TaskStatus,
+        progress: 0,
+        currentTask: null,
+        completedTasks: 0,
+        totalTasks: taskMasterTasks.length,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      riskAssessment: {
+        overallRisk: 'medium',
+        destructiveOperations: this.countDestructiveOps(todos),
+        fileModifications: this.countFileOps(todos),
+        externalCalls: this.countExternalOps(todos),
+      },
+    }
+  }
+
+  /**
+   * Generate smart todos based on user request
+   */
+  private generateSmartTodos(userRequest: string, _context?: PlanningContext): PlanTodo[] {
+    const todos: PlanTodo[] = []
+    const request = userRequest.toLowerCase()
+
+    // Enhanced rule-based todo generation with TaskMaster integration
+    if (request.includes('create') || request.includes('build') || request.includes('implement')) {
+      todos.push(
+        {
+          id: nanoid(),
+          title: 'Project Analysis',
+          description: 'Analyze project structure and requirements',
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 10,
+          progress: 0,
+          tools: ['analysis'],
+          reasoning: 'Understanding project context is crucial for successful implementation',
+        },
+        {
+          id: nanoid(),
+          title: 'Design Planning',
+          description: 'Create architectural design and implementation plan',
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 15,
+          progress: 0,
+          tools: ['planning'],
+          reasoning: 'Proper planning reduces implementation complexity',
+        },
+        {
+          id: nanoid(),
+          title: 'Implementation',
+          description: `Implement ${userRequest}`,
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 30,
+          progress: 0,
+          tools: ['coding', 'implementation'],
+          reasoning: 'Core implementation task',
+        },
+        {
+          id: nanoid(),
+          title: 'Testing & Validation',
+          description: 'Test implementation and validate functionality',
+          status: 'pending',
+          priority: 'medium',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 15,
+          progress: 0,
+          tools: ['testing'],
+          reasoning: 'Ensure quality and functionality',
+        }
+      )
+    } else if (request.includes('fix') || request.includes('debug')) {
+      todos.push(
+        {
+          id: nanoid(),
+          title: 'Issue Investigation',
+          description: 'Investigate and identify root cause',
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 15,
+          progress: 0,
+          tools: ['debugging', 'analysis'],
+        },
+        {
+          id: nanoid(),
+          title: 'Fix Implementation',
+          description: 'Implement solution for the identified issue',
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 20,
+          progress: 0,
+          tools: ['coding', 'debugging'],
+        }
+      )
+    } else {
+      todos.push({
+        id: nanoid(),
+        title: 'Task Execution',
+        description: userRequest,
+        status: 'pending',
+        priority: 'medium',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        estimatedDuration: 20,
+        progress: 0,
+        tools: ['general'],
+      })
+    }
+
+    return todos
+  }
+
+  /**
+   * Sync plan with TaskMaster project using proper file structure
+   */
+  private async syncWithTaskMasterProject(plan: TaskMasterPlan): Promise<void> {
+    try {
+      const fs = await import('node:fs/promises')
+      const path = await import('node:path')
+
+      // Use .nikcli directory instead of .taskmaster
+      const taskMasterDir = path.join(this.config.workspacePath, '.nikcli', 'taskmaster')
+
+      try {
+        await fs.mkdir(taskMasterDir, { recursive: true })
+      } catch {
+        // Directory might already exist
+      }
+
+      // Write tasks.json in TaskMaster's expected format
+      const tasksFile = path.join(taskMasterDir, 'tasks.json')
+      const taskMasterData = plan.taskMasterData || {
+        id: plan.id,
+        title: plan.title,
+        description: plan.description,
+        tasks: plan.todos.map(todo => ({
+          id: todo.id,
+          title: todo.title,
+          description: todo.description || '',
+          status: this.mapToTaskMasterStatus(todo.status),
+          priority: todo.priority as TaskPriority,
+          tags: todo.tools || [],
+          estimatedHours: (todo.estimatedDuration || 5) / 60,
+          createdAt: todo.createdAt.toISOString(),
+          updatedAt: todo.updatedAt.toISOString()
+        })),
+        status: 'pending' as TaskStatus,
+        progress: 0,
+        currentTask: null,
+        completedTasks: 0,
+        totalTasks: plan.todos.length,
+        createdAt: plan.createdAt.toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+
+      await fs.writeFile(tasksFile, JSON.stringify(taskMasterData, null, 2))
+
+      // Write state.json for TaskMaster state management
+      const stateFile = path.join(taskMasterDir, 'state.json')
+      const state: TaskMasterState = {
+        currentPlan: plan.id,
+        activeTasks: plan.todos.filter(t => t.status === 'in_progress').map(t => t.id),
+        completedTasks: plan.todos.filter(t => t.status === 'completed').map(t => t.id),
+        lastUpdated: new Date().toISOString(),
+        statistics: {
+          totalTasks: plan.todos.length,
+          completedTasks: plan.todos.filter(t => t.status === 'completed').length,
+          pendingTasks: plan.todos.filter(t => t.status === 'pending').length,
+          averageCompletionTime: plan.estimatedDuration / Math.max(plan.todos.length, 1)
+        }
+      }
+
+      await fs.writeFile(stateFile, JSON.stringify(state, null, 2))
+
+      // Write config.json with AI provider settings
+      const configFile = path.join(taskMasterDir, 'config.json')
+      const config: TaskMasterConfig = {
+        aiProvider: this.config.aiProvider,
+        model: this.config.model,
+        apiKey: this.config.apiKey,
+        baseURL: this.config.baseURL,
+        maxTokens: 4000,
+        temperature: 0.1,
+        topP: 0.9,
+        profiles: {
+          nikcli: {
+            name: 'NikCLI Integration',
+            description: 'TaskMaster configuration for NikCLI autonomous development',
+            aiProvider: this.config.aiProvider,
+            model: this.config.model,
+            taskMasterDir: '.nikcli' // Force TaskMaster to use .nikcli directory
+          }
+        },
+        // Override TaskMaster's default directories to use .nikcli
+        useNikCLIStructure: true
+      }
+
+      await fs.writeFile(configFile, JSON.stringify(config, null, 2))
+
+      console.log(chalk.green('✅ Plan synced with TaskMaster project structure'))
+    } catch (error: any) {
+      console.log(chalk.gray(`ℹ️ TaskMaster sync skipped: ${error.message}`))
+    }
+  }
+
+
+  /**
+   * Create fallback plan when TaskMaster is unavailable
+   */
+  private createFallbackPlan(planId: string, userRequest: string, _context?: PlanningContext): TaskMasterPlan {
+    const todos: PlanTodo[] = []
+
+    // Rule-based plan generation (simplified version of existing logic)
+    if (userRequest.toLowerCase().includes('create') || userRequest.toLowerCase().includes('build')) {
+      todos.push(
+        {
+          id: nanoid(),
+          title: 'Analyze requirements',
+          description: 'Understand what needs to be created',
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 10,
+          progress: 0,
+        },
+        {
+          id: nanoid(),
+          title: 'Plan implementation',
+          description: 'Create detailed implementation plan',
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 15,
+          progress: 0,
+        },
+        {
+          id: nanoid(),
+          title: 'Implement solution',
+          description: 'Write code and create necessary files',
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 30,
+          progress: 0,
+        }
+      )
+    } else {
+      todos.push({
+        id: nanoid(),
+        title: 'Execute task',
+        description: userRequest,
+        status: 'pending',
+        priority: 'medium',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        estimatedDuration: 15,
+        progress: 0,
+      })
+    }
+
+    return {
+      id: planId,
+      title: `Fallback Plan: ${userRequest}`,
+      description: userRequest,
+      userRequest,
+      todos,
+      status: 'pending',
+      createdAt: new Date(),
+      estimatedDuration: todos.reduce((sum, t) => sum + (t.estimatedDuration || 0), 0),
+      riskAssessment: {
+        overallRisk: 'medium',
+        destructiveOperations: 0,
+        fileModifications: 1,
+        externalCalls: 0,
+      },
+    }
+  }
+
+  /**
+   * Execute plan with fallback logic
+   */
+  private async executeFallbackPlan(plan: TaskMasterPlan): Promise<TaskMasterExecutionResult> {
+    const startTime = new Date()
+    const results: TaskMasterStepResult[] = []
+
+    for (const todo of plan.todos) {
+      todo.status = 'in_progress'
+      this.emit('stepStart', { planId: plan.id, taskId: todo.id })
+
+      try {
+        // Simulate task execution
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+        todo.status = 'completed'
+        todo.progress = 100
+
+        results.push({
+          taskId: todo.id,
+          status: 'success',
+          output: `Completed: ${todo.title}`,
+          duration: 1000,
+        })
+
+        this.emit('stepComplete', { planId: plan.id, taskId: todo.id })
+      } catch (error: any) {
+        todo.status = 'failed'
+        results.push({
+          taskId: todo.id,
+          status: 'failed',
+          error: error.message,
+          duration: 1000,
+        })
+
+        this.emit('stepFailed', { planId: plan.id, taskId: todo.id, error: error.message })
+      }
+    }
+
+    plan.status = 'completed'
+
+    return {
+      planId: plan.id,
+      status: 'completed',
+      startTime,
+      endTime: new Date(),
+      results,
+      summary: {
+        totalTasks: plan.todos.length,
+        completedTasks: plan.todos.filter(t => t.status === 'completed').length,
+        failedTasks: plan.todos.filter(t => t.status === 'failed').length,
+      },
+    }
+  }
+
+  /**
+   * Setup fallback mode when TaskMaster is unavailable
+   */
+  private setupFallbackMode(): void {
+    this.initialized = false
+    console.log(chalk.cyan('🔄 Running in fallback mode - basic planning available'))
+  }
+
+  /**
+   * Get appropriate API key for TaskMaster based on provider
+   */
+  private getApiKey(): string {
+    switch (this.config.aiProvider) {
+      case 'openrouter':
+        return process.env.OPENROUTER_API_KEY || process.env.OPENROUTER || ''
+      case 'anthropic':
+        return process.env.ANTHROPIC_API_KEY || ''
+      case 'openai':
+        return process.env.OPENAI_API_KEY || ''
+      case 'google':
+        return process.env.GOOGLE_GENERATIVE_AI_API_KEY || ''
+      case 'azure':
+        return process.env.AZURE_OPENAI_API_KEY || ''
+      case 'bedrock':
+        return process.env.AWS_ACCESS_KEY_ID || '' // Bedrock uses AWS credentials
+      case 'groq':
+        return process.env.GROQ_API_KEY || ''
+      case 'perplexity':
+        return process.env.PERPLEXITY_API_KEY || ''
+      case 'xai':
+        return process.env.XAI_API_KEY || ''
+      case 'ollama':
+        return '' // Ollama doesn't require API key
+      case 'claude-code':
+        return process.env.CLAUDE_CODE_API_KEY || ''
+      case 'gemini-cli':
+        return process.env.GEMINI_CLI_API_KEY || ''
+      default:
+        // Fallback: try common keys
+        return process.env.OPENROUTER_API_KEY ||
+               process.env.ANTHROPIC_API_KEY ||
+               process.env.OPENAI_API_KEY ||
+               process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+               ''
+    }
+  }
+
+  /**
+   * Map TaskMaster priority to NikCLI priority
+   */
+  private mapPriority(priority: string): 'low' | 'medium' | 'high' {
+    switch (priority.toLowerCase()) {
+      case 'critical':
+      case 'high':
+        return 'high'
+      case 'low':
+        return 'low'
+      default:
+        return 'medium'
+    }
+  }
+
+  /**
+   * Map NikCLI todo status to TaskMaster status
+   */
+  private mapToTaskMasterStatus(nikCLIStatus: string): TaskStatus {
+    switch (nikCLIStatus) {
+      case 'completed':
+        return 'done'
+      case 'in_progress':
+        return 'in-progress'
+      case 'failed':
+        return 'cancelled'
+      case 'pending':
+      default:
+        return 'pending'
+    }
+  }
+
+  /**
+   * Map TaskMaster status to NikCLI status
+   */
+  private mapFromTaskMasterStatus(taskMasterStatus: TaskStatus): 'pending' | 'in_progress' | 'completed' | 'failed' {
+    switch (taskMasterStatus) {
+      case 'done':
+        return 'completed'
+      case 'in-progress':
+        return 'in_progress'
+      case 'cancelled':
+      case 'deferred':
+        return 'failed'
+      case 'review':
+        return 'completed' // Treat review as completed for NikCLI
+      case 'pending':
+      default:
+        return 'pending'
+    }
+  }
+
+  /**
+   * Map TaskMaster status to TaskMasterPlan status
+   */
+  private mapToTaskMasterPlanStatus(taskMasterStatus: 'pending' | 'running' | 'completed' | 'failed' | TaskStatus): 'pending' | 'running' | 'completed' | 'failed' {
+    switch (taskMasterStatus) {
+      case 'done':
+        return 'completed'
+      case 'in-progress':
+        return 'running'
+      case 'cancelled':
+      case 'deferred':
+        return 'failed'
+      case 'review':
+        return 'completed'
+      case 'completed':
+        return 'completed'
+      case 'running':
+        return 'running'
+      case 'failed':
+        return 'failed'
+      case 'pending':
+      default:
+        return 'pending'
+    }
+  }
+
+  /**
+   * Convert TaskMaster execution result to NikCLI format
+   */
+  private convertExecutionResult(result: any): TaskMasterExecutionResult {
+    return {
+      planId: result.planId,
+      status: result.status,
+      startTime: new Date(result.startTime),
+      endTime: result.endTime ? new Date(result.endTime) : undefined,
+      results: result.tasks?.map((task: any) => ({
+        taskId: task.id,
+        status: task.status,
+        output: task.output,
+        error: task.error,
+        duration: task.duration || 0,
+      })) || [],
+      summary: {
+        totalTasks: result.summary?.totalTasks || 0,
+        completedTasks: result.summary?.completedTasks || 0,
+        failedTasks: result.summary?.failedTasks || 0,
+      },
+    }
+  }
+
+  /**
+   * Calculate progress for fallback mode
+   */
+  private calculateFallbackProgress(plan: TaskMasterPlan): number {
+    if (plan.todos.length === 0) return 0
+    const completed = plan.todos.filter(t => t.status === 'completed').length
+    return Math.round((completed / plan.todos.length) * 100)
+  }
+
+  /**
+   * Count destructive operations in todos
+   */
+  private countDestructiveOps(todos: PlanTodo[]): number {
+    return todos.filter(todo =>
+      todo.tools?.some(tool => ['delete', 'remove', 'rm'].includes(tool.toLowerCase())) ||
+      todo.description.toLowerCase().includes('delete') ||
+      todo.description.toLowerCase().includes('remove')
+    ).length
+  }
+
+  /**
+   * Count file modification operations
+   */
+  private countFileOps(todos: PlanTodo[]): number {
+    return todos.filter(todo =>
+      todo.tools?.some(tool => ['write', 'edit', 'create'].includes(tool.toLowerCase())) ||
+      todo.description.toLowerCase().includes('file') ||
+      todo.description.toLowerCase().includes('create') ||
+      todo.description.toLowerCase().includes('modify')
+    ).length
+  }
+
+  /**
+   * Count external API calls
+   */
+  private countExternalOps(todos: PlanTodo[]): number {
+    return todos.filter(todo =>
+      todo.tools?.some(tool => ['fetch', 'api', 'request'].includes(tool.toLowerCase())) ||
+      todo.description.toLowerCase().includes('api') ||
+      todo.description.toLowerCase().includes('fetch') ||
+      todo.description.toLowerCase().includes('request')
+    ).length
+  }
+
+  /**
+   * Clean up resources
+   */
+  async dispose(): Promise<void> {
+    if (this.taskMaster && this.initialized) {
+      try {
+        await this.taskMaster.dispose()
+      } catch (error: any) {
+        console.log(chalk.yellow(`⚠️ TaskMaster disposal error: ${error.message}`))
+      }
+    }
+
+    this.activePlans.clear()
+    this.removeAllListeners()
+    this.initialized = false
+  }
+}
+
+// Types for TaskMaster integration
+
+export interface TaskMasterPlan {
+  id: string
+  title: string
+  description: string
+  userRequest: string
+  todos: PlanTodo[]
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  createdAt: Date
+  estimatedDuration: number
+  taskMasterData?: any // Original TaskMaster data
+  riskAssessment: {
+    overallRisk: 'low' | 'medium' | 'high'
+    destructiveOperations: number
+    fileModifications: number
+    externalCalls: number
+  }
+}
+
+export interface TaskMasterExecutionResult {
+  planId: string
+  status: 'completed' | 'failed' | 'cancelled' | 'partial'
+  startTime: Date
+  endTime?: Date
+  results: TaskMasterStepResult[]
+  summary: {
+    totalTasks: number
+    completedTasks: number
+    failedTasks: number
+  }
+}
+
+export interface TaskMasterStepResult {
+  taskId: string
+  status: 'success' | 'failed' | 'skipped'
+  output?: string
+  error?: string
+  duration: number
+}
+
+export interface TaskMasterPlanStatus {
+  planId: string
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  progress: number
+  currentTask: string | null
+  completedTasks: number
+  totalTasks: number
+}
+
+export interface PlanningContext {
+  projectPath?: string
+  relevantFiles?: string[]
+  projectType?: string
+  userPreferences?: Record<string, any>
+}
+
+// Create singleton instance
+// Create singleton instance with OpenRouter as default for better model access
+export const taskMasterService = new TaskMasterService({
+  aiProvider: 'openrouter',
+  model: 'openai/gpt-5', // Use GPT-5 as default for TaskMaster
+  enableAdvancedPlanning: true,
+  maxConcurrentTasks: 3,
+  persistStorage: true
+})

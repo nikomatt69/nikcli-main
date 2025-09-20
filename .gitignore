@@ -403,3 +403,19 @@ src/tui/providers/src/index.ts
 src/tui/providers/src/OllamaProvider.ts
 src/tui/providers/src/OpenAIProvider.ts
 src/tui/providers/src/types/shims.d.ts
+
+logs
+dev-debug.log
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+
+# Task files
+# tasks.json
+# tasks/ 

@@ -2,7 +2,10 @@
   "compilerOptions": {
     "isolatedModules": true,
     "target": "es2020",
-    "lib": ["es2020", "ES2015"],
+    "lib": [
+      "es2020",
+      "ES2015"
+    ],
     "module": "commonjs",
     "moduleResolution": "node",
     "allowJs": true,
@@ -29,15 +32,37 @@
     "removeComments": true,
     "jsx": "react-jsx",
     "paths": {
-      "@/*": ["*"],
-      "@cli/*": ["cli/*"],
-      "@agents/*": ["cli/automation/agents/*"],
-      "@core/*": ["cli/core/*"],
-      "@utils/*": ["cli/utils/*"],
-      "@tools/*": ["cli/tools/*"],
-      "@ai/*": ["cli/ai/*"]
+      "@/*": [
+        "*"
+      ],
+      "@cli/*": [
+        "cli/*"
+      ],
+      "@agents/*": [
+        "cli/automation/agents/*"
+      ],
+      "@core/*": [
+        "cli/core/*"
+      ],
+      "@utils/*": [
+        "cli/utils/*"
+      ],
+      "@tools/*": [
+        "cli/tools/*"
+      ],
+      "@ai/*": [
+        "cli/ai/*"
+      ]
     }
   },
-  "include": ["src/cli/**/*.ts", "src/cli/**/*.tsx"],
-  "exclude": ["node_modules", "dist", ".next", "tests"]
+  "include": [
+    "src/cli/**/*.ts",
+    "src/cli/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".next",
+    "tests"
+  ]
 }

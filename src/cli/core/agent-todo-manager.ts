@@ -1,5 +1,7 @@
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
+import { taskMasterService } from '../services/taskmaster-service'
+import { createTaskMasterAdapter } from '../adapters/taskmaster-adapter'
 
 export interface AgentTodo {
   id: string
@@ -39,6 +41,8 @@ export class AgentTodoManager {
   private todos: Map<string, AgentTodo> = new Map()
   private workPlans: Map<string, AgentWorkPlan> = new Map()
   private agentContexts: Map<string, any> = new Map()
+  private taskMasterAdapter = createTaskMasterAdapter(taskMasterService)
+  private useTaskMaster = true
 
   // Create a new work plan for an agent
   createWorkPlan(agentId: string, goal: string): AgentWorkPlan {
@@ -56,22 +60,67 @@ export class AgentTodoManager {
     return plan
   }
 
-  // Agent creates its own todos based on a goal
+  // Agent creates its own todos based on a goal with TaskMaster AI enhancement
   async planTodos(agentId: string, goal: string, context?: any): Promise<AgentTodo[]> {
-    console.log(chalk.blue(`🧠 Agent ${agentId} is planning todos for: ${goal}`))
+    console.log(chalk.blue(`🧠 Agent ${agentId} is planning todos for: ${goal}${this.useTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable() ? ' (TaskMaster AI)' : ''}`))
 
     // Store agent context
     if (context) {
       this.agentContexts.set(agentId, context)
     }
 
-    // Simulate AI planning (this would call the AI model)
-    const plannedTodos = await this.generateTodosFromGoal(agentId, goal, context)
+    let plannedTodos: AgentTodo[]
+
+    // Try TaskMaster first if available
+    if (this.useTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable()) {
+      try {
+        console.log(chalk.cyan(`🤖 Using TaskMaster AI for agent ${agentId} planning...`))
+
+        // Create TaskMaster plan for the agent
+        const taskMasterPlan = await taskMasterService.createPlan(goal, {
+          projectPath: process.cwd(),
+          relevantFiles: context?.files || [],
+          projectType: 'agent-task',
+        })
+
+        // Convert TaskMaster todos to AgentTodos
+        plannedTodos = taskMasterPlan.todos.map(todo =>
+          this.taskMasterAdapter.taskMasterToAgentTodo(todo, agentId)
+        )
+
+        console.log(chalk.green(`✅ TaskMaster AI generated ${plannedTodos.length} todos for agent ${agentId}`))
+      } catch (error: any) {
+        console.log(chalk.yellow(`⚠️ TaskMaster planning failed for agent ${agentId}: ${error.message}`))
+        console.log(chalk.cyan(`🔄 Falling back to rule-based planning...`))
+
+        // Fallback to rule-based planning
+        plannedTodos = await this.generateTodosFromGoal(agentId, goal, context)
+      }
+    } else {
+      // Use rule-based planning
+      plannedTodos = await this.generateTodosFromGoal(agentId, goal, context)
+    }
 
     // Add todos to the agent's collection
     plannedTodos.forEach((todo) => {
       this.todos.set(todo.id, todo)
     })
+
+    // Sync with TaskMaster if possible
+    if (this.useTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable()) {
+      try {
+        // Find or create agent work plan in TaskMaster
+        const workPlan = this.createWorkPlan(agentId, goal)
+        workPlan.todos = plannedTodos
+
+        const taskMasterPlan = this.taskMasterAdapter.workPlanToTaskMaster(workPlan)
+        await taskMasterService.updatePlan(taskMasterPlan.id, taskMasterPlan)
+
+        console.log(chalk.cyan(`🔄 Synced agent ${agentId} todos with TaskMaster`))
+      } catch (syncError: any) {
+        console.log(chalk.gray(`ℹ️ TaskMaster sync failed: ${syncError.message}`))
+      }
+    }
 
     console.log(chalk.green(`📋 Agent ${agentId} created ${plannedTodos.length} todos:`))
     plannedTodos.forEach((todo, index) => {
@@ -549,6 +598,65 @@ export class AgentTodoManager {
     })
 
     return completedTodos.length
+  }
+
+  /**
+   * Enable or disable TaskMaster integration
+   */
+  setTaskMasterEnabled(enabled: boolean): void {
+    this.useTaskMaster = enabled
+    console.log(chalk.cyan(`🤖 TaskMaster integration ${enabled ? 'enabled' : 'disabled'} for agent todo manager`))
+  }
+
+  /**
+   * Check if TaskMaster is available
+   */
+  isTaskMasterAvailable(): boolean {
+    return this.taskMasterAdapter.isTaskMasterAvailable()
+  }
+
+  /**
+   * Get TaskMaster integration stats
+   */
+  getTaskMasterStats(): any {
+    return {
+      ...this.taskMasterAdapter.getAdapterStats(),
+      agentTodosCount: this.todos.size,
+      workPlansCount: this.workPlans.size,
+      integrationEnabled: this.useTaskMaster,
+    }
+  }
+
+  /**
+   * Sync agent todos with TaskMaster manually
+   */
+  async syncWithTaskMaster(agentId: string): Promise<void> {
+    if (!this.useTaskMaster || !this.taskMasterAdapter.isTaskMasterAvailable()) {
+      console.log(chalk.yellow('⚠️ TaskMaster not available for sync'))
+      return
+    }
+
+    try {
+      const agentTodos = this.getAgentTodos(agentId)
+      const sessionTodos = agentTodos.map(todo => ({
+        id: todo.id,
+        content: todo.title,
+        status: todo.status === 'planning' ? 'pending' : todo.status,
+        priority: todo.priority === 'critical' ? 'high' : todo.priority,
+        progress: todo.progress,
+      }))
+
+      const { unified, conflicts } = await this.taskMasterAdapter.syncTodos(sessionTodos as any, agentTodos)
+
+      console.log(chalk.green(`✅ Synced ${unified.length} todos with TaskMaster for agent ${agentId}`))
+
+      if (conflicts.length > 0) {
+        console.log(chalk.yellow(`⚠️ ${conflicts.length} conflicts detected:`))
+        conflicts.forEach(conflict => console.log(chalk.gray(`   - ${conflict}`)))
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ TaskMaster sync failed: ${error.message}`))
+    }
   }
 }
 

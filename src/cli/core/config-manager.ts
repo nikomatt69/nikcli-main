@@ -802,9 +802,9 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'x-ai/grok-3-mini',
     },
-    'openrouter/sonoma-sky-alpha': {
+    'x-ai/grok-4-fast:free': {
       provider: 'openrouter',
-      model: 'openrouter/sonoma-sky-alpha',
+      model: 'x-ai/grok-4-fast:free',
     },
     'x-ai/grok-code-fast-1': {
       provider: 'openrouter',

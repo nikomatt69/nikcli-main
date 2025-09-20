@@ -4343,7 +4343,7 @@ export class NikCLI {
   }
 
   /**
-   * Plan mode: Generate comprehensive plan with todo.md and request approval
+   * Plan mode: Generate comprehensive plan with TaskMaster AI and todo.md
    */
   private async handlePlanMode(input: string): Promise<void> {
     // Force compact mode for cleaner stream in plan flow
@@ -4351,24 +4351,63 @@ export class NikCLI {
       process.env.NIKCLI_COMPACT = '1'
       process.env.NIKCLI_SUPER_COMPACT = '1'
     } catch {}
-    console.log(chalk.blue('🎯 Entering Enhanced Planning Mode...'))
+    console.log(chalk.blue('🎯 Entering Enhanced Planning Mode with TaskMaster AI...'))
 
     try {
       // Start progress indicator using our new methods
       const planningId = 'planning-' + Date.now()
-      this.createStatusIndicator(planningId, 'Generating comprehensive plan', input)
+      this.createStatusIndicator(planningId, 'Generating comprehensive plan with TaskMaster AI', input)
       this.startAdvancedSpinner(planningId, 'Analyzing requirements and generating plan...')
 
-      // Generate comprehensive plan with todo.md (compact output in chat flow)
-      const plan = await enhancedPlanning.generatePlan(input, {
-        maxTodos: 15,
-        includeContext: true,
-        showDetails: false, // avoid verbose list in chat stream; dashboard will render todos
-        saveTodoFile: true,
-        todoFilePath: 'todo.md',
-      })
+      // Try TaskMaster first, fallback to enhanced planning
+      let plan: any
+      let usedTaskMaster = false
 
-      this.stopAdvancedSpinner(planningId, true, `Plan generated with ${plan.todos.length} todos`)
+      try {
+        // Use the singleton planning service with TaskMaster integration
+        const executionPlan = await planningService.createPlan(input, {
+          showProgress: false, // We'll handle our own progress
+          autoExecute: false,
+          confirmSteps: true,
+          useTaskMaster: true, // Enable TaskMaster
+          fallbackToLegacy: true, // Allow fallback
+        })
+
+        // Convert ExecutionPlan to the format expected by existing code
+        plan = {
+          id: executionPlan.id,
+          title: executionPlan.title,
+          description: executionPlan.description,
+          todos: executionPlan.todos || [],
+          estimatedTotalDuration: Math.round(executionPlan.estimatedTotalDuration / 1000 / 60), // Convert ms to minutes
+          riskAssessment: executionPlan.riskAssessment,
+          userRequest: input,
+        }
+
+        usedTaskMaster = true
+        console.log(chalk.green('✅ TaskMaster AI plan generated'))
+
+        // Save TaskMaster plan to todo.md for compatibility
+        try {
+          await this.saveTaskMasterPlanToFile(plan, 'todo.md')
+        } catch (saveError: any) {
+          console.log(chalk.yellow(`⚠️ Could not save todo.md: ${saveError.message}`))
+        }
+      } catch (error: any) {
+        console.log(chalk.yellow(`⚠️ TaskMaster planning failed: ${error.message}`))
+        console.log(chalk.cyan('🔄 Falling back to enhanced planning...'))
+
+        // Fallback to original enhanced planning
+        plan = await enhancedPlanning.generatePlan(input, {
+          maxTodos: 15,
+          includeContext: true,
+          showDetails: false,
+          saveTodoFile: true,
+          todoFilePath: 'todo.md',
+        })
+      }
+
+      this.stopAdvancedSpinner(planningId, true, `Plan generated with ${plan.todos.length} todos${usedTaskMaster ? ' (TaskMaster AI)' : ' (Enhanced)'}`)
 
       // Show plan summary (only in non-compact mode)
       if (process.env.NIKCLI_COMPACT !== '1') {
@@ -4378,8 +4417,8 @@ export class NikCLI {
         console.log(chalk.cyan(`⏱️  Estimated duration: ${Math.round(plan.estimatedTotalDuration)} minutes`))
       }
 
-      // Request approval via enhancedPlanning to keep single approval flow
-      const approved = await enhancedPlanning.requestPlanApproval(plan.id)
+      // Request approval using TaskMaster integration
+      const approved = await this.requestPlanApproval(plan.id, plan)
 
       if (approved) {
         if (this.executionInProgress) {
@@ -4462,7 +4501,8 @@ export class NikCLI {
       console.log(chalk.dim('🎨 Plan Mode - Activating event streaming for execution...'))
       this.subscribeToAllEventSources()
 
-      await enhancedPlanning.executePlan(planId)
+      // Use TaskMaster-enabled planning service for execution
+      await this.executePlanWithTaskMaster(planId)
     } catch (error: any) {
       console.log(chalk.red(`❌ Plan execution failed: ${error.message}`))
       throw error
@@ -4757,28 +4797,31 @@ export class NikCLI {
       this.createStatusIndicator(planningId, 'Generating comprehensive plan', task)
       this.startAdvancedSpinner(planningId, 'Analyzing requirements and generating plan...')
 
-      // Use enhanced planning service like in plan mode
-      const plan = await enhancedPlanning.generatePlan(task, {
-        maxTodos: 15,
-        includeContext: true,
-        showDetails: true,
-        saveTodoFile: true,
-        todoFilePath: 'todo.md',
+      // Use TaskMaster-enabled planning service
+      const plan = await planningService.createPlan(task, {
+        showProgress: false, // We handle our own progress
+        autoExecute: false,
+        confirmSteps: false,
+        useTaskMaster: true,
+        fallbackToLegacy: true,
       })
 
-      this.stopAdvancedSpinner(planningId, true, `Plan generated with ${plan.todos.length} todos`)
+      this.stopAdvancedSpinner(planningId, true, `Plan generated with ${plan.todos?.length || plan.steps?.length} todos`)
 
       // Show plan summary like in plan mode
       console.log(chalk.blue.bold('\n📋 Plan Generated:'))
       console.log(chalk.green(`✓ Todo file saved: ${path.join(this.workingDirectory, 'todo.md')}`))
-      console.log(chalk.cyan(`📊 ${plan.todos.length} todos created`))
+      console.log(chalk.cyan(`📊 ${plan.todos?.length || plan.steps?.length} todos created`))
       console.log(chalk.cyan(`⏱️  Estimated duration: ${Math.round(plan.estimatedTotalDuration)} minutes`))
+
+      // Save plan to todo.md for compatibility
+      await this.savePlanToTodoFile(plan)
 
       // Plan is already saved to todo.md by enhancedPlanning
 
       if (options.execute) {
         // Use enhanced approval system
-        const approved = await enhancedPlanning.requestPlanApproval(plan.id)
+        const approved = await this.requestPlanApproval(plan.id, plan)
         if (approved) {
           if (this.executionInProgress) {
             console.log(chalk.yellow('⚠️  Execution already in progress, please wait...'))
@@ -4788,7 +4831,7 @@ export class NikCLI {
           this.executionInProgress = true
           console.log(chalk.green('\n🚀 Executing plan...'))
           try {
-            await this.executeAdvancedPlan(plan.id)
+            await this.executePlanWithTaskMaster(plan.id)
           } finally {
             this.executionInProgress = false
           }
@@ -15474,6 +15517,169 @@ Generated by NikCLI on ${new Date().toISOString()}
   /**
    * Show status of all MCP servers
    */
+
+  /**
+   * Save TaskMaster plan to file in todo.md format
+   */
+  private async saveTaskMasterPlanToFile(plan: any, filename: string): Promise<void> {
+    try {
+      const fs = await import('node:fs/promises')
+      const path = await import('node:path')
+
+      const todoContent = this.formatTaskMasterPlanAsTodo(plan)
+      const filePath = path.join(this.workingDirectory, filename)
+
+      await fs.writeFile(filePath, todoContent, 'utf-8')
+      console.log(chalk.green(`✅ TaskMaster plan saved to ${filename}`))
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to save plan to ${filename}: ${error.message}`))
+      throw error
+    }
+  }
+
+  /**
+   * Format TaskMaster plan as todo.md content
+   */
+  private formatTaskMasterPlanAsTodo(plan: any): string {
+    const timestamp = new Date().toISOString()
+    const riskLevel = plan.riskAssessment?.overallRisk || 'medium'
+    const estimatedDuration = plan.estimatedTotalDuration || 0
+
+    let content = `# TaskMaster AI Plan: ${plan.title}\n\n`
+    content += `**Generated:** ${timestamp}\n`
+    content += `**Planning Engine:** TaskMaster AI\n`
+    content += `**Request:** ${plan.userRequest}\n`
+    content += `**Risk Level:** ${riskLevel}\n`
+    content += `**Estimated Duration:** ${estimatedDuration} minutes\n\n`
+
+    if (plan.description) {
+      content += `## Description\n\n${plan.description}\n\n`
+    }
+
+    if (plan.riskAssessment) {
+      content += `## Risk Assessment\n\n`
+      content += `- **Overall Risk:** ${plan.riskAssessment.overallRisk}\n`
+      content += `- **Destructive Operations:** ${plan.riskAssessment.destructiveOperations}\n`
+      content += `- **File Modifications:** ${plan.riskAssessment.fileModifications}\n`
+      content += `- **External Calls:** ${plan.riskAssessment.externalCalls}\n\n`
+    }
+
+    content += `## Tasks\n\n`
+
+    plan.todos.forEach((todo: any, index: number) => {
+      const statusIcon = todo.status === 'completed' ? '✅' :
+                        todo.status === 'in_progress' ? '🔄' :
+                        todo.status === 'failed' ? '❌' : '⏳'
+
+      const priorityIcon = todo.priority === 'high' ? '🔴' :
+                          todo.priority === 'medium' ? '🟡' : '🟢'
+
+      content += `### ${index + 1}. ${statusIcon} ${todo.title} ${priorityIcon}\n\n`
+
+      if (todo.description) {
+        content += `**Description:** ${todo.description}\n\n`
+      }
+
+      if (todo.estimatedDuration) {
+        content += `**Estimated Duration:** ${todo.estimatedDuration} minutes\n\n`
+      }
+
+      if (todo.tools && todo.tools.length > 0) {
+        content += `**Tools:** ${todo.tools.join(', ')}\n\n`
+      }
+
+      if (todo.reasoning) {
+        content += `**Reasoning:** ${todo.reasoning}\n\n`
+      }
+
+      content += `**Status:** ${todo.status}\n`
+      content += `**Priority:** ${todo.priority}\n`
+
+      if (todo.progress !== undefined) {
+        content += `**Progress:** ${todo.progress}%\n`
+      }
+
+      content += '\n---\n\n'
+    })
+
+    content += `## Summary\n\n`
+    content += `- **Total Tasks:** ${plan.todos.length}\n`
+    content += `- **Pending:** ${plan.todos.filter((t: any) => t.status === 'pending').length}\n`
+    content += `- **In Progress:** ${plan.todos.filter((t: any) => t.status === 'in_progress').length}\n`
+    content += `- **Completed:** ${plan.todos.filter((t: any) => t.status === 'completed').length}\n`
+    content += `- **Failed:** ${plan.todos.filter((t: any) => t.status === 'failed').length}\n\n`
+
+    content += `*Generated by TaskMaster AI integrated with NikCLI*\n`
+
+    return content
+  }
+
+  /**
+   * Save ExecutionPlan to todo.md file for compatibility
+   */
+  private async savePlanToTodoFile(plan: any): Promise<void> {
+    try {
+      const todoPath = path.join(this.workingDirectory, 'todo.md')
+      let content = `# ${plan.title}\n\n`
+      content += `${plan.description}\n\n`
+      content += `**Generated:** ${new Date().toLocaleString()}\n`
+      content += `**Estimated Duration:** ${Math.round(plan.estimatedTotalDuration)} minutes\n\n`
+      content += `## Tasks\n\n`
+
+      const tasks = plan.todos || plan.steps || []
+      tasks.forEach((task: any, index: number) => {
+        const status = task.status === 'pending' ? '⏳' :
+                      task.status === 'completed' ? '✅' :
+                      task.status === 'in_progress' ? '🔄' : '❌'
+        content += `${index + 1}. ${status} **${task.title}**\n`
+        if (task.description) {
+          content += `   ${task.description}\n`
+        }
+        content += `\n`
+      })
+
+      content += `\n*Generated by TaskMaster AI integrated with NikCLI*\n`
+      await fs.writeFile(todoPath, content, 'utf-8')
+      console.log(chalk.green(`✓ Todo file saved: ${todoPath}`))
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Failed to save todo.md: ${error.message}`))
+    }
+  }
+
+  /**
+   * Request plan approval from user
+   */
+  private async requestPlanApproval(planId: string, plan: any): Promise<boolean> {
+    const tasks = plan.todos || plan.steps || []
+    console.log(chalk.blue.bold('\n📋 Plan Summary:'))
+    console.log(chalk.cyan(`📊 ${tasks.length} tasks`))
+    console.log(chalk.cyan(`⏱️ Estimated duration: ${Math.round(plan.estimatedTotalDuration)} minutes`))
+
+    const { approved } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'approved',
+      message: 'Do you want to execute this plan?',
+      default: false
+    }])
+
+    return approved
+  }
+
+  /**
+   * Execute plan using TaskMaster integration
+   */
+  private async executePlanWithTaskMaster(planId: string): Promise<void> {
+    try {
+      await planningService.executePlan(planId, {
+        showProgress: true,
+        autoExecute: true,
+        confirmSteps: false
+      })
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Plan execution failed: ${error.message}`))
+      throw error
+    }
+  }
 }
 
 // Global instance for access from other modules

@@ -4,11 +4,15 @@ import { AutonomousPlanner } from '../planning/autonomous-planner'
 import { PlanGenerator } from '../planning/plan-generator'
 import type { ExecutionPlan, PlannerContext, PlanningToolCapability, PlanTodo } from '../planning/types'
 import { type ToolCapability, toolService } from './tool-service'
+import { taskMasterService, type TaskMasterService } from './taskmaster-service'
+import { createTaskMasterAdapter, type TaskMasterAdapter } from '../adapters/taskmaster-adapter'
 
 export interface PlanningOptions {
   showProgress: boolean
   autoExecute: boolean
   confirmSteps: boolean
+  useTaskMaster?: boolean // New option to enable TaskMaster
+  fallbackToLegacy?: boolean // Fallback option
 }
 
 export class PlanningService {
@@ -17,11 +21,39 @@ export class PlanningService {
   private activePlans: Map<string, ExecutionPlan> = new Map()
   private workingDirectory: string = process.cwd()
   private availableTools: ToolCapability[] = []
+  private taskMasterAdapter: TaskMasterAdapter
+  private useTaskMasterByDefault: boolean = true
 
   constructor() {
     this.planGenerator = new PlanGenerator()
     this.autonomousPlanner = new AutonomousPlanner(this.workingDirectory)
+    this.taskMasterAdapter = createTaskMasterAdapter(taskMasterService)
     this.initializeTools()
+    this.initializeTaskMaster()
+  }
+
+  /**
+   * Initialize TaskMaster service
+   */
+  private async initializeTaskMaster(): Promise<void> {
+    try {
+      await taskMasterService.initialize()
+      console.log(chalk.green('✅ TaskMaster planning integration enabled'))
+
+      // Listen for TaskMaster events
+      this.taskMasterAdapter.on('initialized', () => {
+        console.log(chalk.cyan('🔄 TaskMaster adapter ready'))
+      })
+
+      this.taskMasterAdapter.on('fallback', () => {
+        console.log(chalk.yellow('⚠️ TaskMaster unavailable, using legacy planning'))
+        this.useTaskMasterByDefault = false
+      })
+
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ TaskMaster initialization failed: ${error.message}`))
+      this.useTaskMasterByDefault = false
+    }
   }
 
   /**
@@ -160,10 +192,65 @@ export class PlanningService {
       showProgress: true,
       autoExecute: false,
       confirmSteps: true,
+      useTaskMaster: undefined, // Auto-detect
+      fallbackToLegacy: true,
     }
   ): Promise<ExecutionPlan> {
     console.log(chalk.blue('🎯 Creating execution plan...'))
 
+    // Determine whether to use TaskMaster
+    const shouldUseTaskMaster = options.useTaskMaster ?? this.useTaskMasterByDefault
+
+    let plan: ExecutionPlan
+
+    if (shouldUseTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable()) {
+      try {
+        console.log(chalk.cyan('🤖 Using TaskMaster AI for advanced planning...'))
+
+        // Use TaskMaster for enhanced planning
+        plan = await this.taskMasterAdapter.createEnhancedPlan(userRequest, {
+          projectPath: this.workingDirectory,
+          relevantFiles: await this.getProjectFiles(),
+          projectType: await this.detectProjectType(),
+        })
+
+        console.log(chalk.green('✅ TaskMaster plan generated'))
+      } catch (error: any) {
+        console.log(chalk.yellow(`⚠️ TaskMaster planning failed: ${error.message}`))
+
+        if (!options.fallbackToLegacy) {
+          throw error
+        }
+
+        console.log(chalk.cyan('🔄 Falling back to legacy planning...'))
+        plan = await this.createLegacyPlan(userRequest, options)
+      }
+    } else {
+      // Use legacy planning
+      if (shouldUseTaskMaster) {
+        console.log(chalk.yellow('⚠️ TaskMaster not available, using legacy planning'))
+      }
+      plan = await this.createLegacyPlan(userRequest, options)
+    }
+
+    // Store the plan
+    this.activePlans.set(plan.id, plan)
+
+    // Sync with existing systems
+    await this.syncPlanWithSystems(plan)
+
+    if (options.showProgress) {
+      this.displayPlan(plan)
+      await this.showDashboard(plan)
+    }
+
+    return plan
+  }
+
+  /**
+   * Create plan using legacy planning system
+   */
+  private async createLegacyPlan(userRequest: string, options: PlanningOptions): Promise<ExecutionPlan> {
     const context: PlannerContext = {
       userRequest,
       availableTools: this.convertToPlanningTools(this.availableTools),
@@ -171,6 +258,7 @@ export class PlanningService {
     }
 
     const plan = await this.planGenerator.generatePlan(context)
+
     // Ensure plan has todos derived from steps for UI/dashboard purposes
     if (!plan.todos || plan.todos.length === 0) {
       try {
@@ -191,42 +279,6 @@ export class PlanningService {
       } catch {
         // leave as is
       }
-    }
-    this.activePlans.set(plan.id, plan)
-
-    // Sync with session TodoStore (Claude-style) for Plan Mode cohesion
-    try {
-      const globalAny: any = global as any
-      const sessionId =
-        globalAny.__streamingOrchestrator?.context?.session?.id ||
-        globalAny.__nikCLI?.context?.session?.id ||
-        `${Date.now()}`
-      const { todoStore } = await import('../store/todo-store')
-      const list = (plan.todos || []).map((t: any) => ({
-        id: String(t.id || nanoid()),
-        content: String(t.title || t.description || ''),
-        status: (t.status || 'pending') as any,
-        priority: (t.priority || 'medium') as any,
-        progress: typeof t.progress === 'number' ? t.progress : 0,
-      }))
-      if (list.length > 0) {
-        todoStore.setTodos(String(sessionId), list)
-      }
-    } catch {}
-
-    if (options.showProgress) {
-      this.displayPlan(plan)
-      // Show dashboard panel if UI is available
-      try {
-        const { advancedUI } = await import('../ui/advanced-cli-ui')
-        const todoItems = (plan.todos || []).map((t) => ({
-          content: (t as any).title || (t as any).description,
-          status: (t as any).status,
-          priority: (t as any).priority,
-          progress: (t as any).progress,
-        }))
-        ;(advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
-      } catch {}
     }
 
     return plan
@@ -500,6 +552,139 @@ export class PlanningService {
       completed: plans.filter((p) => p.status === 'completed').length,
       failed: plans.filter((p) => p.status === 'failed').length,
     }
+  }
+
+  /**
+   * Sync plan with existing todo systems
+   */
+  private async syncPlanWithSystems(plan: ExecutionPlan): Promise<void> {
+    try {
+      // Sync with session TodoStore (Claude-style) for Plan Mode cohesion
+      const globalAny: any = global as any
+      const sessionId =
+        globalAny.__streamingOrchestrator?.context?.session?.id ||
+        globalAny.__nikCLI?.context?.session?.id ||
+        `${Date.now()}`
+
+      const { todoStore } = await import('../store/todo-store')
+      const list = (plan.todos || []).map((t: any) => ({
+        id: String(t.id || nanoid()),
+        content: String(t.title || t.description || ''),
+        status: (t.status || 'pending') as any,
+        priority: (t.priority || 'medium') as any,
+        progress: typeof t.progress === 'number' ? t.progress : 0,
+      }))
+
+      if (list.length > 0) {
+        todoStore.setTodos(String(sessionId), list)
+      }
+    } catch (error: any) {
+      console.log(chalk.gray(`ℹ️ Could not sync with todo store: ${error.message}`))
+    }
+  }
+
+  /**
+   * Show dashboard for plan
+   */
+  private async showDashboard(plan: ExecutionPlan): Promise<void> {
+    try {
+      const { advancedUI } = await import('../ui/advanced-cli-ui')
+      const todoItems = (plan.todos || []).map((t) => ({
+        content: (t as any).title || (t as any).description,
+        status: (t as any).status,
+        priority: (t as any).priority,
+        progress: (t as any).progress,
+      }))
+      ;(advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
+    } catch (error: any) {
+      console.log(chalk.gray(`ℹ️ Could not show dashboard: ${error.message}`))
+    }
+  }
+
+  /**
+   * Get relevant project files for TaskMaster context
+   */
+  private async getProjectFiles(): Promise<string[]> {
+    try {
+      const files: string[] = []
+      // Add common important files for context
+      const importantFiles = [
+        'package.json',
+        'tsconfig.json',
+        'README.md',
+        'CLAUDE.md',
+        '.gitignore',
+        'Dockerfile',
+        'docker-compose.yml',
+      ]
+
+      for (const file of importantFiles) {
+        try {
+          const fs = await import('node:fs/promises')
+          await fs.access(`${this.workingDirectory}/${file}`)
+          files.push(file)
+        } catch {
+          // File doesn't exist, skip
+        }
+      }
+
+      return files
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Detect project type for TaskMaster context
+   */
+  private async detectProjectType(): Promise<string> {
+    try {
+      const fs = await import('node:fs/promises')
+      const packageJsonPath = `${this.workingDirectory}/package.json`
+
+      try {
+        const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'))
+
+        // Detect based on dependencies
+        const deps = { ...packageJson.dependencies, ...packageJson.devDependencies }
+
+        if (deps.react || deps['@types/react']) return 'react'
+        if (deps.next || deps.nextjs) return 'nextjs'
+        if (deps.vue || deps['@vue/cli']) return 'vue'
+        if (deps.angular || deps['@angular/core']) return 'angular'
+        if (deps.express || deps.fastify) return 'nodejs-backend'
+        if (deps.typescript || deps['@types/node']) return 'typescript'
+
+        return 'nodejs'
+      } catch {
+        // Check for other indicators
+        const files = await fs.readdir(this.workingDirectory)
+
+        if (files.includes('Cargo.toml')) return 'rust'
+        if (files.includes('go.mod')) return 'go'
+        if (files.includes('requirements.txt') || files.includes('pyproject.toml')) return 'python'
+        if (files.includes('pom.xml')) return 'java'
+
+        return 'unknown'
+      }
+    } catch {
+      return 'unknown'
+    }
+  }
+
+  /**
+   * Enable or disable TaskMaster
+   */
+  setTaskMasterEnabled(enabled: boolean): void {
+    this.useTaskMasterByDefault = enabled
+    console.log(chalk.cyan(`🤖 TaskMaster planning ${enabled ? 'enabled' : 'disabled'}`))
+  }
+
+  /**
+   * Get TaskMaster adapter statistics
+   */
+  getTaskMasterStats(): any {
+    return this.taskMasterAdapter.getAdapterStats()
   }
 }
 
