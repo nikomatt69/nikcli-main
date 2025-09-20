@@ -35,7 +35,7 @@ export const ToolMetadataSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
-  version: z.string().default('0.1.6'),
+  version: z.string().default('0.1.7'),
   author: z.string().optional(),
   category: z.enum([
     'file-ops',
