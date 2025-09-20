@@ -1153,8 +1153,10 @@ export class ApprovalSystem extends EventEmitter {
 
     if (!config) return false
 
-    // Auto-approve plan execution if enabled
-    if (request.type === 'plan' && config.planExecution) return true
+    // For plan execution, only allow auto-approval when explicitly enabled
+    if (request.type === 'plan') {
+      return !!config.planExecution
+    }
 
     // Check risk level auto-approval
     if (request.riskLevel === 'low' && config.lowRisk) return true

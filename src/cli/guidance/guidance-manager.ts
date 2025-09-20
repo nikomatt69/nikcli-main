@@ -273,7 +273,6 @@ export class GuidanceManager {
   }
 
   private async handleFileChange(filePath: string, changeType: 'add' | 'change' | 'unlink'): Promise<void> {
-    console.log(chalk.yellow(`📝 Guidance file ${changeType}: ${path.relative(this.workingDirectory, filePath)}`))
 
     if (changeType === 'unlink') {
       this.guidanceFiles.delete(filePath)
@@ -312,11 +311,7 @@ export class GuidanceManager {
     const now = Date.now()
     if (now - this.lastContextLogAt > 1500) {
       this.lastContextLogAt = now
-      console.log(
-        chalk.green(
-          `🔄 Guidance context updated (${globalGuidance.length + projectGuidance.length + subdirGuidance.length} files)`
-        )
-      )
+
     }
 
     // Notify listeners

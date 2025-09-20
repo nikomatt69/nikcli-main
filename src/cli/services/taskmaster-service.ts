@@ -309,7 +309,7 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 10,
           progress: 0,
-          tools: ['analysis'],
+          tools: ['analyze_project', 'read_file', 'explore_directory'],
           reasoning: 'Understanding project context is crucial for successful implementation',
         },
         {
@@ -322,7 +322,7 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 15,
           progress: 0,
-          tools: ['planning'],
+          tools: ['analyze_project', 'doc_search'],
           reasoning: 'Proper planning reduces implementation complexity',
         },
         {
@@ -335,7 +335,7 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 30,
           progress: 0,
-          tools: ['coding', 'implementation'],
+          tools: ['generate_code', 'write_file', 'read_file'],
           reasoning: 'Core implementation task',
         },
         {
@@ -348,7 +348,7 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 15,
           progress: 0,
-          tools: ['testing'],
+          tools: ['execute_command', 'analyze_project'],
           reasoning: 'Ensure quality and functionality',
         }
       )
@@ -364,7 +364,7 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 15,
           progress: 0,
-          tools: ['debugging', 'analysis'],
+          tools: ['read_file', 'analyze_project', 'explore_directory'],
         },
         {
           id: nanoid(),
@@ -376,7 +376,7 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 20,
           progress: 0,
-          tools: ['coding', 'debugging'],
+          tools: ['read_file', 'write_file', 'execute_command'],
         }
       )
     } else {
@@ -390,7 +390,7 @@ export class TaskMasterService extends EventEmitter {
         updatedAt: new Date(),
         estimatedDuration: 20,
         progress: 0,
-        tools: ['general'],
+        tools: ['analyze_project', 'read_file', 'generate_code', 'write_file', 'execute_command'],
       })
     }
 

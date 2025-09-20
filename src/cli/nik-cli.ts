@@ -6,6 +6,7 @@ import cliProgress from 'cli-progress'
 import inquirer from 'inquirer'
 import ora, { type Ora } from 'ora'
 import * as readline from 'readline'
+import { nanoid } from 'nanoid'
 import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { modelProvider } from './ai/model-provider'
 import { ModernAgentOrchestrator } from './automation/agents/modern-agent-system'
@@ -46,7 +47,7 @@ import { agentService } from './services/agent-service'
 // New enhanced services
 import { cacheService } from './services/cache-service'
 import { memoryService } from './services/memory-service'
-import { planningService } from './services/planning-service'
+import { planningService, type PlanExecutionEvent } from './services/planning-service'
 import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
 import { StreamingOrchestrator } from './streaming-orchestrator'
@@ -68,6 +69,7 @@ import {
 } from './utils/text-wrapper'
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
+import { CoreTool } from 'ai'
 
 // Configure syntax highlighting for terminal output
 configureSyntaxHighlighting()
@@ -195,6 +197,27 @@ export class NikCLI {
   private statusBarStep: number = 0
   private isInquirerActive: boolean = false
   private lastBarSegments: number = -1
+
+  // Plan HUD state
+  private activePlanForHud?: {
+    id: string
+    title: string
+    description?: string
+    userRequest?: string
+    estimatedTotalDuration?: number
+    riskAssessment?: any
+    todos: Array<{
+      id: string
+      title: string
+      description?: string
+      status: 'pending' | 'in_progress' | 'completed' | 'failed'
+      priority?: string
+      progress?: number
+      reasoning?: string
+      tools?: string[]
+    }>
+  }
+  private planHudUnsubscribe?: () => void
 
   // Enhanced services
   private enhancedSessionManager: EnhancedSessionManager
@@ -831,6 +854,50 @@ export class NikCLI {
       } catch { }
     })
   }
+
+  private isPlaceholderPlan(plan: any, userRequest: string): boolean {
+    const todos = Array.isArray(plan?.todos) ? plan.todos : []
+    if (todos.length === 0) return true
+    if (todos.length > 1) return false
+    return this.isPlaceholderTodo(todos[0], userRequest)
+  }
+
+  private isPlaceholderTodo(todo: any, userRequest?: string): boolean {
+    if (!todo) return true
+
+    const title = typeof todo?.title === 'string' ? todo.title.trim().toLowerCase() : ''
+    if (!title.startsWith('task execution')) return false
+
+    const description = typeof todo?.description === 'string' ? todo.description.trim() : ''
+    const normalizedRequest = typeof userRequest === 'string' ? userRequest.trim().toLowerCase() : ''
+    const matchesRequest = description && normalizedRequest && description.toLowerCase() === normalizedRequest
+    const wordCount = description ? description.split(/\s+/).filter(Boolean).length : 0
+    const hasLongDescription = description.length > 160 || wordCount > 30
+    if (matchesRequest && normalizedRequest.length > 80) return false
+
+    const commands = Array.isArray(todo?.commands)
+      ? todo.commands.filter((cmd: unknown): cmd is string => typeof cmd === 'string' && cmd.trim().length > 0)
+      : []
+    const files = Array.isArray(todo?.files)
+      ? todo.files.filter((file: unknown): file is string => typeof file === 'string' && file.trim().length > 0)
+      : []
+
+    if (commands.length > 0 || files.length > 0) return false
+    if (hasLongDescription && !matchesRequest) return false
+
+    const defaultToolSet = new Set(['analyze_project', 'read_file', 'generate_code', 'write_file', 'execute_command'])
+    const tools = Array.isArray(todo?.tools)
+      ? todo.tools.filter((tool: unknown): tool is string => typeof tool === 'string' && tool.trim().length > 0)
+      : []
+    const hasNonDefaultTools = tools.some((tools: CoreTool & { tool: string }) => !defaultToolSet.has(tools.tool))
+    if (hasNonDefaultTools) return false
+    if (hasNonDefaultTools) return false
+
+    const duration = typeof todo?.estimatedDuration === 'number' ? todo.estimatedDuration : 0
+    if (duration > 45) return false
+
+    return true
+  }
   // Bridge StreamingOrchestrator agent lifecycle events into NikCLI output
   private orchestratorEventsInitialized = false
   private setupOrchestratorEventBridge(): void {
@@ -849,7 +916,7 @@ export class NikCLI {
       }
 
       // Render prompt after output
-      this.renderPromptAfterOutput()
+      setTimeout(() => this.renderPromptAfterOutput(), 30)
     })
 
     agentService.on('task_progress', (_task, update) => {
@@ -2816,6 +2883,8 @@ export class NikCLI {
         )
       )
 
+      this.renderPromptAfterOutput()
+
       // Processa il prossimo input se disponibile
       setTimeout(() => this.processQueuedInputs(), 100)
     }
@@ -4354,6 +4423,7 @@ export class NikCLI {
     console.log(chalk.blue('🎯 Entering Enhanced Planning Mode with TaskMaster AI...'))
 
     try {
+      await this.cleanupPlanArtifacts()
       // Start progress indicator using our new methods
       const planningId = 'planning-' + Date.now()
       this.createStatusIndicator(planningId, 'Generating comprehensive plan with TaskMaster AI', input)
@@ -4387,6 +4457,8 @@ export class NikCLI {
         usedTaskMaster = true
         console.log(chalk.green('✅ TaskMaster AI plan generated'))
 
+        this.initializePlanHud(plan)
+
         // Save TaskMaster plan to todo.md for compatibility
         try {
           await this.saveTaskMasterPlanToFile(plan, 'todo.md')
@@ -4405,6 +4477,16 @@ export class NikCLI {
           saveTodoFile: true,
           todoFilePath: 'todo.md',
         })
+
+        this.initializePlanHud({
+          id: plan.id,
+          title: plan.title,
+          description: plan.description,
+          userRequest: input,
+          estimatedTotalDuration: plan.estimatedTotalDuration,
+          riskAssessment: plan.riskAssessment,
+          todos: plan.todos,
+        })
       }
 
       this.stopAdvancedSpinner(planningId, true, `Plan generated with ${plan.todos.length} todos${usedTaskMaster ? ' (TaskMaster AI)' : ' (Enhanced)'}`)
@@ -4421,6 +4503,45 @@ export class NikCLI {
       const approved = await this.requestPlanApproval(plan.id, plan)
 
       if (approved) {
+        const todosArray = Array.isArray(plan?.todos) ? plan.todos : []
+        const hasPlaceholderTask = this.isPlaceholderPlan(plan, plan.userRequest || input)
+
+        if (hasPlaceholderTask) {
+          console.log(chalk.yellow('⚠️ Plan contains only a placeholder task. Executing request in default mode...'))
+          this.currentMode = 'default'
+          try {
+            await this.handleDefaultMode(plan.userRequest || input)
+          } finally {
+            this.renderPromptAfterOutput()
+          }
+
+          try {
+            planningService.updatePlanStatus(plan.id, 'completed')
+          } catch { }
+
+          const completionTime = new Date()
+          const todosArray = Array.isArray(plan?.todos) ? plan.todos : []
+          todosArray.forEach((todo: any) => {
+            if (!todo) return
+            todo.status = 'completed'
+            todo.progress = 100
+            todo.completedAt = completionTime
+            if (todo.id) {
+              this.updatePlanHudTodoStatus(todo.id, 'completed')
+            }
+          })
+
+          plan.status = 'completed'
+          plan.completedAt = completionTime
+          this.clearPlanHudSubscription()
+          this.activePlanForHud = undefined
+          this.renderPromptArea()
+          try {
+            inputQueue.disableBypass()
+          } catch { }
+          return
+        }
+
         if (this.executionInProgress) {
           console.log(chalk.yellow('⚠️  Execution already in progress, please wait...'))
           return
@@ -4502,6 +4623,7 @@ export class NikCLI {
       this.subscribeToAllEventSources()
 
       // Use TaskMaster-enabled planning service for execution
+      this.ensurePlanHudSubscription(planId)
       await this.executePlanWithTaskMaster(planId)
     } catch (error: any) {
       console.log(chalk.red(`❌ Plan execution failed: ${error.message}`))
@@ -4510,6 +4632,177 @@ export class NikCLI {
     // Ensure output is flushed and visible before showing prompt
     console.log() // Extra newline for better separation
     this.renderPromptAfterOutput()
+    this.clearPlanHudSubscription()
+  }
+
+  private ensurePlanHudSubscription(planId: string): void {
+    if (this.planHudUnsubscribe) {
+      this.planHudUnsubscribe()
+    }
+    this.planHudUnsubscribe = planningService.onPlanEvent((event) => this.handlePlanExecutionEvent(event))
+  }
+
+  private clearPlanHudSubscription(): void {
+    if (this.planHudUnsubscribe) {
+      this.planHudUnsubscribe()
+      this.planHudUnsubscribe = undefined
+    }
+  }
+
+  private handlePlanExecutionEvent(event: PlanExecutionEvent): void {
+    if (!event.planId || !this.activePlanForHud || event.planId !== this.activePlanForHud.id) return
+
+    switch (event.type) {
+      case 'todo_start':
+        if (event.todoId) this.updatePlanHudTodoStatus(event.todoId, event.todoStatus ?? 'in_progress')
+        break
+      case 'todo_complete':
+        if (event.todoId) this.updatePlanHudTodoStatus(event.todoId, event.todoStatus ?? (event.error ? 'failed' : 'completed'))
+        break
+      case 'plan_failed':
+      case 'plan_complete':
+        this.finalizePlanHud(event.type === 'plan_complete' ? 'completed' : 'failed')
+        break
+    }
+  }
+
+  private finalizePlanHud(state: 'completed' | 'failed'): void {
+    if (!this.activePlanForHud) return
+
+    this.activePlanForHud.todos.forEach((todo) => {
+      if (state === 'completed') {
+        todo.status = todo.status === 'failed' ? 'failed' : 'completed'
+        todo.progress = 100
+      } else if (todo.status !== 'completed') {
+        todo.status = 'failed'
+        todo.progress = 0
+      }
+    })
+
+    void this.persistActivePlanTodoFile()
+    this.clearPlanHudSubscription()
+    this.activePlanForHud = undefined
+    this.renderPromptArea()
+  }
+
+  private initializePlanHud(plan: any): void {
+    if (!plan || !Array.isArray(plan.todos)) return
+
+    this.clearPlanHudSubscription()
+    this.activePlanForHud = {
+      id: String(plan.id || nanoid()),
+      title: plan.title || 'Plan Todos',
+      description: plan.description,
+      userRequest: plan.userRequest,
+      estimatedTotalDuration: plan.estimatedTotalDuration,
+      riskAssessment: plan.riskAssessment,
+      todos: plan.todos.map((todo: any) => ({
+        id: String(todo.id || nanoid()),
+        title: todo.title || todo.description || 'Untitled task',
+        description: todo.description,
+        status: (todo.status || 'pending') as 'pending' | 'in_progress' | 'completed' | 'failed',
+        priority: todo.priority,
+        progress: todo.progress,
+        reasoning: todo.reasoning,
+        tools: todo.tools,
+      })),
+    }
+    this.renderPromptArea()
+  }
+
+  private updatePlanHudTodoStatus(todoId: string, status: 'pending' | 'in_progress' | 'completed' | 'failed'): void {
+    if (!this.activePlanForHud) return
+
+    const todo = this.activePlanForHud.todos.find((t) => t.id === todoId)
+    if (!todo) return
+
+    todo.status = status
+    if (status === 'completed') {
+      todo.progress = 100
+    } else if (status === 'in_progress') {
+      todo.progress = Math.max(todo.progress ?? 0, 15)
+    } else if (status === 'failed') {
+      todo.progress = 0
+    }
+
+    void this.persistActivePlanTodoFile()
+    if (this.activePlanForHud && this.activePlanForHud.todos.every((t) => t.status === 'completed' || t.status === 'failed')) {
+      this.finalizePlanHud('completed')
+    } else {
+      this.renderPromptArea()
+    }
+  }
+
+  private async cleanupPlanArtifacts(): Promise<void> {
+    try {
+      await fs.unlink(path.join(this.workingDirectory, 'todo.md'))
+    } catch { }
+
+    try {
+      const taskmasterDir = path.join(this.workingDirectory, '.nikcli', 'taskmaster')
+      await fs.rm(taskmasterDir, { recursive: true, force: true })
+    } catch { }
+  }
+
+  private async persistActivePlanTodoFile(): Promise<void> {
+    if (!this.activePlanForHud) return
+    try {
+      await this.saveTaskMasterPlanToFile(this.activePlanForHud, 'todo.md', { silent: true })
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Could not update todo.md: ${error.message}`))
+    }
+  }
+
+  private buildPlanHudLines(maxWidth: number): string[] {
+    if (!this.activePlanForHud) return []
+    const todos = this.activePlanForHud.todos
+    if (!todos || todos.length === 0) return []
+
+    const usableWidth = Math.max(20, maxWidth - 2)
+    const lines: string[] = [chalk.bold('Todos')]
+
+    for (const todo of todos) {
+      const icon =
+        todo.status === 'completed'
+          ? chalk.green('☑')
+          : todo.status === 'in_progress'
+            ? chalk.yellow('▸')
+            : todo.status === 'failed'
+              ? chalk.red('✖')
+              : chalk.gray('☐')
+
+      let label: string
+      if (todo.status === 'completed') {
+        label = chalk.gray.strikethrough(todo.title)
+      } else if (todo.status === 'failed') {
+        label = chalk.red(todo.title)
+      } else if (todo.status === 'in_progress') {
+        label = chalk.bold(todo.title)
+      } else {
+        label = chalk.white(todo.title)
+      }
+
+      const cleanedDescription = typeof todo.description === 'string' ? todo.description.replace(/\s+/g, ' ').trim() : ''
+      if (cleanedDescription) {
+        const descStyle = todo.status === 'in_progress' ? chalk.gray : chalk.dim
+        label += descStyle(` — ${cleanedDescription}`)
+      }
+
+      const iconSegment = ` ${icon} `
+      const iconWidth = this._stripAnsi(iconSegment).length
+      const remainingWidth = Math.max(5, usableWidth - iconWidth)
+
+      let detailSegment = label
+      const plainDetail = this._stripAnsi(detailSegment)
+      if (plainDetail.length > remainingWidth) {
+        const truncated = plainDetail.slice(0, Math.max(1, remainingWidth - 1)) + '…'
+        detailSegment = truncated
+      }
+
+      lines.push(`${iconSegment}${detailSegment}`)
+    }
+
+    return lines
   }
 
   /**
@@ -9994,8 +10287,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const costDisplay =
       this.realTimeCost > 0 ? chalk.magenta(`$${this.realTimeCost.toFixed(4)}`) : chalk.magenta('$0.0000')
 
-    const terminalWidth = process.stdout.columns - 1 || 120
+    const terminalWidth = Math.max(40, (process.stdout.columns || 120) - 1)
     const workingDir = chalk.blue(path.basename(this.workingDirectory))
+    const planHudLines = this.buildPlanHudLines(terminalWidth)
 
     // Mode info
     const _modeIcon =
@@ -10006,13 +10300,21 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const readyText = this.assistantProcessing ? chalk.blue(`Loading ${this.renderLoadingBar()}`) : chalk.green('Ready')
     const statusIndicator = this.assistantProcessing ? '⏳' : '✅'
 
-    // Move cursor to bottom of terminal (reserve 3 lines for frame + 1 for prompt)
+    // Move cursor to bottom of terminal (reserve HUD + frame + prompt)
     const terminalHeight = process.stdout.rows || 24
-    // Start drawing 3 lines above the last row so we don't scroll on newline
-    process.stdout.write(`\x1B[${Math.max(1, terminalHeight - 3)};0H`)
+    const hudExtraLines = planHudLines.length > 0 ? planHudLines.length + 1 : 0
+    const reservedLines = 3 + hudExtraLines
+    process.stdout.write(`\x1B[${Math.max(1, terminalHeight - reservedLines)};0H`)
 
     // Clear the bottom lines
     process.stdout.write('\x1B[J') // Clear from cursor to end
+
+    if (planHudLines.length > 0) {
+      for (const line of planHudLines) {
+        process.stdout.write(`${line}\n`)
+      }
+      process.stdout.write('\n')
+    }
 
     // Model/provider
     const currentModel2 = this.configManager.getCurrentModel()
@@ -15520,7 +15822,7 @@ Generated by NikCLI on ${new Date().toISOString()}
   /**
    * Save TaskMaster plan to file in todo.md format
    */
-  private async saveTaskMasterPlanToFile(plan: any, filename: string): Promise<void> {
+  private async saveTaskMasterPlanToFile(plan: any, filename: string, options: { silent?: boolean } = {}): Promise<void> {
     try {
       const fs = await import('node:fs/promises')
       const path = await import('node:path')
@@ -15529,7 +15831,9 @@ Generated by NikCLI on ${new Date().toISOString()}
       const filePath = path.join(this.workingDirectory, filename)
 
       await fs.writeFile(filePath, todoContent, 'utf-8')
-      console.log(chalk.green(`✅ TaskMaster plan saved to ${filename}`))
+      if (!options.silent) {
+        console.log(chalk.green(`✅ TaskMaster plan saved to ${filename}`))
+      }
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to save plan to ${filename}: ${error.message}`))
       throw error
@@ -15654,14 +15958,66 @@ Generated by NikCLI on ${new Date().toISOString()}
     console.log(chalk.cyan(`📊 ${tasks.length} tasks`))
     console.log(chalk.cyan(`⏱️ Estimated duration: ${Math.round(plan.estimatedTotalDuration)} minutes`))
 
-    const { approved } = await inquirer.prompt([{
-      type: 'confirm',
-      name: 'approved',
-      message: 'Do you want to execute this plan?',
-      default: false
-    }])
+    const categories: string[] = Array.from(
+      new Set(
+        tasks
+          .map((t: any) => (typeof t?.category === 'string' ? t.category.trim() : undefined))
+          .filter((c: any): c is string => typeof c === 'string' && c.length > 0)
+      )
+    )
+    const priorities: Record<string, number> = {}
+    tasks.forEach((t: any) => {
+      const key = t.priority || 'medium'
+      priorities[key] = (priorities[key] || 0) + 1
+    })
+    const dependencies = tasks.reduce((sum: number, t: any) => sum + ((t.dependencies || []).length), 0)
+    const affectedFiles: string[] = tasks
+      .flatMap((t: any) => (Array.isArray(t?.files) ? t.files : []))
+      .filter((f: unknown): f is string => typeof f === 'string' && f.trim().length > 0)
+    const commands: string[] = tasks
+      .flatMap((t: any) => (Array.isArray(t?.commands) ? t.commands : []))
+      .filter((c: unknown): c is string => typeof c === 'string' && c.trim().length > 0)
 
-    return approved
+    const assessedRisk = plan?.riskAssessment?.overallRisk
+    const inferredHighRisk = tasks.some((t: any) => String(t?.priority || '').toLowerCase() === 'critical')
+    const allowedRisks: Array<'low' | 'medium' | 'high' | 'critical'> = ['low', 'medium', 'high', 'critical']
+    const normalizedRisk =
+      typeof assessedRisk === 'string' && allowedRisks.includes(assessedRisk as any)
+        ? (assessedRisk as 'low' | 'medium' | 'high' | 'critical')
+        : undefined
+    const riskLevel: 'low' | 'medium' | 'high' | 'critical' = normalizedRisk || (inferredHighRisk ? 'high' : 'medium')
+
+    const compact = process.env.NIKCLI_COMPACT === '1'
+    const approval = await approvalSystem.requestPlanApproval(
+      plan.title || plan.userRequest || 'Execution Plan',
+      plan.description || plan.userRequest || '',
+      {
+        totalSteps: tasks.length,
+        estimatedDuration:
+          typeof plan?.estimatedTotalDuration === 'number' ? plan.estimatedTotalDuration : 0,
+        riskLevel,
+        categories,
+        priorities,
+        dependencies,
+        affectedFiles,
+        commands,
+      },
+      {
+        showBreakdown: !compact,
+        allowModification: false,
+        showTimeline: !compact,
+      }
+    )
+
+    if (approval.approved) {
+      if (plan) {
+        plan.status = 'approved'
+        plan.approvedAt = new Date()
+      }
+      return true
+    }
+
+    return false
   }
 
   /**

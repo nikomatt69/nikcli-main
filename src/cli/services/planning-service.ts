@@ -1,6 +1,7 @@
+import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
-import { AutonomousPlanner } from '../planning/autonomous-planner'
+import { AutonomousPlanner, type PlanningEvent } from '../planning/autonomous-planner'
 import { PlanGenerator } from '../planning/plan-generator'
 import type { ExecutionPlan, PlannerContext, PlanningToolCapability, PlanTodo } from '../planning/types'
 import { type ToolCapability, toolService } from './tool-service'
@@ -15,6 +16,10 @@ export interface PlanningOptions {
   fallbackToLegacy?: boolean // Fallback option
 }
 
+export interface PlanExecutionEvent extends PlanningEvent {
+  todoStatus?: 'pending' | 'in_progress' | 'completed' | 'failed'
+}
+
 export class PlanningService {
   private planGenerator: PlanGenerator
   private autonomousPlanner: AutonomousPlanner
@@ -23,6 +28,7 @@ export class PlanningService {
   private availableTools: ToolCapability[] = []
   private taskMasterAdapter: TaskMasterAdapter
   private useTaskMasterByDefault: boolean = true
+  private eventEmitter: EventEmitter = new EventEmitter()
 
   constructor() {
     this.planGenerator = new PlanGenerator()
@@ -91,6 +97,17 @@ export class PlanningService {
       // Fallback to legacy toolService if registry init fails
       this.availableTools = toolService.getAvailableTools()
     }
+  }
+
+  onPlanEvent(listener: (event: PlanExecutionEvent) => void): () => void {
+    this.eventEmitter.on('plan-event', listener)
+    return () => {
+      this.eventEmitter.off('plan-event', listener)
+    }
+  }
+
+  private emitPlanEvent(event: PlanExecutionEvent): void {
+    this.eventEmitter.emit('plan-event', event)
   }
 
   /**
@@ -315,12 +332,14 @@ export class PlanningService {
               }))
               ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
             } catch {}
+            this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'pending' })
             break
           case 'plan_created':
             if (!superCompact) console.log(chalk.blue(`🔄 ${event.result}`))
             break
           case 'todo_start':
             if (!superCompact) console.log(chalk.green(`✅ ${event.todoId}`))
+            if (event.todoId) this.updateTodoStatus(plan.id, event.todoId, 'in_progress')
             try {
               const { advancedUI } = await import('../ui/advanced-cli-ui')
               const items = (plan.todos || []).map((t) => ({
@@ -331,6 +350,7 @@ export class PlanningService {
               }))
               ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
             } catch {}
+            this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'in_progress' })
             break
           case 'todo_progress':
             if (!superCompact) console.log(chalk.red(`🔄 ${event.progress}`))
@@ -347,6 +367,26 @@ export class PlanningService {
             break
           case 'todo_complete':
             if (!superCompact) console.log(chalk.green(`✅ Todo completed`))
+            if (event.todoId) {
+              const status = event.error ? 'failed' : 'completed'
+              this.updateTodoStatus(plan.id, event.todoId, status)
+            }
+            try {
+              const { advancedUI } = await import('../ui/advanced-cli-ui')
+              const items = (plan.todos || []).map((t) => ({
+                content: (t as any).title || (t as any).description,
+                status: (t as any).status,
+                priority: (t as any).priority,
+                progress: (t as any).progress,
+              }))
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
+            this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: event.error ? 'failed' : 'completed' })
+            break
+          case 'plan_failed':
+            if (!superCompact) console.log(chalk.red(`❌ Plan execution failed: ${event.error}`))
+            this.updatePlanStatus(plan.id, 'failed')
+            this.emitPlanEvent({ ...event, planId: plan.id })
             try {
               const { advancedUI } = await import('../ui/advanced-cli-ui')
               const items = (plan.todos || []).map((t) => ({
@@ -358,18 +398,9 @@ export class PlanningService {
               ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
             } catch {}
             break
-          case 'plan_failed':
-            if (!superCompact) console.log(chalk.red(`❌ Plan execution failed: ${event.error}`))
-            try {
-              const { advancedUI } = await import('../ui/advanced-cli-ui')
-              const items = (plan.todos || []).map((t) => ({
-                content: (t as any).title || (t as any).description,
-                status: (t as any).status,
-                priority: (t as any).priority,
-                progress: (t as any).progress,
-              }))
-              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch {}
+          case 'plan_complete':
+            this.updatePlanStatus(plan.id, 'completed')
+            this.emitPlanEvent({ ...event, planId: plan.id })
             break
         }
       }
