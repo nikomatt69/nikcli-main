@@ -8,6 +8,7 @@ import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 import { configManager, type ModelConfig } from '../core/config-manager'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
+import { ReasoningDetector } from './reasoning-detector'
 
 // ====================== 🧠 ZOD VALIDATION SCHEMAS ======================
 
@@ -28,6 +29,9 @@ export const GenerateOptionsSchema = z.object({
   scope: z.enum(['chat_default', 'planning', 'code_gen', 'tool_light', 'tool_heavy', 'vision']).optional(),
   needsVision: z.boolean().optional(),
   sizeHints: z.object({ fileCount: z.number().optional(), totalBytes: z.number().optional() }).optional(),
+  // Reasoning options
+  enableReasoning: z.boolean().optional(),
+  showReasoningProcess: z.boolean().optional(),
 })
 
 // Model Response Schema
@@ -42,6 +46,9 @@ export const ModelResponseSchema = z.object({
     .optional(),
   finishReason: z.enum(['stop', 'length', 'content-filter', 'tool-calls']).optional(),
   warnings: z.array(z.string()).optional(),
+  // Reasoning fields
+  reasoning: z.any().optional(),
+  reasoningText: z.string().optional(),
 })
 
 // Export Zod inferred types
@@ -52,6 +59,60 @@ export type ModelResponse = z.infer<typeof ModelResponseSchema>
 // Legacy interfaces (deprecated - use Zod schemas above)
 
 export class ModelProvider {
+  /**
+   * Determine if reasoning should be enabled for the current request
+   */
+  private shouldEnableReasoning(options: GenerateOptions, config: ModelConfig): boolean {
+    const globalReasoningConfig = configManager.get('reasoning')
+
+    // If reasoning is globally disabled, don't enable
+    if (!globalReasoningConfig.enabled) {
+      return false
+    }
+
+    // If explicit option provided, use it
+    if (options.enableReasoning !== undefined) {
+      return options.enableReasoning
+    }
+
+    // If model has explicit reasoning config, use it
+    if (config.enableReasoning !== undefined) {
+      return config.enableReasoning
+    }
+
+    // If auto-detect is enabled, check model capabilities
+    if (globalReasoningConfig.autoDetect) {
+      return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
+    }
+
+    return false
+  }
+
+  /**
+   * Log reasoning information if enabled
+   */
+  private logReasoning(provider: string, modelId: string, reasoningEnabled: boolean): void {
+    const globalReasoningConfig = configManager.get('reasoning')
+
+    if (globalReasoningConfig.logReasoning) {
+      const capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
+      const summary = ReasoningDetector.getModelReasoningSummary(provider, modelId)
+
+      try {
+        const nik = (global as any).__nikCLI
+        const msg = `[Reasoning] ${modelId}: ${summary} - ${reasoningEnabled ? 'ENABLED' : 'DISABLED'}`
+        if (nik?.advancedUI) {
+          nik.advancedUI.logInfo('Reasoning System', msg)
+        } else {
+          console.log(require('chalk').dim(msg))
+        }
+      } catch {
+        // Fallback logging
+        console.log(`[Reasoning] ${modelId}: ${reasoningEnabled ? 'ENABLED' : 'DISABLED'}`)
+      }
+    }
+  }
+
   private getModel(config: ModelConfig) {
     const currentModelName = configManager.get('currentModel')
 
@@ -135,6 +196,10 @@ export class ModelProvider {
       throw new Error(`Model configuration not found for: ${currentModelName}`)
     }
 
+    // Check if reasoning should be enabled for this request
+    const reasoningEnabled = this.shouldEnableReasoning(validatedOptions, currentModelConfig)
+    this.logReasoning(currentModelConfig.provider, currentModelConfig.model, reasoningEnabled)
+
     // Choose adaptive model variant based on complexity and scope (if routing enabled)
     const routingCfg = configManager.get('modelRouting')
     let effectiveModelId = currentModelConfig.model
@@ -175,11 +240,31 @@ export class ModelProvider {
     if (resolvedTemp != null) {
       baseOptions.temperature = resolvedTemp
     }
-    const { text } = await generateText(baseOptions)
+    const result = await generateText(baseOptions)
 
-    // (logs handled above if verbose)
+    // Extract reasoning if available and display if requested
+    if (reasoningEnabled) {
+      const reasoningData = ReasoningDetector.extractReasoning(result, currentModelConfig.provider)
+      const globalReasoningConfig = configManager.get('reasoning')
 
-    return text
+      if (reasoningData.reasoningText && (globalReasoningConfig.showReasoningProcess || validatedOptions.showReasoningProcess)) {
+        try {
+          const nik = (global as any).__nikCLI
+          if (nik?.advancedUI) {
+            nik.advancedUI.logInfo('Model Reasoning', reasoningData.reasoningText)
+          } else {
+            console.log(require('chalk').cyan('\n🧠 Model Reasoning:'))
+            console.log(require('chalk').gray(reasoningData.reasoningText))
+            console.log('')
+          }
+        } catch {
+          // Fallback display
+          console.log('\n🧠 Model Reasoning:', reasoningData.reasoningText, '\n')
+        }
+      }
+    }
+
+    return result.text
   }
 
   async *streamResponse(options: GenerateOptions): AsyncGenerator<string, void, unknown> {
@@ -192,6 +277,28 @@ export class ModelProvider {
 
     if (!currentModelConfig) {
       throw new Error(`Model configuration not found for: ${currentModelName}`)
+    }
+
+    // Check if reasoning should be enabled for this request
+    const reasoningEnabled = this.shouldEnableReasoning(validatedOptions, currentModelConfig)
+    this.logReasoning(currentModelConfig.provider, currentModelConfig.model, reasoningEnabled)
+
+    // Show reasoning summary before streaming if enabled
+    if (reasoningEnabled) {
+      const capabilities = ReasoningDetector.detectReasoningSupport(currentModelConfig.provider, currentModelConfig.model)
+      const summary = ReasoningDetector.getModelReasoningSummary(currentModelConfig.provider, currentModelConfig.model)
+
+      try {
+        const chalk = require('chalk')
+        // Pre-stream reasoning info in dark gray as requested
+        const reasoningInfo = chalk.gray(`🧠 ${summary}`)
+        console.log(reasoningInfo)
+        console.log('') // Add spacing
+      } catch {
+        // Fallback if chalk fails
+        console.log(`🧠 ${summary}`)
+        console.log('')
+      }
     }
 
     const routingCfg2 = configManager.get('modelRouting')
@@ -303,6 +410,35 @@ export class ModelProvider {
       name,
       config: cfg,
     }
+  }
+
+  /**
+   * Get reasoning capabilities for the current model
+   */
+  getReasoningCapabilities(): {
+    supportsReasoning: boolean
+    reasoningType: string
+    summary: string
+    enabled: boolean
+  } {
+    const { name, config } = this.getCurrentModelInfo()
+    const capabilities = ReasoningDetector.detectReasoningSupport(config.provider, config.model)
+    const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+    const enabled = this.shouldEnableReasoning({ messages: [] }, config)
+
+    return {
+      supportsReasoning: capabilities.supportsReasoning,
+      reasoningType: capabilities.reasoningType,
+      summary,
+      enabled,
+    }
+  }
+
+  /**
+   * Get all models that support reasoning
+   */
+  getReasoningEnabledModels(): string[] {
+    return ReasoningDetector.getReasoningEnabledModels()
   }
 }
 

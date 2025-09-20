@@ -11,6 +11,9 @@ const ModelConfigSchema = z.object({
   model: z.string(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().min(1).max(8000).optional(),
+  // Reasoning configuration
+  enableReasoning: z.boolean().optional().describe('Enable reasoning for supported models'),
+  reasoningMode: z.enum(['auto', 'explicit', 'disabled']).optional().describe('How to handle reasoning'),
 })
 
 const ConfigSchema = z.object({
@@ -35,6 +38,15 @@ const ConfigSchema = z.object({
       mode: z.enum(['conservative', 'balanced', 'aggressive']).default('balanced'),
     })
     .default({ enabled: true, verbose: false, mode: 'balanced' }),
+  // Reasoning configuration
+  reasoning: z
+    .object({
+      enabled: z.boolean().default(true).describe('Enable reasoning globally'),
+      autoDetect: z.boolean().default(true).describe('Auto-detect reasoning capable models'),
+      showReasoningProcess: z.boolean().default(false).describe('Display reasoning process to user'),
+      logReasoning: z.boolean().default(false).describe('Log reasoning to debug output'),
+    })
+    .default({ enabled: true, autoDetect: true, showReasoningProcess: false, logReasoning: false }),
   // MCP (Model Context Protocol) servers configuration - Claude Code/OpenCode compatible
   mcp: z
     .record(
@@ -830,6 +842,7 @@ export class SimpleConfigManager {
     environmentVariables: {},
     environmentSources: [],
     modelRouting: { enabled: true, verbose: false, mode: 'balanced' },
+    reasoning: { enabled: true, autoDetect: true, showReasoningProcess: false, logReasoning: false },
     mcpServers: {},
     maxConcurrentAgents: 5,
     enableGuidanceSystem: true,

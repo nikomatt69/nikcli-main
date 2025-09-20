@@ -10,12 +10,15 @@ import { type CoreMessage, type CoreTool, generateText, streamText, tool } from 
 import { z } from 'zod'
 import { simpleConfigManager } from '../core/config-manager'
 import { PromptManager } from '../prompts/prompt-manager'
+import { ReasoningDetector } from './reasoning-detector'
 
 export interface ModelConfig {
   provider: 'openai' | 'anthropic' | 'google' | 'vercel' | 'gateway' | 'openrouter'
   model: string
   temperature?: number
   maxTokens?: number
+  enableReasoning?: boolean
+  reasoningMode?: 'auto' | 'explicit' | 'disabled'
 }
 
 export class ModernAIProvider {
@@ -26,6 +29,38 @@ export class ModernAIProvider {
   constructor() {
     this.currentModel = simpleConfigManager.get('currentModel')
     this.promptManager = PromptManager.getInstance(process.cwd())
+  }
+
+  /**
+   * Check if reasoning should be enabled for current model
+   */
+  private shouldEnableReasoning(): boolean {
+    const config = simpleConfigManager?.getCurrentModel() as any
+    if (!config) return false
+
+    // Check model's explicit reasoning setting
+    if (config.enableReasoning !== undefined) {
+      return config.enableReasoning
+    }
+
+    // Auto-detect based on model capabilities
+    return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
+  }
+
+  /**
+   * Log reasoning status if enabled
+   */
+  private logReasoningStatus(enabled: boolean): void {
+    const config = simpleConfigManager?.getCurrentModel() as any
+    if (!config) return
+
+    try {
+      const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+      const msg = `[Reasoning] ${config.model}: ${summary} - ${enabled ? 'ENABLED' : 'DISABLED'}`
+      console.log(require('chalk').dim(msg))
+    } catch {
+      // Silent fail for logging
+    }
   }
 
   // Load tool-specific prompts for enhanced execution
@@ -459,17 +494,31 @@ export class ModernAIProvider {
   // Claude Code style streaming with tool support
   async *streamChatWithTools(messages: CoreMessage[]): AsyncGenerator<
     {
-      type: 'text' | 'tool_call' | 'tool_result' | 'finish'
+      type: 'text' | 'tool_call' | 'tool_result' | 'finish' | 'reasoning'
       content?: string
       toolCall?: any
       toolResult?: any
       finishReason?: string
+      reasoningSummary?: string
     },
     void,
     unknown
   > {
     const model = this.getModel() as any
     const tools = this.getFileOperationsTools()
+    const reasoningEnabled = this.shouldEnableReasoning()
+
+    // Yield reasoning summary before streaming if enabled
+    if (reasoningEnabled) {
+      const config = simpleConfigManager?.getCurrentModel() as any
+      if (config) {
+        const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+        yield {
+          type: 'reasoning',
+          reasoningSummary: summary,
+        }
+      }
+    }
 
     try {
       const result = await streamText({
@@ -502,9 +551,14 @@ export class ModernAIProvider {
     text: string
     toolCalls: any[]
     toolResults: any[]
+    reasoning?: any
+    reasoningText?: string
   }> {
     const model = this.getModel() as any
     const tools = this.getFileOperationsTools()
+    const reasoningEnabled = this.shouldEnableReasoning()
+
+    this.logReasoningStatus(reasoningEnabled)
 
     try {
       const result = await generateText({
@@ -516,10 +570,20 @@ export class ModernAIProvider {
         temperature: 0.7,
       })
 
+      // Extract reasoning if available
+      let reasoningData = {}
+      if (reasoningEnabled) {
+        const config = simpleConfigManager?.getCurrentModel() as any
+        if (config) {
+          reasoningData = ReasoningDetector.extractReasoning(result, config.provider)
+        }
+      }
+
       return {
         text: result.text,
         toolCalls: result.toolCalls || [],
         toolResults: result.toolResults || [],
+        ...reasoningData,
       }
     } catch (error: any) {
       throw new Error(`Generation failed: ${error.message}`)
@@ -558,6 +622,35 @@ export class ModernAIProvider {
     } catch {
       return false
     }
+  }
+
+  // Get reasoning capabilities for current model
+  getReasoningCapabilities() {
+    const config = simpleConfigManager?.getCurrentModel() as any
+    if (!config) {
+      return {
+        supportsReasoning: false,
+        reasoningType: 'none',
+        summary: 'No model configuration found',
+        enabled: false,
+      }
+    }
+
+    const capabilities = ReasoningDetector.detectReasoningSupport(config.provider, config.model)
+    const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+    const enabled = this.shouldEnableReasoning()
+
+    return {
+      supportsReasoning: capabilities.supportsReasoning,
+      reasoningType: capabilities.reasoningType,
+      summary,
+      enabled,
+    }
+  }
+
+  // Get list of all reasoning-enabled models
+  getReasoningEnabledModels(): string[] {
+    return ReasoningDetector.getReasoningEnabledModels()
   }
 }
 
