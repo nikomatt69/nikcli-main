@@ -1,0 +1,1 @@
+// Placeholder for shared guidance manager functionality

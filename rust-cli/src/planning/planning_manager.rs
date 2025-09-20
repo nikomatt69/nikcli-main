@@ -1,0 +1,1 @@
+// Placeholder for planning manager functionality

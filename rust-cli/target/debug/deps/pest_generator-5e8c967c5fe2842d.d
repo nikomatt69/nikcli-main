@@ -1,0 +1,11 @@
+/workspace/rust-cli/target/debug/deps/pest_generator-5e8c967c5fe2842d.d: /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/lib.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/macros.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/docs.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/generator.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/parse_derive.rs
+
+/workspace/rust-cli/target/debug/deps/libpest_generator-5e8c967c5fe2842d.rlib: /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/lib.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/macros.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/docs.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/generator.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/parse_derive.rs
+
+/workspace/rust-cli/target/debug/deps/libpest_generator-5e8c967c5fe2842d.rmeta: /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/lib.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/macros.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/docs.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/generator.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/parse_derive.rs
+
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/lib.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/macros.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/docs.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/generator.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pest_generator-2.8.2/src/parse_derive.rs:

@@ -1,0 +1,1 @@
+// Placeholder for IDE context enricher functionality
