@@ -69,7 +69,6 @@ import {
 } from './utils/text-wrapper'
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
-import { CoreTool } from 'ai'
 
 // Configure syntax highlighting for terminal output
 configureSyntaxHighlighting()
@@ -853,50 +852,6 @@ export class NikCLI {
         this.renderPromptAfterOutput()
       } catch { }
     })
-  }
-
-  private isPlaceholderPlan(plan: any, userRequest: string): boolean {
-    const todos = Array.isArray(plan?.todos) ? plan.todos : []
-    if (todos.length === 0) return true
-    if (todos.length > 1) return false
-    return this.isPlaceholderTodo(todos[0], userRequest)
-  }
-
-  private isPlaceholderTodo(todo: any, userRequest?: string): boolean {
-    if (!todo) return true
-
-    const title = typeof todo?.title === 'string' ? todo.title.trim().toLowerCase() : ''
-    if (!title.startsWith('task execution')) return false
-
-    const description = typeof todo?.description === 'string' ? todo.description.trim() : ''
-    const normalizedRequest = typeof userRequest === 'string' ? userRequest.trim().toLowerCase() : ''
-    const matchesRequest = description && normalizedRequest && description.toLowerCase() === normalizedRequest
-    const wordCount = description ? description.split(/\s+/).filter(Boolean).length : 0
-    const hasLongDescription = description.length > 160 || wordCount > 30
-    if (matchesRequest && normalizedRequest.length > 80) return false
-
-    const commands = Array.isArray(todo?.commands)
-      ? todo.commands.filter((cmd: unknown): cmd is string => typeof cmd === 'string' && cmd.trim().length > 0)
-      : []
-    const files = Array.isArray(todo?.files)
-      ? todo.files.filter((file: unknown): file is string => typeof file === 'string' && file.trim().length > 0)
-      : []
-
-    if (commands.length > 0 || files.length > 0) return false
-    if (hasLongDescription && !matchesRequest) return false
-
-    const defaultToolSet = new Set(['analyze_project', 'read_file', 'generate_code', 'write_file', 'execute_command'])
-    const tools = Array.isArray(todo?.tools)
-      ? todo.tools.filter((tool: unknown): tool is string => typeof tool === 'string' && tool.trim().length > 0)
-      : []
-    const hasNonDefaultTools = tools.some((tools: CoreTool & { tool: string }) => !defaultToolSet.has(tools.tool))
-    if (hasNonDefaultTools) return false
-    if (hasNonDefaultTools) return false
-
-    const duration = typeof todo?.estimatedDuration === 'number' ? todo.estimatedDuration : 0
-    if (duration > 45) return false
-
-    return true
   }
   // Bridge StreamingOrchestrator agent lifecycle events into NikCLI output
   private orchestratorEventsInitialized = false
@@ -4504,7 +4459,11 @@ export class NikCLI {
 
       if (approved) {
         const todosArray = Array.isArray(plan?.todos) ? plan.todos : []
-        const hasPlaceholderTask = this.isPlaceholderPlan(plan, plan.userRequest || input)
+        const hasPlaceholderTask =
+          todosArray.length === 1 &&
+          typeof todosArray[0]?.title === 'string' &&
+          /^task execution/i.test(todosArray[0].title) &&
+          (!Array.isArray(todosArray[0]?.commands) || todosArray[0].commands.length === 0)
 
         if (hasPlaceholderTask) {
           console.log(chalk.yellow('⚠️ Plan contains only a placeholder task. Executing request in default mode...'))
@@ -4535,10 +4494,8 @@ export class NikCLI {
           plan.completedAt = completionTime
           this.clearPlanHudSubscription()
           this.activePlanForHud = undefined
+          await this.cleanupPlanArtifacts()
           this.renderPromptArea()
-          try {
-            inputQueue.disableBypass()
-          } catch { }
           return
         }
 
@@ -4683,6 +4640,7 @@ export class NikCLI {
     this.clearPlanHudSubscription()
     this.activePlanForHud = undefined
     this.renderPromptArea()
+    void this.cleanupPlanArtifacts()
   }
 
   private initializePlanHud(plan: any): void {

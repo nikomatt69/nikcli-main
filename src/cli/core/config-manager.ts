@@ -1214,6 +1214,10 @@ export class SimpleConfigManager {
     return this.config.currentModel
   }
 
+  getModelConfig(model: string): ModelConfig | undefined {
+    return this.config.models[model]
+  }
+
   addModel(name: string, config: ModelConfig): void {
     this.config.models[name] = config
     this.saveConfig()
