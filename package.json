@@ -1,13 +1,16 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@nicomatt69/nikcli",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "NikCLI - Context-Aware AI Development Assistant",
   "author": "nikomatt69",
   "license": "MIT",
   "main": "dist/cli/index.js",
   "bin": "dist/cli/index.js",
-  "files": ["dist/**", "README.md"],
+  "files": [
+    "dist/**",
+    "README.md"
+  ],
   "publishConfig": {
     "access": "public",
     "tag": "latest"
