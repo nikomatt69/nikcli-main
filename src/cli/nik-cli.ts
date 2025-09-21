@@ -4472,6 +4472,10 @@ export class NikCLI {
             await this.handleDefaultMode(plan.userRequest || input)
           } finally {
             this.renderPromptAfterOutput()
+            try {
+              advancedUI.stopInteractiveMode?.()
+            } catch { }
+            this.rl?.prompt()
           }
 
           try {
@@ -4496,6 +4500,12 @@ export class NikCLI {
           this.activePlanForHud = undefined
           await this.cleanupPlanArtifacts()
           this.renderPromptArea()
+          try {
+            advancedUI.stopInteractiveMode?.()
+          } catch { }
+          try {
+            inputQueue.disableBypass()
+          } catch { }
           return
         }
 
@@ -4530,7 +4540,10 @@ export class NikCLI {
         } catch (_) {
           // ignore
         }
-        this.renderPromptAfterOutput()
+        try {
+          advancedUI.stopInteractiveMode?.()
+        } catch { }
+        this.resumePromptAndRender()
       } else {
         console.log(chalk.yellow('\n📝 Plan saved but not executed.'))
         console.log(chalk.gray('Review todo.md or run `/plan execute` later.'))
@@ -4558,16 +4571,23 @@ export class NikCLI {
           } catch (_) {
             // ignore
           }
-          this.renderPromptAfterOutput()
+          try {
+            advancedUI.stopInteractiveMode?.()
+          } catch { }
+          this.cleanupPlanArtifacts()
+          this.resumePromptAndRender()
+          this.rl?.prompt()
         }
       }
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `Plan generation failed: ${error.message}`, source: 'planning' })
       console.log(chalk.red(`❌ Planning failed: ${error.message}`))
     }
+    void this.cleanupPlanArtifacts()
+    this.rl?.prompt()
     // Ensure output is flushed and visible before showing prompt
     console.log() // Extra newline for better separation
-    this.renderPromptAfterOutput()
+    this.resumePromptAndRender()
   }
 
   /**
@@ -4590,6 +4610,8 @@ export class NikCLI {
     console.log() // Extra newline for better separation
     this.renderPromptAfterOutput()
     this.clearPlanHudSubscription()
+    void this.cleanupPlanArtifacts()
+    this.rl?.prompt()
   }
 
   private ensurePlanHudSubscription(planId: string): void {
@@ -4638,7 +4660,6 @@ export class NikCLI {
 
     void this.persistActivePlanTodoFile()
     this.clearPlanHudSubscription()
-    this.activePlanForHud = undefined
     this.renderPromptArea()
     void this.cleanupPlanArtifacts()
   }
@@ -4878,6 +4899,7 @@ export class NikCLI {
       await this.executeAgent(agentName, task, {})
     } else {
       // DEFAULT CHAT MODE: Simple chat (auto-todos handled above)
+      let interactiveStarted = false
       try {
         // Direct chat response without complexity assessment or auto-todos
         const toolRecommendations = toolRouter.analyzeMessage({ role: 'user', content: input })
@@ -4895,6 +4917,7 @@ export class NikCLI {
         // Activate structured UI for better visualization
         console.log(chalk.dim('🎨 Default Mode (Unified Aggregator) - Activating structured UI...'))
         advancedUI.startInteractiveMode()
+        interactiveStarted = true
 
         // Record user message in session
         chatManager.addMessage(input, 'user')
@@ -5032,6 +5055,13 @@ export class NikCLI {
         this.syncTokensFromSession()
       } catch (err: any) {
         console.log(chalk.red(`Chat error: ${err.message}`))
+      } finally {
+        if (interactiveStarted) {
+          try {
+            advancedUI.stopInteractiveMode?.()
+          } catch { }
+        }
+        this.rl?.prompt()
       }
     }
   }

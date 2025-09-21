@@ -1,14 +1,14 @@
-# TaskMaster AI Plan: TaskMaster Plan: make an analysis plan and generate a report .md in the root
+# TaskMaster AI Plan: TaskMaster Plan: analizza il flusso della plan mode dop oche finisce l esecuzione dop ceh passa in default
 
-**Generated:** 2025-09-20T23:24:06.273Z
+**Generated:** 2025-09-21T00:53:26.465Z
 **Planning Engine:** TaskMaster AI
-**Request:** make an analysis plan and generate a report .md in the root
+**Request:** analizza il flusso della plan mode dop oche finisce l esecuzione dop ceh passa in default
 **Risk Level:** medium
 **Estimated Duration:** 0 minutes
 
 ## Description
 
-make an analysis plan and generate a report .md in the root
+analizza il flusso della plan mode dop oche finisce l esecuzione dop ceh passa in default
 
 ## Risk Assessment
 
@@ -21,7 +21,7 @@ make an analysis plan and generate a report .md in the root
 
 ### 1. ✅ Task Execution 🟡
 
-**Description:** make an analysis plan and generate a report .md in the root
+**Description:** analizza il flusso della plan mode dop oche finisce l esecuzione dop ceh passa in default
 
 **Tools:** analyze_project, read_file, generate_code, write_file, execute_command
 
