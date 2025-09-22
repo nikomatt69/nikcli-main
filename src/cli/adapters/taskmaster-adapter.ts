@@ -14,38 +14,121 @@ import type { TaskMasterPlan, TaskMasterExecutionResult, TaskMasterService } fro
 export class TaskMasterAdapter extends EventEmitter {
   private taskMasterService: TaskMasterService
   private legacySupport = true
+  private initialized = false
+  private eventListenersAttached = false
 
   constructor(taskMasterService: TaskMasterService) {
     super()
-    this.taskMasterService = taskMasterService
 
-    // Forward TaskMaster events
-    this.taskMasterService.on('initialized', () => this.emit('initialized'))
-    this.taskMasterService.on('fallback', () => this.emit('fallback'))
-    this.taskMasterService.on('planUpdated', (data) => this.emit('planUpdated', data))
+    try {
+      // Validate constructor parameters
+      if (!taskMasterService) {
+        throw new Error('TaskMasterService is required')
+      }
+
+      this.taskMasterService = taskMasterService
+      this.initialized = true
+
+      // Forward TaskMaster events with error handling
+      this.setupEventForwarding()
+
+    } catch (error) {
+      console.error('Failed to initialize TaskMasterAdapter:', error)
+      throw error
+    }
+  }
+
+  private setupEventForwarding(): void {
+    try {
+      if (this.eventListenersAttached) {
+        return // Already attached
+      }
+
+      // Forward TaskMaster events with error handling
+      this.taskMasterService.on('initialized', () => {
+        try {
+          this.emit('initialized')
+        } catch (error) {
+          console.error('Error emitting initialized event:', error)
+        }
+      })
+
+      this.taskMasterService.on('fallback', () => {
+        try {
+          this.emit('fallback')
+        } catch (error) {
+          console.error('Error emitting fallback event:', error)
+        }
+      })
+
+      this.taskMasterService.on('planUpdated', (data) => {
+        try {
+          this.emit('planUpdated', data)
+        } catch (error) {
+          console.error('Error emitting planUpdated event:', error)
+        }
+      })
+
+      this.eventListenersAttached = true
+
+    } catch (error) {
+      console.error('Failed to setup event forwarding:', error)
+    }
   }
 
   /**
    * Convert NikCLI ExecutionPlan to TaskMaster format
    */
   toTaskMasterPlan(executionPlan: ExecutionPlan): TaskMasterPlan {
-    const todos: PlanTodo[] = executionPlan.steps.map(step => this.stepToTodo(step))
+    try {
+      // Validate input
+      if (!executionPlan) {
+        throw new Error('ExecutionPlan is required')
+      }
 
-    return {
-      id: executionPlan.id,
-      title: executionPlan.title,
-      description: executionPlan.description,
-      userRequest: executionPlan.context.userRequest,
-      todos,
-      status: this.mapExecutionStatus(executionPlan.status),
-      createdAt: executionPlan.createdAt,
-      estimatedDuration: executionPlan.estimatedTotalDuration,
-      riskAssessment: {
-        overallRisk: executionPlan.riskAssessment.overallRisk,
-        destructiveOperations: executionPlan.riskAssessment.destructiveOperations,
-        fileModifications: executionPlan.riskAssessment.fileModifications,
-        externalCalls: executionPlan.riskAssessment.externalCalls,
-      },
+      if (!executionPlan.id || !executionPlan.title) {
+        throw new Error('ExecutionPlan must have id and title')
+      }
+
+      if (!executionPlan.steps || !Array.isArray(executionPlan.steps)) {
+        throw new Error('ExecutionPlan must have valid steps array')
+      }
+
+      // Convert steps to todos with error handling
+      const todos: PlanTodo[] = []
+      for (let i = 0; i < executionPlan.steps.length; i++) {
+        try {
+          const todo = this.stepToTodo(executionPlan.steps[i])
+          todos.push(todo)
+        } catch (stepError) {
+          console.warn(`Error converting step ${i} to todo:`, stepError)
+          // Continue with other steps
+        }
+      }
+
+      // Validate required context
+      const userRequest = executionPlan.context?.userRequest || 'Unknown request'
+
+      return {
+        id: executionPlan.id,
+        title: executionPlan.title,
+        description: executionPlan.description || '',
+        userRequest,
+        todos,
+        status: this.mapExecutionStatus(executionPlan.status),
+        createdAt: executionPlan.createdAt || new Date(),
+        estimatedDuration: executionPlan.estimatedTotalDuration || 0,
+        riskAssessment: {
+          overallRisk: executionPlan.riskAssessment?.overallRisk || 'low',
+          destructiveOperations: executionPlan.riskAssessment?.destructiveOperations || 0,
+          fileModifications: executionPlan.riskAssessment?.fileModifications || 0,
+          externalCalls: executionPlan.riskAssessment?.externalCalls || 0,
+        },
+      }
+
+    } catch (error) {
+      console.error('Error converting ExecutionPlan to TaskMaster format:', error)
+      throw new Error(`Failed to convert ExecutionPlan: ${error}`)
     }
   }
 
@@ -53,24 +136,67 @@ export class TaskMasterAdapter extends EventEmitter {
    * Convert TaskMaster plan to NikCLI ExecutionPlan
    */
   toExecutionPlan(taskMasterPlan: TaskMasterPlan): ExecutionPlan {
-    const steps: ExecutionStep[] = taskMasterPlan.todos.map(todo => this.todoToStep(todo))
+    try {
+      // Validate input
+      if (!taskMasterPlan) {
+        throw new Error('TaskMasterPlan is required')
+      }
 
-    return {
-      id: taskMasterPlan.id,
-      title: taskMasterPlan.title,
-      description: taskMasterPlan.description,
-      steps,
-      todos: taskMasterPlan.todos,
-      status: this.mapTaskMasterStatus(taskMasterPlan.status),
-      estimatedTotalDuration: taskMasterPlan.estimatedDuration,
-      riskAssessment: taskMasterPlan.riskAssessment,
-      createdAt: taskMasterPlan.createdAt,
-      createdBy: 'taskmaster-adapter',
-      context: {
-        userRequest: taskMasterPlan.userRequest,
-        projectPath: process.cwd(),
-        reasoning: 'Generated via TaskMaster AI',
-      },
+      if (!taskMasterPlan.id || !taskMasterPlan.title) {
+        throw new Error('TaskMasterPlan must have id and title')
+      }
+
+      if (!taskMasterPlan.todos || !Array.isArray(taskMasterPlan.todos)) {
+        throw new Error('TaskMasterPlan must have valid todos array')
+      }
+
+      // Convert todos to steps with error handling
+      const steps: ExecutionStep[] = []
+      for (let i = 0; i < taskMasterPlan.todos.length; i++) {
+        try {
+          const step = this.todoToStep(taskMasterPlan.todos[i])
+          steps.push(step)
+        } catch (todoError) {
+          console.warn(`Error converting todo ${i} to step:`, todoError)
+          // Continue with other todos
+        }
+      }
+
+      // Get project path safely
+      let projectPath: string
+      try {
+        projectPath = process.cwd()
+      } catch (cwdError) {
+        console.warn('Could not get current working directory:', cwdError)
+        projectPath = '/'
+      }
+
+      return {
+        id: taskMasterPlan.id,
+        title: taskMasterPlan.title,
+        description: taskMasterPlan.description || '',
+        steps,
+        todos: taskMasterPlan.todos,
+        status: this.mapTaskMasterStatus(taskMasterPlan.status),
+        estimatedTotalDuration: taskMasterPlan.estimatedDuration || 0,
+        riskAssessment: taskMasterPlan.riskAssessment || {
+          overallRisk: 'low' as const,
+          destructiveOperations: 0,
+          fileModifications: 0,
+          externalCalls: 0
+        },
+        createdAt: taskMasterPlan.createdAt || new Date(),
+        createdBy: 'taskmaster-adapter',
+        context: {
+          userRequest: taskMasterPlan.userRequest || 'Unknown request',
+          projectPath,
+          reasoning: 'Generated via TaskMaster AI',
+        },
+      }
+
+    } catch (error) {
+      console.error('Error converting TaskMasterPlan to ExecutionPlan:', error)
+      throw new Error(`Failed to convert TaskMasterPlan: ${error}`)
     }
   }
 
@@ -78,15 +204,39 @@ export class TaskMasterAdapter extends EventEmitter {
    * Convert SessionTodo to TaskMaster format
    */
   sessionTodoToTaskMaster(sessionTodo: SessionTodo): PlanTodo {
-    return {
-      id: sessionTodo.id,
-      title: sessionTodo.content,
-      description: sessionTodo.content,
-      status: this.mapSessionStatus(sessionTodo.status),
-      priority: this.mapSessionPriority(sessionTodo.priority),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      progress: sessionTodo.progress || 0,
+    try {
+      if (!sessionTodo) {
+        throw new Error('SessionTodo is required')
+      }
+
+      if (!sessionTodo.id) {
+        throw new Error('SessionTodo must have an id')
+      }
+
+      return {
+        id: sessionTodo.id,
+        title: sessionTodo.content || 'Untitled task',
+        description: sessionTodo.content || 'No description',
+        status: this.mapSessionStatus(sessionTodo.status),
+        priority: this.mapSessionPriority(sessionTodo.priority || 'medium'),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        progress: Math.max(0, Math.min(100, sessionTodo.progress || 0)),
+      }
+
+    } catch (error) {
+      console.error('Error converting SessionTodo to TaskMaster format:', error)
+      // Return a safe fallback
+      return {
+        id: sessionTodo?.id || 'error',
+        title: 'Error converting task',
+        description: 'Original task could not be converted',
+        status: 'pending' as const,
+        priority: 'medium' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        progress: 0,
+      }
     }
   }
 
@@ -94,12 +244,29 @@ export class TaskMasterAdapter extends EventEmitter {
    * Convert TaskMaster todo to SessionTodo
    */
   taskMasterToSessionTodo(planTodo: PlanTodo): SessionTodo {
-    return {
-      id: planTodo.id,
-      content: planTodo.title,
-      status: this.mapTodoStatus(planTodo.status) as any,
-      priority: this.mapTodoPriority(planTodo.priority) as any,
-      progress: planTodo.progress,
+    try {
+      if (!planTodo) {
+        throw new Error('PlanTodo is required')
+      }
+
+      return {
+        id: planTodo.id,
+        content: planTodo.title || 'Untitled task',
+        status: this.mapTodoStatus(planTodo.status) || 'pending',
+        priority: this.mapTodoPriority(planTodo.priority) || 'medium',
+        progress: Math.max(0, Math.min(100, planTodo.progress || 0)),
+      }
+
+    } catch (error) {
+      console.error('Error converting TaskMaster todo to SessionTodo:', error)
+      // Return a safe fallback
+      return {
+        id: planTodo?.id || 'error',
+        content: 'Error converting task',
+        status: 'pending',
+        priority: 'medium',
+        progress: 0,
+      }
     }
   }
 
@@ -416,11 +583,61 @@ export class TaskMasterAdapter extends EventEmitter {
    * Get adapter statistics
    */
   getAdapterStats(): AdapterStats {
-    return {
-      taskMasterAvailable: this.isTaskMasterAvailable(),
-      legacySupport: this.legacySupport,
-      activePlans: this.taskMasterService.listPlans().length,
-      adapterVersion: '1.0.0',
+    try {
+      let activePlans = 0
+      try {
+        activePlans = this.taskMasterService.listPlans?.()?.length || 0
+      } catch (listError) {
+        console.warn('Could not get active plans count:', listError)
+      }
+
+      return {
+        taskMasterAvailable: this.isTaskMasterAvailable(),
+        legacySupport: this.legacySupport,
+        activePlans,
+        adapterVersion: '1.0.0',
+        initialized: this.initialized,
+        eventListenersAttached: this.eventListenersAttached,
+      }
+    } catch (error) {
+      console.error('Error getting adapter stats:', error)
+      return {
+        taskMasterAvailable: false,
+        legacySupport: this.legacySupport,
+        activePlans: 0,
+        adapterVersion: '1.0.0',
+        initialized: this.initialized,
+        eventListenersAttached: this.eventListenersAttached,
+      }
+    }
+  }
+
+  /**
+   * Cleanup and destroy the adapter
+   */
+  destroy(): void {
+    try {
+      this.log('Destroying TaskMasterAdapter')
+
+      // Remove all event listeners
+      this.removeAllListeners()
+
+      // Clean up event forwarding
+      this.eventListenersAttached = false
+
+      // Reset state
+      this.initialized = false
+
+      this.log('TaskMasterAdapter destroyed successfully')
+
+    } catch (error) {
+      console.error('Error during TaskMasterAdapter cleanup:', error)
+    }
+  }
+
+  private log(message: string, data?: any): void {
+    if (this.legacySupport) {
+      console.log(`[TaskMasterAdapter] ${message}`, data || '')
     }
   }
 }
@@ -430,6 +647,8 @@ export interface AdapterStats {
   legacySupport: boolean
   activePlans: number
   adapterVersion: string
+  initialized: boolean
+  eventListenersAttached: boolean
 }
 
 // Export adapter instance factory
