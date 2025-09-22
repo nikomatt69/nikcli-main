@@ -4558,14 +4558,14 @@ export class NikCLI {
 
         // Make sure input queue bypass is off and resume prompt cleanly
         try {
-          const { inputQueue } = await import('./ui/input-queue').catch(() => ({ inputQueue: { disableBypass: () => {} } }))
+          const { inputQueue } = await import('./core/input-queue')
           inputQueue.disableBypass()
         } catch (_) {
           // ignore
         }
         try {
-          const { advancedUI } = await import('./ui/advanced-ui').catch(() => ({ advancedUI: { stopInteractiveMode: () => {} } }))
-          advancedUI.stopInteractiveMode?.()
+          // advancedUI is already available as this.advancedUI
+          this.advancedUI.stopInteractiveMode?.()
         } catch { }
         this.resumePromptAndRender()
         shouldRestorePrompt = false

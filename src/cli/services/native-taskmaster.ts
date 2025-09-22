@@ -537,12 +537,6 @@ export class NativeTaskMaster extends EventEmitter {
     return 'low'
   }
 
-  /**
-   * Calculate total duration of tasks
-   */
-  private calculateTotalDuration(tasks: any[]): number {
-    return tasks.reduce((total, task) => total + task.duration, 0)
-  }
 
   /**
    * Convert task to execution step
@@ -550,6 +544,7 @@ export class NativeTaskMaster extends EventEmitter {
   private taskToExecutionStep(task: any): ExecutionStep {
     return {
       id: task.id,
+      type: 'tool' as const,
       title: task.title,
       description: task.description,
       commands: task.commands || [],
@@ -559,7 +554,8 @@ export class NativeTaskMaster extends EventEmitter {
       status: 'pending' as const,
       progress: 0,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      reversible: true
     }
   }
 
@@ -822,7 +818,7 @@ export class NativeTaskMaster extends EventEmitter {
   /**
    * Create a TaskMasterAdapter-compatible interface
    */
-  createAdapter(): TaskMasterAdapter {
+  createAdapter(): any {
     return new NativeTaskMasterAdapter(this)
   }
 
@@ -847,12 +843,6 @@ export class NativeTaskMaster extends EventEmitter {
     return this.generatePlan(userRequest, context)
   }
 
-  /**
-   * Execute plan (compatible with TaskMasterAdapter interface)
-   */
-  async executePlanCompat(planId: string, options?: any): Promise<PlanExecutionResult> {
-    return this.executePlan(planId, options)
-  }
 
   /**
    * Update plan status (compatible with existing interface)
@@ -900,10 +890,11 @@ export class NativeTaskMaster extends EventEmitter {
  * Native TaskMaster Adapter
  * Provides TaskMasterAdapter-compatible interface for NativeTaskMaster
  */
-class NativeTaskMasterAdapter implements TaskMasterAdapterLike {
+class NativeTaskMasterAdapter extends EventEmitter {
   private nativeTaskMaster: NativeTaskMaster
 
   constructor(nativeTaskMaster: NativeTaskMaster) {
+    super()
     this.nativeTaskMaster = nativeTaskMaster
     // Forward events from Native TaskMaster
     this.nativeTaskMaster.on('planUpdated', (data) => this.emit('planUpdated', data))
@@ -927,7 +918,7 @@ class NativeTaskMasterAdapter implements TaskMasterAdapterLike {
    * Execute plan using Native TaskMaster
    */
   async executePlan(planId: string, options?: any): Promise<PlanExecutionResult> {
-    return this.nativeTaskMaster.executePlanCompat(planId, options)
+    return this.nativeTaskMaster.executePlan(planId, options)
   }
 
   /**
@@ -984,4 +975,3 @@ class NativeTaskMasterAdapter implements TaskMasterAdapterLike {
 
 // NativeTaskMaster is already exported above
 export type { NativeTaskMasterAdapter }
-export { TaskMasterAdapterLike }

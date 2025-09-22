@@ -8,7 +8,6 @@ import { type ToolCapability, toolService } from './tool-service'
 import { taskMasterService, type TaskMasterService } from './taskmaster-service'
 import { createTaskMasterAdapter, type TaskMasterAdapter } from '../adapters/taskmaster-adapter'
 import { NativeTaskMaster, type NativeTaskMasterAdapter } from './native-taskmaster'
-import type { TaskMasterAdapterLike } from './native-taskmaster'
 
 export interface PlanningOptions {
   showProgress: boolean
@@ -30,7 +29,7 @@ export class PlanningService {
   private availableTools: ToolCapability[] = []
   private taskMasterAdapter: TaskMasterAdapter
   private nativeTaskMaster: NativeTaskMaster
-  private nativeTaskMasterAdapter: TaskMasterAdapterLike
+  private nativeTaskMasterAdapter: any
   private useTaskMasterByDefault: boolean = true
   private eventEmitter: EventEmitter = new EventEmitter()
 

@@ -33,6 +33,10 @@ export interface ExecutionStep {
   reversible: boolean
   metadata?: Record<string, any>
   commands?: string[] // Commands to execute this step
+  status?: 'pending' | 'running' | 'completed' | 'failed'
+  progress?: number // 0-100
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 export interface ExecutionPlan {
