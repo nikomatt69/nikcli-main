@@ -172,20 +172,46 @@ export class AcpService extends EventEmitter {
   private keepAlive(): void {
     // Keep the service running for Zed
     // This prevents the process from exiting immediately
-    const keepAliveInterval = setInterval(() => {
-      if (!this.running) {
-        clearInterval(keepAliveInterval)
+    try {
+      if ((this as any).keepAliveInterval) {
+        this.log('Keep-alive interval already exists, skipping creation')
         return
       }
 
-      // Log heartbeat for debugging
-      if (this.config.debug) {
-        this.log('ACP Service heartbeat - waiting for Zed connection')
-      }
-    }, 30000) // Every 30 seconds
+      const keepAliveInterval = setInterval(() => {
+        try {
+          if (!this.running) {
+            this.log('Service stopped, clearing keep-alive interval')
+            if ((this as any).keepAliveInterval) {
+              clearInterval((this as any).keepAliveInterval)
+              ;(this as any).keepAliveInterval = undefined
+            }
+            return
+          }
 
-    // Store the interval for cleanup
-    ;(this as any).keepAliveInterval = keepAliveInterval
+          // Update stats
+          this.stats.uptime = Date.now() - this.startTime.getTime()
+
+          // Log heartbeat for debugging
+          if (this.config.debug) {
+            this.log('ACP Service heartbeat - waiting for Zed connection', {
+              uptime: Math.floor(this.stats.uptime / 1000),
+              activeSessions: this.stats.activeSessions,
+              memoryUsage: Math.floor(process.memoryUsage().heapUsed / 1024 / 1024)
+            })
+          }
+        } catch (intervalError) {
+          this.logError('Error in keep-alive interval', intervalError)
+        }
+      }, 30000) // Every 30 seconds
+
+      // Store the interval for cleanup
+      ;(this as any).keepAliveInterval = keepAliveInterval
+      this.log('Keep-alive interval started')
+
+    } catch (error) {
+      this.logError('Failed to start keep-alive interval', error)
+    }
   }
 
   async stop(): Promise<void> {
@@ -193,22 +219,72 @@ export class AcpService extends EventEmitter {
 
     this.log('Stopping NikCLI ACP Service')
 
+    let cleanupCompleted = false
+
     try {
       // Clean up keep alive interval
       if ((this as any).keepAliveInterval) {
-        clearInterval((this as any).keepAliveInterval)
-        ;(this as any).keepAliveInterval = undefined
+        try {
+          clearInterval((this as any).keepAliveInterval)
+          ;(this as any).keepAliveInterval = undefined
+          this.log('Keep-alive interval cleaned up')
+        } catch (intervalError) {
+          this.logError('Error cleaning up keep-alive interval', intervalError)
+        }
       }
 
-      // Shutdown agent
-      this.agent.shutdown()
+      // Shutdown agent with error handling
+      try {
+        await this.agent.shutdown()
+        this.log('Agent shutdown completed')
+      } catch (agentError) {
+        this.logError('Error during agent shutdown', agentError)
+        this.stats.errorCount++
+      }
 
+      // Clean up event listeners
+      try {
+        this.removeAllListeners()
+        this.log('Event listeners cleaned up')
+      } catch (listenerError) {
+        this.logError('Error cleaning up event listeners', listenerError)
+      }
+
+      cleanupCompleted = true
       this.running = false
-      this.log('NikCLI ACP Service stopped')
+      this.log('NikCLI ACP Service stopped successfully')
       this.emit('stopped')
+
     } catch (error) {
       this.logError('Error stopping ACP Service', error)
       this.stats.errorCount++
+      this.running = false
+
+      // Ensure we still emit stopped event even on error
+      try {
+        this.emit('stopped')
+      } catch (emitError) {
+        // Silent fail for emit error
+      }
+    } finally {
+      // Final cleanup that must always run
+      try {
+        if (!cleanupCompleted) {
+          this.log('Performing emergency cleanup')
+
+          // Emergency cleanup
+          if ((this as any).keepAliveInterval) {
+            clearInterval((this as any).keepAliveInterval)
+            ;(this as any).keepAliveInterval = undefined
+          }
+
+          this.running = false
+          this.removeAllListeners()
+        }
+      } catch (finalError) {
+        // Last resort error handling
+        console.error('Critical error in ACP Service final cleanup:', finalError)
+      }
     }
   }
 
@@ -269,13 +345,62 @@ export class AcpService extends EventEmitter {
   async gracefulShutdown(signal: string): Promise<void> {
     this.log(`Received ${signal}, initiating graceful shutdown`)
 
+    let shutdownCompleted = false
+    const shutdownTimeout = setTimeout(() => {
+      if (!shutdownCompleted) {
+        this.log('Graceful shutdown timed out, forcing exit')
+        console.error('ACP Service graceful shutdown timed out after 30 seconds')
+        process.exit(1)
+      }
+    }, 30000) // 30 second timeout
+
     try {
+      // Perform graceful stop
       await this.stop()
-      this.log('Graceful shutdown completed')
+
+      shutdownCompleted = true
+      clearTimeout(shutdownTimeout)
+
+      this.log('Graceful shutdown completed successfully')
+
+      // Final cleanup before exit
+      try {
+        this.removeAllListeners()
+      } catch (cleanupError) {
+        this.logError('Error during final cleanup', cleanupError)
+      }
+
       process.exit(0)
     } catch (error) {
+      shutdownCompleted = true
+      clearTimeout(shutdownTimeout)
+
       this.logError('Error during graceful shutdown', error)
+      this.stats.errorCount++
+
+      // Attempt final cleanup even on error
+      try {
+        this.removeAllListeners()
+        if ((this as any).keepAliveInterval) {
+          clearInterval((this as any).keepAliveInterval)
+          ;(this as any).keepAliveInterval = undefined
+        }
+      } catch (finalError) {
+        console.error('Error during emergency final cleanup:', finalError)
+      }
+
       process.exit(1)
+    } finally {
+      // Last resort cleanup
+      try {
+        clearTimeout(shutdownTimeout)
+        if ((this as any).keepAliveInterval) {
+          clearInterval((this as any).keepAliveInterval)
+          ;(this as any).keepAliveInterval = undefined
+        }
+      } catch (finalError) {
+        console.error('Critical error in shutdown finally block:', finalError)
+      }
     }
   }
 }
@@ -379,16 +504,52 @@ class NikCLIAgent implements Agent {
   }
 
   private async authenticateApiKey(): Promise<void> {
-    // Check if NikCLI has valid API keys configured
-    const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY
-    const hasOpenAIKey = !!process.env.OPENAI_API_KEY
-    const hasOpenRouterKey = !!process.env.OPENROUTER_API_KEY
-    const hasGoogleKey = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY
+    try {
+      // Check if NikCLI has valid API keys configured
+      const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY
+      const hasOpenAIKey = !!process.env.OPENAI_API_KEY
+      const hasOpenRouterKey = !!process.env.OPENROUTER_API_KEY
+      const hasGoogleKey = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY
+      const hasGatewayKey = !!process.env.AI_GATEWAY_API_KEY
 
-    if (!hasAnthropicKey && !hasOpenAIKey && !hasOpenRouterKey && !hasGoogleKey) {
-      throw new Error(
-        'No valid API keys found. Please set ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY'
-      )
+      if (!hasAnthropicKey && !hasOpenAIKey && !hasOpenRouterKey && !hasGoogleKey && !hasGatewayKey) {
+        throw new Error(
+          'No valid API keys found. Please set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or AI_GATEWAY_API_KEY'
+        )
+      }
+
+      // Validate API key format (basic validation)
+      if (hasAnthropicKey && process.env.ANTHROPIC_API_KEY!.length < 10) {
+        throw new Error('ANTHROPIC_API_KEY appears to be invalid (too short)')
+      }
+
+      if (hasOpenAIKey && process.env.OPENAI_API_KEY!.length < 10) {
+        throw new Error('OPENAI_API_KEY appears to be invalid (too short)')
+      }
+
+      if (hasOpenRouterKey && process.env.OPENROUTER_API_KEY!.length < 10) {
+        throw new Error('OPENROUTER_API_KEY appears to be invalid (too short)')
+      }
+
+      if (hasGoogleKey && process.env.GOOGLE_GENERATIVE_AI_API_KEY!.length < 10) {
+        throw new Error('GOOGLE_GENERATIVE_AI_API_KEY appears to be invalid (too short)')
+      }
+
+      if (hasGatewayKey && process.env.AI_GATEWAY_API_KEY!.length < 10) {
+        throw new Error('AI_GATEWAY_API_KEY appears to be invalid (too short)')
+      }
+
+      this.log('API key authentication successful', {
+        hasAnthropicKey,
+        hasOpenAIKey,
+        hasOpenRouterKey,
+        hasGoogleKey,
+        hasGatewayKey
+      })
+
+    } catch (error) {
+      this.logError('API key authentication failed', error)
+      throw error
     }
   }
 
@@ -483,27 +644,90 @@ class NikCLIAgent implements Agent {
   // ====================== SESSION MANAGEMENT ======================
 
   private createSession(cwd: string): string {
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
-    const session: SessionData = {
-      id: sessionId,
-      cwd: this.isAbsolutePath(cwd) ? cwd : this.config.workingDirectory,
-      createdAt: new Date(),
-      lastActivity: new Date(),
-      cancelled: false,
-    }
+    try {
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
 
-    this.sessions.set(sessionId, session)
-    return sessionId
+      // Validate and normalize working directory
+      let sessionCwd: string
+      try {
+        sessionCwd = this.isAbsolutePath(cwd) ? cwd : this.config.workingDirectory
+
+        // Basic path validation
+        if (!sessionCwd || sessionCwd.trim() === '') {
+          sessionCwd = this.config.workingDirectory
+        }
+
+        // Ensure path exists or can be created
+        const path = require('path')
+        const fs = require('fs')
+
+        if (!fs.existsSync(sessionCwd)) {
+          this.log(`Session directory does not exist, using fallback: ${sessionCwd}`)
+          sessionCwd = this.config.workingDirectory
+        }
+      } catch (pathError) {
+        this.logError('Error validating session path', pathError)
+        sessionCwd = this.config.workingDirectory
+      }
+
+      const session: SessionData = {
+        id: sessionId,
+        cwd: sessionCwd,
+        createdAt: new Date(),
+        lastActivity: new Date(),
+        cancelled: false,
+      }
+
+      this.sessions.set(sessionId, session)
+
+      // Update stats
+      this.stats.totalSessions++
+      this.stats.activeSessions++
+
+      this.log('Session created successfully', {
+        sessionId,
+        cwd: sessionCwd,
+        totalSessions: this.stats.totalSessions
+      })
+
+      return sessionId
+
+    } catch (error) {
+      this.logError('Failed to create session', error)
+      throw new Error(`Session creation failed: ${error}`)
+    }
   }
 
   private cancelSession(sessionId: string): boolean {
-    const session = this.sessions.get(sessionId)
-    if (session) {
-      session.cancelled = true
-      session.lastActivity = new Date()
-      return true
+    try {
+      const session = this.sessions.get(sessionId)
+      if (session) {
+        if (!session.cancelled) {
+          session.cancelled = true
+          session.lastActivity = new Date()
+
+          // Update stats
+          this.stats.activeSessions = Math.max(0, this.stats.activeSessions - 1)
+
+          this.log('Session cancelled successfully', {
+            sessionId,
+            activeSessions: this.stats.activeSessions
+          })
+
+          // Emit session cancelled event
+          this.emit('sessionCancelled', { sessionId, session })
+        }
+
+        return true
+      }
+
+      this.log('Session not found for cancellation', { sessionId })
+      return false
+
+    } catch (error) {
+      this.logError('Error cancelling session', error)
+      return false
     }
-    return false
   }
 
   private isAbsolutePath(path: string): boolean {
@@ -513,60 +737,159 @@ class NikCLIAgent implements Agent {
   // ====================== PROMPT PROCESSING ======================
 
   private async processPrompt(request: PromptRequest): Promise<'end_turn' | 'max_tokens' | 'refusal' | 'cancelled'> {
-    const session = this.sessions.get(request.sessionId)!
-
     try {
-      // Convert prompt blocks to text
-      const userMessage = this.convertContentBlocksToText(request.prompt)
-
-      // Process with NikCLI's AI system
-      if (this.config.services.orchestrator) {
-        // Use existing orchestrator service
-        await this.processWithOrchestrator(request.sessionId, userMessage, session.cwd)
-      } else {
-        // Fallback to simple processing
-        await this.processWithSimpleResponse(request.sessionId, userMessage)
+      const session = this.sessions.get(request.sessionId)
+      if (!session) {
+        this.logError('Session not found for prompt processing', { sessionId: request.sessionId })
+        return 'refusal'
       }
 
-      return 'end_turn'
-    } catch (_error) {
       if (session.cancelled) {
+        this.log('Session is cancelled, stopping prompt processing', { sessionId: request.sessionId })
         return 'cancelled'
       }
 
+      // Update session activity
+      session.lastActivity = new Date()
+
+      // Convert prompt blocks to text with error handling
+      let userMessage: string
+      try {
+        userMessage = this.convertContentBlocksToText(request.prompt)
+        if (!userMessage || userMessage.trim().length === 0) {
+          throw new Error('Empty or invalid prompt content')
+        }
+      } catch (contentError) {
+        this.logError('Error converting prompt content', contentError)
+        return 'refusal'
+      }
+
+      // Process with NikCLI's AI system
+      try {
+        if (this.config.services.orchestrator) {
+          // Use existing orchestrator service
+          await this.processWithOrchestrator(request.sessionId, userMessage, session.cwd)
+        } else {
+          // Fallback to simple processing
+          await this.processWithSimpleResponse(request.sessionId, userMessage)
+        }
+
+        // Update stats
+        this.stats.totalMessages++
+
+        return 'end_turn'
+
+      } catch (processingError) {
+        this.logError('Error processing prompt', processingError)
+        this.stats.errorCount++
+
+        if (session.cancelled) {
+          return 'cancelled'
+        }
+
+        return 'refusal'
+      }
+
+    } catch (error) {
+      this.logError('Critical error in prompt processing', error)
+      this.stats.errorCount++
       return 'refusal'
     }
   }
 
   private async processWithOrchestrator(sessionId: string, message: string, cwd: string): Promise<void> {
-    // TODO: Integrate with actual NikCLI orchestrator service
-    this.log('Processing with NikCLI orchestrator', { sessionId, cwd, message })
+    try {
+      // TODO: Integrate with actual NikCLI orchestrator service
+      this.log('Processing with NikCLI orchestrator', { sessionId, cwd, message })
+
+      // For now, simulate orchestrator processing
+      // In production, this would call the actual orchestrator service
+      await new Promise(resolve => setTimeout(resolve, 100)) // Small delay to simulate processing
+
+      // Update tool execution stats
+      this.stats.totalToolExecutions++
+
+      this.log('Orchestrator processing completed', { sessionId })
+
+    } catch (error) {
+      this.logError('Error in orchestrator processing', error)
+      throw error
+    }
   }
 
   private async processWithSimpleResponse(sessionId: string, message: string): Promise<void> {
-    this.log('Processing with simple response', { sessionId, message })
+    try {
+      this.log('Processing with simple response', { sessionId, message })
+
+      // Basic response processing
+      // In production, this might use a simple AI model or rule-based system
+      await new Promise(resolve => setTimeout(resolve, 50)) // Small delay
+
+      this.log('Simple response processing completed', { sessionId })
+
+    } catch (error) {
+      this.logError('Error in simple response processing', error)
+      throw error
+    }
   }
 
   private convertContentBlocksToText(blocks: any[]): string {
-    return blocks
-      .map((block) => {
-        switch (block.type) {
-          case 'text':
-            return block.text
-          case 'resource':
-            const resourceText = 'text' in block.resource ? block.resource.text : '[Binary resource]'
-            return `[Resource: ${block.resource.uri}]\n${resourceText}`
-          case 'resource_link':
-            return `[Link: ${block.name} - ${block.uri}]`
-          case 'image':
-            return `[Image: ${block.mimeType}]`
-          case 'audio':
-            return `[Audio: ${block.mimeType}]`
-          default:
-            return '[Unknown content type]'
+    try {
+      if (!Array.isArray(blocks)) {
+        throw new Error('Blocks parameter must be an array')
+      }
+
+      if (blocks.length === 0) {
+        return ''
+      }
+
+      const convertedBlocks = blocks.map((block, index) => {
+        try {
+          if (!block || typeof block !== 'object') {
+            return `[Invalid block ${index}]`
+          }
+
+          switch (block.type) {
+            case 'text':
+              return block.text || '[Empty text block]'
+
+            case 'resource':
+              if (!block.resource) {
+                return '[Invalid resource block]'
+              }
+              const resourceText = 'text' in block.resource ? block.resource.text : '[Binary resource]'
+              return `[Resource: ${block.resource.uri || 'unknown'}]\n${resourceText}`
+
+            case 'resource_link':
+              return `[Link: ${block.name || 'unnamed'} - ${block.uri || 'unknown'}]`
+
+            case 'image':
+              return `[Image: ${block.mimeType || 'unknown type'}]`
+
+            case 'audio':
+              return `[Audio: ${block.mimeType || 'unknown type'}]`
+
+            default:
+              return `[Unknown content type: ${block.type || 'undefined'}]`
+          }
+        } catch (blockError) {
+          this.logError(`Error processing block ${index}`, blockError)
+          return `[Error processing block ${index}]`
         }
       })
-      .join('\n\n')
+
+      const result = convertedBlocks.join('\n\n')
+
+      if (result.length === 0) {
+        return '[No content]'
+      }
+
+      return result
+
+    } catch (error) {
+      this.logError('Error converting content blocks to text', error)
+      return '[Error converting content]'
+    }
   }
 
   // ====================== UTILITIES ======================
@@ -588,11 +911,43 @@ class NikCLIAgent implements Agent {
   shutdown(): void {
     this.log('Shutting down NikCLI ACP Agent')
 
-    // Cancel all active sessions
-    for (const [id, session] of this.sessions) {
-      if (!session.cancelled) {
-        this.cancelSession(id)
+    try {
+      // Cancel all active sessions with error handling
+      const sessionIds = Array.from(this.sessions.keys())
+      let cancelledCount = 0
+      let errorCount = 0
+
+      for (const sessionId of sessionIds) {
+        try {
+          const session = this.sessions.get(sessionId)
+          if (session && !session.cancelled) {
+            const cancelled = this.cancelSession(sessionId)
+            if (cancelled) {
+              cancelledCount++
+            }
+          }
+        } catch (sessionError) {
+          this.logError(`Error cancelling session ${sessionId}`, sessionError)
+          errorCount++
+        }
       }
+
+      this.log('Session cleanup completed', {
+        totalSessions: sessionIds.length,
+        cancelled: cancelledCount,
+        errors: errorCount
+      })
+
+      // Clear all sessions
+      try {
+        this.sessions.clear()
+        this.log('All sessions cleared from memory')
+      } catch (clearError) {
+        this.logError('Error clearing sessions', clearError)
+      }
+
+    } catch (error) {
+      this.logError('Critical error during agent shutdown', error)
     }
   }
 }

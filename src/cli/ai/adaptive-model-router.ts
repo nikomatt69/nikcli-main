@@ -3,6 +3,22 @@ import { universalTokenizer } from '../core/universal-tokenizer-service'
 import { logger } from '../utils/logger'
 import type { ChatMessage } from './model-provider'
 
+let tokenizerInitialized = false
+let tokenizerError: Error | null = null
+
+// Safe initialization of tokenizer
+try {
+  // Test tokenizer availability
+  if (universalTokenizer && typeof universalTokenizer.countMessagesTokens === 'function') {
+    tokenizerInitialized = true
+  } else {
+    throw new Error('UniversalTokenizer not properly initialized')
+  }
+} catch (error) {
+  tokenizerError = error instanceof Error ? error : new Error('Unknown tokenizer error')
+  console.warn('Failed to initialize tokenizer:', tokenizerError.message)
+}
+
 export type ModelScope = 'chat_default' | 'planning' | 'code_gen' | 'tool_light' | 'tool_heavy' | 'vision'
 
 export interface ModelRouteInput {
@@ -34,25 +50,87 @@ async function estimateTokensPrecise(
   model: string
 ): Promise<{ tokens: number; method: 'precise' | 'fallback' }> {
   try {
+    // Validate inputs
+    if (!messages || !Array.isArray(messages)) {
+      throw new Error('Messages must be a valid array')
+    }
+
+    if (messages.length === 0) {
+      return { tokens: 0, method: 'fallback' }
+    }
+
+    if (!provider || typeof provider !== 'string') {
+      throw new Error('Provider must be a valid string')
+    }
+
+    if (!model || typeof model !== 'string') {
+      throw new Error('Model must be a valid string')
+    }
+
+    // Check if tokenizer is available
+    if (!tokenizerInitialized || tokenizerError) {
+      throw new Error(`Tokenizer not available: ${tokenizerError?.message || 'Unknown error'}`)
+    }
+
+    // Validate and clean messages
+    const validMessages = messages.filter((m, index) => {
+      if (!m || typeof m !== 'object') {
+        console.warn(`Invalid message at index ${index}:`, m)
+        return false
+      }
+      if (!m.role || !m.content) {
+        console.warn(`Message missing role or content at index ${index}:`, m)
+        return false
+      }
+      if (typeof m.content !== 'string') {
+        console.warn(`Message content must be string at index ${index}:`, m)
+        return false
+      }
+      return true
+    })
+
+    if (validMessages.length === 0) {
+      throw new Error('No valid messages found')
+    }
+
     // Convert to CoreMessage format for tokenizer
-    const coreMessages: CoreMessage[] = messages.map((m) => ({
+    const coreMessages: CoreMessage[] = validMessages.map((m) => ({
       role: m.role as any,
       content: m.content,
     }))
 
-    const tokens = await universalTokenizer.countMessagesTokens(coreMessages, model, provider)
+    // Use tokenizer with timeout protection
+    const tokens = await Promise.race([
+      universalTokenizer.countMessagesTokens(coreMessages, model, provider),
+      new Promise<number>((_, reject) =>
+        setTimeout(() => reject(new Error('Token counting timeout')), 10000)
+      )
+    ])
+
+    if (typeof tokens !== 'number' || tokens < 0) {
+      throw new Error(`Invalid token count: ${tokens}`)
+    }
+
     return { tokens, method: 'precise' }
+
   } catch (error: any) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
     logger.warn('Precise token counting failed, using fallback', {
-      error: error.message,
+      error: errorMessage,
       provider,
       model,
+      messageCount: messages?.length || 0,
     })
 
     // Fallback to improved character-based estimation
-    const chars = messages.reduce((s, m) => s + (m.content?.length || 0), 0)
-    const tokens = Math.max(1, Math.round(chars / getCharTokenRatio(provider)))
-    return { tokens, method: 'fallback' }
+    try {
+      const chars = messages.reduce((s, m) => s + (m?.content?.length || 0), 0)
+      const tokens = Math.max(1, Math.round(chars / getCharTokenRatio(provider)))
+      return { tokens, method: 'fallback' }
+    } catch (fallbackError) {
+      console.error('Fallback token estimation also failed:', fallbackError)
+      return { tokens: 1, method: 'fallback' } // Last resort fallback
+    }
   }
 }
 
@@ -155,64 +233,139 @@ export class AdaptiveModelRouter {
    * Choose optimal model with precise token counting
    */
   async choose(input: ModelRouteInput): Promise<ModelRouteDecision> {
-    // Filter and ensure messages have required properties
-    const validMessages = input.messages
-      .filter((m) => m.role && m.content)
-      .map((m) => ({
-        role: m.role!,
-        content: m.content!,
-      }))
+    try {
+      // Validate input
+      if (!input) {
+        throw new Error('ModelRouteInput is required')
+      }
 
-    // Get precise token count
-    const { tokens, method } = await estimateTokensPrecise(validMessages, input.provider, input.baseModel)
+      if (!input.provider || typeof input.provider !== 'string') {
+        throw new Error('Provider must be a valid string')
+      }
 
-    const lastUser = [...input.messages].reverse().find((m) => m.role === 'user')?.content || ''
-    const tier = determineTier(tokens, input.scope, lastUser)
+      if (!input.baseModel || typeof input.baseModel !== 'string') {
+        throw new Error('BaseModel must be a valid string')
+      }
 
-    let selected = input.baseModel
-    let reason = 'base model'
+      if (!input.messages || !Array.isArray(input.messages)) {
+        throw new Error('Messages must be a valid array')
+      }
 
-    switch (input.provider) {
-      case 'openai':
-        selected = pickOpenAI(input.baseModel, tier, input.needsVision)
-        reason = `openai ${tier} (${method})`
-        break
-      case 'anthropic':
-        selected = pickAnthropic(input.baseModel, tier, input.needsVision)
-        reason = `anthropic ${tier} (${method})`
-        break
-      case 'google':
-        selected = pickGoogle(input.baseModel, tier)
-        reason = `google ${tier} (${method})`
-        break
-      case 'openrouter':
-        selected = pickOpenRouter(input.baseModel, tier, input.needsVision)
-        reason = `openrouter ${tier} (${method})`
-        break
-      case 'vercel':
-      case 'gateway':
-        // Default: keep base model (gateways often wrap specific ids)
+      // Filter and ensure messages have required properties
+      const validMessages = input.messages
+        .filter((m) => m && typeof m === 'object' && m.role && m.content)
+        .map((m) => ({
+          role: m.role!,
+          content: m.content!,
+        }))
+
+      if (validMessages.length === 0) {
+        throw new Error('At least one valid message is required')
+      }
+
+      // Get precise token count with error handling
+      let tokens = 0
+      let method: 'precise' | 'fallback' = 'fallback'
+
+      try {
+        const tokenResult = await estimateTokensPrecise(validMessages, input.provider, input.baseModel)
+        tokens = tokenResult.tokens
+        method = tokenResult.method
+      } catch (tokenError) {
+        console.warn('Token estimation failed, using fallback:', tokenError)
+        // Use basic estimation as last resort
+        const chars = validMessages.reduce((s, m) => s + (m.content?.length || 0), 0)
+        tokens = Math.max(1, Math.round(chars / getCharTokenRatio(input.provider)))
+      }
+
+      // Determine tier with error handling
+      let tier: 'light' | 'medium' | 'heavy' = 'medium'
+      try {
+        const lastUser = [...input.messages].reverse().find((m) => m.role === 'user')?.content || ''
+        tier = determineTier(tokens, input.scope, lastUser)
+      } catch (tierError) {
+        console.warn('Tier determination failed, using medium:', tierError)
+        tier = 'medium'
+      }
+
+      // Select model with error handling
+      let selected = input.baseModel
+      let reason = 'base model'
+
+      try {
+        switch (input.provider) {
+          case 'openai':
+            selected = pickOpenAI(input.baseModel, tier, input.needsVision)
+            reason = `openai ${tier} (${method})`
+            break
+          case 'anthropic':
+            selected = pickAnthropic(input.baseModel, tier, input.needsVision)
+            reason = `anthropic ${tier} (${method})`
+            break
+          case 'google':
+            selected = pickGoogle(input.baseModel, tier)
+            reason = `google ${tier} (${method})`
+            break
+          case 'openrouter':
+            selected = pickOpenRouter(input.baseModel, tier, input.needsVision)
+            reason = `openrouter ${tier} (${method})`
+            break
+          case 'vercel':
+          case 'gateway':
+            selected = input.baseModel
+            reason = `${input.provider} base (${method})`
+            break
+          case 'ollama':
+            selected = input.baseModel
+            reason = `ollama base (${method})`
+            break
+          default:
+            throw new Error(`Unsupported provider: ${input.provider}`)
+        }
+      } catch (selectionError) {
+        console.warn('Model selection failed, using base model:', selectionError)
         selected = input.baseModel
-        reason = `${input.provider} base (${method})`
-        break
-      case 'ollama':
-        selected = input.baseModel // keep local model selection
-        reason = `ollama base (${method})`
-        break
-    }
+        reason = `fallback (${method})`
+      }
 
-    // Get model limits for additional context
-    const limits = universalTokenizer.getModelLimits(selected, input.provider)
-    const contextUsage = tokens / limits.context
+      // Get model limits with error handling
+      let limits = { context: 100000 } // Default fallback
+      try {
+        limits = universalTokenizer.getModelLimits(selected, input.provider)
+        if (!limits.context || limits.context <= 0) {
+          throw new Error('Invalid context limit')
+        }
+      } catch (limitsError) {
+        console.warn('Could not get model limits, using defaults:', limitsError)
+        limits = { context: 100000 }
+      }
 
-    return {
-      selectedModel: selected,
-      tier,
-      reason,
-      estimatedTokens: tokens,
-      actualTokens: method === 'precise' ? tokens : undefined,
-      confidence: method === 'precise' ? 0.95 : 0.7,
-      tokenizationMethod: method,
+      const contextUsage = tokens / limits.context
+      const confidence = method === 'precise' ? 0.95 : 0.7
+
+      return {
+        selectedModel: selected,
+        tier,
+        reason,
+        estimatedTokens: tokens,
+        actualTokens: method === 'precise' ? tokens : undefined,
+        confidence,
+        tokenizationMethod: method,
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error('Model selection failed:', errorMessage)
+
+      // Return safe fallback
+      return {
+        selectedModel: input?.baseModel || 'gpt-4o-mini',
+        tier: 'medium',
+        reason: 'error fallback',
+        estimatedTokens: 1,
+        confidence: 0.1,
+        tokenizationMethod: 'fallback',
+      }
     }
   }
 
@@ -221,55 +374,114 @@ export class AdaptiveModelRouter {
    * @deprecated Use async choose() method instead for precise counting
    */
   chooseFast(input: ModelRouteInput): ModelRouteDecision {
-    // Filter and ensure messages have required properties
-    const validMessages = input.messages
-      .filter((m) => m.role && m.content)
-      .map((m) => ({
-        content: m.content!,
-      }))
+    try {
+      // Validate input
+      if (!input) {
+        throw new Error('ModelRouteInput is required')
+      }
 
-    const tokens = estimateTokens(validMessages)
-    const lastUser = [...input.messages].reverse().find((m) => m.role === 'user')?.content || ''
-    const tier = determineTier(tokens, input.scope, lastUser)
+      if (!input.provider || typeof input.provider !== 'string') {
+        throw new Error('Provider must be a valid string')
+      }
 
-    let selected = input.baseModel
-    let reason = 'base model'
+      if (!input.baseModel || typeof input.baseModel !== 'string') {
+        throw new Error('BaseModel must be a valid string')
+      }
 
-    switch (input.provider) {
-      case 'openai':
-        selected = pickOpenAI(input.baseModel, tier, input.needsVision)
-        reason = `openai ${tier}`
-        break
-      case 'anthropic':
-        selected = pickAnthropic(input.baseModel, tier, input.needsVision)
-        reason = `anthropic ${tier}`
-        break
-      case 'google':
-        selected = pickGoogle(input.baseModel, tier)
-        reason = `google ${tier}`
-        break
-      case 'openrouter':
-        selected = pickOpenRouter(input.baseModel, tier, input.needsVision)
-        reason = `openrouter ${tier}`
-        break
-      case 'vercel':
-      case 'gateway':
+      if (!input.messages || !Array.isArray(input.messages)) {
+        throw new Error('Messages must be a valid array')
+      }
+
+      // Filter and ensure messages have required properties
+      const validMessages = input.messages
+        .filter((m) => m && typeof m === 'object' && m.role && m.content)
+        .map((m) => ({
+          content: m.content!,
+        }))
+
+      if (validMessages.length === 0) {
+        throw new Error('At least one valid message is required')
+      }
+
+      // Estimate tokens with error handling
+      let tokens = 1
+      try {
+        tokens = estimateTokens(validMessages)
+      } catch (tokenError) {
+        console.warn('Token estimation failed in chooseFast:', tokenError)
+      }
+
+      // Determine tier with error handling
+      let tier: 'light' | 'medium' | 'heavy' = 'medium'
+      try {
+        const lastUser = [...input.messages].reverse().find((m) => m.role === 'user')?.content || ''
+        tier = determineTier(tokens, input.scope, lastUser)
+      } catch (tierError) {
+        console.warn('Tier determination failed in chooseFast:', tierError)
+      }
+
+      // Select model with error handling
+      let selected = input.baseModel
+      let reason = 'base model'
+
+      try {
+        switch (input.provider) {
+          case 'openai':
+            selected = pickOpenAI(input.baseModel, tier, input.needsVision)
+            reason = `openai ${tier}`
+            break
+          case 'anthropic':
+            selected = pickAnthropic(input.baseModel, tier, input.needsVision)
+            reason = `anthropic ${tier}`
+            break
+          case 'google':
+            selected = pickGoogle(input.baseModel, tier)
+            reason = `google ${tier}`
+            break
+          case 'openrouter':
+            selected = pickOpenRouter(input.baseModel, tier, input.needsVision)
+            reason = `openrouter ${tier}`
+            break
+          case 'vercel':
+          case 'gateway':
+            selected = input.baseModel
+            reason = `${input.provider} base`
+            break
+          case 'ollama':
+            selected = input.baseModel
+            reason = 'ollama base'
+            break
+          default:
+            throw new Error(`Unsupported provider: ${input.provider}`)
+        }
+      } catch (selectionError) {
+        console.warn('Model selection failed in chooseFast:', selectionError)
         selected = input.baseModel
-        reason = `${input.provider} base`
-        break
-      case 'ollama':
-        selected = input.baseModel
-        reason = 'ollama base'
-        break
-    }
+        reason = 'fallback'
+      }
 
-    return {
-      selectedModel: selected,
-      tier,
-      reason,
-      estimatedTokens: tokens,
-      confidence: 0.7,
-      tokenizationMethod: 'fallback',
+      return {
+        selectedModel: selected,
+        tier,
+        reason,
+        estimatedTokens: tokens,
+        confidence: 0.7,
+        tokenizationMethod: 'fallback',
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error('chooseFast failed:', errorMessage)
+
+      // Return safe fallback
+      return {
+        selectedModel: input?.baseModel || 'gpt-4o-mini',
+        tier: 'medium',
+        reason: 'error fallback',
+        estimatedTokens: 1,
+        confidence: 0.1,
+        tokenizationMethod: 'fallback',
+      }
     }
   }
 
@@ -286,24 +498,84 @@ export class AdaptiveModelRouter {
     estimatedCost: number
     recommendedTier: 'light' | 'medium' | 'heavy'
   }> {
-    const limits = universalTokenizer.getModelLimits(decision.selectedModel, input.provider)
-    const usagePercentage = ((decision.actualTokens || decision.estimatedTokens) / limits.context) * 100
+    try {
+      // Validate inputs
+      if (!input) {
+        throw new Error('ModelRouteInput is required')
+      }
 
-    // Get cost estimation (assuming 0 output tokens for input analysis)
-    const cost = universalTokenizer.calculateCost(
-      decision.actualTokens || decision.estimatedTokens,
-      0,
-      decision.selectedModel
-    )
+      if (!decision) {
+        throw new Error('ModelRouteDecision is required')
+      }
 
-    return {
-      inputTokens: decision.actualTokens || decision.estimatedTokens,
-      contextLimit: limits.context,
-      usagePercentage,
-      estimatedCost: cost.inputCost,
-      recommendedTier: decision.tier,
+      if (!decision.selectedModel) {
+        throw new Error('Decision must have a selected model')
+      }
+
+      // Get model limits with error handling
+      let limits = { context: 100000 }
+      try {
+        limits = universalTokenizer.getModelLimits(decision.selectedModel, input.provider)
+        if (!limits.context || limits.context <= 0) {
+          throw new Error('Invalid context limit')
+        }
+      } catch (limitsError) {
+        console.warn('Could not get model limits, using defaults:', limitsError)
+        limits = { context: 100000 }
+      }
+
+      // Calculate token usage
+      const tokenCount = decision.actualTokens || decision.estimatedTokens || 1
+      const usagePercentage = (tokenCount / limits.context) * 100
+
+      // Validate usage percentage
+      const validUsagePercentage = isNaN(usagePercentage) || !isFinite(usagePercentage) ? 0 : usagePercentage
+
+      // Get cost estimation with error handling
+      let cost = { inputCost: 0 }
+      try {
+        cost = universalTokenizer.calculateCost(tokenCount, 0, decision.selectedModel)
+        if (typeof cost.inputCost !== 'number' || isNaN(cost.inputCost)) {
+          throw new Error('Invalid cost calculation')
+        }
+      } catch (costError) {
+        console.warn('Could not calculate cost, using zero:', costError)
+        cost = { inputCost: 0 }
+      }
+
+      return {
+        inputTokens: tokenCount,
+        contextLimit: limits.context,
+        usagePercentage: Math.max(0, Math.min(100, validUsagePercentage)),
+        estimatedCost: cost.inputCost,
+        recommendedTier: decision.tier || 'medium',
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error('getTokenUsageInfo failed:', errorMessage)
+
+      // Return safe defaults
+      return {
+        inputTokens: 1,
+        contextLimit: 100000,
+        usagePercentage: 0,
+        estimatedCost: 0,
+        recommendedTier: 'medium',
+      }
     }
   }
 }
 
-export const adaptiveModelRouter = new AdaptiveModelRouter()
+// Create singleton instance with error handling
+let adaptiveModelRouterInstance: AdaptiveModelRouter | null = null
+let routerInitializationError: Error | null = null
+
+try {
+  adaptiveModelRouterInstance = new AdaptiveModelRouter()
+} catch (error) {
+  routerInitializationError = error instanceof Error ? error : new Error('Unknown router initialization error')
+  console.error('Failed to initialize AdaptiveModelRouter:', routerInitializationError.message)
+}
+
+export const adaptiveModelRouter = adaptiveModelRouterInstance || new AdaptiveModelRouter()

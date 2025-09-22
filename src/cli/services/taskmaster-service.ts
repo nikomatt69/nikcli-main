@@ -12,6 +12,7 @@ import type {
   TaskPriority,
   InitProjectOptions
 } from '../types/taskmaster-types'
+import { NativeTaskMaster } from './native-taskmaster'
 
 /**
  * TaskMaster AI Integration Service

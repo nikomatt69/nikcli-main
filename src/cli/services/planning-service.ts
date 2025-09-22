@@ -7,6 +7,7 @@ import type { ExecutionPlan, PlannerContext, PlanningToolCapability, PlanTodo } 
 import { type ToolCapability, toolService } from './tool-service'
 import { taskMasterService, type TaskMasterService } from './taskmaster-service'
 import { createTaskMasterAdapter, type TaskMasterAdapter } from '../adapters/taskmaster-adapter'
+import { NativeTaskMaster, type NativeTaskMasterAdapter } from './native-taskmaster'
 
 export interface PlanningOptions {
   showProgress: boolean
@@ -27,6 +28,8 @@ export class PlanningService {
   private workingDirectory: string = process.cwd()
   private availableTools: ToolCapability[] = []
   private taskMasterAdapter: TaskMasterAdapter
+  private nativeTaskMaster: NativeTaskMaster
+  private nativeTaskMasterAdapter: any
   private useTaskMasterByDefault: boolean = true
   private eventEmitter: EventEmitter = new EventEmitter()
 
@@ -34,6 +37,8 @@ export class PlanningService {
     this.planGenerator = new PlanGenerator()
     this.autonomousPlanner = new AutonomousPlanner(this.workingDirectory)
     this.taskMasterAdapter = createTaskMasterAdapter(taskMasterService)
+    this.nativeTaskMaster = new NativeTaskMaster(this.workingDirectory)
+    this.nativeTaskMasterAdapter = this.nativeTaskMaster.createAdapter()
     this.initializeTools()
     this.initializeTaskMaster()
   }
@@ -220,7 +225,7 @@ export class PlanningService {
 
     let plan: ExecutionPlan
 
-    if (shouldUseTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable()) {
+    if (shouldUseTaskMaster && (this.taskMasterAdapter.isTaskMasterAvailable() || this.nativeTaskMasterAdapter.isTaskMasterAvailable())) {
       try {
         console.log(chalk.cyan('🤖 Using TaskMaster AI for advanced planning...'))
 
@@ -235,19 +240,56 @@ export class PlanningService {
       } catch (error: any) {
         console.log(chalk.yellow(`⚠️ TaskMaster planning failed: ${error.message}`))
 
-        if (!options.fallbackToLegacy) {
-          throw error
-        }
+        // Try Native TaskMaster as fallback before legacy
+        try {
+          console.log(chalk.cyan('🔄 Falling back to Native TaskMaster AI...'))
 
-        console.log(chalk.cyan('🔄 Falling back to legacy planning...'))
-        plan = await this.createLegacyPlan(userRequest, options)
+          plan = await this.nativeTaskMasterAdapter.createEnhancedPlan(userRequest, {
+            projectPath: this.workingDirectory,
+            relevantFiles: await this.getProjectFiles(),
+            projectType: await this.detectProjectType(),
+          })
+
+          console.log(chalk.green('✅ Native TaskMaster plan generated'))
+        } catch (nativeTaskMasterError: any) {
+          console.log(chalk.yellow(`⚠️ Native TaskMaster planning also failed: ${nativeTaskMasterError.message}`))
+
+          if (!options.fallbackToLegacy) {
+            throw error
+          }
+
+          console.log(chalk.cyan('🔄 Falling back to legacy planning...'))
+          plan = await this.createLegacyPlan(userRequest, options)
+        }
       }
     } else {
-      // Use legacy planning
+      // Use Native TaskMaster as fallback or use legacy planning
       if (shouldUseTaskMaster) {
-        console.log(chalk.yellow('⚠️ TaskMaster not available, using legacy planning'))
+        try {
+          console.log(chalk.cyan('🔄 Using Native TaskMaster AI for planning...'))
+
+          // Use Native TaskMaster for planning
+          plan = await this.nativeTaskMasterAdapter.createEnhancedPlan(userRequest, {
+            projectPath: this.workingDirectory,
+            relevantFiles: await this.getProjectFiles(),
+            projectType: await this.detectProjectType(),
+          })
+
+          console.log(chalk.green('✅ Native TaskMaster plan generated'))
+        } catch (nativeTaskMasterError: any) {
+          console.log(chalk.yellow(`⚠️ Native TaskMaster planning failed: ${nativeTaskMasterError.message}`))
+
+          if (!options.fallbackToLegacy) {
+            throw nativeTaskMasterError
+          }
+
+          console.log(chalk.yellow('⚠️ TaskMaster not available, using legacy planning'))
+          plan = await this.createLegacyPlan(userRequest, options)
+        }
+      } else {
+        // Use legacy planning
+        plan = await this.createLegacyPlan(userRequest, options)
       }
-      plan = await this.createLegacyPlan(userRequest, options)
     }
 
     // Store the plan
@@ -257,7 +299,7 @@ export class PlanningService {
     await this.syncPlanWithSystems(plan)
 
     // Show dashboard for TaskMaster plans or when showProgress is enabled
-    const isTaskMasterPlan = shouldUseTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable()
+    const isTaskMasterPlan = shouldUseTaskMaster && (this.taskMasterAdapter.isTaskMasterAvailable() || this.nativeTaskMasterAdapter.isTaskMasterAvailable())
     if (options.showProgress || isTaskMasterPlan) {
       this.displayPlan(plan)
       await this.showDashboard(plan)
