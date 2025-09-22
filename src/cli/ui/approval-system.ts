@@ -571,31 +571,134 @@ export class ApprovalSystem extends EventEmitter {
   }
 
   /**
+   * Compact confirmation for plan mode - more streamlined UI
+   */
+  async confirmPlanAction(question: string, details?: string, defaultValue: boolean = false): Promise<boolean> {
+    // CRITICAL: Track original input queue state
+    const wasEnabled = inputQueue.isBypassEnabled()
+    let inquirerInstance: any = null
+
+    try {
+      // Super compact layout for plan mode
+      if (details) {
+        console.log(chalk.gray(`💡 ${details}`))
+      }
+
+      // Single line spacing
+      console.log()
+
+      // Flush output with timeout protection
+      await Promise.race([
+        new Promise((resolve) => {
+          process.stdout.write('', () => {
+            setTimeout(resolve, 30)
+          })
+        }),
+        new Promise((resolve) => setTimeout(resolve, 100)) // 100ms timeout
+      ])
+
+      // Suspend main prompt and enable bypass only if not already enabled
+      try {
+        ;(global as any).__nikCLI?.suspendPrompt?.()
+      } catch {}
+
+      if (!wasEnabled) {
+        inputQueue.enableBypass()
+      }
+
+      // Create inquirer prompt with timeout
+      const promptPromise = inquirer.prompt([
+        {
+          type: 'list',
+          name: 'ok',
+          message: chalk.cyan.bold(`🎯 ${question}`),
+          choices: [
+            { name: '✅ Yes', value: true },
+            { name: '❌ No', value: false },
+          ],
+          default: defaultValue ? 0 : 1,
+          prefix: '',  // No prefix for more compact layout
+        },
+      ])
+
+      // Track inquirer instance for cleanup
+      inquirerInstance = promptPromise
+
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Approval timeout')), 30000) // 30 second timeout
+      )
+
+      const answers = await Promise.race([promptPromise, timeoutPromise])
+      return !!(answers as any).ok
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Approval failed: ${error.message}`))
+      return false
+    } finally {
+      // CRITICAL: Always restore original input queue state
+      try {
+        if (!wasEnabled && inputQueue.isBypassEnabled()) {
+          inputQueue.disableBypass()
+        }
+      } catch (error) {
+        console.error('Failed to restore input queue state:', error)
+        // Force cleanup as last resort
+        inputQueue.forceCleanup()
+      }
+
+      // Clean up inquirer instance
+      if (inquirerInstance) {
+        try {
+          inquirerInstance.removeAllListeners?.()
+        } catch {}
+      }
+
+      // Immediate prompt restoration for plan mode
+      try {
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
+    }
+  }
+
+  /**
    * Generic confirmation prompt using Inquirer.
    * Uses inputQueue bypass to avoid interference with the main input loop.
    */
   async confirm(question: string, details?: string, defaultValue: boolean = false): Promise<boolean> {
-    if (details) {
-      console.log(chalk.gray(`   ${details}`))
-    }
+    // CRITICAL: Track original input queue state
+    const wasEnabled = inputQueue.isBypassEnabled()
+    let inquirerInstance: any = null
 
-    // Spacing before the prompt
-    console.log()
-
-    // Ensure output is flushed and terminal is ready for Inquirer
-    await new Promise((resolve) => {
-      process.stdout.write('', () => {
-        setTimeout(resolve, 50)
-      })
-    })
-
-    // Suspend main prompt and enable bypass to avoid interleaving
     try {
-      ;(global as any).__nikCLI?.suspendPrompt?.()
-    } catch {}
-    inputQueue.enableBypass()
-    try {
-      const answers = await inquirer.prompt([
+      if (details) {
+        console.log(chalk.gray(`   ${details}`))
+      }
+
+      // Spacing before the prompt
+      console.log()
+
+      // Ensure output is flushed and terminal is ready for Inquirer with timeout
+      await Promise.race([
+        new Promise((resolve) => {
+          process.stdout.write('', () => {
+            setTimeout(resolve, 50)
+          })
+        }),
+        new Promise((resolve) => setTimeout(resolve, 150)) // 150ms timeout
+      ])
+
+      // Suspend main prompt and enable bypass only if not already enabled
+      try {
+        ;(global as any).__nikCLI?.suspendPrompt?.()
+      } catch {}
+
+      if (!wasEnabled) {
+        inputQueue.enableBypass()
+      }
+
+      // Create inquirer prompt with timeout
+      const promptPromise = inquirer.prompt([
         {
           type: 'list',
           name: 'ok',
@@ -609,12 +712,40 @@ export class ApprovalSystem extends EventEmitter {
         },
       ])
 
+      // Track inquirer instance for cleanup
+      inquirerInstance = promptPromise
+
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Confirmation timeout')), 30000) // 30 second timeout
+      )
+
+      const answers = await Promise.race([promptPromise, timeoutPromise])
       console.log()
-      return !!answers.ok
-    } catch {
+      return !!(answers as any).ok
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Confirmation failed: ${error.message}`))
       return false
     } finally {
-      inputQueue.disableBypass()
+      // CRITICAL: Always restore original input queue state
+      try {
+        if (!wasEnabled && inputQueue.isBypassEnabled()) {
+          inputQueue.disableBypass()
+        }
+      } catch (error) {
+        console.error('Failed to restore input queue state:', error)
+        // Force cleanup as last resort
+        inputQueue.forceCleanup()
+      }
+
+      // Clean up inquirer instance
+      if (inquirerInstance) {
+        try {
+          inquirerInstance.removeAllListeners?.()
+        } catch {}
+      }
+
       // Restore prompt after approval interaction
       try {
         ;(global as any).__nikCLI?.resumePromptAndRender?.()

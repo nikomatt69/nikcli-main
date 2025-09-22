@@ -298,6 +298,18 @@ export class InputQueue {
   disableBypass(): void {
     this.bypassEnabled = false
     advancedUI.logInfo(`🔒 Input queue bypass disabled`)
+
+    // Ensure prompt rendering dopo disable per evitare race conditions
+    setTimeout(() => {
+      try {
+        const nik = (global as any).__nikCLI
+        if (nik?.renderPromptAfterOutput) {
+          nik.renderPromptAfterOutput()
+        }
+      } catch {
+        // Ignore errors - just try to restore prompt
+      }
+    }, 100)
   }
 
   /**
@@ -305,6 +317,35 @@ export class InputQueue {
    */
   isBypassEnabled(): boolean {
     return this.bypassEnabled
+  }
+
+  /**
+   * Force cleanup completo in caso di interruzioni o errori
+   */
+  forceCleanup(): void {
+    this.bypassEnabled = false
+    this.isProcessing = false
+    this.processingPromise = null
+
+    // Clear any pending inputs che potrebbero causare loop
+    this.queue = []
+
+    advancedUI.logInfo(`🧹 Input queue force cleanup completed`)
+
+    // Immediate prompt restoration
+    setTimeout(() => {
+      try {
+        const nik = (global as any).__nikCLI
+        if (nik?.renderPromptAfterOutput) {
+          nik.renderPromptAfterOutput()
+        }
+        if (nik?.rl?.prompt) {
+          nik.rl.prompt()
+        }
+      } catch {
+        // Ignore errors
+      }
+    }, 50)
   }
 
   /**

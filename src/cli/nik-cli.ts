@@ -50,6 +50,7 @@ import { memoryService } from './services/memory-service'
 import { planningService, type PlanExecutionEvent } from './services/planning-service'
 import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
+import { EnhancedToolRouter } from './core/enhanced-tool-router'
 import { StreamingOrchestrator } from './streaming-orchestrator'
 import { secureTools } from './tools/secure-tools-registry'
 import { toolsManager } from './tools/tools-manager'
@@ -167,6 +168,13 @@ export class NikCLI {
   private progressTracker: any = null
   private assistantProcessing: boolean = false
   private userInputActive: boolean = false
+
+  // CRITICAL SAFETY: Recursion and crash prevention
+  private recursionDepth: number = 0
+  private readonly MAX_RECURSION_DEPTH: number = 3
+  private cleanupInProgress: boolean = false
+  private activeTimers: Set<NodeJS.Timeout> = new Set()
+  private inquirerInstances: Set<any> = new Set()
   private shouldInterrupt: boolean = false
   private currentStreamController?: AbortController
   private lastGeneratedPlan?: ExecutionPlan
@@ -4050,6 +4058,12 @@ export class NikCLI {
       // await this.updateProjectContext(input);
     } catch (error: any) {
       console.log(chalk.red(`Error: ${error.message}`))
+
+      // CRITICAL: If error occurred in plan mode, force recovery
+      if (this.currentMode === 'plan') {
+        console.log(chalk.yellow('🔄 Plan mode error detected, forcing recovery...'))
+        this.forceRecoveryToDefaultMode()
+      }
     }
 
     // Ensure output is flushed and visible before showing prompt
@@ -4370,6 +4384,17 @@ export class NikCLI {
    * Plan mode: Generate comprehensive plan with TaskMaster AI and todo.md
    */
   private async handlePlanMode(input: string): Promise<void> {
+    // CRITICAL: Recursion depth protection
+    if (this.recursionDepth >= this.MAX_RECURSION_DEPTH) {
+      console.log(chalk.red(`❌ Maximum plan generation depth reached (${this.MAX_RECURSION_DEPTH})`))
+      console.log(chalk.yellow('🔄 Returning to default mode for safety...'))
+      this.forceRecoveryToDefaultMode()
+      return
+    }
+
+    this.recursionDepth++
+    console.log(chalk.gray(`📊 Plan depth: ${this.recursionDepth}/${this.MAX_RECURSION_DEPTH}`))
+
     // Force compact mode for cleaner stream in plan flow
     try {
       process.env.NIKCLI_COMPACT = '1'
@@ -4392,7 +4417,7 @@ export class NikCLI {
         // Use the singleton planning service with TaskMaster integration
         const executionPlan = await planningService.createPlan(input, {
           showProgress: false, // We'll handle our own progress
-          autoExecute: false,
+          autoExecute: true,
           confirmSteps: true,
           useTaskMaster: true, // Enable TaskMaster
           fallbackToLegacy: true, // Allow fallback
@@ -4454,140 +4479,170 @@ export class NikCLI {
         console.log(chalk.cyan(`⏱️  Estimated duration: ${Math.round(plan.estimatedTotalDuration)} minutes`))
       }
 
-      // Request approval using TaskMaster integration
-      const approved = await this.requestPlanApproval(plan.id, plan)
+      // Plan generated successfully - now ask if user wants to START the tasks
+      const { approvalSystem } = await import('./ui/approval-system')
+      const startTasks = await approvalSystem.confirmPlanAction(
+        'Do you want to START the tasks generated in the plan?',
+        'This will begin with Task 1 and proceed step-by-step',
+        false
+      )
 
-      if (approved) {
-        const todosArray = Array.isArray(plan?.todos) ? plan.todos : []
-        const hasPlaceholderTask =
-          todosArray.length === 1 &&
-          typeof todosArray[0]?.title === 'string' &&
-          /^task execution/i.test(todosArray[0].title) &&
-          (!Array.isArray(todosArray[0]?.commands) || todosArray[0].commands.length === 0)
-
-        if (hasPlaceholderTask) {
-          console.log(chalk.yellow('⚠️ Plan contains only a placeholder task. Executing request in default mode...'))
-          this.currentMode = 'default'
-          try {
-            await this.handleDefaultMode(plan.userRequest || input)
-          } finally {
-            this.renderPromptAfterOutput()
-            try {
-              advancedUI.stopInteractiveMode?.()
-            } catch { }
-            this.rl?.prompt()
-          }
-
-          try {
-            planningService.updatePlanStatus(plan.id, 'completed')
-          } catch { }
-
-          const completionTime = new Date()
-          const todosArray = Array.isArray(plan?.todos) ? plan.todos : []
-          todosArray.forEach((todo: any) => {
-            if (!todo) return
-            todo.status = 'completed'
-            todo.progress = 100
-            todo.completedAt = completionTime
-            if (todo.id) {
-              this.updatePlanHudTodoStatus(todo.id, 'completed')
-            }
-          })
-
-          plan.status = 'completed'
-          plan.completedAt = completionTime
-          this.clearPlanHudSubscription()
-          this.activePlanForHud = undefined
-          await this.cleanupPlanArtifacts()
-          this.renderPromptArea()
-          try {
-            advancedUI.stopInteractiveMode?.()
-          } catch { }
-          try {
-            inputQueue.disableBypass()
-          } catch { }
-          return
-        }
-
-        if (this.executionInProgress) {
-          console.log(chalk.yellow('⚠️  Execution already in progress, please wait...'))
-          return
-        }
-
-        this.executionInProgress = true
-        console.log(chalk.green('\n🚀 Plan approved! Starting execution...'))
-
+      if (startTasks) {
+        // Start with first task instead of executing entire plan
         try {
-          // Execute the plan directly without switching modes
-          await this.executePlanDirectly(plan.id)
-        } finally {
-          this.executionInProgress = false
+          await this.startFirstTask(plan)
+        } catch (error: any) {
+          console.log(chalk.red(`❌ Task execution failed: ${error.message}`))
         }
 
-        // Show final summary
-        this.showExecutionSummary()
-
-        console.log(chalk.green.bold('\n🎉 Plan execution completed successfully!'))
-        console.log(chalk.cyan('📄 Check the updated todo.md file for execution details'))
-
-        // Reset mode and return to normal chat after successful execution
-        console.log(chalk.green('🔄 Returning to normal chat mode...'))
+        // After task execution, return to default mode
+        console.log(chalk.green('🔄 Returning to default mode...'))
         this.currentMode = 'default'
 
-        // Make sure input queue bypass is off and resume prompt cleanly
         try {
           inputQueue.disableBypass()
-        } catch (_) {
-          // ignore
-        }
+        } catch { }
         try {
           advancedUI.stopInteractiveMode?.()
         } catch { }
         this.resumePromptAndRender()
       } else {
-        console.log(chalk.yellow('\n📝 Plan saved but not executed.'))
-        console.log(chalk.gray('Review todo.md or run `/plan execute` later.'))
+        console.log(chalk.yellow('\n📝 Plan saved to todo.md'))
 
-        // Ask if they want to regenerate the plan
-        const { approvalSystem } = await import('./ui/approval-system')
-        const regenerate = await approvalSystem.confirm(
-          'Do you want to regenerate the plan with different requirements?',
-          'This will create a new plan and overwrite the current todo.md',
+        // Ask if they want to generate a NEW plan instead
+        const newPlan = await approvalSystem.confirmPlanAction(
+          'Do you want to generate a NEW plan instead?',
+          'This will overwrite the current plan in todo.md',
           false
         )
 
-        if (regenerate) {
-          const newRequirements = await approvalSystem.promptInput('Enter new or modified requirements: ')
+        if (newPlan) {
+          const newRequirements = await approvalSystem.promptInput('Enter new requirements: ')
           if (newRequirements.trim()) {
-            await this.handlePlanMode(newRequirements)
+            // CRITICAL: Wrap recursive call in try/catch to prevent unhandled rejections
+            try {
+              await this.handlePlanMode(newRequirements)
+            } catch (error: any) {
+              console.log(chalk.red(`❌ Plan regeneration failed: ${error.message}`))
+              console.log(chalk.yellow('🔄 Forcing recovery to default mode...'))
+              this.forceRecoveryToDefaultMode()
+            }
+            return
           }
-        } else {
-          // User declined regeneration, exit plan mode and return to default
-          console.log(chalk.yellow('🔄 Exiting plan mode and returning to default mode...'))
-          this.currentMode = 'default'
-          try {
-            // Ensure input is not bypassed anymore and promptly redraw prompt
-            inputQueue.disableBypass()
-          } catch (_) {
-            // ignore
-          }
-          try {
-            advancedUI.stopInteractiveMode?.()
-          } catch { }
-          this.cleanupPlanArtifacts()
-          this.resumePromptAndRender()
-          this.rl?.prompt()
         }
+
+        // User declined new plan, exit plan mode and return to default
+        console.log(chalk.green('🔄 Returning to normal mode...'))
+        this.currentMode = 'default'
+
+        try {
+          inputQueue.disableBypass()
+        } catch { }
+        try {
+          advancedUI.stopInteractiveMode?.()
+        } catch { }
+
+        this.cleanupPlanArtifacts()
+        this.resumePromptAndRender()
       }
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `Plan generation failed: ${error.message}`, source: 'planning' })
       console.log(chalk.red(`❌ Planning failed: ${error.message}`))
+      console.log(chalk.yellow('🔄 Forcing recovery to default mode...'))
+
+      // CRITICAL: Force recovery on any error
+      this.forceRecoveryToDefaultMode()
+    } finally {
+      // CRITICAL: Always decrement recursion depth
+      this.recursionDepth = Math.max(0, this.recursionDepth - 1)
+      console.log(chalk.gray(`📉 Plan depth restored: ${this.recursionDepth}`))
+
+      // Final cleanup
+      void this.cleanupPlanArtifacts()
     }
-    void this.cleanupPlanArtifacts()
-    this.rl?.prompt()
-    // Ensure output is flushed and visible before showing prompt
-    console.log() // Extra newline for better separation
-    this.resumePromptAndRender()
+  }
+
+  /**
+   * CRITICAL: Force recovery to default mode in case of any failures
+   */
+  private forceRecoveryToDefaultMode(): void {
+    try {
+      console.log(chalk.blue('🚨 Emergency recovery initiated...'))
+
+      // Reset all critical state
+      this.currentMode = 'default'
+      this.recursionDepth = 0
+      this.executionInProgress = false
+      this.cleanupInProgress = false // Reset cleanup lock
+
+      // Force cleanup input queue
+      inputQueue.forceCleanup()
+
+      // Clear all timers
+      this.clearAllTimers()
+
+      // Clean inquirer instances
+      this.forceCleanInquirerState()
+
+      // Clear plan HUD
+      this.clearPlanHudSubscription()
+
+      // Stop interactive mode
+      try {
+        advancedUI.stopInteractiveMode?.()
+      } catch { }
+
+      // Restore prompt
+      this.resumePromptAndRender()
+
+      console.log(chalk.green('✅ Emergency recovery completed'))
+    } catch (error) {
+      // Last resort - log and continue
+      console.error('❌ Emergency recovery failed:', error)
+      // Try minimal recovery
+      this.currentMode = 'default'
+      this.recursionDepth = 0
+    }
+  }
+
+  /**
+   * Clear all active timers to prevent memory leaks
+   */
+  private clearAllTimers(): void {
+    this.activeTimers.forEach(timer => {
+      try {
+        clearTimeout(timer)
+      } catch { }
+    })
+    this.activeTimers.clear()
+  }
+
+  /**
+   * Force clean all Inquirer instances
+   */
+  private forceCleanInquirerState(): void {
+    this.inquirerInstances.forEach(instance => {
+      try {
+        instance.removeAllListeners?.()
+      } catch { }
+    })
+    this.inquirerInstances.clear()
+  }
+
+  /**
+   * Safe setTimeout that tracks timers for cleanup
+   */
+  private safeTimeout(callback: () => void, delay: number): NodeJS.Timeout {
+    const timer = setTimeout(() => {
+      this.activeTimers.delete(timer)
+      try {
+        callback()
+      } catch (error) {
+        console.error('Timer callback error:', error)
+      }
+    }, delay)
+    this.activeTimers.add(timer)
+    return timer
   }
 
   /**
@@ -4612,6 +4667,267 @@ export class NikCLI {
     this.clearPlanHudSubscription()
     void this.cleanupPlanArtifacts()
     this.rl?.prompt()
+  }
+
+  /**
+   * Start executing tasks one by one, asking for approval before each task
+   */
+  private async startFirstTask(plan: any): Promise<void> {
+    console.log(chalk.blue(`🚀 Starting task execution step-by-step...`))
+
+    const todos = Array.isArray(plan?.todos) ? plan.todos : []
+    if (todos.length === 0) {
+      console.log(chalk.yellow('⚠️ No tasks found in the plan'))
+      return
+    }
+
+    // Find first pending task
+    let currentTaskIndex = 0
+    let currentTask = todos.find((t: { status: string }) => t.status === 'pending')
+
+    if (!currentTask && todos.length > 0) {
+      // If no pending tasks, start with first task
+      currentTask = todos[0]
+      currentTaskIndex = 0
+    }
+
+    if (!currentTask) {
+      console.log(chalk.yellow('⚠️ No tasks to execute'))
+      return
+    }
+
+    // Execute tasks one by one
+    while (currentTask) {
+      console.log(chalk.cyan(`\n📋 Task ${currentTaskIndex + 1}/${todos.length}: ${currentTask.title}`))
+      if (currentTask.description) {
+        console.log(chalk.gray(`   ${currentTask.description}`))
+      }
+
+      try {
+        // Mark task as in progress
+        currentTask.status = 'in_progress'
+        currentTask.progress = 0
+        this.updatePlanHudTodoStatus(currentTask.id, 'in_progress')
+
+        // Execute the task using existing logic
+        await this.executeTaskWithToolchains(currentTask, plan)
+
+        // Mark task as completed
+        currentTask.status = 'completed'
+        currentTask.progress = 100
+        currentTask.completedAt = new Date()
+        this.updatePlanHudTodoStatus(currentTask.id, 'completed')
+
+        console.log(chalk.green(`✅ Task ${currentTaskIndex + 1} completed: ${currentTask.title}`))
+
+        // Find next pending task
+        currentTaskIndex++
+        const nextTask = todos.slice(currentTaskIndex).find((t: { status: string }) => t.status === 'pending')
+
+        if (nextTask) {
+          // Ask if user wants to continue with next task
+          const { approvalSystem } = await import('./ui/approval-system')
+          const continueNext = await approvalSystem.confirmPlanAction(
+            `Continue with next task? (${currentTaskIndex + 1}/${todos.length})`,
+            `Next: ${nextTask.title}`,
+            true
+          )
+
+          if (continueNext) {
+            currentTask = nextTask
+            currentTaskIndex = todos.indexOf(nextTask)
+          } else {
+            console.log(chalk.yellow('⏸️ Task execution stopped by user'))
+            break
+          }
+        } else {
+          currentTask = null // No more tasks
+        }
+
+      } catch (error: any) {
+        console.log(chalk.red(`❌ Task execution error: ${error.message}`))
+
+        // Mark task as failed
+        currentTask.status = 'failed'
+        this.updatePlanHudTodoStatus(currentTask.id, 'failed')
+
+        // Ask if user wants to continue with next task despite the error
+        const { approvalSystem } = await import('./ui/approval-system')
+        const continueAfterError = await approvalSystem.confirmPlanAction(
+          'Task failed. Continue with next task?',
+          'You can continue with other tasks or stop execution',
+          false
+        )
+
+        if (continueAfterError) {
+          currentTaskIndex++
+          currentTask = todos.slice(currentTaskIndex).find((t: { status: string }) => t.status === 'pending')
+          if (currentTask) {
+            currentTaskIndex = todos.indexOf(currentTask)
+          }
+        } else {
+          break
+        }
+      }
+    }
+
+    // Show final summary
+    const completed = todos.filter((t: { status: string }) => t.status === 'completed').length
+    const failed = todos.filter((t: { status: string }) => t.status === 'failed').length
+    const pending = todos.filter((t: { status: string }) => t.status === 'pending').length
+
+    console.log(chalk.blue('\n📊 Task execution summary:'))
+    console.log(chalk.green(`✅ Completed: ${completed}`))
+    if (failed > 0) console.log(chalk.red(`❌ Failed: ${failed}`))
+    if (pending > 0) console.log(chalk.yellow(`⏸️ Remaining: ${pending}`))
+  }
+
+  /**
+   * Execute a single task using toolchains
+   */
+  private async executeTaskWithToolchains(task: any, plan: any): Promise<void> {
+    // CRITICAL: Validate task before execution
+    if (!task) {
+      throw new Error('Task is null or undefined')
+    }
+
+    if (!task.title) {
+      throw new Error('Task has no title')
+    }
+
+    console.log(chalk.blue(`🔄 Executing: ${task.title}`))
+
+    // Set up task timeout to prevent hanging
+    const taskTimeout = this.safeTimeout(() => {
+      throw new Error(`Task timeout: ${task.title} (exceeded 5 minutes)`)
+    }, 300000) // 5 minute timeout
+
+    try {
+      // Execute task exactly like default mode using tool router
+      const taskMessage = { role: 'user' as const, content: task.description || task.title }
+      const toolRecommendations = toolRouter.analyzeMessage(taskMessage)
+
+      console.log(chalk.cyan(`🧠 Analyzing task with tool router...`))
+
+      if (toolRecommendations.length > 0) {
+        const topRecommendation = toolRecommendations[0]
+        console.log(
+          chalk.blue(
+            `🔧 Detected ${topRecommendation.tool} intent (${Math.round(topRecommendation.confidence * 100)}% confidence)`
+          )
+        )
+
+        // Execute like default mode - start structured UI
+        console.log(chalk.dim('🎨 Plan Mode Task Execution - Activating structured UI...'))
+        let interactiveStarted = false
+        try {
+          advancedUI.startInteractiveMode()
+          interactiveStarted = true
+
+          // Execute the task using AI provider like default mode
+          const messages = [{ role: 'user' as const, content: task.description || task.title }]
+          let streamCompleted = false
+
+          for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
+            // Handle all streaming events like default mode
+            switch (ev.type) {
+              case 'text_delta':
+                // Real-time text streaming - output immediately
+                if (ev.content) {
+                  process.stdout.write(ev.content)
+                }
+                break
+
+              case 'tool_call':
+                // Tool execution events
+                console.log(chalk.blue(`🔧 Tool: ${ev.toolName || 'unknown'}`))
+                break
+
+              case 'tool_result':
+                // Tool results
+                if (ev.toolResult) {
+                  console.log(chalk.green(`✅ Tool completed`))
+                }
+                break
+
+              case 'complete':
+                // Stream completed successfully
+                streamCompleted = true
+                console.log() // Add newline after final output
+                break
+
+              case 'error':
+                // Stream error
+                console.log(chalk.red(`❌ Stream error: ${ev.error}`))
+                throw new Error(ev.error)
+
+              default:
+                // Handle other event types silently
+                break
+            }
+          }
+
+          // Ensure stream completed before proceeding
+          if (!streamCompleted) {
+            console.log(chalk.yellow(`⚠️ Stream may not have completed properly`))
+          }
+
+          // Add a small delay to ensure all output is flushed
+          await new Promise(resolve => setTimeout(resolve, 100))
+
+          console.log(chalk.green(`✅ Task completed successfully: ${task.title}`))
+
+        } catch (error: any) {
+          console.log(chalk.red(`❌ Task execution failed: ${error.message}`))
+          throw error
+        } finally {
+          if (interactiveStarted) {
+            try {
+              advancedUI.stopInteractiveMode()
+            } catch {
+              // Ignore cleanup errors
+            }
+          }
+        }
+      } else {
+        // Fallback for tasks without clear tool intent
+        console.log(chalk.cyan(`🧠 Performing analysis for: ${task.title}`))
+
+        // Simple execution without phases
+        const projectAnalysis = await toolService.executeTool('analyze_project', {})
+        console.log(chalk.green(`✅ Project analyzed: ${Object.keys(projectAnalysis || {}).length} components`))
+
+        // If task has specific requirements, try to read relevant files
+        const relevantFiles = await this.findRelevantFiles(task)
+        for (const filePath of relevantFiles.slice(0, 3)) {
+          try {
+            const { content } = await toolService.executeTool('read_file', { filePath })
+            console.log(chalk.green(`✅ Analyzed ${filePath}: ${content.length} characters`))
+          } catch (error: any) {
+            console.log(chalk.yellow(`⚠️ Could not read ${filePath}: ${error.message}`))
+          }
+        }
+
+        console.log(chalk.green(`✅ Task analysis completed: ${task.title}`))
+      }
+
+    } catch (error: any) {
+      // Enhanced error handling
+      const errorMsg = error.message || 'Unknown execution error'
+      console.log(chalk.red(`❌ Task execution failed: ${errorMsg}`))
+
+      // Re-throw with enhanced context
+      throw new Error(`Task execution failed: ${task.title} - ${errorMsg}`)
+
+    } finally {
+      // CRITICAL: Always clear the timeout
+      try {
+        clearTimeout(taskTimeout)
+        this.activeTimers.delete(taskTimeout)
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
   }
 
   private ensurePlanHudSubscription(planId: string): void {
@@ -4659,6 +4975,16 @@ export class NikCLI {
     })
 
     void this.persistActivePlanTodoFile()
+
+    // Only clear the HUD if ALL tasks are successfully completed (not failed)
+    const allTasksSuccessfullyCompleted = this.activePlanForHud.todos.every(todo => todo.status === 'completed')
+
+    if (allTasksSuccessfullyCompleted && state === 'completed') {
+      // Clear the HUD completely when ALL tasks are successfully completed
+      this.activePlanForHud = undefined
+      console.log(chalk.green('\n🎉 All tasks completed successfully! HUD cleared.'))
+    }
+
     this.clearPlanHudSubscription()
     this.renderPromptArea()
     void this.cleanupPlanArtifacts()
@@ -4706,21 +5032,60 @@ export class NikCLI {
 
     void this.persistActivePlanTodoFile()
     if (this.activePlanForHud && this.activePlanForHud.todos.every((t) => t.status === 'completed' || t.status === 'failed')) {
-      this.finalizePlanHud('completed')
+      // Check if all tasks were completed successfully vs some failed
+      const allSuccessful = this.activePlanForHud.todos.every((t) => t.status === 'completed')
+
+      // Add delay to ensure all streaming output is flushed before cleanup
+      setTimeout(() => {
+        this.finalizePlanHud(allSuccessful ? 'completed' : 'failed')
+      }, 500) // 500ms delay to ensure output is complete
     } else {
       this.renderPromptArea()
     }
   }
 
   private async cleanupPlanArtifacts(): Promise<void> {
-    try {
-      await fs.unlink(path.join(this.workingDirectory, 'todo.md'))
-    } catch { }
+    // CRITICAL: Prevent race conditions with cleanup lock
+    if (this.cleanupInProgress) {
+      console.log(chalk.gray('⏳ Cleanup already in progress, skipping...'))
+      return
+    }
+
+    this.cleanupInProgress = true
+    console.log(chalk.gray('🧹 Starting plan artifacts cleanup...'))
 
     try {
+      // Cleanup todo.md with error handling
+      const todoPath = path.join(this.workingDirectory, 'todo.md')
+      try {
+        await fs.unlink(todoPath)
+        console.log(chalk.gray('🗑️ Removed todo.md'))
+      } catch (error: any) {
+        // Only log if file exists but deletion failed (not if file doesn't exist)
+        if (error.code !== 'ENOENT') {
+          console.log(chalk.yellow(`⚠️ Could not remove todo.md: ${error.message}`))
+        }
+      }
+
+      // Cleanup taskmaster directory with error handling
       const taskmasterDir = path.join(this.workingDirectory, '.nikcli', 'taskmaster')
-      await fs.rm(taskmasterDir, { recursive: true, force: true })
-    } catch { }
+      try {
+        await fs.rm(taskmasterDir, { recursive: true, force: true })
+        console.log(chalk.gray('🗑️ Cleaned taskmaster directory'))
+      } catch (error: any) {
+        if (error.code !== 'ENOENT') {
+          console.log(chalk.yellow(`⚠️ Could not clean taskmaster directory: ${error.message}`))
+        }
+      }
+
+      console.log(chalk.gray('✅ Plan artifacts cleanup completed'))
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Cleanup error: ${error.message}`))
+    } finally {
+      // CRITICAL: Always reset cleanup flag
+      this.cleanupInProgress = false
+    }
   }
 
   private async persistActivePlanTodoFile(): Promise<void> {
@@ -16023,6 +16388,334 @@ Generated by NikCLI on ${new Date().toISOString()}
       throw error
     }
   }
+
+  /**
+   * Find relevant files for a task based on its context
+   */
+  private async findRelevantFiles(task: any): Promise<string[]> {
+    const relevantFiles: string[] = []
+
+    try {
+      // Start with common project files
+      const commonFiles = ['package.json', 'README.md', 'tsconfig.json', '.gitignore']
+      for (const file of commonFiles) {
+        try {
+          const exists = await import('node:fs/promises').then(fs => fs.access(file).then(() => true).catch(() => false))
+          if (exists) {
+            relevantFiles.push(file)
+          }
+        } catch {
+          // File doesn't exist, skip
+        }
+      }
+
+      // Add task-specific files based on title and description
+      const taskContext = (task.title + ' ' + (task.description || '')).toLowerCase()
+
+      if (taskContext.includes('security') || taskContext.includes('vulnerability')) {
+        relevantFiles.push('package-lock.json', 'yarn.lock', '.env.example')
+      }
+
+      if (taskContext.includes('performance') || taskContext.includes('optimization')) {
+        relevantFiles.push('webpack.config.js', 'vite.config.js', 'rollup.config.js')
+      }
+
+      if (taskContext.includes('documentation') || taskContext.includes('doc')) {
+        try {
+          const result = await toolService.executeTool('find_files', { pattern: '*.md' })
+          if (Array.isArray(result?.matches)) {
+            relevantFiles.push(...result.matches.slice(0, 3))
+          }
+        } catch {
+          // Ignore search errors
+        }
+      }
+
+      // For code analysis, add main source files
+      if (taskContext.includes('code') || taskContext.includes('analysis') || taskContext.includes('structure')) {
+        try {
+          const srcFiles = await toolService.executeTool('find_files', { pattern: 'src/**/*.{ts,js,tsx,jsx}' })
+          if (Array.isArray(srcFiles?.matches)) {
+            relevantFiles.push(...srcFiles.matches.slice(0, 5))
+          }
+        } catch {
+          // Fallback to common patterns
+          relevantFiles.push('src/index.ts', 'src/main.ts', 'src/app.ts')
+        }
+      }
+
+    } catch (error: any) {
+      console.log(chalk.gray(`    ℹ️ Could not determine relevant files: ${error.message}`))
+    }
+
+    // Remove duplicates and return
+    return [...new Set(relevantFiles)].filter(file => file && file.length > 0)
+  }
+
+  /**
+   * Get safe analysis commands for a task
+   */
+  private getSafeAnalysisCommands(task: any): string[] {
+    const commands: string[] = []
+    const taskContext = (task.title + ' ' + (task.description || '')).toLowerCase()
+
+    // Always safe commands
+    commands.push('git status')
+
+    if (taskContext.includes('dependency') || taskContext.includes('package')) {
+      commands.push('npm ls --depth=0')
+      commands.push('npm audit --audit-level=moderate')
+    }
+
+    if (taskContext.includes('performance') || taskContext.includes('bundle')) {
+      commands.push('npm run build --dry-run 2>/dev/null || echo "No build script"')
+    }
+
+    if (taskContext.includes('test') || taskContext.includes('quality')) {
+      commands.push('npm test --dry-run 2>/dev/null || echo "No test script"')
+      commands.push('npm run lint --dry-run 2>/dev/null || echo "No lint script"')
+    }
+
+    if (taskContext.includes('git') || taskContext.includes('version')) {
+      commands.push('git log --oneline -5')
+      commands.push('git branch -a')
+    }
+
+    return commands
+  }
+
+  /**
+   * Generate a task report for analysis tasks
+   */
+  private generateTaskReport(task: any, plan: any): string {
+    const timestamp = new Date().toISOString()
+    const reportLines: string[] = []
+
+    reportLines.push(`# Task Analysis Report`)
+    reportLines.push(``)
+    reportLines.push(`**Generated:** ${timestamp}`)
+    reportLines.push(`**Task:** ${task.title}`)
+    reportLines.push(`**Description:** ${task.description || 'No description provided'}`)
+    reportLines.push(``)
+
+    if (task.tools && Array.isArray(task.tools)) {
+      reportLines.push(`## Tools Used`)
+      reportLines.push(``)
+      task.tools.forEach((tool: string) => {
+        reportLines.push(`- ${tool}`)
+      })
+      reportLines.push(``)
+    }
+
+    if (task.reasoning) {
+      reportLines.push(`## Reasoning`)
+      reportLines.push(``)
+      reportLines.push(task.reasoning)
+      reportLines.push(``)
+    }
+
+    reportLines.push(`## Execution Context`)
+    reportLines.push(``)
+    reportLines.push(`- **Plan ID:** ${plan?.id || 'Unknown'}`)
+    reportLines.push(`- **Plan Title:** ${plan?.title || 'Unknown'}`)
+    reportLines.push(`- **Priority:** ${task.priority || 'medium'}`)
+    reportLines.push(`- **Estimated Duration:** ${task.estimatedDuration || 'Unknown'} minutes`)
+    reportLines.push(``)
+
+    reportLines.push(`## Status`)
+    reportLines.push(``)
+    reportLines.push(`Task execution completed successfully.`)
+    reportLines.push(``)
+
+    return reportLines.join('\n')
+  }
+
+  /**
+   * Generate comprehensive analysis report
+   */
+  private async generateComprehensiveReport(task: any, plan: any): Promise<string> {
+    const timestamp = new Date().toISOString()
+
+    // Collect real project signals to ground the AI-generated report
+    const projectName = path.basename(process.cwd())
+
+    // 1) High-level project analysis
+    let languages: string[] = []
+    let fileCount = 0
+    try {
+      const projectAnalysis = await toolService.executeTool('analyze_project', {})
+      languages = Array.isArray(projectAnalysis?.languages) ? projectAnalysis.languages : []
+      fileCount = Number(projectAnalysis?.fileCount || 0)
+    } catch {}
+
+    // 2) File structure stats (broader set of extensions)
+    let totalFiles = 0
+    const byExtension: Record<string, number> = {}
+    try {
+      const patterns = '**/*.{ts,tsx,js,jsx,md,mdx,json,yml,yaml,css,scss,go,py,rs,java,c,cpp,sh}'
+      const files = await toolService.executeTool('find_files', { pattern: patterns })
+      const matches = Array.isArray(files?.matches) ? files.matches : []
+      totalFiles = matches.length
+      for (const f of matches) {
+        const ext = path.extname(f) || 'no-ext'
+        byExtension[ext] = (byExtension[ext] || 0) + 1
+      }
+    } catch {}
+
+    // 3) Dependencies and scripts from package.json
+    let depCount = 0
+    let devDepCount = 0
+    let scripts: Record<string, string> = {}
+    try {
+      const { content } = await toolService.executeTool('read_file', { filePath: 'package.json' })
+      const pkg = JSON.parse(content)
+      depCount = pkg.dependencies ? Object.keys(pkg.dependencies).length : 0
+      devDepCount = pkg.devDependencies ? Object.keys(pkg.devDependencies).length : 0
+      scripts = pkg.scripts || {}
+    } catch {}
+
+    // 4) Git signals
+    let gitStatusOut = ''
+    let gitLogOut = ''
+    try {
+      const { stdout: s1 } = await toolService.executeTool('execute_command', { command: 'git status --porcelain -b' })
+      gitStatusOut = s1 || ''
+    } catch {}
+    try {
+      const { stdout: s2 } = await toolService.executeTool('execute_command', { command: 'git log --oneline -5' })
+      gitLogOut = s2 || ''
+    } catch {}
+
+    // 5) Summarize executed plan/todos if available
+    const planSummary = {
+      title: plan?.title || task?.title || 'Analysis Plan',
+      totalTodos: Array.isArray(plan?.todos) ? plan.todos.length : undefined,
+      completedTodos: Array.isArray(plan?.todos)
+        ? plan.todos.filter((t: any) => t.status === 'completed').length
+        : undefined,
+      todos: Array.isArray(plan?.todos)
+        ? plan.todos.map((t: any) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority }))
+        : [],
+    }
+
+    // Build compact context for the AI
+    const contextPayload = {
+      meta: {
+        generatedAt: timestamp,
+        analysisType: task?.title || 'Comprehensive Analysis',
+        project: projectName,
+      },
+      project: {
+        languages,
+        fileCount,
+        totalFiles,
+        byExtension,
+      },
+      dependencies: {
+        depCount,
+        devDepCount,
+        scripts,
+      },
+      git: {
+        status: gitStatusOut?.trim()?.slice(0, 4000),
+        recentLog: gitLogOut?.trim()?.slice(0, 4000),
+      },
+      plan: planSummary,
+    }
+
+    // Ask the AI to produce a long, structured report grounded in the data above
+    try {
+      const system = `You are a senior software architect writing a long, deeply structured technical report for a CLI project.
+Produce a comprehensive Markdown report (at least 1200-2000 words) with clear sections, using only the provided context.
+Do not invent files or features. Prefer concrete, actionable recommendations.
+
+Required sections (with headings):
+- Title (H1)
+- Executive Summary
+- Project Overview & Goals
+- Architecture & Modules (current state and inferred boundaries)
+- Code Structure & Stats (file types, languages, code organization)
+- Dependency Audit (prod/dev, risks, updates; mention scripts)
+- Build, Tooling & Runtime
+- CLI UX & Ergonomics (commands, prompts, DX)
+- Performance (bottlenecks, quick wins, profiling ideas)
+- Security (attack surface, secrets, sandboxing, approvals)
+- Testing & QA (coverage gaps, strategies)
+- Documentation (coverage, clarity, gaps)
+- Risks & Limitations
+- Roadmap & Prioritized Recommendations (short/medium/long term)
+- Appendix (tables for file-type counts, key scripts, recent git log)
+
+Style: concise but thorough; use lists, sublists, and tables when useful.`
+
+      const user = `Context JSON:\n${JSON.stringify(contextPayload, null, 2)}\n\nGenerate the full report now.`
+
+      const aiReport = (await advancedAIProvider.generateWithTools([
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ])) as unknown as string
+
+      if (aiReport && aiReport.trim().length > 0) {
+        return aiReport.trim()
+      }
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ AI report generation failed, using fallback: ${error.message}`))
+    }
+
+    // Fallback: structured report using collected signals (shorter than AI but detailed)
+    const lines: string[] = []
+    lines.push(`# ${projectName} – Comprehensive Project Analysis Report`)
+    lines.push('')
+    lines.push(`**Generated:** ${timestamp}`)
+    lines.push(`**Analysis Type:** ${task?.title || 'Comprehensive Analysis'}`)
+    lines.push('')
+    lines.push('## Project Overview & Signals')
+    lines.push(`- Languages: ${languages.join(', ') || 'Unknown'}`)
+    lines.push(`- Files (analyze_project): ${fileCount || 'Unknown'}`)
+    lines.push(`- Files (discovered): ${totalFiles}`)
+    lines.push(`- Dependencies: ${depCount} prod, ${devDepCount} dev`)
+    lines.push('')
+    lines.push('## File Type Breakdown')
+    Object.entries(byExtension)
+      .sort((a, b) => (b[1] as number) - (a[1] as number))
+      .forEach(([ext, count]) => lines.push(`- ${ext}: ${count}`))
+    lines.push('')
+    if (Object.keys(scripts).length > 0) {
+      lines.push('## NPM Scripts')
+      Object.entries(scripts).forEach(([k, v]) => lines.push(`- ${k}: ${v}`))
+      lines.push('')
+    }
+    if (gitStatusOut) {
+      lines.push('## Git Status (summary)')
+      lines.push('```')
+      lines.push(gitStatusOut.trim())
+      lines.push('```')
+      lines.push('')
+    }
+    if (gitLogOut) {
+      lines.push('## Recent Commits')
+      lines.push('```')
+      lines.push(gitLogOut.trim())
+      lines.push('```')
+      lines.push('')
+    }
+    if (planSummary.totalTodos !== undefined) {
+      lines.push('## Plan Execution Summary')
+      lines.push(`- Todos: ${planSummary.completedTodos}/${planSummary.totalTodos} completed`)
+      lines.push('')
+    }
+    lines.push('## Recommendations (High-Level)')
+    lines.push('- Keep dependencies up to date; automate audits (weekly).')
+    lines.push('- Strengthen tests on CLI flows and error handling.')
+    lines.push('- Profile slow paths (file IO, AI streaming orchestration).')
+    lines.push('- Harden security: approval policy consistency, sandbox defaults, logging.')
+    lines.push('- Improve docs for plan mode vs default mode behavior.')
+    lines.push('')
+    lines.push('---')
+    lines.push('*Generated by NikCLI Analysis System*')
+    return lines.join('\n')
+  }
+
 }
 
 // Global instance for access from other modules

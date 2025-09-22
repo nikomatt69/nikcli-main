@@ -15,6 +15,7 @@ import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { WorkflowOrchestrator } from './automation/workflow-orchestrator'
 import { ChatOrchestrator } from './chat/chat-orchestrator'
 import { simpleConfigManager as configManager } from './core/config-manager'
+import { planningService } from './services/planning-service'
 import { agentService } from './services/agent-service'
 
 // Types
@@ -225,60 +226,43 @@ export class UnifiedChatInterface extends EventEmitter {
    * Generate execution plan from user prompt
    */
   private async generatePlan(prompt: string): Promise<ExecutionPlan | null> {
-    console.log(chalk.cyan('📋 Generating execution plan...'))
+    console.log(chalk.cyan('📋 Generating execution plan (TaskMaster toolchain)...'))
 
     try {
-      // Use AI to analyze prompt and create structured plan
-      const planningResult = await advancedAIProvider.generateWithTools([
-        {
-          role: 'system',
-          content: `You are a planning assistant. Analyze the user's request and create a detailed execution plan.
-          
-          If the request is simple (like asking a question), return null.
-          If the request requires multiple steps or actions, create a structured plan.
-          
-          Return a JSON object with:
-          - title: Brief plan title
-          - description: What the plan accomplishes
-          - steps: Array of steps with id, title, description, toolName, parameters, dependencies, estimatedTime, requiresPermission
-          - estimatedDuration: Total time in minutes
-          - riskLevel: low/medium/high
-          - requiresApproval: boolean
-          
-          Working directory: ${this.session.workingDirectory}`,
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ])
+      // Use the PlanningService (integrated with TaskMaster) to create a plan from the user prompt
+      const tmPlan = await planningService.createPlan(prompt, {
+        showProgress: true,
+        autoExecute: false,
+        confirmSteps: true,
+        useTaskMaster: true,
+        fallbackToLegacy: true,
+      })
 
-      const planText = planningResult as any
+      // Map TaskMaster/Planning plan to UnifiedChat's local ExecutionPlan structure
+      const riskLevel = (tmPlan as any)?.riskAssessment?.overallRisk || 'medium'
+      const steps = (tmPlan.steps || []).map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        description: s.description,
+        toolName: s.toolName || 'analyze_project',
+        parameters: s.toolArgs || {},
+        dependencies: Array.isArray(s.dependencies) ? s.dependencies : [],
+        estimatedTime: Math.max(1, Math.round(((s.estimatedDuration ?? 3000) as number) / 1000)),
+        requiresPermission: s.riskLevel === 'high' || s.reversible === false,
+      })) as PlanStep[]
 
-      // Try to parse as JSON
-      try {
-        const planData = JSON.parse(planText)
-        if (planData && planData.steps && planData.steps.length > 0) {
-          const plan: ExecutionPlan = {
-            id: Date.now().toString(),
-            title: planData.title || 'Execution Plan',
-            description: planData.description || 'Generated plan',
-            steps: planData.steps,
-            estimatedDuration: planData.estimatedDuration || 10,
-            riskLevel: planData.riskLevel || 'medium',
-            requiresApproval: planData.requiresApproval !== false,
-          }
-
-          this.session.currentPlan = plan
-          return plan
-        }
-      } catch (_parseError) {
-        // If not JSON, treat as simple response
-        console.log(chalk.dim('💭 Simple request detected, no plan needed'))
-        return null
+      const plan: ExecutionPlan = {
+        id: tmPlan.id,
+        title: tmPlan.title || 'Execution Plan',
+        description: tmPlan.description || 'Generated plan',
+        steps,
+        estimatedDuration: Math.max(1, Math.round((tmPlan.estimatedTotalDuration || 60000) / 60000)),
+        riskLevel: riskLevel,
+        requiresApproval: riskLevel === 'high',
       }
 
-      return null
+      this.session.currentPlan = plan
+      return plan
     } catch (error: any) {
       console.log(chalk.red(`❌ Planning failed: ${error.message}`))
       return null

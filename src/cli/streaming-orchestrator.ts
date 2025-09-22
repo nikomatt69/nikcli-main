@@ -687,27 +687,13 @@ class StreamingOrchestratorImpl extends EventEmitter {
           todoFilePath: 'todo.md',
         })
 
-        // Request approval (interactive)
-        const approved = await enhancedPlanning.requestPlanApproval(plan.id)
-        if (!approved) {
-          // Return to prompt immediately
-          // Disable bypass if any approval was open
-          import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => {})
-          // Ensure we are back to default mode explicitly
-          this.context.planMode = false
-          this.context.autoAcceptEdits = false
-          // Reset processing flag and show orchestrator prompt
-          this.processingMessage = false
-          try {
-            const nik = (global as any).__nikCLI
-            if (nik && typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
-          } catch {}
-          this.showPrompt()
-          return
-        }
+        // Plan generated successfully - show completion message
+        console.log(chalk.green('✅ Plan generated and saved to todo.md'))
+        console.log(chalk.cyan(`📋 ${plan.todos.length} tasks created`))
 
-        // Execute plan as toolchains (internally handles runtime approvals)
-        await enhancedPlanning.executePlan(plan.id)
+        // Note: Task execution approval will be handled by main CLI
+        // The plan is now ready and saved, no need for approval here
+        console.log(chalk.gray('💡 Use the plan mode interface to start tasks'))
         // After execution ensure prompt is visible
         import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => {})
         this.processingMessage = false

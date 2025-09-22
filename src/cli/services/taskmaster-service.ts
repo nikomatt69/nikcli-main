@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
+import { advancedAIProvider } from '../ai/advanced-ai-provider'
 import type { PlanTodo } from '../planning/types'
 import type {
   TaskMasterIntegrationConfig,
@@ -124,7 +125,7 @@ export class TaskMasterService extends EventEmitter {
         console.log(chalk.cyan('🤖 Using TaskMaster for project organization...'))
 
         // Create a TaskMaster-compatible plan structure
-        const plan = this.createTaskMasterCompatiblePlan(planId, userRequest, context)
+        const plan = await this.createTaskMasterCompatiblePlan(planId, userRequest, context)
         this.activePlans.set(planId, plan)
 
         console.log(chalk.green(`✅ Plan ${planId} created and stored`))
@@ -231,9 +232,9 @@ export class TaskMasterService extends EventEmitter {
   /**
    * Create TaskMaster-compatible plan using actual TaskMaster task structure
    */
-  private createTaskMasterCompatiblePlan(planId: string, userRequest: string, context?: PlanningContext): TaskMasterPlan {
+  private async createTaskMasterCompatiblePlan(planId: string, userRequest: string, context?: PlanningContext): Promise<TaskMasterPlan> {
     // Generate NikCLI todos that map to TaskMaster task structure
-    const todos = this.generateSmartTodos(userRequest, context)
+    const todos = await this.generateSmartTodos(userRequest, context)
 
     // Convert to TaskMaster task format using proper mappings
     const taskMasterTasks: TaskMasterTask[] = todos.map(todo => ({
@@ -292,12 +293,29 @@ export class TaskMasterService extends EventEmitter {
   /**
    * Generate smart todos based on user request
    */
-  private generateSmartTodos(userRequest: string, _context?: PlanningContext): PlanTodo[] {
+  private async generateSmartTodos(userRequest: string, _context?: PlanningContext): Promise<PlanTodo[]> {
     const todos: PlanTodo[] = []
     const request = userRequest.toLowerCase()
 
     // Enhanced rule-based todo generation with TaskMaster integration
-    if (request.includes('create') || request.includes('build') || request.includes('implement')) {
+    // PRIORITY 1: AI-powered dynamic task generation for complex analysis
+    if (
+      request.includes('analysis') ||
+      request.includes('analyze') ||
+      request.includes('analisi') || // Italian
+      request.includes('analisis') || // common misspelling
+      request.includes('plan analysis') ||
+      request.includes('sophisticated plan') ||
+      request.includes('sophisticated analysis') ||
+      request.includes('optimiz') || // optimize/optimization/optimizations
+      request.includes('report') || // request for a report typically implies multi-step analysis
+      (request.includes('make') && (request.includes('plan') || request.includes('analysis')))
+    ) {
+      // Generate AI-powered dynamic tasks based on user request
+      console.log(chalk.cyan('🧠 Triggering AI task generation for complex analysis request'))
+      const aiTasks = await this.generateTasksWithAI(userRequest)
+      todos.push(...aiTasks)
+    } else if (request.includes('create') || request.includes('build') || request.includes('implement')) {
       todos.push(
         {
           id: nanoid(),
@@ -380,6 +398,7 @@ export class TaskMasterService extends EventEmitter {
         }
       )
     } else {
+      // Fallback for other requests
       todos.push({
         id: nanoid(),
         title: 'Task Execution',
@@ -395,6 +414,199 @@ export class TaskMasterService extends EventEmitter {
     }
 
     return todos
+  }
+
+  /**
+   * Generate dynamic tasks using AI based on user request
+   */
+  private async generateTasksWithAI(userRequest: string): Promise<PlanTodo[]> {
+    try {
+      console.log(chalk.cyan('🧠 Generating custom tasks with AI...'))
+
+      const prompt = `Based on this user request: "${userRequest}"
+
+Generate 5-8 specific, actionable tasks that would comprehensively address this request. Each task should be focused, measurable, and designed for a software engineering context.
+
+Respond with a JSON array of tasks, each with these exact properties:
+- title: Clear, specific task name (max 60 chars)
+- description: Detailed description of what needs to be done
+- priority: "high", "medium", or "low"
+- estimatedDuration: Number (minutes, realistic estimate)
+- tools: Array of relevant tools from: ["read_file", "analyze_project", "execute_command", "write_file", "doc_search", "explore_directory", "generate_code"]
+- reasoning: Brief explanation of why this task is important
+
+Format your response as valid JSON only, no other text.`
+
+      // Try to use advanced AI provider first, fallback to local Ollama
+      let aiTasks: any[] = []
+      let success = false
+
+      try {
+        const messages = [{ role: 'user' as const, content: prompt }]
+        let accumulatedContent = ''
+
+        for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
+          if (ev.type === 'text_delta' && ev.content) {
+            accumulatedContent += ev.content
+          } else if (ev.type === 'complete') {
+            // Try to parse accumulated content
+            const contentToParse = accumulatedContent.trim() || (ev.content ? ev.content.trim() : '')
+            if (contentToParse) {
+              try {
+                const parsed = JSON.parse(contentToParse)
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  aiTasks = parsed
+                  success = true
+                  break
+                }
+              } catch (parseError) {
+                console.log(chalk.yellow(`⚠️ Failed to parse AI response as JSON`))
+              }
+            }
+          }
+        }
+      } catch (error: any) {
+        console.log(chalk.yellow(`⚠️ Advanced AI provider failed: ${error.message}`))
+      }
+
+      if (!success) {
+        try {
+          // Fallback to Ollama if advanced provider fails
+          const response = await fetch('http://localhost:11434/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'llama3.2',
+              prompt: prompt,
+              stream: false,
+              options: { temperature: 0.3 }
+            })
+          })
+
+          if (!response.ok) throw new Error(`Ollama service error: ${response.status}`)
+
+          const data = await response.json()
+          if (data.response) {
+            try {
+              const parsed = JSON.parse(data.response.trim())
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                aiTasks = parsed
+                success = true
+              } else {
+                throw new Error('Invalid AI response format')
+              }
+            } catch (parseError) {
+              throw new Error(`Failed to parse Ollama response: ${parseError}`)
+            }
+          } else {
+            throw new Error('Empty response from Ollama')
+          }
+        } catch {
+          throw new Error('Both AI services failed')
+        }
+      }
+
+      // Convert AI tasks to PlanTodo format with validation
+      const todos: PlanTodo[] = aiTasks
+        .filter((task: any) => task && typeof task === 'object' && task.title && task.description)
+        .map((task: any) => ({
+          id: nanoid(),
+          title: typeof task.title === 'string' ? task.title.substring(0, 80) : 'AI Generated Task',
+          description: typeof task.description === 'string' ? task.description : 'AI generated task description',
+          status: 'pending' as const,
+          priority: ['high', 'medium', 'low'].includes(task.priority) ? task.priority : 'medium',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: typeof task.estimatedDuration === 'number' && task.estimatedDuration > 0
+            ? Math.min(task.estimatedDuration, 120)
+            : 15,
+          progress: 0,
+          tools: Array.isArray(task.tools) && task.tools.length > 0
+            ? task.tools.filter((tool: any) => typeof tool === 'string')
+            : ['analyze_project', 'read_file'],
+          reasoning: typeof task.reasoning === 'string' ? task.reasoning : 'AI generated reasoning'
+        }))
+
+      if (todos.length === 0) {
+        throw new Error('No valid tasks generated by AI')
+      }
+
+      console.log(chalk.green(`✅ Generated ${todos.length} custom tasks with AI`))
+      return todos
+
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ AI task generation failed: ${error.message}`))
+      console.log(chalk.gray('🔄 Falling back to comprehensive analysis tasks...'))
+
+      // Professional fallback tasks
+      return [
+        {
+          id: nanoid(),
+          title: 'Codebase Structure Analysis',
+          description: 'Analyze overall project architecture, file structure, and dependencies',
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 15,
+          progress: 0,
+          tools: ['explore_directory', 'read_file', 'analyze_project'],
+          reasoning: 'Understanding the codebase structure is the foundation for comprehensive analysis',
+        },
+        {
+          id: nanoid(),
+          title: 'Code Quality Assessment',
+          description: 'Evaluate code quality, patterns, best practices, and technical debt',
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 20,
+          progress: 0,
+          tools: ['read_file', 'analyze_project', 'execute_command'],
+          reasoning: 'Code quality assessment identifies areas for improvement and technical risks',
+        },
+        {
+          id: nanoid(),
+          title: 'Security & Performance Analysis',
+          description: 'Review security practices and performance optimization opportunities',
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 18,
+          progress: 0,
+          tools: ['read_file', 'analyze_project', 'execute_command'],
+          reasoning: 'Security and performance are critical for production readiness',
+        },
+        {
+          id: nanoid(),
+          title: 'Documentation & Dependencies Review',
+          description: 'Evaluate documentation quality and dependency management',
+          status: 'pending',
+          priority: 'medium',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 12,
+          progress: 0,
+          tools: ['read_file', 'doc_search', 'execute_command'],
+          reasoning: 'Good documentation and dependency management ensure maintainability',
+        },
+        {
+          id: nanoid(),
+          title: 'Comprehensive Report Generation',
+          description: 'Compile analysis findings into a comprehensive report with recommendations',
+          status: 'pending',
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 25,
+          progress: 0,
+          tools: ['generate_code', 'write_file', 'doc_search'],
+          reasoning: 'A comprehensive report provides actionable insights and strategic recommendations',
+        }
+      ]
+    }
   }
 
   /**
