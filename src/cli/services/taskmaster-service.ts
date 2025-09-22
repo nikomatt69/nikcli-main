@@ -294,28 +294,23 @@ export class TaskMasterService extends EventEmitter {
    * Generate smart todos based on user request
    */
   private async generateSmartTodos(userRequest: string, _context?: PlanningContext): Promise<PlanTodo[]> {
+    // SEMPRE usa l'AI per generare i todo, indipendentemente dal tipo di richiesta
+    console.log(chalk.cyan('🧠 Using AI for todo generation (all requests)'))
+
+    try {
+      const aiTasks = await this.generateTasksWithAI(userRequest)
+      if (aiTasks.length > 0) {
+        return aiTasks
+      }
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ AI generation failed, using enhanced fallback: ${error.message}`))
+    }
+
+    // Fallback più intelligente solo se l'AI non funziona
     const todos: PlanTodo[] = []
     const request = userRequest.toLowerCase()
 
-    // Enhanced rule-based todo generation with TaskMaster integration
-    // PRIORITY 1: AI-powered dynamic task generation for complex analysis
-    if (
-      request.includes('analysis') ||
-      request.includes('analyze') ||
-      request.includes('analisi') || // Italian
-      request.includes('analisis') || // common misspelling
-      request.includes('plan analysis') ||
-      request.includes('sophisticated plan') ||
-      request.includes('sophisticated analysis') ||
-      request.includes('optimiz') || // optimize/optimization/optimizations
-      request.includes('report') || // request for a report typically implies multi-step analysis
-      (request.includes('make') && (request.includes('plan') || request.includes('analysis')))
-    ) {
-      // Generate AI-powered dynamic tasks based on user request
-      console.log(chalk.cyan('🧠 Triggering AI task generation for complex analysis request'))
-      const aiTasks = await this.generateTasksWithAI(userRequest)
-      todos.push(...aiTasks)
-    } else if (request.includes('create') || request.includes('build') || request.includes('implement')) {
+    if (request.includes('create') || request.includes('build') || request.includes('implement')) {
       todos.push(
         {
           id: nanoid(),
@@ -423,19 +418,36 @@ export class TaskMasterService extends EventEmitter {
     try {
       console.log(chalk.cyan('🧠 Generating custom tasks with AI...'))
 
-      const prompt = `Based on this user request: "${userRequest}"
+      const prompt = `You are TaskMaster AI, an expert project planning assistant. Your job is to ALWAYS generate actionable tasks for ANY request.
 
-Generate 5-8 specific, actionable tasks that would comprehensively address this request. Each task should be focused, measurable, and designed for a software engineering context.
+USER REQUEST: "${userRequest}"
 
-Respond with a JSON array of tasks, each with these exact properties:
-- title: Clear, specific task name (max 60 chars)
-- description: Detailed description of what needs to be done
-- priority: "high", "medium", or "low"
-- estimatedDuration: Number (minutes, realistic estimate)
-- tools: Array of relevant tools from: ["read_file", "analyze_project", "execute_command", "write_file", "doc_search", "explore_directory", "generate_code"]
-- reasoning: Brief explanation of why this task is important
+CRITICAL INSTRUCTIONS:
+1. You MUST generate EXACTLY 5-8 tasks regardless of request complexity
+2. Even for simple requests, break them into logical steps
+3. For vague requests, interpret them intelligently and create concrete steps
+4. NEVER respond with "I cannot" or refuse - always generate tasks
 
-Format your response as valid JSON only, no other text.`
+REQUIRED JSON FORMAT (respond ONLY with valid JSON):
+[
+  {
+    "title": "Specific task name (max 60 chars)",
+    "description": "Detailed step-by-step description",
+    "priority": "high|medium|low",
+    "estimatedDuration": 15,
+    "tools": ["tool1", "tool2"],
+    "reasoning": "Why this task is essential"
+  }
+]
+
+AVAILABLE TOOLS: ["read_file", "analyze_project", "execute_command", "write_file", "doc_search", "explore_directory", "generate_code"]
+
+EXAMPLES OF TASK BREAKDOWN:
+- Simple file edit → Analyze requirements + Plan changes + Implement + Test + Review
+- Analysis request → Research + Collect data + Analyze + Document + Present findings
+- Bug fix → Investigate + Identify root cause + Design solution + Implement + Validate
+
+Generate tasks NOW (JSON only):`
 
       // Try to use advanced AI provider first, fallback to local Ollama
       let aiTasks: any[] = []
@@ -453,14 +465,28 @@ Format your response as valid JSON only, no other text.`
             const contentToParse = accumulatedContent.trim() || (ev.content ? ev.content.trim() : '')
             if (contentToParse) {
               try {
-                const parsed = JSON.parse(contentToParse)
+                // Prova parsing diretto
+                let parsed = JSON.parse(contentToParse)
                 if (Array.isArray(parsed) && parsed.length > 0) {
                   aiTasks = parsed
                   success = true
                   break
                 }
               } catch (parseError) {
-                console.log(chalk.yellow(`⚠️ Failed to parse AI response as JSON`))
+                // Prova a estrarre JSON da markdown o testo misto
+                try {
+                  const jsonMatch = contentToParse.match(/\[[\s\S]*\]/)
+                  if (jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[0])
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                      aiTasks = parsed
+                      success = true
+                      break
+                    }
+                  }
+                } catch {
+                  console.log(chalk.yellow(`⚠️ Failed to extract JSON from AI response`))
+                }
               }
             }
           }
@@ -527,11 +553,16 @@ Format your response as valid JSON only, no other text.`
           reasoning: typeof task.reasoning === 'string' ? task.reasoning : 'AI generated reasoning'
         }))
 
-      if (todos.length === 0) {
-        throw new Error('No valid tasks generated by AI')
+      // Assicurati che abbiamo sempre almeno 3 task validi
+      if (todos.length < 3) {
+        console.log(chalk.yellow(`⚠️ AI generated only ${todos.length} tasks, adding fallback tasks`))
+
+        // Aggiungi task generici basati sulla richiesta
+        const fallbackTasks = this.generateFallbackTasks(userRequest, 5 - todos.length)
+        todos.push(...fallbackTasks)
       }
 
-      console.log(chalk.green(`✅ Generated ${todos.length} custom tasks with AI`))
+      console.log(chalk.green(`✅ Generated ${todos.length} tasks with AI (${aiTasks.length} from AI, ${todos.length - aiTasks.length} fallback)`))
       return todos
 
     } catch (error: any) {
@@ -607,6 +638,65 @@ Format your response as valid JSON only, no other text.`
         }
       ]
     }
+  }
+
+  /**
+   * Generate fallback tasks when AI doesn't provide enough
+   */
+  private generateFallbackTasks(userRequest: string, count: number): PlanTodo[] {
+    const tasks: PlanTodo[] = []
+
+    const baseTasks = [
+      {
+        title: 'Initial Analysis',
+        description: `Analyze requirements for: ${userRequest}`,
+        tools: ['analyze_project', 'read_file'],
+        reasoning: 'Understanding requirements is essential for any task'
+      },
+      {
+        title: 'Planning & Design',
+        description: `Create implementation plan for: ${userRequest}`,
+        tools: ['doc_search', 'analyze_project'],
+        reasoning: 'Proper planning reduces implementation complexity'
+      },
+      {
+        title: 'Implementation',
+        description: `Execute the main task: ${userRequest}`,
+        tools: ['write_file', 'execute_command', 'generate_code'],
+        reasoning: 'Core implementation of the requested feature'
+      },
+      {
+        title: 'Testing & Validation',
+        description: `Test and validate the implementation`,
+        tools: ['execute_command', 'read_file'],
+        reasoning: 'Ensure the implementation works correctly'
+      },
+      {
+        title: 'Documentation & Cleanup',
+        description: `Document changes and clean up`,
+        tools: ['write_file', 'doc_search'],
+        reasoning: 'Maintain code quality and documentation'
+      }
+    ]
+
+    for (let i = 0; i < Math.min(count, baseTasks.length); i++) {
+      const baseTask = baseTasks[i]
+      tasks.push({
+        id: nanoid(),
+        title: baseTask.title,
+        description: baseTask.description,
+        status: 'pending',
+        priority: i === 0 || i === 2 ? 'high' : 'medium', // Analysis and Implementation are high priority
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        estimatedDuration: 15 + (i * 5), // Vary duration slightly
+        progress: 0,
+        tools: baseTask.tools,
+        reasoning: baseTask.reasoning
+      })
+    }
+
+    return tasks
   }
 
   /**
