@@ -4368,6 +4368,7 @@ export class NikCLI {
 
   /**
    * Plan mode: Generate comprehensive plan with TaskMaster AI and todo.md
+   * Enhanced with native TaskMaster integration and robust error handling
    */
   private async handlePlanMode(input: string): Promise<void> {
     // Force compact mode for cleaner stream in plan flow
@@ -4375,10 +4376,16 @@ export class NikCLI {
       process.env.NIKCLI_COMPACT = '1'
       process.env.NIKCLI_SUPER_COMPACT = '1'
     } catch { }
+
     console.log(chalk.blue('🎯 Entering Enhanced Planning Mode with TaskMaster AI...'))
+
+    // Ensure prompt is always restored after this function
+    const originalMode = this.currentMode
+    let shouldRestorePrompt = true
 
     try {
       await this.cleanupPlanArtifacts()
+
       // Start progress indicator using our new methods
       const planningId = 'planning-' + Date.now()
       this.createStatusIndicator(planningId, 'Generating comprehensive plan with TaskMaster AI', input)
@@ -4424,24 +4431,31 @@ export class NikCLI {
         console.log(chalk.yellow(`⚠️ TaskMaster planning failed: ${error.message}`))
         console.log(chalk.cyan('🔄 Falling back to enhanced planning...'))
 
-        // Fallback to original enhanced planning
-        plan = await enhancedPlanning.generatePlan(input, {
-          maxTodos: 15,
-          includeContext: true,
-          showDetails: false,
-          saveTodoFile: true,
-          todoFilePath: 'todo.md',
-        })
+        try {
+          // Fallback to original enhanced planning
+          const { enhancedPlanning } = await import('./planning/enhanced-planning')
+          plan = await enhancedPlanning.generatePlan(input, {
+            maxTodos: 15,
+            includeContext: true,
+            showDetails: false,
+            saveTodoFile: true,
+            todoFilePath: 'todo.md',
+          })
 
-        this.initializePlanHud({
-          id: plan.id,
-          title: plan.title,
-          description: plan.description,
-          userRequest: input,
-          estimatedTotalDuration: plan.estimatedTotalDuration,
-          riskAssessment: plan.riskAssessment,
-          todos: plan.todos,
-        })
+          this.initializePlanHud({
+            id: plan.id,
+            title: plan.title,
+            description: plan.description,
+            userRequest: input,
+            estimatedTotalDuration: plan.estimatedTotalDuration,
+            riskAssessment: plan.riskAssessment,
+            todos: plan.todos,
+          })
+        } catch (fallbackError: any) {
+          // Handle fallback failure gracefully
+          console.log(chalk.red(`❌ Both TaskMaster and fallback planning failed: ${fallbackError.message}`))
+          throw new Error(`Planning failed: TaskMaster (${error.message}), Fallback (${fallbackError.message})`)
+        }
       }
 
       this.stopAdvancedSpinner(planningId, true, `Plan generated with ${plan.todos.length} todos${usedTaskMaster ? ' (TaskMaster AI)' : ' (Enhanced)'}`)
@@ -4470,9 +4484,13 @@ export class NikCLI {
           this.currentMode = 'default'
           try {
             await this.handleDefaultMode(plan.userRequest || input)
+          } catch (defaultModeError: any) {
+            console.log(chalk.red(`❌ Default mode execution failed: ${defaultModeError.message}`))
+            // Don't re-throw, just continue to cleanup
           } finally {
             this.renderPromptAfterOutput()
             try {
+              const { advancedUI } = await import('./ui/advanced-ui')
               advancedUI.stopInteractiveMode?.()
             } catch { }
             this.rl?.prompt()
@@ -4483,7 +4501,6 @@ export class NikCLI {
           } catch { }
 
           const completionTime = new Date()
-          const todosArray = Array.isArray(plan?.todos) ? plan.todos : []
           todosArray.forEach((todo: any) => {
             if (!todo) return
             todo.status = 'completed'
@@ -4501,16 +4518,20 @@ export class NikCLI {
           await this.cleanupPlanArtifacts()
           this.renderPromptArea()
           try {
+            const { advancedUI } = await import('./ui/advanced-ui')
             advancedUI.stopInteractiveMode?.()
           } catch { }
           try {
+            const { inputQueue } = await import('./ui/input-queue')
             inputQueue.disableBypass()
           } catch { }
+          shouldRestorePrompt = false
           return
         }
 
         if (this.executionInProgress) {
           console.log(chalk.yellow('⚠️  Execution already in progress, please wait...'))
+          shouldRestorePrompt = false
           return
         }
 
@@ -4520,6 +4541,9 @@ export class NikCLI {
         try {
           // Execute the plan directly without switching modes
           await this.executePlanDirectly(plan.id)
+        } catch (executionError: any) {
+          console.log(chalk.red(`❌ Plan execution failed: ${executionError.message}`))
+          // Continue to cleanup even after execution failure
         } finally {
           this.executionInProgress = false
         }
@@ -4536,58 +4560,92 @@ export class NikCLI {
 
         // Make sure input queue bypass is off and resume prompt cleanly
         try {
+          const { inputQueue } = await import('./ui/input-queue')
           inputQueue.disableBypass()
         } catch (_) {
           // ignore
         }
         try {
+          const { advancedUI } = await import('./ui/advanced-ui')
           advancedUI.stopInteractiveMode?.()
         } catch { }
         this.resumePromptAndRender()
+        shouldRestorePrompt = false
       } else {
         console.log(chalk.yellow('\n📝 Plan saved but not executed.'))
         console.log(chalk.gray('Review todo.md or run `/plan execute` later.'))
 
-        // Ask if they want to regenerate the plan
-        const { approvalSystem } = await import('./ui/approval-system')
-        const regenerate = await approvalSystem.confirm(
-          'Do you want to regenerate the plan with different requirements?',
-          'This will create a new plan and overwrite the current todo.md',
-          false
-        )
+        try {
+          // Ask if they want to regenerate the plan
+          const { approvalSystem } = await import('./ui/approval-system')
+          const regenerate = await approvalSystem.confirm(
+            'Do you want to regenerate the plan with different requirements?',
+            'This will create a new plan and overwrite the current todo.md',
+            false
+          )
 
-        if (regenerate) {
-          const newRequirements = await approvalSystem.promptInput('Enter new or modified requirements: ')
-          if (newRequirements.trim()) {
-            await this.handlePlanMode(newRequirements)
+          if (regenerate) {
+            const newRequirements = await approvalSystem.promptInput('Enter new or modified requirements: ')
+            if (newRequirements.trim()) {
+              await this.handlePlanMode(newRequirements)
+              shouldRestorePrompt = false
+              return
+            }
           }
-        } else {
-          // User declined regeneration, exit plan mode and return to default
-          console.log(chalk.yellow('🔄 Exiting plan mode and returning to default mode...'))
-          this.currentMode = 'default'
-          try {
-            // Ensure input is not bypassed anymore and promptly redraw prompt
-            inputQueue.disableBypass()
-          } catch (_) {
-            // ignore
-          }
-          try {
-            advancedUI.stopInteractiveMode?.()
-          } catch { }
-          this.cleanupPlanArtifacts()
-          this.resumePromptAndRender()
-          this.rl?.prompt()
+        } catch (approvalError: any) {
+          console.log(chalk.yellow(`⚠️ Approval system error: ${approvalError.message}`))
+          // Continue to cleanup
         }
+
+        // User declined regeneration, exit plan mode and return to default
+        console.log(chalk.yellow('🔄 Exiting plan mode and returning to default mode...'))
+        this.currentMode = 'default'
+        try {
+          // Ensure input is not bypassed anymore and promptly redraw prompt
+          const { inputQueue } = await import('./ui/input-queue')
+          inputQueue.disableBypass()
+        } catch (_) {
+          // ignore
+        }
+        try {
+          const { advancedUI } = await import('./ui/advanced-ui')
+          advancedUI.stopInteractiveMode?.()
+        } catch { }
+        this.cleanupPlanArtifacts()
+        this.resumePromptAndRender()
+        this.rl?.prompt()
+        shouldRestorePrompt = false
       }
     } catch (error: any) {
+      // Enhanced error handling with specific error types
       this.addLiveUpdate({ type: 'error', content: `Plan generation failed: ${error.message}`, source: 'planning' })
       console.log(chalk.red(`❌ Planning failed: ${error.message}`))
+
+      // Attempt to restore to original mode if we changed it
+      if (this.currentMode !== originalMode) {
+        this.currentMode = originalMode
+      }
+    } finally {
+      // Always ensure cleanup and prompt restoration
+      try {
+        await this.cleanupPlanArtifacts()
+      } catch (cleanupError: any) {
+        console.log(chalk.yellow(`⚠️ Cleanup warning: ${cleanupError.message}`))
+      }
+
+      // Only restore prompt if we haven't already done it in a return statement
+      if (shouldRestorePrompt) {
+        try {
+          this.rl?.prompt()
+        } catch (promptError: any) {
+          console.log(chalk.yellow(`⚠️ Prompt restoration warning: ${promptError.message}`))
+        }
+
+        // Ensure output is flushed and visible before showing prompt
+        console.log() // Extra newline for better separation
+        this.resumePromptAndRender()
+      }
     }
-    void this.cleanupPlanArtifacts()
-    this.rl?.prompt()
-    // Ensure output is flushed and visible before showing prompt
-    console.log() // Extra newline for better separation
-    this.resumePromptAndRender()
   }
 
   /**

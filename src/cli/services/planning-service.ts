@@ -7,6 +7,7 @@ import type { ExecutionPlan, PlannerContext, PlanningToolCapability, PlanTodo } 
 import { type ToolCapability, toolService } from './tool-service'
 import { taskMasterService, type TaskMasterService } from './taskmaster-service'
 import { createTaskMasterAdapter, type TaskMasterAdapter } from '../adapters/taskmaster-adapter'
+import { NativeTaskMaster } from './native-taskmaster'
 
 export interface PlanningOptions {
   showProgress: boolean
@@ -27,6 +28,7 @@ export class PlanningService {
   private workingDirectory: string = process.cwd()
   private availableTools: ToolCapability[] = []
   private taskMasterAdapter: TaskMasterAdapter
+  private nativeTaskMaster: NativeTaskMaster
   private useTaskMasterByDefault: boolean = true
   private eventEmitter: EventEmitter = new EventEmitter()
 
@@ -34,6 +36,7 @@ export class PlanningService {
     this.planGenerator = new PlanGenerator()
     this.autonomousPlanner = new AutonomousPlanner(this.workingDirectory)
     this.taskMasterAdapter = createTaskMasterAdapter(taskMasterService)
+    this.nativeTaskMaster = new NativeTaskMaster(this.workingDirectory)
     this.initializeTools()
     this.initializeTaskMaster()
   }
