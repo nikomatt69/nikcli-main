@@ -6,13 +6,28 @@ import * as path from 'node:path'
 import type { PlanTodo, ExecutionPlan, ExecutionStep, PlanExecutionResult, StepExecutionResult } from '../planning/types'
 import type { AgentTodo, AgentWorkPlan } from '../core/agent-todo-manager'
 import type { SessionTodo } from '../store/todo-store'
+import type { TaskMasterAdapter } from '../adapters/taskmaster-adapter'
+
+// Define interface for compatibility
+export interface TaskMasterAdapterLike {
+  isTaskMasterAvailable(): boolean
+  createEnhancedPlan(userRequest: string, context?: any): Promise<ExecutionPlan>
+  executePlan(planId: string, options?: any): Promise<PlanExecutionResult>
+  updatePlanStatus(planId: string, status: string): Promise<void>
+  listActivePlans(): Promise<any[]>
+  getPlan(planId: string): Promise<ExecutionPlan | null>
+  getAvailableTools(): any[]
+  on(event: string, listener: (...args: any[]) => void): this
+  off(event: string, listener: (...args: any[]) => void): this
+  emit(event: string, ...args: any[]): boolean
+}
 
 /**
  * Native TaskMaster Implementation
  * A complete TaskMaster clone designed specifically for NikCLI's architecture
  * Provides enterprise-grade task management without external dependencies
  */
-export class NativeTaskMaster extends EventEmitter {
+class NativeTaskMaster extends EventEmitter {
   private initialized = false
   private config: any
   private workingDirectory: string
@@ -119,14 +134,13 @@ export class NativeTaskMaster extends EventEmitter {
       description: this.generatePlanDescription(userRequest),
       steps: [],
       todos: [],
-      status: 'generating',
+      status: 'pending' as const,
       estimatedTotalDuration: 0,
       riskAssessment: {
-        overallRisk: 'low',
+        overallRisk: 'low' as const,
         destructiveOperations: 0,
         fileModifications: 0,
-        externalCalls: 0,
-        reasoning: 'Initial risk assessment'
+        externalCalls: 0
       },
       createdAt: new Date(),
       createdBy: 'native-taskmaster',
@@ -151,7 +165,7 @@ export class NativeTaskMaster extends EventEmitter {
       // Perform risk assessment
       plan.riskAssessment = this.assessRisk(tasks)
 
-      plan.status = 'ready'
+      plan.status = 'running' as const
 
       // Save plan to storage
       await this.savePlan(plan)
@@ -267,7 +281,7 @@ export class NativeTaskMaster extends EventEmitter {
       estimatedDuration: task.estimatedDuration || 300000,
       riskLevel: this.assessTaskRisk(task),
       dependencies: task.dependencies || [],
-      status: task.status || 'pending',
+      status: 'pending' as const,
       progress: 0,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -288,8 +302,7 @@ export class NativeTaskMaster extends EventEmitter {
       updatedAt: new Date(),
       progress: 0,
       estimatedDuration: task.estimatedDuration || 300000,
-      commands: task.commands || [],
-      riskLevel: this.assessTaskRisk(task)
+      commands: task.commands || []
     }
   }
 
@@ -357,8 +370,7 @@ export class NativeTaskMaster extends EventEmitter {
       overallRisk,
       destructiveOperations: highRiskCount,
       fileModifications: tasks.length,
-      externalCalls: 0,
-      reasoning: `Based on ${tasks.length} tasks with ${highRiskCount} high-risk and ${mediumRiskCount} medium-risk tasks`
+      externalCalls: 0
     }
   }
 
@@ -404,32 +416,34 @@ export class NativeTaskMaster extends EventEmitter {
 
     const result: PlanExecutionResult = {
       planId,
-      status: 'executing',
+      status: 'partial' as const,
+      startTime: new Date(),
       startedAt: new Date(),
-      steps: []
+      stepResults: [],
+      summary: {
+        totalSteps: 0,
+        successfulSteps: 0,
+        failedSteps: 0,
+        skippedSteps: 0
+      }
     }
 
     try {
       // Execute each step
+      let allSuccessful = true
       for (const step of plan.steps) {
         const stepResult = await this.executeStep(step, options)
-        result.steps.push(stepResult)
 
-        if (stepResult.status === 'failed') {
-          result.status = 'failed'
+        if (stepResult.status === 'failure') {
+          allSuccessful = false
           break
         }
       }
 
-      if (result.status !== 'failed') {
-        result.status = 'completed'
-      }
-
-      result.completedAt = new Date()
+      result.status = allSuccessful ? 'completed' as const : 'failed' as const
 
     } catch (error: any) {
-      result.status = 'failed'
-      result.error = error.message
+      result.status = 'failed' as const
       console.log(chalk.red(`❌ Plan execution failed: ${error.message}`))
     }
 
@@ -457,24 +471,20 @@ export class NativeTaskMaster extends EventEmitter {
   private async executeStep(step: ExecutionStep, options?: any): Promise<StepExecutionResult> {
     const result: StepExecutionResult = {
       stepId: step.id,
-      status: 'executing',
-      startedAt: new Date(),
-      output: []
+      status: 'success' as const,
+      startedAt: new Date()
     }
 
     try {
       // Simulate step execution
-      for (const command of step.commands) {
+      for (const command of step.commands || []) {
         console.log(chalk.blue(`   ▶ ${command}`))
-        result.output.push(`Executing: ${command}`)
       }
 
-      result.status = 'completed'
-      result.completedAt = new Date()
+      result.status = 'success' as const
 
     } catch (error: any) {
-      result.status = 'failed'
-      result.error = error.message
+      result.status = 'failure' as const
       console.log(chalk.red(`❌ Step execution failed: ${error.message}`))
     }
 
@@ -494,6 +504,84 @@ export class NativeTaskMaster extends EventEmitter {
   }
 
   /**
+   * Check if Native TaskMaster is available
+   */
+  isAvailable(): boolean {
+    return this.initialized
+  }
+
+  /**
+   * Check if TaskMaster is available (always true for native implementation)
+   */
+  isTaskMasterAvailable(): boolean {
+    return this.initialized
+  }
+
+  /**
+   * Create a TaskMasterAdapter-compatible interface
+   */
+  createAdapter(): TaskMasterAdapter {
+    return new NativeTaskMasterAdapter(this)
+  }
+
+  /**
+   * Get available tools (compatible with existing interface)
+   */
+  getAvailableTools(): any[] {
+    return [
+      { name: 'analyze', category: 'analysis', description: 'Analyze project requirements' },
+      { name: 'design', category: 'design', description: 'Design system architecture' },
+      { name: 'implement', category: 'development', description: 'Implement code changes' },
+      { name: 'test', category: 'testing', description: 'Run tests and validation' },
+      { name: 'configure', category: 'configuration', description: 'Configure project settings' },
+      { name: 'document', category: 'documentation', description: 'Update documentation' }
+    ]
+  }
+
+  /**
+   * Create enhanced plan (compatible with TaskMasterAdapter interface)
+   */
+  async createEnhancedPlan(userRequest: string, context?: any): Promise<ExecutionPlan> {
+    return this.generatePlan(userRequest, context)
+  }
+
+  /**
+   * Execute plan (compatible with TaskMasterAdapter interface)
+   */
+  async executePlanCompat(planId: string, options?: any): Promise<PlanExecutionResult> {
+    return this.executePlan(planId, options)
+  }
+
+  /**
+   * Update plan status (compatible with existing interface)
+   */
+  async updatePlanStatus(planId: string, status: 'pending' | 'running' | 'completed' | 'failed'): Promise<void> {
+    try {
+      const plan = await this.loadPlan(planId)
+      if (plan) {
+        plan.status = status
+        await this.savePlan(plan)
+      }
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Could not update plan status: ${error.message}`))
+    }
+  }
+
+  /**
+   * List active plans (compatible with existing interface)
+   */
+  async listActivePlans(): Promise<any[]> {
+    return Array.from(this.activePlans.values())
+  }
+
+  /**
+   * Get plan by ID (compatible with existing interface)
+   */
+  async getPlan(planId: string): Promise<ExecutionPlan | null> {
+    return this.loadPlan(planId)
+  }
+
+  /**
    * Shutdown Native TaskMaster
    */
   async shutdown(): Promise<void> {
@@ -505,3 +593,94 @@ export class NativeTaskMaster extends EventEmitter {
     console.log(chalk.green('✅ Native TaskMaster shutdown complete'))
   }
 }
+
+/**
+ * Native TaskMaster Adapter
+ * Provides TaskMasterAdapter-compatible interface for NativeTaskMaster
+ */
+class NativeTaskMasterAdapter implements TaskMasterAdapterLike {
+  private nativeTaskMaster: NativeTaskMaster
+
+  constructor(nativeTaskMaster: NativeTaskMaster) {
+    this.nativeTaskMaster = nativeTaskMaster
+    // Forward events from Native TaskMaster
+    this.nativeTaskMaster.on('planUpdated', (data) => this.emit('planUpdated', data))
+  }
+
+  /**
+   * Check if TaskMaster is available
+   */
+  isTaskMasterAvailable(): boolean {
+    return this.nativeTaskMaster.isAvailable()
+  }
+
+  /**
+   * Create enhanced plan using Native TaskMaster
+   */
+  async createEnhancedPlan(userRequest: string, context?: any): Promise<ExecutionPlan> {
+    return this.nativeTaskMaster.createEnhancedPlan(userRequest, context)
+  }
+
+  /**
+   * Execute plan using Native TaskMaster
+   */
+  async executePlan(planId: string, options?: any): Promise<PlanExecutionResult> {
+    return this.nativeTaskMaster.executePlanCompat(planId, options)
+  }
+
+  /**
+   * Update plan status
+   */
+  async updatePlanStatus(planId: string, status: 'pending' | 'running' | 'completed' | 'failed'): Promise<void> {
+    return this.nativeTaskMaster.updatePlanStatus(planId, status)
+  }
+
+  /**
+   * List active plans
+   */
+  async listActivePlans(): Promise<any[]> {
+    return this.nativeTaskMaster.listActivePlans()
+  }
+
+  /**
+   * Get plan by ID
+   */
+  async getPlan(planId: string): Promise<ExecutionPlan | null> {
+    return this.nativeTaskMaster.getPlan(planId)
+  }
+
+  /**
+   * Get available tools
+   */
+  getAvailableTools(): any[] {
+    return this.nativeTaskMaster.getAvailableTools()
+  }
+
+  /**
+   * Forward events from Native TaskMaster
+   */
+  on(event: string, listener: (...args: any[]) => void): this {
+    this.nativeTaskMaster.on(event, listener)
+    return this
+  }
+
+  /**
+   * Remove event listener
+   */
+  off(event: string, listener: (...args: any[]) => void): this {
+    this.nativeTaskMaster.off(event, listener)
+    return this
+  }
+
+  /**
+   * Emit events
+   */
+  emit(event: string, ...args: any[]): boolean {
+    return this.nativeTaskMaster.emit(event, ...args)
+  }
+}
+
+// Export the NativeTaskMaster class and adapter
+export { NativeTaskMaster }
+export type { NativeTaskMasterAdapter }
+export { TaskMasterAdapterLike }

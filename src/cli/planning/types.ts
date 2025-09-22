@@ -32,6 +32,7 @@ export interface ExecutionStep {
   riskLevel: 'low' | 'medium' | 'high'
   reversible: boolean
   metadata?: Record<string, any>
+  commands?: string[] // Commands to execute this step
 }
 
 export interface ExecutionPlan {
@@ -68,6 +69,7 @@ export interface StepExecutionResult {
   duration: number
   timestamp: Date
   logs?: string[]
+  startedAt?: Date // For compatibility
 }
 
 export interface PlanExecutionResult {
@@ -75,6 +77,7 @@ export interface PlanExecutionResult {
   status: 'completed' | 'failed' | 'cancelled' | 'partial'
   startTime: Date
   endTime?: Date
+  startedAt?: Date // For compatibility
   stepResults: StepExecutionResult[]
   summary: {
     totalSteps: number
@@ -148,6 +151,7 @@ export interface PlanTodo {
   progress: number // 0-100
   reasoning?: string
   tools?: string[]
+  commands?: string[] // Commands to execute this todo
 }
 
 export interface ConversationContext {
