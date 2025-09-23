@@ -1378,9 +1378,6 @@ class MainOrchestrator {
         process.exit(1)
       }
 
-      // Restore console output after onboarding
-      restoreConsole()
-
       // Disable console logging during initialization
       Logger.setConsoleOutput(false)
       UtilsLogger.getInstance().setConsoleOutput(false)
@@ -1552,11 +1549,11 @@ async function main() {
     }
   }
 
-  // Restore console output after onboarding
-  restoreConsole()
-
   const orchestrator = new MainOrchestrator()
   await orchestrator.start()
+
+  // Restore console output after onboarding
+  restoreConsole()
 }
 
 // Start the application
