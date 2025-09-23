@@ -1,4 +1,3 @@
-
 # NikCLI - Context-Aware AI Development Assistant
 
 **Transform your development workflow with intelligent AI agents that understand your code, execute commands, and build applications autonomously.**
