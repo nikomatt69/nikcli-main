@@ -417,7 +417,6 @@ export class SmartCompletionManager {
       '/diff': 'Show changes diff',
       '/accept': 'Accept proposed changes',
       '/plan': 'Switch to planning mode',
-      '/auto': 'Switch to autonomous mode',
       '/models': 'List available AI models',
       '/config': 'Show configuration',
     }

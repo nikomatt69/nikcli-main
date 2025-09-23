@@ -145,7 +145,7 @@ export class NikCLI {
   private agentManager: AgentManager
   private planningManager: PlanningManager
   private workingDirectory: string
-  private currentMode: 'default' | 'auto' | 'plan' | 'vm' = 'default'
+  private currentMode: 'default' | 'plan' | 'vm' = 'default'
   private currentAgent?: string
   private projectContextFile: string
   private sessionContext: Map<string, any> = new Map()
@@ -1908,9 +1908,7 @@ export class NikCLI {
       this.switchModel(options.model)
     }
 
-    if (options.auto) {
-      this.currentMode = 'auto'
-    }
+
 
     // Initialize cognitive orchestration if enabled
     if (this.cognitiveMode && this.streamingOrchestrator) {
@@ -1923,7 +1921,6 @@ export class NikCLI {
     const shouldUseStructuredUI =
       Boolean(options.structuredUI) ||
       this.currentMode === 'plan' ||
-      this.currentMode === 'auto' ||
       this.currentMode === 'default' ||
       Boolean(options.agent) ||
       process.env.FORCE_STRUCTURED_UI === 'true'
@@ -2215,7 +2212,6 @@ export class NikCLI {
       lines.push('')
       lines.push('Top Commands:')
       lines.push('  /plan [task]          Generate/execute a plan')
-      lines.push('  /auto <task>          Autonomous execution')
       lines.push('  /model [name]         Show/switch model')
       lines.push('  /tokens               Token/cost analysis')
       lines.push('  /images               Pick and analyze images')
@@ -2953,14 +2949,6 @@ export class NikCLI {
           }
           break
 
-        case 'auto':
-          if (args.length === 0) {
-            this.currentMode = 'auto'
-            console.log(chalk.green('✓ Switched to auto mode'))
-          } else {
-            await this.autoExecute(args.join(' '), {})
-          }
-          break
 
         case 'default':
           this.currentMode = 'default'
@@ -3639,14 +3627,6 @@ export class NikCLI {
           }
           break
 
-        case 'auto':
-          if (args.length === 0) {
-            this.currentMode = 'auto'
-            console.log(chalk.green('✓ Switched to auto mode'))
-          } else {
-            await this.autoExecute(args.join(' '), {})
-          }
-          break
 
         case 'default':
           this.currentMode = 'default'
@@ -4043,9 +4023,6 @@ export class NikCLI {
           await this.handlePlanMode(enhancedInput)
           break
 
-        case 'auto':
-          await this.handleAutoMode(enhancedInput)
-          break
 
         case 'vm':
           await this.handleVMMode(enhancedInput)
@@ -5224,22 +5201,6 @@ export class NikCLI {
   }
 
   /**
-   * Auto mode: Execute immediately without approval
-   */
-  private async handleAutoMode(input: string): Promise<void> {
-    console.log(chalk.blue('🚀 Auto-executing task...'))
-
-    // Use agent if specified, otherwise auto-select
-    if (this.currentAgent) {
-      await this.executeAgent(this.currentAgent, input, { auto: true })
-    } else {
-      await this.autoExecute(input, {})
-    }
-    // Ensure output is flushed and visible before showing prompt
-    console.log() // Extra newline for better separation
-    this.renderPromptAfterOutput()
-  }
-  /**
    * Default mode: Unified Aggregator - observes and subscribes to all event sources
    */
   private async handleDefaultMode(input: string): Promise<void> {
@@ -5553,52 +5514,6 @@ export class NikCLI {
     this.renderPromptAfterOutput()
   }
 
-  /**
-   * Autonomous execution with best agent selection
-   */
-  async autoExecute(task: string, options: AutoOptions): Promise<void> {
-    console.log(wrapBlue(`🚀 Auto-executing: ${task}`))
-
-    try {
-      if (options.planFirst) {
-        // Use real PlanningService to create and execute plan asynchronously
-        const plan = await planningService.createPlan(task, {
-          showProgress: true,
-          autoExecute: true,
-          confirmSteps: false,
-        })
-        console.log(
-          chalk.cyan(`📋 Generated plan with ${plan.steps.length} steps (id: ${plan.id}). Executing in background...`)
-        )
-          // Fire-and-forget execution to keep CLI responsive
-          ; (async () => {
-            try {
-              await planningService.executePlan(plan.id, {
-                showProgress: true,
-                autoExecute: true,
-                confirmSteps: false,
-              })
-              console.log(chalk.green('✅ Background plan execution completed'))
-            } catch (err: any) {
-              console.log(chalk.red(`❌ Plan execution error: ${err.message}`))
-            }
-            // Ensure prompt is restored after background execution
-            this.renderPromptAfterOutput()
-          })()
-      } else {
-        // Direct autonomous execution - select best agent and launch
-        const selected = this.agentManager.findBestAgentForTask(task as any)
-        console.log(chalk.blue(`🤖 Selected agent: ${chalk.cyan(selected)}`))
-        const taskId = await agentService.executeTask(selected as any, task, {})
-        console.log(wrapBlue(`🚀 Launched ${selected} (Task ID: ${taskId.slice(-6)})`))
-      }
-    } catch (error: any) {
-      console.log(chalk.red(`Auto execution failed: ${error.message}`))
-    }
-    // Ensure output is flushed and visible before showing prompt
-    console.log() // Extra newline for better separation
-    this.renderPromptAfterOutput()
-  }
 
   /**
    * Manage todo items and planning
@@ -9599,7 +9514,6 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const commands = [
       // Mode Control
       ['/plan [task]', 'Switch to plan mode or generate execution plan'],
-      ['/auto [task]', 'Switch to autonomous mode or execute task'],
       ['/default', 'Switch to default conversational mode'],
       ['/vm', 'Switch to virtual machine development mode'],
 
@@ -10049,10 +9963,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
   }
 
   /**
-   * Cycle through modes: default → plan → auto → vm → default
+   * Cycle through modes: default → plan → vm → default
    */
   private cycleModes(): void {
-    const modes: Array<'default' | 'plan' | 'auto' | 'vm'> = ['default', 'plan', 'auto', 'vm']
+    const modes: Array<'default' | 'plan' | 'vm'> = ['default', 'plan', 'vm']
     const currentIndex = modes.indexOf(this.currentMode)
     const nextIndex = (currentIndex + 1) % modes.length
     const nextMode = modes[nextIndex]
@@ -10065,7 +9979,6 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       const orchestratorContext = (this.streamingOrchestrator as any).context
       if (orchestratorContext) {
         orchestratorContext.planMode = nextMode === 'plan'
-        orchestratorContext.autoAcceptEdits = nextMode === 'auto'
         orchestratorContext.vmMode = nextMode === 'vm'
       }
     }
@@ -10073,7 +9986,6 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const modeNames = {
       default: '💬 Default Chat',
       plan: '📋 Planning Mode',
-      auto: '🤖 Auto Mode',
       vm: '🐳 VM Mode',
     }
 
@@ -10113,7 +10025,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
     // Mode info
     const modeIcon =
-      this.currentMode === 'auto' ? '🚀' : this.currentMode === 'plan' ? '🧠' : this.currentMode === 'vm' ? '🐳' : '💎'
+      this.currentMode === 'plan' ? '🧠' : this.currentMode === 'vm' ? '🐳' : '💎'
     const _modeText = this.currentMode.toUpperCase()
 
     // VM info if in VM mode
@@ -10664,7 +10576,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
     // Mode info
     const _modeIcon =
-      this.currentMode === 'auto' ? '🚀' : this.currentMode === 'plan' ? '🧠' : this.currentMode === 'vm' ? '🐳' : '💎'
+      this.currentMode === 'plan' ? '🧠' : this.currentMode === 'vm' ? '🐳' : '💎'
     const modeText = this.currentMode.toUpperCase()
 
     // Status info
@@ -10822,7 +10734,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
   private buildPrompt(): string {
     const workingDir = chalk.blue(path.basename(this.workingDirectory))
     const modeIcon =
-      this.currentMode === 'auto' ? '🚀' : this.currentMode === 'plan' ? '🎯' : this.currentMode === 'vm' ? '🐳' : '💬'
+      this.currentMode === 'plan' ? '🎯' : this.currentMode === 'vm' ? '🐳' : '💬'
     const _agentInfo = this.currentAgent ? `@${this.currentAgent}:` : ''
     const statusDot = this.assistantProcessing ? chalk.blue('●') : chalk.red('●')
 

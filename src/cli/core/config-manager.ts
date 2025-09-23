@@ -792,6 +792,10 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'deepseek/deepseek-chat-v3.1:free',
     },
+    'deepseek/deepseek-v3.1-terminus': {
+      provider: 'openrouter',
+      model: 'deepseek/deepseek-v3.1-terminus',
+    },
     'moonshotai/kimi-k2-0905': {
       provider: 'openrouter',
       model: 'moonshotai/kimi-k2-0905',

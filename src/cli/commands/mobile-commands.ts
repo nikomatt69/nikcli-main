@@ -72,7 +72,6 @@ export class MobileCommandHandler {
       // Agent operations
       { alias: '/a', command: '/agents', description: 'List agents' },
       { alias: '/ag', command: '/agent', description: 'Run agent', requiresArgs: true },
-      { alias: '/auto', command: '/autonomous', description: 'Enable autonomous mode' },
 
       // Planning and execution
       { alias: '/p', command: '/plan', description: 'Create execution plan', requiresArgs: true },
