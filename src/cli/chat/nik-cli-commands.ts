@@ -218,6 +218,10 @@ export class SlashCommandHandler {
     this.commands.set('compact', this.compactCommand.bind(this))
     this.commands.set('super-compact', this.superCompactCommand.bind(this))
     this.commands.set('approval', this.approvalCommand.bind(this))
+    // HUD/Plan utilities
+    this.commands.set('plan-clean', this.planCleanCommand.bind(this))
+    this.commands.set('todo-hide', this.todoHideCommand.bind(this))
+    this.commands.set('todo-show', this.todoShowCommand.bind(this))
 
     // Security Commands
     this.commands.set('security', this.securityCommand.bind(this))
@@ -3079,6 +3083,118 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async todosCommand(args: string[]): Promise<CommandResult> {
     // Alias for /todo list
     return await this.todoCommand(['list', ...args])
+  }
+
+  private async planCleanCommand(_args: string[] = []): Promise<CommandResult> {
+    try {
+      // Hide the Todos HUD panel (structured UI)
+      advancedUI.hidePanel('todos')
+    } catch {}
+
+    try {
+      // Clear session todos from the TodoStore for current session
+      const { todoStore } = await import('../store/todo-store')
+      const current = chatManager.getCurrentSession()
+      const globalAny: any = global as any
+      const sessionId =
+        current?.id ||
+        globalAny.__streamingOrchestrator?.context?.session?.id ||
+        globalAny.__nikCLI?.context?.session?.id ||
+        `${Date.now()}`
+      todoStore.setTodos(String(sessionId), [])
+    } catch {}
+
+    // Clear inline HUD in renderPromptArea
+    try {
+      const nik: any = this.cliInstance
+      if (nik?.clearPlanHud) nik.clearPlanHud()
+    } catch {}
+
+    console.log(chalk.green('🧹 HUD Todos cleared'))
+    try {
+      const nik = (global as any).__nikCLI
+      nik?.renderPromptAfterOutput?.()
+    } catch {}
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async todoHideCommand(_args: string[] = []): Promise<CommandResult> {
+    try {
+      advancedUI.hidePanel('todos')
+      // Toggle visibility off for inline HUD
+      const nik: any = this.cliInstance
+      if (nik?.hidePlanHud) nik.hidePlanHud()
+      console.log(chalk.green('🙈 Todos HUD hidden'))
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Unable to hide Todos HUD: ${error?.message || 'unknown error'}`))
+    }
+    try {
+      const nik = (global as any).__nikCLI
+      nik?.renderPromptAfterOutput?.()
+    } catch {}
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async todoShowCommand(_args: string[] = []): Promise<CommandResult> {
+    let shown = false
+    try {
+      // Toggle visibility on for inline HUD
+      const nik: any = this.cliInstance
+      if (nik?.showPlanHud) nik.showPlanHud()
+    } catch {}
+    try {
+      // Prefer latest active plan todos if available
+      const plans = enhancedPlanning.getActivePlans?.() || []
+      const latestPlan = plans[plans.length - 1]
+      if (latestPlan && Array.isArray(latestPlan.todos) && latestPlan.todos.length > 0) {
+        const todoItems = latestPlan.todos.map((t: any) => ({
+          content: t.title || t.description,
+          status: t.status,
+          priority: (t as any).priority,
+          progress: (t as any).progress,
+        }))
+        ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+        shown = true
+      }
+    } catch {}
+
+    if (!shown) {
+      try {
+        // Fallback to session todo store
+        const { todoStore } = await import('../store/todo-store')
+        const current = chatManager.getCurrentSession()
+        const globalAny: any = global as any
+        const sessionId =
+          current?.id ||
+          globalAny.__streamingOrchestrator?.context?.session?.id ||
+          globalAny.__nikCLI?.context?.session?.id ||
+          `${Date.now()}`
+
+        const list = todoStore.getTodos(String(sessionId))
+        if (list.length > 0) {
+          const items = list.map((t) => ({
+            content: t.content,
+            status: t.status,
+            priority: t.priority,
+            progress: t.progress,
+          }))
+          ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+          shown = true
+        }
+      } catch {}
+    }
+
+    if (!shown) {
+      console.log(chalk.yellow('ℹ️ No todos to show'))
+    } else {
+      console.log(chalk.green('👀 Todos HUD shown'))
+    }
+
+    try {
+      const nik = (global as any).__nikCLI
+      nik?.renderPromptAfterOutput?.()
+    } catch {}
+    return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async compactCommand(args: string[]): Promise<CommandResult> {

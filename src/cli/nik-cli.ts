@@ -225,6 +225,7 @@ export class NikCLI {
     }>
   }
   private planHudUnsubscribe?: () => void
+  private planHudVisible: boolean = true
 
   // Enhanced services
   private enhancedSessionManager: EnhancedSessionManager
@@ -4959,6 +4960,23 @@ export class NikCLI {
         this.finalizePlanHud(event.type === 'plan_complete' ? 'completed' : 'failed')
         break
     }
+  }
+
+  // Public controls for HUD visibility and clearing
+  public hidePlanHud(): void {
+    this.planHudVisible = false
+    this.renderPromptAfterOutput()
+  }
+
+  public showPlanHud(): void {
+    this.planHudVisible = true
+    this.renderPromptAfterOutput()
+  }
+
+  public clearPlanHud(): void {
+    this.activePlanForHud = undefined
+    this.clearPlanHudSubscription()
+    this.renderPromptArea()
   }
 
   private finalizePlanHud(state: 'completed' | 'failed'): void {
@@ -10642,7 +10660,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
     const terminalWidth = Math.max(40, (process.stdout.columns || 120) - 1)
     const workingDir = chalk.blue(path.basename(this.workingDirectory))
-    const planHudLines = this.buildPlanHudLines(terminalWidth)
+    const planHudLines = this.planHudVisible ? this.buildPlanHudLines(terminalWidth) : []
 
     // Mode info
     const _modeIcon =
@@ -10696,7 +10714,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const tokenRate2 = layout2.showTokenRate ? ` | ${this.getTokenRate(layout2.useCompact)}` : ''
 
     // Create status bar (hide Mode when DEFAULT)
-    const modeSegment = this.currentMode === 'default' ? '' : ` | Mode: ${modeText}`
+    const modeSegment = this.currentMode === 'default' ? '' : ` | Mode: ${chalk.magentaBright(modeText)}`
     const statusLeft = `${statusIndicator} ${readyText}${modeSegment} | ${responsiveModelDisplay2} | ${contextInfo2}${tokenRate2}`
     const rightExtra = `${queueCount2 > 0 ? ` | 📥 ${queueCount2}` : ''}${runningAgents > 0 ? ` | 🤖 ${runningAgents}` : ''}`
     const visionIcon2 = this.getVisionStatusIcon()
