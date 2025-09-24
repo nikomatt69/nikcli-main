@@ -147,6 +147,7 @@ export class NikCLI {
   private workingDirectory: string
   private currentMode: 'default' | 'plan' | 'vm' = 'default'
   private currentAgent?: string
+  private activeVMContainer?: string
   private projectContextFile: string
   private sessionContext: Map<string, any> = new Map()
   private slashHandler: SlashCommandHandler

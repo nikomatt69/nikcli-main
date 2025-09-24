@@ -2086,6 +2086,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray(`Container ID: ${containerId}`))
       console.log(chalk.gray(`VS Code Server: http://localhost:${vscodePort}`))
       console.log(chalk.gray(`Use /vm-connect ${containerId.slice(0, 8)} to interact`))
+
+      // Automatically switch to VM mode for seamless integration
+      console.log(chalk.cyan(`🔄 Switching to VM mode for seamless development...`))
+      this.currentMode = 'vm'
+
+      // Set the active container for tool routing
+      this.activeVMContainer = containerId
+
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to create VM container: ${error.message}`))
     }
