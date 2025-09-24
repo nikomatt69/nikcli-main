@@ -2048,8 +2048,18 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return await this.vmConnectCommand(subArgs)
       case 'mode':
         return await this.vmModeCommand()
+      case 'exit':
+      case 'quit':
+        // Exit VM mode and return to default
+        if (this.cliInstance) {
+          this.cliInstance.currentMode = 'default'
+          this.cliInstance.activeVMContainer = undefined
+          console.log(chalk.green('✅ Exited VM mode, returned to default chat mode'))
+        }
+        return { shouldExit: false, shouldUpdatePrompt: true }
       default:
         console.log(chalk.red(`Unknown VM command: ${subcommand}`))
+        console.log(chalk.gray('Use /vm exit to exit VM mode'))
         return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -2269,12 +2279,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   }
 
   // VM Helper Methods
-  getActiveVMContainers() {
-    return this.vmOrchestrator.getActiveContainers()
-  }
-
   getVMOrchestrator() {
     return this.vmOrchestrator
+  }
+
+  getActiveVMContainers() {
+    return this.vmOrchestrator.getActiveContainers()
   }
 
   // New VM Selection Commands
