@@ -147,6 +147,7 @@ export class NikCLI {
   private workingDirectory: string
   private currentMode: 'default' | 'plan' | 'vm' = 'default'
   private currentAgent?: string
+  private activeVMContainer?: string
   private projectContextFile: string
   private sessionContext: Map<string, any> = new Map()
   private slashHandler: SlashCommandHandler
@@ -4541,6 +4542,257 @@ export class NikCLI {
   }
 
   /**
+   * Get VM orchestrator from slash handler
+   */
+  private getVMOrchestrator() {
+    return this.slashHandler.getVMOrchestrator?.()
+  }
+
+  /**
+   * Execute tool in VM container with seamless integration
+   */
+  private async executeToolInVM(toolName: string, params: any, originalInput: string): Promise<void> {
+    const vmOrchestrator = this.getVMOrchestrator()
+    if (!vmOrchestrator || !this.activeVMContainer) {
+      throw new Error('No active VM container or orchestrator')
+    }
+
+    console.log(chalk.cyan(`🐳 Executing ${toolName} in VM container...`))
+
+    try {
+      // Convert tool name to VM command
+      const vmCommand = this.convertToolToVMCommand(toolName, params, originalInput)
+
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('VM execution timeout after 5 minutes')), 300000)
+      })
+
+      // Execute in VM container with streaming output
+      const executionPromise = (async () => {
+        if (!this.activeVMContainer) {
+          throw new Error('No active VM container')
+        }
+        const container = this.activeVMContainer
+        const chunks = vmOrchestrator.executeCommandStreaming(container, vmCommand)
+
+        for await (const chunk of chunks) {
+          if (chunk.type === 'output' && chunk.output) {
+            process.stdout.write(chunk.output)
+          } else if (chunk.type === 'error') {
+            console.log(chalk.red(`❌ VM Error: ${chunk.error}`))
+          } else if (chunk.type === 'complete') {
+            console.log(chalk.green(`✅ VM execution completed`))
+          }
+        }
+      })()
+
+      // Race between execution and timeout
+      await Promise.race([executionPromise, timeoutPromise])
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ VM tool execution failed: ${error.message}`))
+
+      // Provide helpful error context
+      console.log(chalk.dim(`   Tool: ${toolName}`))
+      if (params.file_path) console.log(chalk.dim(`   File: ${params.file_path}`))
+      if (params.command) console.log(chalk.dim(`   Command: ${params.command}`))
+
+      throw error
+    }
+  }
+
+  /**
+   * Convert tool name and params to VM command
+   */
+  private convertToolToVMCommand(toolName: string, params: any, originalInput: string): string {
+    const resolvedTool = toolRouter['resolveToolAlias']?.(toolName) || toolName
+
+    switch (resolvedTool) {
+      case 'read-file-tool':
+      case 'read_file':
+        return `cat "${params.file_path || params.filePath}"`
+
+      case 'write-file-tool':
+      case 'write_file':
+        return `cat > "${params.file_path || params.filePath}" << 'EOF'\n${params.content || ''}\nEOF`
+
+      case 'edit-tool':
+      case 'edit_file':
+        // Create a more robust edit command using ed or patch
+        if (params.old_string && params.new_string) {
+          return `cd /workspace/repo && python3 -c "
+import re
+with open('${params.file_path}', 'r') as f:
+    content = f.read()
+
+old_text = '''${params.old_string.replace(/'/g, "'\\''")}'''
+new_text = '''${params.new_string.replace(/'/g, "'\\''")}'''
+new_content = content.replace(old_text, new_text)
+
+with open('${params.file_path}', 'w') as f:
+    f.write(new_content)
+print('File updated successfully')
+"`
+        } else {
+          return `echo "Error: Missing old_string or new_string for edit operation" >&2`
+        }
+
+      case 'replace-in-file-tool':
+      case 'replace_in_file':
+        return `cd /workspace/repo && sed -i 's/${params.pattern.replace(/\//g, '\\/')}/${params.replacement.replace(/\//g, '\\/')}/g' "${params.file_path || params.path}"`
+
+      case 'multi-edit-tool':
+      case 'multi_edit':
+        // For multi-file edits, create a script
+        return `cd /workspace/repo && python3 -c "
+import os
+import re
+
+edits = ${JSON.stringify(params.edits || [])}
+for edit in edits:
+    filepath = edit.get('file_path') or edit.get('path')
+    if not filepath:
+        continue
+        
+    try:
+        with open(filepath, 'r') as f:
+            content = f.read()
+            
+        # Apply the edit
+        if edit.get('old_string') and edit.get('new_string'):
+            content = content.replace(edit['old_string'], edit['new_string'])
+        elif edit.get('pattern') and edit.get('replacement'):
+            content = re.sub(edit['pattern'], edit['replacement'], content, flags=re.MULTILINE | re.DOTALL)
+            
+        with open(filepath, 'w') as f:
+            f.write(content)
+        print(f'Updated: {filepath}')
+    except Exception as e:
+        print(f'Error updating {filepath}: {e}')
+"`
+
+      case 'run-command-tool':
+      case 'run_command':
+        return params.command || originalInput.replace(/^(run|execute)\s+/i, '').trim()
+
+      case 'list-tool':
+      case 'explore_directory':
+        return `ls -la "${params.directory || '.'}"`
+
+      case 'find-files-tool':
+      case 'find_files':
+        return `find . -name "${params.pattern}" -type f`
+
+      case 'grep-tool':
+        return `grep -r "${params.pattern}" .`
+
+      case 'git-tools':
+      case 'git_workflow':
+        return params.command || originalInput.replace(/^git\s+/i, '')
+
+      case 'json-patch-tool':
+      case 'config_patch':
+        return `cd /workspace/repo && python3 -c "
+import json
+import re
+
+filepath = '${params.file_path}'
+key = '${params.key}'
+value = '${params.value}'
+
+try:
+    with open(filepath, 'r') as f:
+        data = json.load(f)
+        
+    # Navigate to the correct key
+    keys = key.split('.')
+    current = data
+    for k in keys[:-1]:
+        if k not in current:
+            current[k] = {}
+        current = current[k]
+    
+    current[keys[-1]] = value
+    
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=2)
+    print(f'Updated {filepath}: {key} = {value}')
+except Exception as e:
+    print(f'Error: {e}')
+"`
+
+      case 'create_file':
+        return `cat > "${params.file_path}" << 'EOF'
+${params.content || ''}
+EOF`
+
+      case 'delete_file':
+        return `rm -f "${params.file_path}" && echo "Deleted: ${params.file_path}"`
+
+      case 'copy_file':
+        return `cp "${params.source}" "${params.destination}" && echo "Copied: ${params.source} -> ${params.destination}"`
+
+      case 'move_file':
+        return `mv "${params.source}" "${params.destination}" && echo "Moved: ${params.source} -> ${params.destination}"`
+
+      default:
+        // For unknown tools, try to execute the original input as a command
+        return originalInput.replace(/^(run|execute|do|make|create|edit|write|read|list|find|search|grep)\s+/i, '').trim()
+    }
+  }
+
+  /**
+   * Execute command in VM when no specific tool is detected
+   */
+  private async executeCommandInVM(command: string): Promise<void> {
+    const vmOrchestrator = this.getVMOrchestrator()
+    if (!vmOrchestrator || !this.activeVMContainer) {
+      throw new Error('No active VM container or orchestrator')
+    }
+
+    console.log(chalk.cyan(`🐳 Executing command in VM: ${command}`))
+
+    try {
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('VM execution timeout after 5 minutes')), 300000)
+      })
+
+      // Execute in VM container with streaming output
+      const executionPromise = (async () => {
+        if (!this.activeVMContainer) {
+          throw new Error('No active VM container')
+        }
+        const container = this.activeVMContainer
+        const chunks = vmOrchestrator.executeCommandStreaming(container, command)
+
+        for await (const chunk of chunks) {
+          if (chunk.type === 'output' && chunk.output) {
+            process.stdout.write(chunk.output)
+          } else if (chunk.type === 'error') {
+            console.log(chalk.red(`❌ VM Error: ${chunk.error}`))
+          } else if (chunk.type === 'complete') {
+            console.log(chalk.green(`✅ VM execution completed`))
+          }
+        }
+      })()
+
+      // Race between execution and timeout
+      await Promise.race([executionPromise, timeoutPromise])
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ VM command execution failed: ${error.message}`))
+
+      // Provide helpful error context
+      console.log(chalk.dim(`   Command: ${command}`))
+      console.log(chalk.dim(`   Container: ${this.activeVMContainer.slice(0, 12)}`))
+
+      throw error
+    }
+  }
+
+  /**
    * CRITICAL: Force recovery to default mode in case of any failures
    */
   private forceRecoveryToDefaultMode(): void {
@@ -5255,7 +5507,21 @@ export class NikCLI {
             )
           )
 
-          // Auto-execute high-confidence tool recommendations
+          // Auto-execute high-confidence tool recommendations in VM if available
+          if (topRecommendation.confidence > 0.7 && this.activeVMContainer) {
+            console.log(chalk.cyan(`🐳 Executing in VM container: ${this.activeVMContainer.slice(0, 12)}`))
+            try {
+              await this.executeToolInVM(topRecommendation.tool, topRecommendation.suggestedParams || {}, input)
+              console.log(chalk.green(`✅ Tool execution completed in VM`))
+              return // Tool executed in VM, return to continue chat flow
+            } catch (error: any) {
+              console.log(chalk.yellow(`⚠️ VM execution failed, falling back to local: ${error.message}`))
+
+              // Log error but don't throw - allow fallback to AI chat
+              console.log(chalk.dim(`   Original tool: ${topRecommendation.tool}`))
+              console.log(chalk.dim(`   Confidence: ${Math.round(topRecommendation.confidence * 100)}%`))
+            }
+          }
         }
 
         // Activate structured UI for better visualization
@@ -5271,6 +5537,31 @@ export class NikCLI {
           role: m.role as 'system' | 'user' | 'assistant',
           content: m.content,
         }))
+
+        // Handle VM mode execution for generic commands
+        if (this.currentMode === 'vm' && this.activeVMContainer) {
+          console.log(chalk.cyan(`🐳 Executing in VM container: ${this.activeVMContainer.slice(0, 12)}`))
+          try {
+            await this.executeCommandInVM(input)
+            console.log(chalk.green(`✅ Command executed successfully in VM`))
+            return // Command executed in VM, return to continue chat flow
+          } catch (error: any) {
+            console.log(chalk.yellow(`⚠️ VM execution failed, falling back to AI chat: ${error.message}`))
+
+            // Log detailed error for debugging
+            console.log(chalk.dim(`   Command: ${input}`))
+            console.log(chalk.dim(`   Container: ${this.activeVMContainer.slice(0, 12)}`))
+
+            // Provide recovery suggestions
+            if (error.message.includes('timeout')) {
+              console.log(chalk.dim('   💡 Suggestion: Try a simpler command or check container resources'))
+            } else if (error.message.includes('No such file')) {
+              console.log(chalk.dim('   💡 Suggestion: Check file paths and working directory in VM'))
+            } else {
+              console.log(chalk.dim('   💡 Suggestion: Use /vm status to check container health'))
+            }
+          }
+        }
 
         // Auto-compact if approaching token limit with more aggressive thresholds
         const totalChars = messages.reduce((sum, msg) => sum + msg.content.length, 0)
@@ -10627,7 +10918,15 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
     // Create status bar (hide Mode when DEFAULT)
     const modeSegment = this.currentMode === 'default' ? '' : ` | Mode: ${chalk.magentaBright(modeText)}`
-    const statusLeft = `${statusIndicator} ${readyText}${modeSegment} | ${responsiveModelDisplay2} | ${contextInfo2}${tokenRate2}`
+
+    // Add VM container info if in VM mode and container is active
+    let vmInfo = ''
+    if (this.currentMode === 'vm' && this.activeVMContainer) {
+      const containerId = this.activeVMContainer.slice(0, 8)
+      vmInfo = ` | 🐳 ${containerId}`
+    }
+
+    const statusLeft = `${statusIndicator} ${readyText}${modeSegment}${vmInfo} | ${responsiveModelDisplay2} | ${contextInfo2}${tokenRate2}`
     const rightExtra = `${queueCount2 > 0 ? ` | 📥 ${queueCount2}` : ''}${runningAgents > 0 ? ` | 🤖 ${runningAgents}` : ''}`
     const visionIcon2 = this.getVisionStatusIcon()
     const imgIcon2 = this.getImageGenStatusIcon()
