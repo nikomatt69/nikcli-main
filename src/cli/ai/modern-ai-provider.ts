@@ -304,10 +304,10 @@ export class ModernAIProvider {
       rootPath: relative(process.cwd(), rootPath),
       packageInfo: packageInfo
         ? {
-          name: packageInfo.name,
-          version: packageInfo.version,
-          description: packageInfo.description,
-        }
+            name: packageInfo.name,
+            version: packageInfo.version,
+            description: packageInfo.description,
+          }
         : null,
       framework,
       technologies,

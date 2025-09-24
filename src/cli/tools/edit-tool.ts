@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
+import { FormatterManager } from '../core/formatter-manager'
 import { PromptManager } from '../prompts/prompt-manager'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
@@ -20,6 +21,7 @@ export interface EditToolParams {
   createBackup?: boolean
   validateSyntax?: boolean
   previewOnly?: boolean
+  skipFormatting?: boolean
 }
 
 export interface EditResult {
@@ -45,8 +47,11 @@ export interface EditChange {
 }
 
 export class EditTool extends BaseTool {
+  private formatterManager: FormatterManager
+
   constructor(workingDirectory: string) {
     super('edit-tool', workingDirectory)
+    this.formatterManager = FormatterManager.getInstance(workingDirectory)
   }
 
   async execute(params: EditToolParams): Promise<ToolExecutionResult> {
@@ -217,6 +222,21 @@ export class EditTool extends BaseTool {
       }
 
       newContent = newLines.join('\n')
+    }
+
+    // Apply automatic formatting unless explicitly disabled
+    if (!params.skipFormatting) {
+      try {
+        const formatResult = await this.formatterManager.formatContent(newContent, filePath)
+        if (formatResult.success && formatResult.formatted) {
+          newContent = formatResult.content
+          CliUI.logInfo(`✨ Applied ${formatResult.formatter} formatting`)
+        } else if (formatResult.warnings && formatResult.warnings.length > 0) {
+          formatResult.warnings.forEach((warning) => CliUI.logWarning(`Format warning: ${warning}`))
+        }
+      } catch (formatError: any) {
+        CliUI.logWarning(`Formatting failed, using unformatted content: ${formatError.message}`)
+      }
     }
 
     // Genera e mostra diff

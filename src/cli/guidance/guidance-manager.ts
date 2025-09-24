@@ -273,7 +273,6 @@ export class GuidanceManager {
   }
 
   private async handleFileChange(filePath: string, changeType: 'add' | 'change' | 'unlink'): Promise<void> {
-
     if (changeType === 'unlink') {
       this.guidanceFiles.delete(filePath)
     } else {
@@ -311,7 +310,6 @@ export class GuidanceManager {
     const now = Date.now()
     if (now - this.lastContextLogAt > 1500) {
       this.lastContextLogAt = now
-
     }
 
     // Notify listeners

@@ -247,7 +247,10 @@ export class ModelProvider {
       const reasoningData = ReasoningDetector.extractReasoning(result, currentModelConfig.provider)
       const globalReasoningConfig = configManager.get('reasoning')
 
-      if (reasoningData.reasoningText && (globalReasoningConfig.showReasoningProcess || validatedOptions.showReasoningProcess)) {
+      if (
+        reasoningData.reasoningText &&
+        (globalReasoningConfig.showReasoningProcess || validatedOptions.showReasoningProcess)
+      ) {
         try {
           const nik = (global as any).__nikCLI
           if (nik?.advancedUI) {
@@ -285,7 +288,10 @@ export class ModelProvider {
 
     // Show reasoning summary before streaming if enabled
     if (reasoningEnabled) {
-      const capabilities = ReasoningDetector.detectReasoningSupport(currentModelConfig.provider, currentModelConfig.model)
+      const capabilities = ReasoningDetector.detectReasoningSupport(
+        currentModelConfig.provider,
+        currentModelConfig.model
+      )
       const summary = ReasoningDetector.getModelReasoningSummary(currentModelConfig.provider, currentModelConfig.model)
 
       try {

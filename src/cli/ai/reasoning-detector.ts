@@ -58,7 +58,7 @@ export const MODEL_REASONING_CAPABILITIES: ModelReasoningMap = {
     defaultEnabled: true,
     requiresExplicitRequest: false,
   },
-  'o1': {
+  o1: {
     supportsReasoning: true,
     reasoningType: 'internal',
     defaultEnabled: true,
@@ -104,7 +104,7 @@ export const MODEL_REASONING_CAPABILITIES: ModelReasoningMap = {
   },
 
   // Default fallback for unknown models
-  'default': {
+  default: {
     supportsReasoning: false,
     reasoningType: 'none',
     defaultEnabled: false,
@@ -200,7 +200,10 @@ export class ReasoningDetector {
    * Get provider-specific reasoning configuration
    */
   static getProviderReasoningConfig(provider: string) {
-    return PROVIDER_REASONING_CONFIG[provider as keyof typeof PROVIDER_REASONING_CONFIG] || PROVIDER_REASONING_CONFIG.anthropic
+    return (
+      PROVIDER_REASONING_CONFIG[provider as keyof typeof PROVIDER_REASONING_CONFIG] ||
+      PROVIDER_REASONING_CONFIG.anthropic
+    )
   }
 
   /**
@@ -233,7 +236,7 @@ export class ReasoningDetector {
     return Object.entries(MODEL_REASONING_CAPABILITIES)
       .filter(([_, capabilities]) => capabilities.supportsReasoning)
       .map(([modelId]) => modelId)
-      .filter(modelId => modelId !== 'default')
+      .filter((modelId) => modelId !== 'default')
   }
 
   /**

@@ -28,6 +28,7 @@ export const WriteFileOptionsSchema = z.object({
   stopOnFirstError: z.boolean().optional(),
   rollbackOnPartialFailure: z.boolean().optional(),
   showDiff: z.boolean().optional(),
+  skipFormatting: z.boolean().optional(),
   validators: z.array(z.function().returns(z.promise(ValidationResultSchema))).optional(),
   transformers: z.array(z.function().returns(z.promise(z.string()))).optional(),
 })

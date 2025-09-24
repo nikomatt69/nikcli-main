@@ -1,9 +1,9 @@
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
+import { createTaskMasterAdapter } from '../adapters/taskmaster-adapter'
+import { taskMasterService } from '../services/taskmaster-service'
 import { type ToolCapability, toolService } from '../services/tool-service'
 import { type SessionTodo, type TodoPriority, type TodoStatus, todoStore } from '../store/todo-store'
-import { taskMasterService } from '../services/taskmaster-service'
-import { createTaskMasterAdapter } from '../adapters/taskmaster-adapter'
 
 // Initialize TaskMaster adapter
 const taskMasterAdapter = createTaskMasterAdapter(taskMasterService)
@@ -48,7 +48,7 @@ export function registerTodoTools(): void {
         try {
           // Get TaskMaster plan status for enhanced context
           const activePlans = taskMasterService.listPlans()
-          const currentPlan = activePlans.find(plan => plan.status === 'running' || plan.status === 'pending')
+          const currentPlan = activePlans.find((plan) => plan.status === 'running' || plan.status === 'pending')
 
           if (currentPlan) {
             const planStatus = await taskMasterService.getPlanStatus(currentPlan.id)
@@ -65,15 +65,19 @@ export function registerTodoTools(): void {
               enhanced: true,
             }
 
-            enhancedOutput = JSON.stringify({
-              todos,
-              taskMasterContext: {
-                activePlan: currentPlan.title,
-                planProgress: planStatus?.progress ? `${planStatus.progress}%` : '0%',
-                currentTask: planStatus?.currentTask || 'None',
-                remainingTasks: planStatus ? planStatus.totalTasks - planStatus.completedTasks : 0,
-              }
-            }, null, 2)
+            enhancedOutput = JSON.stringify(
+              {
+                todos,
+                taskMasterContext: {
+                  activePlan: currentPlan.title,
+                  planProgress: planStatus?.progress ? `${planStatus.progress}%` : '0%',
+                  currentTask: planStatus?.currentTask || 'None',
+                  remainingTasks: planStatus ? planStatus.totalTasks - planStatus.completedTasks : 0,
+                },
+              },
+              null,
+              2
+            )
           }
         } catch (error: any) {
           console.log(chalk.gray(`ℹ️ TaskMaster context unavailable: ${error.message}`))
@@ -111,24 +115,19 @@ export function registerTodoTools(): void {
       if (isTaskMasterAvailable()) {
         try {
           // Convert session todos to TaskMaster format
-          const taskMasterTodos = norm.map(sessionTodo =>
-            taskMasterAdapter.sessionTodoToTaskMaster(sessionTodo)
-          )
+          const taskMasterTodos = norm.map((sessionTodo) => taskMasterAdapter.sessionTodoToTaskMaster(sessionTodo))
 
           // Find or create a TaskMaster plan for the session
           const activePlans = taskMasterService.listPlans()
-          let currentPlan = activePlans.find(plan => plan.id.includes(sessionId))
+          let currentPlan = activePlans.find((plan) => plan.id.includes(sessionId))
 
           if (!currentPlan) {
             // Create a new plan for the session
-            currentPlan = await taskMasterService.createPlan(
-              'Session Todo Management',
-              {
-                projectPath: process.cwd(),
-                relevantFiles: [],
-                projectType: 'session',
-              }
-            )
+            currentPlan = await taskMasterService.createPlan('Session Todo Management', {
+              projectPath: process.cwd(),
+              relevantFiles: [],
+              projectType: 'session',
+            })
           }
 
           // Update TaskMaster plan with new todos

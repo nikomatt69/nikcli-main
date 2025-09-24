@@ -518,8 +518,6 @@ export class AgentManager extends EventEmitter {
    * Handle guidance system updates
    */
   private onGuidanceUpdated(context: any): void {
-
-
     // Update all agents with new guidance
     for (const agent of this.agents.values()) {
       const guidance = this.guidanceManager.getContextForAgent(agent.specialization, process.cwd())

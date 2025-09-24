@@ -5,7 +5,19 @@
 
 // Internal type exports for NikCLI integration
 export interface TaskMasterIntegrationConfig {
-  aiProvider: 'anthropic' | 'openai' | 'google' | 'openrouter' | 'azure' | 'bedrock' | 'groq' | 'perplexity' | 'xai' | 'ollama' | 'claude-code' | 'gemini-cli'
+  aiProvider:
+    | 'anthropic'
+    | 'openai'
+    | 'google'
+    | 'openrouter'
+    | 'azure'
+    | 'bedrock'
+    | 'groq'
+    | 'perplexity'
+    | 'xai'
+    | 'ollama'
+    | 'claude-code'
+    | 'gemini-cli'
   model: string
   workspacePath: string
   persistStorage: boolean

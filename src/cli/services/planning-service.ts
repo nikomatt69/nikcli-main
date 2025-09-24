@@ -1,12 +1,12 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
+import { createTaskMasterAdapter, type TaskMasterAdapter } from '../adapters/taskmaster-adapter'
 import { AutonomousPlanner, type PlanningEvent } from '../planning/autonomous-planner'
 import { PlanGenerator } from '../planning/plan-generator'
 import type { ExecutionPlan, PlannerContext, PlanningToolCapability, PlanTodo } from '../planning/types'
+import { type TaskMasterService, taskMasterService } from './taskmaster-service'
 import { type ToolCapability, toolService } from './tool-service'
-import { taskMasterService, type TaskMasterService } from './taskmaster-service'
-import { createTaskMasterAdapter, type TaskMasterAdapter } from '../adapters/taskmaster-adapter'
 
 export interface PlanningOptions {
   showProgress: boolean
@@ -55,7 +55,6 @@ export class PlanningService {
         console.log(chalk.yellow('⚠️ TaskMaster unavailable, using legacy planning'))
         this.useTaskMasterByDefault = false
       })
-
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ TaskMaster initialization failed: ${error.message}`))
       this.useTaskMasterByDefault = false

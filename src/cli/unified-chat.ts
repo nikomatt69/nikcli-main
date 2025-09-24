@@ -15,8 +15,8 @@ import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { WorkflowOrchestrator } from './automation/workflow-orchestrator'
 import { ChatOrchestrator } from './chat/chat-orchestrator'
 import { simpleConfigManager as configManager } from './core/config-manager'
-import { planningService } from './services/planning-service'
 import { agentService } from './services/agent-service'
+import { planningService } from './services/planning-service'
 
 // Types
 interface ChatMessage {

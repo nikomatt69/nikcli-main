@@ -4,14 +4,14 @@ import { nanoid } from 'nanoid'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
 import type { PlanTodo } from '../planning/types'
 import type {
+  InitProjectOptions,
+  TaskMasterConfig,
   TaskMasterIntegrationConfig,
   TaskMasterModule,
-  TaskMasterTask,
   TaskMasterState,
-  TaskMasterConfig,
-  TaskStatus,
+  TaskMasterTask,
   TaskPriority,
-  InitProjectOptions
+  TaskStatus,
 } from '../types/taskmaster-types'
 
 /**
@@ -77,7 +77,6 @@ export class TaskMasterService extends EventEmitter {
       // Log initialization success with provider info
       console.log(chalk.gray(`   Provider: ${this.config.aiProvider}`))
       console.log(chalk.gray(`   Model: ${this.config.model}`))
-
     } catch (error: any) {
       console.log(chalk.yellow('⚠️ TaskMaster initialization failed, using fallback mode'))
       console.log(chalk.gray(`   Provider: ${this.config.aiProvider}`))
@@ -195,8 +194,8 @@ export class TaskMasterService extends EventEmitter {
       planId,
       status: plan.status,
       progress: this.calculateFallbackProgress(plan),
-      currentTask: plan.todos.find(t => t.status === 'in_progress')?.title || null,
-      completedTasks: plan.todos.filter(t => t.status === 'completed').length,
+      currentTask: plan.todos.find((t) => t.status === 'in_progress')?.title || null,
+      completedTasks: plan.todos.filter((t) => t.status === 'completed').length,
       totalTasks: plan.todos.length,
     }
   }
@@ -232,12 +231,16 @@ export class TaskMasterService extends EventEmitter {
   /**
    * Create TaskMaster-compatible plan using actual TaskMaster task structure
    */
-  private async createTaskMasterCompatiblePlan(planId: string, userRequest: string, context?: PlanningContext): Promise<TaskMasterPlan> {
+  private async createTaskMasterCompatiblePlan(
+    planId: string,
+    userRequest: string,
+    context?: PlanningContext
+  ): Promise<TaskMasterPlan> {
     // Generate NikCLI todos that map to TaskMaster task structure
     const todos = await this.generateSmartTodos(userRequest, context)
 
     // Convert to TaskMaster task format using proper mappings
-    const taskMasterTasks: TaskMasterTask[] = todos.map(todo => ({
+    const taskMasterTasks: TaskMasterTask[] = todos.map((todo) => ({
       id: todo.id,
       title: todo.title,
       description: todo.description || '',
@@ -252,11 +255,11 @@ export class TaskMasterService extends EventEmitter {
           progress: todo.progress,
           reasoning: todo.reasoning,
           tools: todo.tools,
-          estimatedDuration: todo.estimatedDuration
+          estimatedDuration: todo.estimatedDuration,
         },
         userRequest,
-        planningContext: context
-      }
+        planningContext: context,
+      },
     }))
 
     return {
@@ -279,7 +282,7 @@ export class TaskMasterService extends EventEmitter {
         completedTasks: 0,
         totalTasks: taskMasterTasks.length,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       },
       riskAssessment: {
         overallRisk: 'medium',
@@ -505,8 +508,8 @@ Generate tasks NOW (JSON only):`
               model: 'llama3.2',
               prompt: prompt,
               stream: false,
-              options: { temperature: 0.3 }
-            })
+              options: { temperature: 0.3 },
+            }),
           })
 
           if (!response.ok) throw new Error(`Ollama service error: ${response.status}`)
@@ -543,14 +546,16 @@ Generate tasks NOW (JSON only):`
           priority: ['high', 'medium', 'low'].includes(task.priority) ? task.priority : 'medium',
           createdAt: new Date(),
           updatedAt: new Date(),
-          estimatedDuration: typeof task.estimatedDuration === 'number' && task.estimatedDuration > 0
-            ? Math.min(task.estimatedDuration, 120)
-            : 15,
+          estimatedDuration:
+            typeof task.estimatedDuration === 'number' && task.estimatedDuration > 0
+              ? Math.min(task.estimatedDuration, 120)
+              : 15,
           progress: 0,
-          tools: Array.isArray(task.tools) && task.tools.length > 0
-            ? task.tools.filter((tool: any) => typeof tool === 'string')
-            : ['analyze_project', 'read_file'],
-          reasoning: typeof task.reasoning === 'string' ? task.reasoning : 'AI generated reasoning'
+          tools:
+            Array.isArray(task.tools) && task.tools.length > 0
+              ? task.tools.filter((tool: any) => typeof tool === 'string')
+              : ['analyze_project', 'read_file'],
+          reasoning: typeof task.reasoning === 'string' ? task.reasoning : 'AI generated reasoning',
         }))
 
       // Assicurati che abbiamo sempre almeno 3 task validi
@@ -562,9 +567,12 @@ Generate tasks NOW (JSON only):`
         todos.push(...fallbackTasks)
       }
 
-      console.log(chalk.green(`✅ Generated ${todos.length} tasks with AI (${aiTasks.length} from AI, ${todos.length - aiTasks.length} fallback)`))
+      console.log(
+        chalk.green(
+          `✅ Generated ${todos.length} tasks with AI (${aiTasks.length} from AI, ${todos.length - aiTasks.length} fallback)`
+        )
+      )
       return todos
-
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ AI task generation failed: ${error.message}`))
       console.log(chalk.gray('🔄 Falling back to comprehensive analysis tasks...'))
@@ -635,7 +643,7 @@ Generate tasks NOW (JSON only):`
           progress: 0,
           tools: ['generate_code', 'write_file', 'doc_search'],
           reasoning: 'A comprehensive report provides actionable insights and strategic recommendations',
-        }
+        },
       ]
     }
   }
@@ -651,32 +659,32 @@ Generate tasks NOW (JSON only):`
         title: 'Initial Analysis',
         description: `Analyze requirements for: ${userRequest}`,
         tools: ['analyze_project', 'read_file'],
-        reasoning: 'Understanding requirements is essential for any task'
+        reasoning: 'Understanding requirements is essential for any task',
       },
       {
         title: 'Planning & Design',
         description: `Create implementation plan for: ${userRequest}`,
         tools: ['doc_search', 'analyze_project'],
-        reasoning: 'Proper planning reduces implementation complexity'
+        reasoning: 'Proper planning reduces implementation complexity',
       },
       {
         title: 'Implementation',
         description: `Execute the main task: ${userRequest}`,
         tools: ['write_file', 'execute_command', 'generate_code'],
-        reasoning: 'Core implementation of the requested feature'
+        reasoning: 'Core implementation of the requested feature',
       },
       {
         title: 'Testing & Validation',
         description: `Test and validate the implementation`,
         tools: ['execute_command', 'read_file'],
-        reasoning: 'Ensure the implementation works correctly'
+        reasoning: 'Ensure the implementation works correctly',
       },
       {
         title: 'Documentation & Cleanup',
         description: `Document changes and clean up`,
         tools: ['write_file', 'doc_search'],
-        reasoning: 'Maintain code quality and documentation'
-      }
+        reasoning: 'Maintain code quality and documentation',
+      },
     ]
 
     for (let i = 0; i < Math.min(count, baseTasks.length); i++) {
@@ -689,10 +697,10 @@ Generate tasks NOW (JSON only):`
         priority: i === 0 || i === 2 ? 'high' : 'medium', // Analysis and Implementation are high priority
         createdAt: new Date(),
         updatedAt: new Date(),
-        estimatedDuration: 15 + (i * 5), // Vary duration slightly
+        estimatedDuration: 15 + i * 5, // Vary duration slightly
         progress: 0,
         tools: baseTask.tools,
-        reasoning: baseTask.reasoning
+        reasoning: baseTask.reasoning,
       })
     }
 
@@ -722,7 +730,7 @@ Generate tasks NOW (JSON only):`
         id: plan.id,
         title: plan.title,
         description: plan.description,
-        tasks: plan.todos.map(todo => ({
+        tasks: plan.todos.map((todo) => ({
           id: todo.id,
           title: todo.title,
           description: todo.description || '',
@@ -731,7 +739,7 @@ Generate tasks NOW (JSON only):`
           tags: todo.tools || [],
           estimatedHours: (todo.estimatedDuration || 5) / 60,
           createdAt: todo.createdAt.toISOString(),
-          updatedAt: todo.updatedAt.toISOString()
+          updatedAt: todo.updatedAt.toISOString(),
         })),
         status: 'pending' as TaskStatus,
         progress: 0,
@@ -739,7 +747,7 @@ Generate tasks NOW (JSON only):`
         completedTasks: 0,
         totalTasks: plan.todos.length,
         createdAt: plan.createdAt.toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       }
 
       await fs.writeFile(tasksFile, JSON.stringify(taskMasterData, null, 2))
@@ -748,15 +756,15 @@ Generate tasks NOW (JSON only):`
       const stateFile = path.join(taskMasterDir, 'state.json')
       const state: TaskMasterState = {
         currentPlan: plan.id,
-        activeTasks: plan.todos.filter(t => t.status === 'in_progress').map(t => t.id),
-        completedTasks: plan.todos.filter(t => t.status === 'completed').map(t => t.id),
+        activeTasks: plan.todos.filter((t) => t.status === 'in_progress').map((t) => t.id),
+        completedTasks: plan.todos.filter((t) => t.status === 'completed').map((t) => t.id),
         lastUpdated: new Date().toISOString(),
         statistics: {
           totalTasks: plan.todos.length,
-          completedTasks: plan.todos.filter(t => t.status === 'completed').length,
-          pendingTasks: plan.todos.filter(t => t.status === 'pending').length,
-          averageCompletionTime: plan.estimatedDuration / Math.max(plan.todos.length, 1)
-        }
+          completedTasks: plan.todos.filter((t) => t.status === 'completed').length,
+          pendingTasks: plan.todos.filter((t) => t.status === 'pending').length,
+          averageCompletionTime: plan.estimatedDuration / Math.max(plan.todos.length, 1),
+        },
       }
 
       await fs.writeFile(stateFile, JSON.stringify(state, null, 2))
@@ -777,11 +785,11 @@ Generate tasks NOW (JSON only):`
             description: 'TaskMaster configuration for NikCLI autonomous development',
             aiProvider: this.config.aiProvider,
             model: this.config.model,
-            taskMasterDir: '.nikcli' // Force TaskMaster to use .nikcli directory
-          }
+            taskMasterDir: '.nikcli', // Force TaskMaster to use .nikcli directory
+          },
         },
         // Override TaskMaster's default directories to use .nikcli
-        useNikCLIStructure: true
+        useNikCLIStructure: true,
       }
 
       await fs.writeFile(configFile, JSON.stringify(config, null, 2))
@@ -791,7 +799,6 @@ Generate tasks NOW (JSON only):`
       console.log(chalk.gray(`ℹ️ TaskMaster sync skipped: ${error.message}`))
     }
   }
-
 
   /**
    * Create fallback plan when TaskMaster is unavailable
@@ -881,7 +888,7 @@ Generate tasks NOW (JSON only):`
 
       try {
         // Simulate task execution
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise((resolve) => setTimeout(resolve, 1000))
 
         todo.status = 'completed'
         todo.progress = 100
@@ -917,8 +924,8 @@ Generate tasks NOW (JSON only):`
       results,
       summary: {
         totalTasks: plan.todos.length,
-        completedTasks: plan.todos.filter(t => t.status === 'completed').length,
-        failedTasks: plan.todos.filter(t => t.status === 'failed').length,
+        completedTasks: plan.todos.filter((t) => t.status === 'completed').length,
+        failedTasks: plan.todos.filter((t) => t.status === 'failed').length,
       },
     }
   }
@@ -962,11 +969,13 @@ Generate tasks NOW (JSON only):`
         return process.env.GEMINI_CLI_API_KEY || ''
       default:
         // Fallback: try common keys
-        return process.env.OPENROUTER_API_KEY ||
-               process.env.ANTHROPIC_API_KEY ||
-               process.env.OPENAI_API_KEY ||
-               process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
-               ''
+        return (
+          process.env.OPENROUTER_API_KEY ||
+          process.env.ANTHROPIC_API_KEY ||
+          process.env.OPENAI_API_KEY ||
+          process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+          ''
+        )
     }
   }
 
@@ -1025,7 +1034,9 @@ Generate tasks NOW (JSON only):`
   /**
    * Map TaskMaster status to TaskMasterPlan status
    */
-  private mapToTaskMasterPlanStatus(taskMasterStatus: 'pending' | 'running' | 'completed' | 'failed' | TaskStatus): 'pending' | 'running' | 'completed' | 'failed' {
+  private mapToTaskMasterPlanStatus(
+    taskMasterStatus: 'pending' | 'running' | 'completed' | 'failed' | TaskStatus
+  ): 'pending' | 'running' | 'completed' | 'failed' {
     switch (taskMasterStatus) {
       case 'done':
         return 'completed'
@@ -1057,13 +1068,14 @@ Generate tasks NOW (JSON only):`
       status: result.status,
       startTime: new Date(result.startTime),
       endTime: result.endTime ? new Date(result.endTime) : undefined,
-      results: result.tasks?.map((task: any) => ({
-        taskId: task.id,
-        status: task.status,
-        output: task.output,
-        error: task.error,
-        duration: task.duration || 0,
-      })) || [],
+      results:
+        result.tasks?.map((task: any) => ({
+          taskId: task.id,
+          status: task.status,
+          output: task.output,
+          error: task.error,
+          duration: task.duration || 0,
+        })) || [],
       summary: {
         totalTasks: result.summary?.totalTasks || 0,
         completedTasks: result.summary?.completedTasks || 0,
@@ -1077,7 +1089,7 @@ Generate tasks NOW (JSON only):`
    */
   private calculateFallbackProgress(plan: TaskMasterPlan): number {
     if (plan.todos.length === 0) return 0
-    const completed = plan.todos.filter(t => t.status === 'completed').length
+    const completed = plan.todos.filter((t) => t.status === 'completed').length
     return Math.round((completed / plan.todos.length) * 100)
   }
 
@@ -1085,10 +1097,11 @@ Generate tasks NOW (JSON only):`
    * Count destructive operations in todos
    */
   private countDestructiveOps(todos: PlanTodo[]): number {
-    return todos.filter(todo =>
-      todo.tools?.some(tool => ['delete', 'remove', 'rm'].includes(tool.toLowerCase())) ||
-      todo.description.toLowerCase().includes('delete') ||
-      todo.description.toLowerCase().includes('remove')
+    return todos.filter(
+      (todo) =>
+        todo.tools?.some((tool) => ['delete', 'remove', 'rm'].includes(tool.toLowerCase())) ||
+        todo.description.toLowerCase().includes('delete') ||
+        todo.description.toLowerCase().includes('remove')
     ).length
   }
 
@@ -1096,11 +1109,12 @@ Generate tasks NOW (JSON only):`
    * Count file modification operations
    */
   private countFileOps(todos: PlanTodo[]): number {
-    return todos.filter(todo =>
-      todo.tools?.some(tool => ['write', 'edit', 'create'].includes(tool.toLowerCase())) ||
-      todo.description.toLowerCase().includes('file') ||
-      todo.description.toLowerCase().includes('create') ||
-      todo.description.toLowerCase().includes('modify')
+    return todos.filter(
+      (todo) =>
+        todo.tools?.some((tool) => ['write', 'edit', 'create'].includes(tool.toLowerCase())) ||
+        todo.description.toLowerCase().includes('file') ||
+        todo.description.toLowerCase().includes('create') ||
+        todo.description.toLowerCase().includes('modify')
     ).length
   }
 
@@ -1108,11 +1122,12 @@ Generate tasks NOW (JSON only):`
    * Count external API calls
    */
   private countExternalOps(todos: PlanTodo[]): number {
-    return todos.filter(todo =>
-      todo.tools?.some(tool => ['fetch', 'api', 'request'].includes(tool.toLowerCase())) ||
-      todo.description.toLowerCase().includes('api') ||
-      todo.description.toLowerCase().includes('fetch') ||
-      todo.description.toLowerCase().includes('request')
+    return todos.filter(
+      (todo) =>
+        todo.tools?.some((tool) => ['fetch', 'api', 'request'].includes(tool.toLowerCase())) ||
+        todo.description.toLowerCase().includes('api') ||
+        todo.description.toLowerCase().includes('fetch') ||
+        todo.description.toLowerCase().includes('request')
     ).length
   }
 
@@ -1198,5 +1213,5 @@ export const taskMasterService = new TaskMasterService({
   model: 'openai/gpt-5', // Use GPT-5 as default for TaskMaster
   enableAdvancedPlanning: true,
   maxConcurrentTasks: 3,
-  persistStorage: true
+  persistStorage: true,
 })

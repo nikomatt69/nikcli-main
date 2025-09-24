@@ -1,6 +1,7 @@
 import { copyFile, mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
+import { FormatterManager } from '../core/formatter-manager'
 import { lspManager } from '../lsp/lsp-manager'
 import {
   type AppendOptions,
@@ -26,11 +27,13 @@ import { sanitizePath } from './secure-file-tools'
 export class WriteFileTool extends BaseTool {
   private backupDirectory: string
   private contextSystem: ContextAwareRAGSystem
+  private formatterManager: FormatterManager
 
   constructor(workingDirectory: string) {
     super('write-file-tool', workingDirectory)
     this.backupDirectory = join(workingDirectory, '.ai-backups')
     this.contextSystem = new ContextAwareRAGSystem(workingDirectory)
+    this.formatterManager = FormatterManager.getInstance(workingDirectory)
   }
 
   async execute(filePath: string, content: string, options: WriteFileOptions = {}): Promise<ToolExecutionResult> {
@@ -89,6 +92,21 @@ export class WriteFileTool extends BaseTool {
       if (options.transformers) {
         for (const transformer of options.transformers) {
           processedContent = await transformer(processedContent, sanitizedPath)
+        }
+      }
+
+      // Apply automatic formatting unless explicitly disabled
+      if (options.skipFormatting !== true) {
+        try {
+          const formatResult = await this.formatterManager.formatContent(processedContent, sanitizedPath)
+          if (formatResult.success && formatResult.formatted) {
+            processedContent = formatResult.content
+            CliUI.logInfo(`✨ Applied ${formatResult.formatter} formatting`)
+          } else if (formatResult.warnings && formatResult.warnings.length > 0) {
+            formatResult.warnings.forEach((warning) => CliUI.logWarning(`Format warning: ${warning}`))
+          }
+        } catch (formatError: any) {
+          CliUI.logWarning(`Formatting failed, using unformatted content: ${formatError.message}`)
         }
       }
 

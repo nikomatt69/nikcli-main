@@ -1,10 +1,16 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
-import type { ExecutionPlan, PlanTodo, ExecutionStep, PlanExecutionResult, StepExecutionResult } from '../planning/types'
 import type { AgentTodo, AgentWorkPlan } from '../core/agent-todo-manager'
+import type {
+  ExecutionPlan,
+  ExecutionStep,
+  PlanExecutionResult,
+  PlanTodo,
+  StepExecutionResult,
+} from '../planning/types'
+import type { TaskMasterExecutionResult, TaskMasterPlan, TaskMasterService } from '../services/taskmaster-service'
 import type { SessionTodo } from '../store/todo-store'
-import type { TaskMasterPlan, TaskMasterExecutionResult, TaskMasterService } from '../services/taskmaster-service'
 
 /**
  * TaskMaster Adapter
@@ -29,7 +35,7 @@ export class TaskMasterAdapter extends EventEmitter {
    * Convert NikCLI ExecutionPlan to TaskMaster format
    */
   toTaskMasterPlan(executionPlan: ExecutionPlan): TaskMasterPlan {
-    const todos: PlanTodo[] = executionPlan.steps.map(step => this.stepToTodo(step))
+    const todos: PlanTodo[] = executionPlan.steps.map((step) => this.stepToTodo(step))
 
     return {
       id: executionPlan.id,
@@ -53,7 +59,7 @@ export class TaskMasterAdapter extends EventEmitter {
    * Convert TaskMaster plan to NikCLI ExecutionPlan
    */
   toExecutionPlan(taskMasterPlan: TaskMasterPlan): ExecutionPlan {
-    const steps: ExecutionStep[] = taskMasterPlan.todos.map(todo => this.todoToStep(todo))
+    const steps: ExecutionStep[] = taskMasterPlan.todos.map((todo) => this.todoToStep(todo))
 
     return {
       id: taskMasterPlan.id,
@@ -151,7 +157,7 @@ export class TaskMasterAdapter extends EventEmitter {
    * Convert AgentWorkPlan to TaskMaster format
    */
   workPlanToTaskMaster(workPlan: AgentWorkPlan): TaskMasterPlan {
-    const todos = workPlan.todos.map(todo => this.agentTodoToTaskMaster(todo))
+    const todos = workPlan.todos.map((todo) => this.agentTodoToTaskMaster(todo))
 
     return {
       id: workPlan.id,
@@ -175,7 +181,7 @@ export class TaskMasterAdapter extends EventEmitter {
    * Convert TaskMaster execution result to NikCLI format
    */
   toExecutionResult(taskMasterResult: TaskMasterExecutionResult): PlanExecutionResult {
-    const stepResults: StepExecutionResult[] = taskMasterResult.results.map(result => ({
+    const stepResults: StepExecutionResult[] = taskMasterResult.results.map((result) => ({
       stepId: result.taskId,
       status: result.status === 'success' ? 'success' : 'failure',
       output: result.output,
@@ -241,7 +247,6 @@ export class TaskMasterAdapter extends EventEmitter {
           plan.description || 'AI-generated plan for task execution'
         )
       }
-
     } catch (error: any) {
       // Fallback: just log the error, don't throw to avoid breaking plan creation
       console.log(chalk.gray(`ℹ️ Could not show compact panel: ${error.message}`))
@@ -264,7 +269,10 @@ export class TaskMasterAdapter extends EventEmitter {
   /**
    * Sync todos between different systems
    */
-  async syncTodos(sessionTodos: SessionTodo[], agentTodos: AgentTodo[]): Promise<{
+  async syncTodos(
+    sessionTodos: SessionTodo[],
+    agentTodos: AgentTodo[]
+  ): Promise<{
     unified: PlanTodo[]
     conflicts: string[]
   }> {
@@ -272,13 +280,13 @@ export class TaskMasterAdapter extends EventEmitter {
     const conflicts: string[] = []
 
     // Convert session todos
-    sessionTodos.forEach(sessionTodo => {
+    sessionTodos.forEach((sessionTodo) => {
       unified.push(this.sessionTodoToTaskMaster(sessionTodo))
     })
 
     // Convert agent todos, checking for conflicts
-    agentTodos.forEach(agentTodo => {
-      const existing = unified.find(todo => todo.id === agentTodo.id)
+    agentTodos.forEach((agentTodo) => {
+      const existing = unified.find((todo) => todo.id === agentTodo.id)
       if (existing) {
         conflicts.push(`Todo conflict: ${agentTodo.id} exists in both session and agent systems`)
       } else {
@@ -290,21 +298,30 @@ export class TaskMasterAdapter extends EventEmitter {
   }
 
   // Status mapping methods
-  private mapExecutionStatus(status: 'pending' | 'running' | 'completed' | 'failed'): 'pending' | 'running' | 'completed' | 'failed' {
+  private mapExecutionStatus(
+    status: 'pending' | 'running' | 'completed' | 'failed'
+  ): 'pending' | 'running' | 'completed' | 'failed' {
     return status // Direct mapping
   }
 
-  private mapTaskMasterStatus(status: 'pending' | 'running' | 'completed' | 'failed'): 'pending' | 'running' | 'completed' | 'failed' {
+  private mapTaskMasterStatus(
+    status: 'pending' | 'running' | 'completed' | 'failed'
+  ): 'pending' | 'running' | 'completed' | 'failed' {
     return status // Direct mapping
   }
 
   private mapSessionStatus(status: string): 'pending' | 'in_progress' | 'completed' | 'failed' {
     switch (status) {
-      case 'pending': return 'pending'
-      case 'in_progress': return 'in_progress'
-      case 'completed': return 'completed'
-      case 'failed': return 'failed'
-      default: return 'pending'
+      case 'pending':
+        return 'pending'
+      case 'in_progress':
+        return 'in_progress'
+      case 'completed':
+        return 'completed'
+      case 'failed':
+        return 'failed'
+      default:
+        return 'pending'
     }
   }
 
@@ -312,35 +329,52 @@ export class TaskMasterAdapter extends EventEmitter {
     return status // Direct mapping
   }
 
-  private mapAgentStatus(status: 'planning' | 'in_progress' | 'completed' | 'failed' | 'blocked'): 'pending' | 'in_progress' | 'completed' | 'failed' {
+  private mapAgentStatus(
+    status: 'planning' | 'in_progress' | 'completed' | 'failed' | 'blocked'
+  ): 'pending' | 'in_progress' | 'completed' | 'failed' {
     switch (status) {
-      case 'planning': return 'pending'
-      case 'blocked': return 'pending'
-      default: return status as any
+      case 'planning':
+        return 'pending'
+      case 'blocked':
+        return 'pending'
+      default:
+        return status as any
     }
   }
 
-  private mapTodoToAgentStatus(status: 'pending' | 'in_progress' | 'completed' | 'failed'): 'planning' | 'in_progress' | 'completed' | 'failed' | 'blocked' {
+  private mapTodoToAgentStatus(
+    status: 'pending' | 'in_progress' | 'completed' | 'failed'
+  ): 'planning' | 'in_progress' | 'completed' | 'failed' | 'blocked' {
     switch (status) {
-      case 'pending': return 'planning'
-      default: return status as any
+      case 'pending':
+        return 'planning'
+      default:
+        return status as any
     }
   }
 
-  private mapWorkPlanStatus(status: 'planning' | 'executing' | 'completed' | 'failed'): 'pending' | 'running' | 'completed' | 'failed' {
+  private mapWorkPlanStatus(
+    status: 'planning' | 'executing' | 'completed' | 'failed'
+  ): 'pending' | 'running' | 'completed' | 'failed' {
     switch (status) {
-      case 'planning': return 'pending'
-      case 'executing': return 'running'
-      default: return status as any
+      case 'planning':
+        return 'pending'
+      case 'executing':
+        return 'running'
+      default:
+        return status as any
     }
   }
 
   // Priority mapping methods
   private mapSessionPriority(priority: string): 'low' | 'medium' | 'high' {
     switch (priority.toLowerCase()) {
-      case 'high': return 'high'
-      case 'low': return 'low'
-      default: return 'medium'
+      case 'high':
+        return 'high'
+      case 'low':
+        return 'low'
+      default:
+        return 'medium'
     }
   }
 
@@ -350,8 +384,10 @@ export class TaskMasterAdapter extends EventEmitter {
 
   private mapAgentPriority(priority: 'low' | 'medium' | 'high' | 'critical'): 'low' | 'medium' | 'high' {
     switch (priority) {
-      case 'critical': return 'high'
-      default: return priority as any
+      case 'critical':
+        return 'high'
+      default:
+        return priority as any
     }
   }
 
@@ -402,7 +438,6 @@ export class TaskMasterAdapter extends EventEmitter {
   isTaskMasterAvailable(): boolean {
     return this.taskMasterService && (this.taskMasterService as any).initialized
   }
-
 
   /**
    * Enable or disable legacy support

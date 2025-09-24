@@ -594,7 +594,7 @@ export class ApprovalSystem extends EventEmitter {
             setTimeout(resolve, 30)
           })
         }),
-        new Promise((resolve) => setTimeout(resolve, 100)) // 100ms timeout
+        new Promise((resolve) => setTimeout(resolve, 100)), // 100ms timeout
       ])
 
       // Suspend main prompt and enable bypass only if not already enabled
@@ -617,7 +617,7 @@ export class ApprovalSystem extends EventEmitter {
             { name: '❌ No', value: false },
           ],
           default: defaultValue ? 0 : 1,
-          prefix: '',  // No prefix for more compact layout
+          prefix: '', // No prefix for more compact layout
         },
       ])
 
@@ -625,13 +625,12 @@ export class ApprovalSystem extends EventEmitter {
       inquirerInstance = promptPromise
 
       // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Approval timeout')), 30000) // 30 second timeout
+      const timeoutPromise = new Promise(
+        (_, reject) => setTimeout(() => reject(new Error('Approval timeout')), 30000) // 30 second timeout
       )
 
       const answers = await Promise.race([promptPromise, timeoutPromise])
       return !!(answers as any).ok
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Approval failed: ${error.message}`))
       return false
@@ -685,7 +684,7 @@ export class ApprovalSystem extends EventEmitter {
             setTimeout(resolve, 50)
           })
         }),
-        new Promise((resolve) => setTimeout(resolve, 150)) // 150ms timeout
+        new Promise((resolve) => setTimeout(resolve, 150)), // 150ms timeout
       ])
 
       // Suspend main prompt and enable bypass only if not already enabled
@@ -716,14 +715,13 @@ export class ApprovalSystem extends EventEmitter {
       inquirerInstance = promptPromise
 
       // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Confirmation timeout')), 30000) // 30 second timeout
+      const timeoutPromise = new Promise(
+        (_, reject) => setTimeout(() => reject(new Error('Confirmation timeout')), 30000) // 30 second timeout
       )
 
       const answers = await Promise.race([promptPromise, timeoutPromise])
       console.log()
       return !!(answers as any).ok
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Confirmation failed: ${error.message}`))
       return false

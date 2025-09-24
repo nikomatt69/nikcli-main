@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
-import { taskMasterService } from '../services/taskmaster-service'
 import { createTaskMasterAdapter } from '../adapters/taskmaster-adapter'
+import { taskMasterService } from '../services/taskmaster-service'
 
 export interface AgentTodo {
   id: string
@@ -62,7 +62,11 @@ export class AgentTodoManager {
 
   // Agent creates its own todos based on a goal with TaskMaster AI enhancement
   async planTodos(agentId: string, goal: string, context?: any): Promise<AgentTodo[]> {
-    console.log(chalk.blue(`🧠 Agent ${agentId} is planning todos for: ${goal}${this.useTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable() ? ' (TaskMaster AI)' : ''}`))
+    console.log(
+      chalk.blue(
+        `🧠 Agent ${agentId} is planning todos for: ${goal}${this.useTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable() ? ' (TaskMaster AI)' : ''}`
+      )
+    )
 
     // Store agent context
     if (context) {
@@ -84,9 +88,7 @@ export class AgentTodoManager {
         })
 
         // Convert TaskMaster todos to AgentTodos
-        plannedTodos = taskMasterPlan.todos.map(todo =>
-          this.taskMasterAdapter.taskMasterToAgentTodo(todo, agentId)
-        )
+        plannedTodos = taskMasterPlan.todos.map((todo) => this.taskMasterAdapter.taskMasterToAgentTodo(todo, agentId))
 
         console.log(chalk.green(`✅ TaskMaster AI generated ${plannedTodos.length} todos for agent ${agentId}`))
       } catch (error: any) {
@@ -638,7 +640,7 @@ export class AgentTodoManager {
 
     try {
       const agentTodos = this.getAgentTodos(agentId)
-      const sessionTodos = agentTodos.map(todo => ({
+      const sessionTodos = agentTodos.map((todo) => ({
         id: todo.id,
         content: todo.title,
         status: todo.status === 'planning' ? 'pending' : todo.status,
@@ -652,7 +654,7 @@ export class AgentTodoManager {
 
       if (conflicts.length > 0) {
         console.log(chalk.yellow(`⚠️ ${conflicts.length} conflicts detected:`))
-        conflicts.forEach(conflict => console.log(chalk.gray(`   - ${conflict}`)))
+        conflicts.forEach((conflict) => console.log(chalk.gray(`   - ${conflict}`)))
       }
     } catch (error: any) {
       console.log(chalk.red(`❌ TaskMaster sync failed: ${error.message}`))
