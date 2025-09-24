@@ -2048,8 +2048,18 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return await this.vmConnectCommand(subArgs)
       case 'mode':
         return await this.vmModeCommand()
+      case 'exit':
+      case 'quit':
+        // Exit VM mode and return to default
+        if (this.cliInstance) {
+          this.cliInstance.currentMode = 'default'
+          this.cliInstance.activeVMContainer = undefined
+          console.log(chalk.green('✅ Exited VM mode, returned to default chat mode'))
+        }
+        return { shouldExit: false, shouldUpdatePrompt: true }
       default:
         console.log(chalk.red(`Unknown VM command: ${subcommand}`))
+        console.log(chalk.gray('Use /vm exit to exit VM mode'))
         return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
@@ -2086,6 +2096,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray(`Container ID: ${containerId}`))
       console.log(chalk.gray(`VS Code Server: http://localhost:${vscodePort}`))
       console.log(chalk.gray(`Use /vm-connect ${containerId.slice(0, 8)} to interact`))
+
+      // Automatically switch to VM mode for seamless integration
+      console.log(chalk.cyan(`🔄 Switching to VM mode for seamless development...`))
+      this.currentMode = 'vm'
+
+      // Set the active container for tool routing
+      this.activeVMContainer = containerId
+
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to create VM container: ${error.message}`))
     }
@@ -2261,12 +2279,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   }
 
   // VM Helper Methods
-  getActiveVMContainers() {
-    return this.vmOrchestrator.getActiveContainers()
-  }
-
   getVMOrchestrator() {
     return this.vmOrchestrator
+  }
+
+  getActiveVMContainers() {
+    return this.vmOrchestrator.getActiveContainers()
   }
 
   // New VM Selection Commands
