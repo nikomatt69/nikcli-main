@@ -36,6 +36,7 @@ export class OrchestratorService extends EventEmitter {
   private middlewareInitialized = false
   private activeAgentTasks: Map<string, AgentTask> = new Map()
   private originalRawMode?: boolean
+  private cliInstance: any
   private keypressHandler?: (str: string, key: any) => void
   private todoStoreUnsubscribe?: () => void
 
@@ -98,9 +99,9 @@ export class OrchestratorService extends EventEmitter {
       this.originalRawMode = (process.stdin as any).isRaw || false
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ; (process.stdin as any).setRawMode(true)
+        ;(process.stdin as any).setRawMode(true)
       }
-      ; (process.stdin as any).resume()
+      ;(process.stdin as any).resume()
     }
 
     // Handle keypress events
@@ -147,7 +148,7 @@ export class OrchestratorService extends EventEmitter {
         this.keypressHandler = undefined
       }
       if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
-        ; (process.stdin as any).setRawMode(this.originalRawMode)
+        ;(process.stdin as any).setRawMode(this.originalRawMode)
       }
     } catch {
       // ignore
@@ -344,7 +345,7 @@ export class OrchestratorService extends EventEmitter {
       // Enable compact stream to reduce noisy logs in plan mode
       try {
         process.env.NIKCLI_COMPACT = '1'
-      } catch { }
+      } catch {}
       try {
         // Create execution plan first
         console.log(chalk.cyan('🎯 Plan Mode: Creating execution plan...'))
@@ -447,14 +448,15 @@ export class OrchestratorService extends EventEmitter {
   }
 
   private displayAgentResult(task: AgentTask): void {
-    this.printPanel(
+    this.cliInstance.printPanel(
       boxen(
         `${chalk.green.bold('🎉 Agent Result')}\\n\\n` +
-        `${chalk.blue('Agent:')} ${task.agentType}\\n` +
-        `${chalk.blue('Task:')} ${task.task.slice(0, 60)}...\\n` +
-        `${chalk.blue('Duration:')} ${task.endTime && task.startTime ? Math.round((task.endTime.getTime() - task.startTime.getTime()) / 1000) : 0
-        }s\\n\\n` +
-        `${chalk.cyan('Result:')} ${JSON.stringify(task.result, null, 2).slice(0, 200)}...`,
+          `${chalk.blue('Agent:')} ${task.agentType}\\n` +
+          `${chalk.blue('Task:')} ${task.task.slice(0, 60)}...\\n` +
+          `${chalk.blue('Duration:')} ${
+            task.endTime && task.startTime ? Math.round((task.endTime.getTime() - task.startTime.getTime()) / 1000) : 0
+          }s\\n\\n` +
+          `${chalk.cyan('Result:')} ${JSON.stringify(task.result, null, 2).slice(0, 200)}...`,
         {
           padding: 1,
           margin: 1,
@@ -498,17 +500,17 @@ export class OrchestratorService extends EventEmitter {
     const queuedTasks = agentService.getQueuedTasks()
     const pendingDiffs = diffManager.getPendingCount()
 
-    this.printPanel(
+    this.cliInstance.printPanel(
       boxen(
         `${chalk.blue.bold('🎛️  Orchestrator Status')}\\n\\n` +
-        `${chalk.green('Working Directory:')} ${this.context.workingDirectory}\\n` +
-        `${chalk.green('Mode:')} ${this.context.autonomous ? 'Autonomous' : 'Manual'}\\n` +
-        `${chalk.green('Plan Mode:')} ${this.context.planMode ? 'On' : 'Off'}\\n` +
-        `${chalk.green('Auto-Accept:')} ${this.context.autoAcceptEdits ? 'On' : 'Off'}\\n\\n` +
-        `${chalk.cyan('Active Agents:')} ${activeAgents.length}/3\\n` +
-        `${chalk.cyan('Queued Tasks:')} ${queuedTasks.length}\\n` +
-        `${chalk.cyan('Pending Diffs:')} ${pendingDiffs}\\n` +
-        `${chalk.cyan('Session Messages:')} ${this.context.session.messages.length}`,
+          `${chalk.green('Working Directory:')} ${this.context.workingDirectory}\\n` +
+          `${chalk.green('Mode:')} ${this.context.autonomous ? 'Autonomous' : 'Manual'}\\n` +
+          `${chalk.green('Plan Mode:')} ${this.context.planMode ? 'On' : 'Off'}\\n` +
+          `${chalk.green('Auto-Accept:')} ${this.context.autoAcceptEdits ? 'On' : 'Off'}\\n\\n` +
+          `${chalk.cyan('Active Agents:')} ${activeAgents.length}/3\\n` +
+          `${chalk.cyan('Queued Tasks:')} ${queuedTasks.length}\\n` +
+          `${chalk.cyan('Pending Diffs:')} ${pendingDiffs}\\n` +
+          `${chalk.cyan('Session Messages:')} ${this.context.session.messages.length}`,
         {
           padding: 1,
           margin: 1,
@@ -614,14 +616,14 @@ export class OrchestratorService extends EventEmitter {
     const hasVercelKey = !!process.env.V0_API_KEY
 
     if (!hasAnthropicKey && !hasOpenAIKey && !hasOpenRouterKey && !hasGoogleKey && !hasVercelKey) {
-      this.printPanel(
+      this.cliInstance.printPanel(
         boxen(
           `${chalk.red('⚠️  No API Keys Found')}\\n\\n` +
-          `Please set at least one API key:\\n\\n` +
-          `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\\n` +
-          `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\\n` +
-          `${chalk.blue('• OPENROUTER_API_KEY')} - for OpenRouter models\\n` +
-          `${chalk.blue('• GOOGLE_GENERATIVE_AI_API_KEY')} - for Gemini models`,
+            `Please set at least one API key:\\n\\n` +
+            `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\\n` +
+            `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\\n` +
+            `${chalk.blue('• OPENROUTER_API_KEY')} - for OpenRouter models\\n` +
+            `${chalk.blue('• GOOGLE_GENERATIVE_AI_API_KEY')} - for Gemini models`,
           {
             padding: 1,
             margin: 1,
@@ -648,19 +650,19 @@ export class OrchestratorService extends EventEmitter {
     const title = chalk.cyanBright('🎛️  AI Development Orchestrator')
     const subtitle = chalk.gray('Multi-Agent Autonomous Development System')
 
-    this.printPanel(
+    this.cliInstance.printPanel(
       boxen(
         `${title}\n${subtitle}\n\n` +
-        `${chalk.blue('🎯 Mode:')} ${this.context.autonomous ? 'Autonomous' : 'Manual'}\n` +
-        `${chalk.blue('📁 Directory:')} ${chalk.cyan(this.context.workingDirectory)}\n` +
-        `${chalk.blue('🤖 Max Agents:')} 3 parallel\n\n` +
-        `${chalk.gray('I orchestrate specialized AI agents to handle your development tasks:')}\n` +
-        `• ${chalk.green('Natural language processing')} - Just describe what you want\n` +
-        `• ${chalk.green('Intelligent agent selection')} - Best agent for each task\n` +
-        `• ${chalk.green('Parallel execution')} - Up to 3 agents working simultaneously\n` +
-        `• ${chalk.green('Real-time monitoring')} - See everything happening live\n` +
-        `• ${chalk.green('Autonomous operation')} - Minimal interruptions\n\n` +
-        `${chalk.yellow('💡 Press / for commands, @ for agents, or just tell me what to do')}`,
+          `${chalk.blue('🎯 Mode:')} ${this.context.autonomous ? 'Autonomous' : 'Manual'}\n` +
+          `${chalk.blue('📁 Directory:')} ${chalk.cyan(this.context.workingDirectory)}\n` +
+          `${chalk.blue('🤖 Max Agents:')} 3 parallel\n\n` +
+          `${chalk.gray('I orchestrate specialized AI agents to handle your development tasks:')}\n` +
+          `• ${chalk.green('Natural language processing')} - Just describe what you want\n` +
+          `• ${chalk.green('Intelligent agent selection')} - Best agent for each task\n` +
+          `• ${chalk.green('Parallel execution')} - Up to 3 agents working simultaneously\n` +
+          `• ${chalk.green('Real-time monitoring')} - See everything happening live\n` +
+          `• ${chalk.green('Autonomous operation')} - Minimal interruptions\n\n` +
+          `${chalk.yellow('💡 Press / for commands, @ for agents, or just tell me what to do')}`,
         {
           padding: 1,
           margin: 1,
@@ -678,7 +680,7 @@ export class OrchestratorService extends EventEmitter {
       try {
         process.env.NIKCLI_COMPACT = '1'
         process.env.NIKCLI_SUPER_COMPACT = '1'
-      } catch { }
+      } catch {}
       console.log(chalk.green('\n🎯 Enhanced Plan Mode Enabled'))
       console.log(chalk.cyan('   • Comprehensive plan generation with risk analysis'))
       console.log(chalk.cyan('   • Step-by-step execution with progress tracking'))
@@ -708,7 +710,7 @@ export class OrchestratorService extends EventEmitter {
                 progress: t.progress,
               }))
             }
-          } catch { }
+          } catch {}
 
           // 2) If store empty, prefer enhancedPlanning
           if (todos.length === 0) {
@@ -725,7 +727,7 @@ export class OrchestratorService extends EventEmitter {
                   progress: t.progress,
                 }))
               }
-            } catch { }
+            } catch {}
           }
 
           // 3) If still empty, fallback: planningService active plans
@@ -743,10 +745,10 @@ export class OrchestratorService extends EventEmitter {
                   progress: t.progress,
                 }))
               }
-            } catch { }
+            } catch {}
           }
 
-          ; (advancedUI as any).showTodoDashboard?.(todos, title)
+          ;(advancedUI as any).showTodoDashboard?.(todos, title)
 
           // Attach live updates: refresh dashboard when session todos change
           try {
@@ -760,13 +762,13 @@ export class OrchestratorService extends EventEmitter {
                   priority: t.priority,
                   progress: t.progress,
                 }))
-                  ; (advancedUI as any).showTodoDashboard?.(items, title)
-              } catch { }
+                ;(advancedUI as any).showTodoDashboard?.(items, title)
+              } catch {}
             }
             todoStore.on('update', handler)
             this.todoStoreUnsubscribe = () => todoStore.off('update', handler)
-          } catch { }
-        } catch { }
+          } catch {}
+        } catch {}
       }, 0)
     } else {
       console.log(chalk.yellow('\n⚠️  Plan Mode Disabled'))
@@ -774,22 +776,22 @@ export class OrchestratorService extends EventEmitter {
       try {
         delete (process.env as any).NIKCLI_COMPACT
         delete (process.env as any).NIKCLI_SUPER_COMPACT
-      } catch { }
+      } catch {}
       // Ensure input bypass is disabled and prompt resumed
-      import('../core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => { })
+      import('../core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => {})
       try {
         const nik = (global as any).__nikCLI
         if (nik && typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
-      } catch { }
+      } catch {}
       // Disable compact stream
       try {
         delete (process.env as any).NIKCLI_COMPACT
-      } catch { }
+      } catch {}
       // Remove live updates listener if present
       if (this.todoStoreUnsubscribe) {
         try {
           this.todoStoreUnsubscribe()
-        } catch { }
+        } catch {}
         this.todoStoreUnsubscribe = undefined
       }
     }
@@ -925,15 +927,15 @@ export class OrchestratorService extends EventEmitter {
       MiddlewareBootstrap.shutdown()
     }
 
-    this.printPanel(
+    this.cliInstance.printPanel(
       boxen(
         `${chalk.cyanBright('🎛️  AI Development Orchestrator')}\n\n` +
-        `${chalk.gray('Session completed!')}\n\n` +
-        `${chalk.blue('Messages processed:')} ${this.context.session.messages.length}\n` +
-        `${chalk.green('Tools executed:')} ${toolsUsed}\n` +
-        `${chalk.cyan('Agents launched:')} ${this.context.session.executionHistory.length}\n` +
-        `${chalk.yellow('Duration:')} ${Math.round((Date.now() - parseInt(this.context.session.id)) / 1000)}s\n\n` +
-        `${chalk.blue('Thanks for using the AI orchestrator! 🚀')}`,
+          `${chalk.gray('Session completed!')}\n\n` +
+          `${chalk.blue('Messages processed:')} ${this.context.session.messages.length}\n` +
+          `${chalk.green('Tools executed:')} ${toolsUsed}\n` +
+          `${chalk.cyan('Agents launched:')} ${this.context.session.executionHistory.length}\n` +
+          `${chalk.yellow('Duration:')} ${Math.round((Date.now() - parseInt(this.context.session.id)) / 1000)}s\n\n` +
+          `${chalk.blue('Thanks for using the AI orchestrator! 🚀')}`,
         {
           padding: 1,
           margin: 1,

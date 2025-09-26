@@ -1,11 +1,11 @@
-import * as fs from 'node:fs/promises'
 import * as fsSync from 'node:fs'
+import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import chalk from 'chalk'
+import { structuredLogger } from '../utils/structured-logger'
 import { simpleConfigManager } from './config-manager'
 import type { DocumentationEntry } from './documentation-library'
-import { structuredLogger } from '../utils/structured-logger'
 
 export interface SharedDocEntry {
   id: string
@@ -367,7 +367,8 @@ export class CloudDocsProvider {
     const localDocsPath = path.join(this.config.docsPath || this.cacheDir, 'local')
     if (!fsSync.existsSync(localDocsPath)) return
 
-    const localDocs = fsSync.readdirSync(localDocsPath, { withFileTypes: true })
+    const localDocs = fsSync
+      .readdirSync(localDocsPath, { withFileTypes: true })
       .filter((dirent: fsSync.Dirent) => dirent.isFile() && dirent.name.endsWith('.json'))
       .map((dirent: fsSync.Dirent) => path.join(localDocsPath, dirent.name))
 

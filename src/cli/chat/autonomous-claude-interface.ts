@@ -49,7 +49,7 @@ export class AutonomousClaudeInterface {
   private policyManager: ExecutionPolicyManager
   private shouldInterrupt = false
   private currentStreamController?: AbortController
-
+  private cliInstance: any
   constructor() {
     this.rl = readline.createInterface({
       input: process.stdin,
@@ -106,9 +106,9 @@ export class AutonomousClaudeInterface {
     if (process.stdin.isTTY) {
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ; (process.stdin as any).setRawMode(true)
+        ;(process.stdin as any).setRawMode(true)
       }
-      ; (process.stdin as any).resume()
+      ;(process.stdin as any).resume()
     }
 
     // Handle keypress events for interactive features
@@ -151,7 +151,7 @@ export class AutonomousClaudeInterface {
     this.rl.on('close', () => {
       try {
         if (process.stdin.isTTY && (process.stdin as any).isRaw) {
-          ; (process.stdin as any).setRawMode(false)
+          ;(process.stdin as any).setRawMode(false)
         }
       } catch {
         /* ignore */
@@ -272,16 +272,16 @@ export class AutonomousClaudeInterface {
     const hasVercelKey = !!process.env.V0_API_KEY
 
     if (!hasAnthropicKey && !hasOpenAIKey && !hasGoogleKey && !hasVercelKey) {
-      this.printPanel(
+      this.cliInstance.printPanel(
         boxen(
           `${chalk.red('⚠️  No API Keys Found')}\n\n` +
-          `Please set at least one API key:\n\n` +
-          `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\n` +
-          `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\n` +
-          `${chalk.blue('• GOOGLE_GENERATIVE_AI_API_KEY')} - for Gemini models\n\n` +
-          `${chalk.yellow('Example:')}\n` +
-          `${chalk.dim('export ANTHROPIC_API_KEY="your-key-here"')}\n` +
-          `${chalk.dim('npm run chat')}`,
+            `Please set at least one API key:\n\n` +
+            `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\n` +
+            `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\n` +
+            `${chalk.blue('• GOOGLE_GENERATIVE_AI_API_KEY')} - for Gemini models\n\n` +
+            `${chalk.yellow('Example:')}\n` +
+            `${chalk.dim('export ANTHROPIC_API_KEY="your-key-here"')}\n` +
+            `${chalk.dim('npm run chat')}`,
           {
             padding: 1,
             margin: 1,
@@ -309,21 +309,21 @@ export class AutonomousClaudeInterface {
     const subtitle = chalk.gray('Terminal Velocity Development - Fully Autonomous Mode')
     const version = chalk.dim('v2.0.0 Advanced')
 
-    this.printPanel(
+    this.cliInstance.printPanel(
       boxen(
         `${title}\n${subtitle}\n\n${version}\n\n` +
-        `${chalk.blue('🎯 Autonomous Mode:')} Enabled\n` +
-        `${chalk.blue('📁 Working Dir:')} ${chalk.cyan(this.session.workingDirectory)}\n` +
-        `${chalk.blue('🧠 Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n\n` +
-        `${chalk.gray('I operate with full autonomy:')}\n` +
-        `• ${chalk.green('Read & write files automatically')}\n` +
-        `• ${chalk.green('Execute commands when needed')}\n` +
-        `• ${chalk.green('Analyze project structure')}\n` +
-        `• ${chalk.green('Generate code and configurations')}\n` +
-        `• ${chalk.green('Manage dependencies autonomously')}\n\n` +
-        `${chalk.yellow('Just tell me what you want - I handle everything')}\n\n` +
-        `${chalk.yellow('💡 Press TAB or / for command suggestions')}\n` +
-        `${chalk.dim('Commands: /help /agents /auto /cd /model /exit')}`,
+          `${chalk.blue('🎯 Autonomous Mode:')} Enabled\n` +
+          `${chalk.blue('📁 Working Dir:')} ${chalk.cyan(this.session.workingDirectory)}\n` +
+          `${chalk.blue('🧠 Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n\n` +
+          `${chalk.gray('I operate with full autonomy:')}\n` +
+          `• ${chalk.green('Read & write files automatically')}\n` +
+          `• ${chalk.green('Execute commands when needed')}\n` +
+          `• ${chalk.green('Analyze project structure')}\n` +
+          `• ${chalk.green('Generate code and configurations')}\n` +
+          `• ${chalk.green('Manage dependencies autonomously')}\n\n` +
+          `${chalk.yellow('Just tell me what you want - I handle everything')}\n\n` +
+          `${chalk.yellow('💡 Press TAB or / for command suggestions')}\n` +
+          `${chalk.dim('Commands: /help /agents /auto /cd /model /exit')}`,
         {
           padding: 1,
           margin: 1,
@@ -530,20 +530,21 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
   private showTokenMetrics(): void {
     const metrics = contextManager.getContextMetrics(this.session.messages)
 
-    this.printPanel(
+    this.cliInstance.printPanel(
       boxen(
         `${chalk.blue.bold('📊 Token Usage Metrics')}\n\n` +
-        `${chalk.green('Messages:')} ${metrics.totalMessages}\n` +
-        `${chalk.green('Estimated Tokens:')} ${metrics.estimatedTokens.toLocaleString()}\n` +
-        `${chalk.green('Token Limit:')} ${metrics.tokenLimit.toLocaleString()}\n` +
-        `${chalk.green('Usage:')} ${((metrics.estimatedTokens / metrics.tokenLimit) * 100).toFixed(1)}%\n\n` +
-        `${chalk.cyan('Status:')} ${metrics.estimatedTokens > metrics.tokenLimit
-          ? chalk.red('⚠️  Over Limit - Auto-compression active')
-          : metrics.estimatedTokens > metrics.tokenLimit * 0.8
-            ? chalk.yellow('⚠️  High Usage - Monitor closely')
-            : chalk.green('✅ Within Limits')
-        }\n\n` +
-        `${chalk.dim('Compression Ratio:')} ${(metrics.compressionRatio * 100).toFixed(1)}%`,
+          `${chalk.green('Messages:')} ${metrics.totalMessages}\n` +
+          `${chalk.green('Estimated Tokens:')} ${metrics.estimatedTokens.toLocaleString()}\n` +
+          `${chalk.green('Token Limit:')} ${metrics.tokenLimit.toLocaleString()}\n` +
+          `${chalk.green('Usage:')} ${((metrics.estimatedTokens / metrics.tokenLimit) * 100).toFixed(1)}%\n\n` +
+          `${chalk.cyan('Status:')} ${
+            metrics.estimatedTokens > metrics.tokenLimit
+              ? chalk.red('⚠️  Over Limit - Auto-compression active')
+              : metrics.estimatedTokens > metrics.tokenLimit * 0.8
+                ? chalk.yellow('⚠️  High Usage - Monitor closely')
+                : chalk.green('✅ Within Limits')
+          }\n\n` +
+          `${chalk.dim('Compression Ratio:')} ${(metrics.compressionRatio * 100).toFixed(1)}%`,
         {
           padding: 1,
           margin: 1,
@@ -1437,17 +1438,17 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
   private async showSecurityStatus(): Promise<void> {
     const summary = await this.policyManager.getPolicySummary()
 
-    this.printPanel(
+    this.cliInstance.printPanel(
       boxen(
         `${chalk.blue.bold('🔒 Security Policy Status')}\n\n` +
-        `${chalk.green('Current Policy:')} ${summary.currentPolicy.approval}\n` +
-        `${chalk.green('Sandbox Mode:')} ${summary.currentPolicy.sandbox}\n` +
-        `${chalk.green('Timeout:')} ${summary.currentPolicy.timeoutMs}ms\n\n` +
-        `${chalk.cyan('Commands:')}\n` +
-        `• ${chalk.green('Allowed:')} ${summary.allowedCommands}\n` +
-        `• ${chalk.red('Blocked:')} ${summary.deniedCommands}\n\n` +
-        `${chalk.cyan('Trusted Commands:')} ${summary.trustedCommands.slice(0, 5).join(', ')}...\n` +
-        `${chalk.red('Dangerous Commands:')} ${summary.dangerousCommands.slice(0, 3).join(', ')}...`,
+          `${chalk.green('Current Policy:')} ${summary.currentPolicy.approval}\n` +
+          `${chalk.green('Sandbox Mode:')} ${summary.currentPolicy.sandbox}\n` +
+          `${chalk.green('Timeout:')} ${summary.currentPolicy.timeoutMs}ms\n\n` +
+          `${chalk.cyan('Commands:')}\n` +
+          `• ${chalk.green('Allowed:')} ${summary.allowedCommands}\n` +
+          `• ${chalk.red('Blocked:')} ${summary.deniedCommands}\n\n` +
+          `${chalk.cyan('Trusted Commands:')} ${summary.trustedCommands.slice(0, 5).join(', ')}...\n` +
+          `${chalk.red('Dangerous Commands:')} ${summary.dangerousCommands.slice(0, 3).join(', ')}...`,
         {
           padding: 1,
           margin: 1,
@@ -1508,13 +1509,13 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     }
 
     if (!risk.allowed) {
-      this.printPanel(
+      this.cliInstance.printPanel(
         boxen(
           `${chalk.red.bold('⚠️  Command Blocked')}\\n\\n` +
-          `Command: ${chalk.yellow(command)}\\n` +
-          `Risk Level: ${this.getRiskColor(risk.riskLevel)}\\n\\n` +
-          `Reasons:\\n${risk.reasons.map((r) => `• ${r}`).join('\\n')}\\n\\n` +
-          `${chalk.dim('This command is not allowed in the current security policy.')}`,
+            `Command: ${chalk.yellow(command)}\\n` +
+            `Risk Level: ${this.getRiskColor(risk.riskLevel)}\\n\\n` +
+            `Reasons:\\n${risk.reasons.map((r) => `• ${r}`).join('\\n')}\\n\\n` +
+            `${chalk.dim('This command is not allowed in the current security policy.')}`,
           {
             padding: 1,
             borderStyle: 'round',
@@ -1525,13 +1526,13 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
       return false
     }
 
-    this.printPanel(
+    this.cliInstance.printPanel(
       boxen(
         `${chalk.yellow.bold('⚠️  High-Risk Command Detected')}\\n\\n` +
-        `Command: ${chalk.cyan(command)}\\n` +
-        `Risk Level: ${this.getRiskColor(risk.riskLevel)}\\n\\n` +
-        `Reasons:\\n${risk.reasons.map((r) => `• ${r}`).join('\\n')}\\n\\n` +
-        `${chalk.dim('This command requires your explicit approval.')}`,
+          `Command: ${chalk.cyan(command)}\\n` +
+          `Risk Level: ${this.getRiskColor(risk.riskLevel)}\\n\\n` +
+          `Reasons:\\n${risk.reasons.map((r) => `• ${r}`).join('\\n')}\\n\\n` +
+          `${chalk.dim('This command requires your explicit approval.')}`,
         {
           padding: 1,
           borderStyle: 'round',
@@ -1580,16 +1581,16 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     const executionCount = this.session.executionHistory.length
     const toolsUsed = this.session.executionHistory.filter((e) => e.type === 'tool_call').length
 
-    this.printPanel(
+    this.cliInstance.printPanel(
       boxen(
         `${chalk.cyanBright('🤖 Autonomous Claude Assistant')}\\n\\n` +
-        `${chalk.gray('Session completed!')}\\n\\n` +
-        `${chalk.dim('Autonomous Actions:')}\\n` +
-        `• ${chalk.blue('Messages:')} ${this.session.messages.length}\\n` +
-        `• ${chalk.green('Tools Used:')} ${toolsUsed}\\n` +
-        `• ${chalk.cyan('Total Events:')} ${executionCount}\\n` +
-        `• ${chalk.yellow('Duration:')} ${Math.round((Date.now() - this.session.createdAt.getTime()) / 1000)}s\\n\\n` +
-        `${chalk.blue('Thanks for using autonomous development! 🚀')}`,
+          `${chalk.gray('Session completed!')}\\n\\n` +
+          `${chalk.dim('Autonomous Actions:')}\\n` +
+          `• ${chalk.blue('Messages:')} ${this.session.messages.length}\\n` +
+          `• ${chalk.green('Tools Used:')} ${toolsUsed}\\n` +
+          `• ${chalk.cyan('Total Events:')} ${executionCount}\\n` +
+          `• ${chalk.yellow('Duration:')} ${Math.round((Date.now() - this.session.createdAt.getTime()) / 1000)}s\\n\\n` +
+          `${chalk.blue('Thanks for using autonomous development! 🚀')}`,
         {
           padding: 1,
           margin: 1,

@@ -58,8 +58,8 @@ export class DiffViewer {
     const deletions = diffResult.filter((p) => p.removed).reduce((a, p) => a + p.count!, 0)
     const header = boxen(
       `${chalk.bold('Update')}(${chalk.cyan(fileDiff.filePath)})\n` +
-      `${chalk.gray('Updated')} ${chalk.cyan(fileDiff.filePath)} ${chalk.gray('with')} ` +
-      `${chalk.green(`${additions} addition${additions === 1 ? '' : 's'}`)} ${chalk.gray('and')} ${chalk.red(`${deletions} removal${deletions === 1 ? '' : 's'}`)}`,
+        `${chalk.gray('Updated')} ${chalk.cyan(fileDiff.filePath)} ${chalk.gray('with')} ` +
+        `${chalk.green(`${additions} addition${additions === 1 ? '' : 's'}`)} ${chalk.gray('and')} ${chalk.red(`${deletions} removal${deletions === 1 ? '' : 's'}`)}`,
       { padding: 1, borderStyle: 'round', borderColor: 'yellow' }
     )
     console.log(header)

@@ -8,13 +8,16 @@ import { intelligentFeedbackWrapper } from './intelligent-feedback-wrapper'
  * Wrapper che aggiunge feedback automatico ai tools esistenti
  */
 export class FeedbackAwareTools {
-  private static agentMetrics = new Map<string, {
-    executions: number
-    successes: number
-    totalTime: number
-    toolUsage: Map<string, number>
-    failures: Map<string, number>
-  }>()
+  private static agentMetrics = new Map<
+    string,
+    {
+      executions: number
+      successes: number
+      totalTime: number
+      toolUsage: Map<string, number>
+      failures: Map<string, number>
+    }
+  >()
   /**
    * Wrappa un tool esistente con intelligence feedback
    */

@@ -2,17 +2,17 @@
 
 import { execSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import type { Octokit } from '@octokit/rest'
 import { CommentProcessor } from './comment-processor'
 import type {
+  CommandParseResult,
+  GitHubBotConfig,
   ProcessingJob,
-  TaskResult,
   RepositoryContext,
   TaskContext,
-  GitHubBotConfig,
-  CommandParseResult
+  TaskResult,
 } from './types'
 
 /**
@@ -68,7 +68,6 @@ export class TaskExecutor {
 
       console.log(`✅ Task completed successfully`)
       return result
-
     } catch (error) {
       console.error(`❌ Task execution failed:`, error)
       throw error
@@ -123,9 +122,10 @@ export class TaskExecutor {
 
       // Check for tests and CI
       const hasTests = await this.hasTestDirectory(owner, repo)
-      const hasCI = await this.fileExists(owner, repo, '.github/workflows') ||
-                    await this.fileExists(owner, repo, '.gitlab-ci.yml') ||
-                    await this.fileExists(owner, repo, 'Jenkinsfile')
+      const hasCI =
+        (await this.fileExists(owner, repo, '.github/workflows')) ||
+        (await this.fileExists(owner, repo, '.gitlab-ci.yml')) ||
+        (await this.fileExists(owner, repo, 'Jenkinsfile'))
 
       return {
         owner,
@@ -136,9 +136,8 @@ export class TaskExecutor {
         packageManager,
         framework,
         hasTests,
-        hasCI
+        hasCI,
       }
-
     } catch (error) {
       console.error('Failed to build repository context:', error)
       throw new Error(`Failed to analyze repository ${repository}`)
@@ -160,7 +159,7 @@ export class TaskExecutor {
       job,
       repository: repoContext,
       workingDirectory: repoContext.clonePath,
-      tempBranch
+      tempBranch,
     }
   }
 
@@ -174,19 +173,17 @@ export class TaskExecutor {
 
     try {
       // Clone repository
-      execSync(
-        `git clone --depth 1 -b ${repoContext.defaultBranch} ${cloneUrl} ${repoContext.clonePath}`,
-        { stdio: 'pipe' }
-      )
+      execSync(`git clone --depth 1 -b ${repoContext.defaultBranch} ${cloneUrl} ${repoContext.clonePath}`, {
+        stdio: 'pipe',
+      })
 
       // Create and switch to new branch
       execSync(`git checkout -b ${branchName}`, {
         cwd: repoContext.clonePath,
-        stdio: 'pipe'
+        stdio: 'pipe',
       })
 
       console.log(`✅ Repository cloned and branch ${branchName} created`)
-
     } catch (error) {
       throw new Error(`Failed to clone repository: ${error}`)
     }
@@ -233,7 +230,7 @@ export class TaskExecutor {
       summary: `Applied fixes to ${command.target || 'codebase'}`,
       files: [],
       shouldComment: true,
-      details: {}
+      details: {},
     }
 
     try {
@@ -242,7 +239,7 @@ export class TaskExecutor {
       const output = execSync(nikCliCommand, {
         cwd: context.workingDirectory,
         encoding: 'utf8',
-        stdio: 'pipe'
+        stdio: 'pipe',
       })
 
       // Parse NikCLI output to determine modified files
@@ -254,7 +251,6 @@ export class TaskExecutor {
         await this.runTests(context)
         result.details!.testsRun = true
       }
-
     } catch (error) {
       result.success = false
       result.summary = `Failed to apply fixes: ${error}`
@@ -273,7 +269,7 @@ export class TaskExecutor {
       summary: `Added new functionality: ${command.description}`,
       files: [],
       shouldComment: true,
-      details: {}
+      details: {},
     }
 
     try {
@@ -281,12 +277,11 @@ export class TaskExecutor {
       const output = execSync(nikCliCommand, {
         cwd: context.workingDirectory,
         encoding: 'utf8',
-        stdio: 'pipe'
+        stdio: 'pipe',
       })
 
       result.files = this.parseModifiedFiles(output)
       result.analysis = `Implemented new feature with ${result.files.length} files modified`
-
     } catch (error) {
       result.success = false
       result.summary = `Failed to add functionality: ${error}`
@@ -305,14 +300,14 @@ export class TaskExecutor {
       summary: `Applied optimizations to ${command.target || 'codebase'}`,
       files: [],
       shouldComment: true,
-      details: {}
+      details: {},
     }
 
     const nikCliCommand = this.buildNikCLICommand('optimize', command, context)
     const output = execSync(nikCliCommand, {
       cwd: context.workingDirectory,
       encoding: 'utf8',
-      stdio: 'pipe'
+      stdio: 'pipe',
     })
 
     result.files = this.parseModifiedFiles(output)
@@ -330,7 +325,7 @@ export class TaskExecutor {
       summary: `Code analysis completed for ${command.target || 'repository'}`,
       files: [],
       shouldComment: true,
-      analysis: ''
+      analysis: '',
     }
 
     try {
@@ -339,11 +334,10 @@ export class TaskExecutor {
       const output = execSync(nikCliCommand, {
         cwd: context.workingDirectory,
         encoding: 'utf8',
-        stdio: 'pipe'
+        stdio: 'pipe',
       })
 
       result.analysis = this.extractAnalysisReport(output)
-
     } catch (error) {
       result.success = false
       result.summary = `Analysis failed: ${error}`
@@ -382,12 +376,16 @@ export class TaskExecutor {
   /**
    * Generic command execution
    */
-  private async executeGenericCommand(action: string, command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+  private async executeGenericCommand(
+    action: string,
+    command: CommandParseResult,
+    context: TaskContext
+  ): Promise<TaskResult> {
     const result: TaskResult = {
       success: true,
       summary: `Applied ${action} to ${command.target || 'codebase'}`,
       files: [],
-      shouldComment: true
+      shouldComment: true,
     }
 
     try {
@@ -395,12 +393,11 @@ export class TaskExecutor {
       const output = execSync(nikCliCommand, {
         cwd: context.workingDirectory,
         encoding: 'utf8',
-        stdio: 'pipe'
+        stdio: 'pipe',
       })
 
       result.files = this.parseModifiedFiles(output)
       result.analysis = `Applied ${action} to ${result.files.length} files`
-
     } catch (error) {
       result.success = false
       result.summary = `${action} failed: ${error}`
@@ -456,10 +453,8 @@ export class TaskExecutor {
   private extractAnalysisReport(output: string): string {
     // Extract meaningful analysis content from NikCLI output
     const lines = output.split('\n')
-    const analysisLines = lines.filter(line =>
-      !line.includes('Loading') &&
-      !line.includes('Initializing') &&
-      line.trim().length > 0
+    const analysisLines = lines.filter(
+      (line) => !line.includes('Loading') && !line.includes('Initializing') && line.trim().length > 0
     )
 
     return analysisLines.join('\n').substring(0, 1000) // Limit length
@@ -481,19 +476,19 @@ Applied via @nikcli mention in #${job.issueNumber}
 Requested by: @${job.author}
 
 Files modified:
-${result.files.map(f => `- ${f}`).join('\n')}
+${result.files.map((f) => `- ${f}`).join('\n')}
 
 Co-authored-by: NikCLI Bot <bot@nikcli.dev>`
 
       execSync(`git commit -m "${commitMessage}"`, {
         cwd: context.workingDirectory,
-        stdio: 'pipe'
+        stdio: 'pipe',
       })
 
       // Push branch
       execSync(`git push -u origin ${tempBranch}`, {
         cwd: context.workingDirectory,
-        stdio: 'pipe'
+        stdio: 'pipe',
       })
 
       // Create pull request
@@ -502,7 +497,7 @@ Co-authored-by: NikCLI Bot <bot@nikcli.dev>`
 ${result.summary}
 
 ## Changes Applied
-${result.files.map(f => `- \`${f}\``).join('\n')}
+${result.files.map((f) => `- \`${f}\``).join('\n')}
 
 ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
 
@@ -520,12 +515,11 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
         title: prTitle,
         body: prBody,
         head: tempBranch,
-        base: repository.defaultBranch
+        base: repository.defaultBranch,
       })
 
       console.log(`✅ Pull request created: ${pr.html_url}`)
       return pr.html_url
-
     } catch (error) {
       console.error('Failed to create pull request:', error)
       throw error
@@ -543,7 +537,7 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
         const testCommand = `${repository.packageManager} test`
         execSync(testCommand, {
           cwd: context.workingDirectory,
-          stdio: 'pipe'
+          stdio: 'pipe',
         })
       }
     } catch (error) {

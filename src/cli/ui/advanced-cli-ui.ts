@@ -396,11 +396,11 @@ export class AdvancedCliUI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\\n\\n` +
-      `${chalk.green('✅ Completed:')} ${completed}\\n` +
-      `${chalk.red('❌ Failed:')} ${failed}\\n` +
-      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
-      `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
-      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+        `${chalk.green('✅ Completed:')} ${completed}\\n` +
+        `${chalk.red('❌ Failed:')} ${failed}\\n` +
+        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
+        `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
+        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -751,7 +751,9 @@ export class AdvancedCliUI {
 
   /** Determine if there are no running/pending indicators, spinners, or progress bars */
   private isIdle(): boolean {
-    const anyRunning = Array.from(this.indicators.values()).some((i) => i.status === 'running' || i.status === 'pending')
+    const anyRunning = Array.from(this.indicators.values()).some(
+      (i) => i.status === 'running' || i.status === 'pending'
+    )
     return !anyRunning && this.spinners.size === 0 && this.progressBars.size === 0
   }
 

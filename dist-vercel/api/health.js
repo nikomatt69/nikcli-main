@@ -6,7 +6,7 @@ function handler(req, res) {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         service: 'nikcli-github-bot',
-        version: '0.2.2',
+        version: '0.2.3',
         endpoints: {
             webhook: '/v1/github/webhook',
             health: '/health'

@@ -1,6 +1,6 @@
 // src/cli/github-bot/comment-processor.ts
 
-import type { NikCLIMention, NikCLICommand, CommandParseResult } from './types'
+import type { CommandParseResult, NikCLICommand, NikCLIMention } from './types'
 
 /**
  * Processes GitHub comments to extract @nikcli mentions and parse commands
@@ -40,7 +40,7 @@ export class CommentProcessor {
       command,
       fullText: commentText,
       args: args.slice(1), // Remove command from args
-      context
+      context,
     }
   }
 
@@ -82,25 +82,25 @@ export class CommentProcessor {
   /**
    * Extract context information from comment
    */
-  private extractContext(commentText: string): { files?: string[], lineNumbers?: number[], codeBlocks?: string[] } {
-    const context: { files?: string[], lineNumbers?: number[], codeBlocks?: string[] } = {}
+  private extractContext(commentText: string): { files?: string[]; lineNumbers?: number[]; codeBlocks?: string[] } {
+    const context: { files?: string[]; lineNumbers?: number[]; codeBlocks?: string[] } = {}
 
     // Extract mentioned files
     const fileMatches = Array.from(commentText.matchAll(this.fileRegex))
     if (fileMatches.length > 0) {
-      context.files = fileMatches.map(match => match[1])
+      context.files = fileMatches.map((match) => match[1])
     }
 
     // Extract line numbers
     const lineMatches = Array.from(commentText.matchAll(this.lineNumberRegex))
     if (lineMatches.length > 0) {
-      context.lineNumbers = lineMatches.map(match => parseInt(match[1], 10)).filter(n => !isNaN(n))
+      context.lineNumbers = lineMatches.map((match) => parseInt(match[1], 10)).filter((n) => !isNaN(n))
     }
 
     // Extract code blocks
     const codeMatches = Array.from(commentText.matchAll(this.codeBlockRegex))
     if (codeMatches.length > 0) {
-      context.codeBlocks = codeMatches.map(match => match[0])
+      context.codeBlocks = codeMatches.map((match) => match[0])
     }
 
     return context
@@ -184,7 +184,7 @@ export class CommentProcessor {
       command,
       target,
       description,
-      options
+      options,
     }
   }
 
@@ -193,8 +193,16 @@ export class CommentProcessor {
    */
   private validateCommand(commandStr: string): NikCLICommand | null {
     const validCommands: NikCLICommand[] = [
-      'fix', 'add', 'optimize', 'refactor', 'test', 'doc',
-      'security', 'accessibility', 'analyze', 'review'
+      'fix',
+      'add',
+      'optimize',
+      'refactor',
+      'test',
+      'doc',
+      'security',
+      'accessibility',
+      'analyze',
+      'review',
     ]
 
     const normalized = commandStr.toLowerCase().trim()
@@ -206,24 +214,24 @@ export class CommentProcessor {
 
     // Common aliases
     const aliases: Record<string, NikCLICommand> = {
-      'repair': 'fix',
-      'solve': 'fix',
-      'create': 'add',
-      'implement': 'add',
-      'improve': 'optimize',
-      'enhance': 'optimize',
-      'restructure': 'refactor',
-      'reorganize': 'refactor',
-      'testing': 'test',
-      'tests': 'test',
-      'documentation': 'doc',
-      'docs': 'doc',
-      'secure': 'security',
-      'a11y': 'accessibility',
-      'accessibility': 'accessibility',
-      'check': 'analyze',
-      'inspect': 'analyze',
-      'audit': 'review'
+      repair: 'fix',
+      solve: 'fix',
+      create: 'add',
+      implement: 'add',
+      improve: 'optimize',
+      enhance: 'optimize',
+      restructure: 'refactor',
+      reorganize: 'refactor',
+      testing: 'test',
+      tests: 'test',
+      documentation: 'doc',
+      docs: 'doc',
+      secure: 'security',
+      a11y: 'accessibility',
+      accessibility: 'accessibility',
+      check: 'analyze',
+      inspect: 'analyze',
+      audit: 'review',
     }
 
     return aliases[normalized] || null
@@ -232,7 +240,10 @@ export class CommentProcessor {
   /**
    * Extract target file/component from arguments or context
    */
-  private extractTarget(args: string[], context?: { files?: string[], lineNumbers?: number[], codeBlocks?: string[] }): string | undefined {
+  private extractTarget(
+    args: string[],
+    context?: { files?: string[]; lineNumbers?: number[]; codeBlocks?: string[] }
+  ): string | undefined {
     // Look for file paths in arguments
     for (const arg of args) {
       if (arg.includes('/') || arg.includes('.')) {
@@ -253,11 +264,7 @@ export class CommentProcessor {
    */
   private extractDescription(args: string[], defaultPrefix: string): string {
     // Filter out flags and known patterns
-    const descriptionWords = args.filter(arg =>
-      !arg.startsWith('--') &&
-      !arg.includes('/') &&
-      !arg.includes('.')
-    )
+    const descriptionWords = args.filter((arg) => !arg.startsWith('--') && !arg.includes('/') && !arg.includes('.'))
 
     if (descriptionWords.length > 0) {
       return descriptionWords.join(' ')
@@ -291,7 +298,7 @@ export class CommentProcessor {
           command,
           fullText: commentText,
           args: args.slice(1),
-          context
+          context,
         })
       }
     }

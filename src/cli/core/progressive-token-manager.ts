@@ -143,8 +143,8 @@ export class ProgressiveTokenManager {
           ? message.content
           : Array.isArray(message.content)
             ? message.content
-              .map((c: any) => (typeof c === 'object' && c.type === 'text' ? c.text : JSON.stringify(c)))
-              .join('\n')
+                .map((c: any) => (typeof c === 'object' && c.type === 'text' ? c.text : JSON.stringify(c)))
+                .join('\n')
             : JSON.stringify(message.content)
       const messageTokens = this.estimateTokens(content)
 

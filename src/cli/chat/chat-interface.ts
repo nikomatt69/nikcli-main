@@ -18,7 +18,7 @@ export class ChatInterface {
   private rl: readline.Interface
   private slashCommands: SlashCommandHandler
   private isStreaming = false
-
+  private cliInstance: any
   constructor() {
     this.rl = readline.createInterface({
       input: process.stdin,
@@ -105,7 +105,7 @@ Features: Multi-model support, code generation, chat history
 ${chalk.gray('Type your message or use slash commands...')}
     `
 
-    this.printPanel(
+    this.cliInstance.printPanel(
       boxen(welcomeText, {
         padding: 1,
         margin: 1,

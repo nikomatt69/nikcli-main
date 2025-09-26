@@ -19,7 +19,7 @@ class GitHubWebhookHandler {
         this.config = config;
         this.octokit = new rest_1.Octokit({
             auth: config.githubToken,
-            userAgent: 'nikCLI-bot/0.2.2'
+            userAgent: 'nikCLI-bot/0.2.3'
         });
         this.commentProcessor = new comment_processor_1.CommentProcessor();
         this.taskExecutor = new task_executor_1.TaskExecutor(this.octokit, config);
@@ -263,7 +263,7 @@ Please check your request and try again. If the issue persists, please create an
 
 ---
 *Processing time: ${job.startedAt && job.completedAt ?
-                ((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2) + 's' : 'N/A'}*`;
+                    ((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2) + 's' : 'N/A'}*`;
             await this.octokit.rest.issues.createComment({
                 owner,
                 repo,

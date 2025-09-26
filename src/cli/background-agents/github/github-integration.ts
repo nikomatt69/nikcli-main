@@ -1,9 +1,9 @@
 // src/cli/background-agents/github/github-integration.ts
 
 import { Octokit } from '@octokit/rest'
-import type { BackgroundJob, CommitConfig, GitHubConfig } from '../types'
-import { GitHubWebhookHandler } from '../../github-bot/webhook-handler'
 import type { GitHubBotConfig } from '../../github-bot/types'
+import { GitHubWebhookHandler } from '../../github-bot/webhook-handler'
+import type { BackgroundJob, CommitConfig, GitHubConfig } from '../types'
 
 export interface GitHubPRResult {
   prNumber: number
@@ -31,7 +31,7 @@ export class GitHubIntegration {
     this.config = config
     this.octokit = new Octokit({
       auth: this.generateJWT(),
-      userAgent: 'nikCLI-background-agents/0.2.2',
+      userAgent: 'nikCLI-background-agents/0.2.3',
     })
 
     // Initialize webhook handler if bot config is available
@@ -57,7 +57,7 @@ export class GitHubIntegration {
       webhookSecret: extended.webhookSecret || '',
       appId: this.config.appId,
       privateKey: this.config.privateKey,
-      installationId: this.config.installationId
+      installationId: this.config.installationId,
     }
   }
 
@@ -93,7 +93,7 @@ export class GitHubIntegration {
     const token = await this.getInstallationToken()
     return new Octokit({
       auth: token,
-      userAgent: 'nikCLI-background-agents/0.2.2',
+      userAgent: 'nikCLI-background-agents/0.2.3',
     })
   }
 
@@ -437,22 +437,21 @@ export class GitHubIntegration {
       const mockReq = {
         headers: {
           'x-github-event': event,
-          'x-hub-signature-256': 'mock-signature' // In production, this would be real
+          'x-hub-signature-256': 'mock-signature', // In production, this would be real
         },
-        body: payload
+        body: payload,
       } as any
 
       const mockRes = {
         status: (code: number) => ({
           json: (data: any) => {
             console.log(`@nikcli webhook response: ${code}`, data)
-          }
-        })
+          },
+        }),
       } as any
 
       console.log(`🤖 Processing @nikcli mention in ${event}`)
       await this.webhookHandler.handleWebhook(mockReq, mockRes)
-
     } catch (error) {
       console.error('Failed to handle @nikcli mention:', error)
     }

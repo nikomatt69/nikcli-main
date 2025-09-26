@@ -4,8 +4,7 @@ import crypto from 'node:crypto'
 import { Octokit } from '@octokit/rest'
 import { CommentProcessor } from './comment-processor'
 import { TaskExecutor } from './task-executor'
-import type { GitHubWebhookEvent, NikCLIMention, ProcessingJob, GitHubBotConfig } from './types'
-
+import type { GitHubBotConfig, GitHubWebhookEvent, NikCLIMention, ProcessingJob } from './types'
 
 /**
  * GitHub Bot Webhook Handler for @nikcli mentions
@@ -22,7 +21,7 @@ export class GitHubWebhookHandler {
     this.config = config
     this.octokit = new Octokit({
       auth: config.githubToken,
-      userAgent: 'nikCLI-bot/0.2.2'
+      userAgent: 'nikCLI-bot/0.2.3',
     })
 
     this.commentProcessor = new CommentProcessor()
@@ -41,8 +40,7 @@ export class GitHubWebhookHandler {
     const expectedBuffer = Buffer.from(`sha256=${expectedSignature}`)
     const actualBuffer = Buffer.from(signature)
 
-    return expectedBuffer.length === actualBuffer.length &&
-           crypto.timingSafeEqual(expectedBuffer, actualBuffer)
+    return expectedBuffer.length === actualBuffer.length && crypto.timingSafeEqual(expectedBuffer, actualBuffer)
   }
 
   /**
@@ -51,7 +49,8 @@ export class GitHubWebhookHandler {
   async handleWebhook(req: any, res: any): Promise<void> {
     const signature = req.headers['x-hub-signature-256'] as string
     const event = req.headers['x-github-event'] as string
-    const payload = JSON.stringify(req.body)
+    // Prefer raw body for signature verification when available
+    const payload = typeof req.rawBody === 'string' ? req.rawBody : JSON.stringify(req.body)
 
     // Verify webhook signature
     if (!this.verifySignature(payload, signature)) {
@@ -114,7 +113,12 @@ export class GitHubWebhookHandler {
     // Check if comment mentions @nikcli
     const mention = this.commentProcessor.extractNikCLIMention(comment.body)
     if (!mention) {
-      console.log('ℹ️ No @nikcli mention found')
+      // If @nikcli is present but without a valid command, reply with usage help
+      if (this.commentProcessor.hasNikCLIMention(comment.body)) {
+        await this.postUsageHelp(repository.full_name, issue.number)
+      } else {
+        console.log('ℹ️ No @nikcli mention found')
+      }
       return
     }
 
@@ -130,13 +134,13 @@ export class GitHubWebhookHandler {
       mention,
       status: 'queued',
       createdAt: new Date(),
-      author: comment.user.login
+      author: comment.user.login,
     }
 
     this.processingJobs.set(jobId, job)
 
     // Add reaction to show we received the request
-    await this.addReaction(repository.full_name, comment.id, '+1')
+    await this.addReactionToIssueComment(repository.full_name, comment.id, '+1')
 
     // Process the mention asynchronously
     this.processMentionAsync(job)
@@ -153,7 +157,12 @@ export class GitHubWebhookHandler {
     console.log(`💬 New PR review comment in ${repository.full_name}#${pullRequest.number}`)
 
     const mention = this.commentProcessor.extractNikCLIMention(comment.body)
-    if (!mention) return
+    if (!mention) {
+      if (this.commentProcessor.hasNikCLIMention(comment.body)) {
+        await this.postUsageHelp(repository.full_name, pullRequest.number)
+      }
+      return
+    }
 
     // Similar processing for PR comments
     const jobId = `${repository.full_name}-pr-${pullRequest.number}-${comment.id}`
@@ -166,11 +175,14 @@ export class GitHubWebhookHandler {
       status: 'queued',
       createdAt: new Date(),
       author: comment.user.login,
-      isPR: true
+      isPR: true,
+      // Mark as PR review comment to use correct reactions API
+      // (expanded type in types.ts to include isPRReview)
+      isPRReview: true,
     }
 
     this.processingJobs.set(jobId, job)
-    await this.addReaction(repository.full_name, comment.id, '+1')
+    await this.addReactionToPRReviewComment(repository.full_name, comment.id, '+1')
     this.processMentionAsync(job)
   }
 
@@ -185,7 +197,12 @@ export class GitHubWebhookHandler {
 
     // Check if issue body contains @nikcli
     const mention = this.commentProcessor.extractNikCLIMention(issue.body)
-    if (!mention) return
+    if (!mention) {
+      if (this.commentProcessor.hasNikCLIMention(issue.body)) {
+        await this.postUsageHelp(repository.full_name, issue.number)
+      }
+      return
+    }
 
     // Process issue body as mention
     const jobId = `${repository.full_name}-issue-${issue.number}`
@@ -198,7 +215,7 @@ export class GitHubWebhookHandler {
       status: 'queued',
       createdAt: new Date(),
       author: issue.user.login,
-      isIssue: true
+      isIssue: true,
     }
 
     this.processingJobs.set(jobId, job)
@@ -217,7 +234,11 @@ export class GitHubWebhookHandler {
       console.log(`📋 Task: ${job.mention.command}`)
 
       // Update reaction to processing
-      await this.addReaction(job.repository, job.commentId, 'eyes')
+      if (job.isPRReview) {
+        await this.addReactionToPRReviewComment(job.repository, job.commentId, 'eyes')
+      } else {
+        await this.addReactionToIssueComment(job.repository, job.commentId, 'eyes')
+      }
 
       // Execute the requested task
       const result = await this.taskExecutor.executeTask(job)
@@ -229,13 +250,16 @@ export class GitHubWebhookHandler {
       console.log(`✅ Job completed: ${job.id}`)
 
       // Add success reaction
-      await this.addReaction(job.repository, job.commentId, 'rocket')
+      if (job.isPRReview) {
+        await this.addReactionToPRReviewComment(job.repository, job.commentId, 'rocket')
+      } else {
+        await this.addReactionToIssueComment(job.repository, job.commentId, 'rocket')
+      }
 
       // Post result as comment if needed
       if (result.shouldComment) {
         await this.postResultComment(job, result)
       }
-
     } catch (error) {
       console.error(`❌ Job failed: ${job.id}`, error)
 
@@ -244,7 +268,11 @@ export class GitHubWebhookHandler {
       job.completedAt = new Date()
 
       // Add error reaction
-      await this.addReaction(job.repository, job.commentId, 'confused')
+      if (job.isPRReview) {
+        await this.addReactionToPRReviewComment(job.repository, job.commentId, 'confused')
+      } else {
+        await this.addReactionToIssueComment(job.repository, job.commentId, 'confused')
+      }
 
       // Post error comment
       await this.postErrorComment(job, error)
@@ -254,17 +282,34 @@ export class GitHubWebhookHandler {
   /**
    * Add reaction to comment
    */
-  private async addReaction(repository: string, commentId: number, reaction: string): Promise<void> {
+  private async addReactionToIssueComment(repository: string, commentId: number, reaction: string): Promise<void> {
     try {
       const [owner, repo] = repository.split('/')
       await this.octokit.rest.reactions.createForIssueComment({
         owner,
         repo,
         comment_id: commentId,
-        content: reaction as any
+        content: reaction as any,
       })
     } catch (error) {
       console.error('Failed to add reaction:', error)
+    }
+  }
+
+  /**
+   * Add reaction to PR review comment
+   */
+  private async addReactionToPRReviewComment(repository: string, commentId: number, reaction: string): Promise<void> {
+    try {
+      const [owner, repo] = repository.split('/')
+      await this.octokit.rest.reactions.createForPullRequestReviewComment({
+        owner,
+        repo,
+        comment_id: commentId,
+        content: reaction as any,
+      })
+    } catch (error) {
+      console.error('Failed to add reaction to PR review comment:', error)
     }
   }
 
@@ -281,7 +326,7 @@ export class GitHubWebhookHandler {
         owner,
         repo,
         issue_number: job.issueNumber,
-        body: comment
+        body: comment,
       })
 
       console.log(`📝 Posted result comment for job: ${job.id}`)
@@ -308,14 +353,17 @@ ${error instanceof Error ? error.message : 'Unknown error'}
 Please check your request and try again. If the issue persists, please create an issue in the [NikCLI repository](https://github.com/nikomatt69/nikcli-main).
 
 ---
-*Processing time: ${job.startedAt && job.completedAt ?
-  ((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2) + 's' : 'N/A'}*`
+*Processing time: ${
+        job.startedAt && job.completedAt
+          ? ((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2) + 's'
+          : 'N/A'
+      }*`
 
       await this.octokit.rest.issues.createComment({
         owner,
         repo,
         issue_number: job.issueNumber,
-        body: comment
+        body: comment,
       })
     } catch (postError) {
       console.error('Failed to post error comment:', postError)
@@ -323,12 +371,31 @@ Please check your request and try again. If the issue persists, please create an
   }
 
   /**
+   * Post usage help comment when @nikcli mention is empty or invalid
+   */
+  private async postUsageHelp(repository: string, issueNumber: number): Promise<void> {
+    try {
+      const [owner, repo] = repository.split('/')
+      const help = this.commentProcessor.getUsageHelp()
+      await this.octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body: help,
+      })
+    } catch (error) {
+      console.error('Failed to post usage help:', error)
+    }
+  }
+
+  /**
    * Format result comment
    */
   private formatResultComment(job: ProcessingJob, result: any): string {
-    const duration = job.startedAt && job.completedAt ?
-      ((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2) + 's' :
-      'N/A'
+    const duration =
+      job.startedAt && job.completedAt
+        ? ((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2) + 's'
+        : 'N/A'
 
     let comment = `🤖 **NikCLI Result**
 

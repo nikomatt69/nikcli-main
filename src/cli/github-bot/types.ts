@@ -105,11 +105,11 @@ export interface GitHubRepository {
  * NikCLI mention detected in comment
  */
 export interface NikCLIMention {
-  command: string          // The command after @nikcli
-  fullText: string        // The full comment text
-  args: string[]          // Parsed command arguments
+  command: string // The command after @nikcli
+  fullText: string // The full comment text
+  args: string[] // Parsed command arguments
   context?: {
-    files?: string[]      // Mentioned files
+    files?: string[] // Mentioned files
     lineNumbers?: number[] // Mentioned line numbers
     codeBlocks?: string[] // Code blocks in comment
   }
@@ -120,19 +120,20 @@ export interface NikCLIMention {
  */
 export interface ProcessingJob {
   id: string
-  repository: string      // owner/repo format
-  issueNumber: number     // Issue or PR number
-  commentId: number       // Comment ID
+  repository: string // owner/repo format
+  issueNumber: number // Issue or PR number
+  commentId: number // Comment ID
   mention: NikCLIMention
   status: JobStatus
-  author: string          // GitHub username who mentioned @nikcli
+  author: string // GitHub username who mentioned @nikcli
   createdAt: Date
   startedAt?: Date
   completedAt?: Date
   result?: TaskResult
   error?: string
-  isPR?: boolean          // Is this a PR comment?
-  isIssue?: boolean       // Is this an issue body?
+  isPR?: boolean // Is this a PR comment?
+  isIssue?: boolean // Is this an issue body?
+  isPRReview?: boolean // Is this a PR review comment?
 }
 
 export type JobStatus = 'queued' | 'processing' | 'completed' | 'failed'
@@ -142,16 +143,16 @@ export type JobStatus = 'queued' | 'processing' | 'completed' | 'failed'
  */
 export interface TaskResult {
   success: boolean
-  summary: string         // Human readable summary
-  analysis?: string       // Code analysis results
-  files: string[]        // Modified files
-  prUrl?: string         // Created PR URL
+  summary: string // Human readable summary
+  analysis?: string // Code analysis results
+  files: string[] // Modified files
+  prUrl?: string // Created PR URL
   shouldComment: boolean // Whether to post result comment
   details?: {
-    branch?: string      // Created branch name
-    commits?: string[]   // Commit SHAs
-    testsRun?: boolean   // Whether tests were executed
-    linting?: boolean    // Whether linting was applied
+    branch?: string // Created branch name
+    commits?: string[] // Commit SHAs
+    testsRun?: boolean // Whether tests were executed
+    linting?: boolean // Whether linting was applied
   }
 }
 
@@ -162,12 +163,12 @@ export interface RepositoryContext {
   owner: string
   repo: string
   defaultBranch: string
-  clonePath: string      // Local clone path
-  languages: string[]    // Detected programming languages
+  clonePath: string // Local clone path
+  languages: string[] // Detected programming languages
   packageManager?: 'npm' | 'yarn' | 'pnpm' | 'bun'
-  framework?: string     // Detected framework (React, Vue, etc.)
-  hasTests: boolean      // Whether repository has tests
-  hasCI: boolean         // Whether repository has CI setup
+  framework?: string // Detected framework (React, Vue, etc.)
+  hasTests: boolean // Whether repository has tests
+  hasCI: boolean // Whether repository has CI setup
 }
 
 /**
@@ -186,24 +187,24 @@ export interface TaskContext {
  * Supported NikCLI commands via GitHub mentions
  */
 export type NikCLICommand =
-  | 'fix'           // Fix issues/errors
-  | 'add'           // Add new functionality
-  | 'optimize'      // Performance optimization
-  | 'refactor'      // Code refactoring
-  | 'test'          // Add/fix tests
-  | 'doc'           // Add/update documentation
-  | 'security'      // Security improvements
+  | 'fix' // Fix issues/errors
+  | 'add' // Add new functionality
+  | 'optimize' // Performance optimization
+  | 'refactor' // Code refactoring
+  | 'test' // Add/fix tests
+  | 'doc' // Add/update documentation
+  | 'security' // Security improvements
   | 'accessibility' // A11y improvements
-  | 'analyze'       // Code analysis only
-  | 'review'        // Code review suggestions
+  | 'analyze' // Code analysis only
+  | 'review' // Code review suggestions
 
 /**
  * Command parsing result
  */
 export interface CommandParseResult {
   command: NikCLICommand
-  target?: string       // Target file/directory/component
-  description: string   // What to do
+  target?: string // Target file/directory/component
+  description: string // What to do
   options?: {
     createTests?: boolean
     updateDocs?: boolean
@@ -228,7 +229,12 @@ export interface GitHubBotConfig {
  */
 export interface GitHubBotAPI {
   createBranch(repo: string, branchName: string, fromSha: string): Promise<void>
-  createCommit(repo: string, branch: string, message: string, files: Array<{path: string, content: string}>): Promise<string>
+  createCommit(
+    repo: string,
+    branch: string,
+    message: string,
+    files: Array<{ path: string; content: string }>
+  ): Promise<string>
   createPullRequest(repo: string, branch: string, baseBranch: string, title: string, body: string): Promise<string>
   addReaction(repo: string, commentId: number, reaction: string): Promise<void>
   createComment(repo: string, issueNumber: number, body: string): Promise<void>

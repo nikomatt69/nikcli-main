@@ -73,6 +73,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const mockReq = {
       headers: req.headers,
       body: req.body,
+      // Forward rawBody if provided by Vercel/Next (to enable HMAC verification)
+      rawBody: (req as any).rawBody || (typeof req.body === 'string' ? req.body : undefined),
       method: req.method,
       url: req.url
     } as any
