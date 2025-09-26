@@ -1,7 +1,6 @@
 // src/cli/github-bot/webhook-handler.ts
 
 import crypto from 'node:crypto'
-import type { Request, Response } from 'express'
 import { Octokit } from '@octokit/rest'
 import { CommentProcessor } from './comment-processor'
 import { TaskExecutor } from './task-executor'
@@ -49,7 +48,7 @@ export class GitHubWebhookHandler {
   /**
    * Handle GitHub webhook request
    */
-  async handleWebhook(req: Request, res: Response): Promise<void> {
+  async handleWebhook(req: any, res: any): Promise<void> {
     const signature = req.headers['x-hub-signature-256'] as string
     const event = req.headers['x-github-event'] as string
     const payload = JSON.stringify(req.body)

@@ -29,15 +29,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-GitHub-Event, X-Hub-Signature-256')
-    return res.status(200).end()
+    res.status(200).end()
+    return
   }
 
   // Only allow POST requests
   if (req.method !== 'POST') {
-    return res.status(405).json({
+    res.status(405).json({
       error: 'Method not allowed',
       message: 'Only POST requests are supported'
     })
+    return
   }
 
   try {
@@ -76,13 +78,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } as any
 
     const mockRes = {
-      status: (code: number) => ({
-        json: (data: any) => {
-          console.log(`📤 Response: ${code}`, data)
-          return res.status(code).json(data)
-        },
-        end: () => res.status(code).end()
-      }),
+      status: (code: number) => {
+        res.status(code)
+        return {
+          json: (data: any) => {
+            console.log(`📤 Response: ${code}`, data)
+            res.json(data)
+          },
+          end: () => res.end()
+        }
+      },
       json: (data: any) => res.json(data),
       end: () => res.end()
     } as any
