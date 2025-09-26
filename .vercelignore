@@ -1,0 +1,55 @@
+# Exclude binary files and large directories
+bin/
+public/bin/
+*.exe
+*.app
+*.dmg
+*.pkg
+
+# Exclude large dependencies
+node_modules/
+.pnpm-store/
+.next/
+dist/
+dist-vercel/
+
+# Exclude development files
+.vscode/
+.idea/
+*.log
+*.tmp
+.DS_Store
+
+# Exclude test files
+tests/
+**/*.test.ts
+**/*.spec.ts
+coverage/
+
+# Exclude documentation (keep only essential)
+docs/
+examples/
+screenshots/
+
+# Exclude large data files
+*.db
+*.sqlite
+*.csv
+*.json.gz
+
+# Exclude build artifacts
+build/
+out/
+temp/
+tmp/
+
+# Exclude Git files
+.git/
+.gitignore
+
+# Keep only essential source files
+!src/cli/github-bot/
+!api/
+!vercel.json
+!package.json
+!tsconfig.vercel.json

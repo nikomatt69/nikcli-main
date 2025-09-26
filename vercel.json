@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/github/webhook.ts": {
+      "maxDuration": 60,
+      "memory": 512
+    },
+    "api/health.ts": {
+      "maxDuration": 10
+    }
+  }
+}

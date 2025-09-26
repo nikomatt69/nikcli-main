@@ -19,6 +19,7 @@ pnpm-debug.log*
 bun.lockb
 public/bin/nikcli-linux
 # Environment variables
+nikcli.2025-09-25.private-key.pem
 .env
 .env.template
 .env.local

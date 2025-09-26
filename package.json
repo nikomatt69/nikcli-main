@@ -26,6 +26,7 @@
     "start": "ts-node --project tsconfig.cli.json src/cli/index.ts",
     "dev": "pnpm start",
     "build": "tsc --project tsconfig.cli.json",
+    "build:vercel": "echo 'Vercel build completed - using serverless functions'",
     "prepublishOnly": "pnpm run build",
     "build:start": "pnpm run build && node dist/cli/index.js",
     "build:binary": "node scripts/build-all.js",
