@@ -9,7 +9,8 @@ import { createVercel } from '@ai-sdk/vercel'
 import { type CoreMessage, type CoreTool, generateText, streamText, tool } from 'ai'
 import { z } from 'zod'
 import { simpleConfigManager } from '../core/config-manager'
-import { PromptManager } from '../prompts/prompt-manager'
+import { PromptManager, type PromptContext } from '../prompts/prompt-manager'
+import { type OutputStyle } from '../types/output-styles'
 import { ReasoningDetector } from './reasoning-detector'
 
 export interface ModelConfig {
@@ -19,6 +20,14 @@ export interface ModelConfig {
   maxTokens?: number
   enableReasoning?: boolean
   reasoningMode?: 'auto' | 'explicit' | 'disabled'
+  outputStyle?: OutputStyle
+}
+
+export interface AIProviderOptions {
+  outputStyle?: OutputStyle
+  context?: string
+  taskType?: string
+  modelOverride?: string
 }
 
 export class ModernAIProvider {
@@ -651,6 +660,202 @@ export class ModernAIProvider {
   // Get list of all reasoning-enabled models
   getReasoningEnabledModels(): string[] {
     return ReasoningDetector.getReasoningEnabledModels()
+  }
+
+  /**
+   * Enhanced streaming with output style support
+   */
+  async *streamChatWithStyle(
+    messages: CoreMessage[],
+    options: AIProviderOptions = {}
+  ): AsyncGenerator<{
+    type: 'text' | 'tool_call' | 'tool_result' | 'finish' | 'reasoning' | 'style_applied'
+    content?: string
+    toolCall?: any
+    toolResult?: any
+    finishReason?: string
+    reasoningSummary?: string
+    outputStyle?: OutputStyle
+  }> {
+    // Resolve output style
+    const outputStyle = this.resolveOutputStyle(options)
+
+    // Create enhanced messages with output style
+    const enhancedMessages = await this.enhanceMessagesWithStyle(messages, outputStyle, options)
+
+    yield {
+      type: 'style_applied',
+      outputStyle: outputStyle
+    }
+
+    // Continue with normal streaming using enhanced messages
+    yield* this.streamChatWithTools(enhancedMessages)
+  }
+
+  /**
+   * Enhanced generation with output style support
+   */
+  async generateWithStyle(
+    messages: CoreMessage[],
+    options: AIProviderOptions = {}
+  ): Promise<{
+    text: string
+    toolCalls: any[]
+    toolResults: any[]
+    reasoning?: any
+    reasoningText?: string
+    outputStyle: OutputStyle
+    enhancedPrompt?: string
+  }> {
+    // Resolve output style
+    const outputStyle = this.resolveOutputStyle(options)
+
+    // Create enhanced messages with output style
+    const enhancedMessages = await this.enhanceMessagesWithStyle(messages, outputStyle, options)
+
+    // Generate response with enhanced messages
+    const result = await this.generateWithTools(enhancedMessages)
+
+    return {
+      ...result,
+      outputStyle,
+      enhancedPrompt: typeof enhancedMessages[0]?.content === 'string' ? enhancedMessages[0].content : ''
+    }
+  }
+
+  /**
+   * Resolve output style from options, model config, and defaults
+   */
+  private resolveOutputStyle(options: AIProviderOptions): OutputStyle {
+    // 1. Explicit options override
+    if (options.outputStyle) {
+      return options.outputStyle
+    }
+
+    // 2. Model-specific configuration
+    const modelName = options.modelOverride || this.currentModel
+    const modelStyle = simpleConfigManager.getModelOutputStyle(modelName)
+    if (modelStyle) {
+      return modelStyle
+    }
+
+    // 3. Context-specific configuration
+    if (options.context) {
+      const contextStyle = simpleConfigManager.getContextOutputStyle(options.context)
+      if (contextStyle) {
+        return contextStyle
+      }
+    }
+
+    // 4. Global configuration
+    return simpleConfigManager.getDefaultOutputStyle()
+  }
+
+  /**
+   * Enhance messages with output style prompts
+   */
+  private async enhanceMessagesWithStyle(
+    messages: CoreMessage[],
+    outputStyle: OutputStyle,
+    options: AIProviderOptions
+  ): Promise<CoreMessage[]> {
+    if (messages.length === 0) {
+      return messages
+    }
+
+    try {
+      // Create prompt context
+      const promptContext: PromptContext = {
+        outputStyle,
+        taskType: options.taskType,
+        parameters: {
+          modelName: options.modelOverride || this.currentModel,
+          context: options.context
+        }
+      }
+
+      // Load enhanced prompt with output style
+      const enhancedContext = await this.promptManager.createEnhancedContext(
+        promptContext,
+        simpleConfigManager
+      )
+
+      // Clone messages and enhance the first system message or create one
+      const enhancedMessages = [...messages]
+      const firstMessage = enhancedMessages[0]
+
+      if (firstMessage?.role === 'system') {
+        // Enhance existing system message
+        enhancedMessages[0] = {
+          ...firstMessage,
+          content: enhancedContext.combinedPrompt || firstMessage.content
+        }
+      } else {
+        // Add new system message with output style
+        enhancedMessages.unshift({
+          role: 'system',
+          content: enhancedContext.combinedPrompt || enhancedContext.outputStylePrompt || ''
+        })
+      }
+
+      return enhancedMessages
+    } catch (error: any) {
+      console.warn(`Failed to enhance messages with output style '${outputStyle}': ${error.message}`)
+      return messages
+    }
+  }
+
+  /**
+   * Quick style-aware text generation for simple use cases
+   */
+  async generateSimpleWithStyle(
+    prompt: string,
+    outputStyle?: OutputStyle,
+    options: Omit<AIProviderOptions, 'outputStyle'> = {}
+  ): Promise<string> {
+    const messages: CoreMessage[] = [
+      { role: 'user', content: prompt }
+    ]
+
+    const result = await this.generateWithStyle(messages, {
+      ...options,
+      outputStyle
+    })
+
+    return result.text
+  }
+
+  /**
+   * Get available output styles
+   */
+  getAvailableOutputStyles(): OutputStyle[] {
+    return this.promptManager.listAvailableOutputStyles()
+  }
+
+  /**
+   * Get current output style configuration
+   */
+  getCurrentOutputStyleConfig() {
+    return {
+      defaultStyle: simpleConfigManager.getDefaultOutputStyle(),
+      modelStyle: simpleConfigManager.getModelOutputStyle(this.currentModel),
+      availableStyles: this.getAvailableOutputStyles(),
+      globalConfig: simpleConfigManager.getOutputStyleConfig()
+    }
+  }
+
+  /**
+   * Set output style for current model
+   */
+  setModelOutputStyle(style: OutputStyle): void {
+    simpleConfigManager.setModelOutputStyle(this.currentModel, style)
+  }
+
+  /**
+   * Set default output style
+   */
+  setDefaultOutputStyle(style: OutputStyle): void {
+    simpleConfigManager.setDefaultOutputStyle(style)
   }
 }
 

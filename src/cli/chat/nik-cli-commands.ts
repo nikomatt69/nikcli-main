@@ -4,6 +4,7 @@ import boxen from 'boxen'
 import chalk from 'chalk'
 import { parse as parseDotenv } from 'dotenv'
 import { z } from 'zod'
+import { modernAIProvider } from '../ai/modern-ai-provider'
 import { modelProvider } from '../ai/model-provider'
 import { unifiedRAGSystem } from '../context/rag-system'
 import { workspaceContext } from '../context/workspace-context'
@@ -25,6 +26,7 @@ import { extractFileIdFromUrl, figmaTool, isFigmaConfigured } from '../tools/fig
 import { secureTools } from '../tools/secure-tools-registry'
 import { toolsManager } from '../tools/tools-manager'
 import type { AgentTask } from '../types/types'
+import { type OutputStyle, OutputStyleUtils } from '../types/output-styles'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { approvalSystem } from '../ui/approval-system'
 import { DiffViewer } from '../ui/diff-viewer'
@@ -187,6 +189,10 @@ export class SlashCommandHandler {
     this.commands.set('set-key', this.setKeyCommand.bind(this))
     this.commands.set('config', this.configCommand.bind(this))
     this.commands.set('env', this.envCommand.bind(this))
+
+    // Output Style Commands
+    this.commands.set('style', this.styleCommand.bind(this))
+    this.commands.set('styles', this.stylesCommand.bind(this))
     this.commands.set('new', this.newSessionCommand.bind(this))
     this.commands.set('sessions', this.sessionsCommand.bind(this))
     this.commands.set('export', this.exportCommand.bind(this))
@@ -5603,17 +5609,24 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const indexId = advancedUI.createIndicator('indexing', `Indexing ${targetPath}`).id
       advancedUI.startSpinner(indexId, 'Analyzing project structure...')
 
-      // Use the RAG system to analyze the project
-      const result = await unifiedRAGSystem.analyzeProject(fullPath)
+      let result: any
+      try {
+        // Use the RAG system to analyze the project
+        result = await unifiedRAGSystem.analyzeProject(fullPath)
 
-      // Check if the result indicates an error
-      if (!result || (result as any).error) {
+        // Check if the result indicates an error
+        if (!result || (result as any).error) {
+          advancedUI.stopSpinner(indexId, false, 'Indexing failed')
+          console.log(chalk.red(`❌ Indexing failed: ${(result as any)?.error || 'Unknown error'}`))
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        advancedUI.stopSpinner(indexId, true, 'Indexing completed')
+      } catch (error: any) {
+        // Always stop spinner in case of exception
         advancedUI.stopSpinner(indexId, false, 'Indexing failed')
-        console.log(chalk.red(`❌ Indexing failed: ${(result as any)?.error || 'Unknown error'}`))
-        return { shouldExit: false, shouldUpdatePrompt: false }
+        throw error // Re-throw to be handled by outer catch
       }
-
-      advancedUI.stopSpinner(indexId, true, 'Indexing completed')
 
       // Display results
       console.log('')
@@ -5647,6 +5660,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       console.log(chalk.gray('\n💡 The indexed files are now available for better context in future conversations.'))
       console.log(chalk.gray('Use /context to see current workspace context.'))
+
+      // Ensure any remaining UI elements are properly stopped
+      // The spinner should already be stopped above, but this ensures cleanup
     } catch (error: any) {
       console.log(chalk.red(`❌ Indexing failed: ${error.message}`))
 
@@ -5658,6 +5674,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       } else if (error.message.includes('permission')) {
         console.log(chalk.yellow('💡 Check file permissions for the target directory'))
       }
+
+      // UI cleanup is handled by the inner try-catch block
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -6284,6 +6302,263 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       console.log(chalk.red(`❌ Error: ${error.message}`))
     }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  // ====================== OUTPUT STYLE COMMANDS ======================
+
+  /**
+   * Style command - manage AI output styles
+   * Usage: /style [set|show|model|context] [style-name] [value]
+   */
+  private async styleCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    const subcommand = args[0]?.toLowerCase()
+
+    try {
+      switch (subcommand) {
+        case 'set':
+        case 's':
+          return this.handleStyleSet(args.slice(1))
+
+        case 'show':
+        case 'current':
+          return this.handleStyleShow()
+
+        case 'model':
+        case 'm':
+          return this.handleStyleModel(args.slice(1))
+
+        case 'context':
+        case 'c':
+          return this.handleStyleContext(args.slice(1))
+
+        case 'help':
+        case 'h':
+        case undefined:
+          return this.handleStyleHelp()
+
+        default:
+          // If first arg looks like a style name, treat as "set"
+          if (OutputStyleUtils.isValidStyle(subcommand)) {
+            return this.handleStyleSet([subcommand])
+          }
+          console.log(chalk.red(`❌ Unknown style command: ${subcommand}`))
+          console.log(chalk.gray('Use /style help for available commands'))
+          break
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error managing output style: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Styles command - list available output styles
+   */
+  private async stylesCommand(_args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    console.log(chalk.blue.bold('\n🎨 Available Output Styles\n'))
+
+    const currentConfig = modernAIProvider.getCurrentOutputStyleConfig()
+    const defaultStyle = currentConfig.defaultStyle
+    const modelStyle = currentConfig.modelStyle
+
+    // Show current configuration
+    console.log(chalk.cyan('Current Configuration:'))
+    console.log(`  ${chalk.green('Default:')} ${defaultStyle}`)
+    if (modelStyle) {
+      console.log(`  ${chalk.green('Current Model:')} ${modelStyle}`)
+    }
+    console.log()
+
+    // List all available styles with descriptions
+    OutputStyleUtils.getAllStyles().forEach((style) => {
+      const metadata = OutputStyleUtils.getStyleMetadata(style)
+      const isDefault = style === defaultStyle
+      const isModelCurrent = style === modelStyle
+
+      const indicators = []
+      if (isDefault) indicators.push(chalk.green('default'))
+      if (isModelCurrent) indicators.push(chalk.blue('model'))
+
+      const prefix = indicators.length > 0 ? ` [${indicators.join(', ')}]` : ''
+
+      console.log(chalk.yellow(`${style}${prefix}`))
+      console.log(chalk.gray(`  ${metadata.description}`))
+      console.log(chalk.dim(`  Target: ${metadata.targetAudience} | Verbosity: ${metadata.verbosityLevel}/10`))
+      console.log(chalk.dim(`  Use case: ${metadata.useCase}`))
+      console.log()
+    })
+
+    console.log(chalk.gray('Use /style set <style-name> to change the default style'))
+    console.log(chalk.gray('Use /style model <style-name> to set style for current model'))
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle style set command
+   */
+  private async handleStyleSet(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length === 0) {
+      console.log(chalk.red('❌ Please specify a style name'))
+      console.log(chalk.gray('Available styles: ' + OutputStyleUtils.getAllStyles().join(', ')))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const styleName = args[0] as OutputStyle
+    if (!OutputStyleUtils.isValidStyle(styleName)) {
+      console.log(chalk.red(`❌ Invalid style: ${styleName}`))
+      console.log(chalk.gray('Available styles: ' + OutputStyleUtils.getAllStyles().join(', ')))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      modernAIProvider.setDefaultOutputStyle(styleName)
+      const metadata = OutputStyleUtils.getStyleMetadata(styleName)
+
+      console.log(chalk.green(`✅ Default output style set to: ${chalk.bold(styleName)}`))
+      console.log(chalk.gray(`   ${metadata.description}`))
+      console.log(chalk.gray(`   Target audience: ${metadata.targetAudience}`))
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to set style: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle style show command
+   */
+  private async handleStyleShow(): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    const config = modernAIProvider.getCurrentOutputStyleConfig()
+
+    console.log(chalk.blue.bold('\n🎨 Current Output Style Configuration\n'))
+
+    console.log(chalk.cyan('Global Settings:'))
+    console.log(`  ${chalk.green('Default Style:')} ${config.defaultStyle}`)
+
+    if (config.modelStyle) {
+      console.log(`  ${chalk.green('Current Model Style:')} ${config.modelStyle}`)
+    }
+
+    console.log()
+
+    // Show style details
+    const currentStyle = config.modelStyle || config.defaultStyle
+    const metadata = OutputStyleUtils.getStyleMetadata(currentStyle)
+
+    console.log(chalk.yellow(`Active Style: ${chalk.bold(currentStyle)}`))
+    console.log(chalk.gray(`  ${metadata.description}`))
+    console.log(chalk.gray(`  Target audience: ${metadata.targetAudience}`))
+    console.log(chalk.gray(`  Verbosity level: ${metadata.verbosityLevel}/10`))
+    console.log(chalk.gray(`  Technical depth: ${metadata.technicalDepth}`))
+    console.log()
+
+    console.log(chalk.dim('Characteristics:'))
+    metadata.characteristics.forEach((char) => {
+      console.log(chalk.dim(`  • ${char}`))
+    })
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle style model command
+   */
+  private async handleStyleModel(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length === 0) {
+      console.log(chalk.red('❌ Please specify a style name'))
+      console.log(chalk.gray('Available styles: ' + OutputStyleUtils.getAllStyles().join(', ')))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const styleName = args[0] as OutputStyle
+    if (!OutputStyleUtils.isValidStyle(styleName)) {
+      console.log(chalk.red(`❌ Invalid style: ${styleName}`))
+      console.log(chalk.gray('Available styles: ' + OutputStyleUtils.getAllStyles().join(', ')))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const currentModel = simpleConfigManager.getCurrentModel()
+      modernAIProvider.setModelOutputStyle(styleName)
+      const metadata = OutputStyleUtils.getStyleMetadata(styleName)
+
+      console.log(chalk.green(`✅ Output style for model '${currentModel}' set to: ${chalk.bold(styleName)}`))
+      console.log(chalk.gray(`   ${metadata.description}`))
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to set model style: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle style context command
+   */
+  private async handleStyleContext(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    if (args.length < 2) {
+      console.log(chalk.red('❌ Please specify context and style name'))
+      console.log(chalk.gray('Usage: /style context <chat|planning|code-generation> <style-name>'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const context = args[0]
+    const styleName = args[1] as OutputStyle
+
+    if (!OutputStyleUtils.isValidStyle(styleName)) {
+      console.log(chalk.red(`❌ Invalid style: ${styleName}`))
+      console.log(chalk.gray('Available styles: ' + OutputStyleUtils.getAllStyles().join(', ')))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const validContexts = ['chat', 'planning', 'code-generation', 'documentation', 'debugging', 'analysis']
+    if (!validContexts.includes(context)) {
+      console.log(chalk.red(`❌ Invalid context: ${context}`))
+      console.log(chalk.gray('Valid contexts: ' + validContexts.join(', ')))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      simpleConfigManager.setContextOutputStyle(context, styleName)
+      const metadata = OutputStyleUtils.getStyleMetadata(styleName)
+
+      console.log(chalk.green(`✅ Output style for context '${context}' set to: ${chalk.bold(styleName)}`))
+      console.log(chalk.gray(`   ${metadata.description}`))
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to set context style: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Handle style help command
+   */
+  private async handleStyleHelp(): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
+    console.log(chalk.blue.bold('\n🎨 Output Style Commands\n'))
+
+    console.log(chalk.yellow('Available Commands:'))
+    console.log(chalk.gray('  /style set <style-name>        Set default output style'))
+    console.log(chalk.gray('  /style show                   Show current configuration'))
+    console.log(chalk.gray('  /style model <style-name>     Set style for current model'))
+    console.log(chalk.gray('  /style context <ctx> <style>  Set style for specific context'))
+    console.log(chalk.gray('  /styles                       List all available styles'))
+    console.log()
+
+    console.log(chalk.yellow('Available Styles:'))
+    OutputStyleUtils.getAllStyles().forEach((style) => {
+      const metadata = OutputStyleUtils.getStyleMetadata(style)
+      console.log(chalk.gray(`  ${style.padEnd(20)} ${metadata.description}`))
+    })
+
+    console.log()
+    console.log(chalk.yellow('Examples:'))
+    console.log(chalk.gray('  /style set production-focused  # Set concise, results-oriented style'))
+    console.log(chalk.gray('  /style model friendly-casual   # Use friendly style for current model'))
+    console.log(chalk.gray('  /style context chat minimal-efficient  # Minimal style for chat'))
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }

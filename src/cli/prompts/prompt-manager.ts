@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { type TokenOptimizationConfig, TokenOptimizer } from '../core/performance-optimizer'
+import { type OutputStyle } from '../types/output-styles'
 import { CliUI } from '../utils/cli-ui'
 
 /**
@@ -15,6 +16,7 @@ export interface PromptContext {
   commandName?: string
   taskType?: string
   riskLevel?: 'low' | 'medium' | 'high'
+  outputStyle?: OutputStyle
   parameters?: Record<string, any>
 }
 
@@ -23,6 +25,13 @@ export interface LoadedPrompt {
   filePath: string
   lastModified: Date
   category: string
+  outputStyle?: OutputStyle
+}
+
+export interface EnhancedPromptContext extends PromptContext {
+  basePrompt?: string
+  outputStylePrompt?: string
+  combinedPrompt?: string
 }
 
 export class PromptManager {
@@ -291,5 +300,160 @@ export class PromptManager {
       size: this.promptCache.size,
       categories,
     }
+  }
+
+  /**
+   * Load output style prompt for enhanced AI responses
+   */
+  async loadOutputStylePrompt(outputStyle: OutputStyle): Promise<string> {
+    try {
+      const stylePath = `output-styles/${outputStyle}.txt`
+      const prompt = await this.loadPrompt(stylePath)
+      return prompt.content
+    } catch (error: any) {
+      CliUI.logWarning(`Failed to load output style '${outputStyle}': ${error.message}`)
+      return this.getDefaultOutputStylePrompt()
+    }
+  }
+
+  /**
+   * Combine base prompt with output style prompt for enhanced context
+   */
+  async loadPromptWithStyle(context: PromptContext): Promise<EnhancedPromptContext> {
+    const basePrompt = await this.loadPromptForContext(context)
+
+    let outputStylePrompt = ''
+    let combinedPrompt = basePrompt
+
+    if (context.outputStyle) {
+      try {
+        outputStylePrompt = await this.loadOutputStylePrompt(context.outputStyle)
+        combinedPrompt = this.combinePrompts(basePrompt, outputStylePrompt, context)
+      } catch (error: any) {
+        CliUI.logWarning(`Failed to apply output style '${context.outputStyle}': ${error.message}`)
+      }
+    }
+
+    return {
+      ...context,
+      basePrompt,
+      outputStylePrompt,
+      combinedPrompt
+    }
+  }
+
+  /**
+   * Intelligently combine base prompt with output style prompt
+   */
+  private combinePrompts(basePrompt: string, outputStylePrompt: string, context: PromptContext): string {
+    // If base prompt is minimal (like default prompts), let output style take precedence
+    if (basePrompt.length < 200) {
+      return `${outputStylePrompt}\n\n${basePrompt}`
+    }
+
+    // For longer base prompts, integrate style guidance strategically
+    const sections = basePrompt.split('\n\n')
+    const enhancedSections = sections.map((section, index) => {
+      // Add style guidance after the first section (usually role definition)
+      if (index === 0) {
+        return `${section}\n\nOUTPUT STYLE GUIDANCE:\n${outputStylePrompt}`
+      }
+      return section
+    })
+
+    return enhancedSections.join('\n\n')
+  }
+
+  /**
+   * Get default output style prompt when specific style fails to load
+   */
+  private getDefaultOutputStylePrompt(): string {
+    return `You are a professional AI assistant. Provide clear, helpful, and well-structured responses appropriate for the context and user's needs.
+
+RESPONSE GUIDELINES:
+- Be clear and concise
+- Provide actionable information
+- Use appropriate technical depth
+- Maintain professional tone
+- Focus on practical solutions`
+  }
+
+  /**
+   * Validate and resolve output style from various sources
+   */
+  resolveOutputStyle(context: PromptContext, configManager?: any): OutputStyle {
+    // 1. Explicit context override
+    if (context.outputStyle) {
+      return context.outputStyle
+    }
+
+    // 2. Configuration-based resolution
+    if (configManager) {
+      try {
+        return configManager.resolveOutputStyle({
+          context: context.taskType || context.actionType,
+          modelName: context.parameters?.modelName,
+          provider: context.parameters?.provider
+        })
+      } catch (error) {
+        CliUI.logDebug(`Failed to resolve output style from config: ${error}`)
+      }
+    }
+
+    // 3. Default fallback
+    return 'production-focused'
+  }
+
+  /**
+   * Create enhanced prompt context with resolved output style
+   */
+  async createEnhancedContext(
+    baseContext: PromptContext,
+    configManager?: any
+  ): Promise<EnhancedPromptContext> {
+    const resolvedStyle = this.resolveOutputStyle(baseContext, configManager)
+    const contextWithStyle = { ...baseContext, outputStyle: resolvedStyle }
+
+    return this.loadPromptWithStyle(contextWithStyle)
+  }
+
+  /**
+   * List available output styles
+   */
+  listAvailableOutputStyles(): OutputStyle[] {
+    const outputStylesDir = join(this.promptsDirectory, 'output-styles')
+
+    if (!existsSync(outputStylesDir)) {
+      return []
+    }
+
+    try {
+      const fs = require('node:fs')
+      const files = fs.readdirSync(outputStylesDir)
+
+      return files
+        .filter((file: string) => file.endsWith('.txt'))
+        .map((file: string) => file.replace('.txt', '') as OutputStyle)
+        .filter((style: string) => this.isValidOutputStyle(style))
+    } catch (error) {
+      CliUI.logWarning(`Failed to list output styles: ${error}`)
+      return []
+    }
+  }
+
+  /**
+   * Validate if a string is a valid output style
+   */
+  private isValidOutputStyle(style: string): boolean {
+    const validStyles = [
+      'production-focused',
+      'creative-concise',
+      'detailed-analytical',
+      'friendly-casual',
+      'technical-precise',
+      'educational-verbose',
+      'minimal-efficient'
+    ]
+    return validStyles.includes(style)
   }
 }

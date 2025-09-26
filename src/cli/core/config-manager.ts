@@ -4,6 +4,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import chalk from 'chalk'
 import { z } from 'zod'
+import { OutputStyleConfigSchema, OutputStyleEnum } from '../types/output-styles'
 
 // Validation schemas
 const ModelConfigSchema = z.object({
@@ -14,6 +15,8 @@ const ModelConfigSchema = z.object({
   // Reasoning configuration
   enableReasoning: z.boolean().optional().describe('Enable reasoning for supported models'),
   reasoningMode: z.enum(['auto', 'explicit', 'disabled']).optional().describe('How to handle reasoning'),
+  // Output style configuration
+  outputStyle: OutputStyleEnum.optional().describe('AI output style for this model'),
 })
 
 const ConfigSchema = z.object({
@@ -27,6 +30,17 @@ const ConfigSchema = z.object({
   autoAnalyzeWorkspace: z.boolean().default(true),
   enableAutoApprove: z.boolean().default(false),
   preferredAgent: z.string().optional(),
+  // Output style configuration
+  outputStyle: OutputStyleConfigSchema.default({
+    defaultStyle: 'production-focused',
+    customizations: {
+      verbosityLevel: 5,
+      includeCodeExamples: true,
+      includeStepByStep: true,
+      useDecorative: false,
+      maxResponseLength: 'medium'
+    }
+  }),
   models: z.record(ModelConfigSchema),
   apiKeys: z.record(z.string()).optional(),
   environmentVariables: z.record(z.string()).default({}),
@@ -843,6 +857,16 @@ export class SimpleConfigManager {
     systemPrompt: undefined,
     autoAnalyzeWorkspace: true,
     enableAutoApprove: false,
+    outputStyle: {
+      defaultStyle: 'production-focused',
+      customizations: {
+        verbosityLevel: 5,
+        includeCodeExamples: true,
+        includeStepByStep: true,
+        useDecorative: false,
+        maxResponseLength: 'medium'
+      }
+    },
     models: this.defaultModels,
     apiKeys: {},
     environmentVariables: {},
@@ -1322,6 +1346,85 @@ export class SimpleConfigManager {
       apiKey: this.getApiKey('browserbase') || process.env.BROWSERBASE_API_KEY,
       projectId: process.env.BROWSERBASE_PROJECT_ID,
     }
+  }
+
+  // Output Style configuration management
+  getOutputStyleConfig(): ConfigType['outputStyle'] {
+    return this.config.outputStyle
+  }
+
+  setOutputStyleConfig(config: Partial<ConfigType['outputStyle']>): void {
+    this.config.outputStyle = { ...this.config.outputStyle, ...config }
+    this.saveConfig()
+  }
+
+  setDefaultOutputStyle(style: import('../types/output-styles').OutputStyle): void {
+    this.config.outputStyle.defaultStyle = style
+    this.saveConfig()
+  }
+
+  getDefaultOutputStyle(): import('../types/output-styles').OutputStyle {
+    return this.config.outputStyle.defaultStyle
+  }
+
+  setModelOutputStyle(modelName: string, style: import('../types/output-styles').OutputStyle): void {
+    if (!this.config.models[modelName]) {
+      throw new Error(`Model ${modelName} not found in configuration`)
+    }
+    this.config.models[modelName].outputStyle = style
+    this.saveConfig()
+  }
+
+  getModelOutputStyle(modelName: string): import('../types/output-styles').OutputStyle | undefined {
+    const model = this.config.models[modelName]
+    return model?.outputStyle
+  }
+
+  setContextOutputStyle(context: string, style: import('../types/output-styles').OutputStyle): void {
+    if (!this.config.outputStyle.contextOverrides) {
+      this.config.outputStyle.contextOverrides = {}
+    }
+    this.config.outputStyle.contextOverrides[context as keyof typeof this.config.outputStyle.contextOverrides] = style
+    this.saveConfig()
+  }
+
+  getContextOutputStyle(context: string): import('../types/output-styles').OutputStyle | undefined {
+    return this.config.outputStyle.contextOverrides?.[context as keyof typeof this.config.outputStyle.contextOverrides]
+  }
+
+  /**
+   * Resolve output style with fallback logic:
+   * 1. Model-specific override
+   * 2. Context-specific override
+   * 3. Provider-specific override
+   * 4. Default style
+   */
+  resolveOutputStyle(options: {
+    modelName?: string
+    context?: string
+    provider?: string
+  }): import('../types/output-styles').OutputStyle {
+    const { modelName, context, provider } = options
+
+    // 1. Model-specific override
+    if (modelName) {
+      const modelStyle = this.getModelOutputStyle(modelName)
+      if (modelStyle) return modelStyle
+    }
+
+    // 2. Context-specific override
+    if (context) {
+      const contextStyle = this.getContextOutputStyle(context)
+      if (contextStyle) return contextStyle
+    }
+
+    // 3. Provider-specific override
+    if (provider && this.config.outputStyle.providerOverrides?.[provider as keyof typeof this.config.outputStyle.providerOverrides]) {
+      return this.config.outputStyle.providerOverrides[provider as keyof typeof this.config.outputStyle.providerOverrides]!
+    }
+
+    // 4. Default fallback
+    return this.config.outputStyle.defaultStyle
   }
 }
 
