@@ -77,8 +77,8 @@ export class AdvancedCliUI {
   // When true, clear live updates automatically when idle/finished
   private ephemeralLiveUpdates: boolean = false
   private cliInstance: any
-  constructor(cliInstance?: any) {
-    this.cliInstance = cliInstance
+  constructor() {
+
     this.theme = {
       primary: chalk.blue,
       secondary: chalk.cyan,
@@ -396,11 +396,11 @@ export class AdvancedCliUI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\\n\\n` +
-        `${chalk.green('✅ Completed:')} ${completed}\\n` +
-        `${chalk.red('❌ Failed:')} ${failed}\\n` +
-        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
-        `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
-        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+      `${chalk.green('✅ Completed:')} ${completed}\\n` +
+      `${chalk.red('❌ Failed:')} ${failed}\\n` +
+      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
+      `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
+      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -751,9 +751,7 @@ export class AdvancedCliUI {
 
   /** Determine if there are no running/pending indicators, spinners, or progress bars */
   private isIdle(): boolean {
-    const anyRunning = Array.from(this.indicators.values()).some(
-      (i) => i.status === 'running' || i.status === 'pending'
-    )
+    const anyRunning = Array.from(this.indicators.values()).some((i) => i.status === 'running' || i.status === 'pending')
     return !anyRunning && this.spinners.size === 0 && this.progressBars.size === 0
   }
 
@@ -1367,7 +1365,7 @@ export class AdvancedCliUI {
     const visiblePanels = this.getRenderablePanels()
 
     visiblePanels.forEach((panel) => {
-      this.cliInstance.printPanel(
+      console.log(
         boxen(this.formatPanelContent(panel), {
           title: panel.title,
           titleAlignment: 'left',
@@ -1382,7 +1380,7 @@ export class AdvancedCliUI {
   private renderSinglePanel(panel: StructuredPanel): void {
     const terminalWidth = process.stdout.columns || 80
 
-    this.cliInstance.printPanel(
+    console.log(
       boxen(this.formatPanelContent(panel), {
         title: panel.title,
         titleAlignment: 'left',
@@ -1399,7 +1397,7 @@ export class AdvancedCliUI {
     const panelWidth = Math.floor((terminalWidth - 6) / 2)
 
     panels.slice(0, 2).forEach((panel) => {
-      this.cliInstance.printPanel(
+      console.log(
         boxen(this.formatPanelContent(panel), {
           title: panel.title,
           titleAlignment: 'left',
@@ -1418,7 +1416,7 @@ export class AdvancedCliUI {
     const panelWidth = Math.floor((terminalWidth - 8) / 3)
 
     panels.slice(0, 3).forEach((panel) => {
-      this.cliInstance.printPanel(
+      console.log(
         boxen(this.formatPanelContent(panel), {
           title: panel.title,
           titleAlignment: 'left',

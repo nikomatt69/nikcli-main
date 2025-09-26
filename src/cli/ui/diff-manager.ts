@@ -74,10 +74,10 @@ export class DiffManager {
       return
     }
 
-    this.cliInstance.printPanel(
+    console.log(
       boxen(
         `${chalk.blue.bold('File Diff:')} ${chalk.cyan(filePath)}\\n` +
-          `${chalk.gray('Status:')} ${this.getStatusColor(diff.status)}`,
+        `${chalk.gray('Status:')} ${this.getStatusColor(diff.status)}`,
         {
           padding: 1,
           margin: 1,
