@@ -212,7 +212,7 @@ export class BackendAgent extends BaseAgent {
   private async setupMiddleware(task: AgentTask): Promise<any> {
     const { middlewareTypes, framework } = task.metadata || {}
 
-    CliUI.logInfo(`⚙️ Setting up middleware: ${middlewareTypes?.join(', ')}`)
+    CliUI.logInfo(`🔨 Setting up middleware: ${middlewareTypes?.join(', ')}`)
 
     try {
       const middlewareFiles = []

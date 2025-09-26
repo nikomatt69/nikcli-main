@@ -274,7 +274,9 @@ export class UnifiedRAGSystem {
         ],
       })
 
-      console.log(chalk.blue('🔍 File filter system initialized'))
+      if (!process.env.NIKCLI_QUIET_STARTUP) {
+        console.log(chalk.blue('🔍 File filter system initialized'))
+      }
 
       // Initialize workspace RAG (local analysis)
       if (this.config.enableWorkspaceAnalysis) {

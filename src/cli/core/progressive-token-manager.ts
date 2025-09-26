@@ -143,8 +143,8 @@ export class ProgressiveTokenManager {
           ? message.content
           : Array.isArray(message.content)
             ? message.content
-                .map((c: any) => (typeof c === 'object' && c.type === 'text' ? c.text : JSON.stringify(c)))
-                .join('\n')
+              .map((c: any) => (typeof c === 'object' && c.type === 'text' ? c.text : JSON.stringify(c)))
+              .join('\n')
             : JSON.stringify(message.content)
       const messageTokens = this.estimateTokens(content)
 
@@ -253,7 +253,7 @@ export class ProgressiveTokenManager {
         }
 
         console.log(
-          chalk.yellow(`⚙️ Processing chunk ${chunk.index + 1}/${totalChunks} (${chunk.estimatedTokens} tokens)...`)
+          chalk.yellow(`🔨 Processing chunk ${chunk.index + 1}/${totalChunks} (${chunk.estimatedTokens} tokens)...`)
         )
 
         const result = await processor(chunk, context)

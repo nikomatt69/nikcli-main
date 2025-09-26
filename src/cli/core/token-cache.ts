@@ -376,7 +376,7 @@ export class TokenCacheManager {
     if (similarityThreshold !== undefined) this.similarityThreshold = similarityThreshold
     if (maxAge !== undefined) this.maxCacheAge = maxAge
 
-    console.log(chalk.blue('⚙️ Cache settings updated'))
+    console.log(chalk.blue('🔨 Cache settings updated'))
   }
 
   /**

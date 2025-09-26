@@ -60,7 +60,7 @@ export class VisionProvider extends EventEmitter {
       quality: 'auto',
     }
 
-    console.log(chalk.blue('👁️  Vision Provider initialized'))
+    console.log(chalk.blue('🎞️ Vision Provider initialized'))
   }
 
   /**
@@ -450,25 +450,25 @@ Deliver detailed, structured insights for complete image understanding.`
       const anthropicKey =
         simpleConfigManager.getApiKey('claude-3-5-sonnet-20241022') || simpleConfigManager.getApiKey('anthropic')
       if (anthropicKey) providers.push('claude')
-    } catch {}
+    } catch { }
 
     // Check OpenAI
     try {
       const openaiKey = simpleConfigManager.getApiKey('gpt-4o') || simpleConfigManager.getApiKey('openai')
       if (openaiKey) providers.push('openai')
-    } catch {}
+    } catch { }
 
     // Check Google
     try {
       const googleKey = simpleConfigManager.getApiKey('gemini-1.5-pro') || simpleConfigManager.getApiKey('google')
       if (googleKey) providers.push('google')
-    } catch {}
+    } catch { }
 
     // Check Vercel
     try {
       const vercelKey = simpleConfigManager.getApiKey('v0-1.0-md') || simpleConfigManager.getApiKey('vercel')
       if (vercelKey) providers.push('vercel')
-    } catch {}
+    } catch { }
 
     return providers
   }
@@ -485,7 +485,7 @@ Deliver detailed, structured insights for complete image understanding.`
    */
   updateConfig(newConfig: Partial<VisionConfig>): void {
     this.config = { ...this.config, ...newConfig }
-    console.log(chalk.blue('👁️ Vision Provider configuration updated'))
+    console.log(chalk.blue('🎞️Vision Provider configuration updated'))
     this.emit('config_updated', this.config)
   }
 }

@@ -8,7 +8,7 @@ Un sistema completo per l'esecuzione automatica di task di sviluppo in backgroun
 - **🔒 Ambiente Sicuro**: Sandbox completo con policy di sicurezza
 - **📊 Monitoraggio Real-time**: Dashboard web e streaming logs
 - **🐙 Integrazione GitHub**: Branch automatici, PR e check status
-- **⚙️ Configurabile**: Environment e playbook personalizzabili
+- **🔨 Configurabile**: Environment e playbook personalizzabili
 - **📈 Scalabile**: Queue Redis e multiple runner instances
 - **🎯 Intelligente**: Usa nikCLI come motore AI avanzato
 
@@ -247,7 +247,7 @@ nikctl bg start \
 - **📈 Real-time Logs**: Streaming logs con sintassi highlight
 - **🔗 GitHub Integration**: Link diretti alle PR create
 - **📊 Metrics**: Token usage, execution time, success rate
-- **⚙️ Playbook Management**: Editor e templates
+- **🔨 Playbook Management**: Editor e templates
 
 ### CLI Monitoring
 

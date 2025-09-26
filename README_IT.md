@@ -213,7 +213,7 @@ Registrazione agenti in `src/cli/register-agents.ts`.
 
 ---
 
-## 🛠️ Strumenti (Tools)
+## 🔨 Strumenti (Tools)
 
 Implementati in `src/cli/tools/` con registro e policy di sicurezza.
 
@@ -308,7 +308,7 @@ npm run build:binary
 
 ---
 
-## 🛠️ Risoluzione problemi
+## 🔨 Risoluzione problemi
 
 - Node.js < 18: aggiornare alla versione >= 18
 - Chiavi API mancanti: usare `/set-key` o variabili d'ambiente

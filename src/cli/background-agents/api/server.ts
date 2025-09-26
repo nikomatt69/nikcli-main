@@ -27,6 +27,7 @@ export interface APIServerConfig {
     privateKey: string
     installationId: string
     webhookSecret: string
+    githubToken?: string
   }
   queue: {
     type: 'local' | 'redis'

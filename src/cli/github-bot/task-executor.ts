@@ -1,0 +1,604 @@
+// src/cli/github-bot/task-executor.ts
+
+import { execSync } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
+import type { Octokit } from '@octokit/rest'
+import { CommentProcessor } from './comment-processor'
+import type {
+  ProcessingJob,
+  TaskResult,
+  RepositoryContext,
+  TaskContext,
+  GitHubBotConfig,
+  CommandParseResult
+} from './types'
+
+/**
+ * Executes tasks requested via @nikcli mentions in GitHub
+ * Handles repository cloning, task execution, and PR creation
+ */
+export class TaskExecutor {
+  private octokit: Octokit
+  private config: GitHubBotConfig
+  private commentProcessor: CommentProcessor
+  private workingDir: string
+
+  constructor(octokit: Octokit, config: GitHubBotConfig) {
+    this.octokit = octokit
+    this.config = config
+    this.commentProcessor = new CommentProcessor()
+    this.workingDir = join(tmpdir(), 'nikcli-github-bot')
+
+    // Ensure working directory exists
+    if (!existsSync(this.workingDir)) {
+      mkdirSync(this.workingDir, { recursive: true })
+    }
+  }
+
+  /**
+   * Execute task from processing job
+   */
+  async executeTask(job: ProcessingJob): Promise<TaskResult> {
+    console.log(`🚀 Executing task: ${job.mention.command}`)
+
+    try {
+      // Parse the command
+      const parsedCommand = this.commentProcessor.parseCommand(job.mention)
+      if (!parsedCommand) {
+        throw new Error(`Invalid command: ${job.mention.command}`)
+      }
+
+      // Build repository context
+      const repoContext = await this.buildRepositoryContext(job.repository)
+
+      // Setup task execution context
+      const taskContext = await this.setupTaskContext(job, repoContext)
+
+      // Execute the specific command
+      const result = await this.executeCommand(parsedCommand, taskContext)
+
+      // Create PR if changes were made
+      if (result.files.length > 0) {
+        const prUrl = await this.createPullRequest(taskContext, result)
+        result.prUrl = prUrl
+        result.shouldComment = true
+      }
+
+      console.log(`✅ Task completed successfully`)
+      return result
+
+    } catch (error) {
+      console.error(`❌ Task execution failed:`, error)
+      throw error
+    }
+  }
+
+  /**
+   * Build repository context information
+   */
+  private async buildRepositoryContext(repository: string): Promise<RepositoryContext> {
+    const [owner, repo] = repository.split('/')
+
+    try {
+      // Get repository information
+      const { data: repoData } = await this.octokit.rest.repos.get({ owner, repo })
+
+      // Get repository languages
+      const { data: languages } = await this.octokit.rest.repos.listLanguages({ owner, repo })
+
+      // Detect project characteristics
+      const hasPackageJson = await this.fileExists(owner, repo, 'package.json')
+      const hasCargoToml = await this.fileExists(owner, repo, 'Cargo.toml')
+      const hasPyProjectToml = await this.fileExists(owner, repo, 'pyproject.toml')
+
+      let packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun' | undefined
+      let framework: string | undefined
+
+      if (hasPackageJson) {
+        // Try to detect package manager and framework
+        const packageContent = await this.getFileContent(owner, repo, 'package.json')
+        try {
+          const packageJson = JSON.parse(packageContent)
+
+          // Detect package manager
+          if (await this.fileExists(owner, repo, 'bun.lockb')) packageManager = 'bun'
+          else if (await this.fileExists(owner, repo, 'pnpm-lock.yaml')) packageManager = 'pnpm'
+          else if (await this.fileExists(owner, repo, 'yarn.lock')) packageManager = 'yarn'
+          else packageManager = 'npm'
+
+          // Detect framework
+          const deps = { ...packageJson.dependencies, ...packageJson.devDependencies }
+          if (deps.react) framework = 'React'
+          else if (deps.vue) framework = 'Vue'
+          else if (deps.angular) framework = 'Angular'
+          else if (deps.svelte) framework = 'Svelte'
+          else if (deps.next) framework = 'Next.js'
+          else if (deps.nuxt) framework = 'Nuxt.js'
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+      }
+
+      // Check for tests and CI
+      const hasTests = await this.hasTestDirectory(owner, repo)
+      const hasCI = await this.fileExists(owner, repo, '.github/workflows') ||
+                    await this.fileExists(owner, repo, '.gitlab-ci.yml') ||
+                    await this.fileExists(owner, repo, 'Jenkinsfile')
+
+      return {
+        owner,
+        repo,
+        defaultBranch: repoData.default_branch,
+        clonePath: join(this.workingDir, `${owner}-${repo}-${Date.now()}`),
+        languages: Object.keys(languages),
+        packageManager,
+        framework,
+        hasTests,
+        hasCI
+      }
+
+    } catch (error) {
+      console.error('Failed to build repository context:', error)
+      throw new Error(`Failed to analyze repository ${repository}`)
+    }
+  }
+
+  /**
+   * Setup task execution context
+   */
+  private async setupTaskContext(job: ProcessingJob, repoContext: RepositoryContext): Promise<TaskContext> {
+    // Create unique branch name
+    const timestamp = Date.now()
+    const tempBranch = `nikcli/${job.mention.command}-${timestamp}`
+
+    // Clone repository
+    await this.cloneRepository(repoContext, tempBranch)
+
+    return {
+      job,
+      repository: repoContext,
+      workingDirectory: repoContext.clonePath,
+      tempBranch
+    }
+  }
+
+  /**
+   * Clone repository to local working directory
+   */
+  private async cloneRepository(repoContext: RepositoryContext, branchName: string): Promise<void> {
+    const cloneUrl = `https://github.com/${repoContext.owner}/${repoContext.repo}.git`
+
+    console.log(`📥 Cloning repository to ${repoContext.clonePath}`)
+
+    try {
+      // Clone repository
+      execSync(
+        `git clone --depth 1 -b ${repoContext.defaultBranch} ${cloneUrl} ${repoContext.clonePath}`,
+        { stdio: 'pipe' }
+      )
+
+      // Create and switch to new branch
+      execSync(`git checkout -b ${branchName}`, {
+        cwd: repoContext.clonePath,
+        stdio: 'pipe'
+      })
+
+      console.log(`✅ Repository cloned and branch ${branchName} created`)
+
+    } catch (error) {
+      throw new Error(`Failed to clone repository: ${error}`)
+    }
+  }
+
+  /**
+   * Execute specific command based on parsed command
+   */
+  private async executeCommand(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    console.log(`🔧 Executing command: ${command.command}`)
+
+    switch (command.command) {
+      case 'fix':
+        return this.executeFix(command, context)
+      case 'add':
+        return this.executeAdd(command, context)
+      case 'optimize':
+        return this.executeOptimize(command, context)
+      case 'refactor':
+        return this.executeRefactor(command, context)
+      case 'test':
+        return this.executeTest(command, context)
+      case 'doc':
+        return this.executeDoc(command, context)
+      case 'security':
+        return this.executeSecurity(command, context)
+      case 'accessibility':
+        return this.executeAccessibility(command, context)
+      case 'analyze':
+        return this.executeAnalyze(command, context)
+      case 'review':
+        return this.executeReview(command, context)
+      default:
+        throw new Error(`Unsupported command: ${command.command}`)
+    }
+  }
+
+  /**
+   * Execute fix command
+   */
+  private async executeFix(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    const result: TaskResult = {
+      success: true,
+      summary: `Applied fixes to ${command.target || 'codebase'}`,
+      files: [],
+      shouldComment: true,
+      details: {}
+    }
+
+    try {
+      // Run NikCLI fix command in the repository
+      const nikCliCommand = this.buildNikCLICommand('fix', command, context)
+      const output = execSync(nikCliCommand, {
+        cwd: context.workingDirectory,
+        encoding: 'utf8',
+        stdio: 'pipe'
+      })
+
+      // Parse NikCLI output to determine modified files
+      result.files = this.parseModifiedFiles(output)
+      result.analysis = `Fixed issues in ${result.files.length} files`
+
+      // Run tests if requested
+      if (command.options?.createTests) {
+        await this.runTests(context)
+        result.details!.testsRun = true
+      }
+
+    } catch (error) {
+      result.success = false
+      result.summary = `Failed to apply fixes: ${error}`
+      throw error
+    }
+
+    return result
+  }
+
+  /**
+   * Execute add command
+   */
+  private async executeAdd(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    const result: TaskResult = {
+      success: true,
+      summary: `Added new functionality: ${command.description}`,
+      files: [],
+      shouldComment: true,
+      details: {}
+    }
+
+    try {
+      const nikCliCommand = this.buildNikCLICommand('implement', command, context)
+      const output = execSync(nikCliCommand, {
+        cwd: context.workingDirectory,
+        encoding: 'utf8',
+        stdio: 'pipe'
+      })
+
+      result.files = this.parseModifiedFiles(output)
+      result.analysis = `Implemented new feature with ${result.files.length} files modified`
+
+    } catch (error) {
+      result.success = false
+      result.summary = `Failed to add functionality: ${error}`
+      throw error
+    }
+
+    return result
+  }
+
+  /**
+   * Execute optimize command
+   */
+  private async executeOptimize(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    const result: TaskResult = {
+      success: true,
+      summary: `Applied optimizations to ${command.target || 'codebase'}`,
+      files: [],
+      shouldComment: true,
+      details: {}
+    }
+
+    const nikCliCommand = this.buildNikCLICommand('optimize', command, context)
+    const output = execSync(nikCliCommand, {
+      cwd: context.workingDirectory,
+      encoding: 'utf8',
+      stdio: 'pipe'
+    })
+
+    result.files = this.parseModifiedFiles(output)
+    result.analysis = `Optimized performance in ${result.files.length} files`
+
+    return result
+  }
+
+  /**
+   * Execute analyze command (read-only)
+   */
+  private async executeAnalyze(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    const result: TaskResult = {
+      success: true,
+      summary: `Code analysis completed for ${command.target || 'repository'}`,
+      files: [],
+      shouldComment: true,
+      analysis: ''
+    }
+
+    try {
+      // Run analysis without modifications
+      const nikCliCommand = this.buildNikCLICommand('analyze', command, context)
+      const output = execSync(nikCliCommand, {
+        cwd: context.workingDirectory,
+        encoding: 'utf8',
+        stdio: 'pipe'
+      })
+
+      result.analysis = this.extractAnalysisReport(output)
+
+    } catch (error) {
+      result.success = false
+      result.summary = `Analysis failed: ${error}`
+    }
+
+    return result
+  }
+
+  /**
+   * Stub implementations for other commands
+   */
+  private async executeRefactor(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    return this.executeGenericCommand('refactor', command, context)
+  }
+
+  private async executeTest(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    return this.executeGenericCommand('test', command, context)
+  }
+
+  private async executeDoc(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    return this.executeGenericCommand('document', command, context)
+  }
+
+  private async executeSecurity(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    return this.executeGenericCommand('security', command, context)
+  }
+
+  private async executeAccessibility(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    return this.executeGenericCommand('accessibility', command, context)
+  }
+
+  private async executeReview(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    return this.executeGenericCommand('review', command, context)
+  }
+
+  /**
+   * Generic command execution
+   */
+  private async executeGenericCommand(action: string, command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    const result: TaskResult = {
+      success: true,
+      summary: `Applied ${action} to ${command.target || 'codebase'}`,
+      files: [],
+      shouldComment: true
+    }
+
+    try {
+      const nikCliCommand = this.buildNikCLICommand(action, command, context)
+      const output = execSync(nikCliCommand, {
+        cwd: context.workingDirectory,
+        encoding: 'utf8',
+        stdio: 'pipe'
+      })
+
+      result.files = this.parseModifiedFiles(output)
+      result.analysis = `Applied ${action} to ${result.files.length} files`
+
+    } catch (error) {
+      result.success = false
+      result.summary = `${action} failed: ${error}`
+      throw error
+    }
+
+    return result
+  }
+
+  /**
+   * Build NikCLI command string
+   */
+  private buildNikCLICommand(action: string, command: CommandParseResult, context: TaskContext): string {
+    let cmd = `npx @nicomatt69/nikcli ${action}`
+
+    if (command.target) {
+      cmd += ` "${command.target}"`
+    }
+
+    if (command.description && command.description !== action) {
+      cmd += ` --description "${command.description}"`
+    }
+
+    // Add common flags
+    cmd += ' --auto-confirm --quiet'
+
+    return cmd
+  }
+
+  /**
+   * Parse modified files from NikCLI output
+   */
+  private parseModifiedFiles(output: string): string[] {
+    const files: string[] = []
+    const lines = output.split('\n')
+
+    for (const line of lines) {
+      // Look for file modification patterns
+      if (line.includes('Modified:') || line.includes('Created:') || line.includes('Updated:')) {
+        const match = line.match(/(?:Modified|Created|Updated):\s*(.+)/)
+        if (match) {
+          files.push(match[1].trim())
+        }
+      }
+    }
+
+    return files
+  }
+
+  /**
+   * Extract analysis report from output
+   */
+  private extractAnalysisReport(output: string): string {
+    // Extract meaningful analysis content from NikCLI output
+    const lines = output.split('\n')
+    const analysisLines = lines.filter(line =>
+      !line.includes('Loading') &&
+      !line.includes('Initializing') &&
+      line.trim().length > 0
+    )
+
+    return analysisLines.join('\n').substring(0, 1000) // Limit length
+  }
+
+  /**
+   * Create pull request with changes
+   */
+  private async createPullRequest(context: TaskContext, result: TaskResult): Promise<string> {
+    const { job, repository, tempBranch } = context
+
+    try {
+      // Commit changes
+      execSync('git add .', { cwd: context.workingDirectory, stdio: 'pipe' })
+
+      const commitMessage = `🤖 ${job.mention.command}: ${result.summary}
+
+Applied via @nikcli mention in #${job.issueNumber}
+Requested by: @${job.author}
+
+Files modified:
+${result.files.map(f => `- ${f}`).join('\n')}
+
+Co-authored-by: NikCLI Bot <bot@nikcli.dev>`
+
+      execSync(`git commit -m "${commitMessage}"`, {
+        cwd: context.workingDirectory,
+        stdio: 'pipe'
+      })
+
+      // Push branch
+      execSync(`git push -u origin ${tempBranch}`, {
+        cwd: context.workingDirectory,
+        stdio: 'pipe'
+      })
+
+      // Create pull request
+      const prTitle = `🤖 ${job.mention.command}: ${result.summary}`
+      const prBody = `## Summary
+${result.summary}
+
+## Changes Applied
+${result.files.map(f => `- \`${f}\``).join('\n')}
+
+${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
+
+## Context
+- Requested by: @${job.author}
+- Original issue/PR: #${job.issueNumber}
+- Command: \`@nikcli ${job.mention.command}\`
+
+---
+🤖 This PR was automatically created by [NikCLI Bot](https://github.com/nikomatt69/nikcli-main)`
+
+      const { data: pr } = await this.octokit.rest.pulls.create({
+        owner: repository.owner,
+        repo: repository.repo,
+        title: prTitle,
+        body: prBody,
+        head: tempBranch,
+        base: repository.defaultBranch
+      })
+
+      console.log(`✅ Pull request created: ${pr.html_url}`)
+      return pr.html_url
+
+    } catch (error) {
+      console.error('Failed to create pull request:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Run tests if available
+   */
+  private async runTests(context: TaskContext): Promise<void> {
+    const { repository } = context
+
+    try {
+      if (repository.packageManager) {
+        const testCommand = `${repository.packageManager} test`
+        execSync(testCommand, {
+          cwd: context.workingDirectory,
+          stdio: 'pipe'
+        })
+      }
+    } catch (error) {
+      console.warn('Tests failed or not available:', error)
+    }
+  }
+
+  /**
+   * Utility: Check if file exists in repository
+   */
+  private async fileExists(owner: string, repo: string, path: string): Promise<boolean> {
+    try {
+      await this.octokit.rest.repos.getContent({ owner, repo, path })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Utility: Get file content from repository
+   */
+  private async getFileContent(owner: string, repo: string, path: string): Promise<string> {
+    try {
+      const { data } = await this.octokit.rest.repos.getContent({ owner, repo, path })
+      if ('content' in data) {
+        return Buffer.from(data.content, 'base64').toString('utf8')
+      }
+      return ''
+    } catch {
+      return ''
+    }
+  }
+
+  /**
+   * Utility: Check if repository has test directory
+   */
+  private async hasTestDirectory(owner: string, repo: string): Promise<boolean> {
+    const testDirs = ['test', 'tests', '__tests__', 'spec', 'specs']
+
+    for (const dir of testDirs) {
+      if (await this.fileExists(owner, repo, dir)) {
+        return true
+      }
+    }
+
+    // Check for test files in common locations
+    const testFiles = ['package.json']
+    for (const file of testFiles) {
+      const content = await this.getFileContent(owner, repo, file)
+      if (content.includes('"test"') || content.includes('"jest"') || content.includes('"vitest"')) {
+        return true
+      }
+    }
+
+    return false
+  }
+}

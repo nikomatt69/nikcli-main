@@ -435,7 +435,7 @@ export class SmartCompletionManager {
       '/plan': '📝',
       '/auto': '⚡',
       '/models': '🧠',
-      '/config': '⚙️',
+      '/config': '🔨',
     }
     return icons[cmd] || '▶️'
   }
@@ -477,38 +477,38 @@ export class SmartCompletionManager {
       if (color === 'cyan')
         return chalk.cyan(
           `${icon} ${comp.completion}` +
-            (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
-            (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
+          (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
+          (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
         )
       if (color === 'green')
         return chalk.green(
           `${icon} ${comp.completion}` +
-            (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
-            (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
+          (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
+          (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
         )
       if (color === 'blue')
         return chalk.blue(
           `${icon} ${comp.completion}` +
-            (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
-            (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
+          (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
+          (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
         )
       if (color === 'yellow')
         return chalk.yellow(
           `${icon} ${comp.completion}` +
-            (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
-            (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
+          (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
+          (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
         )
       if (color === 'magenta')
         return chalk.magenta(
           `${icon} ${comp.completion}` +
-            (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
-            (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
+          (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
+          (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
         )
 
       return chalk.white(
         `${icon} ${comp.completion}` +
-          (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
-          (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
+        (comp.description ? chalk.gray(` - ${comp.description}`) : '') +
+        (comp.source === 'ai' ? chalk.dim(` (${confidence}%)`) : '')
       )
     })
   }

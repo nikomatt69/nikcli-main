@@ -72,8 +72,13 @@ export class AdvancedCliUI {
   private layoutMode: 'single' | 'dual' | 'triple' = 'dual'
   private renderTimer: NodeJS.Timeout | null = null
   private vscodeStreamEnabled: boolean = false
-
-  constructor() {
+  // Clean chat mode: hide ephemeral tool logs from the persistent transcript
+  private cleanChatMode: boolean = false
+  // When true, clear live updates automatically when idle/finished
+  private ephemeralLiveUpdates: boolean = false
+  private cliInstance: any
+  constructor(cliInstance?: any) {
+    this.cliInstance = cliInstance
     this.theme = {
       primary: chalk.blue,
       secondary: chalk.cyan,
@@ -86,6 +91,15 @@ export class AdvancedCliUI {
     // Enable VS Code structured event stream when requested
     const flag = process.env.NIKCLI_VSCODE_STREAM || process.env.NIKCLI_EXT_JSON
     this.vscodeStreamEnabled = !!flag && !['0', 'false', 'False', 'OFF'].includes(flag)
+
+    // Determine clean-chat and ephemeral behavior from env, with sensible defaults
+    const truthy = (v?: string) => !!v && !['0', 'false', 'off', 'no'].includes(v.toLowerCase())
+    const cleanEnv = process.env.NIKCLI_CLEAN_CHAT || process.env.NIKCLI_MINIMAL_STREAM
+    // Default to clean mode in non-TTY environments unless explicitly disabled
+    this.cleanChatMode = truthy(cleanEnv || (process.stdout.isTTY ? '' : '1'))
+    const ephemeralEnv = process.env.NIKCLI_LIVE_UPDATES_EPHEMERAL
+    // Default ephemeral behavior to cleanChatMode unless explicitly overridden
+    this.ephemeralLiveUpdates = truthy(ephemeralEnv ?? (this.cleanChatMode ? '1' : ''))
   }
 
   /** Emit a structured event consumable by VS Code webview */
@@ -103,6 +117,12 @@ export class AdvancedCliUI {
    * Start interactive mode with live updates
    */
   startInteractiveMode(): void {
+    // In clean-chat mode on non-TTY environments, avoid interactive panel rendering
+    if (this.cleanChatMode && !process.stdout.isTTY) {
+      this.isInteractiveMode = false
+      this.emitEvent({ type: 'ui', action: 'start' })
+      return
+    }
     this.isInteractiveMode = true
     this.emitEvent({ type: 'ui', action: 'start' })
   }
@@ -113,6 +133,9 @@ export class AdvancedCliUI {
   stopInteractiveMode(): void {
     this.isInteractiveMode = false
     this.cleanup()
+    if (this.ephemeralLiveUpdates) {
+      this.clearLiveUpdates()
+    }
     this.emitEvent({ type: 'ui', action: 'stop' })
   }
 
@@ -164,6 +187,16 @@ export class AdvancedCliUI {
       this.refreshDisplay()
     } else {
       this.logStatusUpdate(indicator)
+    }
+
+    // Auto-clear ephemeral logs when the system becomes idle
+    if (this.ephemeralLiveUpdates && this.isIdle()) {
+      setTimeout(() => {
+        if (this.isIdle()) {
+          this.clearLiveUpdates()
+          if (this.isInteractiveMode) this.refreshDisplay()
+        }
+      }, 250)
     }
   }
 
@@ -292,7 +325,8 @@ export class AdvancedCliUI {
 
     if (this.isInteractiveMode) {
       this.refreshDisplay()
-    } else {
+    } else if (!this.cleanChatMode) {
+      // Only print to console when not in clean chat mode
       this.printLiveUpdate(liveUpdate)
     }
 
@@ -304,6 +338,16 @@ export class AdvancedCliUI {
       source: update.source,
       timestamp: liveUpdate.timestamp,
     })
+
+    // If logs are ephemeral and system is idle, clear them shortly after
+    if (this.ephemeralLiveUpdates && this.isIdle()) {
+      setTimeout(() => {
+        if (this.isIdle()) {
+          this.clearLiveUpdates()
+          if (this.isInteractiveMode) this.refreshDisplay()
+        }
+      }, 250)
+    }
   }
 
   /**
@@ -352,11 +396,11 @@ export class AdvancedCliUI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\\n\\n` +
-        `${chalk.green('✅ Completed:')} ${completed}\\n` +
-        `${chalk.red('❌ Failed:')} ${failed}\\n` +
-        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
-        `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
-        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+      `${chalk.green('✅ Completed:')} ${completed}\\n` +
+      `${chalk.red('❌ Failed:')} ${failed}\\n` +
+      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
+      `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
+      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -485,7 +529,10 @@ export class AdvancedCliUI {
     process.stdout.write('\x1B[2J\x1B[H')
 
     this.showActiveIndicators()
-    this.showRecentUpdates()
+    // Suppress recent updates panel in clean chat mode
+    if (!this.cleanChatMode) {
+      this.showRecentUpdates()
+    }
   }
 
   /**
@@ -599,10 +646,14 @@ export class AdvancedCliUI {
     const statusIcon = this.getStatusIcon(indicator.status)
     const statusColor = this.getStatusColor(indicator.status)
 
-    console.log(`${statusIcon} ${statusColor(indicator.title)}`)
+    if (!this.cleanChatMode) {
+      console.log(`${statusIcon} ${statusColor(indicator.title)}`)
+    }
 
     if (indicator.details) {
-      console.log(`   ${chalk.gray(indicator.details)}`)
+      if (!this.cleanChatMode) {
+        console.log(`   ${chalk.gray(indicator.details)}`)
+      }
     }
   }
 
@@ -696,6 +747,18 @@ export class AdvancedCliUI {
     if (hasWarning) return chalk.yellow('Warning')
 
     return chalk.green('Ready')
+  }
+
+  /** Determine if there are no running/pending indicators, spinners, or progress bars */
+  private isIdle(): boolean {
+    const anyRunning = Array.from(this.indicators.values()).some((i) => i.status === 'running' || i.status === 'pending')
+    return !anyRunning && this.spinners.size === 0 && this.progressBars.size === 0
+  }
+
+  /** Clear all recent live updates */
+  clearLiveUpdates(): void {
+    this.liveUpdates = []
+    this.emitEvent({ type: 'log', action: 'clear' })
   }
 
   private getOverallStatusText(): string {
@@ -1302,7 +1365,7 @@ export class AdvancedCliUI {
     const visiblePanels = this.getRenderablePanels()
 
     visiblePanels.forEach((panel) => {
-      console.log(
+      this.cliInstance.printPanel(
         boxen(this.formatPanelContent(panel), {
           title: panel.title,
           titleAlignment: 'left',
@@ -1317,7 +1380,7 @@ export class AdvancedCliUI {
   private renderSinglePanel(panel: StructuredPanel): void {
     const terminalWidth = process.stdout.columns || 80
 
-    console.log(
+    this.cliInstance.printPanel(
       boxen(this.formatPanelContent(panel), {
         title: panel.title,
         titleAlignment: 'left',
@@ -1334,7 +1397,7 @@ export class AdvancedCliUI {
     const panelWidth = Math.floor((terminalWidth - 6) / 2)
 
     panels.slice(0, 2).forEach((panel) => {
-      console.log(
+      this.cliInstance.printPanel(
         boxen(this.formatPanelContent(panel), {
           title: panel.title,
           titleAlignment: 'left',
@@ -1353,7 +1416,7 @@ export class AdvancedCliUI {
     const panelWidth = Math.floor((terminalWidth - 8) / 3)
 
     panels.slice(0, 3).forEach((panel) => {
-      console.log(
+      this.cliInstance.printPanel(
         boxen(this.formatPanelContent(panel), {
           title: panel.title,
           titleAlignment: 'left',
@@ -1716,10 +1779,10 @@ export class AdvancedCliUI {
       '.fs': '🔸',
 
       // Systems programming
-      '.c': '⚙️',
-      '.h': '⚙️',
-      '.cpp': '⚙️',
-      '.hpp': '⚙️',
+      '.c': '🔨',
+      '.h': '🔨',
+      '.cpp': '🔨',
+      '.hpp': '🔨',
       '.m': '🍎',
       '.mm': '🍎',
 
@@ -1735,10 +1798,10 @@ export class AdvancedCliUI {
       // Data formats
       '.json': '📋',
       '.xml': '📄',
-      '.yaml': '⚙️',
-      '.yml': '⚙️',
+      '.yaml': '🔨',
+      '.yml': '🔨',
       '.toml': '📝',
-      '.ini': '⚙️',
+      '.ini': '🔨',
       '.env': '🔑',
 
       // Documentation

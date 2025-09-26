@@ -118,8 +118,10 @@ export class AiSdkEmbeddingProvider {
     if (this.availableProviders.length === 0) {
       console.log(chalk.blue('🧠 RAG using local workspace analysis (no API keys configured)'))
     } else {
-      console.log(chalk.green(`✅ Embedding providers available: ${this.availableProviders.join(', ')}`))
-      console.log(chalk.gray(`   Default: ${this.currentProvider}`))
+      if (!process.env.NIKCLI_QUIET_STARTUP) {
+        console.log(chalk.green(`✅ Embedding providers available: ${this.availableProviders.join(', ')}`))
+        console.log(chalk.gray(`   Default: ${this.currentProvider}`))
+      }
     }
   }
 

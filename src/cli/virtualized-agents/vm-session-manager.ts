@@ -104,6 +104,17 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
   }
 
   /**
+   * Clear message queue for session
+   */
+  async clearMessageQueue(sessionId: string): Promise<void> {
+    const queue = this.messageQueues.get(sessionId)
+    if (queue) {
+      queue.length = 0
+      console.log(chalk.cyan(`🧹 Cleared message queue for session ${sessionId}`))
+    }
+  }
+
+  /**
    * Invia messaggio chat alla sessione
    */
   async sendChatMessage(sessionId: string, content: string, sender: 'user' | 'agent' = 'user'): Promise<boolean> {

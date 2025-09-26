@@ -56,7 +56,7 @@ iwr -useb https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installe
 </details>
 
 <details>
-<summary>🛠️ <strong>Development Setup</strong></summary>
+<summary>🔨 <strong>Development Setup</strong></summary>
 
 ```bash
 # Clone repository
@@ -96,8 +96,8 @@ nikcli
 - 📖 [Getting Started](https://nikcli.mintlify.app/quickstart/installation)
 - 🎯 [CLI Commands Reference](https://nikcli.mintlify.app/cli-reference/commands-overview)
 - 🤖 [Agent System](https://nikcli.mintlify.app/agent-system/overview)
-- ⚙️ [Configuration](https://nikcli.mintlify.app/configuration)
-- 🛠️ [Development Guide](https://nikcli.mintlify.app/contributing/development)
+- 🔨 [Configuration](https://nikcli.mintlify.app/configuration)
+- 🔨 [Development Guide](https://nikcli.mintlify.app/contributing/development)
 
 ## ✨ Key Features
 
@@ -204,3 +204,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 **Visit [nikcli.mintlify.app](https://nikcli.mintlify.app) for complete documentation, tutorials, and examples.**
+
+## Environment Variables (UI / Streaming)
+
+- `NIKCLI_COMPACT=1` enables compact output (fewer banners/panels).
+- `NIKCLI_CLEAN_CHAT=1` hides ephemeral toolchain logs (Recent Updates) and suppresses auxiliary router debug logs so only assistant/user stream remains.
+- `NIKCLI_MINIMAL_STREAM=1` alias for clean chat; same behavior as `NIKCLI_CLEAN_CHAT=1`.
+- `NIKCLI_LIVE_UPDATES_EPHEMERAL=1` clears live updates automatically when the system becomes idle or interactive mode stops.

@@ -176,7 +176,7 @@ PERFORMANCE METRICS:
 🎯 Workflow: [Type] | Step: [Current Step]
 ⚠️ Error: [Detailed error description]
 🔍 Root Cause: [Analysis of underlying issue]
-🛠️ Recovery Strategy: [Planned resolution approach]
+🔨 Recovery Strategy: [Planned resolution approach]
 ⏱️ Estimated Recovery Time: [Time estimate]
 ```
 

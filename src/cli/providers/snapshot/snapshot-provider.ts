@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
+import { structuredLogger } from '../../utils/structured-logger'
 
 export interface SnapshotEntry {
   id: string
@@ -78,7 +79,7 @@ export class SnapshotProvider extends EventEmitter {
       const config = (allConfig as Record<string, any>).snapshot || {}
       this.config = { ...this.config, ...config }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Using default snapshot config: ${error.message}`))
+      structuredLogger.warning('Snapshots', `⚠️ Using default snapshot config: ${error.message}`)
     }
   }
 
@@ -104,10 +105,10 @@ export class SnapshotProvider extends EventEmitter {
       await this.loadExistingSnapshots()
       this.isInitialized = true
 
-      console.log(chalk.green(`✅ Snapshot provider initialized (${this.config.provider})`))
+      structuredLogger.success('Snapshots', `✅ Snapshot provider initialized (${this.config.provider})`)
       this.emit('initialized')
     } catch (error: any) {
-      console.log(chalk.red(`❌ Snapshot provider initialization failed: ${error.message}`))
+      structuredLogger.error('Snapshots', `❌ Snapshot provider initialization failed: ${error.message}`)
       throw error
     }
   }
@@ -119,7 +120,7 @@ export class SnapshotProvider extends EventEmitter {
       await fs.access(snapshotDir)
     } catch {
       await fs.mkdir(snapshotDir, { recursive: true })
-      console.log(chalk.blue(`📁 Created snapshots directory: ${snapshotDir}`))
+      structuredLogger.info('Snapshots', `📁 Created snapshots directory: ${snapshotDir}`)
     }
   }
 
@@ -138,7 +139,7 @@ export class SnapshotProvider extends EventEmitter {
         throw new Error(`GitHub API error: ${response.status}`)
       }
 
-      console.log(chalk.green('✅ GitHub connection verified'))
+      structuredLogger.success('Snapshots', '✅ GitHub connection verified')
     } catch (error: any) {
       throw new Error(`GitHub initialization failed: ${error.message}`)
     }
@@ -162,7 +163,7 @@ export class SnapshotProvider extends EventEmitter {
         throw new Error(`Supabase API error: ${response.status}`)
       }
 
-      console.log(chalk.green('✅ Supabase connection verified'))
+      structuredLogger.success('Snapshots', '✅ Supabase connection verified')
     } catch (error: any) {
       throw new Error(`Supabase initialization failed: ${error.message}`)
     }
@@ -526,12 +527,12 @@ export class SnapshotProvider extends EventEmitter {
             const snapshot: SnapshotEntry = JSON.parse(content)
             this.snapshots.set(snapshot.id, snapshot)
           } catch (_error) {
-            console.log(chalk.yellow(`⚠️ Skipped invalid snapshot file: ${file}`))
+            structuredLogger.warning('Snapshots', `⚠️ Skipped invalid snapshot file: ${file}`)
           }
         }
       }
 
-      console.log(chalk.dim(`📁 Loaded ${this.snapshots.size} local snapshots`))
+      structuredLogger.info('Snapshots', `📁 Loaded ${this.snapshots.size} local snapshots`)
     } catch (_error) {
       // Directory doesn't exist or is empty
     }

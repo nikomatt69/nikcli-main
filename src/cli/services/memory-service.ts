@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import { semanticSearchEngine } from '../context/semantic-search-engine'
 import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
 import { type MemoryEntry, type MemorySearchOptions, type MemorySearchResult, mem0Provider } from '../providers/memory'
+import { structuredLogger } from '../utils/structured-logger'
 
 export interface ConversationContext {
   sessionId: string
@@ -59,10 +60,10 @@ export class MemoryService extends EventEmitter {
       await mem0Provider.initialize()
       this.isInitialized = true
 
-      console.log(chalk.green('✅ Memory Service initialized'))
+      structuredLogger.success('Memory Service', '✅ Memory Service initialized')
       this.emit('initialized')
     } catch (error: any) {
-      console.log(chalk.red(`❌ Memory Service initialization failed: ${error.message}`))
+      structuredLogger.error('Memory Service', `❌ Memory Service initialization failed: ${error.message}`)
       throw error
     }
   }

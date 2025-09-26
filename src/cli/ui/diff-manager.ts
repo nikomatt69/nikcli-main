@@ -22,7 +22,7 @@ export interface DiffViewerOptions {
 export class DiffManager {
   private pendingDiffs: Map<string, FileDiff> = new Map()
   private autoAccept: boolean = false
-
+  private cliInstance: any
   /**
    * Set auto-accept mode
    */
@@ -74,10 +74,10 @@ export class DiffManager {
       return
     }
 
-    console.log(
+    this.cliInstance.printPanel(
       boxen(
         `${chalk.blue.bold('File Diff:')} ${chalk.cyan(filePath)}\\n` +
-          `${chalk.gray('Status:')} ${this.getStatusColor(diff.status)}`,
+        `${chalk.gray('Status:')} ${this.getStatusColor(diff.status)}`,
         {
           padding: 1,
           margin: 1,

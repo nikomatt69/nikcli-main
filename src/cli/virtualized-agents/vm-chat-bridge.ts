@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
+import { structuredLogger } from '../utils/structured-logger'
 import type { SecureVirtualizedAgent } from './secure-vm-agent'
 import {
   type VMBridgeResponse,
@@ -149,6 +150,9 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       this.updateAverageResponseTime(responseTime)
 
       console.log(chalk.green(`💬 Successfully routed message to agent ${agentId} (${responseTime}ms)`))
+
+      // Flush message queue after successful processing
+      await this.flushMessageQueue(session.sessionId)
 
       return {
         success: true,
@@ -341,6 +345,21 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       console.log(chalk.green('✅ VM Chat Bridge shutdown complete'))
     } catch (error: any) {
       console.error(chalk.red(`❌ Error during bridge shutdown: ${error.message}`))
+    }
+  }
+
+  /**
+   * Flush message queue for session to prevent buildup
+   */
+  private async flushMessageQueue(sessionId: string): Promise<void> {
+    try {
+      const session = vmSessionManager.getSession(sessionId)
+      if (session) {
+        // Clear any pending messages to prevent loop accumulation
+        await vmSessionManager.clearMessageQueue(sessionId)
+      }
+    } catch (error: any) {
+      console.debug('Queue flush failed:', error.message)
     }
   }
 

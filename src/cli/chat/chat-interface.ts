@@ -105,7 +105,7 @@ Features: Multi-model support, code generation, chat history
 ${chalk.gray('Type your message or use slash commands...')}
     `
 
-    console.log(
+    this.printPanel(
       boxen(welcomeText, {
         padding: 1,
         margin: 1,

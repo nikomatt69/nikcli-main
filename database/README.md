@@ -172,7 +172,7 @@ ORDER BY size_bytes DESC;
 SELECT * FROM pg_stat_user_tables;
 ```
 
-## 🛠️ Customization
+## 🔨 Customization
 
 ### Adding Custom Fields
 

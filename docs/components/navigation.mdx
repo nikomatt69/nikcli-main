@@ -1,6 +1,6 @@
 ---
-title: 'Navigation Components'
-description: 'Master Menu, Tabs, Breadcrumb, and navigation components'
+title: "Navigation Components"
+description: "Master Menu, Tabs, Breadcrumb, and navigation components"
 ---
 
 ## Navigation Components
@@ -28,18 +28,18 @@ The `Menu` component provides flexible menu systems with nested items, keyboard 
 <CodeGroup>
 
 ```typescript Simple Menu
-import { useTerminal, Box, Menu } from 'nikcli-tui';
+import { useTerminal, Box, Menu } from "nikcli-tui";
 
 const { screen } = useTerminal();
 
 const container = new Box({
   parent: screen,
-  top: 'center',
-  left: 'center',
+  top: "center",
+  left: "center",
   width: 60,
   height: 20,
-  border: { type: 'line' },
-  label: ' Menu Examples '
+  border: { type: "line" },
+  label: " Menu Examples ",
 });
 
 // Basic vertical menu
@@ -49,33 +49,33 @@ const mainMenu = new Menu({
   left: 2,
   width: 25,
   items: [
-    { label: '📁 New File', action: 'file:new' },
-    { label: '📂 Open File', action: 'file:open' },
-    { label: '💾 Save File', action: 'file:save' },
+    { label: "📁 New File", action: "file:new" },
+    { label: "📂 Open File", action: "file:open" },
+    { label: "💾 Save File", action: "file:save" },
     { separator: true },
-    { label: '⚙️ Settings', action: 'settings' },
-    { label: '❓ Help', action: 'help' },
+    { label: "🔨 Settings", action: "settings" },
+    { label: "❓ Help", action: "help" },
     { separator: true },
-    { label: '🚪 Exit', action: 'exit', style: { fg: 'red' } }
+    { label: "🚪 Exit", action: "exit", style: { fg: "red" } },
   ],
   onSelect: (item) => {
-    console.log('Menu item selected:', item.action);
+    console.log("Menu item selected:", item.action);
     handleMenuAction(item.action);
-  }
+  },
 });
 
 function handleMenuAction(action: string) {
   switch (action) {
-    case 'file:new':
+    case "file:new":
       createNewFile();
       break;
-    case 'file:open':
+    case "file:open":
       openFileDialog();
       break;
-    case 'settings':
+    case "settings":
       openSettings();
       break;
-    case 'exit':
+    case "exit":
       process.exit(0);
       break;
   }
@@ -90,55 +90,55 @@ const nestedMenu = new Menu({
   width: 25,
   items: [
     {
-      label: '📁 File',
+      label: "📁 File",
       submenu: [
-        { label: '📄 New', action: 'file:new' },
-        { label: '📂 Open', action: 'file:open' },
-        { label: '💾 Save', action: 'file:save' },
+        { label: "📄 New", action: "file:new" },
+        { label: "📂 Open", action: "file:open" },
+        { label: "💾 Save", action: "file:save" },
         { separator: true },
         {
-          label: '📤 Export',
+          label: "📤 Export",
           submenu: [
-            { label: '📋 Copy to Clipboard', action: 'export:clipboard' },
-            { label: '📁 Save as JSON', action: 'export:json' },
-            { label: '📊 Save as CSV', action: 'export:csv' }
-          ]
-        }
-      ]
+            { label: "📋 Copy to Clipboard", action: "export:clipboard" },
+            { label: "📁 Save as JSON", action: "export:json" },
+            { label: "📊 Save as CSV", action: "export:csv" },
+          ],
+        },
+      ],
     },
     {
-      label: '✏️ Edit',
+      label: "✏️ Edit",
       submenu: [
-        { label: '↶ Undo', action: 'edit:undo', shortcut: 'Ctrl+Z' },
-        { label: '↷ Redo', action: 'edit:redo', shortcut: 'Ctrl+Y' },
+        { label: "↶ Undo", action: "edit:undo", shortcut: "Ctrl+Z" },
+        { label: "↷ Redo", action: "edit:redo", shortcut: "Ctrl+Y" },
         { separator: true },
-        { label: '✂️ Cut', action: 'edit:cut', shortcut: 'Ctrl+X' },
-        { label: '📋 Copy', action: 'edit:copy', shortcut: 'Ctrl+C' },
-        { label: '📌 Paste', action: 'edit:paste', shortcut: 'Ctrl+V' }
-      ]
+        { label: "✂️ Cut", action: "edit:cut", shortcut: "Ctrl+X" },
+        { label: "📋 Copy", action: "edit:copy", shortcut: "Ctrl+C" },
+        { label: "📌 Paste", action: "edit:paste", shortcut: "Ctrl+V" },
+      ],
     },
     {
-      label: '🤖 AI',
+      label: "🤖 AI",
       submenu: [
-        { label: '💬 Start Chat', action: 'ai:chat' },
-        { label: '✨ Complete Code', action: 'ai:complete' },
-        { label: '🔍 Analyze Code', action: 'ai:analyze' },
+        { label: "💬 Start Chat", action: "ai:chat" },
+        { label: "✨ Complete Code", action: "ai:complete" },
+        { label: "🔍 Analyze Code", action: "ai:analyze" },
         { separator: true },
         {
-          label: '⚙️ Model Settings',
+          label: "🔨 Model Settings",
           submenu: [
-            { label: '🧠 GPT-4', action: 'ai:model:gpt4' },
-            { label: '🎭 Claude', action: 'ai:model:claude' },
-            { label: '🏠 Local (Ollama)', action: 'ai:model:ollama' }
-          ]
-        }
-      ]
-    }
+            { label: "🧠 GPT-4", action: "ai:model:gpt4" },
+            { label: "🎭 Claude", action: "ai:model:claude" },
+            { label: "🏠 Local (Ollama)", action: "ai:model:ollama" },
+          ],
+        },
+      ],
+    },
   ],
   showShortcuts: true,
   onSelect: (item) => {
-    console.log('Selected:', item.action);
-  }
+    console.log("Selected:", item.action);
+  },
 });
 ```
 
@@ -146,64 +146,64 @@ const nestedMenu = new Menu({
 class DynamicMenu extends Menu {
   private recentFiles: string[] = [];
   private bookmarks: string[] = [];
-  
+
   constructor(props: MenuProps) {
     super(props);
     this.loadUserData();
     this.buildMenu();
   }
-  
+
   private async loadUserData() {
     // Load recent files and bookmarks
     this.recentFiles = await this.loadRecentFiles();
     this.bookmarks = await this.loadBookmarks();
     this.updateMenu();
   }
-  
+
   addRecentFile(filePath: string) {
     // Add to recent files (max 10)
     this.recentFiles.unshift(filePath);
     this.recentFiles = this.recentFiles.slice(0, 10);
     this.updateMenu();
   }
-  
+
   private updateMenu() {
     const menuItems = [
-      { label: '📄 New File', action: 'file:new' },
-      { label: '📂 Open File', action: 'file:open' },
+      { label: "📄 New File", action: "file:new" },
+      { label: "📂 Open File", action: "file:open" },
       { separator: true },
-      
+
       // Recent files submenu
       {
-        label: '🕒 Recent Files',
+        label: "🕒 Recent Files",
         disabled: this.recentFiles.length === 0,
-        submenu: this.recentFiles.map(file => ({
+        submenu: this.recentFiles.map((file) => ({
           label: `📄 ${this.getFileName(file)}`,
           action: `file:open:${file}`,
-          tooltip: file
-        }))
+          tooltip: file,
+        })),
       },
-      
+
       // Bookmarks submenu
       {
-        label: '⭐ Bookmarks',
+        label: "⭐ Bookmarks",
         disabled: this.bookmarks.length === 0,
-        submenu: this.bookmarks.map(bookmark => ({
+        submenu: this.bookmarks.map((bookmark) => ({
           label: `📁 ${this.getFileName(bookmark)}`,
-          action: `file:open:${bookmark}`
-        }))
+          action: `file:open:${bookmark}`,
+        })),
       },
-      
+
       { separator: true },
-      { label: '⚙️ Settings', action: 'settings' },
-      { label: '🚪 Exit', action: 'exit' }
+      { label: "🔨 Settings", action: "settings" },
+      { label: "🚪 Exit", action: "exit" },
     ];
-    
+
     this.setItems(menuItems);
   }
-  
+
   private getFileName(path: string): string {
-    return path.split('/').pop() || path;
+    return path.split("/").pop() || path;
   }
 }
 ```
@@ -397,7 +397,7 @@ The `Tabs` component provides tabbed interfaces for organizing content into swit
 <CodeGroup>
 
 ```typescript Simple Tabs
-import { Tabs } from 'nikcli-tui';
+import { Tabs } from "nikcli-tui";
 
 const simpleTabs = new Tabs({
   parent: container.el,
@@ -407,25 +407,25 @@ const simpleTabs = new Tabs({
   height: 15,
   tabs: [
     {
-      id: 'chat',
-      label: '💬 Chat',
-      content: 'Chat with AI assistant...'
+      id: "chat",
+      label: "💬 Chat",
+      content: "Chat with AI assistant...",
     },
     {
-      id: 'settings',
-      label: '⚙️ Settings',
-      content: 'Application settings...'
+      id: "settings",
+      label: "🔨 Settings",
+      content: "Application settings...",
     },
     {
-      id: 'help',
-      label: '❓ Help',
-      content: 'Help documentation...'
-    }
+      id: "help",
+      label: "❓ Help",
+      content: "Help documentation...",
+    },
   ],
-  activeTab: 'chat',
+  activeTab: "chat",
   onTabChange: (tabId, tab) => {
-    console.log('Switched to tab:', tabId);
-  }
+    console.log("Switched to tab:", tabId);
+  },
 });
 ```
 
@@ -433,25 +433,25 @@ const simpleTabs = new Tabs({
 class AdvancedTabs extends Tabs {
   private tabContents: Map<string, any> = new Map();
   private unsavedChanges: Set<string> = new Set();
-  
+
   constructor(props: TabsProps) {
     super(props);
     this.setupAdvancedFeatures();
   }
-  
+
   addTab(tab: TabConfig) {
     super.addTab(tab);
-    
+
     // Create content component
     const content = this.createTabContent(tab);
     this.tabContents.set(tab.id, content);
-    
+
     // Track changes
-    content.on('change', () => {
+    content.on("change", () => {
       this.markTabUnsaved(tab.id);
     });
   }
-  
+
   closeTab(tabId: string) {
     if (this.unsavedChanges.has(tabId)) {
       this.showUnsavedChangesDialog(tabId);
@@ -459,18 +459,18 @@ class AdvancedTabs extends Tabs {
       this.removeTab(tabId);
     }
   }
-  
+
   private markTabUnsaved(tabId: string) {
     this.unsavedChanges.add(tabId);
-    this.updateTabLabel(tabId, this.getTabLabel(tabId) + ' •');
+    this.updateTabLabel(tabId, this.getTabLabel(tabId) + " •");
   }
-  
+
   private markTabSaved(tabId: string) {
     this.unsavedChanges.delete(tabId);
-    const label = this.getTabLabel(tabId).replace(' •', '');
+    const label = this.getTabLabel(tabId).replace(" •", "");
     this.updateTabLabel(tabId, label);
   }
-  
+
   async saveTab(tabId: string) {
     const content = this.tabContents.get(tabId);
     if (content && content.save) {
@@ -478,40 +478,40 @@ class AdvancedTabs extends Tabs {
       this.markTabSaved(tabId);
     }
   }
-  
+
   private showUnsavedChangesDialog(tabId: string) {
     const dialog = new Modal({
       parent: this.parent,
-      title: 'Unsaved Changes',
-      content: 'You have unsaved changes. Do you want to save before closing?',
+      title: "Unsaved Changes",
+      content: "You have unsaved changes. Do you want to save before closing?",
       buttons: [
         {
-          label: 'Save & Close',
-          variant: 'primary',
+          label: "Save & Close",
+          variant: "primary",
           action: async () => {
             await this.saveTab(tabId);
             this.removeTab(tabId);
             dialog.close();
-          }
+          },
         },
         {
-          label: 'Close Without Saving',
-          variant: 'danger',
+          label: "Close Without Saving",
+          variant: "danger",
           action: () => {
             this.removeTab(tabId);
             dialog.close();
-          }
+          },
         },
         {
-          label: 'Cancel',
-          variant: 'secondary',
+          label: "Cancel",
+          variant: "secondary",
           action: () => {
             dialog.close();
-          }
-        }
-      ]
+          },
+        },
+      ],
     });
-    
+
     dialog.show();
   }
 }
@@ -522,7 +522,7 @@ class TabManager {
   private tabs: AdvancedTabs;
   private maxTabs = 10;
   private tabHistory: string[] = [];
-  
+
   constructor(parent: any) {
     this.tabs = new AdvancedTabs({
       parent,
@@ -536,63 +536,63 @@ class TabManager {
       },
       onTabReorder: (fromIndex, toIndex) => {
         this.handleTabReorder(fromIndex, toIndex);
-      }
+      },
     });
-    
+
     this.setupKeyboardShortcuts();
   }
-  
+
   openFile(filePath: string) {
     const tabId = this.generateTabId(filePath);
-    
+
     // Check if tab already exists
     if (this.tabs.hasTab(tabId)) {
       this.tabs.setActiveTab(tabId);
       return;
     }
-    
+
     // Check tab limit
     if (this.tabs.getTabCount() >= this.maxTabs) {
       this.closeLeastRecentlyUsedTab();
     }
-    
+
     // Create new tab
-    const fileName = filePath.split('/').pop() || filePath;
+    const fileName = filePath.split("/").pop() || filePath;
     this.tabs.addTab({
       id: tabId,
       label: `📄 ${fileName}`,
       closable: true,
-      tooltip: filePath
+      tooltip: filePath,
     });
-    
+
     this.loadFileContent(tabId, filePath);
     this.tabs.setActiveTab(tabId);
   }
-  
+
   private setupKeyboardShortcuts() {
     // Ctrl+T: New tab
-    this.tabs.key(['C-t'], () => {
+    this.tabs.key(["C-t"], () => {
       this.createNewTab();
     });
-    
+
     // Ctrl+W: Close current tab
-    this.tabs.key(['C-w'], () => {
+    this.tabs.key(["C-w"], () => {
       const currentTab = this.tabs.getActiveTab();
       if (currentTab) {
         this.tabs.closeTab(currentTab.id);
       }
     });
-    
+
     // Ctrl+Tab: Next tab
-    this.tabs.key(['C-tab'], () => {
+    this.tabs.key(["C-tab"], () => {
       this.nextTab();
     });
-    
+
     // Ctrl+Shift+Tab: Previous tab
-    this.tabs.key(['C-S-tab'], () => {
+    this.tabs.key(["C-S-tab"], () => {
       this.previousTab();
     });
-    
+
     // Ctrl+1-9: Switch to tab by index
     for (let i = 1; i <= 9; i++) {
       this.tabs.key([`C-${i}`], () => {
@@ -600,13 +600,13 @@ class TabManager {
       });
     }
   }
-  
+
   private closeLeastRecentlyUsedTab() {
     // Find least recently used tab
     const allTabs = this.tabs.getTabs();
     let lruTab = null;
     let oldestTime = Infinity;
-    
+
     for (const tab of allTabs) {
       const lastUsed = this.getTabLastUsedTime(tab.id);
       if (lastUsed < oldestTime) {
@@ -614,19 +614,19 @@ class TabManager {
         lruTab = tab;
       }
     }
-    
+
     if (lruTab) {
       this.tabs.closeTab(lruTab.id);
     }
   }
-  
+
   nextTab() {
     const currentIndex = this.tabs.getActiveTabIndex();
     const tabCount = this.tabs.getTabCount();
     const nextIndex = (currentIndex + 1) % tabCount;
     this.switchToTabByIndex(nextIndex);
   }
-  
+
   previousTab() {
     const currentIndex = this.tabs.getActiveTabIndex();
     const tabCount = this.tabs.getTabCount();
@@ -643,17 +643,17 @@ class TabManager {
 ```typescript
 interface TabsProps extends BaseProps {
   tabs: TabConfig[];
-  activeTab?: string;         // Initially active tab ID
-  position?: 'top' | 'bottom' | 'left' | 'right';
-  closable?: boolean;         // Show close buttons
-  reorderable?: boolean;      // Allow drag-and-drop reordering
-  scrollable?: boolean;       // Scroll tabs if too many
-  
+  activeTab?: string; // Initially active tab ID
+  position?: "top" | "bottom" | "left" | "right";
+  closable?: boolean; // Show close buttons
+  reorderable?: boolean; // Allow drag-and-drop reordering
+  scrollable?: boolean; // Scroll tabs if too many
+
   // Styling
   tabStyle?: StyleConfig;
   activeTabStyle?: StyleConfig;
   contentStyle?: StyleConfig;
-  
+
   // Events
   onTabChange?: (tabId: string, tab: TabConfig) => void;
   onTabClose?: (tabId: string, tab: TabConfig) => void;
@@ -681,7 +681,7 @@ The `Breadcrumb` component shows hierarchical navigation paths and allows users 
 <CodeGroup>
 
 ```typescript Basic Breadcrumb
-import { Breadcrumb } from 'nikcli-tui';
+import { Breadcrumb } from "nikcli-tui";
 
 const pathBreadcrumb = new Breadcrumb({
   parent: container.el,
@@ -690,60 +690,58 @@ const pathBreadcrumb = new Breadcrumb({
   right: 2,
   height: 1,
   items: [
-    { label: 'Home', path: '/' },
-    { label: 'Projects', path: '/projects' },
-    { label: 'AI Assistant', path: '/projects/ai-assistant' },
-    { label: 'Components', path: '/projects/ai-assistant/components' }
+    { label: "Home", path: "/" },
+    { label: "Projects", path: "/projects" },
+    { label: "AI Assistant", path: "/projects/ai-assistant" },
+    { label: "Components", path: "/projects/ai-assistant/components" },
   ],
-  separator: ' > ',
+  separator: " > ",
   onNavigate: (item, index) => {
-    console.log('Navigate to:', item.path);
+    console.log("Navigate to:", item.path);
     navigateToPath(item.path);
-  }
+  },
 });
 ```
 
 ```typescript Dynamic Breadcrumb
 class DynamicBreadcrumb extends Breadcrumb {
   private currentPath: string[] = [];
-  
+
   constructor(props: BreadcrumbProps) {
     super(props);
   }
-  
+
   navigateTo(path: string) {
-    this.currentPath = path.split('/').filter(segment => segment);
+    this.currentPath = path.split("/").filter((segment) => segment);
     this.updateBreadcrumb();
   }
-  
+
   navigateUp(levels: number = 1) {
     this.currentPath = this.currentPath.slice(0, -levels);
     this.updateBreadcrumb();
   }
-  
+
   private updateBreadcrumb() {
-    const items = [
-      { label: '🏠 Home', path: '/' }
-    ];
-    
-    let currentPath = '';
+    const items = [{ label: "🏠 Home", path: "/" }];
+
+    let currentPath = "";
     this.currentPath.forEach((segment, index) => {
-      currentPath += '/' + segment;
+      currentPath += "/" + segment;
       items.push({
         label: this.formatSegment(segment),
-        path: currentPath
+        path: currentPath,
       });
     });
-    
+
     this.setItems(items);
   }
-  
+
   private formatSegment(segment: string): string {
     // Convert kebab-case to Title Case
     return segment
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   }
 }
 
@@ -752,70 +750,70 @@ const breadcrumb = new DynamicBreadcrumb({
   parent: container.el,
   onNavigate: (item) => {
     router.navigateTo(item.path);
-  }
+  },
 });
 
 // Update breadcrumb based on current route
-breadcrumb.navigateTo('/projects/ai-assistant/components/navigation');
+breadcrumb.navigateTo("/projects/ai-assistant/components/navigation");
 ```
 
 ```typescript File System Breadcrumb
 class FileSystemBreadcrumb extends Breadcrumb {
   private fileSystem: FileSystemAPI;
-  
+
   constructor(parent: any, fileSystem: FileSystemAPI) {
     super({
       parent,
-      separator: ' / ',
+      separator: " / ",
       showIcons: true,
       onNavigate: (item) => {
         this.navigateToDirectory(item.path);
-      }
+      },
     });
-    
+
     this.fileSystem = fileSystem;
   }
-  
+
   async setCurrentDirectory(dirPath: string) {
-    const pathSegments = dirPath.split('/').filter(Boolean);
+    const pathSegments = dirPath.split("/").filter(Boolean);
     const items: BreadcrumbItem[] = [
-      { label: '💻 Root', path: '/', icon: '💻' }
+      { label: "💻 Root", path: "/", icon: "💻" },
     ];
-    
-    let currentPath = '';
+
+    let currentPath = "";
     for (const segment of pathSegments) {
-      currentPath += '/' + segment;
-      
+      currentPath += "/" + segment;
+
       try {
         const stat = await this.fileSystem.stat(currentPath);
-        const icon = stat.isDirectory() ? '📁' : '📄';
-        
+        const icon = stat.isDirectory() ? "📁" : "📄";
+
         items.push({
           label: segment,
           path: currentPath,
-          icon
+          icon,
         });
       } catch (error) {
         // Handle inaccessible directories
         items.push({
           label: segment,
           path: currentPath,
-          icon: '❌',
+          icon: "❌",
           disabled: true,
-          tooltip: 'Directory not accessible'
+          tooltip: "Directory not accessible",
         });
       }
     }
-    
+
     this.setItems(items);
   }
-  
+
   private async navigateToDirectory(path: string) {
     try {
       const contents = await this.fileSystem.readdir(path);
-      this.emit('directoryChanged', path, contents);
+      this.emit("directoryChanged", path, contents);
     } catch (error) {
-      this.emit('navigationError', error);
+      this.emit("navigationError", error);
     }
   }
 }
@@ -828,15 +826,15 @@ class FileSystemBreadcrumb extends Breadcrumb {
 ```typescript
 interface BreadcrumbProps extends BaseProps {
   items: BreadcrumbItem[];
-  separator?: string;         // Separator between items (default: ' > ')
-  showIcons?: boolean;        // Show icons in breadcrumb items
-  maxItems?: number;         // Maximum items to show (with ellipsis)
-  
+  separator?: string; // Separator between items (default: ' > ')
+  showIcons?: boolean; // Show icons in breadcrumb items
+  maxItems?: number; // Maximum items to show (with ellipsis)
+
   // Styling
   itemStyle?: StyleConfig;
   separatorStyle?: StyleConfig;
   activeItemStyle?: StyleConfig;
-  
+
   // Events
   onNavigate?: (item: BreadcrumbItem, index: number) => void;
   onItemHover?: (item: BreadcrumbItem, index: number) => void;
@@ -848,7 +846,7 @@ interface BreadcrumbItem {
   icon?: string;
   disabled?: boolean;
   tooltip?: string;
-  metadata?: any;           // Additional data
+  metadata?: any; // Additional data
 }
 ```
 
@@ -858,25 +856,28 @@ interface BreadcrumbItem {
 
 ```typescript
 class MenuOrganizer {
-  static organizeByFrequency(items: MenuItem[], usage: Map<string, number>): MenuItem[] {
+  static organizeByFrequency(
+    items: MenuItem[],
+    usage: Map<string, number>
+  ): MenuItem[] {
     return items.sort((a, b) => {
       const usageA = usage.get(a.action) || 0;
       const usageB = usage.get(b.action) || 0;
       return usageB - usageA; // Most used first
     });
   }
-  
+
   static groupByCategory(items: MenuItem[]): MenuItem[] {
     const groups = new Map<string, MenuItem[]>();
-    
-    items.forEach(item => {
-      const category = item.action?.split(':')[0] || 'other';
+
+    items.forEach((item) => {
+      const category = item.action?.split(":")[0] || "other";
       if (!groups.has(category)) {
         groups.set(category, []);
       }
       groups.get(category)!.push(item);
     });
-    
+
     const result: MenuItem[] = [];
     groups.forEach((groupItems, category) => {
       if (result.length > 0) {
@@ -884,7 +885,7 @@ class MenuOrganizer {
       }
       result.push(...groupItems);
     });
-    
+
     return result;
   }
 }
@@ -896,29 +897,29 @@ class MenuOrganizer {
 class KeyboardNavigationManager {
   private components: Map<string, NavigationComponent> = new Map();
   private currentFocus: string | null = null;
-  
+
   registerComponent(id: string, component: NavigationComponent) {
     this.components.set(id, component);
-    
-    component.on('focus', () => {
+
+    component.on("focus", () => {
       this.currentFocus = id;
     });
-    
-    component.on('navigate', (direction: NavigationDirection) => {
+
+    component.on("navigate", (direction: NavigationDirection) => {
       this.navigate(direction);
     });
   }
-  
+
   navigate(direction: NavigationDirection) {
     const current = this.components.get(this.currentFocus);
     if (!current) return;
-    
+
     const next = this.findNextComponent(current, direction);
     if (next) {
       next.focus();
     }
   }
-  
+
   private findNextComponent(
     current: NavigationComponent,
     direction: NavigationDirection
@@ -937,50 +938,50 @@ class NavigationStateManager {
   private history: string[] = [];
   private currentIndex = -1;
   private maxHistorySize = 50;
-  
+
   navigate(path: string) {
     // Remove forward history if navigating from middle
     if (this.currentIndex < this.history.length - 1) {
       this.history = this.history.slice(0, this.currentIndex + 1);
     }
-    
+
     // Add new path
     this.history.push(path);
-    
+
     // Limit history size
     if (this.history.length > this.maxHistorySize) {
       this.history.shift();
     } else {
       this.currentIndex++;
     }
-    
-    this.emit('navigate', path);
+
+    this.emit("navigate", path);
   }
-  
+
   back(): string | null {
     if (this.canGoBack()) {
       this.currentIndex--;
       const path = this.history[this.currentIndex];
-      this.emit('navigate', path);
+      this.emit("navigate", path);
       return path;
     }
     return null;
   }
-  
+
   forward(): string | null {
     if (this.canGoForward()) {
       this.currentIndex++;
       const path = this.history[this.currentIndex];
-      this.emit('navigate', path);
+      this.emit("navigate", path);
       return path;
     }
     return null;
   }
-  
+
   canGoBack(): boolean {
     return this.currentIndex > 0;
   }
-  
+
   canGoForward(): boolean {
     return this.currentIndex < this.history.length - 1;
   }
@@ -997,25 +998,13 @@ class NavigationStateManager {
   >
     Learn about Modal, Scrollable, and container components
   </Card>
-  <Card
-    title="AI Integration"
-    icon="brain"
-    href="/ai/overview"
-  >
+  <Card title="AI Integration" icon="brain" href="/ai/overview">
     Combine navigation with AI-powered applications
   </Card>
-  <Card
-    title="Complete Examples"
-    icon="code"
-    href="/examples/overview"
-  >
+  <Card title="Complete Examples" icon="code" href="/examples/overview">
     See navigation components in real applications
   </Card>
-  <Card
-    title="Layout Components"
-    icon="grid-2"
-    href="/components/layout"
-  >
+  <Card title="Layout Components" icon="grid-2" href="/components/layout">
     Review layout components for structure
   </Card>
 </CardGroup>

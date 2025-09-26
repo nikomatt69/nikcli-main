@@ -44,7 +44,7 @@ export class VMOrchestrator extends EventEmitter {
       // Container configuration with security and isolation
       const containerConfig = {
         name: containerName,
-        image: 'node:20-alpine',
+        image: 'node:18-alpine',
         environment: {
           AGENT_ID: config.agentId,
           SESSION_TOKEN: config.sessionToken,
@@ -53,6 +53,8 @@ export class VMOrchestrator extends EventEmitter {
         volumes: [
           // Create isolated workspace
           `${containerName}-workspace:/workspace`,
+          // Persistent toolchain state
+          `${containerName}-nikcli-config:/home/node/.nikcli`,
           // Shared socket for Docker-in-Docker if needed
           '/var/run/docker.sock:/var/run/docker.sock',
         ],
@@ -61,14 +63,18 @@ export class VMOrchestrator extends EventEmitter {
           `${this.generateVSCodePort()}:8080`,
         ],
         security: {
-          // Security constraints
+          // Production security constraints
           readOnlyRootfs: false, // Need write access for development
           noNewPrivileges: true,
           // seccompProfile not supported on macOS
           capabilities: {
             drop: ['ALL'],
-            add: ['CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'SETGID', 'SETUID'],
+            add: ['CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'SETGID', 'SETUID', 'NET_BIND_SERVICE'],
           },
+          // Additional security options
+          user: 'node:node',
+          privileged: false,
+          publishAllPorts: false,
         },
         resources: {
           memory: '2g',
@@ -122,19 +128,23 @@ export class VMOrchestrator extends EventEmitter {
 
     const initCommands = [
       // Install git using Alpine package manager (Node.js already included in base image)
-      'apk add --no-cache git curl',
+      'apk add --no-cache git curl build-base python3',
 
       // Verify installations
       'node --version && npm --version',
       'git --version && curl --version',
 
-      // Create workspace directory
-      'mkdir -p /workspace',
+      // Create workspace and config directories
+      'mkdir -p /workspace /home/node/.nikcli',
+      'chown -R node:node /home/node/.nikcli',
 
       // Setup git configuration for agent
       'git config --global user.email "nikcli-agent@localhost"',
       'git config --global user.name "NikCLI Agent"',
       'git config --global init.defaultBranch main',
+
+      // Initialize persistent toolchain state
+      'echo "{\\"initialized\\": true, \\"timestamp\\": \\"$(date -Iseconds)\\"}" > /home/node/.nikcli/container-state.json',
     ]
 
     for (let i = 0; i < initCommands.length; i++) {
@@ -212,7 +222,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   async setupVSCodeServer(containerId: string): Promise<void> {
     try {
-      CliUI.logInfo(`🛠️ Setting up development environment in container ${containerId}`)
+      CliUI.logInfo(`🔨 Setting up development environment in container ${containerId}`)
 
       const devCommands = [
         // Verify Node.js is working
@@ -245,7 +255,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   async setupDevelopmentEnvironment(containerId: string): Promise<void> {
     try {
-      CliUI.logInfo(`🛠️ Setting up shell environment in container ${containerId}`)
+      CliUI.logInfo(`🔨 Setting up shell environment in container ${containerId}`)
 
       const devCommands = [
         // Setup shell environment
@@ -411,7 +421,7 @@ export class VMOrchestrator extends EventEmitter {
   }
 
   /**
-   * Create GitHub pull request using API
+   * Create GitHub pull request with enhanced integration
    */
   private async createGitHubPullRequest(prConfig: any, branchName: string): Promise<string> {
     try {
@@ -430,11 +440,13 @@ export class VMOrchestrator extends EventEmitter {
       const [, owner, rawRepo] = repoMatch
       const repoName = rawRepo.replace(/\.git$/, '')
 
-      // Get GitHub token from environment and ensure fetch is available
-      const githubToken = process.env.GITHUB_TOKEN
+      // Get GitHub token from environment with enhanced validation
+      const githubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN
       if (!githubToken || !fetchFn) {
-        CliUI.logWarning('⚠️ Missing fetch or GITHUB_TOKEN; returning manual PR URL')
-        return `https://github.com/${owner}/${repoName}/compare/${branchName}?expand=1&title=${encodeURIComponent(prConfig.title)}&body=${encodeURIComponent(prConfig.description)}`
+        CliUI.logWarning('⚠️ Missing GitHub token; generating manual PR URL')
+        const manualUrl = this.generateManualPRUrl(owner, repoName, branchName, prConfig)
+        CliUI.logInfo(`📋 Manual PR URL: ${manualUrl}`)
+        return manualUrl
       }
 
       // Determine base branch: prefer provided baseBranch, otherwise fetch repository default branch
@@ -520,12 +532,12 @@ export class VMOrchestrator extends EventEmitter {
     } catch (error: any) {
       CliUI.logError(`❌ Failed to create GitHub PR: ${error.message}`)
 
-      // Fallback to manual PR creation URL
+      // Enhanced fallback with repository validation
       const repoMatch = prConfig.repositoryUrl?.match(/github\.com[\/:]([^\/:]+)\/([^\/]+)(?:\.git)?/)
       if (repoMatch) {
         const [, owner, repo] = repoMatch
         const repoName = repo.replace(/\.git$/, '')
-        return `https://github.com/${owner}/${repoName}/compare/${branchName}?expand=1&title=${encodeURIComponent(prConfig.title)}&body=${encodeURIComponent(prConfig.description)}`
+        return this.generateManualPRUrl(owner, repoName, branchName, prConfig)
       }
 
       throw error
@@ -754,6 +766,28 @@ export class VMOrchestrator extends EventEmitter {
       CliUI.logError(`❌ Failed to create VM agent: ${error.message}`)
       throw error
     }
+  }
+
+  /**
+   * Generate manual PR URL with enhanced parameters
+   */
+  private generateManualPRUrl(owner: string, repoName: string, branchName: string, prConfig: any): string {
+    const baseUrl = `https://github.com/${owner}/${repoName}/compare/${branchName}`
+    const params = new URLSearchParams({
+      expand: '1',
+      title: prConfig.title,
+      body: this.enhancePRDescription(prConfig.description),
+    })
+    return `${baseUrl}?${params.toString()}`
+  }
+
+  /**
+   * Enhance PR description with VM agent metadata
+   */
+  private enhancePRDescription(description: string): string {
+    const timestamp = new Date().toISOString()
+    const metadata = `\n\n---\n🤖 Generated by NikCLI VM Agent\n⏰ ${timestamp}\n🔧 Automated development workflow`
+    return `${description}${metadata}`
   }
 
   /**

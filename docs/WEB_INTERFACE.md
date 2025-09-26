@@ -10,7 +10,7 @@ Una moderna web interface per gestire i Background Agents di NikCLI, ispirata a 
 - **Job monitoring** con status live via WebSocket
 - **Quick actions** per configurazione e creazione agent
 
-### ⚙️ Configurazione Avanzata
+### 🔨 Configurazione Avanzata
 
 - **GitHub Integration** con OAuth flow completo
 - **Repository Selection** con preview e informazioni
@@ -92,7 +92,7 @@ src/cli/background-agents/api/
 - **Connection Management**: Auto-reconnect e heartbeat
 - **Client Sync**: Stato sincronizzato tra tutti i client
 
-## 🛠️ Tecnologie
+## 🔨 Tecnologie
 
 | Categoria         | Tecnologia   | Versione |
 | ----------------- | ------------ | -------- |

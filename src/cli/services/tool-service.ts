@@ -161,7 +161,9 @@ export class ToolService {
 
   registerTool(tool: ToolCapability): void {
     this.tools.set(tool.name, tool)
-    console.log(chalk.dim(`🔧 Registered tool: ${tool.name}`))
+    if (!process.env.NIKCLI_QUIET_STARTUP) {
+      console.log(chalk.dim(`🔧 Registered tool: ${tool.name}`))
+    }
   }
 
   // New semantic search capabilities
@@ -749,7 +751,7 @@ export class ToolService {
    */
   enableDevMode(timeoutMs?: number): void {
     this.policyManager.enableDevMode(timeoutMs)
-    console.log(chalk.yellow('🛠️ Developer mode enabled - reduced security restrictions'))
+    console.log(chalk.yellow('🔨 Developer mode enabled - reduced security restrictions'))
   }
 
   /**

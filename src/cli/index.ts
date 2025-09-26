@@ -5,12 +5,16 @@
  * Consolidated Entry Point with Modular Architecture
  */
 
+// Set quiet startup mode immediately to prevent module initialization logs
+process.env.NIKCLI_QUIET_STARTUP = 'true'
+
 // Load environment variables first
 import dotenv from 'dotenv'
 
 dotenv.config()
 
 import chalk from 'chalk'
+import gradient from 'gradient-string'
 
 // Global unhandled promise rejection handlers for system stability
 process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
@@ -72,6 +76,7 @@ import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
 import { diffManager } from './ui/diff-manager'
 import { Logger as UtilsLogger } from './utils/logger'
+import { structuredLogger } from './utils/structured-logger'
 
 // Global declarations for vision/image providers
 declare global {
@@ -109,6 +114,71 @@ const banner = `
 ██║ ╚████║██║██║  ██╗╚██████╗███████╗██║
 ╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝╚═╝
 `
+
+class BannerAnimator {
+  private static frames: string[] = []
+  private static readonly palettes: [string, string][] = [
+    ['#0ea5e9', '#8b5cf6'],
+    ['#8b5cf6', '#ec4899'],
+    ['#ec4899', '#f97316'],
+    ['#f97316', '#22d3ee'],
+    ['#22d3ee', '#14b8a6'],
+    ['#14b8a6', '#a855f7'],
+  ]
+
+  private static ensureFrames(): void {
+    if (this.frames.length > 0) {
+      return
+    }
+
+    this.frames = this.palettes.map((colors) => gradient(colors).multiline(banner))
+  }
+
+  static renderStatic(): string {
+    this.ensureFrames()
+    return this.frames[0] || chalk.cyanBright(banner)
+  }
+
+  static printStatic(): void {
+    console.log(this.renderStatic())
+  }
+
+  static async play(options: { cycles?: number; frameInterval?: number } = {}): Promise<void> {
+    const cycles = options.cycles ?? 3
+    const frameInterval = options.frameInterval ?? 90
+
+    this.ensureFrames()
+    const frames = this.frames
+
+    if (!process.stdout.isTTY || process.env.CI || process.env.NIKCLI_NO_ANIMATION === '1' || frames.length === 0) {
+      console.clear()
+      this.printStatic()
+      return
+    }
+
+    const totalFrames = frames.length * Math.max(1, cycles)
+
+    await new Promise<void>((resolve) => {
+      let index = 0
+
+      const renderFrame = () => {
+        console.clear()
+        console.log(frames[index % frames.length])
+        index += 1
+
+        if (index >= totalFrames) {
+          clearInterval(timer)
+          console.clear()
+          console.log(frames[frames.length - 1])
+          resolve()
+        }
+      }
+
+      renderFrame()
+      const timer = setInterval(renderFrame, frameInterval)
+    })
+  }
+}
 
 /**
  * Version utilities for checking current and latest versions
@@ -193,30 +263,29 @@ async function getVersionInfo(): Promise<VersionInfo> {
 class IntroductionModule {
   static displayBanner() {
     console.clear()
-    // Use realistic solid colors instead of rainbow gradient
-    console.log(chalk.cyanBright(banner))
+    BannerAnimator.printStatic()
   }
 
   static displayApiKeySetup() {
     // Enhanced TUI version with better theming and structure
     const setupBox = boxen(
       chalk.yellow.bold('  API Key Required\n\n') +
-        chalk.white('To use NikCLI, please set at least one API key:\n\n') +
-        chalk.green('• ANTHROPIC_API_KEY') +
-        chalk.gray(' - for Claude models (recommended)\n') +
-        chalk.blue('• OPENAI_API_KEY') +
-        chalk.gray(' - for GPT models\n') +
-        chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
-        chalk.gray(' - for Gemini models\n') +
-        chalk.cyan('• AI_GATEWAY_API_KEY') +
-        chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
-        chalk.white.bold('Setup Examples:\n') +
-        chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
-        chalk.dim('export OPENAI_API_KEY="your-key-here"\n') +
-        chalk.dim('export GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"\n') +
-        chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
-        chalk.cyan('Then run: ') +
-        chalk.white.bold('npm start'),
+      chalk.white('To use NikCLI, please set at least one API key:\n\n') +
+      chalk.green('• ANTHROPIC_API_KEY') +
+      chalk.gray(' - for Claude models (recommended)\n') +
+      chalk.blue('• OPENAI_API_KEY') +
+      chalk.gray(' - for GPT models\n') +
+      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+      chalk.gray(' - for Gemini models\n') +
+      chalk.cyan('• AI_GATEWAY_API_KEY') +
+      chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
+      chalk.white.bold('Setup Examples:\n') +
+      chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
+      chalk.dim('export OPENAI_API_KEY="your-key-here"\n') +
+      chalk.dim('export GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"\n') +
+      chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
+      chalk.cyan('Then run: ') +
+      chalk.white.bold('npm start'),
       {
         padding: 1,
         margin: 1,
@@ -234,13 +303,13 @@ class IntroductionModule {
     // Enhanced TUI version with status indicators
     const startupBox = boxen(
       chalk.green.bold('🚀 Starting NikCLI...\n\n') +
-        chalk.white('Initializing autonomous AI assistant\n') +
-        chalk.gray('• Loading project context\n') +
-        chalk.gray('• Preparing planning system\n') +
-        chalk.gray('• Setting up tool integrations\n\n') +
-        chalk.cyan('Type ') +
-        chalk.white.bold('/help') +
-        chalk.cyan(' for available commands'),
+      chalk.white('Initializing autonomous AI assistant\n') +
+      chalk.gray('• Loading project context\n') +
+      chalk.gray('• Preparing planning system\n') +
+      chalk.gray('• Setting up tool integrations\n\n') +
+      chalk.cyan('Type ') +
+      chalk.white.bold('/help') +
+      chalk.cyan(' for available commands'),
       {
         padding: 1,
         margin: 1,
@@ -259,9 +328,24 @@ class IntroductionModule {
  * Onboarding Module
  */
 class OnboardingModule {
-  static async runOnboarding(): Promise<boolean> {
+  private static apiKeyStatus: 'unknown' | 'present' | 'skipped' | 'ollama' = 'unknown'
+
+  private static renderSection(lines: string[]): void {
     console.clear()
-    console.log(chalk.cyanBright(banner))
+    BannerAnimator.printStatic()
+    console.log()
+    for (const line of lines) {
+      console.log(line)
+    }
+    console.log()
+  }
+
+  private static async pause(ms: number = 600): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  static async runOnboarding(): Promise<boolean> {
+    await BannerAnimator.play()
 
     // Step 1: Version Information
     await this.showVersionInfo()
@@ -284,21 +368,19 @@ class OnboardingModule {
   }
 
   private static async showBetaWarning(): Promise<void> {
-    // Enhanced TUI version with warning styling
     const warningBox = boxen(
       chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
-        chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
-        chalk.yellow.bold('Potential Risks:\n') +
-        chalk.white('• File system modifications\n') +
-        chalk.white('• Code generation may not always be optimal\n') +
-        chalk.white('• AI responses may be inaccurate\n') +
-        chalk.white('• System resource usage\n\n') +
-        chalk.cyan('For detailed security information, visit:\n') +
-        chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
-        chalk.white('By continuing, you acknowledge these risks.'),
+      chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
+      chalk.yellow.bold('Potential Risks:\n') +
+      chalk.white('• File system modifications\n') +
+      chalk.white('• Code generation may not always be optimal\n') +
+      chalk.white('• AI responses may be inaccurate\n') +
+      chalk.white('• System resource usage\n\n') +
+      chalk.cyan('For detailed security information, visit:\n') +
+      chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
+      chalk.white('By continuing, you acknowledge these risks.'),
       {
         padding: 1,
-        margin: 1,
         borderStyle: 'round',
         borderColor: 'red',
         backgroundColor: '#2a0000',
@@ -306,7 +388,7 @@ class OnboardingModule {
       }
     )
 
-    console.log(warningBox)
+    this.renderSection([warningBox])
 
     const rl = readline.createInterface({
       input: process.stdin,
@@ -324,8 +406,7 @@ class OnboardingModule {
   }
 
   private static async setupApiKeys(): Promise<boolean> {
-    console.log(chalk.blue('\n🔑 API Key Setup'))
-    console.log(chalk.gray('─'.repeat(40)))
+    const header = chalk.blueBright('🔑 API Key Setup')
 
     const anthropicKey = process.env.ANTHROPIC_API_KEY
     const openaiKey = process.env.OPENAI_API_KEY
@@ -335,104 +416,99 @@ class OnboardingModule {
     const gatewayKey = process.env.AI_GATEWAY_API_KEY || process.env.GATEWAY_API_KEY
 
     if (anthropicKey || openaiKey || openrouterKey || googleKey || vercelKey || gatewayKey) {
-      console.log(chalk.green('✅ API keys detected'))
+      this.apiKeyStatus = 'present'
       return true
     }
 
-    // Check for Ollama models
+    // Check for Ollama models before prompting the user
     try {
       const currentModel = configManager.get('currentModel')
       const modelCfg = (configManager.get('models') as any)[currentModel]
       if (modelCfg && modelCfg.provider === 'ollama') {
-        console.log(chalk.green('✅ Ollama model configured'))
+        this.apiKeyStatus = 'ollama'
         return true
       }
     } catch (_) {
       // ignore config errors
     }
 
-    console.log(chalk.yellow('⚠️ No API keys found'))
-
     const setupBox = boxen(
-      chalk.white.bold('Setup your API key:\n\n') +
-        chalk.green('• ANTHROPIC_API_KEY') +
-        chalk.gray(' - for Claude models (recommended)\n') +
-        chalk.blue('• OPENAI_API_KEY') +
-        chalk.gray(' - for GPT models\n') +
-        chalk.yellow('• OPENROUTER_API_KEY') +
-        chalk.gray(' - for OpenRouter models (multi-provider routing)\n') +
-        chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
-        chalk.gray(' - for Gemini models\n') +
-        chalk.cyan('• AI_GATEWAY_API_KEY') +
-        chalk.gray(' - for Vercel AI Gateway (smart routing)\n') +
-        chalk.cyan('• V0_API_KEY') +
-        chalk.gray(' - for Vercel models\n\n') +
-        chalk.white.bold('Example:\n') +
-        chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
-        chalk.dim('export OPENROUTER_API_KEY="your-key-here"\n') +
-        chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
-        chalk.cyan('Or use Ollama for local models: ollama pull llama3.1:8b'),
+      chalk.yellow.bold('⚠️  No API keys detected\n\n') +
+      chalk.white('To unlock the best experience, add at least one API key:\n\n') +
+      chalk.green('• ANTHROPIC_API_KEY') +
+      chalk.gray(' – Claude models (recommended)\n') +
+      chalk.blue('• OPENAI_API_KEY') +
+      chalk.gray(' – GPT models\n') +
+      chalk.yellow('• OPENROUTER_API_KEY') +
+      chalk.gray(' – Multi-provider routing\n') +
+      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+      chalk.gray(' – Gemini models\n') +
+      chalk.cyan('• AI_GATEWAY_API_KEY / V0_API_KEY') +
+      chalk.gray(' – Vercel integrations\n\n') +
+      chalk.white.bold('Example commands:\n') +
+      chalk.dim('export ANTHROPIC_API_KEY="your-key"\n') +
+      chalk.dim('export OPENROUTER_API_KEY="your-key"\n\n') +
+      chalk.cyan('Prefer local models? Configure Ollama below.'),
       {
         padding: 1,
-        margin: 1,
         borderStyle: 'round',
         borderColor: 'yellow',
         backgroundColor: '#2a1a00',
+        title: 'API Configuration',
       }
     )
 
-    console.log(setupBox)
+    this.renderSection([header, setupBox])
 
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     })
     const answer: string = await new Promise((resolve) =>
-      rl.question(chalk.yellow('\nContinue without API keys? (y/N): '), resolve)
+      rl.question(chalk.yellow('Continue without API keys? (y/N): '), resolve)
     )
     rl.close()
 
     if (!answer || !answer.toLowerCase().startsWith('y')) {
-      console.log(chalk.blue('\n👋 Set up your API key and run NikCLI again!'))
+      const exitBox = boxen(chalk.blue.bold('👋 Set up your API keys and restart NikCLI when ready!'), {
+        padding: 1,
+        borderStyle: 'round',
+        borderColor: 'blue',
+        backgroundColor: '#001a33',
+        title: 'Setup Required',
+      })
+      this.renderSection([header, exitBox])
       process.exit(0)
     }
 
-    // User chose to continue without API keys - offer Ollama setup
-    return await this.setupOllama()
+    const configured = await this.setupOllama()
+    this.apiKeyStatus = configured ? 'ollama' : 'skipped'
+    return configured
   }
 
   private static async checkSystemRequirements(): Promise<boolean> {
-    console.log(chalk.blue('\n🔍 System Check'))
-    console.log(chalk.gray('─'.repeat(40)))
+    let runtimeOk = true
 
-    // Check runtime version (Bun or Node)
     try {
       // @ts-ignore - Bun global exists when running with Bun
       if (typeof Bun !== 'undefined') {
-        // @ts-ignore
-        const bunVersion = Bun.version as string
-        console.log(chalk.green(`✅ Bun ${bunVersion}`))
+        runtimeOk = true
       } else {
         const version = process.version
         const major = parseInt(version.slice(1).split('.')[0])
         if (major < 18) {
-          console.log(chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`))
-          return false
+          runtimeOk = false
         }
-        console.log(chalk.green(`✅ Node.js ${version}`))
       }
     } catch (_) {
-      // Fallback to Node check
       const version = process.version
       const major = parseInt(version.slice(1).split('.')[0])
       if (major < 18) {
-        console.log(chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`))
-        return false
+        runtimeOk = false
       }
-      console.log(chalk.green(`✅ Node.js ${version}`))
     }
 
-    // Check Ollama if needed
+    let ollamaOk = true
     try {
       const currentModel = configManager.get('currentModel')
       const modelCfg = (configManager.get('models') as any)[currentModel]
@@ -442,162 +518,281 @@ class OnboardingModule {
 
         try {
           const res = await fetch(`${base}/api/tags`, { method: 'GET' } as any)
-          if (res.ok) {
-            console.log(chalk.green('✅ Ollama service detected'))
-          } else {
-            console.log(chalk.yellow('⚠️ Ollama service not responding'))
+          if (!res.ok) {
+            ollamaOk = false
           }
         } catch (_err) {
-          console.log(chalk.yellow('⚠️ Ollama service not reachable'))
-          console.log(chalk.gray('   Start with: ollama serve'))
+          ollamaOk = false
         }
       }
     } catch (_) {
       // ignore config errors
     }
 
-    return true
+    const allPassed = runtimeOk && ollamaOk
+
+    if (allPassed) {
+      // Show minimal success box
+      const summaryBox = boxen(
+        chalk.white('✅ Node.js v') + chalk.white(process.version) + '\n' +
+        chalk.white('✅ Cloud API provider configured'),
+        {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+          backgroundColor: '#001a00',
+          title: 'Environment Ready',
+        }
+      )
+      console.log(summaryBox)
+    }
+
+    return allPassed
   }
 
   private static async setupOllama(): Promise<boolean> {
-    console.log(chalk.blue('\n🤖 Ollama Setup'))
-    console.log(chalk.gray('─'.repeat(40)))
+    const header = chalk.blueBright('🤖 Ollama Setup')
+    const providerMissingBox = () =>
+      boxen(
+        chalk.yellow('⚠️ No AI provider configured yet. Configure an API key or Ollama to continue later.'),
+        {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'yellow',
+          backgroundColor: '#2a1a00',
+          title: 'Setup Pending',
+        }
+      )
 
     try {
-      const models = configManager.get('models') as any
-      let ollamaEntries = Object.entries(models).filter(([, cfg]: any) => cfg.provider === 'ollama')
+      const models = (configManager.get('models') as any) || {}
+      const ollamaEntries = Object.entries(models).filter(([, cfg]: any) => cfg.provider === 'ollama')
 
       if (ollamaEntries.length > 0) {
-        console.log(chalk.green('✅ Ollama models found in configuration'))
+        const list = ollamaEntries
+          .map(([name, cfg]: any, idx: number) => `${idx + 1}. ${chalk.white(name)} ${chalk.dim(`(${cfg.model})`)}`)
+          .join('\n')
+
+        const modelsBox = boxen(
+          chalk.green.bold('✅ Local Ollama models detected\n\n') + list +
+          '\n\n' +
+          chalk.white('Use a local model to run NikCLI without external API keys.'),
+          {
+            padding: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+            backgroundColor: '#001a00',
+            title: 'Local Models',
+          }
+        )
+
+        this.renderSection([header, modelsBox])
 
         const rl = readline.createInterface({
           input: process.stdin,
           output: process.stdout,
         })
         const answer: string = await new Promise((resolve) =>
-          rl.question(chalk.yellow('\nUse a local Ollama model? (Y/n): '), resolve)
+          rl.question(chalk.yellow('Use a local Ollama model? (Y/n): '), resolve)
         )
         rl.close()
 
         if (!answer || answer.toLowerCase().startsWith('y')) {
-          // Choose Ollama model
           let chosenName = ollamaEntries[0][0] as string
           if (ollamaEntries.length > 1) {
-            console.log(chalk.cyan('\nAvailable Ollama models:'))
-            ollamaEntries.forEach(([name, cfg]: any, idx: number) => {
-              console.log(`  [${idx + 1}] ${name} (${cfg.model})`)
-            })
             const rl2 = readline.createInterface({
               input: process.stdin,
               output: process.stdout,
             })
             const pick = await new Promise<string>((resolve) =>
-              rl2.question('Select model number (default 1): ', resolve)
+              rl2.question(chalk.cyan('Select model number (default 1): '), resolve)
             )
             rl2.close()
-            const i = parseInt((pick || '1').trim(), 10)
-            if (!isNaN(i) && i >= 1 && i <= ollamaEntries.length) {
-              chosenName = ollamaEntries[i - 1][0] as string
+            const idx = parseInt((pick || '1').trim(), 10)
+            if (!Number.isNaN(idx) && idx >= 1 && idx <= ollamaEntries.length) {
+              chosenName = ollamaEntries[idx - 1][0] as string
             }
           }
 
           configManager.setCurrentModel(chosenName)
-          console.log(chalk.green(`✅ Switched to Ollama model: ${chosenName}`))
+          const successBox = boxen(chalk.green.bold(`✅ Using local model: ${chosenName}`), {
+            padding: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+            backgroundColor: '#001a00',
+            title: 'Configuration Updated',
+          })
+          this.renderSection([header, successBox])
+          await this.pause()
           return true
         }
-      } else {
-        // No Ollama models configured - offer to add one
-        const rl = readline.createInterface({
-          input: process.stdin,
-          output: process.stdout,
-        })
-        const answer: string = await new Promise((resolve) =>
-          rl.question(chalk.yellow('\nNo Ollama models configured. Add default model (llama3.1:8b)? (Y/n): '), resolve)
-        )
-        rl.close()
 
-        if (!answer || answer.toLowerCase().startsWith('y')) {
-          const defaultName = 'llama3.1:8b'
-          configManager.addModel(defaultName, {
-            provider: 'ollama',
-            model: 'llama3.1:8b',
-          } as any)
-          configManager.setCurrentModel(defaultName)
-          console.log(chalk.green(`✅ Added and switched to Ollama model: ${defaultName}`))
-          return true
+        this.renderSection([header, providerMissingBox()])
+        await this.pause()
+        return false
+      }
+
+      const promptBox = boxen(
+        chalk.yellow.bold('No Ollama models configured yet.\n\n') +
+        chalk.white('Add the default `llama3.1:8b` model now?\n') +
+        chalk.dim('This enables fully local inference without API keys.'),
+        {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'yellow',
+          backgroundColor: '#2a1a00',
+          title: 'Add Default Model',
         }
+      )
+
+      this.renderSection([header, promptBox])
+
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      })
+      const answer: string = await new Promise((resolve) =>
+        rl.question(chalk.yellow('Add default Ollama model (llama3.1:8b)? (Y/n): '), resolve)
+      )
+      rl.close()
+
+      if (!answer || answer.toLowerCase().startsWith('y')) {
+        const defaultName = 'llama3.1:8b'
+        configManager.addModel(defaultName, {
+          provider: 'ollama',
+          model: 'llama3.1:8b',
+        } as any)
+        configManager.setCurrentModel(defaultName)
+        const successBox = boxen(chalk.green.bold('✅ Default Ollama model configured'), {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+          backgroundColor: '#001a00',
+          title: 'Configuration Updated',
+        })
+        this.renderSection([header, successBox])
+        await this.pause()
+        return true
       }
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ Error configuring Ollama models'))
+      const errorBox = boxen(chalk.yellow('⚠️ Unable to configure Ollama automatically'), {
+        padding: 1,
+        borderStyle: 'round',
+        borderColor: 'yellow',
+        backgroundColor: '#2a1a00',
+        title: 'Ollama Setup',
+      })
+      this.renderSection([header, errorBox])
     }
 
-    console.log(chalk.yellow('⚠️ No AI provider configured'))
+    this.renderSection([header, providerMissingBox()])
+    await this.pause()
     return false
   }
 
   private static async setupEnhancedServices(): Promise<void> {
-    console.log(chalk.blue('\n🚀 Enhanced Services Setup'))
-    console.log(chalk.gray('─'.repeat(40)))
+    const header = chalk.blueBright('🚀 Enhanced Services Setup')
 
     const config = configManager.getAll()
-    const redisEnabled = config.redis?.enabled
-    const supabaseEnabled = config.supabase?.enabled
+    const redisEnabled = Boolean(config.redis?.enabled)
+    const supabaseEnabled = Boolean(config.supabase?.enabled)
 
     if (!redisEnabled && !supabaseEnabled) {
-      console.log(chalk.gray('ℹ️  Enhanced services (Redis, Supabase) are disabled'))
-      console.log(chalk.dim('   You can enable them later in configuration'))
+      const infoBox = boxen(
+        chalk.gray('Enhanced services (Redis, Supabase) are currently disabled.\nYou can enable them later from the configuration menu.'),
+        {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'gray',
+          backgroundColor: '#111111',
+          title: 'Optional Services',
+        }
+      )
+      this.renderSection([header, infoBox])
+      await this.pause()
       return
     }
 
-    // Check Redis setup
+    const sections: string[] = []
+
     if (redisEnabled) {
-      console.log(chalk.blue('🔴 Redis Cache Service:'))
       try {
-        // Test Redis connection during setup
         const redisConfig = config.redis
-        console.log(chalk.gray(`   Host: ${redisConfig!.host}:${redisConfig!.port}`))
-        console.log(chalk.gray(`   Database: ${redisConfig!.database}`))
-        console.log(chalk.gray(`   Fallback: ${redisConfig!.fallback.enabled ? 'Enabled' : 'Disabled'}`))
-        console.log(chalk.green('   ✅ Redis configuration loaded'))
+        const redisLines = [
+          chalk.cyan.bold('🔴 Redis Cache Service'),
+          chalk.gray(`Host: ${redisConfig!.host}:${redisConfig!.port}`),
+          chalk.gray(`Database: ${redisConfig!.database}`),
+          chalk.gray(`Fallback: ${redisConfig!.fallback.enabled ? 'Enabled' : 'Disabled'}`),
+          chalk.green('✅ Configuration loaded'),
+        ]
+        sections.push(redisLines.join('\n'))
       } catch (_error: any) {
-        console.log(chalk.yellow(`   ⚠️ Redis configuration issue`))
+        sections.push(chalk.yellow('🔴 Redis Cache Service\n⚠️  Configuration issue detected'))
       }
     }
 
-    // Check Supabase setup
     if (supabaseEnabled) {
-      console.log(chalk.blue('🟢 Supabase Integration:'))
       try {
         const supabaseCredentials = configManager.getSupabaseCredentials()
         const hasCredentials = Boolean(supabaseCredentials.url && supabaseCredentials.anonKey)
+        const supabaseConfig = config.supabase
 
         if (hasCredentials) {
-          console.log(chalk.green('   ✅ Supabase credentials found'))
+          const featureList = Object.entries(supabaseConfig!.features)
+            .filter(([_, enabled]) => enabled)
+            .map(([feature]) => `• ${feature}`)
+            .join('\n')
 
-          const supabaseConfig = config.supabase
+          const supabaseLines = [
+            chalk.green.bold('🟢 Supabase Integration'),
+            chalk.green('✅ Credentials detected'),
+            featureList ? chalk.gray(featureList) : chalk.gray('No advanced features enabled'),
+          ]
+          sections.push(supabaseLines.join('\n'))
+
           if (supabaseConfig!.features.auth) {
             await this.setupAuthentication()
           }
-
-          const enabledFeatures = Object.entries(supabaseConfig!.features)
-            .filter(([_, enabled]) => enabled)
-            .map(([feature, _]) => feature)
-
-          console.log(chalk.gray(`   Features: ${enabledFeatures.join(', ')}`))
         } else {
-          console.log(chalk.yellow('   ⚠️ Supabase credentials not found'))
-          console.log(chalk.dim('   Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables'))
+          sections.push(
+            chalk.yellow(
+              '🟢 Supabase Integration\n⚠️  SUPABASE_URL or SUPABASE_ANON_KEY missing.\n   Add them to enable cloud persistence.'
+            )
+          )
         }
       } catch (_error: any) {
-        console.log(chalk.yellow(`   ⚠️ Supabase setup issue`))
+        sections.push(chalk.yellow('🟢 Supabase Integration\n⚠️  Unable to read Supabase configuration'))
       }
     }
 
-    console.log(chalk.dim('\nEnhanced services will be available during your session.'))
+    if (sections.length > 0) {
+      const servicesBox = boxen(sections.join('\n\n'), {
+        padding: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+        backgroundColor: '#001a2a',
+        title: 'Service Status',
+      })
+      this.renderSection([header, servicesBox])
+      await this.pause()
+    }
   }
 
   private static async setupAuthentication(): Promise<void> {
-    console.log(chalk.cyan('🔐 Authentication Setup:'))
+    const header = chalk.cyanBright('🔐 Authentication Setup')
+    const introBox = boxen(
+      chalk.white('Sign in to sync progress across devices and unlock collaborative features.\n') +
+      chalk.gray('You can always connect later with the /auth command.'),
+      {
+        padding: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+        backgroundColor: '#001a2a',
+        title: 'Optional Sign-In',
+      }
+    )
+
+    this.renderSection([header, introBox])
 
     const rl = readline.createInterface({
       input: process.stdin,
@@ -610,104 +805,207 @@ class OnboardingModule {
       )
 
       if (authChoice && authChoice.toLowerCase().startsWith('y')) {
-        console.log(chalk.blue('\nChoose authentication method:'))
-        console.log('1. Sign in with existing account')
-        console.log('2. Create new account')
-        console.log('3. Continue as guest')
+        const optionsBox = boxen(
+          chalk.white('1. Sign in with existing account\n2. Create new account\n3. Continue as guest'),
+          {
+            padding: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+            backgroundColor: '#001a2a',
+            title: 'Choose Method',
+          }
+        )
+        this.renderSection([header, optionsBox])
 
         const methodChoice = await new Promise<string>((resolve) =>
           rl.question(chalk.yellow('Select option (1-3, default 3): '), resolve)
         )
 
-        switch (methodChoice.trim() || '3') {
+        switch ((methodChoice.trim() || '3').toLowerCase()) {
           case '1':
-            await this.handleSignIn(rl)
+            await this.handleSignIn(rl, header)
             break
           case '2':
-            await this.handleSignUp(rl)
+            await this.handleSignUp(rl, header)
             break
           case '3':
           default:
-            console.log(chalk.gray('   👤 Continuing as guest'))
-            console.log(chalk.dim('   You can sign in anytime with /auth command'))
+            this.renderSection([
+              header,
+              boxen(chalk.gray('👤 Continuing as guest. Connect later with /auth.'), {
+                padding: 1,
+                borderStyle: 'round',
+                borderColor: 'gray',
+                backgroundColor: '#111111',
+                title: 'Guest Mode',
+              }),
+            ])
+            await this.pause()
             break
         }
       } else {
-        console.log(chalk.gray('   👤 Authentication skipped'))
+        this.renderSection([
+          header,
+          boxen(chalk.gray('👤 Authentication skipped. You can sign in anytime with /auth.'), {
+            padding: 1,
+            borderStyle: 'round',
+            borderColor: 'gray',
+            backgroundColor: '#111111',
+            title: 'Guest Mode',
+          }),
+        ])
+        await this.pause()
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`   ⚠️ Authentication setup failed: ${error.message}`))
+      this.renderSection([
+        header,
+        boxen(chalk.yellow(`⚠️ Authentication setup failed: ${error.message}`), {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'yellow',
+          backgroundColor: '#2a1a00',
+          title: 'Authentication',
+        }),
+      ])
+      await this.pause()
     } finally {
       rl.close()
     }
   }
 
-  private static async handleSignIn(rl: readline.Interface): Promise<void> {
+  private static async handleSignIn(rl: readline.Interface, header: string): Promise<void> {
     try {
       const email = await new Promise<string>((resolve) => rl.question('Email: ', resolve))
+      const password = await new Promise<string>((resolve) => rl.question('Password: ', resolve))
 
-      const password = await new Promise<string>((resolve) => {
-        rl.question('Password: ', (answer) => {
-          resolve(answer)
-        })
+      if (!email || !password) {
+        return
+      }
+
+      this.renderSection([
+        header,
+        boxen(chalk.blue('🔄 Signing in...'), {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+          backgroundColor: '#001a2a',
+          title: 'Authentication',
+        }),
+      ])
+
+      const { authProvider } = await import('./providers/supabase/auth-provider')
+
+      const result = await authProvider.signIn(email, password, {
+        rememberMe: true,
       })
 
-      if (email && password) {
-        console.log(chalk.blue('🔄 Signing in...'))
-
-        // Initialize auth provider if not already done
-        const { authProvider } = await import('./providers/supabase/auth-provider')
-
-        const result = await authProvider.signIn(email, password, {
-          rememberMe: true,
+      if (result) {
+        const successBox = boxen(
+          chalk.green(`✅ Welcome back, ${result.profile.email || result.profile.username}!`) +
+          '\n' +
+          chalk.gray(`Subscription: ${result.profile.subscription_tier}`),
+          {
+            padding: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+            backgroundColor: '#001a00',
+            title: 'Signed In',
+          }
+        )
+        this.renderSection([header, successBox])
+      } else {
+        const failureBox = boxen(chalk.red('❌ Sign in failed. Check your credentials and try again.'), {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+          backgroundColor: '#2a0000',
+          title: 'Signed In',
         })
-
-        if (result) {
-          console.log(chalk.green(`   ✅ Welcome back, ${result.profile.email || result.profile.username}!`))
-          console.log(chalk.gray(`   Subscription: ${result.profile.subscription_tier}`))
-        } else {
-          console.log(chalk.red('   ❌ Sign in failed'))
-        }
+        this.renderSection([header, failureBox])
       }
     } catch (_error: any) {
-      console.log(chalk.red(`   ❌ Sign in error`))
+      const errorBox = boxen(chalk.red('❌ Sign in error'), {
+        padding: 1,
+        borderStyle: 'round',
+        borderColor: 'red',
+        backgroundColor: '#2a0000',
+        title: 'Signed In',
+      })
+      this.renderSection([header, errorBox])
+    } finally {
+      await this.pause()
     }
   }
 
-  private static async handleSignUp(rl: readline.Interface): Promise<void> {
+  private static async handleSignUp(rl: readline.Interface, header: string): Promise<void> {
     try {
       const email = await new Promise<string>((resolve) => rl.question('Email: ', resolve))
-
       const password = await new Promise<string>((resolve) => rl.question('Password: ', resolve))
-
       const username = await new Promise<string>((resolve) => rl.question('Username (optional): ', resolve))
 
-      if (email && password) {
-        console.log(chalk.blue('🔄 Creating account...'))
+      if (!email || !password) {
+        return
+      }
 
-        // Initialize auth provider if not already done
-        const { authProvider } = await import('./providers/supabase/auth-provider')
+      this.renderSection([
+        header,
+        boxen(chalk.blue('🔄 Creating account...'), {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+          backgroundColor: '#001a2a',
+          title: 'Authentication',
+        }),
+      ])
 
-        const result = await authProvider.signUp(email, password, {
-          username: username || undefined,
+      const { authProvider } = await import('./providers/supabase/auth-provider')
+
+      const result = await authProvider.signUp(email, password, {
+        username: username || undefined,
+      })
+
+      if (result) {
+        const successBox = boxen(
+          chalk.green('✅ Account created successfully!') +
+          '\n' +
+          chalk.gray(`Welcome, ${result.profile.email}!`) +
+          '\n' +
+          chalk.dim('Check your email for verification if required.'),
+          {
+            padding: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+            backgroundColor: '#001a00',
+            title: 'Account Created',
+          }
+        )
+        this.renderSection([header, successBox])
+      } else {
+        const failureBox = boxen(chalk.red('❌ Account creation failed. Please try again later.'), {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+          backgroundColor: '#2a0000',
+          title: 'Account Created',
         })
-
-        if (result) {
-          console.log(chalk.green(`   ✅ Account created successfully!`))
-          console.log(chalk.gray(`   Welcome, ${result.profile.email}!`))
-          console.log(chalk.dim('   Check your email for verification (if required)'))
-        } else {
-          console.log(chalk.red('   ❌ Account creation failed'))
-        }
+        this.renderSection([header, failureBox])
       }
     } catch (_error: any) {
-      console.log(chalk.red(`   ❌ Sign up error`))
+      const errorBox = boxen(chalk.red('❌ Sign up error'), {
+        padding: 1,
+        borderStyle: 'round',
+        borderColor: 'red',
+        backgroundColor: '#2a0000',
+        title: 'Account Created',
+      })
+      this.renderSection([header, errorBox])
+    } finally {
+      await this.pause()
     }
   }
 
   private static async showVersionInfo(): Promise<void> {
-    console.log(chalk.blue('\n📦 Version Information'))
-    console.log(chalk.gray('─'.repeat(40)))
+    const header = chalk.blueBright('📦 Version Information')
 
     try {
       const versionInfo = await getVersionInfo()
@@ -730,15 +1028,23 @@ class OnboardingModule {
 
       const versionBox = boxen(versionContent, {
         padding: 1,
-        margin: 1,
         borderStyle: 'round',
         borderColor: versionInfo.hasUpdate ? 'green' : 'cyan',
         backgroundColor: versionInfo.hasUpdate ? '#001a00' : '#001a2a',
+        title: versionInfo.hasUpdate ? 'Update Available' : 'Version Status',
       })
 
-      console.log(versionBox)
+      this.renderSection([header, versionBox])
     } catch (_error: any) {
-      console.log(chalk.yellow(`⚠️ Unable to check version`))
+      const warningBox = boxen(chalk.yellow(`⚠️ Unable to check version`), {
+        padding: 1,
+        borderStyle: 'round',
+        borderColor: 'yellow',
+        backgroundColor: '#2a1a00',
+        title: 'Version Status',
+      })
+
+      this.renderSection([header, warningBox])
     }
   }
 }
@@ -774,9 +1080,6 @@ class SystemModule {
     try {
       // @ts-ignore - Bun exists at runtime when using Bun
       if (typeof Bun !== 'undefined') {
-        // @ts-ignore
-        const bunVersion = Bun.version as string
-        console.log(chalk.green(`✅ Bun ${bunVersion}`))
         return true
       }
     } catch (_) {
@@ -787,11 +1090,9 @@ class SystemModule {
     const major = parseInt(version.slice(1).split('.')[0])
 
     if (major < 18) {
-      console.log(chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`))
       return false
     }
 
-    console.log(chalk.green(`✅ Node.js ${version}`))
     return true
   }
 
@@ -815,19 +1116,17 @@ class SystemModule {
       const res = await fetch(`${base}/api/tags`, { method: 'GET' } as any)
       if (!res.ok) {
         SystemModule.lastOllamaStatus = false
-        console.log(chalk.red(`❌ Ollama reachable at ${base} but returned status ${res.status}`))
         return false
       }
       const data: any = await res.json().catch(() => null)
       if (!data || !Array.isArray(data.models)) {
-        console.log(chalk.yellow('⚠️ Unexpected response from Ollama when listing models'))
+        // Unexpected response from Ollama - silent
       } else {
         const currentModel = configManager.get('currentModel')
         const modelCfg = (configManager.get('models') as any)[currentModel]
         const name = modelCfg?.model
         const present = data.models.some((m: any) => m?.name === name || m?.model === name)
         if (!present && name) {
-          console.log(chalk.yellow(`⚠️ Ollama is running but model "${name}" is not present.`))
           // Offer to pull the model now
           const rl = readline.createInterface({
             input: process.stdin,
@@ -839,7 +1138,6 @@ class SystemModule {
           rl.close()
 
           if (!answer || answer.toLowerCase().startsWith('y')) {
-            console.log(chalk.blue(`⏳ Pulling model ${name}...`))
             const code: number = await new Promise<number>((resolve) => {
               const child = spawn('ollama', ['pull', name], {
                 stdio: 'inherit',
@@ -848,45 +1146,28 @@ class SystemModule {
               child.on('error', () => resolve(1))
             })
             if (code === 0) {
-              console.log(chalk.green(`✅ Model ${name} pulled successfully`))
+              // Model pulled successfully - silent
             } else {
-              console.log(chalk.red(`❌ Failed to pull model ${name}. You can try manually: ollama pull ${name}`))
               SystemModule.lastOllamaStatus = false
               return false
             }
           } else {
-            console.log(chalk.gray(`   You can pull it later with: ollama pull ${name}`))
             SystemModule.lastOllamaStatus = false
             return false
           }
         }
       }
-      console.log(chalk.green('✅ Ollama service detected'))
       SystemModule.lastOllamaStatus = true
       return true
     } catch (_err) {
-      const host = process.env.OLLAMA_HOST || '127.0.0.1:11434'
-      const base = host.startsWith('http') ? host : `http://${host}`
-      console.log(chalk.red(`❌ Ollama service not reachable at ${base}`))
-      console.log(chalk.gray('   Start it with "ollama serve" or open the Ollama app. Install: https://ollama.com'))
       SystemModule.lastOllamaStatus = false
       return false
     }
   }
 
   static async checkSystemRequirements(): Promise<boolean> {
-    console.log(chalk.blue('🔍 Checking system requirements...'))
-
     const checks = [this.checkNodeVersion(), await this.checkApiKeys(), await this.checkOllamaAvailability()]
-
     const allPassed = checks.every((r) => r)
-
-    if (allPassed) {
-      console.log(chalk.green('✅ All system checks passed'))
-    } else {
-      console.log(chalk.red('❌ System requirements not met'))
-    }
-
     return allPassed
   }
 }
@@ -910,8 +1191,6 @@ class ServiceModule {
     // Initialize memory and snapshot services
     await memoryService.initialize()
     await snapshotService.initialize()
-
-    console.log(chalk.dim('   Core services configured'))
   }
 
   static async initializeAgents(): Promise<void> {
@@ -932,24 +1211,22 @@ class ServiceModule {
     }
 
     const agents = this.agentManager.listAgents()
-    console.log(chalk.dim(`   Agents ready (${agents.length} available)`))
   }
 
   static async initializeTools(): Promise<void> {
     const tools = toolService.getAvailableTools()
-    console.log(chalk.dim(`   Tools ready (${tools.length} available)`))
   }
 
   static async initializePlanning(): Promise<void> {
-    console.log(chalk.dim('   Planning system ready'))
+    // Planning system initialization
   }
 
   static async initializeSecurity(): Promise<void> {
-    console.log(chalk.dim('   Security policies loaded'))
+    // Security policies loading
   }
 
   static async initializeContext(): Promise<void> {
-    console.log(chalk.dim('   Context management ready'))
+    // Context management initialization
   }
 
   static async initializeEnhancedServices(): Promise<void> {
@@ -959,18 +1236,16 @@ class ServiceModule {
       // Initialize cache service (always available with fallback)
       try {
         // cacheService initializes automatically in constructor
-        console.log(chalk.dim('   ✓ Unified cache service ready'))
       } catch (_error: any) {
-        console.log(chalk.yellow(`   ⚠ Cache service warning`))
+        // Cache service warning - silent
       }
 
       // Initialize Redis cache if enabled
       if (config.redis?.enabled) {
         try {
           // redisProvider initializes connection automatically
-          console.log(chalk.dim('   ✓ Redis cache provider ready'))
         } catch (_error: any) {
-          console.log(chalk.yellow(`   ⚠ Redis connection warning`))
+          // Redis connection warning - silent
         }
       }
 
@@ -978,14 +1253,13 @@ class ServiceModule {
       if (config.supabase?.enabled) {
         try {
           // Add error listener to prevent unhandled promise rejections
-          enhancedSupabaseProvider.on('error', (error: any) => {
-            console.log(chalk.yellow(`⚠️ Supabase Provider Error`))
+          enhancedSupabaseProvider.on('error', (_error: any) => {
+            // Supabase Provider Error - silent
           })
 
           // enhancedSupabaseProvider and authProvider initialize automatically
-          console.log(chalk.dim('   ✓ Supabase providers ready'))
         } catch (_error: any) {
-          console.log(chalk.yellow(`   ⚠ Supabase initialization warning`))
+          // Supabase initialization warning - silent
         }
       }
 
@@ -997,24 +1271,20 @@ class ServiceModule {
         const { visionProvider } = await import('./providers/vision')
         const { imageGenerator } = await import('./providers/image')
 
-        // Providers initialize automatically in their constructors
-        console.log(chalk.dim('   ✓ Vision & Image providers ready for autonomous use'))
+          // Providers initialize automatically in their constructors
 
-        // Make providers globally accessible for chat
-        ;(global as any).visionProvider = visionProvider
-        ;(global as any).imageGenerator = imageGenerator
-      } catch (_error: any) {}
+          // Make providers globally accessible for chat
+          ; (global as any).visionProvider = visionProvider
+          ; (global as any).imageGenerator = imageGenerator
+      } catch (_error: any) { }
     } catch (_error: any) {
-      console.log(chalk.red(`❌ Enhanced services failed`))
+      // Enhanced services failed - silent
       // Don't throw error to allow system to continue with basic functionality
-      console.log(chalk.yellow('System will continue with basic services only'))
     }
   }
 
   static async initializeSystem(): Promise<boolean> {
     if (this.initialized) return true
-
-    console.log(chalk.blue('🔄 Initializing system...'))
 
     const steps = [
       { name: 'Services', fn: this.initializeServices.bind(this) },
@@ -1033,13 +1303,11 @@ class ServiceModule {
       try {
         await step.fn()
       } catch (error: any) {
-        console.log(chalk.red(`❌ ${step.name} failed: ${error.message}`))
         return false
       }
     }
 
     this.initialized = true
-    console.log(chalk.green('✅ System ready'))
     return true
   }
 }
@@ -1088,9 +1356,9 @@ class StreamingModule extends EventEmitter {
     if (process.stdin.isTTY) {
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ;(process.stdin as any).setRawMode(true)
+        ; (process.stdin as any).setRawMode(true)
       }
-      ;(process.stdin as any).resume()
+      ; (process.stdin as any).resume()
     }
 
     // Keypress handlers
@@ -1371,16 +1639,16 @@ class MainOrchestrator {
 
   async start(): Promise<void> {
     try {
+      // Silence background loggers during onboarding so only curated UI appears
+      Logger.setConsoleOutput(false)
+      UtilsLogger.getInstance().setConsoleOutput(false)
+
       // Run onboarding flow
       const onboardingComplete = await OnboardingModule.runOnboarding()
       if (!onboardingComplete) {
         console.log(chalk.yellow('\n⚠️ Onboarding incomplete. Please address the issues above.'))
         process.exit(1)
       }
-
-      // Disable console logging during initialization
-      Logger.setConsoleOutput(false)
-      UtilsLogger.getInstance().setConsoleOutput(false)
 
       // Initialize all systems
       const initialized = await ServiceModule.initializeSystem()

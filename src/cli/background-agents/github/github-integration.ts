@@ -2,6 +2,8 @@
 
 import { Octokit } from '@octokit/rest'
 import type { BackgroundJob, CommitConfig, GitHubConfig } from '../types'
+import { GitHubWebhookHandler } from '../../github-bot/webhook-handler'
+import type { GitHubBotConfig } from '../../github-bot/types'
 
 export interface GitHubPRResult {
   prNumber: number
@@ -23,6 +25,7 @@ export interface GitHubCheckStatus {
 export class GitHubIntegration {
   private octokit: Octokit
   private config: GitHubConfig
+  private webhookHandler?: GitHubWebhookHandler
 
   constructor(config: GitHubConfig) {
     this.config = config
@@ -30,6 +33,32 @@ export class GitHubIntegration {
       auth: this.generateJWT(),
       userAgent: 'nikCLI-background-agents/0.2.2',
     })
+
+    // Initialize webhook handler if bot config is available
+    if (this.hasBotConfig(config)) {
+      this.webhookHandler = new GitHubWebhookHandler(this.getBotConfig(config))
+    }
+  }
+
+  /**
+   * Check if configuration includes bot settings
+   */
+  private hasBotConfig(config: GitHubConfig): boolean {
+    return !!(config as any).webhookSecret && !!(config as any).githubToken
+  }
+
+  /**
+   * Extract bot configuration from GitHub config
+   */
+  private getBotConfig(config: GitHubConfig): GitHubBotConfig {
+    const extended = config as any
+    return {
+      githubToken: extended.githubToken || '',
+      webhookSecret: extended.webhookSecret || '',
+      appId: this.config.appId,
+      privateKey: this.config.privateKey,
+      installationId: this.config.installationId
+    }
   }
 
   /**
@@ -357,6 +386,13 @@ export class GitHubIntegration {
    * Handle GitHub webhook events
    */
   async handleWebhookEvent(event: string, payload: any): Promise<void> {
+    // Handle @nikcli mentions via webhook handler if available
+    if (this.webhookHandler && this.isNikCLIMentionEvent(event, payload)) {
+      await this.handleNikCLIMentionEvent(event, payload)
+      return
+    }
+
+    // Handle existing background agent events
     switch (event) {
       case 'check_run':
         await this.handleCheckRunEvent(payload)
@@ -370,6 +406,63 @@ export class GitHubIntegration {
       default:
         console.log(`Unhandled webhook event: ${event}`)
     }
+  }
+
+  /**
+   * Check if event contains @nikcli mentions
+   */
+  private isNikCLIMentionEvent(event: string, payload: any): boolean {
+    const mentionEvents = ['issue_comment', 'pull_request_review_comment', 'issues']
+
+    if (!mentionEvents.includes(event)) {
+      return false
+    }
+
+    // Check if comment/issue body contains @nikcli
+    const text = payload.comment?.body || payload.issue?.body || ''
+    return text.includes('@nikcli')
+  }
+
+  /**
+   * Handle @nikcli mention events using webhook handler
+   */
+  private async handleNikCLIMentionEvent(event: string, payload: any): Promise<void> {
+    if (!this.webhookHandler) {
+      console.error('Webhook handler not initialized for @nikcli mention')
+      return
+    }
+
+    try {
+      // Create mock request/response for webhook handler
+      const mockReq = {
+        headers: {
+          'x-github-event': event,
+          'x-hub-signature-256': 'mock-signature' // In production, this would be real
+        },
+        body: payload
+      } as any
+
+      const mockRes = {
+        status: (code: number) => ({
+          json: (data: any) => {
+            console.log(`@nikcli webhook response: ${code}`, data)
+          }
+        })
+      } as any
+
+      console.log(`🤖 Processing @nikcli mention in ${event}`)
+      await this.webhookHandler.handleWebhook(mockReq, mockRes)
+
+    } catch (error) {
+      console.error('Failed to handle @nikcli mention:', error)
+    }
+  }
+
+  /**
+   * Get webhook handler for external use
+   */
+  getWebhookHandler(): GitHubWebhookHandler | undefined {
+    return this.webhookHandler
   }
 
   /**

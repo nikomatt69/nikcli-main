@@ -228,7 +228,7 @@ Agents are registered in `src/cli/register-agents.ts`.
 
 ---
 
-## 🛠️ Tools
+## 🔨 Tools
 
 Tools are implemented in `src/cli/tools/` and managed with security policies.
 | Tool | File | Main Features |
@@ -327,7 +327,7 @@ npm run build:binary
 
 ---
 
-## 🛠️ Troubleshooting Common Issues
+## 🔨 Troubleshooting Common Issues
 
 If you encounter issues, check the following:
 

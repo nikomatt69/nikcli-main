@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
+import { structuredLogger } from '../../utils/structured-logger'
 import { redisProvider } from '../redis/redis-provider'
 
 export interface MemoryEntry {
@@ -75,7 +76,7 @@ export class Mem0Provider extends EventEmitter {
       importance_decay_days: 30,
     }
 
-    console.log(chalk.blue('🧠 Mem0 Provider initialized'))
+    structuredLogger.info('Memory', '🧠 Mem0 Provider initialized')
   }
 
   /**
@@ -97,9 +98,9 @@ export class Mem0Provider extends EventEmitter {
       }
 
       this.isInitialized = true
-      console.log(chalk.green('✅ Mem0 memory system initialized'))
+      structuredLogger.success('Memory', '✅ Mem0 memory system initialized')
     } catch (error: any) {
-      console.log(chalk.red(`❌ Mem0 initialization failed: ${error.message}`))
+      structuredLogger.error('Memory', `❌ Mem0 initialization failed: ${error.message}`)
       throw error
     }
   }
@@ -366,7 +367,7 @@ export class Mem0Provider extends EventEmitter {
         break
       case 'memory':
         // In-memory storage, no vector DB
-        console.log(chalk.yellow('⚠️ Using in-memory storage (no persistence)'))
+        structuredLogger.warning('Memory', '⚠️ Using in-memory storage (no persistence)')
         break
     }
   }
@@ -374,13 +375,13 @@ export class Mem0Provider extends EventEmitter {
   private async initializeQdrant(): Promise<void> {
     try {
       // Qdrant client not installed - would require @qdrant/js-client-rest
-      console.log(chalk.yellow('⚠️ Qdrant client not installed'))
-      console.log(chalk.yellow('📝 Install @qdrant/js-client-rest for Qdrant support'))
-      console.log(chalk.yellow('📝 Falling back to in-memory storage'))
+      structuredLogger.warning('Memory', '⚠️ Qdrant client not installed')
+      structuredLogger.info('Memory', '📝 Install @qdrant/js-client-rest for Qdrant support')
+      structuredLogger.info('Memory', '📝 Falling back to in-memory storage')
       this.config.backend = 'memory'
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Qdrant not available: ${error.message}`))
-      console.log(chalk.yellow('📝 Falling back to in-memory storage'))
+      structuredLogger.warning('Memory', `⚠️ Qdrant not available: ${error.message}`)
+      structuredLogger.info('Memory', '📝 Falling back to in-memory storage')
       this.config.backend = 'memory'
     }
   }
@@ -407,10 +408,10 @@ export class Mem0Provider extends EventEmitter {
         path: chromaUrl,
       })
 
-      console.log(chalk.green('✅ ChromaDB vector store connected'))
+      structuredLogger.success('Memory', '✅ ChromaDB vector store connected')
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ ChromaDB not available: ${error.message}`))
-      console.log(chalk.yellow('📝 Falling back to in-memory storage'))
+      structuredLogger.warning('Memory', `⚠️ ChromaDB not available: ${error.message}`)
+      structuredLogger.info('Memory', '📝 Falling back to in-memory storage')
       this.config.backend = 'memory'
     }
   }
@@ -661,10 +662,10 @@ export class Mem0Provider extends EventEmitter {
             this.memories.set(memory.id, memory)
           }
         }
-        console.log(chalk.gray(`📚 Loaded ${this.memories.size} memories from cache`))
+        structuredLogger.info('Memory', `📚 Loaded ${this.memories.size} memories from cache`)
       }
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ Failed to load memories from cache'))
+      structuredLogger.warning('Memory', '⚠️ Failed to load memories from cache')
     }
   }
 
@@ -694,7 +695,7 @@ export class Mem0Provider extends EventEmitter {
     }
 
     if (cleanedCount > 0) {
-      console.log(chalk.gray(`🧹 Cleaned up ${cleanedCount} old memories`))
+      structuredLogger.info('Memory', `🧹 Cleaned up ${cleanedCount} old memories`)
     }
   }
 
@@ -710,7 +711,7 @@ export class Mem0Provider extends EventEmitter {
    */
   updateConfig(newConfig: Partial<Mem0Config>): void {
     this.config = { ...this.config, ...newConfig }
-    console.log(chalk.blue('🧠 Mem0 configuration updated'))
+    structuredLogger.info('Memory', '🧠 Mem0 configuration updated')
     this.emit('config_updated', this.config)
   }
 }

@@ -485,7 +485,7 @@ Use this rich context to provide accurate, contextually-aware responses. Always 
       workspace: '📁',
       documentation: '📚',
       conversation_memory: '🧠',
-      execution_context: '⚙️',
+      execution_context: '🔨',
       semantic_search: '🔍',
     }
     return icons[sourceId] || '📄'

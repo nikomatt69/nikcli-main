@@ -53,6 +53,7 @@ declare module 'boxen' {
     title?: string
     titleAlignment?: 'left' | 'center' | 'right'
     width?: number
+    height?: number
     textAlignment?: 'left' | 'center' | 'right'
   }
 

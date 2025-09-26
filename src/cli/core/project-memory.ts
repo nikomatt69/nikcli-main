@@ -183,7 +183,7 @@ export class ProjectMemoryManager {
   }
 
   /**
-   * ⚙️ Get effective preferences (project + global)
+   * 🔨 Get effective preferences (project + global)
    */
   public getEffectivePreferences(): ProjectPreferences {
     const projectMemory = this.getCurrentProject()

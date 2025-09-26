@@ -712,20 +712,23 @@ export class ToolRouter extends EventEmitter {
 
   // Log tool recommendations for debugging
   logRecommendations(message: string, recommendations: ToolRecommendation[]): void {
-    console.log(chalk.blue(`Processing message: "${message.substring(0, 50)}..."\n`))
+    if (!process.env.NIKCLI_CLEAN_CHAT && !process.env.NIKCLI_MINIMAL_STREAM) {
+      console.log(chalk.blue(`Processing message: "${message.substring(0, 50)}..."\n`))
+    }
 
     if (recommendations.length === 0) {
       return
     }
 
     recommendations.forEach((rec, index) => {
-      const confidenceColor = rec.confidence > 0.7 ? chalk.green : rec.confidence > 0.4 ? chalk.yellow : chalk.red
-      console.log(chalk.blue(`  ${index + 1}. ${rec.tool}`))
-      console.log(confidenceColor(`     Confidence: ${(rec.confidence * 100).toFixed(1)}%`))
-      console.log(chalk.gray(`     Reason: ${rec.reason}`))
-
-      if (rec.suggestedParams && Object.keys(rec.suggestedParams).length > 0) {
-        console.log(chalk.cyan(`     Suggested params: ${JSON.stringify(rec.suggestedParams)}`))
+      if (!process.env.NIKCLI_CLEAN_CHAT && !process.env.NIKCLI_MINIMAL_STREAM) {
+        const confidenceColor = rec.confidence > 0.7 ? chalk.green : rec.confidence > 0.4 ? chalk.yellow : chalk.red
+        console.log(chalk.blue(`  ${index + 1}. ${rec.tool}`))
+        console.log(confidenceColor(`     Confidence: ${(rec.confidence * 100).toFixed(1)}%`))
+        console.log(chalk.gray(`     Reason: ${rec.reason}`))
+        if (rec.suggestedParams && Object.keys(rec.suggestedParams).length > 0) {
+          console.log(chalk.cyan(`     Suggested params: ${JSON.stringify(rec.suggestedParams)}`))
+        }
       }
     })
   }
@@ -737,7 +740,9 @@ export class ToolRouter extends EventEmitter {
    * Multi-dimensional tool selection with security, context, and orchestration awareness
    */
   async routeWithCognition(context: RoutingContext): Promise<AdvancedToolRecommendation[]> {
-    console.log(chalk.blue(`🎯 Advanced routing for: ${context.userIntent.slice(0, 50)}...`))
+    if (!process.env.NIKCLI_CLEAN_CHAT && !process.env.NIKCLI_MINIMAL_STREAM) {
+      console.log(chalk.blue(`🎯 Advanced routing for: ${context.userIntent.slice(0, 50)}...`))
+    }
 
     try {
       // Step 1: 🔍 Analyze Intent and Extract Tool Requirements

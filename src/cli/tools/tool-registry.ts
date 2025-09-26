@@ -450,7 +450,9 @@ export class ToolRegistry {
       tags: ['grep', 'search', 'pattern'],
     })
 
-    CliUI.logInfo(`Initialized tool registry with ${this.tools.size} tools`)
+    if (!process.env.NIKCLI_QUIET_STARTUP) {
+      CliUI.logInfo(`Initialized tool registry with ${this.tools.size} tools`)
+    }
   }
 }
 

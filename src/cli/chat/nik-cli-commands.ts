@@ -586,7 +586,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         case 'on':
           cfg.modelRouting.enabled = true
           configManager.setAll(cfg as any)
-          console.log(
+          this.cliInstance.printPanel(
             boxen('Adaptive model routing enabled', {
               title: '🔀 Router',
               padding: 1,
@@ -599,7 +599,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         case 'off':
           cfg.modelRouting.enabled = false
           configManager.setAll(cfg as any)
-          console.log(
+          this.cliInstance.printPanel(
             boxen('Adaptive model routing disabled', {
               title: '🔀 Router',
               padding: 1,
@@ -612,7 +612,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         case 'verbose':
           cfg.modelRouting.verbose = !cfg.modelRouting.verbose
           configManager.setAll(cfg as any)
-          console.log(
+          this.cliInstance.printPanel(
             boxen(`Verbose logging: ${cfg.modelRouting.verbose ? 'ON' : 'OFF'}`, {
               title: '🔀 Router',
               padding: 1,
@@ -628,9 +628,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             console.log(chalk.red('Usage: /router mode <conservative|balanced|aggressive>'))
             break
           }
-          ;(cfg.modelRouting as any).mode = mode as any
+          ; (cfg.modelRouting as any).mode = mode as any
           configManager.setAll(cfg as any)
-          console.log(
+          this.cliInstance.printPanel(
             boxen(`Routing mode set to ${mode}`, {
               title: '🔀 Router',
               padding: 1,
@@ -651,7 +651,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             chalk.gray('Routing stays within provider and API key.'),
             chalk.gray('Use /router on|off | /router verbose | /router mode <...>'),
           ].join('\n')
-          console.log(
+          this.cliInstance.printPanel(
             boxen(lines, {
               title: '🔀 Router Status',
               padding: 1,
@@ -663,7 +663,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         }
       }
     } catch (error: any) {
-      console.log(
+      this.cliInstance.printPanel(
         boxen(`Router error: ${error.message}`, {
           title: '❌ Router',
           padding: 1,
@@ -751,7 +751,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const nik: any = (global as any).__nikCLI
       nik?.beginPanelOutput?.()
-      console.log(
+      this.cliInstance.printPanel(
         boxen('Enter your Coinbase CDP credentials. Values are stored encrypted. Leave blank to keep current.', {
           title: '🔑 Set Coinbase Keys',
           padding: 1,
@@ -821,7 +821,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         process.env.CDP_WALLET_SECRET = v
       })
 
-      console.log(
+      this.cliInstance.printPanel(
         boxen('Coinbase keys updated. You can now run /web3 init', {
           title: '✅ Keys Saved',
           padding: 1,
@@ -831,7 +831,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         })
       )
     } catch (error: any) {
-      console.log(
+      this.cliInstance.printPanel(
         boxen(`Failed to set Coinbase keys: ${error.message}`, {
           title: '❌ Set Coinbase Keys',
           padding: 1,
@@ -850,7 +850,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const nik: any = (global as any).__nikCLI
       nik?.beginPanelOutput?.()
-      console.log(
+      this.cliInstance.printPanel(
         boxen('Enter your Browserbase credentials. Values are stored encrypted. Leave blank to keep current.', {
           title: '🌐 Set Browserbase Keys',
           padding: 1,
@@ -907,7 +907,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         process.env.BROWSERBASE_PROJECT_ID = v
       })
 
-      console.log(
+      this.cliInstance.printPanel(
         boxen('Browserbase keys updated. You can now browse and analyze web content!', {
           title: '✅ Keys Saved',
           padding: 1,
@@ -917,7 +917,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         })
       )
     } catch (error: any) {
-      console.log(
+      this.cliInstance.printPanel(
         boxen(`Failed to set Browserbase keys: ${error.message}`, {
           title: '❌ Set Browserbase Keys',
           padding: 1,
@@ -974,12 +974,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const { added, updated } = configManager.storeEnvironmentVariables(resolvedPath, variables)
       const skipped = Math.max(total - added - updated, 0)
 
-      console.log(
+      this.cliInstance.printPanel(
         boxen(
           `${chalk.green('Environment variables imported successfully')}` +
-            `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
-            `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
-            `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
+          `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
+          `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
+          `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
           {
             title: '✅ Env Saved',
             padding: 1,
@@ -990,7 +990,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         )
       )
     } catch (error: any) {
-      console.log(
+      this.cliInstance.printPanel(
         boxen(`Failed to import environment variables: ${error.message}`, {
           title: '❌ Env Import Failed',
           padding: 1,
@@ -1651,9 +1651,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('─'.repeat(60)))
           console.log(result.answer.trim())
           console.log(chalk.gray('\nSources:'))
-          ;(result.sources || []).forEach((s: any, idx: number) => {
-            console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
-          })
+            ; (result.sources || []).forEach((s: any, idx: number) => {
+              console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
+            })
           console.log(chalk.gray('─'.repeat(60)))
         } else {
           const items = result?.results || []
@@ -2265,7 +2265,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ;(global as any).__nikCLI.currentMode = 'vm'
+      ; (global as any).__nikCLI.currentMode = 'vm'
     }
 
     console.log(chalk.blue.bold('🐳 Entering VM Chat Mode'))
@@ -2760,7 +2760,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Show project metadata
     if (context.projectMetadata) {
-      console.log(chalk.cyan('\n🛠️ Project Info:'))
+      console.log(chalk.cyan('\n🔨 Project Info:'))
       if (context.projectMetadata.name) {
         console.log(`  Name: ${context.projectMetadata.name}`)
       }
@@ -2800,7 +2800,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       typescript: '🔵',
       javascript: '🔶',
       python: '🐍',
-      rust: '⚙️',
+      rust: '🔨',
       go: '🐹',
       java: '☕',
       cpp: '⚡',
@@ -2877,10 +2877,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority as any,
                     progress: t.progress,
                   }))
-                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                   return { shouldExit: false, shouldUpdatePrompt: false }
                 }
-              } catch {}
+              } catch { }
               console.log(chalk.yellow('No active plans found. Create one with /plan create <goal>'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
@@ -2987,10 +2987,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: t.priority,
                   progress: t.progress,
                 }))
-                ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                  ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 return { shouldExit: false, shouldUpdatePrompt: false }
               }
-            } catch {}
+            } catch { }
             console.log(chalk.gray('No todo lists found'))
             return { shouldExit: false, shouldUpdatePrompt: false }
           }
@@ -3025,8 +3025,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
-              } catch {}
+                  ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+              } catch { }
               enhancedPlanning.showPlanStatus(latestPlan.id)
             } else {
               // Fallback to session todos
@@ -3042,7 +3042,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority,
                     progress: t.progress,
                   }))
-                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 } else {
                   console.log(chalk.yellow('No todo lists found'))
                 }
@@ -3062,8 +3062,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                ;(advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
-              } catch {}
+                  ; (advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
+              } catch { }
             }
             enhancedPlanning.showPlanStatus(planId)
           }
@@ -3106,7 +3106,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       // Hide the Todos HUD panel (structured UI)
       advancedUI.hidePanel('todos')
-    } catch {}
+    } catch { }
 
     try {
       // Clear session todos from the TodoStore for current session
@@ -3119,19 +3119,19 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         globalAny.__nikCLI?.context?.session?.id ||
         `${Date.now()}`
       todoStore.setTodos(String(sessionId), [])
-    } catch {}
+    } catch { }
 
     // Clear inline HUD in renderPromptArea
     try {
       const nik: any = this.cliInstance
       if (nik?.clearPlanHud) nik.clearPlanHud()
-    } catch {}
+    } catch { }
 
     console.log(chalk.green('🧹 HUD Todos cleared'))
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -3148,7 +3148,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -3158,7 +3158,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Toggle visibility on for inline HUD
       const nik: any = this.cliInstance
       if (nik?.showPlanHud) nik.showPlanHud()
-    } catch {}
+    } catch { }
     try {
       // Prefer latest active plan todos if available
       const plans = enhancedPlanning.getActivePlans?.() || []
@@ -3170,10 +3170,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           priority: (t as any).priority,
           progress: (t as any).progress,
         }))
-        ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+          ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
         shown = true
       }
-    } catch {}
+    } catch { }
 
     if (!shown) {
       try {
@@ -3195,10 +3195,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             priority: t.priority,
             progress: t.progress,
           }))
-          ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+            ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
           shown = true
         }
-      } catch {}
+      } catch { }
     }
 
     if (!shown) {
@@ -3210,7 +3210,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -3229,7 +3229,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -3248,7 +3248,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -3349,7 +3349,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ;(global as any).__nikCLI.currentMode = 'default'
+      ; (global as any).__nikCLI.currentMode = 'default'
     }
 
     console.log(chalk.green('💬 Switched to Default Chat Mode'))
@@ -3385,7 +3385,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(`${chalk.blue('System Commands:')} ${config.toolApprovalPolicies.systemCommands}`)
           console.log(`${chalk.blue('Network Requests:')} ${config.toolApprovalPolicies.networkRequests}`)
 
-          console.log(chalk.cyan.bold('\n🛠️ Tools by Risk Level:'))
+          console.log(chalk.cyan.bold('\n🔨 Tools by Risk Level:'))
           const tools = toolService.getAvailableToolsWithSecurity()
           const lowRisk = tools.filter((t) => t.riskLevel === 'low')
           const medRisk = tools.filter((t) => t.riskLevel === 'medium')
@@ -3485,14 +3485,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           const timeoutMs = args[1] ? parseInt(args[1]) * 60000 : undefined // Convert minutes to ms
           toolService.enableDevMode(timeoutMs)
           const timeout = timeoutMs ? ` for ${args[1]} minutes` : ' for 1 hour (default)'
-          console.log(chalk.yellow(`🛠️ Developer mode enabled${timeout}`))
+          console.log(chalk.yellow(`🔨 Developer mode enabled${timeout}`))
           console.log(chalk.gray('Reduced security restrictions active. Use /security status to see current settings.'))
           break
         }
 
         case 'status': {
           const isActive = toolService.isDevModeActive()
-          console.log(chalk.cyan.bold('\n🛠️ Developer Mode Status'))
+          console.log(chalk.cyan.bold('\n🔨 Developer Mode Status'))
           console.log(chalk.gray('─'.repeat(30)))
           console.log(`${chalk.blue('Status:')} ${isActive ? chalk.yellow('Active') : chalk.gray('Inactive')}`)
           if (isActive) {
@@ -3502,7 +3502,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         }
 
         case 'help':
-          console.log(chalk.cyan.bold('\n🛠️ Developer Mode Commands'))
+          console.log(chalk.cyan.bold('\n🔨 Developer Mode Commands'))
           console.log(chalk.gray('─'.repeat(35)))
           console.log(`${chalk.green('/dev-mode enable [minutes]')} - Enable developer mode`)
           console.log(`${chalk.green('/dev-mode status')} - Check developer mode status`)
@@ -3554,7 +3554,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       case 'default':
         return chalk.yellow('🛡️ Default')
       case 'developer':
-        return chalk.red('🛠️ Developer')
+        return chalk.red('🔨 Developer')
       default:
         return chalk.gray(mode)
     }
@@ -3646,7 +3646,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(`  • ${cap}`)
       })
 
-      console.log(chalk.blue.bold('\n🛠️ Required Tools:'))
+      console.log(chalk.blue.bold('\n🔨 Required Tools:'))
       blueprint.requiredTools.forEach((tool) => {
         console.log(`  • ${tool}`)
       })
@@ -3681,8 +3681,16 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.yellow(`⚠️ Are you sure you want to delete blueprint '${blueprint.name}'?`))
       console.log(chalk.gray('This action cannot be undone.'))
 
-      // Simple confirmation for now - in a real implementation you'd want proper confirmation
-      const confirmed = true // TODO: Add proper confirmation prompt
+      // Production confirmation prompt implementation
+      const inquirer = (await import('inquirer')).default
+      const { confirmed } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'confirmed',
+          message: 'Are you sure you want to delete this blueprint?',
+          default: false,
+        },
+      ])
 
       if (confirmed) {
         const deleted = await agentFactory.deleteBlueprint(identifier)
@@ -3817,7 +3825,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
    */
   private async analyzeImageCommand(args: string[]): Promise<CommandResult> {
     if (args.length === 0) {
-      console.log(chalk.blue('👁️ Vision Analysis Commands:'))
+      console.log(chalk.blue('🎞️Vision Analysis Commands:'))
       console.log('')
       console.log(chalk.cyan('/analyze-image <path>') + ' - Analyze an image file')
       console.log(
@@ -3908,7 +3916,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(chalk.cyan('🏗️ Composition:'))
         lines.push(result.composition)
         lines.push('')
-        lines.push(chalk.cyan('⚙️ Technical Quality:'))
+        lines.push(chalk.cyan('🔨 Technical Quality:'))
         lines.push(result.technical_quality)
         lines.push('')
         lines.push(chalk.gray('──────────────────────────────────────────────────'))
@@ -3924,9 +3932,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           )
         }
 
-        console.log(
+        this.cliInstance.printPanel(
           boxen(lines.join('\n'), {
-            title: '👁️ Image Analysis',
+            title: '🎞️Image Analysis',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -4001,7 +4009,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       walk(cwd)
 
       if (found.length === 0) {
-        console.log(
+        this.cliInstance.printPanel(
           boxen('No image files found in the working directory', {
             title: '🖼️ Images',
             padding: 1,
@@ -4017,7 +4025,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       found.sort((a, b) => a.path.localeCompare(b.path))
       const list = found.slice(0, 500)
 
-      console.log(
+      this.cliInstance.printPanel(
         boxen(
           `Found ${found.length} images${found.length > list.length ? ` (showing ${list.length})` : ''}. Use arrows to choose and Enter to analyze.`,
           {
@@ -4058,7 +4066,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Analyze the selected image
       return await this.analyzeImageCommand([answer.imagePath])
     } catch (error: any) {
-      console.log(
+      this.cliInstance.printPanel(
         boxen(`Failed to list/analyze images: ${error.message}`, {
           title: '❌ Images Error',
           padding: 1,
@@ -4259,26 +4267,27 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async web3Command(args: string[]): Promise<CommandResult> {
     // Help/usage
     if (args.length === 0) {
-      const panel = boxen(
-        [
-          chalk.bold('⛓️  Web3 (Coinbase AgentKit) Commands'),
-          chalk.gray('────────────────────────────────────────────'),
-          '',
-          `${chalk.cyan('/web3 status')}  – AgentKit status`,
-          `${chalk.cyan('/web3 init')}    – Initialize with CDP credentials`,
-          `${chalk.cyan('/web3 wallet')}  – Show wallet and network`,
-          `${chalk.cyan('/web3 balance')} – Check wallet balance`,
-          `${chalk.cyan('/web3 transfer <amount> <to> [--token ETH|USDC|WETH]')} – Transfer tokens`,
-          `${chalk.cyan('/web3 chat "message"')} – Natural language request`,
-          `${chalk.cyan('/web3 wallets')} – List known wallets`,
-          `${chalk.cyan('/web3 use-wallet <0x...>')} – Use a specific wallet`,
-          '',
-          chalk.gray('Env required: CDP_API_KEY_ID, CDP_API_KEY_SECRET, CDP_WALLET_SECRET'),
-          chalk.gray('Tip: /set-coin-keys to enter them interactively'),
-        ].join('\n'),
-        { title: 'Web3', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+      this.cliInstance.printPanel(
+        boxen(
+          [
+            chalk.bold('⛓️  Web3 (Coinbase AgentKit) Commands'),
+            chalk.gray('────────────────────────────────────────────'),
+            '',
+            `${chalk.cyan('/web3 status')}  – AgentKit status`,
+            `${chalk.cyan('/web3 init')}    – Initialize with CDP credentials`,
+            `${chalk.cyan('/web3 wallet')}  – Show wallet and network`,
+            `${chalk.cyan('/web3 balance')} – Check wallet balance`,
+            `${chalk.cyan('/web3 transfer <amount> <to> [--token ETH|USDC|WETH]')} – Transfer tokens`,
+            `${chalk.cyan('/web3 chat "message"')} – Natural language request`,
+            `${chalk.cyan('/web3 wallets')} – List known wallets`,
+            `${chalk.cyan('/web3 use-wallet <0x...>')} – Use a specific wallet`,
+            '',
+            chalk.gray('Env required: CDP_API_KEY_ID, CDP_API_KEY_SECRET, CDP_WALLET_SECRET'),
+            chalk.gray('Tip: /set-coin-keys to enter them interactively'),
+          ].join('\n'),
+          { title: 'Web3', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+        )
       )
-      console.log(panel)
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -4291,19 +4300,19 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (sub === 'status') {
         const result = await secureTools.executeCoinbaseAgentKit('status')
         const content = this.formatWeb3StatusPanel(result)
-        console.log(content)
+        this.cliInstance.printPanel(content)
       } else if (sub === 'init') {
         const result = await secureTools.executeCoinbaseAgentKit('init')
         const content = this.formatWeb3InitPanel(result)
-        console.log(content)
+        this.cliInstance.printPanel(content)
       } else if (sub === 'wallet') {
         const result = await secureTools.executeCoinbaseAgentKit('wallet-info')
         const content = this.formatWeb3WalletPanel(result)
-        console.log(content)
+        this.cliInstance.printPanel(content)
       } else if (sub === 'wallets') {
         const result = await secureTools.executeCoinbaseAgentKit('wallets')
         const content = this.formatWeb3WalletsPanel(result)
-        console.log(content)
+        this.cliInstance.printPanel(content)
 
         // If wallets are present, offer interactive selection
         const wallets = (result && result.data && (result.data.wallets || result.data.data?.wallets)) || []
@@ -4330,7 +4339,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
             const useRes = await secureTools.executeCoinbaseAgentKit('use-wallet', { address: ans.address })
             const usePanel = this.formatWeb3UseWalletPanel(useRes)
-            console.log(usePanel)
+            this.cliInstance.printPanel(usePanel)
           } catch (_e) {
             // ignore interactive errors
           }
@@ -4338,7 +4347,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       } else if (sub === 'use-wallet') {
         const address = args[1]
         if (!address) {
-          console.log(
+          this.cliInstance.printPanel(
             boxen('Usage: /web3 use-wallet <0x... address>', {
               title: 'Web3 Use Wallet',
               padding: 1,
@@ -4351,14 +4360,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         }
         const useRes = await secureTools.executeCoinbaseAgentKit('use-wallet', { address })
         const usePanel = this.formatWeb3UseWalletPanel(useRes)
-        console.log(usePanel)
+        this.cliInstance.printPanel(usePanel)
       } else if (sub === 'balance') {
         const result = await secureTools.executeCoinbaseAgentKit('balance')
         const content = this.formatWeb3BalancePanel(result)
-        console.log(content)
+        this.cliInstance.printPanel(content)
       } else if (sub === 'transfer') {
         if (!args[1] || !args[2]) {
-          console.log(
+          this.cliInstance.printPanel(
             boxen('Usage: /web3 transfer <amount> <to> [--token ETH|USDC|WETH]', {
               title: 'Web3 Transfer',
               padding: 1,
@@ -4386,11 +4395,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           token,
         })
         const content = this.formatWeb3TransferPanel({ result, amount, to, token })
-        console.log(content)
+        this.cliInstance.printPanel(content)
       } else if (sub === 'chat') {
         const message = args.slice(1).join(' ').trim().replace(/^"|"$/g, '')
         if (!message) {
-          console.log(
+          this.cliInstance.printPanel(
             boxen('Usage: /web3 chat "your blockchain request"', {
               title: 'Web3 Chat',
               padding: 1,
@@ -4404,7 +4413,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
         const result = await secureTools.executeCoinbaseAgentKit('chat', { message })
         const content = this.formatWeb3ChatPanel(message, result)
-        console.log(content)
+        this.cliInstance.printPanel(content)
       } else if (false && sub === 'defi') {
         // Defi-specific commands intentionally disabled. Use /web3 chat and the agent's tools.
         const panel = boxen(
@@ -4417,7 +4426,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             borderColor: 'yellow',
           }
         )
-        console.log(panel)
+        this.cliInstance.printPanel(panel)
         return { shouldExit: false, shouldUpdatePrompt: false }
       } else {
         const panel = boxen(`Unknown subcommand: ${sub}`, {
@@ -4427,15 +4436,15 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           borderStyle: 'round',
           borderColor: 'red',
         })
-        console.log(panel)
+        this.cliInstance.printPanel(panel)
       }
     } catch (error: any) {
       const panel = boxen(
         `Failed to execute web3 command: ${error.message}` +
-          '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
+        '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
         { title: 'Web3 Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
       )
-      console.log(panel)
+      this.cliInstance.printPanel(panel)
     } finally {
       // Properly end panel output and re-render the prompt
       if (nik) {
@@ -5388,7 +5397,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async showMemoryConfig(): Promise<void> {
     const config = memoryService.getConfig()
 
-    console.log(chalk.green.bold('⚙️ Memory Configuration:'))
+    console.log(chalk.green.bold('🔨 Memory Configuration:'))
     console.log(chalk.gray('─'.repeat(40)))
     console.log(chalk.cyan(`Enabled: ${config.enabled ? 'Yes' : 'No'}`))
     console.log(chalk.cyan(`Backend: ${config.backend}`))

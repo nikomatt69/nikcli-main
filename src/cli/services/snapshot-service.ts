@@ -5,6 +5,7 @@ import {
   type SnapshotSearchOptions,
   snapshotProvider,
 } from '../providers/snapshot/snapshot-provider'
+import { structuredLogger } from '../utils/structured-logger'
 
 export interface SnapshotTemplate {
   name: string
@@ -58,10 +59,10 @@ export class SnapshotService extends EventEmitter {
       await snapshotProvider.initialize()
       this.isInitialized = true
 
-      console.log(chalk.green('✅ Snapshot Service initialized'))
+      structuredLogger.success('Snapshot Service', '✅ Snapshot Service initialized')
       this.emit('initialized')
     } catch (error: any) {
-      console.log(chalk.red(`❌ Snapshot Service initialization failed: ${error.message}`))
+      structuredLogger.error('Snapshot Service', `❌ Snapshot Service initialization failed: ${error.message}`)
       throw error
     }
   }

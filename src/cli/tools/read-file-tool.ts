@@ -332,7 +332,7 @@ export class ReadFileTool extends BaseTool {
         return { error: 'Vision provider not available' }
       }
 
-      console.log(chalk.blue(`👁️ Analyzing image: ${filePath}`))
+      console.log(chalk.blue(`🎞️Analyzing image: ${filePath}`))
 
       const analysis = await (global as any).visionProvider.analyzeImage(filePath, {
         prompt:

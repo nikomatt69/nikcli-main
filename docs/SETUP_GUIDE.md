@@ -207,7 +207,7 @@ LOG_LEVEL=debug
 
 3. **Copia la chiave** → `OPENAI_API_KEY`
 
-## 🛠️ Setup Passo dopo Passo
+## 🔨 Setup Passo dopo Passo
 
 ### Passo 1: Clona e Installa
 

@@ -111,7 +111,9 @@ export class WorkspaceRAG {
 
   // Analisi completa del workspace con RAG
   async analyzeWorkspace(): Promise<WorkspaceContext> {
-    console.log(chalk.blue('🧠 Building workspace context with RAG...'))
+    if (!process.env.NIKCLI_QUIET_STARTUP) {
+      console.log(chalk.blue('🧠 Building workspace context with RAG...'))
+    }
 
     // 1. Scan all files
     await this.scanFiles()

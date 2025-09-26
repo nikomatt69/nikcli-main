@@ -609,7 +609,9 @@ export class FileFilterSystem {
           return pattern
         })
 
-      console.log(chalk.gray(`📋 Loaded ${this.gitignoreRules.length} .gitignore rules`))
+      if (!process.env.NIKCLI_QUIET_STARTUP) {
+        console.log(chalk.gray(`📋 Loaded ${this.gitignoreRules.length} .gitignore rules`))
+      }
     } catch (error) {
       console.warn(chalk.yellow(`⚠️ Failed to read .gitignore: ${error}`))
     }
