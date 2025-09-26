@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import { execSync } from 'node:child_process'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import cliProgress from 'cli-progress'
@@ -69,8 +70,14 @@ import {
   formatStatus,
   wrapBlue,
 } from './utils/text-wrapper'
+// Paste handling system
+import { PasteHandler } from './utils/paste-handler'
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
+// Vim Mode imports
+import { VimModeManager } from './vim/vim-mode-manager'
+import { VimAIIntegration } from './vim/ai/vim-ai-integration'
+import { ModernAIProvider } from './ai/modern-ai-provider'
 
 // Configure syntax highlighting for terminal output
 configureSyntaxHighlighting()
@@ -146,12 +153,18 @@ export class NikCLI {
   private agentManager: AgentManager
   private planningManager: PlanningManager
   private workingDirectory: string
-  private currentMode: 'default' | 'plan' | 'vm' = 'default'
+  private currentMode: 'default' | 'plan' | 'vm' | 'vim' = 'default'
   private currentAgent?: string
   private activeVMContainer?: string
   private projectContextFile: string
   private sessionContext: Map<string, any> = new Map()
   private slashHandler: SlashCommandHandler
+
+  // Vim Mode properties
+  private vimModeManager?: VimModeManager
+  private vimAIIntegration?: VimAIIntegration
+  private modernAIProvider?: ModernAIProvider
+  private vimKeyHandler?: (data: Buffer) => Promise<void>
 
   // Enhanced features
   private enhancedFeaturesEnabled: boolean = true
@@ -198,6 +211,8 @@ export class NikCLI {
   private streamingOrchestrator?: StreamingOrchestrator
   private cognitiveMode: boolean = true
   private lastPasteAttachmentId?: string
+  private pasteHandler: PasteHandler
+  private _pendingPasteContent?: string
   private orchestrationLevel: number = 8
   // Timer used to re-render the prompt after console output in chat mode
   private promptRenderTimer: NodeJS.Timeout | null = null
@@ -263,6 +278,8 @@ export class NikCLI {
     this.enhancedSessionManager = new EnhancedSessionManager()
     this.isEnhancedMode = this.configManager.getRedisConfig().enabled || this.configManager.getSupabaseConfig().enabled
     this.planningManager = new PlanningManager(this.workingDirectory)
+    // Initialize paste handler for long text processing
+    this.pasteHandler = PasteHandler.getInstance()
 
     // IDE diagnostic integration will be initialized on demand
     // No automatic initialization to avoid unwanted file watchers
@@ -296,6 +313,9 @@ export class NikCLI {
     this.initializeTokenCache()
 
     // Initialize cognitive orchestration system
+
+    // Initialize Vim mode components
+    this.initializeVimMode()
     this.initializeCognitiveOrchestration()
 
     // Initialize chat UI system
@@ -2011,6 +2031,19 @@ export class NikCLI {
    * Enhanced chat interface with Claude Code-style slash commands
    */
   private async startEnhancedChat(): Promise<void> {
+    // Disable macOS paste warning by setting terminal environment
+    if (process.platform === 'darwin') {
+      // Set environment variables to suppress macOS paste dialog
+      process.env.TERM_PROGRAM_VERSION = '1.0'
+      process.env.DISABLE_AUTO_TITLE = 'true'
+
+      // Try to disable bracketed paste mode which triggers the dialog
+      if (process.stdout.isTTY) {
+        // Disable bracketed paste mode
+        process.stdout.write('\x1b[?2004l')
+      }
+    }
+
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -2019,11 +2052,23 @@ export class NikCLI {
 
     // Setup keypress events for ESC interruption
     if (process.stdin.isTTY) {
+      // Set terminal options to suppress macOS paste warnings
+      if (process.platform === 'darwin') {
+        try {
+          // Set TTY mode to suppress paste warnings
+          process.stdin.setRawMode(false)
+          process.stdin.setRawMode(true)
+        } catch (error) {
+          console.debug('Could not configure TTY mode:', error)
+        }
+      }
+
       // Ensure keypress events are emitted
       readline.emitKeypressEvents(process.stdin)
       process.stdin.setRawMode(true)
       process.stdin.resume()
       process.stdin.on('keypress', (chunk, key) => {
+
         if (key && key.name === 'escape') {
           // Stop ongoing AI operation spinner
           if (this.activeSpinner) {
@@ -2153,94 +2198,21 @@ export class NikCLI {
         return
       }
 
-      // 🛡️ EMERGENCY: Auto-enable compact mode for long/complex inputs to prevent "Message too long"
-      this.checkAndEnableCompactMode(trimmed)
+      // 📋 PASTE DETECTION: Check if this is a multiline paste operation
+      const lineCount = trimmed.split('\n').length
+      const isPasteOperation = this.pasteHandler.detectPasteOperation(trimmed)
 
-      // Set user input as active when user sends a message
-      this.userInputActive = true
-      this.renderPromptAfterOutput()
+      console.log(chalk.yellow(`🔍 Input analysis: ${lineCount} lines, ${trimmed.length} chars, isPaste: ${isPasteOperation}`))
 
-      // Se il bypass è abilitato, ignora completamente l'input
-      if (inputQueue.isBypassEnabled()) {
-        this.userInputActive = false
-        this.renderPromptAfterOutput()
+      if (isPasteOperation || lineCount > 1) {
+        // This is a paste operation - process as single consolidated input
+        console.log(chalk.blue(`📋 Detected paste operation with ${lineCount} lines`))
+        await this.processSingleInput(trimmed)
         return
       }
 
-      // Apply token optimization to user input
-      let optimizedInput = trimmed
-      if (trimmed.length > 20 && !trimmed.startsWith('/')) {
-        // Don't optimize commands
-        const optimizer = this.getTokenOptimizer()
-        if (optimizer) {
-          try {
-            const optimizationResult = await optimizer.optimizePrompt(trimmed)
-            optimizedInput = optimizationResult.content
-
-            if (optimizationResult.tokensSaved > 5) {
-              QuietCacheLogger.logCacheSave(optimizationResult.tokensSaved)
-            }
-          } catch (error) {
-            // Silent fail - use original input
-            console.debug('Token optimization failed:', error)
-          }
-        }
-      }
-
-      // Se il sistema sta processando, metti in coda
-      // ma rispetta il bypass per approval inputs
-      if (this.assistantProcessing && inputQueue.shouldQueue(trimmed)) {
-        // Determina priorità basata sul contenuto
-        let priority: 'high' | 'normal' | 'low' = 'normal'
-        if (trimmed.startsWith('/') || trimmed.startsWith('@')) {
-          priority = 'high' // Comandi e agenti hanno priorità alta
-        } else if (trimmed.toLowerCase().includes('urgent') || trimmed.toLowerCase().includes('stop')) {
-          priority = 'high'
-        } else if (trimmed.toLowerCase().includes('later') || trimmed.toLowerCase().includes('low priority')) {
-          priority = 'low'
-        }
-
-        const queueId = inputQueue.enqueue(trimmed, priority, 'user')
-        console.log(
-          chalk.cyan(
-            `📥 Input queued (${priority} priority): ${trimmed.substring(0, 40)}${trimmed.length > 40 ? '...' : ''}`
-          )
-        )
-        this.renderPromptAfterOutput()
-        return
-      }
-
-      // Indicate assistant is processing while handling the input
-      this.userInputActive = false // User input is no longer active
-      this.assistantProcessing = true
-      this.startStatusBar()
-      this.renderPromptAfterOutput()
-
-      try {
-        // Route slash and agent-prefixed commands, otherwise treat as chat
-        if (trimmed.startsWith('/')) {
-          await this.dispatchSlash(trimmed)
-        } else if (trimmed.startsWith('@')) {
-          await this.dispatchAt(trimmed)
-        } else if (trimmed.startsWith('*')) {
-          await this.dispatchStar(trimmed)
-        } else {
-          // Use optimized input for chat
-          await this.handleChatInput(optimizedInput)
-        }
-      } finally {
-        // Done processing; return to idle
-        this.assistantProcessing = false
-        this.stopStatusBar()
-
-        // Update token display with current session stats
-        this.updateTokenDisplay()
-
-        this.renderPromptAfterOutput()
-
-        // Processa input dalla queue se disponibili
-        this.processQueuedInputs()
-      }
+      // Normal single-line processing
+      await this.processSingleInput(trimmed)
     })
 
     this.rl?.on('SIGINT', async () => {
@@ -2851,6 +2823,169 @@ export class NikCLI {
       bar.stop()
     }
     this.progressBars.clear()
+  }
+
+
+  /**
+   * Process a single input (either normal input or consolidated paste)
+   */
+  private async processSingleInput(input: string): Promise<void> {
+    // 📋 PASTE DETECTION: Handle large pasted content like Claude Code
+    let actualInput = input
+    let displayText = input
+
+    // Apply paste detection to consolidated content
+    const pasteResult = this.pasteHandler.processPastedText(input)
+
+    if (pasteResult.shouldTruncate) {
+      // Extract just the indicator line for display
+      const truncatedLine = pasteResult.displayText.split('\n').pop() || '[Pasted text]'
+
+      // Use original content for AI processing
+      actualInput = pasteResult.originalText
+      displayText = truncatedLine
+
+      // Visual feedback that paste was detected and truncated
+      console.log(chalk.gray(`📋 ${truncatedLine}`))
+    }
+
+    // Continue with normal processing flow...
+    this.checkAndEnableCompactMode(actualInput)
+
+    // Set user input as active when user sends a message
+    this.userInputActive = true
+    this.renderPromptAfterOutput()
+
+    // Handle bypass logic
+    if (inputQueue.isBypassEnabled()) {
+      this.userInputActive = false
+      this.renderPromptAfterOutput()
+      return
+    }
+
+    // Apply token optimization
+    let optimizedInput = actualInput
+    if (actualInput.length > 20 && !actualInput.startsWith('/')) {
+      const optimizer = this.getTokenOptimizer()
+      if (optimizer) {
+        try {
+          const optimizationResult = await optimizer.optimizePrompt(actualInput)
+          optimizedInput = optimizationResult.content
+
+          if (optimizationResult.tokensSaved > 5) {
+            QuietCacheLogger.logCacheSave(optimizationResult.tokensSaved)
+          }
+        } catch (error) {
+          console.debug('Token optimization failed:', error)
+        }
+      }
+    }
+
+    // Queue logic
+    if (this.assistantProcessing && inputQueue.shouldQueue(actualInput)) {
+      let priority: 'high' | 'normal' | 'low' = 'normal'
+      if (actualInput.startsWith('/') || actualInput.startsWith('@')) {
+        priority = 'high'
+      } else if (actualInput.toLowerCase().includes('urgent') || actualInput.toLowerCase().includes('stop')) {
+        priority = 'high'
+      } else if (actualInput.toLowerCase().includes('later') || actualInput.toLowerCase().includes('low priority')) {
+        priority = 'low'
+      }
+
+      const queueId = inputQueue.enqueue(actualInput, priority, 'user')
+      console.log(
+        chalk.cyan(
+          `📥 Input queued (${priority} priority): ${displayText.substring(0, 40)}${displayText.length > 40 ? '...' : ''}`
+        )
+      )
+      this.renderPromptAfterOutput()
+      return
+    }
+
+    // Processing
+    this.userInputActive = false
+    this.assistantProcessing = true
+    this.startStatusBar()
+    this.renderPromptAfterOutput()
+
+    try {
+      // Route commands
+      if (actualInput.startsWith('/')) {
+        await this.dispatchSlash(actualInput)
+      } else if (actualInput.startsWith('@')) {
+        await this.dispatchAt(actualInput)
+      } else if (actualInput.startsWith('*')) {
+        await this.dispatchStar(actualInput)
+      } else {
+        await this.handleChatInput(optimizedInput)
+      }
+    } finally {
+      this.assistantProcessing = false
+      this.stopStatusBar()
+      this.updateTokenDisplay()
+      this.renderPromptAfterOutput()
+      this.processQueuedInputs()
+    }
+  }
+
+  /**
+   * Handle paste operation by reading from system clipboard
+   * Prevents macOS paste confirmation dialog
+   */
+  private async handlePasteOperation(): Promise<void> {
+    try {
+      let clipboardContent = ''
+
+      if (process.platform === 'darwin') {
+        // macOS - use pbpaste
+        clipboardContent = execSync('pbpaste', { encoding: 'utf8' })
+      } else if (process.platform === 'linux') {
+        // Linux - try xclip first, then wl-clipboard
+        try {
+          clipboardContent = execSync('xclip -selection clipboard -o', { encoding: 'utf8' })
+        } catch {
+          try {
+            clipboardContent = execSync('wl-paste', { encoding: 'utf8' })
+          } catch {
+            console.log(chalk.yellow('⚠️ No clipboard tool found (install xclip or wl-clipboard)'))
+            return
+          }
+        }
+      } else {
+        // Windows or other platforms - fallback to normal behavior
+        console.log(chalk.yellow('⚠️ Direct paste handling not supported on this platform'))
+        return
+      }
+
+      if (!clipboardContent || !clipboardContent.trim()) {
+        console.log(chalk.gray('📋 Clipboard is empty'))
+        return
+      }
+
+      // Process the clipboard content through our paste handler
+      const trimmedContent = clipboardContent.trim()
+      const pasteResult = this.pasteHandler.processPastedText(trimmedContent)
+
+      if (pasteResult.shouldTruncate) {
+        // Show the truncated version visually
+        console.log(chalk.gray(`📋 ${pasteResult.displayText.split('\n').pop()}`))
+
+        // Add a visual prompt showing we're processing the full content
+        console.log(chalk.blue('Processing full pasted content...'))
+      }
+
+      // Simulate the input as if it was typed - this will go through our normal input processing
+      // Use actualInput for processing, but we've already shown the visual feedback
+      setTimeout(() => {
+        if (this.rl) {
+          // Emit the line event with the full content for processing
+          this.rl.emit('line', pasteResult.originalText)
+        }
+      }, 50)
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error reading clipboard: ${error.message}`))
+    }
   }
 
   /**
@@ -3720,6 +3855,10 @@ export class NikCLI {
 
         case 'health':
           await this.handleProjectHealthCommand()
+          break
+
+        case 'vim':
+          await this.handleVimCommand(args)
           break
 
         case 'tokens':
@@ -9947,6 +10086,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       ['/plan [task]', 'Switch to plan mode or generate execution plan'],
       ['/default', 'Switch to default conversational mode'],
       ['/vm', 'Switch to virtual machine development mode'],
+      ['/vim [start|exit|config|status|help]', 'Enter vim mode with AI integration'],
 
       // File Operations
       ['/read <file> [options]', 'Read file contents with pagination support'],
@@ -10087,27 +10227,27 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       lines.push('')
     }
 
-    addGroup('🎯 Mode Control:', 0, 3)
-    addGroup('📁 File Operations:', 3, 8)
-    addGroup('⚡ Terminal Operations:', 8, 15)
-    addGroup('🔑 API Keys & Configuration:', 15, 21)
-    addGroup('🤖 Models & AI Configuration:', 21, 27)
-    addGroup('🎨 Output Style Configuration:', 27, 32)
-    addGroup('🚀 Cache & Performance:', 32, 37)
-    addGroup('🧠 Agent Management:', 37, 43)
-    addGroup('💾 Memory & Context:', 43, 48)
-    addGroup('📝 Session Management:', 48, 54)
-    addGroup('🐳 VM Container Operations:', 54, 58)
-    addGroup('🌐 Web Browsing & Analysis:', 58, 60)
-    addGroup('🎨 Figma Design Integration:', 60, 66)
-    addGroup('🔗 Blockchain & Web3:', 66, 70)
-    addGroup('🔍 Vision & Images:', 70, 72)
-    addGroup('📚 Documentation:', 72, 75)
-    addGroup('📸 Snapshots & Backup:', 75, 78)
-    addGroup('🔒 Security & Development:', 78, 81)
-    addGroup('🔧 IDE Integration:', 81, 84)
-    addGroup('📋 Todo & Planning:', 84, 86)
-    addGroup('🏠 Basic System:', 86, commands.length)
+    addGroup('🎯 Mode Control:', 0, 4)
+    addGroup('📁 File Operations:', 4, 9)
+    addGroup('⚡ Terminal Operations:', 9, 16)
+    addGroup('🔑 API Keys & Configuration:', 16, 22)
+    addGroup('🤖 Models & AI Configuration:', 22, 28)
+    addGroup('🎨 Output Style Configuration:', 28, 33)
+    addGroup('🚀 Cache & Performance:', 33, 38)
+    addGroup('🧠 Agent Management:', 38, 44)
+    addGroup('💾 Memory & Context:', 44, 49)
+    addGroup('📝 Session Management:', 49, 55)
+    addGroup('🐳 VM Container Operations:', 55, 59)
+    addGroup('🌐 Web Browsing & Analysis:', 59, 61)
+    addGroup('🎨 Figma Design Integration:', 61, 67)
+    addGroup('🔗 Blockchain & Web3:', 67, 71)
+    addGroup('🔍 Vision & Images:', 71, 73)
+    addGroup('📚 Documentation:', 73, 76)
+    addGroup('📸 Snapshots & Backup:', 76, 79)
+    addGroup('🔒 Security & Development:', 79, 82)
+    addGroup('🔧 IDE Integration:', 82, 85)
+    addGroup('📋 Todo & Planning:', 85, 87)
+    addGroup('🏠 Basic System:', 87, commands.length)
 
     lines.push('💡 Shortcuts: Ctrl+C exit | Esc interrupt | Cmd+Esc default')
 
@@ -10410,7 +10550,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
    * Cycle through modes: default → plan → vm → default
    */
   private cycleModes(): void {
-    const modes: Array<'default' | 'plan' | 'vm'> = ['default', 'plan', 'vm']
+    const modes: Array<'default' | 'plan' | 'vm' | 'vim'> = ['default', 'plan', 'vm', 'vim']
     const currentIndex = modes.indexOf(this.currentMode)
     const nextIndex = (currentIndex + 1) % modes.length
     const nextMode = modes[nextIndex]
@@ -10431,6 +10571,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       default: '💬 Default Chat',
       plan: '📋 Planning Mode',
       vm: '🐳 VM Mode',
+      vim: '✏️ Vim Mode',
     }
 
     console.log(chalk.yellow(`\n🔄 Switched to ${modeNames[nextMode]}`))
@@ -17166,6 +17307,314 @@ Style: concise but thorough; use lists, sublists, and tables when useful.`
     lines.push('---')
     lines.push('*Generated by NikCLI Analysis System*')
     return lines.join('\n')
+  }
+
+  // ======================= VIM MODE METHODS =======================
+
+  private initializeVimMode(): void {
+    try {
+      // Initialize modern AI provider for vim integration
+      this.modernAIProvider = new ModernAIProvider()
+
+      // Initialize vim mode manager with default config
+      this.vimModeManager = new VimModeManager({
+        aiIntegration: true,
+        customKeybindings: {},
+        theme: 'default',
+        statusLine: true,
+        lineNumbers: true
+      })
+
+      // Initialize vim AI integration
+      this.vimAIIntegration = new VimAIIntegration(
+        this.vimModeManager.getState(),
+        this.vimModeManager['config'],
+        this.modernAIProvider,
+        this.configManager
+      )
+
+      // Setup vim event handlers
+      this.setupVimEventHandlers()
+
+    } catch (error: any) {
+      console.error(chalk.yellow(`⚠️ Failed to initialize vim mode: ${error.message}`))
+    }
+  }
+
+  private setupVimEventHandlers(): void {
+    if (!this.vimModeManager || !this.vimAIIntegration) return
+
+    // Handle AI requests from vim mode
+    this.vimModeManager.on('aiRequest', async (prompt: string) => {
+      try {
+        if (!this.vimAIIntegration) return
+
+        const response = await this.vimAIIntegration.assistWithCode(prompt)
+        await this.vimModeManager!.handleAIResponse(response)
+      } catch (error: any) {
+        console.error(chalk.red(`AI request failed: ${error.message}`))
+      }
+    })
+
+    // Handle mode changes
+    this.vimModeManager.on('activated', () => {
+      this.currentMode = 'vim'
+      console.log(chalk.green('✓ Vim mode activated'))
+    })
+
+    this.vimModeManager.on('deactivated', () => {
+      this.currentMode = 'default'
+      console.log(chalk.green('✓ Vim mode deactivated'))
+
+      // Ensure proper cleanup and restoration
+      this.cleanupVimKeyHandling()
+
+      // Restore normal CLI prompt after a short delay
+      setTimeout(() => {
+        this.renderPromptAfterOutput()
+      }, 100)
+    })
+
+    // Handle state changes
+    this.vimModeManager.on('stateChanged', (state) => {
+      // Update UI or perform other actions when vim state changes
+    })
+  }
+
+  private async handleVimCommand(args: string[]): Promise<void> {
+    try {
+      if (!this.vimModeManager) {
+        console.log(chalk.red('✗ Vim mode not initialized'))
+        return
+      }
+
+      const subcommand = args[0] || 'start'
+
+      switch (subcommand) {
+        case 'start':
+        case 'enter':
+          await this.enterVimMode(args.slice(1))
+          break
+
+        case 'exit':
+        case 'quit':
+          await this.exitVimMode()
+          break
+
+        case 'config':
+          await this.configureVimMode(args.slice(1))
+          break
+
+        case 'status':
+          this.showVimStatus()
+          break
+
+        case 'help':
+          this.showVimHelp()
+          break
+
+        default:
+          console.log(chalk.yellow(`Unknown vim command: ${subcommand}`))
+          this.showVimHelp()
+      }
+    } catch (error: any) {
+      console.error(chalk.red(`Vim command failed: ${error.message}`))
+    }
+  }
+
+  private async enterVimMode(args: string[]): Promise<void> {
+    if (!this.vimModeManager) return
+
+    try {
+      // Initialize vim mode if not already done
+      await this.vimModeManager.initialize()
+
+      // Load file if specified
+      const filename = args[0]
+      if (filename) {
+        try {
+          const content = await fs.readFile(filename, 'utf-8')
+          this.vimModeManager.loadBuffer(content)
+          console.log(chalk.blue(`📄 Loaded file: ${filename}`))
+        } catch (error: any) {
+          console.log(chalk.yellow(`⚠️ Could not load file ${filename}: ${error.message}`))
+          // Start with empty buffer
+          this.vimModeManager.loadBuffer('')
+        }
+      } else {
+        // Start with empty buffer
+        this.vimModeManager.loadBuffer('')
+      }
+
+      // Activate vim mode
+      await this.vimModeManager.activate()
+
+      // Setup key handling
+      this.setupVimKeyHandling()
+
+    } catch (error: any) {
+      console.error(chalk.red(`Failed to enter vim mode: ${error.message}`))
+    }
+  }
+
+  private async exitVimMode(): Promise<void> {
+    if (!this.vimModeManager) return
+
+    try {
+      await this.vimModeManager.deactivate()
+      this.cleanupVimKeyHandling()
+
+      // Ensure we're back in default mode
+      this.currentMode = 'default'
+
+      // Restore the prompt to continue normal CLI operation
+      setTimeout(() => {
+        this.renderPromptAfterOutput()
+      }, 100)
+
+    } catch (error: any) {
+      console.error(chalk.red(`Failed to exit vim mode: ${error.message}`))
+    }
+  }
+
+  private async configureVimMode(args: string[]): Promise<void> {
+    if (!this.vimModeManager) return
+
+    if (args.length === 0) {
+      console.log(chalk.blue('Current vim configuration:'))
+      const state = this.vimModeManager.getState()
+      console.log(`  Mode: ${state.mode}`)
+      console.log(`  AI Integration: enabled`)
+      console.log(`  Theme: default`)
+      console.log(`  Status Line: enabled`)
+      console.log(`  Line Numbers: enabled`)
+      return
+    }
+
+    const [setting, value] = args
+    const config: any = {}
+
+    switch (setting) {
+      case 'ai':
+        config.aiIntegration = value === 'true' || value === '1'
+        break
+      case 'theme':
+        if (['default', 'minimal', 'enhanced'].includes(value)) {
+          config.theme = value
+        } else {
+          console.log(chalk.red('Invalid theme. Options: default, minimal, enhanced'))
+          return
+        }
+        break
+      case 'statusline':
+        config.statusLine = value === 'true' || value === '1'
+        break
+      case 'numbers':
+        config.lineNumbers = value === 'true' || value === '1'
+        break
+      default:
+        console.log(chalk.red(`Unknown setting: ${setting}`))
+        return
+    }
+
+    this.vimModeManager.updateConfig(config)
+    console.log(chalk.green(`✓ Updated vim setting: ${setting} = ${value}`))
+  }
+
+  private showVimStatus(): void {
+    if (!this.vimModeManager) {
+      console.log(chalk.gray('Vim mode: not initialized'))
+      return
+    }
+
+    const state = this.vimModeManager.getState()
+    const isActive = this.currentMode === 'vim'
+
+    console.log(chalk.blue('📋 Vim Mode Status:'))
+    console.log(`  Status: ${isActive ? chalk.green('active') : chalk.gray('inactive')}`)
+    console.log(`  Mode: ${state.mode}`)
+    console.log(`  Buffer lines: ${state.buffer.length}`)
+    console.log(`  Cursor: ${state.cursor.line + 1}:${state.cursor.column + 1}`)
+    console.log(`  AI Integration: ${this.vimAIIntegration ? chalk.green('enabled') : chalk.red('disabled')}`)
+  }
+
+  private showVimHelp(): void {
+    console.log(chalk.blue.bold('📚 Vim Mode Help'))
+    console.log('')
+    console.log(chalk.cyan('Commands:'))
+    console.log('  /vim start [file]    - Enter vim mode (optionally load file)')
+    console.log('  /vim exit           - Exit vim mode')
+    console.log('  /vim config         - Show current configuration')
+    console.log('  /vim config <setting> <value> - Configure vim mode')
+    console.log('  /vim status         - Show vim status')
+    console.log('  /vim help           - Show this help')
+    console.log('')
+    console.log(chalk.cyan('Configuration options:'))
+    console.log('  ai <true|false>     - Enable/disable AI integration')
+    console.log('  theme <default|minimal|enhanced> - Set UI theme')
+    console.log('  statusline <true|false> - Show/hide status line')
+    console.log('  numbers <true|false>    - Show/hide line numbers')
+    console.log('')
+    console.log(chalk.cyan('Key bindings (in vim mode):'))
+    console.log('  ESC                 - Enter normal mode')
+    console.log('  i                   - Enter insert mode')
+    console.log('  :                   - Enter command mode')
+    console.log('  :q                  - Quit vim mode')
+    console.log('  Ctrl+A              - AI assistance')
+    console.log('  Ctrl+G              - AI generate')
+    console.log('  Ctrl+R              - AI refactor')
+    console.log('')
+    console.log(chalk.gray('For full vim keybindings, enter vim mode and use :help'))
+  }
+
+  private setupVimKeyHandling(): void {
+    if (!this.rl || !this.vimModeManager) return
+
+    // Store the handler reference so we can remove it specifically
+    this.vimKeyHandler = this.handleVimKeyInput.bind(this)
+
+    // Setup raw mode for vim key handling
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(true)
+      process.stdin.on('data', this.vimKeyHandler)
+    }
+  }
+
+  private cleanupVimKeyHandling(): void {
+    if (process.stdin.isTTY) {
+      // Remove only our specific vim handler, not all data listeners
+      if (this.vimKeyHandler) {
+        process.stdin.removeListener('data', this.vimKeyHandler)
+        this.vimKeyHandler = undefined
+      }
+
+      // Restore normal mode
+      process.stdin.setRawMode(false)
+
+      // Ensure readline is working again
+      if (this.rl) {
+        this.rl.resume()
+      }
+    }
+  }
+
+  private async handleVimKeyInput(data: Buffer): Promise<void> {
+    if (!this.vimModeManager || this.currentMode !== 'vim') return
+
+    const key = data.toString()
+
+    // Handle special keys
+    if (key === '\u001b') { // ESC
+      await this.vimModeManager.processKey('Escape')
+    } else if (key === '\r' || key === '\n') { // Enter
+      await this.vimModeManager.processKey('Enter')
+    } else if (key === '\u007f' || key === '\b') { // Backspace
+      await this.vimModeManager.processKey('Backspace')
+    } else if (key === '\u0003') { // Ctrl+C
+      await this.exitVimMode()
+    } else if (key.length === 1) {
+      await this.vimModeManager.processKey(key)
+    }
   }
 }
 

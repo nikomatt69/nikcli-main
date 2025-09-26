@@ -13,6 +13,7 @@ import { planningService } from './services/planning-service'
 import { toolService } from './services/tool-service'
 import { diffManager } from './ui/diff-manager'
 import { CliUI } from './utils/cli-ui'
+import { PasteHandler } from './utils/paste-handler'
 
 interface StreamMessage {
   id: string
@@ -74,6 +75,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
   private lastUpdate = Date.now()
   private inputQueueEnabled = true // Abilita/disabilita input queue
   private adaptiveMetrics = new Map<string, number>()
+  
+  // 📋 Paste handling
+  private pasteHandler: PasteHandler
   private panels = new Map<string, Panel>()
 
   constructor() {
@@ -90,6 +94,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
     }
 
     this.policyManager = new ExecutionPolicyManager(configManager)
+    
+    // Initialize paste handler for long text processing
+    this.pasteHandler = PasteHandler.getInstance()
 
     // Expose streaming orchestrator globally for VM agent communications
     ;(global as any).__streamingOrchestrator = this
@@ -144,6 +151,30 @@ class StreamingOrchestratorImpl extends EventEmitter {
         return
       }
 
+      // 📋 PASTE DETECTION: Check if this is a multiline paste operation
+      const lineCount = trimmed.split('\n').length
+      const isPasteOperation = this.pasteHandler.detectPasteOperation(trimmed)
+      
+      let actualInput = trimmed
+      let displayText = trimmed
+
+      if (isPasteOperation || lineCount > 1) {
+        // This is a paste operation - process as single consolidated input
+        const pasteResult = this.pasteHandler.processPastedText(trimmed)
+        
+        if (pasteResult.shouldTruncate) {
+          // Extract just the indicator line for display
+          const truncatedLine = pasteResult.displayText.split('\n').pop() || '[Pasted text]'
+          
+          // Use original content for AI processing
+          actualInput = pasteResult.originalText
+          displayText = truncatedLine
+          
+          // Visual feedback that paste was detected and truncated
+          console.log(chalk.gray(`📋 ${truncatedLine}`))
+        }
+      }
+
       // Se il bypass è abilitato, ignora completamente l'input
       if (inputQueue.isBypassEnabled()) {
         this.showPrompt()
@@ -155,28 +186,28 @@ class StreamingOrchestratorImpl extends EventEmitter {
       if (
         this.inputQueueEnabled &&
         (this.processingMessage || this.activeAgents.size > 0) &&
-        inputQueue.shouldQueue(trimmed)
+        inputQueue.shouldQueue(actualInput)
       ) {
         // Determina priorità basata sul contenuto
         let priority: 'high' | 'normal' | 'low' = 'normal'
-        if (trimmed.startsWith('/') || trimmed.startsWith('@')) {
+        if (actualInput.startsWith('/') || actualInput.startsWith('@')) {
           priority = 'high' // Comandi e agenti hanno priorità alta
-        } else if (trimmed.toLowerCase().includes('urgent') || trimmed.toLowerCase().includes('stop')) {
+        } else if (actualInput.toLowerCase().includes('urgent') || actualInput.toLowerCase().includes('stop')) {
           priority = 'high'
-        } else if (trimmed.toLowerCase().includes('later') || trimmed.toLowerCase().includes('low priority')) {
+        } else if (actualInput.toLowerCase().includes('later') || actualInput.toLowerCase().includes('low priority')) {
           priority = 'low'
         }
 
-        const queueId = inputQueue.enqueue(trimmed, priority, 'user')
+        const queueId = inputQueue.enqueue(actualInput, priority, 'user')
         this.queueMessage({
           type: 'system',
-          content: `📥 Input queued (${priority} priority, ID: ${queueId.slice(-6)}): ${trimmed.substring(0, 40)}${trimmed.length > 40 ? '...' : ''}`,
+          content: `📥 Input queued (${priority} priority, ID: ${queueId.slice(-6)}): ${displayText.substring(0, 40)}${displayText.length > 40 ? '...' : ''}`,
         })
         this.showPrompt()
         return
       }
 
-      await this.queueUserInput(trimmed)
+      await this.queueUserInput(actualInput)
       this.showPrompt()
     })
 

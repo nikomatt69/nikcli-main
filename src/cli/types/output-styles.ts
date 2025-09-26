@@ -1,14 +1,14 @@
 /**
- * Output Styles for AI Provider - Sistema di personalizzazione output dell'AI
+ * Output Styles for AI Provider - AI output customization system
  *
- * Permette agli utenti di configurare lo stile di output dell'AI secondo le proprie esigenze:
- * - production-focused: Output conciso, orientato ai risultati, senza spiegazioni superflue
- * - creative-concise: Creativo ma compatto, con esempi pratici
- * - detailed-analytical: Analisi approfondite con spiegazioni dettagliate
- * - friendly-casual: Tono amichevole e conversazionale
- * - technical-precise: Terminologia tecnica precisa, documentazione completa
- * - educational-verbose: Spiegazioni educative dettagliate, perfetto per learning
- * - minimal-efficient: Output minimalista, solo l'essenziale
+ * Allows users to configure AI output style according to their needs:
+ * - production-focused: Concise output, results-oriented, without unnecessary explanations
+ * - creative-concise: Creative but compact, with practical examples
+ * - detailed-analytical: In-depth analysis with detailed explanations
+ * - friendly-casual: Friendly and conversational tone
+ * - technical-precise: Precise technical terminology, complete documentation
+ * - educational-verbose: Detailed educational explanations, perfect for learning
+ * - minimal-efficient: Minimalist output, only the essentials
  */
 
 import { z } from 'zod'
@@ -28,36 +28,36 @@ export type OutputStyle = z.infer<typeof OutputStyleEnum>
 
 // Output style configuration with context-specific overrides
 export const OutputStyleConfigSchema = z.object({
-  // Default style applicato globalmente
+  // Default style applied globally
   defaultStyle: OutputStyleEnum.default('production-focused'),
 
-  // Override per contesti specifici
+  // Overrides for specific contexts
   contextOverrides: z.record(
     z.enum(['chat', 'planning', 'code-generation', 'documentation', 'debugging', 'analysis']),
     OutputStyleEnum
   ).optional(),
 
-  // Override per provider specifici
+  // Overrides for specific providers
   providerOverrides: z.record(
     z.enum(['openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway', 'openrouter']),
     OutputStyleEnum
   ).optional(),
 
-  // Personalizzazioni avanzate
+  // Advanced customizations
   customizations: z.object({
-    // Livello di verbosità (1-10)
+    // Verbosity level (1-10)
     verbosityLevel: z.number().min(1).max(10).default(5),
 
-    // Include esempi di codice
+    // Include code examples
     includeCodeExamples: z.boolean().default(true),
 
-    // Include spiegazioni step-by-step
+    // Include step-by-step explanations
     includeStepByStep: z.boolean().default(true),
 
-    // Usa emoji e formattazione decorativa
+    // Use emoji and decorative formatting
     useDecorative: z.boolean().default(false),
 
-    // Lunghezza massima della risposta (in token approssimativi)
+    // Maximum response length (in approximate tokens)
     maxResponseLength: z.enum(['short', 'medium', 'long', 'unlimited']).default('medium')
   }).default({
     verbosityLevel: 5,
@@ -70,7 +70,7 @@ export const OutputStyleConfigSchema = z.object({
 
 export type OutputStyleConfig = z.infer<typeof OutputStyleConfigSchema>
 
-// Metadati per ogni output style
+// Metadata for each output style
 export interface OutputStyleMetadata {
   name: string
   description: string
@@ -81,19 +81,19 @@ export interface OutputStyleMetadata {
   targetAudience: 'beginner' | 'intermediate' | 'expert' | 'mixed'
 }
 
-// Registry completo degli output styles
+// Complete registry of output styles
 export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = {
   'production-focused': {
     name: 'Production Focused',
-    description: 'Output ottimizzato per ambiente di produzione, conciso e orientato ai risultati',
+    description: 'Output optimized for production environment, concise and results-oriented',
     characteristics: [
-      'Risposte dirette e concise',
-      'Focus sui risultati pratici',
-      'Minimizza spiegazioni teoriche',
-      'Codice production-ready',
-      'Best practices implicite'
+      'Direct and concise responses',
+      'Focus on practical results',
+      'Minimizes theoretical explanations',
+      'Production-ready code',
+      'Implicit best practices'
     ],
-    useCase: 'Sviluppo professionale, deployment, debugging critico',
+    useCase: 'Professional development, deployment, critical debugging',
     verbosityLevel: 3,
     technicalDepth: 'high',
     targetAudience: 'expert'
@@ -101,15 +101,15 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
 
   'creative-concise': {
     name: 'Creative Concise',
-    description: 'Approccio creativo ma compatto, con soluzioni innovative',
+    description: 'Creative but compact approach, with innovative solutions',
     characteristics: [
-      'Soluzioni creative e alternative',
-      'Esempi pratici interessanti',
-      'Bilanciamento creatività/praticità',
-      'Approcci non convenzionali',
-      'Compatto ma ispirante'
+      'Creative and alternative solutions',
+      'Interesting practical examples',
+      'Creativity/practicality balance',
+      'Unconventional approaches',
+      'Compact but inspiring'
     ],
-    useCase: 'Brainstorming, prototipazione, soluzioni innovative',
+    useCase: 'Brainstorming, prototyping, innovative solutions',
     verbosityLevel: 4,
     technicalDepth: 'medium',
     targetAudience: 'intermediate'
@@ -117,15 +117,15 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
 
   'detailed-analytical': {
     name: 'Detailed Analytical',
-    description: 'Analisi approfondite con spiegazioni dettagliate e considerazioni tecniche',
+    description: 'In-depth analysis with detailed explanations and technical considerations',
     characteristics: [
-      'Analisi completa del problema',
-      'Spiegazioni step-by-step dettagliate',
-      'Considerazioni pro/contro',
-      'Context tecnico approfondito',
-      'Alternative e trade-offs'
+      'Complete problem analysis',
+      'Detailed step-by-step explanations',
+      'Pro/con considerations',
+      'Deep technical context',
+      'Alternatives and trade-offs'
     ],
-    useCase: 'Ricerca, architettura, decisioni tecniche complesse',
+    useCase: 'Research, architecture, complex technical decisions',
     verbosityLevel: 8,
     technicalDepth: 'high',
     targetAudience: 'expert'
@@ -133,15 +133,15 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
 
   'friendly-casual': {
     name: 'Friendly Casual',
-    description: 'Tono amichevole e conversazionale, approccio accessibile',
+    description: 'Friendly and conversational tone, accessible approach',
     characteristics: [
-      'Linguaggio amichevole e accessibile',
-      'Spiegazioni conversazionali',
-      'Incoraggiamento e supporto',
-      'Analogie e metafore',
-      'Atmosfera rilassata'
+      'Friendly and accessible language',
+      'Conversational explanations',
+      'Encouragement and support',
+      'Analogies and metaphors',
+      'Relaxed atmosphere'
     ],
-    useCase: 'Learning, onboarding, supporto generale',
+    useCase: 'Learning, onboarding, general support',
     verbosityLevel: 6,
     technicalDepth: 'medium',
     targetAudience: 'mixed'
@@ -149,15 +149,15 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
 
   'technical-precise': {
     name: 'Technical Precise',
-    description: 'Terminologia tecnica precisa, documentazione completa e accurata',
+    description: 'Precise technical terminology, complete and accurate documentation',
     characteristics: [
-      'Terminologia tecnica accurata',
-      'Riferimenti a specifiche',
-      'Documentazione completa',
-      'Precisione nei dettagli',
-      'Standard industry'
+      'Accurate technical terminology',
+      'References to specifications',
+      'Complete documentation',
+      'Precision in details',
+      'Industry standards'
     ],
-    useCase: 'Documentazione, specifiche tecniche, review codice',
+    useCase: 'Documentation, technical specifications, code review',
     verbosityLevel: 7,
     technicalDepth: 'high',
     targetAudience: 'expert'
@@ -165,15 +165,15 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
 
   'educational-verbose': {
     name: 'Educational Verbose',
-    description: 'Spiegazioni educative dettagliate, perfetto per imparare nuovi concetti',
+    description: 'Detailed educational explanations, perfect for learning new concepts',
     characteristics: [
-      'Spiegazioni pedagogiche complete',
-      'Esempi progressivi',
-      'Context storico e teorico',
-      'Riferimenti per approfondire',
-      'Focus sul learning'
+      'Complete pedagogical explanations',
+      'Progressive examples',
+      'Historical and theoretical context',
+      'References for further study',
+      'Focus on learning'
     ],
-    useCase: 'Tutorial, formazione, spiegazione concetti complessi',
+    useCase: 'Tutorials, training, explaining complex concepts',
     verbosityLevel: 9,
     technicalDepth: 'high',
     targetAudience: 'beginner'
@@ -181,15 +181,15 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
 
   'minimal-efficient': {
     name: 'Minimal Efficient',
-    description: 'Output minimalista con solo le informazioni essenziali',
+    description: 'Minimalist output with only essential information',
     characteristics: [
-      'Solo informazioni essenziali',
-      'Formato ultra-compatto',
-      'Zero ridondanza',
-      'Codice senza commenti superflui',
-      'Massima efficienza'
+      'Only essential information',
+      'Ultra-compact format',
+      'Zero redundancy',
+      'Code without superfluous comments',
+      'Maximum efficiency'
     ],
-    useCase: 'Quick fixes, automazione, script rapidi',
+    useCase: 'Quick fixes, automation, rapid scripts',
     verbosityLevel: 2,
     technicalDepth: 'medium',
     targetAudience: 'expert'
@@ -199,21 +199,21 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
 // Utility functions for output style management
 export class OutputStyleUtils {
   /**
-   * Ottiene i metadati per un output style
+   * Gets metadata for an output style
    */
   static getStyleMetadata(style: OutputStyle): OutputStyleMetadata {
     return OUTPUT_STYLES_REGISTRY[style]
   }
 
   /**
-   * Lista tutti gli output styles disponibili
+   * Lists all available output styles
    */
   static getAllStyles(): OutputStyle[] {
     return Object.keys(OUTPUT_STYLES_REGISTRY) as OutputStyle[]
   }
 
   /**
-   * Filtra styles per target audience
+   * Filters styles by target audience
    */
   static getStylesByAudience(audience: OutputStyleMetadata['targetAudience']): OutputStyle[] {
     return Object.entries(OUTPUT_STYLES_REGISTRY)
@@ -222,7 +222,7 @@ export class OutputStyleUtils {
   }
 
   /**
-   * Filtra styles per livello di verbosità
+   * Filters styles by verbosity level
    */
   static getStylesByVerbosity(minLevel: number, maxLevel: number): OutputStyle[] {
     return Object.entries(OUTPUT_STYLES_REGISTRY)
@@ -231,7 +231,7 @@ export class OutputStyleUtils {
   }
 
   /**
-   * Suggerisce il miglior style per un contesto
+   * Suggests the best style for a context
    */
   static suggestStyleForContext(context: {
     userLevel?: 'beginner' | 'intermediate' | 'expert'
@@ -240,7 +240,7 @@ export class OutputStyleUtils {
   }): OutputStyle {
     const { userLevel = 'intermediate', taskType = 'production', urgency = 'medium' } = context
 
-    // Logica di suggerimento basata sul contesto
+    // Context-based suggestion logic
     if (urgency === 'high') {
       return 'minimal-efficient'
     }
@@ -270,21 +270,21 @@ export class OutputStyleUtils {
   }
 
   /**
-   * Valida che un output style sia supportato
+   * Validates that an output style is supported
    */
   static isValidStyle(style: string): style is OutputStyle {
     return style in OUTPUT_STYLES_REGISTRY
   }
 
   /**
-   * Ottiene il livello di verbosità per uno style
+   * Gets the verbosity level for a style
    */
   static getVerbosityLevel(style: OutputStyle): number {
     return OUTPUT_STYLES_REGISTRY[style].verbosityLevel
   }
 
   /**
-   * Confronta due styles per verbosità
+   * Compares two styles by verbosity
    */
   static compareVerbosity(style1: OutputStyle, style2: OutputStyle): number {
     return this.getVerbosityLevel(style1) - this.getVerbosityLevel(style2)

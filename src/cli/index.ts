@@ -118,12 +118,22 @@ const banner = `
 class BannerAnimator {
   private static frames: string[] = []
   private static readonly palettes: [string, string][] = [
-    ['#0ea5e9', '#8b5cf6'],
-    ['#8b5cf6', '#ec4899'],
-    ['#ec4899', '#f97316'],
-    ['#f97316', '#22d3ee'],
-    ['#22d3ee', '#14b8a6'],
-    ['#14b8a6', '#a855f7'],
+    // Blue → White progression
+    ['#0ea5e9', '#ffffff'],
+    ['#38bdf8', '#e0f2fe'],
+    ['#60a5fa', '#bfdbfe'],
+    ['#3b82f6', '#93c5fd'],
+    ['#2563eb', '#60a5fa'],
+    // Transition into deeper blues
+    ['#1d4ed8', '#1e3a8a'],
+    ['#1e40af', '#60a5fa'],
+    // Blue → Black progression
+    ['#60a5fa', '#1e3a8a'],
+    // Symmetric return for smooth loop
+    ['#1e40af', '#60a5fa'],
+    ['#1d4ed8', '#1e3a8a'],
+    ['#2563eb', '#60a5fa'],
+
   ]
 
   private static ensureFrames(): void {
@@ -270,22 +280,22 @@ class IntroductionModule {
     // Enhanced TUI version with better theming and structure
     const setupBox = boxen(
       chalk.yellow.bold('  API Key Required\n\n') +
-        chalk.white('To use NikCLI, please set at least one API key:\n\n') +
-        chalk.green('• ANTHROPIC_API_KEY') +
-        chalk.gray(' - for Claude models (recommended)\n') +
-        chalk.blue('• OPENAI_API_KEY') +
-        chalk.gray(' - for GPT models\n') +
-        chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
-        chalk.gray(' - for Gemini models\n') +
-        chalk.cyan('• AI_GATEWAY_API_KEY') +
-        chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
-        chalk.white.bold('Setup Examples:\n') +
-        chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
-        chalk.dim('export OPENAI_API_KEY="your-key-here"\n') +
-        chalk.dim('export GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"\n') +
-        chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
-        chalk.cyan('Then run: ') +
-        chalk.white.bold('npm start'),
+      chalk.white('To use NikCLI, please set at least one API key:\n\n') +
+      chalk.green('• ANTHROPIC_API_KEY') +
+      chalk.gray(' - for Claude models (recommended)\n') +
+      chalk.blue('• OPENAI_API_KEY') +
+      chalk.gray(' - for GPT models\n') +
+      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+      chalk.gray(' - for Gemini models\n') +
+      chalk.cyan('• AI_GATEWAY_API_KEY') +
+      chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
+      chalk.white.bold('Setup Examples:\n') +
+      chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
+      chalk.dim('export OPENAI_API_KEY="your-key-here"\n') +
+      chalk.dim('export GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"\n') +
+      chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
+      chalk.cyan('Then run: ') +
+      chalk.white.bold('npm start'),
       {
         padding: 1,
         margin: 1,
@@ -303,13 +313,13 @@ class IntroductionModule {
     // Enhanced TUI version with status indicators
     const startupBox = boxen(
       chalk.green.bold('🚀 Starting NikCLI...\n\n') +
-        chalk.white('Initializing autonomous AI assistant\n') +
-        chalk.gray('• Loading project context\n') +
-        chalk.gray('• Preparing planning system\n') +
-        chalk.gray('• Setting up tool integrations\n\n') +
-        chalk.cyan('Type ') +
-        chalk.white.bold('/help') +
-        chalk.cyan(' for available commands'),
+      chalk.white('Initializing autonomous AI assistant\n') +
+      chalk.gray('• Loading project context\n') +
+      chalk.gray('• Preparing planning system\n') +
+      chalk.gray('• Setting up tool integrations\n\n') +
+      chalk.cyan('Type ') +
+      chalk.white.bold('/help') +
+      chalk.cyan(' for available commands'),
       {
         padding: 1,
         margin: 1,
@@ -370,15 +380,15 @@ class OnboardingModule {
   private static async showBetaWarning(): Promise<void> {
     const warningBox = boxen(
       chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
-        chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
-        chalk.yellow.bold('Potential Risks:\n') +
-        chalk.white('• File system modifications\n') +
-        chalk.white('• Code generation may not always be optimal\n') +
-        chalk.white('• AI responses may be inaccurate\n') +
-        chalk.white('• System resource usage\n\n') +
-        chalk.cyan('For detailed security information, visit:\n') +
-        chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
-        chalk.white('By continuing, you acknowledge these risks.'),
+      chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
+      chalk.yellow.bold('Potential Risks:\n') +
+      chalk.white('• File system modifications\n') +
+      chalk.white('• Code generation may not always be optimal\n') +
+      chalk.white('• AI responses may be inaccurate\n') +
+      chalk.white('• System resource usage\n\n') +
+      chalk.cyan('For detailed security information, visit:\n') +
+      chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
+      chalk.white('By continuing, you acknowledge these risks.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -434,21 +444,21 @@ class OnboardingModule {
 
     const setupBox = boxen(
       chalk.yellow.bold('⚠️  No API keys detected\n\n') +
-        chalk.white('To unlock the best experience, add at least one API key:\n\n') +
-        chalk.green('• ANTHROPIC_API_KEY') +
-        chalk.gray(' – Claude models (recommended)\n') +
-        chalk.blue('• OPENAI_API_KEY') +
-        chalk.gray(' – GPT models\n') +
-        chalk.yellow('• OPENROUTER_API_KEY') +
-        chalk.gray(' – Multi-provider routing\n') +
-        chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
-        chalk.gray(' – Gemini models\n') +
-        chalk.cyan('• AI_GATEWAY_API_KEY / V0_API_KEY') +
-        chalk.gray(' – Vercel integrations\n\n') +
-        chalk.white.bold('Example commands:\n') +
-        chalk.dim('export ANTHROPIC_API_KEY="your-key"\n') +
-        chalk.dim('export OPENROUTER_API_KEY="your-key"\n\n') +
-        chalk.cyan('Prefer local models? Configure Ollama below.'),
+      chalk.white('To unlock the best experience, add at least one API key:\n\n') +
+      chalk.green('• ANTHROPIC_API_KEY') +
+      chalk.gray(' – Claude models (recommended)\n') +
+      chalk.blue('• OPENAI_API_KEY') +
+      chalk.gray(' – GPT models\n') +
+      chalk.yellow('• OPENROUTER_API_KEY') +
+      chalk.gray(' – Multi-provider routing\n') +
+      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+      chalk.gray(' – Gemini models\n') +
+      chalk.cyan('• AI_GATEWAY_API_KEY / V0_API_KEY') +
+      chalk.gray(' – Vercel integrations\n\n') +
+      chalk.white.bold('Example commands:\n') +
+      chalk.dim('export ANTHROPIC_API_KEY="your-key"\n') +
+      chalk.dim('export OPENROUTER_API_KEY="your-key"\n\n') +
+      chalk.cyan('Prefer local models? Configure Ollama below.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -535,9 +545,9 @@ class OnboardingModule {
       // Show minimal success box
       const summaryBox = boxen(
         chalk.white('✅ Node.js v') +
-          chalk.white(process.version) +
-          '\n' +
-          chalk.white('✅ Cloud API provider configured'),
+        chalk.white(process.version) +
+        '\n' +
+        chalk.white('✅ Cloud API provider configured'),
         {
           padding: 1,
           borderStyle: 'round',
@@ -574,9 +584,9 @@ class OnboardingModule {
 
         const modelsBox = boxen(
           chalk.green.bold('✅ Local Ollama models detected\n\n') +
-            list +
-            '\n\n' +
-            chalk.white('Use a local model to run NikCLI without external API keys.'),
+          list +
+          '\n\n' +
+          chalk.white('Use a local model to run NikCLI without external API keys.'),
           {
             padding: 1,
             borderStyle: 'round',
@@ -634,8 +644,8 @@ class OnboardingModule {
 
       const promptBox = boxen(
         chalk.yellow.bold('No Ollama models configured yet.\n\n') +
-          chalk.white('Add the default `llama3.1:8b` model now?\n') +
-          chalk.dim('This enables fully local inference without API keys.'),
+        chalk.white('Add the default `llama3.1:8b` model now?\n') +
+        chalk.dim('This enables fully local inference without API keys.'),
         {
           padding: 1,
           borderStyle: 'round',
@@ -784,7 +794,7 @@ class OnboardingModule {
     const header = chalk.cyanBright('🔐 Authentication Setup')
     const introBox = boxen(
       chalk.white('Sign in to sync progress across devices and unlock collaborative features.\n') +
-        chalk.gray('You can always connect later with the /auth command.'),
+      chalk.gray('You can always connect later with the /auth command.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -904,8 +914,8 @@ class OnboardingModule {
       if (result) {
         const successBox = boxen(
           chalk.green(`✅ Welcome back, ${result.profile.email || result.profile.username}!`) +
-            '\n' +
-            chalk.gray(`Subscription: ${result.profile.subscription_tier}`),
+          '\n' +
+          chalk.gray(`Subscription: ${result.profile.subscription_tier}`),
           {
             padding: 1,
             borderStyle: 'round',
@@ -969,10 +979,10 @@ class OnboardingModule {
       if (result) {
         const successBox = boxen(
           chalk.green('✅ Account created successfully!') +
-            '\n' +
-            chalk.gray(`Welcome, ${result.profile.email}!`) +
-            '\n' +
-            chalk.dim('Check your email for verification if required.'),
+          '\n' +
+          chalk.gray(`Welcome, ${result.profile.email}!`) +
+          '\n' +
+          chalk.dim('Check your email for verification if required.'),
           {
             padding: 1,
             borderStyle: 'round',
@@ -1273,12 +1283,12 @@ class ServiceModule {
         const { visionProvider } = await import('./providers/vision')
         const { imageGenerator } = await import('./providers/image')
 
-        // Providers initialize automatically in their constructors
+          // Providers initialize automatically in their constructors
 
-        // Make providers globally accessible for chat
-        ;(global as any).visionProvider = visionProvider
-        ;(global as any).imageGenerator = imageGenerator
-      } catch (_error: any) {}
+          // Make providers globally accessible for chat
+          ; (global as any).visionProvider = visionProvider
+          ; (global as any).imageGenerator = imageGenerator
+      } catch (_error: any) { }
     } catch (_error: any) {
       // Enhanced services failed - silent
       // Don't throw error to allow system to continue with basic functionality
@@ -1358,9 +1368,9 @@ class StreamingModule extends EventEmitter {
     if (process.stdin.isTTY) {
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ;(process.stdin as any).setRawMode(true)
+        ; (process.stdin as any).setRawMode(true)
       }
-      ;(process.stdin as any).resume()
+      ; (process.stdin as any).resume()
     }
 
     // Keypress handlers
