@@ -1,0 +1,1 @@
+// Placeholder for cloud docs provider functionality

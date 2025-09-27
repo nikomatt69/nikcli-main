@@ -1,0 +1,1 @@
+// Placeholder for autonomous Claude interface functionality
