@@ -50,17 +50,28 @@ export class PasteHandler {
     const lineCount = this.countLines(input)
     const length = input.length
 
+    // Performance optimization: For very large content, do quick check first
+    if (length > 50000) {
+      return true // Very large content is definitely a paste
+    }
+
     // Check for paste indicators:
     // 1. Very long input
     // 2. Many lines
     // 3. Rapid input (though this is harder to detect in readline)
     // 4. Contains typical paste patterns (code blocks, formatted text, etc.)
 
-    const isPotentialPaste =
-      length > this.config.minLengthThreshold ||
-      lineCount > this.config.minLineThreshold ||
-      this.hasCodeBlockPattern(input) ||
-      this.hasStructuredTextPattern(input)
+    // More conservative detection - require either:
+    // 1. Large content (length OR many lines)
+    // 2. Structured patterns AND minimum complexity (length > 100 OR multiple lines)
+    // 3. Command sequences (multiple commands)
+
+    const isLargeContent = length >= this.config.minLengthThreshold || lineCount >= this.config.minLineThreshold
+    const hasPatterns = this.hasCodeBlockPattern(input) || this.hasStructuredTextPattern(input)
+    const hasCommandSequence = this.hasCommandSequencePattern(input)
+    const hasMinimumComplexity = length > 100 || lineCount > 1
+
+    const isPotentialPaste = isLargeContent || (hasPatterns && hasMinimumComplexity) || hasCommandSequence
 
     return isPotentialPaste
   }
@@ -178,6 +189,16 @@ export class PasteHandler {
       /^\s*import\s+/m,       // Import statements
       /^\s*const\s+\w+\s*=/m, // Const declarations
       /^\s*<\w+[\s\S]*>/m,    // HTML/XML tags
+      /^\s*\.[\w-]+\s*{/m,    // CSS selectors (.class, #id)
+      /^\s*[\w-]+\s*:\s*[\w-]+/m, // CSS properties
+      /^\s*SELECT\s+/im,      // SQL SELECT statements
+      /^\s*INSERT\s+INTO\s+/im, // SQL INSERT statements
+      /^\s*UPDATE\s+/im,      // SQL UPDATE statements
+      /^\s*DELETE\s+FROM\s+/im, // SQL DELETE statements
+      /^\s*CREATE\s+TABLE\s+/im, // SQL CREATE statements
+      /^\s*#!/,               // Shebang lines (bash, python, etc.)
+      /^\s*\w+:\s*$/m,        // YAML-like keys (config files)
+      /^\s*\w+\s*=\s*/m,      // Assignment patterns (config files)
     ]
 
     return codePatterns.some(pattern => pattern.test(text))
@@ -197,6 +218,42 @@ export class PasteHandler {
     ]
 
     return structuredPatterns.some(pattern => pattern.test(text))
+  }
+
+  /**
+   * Check if text contains command sequence patterns
+   */
+  private hasCommandSequencePattern(text: string): boolean {
+    const lines = text.split('\n').filter(line => line.trim())
+
+    if (lines.length < 3) return false // Need at least 3 commands
+
+    const commandPatterns = [
+      /^\s*npm\s+/,               // npm commands
+      /^\s*yarn\s+/,              // yarn commands
+      /^\s*git\s+/,               // git commands
+      /^\s*cd\s+/,                // cd commands
+      /^\s*mkdir\s+/,             // mkdir commands
+      /^\s*cp\s+/,                // cp commands
+      /^\s*mv\s+/,                // mv commands
+      /^\s*rm\s+/,                // rm commands
+      /^\s*ls\s*/,                // ls commands
+      /^\s*cat\s+/,               // cat commands
+      /^\s*echo\s+/,              // echo commands
+      /^\s*curl\s+/,              // curl commands
+      /^\s*wget\s+/,              // wget commands
+      /^\s*node\s+/,              // node commands
+      /^\s*python\s+/,            // python commands
+      /^\s*pip\s+/,               // pip commands
+      /^\s*docker\s+/,            // docker commands
+    ]
+
+    // Check if at least 50% of lines look like commands
+    const commandCount = lines.filter(line =>
+      commandPatterns.some(pattern => pattern.test(line))
+    ).length
+
+    return commandCount >= Math.ceil(lines.length * 0.5)
   }
 
   /**

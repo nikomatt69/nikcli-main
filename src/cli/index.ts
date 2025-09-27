@@ -1289,6 +1289,21 @@ class ServiceModule {
           ; (global as any).visionProvider = visionProvider
           ; (global as any).imageGenerator = imageGenerator
       } catch (_error: any) { }
+
+      // Initialize CAD/GCode provider and services once at startup
+      try {
+        const { cadGcodeProvider } = await import('./providers/cad-gcode')
+        const { getCadService, getGcodeService } = await import('./services/cad-gcode-service')
+
+        await cadGcodeProvider.initialize()
+
+        // Expose globally for command handlers and autonomous flows
+        ; (global as any).cadGcodeProvider = cadGcodeProvider
+        ; (global as any).cadService = getCadService()
+        ; (global as any).gcodeService = getGcodeService()
+      } catch (_error: any) {
+        // Silent: CAD/GCode provider optional
+      }
     } catch (_error: any) {
       // Enhanced services failed - silent
       // Don't throw error to allow system to continue with basic functionality

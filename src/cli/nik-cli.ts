@@ -13,6 +13,7 @@ import { modelProvider } from './ai/model-provider'
 import { ModernAgentOrchestrator } from './automation/agents/modern-agent-system'
 import { chatManager } from './chat/chat-manager'
 import { SlashCommandHandler } from './chat/nik-cli-commands'
+import { CADCommands } from './commands/cad-commands'
 import { calculateTokenCost, MODEL_COSTS, TOKEN_LIMITS } from './config/token-limits'
 import { docsContextManager } from './context/docs-context-manager'
 import { workspaceContext } from './context/workspace-context'
@@ -78,6 +79,8 @@ import { vmSelector } from './virtualized-agents/vm-selector'
 import { VimModeManager } from './vim/vim-mode-manager'
 import { VimAIIntegration } from './vim/ai/vim-ai-integration'
 import { ModernAIProvider } from './ai/modern-ai-provider'
+
+// CAD AI System imports
 
 // Configure syntax highlighting for terminal output
 configureSyntaxHighlighting()
@@ -2202,11 +2205,8 @@ export class NikCLI {
       const lineCount = trimmed.split('\n').length
       const isPasteOperation = this.pasteHandler.detectPasteOperation(trimmed)
 
-      console.log(chalk.yellow(`🔍 Input analysis: ${lineCount} lines, ${trimmed.length} chars, isPaste: ${isPasteOperation}`))
-
       if (isPasteOperation || lineCount > 1) {
         // This is a paste operation - process as single consolidated input
-        console.log(chalk.blue(`📋 Detected paste operation with ${lineCount} lines`))
         await this.processSingleInput(trimmed)
         return
       }
@@ -3496,6 +3496,12 @@ export class NikCLI {
           break
         case 'clear-approvals':
           await this.handleClearApprovalsPanel()
+          break
+
+        // CAD & Manufacturing Commands
+        case 'cad':
+        case 'gcode':
+          await this.handleCADCommands(cmd, args)
           break
 
         // Help and Exit
@@ -6482,6 +6488,10 @@ EOF`
             this.stopAdvancedSpinner(cmdId, false, `Command failed with exit code ${result.code}`)
             console.log(chalk.red(`❌ Command failed with exit code ${result.code}`))
           }
+
+          // Ensure prompt is restored after command execution
+          process.stdout.write('\n')
+          this.renderPromptAfterOutput()
           break
         }
         case 'install': {
@@ -6540,6 +6550,10 @@ EOF`
         case 'git':
         case 'docker': {
           await toolsManager.runCommand(command, args, { stream: true })
+
+          // Ensure prompt is restored after command execution
+          process.stdout.write('\n')
+          this.renderPromptAfterOutput()
           break
         }
         case 'ps': {
@@ -7261,6 +7275,128 @@ EOF`
     process.stdout.write('')
     await new Promise((resolve) => setTimeout(resolve, 150))
     this.renderPromptAfterOutput()
+  }
+
+  // CAD & Manufacturing Commands Handlers
+  private async handleCADCommands(command: string, args: string[]): Promise<void> {
+    try {
+      if (command === 'cad') {
+        // Initialize CAD commands handler
+        const cadCommands = new CADCommands()
+        await cadCommands.handleCADCommand(args)
+      } else if (command === 'gcode') {
+        // Handle G-code commands
+        await this.handleGCodeCommands(args)
+      }
+    } catch (error: any) {
+      this.addLiveUpdate({ type: 'error', content: `CAD command failed: ${error.message}`, source: 'cad' })
+      console.log(chalk.red(`❌ Error: ${error.message}`))
+    }
+    console.log() // Extra newline for better separation
+    process.stdout.write('')
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    this.renderPromptAfterOutput()
+  }
+
+  private async handleGCodeCommands(args: string[]): Promise<void> {
+    if (args.length === 0) {
+      this.showGCodeHelp()
+      return
+    }
+
+    const subcommand = args[0]
+    const restArgs = args.slice(1)
+
+    switch (subcommand) {
+      case 'generate':
+      case 'create':
+        await this.handleGCodeGenerate(restArgs)
+        break
+
+      case 'cnc':
+        await this.handleGCodeGenerate(restArgs, 'cnc')
+        break
+
+      case '3d':
+        await this.handleGCodeGenerate(restArgs, '3d-printer')
+        break
+
+      case 'laser':
+        await this.handleGCodeGenerate(restArgs, 'laser')
+        break
+
+      case 'examples':
+        this.showGCodeExamples()
+        break
+
+      case 'help':
+      default:
+        this.showGCodeHelp()
+        break
+    }
+  }
+
+  private async handleGCodeGenerate(args: string[], machineType?: string): Promise<void> {
+    if (args.length === 0) {
+      console.log(chalk.red('Usage: /gcode generate <description>'))
+      console.log(chalk.gray('Example: /gcode generate "drill 4 holes in aluminum plate"'))
+      return
+    }
+
+    const description = args.join(' ')
+    const type = machineType || 'cnc'
+    console.log(chalk.blue(`⚙️ Generating ${type.toUpperCase()} G-code: "${description}"`))
+
+    try {
+      // Use the service aligned with other providers
+      const { getGcodeService } = await import('./services/cad-gcode-service')
+      const gcodeService = getGcodeService()
+      const cadModel = `Operation: ${type}\nDescription: ${description}`
+      const result = await gcodeService.generateGcode(cadModel, description)
+
+      if (result?.gcode) {
+        console.log(chalk.green('✅ G-code generated successfully:'))
+        console.log('')
+        console.log(chalk.gray(result.gcode))
+      } else {
+        console.log(chalk.red('❌ G-code generation failed'))
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error: ${error.message}`))
+    }
+  }
+
+  private showGCodeHelp(): void {
+    console.log(chalk.cyan.bold('⚙️ Text-to-G-code AI Commands:'))
+    console.log('')
+    console.log(chalk.yellow('Generation Commands:'))
+    console.log(chalk.blue('  /gcode generate <description>') + chalk.gray(' - Generate G-code from description'))
+    console.log(chalk.blue('  /gcode cnc <description>') + chalk.gray('      - Generate CNC G-code'))
+    console.log(chalk.blue('  /gcode 3d <description>') + chalk.gray('       - Generate 3D printer G-code'))
+    console.log(chalk.blue('  /gcode laser <description>') + chalk.gray('    - Generate laser cutter G-code'))
+    console.log('')
+    console.log(chalk.yellow('Information Commands:'))
+    console.log(chalk.blue('  /gcode examples') + chalk.gray('               - Show usage examples'))
+    console.log(chalk.blue('  /gcode help') + chalk.gray('                   - Show this help'))
+    console.log('')
+    console.log(chalk.gray('💡 Tip: Be specific about materials, tools, and operations'))
+    console.log(chalk.gray('Example: "drill 4x M6 holes in 3mm aluminum plate with HSS bit"'))
+  }
+
+  private showGCodeExamples(): void {
+    console.log(chalk.cyan.bold('⚙️ G-code Generation Examples:'))
+    console.log('')
+    console.log(chalk.yellow('CNC Operations:'))
+    console.log(chalk.gray('  /gcode cnc "drill 4 holes 6mm diameter in steel plate"'))
+    console.log(chalk.gray('  /gcode cnc "mill pocket 20x30mm, 5mm deep in aluminum"'))
+    console.log('')
+    console.log(chalk.yellow('3D Printing:'))
+    console.log(chalk.gray('  /gcode 3d "print bracket layer height 0.2mm PLA"'))
+    console.log(chalk.gray('  /gcode 3d "support structure for overhang part"'))
+    console.log('')
+    console.log(chalk.yellow('Laser Cutting:'))
+    console.log(chalk.gray('  /gcode laser "cut 3mm acrylic sheet with rounded corners"'))
+    console.log(chalk.gray('  /gcode laser "engrave text on wood surface 5mm deep"'))
   }
 
   // Documentation Commands Handlers
@@ -10185,6 +10321,19 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       ['/analyze-image <path>', 'Analyze image with AI vision'],
       ['/generate-image "prompt"', 'Generate image with AI'],
 
+      // CAD & Manufacturing
+      ['/cad generate <description>', 'Generate CAD model from text description'],
+      ['/cad stream <description>', 'Generate CAD with real-time progress'],
+      ['/cad export <format> <description>', 'Generate and export CAD to file format'],
+      ['/cad formats', 'Show supported CAD export formats'],
+      ['/cad examples', 'Show CAD generation examples'],
+      ['/cad status', 'Show CAD system status'],
+      ['/gcode generate <description>', 'Generate G-code from machining description'],
+      ['/gcode cnc <description>', 'Generate CNC G-code'],
+      ['/gcode 3d <description>', 'Generate 3D printer G-code'],
+      ['/gcode laser <description>', 'Generate laser cutter G-code'],
+      ['/gcode examples', 'Show G-code generation examples'],
+
       // Documentation
       ['/docs', 'Documentation system help'],
       ['/doc-search <query>', 'Search documentation'],
@@ -10242,12 +10391,13 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     addGroup('🎨 Figma Design Integration:', 61, 67)
     addGroup('🔗 Blockchain & Web3:', 67, 71)
     addGroup('🔍 Vision & Images:', 71, 73)
-    addGroup('📚 Documentation:', 73, 76)
-    addGroup('📸 Snapshots & Backup:', 76, 79)
-    addGroup('🔒 Security & Development:', 79, 82)
-    addGroup('🔧 IDE Integration:', 82, 85)
-    addGroup('📋 Todo & Planning:', 85, 87)
-    addGroup('🏠 Basic System:', 87, commands.length)
+    addGroup('🛠️ CAD & Manufacturing:', 73, 84)
+    addGroup('📚 Documentation:', 84, 87)
+    addGroup('📸 Snapshots & Backup:', 87, 90)
+    addGroup('🔒 Security & Development:', 90, 93)
+    addGroup('🔧 IDE Integration:', 93, 96)
+    addGroup('📋 Todo & Planning:', 96, 98)
+    addGroup('🏠 Basic System:', 98, commands.length)
 
     lines.push('💡 Shortcuts: Ctrl+C exit | Esc interrupt | Cmd+Esc default')
 
@@ -12166,8 +12316,10 @@ Generated by NikCLI on ${new Date().toISOString()}
   }
 
   private async runCommand(command: string): Promise<void> {
+    let cmdId: string | null = null
+
     try {
-      const cmdId = 'cmd-' + Date.now()
+      cmdId = 'cmd-' + Date.now()
       this.createStatusIndicator(cmdId, `Executing: ${command}`)
       this.startAdvancedSpinner(cmdId, `Running: ${command}`)
 
@@ -12176,27 +12328,45 @@ Generated by NikCLI on ${new Date().toISOString()}
       const success = result.code === 0
       this.stopAdvancedSpinner(cmdId, success, success ? 'Command completed' : 'Command failed')
 
+      // Collect all output first to avoid multiple prompt renders
+      let hasOutput = false
+
       if (result.stdout) {
         console.log(chalk.blue.bold(`\n💻 Output:`))
         console.log(result.stdout)
-        process.stdout.write('')
-        await new Promise((resolve) => setTimeout(resolve, 150)) // Extra newline for better separation
-        this.renderPromptAfterOutput()
+        hasOutput = true
       }
 
       if (result.stderr) {
         console.log(chalk.red.bold(`\n❌ Error:`))
         console.log(result.stderr)
-        process.stdout.write('')
-        await new Promise((resolve) => setTimeout(resolve, 150)) // Extra newline for better separation
-        this.renderPromptAfterOutput()
+        hasOutput = true
       }
 
       console.log(chalk.gray(`\n📊 Exit Code: ${result.code}`))
+
+      // Single prompt restoration after all output
+      if (hasOutput) {
+        process.stdout.write('\n')
+        await new Promise((resolve) => setTimeout(resolve, 100)) // Brief pause for output to settle
+      }
+
     } catch (error: any) {
       console.log(chalk.red(`❌ Command failed: ${error.message}`))
+
+      // Ensure spinner is stopped even on error
+      if (cmdId) {
+        try {
+          this.stopAdvancedSpinner(cmdId, false, 'Command failed')
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } finally {
+      // Guaranteed final cleanup and prompt restoration
+      process.stdout.write('')
+      this.renderPromptAfterOutput()
     }
-    process.stdout.write('')
   }
 
   private async buildProject(): Promise<void> {

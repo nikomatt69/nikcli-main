@@ -15,6 +15,8 @@ import { MultiReadTool } from './multi-read-tool'
 import { ReadFileTool } from './read-file-tool'
 import { ReplaceInFileTool } from './replace-in-file-tool'
 import { RunCommandTool } from './run-command-tool'
+import { TextToCADTool } from './text-to-cad-tool'
+import { TextToGCodeTool } from './text-to-gcode-tool'
 import { VisionAnalysisTool } from './vision-analysis-tool'
 import { WriteFileTool } from './write-file-tool'
 
@@ -59,7 +61,9 @@ export class ToolRegistry {
       tags: metadata?.tags || [],
     })
 
-    CliUI.logInfo(`Registered tool: ${CliUI.highlight(name)}`)
+    if (!process.env.NIKCLI_SUPPRESS_TOOL_REGISTER_LOGS && !process.env.NIKCLI_QUIET_STARTUP) {
+      CliUI.logInfo(`Registered tool: ${CliUI.highlight(name)}`)
+    }
   }
 
   /**
@@ -448,6 +452,29 @@ export class ToolRegistry {
       requiredPermissions: ['read'],
       supportedFileTypes: ['*'],
       tags: ['grep', 'search', 'pattern'],
+    })
+
+    // CAD Generation Tools
+    this.registerTool('text-to-cad-tool', new TextToCADTool(workingDirectory), {
+      description: 'Convert text descriptions into CAD elements and models with AI',
+      category: 'ai',
+      riskLevel: 'medium',
+      reversible: false,
+      estimatedDuration: 12000,
+      requiredPermissions: ['write', 'network'],
+      supportedFileTypes: ['stl', 'step', 'dwg', 'json'],
+      tags: ['cad', 'ai', 'generation', 'text-to-cad', 'engineering', '3d'],
+    })
+
+    this.registerTool('text-to-gcode-tool', new TextToGCodeTool(workingDirectory), {
+      description: 'Convert text descriptions into G-code for CNC machining and 3D printing',
+      category: 'manufacturing',
+      riskLevel: 'medium',
+      reversible: false,
+      estimatedDuration: 8000,
+      requiredPermissions: ['write'],
+      supportedFileTypes: ['gcode', 'nc', 'txt'],
+      tags: ['gcode', 'cnc', '3d-printing', 'manufacturing', 'machining', 'laser'],
     })
 
     if (!process.env.NIKCLI_QUIET_STARTUP) {

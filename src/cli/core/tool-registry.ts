@@ -234,7 +234,9 @@ export class ToolRegistry {
       this.addToCategory(toolMetadata.category, toolMetadata.id)
       this.loadedTools.add(toolMetadata.id)
 
-      advancedUI.logSuccess(`🔧 Registered tool: ${toolMetadata.name} (${toolMetadata.id})`)
+      if (!process.env.NIKCLI_SUPPRESS_TOOL_REGISTER_LOGS && !process.env.NIKCLI_QUIET_STARTUP) {
+        advancedUI.logSuccess(`🔧 Registered tool: ${toolMetadata.name} (${toolMetadata.id})`)
+      }
       return toolMetadata.id
     } catch (error: any) {
       advancedUI.logError(`❌ Failed to register tool: ${error.message}`)

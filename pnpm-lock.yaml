@@ -101,6 +101,9 @@ importers:
       ai:
         specifier: ^3.4.33
         version: 3.4.33(openai@4.104.0(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.25.76))(react@18.3.1)(sswr@2.2.0(svelte@5.39.3))(svelte@5.39.3)(vue@3.5.21(typescript@5.9.2))(zod@3.25.76)
+      ai-cad-sdk:
+        specifier: ^2.1.0
+        version: 2.1.0(@types/node@24.5.2)(react-dom@19.1.1(react@18.3.1))(react@18.3.1)
       autoprefixer:
         specifier: ^10.4.21
         version: 10.4.21(postcss@8.5.6)
@@ -3716,6 +3719,14 @@ packages:
   agentkeepalive@4.6.0:
     resolution: {integrity: sha512-kja8j7PjmncONqaTsB8fQ+wE2mSU2DJ9D4XKoJ5PFWIdRMa6SLSN1ff4mOr4jCbfRSsxR4keIiySJU0N9T5hIQ==}
     engines: {node: '>= 8.0.0'}
+
+  ai-cad-sdk@2.1.0:
+    resolution: {integrity: sha512-12JWeyc8sXa7TMTG0cx0hFJq5HBhNFXPgQ/86Qwb3eAD+Ec+ywPTWMsNeU1lFixvwfYWmlTIBeVaWpEBAsut7Q==}
+    engines: {node: '>=16.0.0'}
+    hasBin: true
+    peerDependencies:
+      react: '>=17.0.0'
+      react-dom: '>=17.0.0'
 
   ai-sdk-provider-gemini-cli@0.1.3:
     resolution: {integrity: sha512-hNsp2YIDLr+nVqxk8l6UzRozj3e1sfh3nzjyNSHB4f47dMBReb9qTq/1GwOlpKGEPcLK7OoibbX9wFC/eWBlvA==}
@@ -14199,6 +14210,23 @@ snapshots:
   agentkeepalive@4.6.0:
     dependencies:
       humanize-ms: 1.2.1
+
+  ai-cad-sdk@2.1.0(@types/node@24.5.2)(react-dom@19.1.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      '@types/react': 19.1.13
+      axios: 1.12.2
+      chalk: 4.1.2
+      commander: 11.1.0
+      inquirer: 8.2.7(@types/node@24.5.2)
+      ora: 5.4.1
+      react: 18.3.1
+      react-dom: 19.1.1(react@18.3.1)
+      uuid: 11.1.0
+      zustand: 4.5.7(@types/react@19.1.13)(react@18.3.1)
+    transitivePeerDependencies:
+      - '@types/node'
+      - debug
+      - immer
 
   ai-sdk-provider-gemini-cli@0.1.3(@modelcontextprotocol/sdk@1.18.1)(bufferutil@4.0.9)(utf-8-validate@5.0.10)(zod@3.25.76):
     dependencies:

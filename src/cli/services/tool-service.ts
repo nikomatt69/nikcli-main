@@ -161,7 +161,7 @@ export class ToolService {
 
   registerTool(tool: ToolCapability): void {
     this.tools.set(tool.name, tool)
-    if (!process.env.NIKCLI_QUIET_STARTUP) {
+    if (!process.env.NIKCLI_SUPPRESS_TOOL_REGISTER_LOGS && !process.env.NIKCLI_QUIET_STARTUP) {
       console.log(chalk.dim(`🔧 Registered tool: ${tool.name}`))
     }
   }

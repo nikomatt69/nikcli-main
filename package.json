@@ -92,6 +92,7 @@
     "@vercel/node": "^5.3.22",
     "@zed-industries/agent-client-protocol": "^0.1.2",
     "ai": "^3.4.33",
+    "ai-cad-sdk": "^2.1.0",
     "autoprefixer": "^10.4.21",
     "axios": "^1.12.2",
     "blessed": "^0.1.81",
