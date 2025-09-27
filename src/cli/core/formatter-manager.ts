@@ -67,19 +67,8 @@ export class FormatterManager {
    * Initialize built-in formatters for different languages
    */
   private initializeFormatters(): void {
-    // TypeScript/JavaScript - Biome (primary)
+    // TypeScript/JavaScript - Prettier
     this.formatters.set('typescript', {
-      name: 'Biome',
-      extensions: ['.ts', '.tsx', '.js', '.jsx'],
-      command: 'npx',
-      args: ['@biomejs/biome', 'format', '--write'],
-      configFiles: ['biome.json'],
-      installCommand: 'npm install --save-dev @biomejs/biome',
-      fallbackFormatter: this.formatTypeScript,
-    })
-
-    // TypeScript/JavaScript - Prettier (fallback alternative)
-    this.formatters.set('typescript-prettier', {
       name: 'Prettier',
       extensions: ['.ts', '.tsx', '.js', '.jsx'],
       command: 'npx',
@@ -89,19 +78,8 @@ export class FormatterManager {
       fallbackFormatter: this.formatTypeScript,
     })
 
-    // JSON - Biome (primary)
+    // JSON - Prettier
     this.formatters.set('json', {
-      name: 'Biome',
-      extensions: ['.json'],
-      command: 'npx',
-      args: ['@biomejs/biome', 'format', '--write'],
-      configFiles: ['biome.json'],
-      installCommand: 'npm install --save-dev @biomejs/biome',
-      fallbackFormatter: this.formatJSON,
-    })
-
-    // JSON - Prettier (alternative)
-    this.formatters.set('json-prettier', {
       name: 'Prettier',
       extensions: ['.json'],
       command: 'npx',
@@ -210,9 +188,9 @@ export class FormatterManager {
     }
 
     const ext = extname(filePath).toLowerCase()
-    const formatters = this.getFormattersForExtension(ext)
+    const formatter = this.getFormatterForExtension(ext)
 
-    if (formatters.length === 0) {
+    if (!formatter) {
       return {
         success: true,
         formatted: false,
@@ -222,58 +200,47 @@ export class FormatterManager {
       }
     }
 
-    // Try formatters in priority order (Biome first, then Prettier, etc.)
-    for (const formatter of formatters) {
-      advancedUI.logInfo(`🎨 Attempting to format ${filePath} with ${formatter.name}...`)
+    advancedUI.logInfo(`🎨 Formatting ${filePath} with ${formatter.name}...`)
 
-      try {
-        // Try external formatter first
-        const externalResult = await this.tryExternalFormatter(content, filePath, formatter)
-        if (externalResult.success) {
-          return externalResult
-        }
-
-        // If external formatter failed but we have a fallback, try it
-        if (formatter.fallbackFormatter) {
-          advancedUI.logInfo(`🔄 Using fallback formatter for ${ext}...`)
-          const formattedContent = formatter.fallbackFormatter(content)
-
-          return {
-            success: true,
-            formatted: formattedContent !== content,
-            content: formattedContent,
-            originalContent: content,
-            formatter: `${formatter.name} (fallback)`,
-            warnings: externalResult.error ? [`External formatter failed: ${externalResult.error}`] : undefined,
-          }
-        }
-      } catch (error: any) {
-        advancedUI.logWarning(`${formatter.name} failed: ${error.message}`)
-        // Continue to next formatter
+    try {
+      // Try external formatter first
+      const externalResult = await this.tryExternalFormatter(content, filePath, formatter)
+      if (externalResult.success) {
+        return externalResult
       }
-    }
 
-    // If all formatters failed, use built-in fallback
-    const fallbackFormatter = formatters.find((f) => f.fallbackFormatter)
-    if (fallbackFormatter) {
-      advancedUI.logInfo(`🔧 Using built-in fallback formatter for ${ext}...`)
-      const formattedContent = fallbackFormatter.fallbackFormatter!(content)
+      // Fallback to built-in formatter
+      if (formatter.fallbackFormatter) {
+        advancedUI.logInfo(`🔄 Using fallback formatter for ${ext}...`)
+        const formattedContent = formatter.fallbackFormatter(content)
+
+        return {
+          success: true,
+          formatted: formattedContent !== content,
+          content: formattedContent,
+          originalContent: content,
+          formatter: `${formatter.name} (fallback)`,
+          warnings: externalResult.error ? [`External formatter failed: ${externalResult.error}`] : undefined,
+        }
+      }
+
       return {
-        success: true,
-        formatted: formattedContent !== content,
-        content: formattedContent,
+        success: false,
+        formatted: false,
+        content,
         originalContent: content,
-        formatter: `Built-in ${ext} formatter`,
-        warnings: ['All external formatters failed, used built-in fallback'],
+        error: `No formatter available for ${ext}`,
+        formatter: formatter.name,
       }
-    }
-
-    return {
-      success: false,
-      formatted: false,
-      content,
-      originalContent: content,
-      error: `No working formatter available for ${ext}`,
+    } catch (error: any) {
+      return {
+        success: false,
+        formatted: false,
+        content,
+        originalContent: content,
+        error: error.message,
+        formatter: formatter.name,
+      }
     }
   }
 
@@ -347,7 +314,7 @@ export class FormatterManager {
   }
 
   /**
-   * Get formatter for file extension (legacy method, returns first match)
+   * Get formatter for file extension
    */
   private getFormatterForExtension(ext: string): FormatterDefinition | null {
     for (const formatter of this.formatters.values()) {
@@ -356,23 +323,6 @@ export class FormatterManager {
       }
     }
     return null
-  }
-
-  /**
-   * Get all formatters for file extension in priority order
-   */
-  private getFormattersForExtension(ext: string): FormatterDefinition[] {
-    const allFormatters = Array.from(this.formatters.values())
-    const matchingFormatters = allFormatters.filter((formatter) => formatter.extensions.includes(ext))
-
-    // Sort by priority: Biome first, then Prettier, then others
-    return matchingFormatters.sort((a, b) => {
-      if (a.name === 'Biome' && b.name !== 'Biome') return -1
-      if (b.name === 'Biome' && a.name !== 'Biome') return 1
-      if (a.name === 'Prettier' && b.name !== 'Prettier' && b.name !== 'Biome') return -1
-      if (b.name === 'Prettier' && a.name !== 'Prettier' && a.name !== 'Biome') return 1
-      return 0
-    })
   }
 
   /**

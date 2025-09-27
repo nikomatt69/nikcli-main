@@ -35,11 +35,11 @@ module.exports = {
     'no-await-in-loop': 'warn',
     'prefer-promise-reject-errors': 'error',
 
-    // Code style (can be handled by prettier if added later)
-    indent: ['error', 2],
-    quotes: ['error', 'single', { avoidEscape: true }],
-    semi: ['error', 'always'],
-    'comma-dangle': ['error', 'always-multiline'],
+    // Code style - Disabled in favor of Biome formatter
+    // indent: ['error', 2], // Handled by Biome
+    // quotes: ['error', 'single', { avoidEscape: true }], // Handled by Biome
+    // semi: ['error', 'always'], // Handled by Biome (conflicts with semicolons: "asNeeded")
+    // 'comma-dangle': ['error', 'always-multiline'], // Handled by Biome
   },
   overrides: [
     {

@@ -15,9 +15,6 @@ export interface BashToolParams {
   workingDirectory?: string
   environment?: Record<string, string>
   allowDangerous?: boolean
-  skipConfirmation?: boolean
-  streamOutput?: boolean
-  usePipefail?: boolean
 }
 
 export interface BashResult {
@@ -31,7 +28,7 @@ export interface BashResult {
   killed: boolean
 }
 
-// Whitelist comandi sicuri (base, read-only)
+// Whitelist comandi sicuri
 const SAFE_COMMANDS = [
   'ls',
   'cat',
@@ -48,14 +45,30 @@ const SAFE_COMMANDS = [
   'date',
   'which',
   'type',
-]
-
-// Sotto-comandi considerati sicuri per alcuni binari comuni
-const SAFE_SUBCOMMANDS: Array<RegExp> = [
-  /^git\s+(status|diff|log|branch|remote|rev-parse|show)/i,
-  /^(npm|yarn|pnpm)\s+(--version|-v|config\s+list|run\s+lint|run\s+build|run\s+test.*)$/i,
-  /^(node)\s+(-v|--version)$/i,
-  /^(ps|df|uptime|uname)(\s|$)/i,
+  'npm',
+  'yarn',
+  'node',
+  'python',
+  'python3',
+  'pip',
+  'pip3',
+  'git',
+  'docker',
+  'kubectl',
+  'mkdir',
+  'cp',
+  'mv',
+  'touch',
+  'curl',
+  'wget',
+  'ping',
+  'nslookup',
+  'ps',
+  'top',
+  'df',
+  'du',
+  'free',
+  'uptime',
 ]
 
 // Comandi pericolosi vietati
@@ -80,11 +93,6 @@ const DANGEROUS_COMMANDS = [
   'format',
   'del',
   'erase',
-  'curl',
-  'wget',
-  'scp',
-  'ssh',
-  'rsync',
 ]
 
 // Pattern pericolosi negli argomenti
@@ -98,8 +106,6 @@ const DANGEROUS_PATTERNS = [
   /exec\s+/i,
   /\/etc\/passwd/i,
   /\/etc\/shadow/i,
-  /\|\s*sh\b/i,
-  /\|\s*bash\b/i,
 ]
 
 const MAX_OUTPUT_LENGTH = 30000
@@ -126,8 +132,7 @@ export class BashTool extends BaseTool {
         throw new Error('Command is required')
       }
 
-      // Validazione sicurezza comando e richiesta conferma se necessario
-      const analysis = this.analyzeCommand(params.command)
+      // Validazione sicurezza comando
       await this.validateCommandSafety(params.command, params.allowDangerous || false)
 
       const timeout = Math.min(params.timeout || DEFAULT_TIMEOUT, MAX_TIMEOUT)
@@ -143,64 +148,10 @@ export class BashTool extends BaseTool {
         CliUI.logInfo(`📝 Description: ${params.description}`)
       }
 
-      // Mostra analisi rischi e richiedi conferma quando non skipConfirmation
-      if (!params.skipConfirmation && (!analysis.safe || analysis.risks.length > 0)) {
-        try {
-          ;(global as any).__nikCLI?.suspendPrompt?.()
-        } catch {}
-        const inquirer = await import('inquirer')
-        const { inputQueue } = await import('../core/input-queue')
-        inputQueue.enableBypass()
-        try {
-          CliUI.logInfo('🔎 Command analysis:')
-          if (analysis.dangerous) {
-            CliUI.logWarning('  • Classified as DANGEROUS')
-          } else if (!analysis.safe) {
-            CliUI.logWarning('  • Not in safe allowlist')
-          }
-          analysis.risks.forEach((r) => CliUI.logWarning(`  • Risk: ${r}`))
-          if (analysis.suggestions.length) {
-            analysis.suggestions.forEach((s) => CliUI.logInfo(`  • Suggestion: ${s}`))
-          }
-
-          const { confirmed } = await inquirer.default.prompt([
-            {
-              type: 'list',
-              name: 'confirmed',
-              message: 'Proceed with this command?',
-              choices: [
-                { name: 'Yes', value: true },
-                { name: 'No', value: false },
-              ],
-              default: 1,
-            },
-          ])
-          if (!confirmed) {
-            return {
-              success: false,
-              error: 'Command cancelled by user',
-              data: null,
-              metadata: {
-                executionTime: 0,
-                toolName: this.name,
-                parameters: params,
-              },
-            }
-          }
-        } finally {
-          inputQueue.disableBypass()
-          try {
-            ;(global as any).__nikCLI?.resumePromptAndRender?.()
-          } catch {}
-        }
-      }
-
       const result = await this.executeCommand(params.command, {
         timeout,
         workingDirectory: workingDir,
         environment: params.environment,
-        stream: !!params.streamOutput,
-        usePipefail: params.usePipefail !== false,
       })
 
       if (result.exitCode === 0) {
@@ -287,8 +238,6 @@ export class BashTool extends BaseTool {
       timeout: number
       workingDirectory: string
       environment?: Record<string, string>
-      stream?: boolean
-      usePipefail?: boolean
     }
   ): Promise<BashResult> {
     const startTime = Date.now()
@@ -306,11 +255,8 @@ export class BashTool extends BaseTool {
         PWD: options.workingDirectory,
       }
 
-      // Costruisci comando con pipefail per propagare errori nelle pipeline
-      const wrapped = options.usePipefail ? `set -euo pipefail; ${command}` : command
-
       // Spawn processo
-      const child: ChildProcess = spawn('bash', ['-lc', wrapped], {
+      const child: ChildProcess = spawn('bash', ['-c', command], {
         cwd: options.workingDirectory,
         env,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -333,13 +279,8 @@ export class BashTool extends BaseTool {
       // Gestione output
       if (child.stdout) {
         child.stdout.on('data', (data: Buffer) => {
-          const text = data.toString()
-          stdout += text
-          if (options.stream) {
-            try {
-              process.stdout.write(text)
-            } catch {}
-          }
+          stdout += data.toString()
+
           // Limita output per evitare memory overflow
           if (stdout.length > MAX_OUTPUT_LENGTH) {
             stdout = stdout.substring(0, MAX_OUTPUT_LENGTH) + '\n... [output truncated]'
@@ -427,48 +368,7 @@ export class BashTool extends BaseTool {
       }
     }
 
-    // Verifica se è in whitelist base o matcha un sotto-comando sicuro
-    if (SAFE_COMMANDS.includes(commandWithoutPath)) return true
-    return SAFE_SUBCOMMANDS.some((rx) => rx.test(command))
-  }
-
-  /**
-   * Analizza il comando per rischi e suggerimenti (parallelo a SecureCommandTool)
-   */
-  private analyzeCommand(command: string): {
-    safe: boolean
-    dangerous: boolean
-    risks: string[]
-    suggestions: string[]
-  } {
-    const risks: string[] = []
-    const suggestions: string[] = []
-
-    const safe = BashTool.isCommandSafe(command)
-    const base = command.trim().split(' ')[0]
-    const dangerous = DANGEROUS_COMMANDS.includes(base)
-
-    if (/rm\s+-rf/.test(command)) {
-      risks.push('Recursive delete detected')
-      suggestions.push('Avoid wildcard deletes; confirm paths explicitly')
-    }
-    if (/sudo\b/.test(command)) {
-      risks.push('Elevated privileges requested')
-      suggestions.push('Run without sudo or confirm necessity')
-    }
-    if (/(curl|wget)\b/.test(command)) {
-      risks.push('Network access requested')
-      suggestions.push('Verify URL and integrity checks')
-    }
-    if (/(\||;).*sh\b/.test(command)) {
-      risks.push('Pipeline to shell execution')
-      suggestions.push('Avoid piping untrusted content to shell')
-    }
-    if (/(\$\(|`)/.test(command)) {
-      risks.push('Command substitution present')
-      suggestions.push('Review substituted commands for safety')
-    }
-
-    return { safe, dangerous, risks, suggestions }
+    // Verifica se è in whitelist
+    return SAFE_COMMANDS.includes(commandWithoutPath)
   }
 }
