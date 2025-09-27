@@ -1,6 +1,6 @@
+import { execSync } from 'node:child_process'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
-import { execSync } from 'node:child_process'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import cliProgress from 'cli-progress'
@@ -10,6 +10,7 @@ import ora, { type Ora } from 'ora'
 import * as readline from 'readline'
 import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { modelProvider } from './ai/model-provider'
+import { ModernAIProvider } from './ai/modern-ai-provider'
 import { ModernAgentOrchestrator } from './automation/agents/modern-agent-system'
 import { chatManager } from './chat/chat-manager'
 import { SlashCommandHandler } from './chat/nik-cli-commands'
@@ -18,7 +19,6 @@ import { calculateTokenCost, MODEL_COSTS, TOKEN_LIMITS } from './config/token-li
 import { docsContextManager } from './context/docs-context-manager'
 import { workspaceContext } from './context/workspace-context'
 import { agentFactory } from './core/agent-factory'
-
 import { AgentManager } from './core/agent-manager'
 import { agentStream } from './core/agent-stream'
 import { createCloudDocsProvider, getCloudDocsProvider } from './core/cloud-docs-provider'
@@ -60,6 +60,8 @@ import { advancedUI } from './ui/advanced-cli-ui'
 import { approvalSystem } from './ui/approval-system'
 import { createStringPushStream, renderChatStreamToTerminal } from './ui/streamdown-renderer'
 import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
+// Paste handling system
+import { PasteHandler } from './utils/paste-handler'
 import { structuredLogger } from './utils/structured-logger'
 import { configureSyntaxHighlighting } from './utils/syntax-highlighter'
 import {
@@ -71,14 +73,11 @@ import {
   formatStatus,
   wrapBlue,
 } from './utils/text-wrapper'
-// Paste handling system
-import { PasteHandler } from './utils/paste-handler'
-// VM System imports
-import { vmSelector } from './virtualized-agents/vm-selector'
+import { VimAIIntegration } from './vim/ai/vim-ai-integration'
 // Vim Mode imports
 import { VimModeManager } from './vim/vim-mode-manager'
-import { VimAIIntegration } from './vim/ai/vim-ai-integration'
-import { ModernAIProvider } from './ai/modern-ai-provider'
+// VM System imports
+import { vmSelector } from './virtualized-agents/vm-selector'
 
 // CAD AI System imports
 
@@ -271,7 +270,7 @@ export class NikCLI {
     // Compact mode by default (cleaner output unless explicitly disabled)
     try {
       if (!process.env.NIKCLI_COMPACT) process.env.NIKCLI_COMPACT = '1'
-    } catch { }
+    } catch {}
 
     // Initialize core managers
     this.configManager = simpleConfigManager
@@ -297,8 +296,8 @@ export class NikCLI {
     // Initialize token tracking system
     this.initializeTokenTrackingSystem()
 
-      // Expose this instance globally for command handlers
-      ; (global as any).__nikCLI = this
+    // Expose this instance globally for command handlers
+    ;(global as any).__nikCLI = this
 
     this.setupEventHandlers()
     // Bridge orchestrator events into NikCLI output
@@ -327,14 +326,14 @@ export class NikCLI {
     // Render initial prompt
     this.renderPromptArea()
 
-      // Expose NikCLI globally for token management
-      ; (global as any).__nikcli = this
+    // Expose NikCLI globally for token management
+    ;(global as any).__nikcli = this
 
     // Patch inquirer to avoid status bar redraw during interactive prompts
     try {
       const originalPrompt = (inquirer as any).prompt?.bind(inquirer)
       if (originalPrompt) {
-        ; (inquirer as any).prompt = async (...args: any[]) => {
+        ;(inquirer as any).prompt = async (...args: any[]) => {
           this.isInquirerActive = true
           this.stopStatusBar()
           try {
@@ -891,19 +890,19 @@ export class NikCLI {
     process.on('unhandledRejection', (reason: any) => {
       try {
         console.log(require('chalk').red(`\n❌ Unhandled rejection: ${reason?.message || reason}`))
-      } catch { }
+      } catch {}
       try {
         this.renderPromptAfterOutput()
-      } catch { }
+      } catch {}
     })
 
     process.on('uncaughtException', (err: any) => {
       try {
         console.log(require('chalk').red(`\n❌ Uncaught exception: ${err?.message || err}`))
-      } catch { }
+      } catch {}
       try {
         this.renderPromptAfterOutput()
-      } catch { }
+      } catch {}
     })
   }
   // Bridge StreamingOrchestrator agent lifecycle events into NikCLI output
@@ -1797,9 +1796,9 @@ export class NikCLI {
   private showAdvancedHeader(): void {
     const header = boxen(
       `${chalk.cyanBright.bold('🤖 NikCLI')} ${chalk.gray('v0.3.1-beta')}\n` +
-      `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
-      `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
-      `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
+        `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
+        `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
+        `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
       {
         padding: 1,
         margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -2071,7 +2070,6 @@ export class NikCLI {
       process.stdin.setRawMode(true)
       process.stdin.resume()
       process.stdin.on('keypress', (chunk, key) => {
-
         if (key && key.name === 'escape') {
           // Stop ongoing AI operation spinner
           if (this.activeSpinner) {
@@ -2093,22 +2091,22 @@ export class NikCLI {
           // Kill any running subprocesses started by tools
           try {
             const procs = toolsManager.getRunningProcesses?.() || []
-              ; (async () => {
-                let killed = 0
-                await Promise.all(
-                  procs.map(async (p: any) => {
-                    try {
-                      const ok = await toolsManager.killProcess?.(p.pid)
-                      if (ok) killed++
-                    } catch {
-                      /* ignore */
-                    }
-                  })
-                )
-                if (killed > 0) {
-                  console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
-                }
-              })()
+            ;(async () => {
+              let killed = 0
+              await Promise.all(
+                procs.map(async (p: any) => {
+                  try {
+                    const ok = await toolsManager.killProcess?.(p.pid)
+                    if (ok) killed++
+                  } catch {
+                    /* ignore */
+                  }
+                })
+              )
+              if (killed > 0) {
+                console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
+              }
+            })()
           } catch {
             /* ignore */
           }
@@ -2825,7 +2823,6 @@ export class NikCLI {
     this.progressBars.clear()
   }
 
-
   /**
    * Process a single input (either normal input or consolidated paste)
    */
@@ -2982,7 +2979,6 @@ export class NikCLI {
           this.rl.emit('line', pasteResult.originalText)
         }
       }, 50)
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Error reading clipboard: ${error.message}`))
     }
@@ -4588,7 +4584,7 @@ export class NikCLI {
     try {
       process.env.NIKCLI_COMPACT = '1'
       process.env.NIKCLI_SUPER_COMPACT = '1'
-    } catch { }
+    } catch {}
     console.log(chalk.blue('🎯 Entering Enhanced Planning Mode with TaskMaster AI...'))
 
     try {
@@ -4694,10 +4690,10 @@ export class NikCLI {
 
         try {
           inputQueue.disableBypass()
-        } catch { }
+        } catch {}
         try {
           advancedUI.stopInteractiveMode?.()
-        } catch { }
+        } catch {}
         this.resumePromptAndRender()
       } else {
         console.log(chalk.yellow('\n📝 Plan saved to todo.md'))
@@ -4730,10 +4726,10 @@ export class NikCLI {
 
         try {
           inputQueue.disableBypass()
-        } catch { }
+        } catch {}
         try {
           advancedUI.stopInteractiveMode?.()
-        } catch { }
+        } catch {}
 
         this.cleanupPlanArtifacts()
         this.resumePromptAndRender()
@@ -5034,7 +5030,7 @@ EOF`
       // Stop interactive mode
       try {
         advancedUI.stopInteractiveMode?.()
-      } catch { }
+      } catch {}
 
       // Restore prompt
       this.resumePromptAndRender()
@@ -5056,7 +5052,7 @@ EOF`
     this.activeTimers.forEach((timer) => {
       try {
         clearTimeout(timer)
-      } catch { }
+      } catch {}
     })
     this.activeTimers.clear()
   }
@@ -5068,7 +5064,7 @@ EOF`
     this.inquirerInstances.forEach((instance) => {
       try {
         instance.removeAllListeners?.()
-      } catch { }
+      } catch {}
     })
     this.inquirerInstances.clear()
   }
@@ -5631,11 +5627,11 @@ EOF`
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\n\n` +
-      `${chalk.green('✅ Completed:')} ${completed}\n` +
-      `${chalk.red('❌ Failed:')} ${failed}\n` +
-      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
-      `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
-      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+        `${chalk.green('✅ Completed:')} ${completed}\n` +
+        `${chalk.red('❌ Failed:')} ${failed}\n` +
+        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
+        `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
+        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -5908,7 +5904,7 @@ EOF`
         if (interactiveStarted) {
           try {
             advancedUI.stopInteractiveMode?.()
-          } catch { }
+          } catch {}
         }
         this.rl?.prompt()
       }
@@ -6977,9 +6973,9 @@ EOF`
               this.printPanel(
                 boxen(
                   `Provider: ${provider}\n` +
-                  `Model: ${modelCfg?.model || modelName}\n` +
-                  `API key not configured.\n` +
-                  `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
+                    `Model: ${modelCfg?.model || modelName}\n` +
+                    `API key not configured.\n` +
+                    `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
                   { title: '🔑 API Key Missing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
                 )
               )
@@ -8102,10 +8098,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     this.printPanel(
       boxen(
         `${chalk.blue.bold(plan.title)}\n\n` +
-        `${chalk.gray('Goal:')} ${plan.goal}\n` +
-        `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
-        `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
-        `${chalk.gray('Status:')} ${this.getPlanStatusColor(plan.status)(plan.status.toUpperCase())}`,
+          `${chalk.gray('Goal:')} ${plan.goal}\n` +
+          `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
+          `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
+          `${chalk.gray('Status:')} ${this.getPlanStatusColor(plan.status)(plan.status.toUpperCase())}`,
         {
           padding: 1,
           margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -8930,9 +8926,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       this.printPanel(
         boxen(
           `${chalk.cyan('Session Tokens:')}\n` +
-          `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
-          `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
-          `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
+            `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
+            `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
+            `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
           {
             padding: 1,
             margin: 1,
@@ -8947,10 +8943,10 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       console.log(
         chalk.white(
           'Model'.padEnd(30) +
-          'Total Cost'.padStart(12) +
-          'Input Cost'.padStart(12) +
-          'Output Cost'.padStart(12) +
-          'Provider'.padStart(15)
+            'Total Cost'.padStart(12) +
+            'Input Cost'.padStart(12) +
+            'Output Cost'.padStart(12) +
+            'Provider'.padStart(15)
         )
       )
       console.log(chalk.gray('─'.repeat(90)))
@@ -9011,13 +9007,13 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       this.printPanel(
         boxen(
           `${chalk.cyan('Current Model:')}\n` +
-          `${chalk.white(pricing.displayName)}\n\n` +
-          `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
-          `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
-          `${chalk.yellow('Examples:')}\n` +
-          `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
-          `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
-          `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
+            `${chalk.white(pricing.displayName)}\n\n` +
+            `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
+            `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
+            `${chalk.yellow('Examples:')}\n` +
+            `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
+            `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
+            `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
           {
             padding: 1,
             margin: 1,
@@ -9060,9 +9056,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       this.printPanel(
         boxen(
           `${chalk.cyan('Estimation Parameters:')}\n` +
-          `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
-          `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
-          `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
+            `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
+            `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
+            `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
           {
             padding: 1,
             margin: 1,
@@ -9173,18 +9169,18 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         this.printPanel(
           boxen(
             `${chalk.cyan.bold('🔮 Advanced Cache System Statistics')}\n\n` +
-            redisStats +
-            `${chalk.magenta('📦 Full Response Cache:')}\n` +
-            `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
-            `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
-            `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
-            `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
-            `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
-            `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
-            `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
-            `${chalk.green.bold('💰 Total Savings:')}\n` +
-            `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
-            `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
+              redisStats +
+              `${chalk.magenta('📦 Full Response Cache:')}\n` +
+              `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
+              `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
+              `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
+              `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
+              `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
+              `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
+              `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
+              `${chalk.green.bold('💰 Total Savings:')}\n` +
+              `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
+              `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
             {
               padding: 1,
               margin: 1,
@@ -9228,19 +9224,19 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
           this.printPanel(
             boxen(
               `${chalk.cyan('🎯 Precise Token Tracking Session')}\n\n` +
-              `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
-              `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
-              `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
-              `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
-              `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
-              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-              `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
-              `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
-              `Total Session Cost: ${chalk.yellow.bold('$' + stats.session.totalCost.toFixed(6))}\n` +
-              `Average per Message: ${chalk.green('$' + stats.costPerMessage.toFixed(6))}\n` +
-              `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
-              `Session Duration: ${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000) + ' min'}`,
+                `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
+                `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
+                `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
+                `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
+                `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
+                `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+                `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+                `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
+                `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
+                `Total Session Cost: ${chalk.yellow.bold('$' + stats.session.totalCost.toFixed(6))}\n` +
+                `Average per Message: ${chalk.green('$' + stats.costPerMessage.toFixed(6))}\n` +
+                `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
+                `Session Duration: ${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000) + ' min'}`,
               {
                 padding: 1,
                 margin: 1,
@@ -9257,9 +9253,9 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
             this.printPanel(
               boxen(
                 `${chalk.yellow('⚡ Optimization Recommendations:')}\n\n` +
-                `Status: ${optimization.recommendation === 'continue' ? chalk.green('✅ Good') : chalk.yellow('⚠️  Attention needed')}\n` +
-                `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
-                `Reason: ${chalk.gray(optimization.reason)}`,
+                  `Status: ${optimization.recommendation === 'continue' ? chalk.green('✅ Good') : chalk.yellow('⚠️  Attention needed')}\n` +
+                  `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
+                  `Reason: ${chalk.gray(optimization.reason)}`,
                 {
                   padding: 1,
                   margin: 1,
@@ -9308,18 +9304,18 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         this.printPanel(
           boxen(
             `${chalk.cyan(`${isPrecise ? '🎯' : '📊'} Session Token Analysis`)}\n\n` +
-            `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
-            `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
-            `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
-            `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-            `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-            `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
-            `${chalk.yellow('💰 Cost Analysis:')}\n` +
-            `Model: ${chalk.white(currentCost.model)}\n` +
-            `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(6))}\n` +
-            `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(6))}\n` +
-            `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(6))}\n\n` +
-            `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✅') : chalk.yellow('Character estimation (fallback)')}`,
+              `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
+              `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
+              `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
+              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+              `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
+              `${chalk.yellow('💰 Cost Analysis:')}\n` +
+              `Model: ${chalk.white(currentCost.model)}\n` +
+              `Input Cost: ${chalk.green('$' + currentCost.inputCost.toFixed(6))}\n` +
+              `Output Cost: ${chalk.green('$' + currentCost.outputCost.toFixed(6))}\n` +
+              `Total Cost: ${chalk.yellow.bold('$' + currentCost.totalCost.toFixed(6))}\n\n` +
+              `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✅') : chalk.yellow('Character estimation (fallback)')}`,
             {
               padding: 1,
               margin: 1,
@@ -9339,8 +9335,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         this.printPanel(
           boxen(
             `System: ${systemMsgs.length} messages (${sysTokens.toLocaleString()} tokens)\n` +
-            `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
-            `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
+              `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
+              `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
             {
               title: '📋 Message Breakdown',
               padding: 1,
@@ -9355,8 +9351,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         this.printPanel(
           boxen(
             `${chalk.yellow('💡 Tip:')} For more precise tracking, start a new session to enable\n` +
-            `real-time token monitoring with the Universal Tokenizer.\n\n` +
-            `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
+              `real-time token monitoring with the Universal Tokenizer.\n\n` +
+              `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
             {
               padding: 1,
               margin: 1,
@@ -9448,7 +9444,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
               const c = calc(userTokens, assistantTokens, name)
               const avgPer1K = (c.totalCost / sessionTokens) * 1000
               lines.push(`${c.model}  avg $/1K: $${avgPer1K.toFixed(4)}  total: $${c.totalCost.toFixed(4)}`)
-            } catch { }
+            } catch {}
           })
           if (lines.length > 0) {
             this.printPanel(
@@ -9461,7 +9457,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
               })
             )
           }
-        } catch { }
+        } catch {}
 
         // Recommendations
         if (preciseTokens > 150000) {
@@ -10427,12 +10423,12 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     this.printPanel(
       boxen(
         `${title}\n${subtitle}\n\n` +
-        `${enhancedBadge}\n\n` +
-        `${wrapBlue('Mode:')} ${chalk.yellow(this.currentMode)}\n` +
-        `${wrapBlue('Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n` +
-        `${wrapBlue('Directory:')} ${chalk.cyan(path.basename(this.workingDirectory))}\n\n` +
-        `${chalk.dim('Type /help for commands or start chatting!')}\n` +
-        `${chalk.dim('Use Shift+Tab to cycle modes: default → auto → plan')}`,
+          `${enhancedBadge}\n\n` +
+          `${wrapBlue('Mode:')} ${chalk.yellow(this.currentMode)}\n` +
+          `${wrapBlue('Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n` +
+          `${wrapBlue('Directory:')} ${chalk.cyan(path.basename(this.workingDirectory))}\n\n` +
+          `${chalk.dim('Type /help for commands or start chatting!')}\n` +
+          `${chalk.dim('Use Shift+Tab to cycle modes: default → auto → plan')}`,
         {
           padding: 1,
           margin: 1,
@@ -10880,11 +10876,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
       process.stdout.write(
         chalk.cyan('│') +
-        chalk.green(displayLeft) +
-        ' '.repeat(padding) +
-        chalk.gray(displayRight) +
-        chalk.cyan('│') +
-        '\n'
+          chalk.green(displayLeft) +
+          ' '.repeat(padding) +
+          chalk.gray(displayRight) +
+          chalk.cyan('│') +
+          '\n'
       )
       process.stdout.write(chalk.cyan('╰' + '─'.repeat(terminalWidth - 2) + '╯') + '\n')
     }
@@ -11481,11 +11477,11 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         if (adjustedPadding >= 0) {
           process.stdout.write(
             chalk.cyan('│') +
-            chalk.green(displayLeft) +
-            ' '.repeat(adjustedPadding) +
-            chalk.gray(displayRight) +
-            chalk.cyan('│') +
-            '\n'
+              chalk.green(displayLeft) +
+              ' '.repeat(adjustedPadding) +
+              chalk.gray(displayRight) +
+              chalk.cyan('│') +
+              '\n'
           )
         } else {
           // Fallback: ensure we don't have negative padding
@@ -11856,8 +11852,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       this.updateSpinnerText(operation)
     }, 500)
 
-      // Store interval for cleanup
-      ; (this.activeSpinner as any)._interval = interval
+    // Store interval for cleanup
+    ;(this.activeSpinner as any)._interval = interval
   }
 
   /**
@@ -12050,6 +12046,33 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
     // Don't update UI during streaming to avoid duplicates
     // UI will be updated when streaming completes
+  }
+
+  /**
+   * Start tool call tracking session
+   */
+  public startToolTracking(): void {
+    this.advancedUI.startToolSession()
+  }
+
+  /**
+   * End tool call tracking session and show summary
+   */
+  public endToolTracking(): void {
+    this.advancedUI.endToolSession()
+  }
+
+  /**
+   * Track a tool call
+   */
+  public trackTool(
+    type: 'grep' | 'search' | 'read' | 'write' | 'shell' | 'other',
+    description: string,
+    target?: string,
+    lines?: string,
+    count?: number
+  ): void {
+    this.advancedUI.trackToolCall(type, description, target, lines, count)
   }
 
   /**
@@ -12350,7 +12373,6 @@ Generated by NikCLI on ${new Date().toISOString()}
         process.stdout.write('\n')
         await new Promise((resolve) => setTimeout(resolve, 100)) // Brief pause for output to settle
       }
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Command failed: ${error.message}`))
 
@@ -15474,10 +15496,10 @@ Generated by NikCLI on ${new Date().toISOString()}
     // Prevent user input queue interference during interactive prompts
     try {
       this.suspendPrompt()
-    } catch { }
+    } catch {}
     try {
       inputQueue.enableBypass()
-    } catch { }
+    } catch {}
 
     try {
       const sectionChoices = [
@@ -15746,7 +15768,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       // Always disable bypass and restore prompt
       try {
         inputQueue.disableBypass()
-      } catch { }
+      } catch {}
       process.stdout.write('')
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
@@ -16006,7 +16028,7 @@ Generated by NikCLI on ${new Date().toISOString()}
     } finally {
       try {
         inputQueue.disableBypass()
-      } catch { }
+      } catch {}
       this.resumePromptAndRender()
     }
   }
@@ -16534,12 +16556,13 @@ Generated by NikCLI on ${new Date().toISOString()}
 
           if (stats.redis.health) {
             statusContent += `  Latency: ${chalk.blue(stats.redis.health.latency)}ms\n`
-            statusContent += `  Status: ${stats.redis.health.status === 'healthy'
-              ? chalk.green('Healthy')
-              : stats.redis.health.status === 'degraded'
-                ? chalk.yellow('Degraded')
-                : chalk.red('Unhealthy')
-              }\n`
+            statusContent += `  Status: ${
+              stats.redis.health.status === 'healthy'
+                ? chalk.green('Healthy')
+                : stats.redis.health.status === 'degraded'
+                  ? chalk.yellow('Degraded')
+                  : chalk.red('Unhealthy')
+            }\n`
           }
 
           statusContent += `\n${chalk.cyan('Performance:')}\n`
@@ -17309,7 +17332,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       const projectAnalysis = await toolService.executeTool('analyze_project', {})
       languages = Array.isArray(projectAnalysis?.languages) ? projectAnalysis.languages : []
       fileCount = Number(projectAnalysis?.fileCount || 0)
-    } catch { }
+    } catch {}
 
     // 2) File structure stats (broader set of extensions)
     let totalFiles = 0
@@ -17323,7 +17346,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         const ext = path.extname(f) || 'no-ext'
         byExtension[ext] = (byExtension[ext] || 0) + 1
       }
-    } catch { }
+    } catch {}
 
     // 3) Dependencies and scripts from package.json
     let depCount = 0
@@ -17335,7 +17358,7 @@ Generated by NikCLI on ${new Date().toISOString()}
       depCount = pkg.dependencies ? Object.keys(pkg.dependencies).length : 0
       devDepCount = pkg.devDependencies ? Object.keys(pkg.devDependencies).length : 0
       scripts = pkg.scripts || {}
-    } catch { }
+    } catch {}
 
     // 4) Git signals
     let gitStatusOut = ''
@@ -17343,11 +17366,11 @@ Generated by NikCLI on ${new Date().toISOString()}
     try {
       const { stdout: s1 } = await toolService.executeTool('execute_command', { command: 'git status --porcelain -b' })
       gitStatusOut = s1 || ''
-    } catch { }
+    } catch {}
     try {
       const { stdout: s2 } = await toolService.executeTool('execute_command', { command: 'git log --oneline -5' })
       gitLogOut = s2 || ''
-    } catch { }
+    } catch {}
 
     // 5) Summarize executed plan/todos if available
     const planSummary = {
@@ -17492,7 +17515,7 @@ Style: concise but thorough; use lists, sublists, and tables when useful.`
         customKeybindings: {},
         theme: 'default',
         statusLine: true,
-        lineNumbers: true
+        lineNumbers: true,
       })
 
       // Initialize vim AI integration
@@ -17505,7 +17528,6 @@ Style: concise but thorough; use lists, sublists, and tables when useful.`
 
       // Setup vim event handlers
       this.setupVimEventHandlers()
-
     } catch (error: any) {
       console.error(chalk.yellow(`⚠️ Failed to initialize vim mode: ${error.message}`))
     }
@@ -17621,7 +17643,6 @@ Style: concise but thorough; use lists, sublists, and tables when useful.`
 
       // Setup key handling
       this.setupVimKeyHandling()
-
     } catch (error: any) {
       console.error(chalk.red(`Failed to enter vim mode: ${error.message}`))
     }
@@ -17641,7 +17662,6 @@ Style: concise but thorough; use lists, sublists, and tables when useful.`
       setTimeout(() => {
         this.renderPromptAfterOutput()
       }, 100)
-
     } catch (error: any) {
       console.error(chalk.red(`Failed to exit vim mode: ${error.message}`))
     }
@@ -17774,13 +17794,17 @@ Style: concise but thorough; use lists, sublists, and tables when useful.`
     const key = data.toString()
 
     // Handle special keys
-    if (key === '\u001b') { // ESC
+    if (key === '\u001b') {
+      // ESC
       await this.vimModeManager.processKey('Escape')
-    } else if (key === '\r' || key === '\n') { // Enter
+    } else if (key === '\r' || key === '\n') {
+      // Enter
       await this.vimModeManager.processKey('Enter')
-    } else if (key === '\u007f' || key === '\b') { // Backspace
+    } else if (key === '\u007f' || key === '\b') {
+      // Backspace
       await this.vimModeManager.processKey('Backspace')
-    } else if (key === '\u0003') { // Ctrl+C
+    } else if (key === '\u0003') {
+      // Ctrl+C
       await this.exitVimMode()
     } else if (key.length === 1) {
       await this.vimModeManager.processKey(key)
@@ -17794,6 +17818,6 @@ let globalNikCLI: NikCLI | null = null
 // Export function to set global instance
 export function setGlobalNikCLI(instance: NikCLI): void {
   globalNikCLI = instance
-    // Use consistent global variable name
-    ; (global as any).__nikCLI = instance
+  // Use consistent global variable name
+  ;(global as any).__nikCLI = instance
 }

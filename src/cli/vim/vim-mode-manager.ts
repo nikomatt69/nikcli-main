@@ -1,9 +1,9 @@
 import { EventEmitter } from 'node:events'
-import { VimKeyHandler } from './keybindings/vim-key-handler'
-import { VimCommandProcessor } from './commands/vim-command-processor'
-import { VimRenderer } from './ui/vim-renderer'
-import { VimState, VimMode, CursorPosition } from './types/vim-types'
 import { CliUI } from '../utils/cli-ui'
+import { VimCommandProcessor } from './commands/vim-command-processor'
+import { VimKeyHandler } from './keybindings/vim-key-handler'
+import { type CursorPosition, VimMode, type VimState } from './types/vim-types'
+import { VimRenderer } from './ui/vim-renderer'
 
 export interface VimModeConfig {
   aiIntegration: boolean
@@ -32,7 +32,7 @@ export class VimModeManager extends EventEmitter {
       theme: 'default',
       statusLine: true,
       lineNumbers: true,
-      ...config
+      ...config,
     }
 
     this.state = {
@@ -43,7 +43,7 @@ export class VimModeManager extends EventEmitter {
       history: [],
       lastCommand: null,
       isRecording: false,
-      macroRegister: null
+      macroRegister: null,
     }
 
     this.keyHandler = new VimKeyHandler(this.state, this.config)

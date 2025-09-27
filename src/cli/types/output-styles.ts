@@ -21,7 +21,7 @@ export const OutputStyleEnum = z.enum([
   'friendly-casual',
   'technical-precise',
   'educational-verbose',
-  'minimal-efficient'
+  'minimal-efficient',
 ])
 
 export type OutputStyle = z.infer<typeof OutputStyleEnum>
@@ -32,40 +32,40 @@ export const OutputStyleConfigSchema = z.object({
   defaultStyle: OutputStyleEnum.default('production-focused'),
 
   // Overrides for specific contexts
-  contextOverrides: z.record(
-    z.enum(['chat', 'planning', 'code-generation', 'documentation', 'debugging', 'analysis']),
-    OutputStyleEnum
-  ).optional(),
+  contextOverrides: z
+    .record(z.enum(['chat', 'planning', 'code-generation', 'documentation', 'debugging', 'analysis']), OutputStyleEnum)
+    .optional(),
 
   // Overrides for specific providers
-  providerOverrides: z.record(
-    z.enum(['openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway', 'openrouter']),
-    OutputStyleEnum
-  ).optional(),
+  providerOverrides: z
+    .record(z.enum(['openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway', 'openrouter']), OutputStyleEnum)
+    .optional(),
 
   // Advanced customizations
-  customizations: z.object({
-    // Verbosity level (1-10)
-    verbosityLevel: z.number().min(1).max(10).default(5),
+  customizations: z
+    .object({
+      // Verbosity level (1-10)
+      verbosityLevel: z.number().min(1).max(10).default(5),
 
-    // Include code examples
-    includeCodeExamples: z.boolean().default(true),
+      // Include code examples
+      includeCodeExamples: z.boolean().default(true),
 
-    // Include step-by-step explanations
-    includeStepByStep: z.boolean().default(true),
+      // Include step-by-step explanations
+      includeStepByStep: z.boolean().default(true),
 
-    // Use emoji and decorative formatting
-    useDecorative: z.boolean().default(false),
+      // Use emoji and decorative formatting
+      useDecorative: z.boolean().default(false),
 
-    // Maximum response length (in approximate tokens)
-    maxResponseLength: z.enum(['short', 'medium', 'long', 'unlimited']).default('medium')
-  }).default({
-    verbosityLevel: 5,
-    includeCodeExamples: true,
-    includeStepByStep: true,
-    useDecorative: false,
-    maxResponseLength: 'medium'
-  })
+      // Maximum response length (in approximate tokens)
+      maxResponseLength: z.enum(['short', 'medium', 'long', 'unlimited']).default('medium'),
+    })
+    .default({
+      verbosityLevel: 5,
+      includeCodeExamples: true,
+      includeStepByStep: true,
+      useDecorative: false,
+      maxResponseLength: 'medium',
+    }),
 })
 
 export type OutputStyleConfig = z.infer<typeof OutputStyleConfigSchema>
@@ -91,12 +91,12 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
       'Focus on practical results',
       'Minimizes theoretical explanations',
       'Production-ready code',
-      'Implicit best practices'
+      'Implicit best practices',
     ],
     useCase: 'Professional development, deployment, critical debugging',
     verbosityLevel: 3,
     technicalDepth: 'high',
-    targetAudience: 'expert'
+    targetAudience: 'expert',
   },
 
   'creative-concise': {
@@ -107,12 +107,12 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
       'Interesting practical examples',
       'Creativity/practicality balance',
       'Unconventional approaches',
-      'Compact but inspiring'
+      'Compact but inspiring',
     ],
     useCase: 'Brainstorming, prototyping, innovative solutions',
     verbosityLevel: 4,
     technicalDepth: 'medium',
-    targetAudience: 'intermediate'
+    targetAudience: 'intermediate',
   },
 
   'detailed-analytical': {
@@ -123,12 +123,12 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
       'Detailed step-by-step explanations',
       'Pro/con considerations',
       'Deep technical context',
-      'Alternatives and trade-offs'
+      'Alternatives and trade-offs',
     ],
     useCase: 'Research, architecture, complex technical decisions',
     verbosityLevel: 8,
     technicalDepth: 'high',
-    targetAudience: 'expert'
+    targetAudience: 'expert',
   },
 
   'friendly-casual': {
@@ -139,12 +139,12 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
       'Conversational explanations',
       'Encouragement and support',
       'Analogies and metaphors',
-      'Relaxed atmosphere'
+      'Relaxed atmosphere',
     ],
     useCase: 'Learning, onboarding, general support',
     verbosityLevel: 6,
     technicalDepth: 'medium',
-    targetAudience: 'mixed'
+    targetAudience: 'mixed',
   },
 
   'technical-precise': {
@@ -155,12 +155,12 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
       'References to specifications',
       'Complete documentation',
       'Precision in details',
-      'Industry standards'
+      'Industry standards',
     ],
     useCase: 'Documentation, technical specifications, code review',
     verbosityLevel: 7,
     technicalDepth: 'high',
-    targetAudience: 'expert'
+    targetAudience: 'expert',
   },
 
   'educational-verbose': {
@@ -171,12 +171,12 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
       'Progressive examples',
       'Historical and theoretical context',
       'References for further study',
-      'Focus on learning'
+      'Focus on learning',
     ],
     useCase: 'Tutorials, training, explaining complex concepts',
     verbosityLevel: 9,
     technicalDepth: 'high',
-    targetAudience: 'beginner'
+    targetAudience: 'beginner',
   },
 
   'minimal-efficient': {
@@ -187,13 +187,13 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
       'Ultra-compact format',
       'Zero redundancy',
       'Code without superfluous comments',
-      'Maximum efficiency'
+      'Maximum efficiency',
     ],
     useCase: 'Quick fixes, automation, rapid scripts',
     verbosityLevel: 2,
     technicalDepth: 'medium',
-    targetAudience: 'expert'
-  }
+    targetAudience: 'expert',
+  },
 }
 
 // Utility functions for output style management
@@ -299,6 +299,6 @@ export const DEFAULT_OUTPUT_STYLE_CONFIG: OutputStyleConfig = {
     includeCodeExamples: true,
     includeStepByStep: true,
     useDecorative: false,
-    maxResponseLength: 'medium'
-  }
+    maxResponseLength: 'medium',
+  },
 }

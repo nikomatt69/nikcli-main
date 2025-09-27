@@ -1,6 +1,6 @@
+import chalk from 'chalk'
 import fs from 'fs/promises'
 import path from 'path'
-import chalk from 'chalk'
 
 export interface AICadSdkConfig {
   moduleName?: string // default: 'ai-cad-sdk'
@@ -132,13 +132,7 @@ export class AICadSdkBridge {
 
   private resolveTextToCadEntry(mod: any): ((opts: any) => Promise<any>) | null {
     if (!mod) return null
-    const candidates = [
-      'generateTextToCAD',
-      'textToCad',
-      'textToCAD',
-      'generateCad',
-      'generateCAD',
-    ]
+    const candidates = ['generateTextToCAD', 'textToCad', 'textToCAD', 'generateCad', 'generateCAD']
     for (const name of candidates) {
       const fn = mod[name] || mod.default?.[name]
       if (typeof fn === 'function') return fn.bind(mod)

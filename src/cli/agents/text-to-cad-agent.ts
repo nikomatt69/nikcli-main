@@ -4,8 +4,8 @@
  */
 
 import chalk from 'chalk'
-import { BaseAgent } from '../automation/agents/base-agent'
 import type { AgentTask } from '../automation/agents/agent-router'
+import { BaseAgent } from '../automation/agents/base-agent'
 
 // Agent interface definitions
 interface AgentOptions {
@@ -48,7 +48,7 @@ export class TextToCADAgent extends BaseAgent {
     'streaming-generation',
     'multi-format-export',
     'constraint-parsing',
-    'geometric-validation'
+    'geometric-validation',
   ]
   specialization = 'CAD model generation from text descriptions'
 
@@ -76,7 +76,7 @@ export class TextToCADAgent extends BaseAgent {
   async onExecuteTask(task: AgentTask): Promise<any> {
     return await this.execute(task.description || task.type, {
       outputFormat: 'json',
-      streaming: false
+      streaming: false,
     })
   }
 
@@ -104,7 +104,7 @@ export class TextToCADAgent extends BaseAgent {
       this.cadAISystem = {
         unifiedAIService: null, // Will connect to your UnifiedAIService
         textToCADStreamService: null, // Will connect to your TextToCADStreamService
-        cadActionHandler: null // Will connect to your CADActionHandler
+        cadActionHandler: null, // Will connect to your CADActionHandler
       }
 
       console.log(chalk.green('✅ Text-to-CAD AI system initialized'))
@@ -137,15 +137,14 @@ export class TextToCADAgent extends BaseAgent {
         data: {
           elements: result.elements,
           filePath: result.filePath,
-          metadata: result.metadata
-        }
+          metadata: result.metadata,
+        },
       }
-
     } catch (error: any) {
       return {
         success: false,
         output: `❌ CAD generation failed: ${error.message}`,
-        error: error.message
+        error: error.message,
       }
     }
   }
@@ -171,7 +170,7 @@ export class TextToCADAgent extends BaseAgent {
       constraints,
       outputFormat,
       streaming,
-      context: options.context || []
+      context: options.context || [],
     }
   }
 
@@ -211,7 +210,7 @@ export class TextToCADAgent extends BaseAgent {
       return formatMatch[1].toLowerCase() as any
     }
 
-    return options.outputFormat as any || 'json'
+    return (options.outputFormat as any) || 'json'
   }
 
   /**
@@ -238,14 +237,14 @@ export class TextToCADAgent extends BaseAgent {
     const steps = ['Analyzing description', 'Creating geometry', 'Optimizing structure', 'Finalizing model']
 
     for (let i = 0; i < steps.length; i++) {
-      console.log(chalk.gray(`   ${steps[i]}... ${Math.round((i + 1) / steps.length * 100)}%`))
-      await new Promise(resolve => setTimeout(resolve, 500))
+      console.log(chalk.gray(`   ${steps[i]}... ${Math.round(((i + 1) / steps.length) * 100)}%`))
+      await new Promise((resolve) => setTimeout(resolve, 500))
 
       // Simulate element generation
       elements.push({
         id: `element_${i}`,
         type: 'geometry',
-        description: steps[i]
+        description: steps[i],
       })
     }
 
@@ -256,8 +255,8 @@ export class TextToCADAgent extends BaseAgent {
       metadata: {
         elementsCount: elements.length,
         generationTime: 2000,
-        complexity: 'medium'
-      }
+        complexity: 'medium',
+      },
     }
   }
 
@@ -268,14 +267,14 @@ export class TextToCADAgent extends BaseAgent {
     console.log(chalk.blue('⚙️ Starting standard generation...'))
 
     // Mock implementation - replace with your UnifiedAIService
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
 
     const elements = [
       {
         id: 'main_body',
         type: 'solid',
-        description: `Main body based on: ${request.description}`
-      }
+        description: `Main body based on: ${request.description}`,
+      },
     ]
 
     console.log(chalk.green('✅ Standard generation completed'))
@@ -286,8 +285,8 @@ export class TextToCADAgent extends BaseAgent {
       metadata: {
         elementsCount: elements.length,
         generationTime: 1000,
-        complexity: 'simple'
-      }
+        complexity: 'simple',
+      },
     }
   }
 
@@ -302,7 +301,7 @@ export class TextToCADAgent extends BaseAgent {
       `   Elements created: ${chalk.bold(result.elements.length)}`,
       `   Generation time: ${chalk.bold(executionTime)}ms`,
       `   Complexity: ${chalk.bold(result.metadata?.complexity || 'unknown')}`,
-      ''
+      '',
     ]
 
     if (result.filePath) {
@@ -330,7 +329,7 @@ export class TextToCADAgent extends BaseAgent {
       'Constraint-based design',
       'Component library integration',
       'Assembly generation',
-      'Geometric validation'
+      'Geometric validation',
     ]
   }
 }

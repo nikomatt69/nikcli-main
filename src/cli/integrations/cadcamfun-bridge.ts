@@ -3,11 +3,11 @@
  * Connects NikCLI to the existing CADCamFun text-to-CAD AI system
  */
 
-import { exec } from 'child_process'
-import { promisify } from 'util'
 import chalk from 'chalk'
+import { exec } from 'child_process'
 import fs from 'fs/promises'
 import path from 'path'
+import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
@@ -113,7 +113,7 @@ export class CADCamFunBridge {
     if (!this.isSystemAvailable) {
       return {
         success: false,
-        error: 'CADCamFun system not available'
+        error: 'CADCamFun system not available',
       }
     }
 
@@ -130,7 +130,7 @@ export class CADCamFunBridge {
     } catch (error: any) {
       return {
         success: false,
-        error: error.message
+        error: error.message,
       }
     }
   }
@@ -143,14 +143,14 @@ export class CADCamFunBridge {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': this.config.apiKey ? `Bearer ${this.config.apiKey}` : ''
+        Authorization: this.config.apiKey ? `Bearer ${this.config.apiKey}` : '',
       },
       body: JSON.stringify({
         description: options.description,
         constraints: options.constraints,
         outputFormat: options.outputFormat || this.config.defaultFormat,
-        streaming: options.streaming || false
-      })
+        streaming: options.streaming || false,
+      }),
     })
 
     if (!response.ok) {
@@ -199,9 +199,8 @@ export class CADCamFunBridge {
         success: true,
         elements: result.elements,
         filePath,
-        metadata: result.metadata
+        metadata: result.metadata,
       }
-
     } finally {
       // Cleanup script
       try {
@@ -215,7 +214,12 @@ export class CADCamFunBridge {
   /**
    * Generate bridge script for Node.js execution
    */
-  private generateBridgeScript(options: CADGenerationOptions, outputPath: string, entryFile: string, useTS: boolean): string {
+  private generateBridgeScript(
+    options: CADGenerationOptions,
+    outputPath: string,
+    entryFile: string,
+    useTS: boolean
+  ): string {
     return `
 // Auto-generated bridge script for CADCamFun integration
 const path = require('path');
@@ -297,7 +301,7 @@ generateCAD().catch(console.error);
     if (!this.isSystemAvailable) {
       return {
         success: false,
-        error: 'CADCamFun system not available'
+        error: 'CADCamFun system not available',
       }
     }
 
@@ -311,31 +315,31 @@ generateCAD().catch(console.error);
       'Generating base geometry',
       'Adding features',
       'Optimizing structure',
-      'Finalizing model'
+      'Finalizing model',
     ]
 
     for (let i = 0; i < steps.length; i++) {
-      const progress = Math.round((i + 1) / steps.length * 100)
+      const progress = Math.round(((i + 1) / steps.length) * 100)
 
       if (onProgress) {
         onProgress({
           step: steps[i],
           progress,
-          total: steps.length
+          total: steps.length,
         })
       }
 
       console.log(chalk.gray(`   ${steps[i]}... ${progress}%`))
 
       // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 300))
+      await new Promise((resolve) => setTimeout(resolve, 300))
 
       // Simulate element generation
       const element = {
         id: `element_${i}`,
         type: 'geometry',
         description: steps[i],
-        timestamp: Date.now()
+        timestamp: Date.now(),
       }
 
       elements.push(element)
@@ -351,8 +355,8 @@ generateCAD().catch(console.error);
       metadata: {
         generationTime: steps.length * 300,
         elementsCount: elements.length,
-        complexity: 'medium'
-      }
+        complexity: 'medium',
+      },
     }
   }
 
@@ -378,7 +382,7 @@ generateCAD().catch(console.error);
       'Constraint-based design',
       'Component library',
       'Assembly generation',
-      'Geometric validation'
+      'Geometric validation',
     ]
   }
 }
@@ -386,14 +390,14 @@ generateCAD().catch(console.error);
 // Default configuration for CADCamFun integration
 export const defaultCADConfig: CADCamFunConfig = {
   systemPath: '/Volumes/SSD/Development/dev/cadcamfun/src/lib/ai',
-  defaultFormat: 'json'
+  defaultFormat: 'json',
 }
 
 // Factory function to create bridge instance
 export function createCADCamFunBridge(config?: Partial<CADCamFunConfig>): CADCamFunBridge {
   const finalConfig = {
     ...defaultCADConfig,
-    ...config
+    ...config,
   }
 
   return new CADCamFunBridge(finalConfig)

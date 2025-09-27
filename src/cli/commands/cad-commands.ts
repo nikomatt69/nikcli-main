@@ -194,7 +194,7 @@ export class CADCommands {
 
     const capabilities = this.cadAgent.getCapabilities()
     console.log(chalk.blue('Available capabilities:'))
-    capabilities.forEach(cap => {
+    capabilities.forEach((cap) => {
       console.log(chalk.gray(`  ✅ ${cap}`))
     })
 

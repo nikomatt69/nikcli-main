@@ -4,7 +4,7 @@ export enum VimMode {
   VISUAL = 'visual',
   VISUAL_LINE = 'visual-line',
   COMMAND = 'command',
-  REPLACE = 'replace'
+  REPLACE = 'replace',
 }
 
 export interface CursorPosition {

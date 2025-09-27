@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
-import { VimState, VimMode, KeyBinding, CursorPosition, VimMotion } from '../types/vim-types'
-import { VimModeConfig } from '../vim-mode-manager'
+import { type CursorPosition, type KeyBinding, VimMode, VimMotion, type VimState } from '../types/vim-types'
+import type { VimModeConfig } from '../vim-mode-manager'
 
 export class VimKeyHandler extends EventEmitter {
   private state: VimState
@@ -104,10 +104,10 @@ export class VimKeyHandler extends EventEmitter {
       // AI Integration
       { key: '<C-a>', mode: VimMode.NORMAL, action: 'aiAssist', description: 'AI assistance' },
       { key: '<C-g>', mode: VimMode.NORMAL, action: 'aiGenerate', description: 'AI generate' },
-      { key: '<C-r>', mode: VimMode.NORMAL, action: 'aiRefactor', description: 'AI refactor' }
+      { key: '<C-r>', mode: VimMode.NORMAL, action: 'aiRefactor', description: 'AI refactor' },
     ]
 
-    bindings.forEach(binding => {
+    bindings.forEach((binding) => {
       this.keyBindings.set(`${binding.mode}:${binding.key}`, binding)
     })
   }
@@ -118,7 +118,7 @@ export class VimKeyHandler extends EventEmitter {
         key,
         mode: VimMode.NORMAL,
         action,
-        description: `Custom: ${action}`
+        description: `Custom: ${action}`,
       }
       this.keyBindings.set(`${VimMode.NORMAL}:${key}`, binding)
     })
@@ -350,7 +350,7 @@ export class VimKeyHandler extends EventEmitter {
 
     this.state.registers.set('"', {
       content: deletedLines.join('\n'),
-      type: 'line'
+      type: 'line',
     })
 
     if (this.state.buffer.length === 0) {
@@ -359,7 +359,7 @@ export class VimKeyHandler extends EventEmitter {
 
     this.setCursorPosition({
       line: Math.min(startLine, this.state.buffer.length - 1),
-      column: 0
+      column: 0,
     })
     this.emit('bufferChange')
   }
@@ -371,7 +371,7 @@ export class VimKeyHandler extends EventEmitter {
 
     this.state.registers.set('"', {
       content: yankedLines.join('\n'),
-      type: 'line'
+      type: 'line',
     })
   }
 

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { type TokenOptimizationConfig, TokenOptimizer } from '../core/performance-optimizer'
-import { type OutputStyle } from '../types/output-styles'
+import type { OutputStyle } from '../types/output-styles'
 import { CliUI } from '../utils/cli-ui'
 
 /**
@@ -338,7 +338,7 @@ export class PromptManager {
       ...context,
       basePrompt,
       outputStylePrompt,
-      combinedPrompt
+      combinedPrompt,
     }
   }
 
@@ -393,7 +393,7 @@ RESPONSE GUIDELINES:
         return configManager.resolveOutputStyle({
           context: context.taskType || context.actionType,
           modelName: context.parameters?.modelName,
-          provider: context.parameters?.provider
+          provider: context.parameters?.provider,
         })
       } catch (error) {
         CliUI.logDebug(`Failed to resolve output style from config: ${error}`)
@@ -407,10 +407,7 @@ RESPONSE GUIDELINES:
   /**
    * Create enhanced prompt context with resolved output style
    */
-  async createEnhancedContext(
-    baseContext: PromptContext,
-    configManager?: any
-  ): Promise<EnhancedPromptContext> {
+  async createEnhancedContext(baseContext: PromptContext, configManager?: any): Promise<EnhancedPromptContext> {
     const resolvedStyle = this.resolveOutputStyle(baseContext, configManager)
     const contextWithStyle = { ...baseContext, outputStyle: resolvedStyle }
 
@@ -452,7 +449,7 @@ RESPONSE GUIDELINES:
       'friendly-casual',
       'technical-precise',
       'educational-verbose',
-      'minimal-efficient'
+      'minimal-efficient',
     ]
     return validStyles.includes(style)
   }

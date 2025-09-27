@@ -1,5 +1,10 @@
 import { EventEmitter } from 'node:events'
-import { CadGcodeProvider, cadGcodeProvider, type CadResult, type GcodeResult } from '../providers/cad-gcode/cad-gcode.provider'
+import {
+  type CadGcodeProvider,
+  type CadResult,
+  cadGcodeProvider,
+  type GcodeResult,
+} from '../providers/cad-gcode/cad-gcode.provider'
 
 /**
  * Real CAD/GCode services backed by CadGcodeProvider.

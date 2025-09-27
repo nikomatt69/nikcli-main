@@ -85,7 +85,7 @@ Think of each element as a precise engineering specification suitable for aerosp
 
 {{description}}
 
-Generate a complete array of CAD elements that form this model. Each element must include all required properties for its type. Format your response ONLY as a valid JSON array without any explanations or commentary.`
+Generate a complete array of CAD elements that form this model. Each element must include all required properties for its type. Format your response ONLY as a valid JSON array without any explanations or commentary.`,
   },
 
   /**
@@ -122,7 +122,7 @@ For each suggestion, include:
 - Priority (low, medium, high)
 - Type (optimization, warning, critical)
   
-Format your response as JSON with an array of suggestions.`
+Format your response as JSON with an array of suggestions.`,
   },
 
   /**
@@ -152,7 +152,7 @@ Consider:
 Consider these specific constraints and goals:
 {{constraints}}
 
-Provide the optimized G-code along with specific improvements made and estimated benefits in terms of time savings, tool life, and quality improvements.`
+Provide the optimized G-code along with specific improvements made and estimated benefits in terms of time savings, tool life, and quality improvements.`,
   },
 
   /**
@@ -184,7 +184,7 @@ Provide recommendations for:
 - Coolant recommendations
 - Tool engagement strategies
 
-Include any special considerations or warnings for this specific combination.`
+Include any special considerations or warnings for this specific combination.`,
   },
 
   /**
@@ -212,7 +212,7 @@ Focus areas:
 
 They are currently focusing on {{currentOperation}} with {{currentTool}}.
 
-Provide 2-3 brief, helpful design suggestions relevant to their current work.`
+Provide 2-3 brief, helpful design suggestions relevant to their current work.`,
   },
 
   /**
@@ -285,7 +285,7 @@ PREFERRED MATERIAL: {{material}}
 TARGET FORMAT: {{outputFormat}}
 {{/if}}
 
-Generate a complete, manufacturable CAD model that accurately represents this description. Focus on engineering precision and production readiness.`
+Generate a complete, manufacturable CAD model that accurately represents this description. Focus on engineering precision and production readiness.`,
   },
 
   /**
@@ -370,9 +370,9 @@ FEED RATE: {{feedRate}} mm/min
 SPINDLE SPEED: {{spindleSpeed}} RPM
 {{/if}}
 
-Create complete, production-ready G-code with proper safety protocols, efficient toolpaths, and comprehensive operator comments. Focus on manufacturability and operator safety.`
-  }
-};
+Create complete, production-ready G-code with proper safety protocols, efficient toolpaths, and comprehensive operator comments. Focus on manufacturability and operator safety.`,
+  },
+}
 
 /**
  * Legacy prompt templates maintained for backward compatibility
@@ -381,16 +381,16 @@ export const designPromptTemplates = {
   analyzeSystem: promptTemplates.designAnalysis.system,
   analyze: promptTemplates.designAnalysis.user,
   generateSystem: promptTemplates.textToCAD.system,
-  generate: promptTemplates.textToCAD.user
-};
+  generate: promptTemplates.textToCAD.user,
+}
 
 /**
  * Legacy toolpath prompt templates maintained for backward compatibility
  */
 export const toolpathPromptTemplates = {
   optimizeSystem: promptTemplates.gcodeOptimization.system,
-  optimize: promptTemplates.gcodeOptimization.user
-};
+  optimize: promptTemplates.gcodeOptimization.user,
+}
 
 /**
  * NikCLI Tool-specific prompt templates for internal use
@@ -399,31 +399,31 @@ export const nikCLIPromptTemplates = {
   // CAD Tool prompts
   cadGeneration: {
     system: promptTemplates.nikCLITextToCAD.system,
-    user: promptTemplates.nikCLITextToCAD.user
+    user: promptTemplates.nikCLITextToCAD.user,
   },
 
   // G-code Tool prompts
   gcodeGeneration: {
     system: promptTemplates.nikCLITextToGCode.system,
-    user: promptTemplates.nikCLITextToGCode.user
-  }
-};
+    user: promptTemplates.nikCLITextToGCode.user,
+  },
+}
 
 /**
  * Helper function to compile prompt templates with variables
  */
 export function compilePrompt(template: string, variables: Record<string, any>): string {
-  let compiled = template;
+  let compiled = template
 
   // Handle Handlebars-style conditionals {{#if variable}}...{{/if}}
   compiled = compiled.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_, varName, content) => {
-    return variables[varName] ? content : '';
-  });
+    return variables[varName] ? content : ''
+  })
 
   // Handle simple variable substitutions {{variable}}
   compiled = compiled.replace(/\{\{(\w+)\}\}/g, (_, varName) => {
-    return variables[varName] || '';
-  });
+    return variables[varName] || ''
+  })
 
-  return compiled.trim();
+  return compiled.trim()
 }

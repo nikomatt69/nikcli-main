@@ -1,6 +1,6 @@
-import { VimState, VimMode, CursorPosition } from '../types/vim-types'
-import { VimModeConfig } from '../vim-mode-manager'
 import chalk from 'chalk'
+import { CursorPosition, VimMode, type VimState } from '../types/vim-types'
+import type { VimModeConfig } from '../vim-mode-manager'
 
 interface RenderOptions {
   showLineNumbers: boolean
@@ -55,7 +55,7 @@ export class VimRenderer {
       showLineNumbers: this.config.lineNumbers,
       showStatusLine: this.config.statusLine,
       showCommandLine: this.state.mode === VimMode.COMMAND,
-      theme: this.config.theme
+      theme: this.config.theme,
     }
 
     let output = ''
@@ -146,22 +146,13 @@ export class VimRenderer {
     )
 
     // Strings
-    highlighted = highlighted.replace(
-      /(["'`])((?:\\.|(?!\1)[^\\])*?)\1/g,
-      chalk.green('$1$2$1')
-    )
+    highlighted = highlighted.replace(/(["'`])((?:\\.|(?!\1)[^\\])*?)\1/g, chalk.green('$1$2$1'))
 
     // Comments
-    highlighted = highlighted.replace(
-      /(\/\/.*$|\/\*.*?\*\/)/g,
-      chalk.gray('$1')
-    )
+    highlighted = highlighted.replace(/(\/\/.*$|\/\*.*?\*\/)/g, chalk.gray('$1'))
 
     // Numbers
-    highlighted = highlighted.replace(
-      /\b(\d+(?:\.\d+)?)\b/g,
-      chalk.cyan('$1')
-    )
+    highlighted = highlighted.replace(/\b(\d+(?:\.\d+)?)\b/g, chalk.cyan('$1'))
 
     if (isCurrentLine && this.state.mode === VimMode.INSERT) {
       return chalk.bgBlue.white(highlighted)
@@ -231,9 +222,7 @@ export class VimRenderer {
 
   private styleLineNumber(lineNum: string, isCurrentLine: boolean, theme: string): string {
     if (theme === 'enhanced') {
-      return isCurrentLine
-        ? chalk.yellow.bold(lineNum)
-        : chalk.gray(lineNum)
+      return isCurrentLine ? chalk.yellow.bold(lineNum) : chalk.gray(lineNum)
     } else if (theme === 'minimal') {
       return isCurrentLine ? lineNum : chalk.gray(lineNum)
     } else {
@@ -284,7 +273,7 @@ export class VimRenderer {
       showLineNumbers: this.config.lineNumbers,
       showStatusLine: this.config.statusLine,
       showCommandLine: this.state.mode === VimMode.COMMAND,
-      theme: this.config.theme
+      theme: this.config.theme,
     })
 
     const startLine = this.calculateStartLine(visibleLines.count)

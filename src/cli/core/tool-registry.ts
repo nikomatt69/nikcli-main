@@ -235,7 +235,7 @@ export class ToolRegistry {
       this.loadedTools.add(toolMetadata.id)
 
       if (!process.env.NIKCLI_SUPPRESS_TOOL_REGISTER_LOGS && !process.env.NIKCLI_QUIET_STARTUP) {
-        advancedUI.logSuccess(`🔧 Registered tool: ${toolMetadata.name} (${toolMetadata.id})`)
+        advancedUI.addTimestampedUpdate(`🔧 Registered tool: ${toolMetadata.name} (${toolMetadata.id})`, 'info')
       }
       return toolMetadata.id
     } catch (error: any) {

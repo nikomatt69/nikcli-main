@@ -75,7 +75,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
   private lastUpdate = Date.now()
   private inputQueueEnabled = true // Abilita/disabilita input queue
   private adaptiveMetrics = new Map<string, number>()
-  
+
   // 📋 Paste handling
   private pasteHandler: PasteHandler
   private panels = new Map<string, Panel>()
@@ -94,7 +94,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     }
 
     this.policyManager = new ExecutionPolicyManager(configManager)
-    
+
     // Initialize paste handler for long text processing
     this.pasteHandler = PasteHandler.getInstance()
 
@@ -154,22 +154,22 @@ class StreamingOrchestratorImpl extends EventEmitter {
       // 📋 PASTE DETECTION: Check if this is a multiline paste operation
       const lineCount = trimmed.split('\n').length
       const isPasteOperation = this.pasteHandler.detectPasteOperation(trimmed)
-      
+
       let actualInput = trimmed
       let displayText = trimmed
 
       if (isPasteOperation || lineCount > 1) {
         // This is a paste operation - process as single consolidated input
         const pasteResult = this.pasteHandler.processPastedText(trimmed)
-        
+
         if (pasteResult.shouldTruncate) {
           // Extract just the indicator line for display
           const truncatedLine = pasteResult.displayText.split('\n').pop() || '[Pasted text]'
-          
+
           // Use original content for AI processing
           actualInput = pasteResult.originalText
           displayText = truncatedLine
-          
+
           // Visual feedback that paste was detected and truncated
           console.log(chalk.gray(`📋 ${truncatedLine}`))
         }

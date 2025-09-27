@@ -1,10 +1,10 @@
 import { EventEmitter } from 'node:events'
-import { type CoreMessage } from 'ai'
-import { VimState, VimMode } from '../types/vim-types'
-import { VimModeConfig } from '../vim-mode-manager'
-import { ModernAIProvider } from '../../ai/modern-ai-provider'
+import type { CoreMessage } from 'ai'
+import type { ModernAIProvider } from '../../ai/modern-ai-provider'
+import type { SimpleConfigManager } from '../../core/config-manager'
 import { CliUI } from '../../utils/cli-ui'
-import { type SimpleConfigManager } from '../../core/config-manager'
+import { VimMode, type VimState } from '../types/vim-types'
+import type { VimModeConfig } from '../vim-mode-manager'
 
 export interface VimAIRequest {
   type: 'generate' | 'explain' | 'refactor' | 'comment' | 'assist'
@@ -65,10 +65,7 @@ export class VimAIIntegration extends EventEmitter {
     const messages = this.buildAIMessages(request)
 
     try {
-      const response = await this.aiProvider.generateWithStyle(
-        messages,
-        { outputStyle: 'technical-precise' }
-      )
+      const response = await this.aiProvider.generateWithStyle(messages, { outputStyle: 'technical-precise' })
 
       return response.text
     } catch (error: any) {
@@ -83,14 +80,14 @@ export class VimAIIntegration extends EventEmitter {
     // System message with vim context
     messages.push({
       role: 'system',
-      content: this.buildSystemPrompt(request.type)
+      content: this.buildSystemPrompt(request.type),
     })
 
     // Context message
     if (request.context) {
       messages.push({
         role: 'user',
-        content: this.buildContextMessage(request)
+        content: this.buildContextMessage(request),
       })
     }
 
@@ -228,14 +225,14 @@ TASK: General coding assistance
     return this.processAIRequest({
       type: 'generate',
       context: this.getCurrentContext(),
-      prompt
+      prompt,
     })
   }
 
   async explainCode(selection?: string): Promise<string> {
     return this.processAIRequest({
       type: 'explain',
-      context: selection || this.getCurrentContext()
+      context: selection || this.getCurrentContext(),
     })
   }
 
@@ -243,14 +240,14 @@ TASK: General coding assistance
     return this.processAIRequest({
       type: 'refactor',
       context: selection,
-      prompt: instruction
+      prompt: instruction,
     })
   }
 
   async commentCode(selection: string): Promise<string> {
     return this.processAIRequest({
       type: 'comment',
-      context: selection
+      context: selection,
     })
   }
 
@@ -258,7 +255,7 @@ TASK: General coding assistance
     return this.processAIRequest({
       type: 'assist',
       context: this.getCurrentContext(),
-      prompt
+      prompt,
     })
   }
 

@@ -60,6 +60,25 @@ export interface BackgroundAgentInfo {
   lastUpdate?: Date
 }
 
+export interface ToolCallInfo {
+  type: 'grep' | 'search' | 'read' | 'write' | 'shell' | 'other'
+  description: string
+  target?: string
+  lines?: string
+  count?: number
+  timestamp: Date
+}
+
+export interface ToolCallSummary {
+  totalCalls: number
+  greps: number
+  searches: number
+  reads: number
+  writes: number
+  others: number
+  tools: ToolCallInfo[]
+}
+
 export class AdvancedCliUI {
   private indicators: Map<string, StatusIndicator> = new Map()
   private liveUpdates: LiveUpdate[] = []
@@ -77,8 +96,10 @@ export class AdvancedCliUI {
   // When true, clear live updates automatically when idle/finished
   private ephemeralLiveUpdates: boolean = false
   private cliInstance: any
+  // Tool call tracking
+  private toolCalls: ToolCallInfo[] = []
+  private currentSession: boolean = false
   constructor() {
-
     this.theme = {
       primary: chalk.blue,
       secondary: chalk.cyan,
@@ -396,11 +417,11 @@ export class AdvancedCliUI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\\n\\n` +
-      `${chalk.green('✅ Completed:')} ${completed}\\n` +
-      `${chalk.red('❌ Failed:')} ${failed}\\n` +
-      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
-      `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
-      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+        `${chalk.green('✅ Completed:')} ${completed}\\n` +
+        `${chalk.red('❌ Failed:')} ${failed}\\n` +
+        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
+        `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
+        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -558,7 +579,6 @@ export class AdvancedCliUI {
    */
   private showRecentUpdates(): void {
     const recentUpdates = this.liveUpdates.slice(-10)
-
     if (recentUpdates.length === 0) return
 
     console.log(chalk.blue.bold('📝 Recent Updates:'))
@@ -751,7 +771,9 @@ export class AdvancedCliUI {
 
   /** Determine if there are no running/pending indicators, spinners, or progress bars */
   private isIdle(): boolean {
-    const anyRunning = Array.from(this.indicators.values()).some((i) => i.status === 'running' || i.status === 'pending')
+    const anyRunning = Array.from(this.indicators.values()).some(
+      (i) => i.status === 'running' || i.status === 'pending'
+    )
     return !anyRunning && this.spinners.size === 0 && this.progressBars.size === 0
   }
 

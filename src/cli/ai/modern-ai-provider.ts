@@ -9,8 +9,8 @@ import { createVercel } from '@ai-sdk/vercel'
 import { type CoreMessage, type CoreTool, generateText, streamText, tool } from 'ai'
 import { z } from 'zod'
 import { simpleConfigManager } from '../core/config-manager'
-import { PromptManager, type PromptContext } from '../prompts/prompt-manager'
-import { type OutputStyle } from '../types/output-styles'
+import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
+import type { OutputStyle } from '../types/output-styles'
 import { ReasoningDetector } from './reasoning-detector'
 
 export interface ModelConfig {
@@ -685,7 +685,7 @@ export class ModernAIProvider {
 
     yield {
       type: 'style_applied',
-      outputStyle: outputStyle
+      outputStyle: outputStyle,
     }
 
     // Continue with normal streaming using enhanced messages
@@ -719,7 +719,7 @@ export class ModernAIProvider {
     return {
       ...result,
       outputStyle,
-      enhancedPrompt: typeof enhancedMessages[0]?.content === 'string' ? enhancedMessages[0].content : ''
+      enhancedPrompt: typeof enhancedMessages[0]?.content === 'string' ? enhancedMessages[0].content : '',
     }
   }
 
@@ -770,15 +770,12 @@ export class ModernAIProvider {
         taskType: options.taskType,
         parameters: {
           modelName: options.modelOverride || this.currentModel,
-          context: options.context
-        }
+          context: options.context,
+        },
       }
 
       // Load enhanced prompt with output style
-      const enhancedContext = await this.promptManager.createEnhancedContext(
-        promptContext,
-        simpleConfigManager
-      )
+      const enhancedContext = await this.promptManager.createEnhancedContext(promptContext, simpleConfigManager)
 
       // Clone messages and enhance the first system message or create one
       const enhancedMessages = [...messages]
@@ -788,13 +785,13 @@ export class ModernAIProvider {
         // Enhance existing system message
         enhancedMessages[0] = {
           ...firstMessage,
-          content: enhancedContext.combinedPrompt || firstMessage.content
+          content: enhancedContext.combinedPrompt || firstMessage.content,
         }
       } else {
         // Add new system message with output style
         enhancedMessages.unshift({
           role: 'system',
-          content: enhancedContext.combinedPrompt || enhancedContext.outputStylePrompt || ''
+          content: enhancedContext.combinedPrompt || enhancedContext.outputStylePrompt || '',
         })
       }
 
@@ -813,13 +810,11 @@ export class ModernAIProvider {
     outputStyle?: OutputStyle,
     options: Omit<AIProviderOptions, 'outputStyle'> = {}
   ): Promise<string> {
-    const messages: CoreMessage[] = [
-      { role: 'user', content: prompt }
-    ]
+    const messages: CoreMessage[] = [{ role: 'user', content: prompt }]
 
     const result = await this.generateWithStyle(messages, {
       ...options,
-      outputStyle
+      outputStyle,
     })
 
     return result.text
@@ -840,7 +835,7 @@ export class ModernAIProvider {
       defaultStyle: simpleConfigManager.getDefaultOutputStyle(),
       modelStyle: simpleConfigManager.getModelOutputStyle(this.currentModel),
       availableStyles: this.getAvailableOutputStyles(),
-      globalConfig: simpleConfigManager.getOutputStyleConfig()
+      globalConfig: simpleConfigManager.getOutputStyleConfig(),
     }
   }
 

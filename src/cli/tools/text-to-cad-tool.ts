@@ -3,16 +3,17 @@
  * Converts text descriptions into CAD elements and models
  */
 
-import chalk from 'chalk'
 import boxen from 'boxen'
+import chalk from 'chalk'
 import fs from 'fs/promises'
 import path from 'path'
 import { z } from 'zod'
-import { BaseTool, ToolExecutionResult } from './base-tool'
+import { convertCadElementsToSTL } from '../converters/cad-to-stl'
+import { type AICadSdkBridge, createAICadSdkBridge } from '../integrations/ai-cad-sdk-bridge'
+import { type CADCamFunBridge, createCADCamFunBridge } from '../integrations/cadcamfun-bridge'
+import { compilePrompt, nikCLIPromptTemplates, promptTemplates } from '../prompts/promptTemplates'
 import { CliUI } from '../utils/cli-ui'
-import { createCADCamFunBridge, CADCamFunBridge } from '../integrations/cadcamfun-bridge'
-import { createAICadSdkBridge, AICadSdkBridge } from '../integrations/ai-cad-sdk-bridge'
-import { nikCLIPromptTemplates, compilePrompt } from '../prompts/promptTemplates'
+import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 export const CADGenerationOptionsSchema = z.object({
   description: z.string().min(1, 'Description must not be empty'),
@@ -105,10 +106,20 @@ export class TextToCADTool extends BaseTool {
       const fileName = validatedParams.outputPath || this.generateCADFileName(validatedParams)
       let savedFilePath: string
       if ((validatedParams.outputFormat === 'scad' && (result as any)?.modelText) || (result as any)?.modelText) {
-        const ensuredName = path.extname(fileName).toLowerCase() === '.scad' ? fileName : fileName.replace(/\.[^/.]+$/, '') + '.scad'
+        const ensuredName =
+          path.extname(fileName).toLowerCase() === '.scad' ? fileName : fileName.replace(/\.[^/.]+$/, '') + '.scad'
         savedFilePath = await this.saveSCADToFile((result as any).modelText || '', ensuredName)
+      } else if (validatedParams.outputFormat === 'stl' && Array.isArray(result.elements)) {
+        const stl = convertCadElementsToSTL(result.elements, 'nikcli_model')
+        const ensuredName =
+          path.extname(fileName).toLowerCase() === '.stl' ? fileName : fileName.replace(/\.[^/.]+$/, '') + '.stl'
+        savedFilePath = await this.saveRawToFile(stl, ensuredName)
       } else {
-        savedFilePath = await this.saveCADToFile(result.elements || [], fileName, validatedParams.outputFormat || 'json')
+        savedFilePath = await this.saveCADToFile(
+          result.elements || [],
+          fileName,
+          validatedParams.outputFormat || 'json'
+        )
       }
 
       // Format the CAD data
@@ -119,8 +130,8 @@ export class TextToCADTool extends BaseTool {
           elementsCount: result.elements?.length || 0,
           generationTime: result.metadata?.generationTime || executionTime,
           complexity: (result.metadata?.complexity as 'simple' | 'medium' | 'complex') || 'medium',
-          constraints: validatedParams.constraints
-        }
+          constraints: validatedParams.constraints,
+        },
       }
 
       // Generate and display ASCII preview
@@ -133,10 +144,9 @@ export class TextToCADTool extends BaseTool {
         metadata: {
           executionTime,
           toolName: this.name,
-          parameters: params
-        }
+          parameters: params,
+        },
       }
-
     } catch (error: any) {
       const executionTime = Date.now() - startTime
 
@@ -178,7 +188,7 @@ export class TextToCADTool extends BaseTool {
             constraints: validatedParams.constraints,
             outputFormat: validatedParams.outputFormat === 'scad' ? 'json' : validatedParams.outputFormat,
             streaming: true,
-            outputPath: validatedParams.outputPath
+            outputPath: validatedParams.outputPath,
           },
           onProgress,
           onElement
@@ -200,7 +210,10 @@ export class TextToCADTool extends BaseTool {
       const executionTime = Date.now() - startTime
 
       if (!result.success) {
-        const toolData: TextToCADToolResult = { success: false, error: result.error || 'Streaming CAD generation failed' }
+        const toolData: TextToCADToolResult = {
+          success: false,
+          error: result.error || 'Streaming CAD generation failed',
+        }
         return {
           success: false,
           data: TextToCADToolResultSchema.parse(toolData),
@@ -217,10 +230,20 @@ export class TextToCADTool extends BaseTool {
       const fileName = validatedParams.outputPath || this.generateCADFileName(validatedParams)
       let savedFilePath: string
       if ((validatedParams.outputFormat === 'scad' && (result as any)?.modelText) || (result as any)?.modelText) {
-        const ensuredName = path.extname(fileName).toLowerCase() === '.scad' ? fileName : fileName.replace(/\.[^/.]+$/, '') + '.scad'
+        const ensuredName =
+          path.extname(fileName).toLowerCase() === '.scad' ? fileName : fileName.replace(/\.[^/.]+$/, '') + '.scad'
         savedFilePath = await this.saveSCADToFile((result as any).modelText || '', ensuredName)
+      } else if (validatedParams.outputFormat === 'stl' && Array.isArray(result.elements)) {
+        const stl = convertCadElementsToSTL(result.elements, 'nikcli_model')
+        const ensuredName =
+          path.extname(fileName).toLowerCase() === '.stl' ? fileName : fileName.replace(/\.[^/.]+$/, '') + '.stl'
+        savedFilePath = await this.saveRawToFile(stl, ensuredName)
       } else {
-        savedFilePath = await this.saveCADToFile(result.elements || [], fileName, validatedParams.outputFormat || 'json')
+        savedFilePath = await this.saveCADToFile(
+          result.elements || [],
+          fileName,
+          validatedParams.outputFormat || 'json'
+        )
       }
 
       const cadData: CADGenerationData = {
@@ -230,8 +253,8 @@ export class TextToCADTool extends BaseTool {
           elementsCount: result.elements?.length || 0,
           generationTime: result.metadata?.generationTime || executionTime,
           complexity: (result.metadata?.complexity as 'simple' | 'medium' | 'complex') || 'medium',
-          constraints: validatedParams.constraints
-        }
+          constraints: validatedParams.constraints,
+        },
       }
 
       // Generate and display ASCII preview for streaming too
@@ -247,7 +270,6 @@ export class TextToCADTool extends BaseTool {
           parameters: params,
         },
       }
-
     } catch (error: any) {
       const executionTime = Date.now() - startTime
 
@@ -336,15 +358,14 @@ export class TextToCADTool extends BaseTool {
    */
   private async enhanceDescriptionWithAI(params: CADGenerationParams): Promise<string | null> {
     try {
-      console.log(chalk.gray('🤖 Enhancing description with AI analysis...'))
+      console.log(chalk.gray('🤖 Enhancing description with AI analysis (enterprise prompt)...'))
 
-      // Compile the AI prompt with our parameters
-      const systemPrompt = nikCLIPromptTemplates.cadGeneration.system
-      const userPrompt = compilePrompt(nikCLIPromptTemplates.cadGeneration.user, {
+      // Compile the Enterprise Text-to-CAD prompt (system + user)
+      const systemPrompt = promptTemplates.textToCAD.system
+      const userPrompt = compilePrompt(promptTemplates.textToCAD.user, {
         description: params.description,
-        constraints: params.constraints ? JSON.stringify(params.constraints) : null,
-        material: this.extractMaterial(params.description),
-        outputFormat: params.outputFormat
+        complexity: 'medium',
+        style: 'industrial',
       })
 
       // Here you would integrate with your actual AI service
@@ -353,7 +374,6 @@ export class TextToCADTool extends BaseTool {
 
       console.log(chalk.green('✅ Description enhanced with engineering specifications'))
       return enhancedDescription
-
     } catch (error) {
       console.log(chalk.yellow('⚠️ AI enhancement failed, using original description'))
       return null
@@ -412,8 +432,19 @@ export class TextToCADTool extends BaseTool {
    */
   private extractMaterial(description: string): string | null {
     const materials = [
-      'aluminum', 'steel', 'stainless steel', 'plastic', 'abs', 'pla', 'petg',
-      'brass', 'copper', 'titanium', 'carbon fiber', 'nylon', 'delrin'
+      'aluminum',
+      'steel',
+      'stainless steel',
+      'plastic',
+      'abs',
+      'pla',
+      'petg',
+      'brass',
+      'copper',
+      'titanium',
+      'carbon fiber',
+      'nylon',
+      'delrin',
     ]
 
     for (const material of materials) {
@@ -445,18 +476,18 @@ export class TextToCADTool extends BaseTool {
    */
   private extractShape(description: string): string | null {
     const shapes = {
-      'bracket': ['bracket', 'support', 'mount'],
-      'gear': ['gear', 'wheel', 'sprocket'],
-      'housing': ['housing', 'case', 'enclosure', 'box'],
-      'shaft': ['shaft', 'rod', 'pin'],
-      'plate': ['plate', 'panel', 'sheet'],
-      'cylinder': ['cylinder', 'tube', 'pipe']
+      bracket: ['bracket', 'support', 'mount'],
+      gear: ['gear', 'wheel', 'sprocket'],
+      housing: ['housing', 'case', 'enclosure', 'box'],
+      shaft: ['shaft', 'rod', 'pin'],
+      plate: ['plate', 'panel', 'sheet'],
+      cylinder: ['cylinder', 'tube', 'pipe'],
     }
 
     const desc = description.toLowerCase()
 
     for (const [shape, keywords] of Object.entries(shapes)) {
-      if (keywords.some(keyword => desc.includes(keyword))) {
+      if (keywords.some((keyword) => desc.includes(keyword))) {
         return shape
       }
     }
@@ -517,7 +548,7 @@ export class TextToCADTool extends BaseTool {
       'Material specification',
       'Streaming generation',
       'Component library integration',
-      'Assembly generation'
+      'Assembly generation',
     ]
   }
 
@@ -552,7 +583,7 @@ export class TextToCADTool extends BaseTool {
         margin: 1,
         borderStyle: 'round',
         borderColor: 'cyan',
-        titleAlignment: 'center'
+        titleAlignment: 'center',
       })
     )
   }
@@ -840,9 +871,9 @@ export class TextToCADTool extends BaseTool {
           generated: new Date().toISOString(),
           format: 'json',
           elementsCount: elements.length,
-          tool: 'nikcli-text-to-cad'
+          tool: 'nikcli-text-to-cad',
         },
-        elements: elements
+        elements: elements,
       }
       content = JSON.stringify(cadData, null, 2)
     } else {
@@ -863,9 +894,22 @@ export class TextToCADTool extends BaseTool {
     const nikCliDir = path.join(this.workingDirectory, '.nikcli')
     const cadDir = path.join(nikCliDir, 'cad')
     await fs.mkdir(cadDir, { recursive: true })
-    const filename = path.basename(fileName).endsWith('.scad') ? path.basename(fileName) : `${path.basename(fileName, path.extname(fileName))}.scad`
+    const filename = path.basename(fileName).endsWith('.scad')
+      ? path.basename(fileName)
+      : `${path.basename(fileName, path.extname(fileName))}.scad`
     const fullPath = path.join(cadDir, filename)
     await fs.writeFile(fullPath, scad || '// Empty SCAD', 'utf8')
+    console.log(chalk.green(`✅ CAD file saved to: ${fullPath}`))
+    return path.join('.nikcli', 'cad', filename)
+  }
+
+  private async saveRawToFile(content: string, fileName: string): Promise<string> {
+    const nikCliDir = path.join(this.workingDirectory, '.nikcli')
+    const cadDir = path.join(nikCliDir, 'cad')
+    await fs.mkdir(cadDir, { recursive: true })
+    const filename = path.basename(fileName)
+    const fullPath = path.join(cadDir, filename)
+    await fs.writeFile(fullPath, content || '', 'utf8')
     console.log(chalk.green(`✅ CAD file saved to: ${fullPath}`))
     return path.join('.nikcli', 'cad', filename)
   }
@@ -904,7 +948,6 @@ export class TextToCADTool extends BaseTool {
 
     return content
   }
-
 }
 
 export default TextToCADTool

@@ -28,7 +28,7 @@ export class PasteHandler {
       minLineThreshold: 10,
       rapidInputThreshold: 100,
       maxDisplayLines: 3,
-      ...config
+      ...config,
     }
   }
 
@@ -79,12 +79,17 @@ export class PasteHandler {
   /**
    * Process potentially pasted text and return display version
    */
-  processPastedText(input: string): { shouldTruncate: boolean; displayText: string; originalText: string; pasteId?: number } {
+  processPastedText(input: string): {
+    shouldTruncate: boolean
+    displayText: string
+    originalText: string
+    pasteId?: number
+  } {
     if (!this.detectPasteOperation(input)) {
       return {
         shouldTruncate: false,
         displayText: input,
-        originalText: input
+        originalText: input,
       }
     }
 
@@ -95,7 +100,7 @@ export class PasteHandler {
       shouldTruncate: true,
       displayText,
       originalText: input,
-      pasteId
+      pasteId,
     }
   }
 
@@ -111,7 +116,7 @@ export class PasteHandler {
       originalText: text,
       displayText: this.createDisplayText(text, this.pasteCounter),
       lineCount,
-      timestamp: new Date()
+      timestamp: new Date(),
     }
 
     this.pastedContentMap.set(this.pasteCounter, content)
@@ -138,9 +143,10 @@ export class PasteHandler {
 
     // Truncate very long lines in preview
     const maxLineLength = 100
-    preview = preview.split('\n').map(line =>
-      line.length > maxLineLength ? line.substring(0, maxLineLength) + '...' : line
-    ).join('\n')
+    preview = preview
+      .split('\n')
+      .map((line) => (line.length > maxLineLength ? line.substring(0, maxLineLength) + '...' : line))
+      .join('\n')
 
     if (lineCount > this.config.maxDisplayLines) {
       const additionalLines = lineCount - this.config.maxDisplayLines
@@ -182,26 +188,26 @@ export class PasteHandler {
    */
   private hasCodeBlockPattern(text: string): boolean {
     const codePatterns = [
-      /```[\s\S]*```/,        // Markdown code blocks
-      /^\s*{[\s\S]*}$/m,      // JSON objects
-      /^\s*function\s+\w+/m,  // Function definitions
-      /^\s*class\s+\w+/m,     // Class definitions
-      /^\s*import\s+/m,       // Import statements
+      /```[\s\S]*```/, // Markdown code blocks
+      /^\s*{[\s\S]*}$/m, // JSON objects
+      /^\s*function\s+\w+/m, // Function definitions
+      /^\s*class\s+\w+/m, // Class definitions
+      /^\s*import\s+/m, // Import statements
       /^\s*const\s+\w+\s*=/m, // Const declarations
-      /^\s*<\w+[\s\S]*>/m,    // HTML/XML tags
-      /^\s*\.[\w-]+\s*{/m,    // CSS selectors (.class, #id)
+      /^\s*<\w+[\s\S]*>/m, // HTML/XML tags
+      /^\s*\.[\w-]+\s*{/m, // CSS selectors (.class, #id)
       /^\s*[\w-]+\s*:\s*[\w-]+/m, // CSS properties
-      /^\s*SELECT\s+/im,      // SQL SELECT statements
+      /^\s*SELECT\s+/im, // SQL SELECT statements
       /^\s*INSERT\s+INTO\s+/im, // SQL INSERT statements
-      /^\s*UPDATE\s+/im,      // SQL UPDATE statements
+      /^\s*UPDATE\s+/im, // SQL UPDATE statements
       /^\s*DELETE\s+FROM\s+/im, // SQL DELETE statements
       /^\s*CREATE\s+TABLE\s+/im, // SQL CREATE statements
-      /^\s*#!/,               // Shebang lines (bash, python, etc.)
-      /^\s*\w+:\s*$/m,        // YAML-like keys (config files)
-      /^\s*\w+\s*=\s*/m,      // Assignment patterns (config files)
+      /^\s*#!/, // Shebang lines (bash, python, etc.)
+      /^\s*\w+:\s*$/m, // YAML-like keys (config files)
+      /^\s*\w+\s*=\s*/m, // Assignment patterns (config files)
     ]
 
-    return codePatterns.some(pattern => pattern.test(text))
+    return codePatterns.some((pattern) => pattern.test(text))
   }
 
   /**
@@ -209,49 +215,47 @@ export class PasteHandler {
    */
   private hasStructuredTextPattern(text: string): boolean {
     const structuredPatterns = [
-      /^\d+\.\s+/m,           // Numbered lists
-      /^-\s+/m,               // Bullet points
-      /^\*\s+/m,              // Asterisk bullets
-      /^#{1,6}\s+/m,          // Markdown headers
-      /^\|\s*.*\s*\|/m,       // Table rows
-      /^---+$/m,              // Horizontal rules
+      /^\d+\.\s+/m, // Numbered lists
+      /^-\s+/m, // Bullet points
+      /^\*\s+/m, // Asterisk bullets
+      /^#{1,6}\s+/m, // Markdown headers
+      /^\|\s*.*\s*\|/m, // Table rows
+      /^---+$/m, // Horizontal rules
     ]
 
-    return structuredPatterns.some(pattern => pattern.test(text))
+    return structuredPatterns.some((pattern) => pattern.test(text))
   }
 
   /**
    * Check if text contains command sequence patterns
    */
   private hasCommandSequencePattern(text: string): boolean {
-    const lines = text.split('\n').filter(line => line.trim())
+    const lines = text.split('\n').filter((line) => line.trim())
 
     if (lines.length < 3) return false // Need at least 3 commands
 
     const commandPatterns = [
-      /^\s*npm\s+/,               // npm commands
-      /^\s*yarn\s+/,              // yarn commands
-      /^\s*git\s+/,               // git commands
-      /^\s*cd\s+/,                // cd commands
-      /^\s*mkdir\s+/,             // mkdir commands
-      /^\s*cp\s+/,                // cp commands
-      /^\s*mv\s+/,                // mv commands
-      /^\s*rm\s+/,                // rm commands
-      /^\s*ls\s*/,                // ls commands
-      /^\s*cat\s+/,               // cat commands
-      /^\s*echo\s+/,              // echo commands
-      /^\s*curl\s+/,              // curl commands
-      /^\s*wget\s+/,              // wget commands
-      /^\s*node\s+/,              // node commands
-      /^\s*python\s+/,            // python commands
-      /^\s*pip\s+/,               // pip commands
-      /^\s*docker\s+/,            // docker commands
+      /^\s*npm\s+/, // npm commands
+      /^\s*yarn\s+/, // yarn commands
+      /^\s*git\s+/, // git commands
+      /^\s*cd\s+/, // cd commands
+      /^\s*mkdir\s+/, // mkdir commands
+      /^\s*cp\s+/, // cp commands
+      /^\s*mv\s+/, // mv commands
+      /^\s*rm\s+/, // rm commands
+      /^\s*ls\s*/, // ls commands
+      /^\s*cat\s+/, // cat commands
+      /^\s*echo\s+/, // echo commands
+      /^\s*curl\s+/, // curl commands
+      /^\s*wget\s+/, // wget commands
+      /^\s*node\s+/, // node commands
+      /^\s*python\s+/, // python commands
+      /^\s*pip\s+/, // pip commands
+      /^\s*docker\s+/, // docker commands
     ]
 
     // Check if at least 50% of lines look like commands
-    const commandCount = lines.filter(line =>
-      commandPatterns.some(pattern => pattern.test(line))
-    ).length
+    const commandCount = lines.filter((line) => commandPatterns.some((pattern) => pattern.test(line))).length
 
     return commandCount >= Math.ceil(lines.length * 0.5)
   }
@@ -271,9 +275,8 @@ export class PasteHandler {
     return {
       totalPastes: this.pasteCounter,
       storedContent: this.pastedContentMap.size,
-      oldestTimestamp: entries.length > 0 ?
-        new Date(Math.min(...entries.map(e => e.timestamp.getTime()))) :
-        undefined
+      oldestTimestamp:
+        entries.length > 0 ? new Date(Math.min(...entries.map((e) => e.timestamp.getTime()))) : undefined,
     }
   }
 

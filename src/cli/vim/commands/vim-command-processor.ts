@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
-import { VimState, VimMode, VimCommand, CommandResult } from '../types/vim-types'
-import { VimModeConfig } from '../vim-mode-manager'
 import { CliUI } from '../../utils/cli-ui'
+import { type CommandResult, type VimCommand, VimMode, type VimState } from '../types/vim-types'
+import type { VimModeConfig } from '../vim-mode-manager'
 
 export class VimCommandProcessor extends EventEmitter {
   private state: VimState
@@ -64,7 +64,7 @@ export class VimCommandProcessor extends EventEmitter {
         execute: async () => {
           this.emit('quit')
           return { success: true, message: 'Quitting vim mode' }
-        }
+        },
       },
       {
         name: 'w',
@@ -73,7 +73,7 @@ export class VimCommandProcessor extends EventEmitter {
         execute: async () => {
           this.emit('save')
           return { success: true, message: 'Buffer saved' }
-        }
+        },
       },
       {
         name: 'wq',
@@ -83,7 +83,7 @@ export class VimCommandProcessor extends EventEmitter {
           this.emit('save')
           this.emit('quit')
           return { success: true, message: 'Buffer saved and quitting' }
-        }
+        },
       },
       {
         name: 'e',
@@ -95,7 +95,7 @@ export class VimCommandProcessor extends EventEmitter {
           }
           this.emit('editFile', args[0])
           return { success: true, message: `Editing ${args[0]}` }
-        }
+        },
       },
       {
         name: 'sp',
@@ -104,7 +104,7 @@ export class VimCommandProcessor extends EventEmitter {
         execute: async () => {
           this.emit('split', 'horizontal')
           return { success: true, message: 'Window split horizontally' }
-        }
+        },
       },
       {
         name: 'vs',
@@ -113,7 +113,7 @@ export class VimCommandProcessor extends EventEmitter {
         execute: async () => {
           this.emit('split', 'vertical')
           return { success: true, message: 'Window split vertically' }
-        }
+        },
       },
       {
         name: 'set',
@@ -123,7 +123,7 @@ export class VimCommandProcessor extends EventEmitter {
             return this.showCurrentSettings()
           }
           return this.setSetting(args[0], args.slice(1))
-        }
+        },
       },
       {
         name: 'help',
@@ -131,7 +131,7 @@ export class VimCommandProcessor extends EventEmitter {
         description: 'Show help',
         execute: async (args: string[]) => {
           return this.showHelp(args[0])
-        }
+        },
       },
       {
         name: 'ai',
@@ -141,7 +141,7 @@ export class VimCommandProcessor extends EventEmitter {
             return { success: false, error: 'AI integration disabled' }
           }
           return this.handleAICommand(args)
-        }
+        },
       },
       {
         name: 'generate',
@@ -154,7 +154,7 @@ export class VimCommandProcessor extends EventEmitter {
           const prompt = args.join(' ')
           this.emit('aiRequest', `generate: ${prompt}`)
           return { success: true, message: 'AI generation requested' }
-        }
+        },
       },
       {
         name: 'explain',
@@ -166,7 +166,7 @@ export class VimCommandProcessor extends EventEmitter {
           const context = this.getSelectedText() || this.getCurrentLine()
           this.emit('aiRequest', `explain: ${context}`)
           return { success: true, message: 'AI explanation requested' }
-        }
+        },
       },
       {
         name: 'refactor',
@@ -180,7 +180,7 @@ export class VimCommandProcessor extends EventEmitter {
           const instruction = args.join(' ')
           this.emit('aiRequest', `refactor: ${context} -> ${instruction}`)
           return { success: true, message: 'AI refactoring requested' }
-        }
+        },
       },
       {
         name: 'comment',
@@ -192,7 +192,7 @@ export class VimCommandProcessor extends EventEmitter {
           const context = this.getSelectedText() || this.getCurrentLine()
           this.emit('aiRequest', `comment: ${context}`)
           return { success: true, message: 'AI commenting requested' }
-        }
+        },
       },
       {
         name: 'search',
@@ -204,7 +204,7 @@ export class VimCommandProcessor extends EventEmitter {
             return { success: false, error: 'No search pattern provided' }
           }
           return this.search(pattern)
-        }
+        },
       },
       {
         name: 'replace',
@@ -215,13 +215,13 @@ export class VimCommandProcessor extends EventEmitter {
             return { success: false, error: 'Usage: :s/pattern/replacement/' }
           }
           return this.searchAndReplace(args[0], args[1], args[2] === 'g')
-        }
-      }
+        },
+      },
     ]
 
-    commands.forEach(command => {
+    commands.forEach((command) => {
       this.commands.set(command.name, command)
-      command.aliases?.forEach(alias => {
+      command.aliases?.forEach((alias) => {
         this.commands.set(alias, command)
       })
     })
@@ -236,12 +236,12 @@ export class VimCommandProcessor extends EventEmitter {
       `AI Integration: ${this.config.aiIntegration ? 'enabled' : 'disabled'}`,
       `Theme: ${this.config.theme}`,
       `Status Line: ${this.config.statusLine ? 'enabled' : 'disabled'}`,
-      `Line Numbers: ${this.config.lineNumbers ? 'enabled' : 'disabled'}`
+      `Line Numbers: ${this.config.lineNumbers ? 'enabled' : 'disabled'}`,
     ]
 
     return {
       success: true,
-      message: `Current settings:\n${settings.join('\n')}`
+      message: `Current settings:\n${settings.join('\n')}`,
     }
   }
 
@@ -276,13 +276,13 @@ export class VimCommandProcessor extends EventEmitter {
   private async showHelp(topic?: string): Promise<CommandResult> {
     if (!topic) {
       const commandList = Array.from(this.commands.values())
-        .filter((cmd, index, array) => array.findIndex(c => c.name === cmd.name) === index)
-        .map(cmd => `  :${cmd.name} - ${cmd.description}`)
+        .filter((cmd, index, array) => array.findIndex((c) => c.name === cmd.name) === index)
+        .map((cmd) => `  :${cmd.name} - ${cmd.description}`)
         .join('\n')
 
       return {
         success: true,
-        message: `Available commands:\n${commandList}\n\nFor specific help: :help <command>`
+        message: `Available commands:\n${commandList}\n\nFor specific help: :help <command>`,
       }
     }
 
@@ -302,7 +302,7 @@ export class VimCommandProcessor extends EventEmitter {
     if (args.length === 0) {
       return {
         success: true,
-        message: 'AI commands: generate, explain, refactor, comment'
+        message: 'AI commands: generate, explain, refactor, comment',
       }
     }
 
@@ -344,7 +344,7 @@ export class VimCommandProcessor extends EventEmitter {
         matches.push({
           line: lineIndex,
           column: match.index,
-          text: match[0]
+          text: match[0],
         })
       }
     })
@@ -409,7 +409,7 @@ export class VimCommandProcessor extends EventEmitter {
 
     this.on('commandSubmit', () => {
       if (this.commandBuffer.trim()) {
-        this.execute(this.commandBuffer).then(result => {
+        this.execute(this.commandBuffer).then((result) => {
           if (result.success && result.message) {
             CliUI.logInfo(result.message)
           } else if (!result.success && result.error) {

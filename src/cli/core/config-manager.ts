@@ -38,8 +38,8 @@ const ConfigSchema = z.object({
       includeCodeExamples: true,
       includeStepByStep: true,
       useDecorative: false,
-      maxResponseLength: 'medium'
-    }
+      maxResponseLength: 'medium',
+    },
   }),
   models: z.record(ModelConfigSchema),
   apiKeys: z.record(z.string()).optional(),
@@ -864,8 +864,8 @@ export class SimpleConfigManager {
         includeCodeExamples: true,
         includeStepByStep: true,
         useDecorative: false,
-        maxResponseLength: 'medium'
-      }
+        maxResponseLength: 'medium',
+      },
     },
     models: this.defaultModels,
     apiKeys: {},
@@ -1419,8 +1419,13 @@ export class SimpleConfigManager {
     }
 
     // 3. Provider-specific override
-    if (provider && this.config.outputStyle.providerOverrides?.[provider as keyof typeof this.config.outputStyle.providerOverrides]) {
-      return this.config.outputStyle.providerOverrides[provider as keyof typeof this.config.outputStyle.providerOverrides]!
+    if (
+      provider &&
+      this.config.outputStyle.providerOverrides?.[provider as keyof typeof this.config.outputStyle.providerOverrides]
+    ) {
+      return this.config.outputStyle.providerOverrides[
+        provider as keyof typeof this.config.outputStyle.providerOverrides
+      ]!
     }
 
     // 4. Default fallback
