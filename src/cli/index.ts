@@ -1687,7 +1687,7 @@ class MainOrchestrator {
       Logger.setConsoleOutput(true)
       UtilsLogger.getInstance().setConsoleOutput(true)
 
-      // Welcome message
+      // Welcome message - this will now be visible
       console.log(chalk.green.bold('\n🎉 Welcome to NikCLI!'))
       console.log(chalk.gray('─'.repeat(40)))
 
@@ -1706,9 +1706,106 @@ class MainOrchestrator {
 }
 
 /**
+ * Temporarily hide console output during initialization
+ * except for onboarding flow
+ */
+function hideConsoleOutput() {
+  const originalLog = console.log
+  const originalError = console.error
+  const originalWarn = console.warn
+
+  // Store original methods
+  ;(console as any)._originalLog = originalLog
+  ;(console as any)._originalError = originalError
+  ;(console as any)._originalWarn = originalWarn
+
+  let isOnboardingActive = false
+
+  // Override to suppress output
+  console.log = (...args: any[]) => {
+    const message = args.join(' ')
+
+    // Check if this is onboarding-related content
+    const isOnboardingContent =
+      message.includes('🔑 API Key Setup') ||
+      message.includes('🚀 Starting NikCLI') ||
+      message.includes('🚨 BETA VERSION WARNING') ||
+      message.includes('🔍 System Check') ||
+      message.includes('Version Information') ||
+      message.includes('Enhanced Services Setup') ||
+      message.includes('🔐 Authentication Setup') ||
+      message.includes('📦 Version Information') ||
+      message.includes('🤖 Ollama Setup') ||
+      message.includes('Do you want to continue?') ||
+      message.includes('Continue without API keys?') ||
+      message.includes('Use a local Ollama model?') ||
+      message.includes('Select option') ||
+      message.includes('Email:') ||
+      message.includes('Password:') ||
+      message.includes('Username') ||
+      message.includes('Pull model now') ||
+      message.includes('Choose authentication method:') ||
+      message.includes('Welcome back') ||
+      message.includes('Account created') ||
+      message.includes('Set up your API key') ||
+      message.includes('banner') ||
+      message.includes('boxen') ||
+      message.includes('chalk') ||
+      // ASCII art banner
+      message.includes('███╗   ██╗') ||
+      // System status messages
+      message.includes('System continuing') ||
+      message.includes('System shutting down') ||
+      // Error handlers
+      message.includes('Unhandled Promise Rejection') ||
+      message.includes('Uncaught Exception') ||
+      message.includes('Warning:')
+
+    if (isOnboardingContent) {
+      originalLog.apply(console, args)
+    }
+    // Suppress other logs during initialization
+  }
+
+  console.error = (...args: any[]) => {
+    // Allow error messages through for critical issues
+    const message = args.join(' ')
+    if (
+      message.includes('Failed to start') ||
+      message.includes('Startup failed') ||
+      message.includes('Cannot start') ||
+      message.includes('System requirements not met')
+    ) {
+      originalError.apply(console, args)
+    }
+  }
+
+  console.warn = (...args: any[]) => {
+    // Allow warning messages through if they're important
+    const message = args.join(' ')
+    if (message.includes('Warning:')) {
+      originalWarn.apply(console, args)
+    }
+  }
+
+  return () => {
+    // Restore original methods
+    console.log = originalLog
+    console.error = originalError
+    console.warn = originalWarn
+    delete (console as any)._originalLog
+    delete (console as any)._originalError
+    delete (console as any)._originalWarn
+  }
+}
+
+/**
  * Main entry point function
  */
 async function main() {
+  // Hide console output during initialization (except onboarding)
+  const restoreConsole = hideConsoleOutput()
+
   // Parse command line arguments
   const argv = process.argv.slice(2)
 
@@ -1748,6 +1845,9 @@ async function main() {
 
   const orchestrator = new MainOrchestrator()
   await orchestrator.start()
+
+  // Restore console output after onboarding
+  restoreConsole()
 }
 
 // Start the application
