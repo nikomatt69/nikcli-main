@@ -80,8 +80,6 @@ export class DocsContextManager {
   private ragIntegrationEnabled: boolean = true
   private embeddingsCache: Map<string, number[]> = new Map()
   private relevanceCache: Map<string, DocRelevanceAnalysis[]> = new Map()
-  private readonly CACHE_TTL = 300000 // 5 minutes
-  private readonly MAX_CACHE_SIZE = 500
   private lastCacheCleanup = Date.now()
 
   // Analytics and monitoring
@@ -126,7 +124,7 @@ export class DocsContextManager {
         })
       })
 
-      console.log(chalk.gray(`📚 Restored ${this.loadedDocs.size} documents to context`))
+      console.log(chalk.gray(`⚡︎ Restored ${this.loadedDocs.size} documents to context`))
     } catch (error) {
       console.error(chalk.yellow(`⚠️ Could not load docs context: ${error}`))
     }
@@ -173,7 +171,7 @@ export class DocsContextManager {
   async autoLoadRelevantDocs(contextQuery?: string): Promise<LoadedDoc[]> {
     if (!this.autoLoadingEnabled) return []
 
-    console.log(chalk.blue('🤖 Auto-loading relevant documentation...'))
+    console.log(chalk.blue('🔌 Auto-loading relevant documentation...'))
 
     const workspaceInfo = workspaceContext.getContextForAgent('docs-manager', 5)
     const smartQuery = contextQuery || this.buildSmartQuery(workspaceInfo.projectSummary)
@@ -194,7 +192,7 @@ export class DocsContextManager {
     }
 
     if (autoLoadedDocs.length > 0) {
-      console.log(chalk.green(`✅ Auto-loaded ${autoLoadedDocs.length} relevant docs`))
+      console.log(chalk.green(`✓ Auto-loaded ${autoLoadedDocs.length} relevant docs`))
     }
 
     return autoLoadedDocs
@@ -202,7 +200,7 @@ export class DocsContextManager {
 
   private async analyzeDocRelevance(doc: LoadedDoc, query: string): Promise<DocRelevanceAnalysis> {
     const queryWords = query.toLowerCase().split(/\s+/)
-    const docText = (doc.title + ' ' + doc.content + ' ' + doc.tags.join(' ')).toLowerCase()
+    const docText = `${doc.title} ${doc.content} ${doc.tags.join(' ')}`.toLowerCase()
 
     let queryRelevance = 0
     const reasoningFactors: string[] = []
@@ -258,7 +256,7 @@ export class DocsContextManager {
    */
   async loadDocs(docIdentifiers: string[]): Promise<LoadedDoc[]> {
     this.ensureContextLoaded()
-    console.log(chalk.blue(`📚 Loading ${docIdentifiers.length} documents into AI context...`))
+    console.log(chalk.blue(`⚡︎ Loading ${docIdentifiers.length} documents into AI context...`))
 
     const loadedDocs: LoadedDoc[] = []
     const notFound: string[] = []
@@ -299,7 +297,7 @@ export class DocsContextManager {
       await this.optimizeContext()
       await this.saveContext()
 
-      console.log(chalk.green(`✅ Loaded ${loadedDocs.length} documents into context`))
+      console.log(chalk.green(`✓ Loaded ${loadedDocs.length} documents into context`))
       loadedDocs.forEach((doc) => {
         console.log(chalk.gray(`   • ${doc.title} (${doc.source}, ${doc.content.split(' ').length} words)`))
       })
@@ -322,7 +320,7 @@ export class DocsContextManager {
       const count = this.loadedDocs.size
       this.loadedDocs.clear()
       await this.saveContext()
-      console.log(chalk.green(`✅ Removed all ${count} documents from context`))
+      console.log(chalk.green(`✓ Removed all ${count} documents from context`))
       return
     }
 
@@ -345,7 +343,7 @@ export class DocsContextManager {
 
     if (removedCount > 0) {
       await this.saveContext()
-      console.log(chalk.green(`✅ Removed ${removedCount} documents from context`))
+      console.log(chalk.green(`✓ Removed ${removedCount} documents from context`))
     } else {
       console.log(chalk.yellow('⚠️ No matching documents found to remove'))
     }
@@ -404,7 +402,7 @@ export class DocsContextManager {
       context += `**Tags:** ${doc.tags.join(', ')}\n`
       context += `**Source:** ${doc.source}\n\n`
       context += '**Content:**\n'
-      context += doc.content + '\n\n'
+      context += `${doc.content}\n\n`
       context += '---\n\n'
     })
 
@@ -531,7 +529,7 @@ export class DocsContextManager {
     this.embeddingsCache.clear()
     this.relevanceCache.clear()
 
-    console.log(chalk.green('✅ Docs context caches cleared'))
+    console.log(chalk.green('✓ Docs context caches cleared'))
     console.log(chalk.gray(`   Embeddings: cleared, Relevance: cleared`))
   }
 
@@ -633,7 +631,7 @@ export class DocsContextManager {
   private generateSummary(content: string): string {
     // Estrai prime 2-3 frasi significative
     const sentences = content.split(/[.!?]+/).filter((s) => s.trim().length > 20)
-    return sentences.slice(0, 2).join('. ').substring(0, 200) + '...'
+    return `${sentences.slice(0, 2).join('. ').substring(0, 200)}...`
   }
 
   /**
@@ -653,7 +651,7 @@ export class DocsContextManager {
         this.loadedDocs.delete(docs[i].id)
       }
 
-      console.log(chalk.green(`✅ Removed ${toRemove} older documents to optimize context`))
+      console.log(chalk.green(`✓ Removed ${toRemove} older documents to optimize context`))
     }
 
     // Comprimi contenuto se abilitato
@@ -679,30 +677,9 @@ export class DocsContextManager {
         )
 
         if (important.length < paragraphs.length) {
-          doc.content = important.join('\n\n') + '\n\n[Content compressed to fit context limits]'
+          doc.content = `${important.join('\n\n')}\n\n[Content compressed to fit context limits]`
         }
       }
-    }
-  }
-
-  /**
-   * Carica contesto da file
-   */
-  private async loadContext(): Promise<void> {
-    try {
-      const data = await fs.readFile(this.contextFile, 'utf-8')
-      const context: DocsContext = JSON.parse(data)
-
-      context.loadedDocs.forEach((doc) => {
-        this.loadedDocs.set(doc.id, {
-          ...doc,
-          loadedAt: new Date(doc.loadedAt),
-        })
-      })
-
-      console.log(chalk.gray(`📚 Loaded ${this.loadedDocs.size} documents from previous session`))
-    } catch (_error) {
-      // File non esiste, inizia con contesto vuoto
     }
   }
 

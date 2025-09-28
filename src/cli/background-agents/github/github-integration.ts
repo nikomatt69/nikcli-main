@@ -80,7 +80,7 @@ export class GitHubIntegration {
    */
   private async getInstallationToken(): Promise<string> {
     const response = await this.octokit.apps.createInstallationAccessToken({
-      installation_id: parseInt(this.config.installationId),
+      installation_id: parseInt(this.config.installationId, 10),
     })
 
     return response.data.token
@@ -313,9 +313,9 @@ export class GitHubIntegration {
   /**
    * Generate PR body
    */
-  private generatePRBody(job: BackgroundJob, commitConfig: CommitConfig): string {
+  private generatePRBody(job: BackgroundJob, _commitConfig: CommitConfig): string {
     const body = [
-      '## 🤖 Background Agent Task',
+      '## 🔌 Background Agent Task',
       '',
       `**Task:** ${job.task}`,
       `**Agent:** ${job.playbook || 'direct-task'}`,
@@ -450,7 +450,7 @@ export class GitHubIntegration {
         }),
       } as any
 
-      console.log(`🤖 Processing @nikcli mention in ${event}`)
+      console.log(`🔌 Processing @nikcli mention in ${event}`)
       await this.webhookHandler.handleWebhook(mockReq, mockRes)
     } catch (error) {
       console.error('Failed to handle @nikcli mention:', error)

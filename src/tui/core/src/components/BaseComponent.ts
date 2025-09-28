@@ -518,7 +518,7 @@ export function createCompoundComponent<T extends Widgets.BlessedElement = Widge
 function layoutComponentsHorizontally<T extends Widgets.BlessedElement = Widgets.BlessedElement>(
   components: Component<T>[],
   spacing: number,
-  alignment: string,
+  _alignment: string,
   distribution: string
 ) {
   let currentLeft = 0
@@ -539,7 +539,7 @@ function layoutComponentsHorizontally<T extends Widgets.BlessedElement = Widgets
 function layoutComponentsVertically<T extends Widgets.BlessedElement = Widgets.BlessedElement>(
   components: Component<T>[],
   spacing: number,
-  alignment: string,
+  _alignment: string,
   distribution: string
 ) {
   let currentTop = 0
@@ -560,7 +560,7 @@ function layoutComponentsVertically<T extends Widgets.BlessedElement = Widgets.B
 function layoutComponentsInGrid<T extends Widgets.BlessedElement = Widgets.BlessedElement>(
   components: Component<T>[],
   spacing: number,
-  alignment: string
+  _alignment: string
 ) {
   // Simple grid layout - can be enhanced
   const cols = Math.ceil(Math.sqrt(components.length))

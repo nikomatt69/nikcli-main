@@ -3,7 +3,7 @@ import { extname, join } from 'node:path'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 
 export const PromptMetadataSchema = z.object({
   id: z.string(),
@@ -105,7 +105,7 @@ export class PromptRegistry {
   async initialize(): Promise<void> {
     if (this.isInitialized) return
 
-    advancedUI.logInfo('🧠 Initializing Prompt Registry...')
+    advancedUI.logInfo('⚡︎ Initializing Prompt Registry...')
     const startTime = Date.now()
 
     try {
@@ -122,7 +122,7 @@ export class PromptRegistry {
       this.isInitialized = true
       const loadTime = Date.now() - startTime
 
-      advancedUI.logSuccess(`✅ Prompt Registry initialized (${this.prompts.size} prompts, ${loadTime}ms)`)
+      advancedUI.logSuccess(`✓ Prompt Registry initialized (${this.prompts.size} prompts, ${loadTime}ms)`)
 
       if (this.config.enableMetrics) {
         this.logRegistryStats()
@@ -158,7 +158,7 @@ export class PromptRegistry {
       this.addToCategory(promptMetadata.category, promptId)
       this.loadedPrompts.add(promptId)
 
-      advancedUI.logSuccess(`🧠 Registered prompt: ${promptMetadata.name} (${promptId})`)
+      advancedUI.logSuccess(`⚡︎ Registered prompt: ${promptMetadata.name} (${promptId})`)
     } catch (error: any) {
       advancedUI.logError(`❌ Failed to register prompt ${promptId}: ${error.message}`)
       throw error
@@ -228,7 +228,7 @@ export class PromptRegistry {
     }
 
     this.prompts.set(promptId, updatedPrompt)
-    advancedUI.logSuccess(`✅ Updated prompt: ${promptId}`)
+    advancedUI.logSuccess(`✓ Updated prompt: ${promptId}`)
   }
 
   async deletePrompt(promptId: string): Promise<boolean> {
@@ -274,7 +274,7 @@ export class PromptRegistry {
 
   updateConfig(newConfig: Partial<PromptRegistryConfig>): void {
     this.config = { ...this.config, ...newConfig }
-    advancedUI.logInfo('🧠 Prompt Registry configuration updated')
+    advancedUI.logInfo('⚡︎ Prompt Registry configuration updated')
   }
 
   private async registerBuiltInPrompts(): Promise<void> {
@@ -430,7 +430,7 @@ Error Context:
       }
     } catch (_error) {
       // Directory doesn't exist or not accessible
-      logger.debug(`Prompt discovery failed for ${promptsDir}`)
+      structuredLogger.info(`Prompt discovery failed for ${promptsDir}`, 'Prompt discovery failed')
     }
   }
 
@@ -445,7 +445,7 @@ Error Context:
 
       // Extract metadata from content if present (YAML frontmatter style)
       const metadataMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
-      let metadata = {}
+      const metadata = {}
       let template = content
 
       if (metadataMatch) {
@@ -456,7 +456,7 @@ Error Context:
             const [key, ...valueParts] = line.split(':')
             if (key && valueParts.length > 0) {
               const value = valueParts.join(':').trim()
-              ;(metadata as Record<string, any>)[key.trim()] = value.replace(/^["']|["']$/g, '')
+                ; (metadata as Record<string, any>)[key.trim()] = value.replace(/^["']|["']$/g, '')
             }
           }
           template = metadataMatch[2]
@@ -467,10 +467,10 @@ Error Context:
 
       await this.registerPrompt(filename, template, {
         ...metadata,
-        category: (metadata as Record<string, any>)['category'] || 'system',
+        category: (metadata as Record<string, any>).category || 'system',
       })
     } catch (error: any) {
-      logger.debug(`Failed to load prompt from ${filePath}: ${error.message}`)
+      structuredLogger.info(`Failed to load prompt from ${filePath}: ${error.message}`, 'Failed to load prompt')
     }
   }
 
@@ -530,7 +530,7 @@ Error Context:
     if (!this.categories.has(category)) {
       this.categories.set(category, [])
     }
-    this.categories.get(category)!.push(promptId)
+    this.categories.get(category)?.push(promptId)
   }
 
   private removeFromCategory(category: string, promptId: string): void {
@@ -546,7 +546,7 @@ Error Context:
   private logRegistryStats(): void {
     const stats = this.getRegistryStats()
 
-    advancedUI.logInfo(`🧠 Prompt Registry Statistics:`)
+    advancedUI.logInfo(`⚡︎ Prompt Registry Statistics:`)
     console.log(chalk.cyan(`   Total Prompts: ${stats.totalPrompts}`))
     console.log(chalk.cyan(`   Loaded: ${stats.loadedPrompts}`))
     console.log(chalk.cyan(`   Enabled: ${stats.enabledPrompts}`))

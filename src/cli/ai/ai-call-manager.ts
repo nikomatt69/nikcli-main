@@ -83,7 +83,7 @@ export class AICallManager {
       ragQuery?: string
     }
   ): Promise<ExecutionPlan> {
-    const spinner = ora('🧠 Generating AI execution plan...').start()
+    const spinner = ora('⚡︎ Generating AI execution plan...').start()
 
     try {
       let ragContextText: string | null = null
@@ -105,7 +105,7 @@ export class AICallManager {
           spinner.warn(`🔍 RAG search failed: ${error.message}`)
         }
 
-        spinner.start('🧠 Generating execution plan with context...')
+        spinner.start('⚡︎ Generating execution plan with context...')
       }
 
       const systemPrompt = `You are an intelligent AI assistant that creates secure execution plans.
@@ -181,7 +181,7 @@ Estimate realistic durations and assess risk levels accurately.`
           createdAt: new Date(),
         }
 
-        console.log(chalk.green(`✅ Execution plan generated: ${plan.description}`))
+        console.log(chalk.green(`✓ Execution plan generated: ${plan.description}`))
         console.log(chalk.gray(`   Tool calls: ${plan.toolCalls.length}`))
         console.log(chalk.gray(`   Risk level: ${plan.riskLevel}`))
         console.log(chalk.gray(`   Requires approval: ${plan.requiresApproval ? 'Yes' : 'No'}`))
@@ -260,7 +260,7 @@ Estimate realistic durations and assess risk levels accurately.`
               console.log(chalk.blue(`[${index}/${total}] Executing: ${command}`))
             },
             onComplete: (results) => {
-              console.log(chalk.green(`✅ Batch execution completed: ${results.length} commands`))
+              console.log(chalk.green(`✓ Batch execution completed: ${results.length} commands`))
             },
             onError: (error, command, index) => {
               console.log(chalk.red(`❌ Batch execution failed at command ${index + 1}: ${command}`))
@@ -292,20 +292,22 @@ Estimate realistic durations and assess risk levels accurately.`
 
           // Execute tool call based on name
           switch (toolCall.name) {
-            case 'readFile':
+            case 'readFile': {
               const readResult = await secureTools.readFile(toolCall.arguments.filePath)
               result = readResult.data
               break
+            }
 
-            case 'writeFile':
+            case 'writeFile': {
               const writeResult = await secureTools.writeFile(toolCall.arguments.filePath, toolCall.arguments.content, {
                 skipConfirmation: options.skipApproval,
                 createDirectories: toolCall.arguments.createDirectories,
               })
               result = writeResult.data
               break
+            }
 
-            case 'listDirectory':
+            case 'listDirectory': {
               const listResult = await secureTools.listDirectory(toolCall.arguments.directoryPath, {
                 recursive: toolCall.arguments.recursive,
                 includeHidden: toolCall.arguments.includeHidden,
@@ -313,8 +315,9 @@ Estimate realistic durations and assess risk levels accurately.`
               })
               result = listResult.data
               break
+            }
 
-            case 'replaceInFile':
+            case 'replaceInFile': {
               const replaceResult = await secureTools.replaceInFile(
                 toolCall.arguments.filePath,
                 toolCall.arguments.replacements,
@@ -325,6 +328,7 @@ Estimate realistic durations and assess risk levels accurately.`
               )
               result = replaceResult.data
               break
+            }
 
             case 'executeCommand':
               // If we have a batch session, skip individual execution
@@ -356,7 +360,7 @@ Estimate realistic durations and assess risk levels accurately.`
             executionTime,
           })
 
-          console.log(chalk.green(`✅ [${i + 1}/${plan.toolCalls.length}] Completed (${executionTime}ms)`))
+          console.log(chalk.green(`✓ [${i + 1}/${plan.toolCalls.length}] Completed (${executionTime}ms)`))
         } catch (error: any) {
           const executionTime = Date.now() - startTime
 
@@ -386,7 +390,7 @@ Estimate realistic durations and assess risk levels accurately.`
         completedAt: new Date(),
       })
 
-      console.log(chalk.green.bold(`\n✅ Plan execution completed`))
+      console.log(chalk.green.bold(`\n✓ Plan execution completed`))
       console.log(chalk.gray(`Successful: ${results.filter((r) => r.success).length}/${results.length}`))
       console.log(chalk.gray(`Failed: ${results.filter((r) => !r.success).length}/${results.length}`))
 

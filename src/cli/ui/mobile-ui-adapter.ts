@@ -135,7 +135,7 @@ export class MobileUIAdapter {
       let currentLine = ''
 
       for (const word of words) {
-        if ((currentLine + ' ' + word).length <= this.config.maxLineLength) {
+        if (`${currentLine} ${word}`.length <= this.config.maxLineLength) {
           currentLine += (currentLine ? ' ' : '') + word
         } else {
           if (currentLine) wrapped.push(currentLine)
@@ -145,7 +145,7 @@ export class MobileUIAdapter {
             // Break long words
             let remaining = word
             while (remaining.length > this.config.maxLineLength) {
-              wrapped.push(remaining.substring(0, this.config.maxLineLength - 1) + '-')
+              wrapped.push(`${remaining.substring(0, this.config.maxLineLength - 1)}-`)
               remaining = remaining.substring(this.config.maxLineLength - 1)
             }
             currentLine = remaining
@@ -191,7 +191,7 @@ export class MobileUIAdapter {
    */
   createMobileProgress(current: number, total: number, label?: string): string {
     if (!this.config.showProgressBars) {
-      return chalk.gray(`${label ? label + ': ' : ''}${current}/${total}`)
+      return chalk.gray(`${label ? `${label}: ` : ''}${current}/${total}`)
     }
 
     const percentage = Math.round((current / total) * 100)
@@ -199,7 +199,7 @@ export class MobileUIAdapter {
     const filled = Math.round((percentage / 100) * barWidth)
     const bar = '█'.repeat(filled) + '░'.repeat(barWidth - filled)
 
-    return chalk.cyan(`${label ? label + ': ' : ''}${bar} ${percentage}%`)
+    return chalk.cyan(`${label ? `${label}: ` : ''}${bar} ${percentage}%`)
   }
 
   /**
@@ -240,7 +240,7 @@ export class MobileUIAdapter {
     const trimmed = input.trim()
     const number = parseInt(trimmed, 10)
 
-    if (isNaN(number) || number < 1 || number > maxOptions) {
+    if (Number.isNaN(number) || number < 1 || number > maxOptions) {
       return null
     }
 
@@ -324,7 +324,7 @@ export class MobileUIAdapter {
       if (!categories.has(category)) {
         categories.set(category, [])
       }
-      categories.get(category)!.push({ name: cmd.name, description: cmd.description })
+      categories.get(category)?.push({ name: cmd.name, description: cmd.description })
     }
 
     // Render categories

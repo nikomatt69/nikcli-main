@@ -186,7 +186,7 @@ Follow the project's existing patterns and conventions.`,
         console.log(chalk.yellow('⚠️ Some tests failed, this is normal for new features'))
       }
 
-      console.log(chalk.green('✅ Feature created successfully!'))
+      console.log(chalk.green('✓ Feature created successfully!'))
 
       return {
         success: true,
@@ -215,7 +215,7 @@ Follow the project's existing patterns and conventions.`,
     const allErrors = [...(buildResult.errors || []), ...(lintResult.errors || []), ...(typeResult.errors || [])]
 
     if (allErrors.length === 0) {
-      console.log(chalk.green('✅ No errors found!'))
+      console.log(chalk.green('✓ No errors found!'))
       return { success: true, errorsFixed: 0 }
     }
 
@@ -237,7 +237,7 @@ Follow the project's existing patterns and conventions.`,
     }
 
     // Re-run checks
-    console.log(chalk.blue('🔄 Re-checking after fixes...'))
+    console.log(chalk.blue('⚡︎ Re-checking after fixes...'))
     const newBuildResult = await toolsManager.build()
 
     return {
@@ -298,7 +298,7 @@ ${error.line ? `Line: ${error.line}` : ''}`,
       console.log(chalk.gray(`📄 File has ${fileInfo.content.split('\n').length} lines`))
 
       await toolsManager.editFile(fix.file, fix.changes)
-      console.log(chalk.green(`✅ Fix applied: ${fix.explanation}`))
+      console.log(chalk.green(`✓ Fix applied: ${fix.explanation}`))
     } catch (_error) {
       console.log(chalk.red(`❌ Could not apply fix to ${fix.file}`))
     }
@@ -342,13 +342,13 @@ Return empty array [] if no new dependencies needed.`,
         const fileInfo = await toolsManager.readFile(file)
         const optimization = await this.generateOptimization(file, fileInfo.content)
 
-        if (optimization && optimization.optimized) {
+        if (optimization?.optimized) {
           await toolsManager.writeFile(file, optimization.optimized)
           optimizations.push({
             file,
             improvements: optimization.improvements,
           })
-          console.log(chalk.green(`✅ Optimized: ${file}`))
+          console.log(chalk.green(`✓ Optimized: ${file}`))
         }
       } catch (_error) {
         console.log(chalk.yellow(`⚠️ Could not optimize ${file}`))
@@ -399,7 +399,7 @@ Return JSON with:
     const result = await toolsManager.runTests(pattern)
 
     if (result.success) {
-      console.log(chalk.green('✅ All tests passed!'))
+      console.log(chalk.green('✓ All tests passed!'))
     } else {
       console.log(chalk.red('❌ Some tests failed'))
 

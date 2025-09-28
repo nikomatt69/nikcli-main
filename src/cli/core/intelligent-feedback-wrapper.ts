@@ -511,7 +511,7 @@ export class IntelligentFeedbackWrapper {
     return this.executionHistory.filter((e) => e.toolName === toolName && new Date(e.context).getTime() > recent).length
   }
 
-  private getRecentFailures(toolName: string, context: string): number {
+  private getRecentFailures(toolName: string, _context: string): number {
     const recent = Date.now() - 24 * 60 * 60 * 1000 // ultimo giorno
     return this.executionHistory.filter(
       (e) => e.toolName === toolName && !e.success && new Date(e.context).getTime() > recent

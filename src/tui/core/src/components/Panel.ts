@@ -115,7 +115,7 @@ export class Panel implements Component<Widgets.BoxElement> {
     this.props.title = title
     this.el.setLabel(title)
 
-    if (this.headerBox && this.headerBox.children?.[0]) {
+    if (this.headerBox?.children?.[0]) {
       const titleText = this.headerBox.children[0] as Widgets.TextElement
       titleText.setContent(title)
       this.el.screen.render()

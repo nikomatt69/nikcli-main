@@ -386,7 +386,7 @@ export function calculateTokenCost(
   outputTokens: number,
   modelName: string
 ): { inputCost: number; outputCost: number; totalCost: number; model: string } {
-  const model = MODEL_COSTS[modelName] || MODEL_COSTS['default']
+  const model = MODEL_COSTS[modelName] || MODEL_COSTS.default
 
   const inputCost = (inputTokens / 1000000) * model.input
   const outputCost = (outputTokens / 1000000) * model.output
@@ -404,7 +404,7 @@ export function calculateTokenCost(
  * Get model pricing info
  */
 export function getModelPricing(modelName: string) {
-  return MODEL_COSTS[modelName] || MODEL_COSTS['default']
+  return MODEL_COSTS[modelName] || MODEL_COSTS.default
 }
 
 /**

@@ -4,7 +4,6 @@ import { WebSocket, WebSocketServer } from 'ws'
 import {
   DEFAULT_VM_WEBSOCKET_CONFIG,
   VMCommunicationError,
-  type VMConnectionEvent,
   type VMEventEmitter,
   type VMMessage,
   type VMSessionInit,
@@ -54,9 +53,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       this.setupHeartbeat()
 
       this.isRunning = true
-      console.log(
-        chalk.green(`🌐 VM WebSocket Server started on ${this.config.host}:${this.config.port}${this.config.path}`)
-      )
+
     } catch (error: any) {
       console.error(chalk.red(`❌ Failed to start VM WebSocket Server: ${error.message}`))
       throw error
@@ -84,7 +81,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       // Close server
       if (this.wss) {
         await new Promise<void>((resolve, reject) => {
-          this.wss!.close((error) => {
+          this.wss?.close((error) => {
             if (error) reject(error)
             else resolve()
           })
@@ -181,14 +178,6 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
 
       this.connections.delete(containerId)
 
-      const _event: VMConnectionEvent = {
-        type: 'disconnected',
-        containerId,
-        sessionId: connection.sessionId,
-        timestamp: new Date(),
-        details: { reason },
-      }
-
       this.emit('disconnected', containerId)
       console.log(chalk.yellow(`🔌 Container ${containerId} disconnected: ${reason}`))
     } catch (error: any) {
@@ -225,7 +214,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
   // Private methods
   private startTime: number = Date.now()
 
-  private handleConnection(ws: WebSocket, request: any): void {
+  private handleConnection(ws: WebSocket, _request: any): void {
     console.log(chalk.green('🔌 New WebSocket connection received'))
 
     // Setup connection handlers
@@ -241,8 +230,8 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       }
     }, 10000) // 10 second timeout
 
-    // Store temporary connection until initialized
-    ;(ws as any)._initTimeout = initTimeout
+      // Store temporary connection until initialized
+      ; (ws as any)._initTimeout = initTimeout
   }
 
   private async handleMessage(ws: WebSocket, data: any): Promise<void> {
@@ -308,16 +297,8 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
 
     this.connections.set(containerId, connection)
 
-    const _event: VMConnectionEvent = {
-      type: 'connected',
-      containerId,
-      sessionId,
-      timestamp: new Date(),
-      details: message.payload,
-    }
-
     this.emit('connected', containerId)
-    console.log(chalk.green(`✅ Container ${containerId} session initialized`))
+    console.log(chalk.green(`✓ Container ${containerId} session initialized`))
   }
 
   private handleClose(ws: WebSocket, code: number, reason: string): void {

@@ -415,7 +415,7 @@ async function main() {
     passed++
 
   // Print summary
-  console.log('\n' + '='.repeat(50))
+  console.log(`\n${'='.repeat(50)}`)
   console.log('📊 MANUAL TEST SUMMARY')
   console.log('='.repeat(50))
   console.log(`✅ Passed: ${passed}/${total}`)

@@ -16,7 +16,6 @@ function symbolFor(status: StatusIndicatorProps['status']) {
       return '▲'
     case 'error':
       return '✖'
-    case 'idle':
     default:
       return '○'
   }

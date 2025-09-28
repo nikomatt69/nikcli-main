@@ -152,7 +152,7 @@ export class AuthProvider extends EventEmitter {
         timestamp: new Date().toISOString(),
       })
 
-      console.log(chalk.green(`✅ Signed in as ${profile.email || profile.username}`))
+      console.log(chalk.green(`✓ Signed in as ${profile.email || profile.username}`))
 
       this.emit('signed_in', { session, profile })
 
@@ -222,7 +222,7 @@ export class AuthProvider extends EventEmitter {
         timestamp: new Date().toISOString(),
       })
 
-      console.log(chalk.green(`✅ Account created for ${profile.email}`))
+      console.log(chalk.green(`✓ Account created for ${profile.email}`))
 
       this.emit('signed_up', { session, profile })
 

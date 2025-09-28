@@ -69,7 +69,7 @@ export class ContextEnhancer {
 
     const sources: ContextSource[] = []
     let totalTokens = 0
-    let cacheHits = 0
+    const cacheHits = 0
 
     // 1. Core workspace context
     if (context.enableWorkspaceContext !== false) {
@@ -170,7 +170,7 @@ export class ContextEnhancer {
     const compressionRatio = currentTokens / smartContext.totalTokens
     console.log(
       chalk.green(
-        `✅ Context optimized: ${smartContext.totalTokens} → ${currentTokens} tokens (${Math.round(compressionRatio * 100)}%)`
+        `✓ Context optimized: ${smartContext.totalTokens} → ${currentTokens} tokens (${Math.round(compressionRatio * 100)}%)`
       )
     )
 
@@ -224,7 +224,7 @@ export class ContextEnhancer {
   }
 
   // Integration methods with existing systems
-  private async getWorkspaceContextSource(context: EnhancementContext): Promise<ContextSource | null> {
+  private async getWorkspaceContextSource(_context: EnhancementContext): Promise<ContextSource | null> {
     try {
       const workspaceInfo = workspaceContext.getContextForAgent('enhancer', 10)
       const content =
@@ -253,7 +253,7 @@ export class ContextEnhancer {
     }
   }
 
-  private async getDocsContextSource(messages: CoreMessage[]): Promise<ContextSource | null> {
+  private async getDocsContextSource(_messages: CoreMessage[]): Promise<ContextSource | null> {
     try {
       const docsContext = docsContextManager.getContextSummary()
       if (!docsContext || docsContext.includes('No documentation loaded')) {
@@ -278,7 +278,7 @@ export class ContextEnhancer {
 
   private async getEnhancedMemorySource(
     conversationMemory: CoreMessage[],
-    currentMessages: CoreMessage[]
+    _currentMessages: CoreMessage[]
   ): Promise<ContextSource | null> {
     if (conversationMemory.length === 0) return null
 
@@ -328,7 +328,7 @@ export class ContextEnhancer {
 
   private async getSemanticContextSources(
     messages: CoreMessage[],
-    context: EnhancementContext
+    _context: EnhancementContext
   ): Promise<ContextSource[]> {
     const sources: ContextSource[] = []
     const lastUserMessage = messages.filter((msg) => msg.role === 'user').pop()
@@ -437,7 +437,7 @@ export class ContextEnhancer {
 
     for (const sentence of sentences) {
       if (result.length + sentence.length + 1 <= maxChars) {
-        result += sentence + '.'
+        result += `${sentence}.`
       } else {
         break
       }
@@ -445,7 +445,7 @@ export class ContextEnhancer {
 
     if (result.length < maxChars * 0.5) {
       // Fallback to character truncation
-      result = content.substring(0, maxChars - 20) + '\n\n[...truncated]'
+      result = `${content.substring(0, maxChars - 20)}\n\n[...truncated]`
     }
 
     return result
@@ -470,7 +470,7 @@ export class ContextEnhancer {
 
     return `You are an advanced AI development assistant with enhanced context capabilities.
 
-🧠 **Context Intelligence**: ${stats}
+⚡︎ **Context Intelligence**: ${stats}
 📁 **Working Directory**: ${context.workingDirectory}
 🔧 **Available Tools**: read_file, write_file, explore_directory, run_command, analyze_project
 
@@ -483,8 +483,8 @@ Use this rich context to provide accurate, contextually-aware responses. Always 
   private getSourceIcon(sourceId: string): string {
     const icons: Record<string, string> = {
       workspace: '📁',
-      documentation: '📚',
-      conversation_memory: '🧠',
+      documentation: '⚡︎',
+      conversation_memory: '⚡︎',
       execution_context: '🔨',
       semantic_search: '🔍',
     }
@@ -492,7 +492,7 @@ Use this rich context to provide accurate, contextually-aware responses. Always 
   }
 
   // Legacy methods - kept for backward compatibility
-  getWorkspaceContext(workingDirectory: string): string {
+  getWorkspaceContext(_workingDirectory: string): string {
     try {
       const workspaceInfo = workspaceContext.getContextForAgent('legacy', 5)
       return workspaceInfo.projectSummary || 'No workspace context available'
@@ -551,7 +551,7 @@ Use this rich context to provide accurate, contextually-aware responses. Always 
 
   clearCache(): void {
     this.smartContextCache.clear()
-    console.log(chalk.green('✅ Context enhancer cache cleared'))
+    console.log(chalk.green('✓ Context enhancer cache cleared'))
   }
 
   getCacheStats(): { size: number; maxSize: number; hitRate: number } {

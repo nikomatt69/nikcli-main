@@ -126,7 +126,7 @@ class ChromaDBVectorStore extends VectorStore {
 
       // Test connection
       const version = await this.client.version()
-      console.log(chalk.green(`✅ ChromaDB connected (version: ${version})`))
+      console.log(chalk.green(`✓ ChromaDB connected (version: ${version})`))
 
       // Get or create collection with embedding function
       try {
@@ -144,20 +144,20 @@ class ChromaDBVectorStore extends VectorStore {
           })
           // Clean up test document
           await this.collection.delete({ ids: ['test-embedding-check'] })
-          console.log(chalk.gray(`📂 Using existing collection: ${this.config.collectionName}`))
-        } catch (embeddingError) {
+          console.log(chalk.gray(`⚡︎ Using existing collection: ${this.config.collectionName}`))
+        } catch (_embeddingError) {
           // Collection exists but has no embedding function, recreate it
           console.log(
             chalk.yellow(`⚠️ Collection ${this.config.collectionName} lacks embedding function, recreating...`)
           )
           try {
             await this.client.deleteCollection({ name: this.config.collectionName })
-          } catch (deleteError) {
+          } catch (_deleteError) {
             console.log(chalk.yellow(`⚠️ Failed to delete collection, will attempt recreation anyway`))
           }
           throw new Error('Recreate collection')
         }
-      } catch (createError) {
+      } catch (_createError) {
         try {
           this.collection = await this.client.createCollection({
             name: this.config.collectionName,
@@ -168,7 +168,7 @@ class ChromaDBVectorStore extends VectorStore {
               },
             },
           })
-          console.log(chalk.green(`✅ Created new collection: ${this.config.collectionName}`))
+          console.log(chalk.green(`✓ Created new collection: ${this.config.collectionName}`))
         } catch (finalError) {
           console.error(chalk.red(`❌ Failed to create collection: ${(finalError as Error).message}`))
           throw finalError
@@ -429,7 +429,7 @@ class LocalVectorStore extends VectorStore {
       await this.loadDocuments()
       await this.loadIndex()
 
-      console.log(chalk.green(`✅ Local vector store connected (${this.documents.size} documents)`))
+      console.log(chalk.green(`✓ Local vector store connected (${this.documents.size} documents)`))
       return true
     } catch (error) {
       console.error(chalk.red(`❌ Local vector store connection failed: ${error}`))
@@ -449,12 +449,12 @@ class LocalVectorStore extends VectorStore {
     return true
   }
 
-  async createCollection(name: string): Promise<boolean> {
+  async createCollection(_name: string): Promise<boolean> {
     // Collections are just logical separations in local store
     return true
   }
 
-  async deleteCollection(name: string): Promise<boolean> {
+  async deleteCollection(_name: string): Promise<boolean> {
     return true
   }
 
@@ -634,13 +634,14 @@ export class VectorStoreManager {
         case 'chromadb':
           this.stores.push(new ChromaDBVectorStore(config))
           break
-        case 'local':
+        case 'local': {
           const localStore = new LocalVectorStore(config)
           this.stores.push(localStore)
           if (!this.fallbackStore) {
             this.fallbackStore = localStore
           }
           break
+        }
         // Add other providers (Pinecone, Weaviate) here
       }
     })
@@ -664,7 +665,7 @@ export class VectorStoreManager {
     for (const store of this.stores) {
       if (await store.connect()) {
         this.activeStore = store
-        console.log(chalk.green(`✅ Connected to ${store.getStats().provider} vector store`))
+        console.log(chalk.green(`✓ Connected to ${store.getStats().provider} vector store`))
         break
       }
     }
@@ -769,7 +770,7 @@ export class VectorStoreManager {
 
     if (targetStore && (await targetStore.healthCheck())) {
       this.activeStore = targetStore
-      console.log(chalk.blue(`🔄 Fallback to ${provider} vector store`))
+      console.log(chalk.blue(`⚡︎ Fallback to ${provider} vector store`))
       return true
     }
 
@@ -794,7 +795,7 @@ export class VectorStoreManager {
         for (const store of this.stores) {
           if (store !== this.activeStore && (await store.healthCheck())) {
             this.activeStore = store
-            console.log(chalk.green(`✅ Fallback to ${store.getStats().provider} successful`))
+            console.log(chalk.green(`✓ Fallback to ${store.getStats().provider} successful`))
             return
           }
         }

@@ -60,7 +60,7 @@ export class MemoryService extends EventEmitter {
       await mem0Provider.initialize()
       this.isInitialized = true
 
-      structuredLogger.success('Memory Service', '✅ Memory Service initialized')
+      structuredLogger.success('Memory Service', '✓ Memory Service initialized')
       this.emit('initialized')
     } catch (error: any) {
       structuredLogger.error('Memory Service', `❌ Memory Service initialization failed: ${error.message}`)
@@ -153,7 +153,7 @@ export class MemoryService extends EventEmitter {
     try {
       const queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
       enhancedQuery = queryAnalysis.expandedQuery || query
-      console.log(chalk.dim(`🧠 Enhanced memory query: "${query}" → "${enhancedQuery}"`))
+      console.log(chalk.dim(`⚡︎ Enhanced memory query: "${query}" → "${enhancedQuery}"`))
     } catch {
       // Fall back to original query if semantic analysis fails
     }
@@ -205,7 +205,7 @@ export class MemoryService extends EventEmitter {
       }
 
       return await this.addMemory(content, enhancedMetadata)
-    } catch (error) {
+    } catch (_error) {
       // Fallback to regular memory addition
       console.log(chalk.yellow('⚠️ Semantic embedding failed, using standard memory'))
       return await this.addMemory(content, metadata)
@@ -254,7 +254,7 @@ export class MemoryService extends EventEmitter {
         // Hybrid: semantic + traditional search
         return await this.searchMemories(query, options)
       }
-    } catch (error) {
+    } catch (_error) {
       console.log(chalk.yellow('⚠️ Semantic memory search failed, using traditional search'))
       return await this.searchMemories(query, options)
     }
@@ -514,7 +514,7 @@ export class MemoryService extends EventEmitter {
     return Math.max(1, Math.min(10, importance))
   }
 
-  private async addContextualRelevance(results: MemorySearchResult[], query: string): Promise<MemorySearchResult[]> {
+  private async addContextualRelevance(results: MemorySearchResult[], _query: string): Promise<MemorySearchResult[]> {
     // Add contextual boosting based on current session
     if (!this.currentSession) return results
 
@@ -522,7 +522,7 @@ export class MemoryService extends EventEmitter {
       let boost = 0
 
       // Boost memories from current session
-      if (result.memory.metadata.sessionId === this.currentSession!.sessionId) {
+      if (result.memory.metadata.sessionId === this.currentSession?.sessionId) {
         boost += 0.2
       }
 
@@ -673,7 +673,7 @@ export class MemoryService extends EventEmitter {
       const deleted = await mem0Provider.deleteMemory(memoryId)
 
       if (deleted) {
-        console.log(chalk.green(`✅ Memory ${memoryId.slice(0, 8)}... deleted successfully`))
+        console.log(chalk.green(`✓ Memory ${memoryId.slice(0, 8)}... deleted successfully`))
         this.emit('memory_deleted', { memoryId })
 
         // Add deletion event to memory
@@ -750,7 +750,7 @@ export class MemoryService extends EventEmitter {
         if (success) deletedCount++
       }
 
-      console.log(chalk.green(`✅ Deleted ${deletedCount} memories matching criteria`))
+      console.log(chalk.green(`✓ Deleted ${deletedCount} memories matching criteria`))
       return deletedCount
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to delete memories by criteria: ${error.message}`))

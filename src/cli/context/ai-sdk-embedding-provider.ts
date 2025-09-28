@@ -116,10 +116,10 @@ export class AiSdkEmbeddingProvider {
     }
 
     if (this.availableProviders.length === 0) {
-      console.log(chalk.blue('🧠 RAG using local workspace analysis (no API keys configured)'))
+      console.log(chalk.blue('⚡︎ RAG using local workspace analysis (no API keys configured)'))
     } else {
       if (!process.env.NIKCLI_QUIET_STARTUP) {
-        console.log(chalk.green(`✅ Embedding providers available: ${this.availableProviders.join(', ')}`))
+        console.log(chalk.green(`✓ Embedding providers available: ${this.availableProviders.join(', ')}`))
         console.log(chalk.gray(`   Default: ${this.currentProvider}`))
       }
     }
@@ -160,7 +160,7 @@ export class AiSdkEmbeddingProvider {
 
     // If all results are cached, return immediately
     if (uncachedTexts.length === 0) {
-      console.log(chalk.green(`✅ All ${texts.length} embeddings served from cache`))
+      console.log(chalk.green(`✓ All ${texts.length} embeddings served from cache`))
       return cachedResults as number[][]
     }
 
@@ -217,7 +217,7 @@ export class AiSdkEmbeddingProvider {
       for (const provider of this.availableProviders) {
         if (provider !== this.currentProvider) {
           try {
-            console.log(chalk.blue(`🔄 Trying fallback provider: ${provider}`))
+            console.log(chalk.blue(`⚡︎ Trying fallback provider: ${provider}`))
             const result = await this.generateWithProvider(uncachedTexts, provider)
 
             // Update current provider to working one
@@ -462,7 +462,7 @@ export class AiSdkEmbeddingProvider {
     const maxChars = maxTokens * 4 // Rough estimation: 1 token ≈ 4 characters
     if (text.length <= maxChars) return text
 
-    return text.substring(0, maxChars - 50) + '\n[... content truncated ...]'
+    return `${text.substring(0, maxChars - 50)}\n[... content truncated ...]`
   }
 
   /**
@@ -573,7 +573,7 @@ export class AiSdkEmbeddingProvider {
    * Log provider status and statistics
    */
   logStatus(): void {
-    console.log(chalk.blue.bold('\n🤖 AI SDK Embedding Provider Status'))
+    console.log(chalk.blue.bold('\n🔌 AI SDK Embedding Provider Status'))
     console.log(chalk.gray('═'.repeat(50)))
 
     console.log(`Current Provider: ${this.currentProvider || 'None'}`)

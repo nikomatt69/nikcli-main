@@ -14,7 +14,6 @@ export class Flex implements Component<Widgets.BoxElement> {
   theme: any
   destroy: () => void
   private baseComponent: any
-  private props: FlexProps
   private direction: 'row' | 'column'
   private gap: number
   private justify: string

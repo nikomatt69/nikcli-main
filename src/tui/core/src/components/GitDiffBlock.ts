@@ -60,15 +60,15 @@ export class GitDiffBlock implements Component<Widgets.BoxElement> {
   private isCollapsed: boolean = false
 
   // Required Component interface methods
-  setVariant(variant: any): void {
+  setVariant(_variant: any): void {
     // Not applicable for GitDiffBlock
   }
 
-  setSize(size: any): void {
+  setSize(_size: any): void {
     // Not applicable for GitDiffBlock
   }
 
-  setState(state: any): void {
+  setState(_state: any): void {
     // Not applicable for GitDiffBlock
   }
 
@@ -408,7 +408,7 @@ export class GitDiffBlock implements Component<Widgets.BoxElement> {
     const leftLines: string[] = []
     const rightLines: string[] = []
 
-    this.diffData.lines.forEach((line, index) => {
+    this.diffData.lines.forEach((line, _index) => {
       const lineNumStr = this.props.showLineNumbers ? `${(line.oldLineNumber || '').toString().padStart(4)} ` : ''
 
       const rightLineNumStr = this.props.showLineNumbers ? `${(line.newLineNumber || '').toString().padStart(4)} ` : ''

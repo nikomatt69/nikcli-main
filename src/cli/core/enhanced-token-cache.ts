@@ -117,7 +117,7 @@ export class EnhancedTokenCacheManager {
   /**
    * Check if response should be cached
    */
-  async shouldCache(prompt: string, response: string): Promise<boolean> {
+  async shouldCache(_prompt: string, response: string): Promise<boolean> {
     // Don't cache very short responses
     if (response.length < 50) return false
 
@@ -361,7 +361,7 @@ export class EnhancedTokenCacheManager {
     this.memoryCache.clear()
     await this.cacheService.clearAll()
 
-    console.log(chalk.green('✅ Enhanced token cache cleared'))
+    console.log(chalk.green('✓ Enhanced token cache cleared'))
   }
 
   /**
@@ -383,7 +383,7 @@ export class EnhancedTokenCacheManager {
       }
     }
 
-    console.log(chalk.blue('🔄 Token cache synchronized'))
+    console.log(chalk.blue('⚡︎ Token cache synchronized'))
   }
 
   /**

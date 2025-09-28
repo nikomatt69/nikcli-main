@@ -137,9 +137,7 @@ class ProjectDetector {
       try {
         execSync(`${runner.command} --version`, { stdio: 'ignore', timeout: 5000 })
         return { ...runner, available: true }
-      } catch {
-        continue
-      }
+      } catch { }
     }
 
     return { type: 'npm', command: 'npm', available: false }
@@ -326,10 +324,10 @@ class DiagnosticParser {
           kind: 'build',
           file: relative(process.cwd(), file),
           range: {
-            startLine: parseInt(startLine),
-            startCol: parseInt(startCol),
-            endLine: parseInt(startLine),
-            endCol: parseInt(startCol),
+            startLine: parseInt(startLine, 10),
+            startCol: parseInt(startCol, 10),
+            endLine: parseInt(startLine, 10),
+            endCol: parseInt(startCol, 10),
           },
           message: message.trim(),
           code,
@@ -405,7 +403,7 @@ class DiagnosticParser {
               diagnostics.push({
                 kind: 'test',
                 file: relative(process.cwd(), testFile.name),
-                message: test.title + (test.failureMessages ? ': ' + test.failureMessages.join(', ') : ''),
+                message: test.title + (test.failureMessages ? `: ${test.failureMessages.join(', ')}` : ''),
                 source: 'vitest',
                 severity: 'error',
                 timestamp: Date.now(),
@@ -422,7 +420,7 @@ class DiagnosticParser {
   }
 
   static parseGenericBuild(
-    output: string,
+    _output: string,
     stderr: string,
     exitCode: number
   ): { diagnostics: Diagnostic[]; summary: BuildSummary } {
@@ -439,11 +437,11 @@ class DiagnosticParser {
           file: relative(process.cwd(), file),
           range: startCol
             ? {
-                startLine: parseInt(startLine),
-                startCol: parseInt(startCol),
-                endLine: parseInt(startLine),
-                endCol: parseInt(startCol),
-              }
+              startLine: parseInt(startLine, 10),
+              startCol: parseInt(startCol, 10),
+              endLine: parseInt(startLine, 10),
+              endCol: parseInt(startCol, 10),
+            }
             : undefined,
           message: message.trim(),
           source: 'build',
@@ -577,11 +575,11 @@ export class IDEDiagnosticServer extends EventEmitter {
     let filtered = allDiagnostics
 
     if (filters.kind) {
-      filtered = filtered.filter((d) => filters.kind!.includes(d.kind))
+      filtered = filtered.filter((d) => filters.kind?.includes(d.kind))
     }
 
     if (filters.severity) {
-      filtered = filtered.filter((d) => filters.severity!.includes(d.severity))
+      filtered = filtered.filter((d) => filters.severity?.includes(d.severity))
     }
 
     if (filters.file) {
@@ -593,7 +591,7 @@ export class IDEDiagnosticServer extends EventEmitter {
     }
 
     if (filters.source) {
-      filtered = filtered.filter((d) => filters.source!.includes(d.source))
+      filtered = filtered.filter((d) => filters.source?.includes(d.source))
     }
 
     // Sort by severity (error > warning > info), then source, then file:line
@@ -819,8 +817,8 @@ export class IDEDiagnosticServer extends EventEmitter {
         const branchLine = statusResult.stdout.split('\n')[0]
         const aheadMatch = branchLine.match(/ahead (\d+)/)
         const behindMatch = branchLine.match(/behind (\d+)/)
-        if (aheadMatch) ahead = parseInt(aheadMatch[1])
-        if (behindMatch) behind = parseInt(behindMatch[1])
+        if (aheadMatch) ahead = parseInt(aheadMatch[1], 10)
+        if (behindMatch) behind = parseInt(behindMatch[1], 10)
       } catch {
         // Ignore if no remote tracking
       }
@@ -881,7 +879,7 @@ export class IDEDiagnosticServer extends EventEmitter {
   async runtimeLogs(
     service?: string,
     lines: number = 100,
-    cursor?: string
+    _cursor?: string
   ): Promise<{
     logs: RuntimeLogEntry[]
     nextCursor?: string
@@ -1140,7 +1138,7 @@ export class IDEDiagnosticServer extends EventEmitter {
 
     for (const [watcherId, watcher] of this.watchers.entries()) {
       try {
-        if (watcher && watcher.close) {
+        if (watcher?.close) {
           watcher.close()
         }
       } catch (error) {

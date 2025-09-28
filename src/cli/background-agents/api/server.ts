@@ -255,8 +255,8 @@ export class BackgroundAgentsAPIServer {
 
       const jobs = backgroundAgentService.listJobs({
         status: status as JobStatus,
-        limit: parseInt(limit as string),
-        offset: parseInt(offset as string),
+        limit: parseInt(limit as string, 10),
+        offset: parseInt(offset as string, 10),
       })
 
       // Filter by repo if specified
@@ -268,8 +268,8 @@ export class BackgroundAgentsAPIServer {
       res.json({
         jobs: filteredJobs,
         total: filteredJobs.length,
-        offset: parseInt(offset as string),
-        limit: parseInt(limit as string),
+        offset: parseInt(offset as string, 10),
+        limit: parseInt(limit as string, 10),
       })
     } catch (error: any) {
       res.status(500).json({

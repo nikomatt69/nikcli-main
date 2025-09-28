@@ -74,7 +74,7 @@ export class ChatOrchestrator {
         throw new Error('Invalid input provided')
       }
 
-      let session = (await this.sessionManager.loadSession(sessionId)) || {
+      const session = (await this.sessionManager.loadSession(sessionId)) || {
         id: sessionId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -215,11 +215,11 @@ export class ChatOrchestrator {
           accuracy: 100,
         }),
         getCapabilities: () => agent.capabilities,
-        canHandle: (task) => true,
-        updateGuidance: (guidance) => {
+        canHandle: (_task) => true,
+        updateGuidance: (_guidance) => {
           console.log(`Updated guidance for ${agentName}`)
         },
-        updateConfiguration: (config) => {
+        updateConfiguration: (_config) => {
           console.log(`Updated configuration for ${agentName}`)
         },
       }
@@ -284,7 +284,7 @@ export class ChatOrchestrator {
   private async handleCommand(session: SessionData, cmd: string): Promise<void> {
     const tokens = cmd.split(/\s+/)
     switch (tokens[0].toLowerCase()) {
-      case '/help':
+      case '/help': {
         const helpText = `Commands available:
 /help - Show this help message
 /sessions - List all sessions
@@ -296,7 +296,8 @@ export class ChatOrchestrator {
 /guidance stats - Show guidance statistics`
         session.messages.push({ role: 'assistant', content: helpText, timestamp: new Date().toISOString() })
         break
-      case '/sessions':
+      }
+      case '/sessions': {
         const list = await this.sessionManager.listSessions()
         session.messages.push({
           role: 'assistant',
@@ -304,6 +305,7 @@ export class ChatOrchestrator {
           timestamp: new Date().toISOString(),
         })
         break
+      }
       case '/config':
         this.configManager.getConfig()
         session.messages.push({
@@ -330,7 +332,7 @@ export class ChatOrchestrator {
       const context = this.guidanceManager.getContext()
       const stats = this.guidanceManager.getStats()
 
-      const statusText = `🧠 Guidance System Status:
+      const statusText = `⚡︎ Guidance System Status:
 Total files: ${stats.totalFiles}
 Types: Claude (${stats.byType.claude}), Codex (${stats.byType.codex}), Agents (${stats.byType.agents})
 Levels: Global (${stats.byLevel.global}), Project (${stats.byLevel.project}), Subdirectory (${stats.byLevel.subdirectory})
@@ -343,7 +345,7 @@ Last updated: ${context?.lastUpdated ? new Date(context.lastUpdated).toLocaleStr
 
     const subCommand = args[0].toLowerCase()
     switch (subCommand) {
-      case 'list':
+      case 'list': {
         const files = this.guidanceManager.listGuidanceFiles()
         const fileList =
           files.length === 0
@@ -351,8 +353,9 @@ Last updated: ${context?.lastUpdated ? new Date(context.lastUpdated).toLocaleStr
             : files.map((f) => `📋 ${f.type.toUpperCase()} (${f.level}) - ${f.path}`).join('\n')
         session.messages.push({ role: 'assistant', content: fileList, timestamp: new Date().toISOString() })
         break
+      }
 
-      case 'create':
+      case 'create': {
         if (args.length < 3) {
           session.messages.push({
             role: 'assistant',
@@ -387,7 +390,7 @@ Last updated: ${context?.lastUpdated ? new Date(context.lastUpdated).toLocaleStr
           const createdPath = this.guidanceManager.createSampleGuidanceFile(type, location)
           session.messages.push({
             role: 'assistant',
-            content: `✅ Created sample ${type} guidance file at: ${createdPath}`,
+            content: `✓ Created sample ${type} guidance file at: ${createdPath}`,
             timestamp: new Date().toISOString(),
           })
         } catch (error: any) {
@@ -398,6 +401,7 @@ Last updated: ${context?.lastUpdated ? new Date(context.lastUpdated).toLocaleStr
           })
         }
         break
+      }
 
       case 'reload':
         try {
@@ -405,7 +409,7 @@ Last updated: ${context?.lastUpdated ? new Date(context.lastUpdated).toLocaleStr
           await this.guidanceManager.initialize()
           session.messages.push({
             role: 'assistant',
-            content: '✅ Guidance system reloaded successfully',
+            content: '✓ Guidance system reloaded successfully',
             timestamp: new Date().toISOString(),
           })
         } catch (error: any) {
@@ -417,7 +421,7 @@ Last updated: ${context?.lastUpdated ? new Date(context.lastUpdated).toLocaleStr
         }
         break
 
-      case 'stats':
+      case 'stats': {
         const stats = this.guidanceManager.getStats()
         const context = this.guidanceManager.getContext()
         const statsText = `📊 Guidance Statistics:
@@ -434,6 +438,7 @@ Total Content Size: ${Math.round(stats.totalSize / 1024)}KB
 Last Updated: ${context?.lastUpdated ? new Date(context.lastUpdated).toLocaleString() : 'Never'}`
         session.messages.push({ role: 'assistant', content: statsText, timestamp: new Date().toISOString() })
         break
+      }
 
       default:
         session.messages.push({

@@ -147,9 +147,9 @@ export class ValidatedAIProvider {
 
           // Log risultato
           if (validationResult?.formatted) {
-            advancedUI.logSuccess(`✅ File formatted with ${validationResult.formatter} and written: ${path}`)
+            advancedUI.logSuccess(`✓ File formatted with ${validationResult.formatter} and written: ${path}`)
           } else {
-            advancedUI.logSuccess(`✅ File validated and written: ${path}`)
+            advancedUI.logSuccess(`✓ File validated and written: ${path}`)
           }
 
           return result
@@ -227,7 +227,7 @@ export class ValidatedAIProvider {
   /**
    * Proxy per altri metodi dell'AI Provider esistente
    */
-  async generateStreamResponse(messages: any[], options: any = {}) {
+  async generateStreamResponse(messages: any[], _options: any = {}) {
     // Use modernAIProvider for streaming if available
     const { modernAIProvider } = await import('../ai/modern-ai-provider')
     return modernAIProvider.streamChatWithTools(messages)
@@ -256,13 +256,13 @@ export class ValidatedAIProvider {
       if (existsSync(packageJsonPath)) {
         const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
 
-        if (packageJson.dependencies?.['next'] || packageJson.devDependencies?.['next']) {
+        if (packageJson.dependencies?.next || packageJson.devDependencies?.next) {
           return 'next.js'
         }
-        if (packageJson.dependencies?.['react'] || packageJson.devDependencies?.['react']) {
+        if (packageJson.dependencies?.react || packageJson.devDependencies?.react) {
           return 'react'
         }
-        if (packageJson.dependencies?.['typescript'] || packageJson.devDependencies?.['typescript']) {
+        if (packageJson.dependencies?.typescript || packageJson.devDependencies?.typescript) {
           return 'typescript'
         }
 

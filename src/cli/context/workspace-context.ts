@@ -7,8 +7,8 @@ import { toolsManager } from '../tools/tools-manager'
 // Import new unified components
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 import { unifiedRAGSystem } from './rag-system'
-import { type QueryAnalysis, semanticSearchEngine } from './semantic-search-engine'
-import { type EmbeddingResult, unifiedEmbeddingInterface } from './unified-embedding-interface'
+import { semanticSearchEngine } from './semantic-search-engine'
+import { unifiedEmbeddingInterface } from './unified-embedding-interface'
 
 export interface FileContext {
   path: string
@@ -154,7 +154,7 @@ export class WorkspaceContextManager {
   // Initialize RAG system integration
   private async initializeRAGIntegration(): Promise<void> {
     try {
-      console.log(chalk.blue('🧠 Initializing workspace RAG integration...'))
+      console.log(chalk.blue('⚡︎ Initializing workspace RAG integration...'))
       this.ragAnalysisPromise = unifiedRAGSystem.analyzeProject(this.context.rootPath)
       const ragResult = await this.ragAnalysisPromise
 
@@ -162,7 +162,7 @@ export class WorkspaceContextManager {
       this.ragInitialized = true
 
       console.log(
-        chalk.green(`✅ RAG integration ${this.context.ragAvailable ? 'enabled' : 'disabled (fallback mode)'}`)
+        chalk.green(`✓ RAG integration ${this.context.ragAvailable ? 'enabled' : 'disabled (fallback mode)'}`)
       )
     } catch (_error) {
       console.log(chalk.yellow('⚠️ RAG integration failed, using basic workspace analysis'))
@@ -182,7 +182,7 @@ export class WorkspaceContextManager {
       await this.refreshWorkspaceIndex()
 
       this.isInitialized = true
-      console.log(chalk.green('✅ Integrated components initialized successfully'))
+      console.log(chalk.green('✓ Integrated components initialized successfully'))
     } catch (error) {
       console.log(chalk.yellow('⚠️ Failed to initialize integrated components:', error))
       this.isInitialized = false
@@ -201,12 +201,12 @@ export class WorkspaceContextManager {
     const cached = this.semanticSearchCache.get(cacheKey)
     if (cached) {
       this.context.cacheStats!.hits++
-      console.log(chalk.green('✅ Using cached search results'))
+      console.log(chalk.green('✓ Using cached search results'))
       return cached.slice(0, limit)
     }
 
     // Use semantic search engine for enhanced query analysis
-    const queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
+    const _queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
     const results: ContextSearchResult[] = []
 
     // 1. RAG-based search (if available and enabled)
@@ -224,7 +224,7 @@ export class WorkspaceContextManager {
               file,
               score: ragResult.score,
               matchType: 'semantic',
-              snippet: ragResult.content.substring(0, 200) + '...',
+              snippet: `${ragResult.content.substring(0, 200)}...`,
               highlights: [query],
             })
           }
@@ -246,7 +246,7 @@ export class WorkspaceContextManager {
     this.context.cacheStats!.misses++
 
     const _duration = Date.now() - startTime
-    // console.log(chalk.green(`✅ Found ${finalResults.length} results in ${duration}ms`));
+    // console.log(chalk.green(`✓ Found ${finalResults.length} results in ${duration}ms`));
 
     return finalResults
   }
@@ -264,7 +264,7 @@ export class WorkspaceContextManager {
       // Get or create embedding for file
       let fileEmbedding = file.embedding
       if (!fileEmbedding) {
-        fileEmbedding = this.createSimpleEmbedding(file.content + ' ' + file.summary)
+        fileEmbedding = this.createSimpleEmbedding(`${file.content} ${file.summary}`)
         file.embedding = fileEmbedding
       }
 
@@ -452,7 +452,7 @@ export class WorkspaceContextManager {
     // Analyze selected paths
     await this.analyzeSelectedPaths()
 
-    console.log(chalk.green(`✅ Workspace context updated with ${this.context.files.size} files`))
+    console.log(chalk.green(`✓ Workspace context updated with ${this.context.files.size} files`))
   }
 
   private async analyzeSelectedPaths(): Promise<void> {
@@ -576,7 +576,7 @@ export class WorkspaceContextManager {
     return 'text'
   }
 
-  private calculateFileImportance(filePath: string, extension: string, content: string): number {
+  private calculateFileImportance(filePath: string, _extension: string, content: string): number {
     let importance = 50 // Base importance
 
     // Higher importance for certain files
@@ -704,7 +704,7 @@ export class WorkspaceContextManager {
   private async generateDirectorySummary(
     dirPath: string,
     files: FileContext[],
-    subdirs: DirectoryContext[]
+    _subdirs: DirectoryContext[]
   ): Promise<string> {
     const totalFiles = files.length
     const languages = Array.from(new Set(files.map((f) => f.language)))
@@ -771,7 +771,7 @@ export class WorkspaceContextManager {
 
   // Get filtered context using grep-like search
   private getFilteredContextForAgent(
-    agentId: string,
+    _agentId: string,
     maxFiles: number = 20,
     searchQuery?: string
   ): {
@@ -799,7 +799,7 @@ export class WorkspaceContextManager {
     const projectSummary = this.generateProjectSummary()
     const totalContext = this.generateContextString(relevantFiles, projectSummary)
 
-    console.log(chalk.green(`✅ Context filtered to ${relevantFiles.length} relevant files`))
+    console.log(chalk.green(`✓ Context filtered to ${relevantFiles.length} relevant files`))
 
     return {
       selectedPaths: this.context.selectedPaths,
@@ -892,7 +892,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       // Smart content truncation
       const contentPreview =
         file.content.length > truncateSize
-          ? file.content.slice(0, truncateSize) + '\n... [truncated - use /search to find specific content]'
+          ? `${file.content.slice(0, truncateSize)}\n... [truncated - use /search to find specific content]`
           : file.content
       context += `Content:\n${contentPreview}\n`
     })
@@ -907,13 +907,13 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       return
     }
 
-    console.log(chalk.blue('🔄 Refreshing workspace index with smart filtering...'))
+    console.log(chalk.blue('⚡︎ Refreshing workspace index with smart filtering...'))
 
     try {
       // Get filtered file list by scanning directory
       const filteredFiles = await this.scanDirectoryWithFilter(this.context.rootPath)
 
-      console.log(chalk.green(`✅ Found ${filteredFiles.length} files after filtering`))
+      console.log(chalk.green(`✓ Found ${filteredFiles.length} files after filtering`))
 
       // Update file context with filtered results
       for (const filePath of filteredFiles) {
@@ -1026,7 +1026,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
             }
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Skip directories that can't be read
       }
     }
@@ -1080,7 +1080,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       }
     })
 
-    console.log(chalk.green(`👀 Watching ${this.context.selectedPaths.length} paths for changes`))
+    console.log(chalk.green(`⚡︎ Watching ${this.context.selectedPaths.length} paths for changes`))
   }
 
   stopWatching(): void {
@@ -1138,7 +1138,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
 
     // Add search statistics
     context += `\n=== SEARCH STATISTICS ===\n`
-    context += `Cache hits: ${this.context.cacheStats!.hits}, Cache misses: ${this.context.cacheStats!.misses}\n`
+    context += `Cache hits: ${this.context.cacheStats?.hits}, Cache misses: ${this.context.cacheStats?.misses}\n`
     context += `RAG available: ${this.context.ragAvailable ? 'Yes' : 'No'}\n`
     context += `Total indexed files: ${this.context.files.size}\n`
 
@@ -1177,7 +1177,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       lastCleanup: new Date(),
     }
 
-    console.log(chalk.green('✅ All workspace caches cleared'))
+    console.log(chalk.green('✓ All workspace caches cleared'))
   }
 
   // Smart file analysis with caching
@@ -1316,7 +1316,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
     return types
   }
 
-  private generateTags(content: string, language: string, filePath: string): string[] {
+  private generateTags(content: string, _language: string, filePath: string): string[] {
     const tags: string[] = []
 
     // Path-based tags

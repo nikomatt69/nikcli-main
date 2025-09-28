@@ -24,7 +24,7 @@ const buttonProps = {
 }
 
 const buttonValidation = validateComponent('button', buttonProps)
-console.log('Button validation:', buttonValidation.success ? '✅ Success' : '❌ Failed')
+console.log('Button validation:', buttonValidation.success ? '✓ Success' : '❌ Failed')
 
 if (!buttonValidation.success) {
   console.log('Errors:', buttonValidation.errors?.issues)
@@ -43,7 +43,7 @@ const invalidButtonProps = {
 }
 
 const invalidButtonValidation = validateWithSuggestions('button', invalidButtonProps)
-console.log('Invalid button validation:', invalidButtonValidation.success ? '✅ Success' : '❌ Failed')
+console.log('Invalid button validation:', invalidButtonValidation.success ? '✓ Success' : '❌ Failed')
 
 if (!invalidButtonValidation.success) {
   console.log('Errors:', invalidButtonValidation.errors?.issues)
@@ -62,7 +62,7 @@ const buttonWithUnknownProps = {
 }
 
 const strictValidation = validateComponentStrict('button', buttonWithUnknownProps)
-console.log('Strict validation:', strictValidation.success ? '✅ Success' : '❌ Failed')
+console.log('Strict validation:', strictValidation.success ? '✓ Success' : '❌ Failed')
 console.log('Warnings:', strictValidation.warnings)
 
 // ===== ESEMPIO 4: Validazione Multipla =====
@@ -101,7 +101,7 @@ const componentsToValidate = [
 const multiValidation = componentValidator.validateComponents(componentsToValidate)
 multiValidation.forEach((result, index) => {
   const componentName = componentsToValidate[index].name
-  console.log(`${componentName}: ${result.success ? '✅' : '❌'}`)
+  console.log(`${componentName}: ${result.success ? '✓' : '❌'}`)
   if (!result.success) {
     console.log(`  Errors: ${result.errors?.issues.length || 0}`)
   }
@@ -114,7 +114,7 @@ console.log('\n=== ESEMPIO 5: Utilizzo degli Schemi Direttamente ===')
 // Parsing diretto con Zod
 try {
   const parsedButton = ButtonSchema.parse(buttonProps)
-  console.log('✅ Button parsed successfully:', parsedButton.text)
+  console.log('✓ Button parsed successfully:', parsedButton.text)
 } catch (error) {
   if (error instanceof z.ZodError) {
     console.log('❌ Button parsing failed:', error.issues)
@@ -124,7 +124,7 @@ try {
 // Safe parsing (non lancia errori)
 const safeParsedButton = ButtonSchema.safeParse(invalidButtonProps)
 if (safeParsedButton.success) {
-  console.log('✅ Button parsed safely')
+  console.log('✓ Button parsed safely')
 } else {
   console.log('❌ Button parsing failed safely:', safeParsedButton.error.issues)
 }
@@ -156,7 +156,7 @@ const customButtonProps = {
 
 try {
   const customButton = CustomButtonSchema.parse(customButtonProps)
-  console.log('✅ Custom button validated:', customButton.customIcon)
+  console.log('✓ Custom button validated:', customButton.customIcon)
 } catch (error) {
   if (error instanceof z.ZodError) {
     console.log('❌ Custom button validation failed:', error.issues)
@@ -195,7 +195,7 @@ function createComponent<T extends keyof typeof ComponentSchemas>(componentName:
     throw new Error(`Invalid props for ${componentName}`)
   }
 
-  console.log(`✅ Successfully validated ${componentName} props`)
+  console.log(`✓ Successfully validated ${componentName} props`)
   return validation.data
 }
 
@@ -227,7 +227,7 @@ const _typedButtonProps: ButtonProps = {
   // variant: 'invalid', // ❌ Error: Type '"invalid"' is not assignable
 }
 
-console.log('✅ Type-safe button props created')
+console.log('✓ Type-safe button props created')
 
 // ===== ESEMPIO 10: Validazione Condizionale =====
 
@@ -260,7 +260,7 @@ const conditionalButtonProps = {
 
 try {
   const _conditionalButton = ConditionalButtonSchema.parse(conditionalButtonProps)
-  console.log('✅ Conditional button validated')
+  console.log('✓ Conditional button validated')
 } catch (error) {
   if (error instanceof z.ZodError) {
     console.log('❌ Conditional validation failed:', error.issues)

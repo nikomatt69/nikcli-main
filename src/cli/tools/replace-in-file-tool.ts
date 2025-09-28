@@ -278,7 +278,7 @@ export class ReplaceInFileTool extends BaseTool {
       // String replacement
       const regex = new RegExp(this.escapeRegex(searchPattern), options.caseSensitive === false ? 'gi' : 'g')
 
-      newContent = content.replace(regex, (match, ...args) => {
+      newContent = content.replace(regex, (match, ..._args) => {
         matchCount++
         matches.push(match as any)
 
@@ -293,10 +293,10 @@ export class ReplaceInFileTool extends BaseTool {
       // RegExp replacement
       const globalRegex = new RegExp(
         searchPattern.source,
-        searchPattern.flags.includes('g') ? searchPattern.flags : searchPattern.flags + 'g'
+        searchPattern.flags.includes('g') ? searchPattern.flags : `${searchPattern.flags}g`
       )
 
-      newContent = content.replace(globalRegex, (match, ...args) => {
+      newContent = content.replace(globalRegex, (match, ..._args) => {
         matchCount++
         matches.push(match as any)
 

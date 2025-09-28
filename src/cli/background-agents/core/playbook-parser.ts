@@ -59,7 +59,7 @@ export class PlaybookParser {
   static async parseFromFile(filePath: string): Promise<PlaybookParseResult> {
     try {
       const content = await fs.readFile(filePath, 'utf8')
-      return this.parseFromString(content)
+      return PlaybookParser.parseFromString(content)
     } catch (error: any) {
       if (error.code === 'ENOENT') {
         return {
@@ -89,7 +89,7 @@ export class PlaybookParser {
     for (const playbookPath of possiblePaths) {
       try {
         await fs.access(playbookPath)
-        return await this.parseFromFile(playbookPath)
+        return await PlaybookParser.parseFromFile(playbookPath)
       } catch {
         // Continue to next path
       }
@@ -127,7 +127,7 @@ export class PlaybookParser {
       }
 
       // Additional validation and warnings
-      const warnings = this.validatePlaybook(result.data)
+      const warnings = PlaybookParser.validatePlaybook(result.data)
 
       return {
         success: true,
@@ -229,7 +229,7 @@ export class PlaybookParser {
     await fs.mkdir(templatesDir, { recursive: true })
 
     // Create default templates
-    const templates = this.getDefaultTemplates()
+    const templates = PlaybookParser.getDefaultTemplates()
 
     for (const [name, content] of Object.entries(templates)) {
       const templatePath = path.join(templatesDir, `${name}.yaml`)

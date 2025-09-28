@@ -428,7 +428,7 @@ describe('System Integration Tests', () => {
           (async () => {
             try {
               const current = await fs.readFile(sharedFile, 'utf-8')
-              const currentNum = parseInt(current) || 0
+              const currentNum = parseInt(current, 10) || 0
               const newValue = (currentNum + 1).toString()
               await fs.writeFile(sharedFile, newValue)
               return newValue
@@ -446,7 +446,7 @@ describe('System Integration Tests', () => {
 
       // Final value should be valid
       const finalValue = await fs.readFile(sharedFile, 'utf-8')
-      const finalNumber = parseInt(finalValue) || 0
+      const finalNumber = parseInt(finalValue, 10) || 0
       expect(finalNumber).toBeGreaterThanOrEqual(0)
       expect(finalNumber).toBeLessThanOrEqual(20)
     })
@@ -504,7 +504,7 @@ describe('System Integration Tests', () => {
 
       // Create data based on configuration
       const rawData = 'hello world integration test'
-      const processedData = config.prefix + ' ' + rawData.toUpperCase()
+      const processedData = `${config.prefix} ${rawData.toUpperCase()}`
 
       await fs.writeFile(dataFile, processedData)
 

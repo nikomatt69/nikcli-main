@@ -2,7 +2,7 @@ import type { CoreMessage } from 'ai'
 import { z } from 'zod'
 import { type ToolRecommendation, ToolRouter } from './tool-router'
 
-// 🧠 Enhanced Intent Analysis Schemas
+// ⚡︎ Enhanced Intent Analysis Schemas
 const IntentAnalysis = z.object({
   primaryAction: z.string(),
   targetObjects: z.array(z.string()),
@@ -115,7 +115,7 @@ export class EnhancedToolRouter extends ToolRouter {
   }
 
   /**
-   * 🧠 Enhanced Intent Analysis with NLP and Context
+   * ⚡︎ Enhanced Intent Analysis with NLP and Context
    */
   private analyzeIntentEnhanced(content: string): IntentAnalysis {
     const lowerContent = content.toLowerCase()
@@ -229,7 +229,7 @@ export class EnhancedToolRouter extends ToolRouter {
   private enhanceRecommendations(
     basicRecommendations: ToolRecommendation[],
     intentAnalysis: IntentAnalysis,
-    contextualFactors: any,
+    _contextualFactors: any,
     projectContext?: ProjectContext
   ): EnhancedToolRecommendation[] {
     return basicRecommendations.map((rec) => {
@@ -275,7 +275,7 @@ export class EnhancedToolRouter extends ToolRouter {
   /**
    * 📊 Calculate Composite Score
    */
-  private calculateCompositeScore(rec: EnhancedToolRecommendation, content: string): number {
+  private calculateCompositeScore(rec: EnhancedToolRecommendation, _content: string): number {
     const weights = {
       originalConfidence: 0.3,
       contextualRelevance: 0.25,
@@ -370,7 +370,11 @@ export class EnhancedToolRouter extends ToolRouter {
     return Math.min(10, complexity)
   }
 
-  private determineRequiredCapabilities(primaryAction: string, targetObjects: string[], modifiers: string[]): string[] {
+  private determineRequiredCapabilities(
+    primaryAction: string,
+    targetObjects: string[],
+    _modifiers: string[]
+  ): string[] {
     const capabilityMap = {
       read: ['file_system', 'parsing'],
       write: ['file_system', 'generation', 'validation'],
@@ -491,7 +495,7 @@ export class EnhancedToolRouter extends ToolRouter {
     return toolUsageCount / maxUsage
   }
 
-  private suggestAlternativeTools(tool: string, intentAnalysis: IntentAnalysis): string[] {
+  private suggestAlternativeTools(tool: string, _intentAnalysis: IntentAnalysis): string[] {
     const alternatives: Record<string, string[]> = {
       read_file: ['explore_directory', 'semantic_search', 'web_search'],
       write_file: ['generate_code', 'multi_edit', 'write_file'],
@@ -534,7 +538,7 @@ export class EnhancedToolRouter extends ToolRouter {
     )
   }
 
-  private calculateExecutionOrder(tool: string, intentAnalysis: IntentAnalysis): number {
+  private calculateExecutionOrder(tool: string, _intentAnalysis: IntentAnalysis): number {
     const orderMap: Record<string, number> = {
       ide_context: 1,
       read_file: 2,

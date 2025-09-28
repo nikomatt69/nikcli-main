@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
+import { simpleConfigManager as configManager } from '../core/config-manager'
 import { inputQueue } from '../core/input-queue'
 import { DiffViewer, type FileDiff } from './diff-viewer'
 
@@ -289,6 +290,20 @@ export class ApprovalSystem extends EventEmitter {
   private workflowEngine: WorkflowEngine
   private sessionId: string
   private cliInstance: any
+
+  /**
+   * Get configured timeout for approval prompts
+   */
+  private getApprovalTimeout(): number {
+    try {
+      const config = configManager.getConfig()
+      return config.sessionSettings.approvalTimeoutMs
+    } catch (_error) {
+      console.warn(chalk.yellow('⚠️ Failed to read approval timeout from config, using default 30s'))
+      return 30000 // Default fallback
+    }
+  }
+
   constructor(config: ApprovalConfig = {}) {
     super()
 
@@ -573,10 +588,16 @@ export class ApprovalSystem extends EventEmitter {
   /**
    * Compact confirmation for plan mode - more streamlined UI
    */
-  async confirmPlanAction(question: string, details?: string, defaultValue: boolean = false): Promise<boolean> {
+  async confirmPlanAction(
+    question: string,
+    details?: string,
+    defaultValue: boolean = false,
+    timeoutMs?: number
+  ): Promise<boolean> {
     // CRITICAL: Track original input queue state
     const wasEnabled = inputQueue.isBypassEnabled()
     let inquirerInstance: any = null
+    const configuredTimeout = timeoutMs || this.getApprovalTimeout()
 
     try {
       // Super compact layout for plan mode
@@ -613,7 +634,7 @@ export class ApprovalSystem extends EventEmitter {
           name: 'ok',
           message: chalk.cyan.bold(`🎯 ${question}`),
           choices: [
-            { name: '✅ Yes', value: true },
+            { name: '✓ Yes', value: true },
             { name: '❌ No', value: false },
           ],
           default: defaultValue ? 0 : 1,
@@ -624,16 +645,25 @@ export class ApprovalSystem extends EventEmitter {
       // Track inquirer instance for cleanup
       inquirerInstance = promptPromise
 
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise(
-        (_, reject) => setTimeout(() => reject(new Error('Approval timeout')), 30000) // 30 second timeout
+      // Add timeout to prevent hanging - returns default value on timeout
+      const timeoutPromise = new Promise((resolve) =>
+        setTimeout(() => {
+          console.log(
+            chalk.yellow(
+              `⏰ Timeout after ${configuredTimeout / 1000}s, proceeding with default (${defaultValue ? 'Yes' : 'No'})`
+            )
+          )
+          resolve({ ok: defaultValue })
+        }, configuredTimeout)
       )
 
       const answers = await Promise.race([promptPromise, timeoutPromise])
       return !!(answers as any).ok
     } catch (error: any) {
       console.log(chalk.red(`❌ Approval failed: ${error.message}`))
-      return false
+      // Return default value instead of false on error
+      console.log(chalk.yellow(`🔄 Proceeding with default (${defaultValue ? 'Yes' : 'No'})`))
+      return defaultValue
     } finally {
       // CRITICAL: Always restore original input queue state
       try {
@@ -664,10 +694,16 @@ export class ApprovalSystem extends EventEmitter {
    * Generic confirmation prompt using Inquirer.
    * Uses inputQueue bypass to avoid interference with the main input loop.
    */
-  async confirm(question: string, details?: string, defaultValue: boolean = false): Promise<boolean> {
+  async confirm(
+    question: string,
+    details?: string,
+    defaultValue: boolean = false,
+    timeoutMs?: number
+  ): Promise<boolean> {
     // CRITICAL: Track original input queue state
     const wasEnabled = inputQueue.isBypassEnabled()
     let inquirerInstance: any = null
+    const configuredTimeout = timeoutMs || this.getApprovalTimeout()
 
     try {
       if (details) {
@@ -714,9 +750,16 @@ export class ApprovalSystem extends EventEmitter {
       // Track inquirer instance for cleanup
       inquirerInstance = promptPromise
 
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise(
-        (_, reject) => setTimeout(() => reject(new Error('Confirmation timeout')), 30000) // 30 second timeout
+      // Add timeout to prevent hanging - returns default value on timeout
+      const timeoutPromise = new Promise((resolve) =>
+        setTimeout(() => {
+          console.log(
+            chalk.yellow(
+              `⏰ Timeout after ${configuredTimeout / 1000}s, proceeding with default (${defaultValue ? 'Yes' : 'No'})`
+            )
+          )
+          resolve({ ok: defaultValue })
+        }, configuredTimeout)
       )
 
       const answers = await Promise.race([promptPromise, timeoutPromise])
@@ -724,7 +767,9 @@ export class ApprovalSystem extends EventEmitter {
       return !!(answers as any).ok
     } catch (error: any) {
       console.log(chalk.red(`❌ Confirmation failed: ${error.message}`))
-      return false
+      // Return default value instead of false on error
+      console.log(chalk.yellow(`🔄 Proceeding with default (${defaultValue ? 'Yes' : 'No'})`))
+      return defaultValue
     } finally {
       // CRITICAL: Always restore original input queue state
       try {
@@ -1025,7 +1070,7 @@ export class ApprovalSystem extends EventEmitter {
           `${chalk.gray('Description:')} ${request.description}\n` +
           `${chalk.gray('Risk Level:')} ${riskColor(request.riskLevel.toUpperCase())}\n` +
           `${chalk.gray('Total Steps:')} ${chalk.cyan(planDetails.totalSteps)}\n` +
-          `${chalk.gray('Estimated Duration:')} ${chalk.cyan(Math.round(planDetails.estimatedDuration) + ' minutes')}\n\n` +
+          `${chalk.gray('Estimated Duration:')} ${chalk.cyan(`${Math.round(planDetails.estimatedDuration)} minutes`)}\n\n` +
           `${chalk.yellow.bold('⚠️  This will execute all steps automatically!\n')}` +
           `${chalk.gray('The plan will switch to auto mode and run without further prompts.')}`,
         {
@@ -1117,8 +1162,7 @@ export class ApprovalSystem extends EventEmitter {
       riskFactors.push('📄 Large number of files will be modified')
     }
     if (
-      planDetails.commands &&
-      planDetails.commands.some((cmd: string) => cmd.includes('rm') || cmd.includes('del') || cmd.includes('sudo'))
+      planDetails.commands?.some((cmd: string) => cmd.includes('rm') || cmd.includes('del') || cmd.includes('sudo'))
     ) {
       riskFactors.push('⚡ Destructive commands detected')
     }
@@ -1127,7 +1171,7 @@ export class ApprovalSystem extends EventEmitter {
     }
 
     if (riskFactors.length === 0) {
-      console.log('  ✅ No significant risks identified')
+      console.log('  ✓ No significant risks identified')
     } else {
       riskFactors.forEach((factor) => {
         console.log(`  ${factor}`)
@@ -1181,7 +1225,7 @@ export class ApprovalSystem extends EventEmitter {
         choices:
           request.type === 'plan'
             ? [
-                { name: '✅ Yes, execute the plan now', value: true },
+                { name: '✓ Yes, execute the plan now', value: true },
                 { name: '❌ No, return to default mode', value: false },
               ]
             : [
@@ -1239,7 +1283,7 @@ export class ApprovalSystem extends EventEmitter {
       console.log()
 
       if (approved) {
-        console.log(chalk.green.bold('✅ Operation approved'))
+        console.log(chalk.green.bold('✓ Operation approved'))
       } else {
         console.log(chalk.yellow.bold('❌ Operation cancelled'))
       }
@@ -1590,7 +1634,7 @@ export class ApprovalSystem extends EventEmitter {
             ? chalk.yellow
             : chalk.green
 
-      console.log(`${chalk.blue('Overall Risk Score:')} ${riskColor(request.riskAssessment.overallScore + '/100')}`)
+      console.log(`${chalk.blue('Overall Risk Score:')} ${riskColor(`${request.riskAssessment.overallScore}/100`)}`)
 
       if (request.riskAssessment.factors && request.riskAssessment.factors.length > 0) {
         console.log(`${chalk.blue('Risk Factors:')}`)
@@ -1710,7 +1754,7 @@ export class ApprovalSystem extends EventEmitter {
       sessionId: this.sessionId,
     })
 
-    console.log(chalk.green.bold(`✅ Enterprise Auto-Approved: ${request.title}`))
+    console.log(chalk.green.bold(`✓ Enterprise Auto-Approved: ${request.title}`))
     console.log(chalk.gray(`   Reason: ${autoApprovalResult.reason}`))
 
     return response
@@ -1774,7 +1818,7 @@ export class ApprovalSystem extends EventEmitter {
         name: 'decision',
         message: chalk.yellow.bold('\n🚀 ENTERPRISE APPROVAL DECISION:'),
         choices: [
-          { name: '✅ Approve Request', value: 'approve' },
+          { name: '✓ Approve Request', value: 'approve' },
           { name: '❌ Reject Request', value: 'reject' },
           { name: '⚠️  Approve with Conditions', value: 'conditional' },
           { name: '📋 Request More Information', value: 'info' },
@@ -1842,7 +1886,7 @@ export class ApprovalSystem extends EventEmitter {
     // Display enterprise result
     console.log()
     if (approved) {
-      console.log(chalk.green.bold('✅ Enterprise Operation Approved'))
+      console.log(chalk.green.bold('✓ Enterprise Operation Approved'))
       if (answers.conditions && answers.conditions.length > 0) {
         console.log(chalk.yellow('⚠️  Conditional approval with enterprise requirements'))
       }
@@ -1865,7 +1909,7 @@ export class ApprovalSystem extends EventEmitter {
 
   private handleRequestApproved(response: ApprovalResponse): void {
     if (this.config.auditLevel !== 'basic') {
-      console.log(chalk.green(`✅ Enterprise request approved by ${response.approver}`))
+      console.log(chalk.green(`✓ Enterprise request approved by ${response.approver}`))
     }
   }
 
@@ -2008,7 +2052,7 @@ class RiskEngine {
     return recommendations
   }
 
-  private generateSecurityFlags(request: ApprovalRequest, factors: RiskFactor[]): SecurityFlag[] {
+  private generateSecurityFlags(request: ApprovalRequest, _factors: RiskFactor[]): SecurityFlag[] {
     const flags: SecurityFlag[] = []
 
     // Check for high-risk patterns

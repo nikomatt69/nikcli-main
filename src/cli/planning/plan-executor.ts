@@ -48,7 +48,7 @@ export class PlanExecutor {
         }
       }
       const orchestrator = (global as any).__streamingOrchestrator
-      if (orchestrator && orchestrator.context) {
+      if (orchestrator?.context) {
         orchestrator.context.planMode = false
         orchestrator.context.autoAcceptEdits = false
       }
@@ -472,7 +472,7 @@ export class PlanExecutor {
   /**
    * Execute a validation step
    */
-  private async executeValidation(step: ExecutionStep, plan: ExecutionPlan): Promise<any> {
+  private async executeValidation(_step: ExecutionStep, _plan: ExecutionPlan): Promise<any> {
     // Implement validation logic based on step requirements
     CliUI.updateSpinner('Running validation checks...')
 
@@ -518,7 +518,7 @@ export class PlanExecutor {
   /**
    * Execute a decision step
    */
-  private async executeDecision(step: ExecutionStep, plan: ExecutionPlan): Promise<any> {
+  private async executeDecision(_step: ExecutionStep, _plan: ExecutionPlan): Promise<any> {
     // Implement decision logic
     CliUI.updateSpinner('Evaluating decision criteria...')
 
@@ -534,7 +534,7 @@ export class PlanExecutor {
   private async handleStepFailure(
     step: ExecutionStep,
     result: StepExecutionResult,
-    plan: ExecutionPlan
+    _plan: ExecutionPlan
   ): Promise<'abort' | 'skip' | 'retry' | 'continue'> {
     CliUI.logError(`Step "${step.title}" failed: ${result.error?.message}`)
 
@@ -700,7 +700,7 @@ export class PlanExecutor {
     CliUI.logKeyValue('Skipped', result.summary.skippedSteps.toString())
 
     // Show status icon
-    const statusIcon = result.status === 'completed' ? '✅' : result.status === 'partial' ? '⚠️' : '❌'
+    const statusIcon = result.status === 'completed' ? '✓' : result.status === 'partial' ? '⚠️' : '❌'
 
     console.log(`\n${statusIcon} Plan execution ${result.status}`)
   }

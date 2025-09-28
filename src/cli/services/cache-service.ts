@@ -3,7 +3,7 @@ import chalk from 'chalk'
 import { simpleConfigManager } from '../core/config-manager'
 import { type SmartCacheManager, smartCache } from '../core/smart-cache-manager'
 import { type RedisProvider, redisProvider } from '../providers/redis/redis-provider'
-import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 
 export interface CacheServiceOptions {
   redisEnabled?: boolean
@@ -70,23 +70,26 @@ export class CacheService extends EventEmitter {
    */
   private setupEventHandlers(): void {
     this.redis.on('connected', () => {
-      logger.info('Cache Service: Redis connected')
-      this.emit('redis_connected')
+      structuredLogger.info('Cache Service: Redis connected', JSON.stringify({}))
+      this.emit('redis_connected', {})
     })
 
     this.redis.on('disconnected', () => {
-      logger.warn('Cache Service: Redis disconnected, falling back to SmartCache')
-      this.emit('redis_disconnected')
+      structuredLogger.warning('Cache Service: Redis disconnected, falling back to SmartCache', JSON.stringify({}))
+      this.emit('redis_disconnected', {})
     })
 
     this.redis.on('error', (error) => {
       this.stats.errors++
-      logger.error('Cache Service: Redis error', { error: error.message })
+      structuredLogger.error('Cache Service: Redis error', JSON.stringify({ error: error.message }))
       this.emit('redis_error', error)
     })
 
     this.redis.on('connection_failed', (error) => {
-      logger.error('Cache Service: Redis connection failed permanently', { error: error.message })
+      structuredLogger.error(
+        'Cache Service: Redis connection failed permanently',
+        JSON.stringify({ error: error.message })
+      )
       this.emit('redis_connection_failed', error)
     })
   }
@@ -115,7 +118,10 @@ export class CacheService extends EventEmitter {
         try {
           redisSuccess = await this.redis.set(key, value, ttl, metadata)
         } catch (error: any) {
-          logger.warn(`Cache Service: Redis SET failed for ${key}`, { error: error.message })
+          structuredLogger.warning(
+            `Cache Service: Redis SET failed for ${key}`,
+            JSON.stringify({ error: error.message })
+          )
           this.stats.errors++
         }
       }
@@ -134,14 +140,17 @@ export class CacheService extends EventEmitter {
           })
           smartSuccess = true
         } catch (error: any) {
-          logger.warn(`Cache Service: SmartCache SET failed for ${key}`, { error: error.message })
+          structuredLogger.warning(
+            `Cache Service: SmartCache SET failed for ${key}`,
+            JSON.stringify({ error: error.message })
+          )
           this.stats.errors++
         }
       }
 
       return redisSuccess || smartSuccess
     } catch (error: any) {
-      logger.error(`Cache Service: SET failed for ${key}`, { error: error.message })
+      structuredLogger.error(`Cache Service: SET failed for ${key}`, JSON.stringify({ error: error.message }))
       this.stats.errors++
       return false
     }
@@ -188,7 +197,10 @@ export class CacheService extends EventEmitter {
             return result
           }
         } catch (error: any) {
-          logger.warn(`Cache Service: Redis GET failed for ${key}`, { error: error.message })
+          structuredLogger.warning(
+            `Cache Service: Redis GET failed for ${key}`,
+            JSON.stringify({ error: error.message })
+          )
           this.stats.errors++
         }
       }
@@ -223,7 +235,10 @@ export class CacheService extends EventEmitter {
             return result
           }
         } catch (error: any) {
-          logger.warn(`Cache Service: SmartCache GET failed for ${key}`, { error: error.message })
+          structuredLogger.warning(
+            `Cache Service: SmartCache GET failed for ${key}`,
+            JSON.stringify({ error: error.message })
+          )
           this.stats.errors++
         }
       }
@@ -232,7 +247,7 @@ export class CacheService extends EventEmitter {
       this.stats.misses++
       return null
     } catch (error: any) {
-      logger.error(`Cache Service: GET failed for ${key}`, { error: error.message })
+      structuredLogger.error(`Cache Service: GET failed for ${key}`, JSON.stringify({ error: error.message }))
       this.stats.errors++
       return null
     }
@@ -243,14 +258,17 @@ export class CacheService extends EventEmitter {
    */
   async delete(key: string): Promise<boolean> {
     let redisDeleted = false
-    let _smartDeleted = false
+    const _smartDeleted = false
 
     // Delete from Redis
     if (this.config.redisEnabled && this.redis.isHealthy()) {
       try {
         redisDeleted = await this.redis.del(key)
       } catch (error: any) {
-        logger.warn(`Cache Service: Redis DELETE failed for ${key}`, { error: error.message })
+        structuredLogger.warning(
+          `Cache Service: Redis DELETE failed for ${key}`,
+          JSON.stringify({ error: error.message })
+        )
       }
     }
 
@@ -271,7 +289,10 @@ export class CacheService extends EventEmitter {
           return true
         }
       } catch (error: any) {
-        logger.warn(`Cache Service: Redis EXISTS failed for ${key}`, { error: error.message })
+        structuredLogger.warning(
+          `Cache Service: Redis EXISTS failed for ${key}`,
+          JSON.stringify({ error: error.message })
+        )
       }
     }
 
@@ -281,7 +302,10 @@ export class CacheService extends EventEmitter {
         const entry = await this.smartCache.getCachedResponse(key, context)
         return entry !== null
       } catch (error: any) {
-        logger.warn(`Cache Service: SmartCache EXISTS failed for ${key}`, { error: error.message })
+        structuredLogger.warning(
+          `Cache Service: SmartCache EXISTS failed for ${key}`,
+          JSON.stringify({ error: error.message })
+        )
       }
     }
 
@@ -326,7 +350,7 @@ export class CacheService extends EventEmitter {
     if (this.config.redisEnabled && this.redis.isHealthy()) {
       promises.push(
         this.redis.flushAll().catch((error: any) => {
-          logger.warn('Failed to clear Redis cache', { error: error.message })
+          structuredLogger.warning('Failed to clear Redis cache', JSON.stringify({ error: error.message }))
         })
       )
     }
@@ -348,7 +372,7 @@ export class CacheService extends EventEmitter {
       errors: 0,
     }
 
-    console.log(chalk.green('✅ All caches cleared'))
+    console.log(chalk.green('✓ All caches cleared'))
   }
 
   /**

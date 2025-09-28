@@ -71,7 +71,7 @@ export class MiddlewareBootstrap {
     })
     middlewareManager.register(auditMiddleware)
 
-    console.log('✅ Middleware system initialized with 5 middleware components')
+    console.log('✓ Middleware system initialized with 5 middleware components')
   }
 
   static getMiddlewareManager() {
@@ -79,7 +79,7 @@ export class MiddlewareBootstrap {
   }
 
   static async shutdown(): Promise<void> {
-    console.log('🔄 Shutting down middleware system...')
+    console.log('⚡︎ Shutting down middleware system...')
 
     // Cleanup resources
     const loggingMiddleware = middlewareManager.getMiddleware('logging') as LoggingMiddleware
@@ -94,7 +94,7 @@ export class MiddlewareBootstrap {
 
     middlewareManager.clearMetrics()
 
-    console.log('✅ Middleware system shutdown complete')
+    console.log('✓ Middleware system shutdown complete')
   }
 }
 

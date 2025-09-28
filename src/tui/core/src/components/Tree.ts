@@ -150,7 +150,7 @@ export class Tree implements Component<Widgets.ListElement> {
       this.el.key(['space', 'enter'], () => {
         const selectedIndex = (this.el as any).selected || 0
         const item = this.flat[selectedIndex]
-        if (item && item.node.children && item.node.children.length > 0) {
+        if (item?.node.children && item.node.children.length > 0) {
           this.toggleNode(item.path)
         }
       })
@@ -190,7 +190,7 @@ export class Tree implements Component<Widgets.ListElement> {
     this.expandedNodes.delete(pathKey)
 
     // Remove all expanded children paths
-    const pathsToRemove = Array.from(this.expandedNodes).filter((p) => p.startsWith(pathKey + '/'))
+    const pathsToRemove = Array.from(this.expandedNodes).filter((p) => p.startsWith(`${pathKey}/`))
     pathsToRemove.forEach((p) => this.expandedNodes.delete(p))
 
     // Find the node and update its expanded state
@@ -259,7 +259,7 @@ export class Tree implements Component<Widgets.ListElement> {
       this.data = this.data.filter((node) => node.label !== nodeLabel)
     } else {
       const parent = this.findNodeByPath(parentPath)
-      if (parent && parent.children) {
+      if (parent?.children) {
         parent.children = parent.children.filter((node) => node.label !== nodeLabel)
       }
     }

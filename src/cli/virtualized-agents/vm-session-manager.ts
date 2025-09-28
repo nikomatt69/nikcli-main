@@ -296,7 +296,7 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
       // Process any queued messages
       await this.processQueuedMessages(session.sessionId)
 
-      console.log(chalk.green(`✅ Initialized session ${session.sessionId}`))
+      console.log(chalk.green(`✓ Initialized session ${session.sessionId}`))
     } catch (error: any) {
       session.status = 'error'
       session.isActive = false

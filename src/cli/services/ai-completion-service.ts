@@ -166,7 +166,7 @@ export class AICompletionService {
     if (context.openFiles && context.openFiles.length > 0) {
       try {
         const contextData = workspaceContext.getContextForAgent('completion', 5)
-        const currentFileData = contextData.relevantFiles.find((f) => context.openFiles!.includes(f.path))
+        const currentFileData = contextData.relevantFiles.find((f) => context.openFiles?.includes(f.path))
         if (currentFileData) {
           enriched.currentFileContext = {
             language: currentFileData.language,

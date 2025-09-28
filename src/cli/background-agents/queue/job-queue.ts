@@ -254,7 +254,7 @@ export class JobQueue extends EventEmitter {
     }
 
     queueData.attempts++
-    queueData.delay = retryDelay * Math.pow(2, queueData.attempts - 1) // Exponential backoff
+    queueData.delay = retryDelay * 2 ** (queueData.attempts - 1) // Exponential backoff
 
     this.processing.delete(queueData.jobId)
     await this.addJob(queueData.jobId, queueData.priority, queueData.delay)

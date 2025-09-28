@@ -1,5 +1,5 @@
 import { globby } from 'globby'
-import { logger as cliLogger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
 
@@ -27,15 +27,18 @@ export class FindFilesTool extends BaseTool {
         } catch (error: any) {
           // Non-fatal: swallow UI errors but log for diagnostics
           try {
-            cliLogger.debug('Optional advanced UI display failed; continuing without UI', {
-              tool: 'find-files-tool',
-              pattern,
-              fileCount: files.length,
-              error:
-                error && typeof error === 'object'
-                  ? { message: error.message, name: error.name, stack: error.stack }
-                  : String(error),
-            })
+            structuredLogger.info(
+              'Optional advanced UI display failed; continuing without UI',
+              JSON.stringify({
+                tool: 'find-files-tool',
+                pattern,
+                fileCount: files.length,
+                error:
+                  error && typeof error === 'object'
+                    ? { message: error.message, name: error.name, stack: error.stack }
+                    : String(error),
+              })
+            )
           } catch {
             // Best-effort logging; never throw from here
           }

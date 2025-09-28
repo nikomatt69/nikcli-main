@@ -3,11 +3,11 @@
  * Connects NikCLI to the existing CADCamFun text-to-CAD AI system
  */
 
+import { exec } from 'node:child_process'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { promisify } from 'node:util'
 import chalk from 'chalk'
-import { exec } from 'child_process'
-import fs from 'fs/promises'
-import path from 'path'
-import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
@@ -53,8 +53,6 @@ export class CADCamFunBridge {
    */
   async initialize(): Promise<boolean> {
     try {
-      console.log(chalk.blue('🔧 Connecting to CADCamFun AI system...'))
-
       // Allow environment override
       const envPath = process.env.NIKCLI_CAD_SYSTEM_PATH || process.env.CADCAMFUN_PATH
       const basePath = envPath || this.config.systemPath
@@ -94,7 +92,6 @@ export class CADCamFunBridge {
       this.entryFile = found
       this.entryIsTS = found.endsWith('.ts')
       this.isSystemAvailable = true
-      console.log(chalk.green(`✅ CADCamFun AI system connected (${path.basename(found)})`))
 
       return true
     } catch (error) {
@@ -117,7 +114,7 @@ export class CADCamFunBridge {
       }
     }
 
-    const startTime = Date.now()
+    const _startTime = Date.now()
 
     try {
       if (this.config.serverUrl) {
@@ -294,7 +291,7 @@ generateCAD().catch(console.error);
    * Stream CAD generation with real-time updates
    */
   async streamCAD(
-    options: CADGenerationOptions,
+    _options: CADGenerationOptions,
     onProgress?: (chunk: any) => void,
     onElement?: (element: any) => void
   ): Promise<CADGenerationResponse> {
@@ -305,7 +302,7 @@ generateCAD().catch(console.error);
       }
     }
 
-    console.log(chalk.blue('🔄 Starting streaming CAD generation...'))
+    console.log(chalk.blue('⚡︎ Starting streaming CAD generation...'))
 
     // Mock streaming for now - replace with your actual TextToCADStreamService
     const elements: any[] = []

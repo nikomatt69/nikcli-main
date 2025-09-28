@@ -27,7 +27,7 @@ export function testZodIntegration() {
 
   try {
     const buttonValidation = validateComponent('button', validButtonProps)
-    console.log('✅ Valid button props:', buttonValidation.success)
+    console.log('✓ Valid button props:', buttonValidation.success)
 
     const invalidButtonValidation = validateComponent('button', invalidButtonProps)
     console.log('❌ Invalid button props:', !invalidButtonValidation.success)
@@ -53,7 +53,7 @@ export function testZodIntegration() {
 
   try {
     const boxValidation = validateComponent('box', validBoxProps)
-    console.log('✅ Valid box props:', boxValidation.success)
+    console.log('✓ Valid box props:', boxValidation.success)
   } catch (error) {
     console.log('❌ Box validation failed:', error)
   }
@@ -68,7 +68,7 @@ export function testZodIntegration() {
 
   try {
     const textValidation = validateComponent('text', validTextProps)
-    console.log('✅ Valid text props:', textValidation.success)
+    console.log('✓ Valid text props:', textValidation.success)
   } catch (error) {
     console.log('❌ Text validation failed:', error)
   }
@@ -77,13 +77,13 @@ export function testZodIntegration() {
   console.log('\n=== Test 4: Direct Schema Usage ===')
   try {
     const parsedButton = ButtonSchema.parse(validButtonProps)
-    console.log('✅ ButtonSchema.parse success:', parsedButton.text)
+    console.log('✓ ButtonSchema.parse success:', parsedButton.text)
 
     const parsedBox = BoxSchema.parse(validBoxProps)
-    console.log('✅ BoxSchema.parse success:', parsedBox.content)
+    console.log('✓ BoxSchema.parse success:', parsedBox.content)
 
     const parsedText = TextSchema.parse(validTextProps)
-    console.log('✅ TextSchema.parse success:', parsedText.content)
+    console.log('✓ TextSchema.parse success:', parsedText.content)
   } catch (error) {
     console.log('❌ Direct schema parsing failed:', error)
   }
@@ -92,13 +92,13 @@ export function testZodIntegration() {
   console.log('\n=== Test 5: Component Validator Utilities ===')
   try {
     const availableComponents = componentValidator.getAvailableComponents()
-    console.log('✅ Available components:', availableComponents.length)
+    console.log('✓ Available components:', availableComponents.length)
 
     const hasButtonText = componentValidator.hasProperty('button', 'text')
-    console.log('✅ Button has text property:', hasButtonText)
+    console.log('✓ Button has text property:', hasButtonText)
 
     const buttonSchema = componentValidator.getSchema('button')
-    console.log('✅ Button schema retrieved:', !!buttonSchema)
+    console.log('✓ Button schema retrieved:', !!buttonSchema)
   } catch (error) {
     console.log('❌ Component validator utilities failed:', error)
   }
@@ -112,7 +112,7 @@ export function testZodIntegration() {
 
   try {
     const strictValidation = validateComponentStrict('button', propsWithUnknown)
-    console.log('✅ Strict validation:', strictValidation.success)
+    console.log('✓ Strict validation:', strictValidation.success)
     if (strictValidation.warnings.length > 0) {
       console.log('   Warnings:', strictValidation.warnings)
     }
@@ -124,7 +124,7 @@ export function testZodIntegration() {
   console.log('\n=== Test 7: Validation with Suggestions ===')
   try {
     const suggestionsValidation = validateWithSuggestions('button', invalidButtonProps)
-    console.log('✅ Suggestions validation:', !suggestionsValidation.success)
+    console.log('✓ Suggestions validation:', !suggestionsValidation.success)
     if (suggestionsValidation.suggestions.length > 0) {
       console.log('   Suggestions:', suggestionsValidation.suggestions)
     }

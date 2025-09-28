@@ -220,7 +220,7 @@ export const LSP_SERVERS: Record<string, LSPServerInfo> = {
     name: 'Eclipse JDT Language Server',
     extensions: ['.java'],
     rootPatterns: ['pom.xml', 'build.gradle', 'build.xml', '.project'],
-    async spawn(workspaceRoot: string): Promise<LSPServerHandle | undefined> {
+    async spawn(_workspaceRoot: string): Promise<LSPServerHandle | undefined> {
       try {
         // This is a simplified version - full Java LSP setup is complex
         console.log(chalk.yellow('⚠️ Java LSP requires manual Eclipse JDT Language Server setup'))
@@ -323,7 +323,7 @@ export async function ensureLSPDependencies(serverIds: string[]): Promise<void> 
 
   if (installPromises.length > 0) {
     await Promise.allSettled(installPromises)
-    console.log(chalk.green('✅ LSP dependencies check completed'))
+    console.log(chalk.green('✓ LSP dependencies check completed'))
   }
 }
 
@@ -336,7 +336,7 @@ async function installTypeScriptLSP(): Promise<void> {
     })
     process.on('close', (code) => {
       if (code === 0) {
-        console.log(chalk.green('✅ TypeScript LSP installed'))
+        console.log(chalk.green('✓ TypeScript LSP installed'))
         resolve()
       } else {
         console.log(chalk.red('❌ TypeScript LSP installation failed'))
@@ -354,7 +354,7 @@ async function installPythonLSP(): Promise<void> {
     })
     process.on('close', (code) => {
       if (code === 0) {
-        console.log(chalk.green('✅ Python LSP installed'))
+        console.log(chalk.green('✓ Python LSP installed'))
         resolve()
       } else {
         console.log(chalk.red('❌ Python LSP installation failed'))
@@ -372,7 +372,7 @@ async function installRustAnalyzer(): Promise<void> {
     })
     process.on('close', (code) => {
       if (code === 0) {
-        console.log(chalk.green('✅ Rust Analyzer installed'))
+        console.log(chalk.green('✓ Rust Analyzer installed'))
         resolve()
       } else {
         console.log(chalk.red('❌ Rust Analyzer installation failed'))
@@ -391,7 +391,7 @@ async function installGopls(): Promise<void> {
     })
     childProcess.on('close', (code: number) => {
       if (code === 0) {
-        console.log(chalk.green('✅ Gopls installed'))
+        console.log(chalk.green('✓ Gopls installed'))
         resolve()
       } else {
         console.log(chalk.red('❌ Gopls installation failed'))
@@ -409,7 +409,7 @@ async function installRubyLSP(): Promise<void> {
     })
     process.on('close', (code) => {
       if (code === 0) {
-        console.log(chalk.green('✅ Ruby LSP installed'))
+        console.log(chalk.green('✓ Ruby LSP installed'))
         resolve()
       } else {
         console.log(chalk.red('❌ Ruby LSP installation failed'))

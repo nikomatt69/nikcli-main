@@ -170,7 +170,7 @@ export class CadGcodeProvider extends EventEmitter {
     const content =
       (scad || '').startsWith('//') || /(cube\(|cylinder\(|sphere\()/.test(scad || '')
         ? header + scad
-        : header + `cube([10,10,2]);\n`
+        : `${header}cube([10,10,2]);\n`
     await fs.writeFile(fullPath, content, 'utf8')
     return path.join('.nikcli', 'cad', filename)
   }

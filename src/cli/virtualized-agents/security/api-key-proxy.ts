@@ -1,4 +1,3 @@
-import crypto from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { createServer, type Server } from 'node:http'
 import cors from 'cors'
@@ -27,7 +26,6 @@ export class APIKeyProxy extends EventEmitter {
   private server: Server | null = null
   private port: number = 0
   private tokenManager: TokenManager
-  private proxySecret: string
 
   // Active agents and their sessions
   private activeAgents: Map<string, AgentSession> = new Map()
@@ -41,7 +39,6 @@ export class APIKeyProxy extends EventEmitter {
   private constructor() {
     super()
 
-    this.proxySecret = process.env.NIKCLI_PROXY_SECRET || crypto.randomBytes(32).toString('hex')
     this.tokenManager = TokenManager.getInstance()
 
     this.setupExpressApp()
@@ -67,7 +64,7 @@ export class APIKeyProxy extends EventEmitter {
       this.server = createServer(this.app)
 
       this.server.listen(port, '127.0.0.1', () => {
-        const address = this.server!.address()
+        const address = this.server?.address()
         this.port = typeof address === 'object' && address ? address.port : port
 
         CliUI.logSuccess(`🔐 API Key Proxy started on localhost:${this.port}`)
@@ -89,7 +86,7 @@ export class APIKeyProxy extends EventEmitter {
   async stop(): Promise<void> {
     if (this.server) {
       return new Promise((resolve) => {
-        this.server!.close(() => {
+        this.server?.close(() => {
           CliUI.logInfo('🛑 API Key Proxy stopped')
           this.emit('proxy:stopped')
           resolve()
@@ -124,7 +121,7 @@ export class APIKeyProxy extends EventEmitter {
 
       this.activeAgents.set(agentId, session)
 
-      CliUI.logSuccess(`✅ Agent ${agentId} registered with proxy`)
+      CliUI.logSuccess(`✓ Agent ${agentId} registered with proxy`)
       this.emit('agent:registered', { agentId, session })
     } catch (error: any) {
       CliUI.logError(`❌ Failed to register agent ${agentId}: ${error.message}`)
@@ -195,13 +192,13 @@ export class APIKeyProxy extends EventEmitter {
       this.logRequest({
         agentId: request.agentId,
         timestamp: new Date(),
-        prompt: request.prompt.slice(0, 100) + '...', // Truncated for privacy
+        prompt: `${request.prompt.slice(0, 100)}...`, // Truncated for privacy
         tokenUsage,
         success: true,
         model: request.model || 'claude-3-5-sonnet-20241022',
       })
 
-      CliUI.logDebug(`🤖 AI request completed for ${request.agentId}: ${tokenUsage} tokens`)
+      CliUI.logDebug(`🔌 AI request completed for ${request.agentId}: ${tokenUsage} tokens`)
 
       return {
         result: content,
@@ -214,7 +211,7 @@ export class APIKeyProxy extends EventEmitter {
       this.logRequest({
         agentId: request.agentId,
         timestamp: new Date(),
-        prompt: request.prompt.slice(0, 100) + '...',
+        prompt: `${request.prompt.slice(0, 100)}...`,
         tokenUsage: 0,
         success: false,
         error: error.message,
@@ -344,7 +341,7 @@ export class APIKeyProxy extends EventEmitter {
       this.logRequest({
         agentId: request.agentId,
         timestamp: new Date(),
-        prompt: request.prompt.slice(0, 100) + '...', // Truncated for privacy
+        prompt: `${request.prompt.slice(0, 100)}...`, // Truncated for privacy
         tokenUsage: totalTokenUsage,
         success: true,
         model: request.model || 'claude-3-5-sonnet-20241022',
@@ -366,7 +363,7 @@ export class APIKeyProxy extends EventEmitter {
       this.logRequest({
         agentId: request.agentId,
         timestamp: new Date(),
-        prompt: request.prompt.slice(0, 100) + '...',
+        prompt: `${request.prompt.slice(0, 100)}...`,
         tokenUsage: 0,
         success: false,
         error: error.message,
@@ -469,7 +466,7 @@ export class APIKeyProxy extends EventEmitter {
    */
   private setupRoutes(): void {
     // Health check
-    this.app.get('/health', (req: Request, res: Response) => {
+    this.app.get('/health', (_req: Request, res: Response) => {
       res.json({
         status: 'healthy',
         activeAgents: this.activeAgents.size,
@@ -580,7 +577,7 @@ export class APIKeyProxy extends EventEmitter {
           context,
         })) {
           // Send chunk as JSON line
-          const chunkLine = JSON.stringify(chunk) + '\n'
+          const chunkLine = `${JSON.stringify(chunk)}\n`
           res.write(chunkLine)
 
           // Flush buffer for real-time streaming
@@ -593,12 +590,11 @@ export class APIKeyProxy extends EventEmitter {
         res.end()
       } catch (streamError: any) {
         // Send error chunk and end
-        const errorChunk =
-          JSON.stringify({
-            type: 'error',
-            error: streamError.message,
-            agentId,
-          }) + '\n'
+        const errorChunk = `${JSON.stringify({
+          type: 'error',
+          error: streamError.message,
+          agentId,
+        })}\n`
         res.write(errorChunk)
         res.end()
       }
@@ -651,7 +647,7 @@ export class APIKeyProxy extends EventEmitter {
   /**
    * Handle usage statistics request
    */
-  private async handleUsageStats(req: Request, res: Response): Promise<void> {
+  private async handleUsageStats(_req: Request, res: Response): Promise<void> {
     const stats = {
       totalAgents: this.activeAgents.size,
       totalRequests: this.requestAuditLog.length,
@@ -703,7 +699,7 @@ export class APIKeyProxy extends EventEmitter {
   /**
    * Error handler middleware
    */
-  private errorHandler(error: any, req: Request, res: Response, next: Function): void {
+  private errorHandler(error: any, _req: Request, res: Response, _next: Function): void {
     CliUI.logError(`❌ Proxy error: ${error.message}`)
 
     res.status(500).json({

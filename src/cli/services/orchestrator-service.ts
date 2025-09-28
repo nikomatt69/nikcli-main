@@ -105,7 +105,7 @@ export class OrchestratorService extends EventEmitter {
     }
 
     // Handle keypress events
-    const onKeypress = (str: string, key: any) => {
+    const onKeypress = (_str: string, key: any) => {
       if (key && key.name === 'slash' && !this.context.isProcessing) {
         setTimeout(() => this.showCommandMenu(), 50)
       }
@@ -163,7 +163,7 @@ export class OrchestratorService extends EventEmitter {
       // Avoid duplicate logging if NikCLI is active
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed
       if (!nikCliActive) {
-        console.log(chalk.blue(`🤖 Agent ${task.agentType} started: ${task.task.slice(0, 50)}...`))
+        console.log(chalk.blue(`🔌 Agent ${task.agentType} started: ${task.task.slice(0, 50)}...`))
       }
     })
 
@@ -186,7 +186,7 @@ export class OrchestratorService extends EventEmitter {
     agentService.on('task_complete', (task: AgentTask) => {
       this.activeAgentTasks.delete(task.id)
       if (task.status === 'completed') {
-        console.log(chalk.green(`✅ Agent ${task.agentType} completed successfully`))
+        console.log(chalk.green(`✓ Agent ${task.agentType} completed successfully`))
         if (task.result) {
           this.displayAgentResult(task)
         }
@@ -316,7 +316,7 @@ export class OrchestratorService extends EventEmitter {
       return
     }
 
-    console.log(chalk.blue(`\\n🤖 Launching ${agentName} agent...`))
+    console.log(chalk.blue(`\\n🔌 Launching ${agentName} agent...`))
     console.log(chalk.gray(`Task: ${task}\\n`))
 
     try {
@@ -332,11 +332,11 @@ export class OrchestratorService extends EventEmitter {
       await this.initializeServices()
     }
 
-    console.log(chalk.blue('🧠 Processing natural language request...'))
+    console.log(chalk.blue('⚡︎ Processing natural language request...'))
 
     // Check for VM agent trigger patterns
     if (this.isVMAgentRequest(input)) {
-      console.log(chalk.cyan('🤖 VM Agent request detected - launching secure virtualized agent'))
+      console.log(chalk.cyan('🔌 VM Agent request detected - launching secure virtualized agent'))
       await this.executeVMAgentTask(input)
       return
     }
@@ -420,7 +420,7 @@ export class OrchestratorService extends EventEmitter {
         autonomous: true,
       })
 
-      console.log(chalk.green(`✅ VM Agent launched with task ID: ${taskId}`))
+      console.log(chalk.green(`✓ VM Agent launched with task ID: ${taskId}`))
       console.log(chalk.dim('🔐 Agent will operate in secure isolated environment'))
       console.log(chalk.dim('📊 Monitor with Ctrl+L for logs, Ctrl+S for security dashboard'))
     } catch (error: any) {
@@ -538,7 +538,7 @@ export class OrchestratorService extends EventEmitter {
 
     console.log(chalk.white.bold('\\nRecent Tool Usage:'))
     toolHistory.forEach((exec) => {
-      const statusIcon = exec.status === 'completed' ? '✅' : exec.status === 'failed' ? '❌' : '🔄'
+      const statusIcon = exec.status === 'completed' ? '✓' : exec.status === 'failed' ? '❌' : '⚡︎'
       console.log(`  ${statusIcon} ${exec.toolName}: ${exec.status}`)
     })
 
@@ -552,14 +552,14 @@ export class OrchestratorService extends EventEmitter {
     const activeAgents = agentService.getActiveAgents()
     const queuedTasks = agentService.getQueuedTasks()
 
-    console.log(chalk.cyan.bold('\\n🤖 Agent Status'))
+    console.log(chalk.cyan.bold('\\n🔌 Agent Status'))
     console.log(chalk.gray('─'.repeat(50)))
 
     if (activeAgents.length > 0) {
       console.log(chalk.white.bold('\\nActive Agents:'))
       activeAgents.forEach((agent) => {
         const progress = agent.progress ? `${agent.progress}%` : 'Starting...'
-        console.log(`  🔄 ${chalk.blue(agent.agentType)}: ${progress}`)
+        console.log(`  ⚡︎ ${chalk.blue(agent.agentType)}: ${progress}`)
         console.log(`     ${chalk.dim(agent.task.slice(0, 60))}...`)
       })
     }
@@ -578,7 +578,7 @@ export class OrchestratorService extends EventEmitter {
 
   private showCommandMenu(): void {
     // Delegate to module manager
-    console.log('\\n' + chalk.cyan.bold('📋 Available Commands:'))
+    console.log(`\\n${chalk.cyan.bold('📋 Available Commands:')}`)
     console.log(chalk.gray('─'.repeat(60)))
 
     console.log(chalk.white.bold('\\n🎛️  Orchestrator Commands:'))
@@ -599,12 +599,12 @@ export class OrchestratorService extends EventEmitter {
       }
     })
 
-    console.log(chalk.white.bold('\\n🤖 Agent Commands:'))
+    console.log(chalk.white.bold('\\n🔌 Agent Commands:'))
     console.log(`${chalk.blue('@agent-name')} <task>  Execute task with specific agent`)
     console.log(`${chalk.dim('Available:')} ai-analysis, code-review, backend-expert, frontend-expert`)
     console.log(`${chalk.dim('         ')} react-expert, devops-expert, system-admin, autonomous-coder`)
 
-    console.log(chalk.gray('\\n' + '─'.repeat(60)))
+    console.log(chalk.gray(`\\n${'─'.repeat(60)}`))
     console.log(chalk.yellow('💡 Natural language: Just describe what you want to accomplish'))
   }
 
@@ -655,7 +655,7 @@ export class OrchestratorService extends EventEmitter {
         `${title}\n${subtitle}\n\n` +
           `${chalk.blue('🎯 Mode:')} ${this.context.autonomous ? 'Autonomous' : 'Manual'}\n` +
           `${chalk.blue('📁 Directory:')} ${chalk.cyan(this.context.workingDirectory)}\n` +
-          `${chalk.blue('🤖 Max Agents:')} 3 parallel\n\n` +
+          `${chalk.blue('🔌 Max Agents:')} 3 parallel\n\n` +
           `${chalk.gray('I orchestrate specialized AI agents to handle your development tasks:')}\n` +
           `• ${chalk.green('Natural language processing')} - Just describe what you want\n` +
           `• ${chalk.green('Intelligent agent selection')} - Best agent for each task\n` +
@@ -700,7 +700,7 @@ export class OrchestratorService extends EventEmitter {
           // 1) Prefer session TodoStore (Claude-style)
           try {
             const { todoStore } = await import('../store/todo-store')
-            const sessionId = (this.context.session && this.context.session.id) || `${Date.now()}`
+            const sessionId = this.context.session?.id || `${Date.now()}`
             const list = todoStore.getTodos(String(sessionId))
             if (list && list.length > 0) {
               todos = list.map((t) => ({
@@ -718,7 +718,7 @@ export class OrchestratorService extends EventEmitter {
               const { enhancedPlanning } = await import('../planning/enhanced-planning')
               const plans = enhancedPlanning.getActivePlans?.() || []
               const latest = plans[plans.length - 1]
-              if (latest && latest.todos) {
+              if (latest?.todos) {
                 title = latest.title || title
                 todos = latest.todos.map((t: any) => ({
                   content: t.title || t.description,
@@ -736,7 +736,7 @@ export class OrchestratorService extends EventEmitter {
               const { planningService } = await import('./planning-service')
               const plans = planningService.getActivePlans?.() || []
               const latest = plans[plans.length - 1]
-              if (latest && latest.todos) {
+              if (latest?.todos) {
                 title = latest.title || title
                 todos = latest.todos.map((t: any) => ({
                   content: t.title || t.description,
@@ -803,7 +803,7 @@ export class OrchestratorService extends EventEmitter {
     diffManager.setAutoAccept(this.context.autoAcceptEdits)
 
     if (this.context.autoAcceptEdits) {
-      console.log(chalk.green('\\n✅ auto-accept edits on ') + chalk.dim('(ctrl+a to toggle)'))
+      console.log(chalk.green('\\n✓ auto-accept edits on ') + chalk.dim('(ctrl+a to toggle)'))
     } else {
       console.log(chalk.yellow('\\n⚠️ auto-accept edits off'))
     }
@@ -844,7 +844,7 @@ export class OrchestratorService extends EventEmitter {
       const modeIndicator = indicators.length > 0 ? ` ${indicators.join(' ')} ` : ''
 
       const activeCount = this.activeAgentTasks.size
-      const agentIndicator = activeCount > 0 ? chalk.blue(`${activeCount}🤖`) : '🎛️'
+      const agentIndicator = activeCount > 0 ? chalk.blue(`${activeCount}🔌`) : '🎛️'
 
       const prompt = `\n┌─[${agentIndicator}:${chalk.green(workingDir)}${modeIndicator}]\n└─❯ `
       this.rl.setPrompt(prompt)
@@ -904,7 +904,7 @@ export class OrchestratorService extends EventEmitter {
       console.log(chalk.white.bold('\nRecent Middleware Events:'))
       history.forEach((event) => {
         const icon =
-          event.type === 'complete' ? '✅' : event.type === 'error' ? '❌' : event.type === 'start' ? '🔄' : '⏭️'
+          event.type === 'complete' ? '✓' : event.type === 'error' ? '❌' : event.type === 'start' ? '⚡︎' : '⏭️'
         const duration = event.duration ? ` (${event.duration}ms)` : ''
         console.log(`  ${icon} ${event.middlewareName}: ${event.type}${duration}`)
       })
@@ -934,7 +934,7 @@ export class OrchestratorService extends EventEmitter {
           `${chalk.blue('Messages processed:')} ${this.context.session.messages.length}\n` +
           `${chalk.green('Tools executed:')} ${toolsUsed}\n` +
           `${chalk.cyan('Agents launched:')} ${this.context.session.executionHistory.length}\n` +
-          `${chalk.yellow('Duration:')} ${Math.round((Date.now() - parseInt(this.context.session.id)) / 1000)}s\n\n` +
+          `${chalk.yellow('Duration:')} ${Math.round((Date.now() - parseInt(this.context.session.id, 10)) / 1000)}s\n\n` +
           `${chalk.blue('Thanks for using the AI orchestrator! 🚀')}`,
         {
           padding: 1,

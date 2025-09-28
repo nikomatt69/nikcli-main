@@ -94,7 +94,7 @@ export class TextToCADAgent extends BaseAgent {
   private async initializeCADSystem(): Promise<void> {
     try {
       // Dynamic import of your CAD AI system
-      const cadSystemPath = '/Volumes/SSD/Development/dev/cadcamfun/src/lib/ai'
+      const _cadSystemPath = '/Volumes/SSD/Development/dev/cadcamfun/src/lib/ai'
 
       // We'll import your services here
       console.log(chalk.blue('🔧 Initializing Text-to-CAD AI system...'))
@@ -107,8 +107,8 @@ export class TextToCADAgent extends BaseAgent {
         cadActionHandler: null, // Will connect to your CADActionHandler
       }
 
-      console.log(chalk.green('✅ Text-to-CAD AI system initialized'))
-    } catch (error) {
+      console.log(chalk.green('✓ Text-to-CAD AI system initialized'))
+    } catch (_error) {
       console.log(chalk.yellow('⚠️ CAD AI system not available, using mock mode'))
     }
   }
@@ -229,8 +229,8 @@ export class TextToCADAgent extends BaseAgent {
   /**
    * Generate with streaming (real-time progress)
    */
-  private async generateWithStreaming(request: CADGenerationRequest): Promise<CADGenerationResult> {
-    console.log(chalk.blue('🔄 Starting streaming generation...'))
+  private async generateWithStreaming(_request: CADGenerationRequest): Promise<CADGenerationResult> {
+    console.log(chalk.blue('⚡︎ Starting streaming generation...'))
 
     // Mock implementation - replace with your TextToCADStreamService
     const elements: any[] = []
@@ -248,7 +248,7 @@ export class TextToCADAgent extends BaseAgent {
       })
     }
 
-    console.log(chalk.green('✅ Streaming generation completed'))
+    console.log(chalk.green('✓ Streaming generation completed'))
 
     return {
       elements,
@@ -277,7 +277,7 @@ export class TextToCADAgent extends BaseAgent {
       },
     ]
 
-    console.log(chalk.green('✅ Standard generation completed'))
+    console.log(chalk.green('✓ Standard generation completed'))
 
     return {
       elements,

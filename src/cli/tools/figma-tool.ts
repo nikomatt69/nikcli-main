@@ -14,7 +14,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import axios, { type AxiosInstance } from 'axios'
 import chalk from 'chalk'
-import { simpleConfigManager } from '../core/config-manager'
 import { imageGenerator } from '../providers/image'
 import { approvalSystem } from '../ui/approval-system'
 
@@ -766,7 +765,7 @@ export default FigmaComponent`
       [r, g, b]
         .map((x) => {
           const hex = Math.round(x).toString(16)
-          return hex.length === 1 ? '0' + hex : hex
+          return hex.length === 1 ? `0${hex}` : hex
         })
         .join('')
     )
@@ -862,7 +861,7 @@ export default FigmaComponent`
 
     const fileInfo = await this.getFileInfo(fileId)
 
-    console.log(chalk.green(`✅ Retrieved info for: ${fileInfo.name}`))
+    console.log(chalk.green(`✓ Retrieved info for: ${fileInfo.name}`))
 
     return {
       success: true,
@@ -929,7 +928,7 @@ export default FigmaComponent`
 
     // First get file info to find exportable nodes
     console.log(chalk.blue('📋 Getting file structure...'))
-    const fileInfo = await this.getFileInfo(fileId)
+    const _fileInfo = await this.getFileInfo(fileId)
 
     // Get exportable node IDs from the file
     const nodeIds = await this.getExportableNodeIds(fileId)
@@ -970,7 +969,7 @@ export default FigmaComponent`
       throw new Error('File ID is required')
     }
 
-    console.log(chalk.blue(`🤖 Generating ${framework} code using ${library}...`))
+    console.log(chalk.blue(`🔌 Generating ${framework} code using ${library}...`))
 
     const codeGenOptions: FigmaCodeGenOptions = {
       fileId,
@@ -981,7 +980,7 @@ export default FigmaComponent`
 
     const generatedCode = await this.generateCodeFromDesign(codeGenOptions)
 
-    console.log(chalk.green('✅ Code generation completed!'))
+    console.log(chalk.green('✓ Code generation completed!'))
 
     return {
       success: true,
@@ -1033,7 +1032,7 @@ export default FigmaComponent`
 
     const tokens = await this.extractDesignTokens(tokensOptions)
 
-    console.log(chalk.green(`✅ Extracted ${Object.keys(tokens).length} token categories`))
+    console.log(chalk.green(`✓ Extracted ${Object.keys(tokens).length} token categories`))
 
     return {
       success: true,
@@ -1081,12 +1080,12 @@ export default FigmaComponent`
       outputPath: resolve(process.cwd(), 'figma-previews'),
     })
 
-    console.log(chalk.green(`✅ Preview image generated: ${imageResult.localPath}`))
+    console.log(chalk.green(`✓ Preview image generated: ${imageResult.localPath}`))
 
     // Create Figma design structure (conceptual - would need Figma API with write permissions)
     const figmaDesign = await this.generateFigmaDesignSpec(designDescription)
 
-    console.log(chalk.green(`✅ Figma design specification created for: ${componentName}`))
+    console.log(chalk.green(`✓ Figma design specification created for: ${componentName}`))
 
     return {
       success: true,
@@ -1115,7 +1114,7 @@ export default FigmaComponent`
 
     for (const pattern of patterns) {
       const match = componentCode.match(pattern)
-      if (match && match[1]) {
+      if (match?.[1]) {
         return match[1]
       }
     }
@@ -1133,9 +1132,9 @@ export default FigmaComponent`
     designTokens: any
   }> {
     // Analyze the component structure and extract design information
-    const hasProps = componentCode.includes('props') || componentCode.includes('interface')
-    const hasState = componentCode.includes('useState') || componentCode.includes('state')
-    const hasEffects = componentCode.includes('useEffect') || componentCode.includes('componentDidMount')
+    const _hasProps = componentCode.includes('props') || componentCode.includes('interface')
+    const _hasState = componentCode.includes('useState') || componentCode.includes('state')
+    const _hasEffects = componentCode.includes('useEffect') || componentCode.includes('componentDidMount')
 
     // Extract JSX structure
     const jsxPattern = /return\s*\(?([\s\S]*?)\)?(?:\s*}|\s*$)/
@@ -1285,7 +1284,7 @@ export function extractFileIdFromUrl(url: string): string | null {
 
   for (const pattern of patterns) {
     const match = url.match(pattern)
-    if (match && match[1]) {
+    if (match?.[1]) {
       return match[1]
     }
   }

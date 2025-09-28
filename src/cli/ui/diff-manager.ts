@@ -22,7 +22,6 @@ export interface DiffViewerOptions {
 export class DiffManager {
   private pendingDiffs: Map<string, FileDiff> = new Map()
   private autoAccept: boolean = false
-  private cliInstance: any
   /**
    * Set auto-accept mode
    */
@@ -93,7 +92,7 @@ export class DiffManager {
   /**
    * Show all pending diffs
    */
-  showAllDiffs(options?: DiffViewerOptions): void {
+  showAllDiffs(_options?: DiffViewerOptions): void {
     const pendingFiles = Array.from(this.pendingDiffs.values()).filter((d) => d.status === 'pending')
 
     if (pendingFiles.length === 0) {
@@ -109,7 +108,7 @@ export class DiffManager {
       console.log(`${index + 1}. ${chalk.blue(diff.filePath)} ${chalk.dim(`(${changeCount} changes)`)}`)
     })
 
-    console.log('\\n' + chalk.yellow('Use /diff <file> to review individual changes'))
+    console.log(`\\n${chalk.yellow('Use /diff <file> to review individual changes')}`)
     console.log(chalk.green('Use /accept <file> to approve changes'))
     console.log(chalk.red('Use /reject <file> to discard changes'))
     console.log(chalk.blue('Use /accept-all to approve all pending changes\\n'))

@@ -124,7 +124,7 @@ export class LSPClient {
     this.connection.onNotification('$/progress', (params: any) => {
       if (params.value?.kind === 'begin') {
         console.log(
-          chalk.blue(`🔄 ${this.serverInfo.name}: ${params.value.title || params.value.message || 'Working...'}`)
+          chalk.blue(`⚡︎ ${this.serverInfo.name}: ${params.value.title || params.value.message || 'Working...'}`)
         )
       }
     })
@@ -207,7 +207,7 @@ export class LSPClient {
       await this.connection.sendNotification('initialized', {})
 
       this.isInitialized = true
-      console.log(chalk.green(`✅ ${this.serverInfo.name} initialized`))
+      console.log(chalk.green(`✓ ${this.serverInfo.name} initialized`))
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to initialize ${this.serverInfo.name}: ${error.message}`))
       throw error

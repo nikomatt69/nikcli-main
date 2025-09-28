@@ -393,7 +393,7 @@ Sarah,28,Boston,true`
         const values = line.split(',')
         return {
           name: values[0],
-          age: parseInt(values[1]),
+          age: parseInt(values[1], 10),
           city: values[2],
           active: values[3] === 'true',
         }

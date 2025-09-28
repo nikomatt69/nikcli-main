@@ -155,7 +155,7 @@ Generate a structured plan with commands to execute.`,
       // Execute commands
       const results = []
       for (const cmd of planResult.commands || []) {
-        console.log(chalk.blue(`\n🔄 Executing: ${cmd.command}`))
+        console.log(chalk.blue(`\n⚡︎ Executing: ${cmd.command}`))
 
         const [command, ...args] = cmd.command.split(' ')
         const result = await toolsManager.runCommand(command, args, {
@@ -177,7 +177,7 @@ Generate a structured plan with commands to execute.`,
           console.log(chalk.gray('Stopping execution due to failure'))
           break
         } else {
-          console.log(chalk.green(`✅ Command completed: ${cmd.command}`))
+          console.log(chalk.green(`✓ Command completed: ${cmd.command}`))
         }
       }
 
@@ -226,7 +226,7 @@ Generate a structured plan with commands to execute.`,
     const failed = results.filter((r) => !r.success).length
 
     console.log(chalk.blue.bold(`\n📊 Installation Summary:`))
-    console.log(chalk.green(`✅ Successful: ${successful}`))
+    console.log(chalk.green(`✓ Successful: ${successful}`))
     console.log(chalk.red(`❌ Failed: ${failed}`))
 
     return {
@@ -240,7 +240,7 @@ Generate a structured plan with commands to execute.`,
     if (action === 'list') {
       const processes = toolsManager.getRunningProcesses()
 
-      console.log(chalk.blue.bold('\n🔄 Running Processes:'))
+      console.log(chalk.blue.bold('\n⚡︎ Running Processes:'))
       if (processes.length === 0) {
         console.log(chalk.gray('No processes currently running'))
         return { processes: [] }
@@ -292,7 +292,7 @@ Generate a structured plan with commands to execute.`,
     const result = await toolsManager.runScript(script, { language })
 
     if (result.success) {
-      console.log(chalk.green('✅ Script executed successfully'))
+      console.log(chalk.green('✓ Script executed successfully'))
     } else {
       console.log(chalk.red('❌ Script execution failed'))
     }
@@ -304,7 +304,7 @@ Generate a structured plan with commands to execute.`,
   }
 
   async monitorSystem(duration: number = 30): Promise<any> {
-    console.log(chalk.blue(`👀 Monitoring system for ${duration} seconds...`))
+    console.log(chalk.blue(`⚡︎ Monitoring system for ${duration} seconds...`))
 
     const _startTime = Date.now()
     const samples = []
@@ -328,7 +328,7 @@ Generate a structured plan with commands to execute.`,
 
     setTimeout(() => {
       clearInterval(interval)
-      console.log(chalk.green(`✅ Monitoring complete. Collected ${samples.length} samples`))
+      console.log(chalk.green(`✓ Monitoring complete. Collected ${samples.length} samples`))
     }, duration * 1000)
 
     return {
@@ -405,14 +405,14 @@ Generate a structured plan with commands to execute.`,
       }
 
       if (lowerTask.includes('kill process')) {
-        const pid = parseInt(taskData.match(/kill process\s+(\d+)/i)?.[1] || '')
+        const pid = parseInt(taskData.match(/kill process\s+(\d+)/i)?.[1] || '', 10)
         if (pid) {
           return await this.manageProcesses('kill', pid)
         }
       }
 
       if (lowerTask.includes('monitor')) {
-        const duration = parseInt(taskData.match(/monitor.*?(\d+)/)?.[1] || '30')
+        const duration = parseInt(taskData.match(/monitor.*?(\d+)/)?.[1] || '30', 10)
         return await this.monitorSystem(duration)
       }
 

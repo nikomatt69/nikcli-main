@@ -111,7 +111,6 @@ export function useTerminal(): TerminalContext {
 // Selection history utility for List/Table/Tree components
 export class SelectionManager {
   private history = new Map<string, number>()
-  private currentId: string | null = null
 
   setSelection(id: string, index: number) {
     this.history.set(id, index)

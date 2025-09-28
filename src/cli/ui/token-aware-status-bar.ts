@@ -1,9 +1,8 @@
 // TODO: Consider refactoring for reduced complexity
 import { EventEmitter } from 'node:events'
-import blessed, { type Widgets } from 'blessed'
+import blessed from 'blessed'
 import chalk from 'chalk'
 import { type ModelLimits, type TokenUsage, universalTokenizer } from '../core/universal-tokenizer-service'
-import { logger } from '../utils/logger'
 
 export interface TokenDisplayOptions {
   showPercentage?: boolean
@@ -273,7 +272,7 @@ export class TokenAwareStatusBar extends EventEmitter {
       return `${provider}:${model}`
     }
 
-    return modelText.substring(0, maxWidth - 2) + '..'
+    return `${modelText.substring(0, maxWidth - 2)}..`
   }
 
   private checkThresholds(percentage: number): void {
@@ -497,7 +496,7 @@ export function createConsoleTokenDisplay(): {
       console.log(
         baseStyle(color(`🔢 Tokens: ${formattedTokens}/${formattedMax} (${percentage.toFixed(1)}%)`)) +
           chalk.cyan(` | 💰 $${context.estimatedCost.toFixed(4)}`) +
-          chalk.blue(` | 🤖 ${context.provider}:${context.model}`)
+          chalk.blue(` | 🔌 ${context.provider}:${context.model}`)
       )
     },
 

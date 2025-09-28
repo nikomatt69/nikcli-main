@@ -78,7 +78,7 @@ export class CloudDocsProvider {
     }
 
     this.cacheDir = cacheDir
-    structuredLogger.info('Docs Cloud', `📂 Cache directory: ${this.cacheDir}`)
+    structuredLogger.info('Docs Cloud', `⚡︎ Cache directory: ${this.cacheDir}`)
     this.sharedIndexFile = path.join(cacheDir, 'shared-docs-index.json')
 
     // Non chiamare async nel costruttore - inizializzazione lazy
@@ -105,7 +105,7 @@ export class CloudDocsProvider {
 
       this.supabase = createClient(this.config.apiUrl, this.config.apiKey)
       this.isInitialized = true
-      structuredLogger.success('Docs Cloud', '✅ Connected to Supabase docs cloud')
+      structuredLogger.success('Docs Cloud', '✓ Connected to Supabase docs cloud')
     } catch (error: any) {
       structuredLogger.error('Docs Cloud', `❌ Failed to initialize Supabase: ${error.message}`)
     }
@@ -121,7 +121,7 @@ export class CloudDocsProvider {
       throw new Error('Cloud docs provider not initialized')
     }
 
-    structuredLogger.info('Docs Cloud', '🔄 Synchronizing with cloud library...')
+    structuredLogger.info('Docs Cloud', '⚡︎ Synchronizing with cloud library...')
 
     try {
       // Download nuovi docs dal cloud
@@ -134,7 +134,7 @@ export class CloudDocsProvider {
       if (fetchError) throw fetchError
 
       let downloaded = 0
-      let uploaded = 0
+      const uploaded = 0
 
       // Salva indice dei docs condivisi
       if (cloudDocs && cloudDocs.length > 0) {
@@ -149,7 +149,7 @@ export class CloudDocsProvider {
         console.log(chalk.gray('📤 Local documentation uploaded to community cloud'))
       }
 
-      console.log(chalk.green(`✅ Sync completed: ${downloaded} downloaded, ${uploaded} uploaded`))
+      console.log(chalk.green(`✓ Sync completed: ${downloaded} downloaded, ${uploaded} uploaded`))
       return { downloaded, uploaded }
     } catch (error: any) {
       console.error(chalk.red(`❌ Sync failed: ${error.message}`))
@@ -186,7 +186,7 @@ export class CloudDocsProvider {
 
       if (error) throw error
 
-      console.log(chalk.green(`✅ Published: ${data.title}`))
+      console.log(chalk.green(`✓ Published: ${data.title}`))
       return data as SharedDocEntry
     } catch (error: any) {
       console.error(chalk.red(`❌ Publish failed: ${error.message}`))
@@ -289,7 +289,7 @@ export class CloudDocsProvider {
         .update({ installs_count: library.installs_count + 1 })
         .eq('id', library.id)
 
-      console.log(chalk.green(`✅ Installed ${docs?.length || 0} documents from '${libraryName}'`))
+      console.log(chalk.green(`✓ Installed ${docs?.length || 0} documents from '${libraryName}'`))
       return docs || []
     } catch (error: any) {
       console.error(chalk.red(`❌ Install failed: ${error.message}`))

@@ -70,7 +70,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
   private originalRawMode?: boolean
   private keypressHandler?: (str: string, key: any) => void
 
-  // 🧠 Cognitive-AI Pipeline Integration
+  // ⚡︎ Cognitive-AI Pipeline Integration
   private cognitiveEnabled: boolean = true
   private lastUpdate = Date.now()
   private inputQueueEnabled = true // Abilita/disabilita input queue
@@ -98,8 +98,8 @@ class StreamingOrchestratorImpl extends EventEmitter {
     // Initialize paste handler for long text processing
     this.pasteHandler = PasteHandler.getInstance()
 
-    // Expose streaming orchestrator globally for VM agent communications
-    ;(global as any).__streamingOrchestrator = this
+      // Expose streaming orchestrator globally for VM agent communications
+      ; (global as any).__streamingOrchestrator = this
 
     // Don't setup interface automatically - only when start() is called
   }
@@ -112,13 +112,13 @@ class StreamingOrchestratorImpl extends EventEmitter {
       this.originalRawMode = (process.stdin as any).isRaw || false
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ;(process.stdin as any).setRawMode(true)
+        ; (process.stdin as any).setRawMode(true)
       }
-      ;(process.stdin as any).resume()
+      ; (process.stdin as any).resume()
     }
 
     // Keypress handlers
-    const onKeypress = (str: string, key: any) => {
+    const onKeypress = (_str: string, key: any) => {
       // Se il bypass è abilitato, ignora tutti i keypress tranne Ctrl+C
       if (inputQueue.isBypassEnabled() && !(key && key.name === 'c' && key.ctrl)) {
         return
@@ -227,7 +227,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         this.keypressHandler = undefined
       }
       if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
-        ;(process.stdin as any).setRawMode(this.originalRawMode)
+        ; (process.stdin as any).setRawMode(this.originalRawMode)
       }
     } catch {
       // ignore
@@ -244,7 +244,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       if (!nikCliActive) {
         this.queueMessage({
           type: 'system',
-          content: `🤖 Agent ${task.agentType} started: ${task.task.slice(0, 50)}...`,
+          content: `🔌 Agent ${task.agentType} started: ${task.task.slice(0, 50)}...`,
           metadata: { agentId: task.id, agentType: task.agentType },
         })
       }
@@ -273,7 +273,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       if (task.status === 'completed') {
         this.queueMessage({
           type: 'system',
-          content: `✅ Agent ${task.agentType} completed successfully`,
+          content: `✓ Agent ${task.agentType} completed successfully`,
           metadata: { agentId: task.id, result: task.result },
         })
 
@@ -326,7 +326,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     this.displayMessage(message)
   }
 
-  // 🧠 Cognitive-AI Pipeline Processing
+  // ⚡︎ Cognitive-AI Pipeline Processing
   private async processCognitiveAnalysis(message: StreamMessage): Promise<void> {
     if (!this.cognitiveEnabled || message.type !== 'user') return
 
@@ -347,7 +347,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       const cognitivePanel = 'cognitive-analysis'
       this.createPanel({
         id: cognitivePanel,
-        title: '🧠 Cognitive Analysis',
+        title: '⚡︎ Cognitive Analysis',
         position: 'right',
         width: 40,
         maxLines: 10,
@@ -376,7 +376,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     message.status = 'processing'
 
     try {
-      // 🧠 Apply cognitive analysis for user messages
+      // ⚡︎ Apply cognitive analysis for user messages
       if (message.type === 'user' && this.cognitiveEnabled) {
         await this.processCognitiveAnalysis(message)
       }
@@ -589,10 +589,10 @@ class StreamingOrchestratorImpl extends EventEmitter {
             if (retryCount > 0) {
               this.queueMessage({
                 type: 'system',
-                content: `🔄 Retry attempt ${retryCount}/${maxRetries} for VM Agent streaming...`,
+                content: `⚡︎ Retry attempt ${retryCount}/${maxRetries} for VM Agent streaming...`,
               })
               // Exponential backoff
-              await new Promise((resolve) => setTimeout(resolve, Math.pow(2, retryCount) * 1000))
+              await new Promise((resolve) => setTimeout(resolve, 2 ** retryCount * 1000))
             } else {
               this.queueMessage({
                 type: 'system',
@@ -603,7 +603,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
             for await (const chunk of this.activeVMAgent.processChatMessageStreaming(message)) {
               CliUI.logDebug(`📦 Received chunk: ${chunk ? chunk.slice(0, 50) : 'null'}...`)
 
-              if (chunk && chunk.trim()) {
+              if (chunk?.trim()) {
                 hasContent = true
                 streamBuffer += chunk
 
@@ -626,7 +626,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
             if (hasContent) {
               this.queueMessage({
                 type: 'system',
-                content: `✅ VM Agent ${this.activeVMAgent.id.slice(-8)}: Streaming completed (${streamBuffer.length} chars)`,
+                content: `✓ VM Agent ${this.activeVMAgent.id.slice(-8)}: Streaming completed (${streamBuffer.length} chars)`,
               })
               break // Success, exit retry loop
             }
@@ -650,25 +650,25 @@ class StreamingOrchestratorImpl extends EventEmitter {
           CliUI.logWarning(`⚠️ No streaming content received, showing placeholder`)
           this.queueMessage({
             type: 'vm',
-            content: `🤖 VM Agent processed the request but no streaming response was generated.`,
+            content: `🔌 VM Agent processed the request but no streaming response was generated.`,
           })
         }
       } else {
         // Fallback to original non-streaming method
         this.queueMessage({
           type: 'system',
-          content: `🤖 VM Agent ${this.activeVMAgent.id.slice(-8)}: Processing (non-streaming)...`,
+          content: `🔌 VM Agent ${this.activeVMAgent.id.slice(-8)}: Processing (non-streaming)...`,
         })
 
         const response = await this.activeVMAgent.processChatMessage(message)
 
         this.queueMessage({
           type: 'system',
-          content: `✅ VM Agent ${this.activeVMAgent.id.slice(-8)}: Task completed`,
+          content: `✓ VM Agent ${this.activeVMAgent.id.slice(-8)}: Task completed`,
         })
 
         // Show the actual response
-        if (response && response.trim()) {
+        if (response?.trim()) {
           this.queueMessage({
             type: 'vm',
             content: response,
@@ -676,7 +676,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         } else {
           this.queueMessage({
             type: 'vm',
-            content: `🤖 VM Agent completed the task but no specific response was generated.`,
+            content: `🔌 VM Agent completed the task but no specific response was generated.`,
           })
         }
       }
@@ -695,7 +695,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
   private async processNaturalLanguage(input: string): Promise<void> {
     this.queueMessage({
       type: 'system',
-      content: `🧠 Processing: "${input}"`,
+      content: `⚡︎ Processing: "${input}"`,
     })
 
     // Select best agent for the task
@@ -719,14 +719,14 @@ class StreamingOrchestratorImpl extends EventEmitter {
         })
 
         // Plan generated successfully - show completion message
-        console.log(chalk.green('✅ Plan generated and saved to todo.md'))
+        console.log(chalk.green('✓ Plan generated and saved to todo.md'))
         console.log(chalk.cyan(`📋 ${plan.todos.length} tasks created`))
 
         // Note: Task execution approval will be handled by main CLI
         // The plan is now ready and saved, no need for approval here
         console.log(chalk.gray('💡 Use the plan mode interface to start tasks'))
         // After execution ensure prompt is visible
-        import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => {})
+        import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => { })
         this.processingMessage = false
         this.showPrompt()
       } catch (error: any) {
@@ -777,7 +777,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     })
 
     let prefix = ''
-    let content = message.content
+    const content = message.content
     let color = chalk.white
 
     switch (message.type) {
@@ -790,7 +790,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         color = chalk.blue
         break
       case 'agent':
-        prefix = '🤖'
+        prefix = '🔌'
         color = chalk.cyan
         break
       case 'tool':
@@ -929,7 +929,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     this.messageQueue = []
     this.context.contextLeft = this.context.maxContext
     console.clear()
-    console.log(chalk.green(`✅ Cleared ${cleared} messages`))
+    console.log(chalk.green(`✓ Cleared ${cleared} messages`))
   }
 
   private showStatus(): void {
@@ -943,7 +943,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     // Display panels if any
     this.displayPanels()
 
-    console.log(chalk.cyan.bold('\\n🧠 Adaptive Orchestrator Status'))
+    console.log(chalk.cyan.bold('\\n⚡︎ Adaptive Orchestrator Status'))
     console.log(chalk.gray('═'.repeat(50)))
 
     // Basic status
@@ -958,10 +958,10 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     // Adaptive features status
     console.log(chalk.cyan.bold('\\n🔨 Adaptive Features:'))
-    console.log(`${chalk.blue('Adaptive Supervision:')} ${this.context.adaptiveSupervision ? '✅' : '❌'}`)
-    console.log(`${chalk.blue('Intelligent Prioritization:')} ${this.context.intelligentPrioritization ? '✅' : '❌'}`)
-    console.log(`${chalk.blue('Cognitive Filtering:')} ${this.context.cognitiveFiltering ? '✅' : '❌'}`)
-    console.log(`${chalk.blue('Orchestration Awareness:')} ${this.context.orchestrationAwareness ? '✅' : '❌'}`)
+    console.log(`${chalk.blue('Adaptive Supervision:')} ${this.context.adaptiveSupervision ? '✓' : '❌'}`)
+    console.log(`${chalk.blue('Intelligent Prioritization:')} ${this.context.intelligentPrioritization ? '✓' : '❌'}`)
+    console.log(`${chalk.blue('Cognitive Filtering:')} ${this.context.cognitiveFiltering ? '✓' : '❌'}`)
+    console.log(`${chalk.blue('Orchestration Awareness:')} ${this.context.orchestrationAwareness ? '✓' : '❌'}`)
 
     // Input queue status
     console.log(chalk.cyan.bold('\\n📥 Input Processing:'))
@@ -984,7 +984,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       return
     }
 
-    console.log(chalk.cyan.bold('\\n🤖 Active Agents'))
+    console.log(chalk.cyan.bold('\\n🔌 Active Agents'))
     console.log(chalk.gray('─'.repeat(30)))
 
     this.activeAgents.forEach((agent) => {
@@ -1000,14 +1000,14 @@ class StreamingOrchestratorImpl extends EventEmitter {
       try {
         process.env.NIKCLI_COMPACT = '1'
         process.env.NIKCLI_SUPER_COMPACT = '1'
-      } catch {}
-      console.log(chalk.green('\\n✅ plan mode on ') + chalk.dim('(shift+tab to cycle)'))
+      } catch { }
+      console.log(chalk.green('\\n✓ plan mode on ') + chalk.dim('(shift+tab to cycle)'))
     } else if (this.context.planMode && !this.context.autoAcceptEdits && !this.context.vmMode) {
       // Plan → Auto-accept
       this.context.planMode = false
       this.context.autoAcceptEdits = true
       diffManager.setAutoAccept(true)
-      console.log(chalk.green('\\n✅ auto-accept edits on ') + chalk.dim('(shift+tab to cycle)'))
+      console.log(chalk.green('\\n✓ auto-accept edits on ') + chalk.dim('(shift+tab to cycle)'))
     } else if (!this.context.planMode && this.context.autoAcceptEdits && !this.context.vmMode) {
       // Auto-accept → VM
       this.context.autoAcceptEdits = false
@@ -1023,17 +1023,17 @@ class StreamingOrchestratorImpl extends EventEmitter {
       try {
         delete (process.env as any).NIKCLI_COMPACT
         delete (process.env as any).NIKCLI_SUPER_COMPACT
-      } catch {}
+      } catch { }
       // Reset processing and show prompt to accept new input
       this.processingMessage = false
       import('./core/input-queue')
         .then(({ inputQueue }) => inputQueue.disableBypass())
         .then(() => {
           try {
-            ;(global as any).__nikCLI?.resumePromptAndRender?.()
-          } catch {}
+            ; (global as any).__nikCLI?.resumePromptAndRender?.()
+          } catch { }
         })
-        .catch(() => {})
+        .catch(() => { })
       this.showPrompt()
 
       // Cleanup VM agent when exiting VM mode
@@ -1061,7 +1061,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
         this.queueMessage({
           type: 'system',
-          content: `✅ VM agent cleaned up`,
+          content: `✓ VM agent cleaned up`,
         })
       }
     } catch (error: any) {
@@ -1083,7 +1083,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     console.log(`${chalk.green('/queue')} [cmd]   Manage input queue`)
     console.log(`${chalk.green('/help')}          Show detailed help`)
 
-    console.log(chalk.cyan.bold('\\n🤖 Agent Usage:'))
+    console.log(chalk.cyan.bold('\\n🔌 Agent Usage:'))
     console.log(`${chalk.blue('@agent-name')} task description`)
     console.log(chalk.dim('Available: react-expert, backend-expert, frontend-expert,'))
     console.log(chalk.dim('          devops-expert, code-review, autonomous-coder'))
@@ -1127,18 +1127,19 @@ class StreamingOrchestratorImpl extends EventEmitter {
       case 'status':
         inputQueue.showStats()
         break
-      case 'clear':
+      case 'clear': {
         const cleared = inputQueue.clear()
         this.queueMessage({
           type: 'system',
           content: `🗑️ Cleared ${cleared} inputs from queue`,
         })
         break
+      }
       case 'enable':
         this.inputQueueEnabled = true
         this.queueMessage({
           type: 'system',
-          content: '✅ Input queue enabled',
+          content: '✓ Input queue enabled',
         })
         break
       case 'disable':
@@ -1172,7 +1173,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     setInterval(() => {
       // Check for interruption
       const shouldInterrupt = (global as any).__shouldInterrupt
-      if (shouldInterrupt && shouldInterrupt()) {
+      if (shouldInterrupt?.()) {
         return
       }
 
@@ -1186,7 +1187,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     setInterval(() => {
       // Check for interruption
       const shouldInterrupt = (global as any).__shouldInterrupt
-      if (shouldInterrupt && shouldInterrupt()) {
+      if (shouldInterrupt?.()) {
         return
       }
 
@@ -1197,18 +1198,18 @@ class StreamingOrchestratorImpl extends EventEmitter {
     setInterval(() => {
       // Check for interruption
       const shouldInterrupt = (global as any).__shouldInterrupt
-      if (shouldInterrupt && shouldInterrupt()) {
+      if (shouldInterrupt?.()) {
         return
       }
 
       this.processQueuedInputs()
     }, 2000)
 
-    // 🧠 Optimize token allocation every 30 seconds
+    // ⚡︎ Optimize token allocation every 30 seconds
     setInterval(() => {
       // Check for interruption
       const shouldInterrupt = (global as any).__shouldInterrupt
-      if (shouldInterrupt && shouldInterrupt()) {
+      if (shouldInterrupt?.()) {
         return
       }
 
@@ -1235,7 +1236,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     if (result) {
       this.queueMessage({
         type: 'system',
-        content: `🔄 Processing queued input: ${result.input.substring(0, 40)}${result.input.length > 40 ? '...' : ''}`,
+        content: `⚡︎ Processing queued input: ${result.input.substring(0, 40)}${result.input.length > 40 ? '...' : ''}`,
       })
       // Ensure prompt is restored after processing queued input
       if (this.context.nikCLI && typeof this.context.nikCLI.renderPromptAfterOutput === 'function') {
@@ -1254,7 +1255,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     const dir = require('node:path').basename(this.context.workingDirectory)
     const agents = this.activeAgents.size
-    const agentIndicator = agents > 0 ? chalk.blue(`${agents}🤖`) : '🎛️'
+    const agentIndicator = agents > 0 ? chalk.blue(`${agents}🔌`) : '🎛️'
 
     const modes: string[] = []
     if (this.context.planMode) modes.push(chalk.cyan('plan'))
@@ -1314,11 +1315,11 @@ class StreamingOrchestratorImpl extends EventEmitter {
       this.context.vmMode = false
       try {
         diffManager.setAutoAccept(false)
-      } catch {}
+      } catch { }
 
       // Cleanup VM agent if any
       if (this.activeVMAgent) {
-        this.cleanupVMAgent().catch(() => {})
+        this.cleanupVMAgent().catch(() => { })
       }
 
       // Show prompt after a small delay to ensure messages are processed
@@ -1351,10 +1352,10 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     // Cleanup VM agent if active
     if (this.activeVMAgent) {
-      this.cleanupVMAgent().catch(() => {})
+      this.cleanupVMAgent().catch(() => { })
     }
 
-    console.log(chalk.green('✅ Goodbye!'))
+    console.log(chalk.green('✓ Goodbye!'))
     process.exit(0)
   }
 
@@ -1387,7 +1388,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     process.on('SIGINT', () => this.gracefulExit())
 
     return new Promise<void>((resolve) => {
-      this.rl!.on('close', resolve)
+      this.rl?.on('close', resolve)
     })
   }
 
@@ -1455,7 +1456,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
    * Configure adaptive supervision settings
    */
   configureAdaptiveSupervision(config: any): void {
-    console.log(chalk.cyan(`🧠 Adaptive supervision configured`))
+    console.log(chalk.cyan(`⚡︎ Adaptive supervision configured`))
     if (config.adaptiveSupervision) {
       console.log(chalk.cyan(`🎯 Cognitive features enabled`))
     }

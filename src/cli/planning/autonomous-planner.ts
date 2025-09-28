@@ -87,7 +87,7 @@ export class AutonomousPlanner extends EventEmitter {
   }
 
   // Main planning method - like Claude's internal planning
-  async *createAndExecutePlan(userGoal: string, context?: any): AsyncGenerator<PlanningEvent> {
+  async *createAndExecutePlan(userGoal: string, _context?: any): AsyncGenerator<PlanningEvent> {
     const planId = nanoid()
 
     yield {
@@ -124,7 +124,7 @@ export class AutonomousPlanner extends EventEmitter {
   }
 
   private async generateExecutionPlan(planId: string, goal: string, workspaceContext: any): Promise<ExecutionPlan> {
-    console.log(chalk.blue('🧠 AI Planning: Analyzing goal and creating execution plan...'))
+    console.log(chalk.blue('⚡︎ AI Planning: Analyzing goal and creating execution plan...'))
 
     // Use AI to break down the goal into actionable todos
     const planningMessages: CoreMessage[] = [
@@ -259,7 +259,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
       while (todoQueue.length > 0) {
         // Check for interruption to prevent infinite loops
         const shouldInterrupt = (global as any).__shouldInterrupt
-        if (shouldInterrupt && shouldInterrupt()) {
+        if (shouldInterrupt?.()) {
           yield {
             type: 'plan_failed',
             planId: plan.id,
@@ -303,7 +303,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
               type: 'todo_complete',
               planId: plan.id,
               todoId: todo.id,
-              content: `✅ Completed: ${todo.title}`,
+              content: `✓ Completed: ${todo.title}`,
               result,
               progress: (completedTodos / plan.todos.length) * 100,
             }
@@ -364,7 +364,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
           }
         }
         const orchestrator = (global as any).__streamingOrchestrator
-        if (orchestrator && orchestrator.context) {
+        if (orchestrator?.context) {
           orchestrator.context.planMode = false
           orchestrator.context.autoAcceptEdits = false
         }

@@ -182,11 +182,11 @@ export class TextToGCodeTool extends BaseTool {
 
     // Holes and grid
     const holesMatch = text.match(/(\d+)\s+holes?/) || text.match(/fori?\s+(\d+)/)
-    if (holesMatch) params.holes = parseInt(holesMatch[1])
+    if (holesMatch) params.holes = parseInt(holesMatch[1], 10)
     const gridMatch = text.match(/(\d+)\s*[x×]\s*(\d+)\s*(grid|pattern)?/)
     if (gridMatch) {
-      params.rows = parseInt(gridMatch[1])
-      params.cols = parseInt(gridMatch[2])
+      params.rows = parseInt(gridMatch[1], 10)
+      params.cols = parseInt(gridMatch[2], 10)
       if (params.holes === undefined) params.holes = params.rows * params.cols
     }
     const spacingMatch = text.match(/(spacing|pitch|interasse)\s*(\d+(?:\.\d+)?)\s*mm/)
@@ -361,7 +361,7 @@ export class TextToGCodeTool extends BaseTool {
     const filename = `tool_${slug || 'gcode'}_${timestamp}.gcode`
     const fullPath = path.join(gcodeDir, filename)
     await fs.writeFile(fullPath, gcode, 'utf8')
-    console.log(chalk.green(`✅ G-code saved to: ${fullPath}`))
+    console.log(chalk.green(`✓ G-code saved to: ${fullPath}`))
     return path.join('.nikcli', 'gcode', filename)
   }
 }

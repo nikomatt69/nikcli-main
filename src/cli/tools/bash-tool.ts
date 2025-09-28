@@ -155,7 +155,7 @@ export class BashTool extends BaseTool {
       })
 
       if (result.exitCode === 0) {
-        CliUI.logSuccess(`✅ Command completed successfully (${result.executionTime}ms)`)
+        CliUI.logSuccess(`✓ Command completed successfully (${result.executionTime}ms)`)
       } else {
         CliUI.logWarning(`⚠️ Command exited with code ${result.exitCode}`)
       }
@@ -283,7 +283,7 @@ export class BashTool extends BaseTool {
 
           // Limita output per evitare memory overflow
           if (stdout.length > MAX_OUTPUT_LENGTH) {
-            stdout = stdout.substring(0, MAX_OUTPUT_LENGTH) + '\n... [output truncated]'
+            stdout = `${stdout.substring(0, MAX_OUTPUT_LENGTH)}\n... [output truncated]`
             child.kill('SIGTERM')
           }
         })
@@ -294,7 +294,7 @@ export class BashTool extends BaseTool {
           stderr += data.toString()
 
           if (stderr.length > MAX_OUTPUT_LENGTH) {
-            stderr = stderr.substring(0, MAX_OUTPUT_LENGTH) + '\n... [error output truncated]'
+            stderr = `${stderr.substring(0, MAX_OUTPUT_LENGTH)}\n... [error output truncated]`
           }
         })
       }

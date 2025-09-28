@@ -149,7 +149,7 @@ export class LSPManager {
 
     console.log(
       chalk.green(
-        `✅ Analyzed ${relative(context.workspaceRoot, absolutePath)}: ${context.symbols.length} symbols, ${context.diagnostics.length} diagnostics`
+        `✓ Analyzed ${relative(context.workspaceRoot, absolutePath)}: ${context.symbols.length} symbols, ${context.diagnostics.length} diagnostics`
       )
     )
 
@@ -283,9 +283,7 @@ export class LSPManager {
 
         const hover = await client.getHover(filePath, line, character)
         if (hover) return hover
-      } catch (_error) {
-        continue
-      }
+      } catch (_error) {}
     }
 
     return null
@@ -304,9 +302,7 @@ export class LSPManager {
 
         const completions = await client.getCompletion(filePath, line, character)
         allCompletions.push(...completions)
-      } catch (_error) {
-        continue
-      }
+      } catch (_error) {}
     }
 
     return allCompletions
@@ -443,7 +439,7 @@ export class LSPManager {
     this.workspaceRoots.clear()
     this.fileAnalysisCache.clear()
 
-    console.log(chalk.green('✅ LSP shutdown complete'))
+    console.log(chalk.green('✓ LSP shutdown complete'))
   }
 }
 

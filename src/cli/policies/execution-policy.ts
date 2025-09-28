@@ -216,7 +216,7 @@ export class ExecutionPolicyManager {
         toolName: tool.name,
         category: tool.category,
         riskLevel: 'medium',
-        requiresApproval: tool.name.includes('git_status') || tool.name.includes('git_diff') ? false : true,
+        requiresApproval: !(tool.name.includes('git_status') || tool.name.includes('git_diff')),
         allowedInSafeMode: !tool.riskyOps.some((op) => op.includes('permanent') || op.includes('destructive')),
         description: tool.description,
         riskyOperations: tool.riskyOps,
@@ -452,7 +452,7 @@ export class ExecutionPolicyManager {
   } {
     const reasons: string[] = []
     let level = policy.riskLevel
-    let affectedFiles: string[] = []
+    const affectedFiles: string[] = []
     let irreversible = false
 
     // File-specific risk assessment
@@ -587,7 +587,7 @@ export class ExecutionPolicyManager {
       const trustedDomains = config.sandbox.trustedDomains || []
       const isAllowed = trustedDomains.some((trustedDomain) => {
         // Exact match or subdomain match
-        return domain === trustedDomain || domain.endsWith('.' + trustedDomain)
+        return domain === trustedDomain || domain.endsWith(`.${trustedDomain}`)
       })
 
       if (!isAllowed) {

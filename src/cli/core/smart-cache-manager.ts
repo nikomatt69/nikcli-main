@@ -150,22 +150,25 @@ export class SmartCacheManager {
   /**
    * Valuta una singola condizione
    */
-  private evaluateCondition(content: string, context: string, condition: CacheCondition): boolean {
+  private evaluateCondition(content: string, _context: string, condition: CacheCondition): boolean {
     switch (condition.type) {
-      case 'content_length':
+      case 'content_length': {
         const length = content.length
         return this.compare(length, condition.value, condition.operator)
+      }
 
-      case 'request_type':
+      case 'request_type': {
         const requestTypes = this.detectRequestType(content)
         return this.compare(requestTypes, condition.value, condition.operator)
+      }
 
       case 'user_pattern':
         return this.compare(content, condition.value, condition.operator)
 
-      case 'frequency':
+      case 'frequency': {
         const frequency = this.accessPatterns.get(content) || 0
         return this.compare(frequency, condition.value, condition.operator)
+      }
 
       default:
         return false
@@ -424,7 +427,7 @@ export class SmartCacheManager {
     const stats = this.getCacheStats()
     for (const [_strategyId, stat] of Object.entries(stats)) {
       const typedStat = stat as any
-      const status = typedStat.enabled ? chalk.green('✅') : chalk.red('❌')
+      const status = typedStat.enabled ? chalk.green('✓') : chalk.red('❌')
       console.log(`${status} ${typedStat.name}: ${typedStat.entries} entries, ${typedStat.totalAccesses} accesses`)
     }
   }

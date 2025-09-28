@@ -113,9 +113,9 @@ export class TmuxIntegration {
 
       // Add NikCLI config if not already present
       if (!existingConfig.includes('# NikCLI tmux configuration')) {
-        const newConfig = existingConfig + '\n\n' + nikcliConfig
+        const newConfig = `${existingConfig}\n\n${nikcliConfig}`
         writeFileSync(tmuxConfigPath, newConfig)
-        console.log(chalk.green('✅ tmux configuration updated'))
+        console.log(chalk.green('✓ tmux configuration updated'))
 
         // Reload tmux config if tmux is running
         try {
@@ -218,7 +218,7 @@ set -g renumber-windows on
       execSync(createCmd, { stdio: 'ignore' })
       this.currentSessionId = sessionName
 
-      console.log(chalk.green(`✅ tmux session created: ${sessionName}`))
+      console.log(chalk.green(`✓ tmux session created: ${sessionName}`))
       return sessionName
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to create tmux session: ${error.message}`))
@@ -243,7 +243,7 @@ set -g renumber-windows on
       }
 
       this.currentSessionId = sessionName
-      console.log(chalk.green(`✅ Attached to tmux session: ${sessionName}`))
+      console.log(chalk.green(`✓ Attached to tmux session: ${sessionName}`))
       return true
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to attach to session: ${error.message}`))
@@ -284,7 +284,7 @@ set -g renumber-windows on
         this.currentSessionId = null
       }
 
-      console.log(chalk.green(`✅ tmux session killed: ${sessionName}`))
+      console.log(chalk.green(`✓ tmux session killed: ${sessionName}`))
       return true
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to kill session: ${error.message}`))

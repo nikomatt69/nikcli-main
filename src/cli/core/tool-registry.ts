@@ -8,7 +8,7 @@ import { lspManager } from '../lsp/lsp-manager'
 import { BrowserbaseTool, ImageGenerationTool, VisionAnalysisTool } from '../tools'
 import type { ToolExecutionResult } from '../tools/base-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 import { AnalyticsManager } from './analytics-manager'
 import { PerformanceOptimizer } from './performance-optimizer'
 
@@ -180,7 +180,7 @@ export class ToolRegistry {
       this.isInitialized = true
       const loadTime = Date.now() - startTime
 
-      advancedUI.logSuccess(`✅ Tool Registry initialized (${this.tools.size} tools, ${loadTime}ms)`)
+      advancedUI.logSuccess(`✓ Tool Registry initialized (${this.tools.size} tools, ${loadTime}ms)`)
 
       if (this.config.enableMetrics) {
         this.logRegistryStats()
@@ -416,7 +416,7 @@ export class ToolRegistry {
       await this.unregisterTool(toolId)
 
       // TODO: Implement dynamic loading from file system
-      advancedUI.logInfo(`🔄 Reloaded tool: ${metadata.name}`)
+      advancedUI.logInfo(`⚡︎ Reloaded tool: ${metadata.name}`)
       return true
     } catch (error: any) {
       advancedUI.logError(`❌ Failed to reload tool ${toolId}: ${error.message}`)
@@ -571,7 +571,7 @@ export class ToolRegistry {
       try {
         await this.scanDirectory(discoveryPath)
       } catch (error: any) {
-        logger.debug(`Tool discovery failed for ${discoveryPath}: ${error.message}`)
+        structuredLogger.info(`Tool discovery failed for ${discoveryPath}: ${error.message}`, 'Tool discovery failed')
       }
     }
   }
@@ -602,12 +602,15 @@ export class ToolRegistry {
         if (typeof exportedClass === 'function' && exportedClass.prototype && exportedClass.prototype.execute) {
           // This looks like a tool class, try to register it
           this.registerTool(exportedClass).catch((error) => {
-            logger.debug(`Failed to auto-register tool from ${filePath}: ${error.message}`)
+            structuredLogger.info(
+              `Failed to auto-register tool from ${filePath}: ${error.message}`,
+              'Failed to auto-register tool'
+            )
           })
         }
       })
     } catch (error: any) {
-      logger.debug(`Failed to load tool from ${filePath}: ${error.message}`)
+      structuredLogger.info(`Failed to load tool from ${filePath}: ${error.message}`, 'Failed to load tool')
     }
   }
 
@@ -636,7 +639,7 @@ export class ToolRegistry {
     }
   }
 
-  private async checkPermissions(permissions: ToolPermission, args: any[]): Promise<void> {
+  private async checkPermissions(_permissions: ToolPermission, _args: any[]): Promise<void> {
     // Implementation would check permissions against current context
     // For now, this is a placeholder for the permission checking logic
   }
@@ -657,7 +660,7 @@ export class ToolRegistry {
     if (!this.categories.has(category)) {
       this.categories.set(category, [])
     }
-    this.categories.get(category)!.push(toolId)
+    this.categories.get(category)?.push(toolId)
   }
 
   private removeFromCategory(category: string, toolId: string): void {
@@ -720,7 +723,10 @@ export class ToolRegistry {
       )
     } catch (error: any) {
       // Non-critical error, log but don't block execution
-      logger.debug(`LSP/Context analysis failed for ${toolInstance.metadata.name}: ${error.message}`)
+      structuredLogger.info(
+        `LSP/Context analysis failed for ${toolInstance.metadata.name}: ${error.message}`,
+        'LSP/Context analysis failed'
+      )
     }
   }
 
@@ -757,7 +763,7 @@ export class ToolRegistry {
         if (tool.instance && typeof tool.instance.cleanup === 'function') {
           await tool.instance.cleanup()
         }
-        advancedUI.logSuccess(`✅ Cleaned up tool: ${name}`)
+        advancedUI.logSuccess(`✓ Cleaned up tool: ${name}`)
       } catch (error: any) {
         advancedUI.logError(`⚠️ Failed to cleanup tool ${name}: ${error.message}`)
       }
@@ -774,7 +780,7 @@ export class ToolRegistry {
         } else if (session && typeof session.end === 'function') {
           await session.end()
         }
-        advancedUI.logSuccess(`✅ Closed session: ${id}`)
+        advancedUI.logSuccess(`✓ Closed session: ${id}`)
       } catch (error: any) {
         advancedUI.logError(`⚠️ Failed to close session ${id}: ${error.message}`)
       }
@@ -805,7 +811,7 @@ export class ToolRegistry {
     }
 
     this.isInitialized = false
-    advancedUI.logSuccess('✅ Tool registry cleanup completed')
+    advancedUI.logSuccess('✓ Tool registry cleanup completed')
   }
 }
 

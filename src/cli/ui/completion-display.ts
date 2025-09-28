@@ -74,7 +74,7 @@ export class CompletionDisplay {
       const maxDescLength = Math.max(20, this.options.maxWidth - 40)
       const desc =
         comp.description.length > maxDescLength
-          ? comp.description.substring(0, maxDescLength) + '...'
+          ? `${comp.description.substring(0, maxDescLength)}...`
           : comp.description
       parts.push(chalk.dim(`- ${desc}`))
     }
@@ -223,9 +223,9 @@ export class CompletionDisplay {
   private getSourceIcon(source: string): string {
     const icons: Record<string, string> = {
       static: '📋',
-      ml: '🧠',
+      ml: '⚡︎',
       ai: '✨',
-      agent: '🤖',
+      agent: '🔌',
       tool: '🔧',
       path: '📁',
     }
@@ -318,7 +318,7 @@ export class CompletionDisplay {
   createFooter(): string {
     const tips = [chalk.dim('Tab: Accept • Ctrl+C: Cancel'), chalk.dim('↑/↓: Navigate • Enter: Execute')]
 
-    return chalk.dim('─'.repeat(Math.min(this.options.maxWidth, 60))) + '\n' + tips.join(' • ')
+    return `${chalk.dim('─'.repeat(Math.min(this.options.maxWidth, 60)))}\n${tips.join(' • ')}`
   }
 
   /**

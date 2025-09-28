@@ -24,9 +24,7 @@ export interface MiddlewareResponse {
   modified?: boolean
 }
 
-export interface MiddlewareNext {
-  (): Promise<MiddlewareResponse>
-}
+export type MiddlewareNext = () => Promise<MiddlewareResponse>
 
 export interface MiddlewareExecutionContext {
   request: MiddlewareRequest

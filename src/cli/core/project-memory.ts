@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import chalk from 'chalk'
 import { z } from 'zod'
 
-// 🧠 Project Memory Schemas
+// ⚡︎ Project Memory Schemas
 const ProjectPreferences = z
   .object({
     // UI/UX Preferences
@@ -619,7 +619,7 @@ export class ProjectMemoryManager {
     }
   }
 
-  private generateSmartTips(memory: ProjectMemory, preferences: ProjectPreferences): string[] {
+  private generateSmartTips(memory: ProjectMemory, _preferences: ProjectPreferences): string[] {
     const tips: string[] = []
 
     // Error rate tips

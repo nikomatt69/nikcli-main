@@ -15,7 +15,7 @@ import type {
   AgentTodo,
   TaskStatus,
 } from '../types/types'
-import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 import type { CliConfig } from './config-manager'
 
 /**
@@ -45,10 +45,13 @@ export class AgentManager extends EventEmitter {
    * Initialize the agent manager
    */
   async initialize(): Promise<void> {
-    await logger.info('Initializing AgentManager', {
-      maxConcurrentAgents: this.config.maxConcurrentAgents,
-      enableGuidanceSystem: this.config.enableGuidanceSystem,
-    })
+    await structuredLogger.info(
+      'Initializing AgentManager',
+      JSON.stringify({
+        maxConcurrentAgents: this.config.maxConcurrentAgents,
+        enableGuidanceSystem: this.config.enableGuidanceSystem,
+      })
+    )
 
     // Initialize guidance system if enabled
     if (this.config.enableGuidanceSystem) {
@@ -57,18 +60,21 @@ export class AgentManager extends EventEmitter {
       })
     }
 
-    await logger.info('AgentManager initialized successfully')
+    await structuredLogger.info('AgentManager initialized successfully', 'AgentManager')
   }
 
   /**
    * Register an agent in the system
    */
   async registerAgent(agent: Agent): Promise<void> {
-    await logger.logAgent('info', agent.id, 'Registering agent', {
-      name: agent.name,
-      specialization: agent.specialization,
-      capabilities: agent.capabilities,
-    })
+    await structuredLogger.info(
+      'Registering agent',
+      JSON.stringify({
+        name: agent.name,
+        specialization: agent.specialization,
+        capabilities: agent.capabilities,
+      })
+    )
 
     // Initialize agent with context
     const context = await this.buildAgentContext(agent)
@@ -87,7 +93,7 @@ export class AgentManager extends EventEmitter {
       data: { agent: this.getAgentInfo(agent) },
     } as AgentEvent)
 
-    await logger.logAgent('info', agent.id, 'Agent registered successfully')
+    await structuredLogger.info('Agent registered successfully', 'AgentManager')
   }
 
   /**
@@ -100,11 +106,14 @@ export class AgentManager extends EventEmitter {
       isEnabled: true,
     })
 
-    logger.info('Agent class registered', {
-      agentId: metadata.id,
-      name: metadata.name,
-      specialization: metadata.specialization,
-    })
+    structuredLogger.info(
+      'Agent class registered',
+      JSON.stringify({
+        agentId: metadata.id,
+        name: metadata.name,
+        specialization: metadata.specialization,
+      })
+    )
   }
 
   /**
@@ -229,11 +238,14 @@ export class AgentManager extends EventEmitter {
    * Schedule a task for execution
    */
   async scheduleTask(task: AgentTask, preferredAgentId?: string): Promise<string> {
-    await logger.logTask('info', task.id, preferredAgentId || 'auto', 'Scheduling task', {
-      title: task.title,
-      priority: task.priority,
-      requiredCapabilities: task.requiredCapabilities,
-    })
+    await structuredLogger.info(
+      'Scheduling task',
+      JSON.stringify({
+        title: task.title,
+        priority: task.priority,
+        requiredCapabilities: task.requiredCapabilities,
+      })
+    )
 
     let agent: Agent | null = null
 
@@ -256,9 +268,14 @@ export class AgentManager extends EventEmitter {
     queue.push(task)
     this.taskQueues.set(agent.id, queue)
 
-    await logger.logTask('info', task.id, agent.id, 'Task scheduled', {
-      queueLength: queue.length,
-    })
+    await structuredLogger.info(
+      'Task scheduled',
+      JSON.stringify({
+        taskId: task.id,
+        agentId: agent.id,
+        queueLength: queue.length,
+      })
+    )
 
     // Start execution if agent is available
     if (agent.currentTasks < agent.maxConcurrentTasks) {
@@ -281,7 +298,13 @@ export class AgentManager extends EventEmitter {
       throw new Error(`Agent ${agentId} cannot handle this task`)
     }
 
-    await logger.logTask('info', task.id, agentId, 'Starting task execution')
+    await structuredLogger.info(
+      'Starting task execution',
+      JSON.stringify({
+        taskId: task.id,
+        agentId: agentId,
+      })
+    )
 
     try {
       this.activeTaskCount++
@@ -293,10 +316,15 @@ export class AgentManager extends EventEmitter {
       // Store result
       this.taskHistory.set(task.id, result)
 
-      await logger.logTask('info', task.id, agentId, 'Task completed successfully', {
-        duration: result.duration,
-        status: result.status,
-      })
+      await structuredLogger.info(
+        'Task completed successfully',
+        JSON.stringify({
+          taskId: task.id,
+          agentId: agentId,
+          duration: result.duration,
+          status: result.status,
+        })
+      )
 
       return result
     } catch (error: any) {
@@ -312,9 +340,14 @@ export class AgentManager extends EventEmitter {
 
       this.taskHistory.set(task.id, result)
 
-      await logger.logTask('error', task.id, agentId, 'Task failed', {
-        error: error.message,
-      })
+      await structuredLogger.error(
+        'Task failed',
+        JSON.stringify({
+          taskId: task.id,
+          agentId: agentId,
+          error: error.message,
+        })
+      )
 
       throw error
     } finally {
@@ -347,7 +380,7 @@ export class AgentManager extends EventEmitter {
    * Run all scheduled tasks sequentially
    */
   async runSequential(): Promise<void> {
-    await logger.info('Starting sequential task execution')
+    await structuredLogger.info('Starting sequential task execution', 'AgentManager')
 
     for (const [agentId, tasks] of this.taskQueues.entries()) {
       if (tasks.length === 0) continue
@@ -355,13 +388,20 @@ export class AgentManager extends EventEmitter {
       const agent = this.getAgent(agentId)
       if (!agent) continue
 
-      await logger.logAgent('info', agentId, `Executing ${tasks.length} tasks sequentially`)
+      await structuredLogger.info(`Executing ${tasks.length} tasks sequentially`, 'AgentManager')
 
       for (const task of tasks) {
         try {
           await this.executeTask(agentId, task)
         } catch (error: any) {
-          await logger.logTask('error', task.id, agentId, 'Sequential execution failed', { error: error.message })
+          await structuredLogger.error(
+            'Sequential execution failed',
+            JSON.stringify({
+              taskId: task.id,
+              agentId: agentId,
+              error: error.message,
+            })
+          )
         }
       }
 
@@ -369,7 +409,7 @@ export class AgentManager extends EventEmitter {
       this.taskQueues.set(agentId, [])
     }
 
-    await logger.info('Sequential task execution completed')
+    await structuredLogger.info('Sequential task execution completed', 'AgentManager')
   }
 
   /**
@@ -378,10 +418,13 @@ export class AgentManager extends EventEmitter {
   async runParallel(concurrency?: number): Promise<void> {
     const maxConcurrency = concurrency || this.config.maxConcurrentAgents
 
-    await logger.info('Starting parallel task execution', {
-      maxConcurrency,
-      totalTasks: this.getTotalPendingTasks(),
-    })
+    await structuredLogger.info(
+      'Starting parallel task execution',
+      JSON.stringify({
+        maxConcurrency,
+        totalTasks: this.getTotalPendingTasks(),
+      })
+    )
 
     const promises: Promise<void>[] = []
 
@@ -395,7 +438,7 @@ export class AgentManager extends EventEmitter {
 
     await Promise.all(promises)
 
-    await logger.info('Parallel task execution completed')
+    await structuredLogger.info('Parallel task execution completed', 'AgentManager')
   }
 
   /**
@@ -415,7 +458,14 @@ export class AgentManager extends EventEmitter {
       try {
         await this.executeTask(agentId, task)
       } catch (error: any) {
-        await logger.logTask('error', task.id, agentId, 'Queue processing failed', { error: error.message })
+        await structuredLogger.error(
+          'Queue processing failed',
+          JSON.stringify({
+            taskId: task.id,
+            agentId: agentId,
+            error: error.message,
+          })
+        )
       }
     }
   }
@@ -502,22 +552,22 @@ export class AgentManager extends EventEmitter {
    */
   private setupEventHandlers(): void {
     this.on('agent.registered', (event: AgentEvent) => {
-      logger.info('Agent registered event', event)
+      structuredLogger.info('Agent registered event', JSON.stringify(event))
     })
 
     this.on('task.completed', (event: AgentEvent) => {
-      logger.info('Task completed event', event)
+      structuredLogger.info('Task completed event', JSON.stringify(event))
     })
 
     this.on('task.failed', (event: AgentEvent) => {
-      logger.warn('Task failed event', event)
+      structuredLogger.warning('Task failed event', JSON.stringify(event))
     })
   }
 
   /**
    * Handle guidance system updates
    */
-  private onGuidanceUpdated(context: any): void {
+  private onGuidanceUpdated(_context: any): void {
     // Update all agents with new guidance
     for (const agent of this.agents.values()) {
       const guidance = this.guidanceManager.getContextForAgent(agent.specialization, process.cwd())
@@ -582,14 +632,20 @@ export class AgentManager extends EventEmitter {
    * Cleanup and shutdown
    */
   async cleanup(): Promise<void> {
-    await logger.info('Shutting down AgentManager')
+    await structuredLogger.info('Shutting down AgentManager', 'AgentManager')
 
     // Cleanup all agents
     for (const agent of this.agents.values()) {
       try {
         await agent.cleanup()
       } catch (error: any) {
-        await logger.error(`Error cleaning up agent ${agent.id}`, { error: error.message })
+        await structuredLogger.error(
+          `Error cleaning up agent ${agent.id}`,
+          JSON.stringify({
+            agentId: agent.id,
+            error: error.message,
+          })
+        )
       }
     }
 
@@ -603,7 +659,7 @@ export class AgentManager extends EventEmitter {
     this.taskQueues.clear()
     this.taskHistory.clear()
 
-    await logger.info('AgentManager shutdown complete')
+    await structuredLogger.info('AgentManager shutdown complete', 'AgentManager')
   }
 
   /**

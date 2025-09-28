@@ -154,7 +154,7 @@ export class AdvancedTools {
               results.push({
                 file,
                 similarity,
-                content: content.substring(0, 200) + '...',
+                content: `${content.substring(0, 200)}...`,
               })
             } catch (_error) {
               // Skip files that can't be read
@@ -195,11 +195,11 @@ export class AdvancedTools {
           const available = providers.filter((p) => p.available)
           const unavailable = providers.filter((p) => !p.available)
 
-          console.log(chalk.blue('🤖 Available Embedding Providers:'))
+          console.log(chalk.blue('🔌 Available Embedding Providers:'))
 
           if (available.length > 0) {
             available.forEach((provider) => {
-              console.log(chalk.green(`✅ ${provider.provider}: ${provider.model}`))
+              console.log(chalk.green(`✓ ${provider.provider}: ${provider.model}`))
             })
           } else {
             console.log(chalk.yellow('⚠️  No embedding providers are currently available'))

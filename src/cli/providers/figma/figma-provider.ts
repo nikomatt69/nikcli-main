@@ -10,9 +10,8 @@
  * - Error handling and retry logic
  */
 
-import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios'
+import axios, { type AxiosInstance } from 'axios'
 import chalk from 'chalk'
-import { simpleConfigManager } from '../../core/config-manager'
 
 // ==================== TYPES & INTERFACES ====================
 
@@ -190,7 +189,7 @@ export class FigmaProvider {
     // Request interceptor for logging
     this.apiClient.interceptors.request.use(
       (config) => {
-        console.log(chalk.gray(`🔄 Figma API: ${config.method?.toUpperCase()} ${config.url}`))
+        console.log(chalk.gray(`⚡︎ Figma API: ${config.method?.toUpperCase()} ${config.url}`))
         return config
       },
       (error) => Promise.reject(error)
@@ -199,7 +198,7 @@ export class FigmaProvider {
     // Response interceptor for error handling and retries
     this.apiClient.interceptors.response.use(
       (response) => {
-        console.log(chalk.green(`✅ Figma API: ${response.status} ${response.statusText}`))
+        console.log(chalk.green(`✓ Figma API: ${response.status} ${response.statusText}`))
         return response
       },
       async (error) => {
@@ -290,7 +289,7 @@ export class FigmaProvider {
 
       // Extract color tokens from styles
       if (fileInfo.styles) {
-        for (const [styleId, style] of Object.entries(fileInfo.styles)) {
+        for (const [_styleId, style] of Object.entries(fileInfo.styles)) {
           if (style.styleType === 'FILL') {
             tokens.colors.push({
               name: style.name.replace(/\//g, '-').toLowerCase(),
@@ -379,7 +378,7 @@ export class FigmaProvider {
       [r, g, b]
         .map((x) => {
           const hex = Math.round(x).toString(16)
-          return hex.length === 1 ? '0' + hex : hex
+          return hex.length === 1 ? `0${hex}` : hex
         })
         .join('')
     )
@@ -468,7 +467,7 @@ export function extractFileIdFromUrl(url: string): string | null {
 
   for (const pattern of patterns) {
     const match = url.match(pattern)
-    if (match && match[1]) {
+    if (match?.[1]) {
       return match[1]
     }
   }

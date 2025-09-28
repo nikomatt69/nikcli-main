@@ -1,6 +1,6 @@
 import type { CoreMessage } from 'ai'
 import { universalTokenizer } from '../core/universal-tokenizer-service'
-import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 import type { ChatMessage } from './model-provider'
 
 export type ModelScope = 'chat_default' | 'planning' | 'code_gen' | 'tool_light' | 'tool_heavy' | 'vision'
@@ -43,11 +43,14 @@ async function estimateTokensPrecise(
     const tokens = await universalTokenizer.countMessagesTokens(coreMessages, model, provider)
     return { tokens, method: 'precise' }
   } catch (error: any) {
-    logger.warn('Precise token counting failed, using fallback', {
-      error: error.message,
-      provider,
-      model,
-    })
+    structuredLogger.warning(
+      'Precise token counting failed, using fallback',
+      JSON.stringify({
+        error: error.message,
+        provider,
+        model,
+      })
+    )
 
     // Fallback to improved character-based estimation
     const chars = messages.reduce((s, m) => s + (m.content?.length || 0), 0)
@@ -101,7 +104,7 @@ function pickOpenAI(baseModel: string, tier: 'light' | 'medium' | 'heavy', needs
   }
 }
 
-function pickAnthropic(baseModel: string, tier: 'light' | 'medium' | 'heavy', needsVision?: boolean): string {
+function pickAnthropic(_baseModel: string, tier: 'light' | 'medium' | 'heavy', _needsVision?: boolean): string {
   // Claude-4 Opus/Sonnet-4/3.5 Sonnet present in defaults; Haiku may not be configured
   if (tier === 'heavy') return 'claude-sonnet-4-20250514'
   if (tier === 'medium') return 'claude-3-7-sonnet-20250219'
@@ -114,7 +117,7 @@ function pickGoogle(_baseModel: string, tier: 'light' | 'medium' | 'heavy'): str
   return 'gemini-2.5-flash-lite'
 }
 
-function pickOpenRouter(baseModel: string, tier: 'light' | 'medium' | 'heavy', needsVision?: boolean): string {
+function pickOpenRouter(baseModel: string, _tier: 'light' | 'medium' | 'heavy', needsVision?: boolean): string {
   // Dynamic: Use the configured baseModel (already prefixed in config for OpenRouter)
   // No hardcoding - routes to any available model via OpenRouter
   // For vision, prefer vision-capable if baseModel indicates, but keep dynamic
@@ -203,7 +206,7 @@ export class AdaptiveModelRouter {
 
     // Get model limits for additional context
     const limits = universalTokenizer.getModelLimits(selected, input.provider)
-    const contextUsage = tokens / limits.context
+    const _contextUsage = tokens / limits.context
 
     return {
       selectedModel: selected,

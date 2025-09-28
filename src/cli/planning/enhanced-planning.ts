@@ -98,40 +98,6 @@ export class EnhancedPlanningSystem {
   }
 
   /**
-   * Dynamic preflight per-todo: warn on missing resources and adapt todo metadata
-   */
-  private async preflightTodoResources(todo: TodoItem): Promise<void> {
-    try {
-      if (todo.files && todo.files.length > 0) {
-        const verified: string[] = []
-        const missing: string[] = []
-
-        for (const f of todo.files) {
-          try {
-            const p = path.resolve(this.workingDirectory, f)
-            const stat = await fs.stat(p)
-            if (stat && (stat.isFile() || stat.isDirectory())) {
-              verified.push(f)
-            } else {
-              missing.push(f)
-            }
-          } catch {
-            missing.push(f)
-          }
-        }
-
-        if (missing.length > 0) {
-          console.log(chalk.yellow(`⚠️ Missing resources for this todo: ${missing.join(', ')}`))
-          todo.files = verified
-          todo.tags = Array.from(new Set([...(todo.tags || []), 'adaptive']))
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  /**
    * If the goal explicitly requests read-only analysis (e.g., mentions only grep/read),
    * filter out todos that create/modify files or execute commands, and keep only analysis/read tasks.
    */
@@ -202,7 +168,7 @@ export class EnhancedPlanningSystem {
     }
 
     // Generate AI-powered plan with enhanced analysis
-    console.log(chalk.gray('🧠 Generating comprehensive AI plan...'))
+    console.log(chalk.gray('⚡︎ Generating comprehensive AI plan...'))
     let todos = await this.generateTodosWithAI(goal, projectContext, maxTodos)
 
     // Enforce read-only constraints if requested by the goal (no commands, no file writes)
@@ -289,9 +255,9 @@ export class EnhancedPlanningSystem {
         commands,
       },
       {
-        showBreakdown: compact ? false : true,
+        showBreakdown: !compact,
         allowModification: false,
-        showTimeline: compact ? false : true,
+        showTimeline: !compact,
       }
     )
 
@@ -370,7 +336,7 @@ export class EnhancedPlanningSystem {
           }
         }
         const orchestrator = (global as any).__streamingOrchestrator
-        if (orchestrator && orchestrator.context) {
+        if (orchestrator?.context) {
           orchestrator.context.planMode = false
           orchestrator.context.autoAcceptEdits = false
         }
@@ -496,7 +462,7 @@ export class EnhancedPlanningSystem {
           const mentionsEdit = /\b(edit|modify|update|replace|fix)\b/i.test(text)
           if (mentionsEdit && Array.isArray(todo.files) && todo.files.length > 0) {
             // Try to extract 'replace X with Y'
-            const m = todo.description?.match(/replace\s+['\"](.+?)['\"]\s+with\s+['\"](.+?)['\"]/i)
+            const m = todo.description?.match(/replace\s+['"](.+?)['"]\s+with\s+['"](.+?)['"]/i)
             if (m) {
               const search = m[1]
               const replacement = m[2]
@@ -611,7 +577,7 @@ export class EnhancedPlanningSystem {
           name: 'approved',
           message: 'Approve this operation?',
           choices: [
-            { name: '✅ Yes, continue', value: true },
+            { name: '✓ Yes, continue', value: true },
             { name: '❌ No, stop plan', value: false },
           ],
           // Default to Yes for smoother flow; user can still reject
@@ -620,7 +586,7 @@ export class EnhancedPlanningSystem {
       ])
 
       return answers.approved === true
-    } catch (e) {
+    } catch (_e) {
       // On any prompt error, be safe and refuse
       return false
     } finally {
@@ -809,7 +775,7 @@ Generate a comprehensive plan that is practical and executable.`,
         createdAt: new Date(),
       }))
 
-      console.log(chalk.green(`✅ Generated ${todos.length} todos`))
+      console.log(chalk.green(`✓ Generated ${todos.length} todos`))
       return todos
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to generate AI plan: ${error.message}`))
@@ -835,82 +801,6 @@ Generate a comprehensive plan that is practical and executable.`,
         },
       ]
     }
-  }
-
-  /**
-   * Display plan in formatted view
-   */
-  private displayPlan(plan: TodoPlan): void {
-    this.cliInstance.printPanel(
-      boxen(
-        `${chalk.blue.bold(plan.title)}\\n\\n` +
-          `${chalk.gray('Goal:')} ${plan.goal}\\n` +
-          `${chalk.gray('Todos:')} ${plan.todos.length}\\n` +
-          `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\\n` +
-          `${chalk.gray('Status:')} ${this.getStatusColor(plan.status)(plan.status.toUpperCase())}`,
-        {
-          padding: 1,
-          margin: { top: 1, bottom: 1, left: 0, right: 0 },
-          borderStyle: 'round',
-          borderColor: 'blue',
-        }
-      )
-    )
-
-    console.log(chalk.blue.bold('\\n📋 Todo Items:'))
-    console.log(chalk.gray('─'.repeat(60)))
-
-    plan.todos.forEach((todo, index) => {
-      const priorityIcon = this.getPriorityIcon(todo.priority)
-      const statusIcon = this.getStatusIcon(todo.status)
-      const categoryColor = this.getCategoryColor(todo.category)
-
-      console.log(`${index + 1}. ${statusIcon} ${priorityIcon} ${chalk.bold(todo.title)}`)
-      console.log(`   ${chalk.gray(todo.description)}`)
-      console.log(
-        `   ${categoryColor(todo.category)} | ${chalk.gray(todo.estimatedDuration + 'min')} | ${chalk.gray(todo.tags.join(', '))}`
-      )
-
-      if (todo.dependencies.length > 0) {
-        console.log(`   ${chalk.yellow('Dependencies:')} ${todo.dependencies.join(', ')}`)
-      }
-
-      if (todo.files && todo.files.length > 0) {
-        console.log(`   ${chalk.blue('Files:')} ${todo.files.join(', ')}`)
-      }
-
-      console.log()
-    })
-  }
-
-  /**
-   * Display plan summary
-   */
-  private displayPlanSummary(plan: TodoPlan): void {
-    const stats = {
-      byPriority: this.groupBy(plan.todos, 'priority'),
-      byCategory: this.groupBy(plan.todos, 'category'),
-      totalFiles: new Set(plan.todos.flatMap((t) => t.files || [])).size,
-      totalCommands: plan.todos.reduce((sum, t) => sum + (t.commands?.length || 0), 0),
-    }
-
-    console.log(chalk.cyan('📊 Plan Statistics:'))
-    console.log(`  • Total Todos: ${plan.todos.length}`)
-    console.log(`  • Estimated Duration: ${Math.round(plan.estimatedTotalDuration)} minutes`)
-    console.log(`  • Files to modify: ${stats.totalFiles}`)
-    console.log(`  • Commands to run: ${stats.totalCommands}`)
-
-    console.log(chalk.cyan('\\n🎯 Priority Distribution:'))
-    Object.entries(stats.byPriority).forEach(([priority, todos]) => {
-      const icon = this.getPriorityIcon(priority as any)
-      console.log(`  ${icon} ${priority}: ${(todos as TodoItem[]).length} todos`)
-    })
-
-    console.log(chalk.cyan('\n📁 Category Distribution:'))
-    Object.entries(stats.byCategory).forEach(([category, todos]) => {
-      const color = this.getCategoryColor(category)
-      console.log(`  • ${color(category)}: ${(todos as TodoItem[]).length} todos`)
-    })
   }
 
   /**
@@ -954,7 +844,7 @@ Generate a comprehensive plan that is practical and executable.`,
       }
 
       if (todo.files && todo.files.length > 0) {
-        content += `**Files:** \`${todo.files.join('\`, \`')}\`\n\n`
+        content += `**Files:** \`${todo.files.join('`, `')}\`\n\n`
       }
 
       if (todo.commands && todo.commands.length > 0) {
@@ -1007,143 +897,6 @@ Generate a comprehensive plan that is practical and executable.`,
   }
 
   /**
-   * Execute a single todo using real agent system
-   */
-  private async executeTodo(todo: TodoItem, plan: TodoPlan): Promise<void> {
-    console.log(chalk.blue(`🚀 Starting: ${todo.title}`))
-    console.log(chalk.gray(`   ${todo.description}`))
-
-    // Enforce read-only execution if requested by plan goal
-    const lowerGoal = (plan.goal || '').toLowerCase()
-    const readOnlyRequested =
-      lowerGoal.includes('solo grep') ||
-      lowerGoal.includes('solo read') ||
-      (lowerGoal.includes('grep') &&
-        lowerGoal.includes('read') &&
-        (lowerGoal.includes('solo') || lowerGoal.includes('only')))
-    if (readOnlyRequested && ((todo.commands && todo.commands.length > 0) || (todo.files && todo.files.length > 0))) {
-      console.log(chalk.yellow('⚠️ Read-only mode: skipping commands/file modifications for this todo'))
-      // Mark as skipped but not failed to continue flow
-      todo.status = 'skipped'
-      todo.completedAt = new Date()
-      plan.progress!.completedSteps += 1
-      plan.progress!.percentage = Math.round((plan.progress!.completedSteps / plan.progress!.totalSteps) * 100)
-      return
-    }
-
-    // Dynamic preflight: ensure referenced resources exist; adapt instead of failing
-    await this.preflightTodoResources(todo)
-
-    let originalEmit: any
-    try {
-      // Import agent service for real execution
-      const { agentService } = await import('../services/agent-service')
-
-      // Setup event listeners to bridge agent events to UI
-      originalEmit = agentService.emit.bind(agentService)
-      const eventHandler = (event: string, ...args: any[]) => {
-        // Route events through the NikCLI UI system if available
-        try {
-          // Avoid circular import by accessing global instance directly
-          const globalThis = global as any
-          const nikCliInstance = globalThis.__nikCLI
-          if (nikCliInstance && typeof nikCliInstance.routeEventToUI === 'function') {
-            // Map agent service events to UI events
-            if (event === 'task_progress') {
-              nikCliInstance.routeEventToUI('agent_progress', {
-                task: todo.title,
-                progress: args[1]?.progress || 0,
-                description: args[1]?.description || '',
-              })
-            } else if (event === 'tool_use') {
-              nikCliInstance.routeEventToUI('agent_tool', {
-                task: todo.title,
-                tool: args[1]?.tool || 'unknown',
-                description: args[1]?.description || '',
-              })
-            } else if (event === 'task_result') {
-              nikCliInstance.routeEventToUI('agent_result', {
-                task: todo.title,
-                result: args[1]?.data || 'completed',
-              })
-            }
-          }
-        } catch (_uiError) {
-          // If UI routing fails, fall back to console output
-          if (event === 'task_progress') {
-            console.log(chalk.cyan(`   📊 Progress: ${args[1]?.progress || 0}% - ${args[1]?.description || ''}`))
-          } else if (event === 'tool_use') {
-            console.log(chalk.magenta(`   🔧 Tool: ${args[1]?.tool || 'unknown'} - ${args[1]?.description || ''}`))
-          }
-        }
-
-        // Call original emit to maintain existing functionality
-        return originalEmit(event, ...args)
-      }
-
-      // Temporarily override emit to capture events
-      agentService.emit = eventHandler
-
-      // Select best agent dynamically for the todo
-      const agentType = this.selectAgentForTodo(todo)
-      // Execute task and get taskId
-      const taskId = await agentService.executeTask(agentType, `${todo.title}: ${todo.description}`)
-      // Trace
-      todo.agentTypeUsed = agentType
-      todo.agentTaskId = taskId
-
-      // Poll for completion with timeout (per-todo)
-      const maxWaitMs = Math.min(Math.max((todo?.estimatedDuration || 5) * 60 * 1000, 2 * 60 * 1000), 15 * 60 * 1000)
-      const start = Date.now()
-      let result: any = undefined
-      while (Date.now() - start < maxWaitMs) {
-        // Check for interruption during polling
-        const shouldInterrupt = (global as any).__shouldInterrupt
-        if (shouldInterrupt && shouldInterrupt()) {
-          console.log('🛑 Todo execution polling interrupted by user')
-          break
-        }
-
-        const status = agentService.getTaskStatus(taskId)
-        if (status?.status === 'completed') {
-          result = status.result || 'Task completed successfully'
-          break
-        }
-        if (status?.status === 'failed') {
-          throw new Error(status.error || 'Task execution failed')
-        }
-        await new Promise((resolve) => setTimeout(resolve, 500))
-      }
-      if (result === undefined) {
-        throw new Error('Todo execution timeout')
-      }
-
-      console.log(chalk.green(`✅ Completed: ${todo.title}`))
-    } catch (error: any) {
-      console.log(chalk.red(`❌ Failed: ${todo.title} - ${error.message}`))
-      throw error
-    } finally {
-      try {
-        // Restore original emit even on errors/timeouts
-        const { agentService } = await import('../services/agent-service')
-        if (originalEmit) {
-          agentService.emit = originalEmit
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-
-  /**
-   * Minimal dynamic agent selection based on todo metadata
-   */
-  private selectAgentForTodo(todo: TodoItem): string {
-    // Always use the universal agent to execute plan todos
-    return 'universal-agent'
-  }
-
-  /**
    * Resolve todo execution order based on dependencies
    */
   private resolveDependencyOrder(todos: TodoItem[]): TodoItem[] {
@@ -1154,7 +907,7 @@ Generate a comprehensive plan that is practical and executable.`,
     while (remaining.length > 0) {
       // Check for interruption to prevent infinite loops
       const shouldInterrupt = (global as any).__shouldInterrupt
-      if (shouldInterrupt && shouldInterrupt()) {
+      if (shouldInterrupt?.()) {
         console.log('🛑 Dependency resolution interrupted by user')
         break
       }
@@ -1250,94 +1003,6 @@ Generate a comprehensive plan that is practical and executable.`,
   }
 
   /**
-   * Enhanced todo execution with better error handling
-   */
-  private async executeEnhancedTodo(todo: TodoItem, plan: TodoPlan): Promise<void> {
-    // Validate dependencies
-    if (todo.dependencies.length > 0) {
-      const dependencyStatus = todo.dependencies.map((depId) => {
-        const depTodo = plan.todos.find((t) => t.id === depId)
-        return depTodo?.status === 'completed'
-      })
-
-      if (dependencyStatus.some((status) => !status)) {
-        throw new Error('Dependencies not satisfied')
-      }
-    }
-
-    // Use the real executeTodo method
-    await this.executeTodo(todo, plan)
-  }
-
-  /**
-   * Generate a small execution plan for a single todo and display it in a panel
-   */
-  // Sub-plan UI removed to match requested screenshot style
-
-  /**
-   * Handle execution errors with recovery options
-   */
-  private async handleExecutionError(todo: TodoItem, plan: TodoPlan, completedCount: number): Promise<boolean> {
-    const compact = process.env.NIKCLI_COMPACT === '1'
-    if (compact) {
-      // In compact mode, auto-continue and keep the dashboard as source of truth
-      return true
-    }
-
-    const { approvalSystem } = await import('../ui/approval-system')
-    console.log(chalk.yellow('\n   ⚠️  Execution Error Recovery Options:'))
-    console.log(chalk.gray('   1. Continue with remaining todos'))
-    console.log(chalk.gray('   2. Retry this todo'))
-    console.log(chalk.gray('   3. Skip this todo and continue'))
-    console.log(chalk.gray('   4. Stop execution'))
-
-    const shouldContinue = await approvalSystem.quickApproval(
-      'Continue Execution?',
-      `Todo "${todo.title}" failed. Continue with remaining todos?`,
-      'medium'
-    )
-    return shouldContinue
-  }
-
-  /**
-   * Update plan progress
-   */
-  private updatePlanProgress(plan: TodoPlan, completedCount: number): void {
-    if (plan.progress) {
-      plan.progress.completedSteps = completedCount
-      plan.progress.percentage = Math.round((completedCount / plan.progress.totalSteps) * 100)
-
-      // Estimate remaining time
-      const completedTodos = plan.todos.filter((t) => t.status === 'completed')
-      const avgTimePerTodo =
-        completedTodos.length > 0
-          ? completedTodos.reduce((sum, t) => sum + (t.actualDuration || 0), 0) / completedTodos.length
-          : 0
-
-      const remainingTodos = plan.todos.length - completedCount
-      plan.progress.estimatedTimeRemaining = Math.round(avgTimePerTodo * remainingTodos)
-    }
-  }
-
-  /**
-   * Display enhanced progress
-   */
-  private displayEnhancedProgress(plan: TodoPlan, completedCount: number, failedCount: number): void {
-    const progress = plan.progress?.percentage || 0
-    const total = plan.todos.length
-
-    console.log(chalk.blue(`   📊 Progress: ${progress}% (${completedCount}/${total})`))
-
-    if (failedCount > 0) {
-      console.log(chalk.red(`   ❌ Failed: ${failedCount}`))
-    }
-
-    if (plan.progress?.estimatedTimeRemaining) {
-      console.log(chalk.gray(`   ⏱️  Estimated time remaining: ${plan.progress.estimatedTimeRemaining} minutes`))
-    }
-  }
-
-  /**
    * Display enhanced completion summary
    */
   private displayEnhancedCompletionSummary(plan: TodoPlan, completedCount: number, failedCount: number): void {
@@ -1345,7 +1010,7 @@ Generate a comprehensive plan that is practical and executable.`,
     console.log(chalk.gray('═'.repeat(80)))
 
     console.log(chalk.cyan(`📋 Plan: ${plan.title}`))
-    console.log(chalk.cyan(`✅ Completed: ${completedCount}/${plan.todos.length} todos`))
+    console.log(chalk.cyan(`✓ Completed: ${completedCount}/${plan.todos.length} todos`))
 
     if (failedCount > 0) {
       console.log(chalk.red(`❌ Failed: ${failedCount} todos`))
@@ -1395,52 +1060,9 @@ Generate a comprehensive plan that is practical and executable.`,
     }
   }
 
-  /**
-   * Calculate priority distribution
-   */
-  private calculatePriorityDistribution(todos: TodoItem[]): Record<string, number> {
-    return todos.reduce(
-      (acc, todo) => {
-        acc[todo.priority] = (acc[todo.priority] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>
-    )
-  }
-
-  /**
-   * Get risk color
-   */
-  private getRiskColor(risk: string): any {
-    switch (risk) {
-      case 'critical':
-        return chalk.red.bold
-      case 'high':
-        return chalk.red
-      case 'medium':
-        return chalk.yellow
-      case 'low':
-        return chalk.green
-      default:
-        return chalk.gray
-    }
-  }
-
   // Utility methods
   private extractPlanTitle(goal: string): string {
-    return goal.length > 50 ? goal.substring(0, 47) + '...' : goal
-  }
-
-  private groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
-    return array.reduce(
-      (groups, item) => {
-        const group = String(item[key])
-        groups[group] = groups[group] || []
-        groups[group].push(item)
-        return groups
-      },
-      {} as Record<string, T[]>
-    )
+    return goal.length > 50 ? `${goal.substring(0, 47)}...` : goal
   }
 
   private getStatusColor(status: string): any {
@@ -1464,9 +1086,9 @@ Generate a comprehensive plan that is practical and executable.`,
   private getStatusIcon(status: string): string {
     switch (status) {
       case 'completed':
-        return '✅'
+        return '✓'
       case 'in_progress':
-        return '🔄'
+        return '⚡︎'
       case 'failed':
         return '❌'
       case 'skipped':
@@ -1479,9 +1101,9 @@ Generate a comprehensive plan that is practical and executable.`,
   private getStatusEmoji(status: string): string {
     switch (status) {
       case 'completed':
-        return '✅'
+        return '✓'
       case 'in_progress':
-        return '🔄'
+        return '⚡︎'
       case 'failed':
         return '❌'
       case 'skipped':
@@ -1616,7 +1238,7 @@ Generate a comprehensive plan that is practical and executable.`,
       console.log(`${index + 1}. ${statusIcon} ${priorityIcon} ${chalk.bold(todo.title)}`)
       console.log(`   ${chalk.gray(todo.description)}`)
       console.log(
-        `   ${categoryColor(todo.category)} | ${chalk.gray(todo.estimatedDuration + 'min')} | ${chalk.gray(todo.tags.join(', '))}`
+        `   ${categoryColor(todo.category)} | ${chalk.gray(`${todo.estimatedDuration}min`)} | ${chalk.gray(todo.tags.join(', '))}`
       )
 
       if (todo.dependencies.length > 0) {
@@ -1628,91 +1250,6 @@ Generate a comprehensive plan that is practical and executable.`,
       }
 
       console.log()
-    })
-  }
-
-  /**
-   * Display enhanced plan summary
-   */
-  private displayEnhancedPlanSummary(plan: TodoPlan): void {
-    const stats = {
-      byPriority: this.groupBy(plan.todos, 'priority'),
-      byCategory: this.groupBy(plan.todos, 'category'),
-      totalFiles: new Set(plan.todos.flatMap((t) => t.files || [])).size,
-      totalCommands: plan.todos.reduce((sum, t) => sum + (t.commands?.length || 0), 0),
-    }
-
-    console.log(chalk.cyan('📊 Enhanced Plan Statistics:'))
-    console.log(`  • Total Todos: ${plan.todos.length}`)
-    console.log(`  • Estimated Duration: ${Math.round(plan.estimatedTotalDuration)} minutes`)
-    console.log(`  • Files to modify: ${stats.totalFiles}`)
-    console.log(`  • Commands to run: ${stats.totalCommands}`)
-
-    console.log(chalk.cyan('\n🎯 Priority Distribution:'))
-    Object.entries(stats.byPriority).forEach(([priority, todos]) => {
-      const icon = this.getPriorityIcon(priority)
-      console.log(`  ${icon} ${priority}: ${(todos as TodoItem[]).length} todos`)
-    })
-
-    console.log(chalk.cyan('\n📁 Category Distribution:'))
-    Object.entries(stats.byCategory).forEach(([category, todos]) => {
-      const color = this.getCategoryColor(category)
-      console.log(`  • ${color(category)}: ${(todos as TodoItem[]).length} todos`)
-    })
-  }
-
-  /**
-   * Display risk assessment
-   */
-  private displayRiskAssessment(riskAssessment: TodoPlan['riskAssessment']): void {
-    if (!riskAssessment) return
-
-    console.log(chalk.blue.bold('\n⚠️  Risk Assessment:'))
-    const riskColor = this.getRiskColor(riskAssessment.overallRisk)
-    console.log(`  Overall Risk: ${riskColor(riskAssessment.overallRisk.toUpperCase())}`)
-
-    if (riskAssessment.riskFactors.length > 0) {
-      console.log(chalk.yellow('\n  Risk Factors:'))
-      riskAssessment.riskFactors.forEach((factor) => {
-        console.log(`    • ${factor}`)
-      })
-    }
-
-    if (riskAssessment.mitigationStrategies.length > 0) {
-      console.log(chalk.green('\n  Mitigation Strategies:'))
-      riskAssessment.mitigationStrategies.forEach((strategy) => {
-        console.log(`    • ${strategy}`)
-      })
-    }
-  }
-
-  /**
-   * Display execution timeline
-   */
-  private displayExecutionTimeline(plan: TodoPlan): void {
-    console.log(chalk.blue.bold('\n⏱️  Execution Timeline:'))
-    const duration = plan.estimatedTotalDuration
-    const hours = Math.floor(duration / 60)
-    const minutes = duration % 60
-
-    if (hours > 0) {
-      console.log(`  Estimated completion time: ${hours}h ${minutes}m`)
-    } else {
-      console.log(`  Estimated completion time: ${minutes} minutes`)
-    }
-
-    // Show progress milestones
-    const milestones = [
-      { percentage: 25, description: 'Initial setup and analysis' },
-      { percentage: 50, description: 'Core implementation' },
-      { percentage: 75, description: 'Testing and validation' },
-      { percentage: 100, description: 'Finalization and cleanup' },
-    ]
-
-    console.log(chalk.gray('  Progress milestones:'))
-    milestones.forEach((milestone) => {
-      const timeAtMilestone = Math.round((duration * milestone.percentage) / 100)
-      console.log(`    ${milestone.percentage}% (${timeAtMilestone}m): ${milestone.description}`)
     })
   }
 

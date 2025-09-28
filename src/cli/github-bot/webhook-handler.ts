@@ -4,7 +4,7 @@ import crypto from 'node:crypto'
 import { Octokit } from '@octokit/rest'
 import { CommentProcessor } from './comment-processor'
 import { TaskExecutor } from './task-executor'
-import type { GitHubBotConfig, GitHubWebhookEvent, NikCLIMention, ProcessingJob } from './types'
+import type { GitHubBotConfig, GitHubWebhookEvent, ProcessingJob } from './types'
 
 /**
  * GitHub Bot Webhook Handler for @nikcli mentions
@@ -122,7 +122,7 @@ export class GitHubWebhookHandler {
       return
     }
 
-    console.log('🤖 @nikcli mentioned! Processing request...')
+    console.log('🔌 @nikcli mentioned! Processing request...')
 
     // Create processing job
     const jobId = `${repository.full_name}-${issue.number}-${comment.id}`
@@ -230,7 +230,7 @@ export class GitHubWebhookHandler {
       job.status = 'processing'
       job.startedAt = new Date()
 
-      console.log(`🔄 Processing job: ${job.id}`)
+      console.log(`⚡︎ Processing job: ${job.id}`)
       console.log(`📋 Task: ${job.mention.command}`)
 
       // Update reaction to processing
@@ -247,7 +247,7 @@ export class GitHubWebhookHandler {
       job.completedAt = new Date()
       job.result = result
 
-      console.log(`✅ Job completed: ${job.id}`)
+      console.log(`✓ Job completed: ${job.id}`)
 
       // Add success reaction
       if (job.isPRReview) {
@@ -342,7 +342,7 @@ export class GitHubWebhookHandler {
     try {
       const [owner, repo] = job.repository.split('/')
 
-      const comment = `🤖 **NikCLI Error**
+      const comment = `🔌 **NikCLI Error**
 
 I encountered an error while processing your request:
 
@@ -355,7 +355,7 @@ Please check your request and try again. If the issue persists, please create an
 ---
 *Processing time: ${
         job.startedAt && job.completedAt
-          ? ((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2) + 's'
+          ? `${((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2)}s`
           : 'N/A'
       }*`
 
@@ -394,17 +394,17 @@ Please check your request and try again. If the issue persists, please create an
   private formatResultComment(job: ProcessingJob, result: any): string {
     const duration =
       job.startedAt && job.completedAt
-        ? ((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2) + 's'
+        ? `${((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2)}s`
         : 'N/A'
 
-    let comment = `🤖 **NikCLI Result**
+    let comment = `🔌 **NikCLI Result**
 
 Task: \`${job.mention.command}\`
 
 `
 
     if (result.prUrl) {
-      comment += `✅ **Pull Request Created:** ${result.prUrl}
+      comment += `✓ **Pull Request Created:** ${result.prUrl}
 
 ${result.summary || 'Changes have been applied successfully.'}
 

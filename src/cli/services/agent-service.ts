@@ -317,7 +317,7 @@ export class AgentService extends EventEmitter {
         throw new Error('Invalid agent configuration: missing name or handler')
       }
       this.agents.set(agent.name, agent)
-      console.log(chalk.dim(`🤖 Registered agent: ${agent.name}`))
+      console.log(chalk.dim(`🔌 Registered agent: ${agent.name}`))
     } catch (error: any) {
       console.error(chalk.red(`❌ Failed to register agent: ${error.message}`))
       this.emit('error', new Error(`Agent registration failed: ${error.message}`))
@@ -418,7 +418,7 @@ export class AgentService extends EventEmitter {
     agentTask.startTime = new Date()
     this.runningCount++
 
-    console.log(chalk.blue(`🤖 Starting ${agentTask.agentType} agent...`))
+    console.log(chalk.blue(`🔌 Starting ${agentTask.agentType} agent...`))
     this.emit('task_start', agentTask)
 
     try {
@@ -462,7 +462,7 @@ export class AgentService extends EventEmitter {
               agentTask.progress = update.progress
               this.emit('task_progress', agentTask, update)
             } else if (update.type === 'reasoning') {
-              console.log(chalk.magenta.bold(`\n🧠 Step ${update.step}: ${update.title}`))
+              console.log(chalk.magenta.bold(`\n⚡︎ Step ${update.step}: ${update.title}`))
               console.log(chalk.dim(`   Reasoning: ${update.reasoning}`))
               if (update.toolchain) {
                 console.log(chalk.cyan(`   Toolchain: ${update.toolchain.join(', ')}`))
@@ -507,8 +507,8 @@ export class AgentService extends EventEmitter {
       agentTask.status = 'completed'
       agentTask.endTime = new Date()
 
-      const duration = agentTask.endTime.getTime() - agentTask.startTime!.getTime()
-      console.log(chalk.green(`✅ ${agentTask.agentType} completed (${duration}ms)`))
+      const duration = agentTask.endTime.getTime() - agentTask.startTime?.getTime()
+      console.log(chalk.green(`✓ ${agentTask.agentType} completed (${duration}ms)`))
     } catch (error: any) {
       agentTask.status = 'failed'
       agentTask.error = error.message || 'Unknown error occurred'
@@ -807,7 +807,7 @@ export class AgentService extends EventEmitter {
       // Enhanced results display with step summary
       console.log(chalk.cyan.bold('\n📊 Repository Analysis Complete'))
       console.log(chalk.gray('═'.repeat(60)))
-      console.log(chalk.green('✅ Analysis completed in 9 systematic steps'))
+      console.log(chalk.green('✓ Analysis completed in 9 systematic steps'))
       console.log(`${chalk.blue('Project:')} ${analysis.projectStructure.name} v${analysis.projectStructure.version}`)
       console.log(
         `${chalk.blue('Files:')} ${analysis.projectStructure.totalFiles.typescript} TypeScript, ${analysis.projectStructure.totalFiles.test} tests`
@@ -819,7 +819,7 @@ export class AgentService extends EventEmitter {
         )
       }
       console.log(
-        `${chalk.blue('Quality:')} ${analysis.qualityAssessment.hasTests ? '✅' : '❌'} Tests, ${analysis.qualityAssessment.hasConfig ? '✅' : '❌'} TypeScript Config`
+        `${chalk.blue('Quality:')} ${analysis.qualityAssessment.hasTests ? '✓' : '❌'} Tests, ${analysis.qualityAssessment.hasConfig ? '✓' : '❌'} TypeScript Config`
       )
 
       if (analysis.recommendations.length > 0) {
@@ -957,7 +957,7 @@ export class AgentService extends EventEmitter {
       }
       let diff = null
       let reviewFindings = []
-      if (gitStatus && gitStatus.files && gitStatus.files.length > 0) {
+      if (gitStatus?.files && gitStatus.files.length > 0) {
         yield { type: 'tool_use', tool: 'git_diff', description: 'Getting code changes for review' }
         diff = await context.tools.executeTool('git_diff', {})
 
@@ -1031,7 +1031,7 @@ export class AgentService extends EventEmitter {
     }
   }
 
-  private analyzeDiffForIssues(diff: any, files: Array<string | { path: string; status?: string }>): string[] {
+  private analyzeDiffForIssues(_diff: any, files: Array<string | { path: string; status?: string }>): string[] {
     const paths = files.map((f: any) => (typeof f === 'string' ? f : f?.path || ''))
     const findings: string[] = []
     if (paths.includes('package.json')) {
@@ -1058,7 +1058,7 @@ export class AgentService extends EventEmitter {
     return securityIssues.length > 0 ? securityIssues : ['No obvious security concerns identified']
   }
 
-  private performQualityReview(diff: any): string[] {
+  private performQualityReview(_diff: any): string[] {
     const qualityIssues = []
     // Basic quality checks
     qualityIssues.push('Verify error handling is comprehensive')
@@ -1082,7 +1082,7 @@ export class AgentService extends EventEmitter {
     return suggestions.slice(0, 5)
   }
 
-  private async *backendExpertHandler(task: string, context: any) {
+  private async *backendExpertHandler(_task: string, _context: any) {
     yield { type: 'progress', progress: 25 }
     yield { type: 'tool_use', tool: 'find_files', description: 'Finding backend files' }
 
@@ -1096,7 +1096,7 @@ export class AgentService extends EventEmitter {
     }
   }
 
-  private async *frontendExpertHandler(task: string, context: any) {
+  private async *frontendExpertHandler(_task: string, _context: any) {
     yield { type: 'progress', progress: 30 }
     yield { type: 'tool_use', tool: 'find_files', description: 'Finding frontend components' }
 
@@ -1109,7 +1109,7 @@ export class AgentService extends EventEmitter {
     }
   }
 
-  private async *reactExpertHandler(task: string, context: any) {
+  private async *reactExpertHandler(_task: string, _context: any) {
     yield { type: 'progress', progress: 40 }
     yield { type: 'tool_use', tool: 'find_files', description: 'Finding React components' }
 
@@ -1122,7 +1122,7 @@ export class AgentService extends EventEmitter {
     }
   }
 
-  private async *devopsExpertHandler(task: string, context: any) {
+  private async *devopsExpertHandler(_task: string, _context: any) {
     yield { type: 'progress', progress: 35 }
     yield { type: 'tool_use', tool: 'find_files', description: 'Looking for deployment configs' }
 
@@ -1239,12 +1239,12 @@ export class AgentService extends EventEmitter {
       const deps = project?.packageInfo?.dependencies || {}
       const devDeps = project?.packageInfo?.devDependencies || {}
       const hasAISDK = !!(
-        deps['ai'] ||
+        deps.ai ||
         deps['@ai-sdk/openai'] ||
         deps['@ai-sdk/anthropic'] ||
         deps['@ai-sdk/google'] ||
         deps['@ai-sdk/vercel'] ||
-        devDeps['ai'] ||
+        devDeps.ai ||
         devDeps['@ai-sdk/openai'] ||
         devDeps['@ai-sdk/anthropic'] ||
         devDeps['@ai-sdk/google'] ||
@@ -1296,7 +1296,7 @@ export class AgentService extends EventEmitter {
     }
   }
 
-  private async *systemAdminHandler(task: string, context: any) {
+  private async *systemAdminHandler(_task: string, _context: any) {
     yield { type: 'progress', progress: 20 }
     yield { type: 'tool_use', tool: 'execute_command', description: 'Checking system status' }
 
@@ -1316,59 +1316,6 @@ export class AgentService extends EventEmitter {
     } catch (error: any) {
       yield { type: 'error', error: `Autonomous Coder failed: ${error.message}` }
     }
-  }
-
-  private analyzeTaskComplexity(task: string): string {
-    const taskLower = task.toLowerCase()
-    if (taskLower.includes('simple') || taskLower.includes('basic') || taskLower.length < 20) {
-      return 'Simple'
-    } else if (taskLower.includes('complex') || taskLower.includes('advanced') || taskLower.length > 100) {
-      return 'Complex'
-    } else {
-      return 'Moderate'
-    }
-  }
-
-  private generateImplementationSteps(task: string, complexity: string): any[] {
-    const baseSteps = [
-      {
-        title: 'Project Structure Analysis',
-        reasoning: 'Understanding current codebase organization',
-        action: 'Analyze existing file structure and patterns',
-        description: 'Analyzing project structure and requirements',
-      },
-      {
-        title: 'Core Logic Implementation',
-        reasoning: 'Building main functionality with proper error handling',
-        action: 'Implement core business logic',
-        description: 'Implementing core functionality',
-      },
-      {
-        title: 'Integration Layer',
-        reasoning: 'Connecting new functionality with existing systems',
-        action: 'Create integration points and APIs',
-        description: 'Building integration layer',
-      },
-    ]
-
-    if (complexity === 'Complex') {
-      baseSteps.push(
-        {
-          title: 'Advanced Features',
-          reasoning: 'Implementing complex features and optimizations',
-          action: 'Add advanced functionality and performance optimizations',
-          description: 'Adding advanced features and optimizations',
-        },
-        {
-          title: 'Security & Validation',
-          reasoning: 'Implementing comprehensive security measures',
-          action: 'Add security validations and error handling',
-          description: 'Implementing security and validation layers',
-        }
-      )
-    }
-
-    return baseSteps
   }
 
   /**
@@ -1455,7 +1402,7 @@ export class AgentService extends EventEmitter {
   /**
    * Infer operation type from tool name and arguments
    */
-  private inferOperationFromArgs(toolName: string, args: any): string {
+  private inferOperationFromArgs(_toolName: string, args: any): string {
     if (args.operation) return args.operation
     if (args.command) return `execute: ${args.command}`
     if (args.filePath) return `file-op: ${args.filePath}`
@@ -1465,7 +1412,7 @@ export class AgentService extends EventEmitter {
   /**
    * VM Agent Handler - placeholder for virtualized agent integration
    */
-  private async *vmAgentHandler(task: string, context: any): AsyncGenerator<any, any, unknown> {
+  private async *vmAgentHandler(task: string, _context: any): AsyncGenerator<any, any, unknown> {
     try {
       yield { type: 'progress', progress: 10 }
       yield { type: 'tool_use', tool: 'vm-agent', description: 'Initializing virtualized environment' }
@@ -1620,7 +1567,7 @@ export class AgentService extends EventEmitter {
   /**
    * Generate execution plan based on task and context
    */
-  private generateExecutionPlan(task: string, workspaceFiles: string[], agentType: string): any {
+  private generateExecutionPlan(task: string, _workspaceFiles: string[], _agentType: string): any {
     const steps = []
     const requiredTools = ['analysis']
 
@@ -1697,7 +1644,7 @@ export class AgentService extends EventEmitter {
   /**
    * Execute individual autonomous step
    */
-  private async executeAutonomousStep(step: any, context: any): Promise<any> {
+  private async executeAutonomousStep(step: any, _context: any): Promise<any> {
     // This is a simplified implementation - in production would have more sophisticated execution logic
     return {
       step: step.title,
@@ -1748,7 +1695,7 @@ export class AgentService extends EventEmitter {
     console.log(chalk.gray('═'.repeat(60)))
 
     // Summary statistics
-    const statusIcon = success ? '✅' : '❌'
+    const statusIcon = success ? '✓' : '❌'
     const statusColor = success ? chalk.green : chalk.red
     console.log(`${statusIcon} ${statusColor('Status:')} ${success ? 'Success' : 'Failed'}`)
     console.log(`${chalk.blue('Autonomy Level:')} ${autonomyLevel}`)
@@ -1756,7 +1703,7 @@ export class AgentService extends EventEmitter {
 
     // Progress summary
     console.log(chalk.cyan.bold('\n📊 Execution Summary:'))
-    console.log(`  ${chalk.green('✅')} Successful: ${summary.successful}/${summary.total}`)
+    console.log(`  ${chalk.green('✓')} Successful: ${summary.successful}/${summary.total}`)
     console.log(`  ${chalk.red('❌')} Failed: ${summary.failed}/${summary.total}`)
     console.log(`  ${chalk.yellow('📈')} Success Rate: ${summary.successRate}%`)
 
@@ -1765,7 +1712,7 @@ export class AgentService extends EventEmitter {
       console.log(chalk.cyan.bold('\n📋 Task Results:'))
       const displayResults = results.slice(0, 5)
       displayResults.forEach((result: any, index: number) => {
-        const icon = result.success !== false ? '✅' : '❌'
+        const icon = result.success !== false ? '✓' : '❌'
         const color = result.success !== false ? chalk.green : chalk.red
         console.log(`  ${icon} ${color(`Result ${index + 1}:`)} ${result.summary || result.action || 'Task completed'}`)
       })
@@ -1794,7 +1741,7 @@ export class AgentService extends EventEmitter {
 **Agent:** ${agent}  
 **Task:** ${agentTask.task}  
 **Timestamp:** ${timestamp}  
-**Status:** ${success ? '✅ Success' : '❌ Failed'}  
+**Status:** ${success ? '✓ Success' : '❌ Failed'}  
 **Autonomy Level:** ${autonomyLevel}  
 
 ## 📊 Execution Summary
@@ -1808,7 +1755,7 @@ export class AgentService extends EventEmitter {
 
 ${results
   .map((result: any, index: number) => {
-    const status = result.success !== false ? '✅' : '❌'
+    const status = result.success !== false ? '✓' : '❌'
     const title = result.title || result.action || `Task ${index + 1}`
     const description = result.summary || result.description || 'No description available'
 
@@ -1834,7 +1781,7 @@ ${errors.map((error: any) => `- **${error.step}:** ${error.error}`).join('\n')}
 `
     : ''
 }
-## 🤖 Agent Information
+## 🔌 Agent Information
 
 - **Agent ID:** ${agent}
 - **Autonomy Level:** ${autonomyLevel}

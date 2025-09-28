@@ -16,10 +16,10 @@ export class SharedGuidanceManager {
   }
 
   static getInstance(): SharedGuidanceManager {
-    if (!this.instance) {
-      this.instance = new SharedGuidanceManager()
+    if (!SharedGuidanceManager.instance) {
+      SharedGuidanceManager.instance = new SharedGuidanceManager()
     }
-    return this.instance
+    return SharedGuidanceManager.instance
   }
 
   /**
@@ -65,7 +65,7 @@ export class SharedGuidanceManager {
     if (nikocliContent) {
       const reactSections = this.extractSections(nikocliContent, ['react', 'frontend', 'component', 'jsx'])
       if (reactSections) {
-        guidance += '\n\n=== React Guidelines ===\n' + reactSections
+        guidance += `\n\n=== React Guidelines ===\n${reactSections}`
       }
     }
 
@@ -82,7 +82,7 @@ export class SharedGuidanceManager {
     if (nikocliContent) {
       const backendSections = this.extractSections(nikocliContent, ['api', 'backend', 'server', 'database'])
       if (backendSections) {
-        guidance += '\n\n=== Backend Guidelines ===\n' + backendSections
+        guidance += `\n\n=== Backend Guidelines ===\n${backendSections}`
       }
     }
 
@@ -99,7 +99,7 @@ export class SharedGuidanceManager {
     if (nikocliContent) {
       const testSections = this.extractSections(nikocliContent, ['test', 'testing', 'spec'])
       if (testSections) {
-        guidance += '\n\n=== Testing Guidelines ===\n' + testSections
+        guidance += `\n\n=== Testing Guidelines ===\n${testSections}`
       }
     }
 
@@ -115,7 +115,7 @@ export class SharedGuidanceManager {
     // Load package.json for project context (always useful)
     const packageJson = await this.readFileIfExists('package.json')
     if (packageJson) {
-      guidance += '=== Package Info ===\n' + this.summarizePackageJson(packageJson) + '\n\n'
+      guidance += `=== Package Info ===\n${this.summarizePackageJson(packageJson)}\n\n`
     }
 
     // Load basic project info from NIKOCLI.md
@@ -123,7 +123,7 @@ export class SharedGuidanceManager {
     if (nikocliContent) {
       const coreInfo = this.extractCoreInfo(nikocliContent)
       if (coreInfo) {
-        guidance += '=== Project Context ===\n' + coreInfo + '\n\n'
+        guidance += `=== Project Context ===\n${coreInfo}\n\n`
       }
     }
 
@@ -144,10 +144,10 @@ export class SharedGuidanceManager {
         if (sectionRelevant && currentSection) {
           relevantSections.push(currentSection)
         }
-        currentSection = line + '\n'
+        currentSection = `${line}\n`
         sectionRelevant = keywords.some((keyword) => line.toLowerCase().includes(keyword))
       } else {
-        currentSection += line + '\n'
+        currentSection += `${line}\n`
       }
     }
 
@@ -156,7 +156,7 @@ export class SharedGuidanceManager {
     }
 
     const result = relevantSections.join('\n').trim()
-    return result.length > 1500 ? result.substring(0, 1500) + '...' : result
+    return result.length > 1500 ? `${result.substring(0, 1500)}...` : result
   }
 
   /**
@@ -176,7 +176,7 @@ export class SharedGuidanceManager {
     }
 
     const result = coreLines.join('\n').trim()
-    return result.length > 800 ? result.substring(0, 800) + '...' : result
+    return result.length > 800 ? `${result.substring(0, 800)}...` : result
   }
 
   /**
@@ -195,7 +195,7 @@ export class SharedGuidanceManager {
       }
       return JSON.stringify(summary, null, 2)
     } catch {
-      return content.length > 500 ? content.substring(0, 500) + '...' : content
+      return content.length > 500 ? `${content.substring(0, 500)}...` : content
     }
   }
 

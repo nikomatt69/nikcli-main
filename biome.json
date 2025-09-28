@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!**/dist/**", "!**/build/**", "!**/node_modules/**", "!**/*.min.js"]
+    "includes": ["**", "!**/dist", "!**/build", "!**/node_modules", "!**/*.min.js"]
   },
   "formatter": {
     "enabled": true,
@@ -18,10 +18,11 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": false,
+      "recommended": true,
       "correctness": {
-        "noUnusedVariables": "error",
-        "noUnusedImports": "error",
+        "noUnusedVariables": "on",
+        "noUnusedImports": "on",
+        "noUnusedPrivateClassMembers": "on",
         "noUnreachable": "error"
       },
       "suspicious": {

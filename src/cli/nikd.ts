@@ -34,7 +34,7 @@ async function startDaemon(options: NikdOptions) {
       const url = new URL(options.redis)
       redisConfig = {
         host: url.hostname,
-        port: parseInt(url.port) || 6379,
+        port: parseInt(url.port, 10) || 6379,
         password: url.password || undefined,
       }
     }
@@ -56,7 +56,7 @@ async function startDaemon(options: NikdOptions) {
     // Start API server
     await server.start()
 
-    console.log(chalk.green('✅ nikd daemon started successfully'))
+    console.log(chalk.green('✓ nikd daemon started successfully'))
     console.log(chalk.blue(`📡 API: http://localhost:${config.port}`))
     console.log(chalk.blue(`📊 Health: http://localhost:${config.port}/health`))
 
@@ -76,7 +76,7 @@ async function startDaemon(options: NikdOptions) {
 
       try {
         await server.stop()
-        console.log(chalk.green('✅ nikd daemon stopped gracefully'))
+        console.log(chalk.green('✓ nikd daemon stopped gracefully'))
         process.exit(0)
       } catch (error) {
         console.error(chalk.red('❌ Error during shutdown:'), error)
@@ -126,9 +126,9 @@ async function main() {
       }
 
       await startDaemon({
-        port: parseInt(options.port),
+        port: parseInt(options.port, 10),
         redis: options.redis,
-        maxConcurrent: parseInt(options.maxConcurrent),
+        maxConcurrent: parseInt(options.maxConcurrent, 10),
         workspace: options.workspace,
         github: githubConfig,
       })
@@ -143,7 +143,7 @@ async function main() {
         const response = await fetch(`${options.apiUrl}/health`)
         const data = await response.json()
 
-        console.log(chalk.green('✅ nikd daemon is running'))
+        console.log(chalk.green('✓ nikd daemon is running'))
         console.log(chalk.blue(`📡 API: ${options.apiUrl}`))
         console.log(chalk.blue(`⏱️  Uptime: ${Math.round(data.uptime)}s`))
         console.log(chalk.blue(`🕒 Last check: ${data.timestamp}`))
@@ -168,7 +168,7 @@ async function main() {
 }
 
 // Error handling
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   console.error(chalk.red('Unhandled Rejection:'), reason)
   process.exit(1)
 })

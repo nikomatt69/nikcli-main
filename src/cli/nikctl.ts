@@ -30,7 +30,7 @@ async function main() {
 }
 
 // Error handling
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   console.error(chalk.red('Unhandled Rejection:'), reason)
   process.exit(1)
 })

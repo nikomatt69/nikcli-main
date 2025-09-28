@@ -96,7 +96,7 @@ export class ContainerManager extends EventEmitter {
         throw new Error('Failed to get container ID from Docker')
       }
 
-      CliUI.logSuccess(`✅ Container created: ${containerId.slice(0, 12)}`)
+      CliUI.logSuccess(`✓ Container created: ${containerId.slice(0, 12)}`)
       this.emit('container:created', { containerId, name: config.name })
 
       return containerId
@@ -122,7 +122,7 @@ export class ContainerManager extends EventEmitter {
       // Wait for container to be ready
       await this.waitForContainer(containerId)
 
-      CliUI.logSuccess(`✅ Container started: ${containerId.slice(0, 12)}`)
+      CliUI.logSuccess(`✓ Container started: ${containerId.slice(0, 12)}`)
       this.emit('container:started', { containerId })
     } catch (error: any) {
       CliUI.logError(`❌ Failed to start container: ${error.message}`)
@@ -144,7 +144,7 @@ export class ContainerManager extends EventEmitter {
         CliUI.logError(`Warning stopping container: ${stderr}`)
       }
 
-      CliUI.logSuccess(`✅ Container stopped: ${containerId.slice(0, 12)}`)
+      CliUI.logSuccess(`✓ Container stopped: ${containerId.slice(0, 12)}`)
       this.emit('container:stopped', { containerId })
     } catch (error: any) {
       CliUI.logError(`❌ Failed to stop container: ${error.message}`)
@@ -173,7 +173,7 @@ export class ContainerManager extends EventEmitter {
         CliUI.logError(`Warning removing container: ${stderr}`)
       }
 
-      CliUI.logSuccess(`✅ Container removed: ${containerId.slice(0, 12)}`)
+      CliUI.logSuccess(`✓ Container removed: ${containerId.slice(0, 12)}`)
       this.emit('container:removed', { containerId })
     } catch (error: any) {
       CliUI.logError(`❌ Failed to remove container: ${error.message}`)
@@ -280,51 +280,6 @@ export class ContainerManager extends EventEmitter {
   }
 
   /**
-   * Build Docker command with security and isolation settings
-   */
-  private buildDockerCommand(config: ContainerConfig): string {
-    const parts = [
-      'docker create',
-      `--name ${config.name}`,
-      `--network ${this.networkName}`,
-
-      // Security settings
-      '--security-opt no-new-privileges=true',
-      config.security?.readOnlyRootfs ? '--read-only' : '',
-      // Seccomp not supported on macOS Docker
-      // config.security?.seccompProfile ? `--security-opt seccomp=${config.security.seccompProfile}` : '',
-
-      // Capabilities
-      ...(config.security?.capabilities?.drop || []).map((cap) => `--cap-drop ${cap}`),
-      ...(config.security?.capabilities?.add || []).map((cap) => `--cap-add ${cap}`),
-
-      // Resource limits
-      config.resources?.memory ? `--memory ${config.resources.memory}` : '--memory 2g',
-      config.resources?.cpuQuota ? `--cpus ${config.resources.cpuQuota}` : '--cpus 1.0',
-
-      // Environment variables
-      ...Object.entries(config.environment || {}).map(([key, value]) => `-e ${key}="${value}"`),
-
-      // Volumes
-      ...(config.volumes || []).map((volume) => `-v ${volume}`),
-
-      // Ports
-      ...(config.ports || []).map((port) => `-p ${port}`),
-
-      // Other options
-      '--rm', // Remove container when it stops
-
-      // Image
-      config.image,
-
-      // Default command
-      'sh -c "while true; do sleep 30; done"', // Keep container alive
-    ]
-
-    return parts.filter((part) => part).join(' ')
-  }
-
-  /**
    * Ensure secure Docker network exists
    */
   private async ensureDockerNetwork(): Promise<void> {
@@ -336,7 +291,7 @@ export class ContainerManager extends EventEmitter {
       // Network doesn't exist, create it
       try {
         await execAsync(`docker network create --driver bridge ${this.networkName}`)
-        CliUI.logSuccess(`✅ Created secure Docker network: ${this.networkName}`)
+        CliUI.logSuccess(`✓ Created secure Docker network: ${this.networkName}`)
       } catch (createError: any) {
         CliUI.logError(`❌ Failed to create Docker network: ${createError.message}`)
       }

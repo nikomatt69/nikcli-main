@@ -250,7 +250,7 @@ export function getStateStyles(
   theme: Theme,
   baseStyle: ComputedStyles
 ): ComputedStyles {
-  let stateStyle = { ...baseStyle }
+  const stateStyle = { ...baseStyle }
 
   if (state.focused) {
     stateStyle.border = { ...stateStyle.border, fg: theme.borderFocus }

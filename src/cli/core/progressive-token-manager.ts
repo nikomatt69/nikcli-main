@@ -121,7 +121,7 @@ export class ProgressiveTokenManager {
     ].join('\n')
 
     const finalTokens = this.estimateTokens(truncatedContent)
-    console.log(chalk.green(`✅ Truncated from ${estimatedTokens} to ${finalTokens} tokens`))
+    console.log(chalk.green(`✓ Truncated from ${estimatedTokens} to ${finalTokens} tokens`))
 
     return truncatedContent
   }
@@ -167,7 +167,7 @@ export class ProgressiveTokenManager {
         chunks.push(chunk)
         this.chunks.set(chunkId, chunk)
 
-        console.log(chalk.green(`✅ Chunk ${chunkIndex}: ${currentChunk.length} messages, ~${currentTokens} tokens`))
+        console.log(chalk.green(`✓ Chunk ${chunkIndex}: ${currentChunk.length} messages, ~${currentTokens} tokens`))
 
         // Start new chunk
         currentChunk = [message]
@@ -196,9 +196,7 @@ export class ProgressiveTokenManager {
       chunks.push(chunk)
       this.chunks.set(chunkId, chunk)
 
-      console.log(
-        chalk.green(`✅ Final chunk ${chunkIndex}: ${currentChunk.length} messages, ~${currentTokens} tokens`)
-      )
+      console.log(chalk.green(`✓ Final chunk ${chunkIndex}: ${currentChunk.length} messages, ~${currentTokens} tokens`))
     }
 
     console.log(
@@ -274,7 +272,7 @@ export class ProgressiveTokenManager {
           progress: (processedCount / totalChunks) * 100,
         }
 
-        console.log(chalk.green(`✅ Chunk ${chunk.index + 1}/${totalChunks} processed successfully`))
+        console.log(chalk.green(`✓ Chunk ${chunk.index + 1}/${totalChunks} processed successfully`))
 
         // Generate intermediate summary every 5 chunks
         if (processedCount % 5 === 0 && processedCount < totalChunks) {
@@ -293,7 +291,7 @@ export class ProgressiveTokenManager {
 
         // Try to recover or skip
         if (this.canRecover(error)) {
-          console.log(chalk.yellow(`🔄 Attempting recovery for chunk ${chunk.id}...`))
+          console.log(chalk.yellow(`⚡︎ Attempting recovery for chunk ${chunk.id}...`))
           // Implement recovery logic here
         } else {
           console.log(chalk.red(`⚠️ Skipping failed chunk ${chunk.id}`))
@@ -460,7 +458,7 @@ export class ProgressiveTokenManager {
         const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content)
         compressed.push({
           ...message,
-          content: content.length > 1000 ? content.substring(0, 1000) + '...[truncated]' : content,
+          content: content.length > 1000 ? `${content.substring(0, 1000)}...[truncated]` : content,
         })
       } else if (message.role === 'user') {
         // Keep user messages mostly intact
@@ -471,7 +469,7 @@ export class ProgressiveTokenManager {
         if (content.length > 500) {
           compressed.push({
             ...message,
-            content: content.substring(0, 400) + '...[compressed]',
+            content: `${content.substring(0, 400)}...[compressed]`,
           })
         } else {
           compressed.push(message)

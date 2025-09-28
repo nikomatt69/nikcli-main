@@ -1,11 +1,10 @@
 import { EventEmitter } from 'node:events'
 import { countTokens as anthropicCountTokens } from '@anthropic-ai/tokenizer'
 import type { CoreMessage } from 'ai'
-import chalk from 'chalk'
-import { decode, encode } from 'gpt-tokenizer'
+import { encode } from 'gpt-tokenizer'
 import { encodingForModel } from 'js-tiktoken'
-import { MODEL_COSTS, type ModelPricing } from '../config/token-limits'
-import { logger } from '../utils/logger'
+import { MODEL_COSTS } from '../config/token-limits'
+import { structuredLogger } from '../utils/structured-logger'
 
 /**
  * Extract text content from complex content types
@@ -77,7 +76,10 @@ class GPTTokenizerAdapter implements TokenizerAdapter {
         return encode(text).length
       }
     } catch (error: any) {
-      logger.warn('GPT tokenizer failed, using fallback estimation', { error: error.message })
+      structuredLogger.warning(
+        'GPT tokenizer failed, using fallback estimation',
+        JSON.stringify({ error: error.message })
+      )
       return this.fallbackTokenCount(text)
     }
   }
@@ -139,7 +141,10 @@ class AnthropicTokenizerAdapter implements TokenizerAdapter {
         return this.estimateClaudeTokens(text, model)
       }
     } catch (error: any) {
-      logger.warn('Anthropic tokenizer failed, using fallback estimation', { error: error.message })
+      structuredLogger.warning(
+        'Anthropic tokenizer failed, using fallback estimation',
+        JSON.stringify({ error: error.message })
+      )
       return this.fallbackTokenCount(text)
     }
   }
@@ -279,7 +284,7 @@ class OllamaTokenizerAdapter implements TokenizerAdapter {
       const encoder = encodingForModel(encoding as any)
       return encoder.encode(text).length
     } catch (error: any) {
-      logger.warn('Ollama tokenizer failed, using fallback', { error: error.message })
+      structuredLogger.warning('Ollama tokenizer failed, using fallback', JSON.stringify({ error: error.message }))
       return this.fallbackTokenCount(text, model)
     }
   }
@@ -428,32 +433,6 @@ export class UniversalTokenizerService extends EventEmitter {
   }
 
   /**
-   * Extract text content from complex content types
-   */
-  private extractTextContent(content: any): string {
-    if (typeof content === 'string') {
-      return content
-    }
-
-    if (Array.isArray(content)) {
-      return content
-        .map((part) => {
-          if (typeof part === 'string') return part
-          if (part?.text) return part.text
-          if (part?.type === 'text' && part?.text) return part.text
-          return ''
-        })
-        .join('')
-    }
-
-    if (content?.text) {
-      return content.text
-    }
-
-    return JSON.stringify(content)
-  }
-
-  /**
    * Count tokens for a text string with specific model and provider
    */
   async countTokens(text: string, model: string, provider: string = 'openai'): Promise<number> {
@@ -476,11 +455,11 @@ export class UniversalTokenizerService extends EventEmitter {
       this.emit('token_count', { text: text.substring(0, 100), model, provider, tokens: tokenCount })
       return tokenCount
     } catch (error: any) {
-      logger.error('Token counting failed', { error: error.message, model, provider })
+      structuredLogger.error('Token counting failed', JSON.stringify({ error: error.message, model, provider }))
 
       if (this.options.fallbackEnabled) {
         const fallbackTokens = this.fallbackTokenCount(text)
-        logger.warn('Using fallback token counting', { tokens: fallbackTokens })
+        structuredLogger.warning('Using fallback token counting', JSON.stringify({ tokens: fallbackTokens }))
         return fallbackTokens
       }
 
@@ -499,7 +478,10 @@ export class UniversalTokenizerService extends EventEmitter {
       this.emit('messages_token_count', { messageCount: messages.length, model, provider, tokens: tokenCount })
       return tokenCount
     } catch (error: any) {
-      logger.error('Messages token counting failed', { error: error.message, model, provider })
+      structuredLogger.error(
+        'Messages token counting failed',
+        JSON.stringify({ error: error.message, model, provider })
+      )
 
       if (this.options.fallbackEnabled) {
         // Fallback: count each message individually and add overhead
@@ -583,7 +565,7 @@ export class UniversalTokenizerService extends EventEmitter {
   clearCache(): void {
     this.cache.clear()
     this.emit('cache_cleared')
-    logger.info('Token counting cache cleared')
+    structuredLogger.info('Token counting cache cleared', 'Universal Tokenizer Service')
   }
 
   /**
@@ -599,7 +581,12 @@ export class UniversalTokenizerService extends EventEmitter {
   private getAdapter(provider: string): TokenizerAdapter {
     const adapter = this.adapters.get(provider.toLowerCase())
     if (!adapter) {
-      logger.warn(`No tokenizer adapter for provider: ${provider}, using fallback`)
+      structuredLogger.warning(
+        `No tokenizer adapter for provider: ${provider}, using fallback`,
+        JSON.stringify({
+          provider,
+        })
+      )
       return this.adapters.get('openai')! // Fallback to OpenAI
     }
     return adapter

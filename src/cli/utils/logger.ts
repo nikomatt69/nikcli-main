@@ -296,7 +296,7 @@ export class Logger {
 
     try {
       const logFile = await this.getCurrentLogFile()
-      const logData = this.logBuffer.map((entry) => this.formatLogEntry(entry)).join('\n') + '\n'
+      const logData = `${this.logBuffer.map((entry) => this.formatLogEntry(entry)).join('\n')}\n`
 
       fs.appendFileSync(logFile, logData)
       this.logBuffer = []
@@ -318,7 +318,7 @@ export class Logger {
 
     try {
       const auditFile = await this.getCurrentAuditFile()
-      const auditData = this.auditBuffer.map((entry) => this.formatLogEntry(entry)).join('\n') + '\n'
+      const auditData = `${this.auditBuffer.map((entry) => this.formatLogEntry(entry)).join('\n')}\n`
 
       fs.appendFileSync(auditFile, auditData)
       this.auditBuffer = []

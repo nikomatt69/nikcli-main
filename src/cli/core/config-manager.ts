@@ -540,6 +540,30 @@ const ConfigSchema = z.object({
       requireExplicitTrigger: z.boolean().default(false),
     })
     .default({ requireExplicitTrigger: false }),
+  // Enhanced diff display configuration
+  diff: z
+    .object({
+      enabled: z.boolean().default(true).describe('Enable enhanced diff visualization'),
+      style: z.enum(['unified', 'side-by-side', 'compact']).default('unified').describe('Default diff display style'),
+      theme: z.enum(['dark', 'light', 'auto']).default('auto').describe('Color theme for diffs'),
+      showLineNumbers: z.boolean().default(true).describe('Show line numbers in diffs'),
+      contextLines: z.number().min(0).max(10).default(3).describe('Number of context lines to show'),
+      syntaxHighlight: z.boolean().default(true).describe('Enable syntax highlighting in diffs'),
+      showStats: z.boolean().default(true).describe('Show addition/deletion statistics'),
+      maxWidth: z.number().min(80).max(200).default(120).describe('Maximum width for diff display'),
+      compactThreshold: z.number().min(5).max(100).default(20).describe('Auto-switch to compact mode for large diffs'),
+    })
+    .default({
+      enabled: true,
+      style: 'unified',
+      theme: 'auto',
+      showLineNumbers: true,
+      contextLines: 3,
+      syntaxHighlight: true,
+      showStats: true,
+      maxWidth: 120,
+      compactThreshold: 20,
+    }),
 })
 
 export type ConfigType = z.infer<typeof ConfigSchema>
@@ -555,14 +579,14 @@ class KeyEncryption {
   private static getEncryptionKey(): Buffer {
     // Use machine-specific key derivation
     const machineId = os.hostname() + os.userInfo().username
-    return crypto.scryptSync(machineId, 'nikcli-salt', this.KEY_LENGTH)
+    return crypto.scryptSync(machineId, 'nikcli-salt', KeyEncryption.KEY_LENGTH)
   }
 
   static encrypt(text: string): string {
     try {
-      const key = this.getEncryptionKey()
-      const iv = crypto.randomBytes(this.IV_LENGTH)
-      const cipher = crypto.createCipheriv(this.ALGORITHM, key, iv) as crypto.CipherGCM
+      const key = KeyEncryption.getEncryptionKey()
+      const iv = crypto.randomBytes(KeyEncryption.IV_LENGTH)
+      const cipher = crypto.createCipheriv(KeyEncryption.ALGORITHM, key, iv) as crypto.CipherGCM
       cipher.setAAD(Buffer.from('nikcli-api-key'))
 
       let encrypted = cipher.update(text, 'utf8', 'hex')
@@ -570,10 +594,10 @@ class KeyEncryption {
       const authTag = cipher.getAuthTag()
 
       // Combine iv + authTag + encrypted
-      return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted
+      return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`
     } catch {
       // Fallback: return base64 encoded (basic obfuscation)
-      return 'b64:' + Buffer.from(text).toString('base64')
+      return `b64:${Buffer.from(text).toString('base64')}`
     }
   }
 
@@ -587,12 +611,12 @@ class KeyEncryption {
       const parts = encryptedText.split(':')
       if (parts.length !== 3) throw new Error('Invalid format')
 
-      const key = this.getEncryptionKey()
+      const key = KeyEncryption.getEncryptionKey()
       const iv = Buffer.from(parts[0], 'hex')
       const authTag = Buffer.from(parts[1], 'hex')
       const encrypted = parts[2]
 
-      const decipher = crypto.createDecipheriv(this.ALGORITHM, key, iv) as crypto.DecipherGCM
+      const decipher = crypto.createDecipheriv(KeyEncryption.ALGORITHM, key, iv) as crypto.DecipherGCM
       decipher.setAAD(Buffer.from('nikcli-api-key'))
       decipher.setAuthTag(authTag)
 
@@ -1022,6 +1046,17 @@ export class SimpleConfigManager {
         enableRealTimeAlerts: true,
       },
     },
+    diff: {
+      enabled: true,
+      style: 'unified',
+      theme: 'auto',
+      showLineNumbers: true,
+      contextLines: 3,
+      syntaxHighlight: true,
+      showStats: true,
+      maxWidth: 120,
+      compactThreshold: 20,
+    },
   }
 
   constructor() {
@@ -1124,7 +1159,7 @@ export class SimpleConfigManager {
 
   getApiKey(model: string): string | undefined {
     // First check config file
-    if (this.config.apiKeys && this.config.apiKeys[model]) {
+    if (this.config.apiKeys?.[model]) {
       // Decrypt the API key when retrieving
       return KeyEncryption.decrypt(this.config.apiKeys[model])
     }

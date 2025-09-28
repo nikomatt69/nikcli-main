@@ -5,7 +5,7 @@ import { createTaskMasterAdapter, type TaskMasterAdapter } from '../adapters/tas
 import { AutonomousPlanner, type PlanningEvent } from '../planning/autonomous-planner'
 import { PlanGenerator } from '../planning/plan-generator'
 import type { ExecutionPlan, PlannerContext, PlanningToolCapability, PlanTodo } from '../planning/types'
-import { type TaskMasterService, taskMasterService } from './taskmaster-service'
+import { taskMasterService } from './taskmaster-service'
 import { type ToolCapability, toolService } from './tool-service'
 
 export interface PlanningOptions {
@@ -44,11 +44,11 @@ export class PlanningService {
   private async initializeTaskMaster(): Promise<void> {
     try {
       await taskMasterService.initialize()
-      console.log(chalk.green('✅ TaskMaster planning integration enabled'))
+      console.log(chalk.green('✓ TaskMaster planning integration enabled'))
 
       // Listen for TaskMaster events
       this.taskMasterAdapter.on('initialized', () => {
-        console.log(chalk.cyan('🔄 TaskMaster adapter ready'))
+        console.log(chalk.cyan('⚡︎ TaskMaster adapter ready'))
       })
 
       this.taskMasterAdapter.on('fallback', () => {
@@ -221,7 +221,7 @@ export class PlanningService {
 
     if (shouldUseTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable()) {
       try {
-        console.log(chalk.cyan('🤖 Using TaskMaster AI for advanced planning...'))
+        console.log(chalk.cyan('🔌 Using TaskMaster AI for advanced planning...'))
 
         // Use TaskMaster for enhanced planning
         plan = await this.taskMasterAdapter.createEnhancedPlan(userRequest, {
@@ -230,7 +230,7 @@ export class PlanningService {
           projectType: await this.detectProjectType(),
         })
 
-        console.log(chalk.green('✅ TaskMaster plan generated'))
+        console.log(chalk.green('✓ TaskMaster plan generated'))
       } catch (error: any) {
         console.log(chalk.yellow(`⚠️ TaskMaster planning failed: ${error.message}`))
 
@@ -238,7 +238,7 @@ export class PlanningService {
           throw error
         }
 
-        console.log(chalk.cyan('🔄 Falling back to legacy planning...'))
+        console.log(chalk.cyan('⚡︎ Falling back to legacy planning...'))
         plan = await this.createLegacyPlan(userRequest, options)
       }
     } else {
@@ -268,7 +268,7 @@ export class PlanningService {
   /**
    * Create plan using legacy planning system
    */
-  private async createLegacyPlan(userRequest: string, options: PlanningOptions): Promise<ExecutionPlan> {
+  private async createLegacyPlan(userRequest: string, _options: PlanningOptions): Promise<ExecutionPlan> {
     const context: PlannerContext = {
       userRequest,
       availableTools: this.convertToPlanningTools(this.availableTools),
@@ -305,7 +305,7 @@ export class PlanningService {
   /**
    * Execute a plan autonomously
    */
-  async executePlan(planId: string, options: PlanningOptions): Promise<void> {
+  async executePlan(planId: string, _options: PlanningOptions): Promise<void> {
     const plan = this.activePlans.get(planId)
     if (!plan) {
       console.log(chalk.red(`Plan ${planId} not found`))
@@ -334,10 +334,10 @@ export class PlanningService {
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'pending' })
             break
           case 'plan_created':
-            if (!superCompact) console.log(chalk.blue(`🔄 ${event.result}`))
+            if (!superCompact) console.log(chalk.blue(`⚡︎ ${event.result}`))
             break
           case 'todo_start':
-            if (!superCompact) console.log(chalk.green(`✅ ${event.todoId}`))
+            if (!superCompact) console.log(chalk.green(`✓ ${event.todoId}`))
             if (event.todoId) this.updateTodoStatus(plan.id, event.todoId, 'in_progress')
             try {
               const { advancedUI } = await import('../ui/advanced-cli-ui')
@@ -352,7 +352,7 @@ export class PlanningService {
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'in_progress' })
             break
           case 'todo_progress':
-            if (!superCompact) console.log(chalk.red(`🔄 ${event.progress}`))
+            if (!superCompact) console.log(chalk.red(`⚡︎ ${event.progress}`))
             try {
               const { advancedUI } = await import('../ui/advanced-cli-ui')
               const items = (plan.todos || []).map((t) => ({
@@ -365,7 +365,7 @@ export class PlanningService {
             } catch {}
             break
           case 'todo_complete':
-            if (!superCompact) console.log(chalk.green(`✅ Todo completed`))
+            if (!superCompact) console.log(chalk.green(`✓ Todo completed`))
             if (event.todoId) {
               const status = event.error ? 'failed' : 'completed'
               this.updateTodoStatus(plan.id, event.todoId, status)
@@ -709,7 +709,7 @@ export class PlanningService {
    */
   setTaskMasterEnabled(enabled: boolean): void {
     this.useTaskMasterByDefault = enabled
-    console.log(chalk.cyan(`🤖 TaskMaster planning ${enabled ? 'enabled' : 'disabled'}`))
+    console.log(chalk.cyan(`🔌 TaskMaster planning ${enabled ? 'enabled' : 'disabled'}`))
   }
 
   /**

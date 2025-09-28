@@ -157,7 +157,7 @@ export class ReasoningDetector {
   /**
    * Detect if a model supports reasoning capabilities
    */
-  static detectReasoningSupport(provider: string, modelId: string): ReasoningCapabilities {
+  static detectReasoningSupport(_provider: string, modelId: string): ReasoningCapabilities {
     // Try exact model match first
     const exactMatch = MODEL_REASONING_CAPABILITIES[modelId]
     if (exactMatch) {
@@ -178,14 +178,14 @@ export class ReasoningDetector {
     }
 
     // Return default if no match found
-    return MODEL_REASONING_CAPABILITIES['default']
+    return MODEL_REASONING_CAPABILITIES.default
   }
 
   /**
    * Check if reasoning should be enabled for a specific model
    */
   static shouldEnableReasoning(provider: string, modelId: string, userPreference?: boolean): boolean {
-    const capabilities = this.detectReasoningSupport(provider, modelId)
+    const capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
 
     // Respect explicit user preference if provided
     if (userPreference !== undefined) {
@@ -210,7 +210,7 @@ export class ReasoningDetector {
    * Extract reasoning content from model response
    */
   static extractReasoning(response: any, provider: string): { reasoning?: any; reasoningText?: string } {
-    const config = this.getProviderReasoningConfig(provider)
+    const config = ReasoningDetector.getProviderReasoningConfig(provider)
 
     const reasoning = response[config.reasoningField]
     const reasoningText = response[config.reasoningTextField]
@@ -225,7 +225,7 @@ export class ReasoningDetector {
    * Check if a provider supports reasoning middleware
    */
   static supportsReasoningMiddleware(provider: string): boolean {
-    const config = this.getProviderReasoningConfig(provider)
+    const config = ReasoningDetector.getProviderReasoningConfig(provider)
     return config.supportsMiddleware
   }
 
@@ -243,7 +243,7 @@ export class ReasoningDetector {
    * Get reasoning capabilities summary for a model
    */
   static getModelReasoningSummary(provider: string, modelId: string): string {
-    const capabilities = this.detectReasoningSupport(provider, modelId)
+    const capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
 
     if (!capabilities.supportsReasoning) {
       return 'No reasoning support'

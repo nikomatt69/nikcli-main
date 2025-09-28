@@ -52,7 +52,7 @@ export class SecurityMiddleware extends BaseMiddleware {
   async execute(
     request: MiddlewareRequest,
     next: MiddlewareNext,
-    context: MiddlewareExecutionContext // eslint-disable-line @typescript-eslint/no-unused-vars
+    _context: MiddlewareExecutionContext // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<MiddlewareResponse> {
     const securityCheck = await this.performSecurityCheck(request)
 
@@ -131,7 +131,7 @@ export class SecurityMiddleware extends BaseMiddleware {
       !this.securityConfig.allowedOperations.some((allowed) => operation.includes(allowed.toLowerCase()))
     ) {
       return {
-        allowed: this.securityConfig.strictMode ? false : true,
+        allowed: !this.securityConfig.strictMode,
         requiresApproval: true,
         riskLevel: 'medium',
         reason: 'Operation not in allowed list',
@@ -326,7 +326,7 @@ export class SecurityMiddleware extends BaseMiddleware {
         const approved = answer.toLowerCase().startsWith('y')
 
         if (approved) {
-          console.log(chalk.green('✅ Operation approved'))
+          console.log(chalk.green('✓ Operation approved'))
         } else {
           console.log(chalk.red('❌ Operation denied'))
         }

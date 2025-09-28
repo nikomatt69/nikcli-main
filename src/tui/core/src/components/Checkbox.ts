@@ -45,8 +45,8 @@ export class Checkbox implements Component<Widgets.CheckboxElement> {
     })
 
     if (props.onChange) {
-      el.on('check', () => props.onChange!(true))
-      el.on('uncheck', () => props.onChange!(false))
+      el.on('check', () => props.onChange?.(true))
+      el.on('uncheck', () => props.onChange?.(false))
     }
 
     this.el = el

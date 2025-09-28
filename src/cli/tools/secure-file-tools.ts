@@ -5,7 +5,7 @@ import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 
 // Global batch approval state
-let batchApprovalState = {
+const batchApprovalState = {
   pendingFiles: new Map<string, Array<{ filePath: string; action: string; content?: string }>>(),
   approvalInProgress: false,
 }
@@ -41,7 +41,7 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
     batchApprovalState.pendingFiles.set(operationKey, [])
   }
 
-  batchApprovalState.pendingFiles.get(operationKey)!.push({
+  batchApprovalState.pendingFiles.get(operationKey)?.push({
     filePath,
     action,
     content,
@@ -104,7 +104,7 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
  * Generate batch approval message
  */
 function getBatchMessage(action: string, fileCount: number, operations: any[]): string {
-  const actionText = action === 'overwrite' ? '⚠️ Overwrite' : action === 'create' ? '📝 Create' : '🔄 Replace in'
+  const actionText = action === 'overwrite' ? '⚠️ Overwrite' : action === 'create' ? '📝 Create' : '⚡︎ Replace in'
   const filesText = fileCount === 1 ? 'file' : 'files'
 
   let message = `${actionText} ${fileCount} ${filesText}?`
@@ -218,7 +218,7 @@ export class WriteFileTool {
       }
 
       fs.writeFileSync(safePath, content, 'utf8')
-      console.log(chalk.green(`✅ File ${fileExists ? 'updated' : 'created'}: ${filePath}`))
+      console.log(chalk.green(`✓ File ${fileExists ? 'updated' : 'created'}: ${filePath}`))
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to write file: ${error.message}`))
       throw error
@@ -300,7 +300,7 @@ export class ListDirectoryTool {
       walkDir(safePath)
 
       console.log(
-        chalk.green(`📂 Listed directory: ${directoryPath} (${files.length} files, ${directories.length} directories)`)
+        chalk.green(`⚡︎ Listed directory: ${directoryPath} (${files.length} files, ${directories.length} directories)`)
       )
 
       return {
@@ -395,7 +395,7 @@ export class ReplaceInFileTool {
 
       // Write the modified content
       fs.writeFileSync(safePath, modifiedContent, 'utf8')
-      console.log(chalk.green(`✅ Applied ${totalReplacements} replacement(s) to: ${filePath}`))
+      console.log(chalk.green(`✓ Applied ${totalReplacements} replacement(s) to: ${filePath}`))
 
       return {
         replacements: totalReplacements,

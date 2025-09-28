@@ -6,15 +6,15 @@ export interface CompactOptions {
 
 export function truncateForPrompt(s: string, maxChars: number = 60000): string {
   if (!s) return ''
-  return s.length > maxChars ? s.slice(0, maxChars) + '…[truncated]' : s
+  return s.length > maxChars ? `${s.slice(0, maxChars)}…[truncated]` : s
 }
 
 export function safeStringifyContext(ctx: any, maxChars: number = 32000): string {
   if (!ctx) return '{}'
   try {
-    const str = JSON.stringify(ctx, (key, value) => {
+    const str = JSON.stringify(ctx, (_key, value) => {
       if (typeof value === 'string') {
-        return value.length > 4000 ? value.slice(0, 4000) + '…[truncated]' : value
+        return value.length > 4000 ? `${value.slice(0, 4000)}…[truncated]` : value
       }
       if (Array.isArray(value)) {
         const limited = value.slice(0, 100)
@@ -23,7 +23,7 @@ export function safeStringifyContext(ctx: any, maxChars: number = 32000): string
       }
       return value
     })
-    return str.length > maxChars ? str.slice(0, maxChars) + '…[truncated]' : str
+    return str.length > maxChars ? `${str.slice(0, maxChars)}…[truncated]` : str
   } catch {
     return '[unstringifiable context]'
   }
@@ -117,7 +117,7 @@ export function compactAnalysis(analysis: any, opts: CompactOptions = {}) {
     }
     if (json.length > maxChars) {
       // Final hard cap
-      json = json.slice(0, maxChars) + '…[truncated]'
+      json = `${json.slice(0, maxChars)}…[truncated]`
       return json // already stringified
     }
   }

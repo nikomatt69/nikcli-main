@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import chalk from 'chalk'
-import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 import { ContextSanitizer } from './middleware-context'
 import {
   BaseMiddleware,
@@ -149,10 +149,10 @@ export class LoggingMiddleware extends BaseMiddleware {
     this.addLogEntry(logEntry)
 
     if (this.shouldLogToConsole('info')) {
-      const statusIcon = response.success ? '✅' : '❌'
+      const statusIcon = response.success ? '✓' : '❌'
       const durationColor = duration > 1000 ? chalk.yellow : chalk.green
       console.log(
-        `${statusIcon} [${request.id.slice(0, 8)}] ${request.operation} ` + `${durationColor(duration + 'ms')}`
+        `${statusIcon} [${request.id.slice(0, 8)}] ${request.operation} ` + `${durationColor(`${duration}ms`)}`
       )
     }
   }
@@ -200,7 +200,7 @@ export class LoggingMiddleware extends BaseMiddleware {
     // Log slow operations
     if (duration > 5000 && this.shouldLogToConsole('warn')) {
       console.log(
-        chalk.yellow(`⚠️ [${request.id.slice(0, 8)}] SLOW OPERATION: `) + `${request.operation} took ${duration}ms`
+        `${chalk.yellow(`⚠️ [${request.id.slice(0, 8)}] SLOW OPERATION: `)}${request.operation} took ${duration}ms`
       )
     }
   }
@@ -298,7 +298,7 @@ export class LoggingMiddleware extends BaseMiddleware {
   private addLogEntry(entry: LogEntry): void {
     this.logBuffer.push(entry)
 
-    // Also log to console logger if appropriate
+    // Also log to console structuredLogger if appropriate
     if (this.shouldLogToSystemLogger(entry)) {
       const logData = {
         requestId: entry.requestId,
@@ -311,17 +311,17 @@ export class LoggingMiddleware extends BaseMiddleware {
 
       switch (entry.type) {
         case 'error':
-          logger.error(entry.error || 'Unknown error', logData)
+          structuredLogger.error(entry.error || 'Unknown error', JSON.stringify(logData))
           break
         case 'request':
-          logger.info(`Request: ${entry.operation}`, logData)
+          structuredLogger.info(`Request: ${entry.operation}`, JSON.stringify(logData))
           break
         case 'response':
-          logger.info(`Response: ${entry.operation}`, logData)
+          structuredLogger.info(`Response: ${entry.operation}`, JSON.stringify(logData))
           break
         case 'performance':
           if (entry.duration && entry.duration > 1000) {
-            logger.warn(`Performance: ${entry.operation}`, logData)
+            structuredLogger.warning(`Performance: ${entry.operation}`, JSON.stringify(logData))
           }
           break
       }
@@ -376,7 +376,7 @@ export class LoggingMiddleware extends BaseMiddleware {
 
     try {
       const entries = this.logBuffer.splice(0) // Clear buffer and get entries
-      const logLines = entries.map((entry) => JSON.stringify(entry)).join('\\n') + '\\n'
+      const logLines = `${entries.map((entry) => JSON.stringify(entry)).join('\\n')}\\n`
 
       await this.rotateLogFileIfNeeded()
       await fs.appendFile(this.loggingConfig.logFile, logLines, 'utf8')

@@ -72,22 +72,6 @@ export class ModernAIProvider {
     }
   }
 
-  // Load tool-specific prompts for enhanced execution
-  private async getToolPrompt(toolName: string, parameters: any = {}): Promise<string> {
-    try {
-      return await this.promptManager.loadPromptForContext({
-        toolName,
-        parameters: {
-          workingDirectory: this.workingDirectory,
-          ...parameters,
-        },
-      })
-    } catch (_error) {
-      // Return fallback prompt if file prompt fails
-      return `Execute ${toolName} with the provided parameters. Follow best practices and provide clear, helpful output.`
-    }
-  }
-
   // Core file operations tools - Claude Code style
   private getFileOperationsTools(): Record<string, CoreTool> {
     return {
@@ -469,23 +453,28 @@ export class ModernAIProvider {
     }
 
     switch (config.provider) {
-      case 'openai':
+      case 'openai': {
         // OpenAI provider is already response-API compatible via model options; no chainable helper here.
         const openaiProvider = createOpenAI({ apiKey })
         return openaiProvider(config.model)
-      case 'anthropic':
+      }
+      case 'anthropic': {
         const anthropicProvider = createAnthropic({ apiKey })
         return anthropicProvider(config.model)
-      case 'google':
+      }
+      case 'google': {
         const googleProvider = createGoogleGenerativeAI({ apiKey })
         return googleProvider(config.model)
-      case 'vercel':
+      }
+      case 'vercel': {
         const vercelProvider = createVercel({ apiKey })
         return vercelProvider(config.model)
-      case 'gateway':
+      }
+      case 'gateway': {
         const gatewayProvider = createGateway({ apiKey })
         return gatewayProvider(config.model)
-      case 'openrouter':
+      }
+      case 'openrouter': {
         const openrouterProvider = createOpenAI({
           apiKey,
           baseURL: 'https://openrouter.ai/api/v1',
@@ -495,6 +484,7 @@ export class ModernAIProvider {
           },
         })
         return openrouterProvider(config.model) // Assumes model like 'openai/gpt-4o'
+      }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }

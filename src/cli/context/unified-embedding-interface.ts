@@ -181,7 +181,7 @@ export class UnifiedEmbeddingInterface {
       this.queryLatencies = this.queryLatencies.slice(-1000)
     }
 
-    console.log(chalk.green(`✅ Generated ${results.length} embeddings in ${latency}ms`))
+    console.log(chalk.green(`✓ Generated ${results.length} embeddings in ${latency}ms`))
 
     return results
   }
@@ -261,7 +261,7 @@ export class UnifiedEmbeddingInterface {
       return false
     }
 
-    if (embedding.some((val) => typeof val !== 'number' || !isFinite(val))) {
+    if (embedding.some((val) => typeof val !== 'number' || !Number.isFinite(val))) {
       console.warn(chalk.yellow(`⚠️ Invalid embedding values from ${source}: contains non-finite numbers`))
       return false
     }
@@ -289,7 +289,7 @@ export class UnifiedEmbeddingInterface {
       this.clearCache()
     }
 
-    console.log(chalk.green('✅ Embedding configuration updated'))
+    console.log(chalk.green('✓ Embedding configuration updated'))
     this.logConfig()
   }
 
@@ -319,7 +319,7 @@ export class UnifiedEmbeddingInterface {
     if (this.config.persistenceEnabled) {
       this.clearPersistentCache()
     }
-    console.log(chalk.green('✅ Embedding cache cleared'))
+    console.log(chalk.green('✓ Embedding cache cleared'))
   }
 
   /**
@@ -337,7 +337,7 @@ export class UnifiedEmbeddingInterface {
       this.embeddingCache.clear()
       toKeep.forEach(([key, value]) => this.embeddingCache.set(key, value))
 
-      console.log(chalk.green(`✅ Cache optimized: kept ${toKeep.length}/${entries.length} entries`))
+      console.log(chalk.green(`✓ Cache optimized: kept ${toKeep.length}/${entries.length} entries`))
     }
 
     // Save to persistent cache
@@ -355,7 +355,7 @@ export class UnifiedEmbeddingInterface {
   logStatus(): void {
     const stats = this.getStats()
 
-    console.log(chalk.blue.bold('\n🧠 Unified Embedding Interface Status'))
+    console.log(chalk.blue.bold('\n⚡︎ Unified Embedding Interface Status'))
     console.log(chalk.gray('═'.repeat(50)))
 
     this.logConfig()
@@ -466,7 +466,7 @@ export class UnifiedEmbeddingInterface {
       }
 
       await this.loadPersistentCache()
-      console.log(chalk.gray(`✅ Persistent embedding cache initialized`))
+      console.log(chalk.gray(`✓ Persistent embedding cache initialized`))
     } catch (error) {
       console.warn(chalk.yellow(`⚠️ Failed to initialize persistent cache: ${error}`))
     }

@@ -3,7 +3,7 @@ import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
 
-// 🧠 Import Cognitive Types
+// ⚡︎ Import Cognitive Types
 import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
 
 // 🔧 Import Unified Tool Registry
@@ -589,7 +589,7 @@ export class ToolRouter extends EventEmitter {
     const suggestions: Record<string, any> = {}
 
     switch (tool) {
-      case 'web_search':
+      case 'web_search': {
         // Extract search query
         const searchMatch = content.match(/(?:search|find)\s+(.+?)(?:\s|$)/i)
         if (searchMatch) {
@@ -605,8 +605,9 @@ export class ToolRouter extends EventEmitter {
           suggestions.searchType = 'technical'
         }
         break
+      }
 
-      case 'code_analysis':
+      case 'code_analysis': {
         // Extract file path
         const fileMatch = content.match(/(?:analyze)\s+(.+?)(?:\s|$)/i)
         if (fileMatch) {
@@ -622,14 +623,16 @@ export class ToolRouter extends EventEmitter {
           suggestions.analysisType = 'patterns'
         }
         break
+      }
 
-      case 'semantic_search':
+      case 'semantic_search': {
         // Extract search query
         const semanticMatch = content.match(/(?:find)\s+(.+?)(?:\s|$)/i)
         if (semanticMatch) {
           suggestions.query = semanticMatch[1]
         }
         break
+      }
 
       case 'blockchain_web3': {
         // Try to infer operation
@@ -733,7 +736,7 @@ export class ToolRouter extends EventEmitter {
     })
   }
 
-  // ====================== 🧠 ADVANCED COGNITIVE ROUTING ALGORITHM ======================
+  // ====================== ⚡︎ ADVANCED COGNITIVE ROUTING ALGORITHM ======================
 
   /**
    * 🎯 Advanced Tool Routing with Cognitive Intelligence
@@ -748,7 +751,7 @@ export class ToolRouter extends EventEmitter {
       // Step 1: 🔍 Analyze Intent and Extract Tool Requirements
       const intentAnalysis = this.analyzeIntentAdvanced(context.userIntent)
 
-      // Step 2: 🧠 Apply Cognitive Understanding (if available)
+      // Step 2: ⚡︎ Apply Cognitive Understanding (if available)
       const cognitiveEnhancement = context.cognition
         ? this.applyCognitiveEnhancement(intentAnalysis, context.cognition)
         : intentAnalysis
@@ -771,10 +774,10 @@ export class ToolRouter extends EventEmitter {
         ? this.optimizeToolSequence(secureTools, context.orchestrationPlan)
         : this.defaultToolSequencing(secureTools)
 
-      // Step 6: ✅ Validation and Final Selection
+      // Step 6: ✓ Validation and Final Selection
       const validatedTools = this.validateAndFinalize(sequencedTools, context)
 
-      console.log(chalk.green(`✅ Selected ${validatedTools.length} optimal tools`))
+      console.log(chalk.green(`✓ Selected ${validatedTools.length} optimal tools`))
 
       return validatedTools
     } catch (error: any) {
@@ -827,7 +830,7 @@ export class ToolRouter extends EventEmitter {
       /\b([a-zA-Z0-9_-]+\.(js|ts|tsx|jsx|json|md|css|html|py|java))\b/g,
       /\b(package\.json|tsconfig\.json|\.env|dockerfile)\b/gi,
       /\b(component|function|class|interface|type|hook)\s+([a-zA-Z0-9_]+)/gi,
-      /\b(api|endpoint|route|controller|service)\s+([a-zA-Z0-9_\/]+)/gi,
+      /\b(api|endpoint|route|controller|service)\s+([a-zA-Z0-9_/]+)/gi,
     ]
 
     const targetObjects: string[] = []
@@ -886,7 +889,7 @@ export class ToolRouter extends EventEmitter {
   }
 
   /**
-   * 🧠 Apply Cognitive Enhancement from Task Cognition
+   * ⚡︎ Apply Cognitive Enhancement from Task Cognition
    */
   private applyCognitiveEnhancement(intentAnalysis: any, cognition: TaskCognition): any {
     // Enhance with cognitive understanding
@@ -1286,11 +1289,11 @@ export class ToolRouter extends EventEmitter {
   }
 
   /**
-   * ✅ Validation and Final Selection
+   * ✓ Validation and Final Selection
    */
   private validateAndFinalize(
     tools: Array<AdvancedToolRecommendation & { rawScore: number }>,
-    context: RoutingContext
+    _context: RoutingContext
   ): AdvancedToolRecommendation[] {
     const validated: AdvancedToolRecommendation[] = []
     const maxTools = 5 // Limit recommendations
@@ -1451,7 +1454,7 @@ export class ToolRouter extends EventEmitter {
   }
 
   /**
-   * 🔄 Convert basic recommendations to advanced format
+   * ⚡︎ Convert basic recommendations to advanced format
    */
   private convertToAdvancedRecommendations(basic: ToolRecommendation[]): AdvancedToolRecommendation[] {
     return basic.map((rec) => ({
@@ -1471,7 +1474,7 @@ export class ToolRouter extends EventEmitter {
   /**
    * Validate tools from unified registry
    */
-  private validateToolsFromRegistry(toolNames: string[], context: RoutingContext): string[] {
+  private validateToolsFromRegistry(toolNames: string[], _context: RoutingContext): string[] {
     const validatedTools: string[] = []
 
     for (const toolName of toolNames) {

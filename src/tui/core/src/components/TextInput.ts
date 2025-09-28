@@ -93,7 +93,7 @@ export class TextInput implements Component<Widgets.TextboxElement> {
 
     if (props.onChange) {
       el.on('keypress', () => {
-        props.onChange!(el.getValue() || '')
+        props.onChange?.(el.getValue() || '')
         safeRender(el.screen)
       })
     }

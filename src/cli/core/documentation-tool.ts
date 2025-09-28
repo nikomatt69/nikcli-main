@@ -45,7 +45,7 @@ export const documentationSearchTool: CoreTool = tool({
         title: result.entry.title,
         url: result.entry.url,
         category: result.entry.category,
-        score: (result.score * 100).toFixed(1) + '%',
+        score: `${(result.score * 100).toFixed(1)}%`,
         snippet: result.snippet,
         matchedTerms: result.matchedTerms,
         metadata: {

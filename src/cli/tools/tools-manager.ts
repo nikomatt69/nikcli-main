@@ -96,7 +96,7 @@ export class ToolsManager {
     }
 
     fs.writeFileSync(fullPath, content, 'utf8')
-    console.log(chalk.green(`✅ File written: ${filePath}`))
+    console.log(chalk.green(`✓ File written: ${filePath}`))
   }
 
   async editFile(
@@ -177,10 +177,7 @@ export class ToolsManager {
             })
           }
         })
-      } catch (_error) {
-        // Skip files that can't be read
-        continue
-      }
+      } catch (_error) {}
     }
 
     return results
@@ -222,7 +219,7 @@ export class ToolsManager {
         const duration = Date.now() - startTime
         this.addToHistory(fullCommand, true, stdout + stderr)
 
-        console.log(chalk.green(`✅ Command completed in ${duration}ms`))
+        console.log(chalk.green(`✓ Command completed in ${duration}ms`))
         return { stdout, stderr, code: 0 }
       }
     } catch (error: any) {
@@ -287,7 +284,7 @@ export class ToolsManager {
         this.addToHistory(command, code === 0, stdout + stderr)
 
         if (code === 0) {
-          console.log(chalk.green(`✅ Process completed (PID: ${child.pid})`))
+          console.log(chalk.green(`✓ Process completed (PID: ${child.pid})`))
         } else {
           console.log(chalk.red(`❌ Process failed with code ${code} (PID: ${child.pid})`))
         }
@@ -309,7 +306,7 @@ export class ToolsManager {
     options: { global?: boolean; dev?: boolean; manager?: 'npm' | 'yarn' | 'pnpm' } = {}
   ): Promise<boolean> {
     const manager = options.manager || 'npm'
-    let command = manager
+    const command = manager
     let args: string[] = []
 
     switch (manager) {
@@ -337,7 +334,7 @@ export class ToolsManager {
     const result = await this.runCommand(command, args)
 
     if (result.code === 0) {
-      console.log(chalk.green(`✅ Successfully installed ${packageName}`))
+      console.log(chalk.green(`✓ Successfully installed ${packageName}`))
       return true
     } else {
       console.log(chalk.red(`❌ Failed to install ${packageName}`))
@@ -475,8 +472,8 @@ export class ToolsManager {
           severity: severity as 'error' | 'warning',
           message: `TS${code}: ${message}`,
           file: path.relative(this.workingDirectory, file),
-          line: parseInt(line),
-          column: parseInt(column),
+          line: parseInt(line, 10),
+          column: parseInt(column, 10),
         })
       }
     }
@@ -516,12 +513,12 @@ export class ToolsManager {
 
   async gitAdd(files: string[]): Promise<void> {
     await this.runCommand('git', ['add', ...files])
-    console.log(chalk.green(`✅ Added files to git: ${files.join(', ')}`))
+    console.log(chalk.green(`✓ Added files to git: ${files.join(', ')}`))
   }
 
   async gitCommit(message: string): Promise<void> {
     await this.runCommand('git', ['commit', '-m', message])
-    console.log(chalk.green(`✅ Committed with message: ${message}`))
+    console.log(chalk.green(`✓ Committed with message: ${message}`))
   }
 
   // System Information and Advanced Operations
@@ -681,7 +678,7 @@ export class ToolsManager {
         case 'node':
           commands.push(
             `mkdir ${projectName}`,
-            'cd ' + projectName,
+            `cd ${projectName}`,
             'npm init -y',
             'npm install -D typescript @types/node ts-node'
           )
@@ -691,7 +688,7 @@ export class ToolsManager {
           break
 
         case 'express':
-          commands.push(`mkdir ${projectName}`, 'cd ' + projectName, 'npm init -y')
+          commands.push(`mkdir ${projectName}`, `cd ${projectName}`, 'npm init -y')
           commands.push('npm install express', 'npm install -D typescript @types/node @types/express ts-node')
           fs.mkdirSync(projectPath, { recursive: true })
           await this.runCommand('npm', ['init', '-y'], { cwd: projectPath })
@@ -703,7 +700,7 @@ export class ToolsManager {
       }
 
       success = true
-      console.log(chalk.green(`✅ Project ${projectName} created successfully!`))
+      console.log(chalk.green(`✓ Project ${projectName} created successfully!`))
       console.log(chalk.gray(`📁 Location: ${projectPath}`))
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to create project: ${error.message}`))
@@ -713,7 +710,7 @@ export class ToolsManager {
   }
 
   async monitorLogs(logFile: string, callback?: (line: string) => void): Promise<ChildProcess> {
-    console.log(chalk.blue(`👀 Monitoring logs: ${logFile}`))
+    console.log(chalk.blue(`⚡︎ Monitoring logs: ${logFile}`))
 
     const child = spawn('tail', ['-f', logFile], {
       cwd: this.workingDirectory,
@@ -769,7 +766,7 @@ export class ToolsManager {
 
     let packageInfo
     let framework
-    let technologies: string[] = []
+    const technologies: string[] = []
 
     try {
       const pkg = await this.readFile('package.json')

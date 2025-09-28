@@ -10,7 +10,7 @@ export class TextWrapper {
    * Get terminal width or fall back to default
    */
   static getTerminalWidth(): number {
-    return process.stdout.columns || this.defaultWidth
+    return process.stdout.columns || TextWrapper.defaultWidth
   }
 
   /**
@@ -62,7 +62,7 @@ export class TextWrapper {
    * Wrap cyan text with proper line breaks
    */
   static wrapCyanText(text: string, indent: string = '  ', maxWidth?: number): string {
-    const terminalWidth = maxWidth || this.getTerminalWidth()
+    const terminalWidth = maxWidth || TextWrapper.getTerminalWidth()
     const availableWidth = terminalWidth - indent.length - 4
 
     if (text.length <= availableWidth) {
@@ -110,7 +110,7 @@ export class TextWrapper {
     indent: string = '  ',
     maxWidth?: number
   ): string {
-    const terminalWidth = maxWidth || this.getTerminalWidth()
+    const terminalWidth = maxWidth || TextWrapper.getTerminalWidth()
     const availableWidth = terminalWidth - indent.length - 4
 
     if (text.length <= availableWidth) {
@@ -187,11 +187,11 @@ export class TextWrapper {
    * Format agent messages with proper wrapping
    */
   static formatAgent(agentType: string, action: string, task?: string): string {
-    const baseMessage = `🤖 Agent ${agentType} ${action}`
+    const baseMessage = `🔌 Agent ${agentType} ${action}`
     const fullMessage = task ? `${baseMessage}: ${task}` : baseMessage
 
     // Truncate very long tasks to prevent excessive wrapping
-    const truncatedMessage = fullMessage.length > 150 ? fullMessage.substring(0, 147) + '...' : fullMessage
+    const truncatedMessage = fullMessage.length > 150 ? `${fullMessage.substring(0, 147)}...` : fullMessage
 
     return TextWrapper.wrapBlueText(truncatedMessage)
   }

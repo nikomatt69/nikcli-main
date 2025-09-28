@@ -94,7 +94,7 @@ export class DocumentationLibrary {
       this.updateSearchIndex(entry)
       await this.saveLibrary()
 
-      console.log(chalk.green(`✅ Added: ${title} (${analysis.wordCount} words, ${analysis.language})`))
+      console.log(chalk.green(`✓ Added: ${title} (${analysis.wordCount} words, ${analysis.language})`))
       return entry
     } catch (error: any) {
       console.error(chalk.red(`❌ Failed to add documentation: ${error.message}`))
@@ -144,7 +144,7 @@ export class DocumentationLibrary {
     const localResults = await this.search(query, category, 5)
 
     if (localResults.length > 0 && localResults[0].score > 0.5) {
-      console.log(chalk.green(`📚 Found ${localResults.length} relevant docs in library`))
+      console.log(chalk.green(`⚡︎ Found ${localResults.length} relevant docs in library`))
       return localResults
     }
 
@@ -192,7 +192,7 @@ export class DocumentationLibrary {
    */
   private extractTextFromHTML(html: string): string {
     // Rimuovi tag HTML
-    let text = html
+    const text = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<[^>]+>/g, ' ')
@@ -334,7 +334,7 @@ export class DocumentationLibrary {
    * Trova termini che hanno fatto match
    */
   private findMatchedTerms(entry: DocumentationEntry, queryTerms: string[]): string[] {
-    const normalizedContent = this.normalizeText(entry.content + ' ' + entry.title)
+    const normalizedContent = this.normalizeText(`${entry.content} ${entry.title}`)
     return queryTerms.filter((term) => normalizedContent.includes(term))
   }
 
@@ -399,7 +399,7 @@ export class DocumentationLibrary {
    * Aggiorna indice di ricerca
    */
   private updateSearchIndex(entry: DocumentationEntry): void {
-    const terms = this.normalizeText(entry.content + ' ' + entry.title)
+    const terms = this.normalizeText(`${entry.content} ${entry.title}`)
       .split(/\s+/)
       .filter((term) => term.length > 2)
 
@@ -407,7 +407,7 @@ export class DocumentationLibrary {
       if (!this.searchIndex.has(term)) {
         this.searchIndex.set(term, [])
       }
-      this.searchIndex.get(term)!.push(entry.id)
+      this.searchIndex.get(term)?.push(entry.id)
     }
   }
 
@@ -455,7 +455,7 @@ export class DocumentationLibrary {
         this.categories.add(typedEntry.category)
       }
 
-      console.log(chalk.green(`📚 Loaded ${this.docs.size} documentation entries`))
+      console.log(chalk.green(`⚡︎ Loaded ${this.docs.size} documentation entries`))
     } catch (_error) {
       // File non esiste, inizia con libreria vuota
     }
@@ -493,9 +493,9 @@ export class DocumentationLibrary {
    */
   showStatus(): void {
     const stats = this.getStats()
-    console.log(chalk.blue('\n📚 Documentation Library Status:'))
+    console.log(chalk.blue('\n⚡︎ Documentation Library Status:'))
     console.log(`📖 Total Docs: ${stats.totalDocs}`)
-    console.log(`📂 Categories: ${stats.categories.join(', ')}`)
+    console.log(`⚡︎ Categories: ${stats.categories.join(', ')}`)
     console.log(`📝 Total Words: ${stats.totalWords.toLocaleString()}`)
     console.log(`🎞️Avg Access Count: ${stats.avgAccessCount.toFixed(1)}`)
     console.log(`🌍 Languages: ${stats.languages.join(', ')}`)

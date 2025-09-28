@@ -112,7 +112,7 @@ export class MultiReadTool extends BaseTool {
       const exclude = [...IGNORE_PATTERNS, ...(params.exclude || [])]
 
       // Resolve target files
-      let targets: string[] = []
+      const targets: string[] = []
       if (Array.isArray(params.files) && params.files.length > 0) {
         for (const f of params.files) {
           const p = sanitizePath(f, root)

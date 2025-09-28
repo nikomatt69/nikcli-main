@@ -185,7 +185,7 @@ export class ProgressList implements Component<Widgets.BoxElement> {
 
   // Method to reset all progress
   resetAll() {
-    this.items.forEach((item, index) => {
+    this.items.forEach((_item, index) => {
       this.updateProgress(index, 0)
     })
   }

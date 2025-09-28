@@ -110,7 +110,7 @@ export class VMOrchestrator extends EventEmitter {
       // Create and register VM agent
       await this.createAndRegisterVMAgent(containerId, config)
 
-      CliUI.logSuccess(`✅ Secure container created: ${containerId}`)
+      CliUI.logSuccess(`✓ Secure container created: ${containerId}`)
       this.emit('container:created', { containerId, agentId: config.agentId })
 
       return containerId
@@ -157,7 +157,7 @@ export class VMOrchestrator extends EventEmitter {
         if (i === 0) {
           CliUI.logInfo('⏳ Waiting for packages to install...')
           await new Promise((resolve) => setTimeout(resolve, 2000)) // Wait 2 seconds
-          CliUI.logSuccess('✅ Packages installed')
+          CliUI.logSuccess('✓ Packages installed')
         }
       } catch (error: any) {
         CliUI.logError(`Warning: Init command failed: ${command} - ${error.message}`)
@@ -169,7 +169,7 @@ export class VMOrchestrator extends EventEmitter {
       }
     }
 
-    CliUI.logSuccess(`✅ Container ${containerId} initialized`)
+    CliUI.logSuccess(`✓ Container ${containerId} initialized`)
   }
 
   /**
@@ -210,7 +210,7 @@ export class VMOrchestrator extends EventEmitter {
         this.activeContainers.set(containerId, containerInfo)
       }
 
-      CliUI.logSuccess(`✅ Repository setup completed in container ${containerId}`)
+      CliUI.logSuccess(`✓ Repository setup completed in container ${containerId}`)
     } catch (error: any) {
       CliUI.logError(`❌ Failed to setup repository: ${error.message}`)
       throw error
@@ -236,7 +236,7 @@ export class VMOrchestrator extends EventEmitter {
         await this.executeCommand(containerId, command)
       }
 
-      CliUI.logSuccess(`✅ Development environment ready`)
+      CliUI.logSuccess(`✓ Development environment ready`)
     } catch (error: any) {
       CliUI.logError(`❌ Failed to setup development environment: ${error.message}`)
       throw error
@@ -267,7 +267,7 @@ export class VMOrchestrator extends EventEmitter {
         await this.executeCommand(containerId, command)
       }
 
-      CliUI.logSuccess(`✅ Shell environment ready`)
+      CliUI.logSuccess(`✓ Shell environment ready`)
     } catch (error: any) {
       CliUI.logError(`❌ Failed to setup shell environment: ${error.message}`)
       throw error
@@ -336,7 +336,7 @@ export class VMOrchestrator extends EventEmitter {
             type: 'output',
             containerId,
             command,
-            output: line + '\n',
+            output: `${line}\n`,
             timestamp: new Date(),
           }
 
@@ -412,7 +412,7 @@ export class VMOrchestrator extends EventEmitter {
         branchName
       )
 
-      CliUI.logSuccess(`✅ Pull request created: ${prUrl}`)
+      CliUI.logSuccess(`✓ Pull request created: ${prUrl}`)
       return prUrl
     } catch (error: any) {
       CliUI.logError(`❌ Failed to create pull request: ${error.message}`)
@@ -432,7 +432,7 @@ export class VMOrchestrator extends EventEmitter {
       // - https://github.com/owner/repo.git
       // - git@github.com:owner/repo.git
       // - ssh://git@github.com/owner/repo.git
-      const repoMatch = prConfig.repositoryUrl?.match(/github\.com[\/:]([^\/:]+)\/([^\/]+)(?:\.git)?/)
+      const repoMatch = prConfig.repositoryUrl?.match(/github\.com[/:]([^/:]+)\/([^/]+)(?:\.git)?/)
       if (!repoMatch) {
         throw new Error('Invalid GitHub repository URL')
       }
@@ -533,7 +533,7 @@ export class VMOrchestrator extends EventEmitter {
       CliUI.logError(`❌ Failed to create GitHub PR: ${error.message}`)
 
       // Enhanced fallback with repository validation
-      const repoMatch = prConfig.repositoryUrl?.match(/github\.com[\/:]([^\/:]+)\/([^\/]+)(?:\.git)?/)
+      const repoMatch = prConfig.repositoryUrl?.match(/github\.com[/:]([^/:]+)\/([^/]+)(?:\.git)?/)
       if (repoMatch) {
         const [, owner, repo] = repoMatch
         const repoName = repo.replace(/\.git$/, '')
@@ -643,7 +643,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   private extractVSCodePort(portMapping: string): number {
     const match = portMapping.match(/^(\d+):/)
-    return match ? parseInt(match[1]) : 8080
+    return match ? parseInt(match[1], 10) : 8080
   }
 
   /**
@@ -653,7 +653,7 @@ export class VMOrchestrator extends EventEmitter {
     if (this.bridgeInitialized) return
 
     try {
-      CliUI.logInfo('🌉 Initializing VM communication bridge...')
+
 
       // Initialize bridge components
       await vmChatBridge.initialize()
@@ -681,7 +681,7 @@ export class VMOrchestrator extends EventEmitter {
       })
 
       this.bridgeInitialized = true
-      CliUI.logSuccess('✅ VM communication bridge initialized')
+      CliUI.logSuccess('✓ VM communication bridge initialized')
     } catch (error: any) {
       CliUI.logError(`❌ Failed to initialize VM communication bridge: ${error.message}`)
     }
@@ -693,7 +693,7 @@ export class VMOrchestrator extends EventEmitter {
   async registerVMAgent(agent: any): Promise<void> {
     try {
       await vmChatBridge.registerVMAgent(agent)
-      CliUI.logSuccess(`🤖 Registered VM agent ${agent.id} with communication bridge`)
+      CliUI.logSuccess(`🔌 Registered VM agent ${agent.id} with communication bridge`)
     } catch (error: any) {
       CliUI.logError(`❌ Failed to register VM agent with bridge: ${error.message}`)
       throw error
@@ -738,7 +738,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   private async createAndRegisterVMAgent(containerId: string, config: ContainerCreationConfig): Promise<void> {
     try {
-      CliUI.logInfo(`🤖 Creating VM agent for container ${containerId.slice(0, 12)}`)
+      CliUI.logInfo(`🔌 Creating VM agent for container ${containerId.slice(0, 12)}`)
 
       // Dynamically import SecureVirtualizedAgent to avoid circular dependencies
       const { SecureVirtualizedAgent } = await import('./secure-vm-agent')
@@ -761,7 +761,7 @@ export class VMOrchestrator extends EventEmitter {
       // Register with bridge
       await this.registerVMAgent(agent)
 
-      CliUI.logSuccess(`✅ VM agent ${config.agentId} created and registered`)
+      CliUI.logSuccess(`✓ VM agent ${config.agentId} created and registered`)
     } catch (error: any) {
       CliUI.logError(`❌ Failed to create VM agent: ${error.message}`)
       throw error
@@ -786,7 +786,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   private enhancePRDescription(description: string): string {
     const timestamp = new Date().toISOString()
-    const metadata = `\n\n---\n🤖 Generated by NikCLI VM Agent\n⏰ ${timestamp}\n🔧 Automated development workflow`
+    const metadata = `\n\n---\n🔌 Generated by NikCLI VM Agent\n⏰ ${timestamp}\n🔧 Automated development workflow`
     return `${description}${metadata}`
   }
 

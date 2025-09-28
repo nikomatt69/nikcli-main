@@ -127,7 +127,7 @@ export class SmartCompletionManager {
         priority: Math.round(pred.confidence * 10),
         description: pred.reason,
         requiresApproval: pred.requires_approval,
-        icon: '🧠',
+        icon: '⚡︎',
         color: 'green',
       }))
     } catch (_error) {
@@ -161,7 +161,7 @@ export class SmartCompletionManager {
         priority: 8,
         description: `${agent.name} - ${agent.name || 'AI Agent'}`,
         requiresApproval: false,
-        icon: '🤖',
+        icon: '🔌',
         color: 'blue',
       }))
   }
@@ -427,14 +427,14 @@ export class SmartCompletionManager {
     const icons: Record<string, string> = {
       '/help': '❓',
       '/status': '📊',
-      '/agents': '🤖',
+      '/agents': '🔌',
       '/clear': '🧹',
       '/exit': '👋',
       '/diff': '📋',
-      '/accept': '✅',
+      '/accept': '✓',
       '/plan': '📝',
       '/auto': '⚡',
-      '/models': '🧠',
+      '/models': '⚡︎',
       '/config': '🔨',
     }
     return icons[cmd] || '▶️'

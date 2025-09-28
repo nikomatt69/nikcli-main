@@ -69,7 +69,7 @@ export class FilePickerHandler {
   private async displayFileSelection(selection: FileSelection, options: Required<FilePickerOptions>): Promise<void> {
     const { files, pattern } = selection
 
-    console.log(chalk.blue(`\n📂 Found ${files.length} files matching "${pattern}":`))
+    console.log(chalk.blue(`\n⚡︎ Found ${files.length} files matching "${pattern}":`))
     console.log(chalk.gray('─'.repeat(60)))
 
     if (options.groupByDirectory) {
@@ -105,7 +105,7 @@ export class FilePickerHandler {
         const fileIcon = options.showIcons ? this.getFileIcon(path.extname(file)) : '📄'
         const relativePath = directory === '.' ? file : `${directory}/${file}`
 
-        console.log(`  ${fileIcon} ${chalk.white(file)} ${chalk.dim('(' + relativePath + ')')}`)
+        console.log(`  ${fileIcon} ${chalk.white(file)} ${chalk.dim(`(${relativePath})`)}`)
         fileIndex++
       }
 
@@ -185,7 +185,7 @@ export class FilePickerHandler {
       if (!groups.has(directory)) {
         groups.set(directory, [])
       }
-      groups.get(directory)!.push(fileName)
+      groups.get(directory)?.push(fileName)
     })
 
     // Sort directories, with '.' (current) first

@@ -88,7 +88,7 @@ export class LSPService {
 
       process.on('spawn', () => {
         server.status = 'running'
-        console.log(chalk.green(`✅ ${server.name} started successfully`))
+        console.log(chalk.green(`✓ ${server.name} started successfully`))
         clearTimeout(startupTimeout)
       })
 
@@ -130,7 +130,7 @@ export class LSPService {
     try {
       server.process.kill()
       server.status = 'stopped'
-      console.log(chalk.green(`✅ Stopped ${server.name}`))
+      console.log(chalk.green(`✓ Stopped ${server.name}`))
       return true
     } catch (error: any) {
       server.status = 'error'

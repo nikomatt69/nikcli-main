@@ -31,7 +31,7 @@ export class ToolsMigration {
    * Secure wrapper for file reading
    */
   async readFile(filePath: string) {
-    console.log(chalk.blue('🔄 Migrating to secure file reading...'))
+    console.log(chalk.blue('⚡︎ Migrating to secure file reading...'))
     return await secureTools.readFile(filePath)
   }
 
@@ -43,7 +43,7 @@ export class ToolsMigration {
       this.showMigrationWarning('writeFile without confirmation', 'secureTools.writeFile() with user confirmation')
     }
 
-    console.log(chalk.blue('🔄 Migrating to secure file writing...'))
+    console.log(chalk.blue('⚡︎ Migrating to secure file writing...'))
     return await secureTools.writeFile(filePath, content, { skipConfirmation })
   }
 
@@ -51,7 +51,7 @@ export class ToolsMigration {
    * Secure wrapper for directory listing
    */
   async listFiles(directory: string = '.', pattern?: RegExp) {
-    console.log(chalk.blue('🔄 Migrating to secure directory listing...'))
+    console.log(chalk.blue('⚡︎ Migrating to secure directory listing...'))
     const result = await secureTools.listDirectory(directory, { pattern })
 
     // Convert to legacy format for backward compatibility
@@ -61,7 +61,7 @@ export class ToolsMigration {
   /**
    * BLOCKED: Unsafe command execution
    */
-  async runCommand(command: string, args: string[] = [], options: any = {}) {
+  async runCommand(command: string, args: string[] = [], _options: any = {}) {
     console.log(chalk.red('🚫 BLOCKED: Direct command execution is not allowed'))
     console.log(chalk.yellow('Use secureTools.executeCommand() instead for safe command execution'))
     console.log(chalk.gray(`Attempted command: ${command} ${args.join(' ')}`))
@@ -74,7 +74,7 @@ export class ToolsMigration {
   /**
    * BLOCKED: Unsafe command streaming
    */
-  async runCommandStream(command: string, options: any = {}) {
+  async runCommandStream(_command: string, _options: any = {}) {
     console.log(chalk.red('🚫 BLOCKED: Direct command streaming is not allowed'))
     console.log(chalk.yellow('Use secureTools.executeCommand() instead for safe command execution'))
 
@@ -86,7 +86,7 @@ export class ToolsMigration {
   /**
    * BLOCKED: Package installation without confirmation
    */
-  async installPackage(packageName: string, options: any = {}) {
+  async installPackage(packageName: string, _options: any = {}) {
     console.log(chalk.red('🚫 BLOCKED: Automatic package installation is not allowed'))
     console.log(chalk.yellow('Use secureTools.executeCommand() with npm/yarn commands and user confirmation'))
     console.log(chalk.gray(`Attempted package: ${packageName}`))
@@ -100,7 +100,7 @@ export class ToolsMigration {
    * Safe wrapper for search operations
    */
   async searchInFiles(query: string | RegExp, directory: string = '.', filePattern?: RegExp) {
-    console.log(chalk.blue('🔄 Using legacy search (consider implementing secure search)...'))
+    console.log(chalk.blue('⚡︎ Using legacy search (consider implementing secure search)...'))
     this.showMigrationWarning('searchInFiles', 'secureTools with grep command execution')
 
     return await this.legacyToolsManager.searchInFiles(query, directory, filePattern)
@@ -110,7 +110,7 @@ export class ToolsMigration {
    * Safe wrapper for project analysis
    */
   async analyzeProject() {
-    console.log(chalk.blue('🔄 Using legacy project analysis...'))
+    console.log(chalk.blue('⚡︎ Using legacy project analysis...'))
     this.showMigrationWarning('analyzeProject', 'secureTools.listDirectory() with analysis logic')
 
     return await this.legacyToolsManager.analyzeProject()
@@ -204,11 +204,11 @@ export class ToolsMigration {
    * Show migration summary
    */
   showMigrationSummary(): void {
-    console.log(chalk.blue.bold('\n🔄 Migration Summary'))
+    console.log(chalk.blue.bold('\n⚡︎ Migration Summary'))
     console.log(chalk.gray('─'.repeat(50)))
 
     if (this.migrationWarnings.length === 0) {
-      console.log(chalk.green('✅ No deprecated operations used'))
+      console.log(chalk.green('✓ No deprecated operations used'))
     } else {
       console.log(chalk.yellow(`⚠️  ${this.migrationWarnings.length} deprecated operations detected:`))
       this.migrationWarnings.forEach((warning) => {

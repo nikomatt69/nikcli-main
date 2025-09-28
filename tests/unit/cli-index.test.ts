@@ -54,7 +54,7 @@ describe('CLI Index (Entry Point)', () => {
   describe('Environment Validation', () => {
     it('should validate Node.js version requirements', async () => {
       const nodeVersion = process.version
-      const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0])
+      const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0], 10)
 
       expect(majorVersion).toBeGreaterThanOrEqual(18)
     })
@@ -76,7 +76,7 @@ describe('CLI Index (Entry Point)', () => {
       const { checkPermissions } = await import('../../src/cli/index')
 
       // Test that permission checking doesn't throw errors
-      expect(() => checkPermissions && checkPermissions()).not.toThrow()
+      expect(() => checkPermissions?.()).not.toThrow()
     })
   })
 

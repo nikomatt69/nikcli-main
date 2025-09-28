@@ -48,10 +48,10 @@ export class CliUI {
 
   // Spinner utilities
   static startSpinner(message: string): void {
-    if (this.spinner) {
-      this.spinner.stop()
+    if (CliUI.spinner) {
+      CliUI.spinner.stop()
     }
-    this.spinner = ora({
+    CliUI.spinner = ora({
       text: message,
       color: 'cyan',
       spinner: 'dots',
@@ -59,47 +59,47 @@ export class CliUI {
   }
 
   static updateSpinner(message: string): void {
-    if (this.spinner) {
-      this.spinner.text = message
+    if (CliUI.spinner) {
+      CliUI.spinner.text = message
     }
   }
 
   static succeedSpinner(message?: string): void {
-    if (this.spinner) {
-      this.spinner.succeed(message)
-      this.spinner = null
+    if (CliUI.spinner) {
+      CliUI.spinner.succeed(message)
+      CliUI.spinner = null
     }
   }
 
   static failSpinner(message?: string): void {
-    if (this.spinner) {
-      this.spinner.fail(message)
-      this.spinner = null
+    if (CliUI.spinner) {
+      CliUI.spinner.fail(message)
+      CliUI.spinner = null
     }
   }
 
   static stopSpinner(): void {
-    if (this.spinner) {
-      this.spinner.stop()
-      this.spinner = null
+    if (CliUI.spinner) {
+      CliUI.spinner.stop()
+      CliUI.spinner = null
     }
   }
 
   // Logging methods that combine colors with console output
   static logSuccess(message: string): void {
-    console.log(this.success(message))
+    console.log(CliUI.success(message))
   }
 
   static logError(message: string): void {
-    console.error(this.error(message))
+    console.error(CliUI.error(message))
   }
 
   static logWarning(message: string): void {
-    console.warn(this.warning(message))
+    console.warn(CliUI.warning(message))
   }
 
   static logInfo(message: string): void {
-    console.log(this.info(message))
+    console.log(CliUI.info(message))
   }
 
   static logDebug(message: string, data?: any): void {
@@ -112,18 +112,18 @@ export class CliUI {
   }
 
   static logSection(title: string): void {
-    console.log(this.section(title))
+    console.log(CliUI.section(title))
   }
 
   static logSubsection(title: string): void {
-    console.log(this.subsection(title))
+    console.log(CliUI.subsection(title))
   }
 
   // Progress indication for multi-step operations
   static logProgress(current: number, total: number, message: string): void {
     const percentage = Math.round((current / total) * 100)
-    const progressBar = this.createProgressBar(current, total)
-    console.log(`${progressBar} ${percentage}% ${this.dim(message)}`)
+    const progressBar = CliUI.createProgressBar(current, total)
+    console.log(`${progressBar} ${percentage}% ${CliUI.dim(message)}`)
   }
 
   private static createProgressBar(current: number, total: number, width: number = 20): string {
@@ -142,32 +142,32 @@ export class CliUI {
 
   // Error formatting with context
   static formatError(error: Error, context?: string): string {
-    let message = this.error(`Error: ${error.message}`)
+    let message = CliUI.error(`Error: ${error.message}`)
     if (context) {
-      message += `\n${this.dim(`Context: ${context}`)}`
+      message += `\n${CliUI.dim(`Context: ${context}`)}`
     }
     if (error.stack) {
-      message += `\n${this.dim(error.stack)}`
+      message += `\n${CliUI.dim(error.stack)}`
     }
     return message
   }
 
   // Command execution feedback
   static logCommandStart(command: string): void {
-    console.log(this.info(`Executing: ${this.highlight(command)}`))
+    console.log(CliUI.info(`Executing: ${CliUI.highlight(command)}`))
   }
 
   static logCommandSuccess(command: string, duration?: number): void {
-    let message = `Command completed: ${this.highlight(command)}`
+    let message = `Command completed: ${CliUI.highlight(command)}`
     if (duration) {
-      message += ` ${this.dim(`(${duration}ms)`)}`
+      message += ` ${CliUI.dim(`(${duration}ms)`)}`
     }
-    console.log(this.success(message))
+    console.log(CliUI.success(message))
   }
 
   static logCommandError(command: string, error: string): void {
-    console.log(this.error(`Command failed: ${this.highlight(command)}`))
-    console.log(this.dim(`Error: ${error}`))
+    console.log(CliUI.error(`Command failed: ${CliUI.highlight(command)}`))
+    console.log(CliUI.dim(`Error: ${error}`))
   }
 }
 

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 
 export const FeatureFlagSchema = z.object({
   id: z.string(),
@@ -100,7 +100,7 @@ export class FeatureFlagManager extends EventEmitter {
       this.isInitialized = true
       const loadTime = Date.now() - startTime
 
-      advancedUI.logSuccess(`✅ Feature Flag Manager initialized (${this.flags.size} flags, ${loadTime}ms)`)
+      advancedUI.logSuccess(`✓ Feature Flag Manager initialized (${this.flags.size} flags, ${loadTime}ms)`)
 
       if (this.config.enableMetrics) {
         this.logFlagStats()
@@ -115,7 +115,7 @@ export class FeatureFlagManager extends EventEmitter {
     const flag = this.flags.get(flagId)
     if (!flag) {
       if (this.config.enableLogging) {
-        logger.debug(`Feature flag not found: ${flagId}, defaulting to false`)
+        structuredLogger.info(`Feature flag not found: ${flagId}, defaulting to false`, 'Feature flag not found')
       }
       return false
     }
@@ -157,7 +157,7 @@ export class FeatureFlagManager extends EventEmitter {
     }
 
     if (this.config.enableLogging && flag.enabled) {
-      logger.debug(`Feature flag enabled: ${flagId}`)
+      structuredLogger.info(`Feature flag enabled: ${flagId}`, 'Feature flag enabled')
     }
 
     return flag.enabled
@@ -209,7 +209,7 @@ export class FeatureFlagManager extends EventEmitter {
     this.flags.set(flagId, newFlag)
 
     if (this.config.enableLogging) {
-      advancedUI.logSuccess(`✅ Created feature flag: ${flagId}`)
+      advancedUI.logSuccess(`✓ Created feature flag: ${flagId}`)
     }
 
     await this.saveToFile()
@@ -533,12 +533,12 @@ export class FeatureFlagManager extends EventEmitter {
             const flag = FeatureFlagSchema.parse(flagData)
             this.flags.set(flag.id, flag)
           } catch (error: any) {
-            logger.warn(`Invalid feature flag in config: ${flagData.id || 'unknown'}`, error.message)
+            structuredLogger.warning(`Invalid feature flag in config: ${flagData.id || 'unknown'}`, error.message)
           }
         }
       }
     } catch (error: any) {
-      logger.warn(`Failed to load feature flags from file: ${error.message}`)
+      structuredLogger.warning(`Failed to load feature flags from file: ${error.message}`, error)
     }
   }
 
@@ -548,9 +548,9 @@ export class FeatureFlagManager extends EventEmitter {
     try {
       // Placeholder for remote config loading
       // In a real implementation, this would fetch from a remote API
-      logger.debug('Remote config loading not implemented yet')
+      structuredLogger.info('Remote config loading not implemented yet', 'Remote config loading not implemented yet')
     } catch (error: any) {
-      logger.warn(`Failed to load feature flags from remote: ${error.message}`)
+      structuredLogger.warning(`Failed to load feature flags from remote: ${error.message}`, error)
     }
   }
 
@@ -571,7 +571,7 @@ export class FeatureFlagManager extends EventEmitter {
 
       await writeFile(this.configFilePath, JSON.stringify(data, null, 2), 'utf8')
     } catch (error: any) {
-      logger.error(`Failed to save feature flags to file: ${error.message}`)
+      structuredLogger.error(`Failed to save feature flags to file: ${error.message}`, error)
     }
   }
 
@@ -603,7 +603,7 @@ export class FeatureFlagManager extends EventEmitter {
     if (issues.length > 0 && this.config.enableLogging) {
       advancedUI.logWarning(`⚠️  Feature flag validation issues found:`)
       for (const issue of issues) {
-        logger.warn(`  - ${issue}`)
+        structuredLogger.warning(`  - ${issue}`, 'Feature flag validation issues')
       }
     }
   }
@@ -628,7 +628,7 @@ export class FeatureFlagManager extends EventEmitter {
   private startRefreshTimer(): void {
     this.refreshTimer = setInterval(() => {
       this.refresh().catch((error) => {
-        logger.warn(`Feature flag refresh failed: ${error.message}`)
+        structuredLogger.warning(`Feature flag refresh failed: ${error.message}`, error)
       })
     }, this.config.refreshInterval)
   }

@@ -72,7 +72,7 @@ export class ValidationMiddleware extends BaseMiddleware {
   async execute(
     request: MiddlewareRequest,
     next: MiddlewareNext,
-    context: MiddlewareExecutionContext
+    _context: MiddlewareExecutionContext
   ): Promise<MiddlewareResponse> {
     const requestValidation = await this.validateRequest(request)
 
@@ -86,12 +86,7 @@ export class ValidationMiddleware extends BaseMiddleware {
 
     const startTime = Date.now()
     let response: MiddlewareResponse
-
-    try {
-      response = await next()
-    } catch (error: any) {
-      throw error
-    }
+    response = await next()
 
     if (this.validationConfig.validateResponse) {
       const responseValidation = await this.validateResponse(response, request)
@@ -292,7 +287,7 @@ export class ValidationMiddleware extends BaseMiddleware {
     return { valid: errors.length === 0, errors, warnings }
   }
 
-  private validateResponse(response: MiddlewareResponse, request: MiddlewareRequest): ValidationResult {
+  private validateResponse(response: MiddlewareResponse, _request: MiddlewareRequest): ValidationResult {
     const errors: ValidationError[] = []
     const warnings: ValidationError[] = []
 

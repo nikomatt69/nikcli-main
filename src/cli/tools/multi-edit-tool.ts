@@ -60,7 +60,7 @@ export class MultiEditTool extends BaseTool {
         throw new Error('No operations specified')
       }
 
-      CliUI.logInfo(`🔄 Executing ${params.operations.length} edit operations`)
+      CliUI.logInfo(`⚡︎ Executing ${params.operations.length} edit operations`)
 
       const result: MultiEditResult = {
         totalOperations: params.operations.length,
@@ -111,7 +111,7 @@ export class MultiEditTool extends BaseTool {
 
             // Rollback se richiesto
             if (params.rollbackOnError && !params.previewOnly) {
-              CliUI.logWarning('🔄 Rolling back due to error...')
+              CliUI.logWarning('⚡︎ Rolling back due to error...')
               await this.performRollback(result.backupsCreated)
               result.rollbackPerformed = true
               break
@@ -126,7 +126,7 @@ export class MultiEditTool extends BaseTool {
           })
 
           if (params.rollbackOnError && !params.previewOnly) {
-            CliUI.logWarning('🔄 Rolling back due to error...')
+            CliUI.logWarning('⚡︎ Rolling back due to error...')
             await this.performRollback(result.backupsCreated)
             result.rollbackPerformed = true
             break
@@ -135,7 +135,7 @@ export class MultiEditTool extends BaseTool {
       }
 
       if (result.successfulOperations === result.totalOperations) {
-        CliUI.logSuccess(`✅ All ${result.totalOperations} operations completed successfully`)
+        CliUI.logSuccess(`✓ All ${result.totalOperations} operations completed successfully`)
       } else {
         CliUI.logWarning(`⚠️ ${result.successfulOperations}/${result.totalOperations} operations successful`)
       }
@@ -175,7 +175,7 @@ export class MultiEditTool extends BaseTool {
 
         if (fs.existsSync(backupPath)) {
           fs.copyFileSync(backupPath, originalPath)
-          CliUI.logInfo(`🔄 Restored: ${originalPath}`)
+          CliUI.logInfo(`⚡︎ Restored: ${originalPath}`)
         }
       } catch (error: any) {
         CliUI.logError(`Failed to restore ${backupPath}: ${error.message}`)

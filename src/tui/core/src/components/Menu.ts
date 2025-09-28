@@ -20,7 +20,6 @@ export class Menu implements Component<Widgets.ListElement> {
   theme: any
   destroy: () => void
   private baseComponent: any
-  private props: MenuProps
   private items: MenuItem[]
 
   constructor(props: MenuProps) {
@@ -87,7 +86,7 @@ export class Menu implements Component<Widgets.ListElement> {
   update = (props: Partial<BaseProps>) => this.baseComponent.update(props)
 
   private renderMenuItems(): string[] {
-    return this.items.map((item, index) => {
+    return this.items.map((item, _index) => {
       let label = item.label
 
       if (item.disabled) {

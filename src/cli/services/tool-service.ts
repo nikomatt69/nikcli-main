@@ -375,7 +375,7 @@ export class ToolService {
     try {
       if (!compact) console.log(chalk.blue(`🔧 Executing ${toolName}...`))
 
-      const timed = new Promise<any>((resolve, reject) => {
+      const timed = new Promise<any>((_resolve, reject) => {
         timeoutHandle = setTimeout(
           () => reject(new Error(`Tool '${toolName}' timed out after ${timeoutMs}ms`)),
           timeoutMs
@@ -389,7 +389,7 @@ export class ToolService {
       execution.result = result
 
       const duration = execution.endTime.getTime() - execution.startTime.getTime()
-      if (!compact) console.log(chalk.green(`✅ ${toolName} completed (${duration}ms)`))
+      if (!compact) console.log(chalk.green(`✓ ${toolName} completed (${duration}ms)`))
 
       return result
     } catch (error: any) {
@@ -457,7 +457,7 @@ export class ToolService {
       ? args.filePath.replace(this.workingDirectory, '').replace(/^\//, '')
       : args.filePath
 
-    console.log(chalk.green(`✅ File written: ${relativePath} (${args.content.length} bytes)`))
+    console.log(chalk.green(`✓ File written: ${relativePath} (${args.content.length} bytes)`))
 
     return {
       written: true,
@@ -528,17 +528,17 @@ export class ToolService {
               j++
             }
             const parts = inner.split(',').map((part) => toSource(part))
-            src += '(?:' + parts.join('|') + ')'
+            src += `(?:${parts.join('|')})`
             i = j - 1
           } else if ('\\^$.|+()[]'.includes(ch)) {
-            src += '\\' + ch
+            src += `\\${ch}`
           } else {
             src += ch
           }
         }
         return src
       }
-      return new RegExp('^' + toSource(glob) + '$')
+      return new RegExp(`^${toSource(glob)}$`)
     }
 
     const patternRegex = globToRegex(args.pattern)
@@ -594,7 +594,7 @@ export class ToolService {
     }
   }
 
-  private async gitStatus(args: {}): Promise<{ status: string; files: Array<{ path: string; status: string }> }> {
+  private async gitStatus(_args: {}): Promise<{ status: string; files: Array<{ path: string; status: string }> }> {
     try {
       const result = execSync('git status --porcelain', {
         cwd: this.workingDirectory,
@@ -664,7 +664,7 @@ export class ToolService {
     }
   }
 
-  private async analyzeProject(args: {}): Promise<{
+  private async analyzeProject(_args: {}): Promise<{
     name: string
     type: string
     languages: string[]
@@ -790,7 +790,7 @@ export class ToolService {
    */
   clearSessionApprovals(): void {
     this.policyManager.clearSessionApprovals()
-    console.log(chalk.blue('🔄 Session approvals cleared'))
+    console.log(chalk.blue('⚡︎ Session approvals cleared'))
   }
 
   /**
@@ -798,7 +798,7 @@ export class ToolService {
    */
   addSessionApproval(toolName: string, operation: string): void {
     this.policyManager.addSessionApproval(toolName, operation)
-    console.log(chalk.green(`✅ Added session approval for ${toolName}:${operation}`))
+    console.log(chalk.green(`✓ Added session approval for ${toolName}:${operation}`))
   }
 
   /**

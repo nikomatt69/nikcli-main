@@ -13,7 +13,6 @@ export class LogViewer implements Component<Widgets.BoxElement> {
   theme: any
   destroy: () => void
   private baseComponent: any
-  private props: LogViewerProps
   private maxLines: number
   private autoScroll: boolean
   private timestamp: boolean

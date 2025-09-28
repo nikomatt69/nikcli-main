@@ -122,7 +122,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       if (!newSubscribers.has(event)) {
         newSubscribers.set(event, new Set())
       }
-      newSubscribers.get(event)!.add(callback)
+      newSubscribers.get(event)?.add(callback)
       return newSubscribers
     })
 

@@ -37,7 +37,7 @@ export class FrontendAgent extends BaseAgent {
     // Setup frontend-specific tool configurations
     await this.configureFrontendTools()
 
-    CliUI.logSuccess('✅ Frontend Agent ready for UI/UX tasks')
+    CliUI.logSuccess('✓ Frontend Agent ready for UI/UX tasks')
   }
 
   protected async onExecuteTask(task: AgentTask): Promise<any> {
@@ -342,7 +342,7 @@ export class FrontendAgent extends BaseAgent {
     }
   }
 
-  private generateReactComponent(name: string, type: string): string {
+  private generateReactComponent(name: string, _type: string): string {
     const componentName = this.toPascalCase(name)
 
     return `import React from 'react';
@@ -365,7 +365,7 @@ export default ${componentName};
 `
   }
 
-  private generateVueComponent(name: string, type: string): string {
+  private generateVueComponent(name: string, _type: string): string {
     const componentName = this.toPascalCase(name)
 
     return `<template>
@@ -398,7 +398,7 @@ export default defineComponent({
 `
   }
 
-  private generateGenericComponent(name: string, type: string): string {
+  private generateGenericComponent(name: string, _type: string): string {
     return `// Generic ${name} component
 export class ${this.toPascalCase(name)} {
   constructor() {
@@ -514,15 +514,15 @@ describe('${componentName}', () => {
   }
 
   // Placeholder methods for complex operations
-  private async analyzeComponentStyles(content: string): Promise<any> {
+  private async analyzeComponentStyles(_content: string): Promise<any> {
     return { currentStyles: [], suggestions: [] }
   }
 
-  private async generateImprovedStyles(analysis: any, requirements: any): Promise<any[]> {
+  private async generateImprovedStyles(_analysis: any, _requirements: any): Promise<any[]> {
     return []
   }
 
-  private async applyStylesToComponent(content: string, styles: any[]): Promise<string> {
+  private async applyStylesToComponent(content: string, _styles: any[]): Promise<string> {
     return content
   }
 
@@ -542,19 +542,19 @@ describe('${componentName}', () => {
     return { type: 'lazy-loading', filesProcessed: files.length }
   }
 
-  private async generateResponsiveCSS(content: string, breakpoints: any[]): Promise<string> {
+  private async generateResponsiveCSS(_content: string, _breakpoints: any[]): Promise<string> {
     return '/* Responsive CSS */'
   }
 
   private async addResponsiveStylesToComponent(content: string, css: string): Promise<string> {
-    return content + '\n' + css
+    return `${content}\n${css}`
   }
 
-  private async analyzeAccessibilityIssues(content: string): Promise<any[]> {
+  private async analyzeAccessibilityIssues(_content: string): Promise<any[]> {
     return []
   }
 
-  private async applyAccessibilityFixes(content: string, issues: any[], level: string): Promise<string> {
+  private async applyAccessibilityFixes(content: string, _issues: any[], _level: string): Promise<string> {
     return content
   }
 
@@ -562,11 +562,11 @@ describe('${componentName}', () => {
     CliUI.logInfo(`Setting up ${framework} testing framework`)
   }
 
-  private async generateTaskPlan(task: AgentTask): Promise<any> {
+  private async generateTaskPlan(_task: AgentTask): Promise<any> {
     return { steps: [], estimated_duration: 60000 }
   }
 
-  private async executePlan(plan: any): Promise<any> {
+  private async executePlan(_plan: any): Promise<any> {
     return { success: true, message: 'Plan executed successfully' }
   }
 }

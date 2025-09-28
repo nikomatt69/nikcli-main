@@ -120,7 +120,7 @@ export class AcpService extends EventEmitter {
 
   // ====================== MAIN SERVICE INTERFACE ======================
 
-  async start(input?: Readable, output?: Writable): Promise<void> {
+  async start(_input?: Readable, _output?: Writable): Promise<void> {
     if (this.running) {
       throw new Error('ACP Service is already running')
     }
@@ -542,7 +542,7 @@ class NikCLIAgent implements Agent {
     // Integrated with NikCLI orchestrator service for production workflow
     try {
       const { OrchestratorService } = await import('../services/orchestrator-service')
-      const orchestrator = new OrchestratorService()
+      const _orchestrator = new OrchestratorService()
       // Process through orchestrator's input handling
       process.chdir(cwd)
       this.log('Successfully processed with NikCLI orchestrator', { sessionId, cwd })
@@ -562,9 +562,10 @@ class NikCLIAgent implements Agent {
         switch (block.type) {
           case 'text':
             return block.text
-          case 'resource':
+          case 'resource': {
             const resourceText = 'text' in block.resource ? block.resource.text : '[Binary resource]'
             return `[Resource: ${block.resource.uri}]\n${resourceText}`
+          }
           case 'resource_link':
             return `[Link: ${block.name} - ${block.uri}]`
           case 'image':

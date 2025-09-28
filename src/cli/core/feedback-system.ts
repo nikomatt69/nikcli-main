@@ -53,7 +53,7 @@ export class FeedbackSystem {
   private pendingFeedback: FeedbackEntry[] = []
   private lastSubmit: Date = new Date()
 
-  constructor(cacheDir: string = './.nikcli') {
+  constructor(_cacheDir: string = './.nikcli') {
     this.feedbackDir = path.join(os.homedir(), '.nikcli', 'feedback')
     this.feedbackFile = path.join(this.feedbackDir, 'feedback.json')
     this.configFile = path.join(this.feedbackDir, 'feedback-config.json')
@@ -392,7 +392,7 @@ export class FeedbackSystem {
     this.config = { ...this.config, ...newConfig }
     await this.saveConfig()
 
-    console.log(chalk.green('✅ Feedback configuration updated'))
+    console.log(chalk.green('✓ Feedback configuration updated'))
     console.log(chalk.gray(`   Enabled: ${this.config.enabled}`))
     console.log(chalk.gray(`   Auto-submit: ${this.config.autoSubmit}`))
     console.log(chalk.gray(`   Anonymous: ${this.config.anonymousMode}`))
@@ -414,7 +414,7 @@ export class FeedbackSystem {
       if (!grouped.has(gap.concept)) {
         grouped.set(gap.concept, [])
       }
-      grouped.get(gap.concept)!.push(gap)
+      grouped.get(gap.concept)?.push(gap)
     })
 
     const result = Array.from(grouped.entries())

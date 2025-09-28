@@ -77,7 +77,7 @@ export class FigmaService extends EventEmitter {
       if (this.provider) {
         this.isInitialized = true
         this.emit('initialized')
-        console.log(chalk.green('✅ Figma service initialized'))
+        console.log(chalk.green('✓ Figma service initialized'))
       } else {
         console.log(chalk.red('❌ Failed to initialize Figma provider'))
       }
@@ -323,7 +323,7 @@ export class FigmaService extends EventEmitter {
       }
 
       // Generate code prompt
-      const prompt = `Generate ${options.framework} code using ${options.library} components based on these Figma designs.
+      const _prompt = `Generate ${options.framework} code using ${options.library} components based on these Figma designs.
       Make it responsive and follow modern best practices.${options.typescript ? ' Use TypeScript.' : ''}`
 
       // This would integrate with v0 API for actual code generation
@@ -349,7 +349,7 @@ export class FigmaService extends EventEmitter {
   }
 
   private generateCodeTemplate(options: CodeGenerationOptions, fileInfo: FigmaFileInfo): string {
-    const extension = options.typescript ? 'tsx' : 'jsx'
+    const _extension = options.typescript ? 'tsx' : 'jsx'
     const componentName = fileInfo.name.replace(/[^a-zA-Z0-9]/g, '')
 
     return `import React from 'react'

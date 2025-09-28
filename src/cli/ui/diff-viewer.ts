@@ -33,7 +33,7 @@ export class DiffViewer {
 
     if (fileDiff.isNew) {
       console.log(chalk.green('✨ New file created'))
-      this.showNewFileContent(fileDiff.newContent, showLineNumbers, compact)
+      DiffViewer.showNewFileContent(fileDiff.newContent, showLineNumbers, compact)
       return
     }
 
@@ -89,24 +89,24 @@ export class DiffViewer {
           const sign = raw[0]
           const text = raw.slice(1)
           if (sign === ' ') {
-            const num = showLineNumbers ? chalk.gray(String(oldNo).padStart(5)) + ' ' : ''
+            const num = showLineNumbers ? `${chalk.gray(String(oldNo).padStart(5))} ` : ''
             console.log(`${num}${chalk.gray(`  ${text}`)}`)
             oldNo++
             newNo++
           } else if (sign === '-') {
             removedLines++
-            const num = showLineNumbers ? chalk.red(String(oldNo).padStart(5)) + ' ' : ''
+            const num = showLineNumbers ? `${chalk.red(String(oldNo).padStart(5))} ` : ''
             console.log(`${num}${chalk.bgRed.white(`- ${text}`)}`)
             oldNo++
           } else if (sign === '+') {
             addedLines++
-            const num = showLineNumbers ? chalk.green(String(newNo).padStart(5)) + ' ' : ''
+            const num = showLineNumbers ? `${chalk.green(String(newNo).padStart(5))} ` : ''
             console.log(`${num}${chalk.bgGreen.black(`+ ${text}`)}`)
             newNo++
           } else if (sign === '?') {
             // Inline change markers - keep subtle
             if (!compact) {
-              const num = showLineNumbers ? chalk.yellow('     ') + ' ' : ''
+              const num = showLineNumbers ? `${chalk.yellow('     ')} ` : ''
               console.log(`${num}${chalk.yellow(`? ${text}`)}`)
             }
           }
@@ -175,7 +175,7 @@ export class DiffViewer {
       console.log(`${status} ${fileDiff.filePath}`)
 
       if (!options.compact) {
-        this.showFileDiff(fileDiff, { ...options, compact: true })
+        DiffViewer.showFileDiff(fileDiff, { ...options, compact: true })
       }
     })
   }
@@ -258,7 +258,7 @@ export class DiffViewer {
   static async showDiffAndAskApproval(fileDiffs: FileDiff[]): Promise<boolean> {
     console.log(chalk.yellow.bold('\n⚠️  The following files will be modified:'))
 
-    this.showMultiFileDiff(fileDiffs, { compact: true })
+    DiffViewer.showMultiFileDiff(fileDiffs, { compact: true })
 
     console.log(chalk.yellow('\n📋 Review the changes above carefully.'))
 
@@ -312,13 +312,13 @@ export class DiffViewer {
 
       if (fileDiff.isNew) {
         content += `**Status**: New file\n\n`
-        content += '```\n' + fileDiff.newContent + '\n```\n\n'
+        content += `\`\`\`\n${fileDiff.newContent}\n\`\`\`\n\n`
       } else if (fileDiff.isDeleted) {
         content += `**Status**: Deleted\n\n`
       } else {
         content += `**Status**: Modified\n\n`
         const diffResult = diff.createPatch(fileDiff.filePath, fileDiff.originalContent, fileDiff.newContent)
-        content += '```diff\n' + diffResult + '\n```\n\n'
+        content += `\`\`\`diff\n${diffResult}\n\`\`\`\n\n`
       }
     })
 

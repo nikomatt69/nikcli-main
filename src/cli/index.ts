@@ -76,7 +76,7 @@ import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
 import { diffManager } from './ui/diff-manager'
 import { Logger as UtilsLogger } from './utils/logger'
-import { structuredLogger } from './utils/structured-logger'
+
 
 // Global declarations for vision/image providers
 declare global {
@@ -279,22 +279,22 @@ class IntroductionModule {
     // Enhanced TUI version with better theming and structure
     const setupBox = boxen(
       chalk.yellow.bold('  API Key Required\n\n') +
-        chalk.white('To use NikCLI, please set at least one API key:\n\n') +
-        chalk.green('• ANTHROPIC_API_KEY') +
-        chalk.gray(' - for Claude models (recommended)\n') +
-        chalk.blue('• OPENAI_API_KEY') +
-        chalk.gray(' - for GPT models\n') +
-        chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
-        chalk.gray(' - for Gemini models\n') +
-        chalk.cyan('• AI_GATEWAY_API_KEY') +
-        chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
-        chalk.white.bold('Setup Examples:\n') +
-        chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
-        chalk.dim('export OPENAI_API_KEY="your-key-here"\n') +
-        chalk.dim('export GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"\n') +
-        chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
-        chalk.cyan('Then run: ') +
-        chalk.white.bold('npm start'),
+      chalk.white('To use NikCLI, please set at least one API key:\n\n') +
+      chalk.green('• ANTHROPIC_API_KEY') +
+      chalk.gray(' - for Claude models (recommended)\n') +
+      chalk.blue('• OPENAI_API_KEY') +
+      chalk.gray(' - for GPT models\n') +
+      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+      chalk.gray(' - for Gemini models\n') +
+      chalk.cyan('• AI_GATEWAY_API_KEY') +
+      chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
+      chalk.white.bold('Setup Examples:\n') +
+      chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
+      chalk.dim('export OPENAI_API_KEY="your-key-here"\n') +
+      chalk.dim('export GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"\n') +
+      chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
+      chalk.cyan('Then run: ') +
+      chalk.white.bold('npm start'),
       {
         padding: 1,
         margin: 1,
@@ -312,13 +312,13 @@ class IntroductionModule {
     // Enhanced TUI version with status indicators
     const startupBox = boxen(
       chalk.green.bold('🚀 Starting NikCLI...\n\n') +
-        chalk.white('Initializing autonomous AI assistant\n') +
-        chalk.gray('• Loading project context\n') +
-        chalk.gray('• Preparing planning system\n') +
-        chalk.gray('• Setting up tool integrations\n\n') +
-        chalk.cyan('Type ') +
-        chalk.white.bold('/help') +
-        chalk.cyan(' for available commands'),
+      chalk.white('Initializing autonomous AI assistant\n') +
+      chalk.gray('• Loading project context\n') +
+      chalk.gray('• Preparing planning system\n') +
+      chalk.gray('• Setting up tool integrations\n\n') +
+      chalk.cyan('Type ') +
+      chalk.white.bold('/help') +
+      chalk.cyan(' for available commands'),
       {
         padding: 1,
         margin: 1,
@@ -379,15 +379,15 @@ class OnboardingModule {
   private static async showBetaWarning(): Promise<void> {
     const warningBox = boxen(
       chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
-        chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
-        chalk.yellow.bold('Potential Risks:\n') +
-        chalk.white('• File system modifications\n') +
-        chalk.white('• Code generation may not always be optimal\n') +
-        chalk.white('• AI responses may be inaccurate\n') +
-        chalk.white('• System resource usage\n\n') +
-        chalk.cyan('For detailed security information, visit:\n') +
-        chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
-        chalk.white('By continuing, you acknowledge these risks.'),
+      chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
+      chalk.yellow.bold('Potential Risks:\n') +
+      chalk.white('• File system modifications\n') +
+      chalk.white('• Code generation may not always be optimal\n') +
+      chalk.white('• AI responses may be inaccurate\n') +
+      chalk.white('• System resource usage\n\n') +
+      chalk.cyan('For detailed security information, visit:\n') +
+      chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
+      chalk.white('By continuing, you acknowledge these risks.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -443,21 +443,21 @@ class OnboardingModule {
 
     const setupBox = boxen(
       chalk.yellow.bold('⚠️  No API keys detected\n\n') +
-        chalk.white('To unlock the best experience, add at least one API key:\n\n') +
-        chalk.green('• ANTHROPIC_API_KEY') +
-        chalk.gray(' – Claude models (recommended)\n') +
-        chalk.blue('• OPENAI_API_KEY') +
-        chalk.gray(' – GPT models\n') +
-        chalk.yellow('• OPENROUTER_API_KEY') +
-        chalk.gray(' – Multi-provider routing\n') +
-        chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
-        chalk.gray(' – Gemini models\n') +
-        chalk.cyan('• AI_GATEWAY_API_KEY / V0_API_KEY') +
-        chalk.gray(' – Vercel integrations\n\n') +
-        chalk.white.bold('Example commands:\n') +
-        chalk.dim('export ANTHROPIC_API_KEY="your-key"\n') +
-        chalk.dim('export OPENROUTER_API_KEY="your-key"\n\n') +
-        chalk.cyan('Prefer local models? Configure Ollama below.'),
+      chalk.white('To unlock the best experience, add at least one API key:\n\n') +
+      chalk.green('• ANTHROPIC_API_KEY') +
+      chalk.gray(' – Claude models (recommended)\n') +
+      chalk.blue('• OPENAI_API_KEY') +
+      chalk.gray(' – GPT models\n') +
+      chalk.yellow('• OPENROUTER_API_KEY') +
+      chalk.gray(' – Multi-provider routing\n') +
+      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+      chalk.gray(' – Gemini models\n') +
+      chalk.cyan('• AI_GATEWAY_API_KEY / V0_API_KEY') +
+      chalk.gray(' – Vercel integrations\n\n') +
+      chalk.white.bold('Example commands:\n') +
+      chalk.dim('export ANTHROPIC_API_KEY="your-key"\n') +
+      chalk.dim('export OPENROUTER_API_KEY="your-key"\n\n') +
+      chalk.cyan('Prefer local models? Configure Ollama below.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -543,10 +543,10 @@ class OnboardingModule {
     if (allPassed) {
       // Show minimal success box
       const summaryBox = boxen(
-        chalk.white('✅ Node.js v') +
-          chalk.white(process.version) +
-          '\n' +
-          chalk.white('✅ Cloud API provider configured'),
+        chalk.white('✓ Node.js v') +
+        chalk.white(process.version) +
+        '\n' +
+        chalk.white('✓ Cloud API provider configured'),
         {
           padding: 1,
           borderStyle: 'round',
@@ -562,7 +562,7 @@ class OnboardingModule {
   }
 
   private static async setupOllama(): Promise<boolean> {
-    const header = chalk.blueBright('🤖 Ollama Setup')
+    const header = chalk.blueBright('🔌 Ollama Setup')
     const providerMissingBox = () =>
       boxen(chalk.yellow('⚠️ No AI provider configured yet. Configure an API key or Ollama to continue later.'), {
         padding: 1,
@@ -582,10 +582,10 @@ class OnboardingModule {
           .join('\n')
 
         const modelsBox = boxen(
-          chalk.green.bold('✅ Local Ollama models detected\n\n') +
-            list +
-            '\n\n' +
-            chalk.white('Use a local model to run NikCLI without external API keys.'),
+          chalk.green.bold('✓ Local Ollama models detected\n\n') +
+          list +
+          '\n\n' +
+          chalk.white('Use a local model to run NikCLI without external API keys.'),
           {
             padding: 1,
             borderStyle: 'round',
@@ -624,7 +624,7 @@ class OnboardingModule {
           }
 
           configManager.setCurrentModel(chosenName)
-          const successBox = boxen(chalk.green.bold(`✅ Using local model: ${chosenName}`), {
+          const successBox = boxen(chalk.green.bold(`✓ Using local model: ${chosenName}`), {
             padding: 1,
             borderStyle: 'round',
             borderColor: 'green',
@@ -643,8 +643,8 @@ class OnboardingModule {
 
       const promptBox = boxen(
         chalk.yellow.bold('No Ollama models configured yet.\n\n') +
-          chalk.white('Add the default `llama3.1:8b` model now?\n') +
-          chalk.dim('This enables fully local inference without API keys.'),
+        chalk.white('Add the default `llama3.1:8b` model now?\n') +
+        chalk.dim('This enables fully local inference without API keys.'),
         {
           padding: 1,
           borderStyle: 'round',
@@ -672,7 +672,7 @@ class OnboardingModule {
           model: 'llama3.1:8b',
         } as any)
         configManager.setCurrentModel(defaultName)
-        const successBox = boxen(chalk.green.bold('✅ Default Ollama model configured'), {
+        const successBox = boxen(chalk.green.bold('✓ Default Ollama model configured'), {
           padding: 1,
           borderStyle: 'round',
           borderColor: 'green',
@@ -734,7 +734,7 @@ class OnboardingModule {
           chalk.gray(`Host: ${redisConfig!.host}:${redisConfig!.port}`),
           chalk.gray(`Database: ${redisConfig!.database}`),
           chalk.gray(`Fallback: ${redisConfig!.fallback.enabled ? 'Enabled' : 'Disabled'}`),
-          chalk.green('✅ Configuration loaded'),
+          chalk.green('✓ Configuration loaded'),
         ]
         sections.push(redisLines.join('\n'))
       } catch (_error: any) {
@@ -756,7 +756,7 @@ class OnboardingModule {
 
           const supabaseLines = [
             chalk.green.bold('🟢 Supabase Integration'),
-            chalk.green('✅ Credentials detected'),
+            chalk.green('✓ Credentials detected'),
             featureList ? chalk.gray(featureList) : chalk.gray('No advanced features enabled'),
           ]
           sections.push(supabaseLines.join('\n'))
@@ -793,7 +793,7 @@ class OnboardingModule {
     const header = chalk.cyanBright('🔐 Authentication Setup')
     const introBox = boxen(
       chalk.white('Sign in to sync progress across devices and unlock collaborative features.\n') +
-        chalk.gray('You can always connect later with the /auth command.'),
+      chalk.gray('You can always connect later with the /auth command.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -895,7 +895,7 @@ class OnboardingModule {
 
       this.renderSection([
         header,
-        boxen(chalk.blue('🔄 Signing in...'), {
+        boxen(chalk.blue('⚡︎ Signing in...'), {
           padding: 1,
           borderStyle: 'round',
           borderColor: 'cyan',
@@ -912,9 +912,9 @@ class OnboardingModule {
 
       if (result) {
         const successBox = boxen(
-          chalk.green(`✅ Welcome back, ${result.profile.email || result.profile.username}!`) +
-            '\n' +
-            chalk.gray(`Subscription: ${result.profile.subscription_tier}`),
+          chalk.green(`✓ Welcome back, ${result.profile.email || result.profile.username}!`) +
+          '\n' +
+          chalk.gray(`Subscription: ${result.profile.subscription_tier}`),
           {
             padding: 1,
             borderStyle: 'round',
@@ -960,7 +960,7 @@ class OnboardingModule {
 
       this.renderSection([
         header,
-        boxen(chalk.blue('🔄 Creating account...'), {
+        boxen(chalk.blue('⚡︎ Creating account...'), {
           padding: 1,
           borderStyle: 'round',
           borderColor: 'cyan',
@@ -977,11 +977,11 @@ class OnboardingModule {
 
       if (result) {
         const successBox = boxen(
-          chalk.green('✅ Account created successfully!') +
-            '\n' +
-            chalk.gray(`Welcome, ${result.profile.email}!`) +
-            '\n' +
-            chalk.dim('Check your email for verification if required.'),
+          chalk.green('✓ Account created successfully!') +
+          '\n' +
+          chalk.gray(`Welcome, ${result.profile.email}!`) +
+          '\n' +
+          chalk.dim('Check your email for verification if required.'),
           {
             padding: 1,
             borderStyle: 'round',
@@ -1033,7 +1033,7 @@ class OnboardingModule {
           versionContent += '\n' + chalk.white('Run the following command to update:')
           versionContent += '\n' + chalk.yellow.bold('npm update -g @nicomatt69/nikcli')
         } else {
-          versionContent += '\n\n' + chalk.green('✅ You are using the latest version!')
+          versionContent += '\n\n' + chalk.green('✓ You are using the latest version!')
         }
       }
 
@@ -1282,12 +1282,12 @@ class ServiceModule {
         const { visionProvider } = await import('./providers/vision')
         const { imageGenerator } = await import('./providers/image')
 
-        // Providers initialize automatically in their constructors
+          // Providers initialize automatically in their constructors
 
-        // Make providers globally accessible for chat
-        ;(global as any).visionProvider = visionProvider
-        ;(global as any).imageGenerator = imageGenerator
-      } catch (_error: any) {}
+          // Make providers globally accessible for chat
+          ; (global as any).visionProvider = visionProvider
+          ; (global as any).imageGenerator = imageGenerator
+      } catch (_error: any) { }
 
       // Initialize CAD/GCode provider and services once at startup
       try {
@@ -1296,10 +1296,10 @@ class ServiceModule {
 
         await cadGcodeProvider.initialize()
 
-        // Expose globally for command handlers and autonomous flows
-        ;(global as any).cadGcodeProvider = cadGcodeProvider
-        ;(global as any).cadService = getCadService()
-        ;(global as any).gcodeService = getGcodeService()
+          // Expose globally for command handlers and autonomous flows
+          ; (global as any).cadGcodeProvider = cadGcodeProvider
+          ; (global as any).cadService = getCadService()
+          ; (global as any).gcodeService = getGcodeService()
       } catch (_error: any) {
         // Silent: CAD/GCode provider optional
       }
@@ -1382,9 +1382,9 @@ class StreamingModule extends EventEmitter {
     if (process.stdin.isTTY) {
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ;(process.stdin as any).setRawMode(true)
+        ; (process.stdin as any).setRawMode(true)
       }
-      ;(process.stdin as any).resume()
+      ; (process.stdin as any).resume()
     }
 
     // Keypress handlers
@@ -1431,7 +1431,7 @@ class StreamingModule extends EventEmitter {
       this.activeAgents.set(task.id, task)
       this.queueMessage({
         type: 'system',
-        content: `🤖 Agent ${task.agentType} started: ${task.task.slice(0, 50)}...`,
+        content: `🔌 Agent ${task.agentType} started: ${task.task.slice(0, 50)}...`,
         metadata: { agentId: task.id, agentType: task.agentType },
       })
     })
@@ -1468,7 +1468,7 @@ class StreamingModule extends EventEmitter {
   private showPrompt(): void {
     const dir = require('node:path').basename(this.context.workingDirectory)
     const agents = this.activeAgents.size
-    const agentIndicator = agents > 0 ? chalk.blue(`${agents}🤖`) : '🎛️'
+    const agentIndicator = agents > 0 ? chalk.blue(`${agents}🔌`) : '🎛️'
 
     const modes = []
     if (this.context.planMode) modes.push(chalk.cyan('plan'))
@@ -1562,7 +1562,7 @@ class StreamingModule extends EventEmitter {
 
   private cycleMode(): void {
     this.context.planMode = !this.context.planMode
-    console.log(this.context.planMode ? chalk.green('\n✅ Plan mode enabled') : chalk.yellow('\n⚠️ Plan mode disabled'))
+    console.log(this.context.planMode ? chalk.green('\n✓ Plan mode enabled') : chalk.yellow('\n⚠️ Plan mode disabled'))
   }
 
   private stopAllAgents(): void {
@@ -1603,7 +1603,7 @@ class StreamingModule extends EventEmitter {
       console.log(chalk.yellow(`⏳ Waiting for ${this.activeAgents.size} agents to finish...`))
     }
 
-    console.log(chalk.green('✅ Goodbye!'))
+    console.log(chalk.green('✓ Goodbye!'))
     process.exit(0)
   }
 
@@ -1655,7 +1655,7 @@ class MainOrchestrator {
         // Streaming module handles its own cleanup
       }
 
-      console.log(chalk.green('✅ Orchestrator shut down cleanly'))
+      console.log(chalk.green('✓ Orchestrator shut down cleanly'))
     } catch (error) {
       console.error(chalk.red('❌ Error during shutdown:'), error)
     } finally {
@@ -1688,8 +1688,7 @@ class MainOrchestrator {
       UtilsLogger.getInstance().setConsoleOutput(true)
 
       // Welcome message
-      console.log(chalk.green.bold('\n🎉 Welcome to NikCLI!'))
-      console.log(chalk.gray('─'.repeat(40)))
+
 
       // Show quick start guide
 

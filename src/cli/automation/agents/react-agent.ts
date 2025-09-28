@@ -137,7 +137,7 @@ Always provide complete, working solutions with:
 
         try {
           await toolsManager.writeFile(filename, code)
-          console.log(chalk.green(`✅ Created React file: ${filename}`))
+          console.log(chalk.green(`✓ Created React file: ${filename}`))
         } catch (_error) {
           console.log(chalk.yellow(`⚠️ Could not create file: ${filename}`))
         }

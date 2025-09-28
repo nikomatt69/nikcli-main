@@ -1,24 +1,17 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
 import { TOKEN_LIMITS } from '../config/token-limits'
-import { configManager } from '../core/config-manager'
-import { CliUI } from '../utils/cli-ui'
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 // Import semantic search engine and file filtering
 import { type QueryAnalysis, type ScoringContext, semanticSearchEngine } from './semantic-search-engine'
 
 // Import unified embedding and vector store infrastructure
-import { type EmbeddingResult, unifiedEmbeddingInterface } from './unified-embedding-interface'
-import {
-  createVectorStoreManager,
-  type VectorDocument,
-  type VectorSearchResult,
-  type VectorStoreManager,
-} from './vector-store-abstraction'
+import { unifiedEmbeddingInterface } from './unified-embedding-interface'
+import { createVectorStoreManager, type VectorDocument, type VectorStoreManager } from './vector-store-abstraction'
 // Import workspace analysis types for integration
 import type { FileEmbedding, WorkspaceContext } from './workspace-rag'
 import { WorkspaceRAG } from './workspace-rag'
@@ -92,7 +85,7 @@ function estimateCost(input: string[] | number, provider: string = 'openai'): nu
   const estimatedTokens = Math.ceil(totalChars / 4)
 
   // Use provider-specific pricing from unified embedding interface
-  const config = unifiedEmbeddingInterface.getConfig()
+  const _config = unifiedEmbeddingInterface.getConfig()
   const costPer1K = provider === 'openai' ? 0.00002 : provider === 'google' ? 0.000025 : 0.00003
   return (estimatedTokens / 1000) * costPer1K
 }
@@ -132,7 +125,7 @@ function createVectorStoreConfigs() {
       connectionConfig: {
         useCloud: false,
         host: host || 'localhost',
-        port: parseInt(port) || 8005,
+        port: parseInt(port, 10) || 8005,
         ssl: chromaUrl.startsWith('https'),
       },
       collectionName: 'unified_project_index',
@@ -291,7 +284,7 @@ export class UnifiedRAGSystem {
 
           const initialized = await this.vectorStoreManager.initialize()
           if (initialized) {
-            console.log(chalk.green('✅ Vector Store Manager initialized with fallback support'))
+            console.log(chalk.green('✓ Vector Store Manager initialized with fallback support'))
           } else {
             console.log(chalk.yellow('⚠️ Vector Store Manager failed to initialize, using workspace analysis only'))
             this.config.useVectorDB = false
@@ -307,66 +300,17 @@ export class UnifiedRAGSystem {
   }
 
   /**
-   * Test vector store manager connectivity and embeddings
-   */
-  private async testVectorStoreIntegration(): Promise<void> {
-    if (!this.vectorStoreManager) {
-      throw new Error('Vector store manager not initialized')
-    }
-
-    try {
-      // Test vector store connectivity
-      const stats = this.vectorStoreManager.getStats()
-      if (stats) {
-        console.log(chalk.gray(`✓ Vector store active: ${stats.provider}`))
-        console.log(chalk.gray(`✓ Documents count: ${stats.documentsCount}`))
-      }
-
-      // Test unified embedding interface
-      const availableProviders = unifiedEmbeddingInterface.getConfig()
-      console.log(chalk.gray(`✓ Embedding provider: ${availableProviders.provider}`))
-      console.log(chalk.gray(`✓ Model: ${availableProviders.model}`))
-      console.log(chalk.gray(`✓ Dimensions: ${availableProviders.dimensions}`))
-
-      // Test embedding generation with minimal data
-      const testText = 'test embedding integration'
-      const startTime = Date.now()
-      const embeddingResult = await unifiedEmbeddingInterface.generateEmbedding(testText)
-      const duration = Date.now() - startTime
-
-      if (
-        !embeddingResult ||
-        !embeddingResult.vector ||
-        embeddingResult.vector.length !== availableProviders.dimensions
-      ) {
-        throw new Error('Invalid embedding response format')
-      }
-
-      console.log(chalk.gray(`✓ Unified embeddings working (${duration}ms)`))
-      console.log(
-        chalk.gray(`✓ Dimension validation: ${embeddingResult.dimensions} = ${availableProviders.dimensions}`)
-      )
-      console.log(chalk.gray(`✓ Test cost: $${embeddingResult.cost.toFixed(8)}`))
-
-      // Show embedding interface stats
-      unifiedEmbeddingInterface.logStatus()
-    } catch (error: any) {
-      throw new Error(`Vector store integration test failed: ${error.message}`)
-    }
-  }
-
-  /**
    * Unified project analysis combining workspace and vector approaches
    */
   async analyzeProject(projectPath: string): Promise<RAGAnalysisResult> {
     const startTime = Date.now()
-    console.log(chalk.blue('🧠 Starting unified RAG analysis...'))
+    console.log(chalk.blue('⚡︎ Starting unified RAG analysis...'))
 
     // Check cache
     const cacheKey = `analysis-${projectPath}`
     const cached = this.analysisCache.get(cacheKey)
     if (cached && Date.now() - this.lastAnalysis < this.CACHE_TTL) {
-      console.log(chalk.green('✅ Using cached analysis'))
+      console.log(chalk.green('✓ Using cached analysis'))
       return cached
     }
 
@@ -379,7 +323,7 @@ export class UnifiedRAGSystem {
     if (this.config.enableWorkspaceAnalysis && this.workspaceRAG) {
       console.log(chalk.cyan('📁 Analyzing workspace structure...'))
       workspaceContext = await this.workspaceRAG.analyzeWorkspace()
-      console.log(chalk.green(`✅ Analyzed ${workspaceContext.files.size} files`))
+      console.log(chalk.green(`✓ Analyzed ${workspaceContext.files.size} files`))
     } else {
       // Fallback minimal analysis
       workspaceContext = this.createMinimalWorkspaceContext(projectPath)
@@ -411,7 +355,7 @@ export class UnifiedRAGSystem {
     this.analysisCache.set(cacheKey, result)
     this.lastAnalysis = Date.now()
 
-    console.log(chalk.green(`✅ RAG analysis completed in ${result.processingTime}ms`))
+    console.log(chalk.green(`✓ RAG analysis completed in ${result.processingTime}ms`))
     console.log(
       chalk.gray(`   Indexed: ${indexedFiles} files, Cost: $${embeddingsCost.toFixed(4)}, Vector DB: ${vectorDBStatus}`)
     )
@@ -437,7 +381,7 @@ export class UnifiedRAGSystem {
       const queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
       console.log(
         chalk.blue(
-          `🧠 Query intent: ${queryAnalysis.intent.type} (${Math.round(queryAnalysis.confidence * 100)}% confidence)`
+          `⚡︎ Query intent: ${queryAnalysis.intent.type} (${Math.round(queryAnalysis.confidence * 100)}% confidence)`
         )
       )
 
@@ -448,7 +392,7 @@ export class UnifiedRAGSystem {
         semanticOnly: true,
         queryAnalysis,
       })
-    } catch (error) {
+    } catch (_error) {
       console.log(chalk.yellow('⚠️ Semantic search failed, falling back to regular search'))
       return await this.search(query, { limit })
     }
@@ -471,7 +415,7 @@ export class UnifiedRAGSystem {
 
     // Initialize monitoring
     this.searchMetrics.totalSearches++
-    let searchTypes: string[] = []
+    const searchTypes: string[] = []
 
     console.log(chalk.blue(`🔍 Searching: "${query}"`))
 
@@ -556,7 +500,7 @@ export class UnifiedRAGSystem {
 
       console.log(
         chalk.green(
-          `✅ Found ${finalResults.length} results in ${duration}ms ` +
+          `✓ Found ${finalResults.length} results in ${duration}ms ` +
             `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
         )
       )
@@ -688,7 +632,7 @@ export class UnifiedRAGSystem {
 
         const successRate = (successfulBatches / Math.ceil(documentsToIndex.length / batchSize)) * 100
 
-        console.log(chalk.green(`✅ Indexing complete!`))
+        console.log(chalk.green(`✓ Indexing complete!`))
         console.log(chalk.gray(`   Files processed: ${indexedCount}`))
         console.log(chalk.gray(`   Document chunks: ${documentsToIndex.length}`))
         console.log(chalk.gray(`   Upload success rate: ${successRate.toFixed(1)}%`))
@@ -829,7 +773,7 @@ export class UnifiedRAGSystem {
       console.log(chalk.gray(`✓ File hashes cache: ${hashExists ? 'exists' : 'will be created'}`))
 
       // Test cache functionality by adding a test entry and saving
-      const testKey = 'cache-test-' + Date.now()
+      const testKey = `cache-test-${Date.now()}`
       const testEmbedding = [0.1, 0.2, 0.3] // Simple test embedding
 
       this.embeddingsCache.set(testKey, testEmbedding)
@@ -871,7 +815,7 @@ export class UnifiedRAGSystem {
     // Calculate estimated savings for typical project
     const avgFileSize = 2000 // characters
     const avgFilesInProject = 100
-    const totalChars = avgFileSize * avgFilesInProject
+    const _totalChars = avgFileSize * avgFilesInProject
 
     const oldCost = 0.05 // Estimate for old approach
     const newCost = 0.03 // Estimate for new optimized approach
@@ -891,52 +835,12 @@ export class UnifiedRAGSystem {
   }
 
   /**
-   * Save persistent embeddings cache to disk
-   */
-  private async savePersistentCache(): Promise<void> {
-    if (!this.config.cacheEmbeddings) return
-
-    try {
-      await mkdir(this.CACHE_DIR, { recursive: true })
-
-      const cacheFilePath = join(this.CACHE_DIR, 'embeddings-cache.json')
-      const hashFilePath = join(this.CACHE_DIR, 'file-hashes.json')
-
-      // Convert Maps to objects for JSON serialization
-      const cacheData = Object.fromEntries(this.embeddingsCache)
-      const hashData = Object.fromEntries(this.fileHashCache)
-
-      await writeFile(cacheFilePath, JSON.stringify(cacheData, null, 2))
-      await writeFile(hashFilePath, JSON.stringify(hashData, null, 2))
-
-      console.log(chalk.green(`💾 Saved ${this.embeddingsCache.size} embeddings to cache`))
-    } catch (_error) {
-      console.log(chalk.yellow('⚠️ Failed to save embeddings cache'))
-    }
-  }
-
-  /**
    * Generate file content hash for change detection
    */
   private generateFileHash(filePath: string, content: string): string {
     const stats = statSync(filePath)
     const hashInput = `${filePath}:${stats.mtime.getTime()}:${content.length}`
     return createHash('md5').update(hashInput).digest('hex')
-  }
-
-  /**
-   * Check if file has changed since last processing
-   */
-  private hasFileChanged(filePath: string, content: string): boolean {
-    const currentHash = this.generateFileHash(filePath, content)
-    const cachedHash = this.fileHashCache.get(filePath)
-
-    if (cachedHash !== currentHash) {
-      this.fileHashCache.set(filePath, currentHash)
-      return true
-    }
-
-    return false
   }
 
   /**
@@ -1261,7 +1165,7 @@ export class UnifiedRAGSystem {
 
     if (queryAnalysis) {
       // Use the expanded query for better results
-      const expandedQuery = queryAnalysis.expandedQuery || query
+      const _expandedQuery = queryAnalysis.expandedQuery || query
       return await this.searchVectorStoreWithSemantics(queryAnalysis, limit)
     } else {
       // Fall back to regular search
@@ -1300,7 +1204,7 @@ export class UnifiedRAGSystem {
           chunks.push((lastHeader + currentChunk).trim())
           currentChunk = ''
         }
-        lastHeader = section + '\n'
+        lastHeader = `${section}\n`
       } else if (section.trim()) {
         // This is content
         currentChunk += section
@@ -1471,7 +1375,7 @@ export class UnifiedRAGSystem {
   /**
    * Apply basic scoring for simple queries
    */
-  private applyBasicScoring(result: RAGSearchResult, query: string, queryWords: string[]): number {
+  private applyBasicScoring(result: RAGSearchResult, _query: string, queryWords: string[]): number {
     let score = result.score
 
     const content = result.content.toLowerCase()
@@ -1550,7 +1454,7 @@ export class UnifiedRAGSystem {
           if (termFreq > 0) {
             // Simplified BM25 formula
             const tf = termFreq / (termFreq + 1.2 * (0.25 + 0.75 * (docLength / avgDocLength)))
-            const idf = Math.log(1 + this.workspaceRAG!.getContext().files.size / (termFreq + 1))
+            const idf = Math.log(1 + this.workspaceRAG?.getContext().files.size / (termFreq + 1))
             score += tf * idf
           }
         })
@@ -1750,7 +1654,7 @@ export class UnifiedRAGSystem {
   clearCaches(): void {
     this.embeddingsCache.clear()
     this.analysisCache.clear()
-    console.log(chalk.green('✅ RAG caches cleared'))
+    console.log(chalk.green('✓ RAG caches cleared'))
   }
 
   getStats() {
@@ -1764,11 +1668,11 @@ export class UnifiedRAGSystem {
         ...this.searchMetrics,
         cacheHitRate:
           this.searchMetrics.totalSearches > 0
-            ? ((this.searchMetrics.cacheHits / this.searchMetrics.totalSearches) * 100).toFixed(1) + '%'
+            ? `${((this.searchMetrics.cacheHits / this.searchMetrics.totalSearches) * 100).toFixed(1)}%`
             : '0%',
         errorRate:
           this.searchMetrics.totalSearches > 0
-            ? ((this.searchMetrics.errors / this.searchMetrics.totalSearches) * 100).toFixed(1) + '%'
+            ? `${((this.searchMetrics.errors / this.searchMetrics.totalSearches) * 100).toFixed(1)}%`
             : '0%',
         averageLatencyMs: Math.round(this.searchMetrics.averageLatency),
       },
@@ -1792,15 +1696,15 @@ export class UnifiedRAGSystem {
         averageLatency: Math.round(this.searchMetrics.averageLatency),
         totalLatency: this.searchMetrics.totalLatency,
         errors: this.searchMetrics.errors,
-        errorRate: totalSearches > 0 ? ((this.searchMetrics.errors / totalSearches) * 100).toFixed(1) + '%' : '0%',
+        errorRate: totalSearches > 0 ? `${((this.searchMetrics.errors / totalSearches) * 100).toFixed(1)}%` : '0%',
       },
       optimization: {
         cacheHits: this.searchMetrics.cacheHits,
         cacheHitRate:
-          totalSearches > 0 ? ((this.searchMetrics.cacheHits / totalSearches) * 100).toFixed(1) + '%' : '0%',
+          totalSearches > 0 ? `${((this.searchMetrics.cacheHits / totalSearches) * 100).toFixed(1)}%` : '0%',
         queryOptimizations: this.searchMetrics.queryOptimizations,
         reranks: this.searchMetrics.reranks,
-        rerankRate: totalSearches > 0 ? ((this.searchMetrics.reranks / totalSearches) * 100).toFixed(1) + '%' : '0%',
+        rerankRate: totalSearches > 0 ? `${((this.searchMetrics.reranks / totalSearches) * 100).toFixed(1)}%` : '0%',
       },
     }
   }
@@ -1821,7 +1725,7 @@ export class UnifiedRAGSystem {
       queryOptimizations: 0,
       reranks: 0,
     }
-    console.log(chalk.green('✅ RAG performance metrics reset'))
+    console.log(chalk.green('✓ RAG performance metrics reset'))
   }
 
   /**
@@ -1909,7 +1813,7 @@ export class UnifiedRAGSystem {
   private getEfficiencyEmoji(score: number): string {
     if (score >= 90) return '🚀'
     if (score >= 80) return '⚡'
-    if (score >= 70) return '✅'
+    if (score >= 70) return '✓'
     if (score >= 60) return '⚠️'
     return '🐌'
   }
@@ -1948,17 +1852,17 @@ export const unifiedRAGSystem = new UnifiedRAGSystem()
 
 // Legacy functions for backward compatibility
 export async function indexProject(projectPath: string) {
-  console.log(chalk.blue('🔄 Using legacy indexProject (consider upgrading to UnifiedRAGSystem)'))
+  console.log(chalk.blue('⚡︎ Using legacy indexProject (consider upgrading to UnifiedRAGSystem)'))
   try {
     const result = await unifiedRAGSystem.analyzeProject(projectPath)
-    console.log(chalk.green(`✅ Legacy indexing completed - ${result.indexedFiles} files processed`))
+    console.log(chalk.green(`✓ Legacy indexing completed - ${result.indexedFiles} files processed`))
   } catch (error: any) {
     console.error(chalk.red('❌ Legacy indexing failed:'), error.message)
   }
 }
 
 export async function search(query: string) {
-  console.log(chalk.blue('🔄 Using legacy search (consider upgrading to UnifiedRAGSystem)'))
+  console.log(chalk.blue('⚡︎ Using legacy search (consider upgrading to UnifiedRAGSystem)'))
   try {
     const results = await unifiedRAGSystem.search(query, { limit: 5 })
     // Convert to legacy format
@@ -2057,7 +1961,7 @@ function truncateToTokensWithBoundaries(text: string, maxTokens: number): string
     if (bestCutoff < maxChars - 50) break // Found good boundary
   }
 
-  return text.substring(0, bestCutoff) + '\n[... content truncated for length ...]'
+  return `${text.substring(0, bestCutoff)}\n[... content truncated for length ...]`
 }
 
 function chunkTextByTokens(text: string, chunkTokens: number, overlapTokens: number): string[] {

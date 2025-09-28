@@ -44,7 +44,7 @@ export class BackgroundAgentService extends EventEmitter {
         const isAvailable = await this.kvAdapter.isAvailable()
         if (isAvailable) {
           this.useVercelKV = true
-          console.log('✅ Vercel KV connected successfully')
+          console.log('✓ Vercel KV connected successfully')
 
           // Load existing jobs from KV
           await this.loadJobsFromKV()
@@ -273,7 +273,7 @@ export class BackgroundAgentService extends EventEmitter {
 
       job.status = 'succeeded'
       job.completedAt = new Date()
-      job.metrics.executionTime = job.completedAt.getTime() - job.startedAt!.getTime()
+      job.metrics.executionTime = job.completedAt.getTime() - job.startedAt?.getTime()
 
       this.logJob(job, 'info', 'Job completed successfully')
       this.emit('job:completed', job)
@@ -433,7 +433,11 @@ export class BackgroundAgentService extends EventEmitter {
   /**
    * Setup execution environment (VM/Container)
    */
-  private async setupExecutionEnvironment(job: BackgroundJob, workspaceDir: string, environment: any): Promise<string> {
+  private async setupExecutionEnvironment(
+    job: BackgroundJob,
+    _workspaceDir: string,
+    _environment: any
+  ): Promise<string> {
     // For now, use local execution
     // In production, this would setup a proper container/VM
     this.logJob(job, 'info', 'Using local execution environment')
@@ -443,7 +447,7 @@ export class BackgroundAgentService extends EventEmitter {
   /**
    * Execute playbook steps
    */
-  private async executePlaybook(job: BackgroundJob, workspaceDir: string, containerId: string): Promise<void> {
+  private async executePlaybook(job: BackgroundJob, workspaceDir: string, _containerId: string): Promise<void> {
     const path = await import('node:path')
     const repoDir = path.join(workspaceDir, 'repo')
 
@@ -483,7 +487,7 @@ export class BackgroundAgentService extends EventEmitter {
   /**
    * Execute direct task without playbook
    */
-  private async executeDirectTask(job: BackgroundJob, workspaceDir: string, containerId: string): Promise<void> {
+  private async executeDirectTask(job: BackgroundJob, workspaceDir: string, _containerId: string): Promise<void> {
     const path = await import('node:path')
     const repoDir = path.join(workspaceDir, 'repo')
 
@@ -497,7 +501,7 @@ export class BackgroundAgentService extends EventEmitter {
   /**
    * Execute nikCLI command
    */
-  private async executeNikCLICommand(job: BackgroundJob, workingDir: string, command: string): Promise<void> {
+  private async executeNikCLICommand(job: BackgroundJob, _workingDir: string, command: string): Promise<void> {
     // Integration with existing agent service
     const agentType = 'universal-agent'
     const task = command.replace(/^nikcli\s+/, '').replace(/^\/auto\s+/, '')
@@ -566,7 +570,7 @@ export class BackgroundAgentService extends EventEmitter {
   /**
    * Create pull request
    */
-  private async createPullRequest(job: BackgroundJob, workspaceDir: string, containerId: string): Promise<void> {
+  private async createPullRequest(job: BackgroundJob, workspaceDir: string, _containerId: string): Promise<void> {
     const path = await import('node:path')
     const { execSync } = await import('node:child_process')
     const repoDir = path.join(workspaceDir, 'repo')
@@ -638,42 +642,6 @@ export class BackgroundAgentService extends EventEmitter {
     }
 
     this.emit('job:log', job.id, logEntry)
-  }
-
-  /**
-   * Update job status and persist to KV
-   */
-  private async updateJobStatus(job: BackgroundJob, status: JobStatus, error?: string): Promise<void> {
-    const oldStatus = job.status
-    job.status = status
-
-    if (error) {
-      job.error = error
-    }
-
-    if (status === 'running' && !job.startedAt) {
-      job.startedAt = new Date()
-    }
-
-    if (['succeeded', 'failed', 'cancelled', 'timeout'].includes(status) && !job.completedAt) {
-      job.completedAt = new Date()
-      if (job.startedAt) {
-        job.metrics.executionTime = job.completedAt.getTime() - job.startedAt.getTime()
-      }
-    }
-
-    // Update in Vercel KV if available
-    if (this.useVercelKV && this.kvAdapter) {
-      try {
-        await this.kvAdapter.storeJob(job.id, job)
-
-        // Update stats
-        await this.kvAdapter.incrementStat(oldStatus, -1)
-        await this.kvAdapter.incrementStat(status, 1)
-      } catch (error) {
-        console.error('Error updating job status in KV:', error)
-      }
-    }
   }
 }
 

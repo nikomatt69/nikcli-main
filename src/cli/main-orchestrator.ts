@@ -36,7 +36,7 @@ export class MainOrchestrator {
 
   private setupGlobalHandlers(): void {
     // Enhanced global error handler with recovery
-    process.on('unhandledRejection', (reason, promise) => {
+    process.on('unhandledRejection', (reason, _promise) => {
       console.error(chalk.red('❌ Unhandled Rejection:'), reason)
       // Attempt graceful recovery
       this.handleRecoverableError(reason)
@@ -72,7 +72,7 @@ export class MainOrchestrator {
       // Clear resources
       await this.cleanup()
 
-      console.log(chalk.green('✅ Orchestrator shut down cleanly'))
+      console.log(chalk.green('✓ Orchestrator shut down cleanly'))
     } catch (error) {
       console.error(chalk.red('❌ Error during shutdown:'), error)
     } finally {
@@ -96,7 +96,7 @@ export class MainOrchestrator {
       if ('clearCache' in planningService) (planningService as any).clearCache()
       if ('clearCache' in toolService) (toolService as any).clearCache()
       if ('clearCache' in snapshotService) (snapshotService as any).clearCache()
-    } catch (error) {
+    } catch (_error) {
       // Silent fallback - cache cleanup is non-critical
     }
   }
@@ -104,7 +104,7 @@ export class MainOrchestrator {
   private handleRecoverableError(error: any): void {
     try {
       // Log error details for debugging
-      console.log(chalk.yellow('🔄 Attempting error recovery...'))
+      console.log(chalk.yellow('⚡︎ Attempting error recovery...'))
 
       // Reset critical services state
       if (typeof error === 'object' && error?.message?.includes('ENOTFOUND')) {
@@ -113,7 +113,7 @@ export class MainOrchestrator {
         console.log(chalk.blue('⏱️ Timeout detected, increasing retry intervals'))
       }
 
-      console.log(chalk.green('✅ Error recovery completed'))
+      console.log(chalk.green('✓ Error recovery completed'))
     } catch (recoveryError) {
       console.error(chalk.red('❌ Recovery failed:'), recoveryError)
     }
@@ -133,7 +133,7 @@ export class MainOrchestrator {
     const allPassed = results.every((r) => r)
 
     if (allPassed) {
-      console.log(chalk.green('✅ All system checks passed'))
+      console.log(chalk.green('✓ All system checks passed'))
     } else {
       console.log(chalk.red('❌ System requirements not met'))
     }
@@ -143,14 +143,14 @@ export class MainOrchestrator {
 
   private checkNodeVersion(): boolean {
     const version = process.version
-    const major = parseInt(version.slice(1).split('.')[0])
+    const major = parseInt(version.slice(1).split('.')[0], 10)
 
     if (major < 18) {
       console.log(chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`))
       return false
     }
 
-    console.log(chalk.green(`✅ Node.js ${version}`))
+    console.log(chalk.green(`✓ Node.js ${version}`))
     return true
   }
 
@@ -173,7 +173,7 @@ export class MainOrchestrator {
     if (hasOpenAI) available.push('GPT')
     if (hasGoogle) available.push('Gemini')
     if (hasVercel) available.push('Vercel')
-    console.log(chalk.green(`✅ API Keys: ${available.join(', ')}`))
+    console.log(chalk.green(`✓ API Keys: ${available.join(', ')}`))
     return true
   }
 
@@ -186,7 +186,7 @@ export class MainOrchestrator {
       return false
     }
 
-    console.log(chalk.green(`✅ Working directory: ${cwd}`))
+    console.log(chalk.green(`✓ Working directory: ${cwd}`))
     return true
   }
 
@@ -198,7 +198,7 @@ export class MainOrchestrator {
       require('nanoid')
       require('diff')
 
-      console.log(chalk.green('✅ All dependencies available'))
+      console.log(chalk.green('✓ All dependencies available'))
       return true
     } catch (error) {
       console.log(chalk.red(`❌ Missing dependencies: ${error}`))
@@ -224,9 +224,9 @@ export class MainOrchestrator {
 
     for (const step of steps) {
       try {
-        console.log(chalk.blue(`🔄 ${step.name}...`))
+        console.log(chalk.blue(`⚡︎ ${step.name}...`))
         await step.fn()
-        console.log(chalk.green(`✅ ${step.name} initialized`))
+        console.log(chalk.green(`✓ ${step.name} initialized`))
       } catch (error: any) {
         console.log(chalk.red(`❌ ${step.name} failed: ${error.message}`))
         return false
@@ -362,9 +362,9 @@ export class MainOrchestrator {
       await this.streamOrchestrator.streamToPanel(
         'vm-metrics',
         `📊 ${data.containerId?.slice(0, 8)}:\n` +
-          `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
-          `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
-          `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
+        `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
+        `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
+        `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
       )
     })
 
@@ -430,10 +430,8 @@ export class MainOrchestrator {
         console.log(chalk.blue('🌐 Using OpenRouter for enhanced model routing'))
         // Pass provider preference to orchestrator if supported
         if (this.streamOrchestrator.addListener) {
-          this.streamOrchestrator.addListener('provider', (provider: string) => {
-            provider: {
-              only: ['openrouter']
-            } // Force OpenRouter routing
+          this.streamOrchestrator.addListener('provider', (_provider: string) => {
+            only: ['openrouter']
           })
         }
       }

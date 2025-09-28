@@ -32,7 +32,7 @@ export function setupWebRoutes(app: express.Application): void {
 }
 
 // Configuration handlers
-async function getWebConfig(req: express.Request, res: express.Response): Promise<void> {
+async function getWebConfig(_req: express.Request, res: express.Response): Promise<void> {
   try {
     // In a real implementation, this would load from a persistent store
     const config: WebConfig = {
@@ -133,7 +133,7 @@ async function handleGitHubCallback(req: express.Request, res: express.Response)
   }
 }
 
-async function getGitHubRepositories(req: express.Request, res: express.Response): Promise<void> {
+async function getGitHubRepositories(_req: express.Request, res: express.Response): Promise<void> {
   try {
     const token = process.env.GITHUB_TOKEN
     if (!token) {
@@ -170,8 +170,8 @@ async function getGitHubRepositories(req: express.Request, res: express.Response
 async function getWebJobs(req: express.Request, res: express.Response): Promise<void> {
   try {
     const jobs = backgroundAgentService.listJobs({
-      limit: parseInt(req.query.limit as string) || 50,
-      offset: parseInt(req.query.offset as string) || 0,
+      limit: parseInt(req.query.limit as string, 10) || 50,
+      offset: parseInt(req.query.offset as string, 10) || 0,
     })
 
     res.json({
@@ -265,7 +265,7 @@ async function cancelWebJob(req: express.Request, res: express.Response): Promis
 }
 
 // Snapshot handlers (placeholder implementations)
-async function getSnapshots(req: express.Request, res: express.Response): Promise<void> {
+async function getSnapshots(_req: express.Request, res: express.Response): Promise<void> {
   try {
     // Mock snapshots - in real implementation would fetch from storage
     const snapshots = [

@@ -206,7 +206,7 @@ export class TokenCacheManager {
     const entry: CacheEntry = {
       key: exactKey,
       promptHash: this.generateSemanticKey(prompt, context),
-      signatureWords: this.extractSignatureWords(prompt + ' ' + context),
+      signatureWords: this.extractSignatureWords(`${prompt} ${context}`),
       promptPreview: prompt.substring(0, 120),
       responseHash: crypto.createHash('sha256').update(response).digest('hex').substring(0, 32),
       responsePreview: response.substring(0, 120),

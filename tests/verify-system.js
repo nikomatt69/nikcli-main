@@ -83,7 +83,7 @@ async function main() {
   // 1. Environment and Dependencies
   await verifier.test('Node.js Version Check', async () => {
     const nodeVersion = process.version
-    const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0])
+    const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0], 10)
     if (majorVersion < 18) {
       throw new Error(`Node.js 18+ required, found ${nodeVersion}`)
     }

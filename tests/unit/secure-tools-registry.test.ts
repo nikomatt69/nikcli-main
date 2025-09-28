@@ -220,7 +220,7 @@ describe('SecureToolsRegistry', () => {
 
         expect(result.success).toBe(true)
         expect(result.data?.backup).toBeDefined()
-        expect(await fileExists(result.data!.backup!)).toBe(true)
+        expect(await fileExists(result.data?.backup!)).toBe(true)
       })
     })
 
@@ -327,9 +327,9 @@ describe('SecureToolsRegistry', () => {
 
         expect(result.success).toBe(true)
         expect(result.data).toHaveLength(3)
-        expect(result.data![0].stdout).toContain('First command')
-        expect(result.data![1].stdout).toContain('Second command')
-        expect(result.data![2].stdout).toContain('Third command')
+        expect(result.data?.[0].stdout).toContain('First command')
+        expect(result.data?.[1].stdout).toContain('Second command')
+        expect(result.data?.[2].stdout).toContain('Third command')
       })
 
       it('should stop on first failure in sequence', async () => {
@@ -373,7 +373,7 @@ describe('SecureToolsRegistry', () => {
         })
 
         expect(sessionResult.success).toBe(true)
-        const sessionId = sessionResult.data!.id
+        const sessionId = sessionResult.data?.id
 
         // First approve the session by setting it manually (since we can't mock user interaction here)
         const session = toolsRegistry.getBatchSession(sessionId)
@@ -411,7 +411,7 @@ describe('SecureToolsRegistry', () => {
         })
 
         // Manually expire the session for testing
-        const session = toolsRegistry.getBatchSession(sessionResult.data!.id)
+        const session = toolsRegistry.getBatchSession(sessionResult.data?.id)
         if (session) {
           session.expiresAt = new Date(Date.now() - 1000) // Set to 1 second ago
           session.status = 'expired'

@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import type { EnhancedSessionData, EnhancedSessionManager } from '../persistence/enhanced-session-manager'
+import type { EnhancedSessionManager } from '../persistence/enhanced-session-manager'
 import { type TmuxSession, tmuxIntegration } from './tmux-integration'
 
 export interface SSHSessionInfo {
@@ -88,7 +88,7 @@ export class SSHSessionBridge {
         await this.setupTmuxIntegration()
       }
 
-      console.log(chalk.green('✅ SSH session bridge initialized'))
+      console.log(chalk.green('✓ SSH session bridge initialized'))
     }
   }
 
@@ -204,13 +204,13 @@ export class SSHSessionBridge {
         }
 
         console.log(
-          chalk.green(`✅ Restored SSH session state (connection #${this.currentState?.connectionCount || 0})`)
+          chalk.green(`✓ Restored SSH session state (connection #${this.currentState?.connectionCount || 0})`)
         )
 
         // Try to restore tmux session
         if (this.currentState?.tmuxSessionName && tmuxIntegration.isAvailable()) {
           if (tmuxIntegration.sessionExists(this.currentState.tmuxSessionName)) {
-            console.log(chalk.blue(`🔄 Resuming tmux session: ${this.currentState.tmuxSessionName}`))
+            console.log(chalk.blue(`⚡︎ Resuming tmux session: ${this.currentState.tmuxSessionName}`))
             // Don't auto-attach, let user decide
           } else {
             console.log(chalk.yellow(`⚠️ Previous tmux session '${this.currentState.tmuxSessionName}' not found`))
@@ -261,7 +261,7 @@ export class SSHSessionBridge {
     }
 
     await this.saveSessionState()
-    console.log(chalk.green('✅ Created new SSH session state'))
+    console.log(chalk.green('✓ Created new SSH session state'))
   }
 
   /**
@@ -291,7 +291,7 @@ export class SSHSessionBridge {
     if (this.currentState?.tmuxSessionName) {
       if (tmuxIntegration.sessionExists(this.currentState.tmuxSessionName)) {
         tmuxSessionName = this.currentState.tmuxSessionName
-        console.log(chalk.blue(`🔄 Tmux session available: ${tmuxSessionName}`))
+        console.log(chalk.blue(`⚡︎ Tmux session available: ${tmuxSessionName}`))
       }
     }
 
@@ -310,7 +310,7 @@ export class SSHSessionBridge {
     }
 
     if (tmuxSessionName) {
-      console.log(chalk.green(`✅ Tmux session ready: ${tmuxSessionName}`))
+      console.log(chalk.green(`✓ Tmux session ready: ${tmuxSessionName}`))
       console.log(chalk.gray(`   Use: tmux attach-session -t ${tmuxSessionName}`))
     }
   }
@@ -365,7 +365,7 @@ export class SSHSessionBridge {
       // Cleanup old backups
       await this.cleanupOldBackups(backupDir)
 
-      console.log(chalk.gray(`✅ Session backup created: ${backupFileName}`))
+      console.log(chalk.gray(`✓ Session backup created: ${backupFileName}`))
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ Backup failed: ${error.message}`))
     }

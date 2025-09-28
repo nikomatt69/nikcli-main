@@ -25,7 +25,7 @@ export class FeedbackAwareTools {
     return {
       ...originalTool,
       execute: async (parameters: any) => {
-        const context = this.extractContextFromParameters(parameters)
+        const context = FeedbackAwareTools.extractContextFromParameters(parameters)
 
         return await intelligentFeedbackWrapper.executeToolWithFeedback(
           toolName,
@@ -58,18 +58,18 @@ export class FeedbackAwareTools {
   static getEnhancedDocumentationTools(agentType?: string) {
     return {
       // Smart docs tools con feedback
-      smart_docs_search: this.wrapTool('smart_docs_search', smartDocsTools.search, agentType),
-      smart_docs_load: this.wrapTool('smart_docs_load', smartDocsTools.load, agentType),
-      smart_docs_context: this.wrapTool('smart_docs_context', smartDocsTools.context, agentType),
+      smart_docs_search: FeedbackAwareTools.wrapTool('smart_docs_search', smartDocsTools.search, agentType),
+      smart_docs_load: FeedbackAwareTools.wrapTool('smart_docs_load', smartDocsTools.load, agentType),
+      smart_docs_context: FeedbackAwareTools.wrapTool('smart_docs_context', smartDocsTools.context, agentType),
 
       // AI docs tools con feedback
-      docs_request: this.wrapTool('docs_request', aiDocsTools.request, agentType),
-      docs_gap_report: this.wrapTool('docs_gap_report', aiDocsTools.gapReport, agentType),
+      docs_request: FeedbackAwareTools.wrapTool('docs_request', aiDocsTools.request, agentType),
+      docs_gap_report: FeedbackAwareTools.wrapTool('docs_gap_report', aiDocsTools.gapReport, agentType),
 
       // Documentation tools standard con feedback
-      doc_search: this.wrapTool('doc_search', documentationTools.search, agentType),
-      doc_add: this.wrapTool('doc_add', documentationTools.add, agentType),
-      doc_stats: this.wrapTool('doc_stats', documentationTools.stats, agentType),
+      doc_search: FeedbackAwareTools.wrapTool('doc_search', documentationTools.search, agentType),
+      doc_add: FeedbackAwareTools.wrapTool('doc_add', documentationTools.add, agentType),
+      doc_stats: FeedbackAwareTools.wrapTool('doc_stats', documentationTools.stats, agentType),
     }
   }
 
@@ -86,7 +86,7 @@ export class FeedbackAwareTools {
         continue
       }
 
-      enhancedTools[`enhanced_${toolName}`] = this.wrapTool(toolName, tool, agentType)
+      enhancedTools[`enhanced_${toolName}`] = FeedbackAwareTools.wrapTool(toolName, tool, agentType)
 
       // Mantieni anche la versione originale per compatibility
       enhancedTools[toolName] = tool
@@ -162,7 +162,7 @@ export class FeedbackAwareTools {
     commonFailures: string[]
   } {
     // Agent-specific tracking implementation for production monitoring
-    const agentMetrics = this.agentMetrics.get(agentType) || {
+    const agentMetrics = FeedbackAwareTools.agentMetrics.get(agentType) || {
       executions: 0,
       successes: 0,
       totalTime: 0,
@@ -192,7 +192,7 @@ export class FeedbackAwareTools {
    */
   static getAdaptiveRecommendations(
     context: string,
-    agentType?: string
+    _agentType?: string
   ): {
     recommendedTools: string[]
     alternativeApproaches: string[]
@@ -251,7 +251,7 @@ export class FeedbackAwareTools {
  * Decorator per tools che aggiunge automaticamente feedback tracking
  */
 export function withFeedbackTracking(toolName: string, agentType?: string) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return (_target: any, _propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value
 
     descriptor.value = async function (...args: any[]) {

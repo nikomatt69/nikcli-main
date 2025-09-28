@@ -1,9 +1,10 @@
 // TODO: Consider refactoring for reduced complexity
-import os from 'os'
+
+import os from 'node:os'
 import express from 'express'
+import pLimit from 'p-limit' // Added for scalability: concurrency limiting
 import client, { register } from 'prom-client'
 import winston from 'winston'
-import pLimit from 'p-limit' // Added for scalability: concurrency limiting
 
 // =========================================
 // TYPES AND INTERFACES
@@ -15,7 +16,6 @@ interface AgentConfig {
 }
 
 interface HealthMetrics {
-
   readonly uptime: number // Seconds since last start
   readonly status: 'healthy' | 'unhealthy' | 'unknown'
   readonly lastHeartbeat: Date
@@ -65,7 +65,7 @@ const config: Config = {
   cpuThreshold: parseFloat(process.env.CPU_THRESHOLD || '80'),
   memoryThreshold: parseFloat(process.env.MEMORY_THRESHOLD || '90'),
   alertWebhook: process.env.ALERT_WEBHOOK, // e.g., Slack webhook URL
-  maxConcurrency: parseInt(process.env.MAX_CONCURRENCY || '5'), // Scalability enhancement
+  maxConcurrency: parseInt(process.env.MAX_CONCURRENCY || '5', 10), // Scalability enhancement
 }
 
 // Perf tweak: Cache for resource metrics (5s TTL) to reduce os calls
@@ -97,7 +97,7 @@ async function fetchResourceMetrics(): Promise<ResourceMetrics> {
   const totalMem = os.totalmem() / 1024 / 1024 // MB
   const freeMem = os.freemem() / 1024 / 1024 // MB
   const usedMem = totalMem - freeMem
-  const memoryUsagePercent = (usedMem / totalMem) * 100
+  const _memoryUsagePercent = (usedMem / totalMem) * 100
 
   // CPU usage: Simple average; for precise, use pidusage or similar lib
   const loadAvg = os.loadavg()
@@ -221,7 +221,7 @@ const anomaliesCounter = new client.Counter({
 })
 
 const app = express()
-app.get('/metrics', async (req, res) => {
+app.get('/metrics', async (_req, res) => {
   res.set('Content-Type', register.contentType)
   res.end(await register.metrics())
 })
@@ -284,7 +284,7 @@ function detectAnomalies(metrics: FullMetrics[], config: Config): Anomaly[] {
   return anomalies
 }
 
-let lastAlertTime = new Map<string, Date>()
+const lastAlertTime = new Map<string, Date>()
 
 async function sendAlerts(anomalies: Anomaly[], config: Config): Promise<void> {
   if (anomalies.length === 0) return
@@ -350,7 +350,7 @@ app.listen(PORT, () => {
 })
 
 runMonitoringCycle() // Initial run
-const interval = setInterval(runMonitoringCycle, config.pollIntervalMs)
+const _interval = setInterval(runMonitoringCycle, config.pollIntervalMs)
 
 export {
   config,

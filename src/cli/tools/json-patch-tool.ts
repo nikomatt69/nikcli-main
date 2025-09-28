@@ -1,6 +1,5 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
@@ -87,7 +86,7 @@ export class JsonPatchTool extends BaseTool {
         } catch (e: any) {
           throw new Error(`Invalid JSON: ${e.message}`)
         }
-        serializer = (obj) => JSON.stringify(obj, null, 2) + '\n'
+        serializer = (obj) => `${JSON.stringify(obj, null, 2)}\n`
       } else if (ext === '.yaml' || ext === '.yml') {
         try {
           const yaml = await import('yaml')
@@ -172,7 +171,7 @@ export class JsonPatchTool extends BaseTool {
 
       if (!params.previewOnly) {
         fs.writeFileSync(absolute, newContent, 'utf8')
-        CliUI.logSuccess('✅ JSON patch applied')
+        CliUI.logSuccess('✓ JSON patch applied')
       } else {
         CliUI.logInfo('📋 Preview only, no changes written')
       }

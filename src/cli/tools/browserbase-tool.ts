@@ -1,7 +1,6 @@
 import chalk from 'chalk'
 import { z } from 'zod'
 import {
-  type BrowserbaseAIAnalysis,
   type BrowserbaseContentResult,
   type BrowserbaseSession,
   browserbaseProvider,
@@ -280,7 +279,7 @@ export class BrowserbaseTool extends BaseTool {
       }
 
       sessionId = sessionResult.data.session?.id || ''
-      console.log(chalk.green(`✅ Session created: ${sessionId}`))
+      console.log(chalk.green(`✓ Session created: ${sessionId}`))
 
       // Navigate and extract content
       const contentResult = await this.navigateAndExtract(sessionId, url, options.navigateOptions || {})
@@ -289,7 +288,7 @@ export class BrowserbaseTool extends BaseTool {
       }
 
       const content = contentResult.data.content
-      console.log(chalk.green(`✅ Content extracted: ${content.textContent.length} characters`))
+      console.log(chalk.green(`✓ Content extracted: ${content.textContent.length} characters`))
 
       // Analyze content
       const fullContent: BrowserbaseContentResult = {
@@ -312,7 +311,7 @@ export class BrowserbaseTool extends BaseTool {
         throw new Error('Failed to analyze content')
       }
 
-      console.log(chalk.green('✅ Content analysis completed'))
+      console.log(chalk.green('✓ Content analysis completed'))
 
       const result: BrowserbaseToolResult = {
         success: true,

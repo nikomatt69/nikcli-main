@@ -116,7 +116,7 @@ export const restoreSnapshotTool = tool({
   parameters: RestoreSnapshotSchema,
   execute: async ({ snapshotId, targetPath, overwrite = false, selectedFiles, backup = true }) => {
     try {
-      console.log(chalk.blue(`🔄 Restoring snapshot: ${snapshotId.substring(0, 8)}...`))
+      console.log(chalk.blue(`⚡︎ Restoring snapshot: ${snapshotId.substring(0, 8)}...`))
 
       await snapshotService.restoreSnapshot(snapshotId, {
         targetPath,
@@ -168,7 +168,7 @@ export const listSnapshotsTool = tool({
       const snapshots = await snapshotService.searchSnapshots(query || '', searchOptions)
 
       const snapshotList = snapshots.map((snapshot) => ({
-        id: snapshot.id.substring(0, 8) + '...',
+        id: `${snapshot.id.substring(0, 8)}...`,
         fullId: snapshot.id,
         name: snapshot.name,
         description: snapshot.description,
@@ -305,7 +305,7 @@ export const deleteSnapshotTool = tool({
       const deleted = await snapshotService.deleteSnapshot(snapshotId)
 
       if (deleted) {
-        console.log(chalk.green(`✅ Snapshot deleted successfully`))
+        console.log(chalk.green(`✓ Snapshot deleted successfully`))
         return {
           success: true,
           snapshotId,
@@ -350,7 +350,7 @@ export const createSnapshotTemplateTool = tool({
 
       snapshotService.createTemplate(name, template)
 
-      console.log(chalk.green(`✅ Template created: ${name}`))
+      console.log(chalk.green(`✓ Template created: ${name}`))
       console.log(chalk.gray(`  Include: ${includePaths.join(', ')}`))
       if (excludePaths.length > 0) {
         console.log(chalk.gray(`  Exclude: ${excludePaths.join(', ')}`))

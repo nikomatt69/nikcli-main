@@ -221,7 +221,7 @@ export class SecureToolsRegistry {
       }
 
       this.executionHistory.push(result)
-      console.log(chalk.green(`✅ Tool completed: ${toolName} (${executionTime}ms)`))
+      console.log(chalk.green(`✓ Tool completed: ${toolName} (${executionTime}ms)`))
 
       return result
     } catch (error: any) {

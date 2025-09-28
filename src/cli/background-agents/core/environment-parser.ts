@@ -71,7 +71,7 @@ export class EnvironmentParser {
       }
 
       // Additional validation and warnings
-      const warnings = this.validateConfiguration(result.data)
+      const warnings = EnvironmentParser.validateConfiguration(result.data)
 
       return {
         success: true,
@@ -114,8 +114,8 @@ export class EnvironmentParser {
     await fs.mkdir(nikDir, { recursive: true })
 
     // Detect project type and create appropriate config
-    const projectType = await this.detectProjectType(workingDirectory)
-    const defaultConfig = this.generateDefaultConfig(packageManager, projectType)
+    const projectType = await EnvironmentParser.detectProjectType(workingDirectory)
+    const defaultConfig = EnvironmentParser.generateDefaultConfig(packageManager, projectType)
 
     await fs.writeFile(environmentPath, JSON.stringify(defaultConfig, null, 2), 'utf8')
   }

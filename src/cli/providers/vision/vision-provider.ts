@@ -127,7 +127,7 @@ export class VisionProvider extends EventEmitter {
         await this.cacheResult(cacheKey, result)
       }
 
-      console.log(chalk.green(`✅ Image analysis completed in ${result.metadata.processing_time_ms}ms`))
+      console.log(chalk.green(`✓ Image analysis completed in ${result.metadata.processing_time_ms}ms`))
 
       this.emit('analysis_completed', {
         provider,

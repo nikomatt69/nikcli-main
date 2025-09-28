@@ -17,7 +17,7 @@ class MockAgent extends BaseAgent {
     this.status = 'ready'
   }
 
-  async execute(task: any): Promise<any> {
+  async execute(_task: any): Promise<any> {
     return { success: true, result: 'Mock execution result' }
   }
 

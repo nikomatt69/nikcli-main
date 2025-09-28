@@ -214,7 +214,7 @@ export class ValidatorManager extends EventEmitter {
     if (!this.customValidators.has(pattern)) {
       this.customValidators.set(pattern, [])
     }
-    this.customValidators.get(pattern)!.push(validator)
+    this.customValidators.get(pattern)?.push(validator)
   }
 
   /**
@@ -253,7 +253,7 @@ export class ValidatorManager extends EventEmitter {
     if (this.config.intelligentCaching) {
       const cached = this.validationCache.get(cognitiveSignature)
       if (cached && this.isCacheValid(cached, context)) {
-        advancedUI.logInfo(`🧠 Using cached validation for ${filePath.split('/').pop()}`)
+        advancedUI.logInfo(`⚡︎ Using cached validation for ${filePath.split('/').pop()}`)
         this.emit('validation:cached', { filePath, cached })
         return cached
       }
@@ -262,7 +262,7 @@ export class ValidatorManager extends EventEmitter {
     // Step 3: Analyze validation cognition
     const cognition = await this.analyzeCognition(context)
     advancedUI.logInfo(
-      `🧠 Cognitive analysis: ${cognition.intent} (${cognition.complexity}, risk: ${cognition.riskLevel})`
+      `⚡︎ Cognitive analysis: ${cognition.intent} (${cognition.complexity}, risk: ${cognition.riskLevel})`
     )
 
     // Step 4: Select intelligent validators
@@ -312,7 +312,7 @@ export class ValidatorManager extends EventEmitter {
 
         if (formatResult.success && formatResult.formatted) {
           processedContent = formatResult.content
-          advancedUI.logSuccess(`✅ Formatted with ${formatResult.formatter}`)
+          advancedUI.logSuccess(`✓ Formatted with ${formatResult.formatter}`)
         } else if (formatResult.warnings) {
           warnings.push(...formatResult.warnings)
         }
@@ -403,7 +403,7 @@ export class ValidatorManager extends EventEmitter {
   /**
    * Check if cached validation result is still valid
    */
-  private isCacheValid(cached: IntelligentValidationResult, context: ValidationContext): boolean {
+  private isCacheValid(cached: IntelligentValidationResult, _context: ValidationContext): boolean {
     // Cache is valid for 10 minutes and if cognitive score is above threshold
     const cacheAge = Date.now() - ((cached as any).timestamp || 0)
     const isRecent = cacheAge < 10 * 60 * 1000
@@ -710,7 +710,7 @@ export class ValidatorManager extends EventEmitter {
   /**
    * Generate intelligent suggestions based on cognition
    */
-  private generateIntelligentSuggestions(context: ValidationContext, cognition: ValidationCognition): string[] {
+  private generateIntelligentSuggestions(_context: ValidationContext, cognition: ValidationCognition): string[] {
     const suggestions: string[] = []
 
     if (cognition.complexity === 'expert') {
@@ -756,7 +756,7 @@ export class ValidatorManager extends EventEmitter {
   /**
    * Generate adaptive recommendations based on learning
    */
-  private generateAdaptiveRecommendations(context: ValidationContext, cognition: ValidationCognition): string[] {
+  private generateAdaptiveRecommendations(_context: ValidationContext, cognition: ValidationCognition): string[] {
     const recommendations: string[] = []
 
     // Check against learned patterns
@@ -902,7 +902,7 @@ export class ValidatorManager extends EventEmitter {
     if (errors.some((e) => e.includes('security') || e.includes('validation'))) {
       // This is a placeholder - real implementation would be more sophisticated
       if (!content.includes('validateInput') && content.includes('function')) {
-        fixedContent = '// TODO: Add input validation\n' + fixedContent
+        fixedContent = `// TODO: Add input validation\n${fixedContent}`
       }
     }
 
@@ -918,7 +918,7 @@ export class ValidatorManager extends EventEmitter {
     // Add complexity reduction suggestions
     if (errors.some((e) => e.includes('complexity'))) {
       if (!content.includes('// TODO: Consider refactoring')) {
-        fixedContent = '// TODO: Consider refactoring for reduced complexity\n' + fixedContent
+        fixedContent = `// TODO: Consider refactoring for reduced complexity\n${fixedContent}`
       }
     }
 
@@ -928,7 +928,7 @@ export class ValidatorManager extends EventEmitter {
   /**
    * Update adaptive thresholds based on validation results
    */
-  private updateAdaptiveThresholds(context: ValidationContext, result: IntelligentValidationResult): void {
+  private updateAdaptiveThresholds(_context: ValidationContext, result: IntelligentValidationResult): void {
     // Learn from successful validations
     if (result.isValid && result.cognitiveScore > 0.8) {
       const currentTolerance = this.adaptiveThresholds.get('errorTolerance') || 0.1
@@ -943,27 +943,10 @@ export class ValidatorManager extends EventEmitter {
   }
 
   /**
-   * Clean up intelligent cache periodically
-   */
-  private cleanupIntelligentCache(): void {
-    const now = Date.now()
-    const maxAge = 30 * 60 * 1000 // 30 minutes
-
-    for (const [key, result] of this.validationCache.entries()) {
-      const timestamp = (result as any).timestamp || 0
-      if (now - timestamp > maxAge) {
-        this.validationCache.delete(key)
-      }
-    }
-
-    advancedUI.logInfo(`🧠 Cleaned intelligent cache, ${this.validationCache.size} entries remaining`)
-  }
-
-  /**
    * Create security-focused validator
    */
   private createSecurityValidator(): ContentValidator {
-    return async (content: string, filePath: string): Promise<ValidationResult> => {
+    return async (content: string, _filePath: string): Promise<ValidationResult> => {
       const errors: string[] = []
       const warnings: string[] = []
 
@@ -993,7 +976,7 @@ export class ValidatorManager extends EventEmitter {
    * Create complexity-focused validator
    */
   private createComplexityValidator(): ContentValidator {
-    return async (content: string, filePath: string): Promise<ValidationResult> => {
+    return async (content: string, _filePath: string): Promise<ValidationResult> => {
       const errors: string[] = []
       const warnings: string[] = []
 
@@ -1197,7 +1180,7 @@ export class ValidatorManager extends EventEmitter {
   /**
    * Attempt to automatically fix common issues
    */
-  private async attemptAutoFix(content: string, filePath: string, errors: string[]): Promise<string> {
+  private async attemptAutoFix(content: string, _filePath: string, errors: string[]): Promise<string> {
     let fixedContent = content
 
     advancedUI.logInfo(`🔧 Attempting auto-fix for ${errors.length} errors...`)
@@ -1229,7 +1212,7 @@ export class ValidatorManager extends EventEmitter {
     }
 
     if (fixedContent !== content) {
-      advancedUI.logSuccess('✅ Auto-fix applied successfully')
+      advancedUI.logSuccess('✓ Auto-fix applied successfully')
     }
 
     return fixedContent
@@ -1335,7 +1318,7 @@ export class ValidatorManager extends EventEmitter {
 
     // Log validation results
     if (errors.length === 0 && warnings.length === 0) {
-      advancedUI.logSuccess(`${prefix}✅ ${fileName} - No validation issues found`)
+      advancedUI.logSuccess(`${prefix}✓ ${fileName} - No validation issues found`)
       return
     }
 

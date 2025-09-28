@@ -156,7 +156,7 @@ export class VisionAnalysisTool extends BaseTool {
   static isSupportedImageFile(filePath: string): boolean {
     const supportedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
     const extension = filePath.toLowerCase().split('.').pop()
-    return extension ? supportedExtensions.includes('.' + extension) : false
+    return extension ? supportedExtensions.includes(`.${extension}`) : false
   }
 
   /**

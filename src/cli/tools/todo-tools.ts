@@ -135,7 +135,7 @@ export function registerTodoTools(): void {
             todos: taskMasterTodos,
           })
 
-          console.log(chalk.cyan('🔄 Synced with TaskMaster'))
+          console.log(chalk.cyan('⚡︎ Synced with TaskMaster'))
         } catch (error: any) {
           console.log(chalk.gray(`ℹ️ TaskMaster sync failed: ${error.message}`))
         }
@@ -166,7 +166,7 @@ export function registerTodoTools(): void {
     toolService.registerTool(writeTool)
     const taskMasterStatus = isTaskMasterAvailable() ? '(TaskMaster enabled)' : '(legacy mode)'
     console.log(chalk.cyan(`📋 Registered todo tools: todoread, todowrite ${taskMasterStatus}`))
-  } catch (e) {
+  } catch (_e) {
     // ignore duplicate registration errors
   }
 }

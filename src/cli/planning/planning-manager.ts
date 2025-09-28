@@ -116,7 +116,7 @@ export class PlanningManager extends EventEmitter {
         // Allow global interruption (ESC) to gracefully stop execution
         try {
           const nik = (global as any).__nikCLI
-          if (nik && nik.shouldInterrupt) {
+          if (nik?.shouldInterrupt) {
             abortedByUser = true
             break
           }
@@ -197,7 +197,7 @@ export class PlanningManager extends EventEmitter {
         const nik = (global as any).__nikCLI
         if (nik) nik.currentMode = 'default'
         const orchestrator = (global as any).__streamingOrchestrator
-        if (orchestrator && orchestrator.context) {
+        if (orchestrator?.context) {
           orchestrator.context.planMode = false
           orchestrator.context.autoAcceptEdits = false
         }
@@ -409,7 +409,7 @@ export class PlanningManager extends EventEmitter {
       .filter(Boolean)
   }
 
-  private detectFrameworks(projectPath: string): string[] {
+  private detectFrameworks(_projectPath: string): string[] {
     const frameworks: string[] = []
 
     // This would read package.json and analyze dependencies
@@ -441,7 +441,7 @@ export class PlanningManager extends EventEmitter {
     plan.steps.forEach((step, index) => {
       const riskIcon = step.riskLevel === 'high' ? '🔴' : step.riskLevel === 'medium' ? '🟡' : '🟢'
       const typeIcon =
-        step.type === 'tool' ? '🔧' : step.type === 'validation' ? '✅' : step.type === 'user_input' ? '👤' : '🤔'
+        step.type === 'tool' ? '🔧' : step.type === 'validation' ? '✓' : step.type === 'user_input' ? '👤' : '🤔'
 
       console.log(`  ${index + 1}. ${riskIcon} ${typeIcon} ${step.title}`)
       console.log(`     ${CliUI.dim(step.description)}`)

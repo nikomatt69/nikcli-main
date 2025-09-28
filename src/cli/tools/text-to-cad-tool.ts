@@ -3,16 +3,15 @@
  * Converts text descriptions into CAD elements and models
  */
 
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import boxen from 'boxen'
 import chalk from 'chalk'
-import fs from 'fs/promises'
-import path from 'path'
 import { z } from 'zod'
 import { convertCadElementsToSTL } from '../converters/cad-to-stl'
 import { type AICadSdkBridge, createAICadSdkBridge } from '../integrations/ai-cad-sdk-bridge'
 import { type CADCamFunBridge, createCADCamFunBridge } from '../integrations/cadcamfun-bridge'
-import { compilePrompt, nikCLIPromptTemplates, promptTemplates } from '../prompts/promptTemplates'
-import { CliUI } from '../utils/cli-ui'
+import { compilePrompt, promptTemplates } from '../prompts/promptTemplates'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 export const CADGenerationOptionsSchema = z.object({
@@ -107,12 +106,12 @@ export class TextToCADTool extends BaseTool {
       let savedFilePath: string
       if ((validatedParams.outputFormat === 'scad' && (result as any)?.modelText) || (result as any)?.modelText) {
         const ensuredName =
-          path.extname(fileName).toLowerCase() === '.scad' ? fileName : fileName.replace(/\.[^/.]+$/, '') + '.scad'
+          path.extname(fileName).toLowerCase() === '.scad' ? fileName : `${fileName.replace(/\.[^/.]+$/, '')}.scad`
         savedFilePath = await this.saveSCADToFile((result as any).modelText || '', ensuredName)
       } else if (validatedParams.outputFormat === 'stl' && Array.isArray(result.elements)) {
         const stl = convertCadElementsToSTL(result.elements, 'nikcli_model')
         const ensuredName =
-          path.extname(fileName).toLowerCase() === '.stl' ? fileName : fileName.replace(/\.[^/.]+$/, '') + '.stl'
+          path.extname(fileName).toLowerCase() === '.stl' ? fileName : `${fileName.replace(/\.[^/.]+$/, '')}.stl`
         savedFilePath = await this.saveRawToFile(stl, ensuredName)
       } else {
         savedFilePath = await this.saveCADToFile(
@@ -175,7 +174,7 @@ export class TextToCADTool extends BaseTool {
     const startTime = Date.now()
 
     try {
-      console.log(chalk.blue(`🔄 Streaming CAD generation: "${params.description}"`))
+      console.log(chalk.blue(`⚡︎ Streaming CAD generation: "${params.description}"`))
 
       await this.initializeBridges()
       const validatedParams = this.validateParameters(params)
@@ -231,12 +230,12 @@ export class TextToCADTool extends BaseTool {
       let savedFilePath: string
       if ((validatedParams.outputFormat === 'scad' && (result as any)?.modelText) || (result as any)?.modelText) {
         const ensuredName =
-          path.extname(fileName).toLowerCase() === '.scad' ? fileName : fileName.replace(/\.[^/.]+$/, '') + '.scad'
+          path.extname(fileName).toLowerCase() === '.scad' ? fileName : `${fileName.replace(/\.[^/.]+$/, '')}.scad`
         savedFilePath = await this.saveSCADToFile((result as any).modelText || '', ensuredName)
       } else if (validatedParams.outputFormat === 'stl' && Array.isArray(result.elements)) {
         const stl = convertCadElementsToSTL(result.elements, 'nikcli_model')
         const ensuredName =
-          path.extname(fileName).toLowerCase() === '.stl' ? fileName : fileName.replace(/\.[^/.]+$/, '') + '.stl'
+          path.extname(fileName).toLowerCase() === '.stl' ? fileName : `${fileName.replace(/\.[^/.]+$/, '')}.stl`
         savedFilePath = await this.saveRawToFile(stl, ensuredName)
       } else {
         savedFilePath = await this.saveCADToFile(
@@ -358,11 +357,11 @@ export class TextToCADTool extends BaseTool {
    */
   private async enhanceDescriptionWithAI(params: CADGenerationParams): Promise<string | null> {
     try {
-      console.log(chalk.gray('🤖 Enhancing description with AI analysis (enterprise prompt)...'))
+      console.log(chalk.gray('🔌 Enhancing description with AI analysis (enterprise prompt)...'))
 
       // Compile the Enterprise Text-to-CAD prompt (system + user)
-      const systemPrompt = promptTemplates.textToCAD.system
-      const userPrompt = compilePrompt(promptTemplates.textToCAD.user, {
+      const _systemPrompt = promptTemplates.textToCAD.system
+      const _userPrompt = compilePrompt(promptTemplates.textToCAD.user, {
         description: params.description,
         complexity: 'medium',
         style: 'industrial',
@@ -372,9 +371,9 @@ export class TextToCADTool extends BaseTool {
       // For now, we'll return an enhanced version of the description
       const enhancedDescription = this.createEnhancedDescription(params)
 
-      console.log(chalk.green('✅ Description enhanced with engineering specifications'))
+      console.log(chalk.green('✓ Description enhanced with engineering specifications'))
       return enhancedDescription
-    } catch (error) {
+    } catch (_error) {
       console.log(chalk.yellow('⚠️ AI enhancement failed, using original description'))
       return null
     }
@@ -523,7 +522,7 @@ export class TextToCADTool extends BaseTool {
     const holeRegex = /(\d+)\s*(?:holes?|bores?)/gi
     const holeMatch = description.match(holeRegex)
     if (holeMatch) {
-      constraints.holes = parseInt(holeMatch[0])
+      constraints.holes = parseInt(holeMatch[0], 10)
     }
 
     // Extract shapes
@@ -638,7 +637,7 @@ export class TextToCADTool extends BaseTool {
   /**
    * Generate ASCII art representation of the CAD model
    */
-  private generateASCIIArt(cadData: CADGenerationData, description: string): string {
+  private generateASCIIArt(_cadData: CADGenerationData, description: string): string {
     const desc = description.toLowerCase()
 
     // Detect shapes and generate appropriate ASCII art
@@ -821,7 +820,7 @@ export class TextToCADTool extends BaseTool {
     if (type.includes('hole') || type.includes('bore')) return '⚫'
     if (type.includes('feature') || type.includes('cut')) return '✂️'
     if (type.includes('extrude') || type.includes('protrusion')) return '📏'
-    if (type.includes('revolve') || type.includes('rotation')) return '🔄'
+    if (type.includes('revolve') || type.includes('rotation')) return '⚡︎'
     if (type.includes('fillet') || type.includes('round')) return '🔘'
     if (type.includes('chamfer') || type.includes('bevel')) return '◢'
     if (type.includes('pattern') || type.includes('array')) return '▦'
@@ -882,7 +881,7 @@ export class TextToCADTool extends BaseTool {
     }
 
     await fs.writeFile(fullPath, content, 'utf8')
-    console.log(chalk.green(`✅ CAD file saved to: ${fullPath}`))
+    console.log(chalk.green(`✓ CAD file saved to: ${fullPath}`))
 
     return path.join('.nikcli', 'cad', filename)
   }
@@ -899,7 +898,7 @@ export class TextToCADTool extends BaseTool {
       : `${path.basename(fileName, path.extname(fileName))}.scad`
     const fullPath = path.join(cadDir, filename)
     await fs.writeFile(fullPath, scad || '// Empty SCAD', 'utf8')
-    console.log(chalk.green(`✅ CAD file saved to: ${fullPath}`))
+    console.log(chalk.green(`✓ CAD file saved to: ${fullPath}`))
     return path.join('.nikcli', 'cad', filename)
   }
 
@@ -910,7 +909,7 @@ export class TextToCADTool extends BaseTool {
     const filename = path.basename(fileName)
     const fullPath = path.join(cadDir, filename)
     await fs.writeFile(fullPath, content || '', 'utf8')
-    console.log(chalk.green(`✅ CAD file saved to: ${fullPath}`))
+    console.log(chalk.green(`✓ CAD file saved to: ${fullPath}`))
     return path.join('.nikcli', 'cad', filename)
   }
 

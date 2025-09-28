@@ -245,7 +245,7 @@ export class PlanGenerator {
   private generateOperationSteps(
     operation: string,
     analysis: RequestAnalysis,
-    context: PlannerContext
+    _context: PlannerContext
   ): ExecutionStep[] {
     const steps: ExecutionStep[] = []
 

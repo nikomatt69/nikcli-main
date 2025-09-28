@@ -121,7 +121,7 @@ export class AuditMiddleware extends BaseMiddleware {
   async execute(
     request: MiddlewareRequest,
     next: MiddlewareNext,
-    context: MiddlewareExecutionContext // eslint-disable-line @typescript-eslint/no-unused-vars
+    _context: MiddlewareExecutionContext // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<MiddlewareResponse> {
     if (!this.shouldAuditOperation(request.operation)) {
       return await next()
@@ -322,7 +322,7 @@ export class AuditMiddleware extends BaseMiddleware {
 
   private async detectChanges(
     request: MiddlewareRequest,
-    response?: MiddlewareResponse // eslint-disable-line @typescript-eslint/no-unused-vars
+    _response?: MiddlewareResponse // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<{
     filesModified: string[]
     commandsExecuted: string[]
@@ -524,7 +524,7 @@ export class AuditMiddleware extends BaseMiddleware {
 
     try {
       const entries = this.auditBuffer.splice(0)
-      const auditLines = entries.map((entry) => JSON.stringify(entry)).join('\\n') + '\\n'
+      const auditLines = `${entries.map((entry) => JSON.stringify(entry)).join('\\n')}\\n`
 
       await this.rotateAuditFileIfNeeded()
       await fs.appendFile(this.auditConfig.auditFile, auditLines, 'utf8')

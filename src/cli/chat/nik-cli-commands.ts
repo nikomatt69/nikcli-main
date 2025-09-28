@@ -35,7 +35,7 @@ import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
 import { initializeVMSelector, vmSelector } from '../virtualized-agents/vm-selector'
 import { chatManager } from './chat-manager'
 
-// ====================== 🧠 ZOD COMMAND VALIDATION SCHEMAS ======================
+// ====================== ⚡︎ ZOD COMMAND VALIDATION SCHEMAS ======================
 
 // Base command argument schema
 const _CommandArgsSchema = z.array(z.string())
@@ -510,7 +510,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async clearCommand(): Promise<CommandResult> {
     chatManager.clearCurrentSession()
-    console.log(chalk.green('✅ Chat history cleared'))
+    console.log(chalk.green('✓ Chat history cleared'))
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -548,7 +548,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Validate the new model
       if (modelProvider.validateApiKey()) {
-        console.log(chalk.green(`✅ Switched to model: ${modelName}`))
+        console.log(chalk.green(`✓ Switched to model: ${modelName}`))
         return { shouldExit: false, shouldUpdatePrompt: true }
       } else {
         console.log(chalk.yellow(`⚠️  Switched to model: ${modelName} (API key needed)`))
@@ -570,7 +570,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     Object.entries(models).forEach(([name, config]) => {
       const isCurrent = name === currentModel
       const hasKey = configManager.getApiKey(name) !== undefined
-      const status = hasKey ? chalk.green('✅') : chalk.red('❌')
+      const status = hasKey ? chalk.green('✓') : chalk.red('❌')
       const prefix = isCurrent ? chalk.yellow('→ ') : '  '
 
       console.log(`${prefix}${status} ${chalk.bold(name)}`)
@@ -637,7 +637,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             console.log(chalk.red('Usage: /router mode <conservative|balanced|aggressive>'))
             break
           }
-          ;(cfg.modelRouting as any).mode = mode as any
+          ; (cfg.modelRouting as any).mode = mode as any
           configManager.setAll(cfg as any)
           this.cliInstance.printPanel(
             boxen(`Routing mode set to ${mode}`, {
@@ -650,7 +650,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           )
           break
         }
-        case 'status':
         default: {
           const lines = [
             `${chalk.green('Enabled:')} ${cfg.modelRouting.enabled ? 'Yes' : 'No'}`,
@@ -722,26 +721,26 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (['coinbase-id', 'cdp-id', 'cdp_api_key_id'].includes(keyName)) {
         configManager.setApiKey('coinbase_id', apiKey)
         process.env.CDP_API_KEY_ID = apiKey
-        console.log(chalk.green('✅ Coinbase CDP_API_KEY_ID set'))
+        console.log(chalk.green('✓ Coinbase CDP_API_KEY_ID set'))
       } else if (['coinbase-secret', 'cdp-secret', 'cdp_api_key_secret'].includes(keyName)) {
         configManager.setApiKey('coinbase_secret', apiKey)
         process.env.CDP_API_KEY_SECRET = apiKey
-        console.log(chalk.green('✅ Coinbase CDP_API_KEY_SECRET set'))
+        console.log(chalk.green('✓ Coinbase CDP_API_KEY_SECRET set'))
       } else if (['coinbase-wallet-secret', 'wallet-secret', 'cdp_wallet_secret'].includes(keyName)) {
         configManager.setApiKey('coinbase_wallet_secret', apiKey)
         process.env.CDP_WALLET_SECRET = apiKey
-        console.log(chalk.green('✅ Coinbase CDP_WALLET_SECRET set'))
+        console.log(chalk.green('✓ Coinbase CDP_WALLET_SECRET set'))
       } else if (['browserbase-api-key', 'browserbase-key', 'bb-api-key'].includes(keyName)) {
         configManager.setApiKey('browserbase', apiKey)
         process.env.BROWSERBASE_API_KEY = apiKey
-        console.log(chalk.green('✅ Browserbase API key set'))
+        console.log(chalk.green('✓ Browserbase API key set'))
       } else if (['browserbase-project-id', 'bb-project-id', 'browserbase-project'].includes(keyName)) {
         configManager.setApiKey('browserbase_project_id', apiKey)
         process.env.BROWSERBASE_PROJECT_ID = apiKey
-        console.log(chalk.green('✅ Browserbase Project ID set'))
+        console.log(chalk.green('✓ Browserbase Project ID set'))
       } else {
         configManager.setApiKey(name, apiKey)
-        console.log(chalk.green(`✅ API key set for ${name}`))
+        console.log(chalk.green(`✓ API key set for ${name}`))
       }
     } catch (error: any) {
       console.log(chalk.red(`❌ ${error.message}`))
@@ -811,7 +810,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const setIfProvided = (label: string, key: string | undefined, setter: (v: string) => void) => {
         if (key && key.trim().length > 0) {
           setter(key.trim())
-          console.log(chalk.green(`✅ Saved ${label}`))
+          console.log(chalk.green(`✓ Saved ${label}`))
         } else {
           console.log(chalk.gray(`⏭️  Skipped ${label}`))
         }
@@ -832,7 +831,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       this.cliInstance.printPanel(
         boxen('Coinbase keys updated. You can now run /web3 init', {
-          title: '✅ Keys Saved',
+          title: '✓ Keys Saved',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -901,7 +900,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const setIfProvided = (label: string, key: string | undefined, setter: (v: string) => void) => {
         if (key && key.trim().length > 0) {
           setter(key.trim())
-          console.log(chalk.green(`✅ Saved ${label}`))
+          console.log(chalk.green(`✓ Saved ${label}`))
         } else {
           console.log(chalk.gray(`⏭️  Skipped ${label}`))
         }
@@ -918,7 +917,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       this.cliInstance.printPanel(
         boxen('Browserbase keys updated. You can now browse and analyze web content!', {
-          title: '✅ Keys Saved',
+          title: '✓ Keys Saved',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -986,11 +985,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.cliInstance.printPanel(
         boxen(
           `${chalk.green('Environment variables imported successfully')}` +
-            `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
-            `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
-            `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
+          `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
+          `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
+          `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
           {
-            title: '✅ Env Saved',
+            title: '✓ Env Saved',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -1016,7 +1015,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async newSessionCommand(args: string[]): Promise<CommandResult> {
     const title = args.join(' ') || undefined
     const session = chatManager.createNewSession(title)
-    console.log(chalk.green(`✅ New session created: ${session.title} (${session.id.slice(0, 8)})`))
+    console.log(chalk.green(`✓ New session created: ${session.title} (${session.id.slice(0, 8)})`))
     return { shouldExit: false, shouldUpdatePrompt: true }
   }
 
@@ -1096,7 +1095,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         draft,
       })
 
-      console.log(chalk.green(`✅ Pull request ready: ${prUrl}`))
+      console.log(chalk.green(`✓ Pull request ready: ${prUrl}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to create PR: ${error.message}`))
@@ -1136,7 +1135,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const filename = `chat-export-${Date.now()}.md`
       require('node:fs').writeFileSync(filename, markdown)
 
-      console.log(chalk.green(`✅ Session exported to ${filename}`))
+      console.log(chalk.green(`✓ Session exported to ${filename}`))
     } catch (error: any) {
       console.log(chalk.red(`❌ ${error.message}`))
     }
@@ -1167,7 +1166,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           timestamp: new Date(),
         })
       }
-      console.log(chalk.green('✅ System prompt updated'))
+      console.log(chalk.green('✓ System prompt updated'))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -1194,13 +1193,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     const temp = parseFloat(args[0])
-    if (isNaN(temp) || temp < 0 || temp > 2) {
+    if (Number.isNaN(temp) || temp < 0 || temp > 2) {
       console.log(chalk.red('Temperature must be between 0.0 and 2.0'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     configManager.set('temperature', temp)
-    console.log(chalk.green(`✅ Temperature set to ${temp}`))
+    console.log(chalk.green(`✓ Temperature set to ${temp}`))
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
@@ -1219,7 +1218,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     configManager.set('chatHistory', setting === 'on')
-    console.log(chalk.green(`✅ Chat history ${setting === 'on' ? 'enabled' : 'disabled'}`))
+    console.log(chalk.green(`✓ Chat history ${setting === 'on' ? 'enabled' : 'disabled'}`))
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
@@ -1247,7 +1246,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Test API key
       const apiKey = configManager.getApiKey(currentModel)
       if (apiKey) {
-        console.log(chalk.green(`✅ API Key: ${apiKey.slice(0, 10)}...${apiKey.slice(-4)} (${apiKey.length} chars)`))
+        console.log(chalk.green(`✓ API Key: ${apiKey.slice(0, 10)}...${apiKey.slice(-4)} (${apiKey.length} chars)`))
       } else {
         console.log(chalk.red(`❌ API Key: Not configured`))
         console.log(chalk.yellow(`   Set with: /set-key ${currentModel} <your-api-key>`))
@@ -1256,7 +1255,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Test model provider validation
       try {
         const isValid = modelProvider.validateApiKey()
-        console.log(chalk.green(`✅ Model Provider Validation: ${isValid ? 'Valid' : 'Invalid'}`))
+        console.log(chalk.green(`✓ Model Provider Validation: ${isValid ? 'Valid' : 'Invalid'}`))
       } catch (error: any) {
         console.log(chalk.red(`❌ Model Provider Validation Failed: ${error.message}`))
       }
@@ -1268,7 +1267,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           messages: [{ role: 'user', content: 'Say "test successful"' }],
           maxTokens: 20,
         })
-        console.log(chalk.green(`✅ Test Generation: ${testResponse.trim()}`))
+        console.log(chalk.green(`✓ Test Generation: ${testResponse.trim()}`))
       } catch (error: any) {
         console.log(chalk.red(`❌ Test Generation Failed: ${error.message}`))
       }
@@ -1279,7 +1278,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       envVars.forEach((envVar) => {
         const value = process.env[envVar]
         if (value) {
-          console.log(chalk.green(`✅ ${envVar}: ${value.slice(0, 10)}...${value.slice(-4)}`))
+          console.log(chalk.green(`✓ ${envVar}: ${value.slice(0, 10)}...${value.slice(-4)}`))
         } else {
           console.log(chalk.gray(`❌ ${envVar}: Not set`))
         }
@@ -1332,7 +1331,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
-      console.log(chalk.blue(`🤖 Running ${agentName}...`))
+      console.log(chalk.blue(`🔌 Running ${agentName}...`))
 
       await agent.initialize()
       const result = await agent.run?.({
@@ -1349,7 +1348,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       } as AgentTask)
       await agent.cleanup?.()
 
-      console.log(chalk.green(`✅ ${agentName} completed:`))
+      console.log(chalk.green(`✓ ${agentName} completed:`))
       if (typeof result === 'string') {
         console.log(result)
       } else {
@@ -1373,7 +1372,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const description = args.join(' ')
 
     try {
-      console.log(chalk.blue('🧠 Creating autonomous agent for task...'))
+      console.log(chalk.blue('⚡︎ Creating autonomous agent for task...'))
 
       // Create specialized agent for this task
       const agent = await agentFactory.createAndLaunchAgent({
@@ -1391,7 +1390,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (result.error) {
         console.log(chalk.red(`❌ ${result.error}`))
       } else {
-        console.log(chalk.green('✅ Autonomous execution completed!'))
+        console.log(chalk.green('✓ Autonomous execution completed!'))
         console.log(chalk.gray('Use /stream to see execution details'))
       }
     } catch (error: any) {
@@ -1440,7 +1439,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const results = await Promise.all(promises)
 
-      console.log(chalk.green('✅ Parallel execution completed:'))
+      console.log(chalk.green('✓ Parallel execution completed:'))
       results.forEach(({ agentName, result }) => {
         console.log(chalk.blue(`\n--- ${agentName} ---`))
         if (typeof result === 'string') {
@@ -1507,7 +1506,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       await toolsManager.writeFile(filePath, content)
 
       advancedUI.stopSpinner(writeId, true, `File written: ${filePath}`)
-      console.log(chalk.green(`✅ File written: ${filePath}`))
+      console.log(chalk.green(`✓ File written: ${filePath}`))
     } catch (error: any) {
       advancedUI.logError(`Error writing file: ${error.message}`)
       console.log(chalk.red(`❌ Error writing file: ${error.message}`))
@@ -1580,7 +1579,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const webFlags = new Set(['--web', '--type', '--mode', '--includeContent', '--maxContentBytes', '--maxResults'])
     const searchFlags = new Set(['--semantic', '--text'])
     const hasWebFlag = args.some((a) => a.startsWith('--') && webFlags.has(a.split('=')[0]))
-    const hasSearchFlag = args.some((a) => a.startsWith('--') && searchFlags.has(a.split('=')[0]))
+    const _hasSearchFlag = args.some((a) => a.startsWith('--') && searchFlags.has(a.split('=')[0]))
 
     if (hasWebFlag) {
       try {
@@ -1660,9 +1659,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('─'.repeat(60)))
           console.log(result.answer.trim())
           console.log(chalk.gray('\nSources:'))
-          ;(result.sources || []).forEach((s: any, idx: number) => {
-            console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
-          })
+            ; (result.sources || []).forEach((s: any, idx: number) => {
+              console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
+            })
           console.log(chalk.gray('─'.repeat(60)))
         } else {
           const items = result?.results || []
@@ -1693,13 +1692,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // First try RAG-powered semantic search
       let semanticResults: any[] = []
       try {
-        console.log(chalk.gray('🧠 Attempting semantic search...'))
+        console.log(chalk.gray('⚡︎ Attempting semantic search...'))
         semanticResults = await unifiedRAGSystem.search(query, {
           limit: 10,
           semanticOnly: false,
           workingDirectory: directory === '.' ? process.cwd() : directory,
         })
-      } catch (error) {
+      } catch (_error) {
         console.log(chalk.yellow('⚠️ Semantic search unavailable, using traditional search'))
       }
 
@@ -1714,7 +1713,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
         // Display semantic results first
         if (semanticResults.length > 0) {
-          console.log(chalk.green(`🧠 Semantic Results (${semanticResults.length}):`))
+          console.log(chalk.green(`⚡︎ Semantic Results (${semanticResults.length}):`))
           console.log(chalk.gray('─'.repeat(50)))
 
           semanticResults.slice(0, 10).forEach((result, index) => {
@@ -1782,7 +1781,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       if (result.code === 0) {
         advancedUI.stopSpinner(cmdId, true, 'Command completed successfully')
-        console.log(chalk.green('✅ Command completed successfully'))
+        console.log(chalk.green('✓ Command completed successfully'))
       } else {
         advancedUI.stopSpinner(cmdId, false, `Command failed with exit code ${result.code}`)
         console.log(chalk.red(`❌ Command failed with exit code ${result.code}`))
@@ -1843,7 +1842,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       advancedUI.completeProgress(installId, `Completed installation of ${packages.length} packages`)
-      console.log(chalk.green(`✅ Package installation completed`))
+      console.log(chalk.green(`✓ Package installation completed`))
     } catch (error: any) {
       advancedUI.logError(`Error installing packages: ${error.message}`)
       console.log(chalk.red(`❌ Error installing packages: ${error.message}`))
@@ -1872,7 +1871,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const processes = toolsManager.getRunningProcesses()
 
-      console.log(chalk.blue('🔄 Running Processes:'))
+      console.log(chalk.blue('⚡︎ Running Processes:'))
       console.log(chalk.gray('─'.repeat(50)))
 
       if (processes.length === 0) {
@@ -1899,8 +1898,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     try {
-      const pid = parseInt(args[0])
-      if (isNaN(pid)) {
+      const pid = parseInt(args[0], 10)
+      if (Number.isNaN(pid)) {
         console.log(chalk.red('Invalid PID'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -1910,7 +1909,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const success = await toolsManager.killProcess(pid)
 
       if (success) {
-        console.log(chalk.green(`✅ Process ${pid} terminated`))
+        console.log(chalk.green(`✓ Process ${pid} terminated`))
       } else {
         console.log(chalk.red(`❌ Could not kill process ${pid}`))
       }
@@ -1929,7 +1928,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const result = await toolsManager.build()
 
       if (result.success) {
-        console.log(chalk.green('✅ Build completed successfully'))
+        console.log(chalk.green('✓ Build completed successfully'))
       } else {
         console.log(chalk.red('❌ Build failed'))
         if (result.errors && result.errors.length > 0) {
@@ -1954,7 +1953,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const result = await toolsManager.runTests(pattern)
 
       if (result.success) {
-        console.log(chalk.green('✅ All tests passed'))
+        console.log(chalk.green('✓ All tests passed'))
       } else {
         console.log(chalk.red('❌ Some tests failed'))
         if (result.errors && result.errors.length > 0) {
@@ -1978,7 +1977,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const result = await toolsManager.lint()
 
       if (result.success) {
-        console.log(chalk.green('✅ No linting errors found'))
+        console.log(chalk.green('✓ No linting errors found'))
       } else {
         console.log(chalk.yellow('⚠️ Linting issues found'))
         if (result.errors && result.errors.length > 0) {
@@ -2010,7 +2009,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const result = { success: true, path: `./${name}` }
 
       if (result.success) {
-        console.log(chalk.green(`✅ Project ${name} created successfully!`))
+        console.log(chalk.green(`✓ Project ${name} created successfully!`))
         console.log(chalk.gray(`📁 Location: ${result.path}`))
       } else {
         console.log(chalk.red(`❌ Failed to create project ${name}`))
@@ -2027,16 +2026,16 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       console.log(chalk.blue.bold('🐳 VM Container Management'))
       console.log(chalk.gray('─'.repeat(40)))
-      console.log(chalk.cyan('/vm-create <repo-url>') + ' - Create new VM container')
-      console.log(chalk.cyan('/vm-list') + '              - List active containers')
-      console.log(chalk.cyan('/vm-stop <id>') + '          - Stop container')
-      console.log(chalk.cyan('/vm-remove <id>') + '        - Remove container')
-      console.log(chalk.cyan('/vm-connect <id>') + '       - Connect to container')
-      console.log(chalk.cyan('/vm-logs <id>') + '          - View container logs')
+      console.log(`${chalk.cyan('/vm-create <repo-url>')} - Create new VM container`)
+      console.log(`${chalk.cyan('/vm-list')}              - List active containers`)
+      console.log(`${chalk.cyan('/vm-stop <id>')}          - Stop container`)
+      console.log(`${chalk.cyan('/vm-remove <id>')}        - Remove container`)
+      console.log(`${chalk.cyan('/vm-connect <id>')}       - Connect to container`)
+      console.log(`${chalk.cyan('/vm-logs <id>')}          - View container logs`)
       console.log(
-        chalk.cyan('/vm-create-pr <id> "<title>" "<desc>" [branch] [base] [draft]') + ' - Create PR from container'
+        `${chalk.cyan('/vm-create-pr <id> "<title>" "<desc>" [branch] [base] [draft]')} - Create PR from container`
       )
-      console.log(chalk.cyan('/vm-mode') + '               - Enter VM chat mode')
+      console.log(`${chalk.cyan('/vm-mode')}               - Enter VM chat mode`)
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -2063,7 +2062,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         if (this.cliInstance) {
           this.cliInstance.currentMode = 'default'
           this.cliInstance.activeVMContainer = undefined
-          console.log(chalk.green('✅ Exited VM mode, returned to default chat mode'))
+          console.log(chalk.green('✓ Exited VM mode, returned to default chat mode'))
         }
         return { shouldExit: false, shouldUpdatePrompt: true }
       default:
@@ -2101,13 +2100,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const vscodePort = await this.vmOrchestrator.getVSCodePort(containerId)
 
-      console.log(chalk.green(`✅ VM container created successfully!`))
+      console.log(chalk.green(`✓ VM container created successfully!`))
       console.log(chalk.gray(`Container ID: ${containerId}`))
       console.log(chalk.gray(`VS Code Server: http://localhost:${vscodePort}`))
       console.log(chalk.gray(`Use /vm-connect ${containerId.slice(0, 8)} to interact`))
 
       // Automatically switch to VM mode for seamless integration
-      console.log(chalk.cyan(`🔄 Switching to VM mode for seamless development...`))
+      console.log(chalk.cyan(`⚡︎ Switching to VM mode for seamless development...`))
       this.cliInstance.currentMode = 'vm'
 
       // Set the active container for tool routing
@@ -2162,7 +2161,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.blue(`🛑 Stopping container ${containerId}`))
 
       await this.vmOrchestrator.stopContainer(containerId)
-      console.log(chalk.green(`✅ Container ${containerId} stopped`))
+      console.log(chalk.green(`✓ Container ${containerId} stopped`))
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to stop container: ${error.message}`))
     }
@@ -2181,7 +2180,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.blue(`🗑️ Removing container ${containerId}`))
 
       await this.vmOrchestrator.removeContainer(containerId)
-      console.log(chalk.green(`✅ Container ${containerId} removed`))
+      console.log(chalk.green(`✓ Container ${containerId} removed`))
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to remove container: ${error.message}`))
     }
@@ -2230,7 +2229,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     const containerId = args[0]
-    const lines = args[1] ? parseInt(args[1]) : 100
+    const lines = args[1] ? parseInt(args[1], 10) : 100
 
     try {
       console.log(chalk.blue(`📋 Getting logs for container ${containerId}...`))
@@ -2274,7 +2273,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ;(global as any).__nikCLI.currentMode = 'vm'
+      ; (global as any).__nikCLI.currentMode = 'vm'
     }
 
     console.log(chalk.blue.bold('🐳 Entering VM Chat Mode'))
@@ -2298,16 +2297,16 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   // New VM Selection Commands
   private async vmSwitchCommand(): Promise<CommandResult> {
     // Call the enhanced VM Switch Panel from nik-cli.ts
-    if (this.cliInstance && this.cliInstance.showVMSwitchPanel) {
+    if (this.cliInstance?.showVMSwitchPanel) {
       await this.cliInstance.showVMSwitchPanel()
     } else {
       // Fallback to simple switch
-      console.log(chalk.blue('🔄 Switching VM...'))
+      console.log(chalk.blue('⚡︎ Switching VM...'))
 
       try {
         const selectedVM = await vmSelector.switchVM()
         if (selectedVM) {
-          console.log(chalk.green(`✅ Switched to VM: ${selectedVM.name}`))
+          console.log(chalk.green(`✓ Switched to VM: ${selectedVM.name}`))
           console.log(
             chalk.gray(
               `Container: ${selectedVM.containerId.slice(0, 12)} | Repository: ${selectedVM.repositoryUrl || 'N/A'}`
@@ -2326,7 +2325,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async vmDashboardCommand(): Promise<CommandResult> {
     // Call the enhanced VM Dashboard Panel from nik-cli.ts
-    if (this.cliInstance && this.cliInstance.showVMDashboardPanel) {
+    if (this.cliInstance?.showVMDashboardPanel) {
       await this.cliInstance.showVMDashboardPanel()
     } else {
       // Fallback to simple dashboard
@@ -2349,7 +2348,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       try {
         const selectedVM = await vmSelector.selectVM({ interactive: true, sortBy: 'activity' })
         if (selectedVM) {
-          console.log(chalk.green(`✅ Selected VM: ${selectedVM.name}`))
+          console.log(chalk.green(`✓ Selected VM: ${selectedVM.name}`))
           console.log(
             chalk.gray(
               `Container: ${selectedVM.containerId.slice(0, 12)} | Repository: ${selectedVM.repositoryUrl || 'N/A'}`
@@ -2368,7 +2367,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       try {
         const success = vmSelector.setSelectedVM(vmId)
         if (success) {
-          console.log(chalk.green(`✅ Selected VM: ${vmId}`))
+          console.log(chalk.green(`✓ Selected VM: ${vmId}`))
         } else {
           console.log(chalk.red(`❌ VM not found: ${vmId}`))
           console.log(chalk.gray('Use /vm-list to see available VMs'))
@@ -2386,7 +2385,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const vmId = args[0]
 
     // Call the enhanced VM Status Panel from nik-cli.ts
-    if (this.cliInstance && this.cliInstance.showVMStatusPanel) {
+    if (this.cliInstance?.showVMStatusPanel) {
       await this.cliInstance.showVMStatusPanel(vmId)
     } else {
       // Fallback to simple status
@@ -2406,7 +2405,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const command = args.join(' ')
 
     // Call the enhanced VM Exec Panel from nik-cli.ts
-    if (this.cliInstance && this.cliInstance.showVMExecPanel) {
+    if (this.cliInstance?.showVMExecPanel) {
       await this.cliInstance.showVMExecPanel(command || undefined)
     } else {
       // Fallback to simple exec
@@ -2440,7 +2439,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const directory = args[0] || undefined
 
     // Call the enhanced VM File Browser Panel from nik-cli.ts
-    if (this.cliInstance && this.cliInstance.showVMFileBrowserPanel) {
+    if (this.cliInstance?.showVMFileBrowserPanel) {
       await this.cliInstance.showVMFileBrowserPanel(directory)
     } else {
       // Fallback to simple ls
@@ -2521,14 +2520,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       try {
         const backupId = await vmSelector.backupVMSession(selectedVM.id)
-        console.log(chalk.green(`✅ Backup completed: ${backupId}`))
+        console.log(chalk.green(`✓ Backup completed: ${backupId}`))
       } catch (error: any) {
         console.log(chalk.red(`❌ Backup failed: ${error.message}`))
       }
     } else {
       try {
         const backupId = await vmSelector.backupVMSession(vmId)
-        console.log(chalk.green(`✅ Backup completed: ${backupId}`))
+        console.log(chalk.green(`✓ Backup completed: ${backupId}`))
       } catch (error: any) {
         console.log(chalk.red(`❌ Backup failed: ${error.message}`))
       }
@@ -2611,10 +2610,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         agentType,
       })
 
-      const typeIcon = agentType === 'vm' || agentType === 'container' ? '🐳' : '🤖'
+      const typeIcon = agentType === 'vm' || agentType === 'container' ? '🐳' : '🔌'
       const typeLabel = agentType === 'vm' || agentType === 'container' ? 'VM Agent' : 'Standard Agent'
 
-      console.log(chalk.green(`✅ ${typeLabel} blueprint created: ${blueprint.name}`))
+      console.log(chalk.green(`✓ ${typeLabel} blueprint created: ${blueprint.name}`))
       console.log(chalk.gray(`${typeIcon} Type: ${blueprint.agentType}`))
       console.log(chalk.gray(`📋 Blueprint ID: ${blueprint.id}`))
 
@@ -2650,14 +2649,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (task) {
         console.log(chalk.blue(`🚀 Running agent ${agent.getBlueprint().name} with task: ${task}`))
         const result = await agent.run(task)
-        console.log(chalk.green('✅ Agent execution completed:'))
+        console.log(chalk.green('✓ Agent execution completed:'))
         if (typeof result === 'object') {
           console.log(JSON.stringify(result, null, 2))
         } else {
           console.log(result)
         }
       } else {
-        console.log(chalk.blue(`🤖 Agent ${agent.getBlueprint().name} launched and ready`))
+        console.log(chalk.blue(`🔌 Agent ${agent.getBlueprint().name} launched and ready`))
         console.log(chalk.gray(`Use /agent ${agent.getBlueprint().name} <task> to run tasks`))
       }
     } catch (error: any) {
@@ -2725,7 +2724,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     console.log(chalk.cyan('\n🎯 Selected Paths:'))
     context.selectedPaths.forEach((path: string) => {
       const isDir = require('node:fs').statSync(path).isDirectory()
-      const icon = isDir ? '📂' : '📄'
+      const icon = isDir ? '⚡︎' : '📄'
       const relativePath = require('node:path').relative(context.rootPath, path)
       console.log(`  ${icon} ${relativePath || '.'}`)
     })
@@ -2740,7 +2739,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           const relativePath = require('node:path').relative(context.rootPath, path)
           const fileCount = dir.totalFiles || 0
           const languagesInfo = dir.mainLanguages?.slice(0, 3).join(', ') || 'mixed'
-          console.log(`  📂 ${relativePath || '.'} (${fileCount} files, ${languagesInfo})`)
+          console.log(`  ⚡︎ ${relativePath || '.'} (${fileCount} files, ${languagesInfo})`)
         })
 
       if (context.directories.size > 20) {
@@ -2788,7 +2787,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Show RAG status
     if (context.ragAvailable !== undefined) {
-      const ragStatus = context.ragAvailable ? chalk.green('✅ Available') : chalk.yellow('⚠️ Fallback mode')
+      const ragStatus = context.ragAvailable ? chalk.green('✓ Available') : chalk.yellow('⚠️ Fallback mode')
       console.log(chalk.cyan('\n🤖 RAG Integration:'), ragStatus)
     }
 
@@ -2824,7 +2823,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       unknown: '📄',
     }
 
-    return icons[language.toLowerCase()] || icons['unknown']
+    return icons[language.toLowerCase()] || icons.unknown
   }
 
   // Planning and Todo Commands
@@ -2858,7 +2857,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             saveTodoFile: true,
           })
 
-          console.log(chalk.green(`✅ Plan created with ${plan.todos.length} todos`))
+          console.log(chalk.green(`✓ Plan created with ${plan.todos.length} todos`))
           console.log(chalk.cyan(`📝 Plan ID: ${plan.id}`))
           console.log(chalk.gray('Use /plan execute to run the plan or /plan approve to review it'))
           break
@@ -2886,10 +2885,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority as any,
                     progress: t.progress,
                   }))
-                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                   return { shouldExit: false, shouldUpdatePrompt: false }
                 }
-              } catch {}
+              } catch { }
               console.log(chalk.yellow('No active plans found. Create one with /plan create <goal>'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
@@ -2936,9 +2935,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             plans.forEach((plan, index) => {
               const statusIcon =
                 plan.status === 'completed'
-                  ? '✅'
+                  ? '✓'
                   : plan.status === 'executing'
-                    ? '🔄'
+                    ? '⚡︎'
                     : plan.status === 'approved'
                       ? '🟢'
                       : plan.status === 'failed'
@@ -2988,7 +2987,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                 const inProgress = list.filter((t) => t.status === 'in_progress').length
                 const pending = list.filter((t) => t.status === 'pending').length
                 const cancelled = list.filter((t) => t.status === 'cancelled').length
-                console.log(`   ✅ ${completed} | 🔄 ${inProgress} | ⏳ ${pending} | 🛑 ${cancelled}`)
+                console.log(`   ✓ ${completed} | ⚡︎ ${inProgress} | ⏳ ${pending} | 🛑 ${cancelled}`)
                 const { advancedUI } = await import('../ui/advanced-cli-ui')
                 const items = list.map((t) => ({
                   content: t.content,
@@ -2996,10 +2995,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: t.priority,
                   progress: t.progress,
                 }))
-                ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                  ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 return { shouldExit: false, shouldUpdatePrompt: false }
               }
-            } catch {}
+            } catch { }
             console.log(chalk.gray('No todo lists found'))
             return { shouldExit: false, shouldUpdatePrompt: false }
           }
@@ -3014,7 +3013,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             const pending = plan.todos.filter((t) => t.status === 'pending').length
             const failed = plan.todos.filter((t) => t.status === 'failed').length
 
-            console.log(`   ✅ ${completed} | 🔄 ${inProgress} | ⏳ ${pending} | ❌ ${failed}`)
+            console.log(`   ✓ ${completed} | ⚡︎ ${inProgress} | ⏳ ${pending} | ❌ ${failed}`)
           })
           break
         }
@@ -3034,8 +3033,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
-              } catch {}
+                  ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+              } catch { }
               enhancedPlanning.showPlanStatus(latestPlan.id)
             } else {
               // Fallback to session todos
@@ -3051,7 +3050,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority,
                     progress: t.progress,
                   }))
-                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 } else {
                   console.log(chalk.yellow('No todo lists found'))
                 }
@@ -3071,8 +3070,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                ;(advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
-              } catch {}
+                  ; (advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
+              } catch { }
             }
             enhancedPlanning.showPlanStatus(planId)
           }
@@ -3115,7 +3114,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       // Hide the Todos HUD panel (structured UI)
       advancedUI.hidePanel('todos')
-    } catch {}
+    } catch { }
 
     try {
       // Clear session todos from the TodoStore for current session
@@ -3128,19 +3127,19 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         globalAny.__nikCLI?.context?.session?.id ||
         `${Date.now()}`
       todoStore.setTodos(String(sessionId), [])
-    } catch {}
+    } catch { }
 
     // Clear inline HUD in renderPromptArea
     try {
       const nik: any = this.cliInstance
       if (nik?.clearPlanHud) nik.clearPlanHud()
-    } catch {}
+    } catch { }
 
     console.log(chalk.green('🧹 HUD Todos cleared'))
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -3157,7 +3156,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -3167,7 +3166,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Toggle visibility on for inline HUD
       const nik: any = this.cliInstance
       if (nik?.showPlanHud) nik.showPlanHud()
-    } catch {}
+    } catch { }
     try {
       // Prefer latest active plan todos if available
       const plans = enhancedPlanning.getActivePlans?.() || []
@@ -3179,10 +3178,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           priority: (t as any).priority,
           progress: (t as any).progress,
         }))
-        ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+          ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
         shown = true
       }
-    } catch {}
+    } catch { }
 
     if (!shown) {
       try {
@@ -3204,22 +3203,22 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             priority: t.priority,
             progress: t.progress,
           }))
-          ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+            ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
           shown = true
         }
-      } catch {}
+      } catch { }
     }
 
     if (!shown) {
       console.log(chalk.yellow('ℹ️ No todos to show'))
     } else {
-      console.log(chalk.green('👀 Todos HUD shown'))
+      console.log(chalk.green('⚡︎ Todos HUD shown'))
     }
 
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -3227,7 +3226,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const sub = (args[0] || '').toLowerCase()
     if (sub === 'on') {
       process.env.NIKCLI_COMPACT = '1'
-      console.log(chalk.green('✅ compact mode ON'))
+      console.log(chalk.green('✓ compact mode ON'))
     } else if (sub === 'off') {
       delete (process.env as any).NIKCLI_COMPACT
       console.log(chalk.yellow('⚠️ compact mode OFF'))
@@ -3238,7 +3237,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -3246,7 +3245,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const sub = (args[0] || '').toLowerCase()
     if (sub === 'on') {
       process.env.NIKCLI_SUPER_COMPACT = '1'
-      console.log(chalk.green('✅ super-compact mode ON'))
+      console.log(chalk.green('✓ super-compact mode ON'))
     } else if (sub === 'off') {
       delete (process.env as any).NIKCLI_SUPER_COMPACT
       console.log(chalk.yellow('⚠️ super-compact mode OFF'))
@@ -3257,7 +3256,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch {}
+    } catch { }
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -3305,7 +3304,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           }
 
           approvalSystem.updateConfig(newConfig)
-          console.log(chalk.green(`✅ Auto-approval for ${type} ${enabled ? 'enabled' : 'disabled'}`))
+          console.log(chalk.green(`✓ Auto-approval for ${type} ${enabled ? 'enabled' : 'disabled'}`))
           break
         }
 
@@ -3337,7 +3336,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       activeAgents.forEach((agentId) => {
         agentStream.clearAgentStream(agentId)
       })
-      console.log(chalk.green('✅ All agent streams cleared'))
+      console.log(chalk.green('✓ All agent streams cleared'))
     } else {
       agentStream.showLiveDashboard()
     }
@@ -3358,7 +3357,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ;(global as any).__nikCLI.currentMode = 'default'
+      ; (global as any).__nikCLI.currentMode = 'default'
     }
 
     console.log(chalk.green('💬 Switched to Default Chat Mode'))
@@ -3423,7 +3422,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             case 'security-mode':
               if (['safe', 'default', 'developer'].includes(value)) {
                 simpleConfigManager.set('securityMode', value as 'safe' | 'default' | 'developer')
-                console.log(chalk.green(`✅ Security mode set to: ${value}`))
+                console.log(chalk.green(`✓ Security mode set to: ${value}`))
               } else {
                 console.log(chalk.red('❌ Invalid mode. Use: safe, default, or developer'))
               }
@@ -3450,7 +3449,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                 config.toolApprovalPolicies[keyMap[policyKey] as keyof typeof config.toolApprovalPolicies] =
                   value as any
                 simpleConfigManager.setAll(config)
-                console.log(chalk.green(`✅ ${mode} policy set to: ${value}`))
+                console.log(chalk.green(`✓ ${mode} policy set to: ${value}`))
               } else {
                 console.log(chalk.red('❌ Invalid value. Use: always, risky, or never'))
               }
@@ -3491,7 +3490,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       switch (action) {
         case 'enable': {
-          const timeoutMs = args[1] ? parseInt(args[1]) * 60000 : undefined // Convert minutes to ms
+          const timeoutMs = args[1] ? parseInt(args[1], 10) * 60000 : undefined // Convert minutes to ms
           toolService.enableDevMode(timeoutMs)
           const timeout = timeoutMs ? ` for ${args[1]} minutes` : ' for 1 hour (default)'
           console.log(chalk.yellow(`🔨 Developer mode enabled${timeout}`))
@@ -3547,7 +3546,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async clearApprovalsCommand(_args: string[]): Promise<CommandResult> {
     try {
       toolService.clearSessionApprovals()
-      console.log(chalk.green('✅ All session approvals cleared'))
+      console.log(chalk.green('✓ All session approvals cleared'))
       console.log(chalk.gray('Next operations will require fresh approval'))
     } catch (error: any) {
       console.log(chalk.red(`❌ Clear approvals command failed: ${error.message}`))
@@ -3663,7 +3662,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.blue.bold('\n🤖 System Prompt:'))
       console.log(chalk.gray(blueprint.systemPrompt))
 
-      console.log(chalk.gray('\n💡 Use /launch-agent ' + blueprint.name + ' [task] to launch this agent'))
+      console.log(chalk.gray(`\n💡 Use /launch-agent ${blueprint.name} [task] to launch this agent`))
     } catch (error: any) {
       console.log(chalk.red(`❌ Error retrieving blueprint: ${error.message}`))
     }
@@ -3704,7 +3703,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (confirmed) {
         const deleted = await agentFactory.deleteBlueprint(identifier)
         if (deleted) {
-          console.log(chalk.green(`✅ Blueprint '${blueprint.name}' deleted successfully`))
+          console.log(chalk.green(`✓ Blueprint '${blueprint.name}' deleted successfully`))
         } else {
           console.log(chalk.red(`❌ Failed to delete blueprint '${blueprint.name}'`))
         }
@@ -3731,7 +3730,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const success = await agentFactory.exportBlueprint(identifier, filePath)
       if (success) {
-        console.log(chalk.green(`✅ Blueprint exported successfully to: ${filePath}`))
+        console.log(chalk.green(`✓ Blueprint exported successfully to: ${filePath}`))
       } else {
         console.log(chalk.red(`❌ Failed to export blueprint '${identifier}'`))
       }
@@ -3754,7 +3753,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const blueprint = await agentFactory.importBlueprint(filePath)
 
       if (blueprint) {
-        console.log(chalk.green(`✅ Blueprint imported successfully: ${blueprint.name}`))
+        console.log(chalk.green(`✓ Blueprint imported successfully: ${blueprint.name}`))
         console.log(chalk.gray(`   New ID: ${blueprint.id}`))
         console.log(chalk.gray(`   Use /launch-agent ${blueprint.name} to launch it`))
       } else {
@@ -3836,12 +3835,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       console.log(chalk.blue('🎞️Vision Analysis Commands:'))
       console.log('')
-      console.log(chalk.cyan('/analyze-image <path>') + ' - Analyze an image file')
+      console.log(`${chalk.cyan('/analyze-image <path>')} - Analyze an image file`)
       console.log(
-        chalk.cyan('/analyze-image <path> --provider <claude|openai|google|vercel>') + ' - Use specific provider'
+        `${chalk.cyan('/analyze-image <path> --provider <claude|openai|google|vercel>')} - Use specific provider`
       )
-      console.log(chalk.cyan('/analyze-image <path> --prompt "custom prompt"') + ' - Custom analysis prompt')
-      console.log(chalk.cyan('/analyze-image <path> --no-cache') + ' - Skip cache')
+      console.log(`${chalk.cyan('/analyze-image <path> --prompt "custom prompt"')} - Custom analysis prompt`)
+      console.log(`${chalk.cyan('/analyze-image <path> --no-cache')} - Skip cache`)
       console.log('')
       console.log(chalk.gray('Supported formats: JPEG, PNG, GIF, WebP'))
       console.log(chalk.gray('Max file size: 20MB'))
@@ -3907,7 +3906,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           result.objects.forEach((obj) => lines.push(`  • ${obj}`))
           lines.push('')
         }
-        if (result.text && result.text.trim()) {
+        if (result.text?.trim()) {
           lines.push(chalk.cyan('📝 Text Found:'))
           lines.push(`"${result.text}"`)
           lines.push('')
@@ -3950,7 +3949,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             borderColor: 'magenta',
           })
         )
-        console.log(chalk.green(`✅ Image analysis completed in ${Date.now() - _startTime}ms`))
+        console.log(chalk.green(`✓ Image analysis completed in ${Date.now() - _startTime}ms`))
       } finally {
         nik?.endPanelOutput?.()
       }
@@ -4095,15 +4094,15 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       console.log(chalk.blue('🎨 Image Generation Commands:'))
       console.log('')
-      console.log(chalk.cyan('/generate-image "prompt"') + ' - Generate an image from text prompt')
+      console.log(`${chalk.cyan('/generate-image "prompt"')} - Generate an image from text prompt`)
       console.log(
-        chalk.cyan('/generate-image "prompt" --model <dall-e-3|dall-e-2|gpt-image-1>') + ' - Use specific model'
+        `${chalk.cyan('/generate-image "prompt" --model <dall-e-3|dall-e-2|gpt-image-1>')} - Use specific model`
       )
-      console.log(chalk.cyan('/generate-image "prompt" --size <1024x1024|1792x1024|1024x1792>') + ' - Set image size')
-      console.log(chalk.cyan('/generate-image "prompt" --quality <standard|hd>') + ' - Set quality (DALL-E 3 only)')
-      console.log(chalk.cyan('/generate-image "prompt" --style <vivid|natural>') + ' - Set style (DALL-E 3 only)')
-      console.log(chalk.cyan('/generate-image "prompt" --output "/path/to/save.png"') + ' - Custom save path')
-      console.log(chalk.cyan('/generate-image "prompt" --no-cache') + ' - Skip cache')
+      console.log(`${chalk.cyan('/generate-image "prompt" --size <1024x1024|1792x1024|1024x1792>')} - Set image size`)
+      console.log(`${chalk.cyan('/generate-image "prompt" --quality <standard|hd>')} - Set quality (DALL-E 3 only)`)
+      console.log(`${chalk.cyan('/generate-image "prompt" --style <vivid|natural>')} - Set style (DALL-E 3 only)`)
+      console.log(`${chalk.cyan('/generate-image "prompt" --output "/path/to/save.png"')} - Custom save path`)
+      console.log(`${chalk.cyan('/generate-image "prompt" --no-cache')} - Skip cache`)
       console.log('')
       console.log(chalk.gray('Models:'))
       console.log(chalk.gray('  • DALL-E 3: Latest, highest quality, supports HD and styles'))
@@ -4130,7 +4129,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (prompt.startsWith('"') && !prompt.endsWith('"')) {
         // Multi-word quoted prompt
         while (argIndex < args.length && !args[argIndex - 1].endsWith('"')) {
-          prompt += ' ' + args[argIndex]
+          prompt += ` ${args[argIndex]}`
           argIndex++
         }
       }
@@ -4240,7 +4239,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       console.log('')
-      console.log(chalk.green(`✅ Image generated successfully`))
+      console.log(chalk.green(`✓ Image generated successfully`))
 
       // Provide helpful next steps
       console.log('')
@@ -4324,7 +4323,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         this.cliInstance.printPanel(content)
 
         // If wallets are present, offer interactive selection
-        const wallets = (result && result.data && (result.data.wallets || result.data.data?.wallets)) || []
+        const wallets = (result?.data && (result.data.wallets || result.data.data?.wallets)) || []
         if (wallets && Array.isArray(wallets) && wallets.length > 0) {
           try {
             const inquirer = (await import('inquirer')).default
@@ -4450,7 +4449,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       const panel = boxen(
         `Failed to execute web3 command: ${error.message}` +
-          '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
+        '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
         { title: 'Web3 Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
       )
       this.cliInstance.printPanel(panel)
@@ -4470,7 +4469,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const title = 'Web3 Wallets'
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
-    const wallets = (result && result.data && (result.data.wallets || result.data.data?.wallets)) || []
+    const wallets = (result?.data && (result.data.wallets || result.data.data?.wallets)) || []
     if (ok && Array.isArray(wallets) && wallets.length > 0) {
       lines.push(chalk.cyan('🔗 Known wallets'))
       lines.push('')
@@ -4490,9 +4489,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const title = 'Web3 Use Wallet'
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
-    const data = (result && result.data && result.data.data) || result?.data || {}
+    const data = result?.data?.data || result?.data || {}
     if (ok) {
-      lines.push(chalk.green('✅ Selected wallet'))
+      lines.push(chalk.green('✓ Selected wallet'))
       if (data.selected) lines.push(`${chalk.gray('Address:')} ${data.selected}`)
       if (data.walletInfo?.networkId) lines.push(`${chalk.gray('Network:')} ${data.walletInfo.networkId}`)
     } else {
@@ -4505,10 +4504,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const title = 'Web3 Status'
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
-    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+    const dataBlock = result?.data?.data || result?.data || {}
     if (ok) {
       const data = dataBlock
-      lines.push(chalk.green('✅ AgentKit status'))
+      lines.push(chalk.green('✓ AgentKit status'))
       lines.push('')
       lines.push(`${chalk.gray('Initialized:')} ${data.initialized ? 'Yes' : 'No'}`)
       lines.push(`${chalk.gray('Wallet Connected:')} ${data.walletConnected ? 'Yes' : 'No'}`)
@@ -4529,10 +4528,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const title = 'Web3 Initialize'
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
-    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+    const dataBlock = result?.data?.data || result?.data || {}
     if (ok) {
       const data = dataBlock
-      lines.push(chalk.green('✅ Coinbase AgentKit initialized'))
+      lines.push(chalk.green('✓ Coinbase AgentKit initialized'))
       if (data.walletInfo?.address) lines.push(`${chalk.gray('Wallet:')} ${data.walletInfo.address}`)
       if (data.walletInfo?.networkId) lines.push(`${chalk.gray('Network:')} ${data.walletInfo.networkId}`)
       if (data.canUseFaucet) lines.push(chalk.yellow('💰 Faucet available (testnet)'))
@@ -4548,7 +4547,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const title = 'Web3 Wallet'
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
-    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+    const dataBlock = result?.data?.data || result?.data || {}
     if (ok) {
       const data = dataBlock
       lines.push(chalk.cyan('🔐 Wallet'))
@@ -4566,10 +4565,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const title = 'Web3 Balance'
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
-    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+    const dataBlock = result?.data?.data || result?.data || {}
     if (ok) {
       const data = dataBlock
-      lines.push(chalk.green('✅ Balance request processed'))
+      lines.push(chalk.green('✓ Balance request processed'))
       if (data.response) {
         lines.push('')
         lines.push(chalk.white(data.response))
@@ -4584,13 +4583,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private formatWeb3TransferPanel({ result, amount, to, token }: any): string {
     const title = 'Web3 Transfer'
     const lines: string[] = []
-    lines.push(`${chalk.gray('Amount:')} ${amount}${token ? ' ' + token.toUpperCase() : ''}`)
+    lines.push(`${chalk.gray('Amount:')} ${amount}${token ? ` ${token.toUpperCase()}` : ''}`)
     lines.push(`${chalk.gray('To:')} ${to}`)
     lines.push('')
     const ok = result?.data?.success ?? result?.success
-    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+    const dataBlock = result?.data?.data || result?.data || {}
     if (ok) {
-      lines.push(chalk.green('✅ Transfer request submitted'))
+      lines.push(chalk.green('✓ Transfer request submitted'))
       if (dataBlock?.response) {
         lines.push('')
         lines.push(chalk.white(dataBlock.response))
@@ -4608,9 +4607,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     lines.push(`${chalk.gray('Message:')} ${message}`)
     lines.push('')
     const ok = result?.data?.success ?? result?.success
-    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+    const dataBlock = result?.data?.data || result?.data || {}
     if (ok) {
-      lines.push(chalk.green('✅ Completed'))
+      lines.push(chalk.green('✓ Completed'))
       // Tool usage summary
       const calls = typeof dataBlock.toolCalls === 'number' ? dataBlock.toolCalls : 0
       const results = typeof dataBlock.toolResults === 'number' ? dataBlock.toolResults : 0
@@ -4636,12 +4635,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
    */
   private async rememberCommand(args: string[]): Promise<CommandResult> {
     if (args.length === 0) {
-      console.log(chalk.blue('🧠 Memory Management Commands:'))
+      console.log(chalk.blue('⚡︎ Memory Management Commands:'))
       console.log('')
-      console.log(chalk.cyan('/remember "fact or information"') + ' - Store important information')
-      console.log(chalk.cyan('/remember "fact" --importance <1-10>') + ' - Set importance level')
-      console.log(chalk.cyan('/remember "fact" --tags "tag1,tag2"') + ' - Add custom tags')
-      console.log(chalk.cyan('/remember "fact" --context "project_name"') + ' - Associate with context')
+      console.log(`${chalk.cyan('/remember "fact or information"')} - Store important information`)
+      console.log(`${chalk.cyan('/remember "fact" --importance <1-10>')} - Set importance level`)
+      console.log(`${chalk.cyan('/remember "fact" --tags "tag1,tag2"')} - Add custom tags`)
+      console.log(`${chalk.cyan('/remember "fact" --context "project_name"')} - Associate with context`)
       console.log('')
       console.log(chalk.gray('Examples:'))
       console.log(chalk.gray('  /remember "User prefers TypeScript over JavaScript"'))
@@ -4666,7 +4665,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Handle quoted content
       if (fact.startsWith('"') && !fact.endsWith('"')) {
         while (argIndex < args.length && !args[argIndex - 1].endsWith('"')) {
-          fact += ' ' + args[argIndex]
+          fact += ` ${args[argIndex]}`
           argIndex++
         }
       }
@@ -4689,8 +4688,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const value = args[i + 1]
 
         switch (flag) {
-          case '--importance':
-            const importance = parseInt(value)
+          case '--importance': {
+            const importance = parseInt(value, 10)
             if (importance >= 1 && importance <= 10) {
               options.importance = importance
             } else {
@@ -4698,6 +4697,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
+          }
           case '--tags':
             options.tags = value.split(',').map((tag) => tag.trim())
             break
@@ -4707,7 +4707,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         }
       }
 
-      console.log(chalk.blue('🧠 Storing in long-term memory...'))
+      console.log(chalk.blue('⚡︎ Storing in long-term memory...'))
 
       const memoryId = await memoryService.addMemory(fact, {
         source: 'user',
@@ -4715,7 +4715,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       })
 
       console.log('')
-      console.log(chalk.green('✅ Memory stored successfully'))
+      console.log(chalk.green('✓ Memory stored successfully'))
       console.log(chalk.gray(`ID: ${memoryId}`))
       console.log(chalk.gray(`Fact: "${fact}"`))
       if (options.importance) {
@@ -4741,11 +4741,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       console.log(chalk.blue('🔍 Memory Recall Commands:'))
       console.log('')
-      console.log(chalk.cyan('/recall "query"') + ' - Search for relevant memories')
-      console.log(chalk.cyan('/recall "query" --limit 5') + ' - Limit number of results')
-      console.log(chalk.cyan('/recall "query" --recent') + ' - Prioritize recent memories')
-      console.log(chalk.cyan('/recall "query" --important') + ' - Prioritize important memories')
-      console.log(chalk.cyan('/recall "query" --tags "tag1,tag2"') + ' - Filter by tags')
+      console.log(`${chalk.cyan('/recall "query"')} - Search for relevant memories`)
+      console.log(`${chalk.cyan('/recall "query" --limit 5')} - Limit number of results`)
+      console.log(`${chalk.cyan('/recall "query" --recent')} - Prioritize recent memories`)
+      console.log(`${chalk.cyan('/recall "query" --important')} - Prioritize important memories`)
+      console.log(`${chalk.cyan('/recall "query" --tags "tag1,tag2"')} - Filter by tags`)
       console.log('')
       console.log(chalk.gray('Examples:'))
       console.log(chalk.gray('  /recall "user preferences"'))
@@ -4764,7 +4764,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Handle quoted queries
       if (query.startsWith('"') && !query.endsWith('"')) {
         while (argIndex < args.length && !args[argIndex - 1].endsWith('"')) {
-          query += ' ' + args[argIndex]
+          query += ` ${args[argIndex]}`
           argIndex++
         }
       }
@@ -4787,12 +4787,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const value = args[i + 1]
 
         switch (flag) {
-          case '--limit':
-            const limit = parseInt(value)
+          case '--limit': {
+            const limit = parseInt(value, 10)
             if (limit > 0 && limit <= 50) {
               options.limit = limit
             }
             break
+          }
           case '--tags':
             options.tags = value.split(',').map((tag) => tag.trim())
             break
@@ -4825,7 +4826,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Display results
       console.log('')
-      console.log(chalk.green.bold(`🧠 Found ${results.length} relevant memories (${searchTime}ms):`))
+      console.log(chalk.green.bold(`⚡︎ Found ${results.length} relevant memories (${searchTime}ms):`))
       console.log(chalk.gray('─'.repeat(60)))
 
       results.forEach((result, index) => {
@@ -4873,13 +4874,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const subcommand = args[0]?.toLowerCase()
 
     if (!subcommand || subcommand === 'help') {
-      console.log(chalk.blue('🧠 Memory Management:'))
+      console.log(chalk.blue('⚡︎ Memory Management:'))
       console.log('')
-      console.log(chalk.cyan('/memory stats') + ' - Show memory statistics')
-      console.log(chalk.cyan('/memory config') + ' - Show memory configuration')
-      console.log(chalk.cyan('/memory context') + ' - Show current session context')
-      console.log(chalk.cyan('/memory personalization') + ' - Show user personalization data')
-      console.log(chalk.cyan('/memory cleanup') + ' - Clean up old/unimportant memories')
+      console.log(`${chalk.cyan('/memory stats')} - Show memory statistics`)
+      console.log(`${chalk.cyan('/memory config')} - Show memory configuration`)
+      console.log(`${chalk.cyan('/memory context')} - Show current session context`)
+      console.log(`${chalk.cyan('/memory personalization')} - Show user personalization data`)
+      console.log(`${chalk.cyan('/memory cleanup')} - Clean up old/unimportant memories`)
       console.log('')
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
@@ -4939,7 +4940,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       if (args[0] === '--old') {
-        const days = args[1] ? parseInt(args[1]) : 30
+        const days = args[1] ? parseInt(args[1], 10) : 30
         return await this.forgetOldMemories(days)
       }
 
@@ -5006,7 +5007,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const success = await memoryService.deleteMemory(memoryId)
 
       if (success) {
-        console.log(chalk.green('✅ Memory deleted successfully'))
+        console.log(chalk.green('✓ Memory deleted successfully'))
         console.log(chalk.gray(`Deleted memory: ${memoryId.substring(0, 8)}...`))
       } else {
         console.log(chalk.red('❌ Failed to delete memory'))
@@ -5069,7 +5070,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (success) deletedCount++
     }
 
-    console.log(chalk.green(`✅ Deleted ${deletedCount}/${memories.length} session memories`))
+    console.log(chalk.green(`✓ Deleted ${deletedCount}/${memories.length} session memories`))
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -5114,7 +5115,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
-      console.log(chalk.green(`✅ Deleted ${deletedCount} old memories`))
+      console.log(chalk.green(`✓ Deleted ${deletedCount} old memories`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -5154,7 +5155,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
-      console.log(chalk.green(`✅ Deleted ${deletedCount} memories with tag: ${tag}`))
+      console.log(chalk.green(`✓ Deleted ${deletedCount} memories with tag: ${tag}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -5202,7 +5203,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           snapshotId = await snapshotService.createQuickSnapshot(name, description)
       }
 
-      console.log(chalk.green(`✅ Snapshot created: ${name}`))
+      console.log(chalk.green(`✓ Snapshot created: ${name}`))
       console.log(chalk.gray(`   ID: ${snapshotId.substring(0, 8)}...`))
       console.log(chalk.gray(`   Type: ${type}`))
 
@@ -5288,7 +5289,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         backup,
       })
 
-      console.log(chalk.green('✅ Snapshot restored successfully'))
+      console.log(chalk.green('✓ Snapshot restored successfully'))
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to restore snapshot: ${error.message}`))
     }
@@ -5321,7 +5322,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray('─'.repeat(70)))
 
       snapshots.forEach((snapshot) => {
-        const id = snapshot.id.substring(0, 8) + '...'
+        const id = `${snapshot.id.substring(0, 8)}...`
         const created = new Date(snapshot.timestamp).toLocaleDateString()
         const size = this.formatSize(snapshot.metadata.size)
 
@@ -5519,10 +5520,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       console.log(chalk.blue('🔍 Indexing Commands:'))
       console.log('')
-      console.log(chalk.cyan('/index <path>') + ' - Index files in path for better context')
-      console.log(chalk.cyan('/index <path> --force') + ' - Force re-indexing (ignore cache)')
-      console.log(chalk.cyan('/index <path> --max-files <number>') + ' - Limit number of files to index')
-      console.log(chalk.cyan('/index <path> --cost-limit <dollars>') + ' - Set cost limit for embeddings')
+      console.log(`${chalk.cyan('/index <path>')} - Index files in path for better context`)
+      console.log(`${chalk.cyan('/index <path> --force')} - Force re-indexing (ignore cache)`)
+      console.log(`${chalk.cyan('/index <path> --max-files <number>')} - Limit number of files to index`)
+      console.log(`${chalk.cyan('/index <path> --cost-limit <dollars>')} - Set cost limit for embeddings`)
       console.log('')
       console.log(chalk.gray('Examples:'))
       console.log(chalk.gray('  /index src'))
@@ -5548,24 +5549,26 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             options.force = true
             i-- // This flag doesn't have a value
             break
-          case '--max-files':
-            const maxFiles = parseInt(value)
-            if (!isNaN(maxFiles) && maxFiles > 0) {
+          case '--max-files': {
+            const maxFiles = parseInt(value, 10)
+            if (!Number.isNaN(maxFiles) && maxFiles > 0) {
               options.maxFiles = maxFiles
             } else {
               console.log(chalk.red('❌ Invalid max-files value. Must be a positive number.'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
-          case '--cost-limit':
+          }
+          case '--cost-limit': {
             const costLimit = parseFloat(value)
-            if (!isNaN(costLimit) && costLimit > 0) {
+            if (!Number.isNaN(costLimit) && costLimit > 0) {
               options.costLimit = costLimit
             } else {
               console.log(chalk.red('❌ Invalid cost-limit value. Must be a positive number.'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
+          }
         }
       }
 
@@ -5633,7 +5636,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Display results
       console.log('')
-      console.log(chalk.green.bold('✅ Indexing completed successfully!'))
+      console.log(chalk.green.bold('✓ Indexing completed successfully!'))
       console.log(chalk.gray('─'.repeat(50)))
 
       console.log(chalk.cyan('📊 Results:'))
@@ -5746,9 +5749,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       await ideDiagnosticIntegration.startMonitoring(path)
 
       if (path) {
-        console.log(chalk.green(`✅ Monitoring started for path: ${path}`))
+        console.log(chalk.green(`✓ Monitoring started for path: ${path}`))
       } else {
-        console.log(chalk.green(`✅ Monitoring started for entire project`))
+        console.log(chalk.green(`✓ Monitoring started for entire project`))
       }
 
       console.log(chalk.gray('💡 Use /diag-status to check monitoring status'))
@@ -5833,7 +5836,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(`${chalk.yellow('Warnings:')} ${context.warnings}`)
       }
       if (context.errors === 0 && context.warnings === 0) {
-        console.log(chalk.green('✅ No errors or warnings found'))
+        console.log(chalk.green('✓ No errors or warnings found'))
       }
 
       // Display build status
@@ -5889,7 +5892,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       case 'failing':
       case 'issues':
         return chalk.red(status)
-      case 'unknown':
       default:
         return chalk.gray(status)
     }
@@ -5910,17 +5912,17 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     console.log(chalk.gray('─'.repeat(50)))
 
     const isConfigured = isFigmaConfigured()
-    const tokenStatus = isConfigured ? chalk.green('✅ Configured') : chalk.red('❌ Not configured')
+    const tokenStatus = isConfigured ? chalk.green('✓ Configured') : chalk.red('❌ Not configured')
 
     console.log(`${chalk.cyan('Figma API Token:')} ${tokenStatus}`)
 
     const v0Configured = !!process.env.V0_API_KEY
-    const v0Status = v0Configured ? chalk.green('✅ Configured') : chalk.yellow('⚠️  Optional - for AI code generation')
+    const v0Status = v0Configured ? chalk.green('✓ Configured') : chalk.yellow('⚠️  Optional - for AI code generation')
 
     console.log(`${chalk.cyan('Vercel v0 Integration:')} ${v0Status}`)
 
     const desktopStatus =
-      process.platform === 'darwin' ? chalk.green('✅ Available (macOS)') : chalk.gray('⚪ macOS only')
+      process.platform === 'darwin' ? chalk.green('✓ Available (macOS)') : chalk.gray('⚪ macOS only')
 
     console.log(`${chalk.cyan('Desktop App Automation:')} ${desktopStatus}`)
 
@@ -6114,7 +6116,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
-      console.log(chalk.blue(`🤖 Generating ${validatedArgs.framework} code with ${validatedArgs.library}...`))
+      console.log(chalk.blue(`🔌 Generating ${validatedArgs.framework} code with ${validatedArgs.library}...`))
 
       const result = await figmaTool.execute({
         command: 'figma-to-code',
@@ -6164,7 +6166,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       })
 
       if (result.success) {
-        console.log(chalk.green('✅ File opened in Figma desktop app'))
+        console.log(chalk.green('✓ File opened in Figma desktop app'))
       } else {
         console.log(chalk.red(`❌ Failed to open file: ${result.error}`))
       }
@@ -6274,7 +6276,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(`${chalk.cyan('Component:')} ${data.componentName}`)
         console.log(`${chalk.cyan('Analysis:')} ${data.designDescription.componentAnalysis}`)
 
-        if (data.previewImage && data.previewImage.localPath) {
+        if (data.previewImage?.localPath) {
           console.log(`${chalk.cyan('Preview Image:')} ${data.previewImage.localPath}`)
         }
 
@@ -6295,7 +6297,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           )
         }
 
-        console.log('\n' + chalk.yellow('💡 Next steps:'))
+        console.log(`\n${chalk.yellow('💡 Next steps:')}`)
         console.log('  • Open the generated preview image to see the design concept')
         console.log('  • Use the design specification to manually create the Figma file')
         console.log('  • Import the extracted design tokens into your design system')
@@ -6406,14 +6408,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async handleStyleSet(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
     if (args.length === 0) {
       console.log(chalk.red('❌ Please specify a style name'))
-      console.log(chalk.gray('Available styles: ' + OutputStyleUtils.getAllStyles().join(', ')))
+      console.log(chalk.gray(`Available styles: ${OutputStyleUtils.getAllStyles().join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     const styleName = args[0] as OutputStyle
     if (!OutputStyleUtils.isValidStyle(styleName)) {
       console.log(chalk.red(`❌ Invalid style: ${styleName}`))
-      console.log(chalk.gray('Available styles: ' + OutputStyleUtils.getAllStyles().join(', ')))
+      console.log(chalk.gray(`Available styles: ${OutputStyleUtils.getAllStyles().join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -6421,7 +6423,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       modernAIProvider.setDefaultOutputStyle(styleName)
       const metadata = OutputStyleUtils.getStyleMetadata(styleName)
 
-      console.log(chalk.green(`✅ Default output style set to: ${chalk.bold(styleName)}`))
+      console.log(chalk.green(`✓ Default output style set to: ${chalk.bold(styleName)}`))
       console.log(chalk.gray(`   ${metadata.description}`))
       console.log(chalk.gray(`   Target audience: ${metadata.targetAudience}`))
     } catch (error: any) {
@@ -6473,14 +6475,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async handleStyleModel(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
     if (args.length === 0) {
       console.log(chalk.red('❌ Please specify a style name'))
-      console.log(chalk.gray('Available styles: ' + OutputStyleUtils.getAllStyles().join(', ')))
+      console.log(chalk.gray(`Available styles: ${OutputStyleUtils.getAllStyles().join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     const styleName = args[0] as OutputStyle
     if (!OutputStyleUtils.isValidStyle(styleName)) {
       console.log(chalk.red(`❌ Invalid style: ${styleName}`))
-      console.log(chalk.gray('Available styles: ' + OutputStyleUtils.getAllStyles().join(', ')))
+      console.log(chalk.gray(`Available styles: ${OutputStyleUtils.getAllStyles().join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -6489,7 +6491,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       modernAIProvider.setModelOutputStyle(styleName)
       const metadata = OutputStyleUtils.getStyleMetadata(styleName)
 
-      console.log(chalk.green(`✅ Output style for model '${currentModel}' set to: ${chalk.bold(styleName)}`))
+      console.log(chalk.green(`✓ Output style for model '${currentModel}' set to: ${chalk.bold(styleName)}`))
       console.log(chalk.gray(`   ${metadata.description}`))
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to set model style: ${error.message}`))
@@ -6513,14 +6515,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     if (!OutputStyleUtils.isValidStyle(styleName)) {
       console.log(chalk.red(`❌ Invalid style: ${styleName}`))
-      console.log(chalk.gray('Available styles: ' + OutputStyleUtils.getAllStyles().join(', ')))
+      console.log(chalk.gray(`Available styles: ${OutputStyleUtils.getAllStyles().join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     const validContexts = ['chat', 'planning', 'code-generation', 'documentation', 'debugging', 'analysis']
     if (!validContexts.includes(context)) {
       console.log(chalk.red(`❌ Invalid context: ${context}`))
-      console.log(chalk.gray('Valid contexts: ' + validContexts.join(', ')))
+      console.log(chalk.gray(`Valid contexts: ${validContexts.join(', ')}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -6528,7 +6530,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       simpleConfigManager.setContextOutputStyle(context, styleName)
       const metadata = OutputStyleUtils.getStyleMetadata(styleName)
 
-      console.log(chalk.green(`✅ Output style for context '${context}' set to: ${chalk.bold(styleName)}`))
+      console.log(chalk.green(`✓ Output style for context '${context}' set to: ${chalk.bold(styleName)}`))
       console.log(chalk.gray(`   ${metadata.description}`))
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to set context style: ${error.message}`))

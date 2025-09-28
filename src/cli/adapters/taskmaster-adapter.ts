@@ -1,6 +1,5 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
-import { nanoid } from 'nanoid'
 import type { AgentTodo, AgentWorkPlan } from '../core/agent-todo-manager'
 import type {
   ExecutionPlan,
@@ -444,7 +443,7 @@ export class TaskMasterAdapter extends EventEmitter {
    */
   setLegacySupport(enabled: boolean): void {
     this.legacySupport = enabled
-    console.log(chalk.cyan(`🔄 Legacy support ${enabled ? 'enabled' : 'disabled'}`))
+    console.log(chalk.cyan(`⚡︎ Legacy support ${enabled ? 'enabled' : 'disabled'}`))
   }
 
   /**

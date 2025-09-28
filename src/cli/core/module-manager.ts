@@ -280,8 +280,8 @@ export class ModuleManager {
   }
 
   // Command Handlers
-  private async handleHelp(args: string[], context: ModuleContext): Promise<void> {
-    console.log(chalk.cyan.bold('\\n🤖 Autonomous Claude Assistant - Command Reference'))
+  private async handleHelp(_args: string[], _context: ModuleContext): Promise<void> {
+    console.log(chalk.cyan.bold('\\n🔌 Autonomous Claude Assistant - Command Reference'))
     console.log(chalk.gray('═'.repeat(60)))
 
     const categories = {
@@ -302,7 +302,7 @@ export class ModuleManager {
       }
     }
 
-    console.log(chalk.white.bold('\\n🤖 Specialized Agents:'))
+    console.log(chalk.white.bold('\\n🔌 Specialized Agents:'))
     console.log(`${chalk.blue('@ai-analysis')} <task>     AI code analysis and review`)
     console.log(`${chalk.blue('@code-review')} <task>     Code review and suggestions`)
     console.log(`${chalk.blue('@backend-expert')} <task>   Backend development specialist`)
@@ -313,18 +313,18 @@ export class ModuleManager {
     console.log(`${chalk.blue('@autonomous-coder')} <task> Full autonomous coding agent`)
 
     console.log(chalk.white.bold('\\n💬 Natural Language Examples:'))
-    console.log(chalk.dim('• \"Create a React todo app with TypeScript and tests\"'))
-    console.log(chalk.dim('• \"Fix all ESLint errors in this project\"'))
-    console.log(chalk.dim('• \"Add authentication with JWT to this API\"'))
-    console.log(chalk.dim('• \"Set up Docker and CI/CD for deployment\"'))
-    console.log(chalk.dim('• \"Optimize this component for performance\"'))
+    console.log(chalk.dim('• "Create a React todo app with TypeScript and tests"'))
+    console.log(chalk.dim('• "Fix all ESLint errors in this project"'))
+    console.log(chalk.dim('• "Add authentication with JWT to this API"'))
+    console.log(chalk.dim('• "Set up Docker and CI/CD for deployment"'))
+    console.log(chalk.dim('• "Optimize this component for performance"'))
 
-    console.log(chalk.gray('\\n' + '─'.repeat(60)))
+    console.log(chalk.gray(`\\n${'─'.repeat(60)}`))
     console.log(chalk.yellow('💡 Tip: Use TAB for auto-completion, / for command menu, Shift+Tab to cycle modes'))
   }
 
-  private async handleAgents(args: string[], context: ModuleContext): Promise<void> {
-    console.log(chalk.cyan.bold('\\n🤖 Available Specialized Agents'))
+  private async handleAgents(_args: string[], _context: ModuleContext): Promise<void> {
+    console.log(chalk.cyan.bold('\\n🔌 Available Specialized Agents'))
     console.log(chalk.gray('─'.repeat(50)))
 
     // This would be dynamically populated from agent registry
@@ -347,27 +347,27 @@ export class ModuleManager {
     console.log(chalk.dim('\\nUsage: @<agent-name> <task>'))
   }
 
-  private async handleModel(args: string[], context: ModuleContext): Promise<void> {
+  private async handleModel(args: string[], _context: ModuleContext): Promise<void> {
     if (args[0]) {
       try {
         advancedAIProvider.setModel(args[0])
         configManager.setCurrentModel(args[0])
-        console.log(chalk.green(`✅ Switched to: ${args[0]}`))
+        console.log(chalk.green(`✓ Switched to: ${args[0]}`))
       } catch (error: any) {
         console.log(chalk.red(`Error: ${error.message}`))
       }
     } else {
       const modelInfo = advancedAIProvider.getCurrentModelInfo()
-      console.log(chalk.blue(`🧠 Current model: ${modelInfo.name}`))
+      console.log(chalk.blue(`⚡︎ Current model: ${modelInfo.name}`))
     }
   }
 
-  private async handleClear(args: string[], context: ModuleContext): Promise<void> {
+  private async handleClear(_args: string[], context: ModuleContext): Promise<void> {
     console.clear()
     context.session.messages = context.session.messages.filter((m: any) => m.role === 'system')
     context.session.executionHistory = []
     advancedAIProvider.clearExecutionContext()
-    console.log(chalk.green('✅ Session cleared'))
+    console.log(chalk.green('✓ Session cleared'))
   }
 
   private async handleChangeDirectory(args: string[], context: ModuleContext): Promise<void> {
@@ -384,17 +384,17 @@ export class ModuleManager {
 
       context.workingDirectory = resolvedPath
       advancedAIProvider.setWorkingDirectory(resolvedPath)
-      console.log(chalk.green(`✅ Changed to: ${resolvedPath}`))
+      console.log(chalk.green(`✓ Changed to: ${resolvedPath}`))
     } catch (error: any) {
       console.log(chalk.red(`Error changing directory: ${error.message}`))
     }
   }
 
-  private async handlePrintDirectory(args: string[], context: ModuleContext): Promise<void> {
+  private async handlePrintDirectory(_args: string[], context: ModuleContext): Promise<void> {
     console.log(chalk.blue(`📁 Current directory: ${context.workingDirectory}`))
   }
 
-  private async handleListFiles(args: string[], context: ModuleContext): Promise<void> {
+  private async handleListFiles(_args: string[], context: ModuleContext): Promise<void> {
     try {
       const fs = require('node:fs')
       const files = fs.readdirSync(context.workingDirectory, { withFileTypes: true })
@@ -416,27 +416,27 @@ export class ModuleManager {
     }
   }
 
-  private async handleAnalyze(args: string[], context: ModuleContext): Promise<void> {
+  private async handleAnalyze(_args: string[], _context: ModuleContext): Promise<void> {
     console.log(chalk.blue('🔍 Quick project analysis...'))
     // Implementation for project analysis
     console.log(chalk.green('Analysis complete!'))
   }
 
-  private async handleAutoExecution(args: string[], context: ModuleContext): Promise<void> {
+  private async handleAutoExecution(args: string[], _context: ModuleContext): Promise<void> {
     const task = args.join(' ')
     console.log(chalk.blue(`\\n🎯 Autonomous Mode: Analyzing and executing task...`))
     console.log(chalk.gray(`Task: ${task}\\n`))
     // Implementation for autonomous execution
   }
 
-  private async handleContext(args: string[], context: ModuleContext): Promise<void> {
+  private async handleContext(_args: string[], _context: ModuleContext): Promise<void> {
     const execContext = advancedAIProvider.getExecutionContext()
     if (execContext.size === 0) {
       console.log(chalk.yellow('No execution context available'))
       return
     }
 
-    console.log(chalk.cyan.bold('\\n🧠 Execution Context'))
+    console.log(chalk.cyan.bold('\\n⚡︎ Execution Context'))
     console.log(chalk.gray('─'.repeat(40)))
 
     for (const [key, value] of execContext) {
@@ -444,7 +444,7 @@ export class ModuleManager {
     }
   }
 
-  private async handleHistory(args: string[], context: ModuleContext): Promise<void> {
+  private async handleHistory(_args: string[], context: ModuleContext): Promise<void> {
     const history = context.session.executionHistory.slice(-20)
     if (history.length === 0) {
       console.log(chalk.yellow('No execution history'))
@@ -454,14 +454,14 @@ export class ModuleManager {
     console.log(chalk.cyan.bold('\\n📜 Recent Execution History'))
     console.log(chalk.gray('─'.repeat(50)))
 
-    history.forEach((event: any, index: number) => {
+    history.forEach((event: any, _index: number) => {
       const icon =
-        event.type === 'tool_call' ? '🔧' : event.type === 'tool_result' ? '✅' : event.type === 'error' ? '❌' : '•'
+        event.type === 'tool_call' ? '🔧' : event.type === 'tool_result' ? '✓' : event.type === 'error' ? '❌' : '•'
       console.log(`${icon} ${chalk.dim(event.type)}: ${event.content?.slice(0, 60) || 'N/A'}`)
     })
   }
 
-  private async handleDiff(args: string[], context: ModuleContext): Promise<void> {
+  private async handleDiff(args: string[], _context: ModuleContext): Promise<void> {
     if (args[0]) {
       diffManager.showDiff(args[0])
     } else {
@@ -469,7 +469,7 @@ export class ModuleManager {
     }
   }
 
-  private async handleAccept(args: string[], context: ModuleContext): Promise<void> {
+  private async handleAccept(args: string[], _context: ModuleContext): Promise<void> {
     if (args[0] === 'all') {
       diffManager.acceptAllDiffs()
     } else if (args[0]) {
@@ -479,7 +479,7 @@ export class ModuleManager {
     }
   }
 
-  private async handleReject(args: string[], context: ModuleContext): Promise<void> {
+  private async handleReject(args: string[], _context: ModuleContext): Promise<void> {
     if (args[0]) {
       diffManager.rejectDiff(args[0])
     } else {
@@ -487,7 +487,7 @@ export class ModuleManager {
     }
   }
 
-  private async handleSecurity(args: string[], context: ModuleContext): Promise<void> {
+  private async handleSecurity(_args: string[], context: ModuleContext): Promise<void> {
     const summary = await context.policyManager.getPolicySummary()
 
     console.log(chalk.blue.bold('🔒 Security Policy Status'))
@@ -507,8 +507,8 @@ export class ModuleManager {
           case 'approval':
             if (['never', 'untrusted', 'always'].includes(value)) {
               // Policy update - would need to extend config manager
-              console.log(chalk.green(`✅ Approval policy set to: ${value}`))
-              console.log(chalk.green(`✅ Approval policy set to: ${value}`))
+              console.log(chalk.green(`✓ Approval policy set to: ${value}`))
+              console.log(chalk.green(`✓ Approval policy set to: ${value}`))
             } else {
               console.log(chalk.red('Invalid approval policy. Use: never, untrusted, or always'))
             }
@@ -516,8 +516,8 @@ export class ModuleManager {
           case 'sandbox':
             if (['read-only', 'workspace-write', 'system-write'].includes(value)) {
               // Sandbox update - would need to extend config manager
-              console.log(chalk.green(`✅ Sandbox mode set to: ${value}`))
-              console.log(chalk.green(`✅ Sandbox mode set to: ${value}`))
+              console.log(chalk.green(`✓ Sandbox mode set to: ${value}`))
+              console.log(chalk.green(`✓ Sandbox mode set to: ${value}`))
             } else {
               console.log(chalk.red('Invalid sandbox mode. Use: read-only, workspace-write, or system-write'))
             }
@@ -533,21 +533,21 @@ export class ModuleManager {
     }
   }
 
-  private async handlePlanMode(args: string[], context: ModuleContext): Promise<void> {
+  private async handlePlanMode(_args: string[], context: ModuleContext): Promise<void> {
     context.planMode = !context.planMode
     if (context.planMode) {
-      console.log(chalk.green('\\n✅ plan mode on ') + chalk.dim('(shift+tab to cycle)'))
+      console.log(chalk.green('\\n✓ plan mode on ') + chalk.dim('(shift+tab to cycle)'))
     } else {
       console.log(chalk.yellow('\\n⚠️ plan mode off'))
     }
   }
 
-  private async handleAutoAccept(args: string[], context: ModuleContext): Promise<void> {
+  private async handleAutoAccept(_args: string[], context: ModuleContext): Promise<void> {
     context.autoAcceptEdits = !context.autoAcceptEdits
     diffManager.setAutoAccept(context.autoAcceptEdits)
 
     if (context.autoAcceptEdits) {
-      console.log(chalk.green('\\n✅ auto-accept edits on ') + chalk.dim('(shift+tab to cycle)'))
+      console.log(chalk.green('\\n✓ auto-accept edits on ') + chalk.dim('(shift+tab to cycle)'))
     } else {
       console.log(chalk.yellow('\\n⚠️ auto-accept edits off'))
     }
@@ -559,13 +559,13 @@ export class ModuleManager {
       console.log(chalk.yellow('⚠️ Autonomous mode disabled - will ask for confirmation'))
     } else {
       context.autonomous = true
-      console.log(chalk.green('✅ Autonomous mode enabled - full independence'))
+      console.log(chalk.green('✓ Autonomous mode enabled - full independence'))
     }
   }
 
   // Middleware Command Handlers
 
-  private async handleMiddlewareStatus(args: string[], context: ModuleContext): Promise<void> {
+  private async handleMiddlewareStatus(_args: string[], _context: ModuleContext): Promise<void> {
     console.log(chalk.cyan.bold('\\n🔧 Middleware System Status'))
     console.log(chalk.gray('─'.repeat(60)))
 
@@ -576,14 +576,14 @@ export class ModuleManager {
       console.log(chalk.white.bold('\\nRecent Events:'))
       history.forEach((event) => {
         const icon =
-          event.type === 'complete' ? '✅' : event.type === 'error' ? '❌' : event.type === 'start' ? '🔄' : '⏭️'
+          event.type === 'complete' ? '✓' : event.type === 'error' ? '❌' : event.type === 'start' ? '⚡︎' : '⏭️'
         const duration = event.duration ? ` (${event.duration}ms)` : ''
         console.log(`  ${icon} ${event.middlewareName}: ${event.type}${duration}`)
       })
     }
   }
 
-  private async handleMiddlewareEnable(args: string[], context: ModuleContext): Promise<void> {
+  private async handleMiddlewareEnable(args: string[], _context: ModuleContext): Promise<void> {
     const middlewareName = args[0]
     if (!middlewareName) {
       console.log(chalk.red('❌ Please specify middleware name'))
@@ -592,13 +592,13 @@ export class ModuleManager {
 
     const success = middlewareManager.enableMiddleware(middlewareName)
     if (success) {
-      console.log(chalk.green(`✅ Enabled middleware: ${middlewareName}`))
+      console.log(chalk.green(`✓ Enabled middleware: ${middlewareName}`))
     } else {
       console.log(chalk.red(`❌ Middleware not found: ${middlewareName}`))
     }
   }
 
-  private async handleMiddlewareDisable(args: string[], context: ModuleContext): Promise<void> {
+  private async handleMiddlewareDisable(args: string[], _context: ModuleContext): Promise<void> {
     const middlewareName = args[0]
     if (!middlewareName) {
       console.log(chalk.red('❌ Please specify middleware name'))
@@ -613,7 +613,7 @@ export class ModuleManager {
     }
   }
 
-  private async handleMiddlewareConfig(args: string[], context: ModuleContext): Promise<void> {
+  private async handleMiddlewareConfig(args: string[], _context: ModuleContext): Promise<void> {
     const middlewareName = args[0]
 
     if (!middlewareName) {
@@ -646,8 +646,8 @@ export class ModuleManager {
     }
   }
 
-  private async handleMiddlewareLogs(args: string[], context: ModuleContext): Promise<void> {
-    const limit = parseInt(args[0]) || 20
+  private async handleMiddlewareLogs(args: string[], _context: ModuleContext): Promise<void> {
+    const limit = parseInt(args[0], 10) || 20
 
     console.log(chalk.cyan.bold(`\\n📋 Recent Middleware Execution History (${limit} events)`))
     console.log(chalk.gray('─'.repeat(60)))
@@ -661,11 +661,11 @@ export class ModuleManager {
     history.forEach((event, index) => {
       const icon =
         event.type === 'complete'
-          ? '✅'
+          ? '✓'
           : event.type === 'error'
             ? '❌'
             : event.type === 'start'
-              ? '🔄'
+              ? '⚡︎'
               : event.type === 'skip'
                 ? '⏭️'
                 : '⚠️'
@@ -683,8 +683,8 @@ export class ModuleManager {
     })
   }
 
-  private async handleMiddlewareClear(args: string[], context: ModuleContext): Promise<void> {
+  private async handleMiddlewareClear(_args: string[], _context: ModuleContext): Promise<void> {
     middlewareManager.clearMetrics()
-    console.log(chalk.green('✅ Middleware metrics and logs cleared'))
+    console.log(chalk.green('✓ Middleware metrics and logs cleared'))
   }
 }

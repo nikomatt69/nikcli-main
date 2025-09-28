@@ -1,9 +1,9 @@
 // src/cli/github-bot/task-executor.ts
 
 import { execSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import type { Octokit } from '@octokit/rest'
 import { CommentProcessor } from './comment-processor'
 import type {
@@ -66,7 +66,7 @@ export class TaskExecutor {
         result.shouldComment = true
       }
 
-      console.log(`✅ Task completed successfully`)
+      console.log(`✓ Task completed successfully`)
       return result
     } catch (error) {
       console.error(`❌ Task execution failed:`, error)
@@ -89,8 +89,8 @@ export class TaskExecutor {
 
       // Detect project characteristics
       const hasPackageJson = await this.fileExists(owner, repo, 'package.json')
-      const hasCargoToml = await this.fileExists(owner, repo, 'Cargo.toml')
-      const hasPyProjectToml = await this.fileExists(owner, repo, 'pyproject.toml')
+      const _hasCargoToml = await this.fileExists(owner, repo, 'Cargo.toml')
+      const _hasPyProjectToml = await this.fileExists(owner, repo, 'pyproject.toml')
 
       let packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun' | undefined
       let framework: string | undefined
@@ -115,7 +115,7 @@ export class TaskExecutor {
           else if (deps.svelte) framework = 'Svelte'
           else if (deps.next) framework = 'Next.js'
           else if (deps.nuxt) framework = 'Nuxt.js'
-        } catch (e) {
+        } catch (_e) {
           // Ignore JSON parsing errors
         }
       }
@@ -183,7 +183,7 @@ export class TaskExecutor {
         stdio: 'pipe',
       })
 
-      console.log(`✅ Repository cloned and branch ${branchName} created`)
+      console.log(`✓ Repository cloned and branch ${branchName} created`)
     } catch (error) {
       throw new Error(`Failed to clone repository: ${error}`)
     }
@@ -410,7 +410,7 @@ export class TaskExecutor {
   /**
    * Build NikCLI command string
    */
-  private buildNikCLICommand(action: string, command: CommandParseResult, context: TaskContext): string {
+  private buildNikCLICommand(action: string, command: CommandParseResult, _context: TaskContext): string {
     let cmd = `npx @nicomatt69/nikcli ${action}`
 
     if (command.target) {
@@ -470,7 +470,7 @@ export class TaskExecutor {
       // Commit changes
       execSync('git add .', { cwd: context.workingDirectory, stdio: 'pipe' })
 
-      const commitMessage = `🤖 ${job.mention.command}: ${result.summary}
+      const commitMessage = `🔌 ${job.mention.command}: ${result.summary}
 
 Applied via @nikcli mention in #${job.issueNumber}
 Requested by: @${job.author}
@@ -492,7 +492,7 @@ Co-authored-by: NikCLI Bot <bot@nikcli.dev>`
       })
 
       // Create pull request
-      const prTitle = `🤖 ${job.mention.command}: ${result.summary}`
+      const prTitle = `🔌 ${job.mention.command}: ${result.summary}`
       const prBody = `## Summary
 ${result.summary}
 
@@ -507,7 +507,7 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
 - Command: \`@nikcli ${job.mention.command}\`
 
 ---
-🤖 This PR was automatically created by [NikCLI Bot](https://github.com/nikomatt69/nikcli-main)`
+🔌 This PR was automatically created by [NikCLI Bot](https://github.com/nikomatt69/nikcli-main)`
 
       const { data: pr } = await this.octokit.rest.pulls.create({
         owner: repository.owner,
@@ -518,7 +518,7 @@ ${result.analysis ? `## Analysis\n${result.analysis}\n` : ''}
         base: repository.defaultBranch,
       })
 
-      console.log(`✅ Pull request created: ${pr.html_url}`)
+      console.log(`✓ Pull request created: ${pr.html_url}`)
       return pr.html_url
     } catch (error) {
       console.error('Failed to create pull request:', error)

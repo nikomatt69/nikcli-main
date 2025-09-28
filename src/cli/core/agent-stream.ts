@@ -41,7 +41,7 @@ export class AgentStreamManager extends EventEmitter {
   // Stop streaming for an agent
   stopAgentStream(agentId: string): void {
     this.activeAgents.delete(agentId)
-    this.emitEvent(agentId, 'info', `✅ Agent ${agentId} stream completed`)
+    this.emitEvent(agentId, 'info', `✓ Agent ${agentId} stream completed`)
   }
 
   // Emit a stream event
@@ -77,7 +77,7 @@ export class AgentStreamManager extends EventEmitter {
     switch (event.type) {
       case 'thinking':
         color = chalk.blue
-        icon = '🧠'
+        icon = '⚡︎'
         break
       case 'planning':
         color = chalk.yellow
@@ -93,7 +93,7 @@ export class AgentStreamManager extends EventEmitter {
         break
       case 'result':
         color = chalk.green
-        icon = '✅'
+        icon = '✓'
         break
       case 'error':
         color = chalk.red
@@ -228,7 +228,7 @@ export class AgentStreamManager extends EventEmitter {
       const completedActions = actions.filter((a) => a.status === 'completed').length
       const failedActions = actions.filter((a) => a.status === 'failed').length
 
-      console.log(chalk.cyan.bold(`\n🤖 Agent: ${agentId}`))
+      console.log(chalk.cyan.bold(`\n🔌 Agent: ${agentId}`))
       console.log(chalk.gray('─'.repeat(30)))
       console.log(`📊 Actions: ${completedActions} completed, ${failedActions} failed`)
       console.log(
@@ -238,7 +238,7 @@ export class AgentStreamManager extends EventEmitter {
       console.log(chalk.yellow('Recent Events:'))
       recentEvents.forEach((event) => {
         const icon =
-          event.type === 'result' ? '✅' : event.type === 'error' ? '❌' : event.type === 'executing' ? '⚡' : '•'
+          event.type === 'result' ? '✓' : event.type === 'error' ? '❌' : event.type === 'executing' ? '⚡' : '•'
         console.log(`  ${icon} ${event.message}`)
       })
     })
@@ -308,7 +308,7 @@ export class AgentStreamManager extends EventEmitter {
     const averageActionDuration =
       completedActions.length > 0
         ? completedActions.reduce((sum, action) => sum + (action.endTime!.getTime() - action.startTime.getTime()), 0) /
-          completedActions.length
+        completedActions.length
         : 0
 
     return {

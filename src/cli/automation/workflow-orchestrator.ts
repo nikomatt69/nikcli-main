@@ -88,7 +88,7 @@ export class WorkflowOrchestrator {
       // Launch the specified agent
       const agent = await agentFactory.launchAgent(agentId)
 
-      CliUI.logInfo(`🤖 Using agent: ${agent.id} (${agent.specialization})`)
+      CliUI.logInfo(`🔌 Using agent: ${agent.id} (${agent.specialization})`)
 
       // Execute the workflow chain
       const result = await this.executeChain(chainId, initialParams)
@@ -199,8 +199,8 @@ export class WorkflowOrchestrator {
         results.push(result)
         context.previousResults.push(result)
 
-        logs.push(`✅ Step ${step.id} completed successfully`)
-        CliUI.logSuccess(`✅ Step completed: ${step.toolName}`)
+        logs.push(`✓ Step ${step.id} completed successfully`)
+        CliUI.logSuccess(`✓ Step completed: ${step.toolName}`)
 
         // Handle dynamic step generation
         if (step.onSuccess) {
@@ -218,7 +218,7 @@ export class WorkflowOrchestrator {
         // Handle retry logic
         const retryCount = step.retryCount || 0
         if (retryCount > 0) {
-          CliUI.logWarning(`🔄 Retrying step ${step.id} (${retryCount} attempts remaining)`)
+          CliUI.logWarning(`⚡︎ Retrying step ${step.id} (${retryCount} attempts remaining)`)
           step.retryCount = retryCount - 1
           i-- // Retry current step
           continue
@@ -240,7 +240,7 @@ export class WorkflowOrchestrator {
       }
     }
 
-    const duration = new Date().getTime() - context.startTime.getTime()
+    const duration = Date.now() - context.startTime.getTime()
 
     return {
       success: errors.length === 0,
@@ -294,7 +294,7 @@ export class WorkflowOrchestrator {
           // Accesso a risultato precedente: $result[0].filePath
           const match = varName.match(/result\[(\d+)\]\.(.+)/)
           if (match) {
-            const index = parseInt(match[1])
+            const index = parseInt(match[1], 10)
             const property = match[2]
             resolved[key] = context.previousResults[index]?.[property]
           }
@@ -371,7 +371,7 @@ export class WorkflowOrchestrator {
   /**
    * Richiede approvazione umana per step critici
    */
-  private async requestHumanApproval(step: WorkflowStep, context: WorkflowContext): Promise<boolean> {
+  private async requestHumanApproval(step: WorkflowStep, _context: WorkflowContext): Promise<boolean> {
     CliUI.logWarning(`🚨 Human approval required for step: ${step.id}`)
     CliUI.logInfo(`Tool: ${step.toolName}`)
     CliUI.logInfo(`Parameters: ${JSON.stringify(step.parameters, null, 2)}`)

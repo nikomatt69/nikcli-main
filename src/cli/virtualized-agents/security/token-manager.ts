@@ -222,7 +222,7 @@ export class TokenManager extends EventEmitter {
         maxTokensPerRequest: payload.maxTokensPerRequest,
       })
 
-      CliUI.logInfo(`🔄 Token refreshed for agent ${payload.agentId}`)
+      CliUI.logInfo(`⚡︎ Token refreshed for agent ${payload.agentId}`)
       this.emit('token:refreshed', { agentId: payload.agentId })
 
       return newToken

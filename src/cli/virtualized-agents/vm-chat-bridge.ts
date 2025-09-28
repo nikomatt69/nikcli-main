@@ -1,6 +1,5 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
-import { structuredLogger } from '../utils/structured-logger'
 import type { SecureVirtualizedAgent } from './secure-vm-agent'
 import {
   type VMBridgeResponse,
@@ -50,7 +49,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
     }
 
     try {
-      console.log(chalk.blue('🌉 Initializing VM Chat Bridge...'))
+
 
       // Ensure WebSocket server is running
       if (!vmWebSocketServer.getServerStats().isRunning) {
@@ -58,7 +57,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       }
 
       this.isInitialized = true
-      console.log(chalk.green('✅ VM Chat Bridge initialized successfully'))
+      console.log(chalk.green('✓ VM Chat Bridge initialized successfully'))
 
       this.emit('bridge_initialized')
     } catch (error: any) {
@@ -81,7 +80,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
         console.log(chalk.green(`📝 Created session ${session.sessionId} for VM agent ${agent.id}`))
       }
 
-      console.log(chalk.cyan(`🤖 Registered VM agent ${agent.id} with bridge`))
+      console.log(chalk.cyan(`🔌 Registered VM agent ${agent.id} with bridge`))
       this.updateStats()
     } catch (error: any) {
       console.error(chalk.red(`❌ Failed to register VM agent ${agent.id}: ${error.message}`))
@@ -104,7 +103,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       }
 
       this.activeAgents.delete(agentId)
-      console.log(chalk.yellow(`🤖 Unregistered VM agent ${agentId} from bridge`))
+      console.log(chalk.yellow(`🔌 Unregistered VM agent ${agentId} from bridge`))
       this.updateStats()
     } catch (error: any) {
       console.error(chalk.red(`❌ Failed to unregister VM agent ${agentId}: ${error.message}`))
@@ -114,7 +113,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
   /**
    * Invia messaggio da VM mode chat a specifico agente VM
    */
-  async sendMessageToAgent(agentId: string, message: string, options?: VMChatOptions): Promise<VMBridgeResponse> {
+  async sendMessageToAgent(agentId: string, message: string, _options?: VMChatOptions): Promise<VMBridgeResponse> {
     const startTime = Date.now()
 
     try {
@@ -187,7 +186,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
   async *sendMessageToAgentStreaming(
     agentId: string,
     message: string,
-    options?: VMChatOptions
+    _options?: VMChatOptions
   ): AsyncGenerator<VMStreamingChunk, VMBridgeResponse, unknown> {
     const startTime = Date.now()
 
@@ -342,7 +341,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       }
 
       this.isInitialized = false
-      console.log(chalk.green('✅ VM Chat Bridge shutdown complete'))
+      console.log(chalk.green('✓ VM Chat Bridge shutdown complete'))
     } catch (error: any) {
       console.error(chalk.red(`❌ Error during bridge shutdown: ${error.message}`))
     }

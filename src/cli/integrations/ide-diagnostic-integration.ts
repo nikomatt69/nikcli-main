@@ -295,7 +295,7 @@ export class IDEDiagnosticIntegration {
   /**
    * Subscribe to diagnostic events for real-time updates
    */
-  subscribeToDiagnosticEvents(callback: (event: any) => void): () => void {
+  subscribeToDiagnosticEvents(_callback: (event: any) => void): () => void {
     if (!this.isActive) {
       return () => {}
     }
@@ -310,7 +310,7 @@ export class IDEDiagnosticIntegration {
         })
 
         if (response.result?.subscribed) {
-          console.log(chalk.green('✅ Subscribed to IDE diagnostic events'))
+          console.log(chalk.green('✓ Subscribed to IDE diagnostic events'))
           // Note: Real-time events would require WebSocket or polling
           // For now, this confirms subscription capability
         }
@@ -443,7 +443,7 @@ export class IDEDiagnosticIntegration {
       recommendations.push('Fix failing tests before deployment')
     }
 
-    if (context.vcsStatus && context.vcsStatus.hasChanges) {
+    if (context.vcsStatus?.hasChanges) {
       if (context.vcsStatus.unstagedFiles > 0) {
         recommendations.push('Stage and commit your changes')
       }

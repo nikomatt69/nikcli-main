@@ -16,17 +16,17 @@ export class QuietCacheLogger {
 
   static logCacheSave(tokensSaved?: number): void {
     if (tokensSaved && tokensSaved > 0) {
-      this.totalSavings += tokensSaved
-      process.stdout.write(this.CACHE_ICON)
+      QuietCacheLogger.totalSavings += tokensSaved
+      process.stdout.write(QuietCacheLogger.CACHE_ICON)
     }
   }
 
   static getTotalSavings(): number {
-    return this.totalSavings
+    return QuietCacheLogger.totalSavings
   }
 
   static resetSavings(): void {
-    this.totalSavings = 0
+    QuietCacheLogger.totalSavings = 0
   }
 }
 
@@ -54,7 +54,6 @@ export interface TokenOptimizationConfig {
 export class TokenOptimizer {
   private config: TokenOptimizationConfig
   private compressionDictionary: Map<string, string> = new Map()
-  private usagePatterns: Map<string, number> = new Map()
 
   constructor(
     config: TokenOptimizationConfig = {
@@ -159,7 +158,7 @@ export class TokenOptimizer {
   private estimateTokens(text: string): number {
     if (!text) return 0
     const words = text.split(/\s+/).filter((word) => word.length > 0)
-    const specialChars = (text.match(/[{}[\](),.;:!?'\"]/g) || []).length
+    const specialChars = (text.match(/[{}[\](),.;:!?'"]/g) || []).length
     return Math.ceil((words.length + specialChars * 0.5) * 1.3)
   }
 
@@ -214,7 +213,7 @@ export class TokenOptimizer {
     }
 
     if (condensed.length > targetChars) {
-      condensed = condensed.slice(0, Math.max(0, targetChars - 3)) + '...'
+      condensed = `${condensed.slice(0, Math.max(0, targetChars - 3))}...`
     }
     return condensed
   }

@@ -111,7 +111,7 @@ export class EnhancedSessionManager extends EventEmitter {
     const isMobileTerminal = mobileTerminals.some((mobile) => termProgram.includes(mobile))
 
     // SSH from mobile device patterns
-    const sshClient = process.env.SSH_CLIENT || ''
+    const _sshClient = process.env.SSH_CLIENT || ''
     const isMobileSSH = this.sessionType === 'ssh' && isMobileScreen
 
     return isMobileScreen || isMobileTerminal || isMobileSSH
@@ -158,7 +158,7 @@ export class EnhancedSessionManager extends EventEmitter {
 
       // Create tmux session
       execSync(`tmux new-session -d -s "${tmuxSessionId}"`, { stdio: 'ignore' })
-      console.log(chalk.green(`✅ tmux session created: ${tmuxSessionId}`))
+      console.log(chalk.green(`✓ tmux session created: ${tmuxSessionId}`))
 
       return tmuxSessionId
     } catch (error: any) {
@@ -498,7 +498,7 @@ export class EnhancedSessionManager extends EventEmitter {
 
       if (options?.tags && options.tags.length > 0) {
         sessionList = sessionList.filter((session) =>
-          session.metadata?.tags?.some((tag) => options.tags!.includes(tag))
+          session.metadata?.tags?.some((tag) => options.tags?.includes(tag))
         )
       }
 
@@ -515,7 +515,6 @@ export class EnhancedSessionManager extends EventEmitter {
             aVal = new Date(a.createdAt).getTime()
             bVal = new Date(b.createdAt).getTime()
             break
-          case 'updatedAt':
           default:
             aVal = new Date(a.updatedAt).getTime()
             bVal = new Date(b.updatedAt).getTime()
@@ -608,7 +607,7 @@ export class EnhancedSessionManager extends EventEmitter {
         }
       }
 
-      console.log(chalk.green(`✅ Sync complete: ${synced} synced, ${conflicts} conflicts, ${errors} errors`))
+      console.log(chalk.green(`✓ Sync complete: ${synced} synced, ${conflicts} conflicts, ${errors} errors`))
 
       return { synced, conflicts, errors }
     } catch (error: any) {

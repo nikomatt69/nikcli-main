@@ -42,7 +42,7 @@ export class AgentRouter {
       successRate: 0,
     })
 
-    CliUI.logInfo(`🤖 Agent registered: ${agentId} (${agent.capabilities.join(', ')})`)
+    CliUI.logInfo(`🔌 Agent registered: ${agentId} (${agent.capabilities.join(', ')})`)
 
     // Publish agent registration event
     this.eventBus.publish(EventTypes.AGENT_STARTED, {
@@ -62,7 +62,7 @@ export class AgentRouter {
     this.agents.delete(agentId)
     this.routingMetrics.agentUtilization.delete(agentId)
 
-    CliUI.logInfo(`🤖 Agent unregistered: ${agentId}`)
+    CliUI.logInfo(`🔌 Agent unregistered: ${agentId}`)
 
     // Publish agent stop event
     this.eventBus.publish(EventTypes.AGENT_STOPPED, { agentId })
@@ -113,7 +113,7 @@ export class AgentRouter {
       routeExecution.endTime = new Date()
       routeExecution.result = result
 
-      CliUI.logSuccess(`✅ Task routed to ${selectedAgent.agentId} in ${routingTime}ms`)
+      CliUI.logSuccess(`✓ Task routed to ${selectedAgent.agentId} in ${routingTime}ms`)
 
       return {
         success: true,
@@ -271,7 +271,7 @@ export class AgentRouter {
   /**
    * Score an agent for a specific task
    */
-  private async scoreAgent(agent: AgentInstance, task: AgentTask, analysis: TaskAnalysis): Promise<number> {
+  private async scoreAgent(agent: AgentInstance, _task: AgentTask, analysis: TaskAnalysis): Promise<number> {
     let score = 0
 
     // Capability matching (40% of score)
@@ -356,14 +356,14 @@ export class AgentRouter {
   private setupEventListeners(): void {
     // Listen for system events
     this.eventBus.subscribe(EventTypes.SYSTEM_SHUTDOWN, () => {
-      CliUI.logInfo('🔄 AgentRouter shutting down...')
+      CliUI.logInfo('⚡︎ AgentRouter shutting down...')
       this.cleanup()
     })
 
     // Listen for agent errors
     this.eventBus.subscribe(EventTypes.AGENT_ERROR, (event) => {
       const { agentId, error } = event.data
-      CliUI.logError(`🤖 Agent ${agentId} error: ${error}`)
+      CliUI.logError(`🔌 Agent ${agentId} error: ${error}`)
 
       // Mark agent as unavailable temporarily
       const agent = this.agents.get(agentId)
@@ -496,9 +496,9 @@ export class AgentRouter {
 
   private generateReasoningForScore(
     agent: AgentInstance,
-    task: AgentTask,
+    _task: AgentTask,
     analysis: TaskAnalysis,
-    score: number
+    _score: number
   ): string {
     const reasons: string[] = []
 

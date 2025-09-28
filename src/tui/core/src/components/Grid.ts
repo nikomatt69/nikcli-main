@@ -14,7 +14,6 @@ export class Grid implements Component<Widgets.BoxElement> {
   theme: any
   destroy: () => void
   private baseComponent: any
-  private props: GridProps
   private columns: number
   private rows: number
   private gap: number

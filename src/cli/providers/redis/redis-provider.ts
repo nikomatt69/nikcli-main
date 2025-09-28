@@ -112,7 +112,7 @@ export class RedisProvider extends EventEmitter {
       await this.client.ping()
       this.isConnected = true
       this.connectionAttempts = 0
-      console.log(chalk.green('✅ Upstash Redis connected successfully'))
+      console.log(chalk.green('✓ Upstash Redis connected successfully'))
       this.emit('connected')
       this.emit('ready')
     } catch (error) {
@@ -596,7 +596,7 @@ export class RedisProvider extends EventEmitter {
 
       if (keys.length > 0) {
         await this.client.del(...keys)
-        console.log(chalk.green(`✅ Cleared ${keys.length} vector cache entries`))
+        console.log(chalk.green(`✓ Cleared ${keys.length} vector cache entries`))
       }
 
       return true

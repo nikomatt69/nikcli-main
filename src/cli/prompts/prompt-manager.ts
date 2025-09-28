@@ -345,7 +345,7 @@ export class PromptManager {
   /**
    * Intelligently combine base prompt with output style prompt
    */
-  private combinePrompts(basePrompt: string, outputStylePrompt: string, context: PromptContext): string {
+  private combinePrompts(basePrompt: string, outputStylePrompt: string, _context: PromptContext): string {
     // If base prompt is minimal (like default prompts), let output style take precedence
     if (basePrompt.length < 200) {
       return `${outputStylePrompt}\n\n${basePrompt}`

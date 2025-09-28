@@ -35,7 +35,7 @@ export class BackgroundAgentsWebSocketServer {
   }
 
   private setupWebSocketServer(): void {
-    this.wss.on('connection', (ws: WebSocket, request) => {
+    this.wss.on('connection', (ws: WebSocket, _request) => {
       const clientId = this.generateClientId()
       this.clients.set(clientId, ws)
 

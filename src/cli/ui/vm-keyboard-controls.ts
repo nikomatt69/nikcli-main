@@ -24,6 +24,7 @@ export class VMKeyboardControls extends EventEmitter {
   private selectedAgentIndex = 0
   private originalRawMode: boolean
 
+
   // Panel states
   private currentPanel: PanelType | null = null
   private panelContent = ''
@@ -126,7 +127,7 @@ export class VMKeyboardControls extends EventEmitter {
   private handleKeypress(str: string, key: any): void {
     try {
       // Handle special key combinations first
-      if (key && key.ctrl) {
+      if (key?.ctrl) {
         this.handleCtrlKeys(key)
         return
       }
@@ -229,7 +230,7 @@ export class VMKeyboardControls extends EventEmitter {
         break
       default:
         if (command.startsWith('select_f')) {
-          const fNum = parseInt(command.replace('select_f', ''))
+          const fNum = parseInt(command.replace('select_f', ''), 10)
           this.selectAgentByFunction(fNum)
         }
     }
@@ -264,7 +265,7 @@ export class VMKeyboardControls extends EventEmitter {
     this.currentMode = 'normal'
 
     console.clear()
-    console.log(chalk.green('✅ Returned to main chat stream'))
+    console.log(chalk.green('✓ Returned to main chat stream'))
 
     this.emit('mode:changed', { mode: 'normal' })
   }
@@ -452,7 +453,7 @@ export class VMKeyboardControls extends EventEmitter {
   /**
    * Handle panel input
    */
-  private handlePanelInput(str: string, key: any): void {
+  private handlePanelInput(_str: string, _key: any): void {
     // Panel-specific input handling can be added here
     // For now, most commands are handled by the general command system
   }
@@ -477,7 +478,7 @@ export class VMKeyboardControls extends EventEmitter {
 
     const _originalHandler = process.stdin.listeners('keypress')[0]
 
-    const confirmHandler = (str: string, key: any) => {
+    const confirmHandler = (str: string, _key: any) => {
       if (str && str.toLowerCase() === 'y') {
         onConfirm()
       }

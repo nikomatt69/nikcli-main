@@ -74,7 +74,6 @@ export class Notification implements Component<Widgets.BoxElement> {
         this.el.style.border = { fg: 'red' }
         this.el.style.fg = 'red'
         break
-      case 'info':
       default:
         this.el.style.border = { fg: 'blue' }
         this.el.style.fg = 'blue'

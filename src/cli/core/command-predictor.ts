@@ -161,7 +161,7 @@ export class CommandPredictor {
   }
 
   /**
-   * 🔄 Get command suggestions for autocomplete
+   * ⚡︎ Get command suggestions for autocomplete
    */
   async getSuggestions(partialInput: string, limit: number = 10): Promise<string[]> {
     const predictions = await this.predictCommands(partialInput)
@@ -292,7 +292,7 @@ export class CommandPredictor {
     return predictions
   }
 
-  private predictFromPatterns(partialInput: string, context?: any): PredictionResult[] {
+  private predictFromPatterns(partialInput: string, _context?: any): PredictionResult[] {
     const predictions: PredictionResult[] = []
 
     this.commandPatterns.forEach((pattern) => {
@@ -348,7 +348,7 @@ export class CommandPredictor {
   }
 
   /**
-   * 🤖 AI-powered semantic predictions
+   * 🔌 AI-powered semantic predictions
    */
   private async predictFromAI(partialInput: string, context?: any): Promise<PredictionResult[]> {
     // Skip AI predictions for very short inputs
@@ -644,7 +644,7 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
       if (!commandGroups.has(pattern)) {
         commandGroups.set(pattern, [])
       }
-      commandGroups.get(pattern)!.push(entry.command)
+      commandGroups.get(pattern)?.push(entry.command)
     })
 
     commandGroups.forEach((commands, pattern) => {

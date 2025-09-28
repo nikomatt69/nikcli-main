@@ -97,13 +97,15 @@ export class VMSelector {
               return a.name.localeCompare(b.name)
             case 'created':
               return b.createdAt.getTime() - a.createdAt.getTime()
-            case 'activity':
+            case 'activity': {
               const aActivity = a.lastActivity?.getTime() || 0
               const bActivity = b.lastActivity?.getTime() || 0
               return bActivity - aActivity
-            case 'status':
+            }
+            case 'status': {
               const statusOrder = { running: 0, stopped: 1, error: 2 }
               return statusOrder[a.status] - statusOrder[b.status]
+            }
             default:
               return 0
           }
@@ -131,7 +133,7 @@ export class VMSelector {
 
     if (vms.length === 1 && !options.interactive) {
       this.selectedVM = vms[0]
-      console.log(chalk.green(`✅ Auto-selected VM: ${this.selectedVM.name}`))
+      console.log(chalk.green(`✓ Auto-selected VM: ${this.selectedVM.name}`))
       return this.selectedVM
     }
 
@@ -143,7 +145,7 @@ export class VMSelector {
     }))
 
     choices.push({
-      name: chalk.gray('🔄 Refresh VM list'),
+      name: chalk.gray('⚡︎ Refresh VM list'),
       value: 'refresh' as any,
       short: 'Refresh',
     })
@@ -181,7 +183,7 @@ export class VMSelector {
     }
 
     this.selectedVM = selectedVM
-    console.log(chalk.green(`✅ Selected VM: ${this.selectedVM!.name}`))
+    console.log(chalk.green(`✓ Selected VM: ${this.selectedVM?.name}`))
 
     // Initialize chat history for this VM
     if (!this.chatHistory.has(this.selectedVM!.id)) {
@@ -226,7 +228,7 @@ export class VMSelector {
    * Switch to different VM
    */
   async switchVM(): Promise<VMTarget | null> {
-    console.log(chalk.blue('🔄 Switching VM...'))
+    console.log(chalk.blue('⚡︎ Switching VM...'))
     return await this.selectVM({ interactive: true })
   }
 
@@ -309,7 +311,7 @@ export class VMSelector {
       this.chatHistory.set(vmId, [])
     }
 
-    this.chatHistory.get(vmId)!.push({
+    this.chatHistory.get(vmId)?.push({
       role,
       content,
       timestamp: new Date(),
@@ -614,13 +616,13 @@ export class VMSelector {
         const agent = agents.find((a) => a.getContainerId() === vm.id)
 
         if (agent) {
-          console.log(chalk.blue(`🤖 ${vm.name}: Sending...`))
+          console.log(chalk.blue(`🔌 ${vm.name}: Sending...`))
 
           // Use VM orchestrator for communication
           const response = await this.vmOrchestrator.sendMessageToAgent?.(vm.agentId, message)
 
           if (response?.success) {
-            console.log(chalk.green(`✅ ${vm.name}: Response received`))
+            console.log(chalk.green(`✓ ${vm.name}: Response received`))
             results.push({ vmId: vm.id, response: response.data, success: true })
           } else {
             console.log(chalk.red(`❌ ${vm.name}: ${response?.error || 'Failed'}`))
@@ -683,7 +685,7 @@ export class VMSelector {
         })
 
         if (result.stdout?.includes('alive')) {
-          console.log(chalk.green('✅ VM is responsive'))
+          console.log(chalk.green('✓ VM is responsive'))
           const sections = result.stdout.split('---')
           const processCount = sections[5]?.trim() || '0'
           console.log(chalk.gray(`  Active processes: ${processCount}`))
@@ -714,7 +716,7 @@ export class VMSelector {
     const warnings = healthResults.filter((r) => r.health === 'warning').length
     const critical = healthResults.filter((r) => r.health === 'critical').length
 
-    console.log(chalk.green(`✅ Healthy: ${healthy}`))
+    console.log(chalk.green(`✓ Healthy: ${healthy}`))
     console.log(chalk.yellow(`⚠️ Warnings: ${warnings}`))
     console.log(chalk.red(`❌ Critical: ${critical}`))
 
@@ -723,7 +725,7 @@ export class VMSelector {
       healthResults
         .filter((r) => r.health === 'critical')
         .forEach((result) => {
-          console.log(chalk.red(`  - ${result.vm}: ${result.status} ${result.error ? '(' + result.error + ')' : ''}`))
+          console.log(chalk.red(`  - ${result.vm}: ${result.status} ${result.error ? `(${result.error})` : ''}`))
         })
     }
   }
@@ -739,23 +741,12 @@ export class VMSelector {
 
     try {
       const chatHistory = this.getChatHistory(vmId)
-      const systemInfo = await this.getVMDetailedSystemInfo(vmId)
       const currentDir = await this.getCurrentWorkingDirectory(vmId)
-
-      const _backup = {
-        timestamp: new Date().toISOString(),
-        vmId,
-        containerInfo: vm,
-        chatHistory,
-        systemInfo,
-        currentDirectory: currentDir,
-        backupVersion: '1.0',
-      }
 
       const backupId = `vm-backup-${vmId.slice(0, 8)}-${Date.now()}`
 
       // In a real implementation, this would be saved to file or database
-      console.log(chalk.green(`✅ Backup created: ${backupId}`))
+      console.log(chalk.green(`✓ Backup created: ${backupId}`))
       console.log(chalk.gray(`Chat messages: ${chatHistory.length}`))
       console.log(chalk.gray(`Working directory: ${currentDir}`))
       console.log(chalk.gray(`System info: Available`))
@@ -863,5 +854,5 @@ export const vmSelector = new VMSelector(
 
 // Method to inject VM orchestrator
 export function initializeVMSelector(vmOrchestrator: VMOrchestrator): void {
-  ;(vmSelector as any).vmOrchestrator = vmOrchestrator
+  ; (vmSelector as any).vmOrchestrator = vmOrchestrator
 }

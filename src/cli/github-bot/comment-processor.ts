@@ -94,7 +94,7 @@ export class CommentProcessor {
     // Extract line numbers
     const lineMatches = Array.from(commentText.matchAll(this.lineNumberRegex))
     if (lineMatches.length > 0) {
-      context.lineNumbers = lineMatches.map((match) => parseInt(match[1], 10)).filter((n) => !isNaN(n))
+      context.lineNumbers = lineMatches.map((match) => parseInt(match[1], 10)).filter((n) => !Number.isNaN(n))
     }
 
     // Extract code blocks
@@ -310,7 +310,7 @@ export class CommentProcessor {
    * Generate usage help text
    */
   getUsageHelp(): string {
-    return `🤖 **NikCLI Usage Help**
+    return `🔌 **NikCLI Usage Help**
 
 **Available Commands:**
 • \`@nikcli fix [target]\` - Fix issues/errors in code

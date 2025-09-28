@@ -91,7 +91,7 @@ export class ChatInterface {
   }
 
   private showWelcome(): void {
-    const title = chalk.cyanBright('🤖 AI Coder CLI')
+    const title = chalk.cyanBright('🔌 AI Coder CLI')
     const modelInfo = modelProvider.getCurrentModelInfo()
 
     const welcomeText = `
@@ -137,7 +137,7 @@ ${chalk.gray('Type your message or use slash commands...')}
     chatManager.addMessage(input, 'user')
 
     try {
-      console.log(chalk.blue('\n🤖 '))
+      console.log(chalk.blue('\n🔌 '))
 
       this.isStreaming = true
       // Stream the response (through Streamdown adapter).

@@ -15,9 +15,9 @@ import type {
   AgentTask,
   AgentTaskResult,
 } from '../../types/types'
-import { logger } from '../../utils/logger'
+import { structuredLogger } from '../../utils/structured-logger'
 
-// 🧠 COGNITIVE ORCHESTRATION INTERFACES
+// ⚡︎ COGNITIVE ORCHESTRATION INTERFACES
 export interface TaskCognition {
   id: string
   originalTask: string
@@ -88,7 +88,7 @@ export interface AgentPerformanceMetrics {
 const _execAsync = promisify(exec)
 
 /**
- * 🧠 Universal Agent - Advanced Cognitive Orchestrator
+ * ⚡︎ Universal Agent - Advanced Cognitive Orchestrator
  * All-in-one enterprise agent with complete functionality + Intelligent Orchestration
  * Combines analysis, generation, review, optimization, React, backend, DevOps, and autonomous capabilities
  * Now featuring: Cognitive Task Understanding, Multi-Dimensional Agent Selection, Adaptive Supervision
@@ -184,9 +184,8 @@ export class UniversalAgent extends EventEmitter implements Agent {
     accuracy: 0,
   }
 
-  // 🧠 COGNITIVE ORCHESTRATION PROPERTIES
+  // ⚡︎ COGNITIVE ORCHESTRATION PROPERTIES
   private cognitiveMemory: TaskCognition[] = []
-  private agentPerformanceMetrics: Map<string, AgentPerformanceMetrics> = new Map()
   private activeOrchestrations: Map<string, OrchestrationPlan> = new Map()
   private learningDatabase: Map<string, number> = new Map()
   private orchestrationHistory: Array<{
@@ -200,7 +199,6 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
   // 🎯 PERFORMANCE OPTIMIZATION PROPERTIES
   private performanceMode: 'fast' | 'cognitive' | 'adaptive' = 'adaptive'
-  private taskComplexityThreshold: number = 0.7 // Above this -> full cognitive mode
   private baseAgentRouter?: any // Dynamic import to avoid circular deps
   private cacheCleaner: NodeJS.Timeout | null = null
 
@@ -253,11 +251,13 @@ export class UniversalAgent extends EventEmitter implements Agent {
       this.config = { ...this.config, ...context.configuration }
     }
 
-    await logger.logAgent('info', this.id, 'Universal Agent initializing', {
-      workingDirectory: this.workingDirectory,
-      capabilities: this.capabilities.length,
-      permissions: Object.keys(this.config.permissions).length,
-    })
+    await structuredLogger.info(
+      'Universal Agent initializing',
+      JSON.stringify({
+        workingDirectory: this.workingDirectory,
+        agentId: this.id,
+      })
+    )
 
     // Load guidance files
     await this.loadGuidanceFiles()
@@ -267,16 +267,19 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
     this.status = 'ready'
 
-    await logger.logAgent('info', this.id, 'Universal Agent initialized successfully', {
-      status: this.status,
-      guidanceLoaded: this.guidance.length > 0,
-    })
+    await structuredLogger.info(
+      'Universal Agent initialized successfully',
+      JSON.stringify({
+        status: this.status,
+        guidanceLoaded: this.guidance.length > 0,
+      })
+    )
   }
 
-  // ====================== 🧠 COGNITIVE ORCHESTRATION METHODS ======================
+  // ====================== ⚡︎ COGNITIVE ORCHESTRATION METHODS ======================
 
   /**
-   * 🧠 COGNITIVE TASK PARSING - Advanced NLP Understanding
+   * ⚡︎ COGNITIVE TASK PARSING - Advanced NLP Understanding
    * Converts natural language task into structured cognitive understanding
    */
   async parseTaskWithCognition(taskDescription: string): Promise<TaskCognition> {
@@ -394,16 +397,34 @@ export class UniversalAgent extends EventEmitter implements Agent {
     this.emit('task_execution_started', { task })
 
     try {
-      // Step 1: 🧠 Cognitive Understanding
-      await logger.logTask('info', task.id, this.id, '🧠 Starting cognitive analysis...')
+      // Step 1: ⚡︎ Cognitive Understanding
+      await structuredLogger.info(
+        '⚡︎ Starting cognitive analysis...',
+        JSON.stringify({
+          taskId: task.id,
+          agentId: this.id,
+        })
+      )
       const cognition = await this.parseTaskWithCognition(task.description || task.title)
 
       // Step 2: 🎯 Strategic Planning
-      await logger.logTask('info', task.id, this.id, '🎯 Creating orchestration plan...')
+      await structuredLogger.info(
+        '🎯 Creating orchestration plan...',
+        JSON.stringify({
+          taskId: task.id,
+          agentId: this.id,
+        })
+      )
       const plan = await this.createOrchestrationPlan(cognition)
 
       // Step 3: 🚀 Adaptive Execution
-      await logger.logTask('info', task.id, this.id, '🚀 Starting adaptive execution...')
+      await structuredLogger.info(
+        '🚀 Starting adaptive execution...',
+        JSON.stringify({
+          taskId: task.id,
+          agentId: this.id,
+        })
+      )
       const result = await this.executeWithAdaptiveSupervision(task, cognition, plan)
 
       // Step 4: 📊 Learning & Optimization
@@ -425,9 +446,14 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
       this.emit('task_execution_error', { task, error: error.message })
 
-      await logger.logTask('error', task.id, this.id, 'Task execution failed', {
-        error: error.message,
-      })
+      await structuredLogger.info(
+        'Task execution failed',
+        JSON.stringify({
+          taskId: task.id,
+          agentId: this.id,
+          error: error.message,
+        })
+      )
 
       return errorResult
     } finally {
@@ -443,11 +469,16 @@ export class UniversalAgent extends EventEmitter implements Agent {
     this.currentTasks++
     this.status = 'busy'
 
-    await logger.logTask('info', task.id, this.id, 'Starting task execution', {
-      title: task.title,
-      type: task.type,
-      capabilities: task.requiredCapabilities,
-    })
+    await structuredLogger.info(
+      'Starting task execution',
+      JSON.stringify({
+        taskId: task.id,
+        agentId: this.id,
+        title: task.title,
+        type: task.type,
+        capabilities: task.requiredCapabilities,
+      })
+    )
 
     try {
       task.status = 'in_progress'
@@ -535,11 +566,16 @@ export class UniversalAgent extends EventEmitter implements Agent {
       task.status = 'completed'
       task.completedAt = new Date()
 
-      await logger.logTask('info', task.id, this.id, 'Task completed successfully', {
-        duration,
-        approach: approach.category,
-        outputLength: result.output?.length || 0,
-      })
+      await structuredLogger.info(
+        'Task completed successfully',
+        JSON.stringify({
+          taskId: task.id,
+          agentId: this.id,
+          duration,
+          approach: approach.category,
+          outputLength: result.output?.length || 0,
+        })
+      )
 
       return taskResult
     } catch (error: any) {
@@ -548,10 +584,15 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
       this.updateMetrics(false, duration)
 
-      await logger.logTask('error', task.id, this.id, 'Task execution failed', {
-        error: error.message,
-        duration,
-      })
+      await structuredLogger.error(
+        'Task execution failed',
+        JSON.stringify({
+          taskId: task.id,
+          agentId: this.id,
+          error: error.message,
+          duration,
+        })
+      )
 
       task.status = 'failed'
       task.completedAt = new Date()
@@ -595,16 +636,16 @@ export class UniversalAgent extends EventEmitter implements Agent {
   async cleanup(): Promise<void> {
     this.status = 'offline'
 
-    await logger.logAgent('info', this.id, 'Universal Agent cleanup started')
+    await structuredLogger.info('Universal Agent cleanup started', 'Universal Agent')
 
     // Save any pending state
     if (this.currentTasks > 0) {
-      await logger.logAgent('warn', this.id, `Cleanup called with ${this.currentTasks} tasks still running`)
+      await structuredLogger.warning(`Cleanup called with ${this.currentTasks} tasks still running`, 'Universal Agent')
     }
 
     this.status = 'offline'
 
-    await logger.logAgent('info', this.id, 'Universal Agent cleanup completed')
+    await structuredLogger.info('Universal Agent cleanup completed', 'Universal Agent')
   }
 
   // Additional required methods for Agent interface
@@ -792,11 +833,11 @@ export class UniversalAgent extends EventEmitter implements Agent {
 - **Standards**: Industry best practices
 
 ### Review Criteria
-1. **Functionality**: ✅ Code works as intended
-2. **Readability**: ✅ Code is clear and well-documented
+1. **Functionality**: ✓ Code works as intended
+2. **Readability**: ✓ Code is clear and well-documented
 3. **Performance**: ⚠️  Minor optimization opportunities
-4. **Security**: ✅ No security vulnerabilities detected
-5. **Maintainability**: ✅ Code is maintainable and extensible
+4. **Security**: ✓ No security vulnerabilities detected
+5. **Maintainability**: ✓ Code is maintainable and extensible
 
 ### Detailed Findings
 - **Strengths**: Well-structured, follows conventions
@@ -805,7 +846,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
 - **Suggestions**: Consider adding more comprehensive error handling
 
 ### Approval Status
-✅ **APPROVED** with minor suggestions
+✓ **APPROVED** with minor suggestions
 
 ### Action Items
 1. Address performance optimization opportunities
@@ -1222,7 +1263,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
         if (deps.express) this.capabilities.push('express-detected')
         if (deps.typescript) this.capabilities.push('typescript-detected')
       } catch (_error) {
-        await logger.logAgent('debug', this.id, 'Could not parse package.json')
+        await structuredLogger.info('Could not parse package.json', 'Universal Agent')
       }
     }
   }
@@ -1247,12 +1288,9 @@ export class UniversalAgent extends EventEmitter implements Agent {
       const insights = await lspManager.getWorkspaceInsights(this.workingDirectory)
 
       if (insights.diagnostics.errors > 0) {
-        await logger.logTask(
-          'warn',
-          task.id,
-          this.id,
+        await structuredLogger.warning(
           `LSP found ${insights.diagnostics.errors} errors in workspace`,
-          insights
+          'Universal Agent'
         )
       }
 
@@ -1271,21 +1309,21 @@ export class UniversalAgent extends EventEmitter implements Agent {
       const memoryStats = this.contextSystem.getMemoryStats()
 
       if (memoryStats.totalFiles > 0) {
-        logger.logTask('info', task.id, this.id, `Context loaded: ${memoryStats.totalFiles} files in memory`)
+        structuredLogger.info(`Context loaded: ${memoryStats.totalFiles} files in memory`, 'Universal Agent')
       }
     } catch (error: any) {
-      await logger.logTask('warn', task.id, this.id, `LSP/Context analysis failed: ${error.message}`)
+      await structuredLogger.warning(`LSP/Context analysis failed: ${error.message}`, 'Universal Agent')
     }
   }
 
-  // ====================== 🧠 COGNITIVE HELPER METHODS ======================
+  // ====================== ⚡︎ COGNITIVE HELPER METHODS ======================
 
   private normalizeTask(task: string): string {
     return task
       .toLowerCase()
       .trim()
       .replace(/\s+/g, ' ')
-      .replace(/[^\w\s\-\.\/]/g, ' ')
+      .replace(/[^\w\s\-./]/g, ' ')
       .replace(/\s+/g, ' ')
   }
 
@@ -1340,7 +1378,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
     }
   }
 
-  private extractEntities(task: string, intent: TaskCognition['intent']): TaskCognition['entities'] {
+  private extractEntities(task: string, _intent: TaskCognition['intent']): TaskCognition['entities'] {
     const entities: TaskCognition['entities'] = []
 
     // File patterns
@@ -1377,7 +1415,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
     return entities
   }
 
-  private analyzeDependencies(task: string, entities: TaskCognition['entities']): string[] {
+  private analyzeDependencies(task: string, _entities: TaskCognition['entities']): string[] {
     const dependencies: string[] = []
 
     // Framework dependencies
@@ -1485,8 +1523,8 @@ export class UniversalAgent extends EventEmitter implements Agent {
   }
 
   private suggestOptimalAgents(
-    intent: TaskCognition['intent'],
-    entities: TaskCognition['entities'],
+    _intent: TaskCognition['intent'],
+    _entities: TaskCognition['entities'],
     capabilities: string[]
   ): string[] {
     const suggestedAgents: string[] = ['universal-agent'] // Always include self
@@ -1511,7 +1549,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
   private assessRiskLevel(
     intent: TaskCognition['intent'],
     entities: TaskCognition['entities'],
-    dependencies: string[]
+    _dependencies: string[]
   ): 'low' | 'medium' | 'high' {
     let riskScore = 0
 
@@ -1555,7 +1593,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
   private selectOrchestrationStrategy(
     cognition: TaskCognition,
-    requirements: OrchestrationPlan['resourceRequirements']
+    _requirements: OrchestrationPlan['resourceRequirements']
   ): OrchestrationPlan['strategy'] {
     if (cognition.estimatedComplexity <= 3) return 'sequential'
     if (cognition.estimatedComplexity <= 6) return 'parallel'
@@ -1565,7 +1603,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
   private createExecutionPhases(
     cognition: TaskCognition,
-    strategy: OrchestrationPlan['strategy']
+    _strategy: OrchestrationPlan['strategy']
   ): OrchestrationPhase[] {
     const phases: OrchestrationPhase[] = []
 
@@ -1613,7 +1651,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
     return phases
   }
 
-  private estimateExecutionDuration(cognition: TaskCognition, phases: OrchestrationPhase[]): number {
+  private estimateExecutionDuration(_cognition: TaskCognition, phases: OrchestrationPhase[]): number {
     return phases.reduce((total, phase) => total + phase.estimatedDuration, 0)
   }
 
@@ -1640,12 +1678,15 @@ export class UniversalAgent extends EventEmitter implements Agent {
     plan: OrchestrationPlan
   ): Promise<AgentTaskResult> {
     // For now, delegate to existing executeTask logic but with enhanced logging
-    await logger.logTask('info', task.id, this.id, '🧠 Using cognitive orchestration', {
-      cognition: cognition.id,
-      plan: plan.id,
-      strategy: plan.strategy,
-      estimatedDuration: plan.estimatedDuration,
-    })
+    await structuredLogger.info(
+      '⚡︎ Using cognitive orchestration',
+      JSON.stringify({
+        cognition: cognition.id,
+        plan: plan.id,
+        strategy: plan.strategy,
+        estimatedDuration: plan.estimatedDuration,
+      })
+    )
 
     // Use the original executeTask but with enhanced context
     const originalMethod = Object.getPrototypeOf(this).executeTask
@@ -1677,11 +1718,16 @@ export class UniversalAgent extends EventEmitter implements Agent {
     // Remove from active orchestrations
     this.activeOrchestrations.delete(plan.id)
 
-    await logger.logTask('info', result.taskId, this.id, '📊 Orchestration outcome recorded', {
-      success: outcome.success,
-      duration: outcome.duration,
-      strategy: plan.strategy,
-    })
+    await structuredLogger.info(
+      '📊 Orchestration outcome recorded',
+      JSON.stringify({
+        taskId: result.taskId,
+        agentId: this.id,
+        success: outcome.success,
+        duration: outcome.duration,
+        strategy: plan.strategy,
+      })
+    )
   }
 
   // ====================== 🔧 UTILITY HELPER METHODS ======================
@@ -1881,73 +1927,6 @@ export class UniversalAgent extends EventEmitter implements Agent {
       this.baseAgentRouter.registerAgent('autonomous-coder', new AutonomousCoder(this.workingDirectory))
     } catch (error) {
       console.log('Failed to setup BaseAgent integration:', error)
-    }
-  }
-
-  /**
-   * 🚀 Setup performance optimizations
-   */
-  private setupPerformanceOptimizations(): void {
-    // Memory cleanup every 10 minutes
-    this.cacheCleaner = setInterval(
-      () => {
-        this.cleanupMemory()
-      },
-      10 * 60 * 1000
-    )
-
-    // Adaptive performance mode based on system load
-    setInterval(() => {
-      this.adjustPerformanceMode()
-    }, 30 * 1000)
-  }
-
-  /**
-   * 🧹 Clean up memory to prevent leaks
-   */
-  private cleanupMemory(): void {
-    const maxCognitiveMemory = 50
-    const maxOrchestrationHistory = 30
-
-    // Limit cognitive memory
-    if (this.cognitiveMemory.length > maxCognitiveMemory) {
-      this.cognitiveMemory = this.cognitiveMemory.slice(-maxCognitiveMemory)
-    }
-
-    // Limit orchestration history
-    if (this.orchestrationHistory.length > maxOrchestrationHistory) {
-      this.orchestrationHistory = this.orchestrationHistory.slice(-maxOrchestrationHistory)
-    }
-
-    // Clear completed orchestrations
-    for (const [id, plan] of this.activeOrchestrations.entries()) {
-      if (plan.estimatedDuration < Date.now() - 3600000) {
-        // 1 hour old
-        this.activeOrchestrations.delete(id)
-      }
-    }
-
-    console.log(
-      `🧹 Memory cleanup: ${this.cognitiveMemory.length} cognitions, ${this.orchestrationHistory.length} history`
-    )
-  }
-
-  /**
-   * ⚡ Adjust performance mode based on system conditions
-   */
-  private adjustPerformanceMode(): void {
-    const currentLoad = this.currentTasks
-    const memoryUsage = process.memoryUsage().heapUsed / 1024 / 1024 // MB
-
-    if (currentLoad > 2 || memoryUsage > 200) {
-      this.performanceMode = 'fast'
-      this.taskComplexityThreshold = 0.8 // Higher threshold = more delegation
-    } else if (currentLoad === 0 && memoryUsage < 100) {
-      this.performanceMode = 'cognitive'
-      this.taskComplexityThreshold = 0.3 // Lower threshold = less delegation
-    } else {
-      this.performanceMode = 'adaptive'
-      this.taskComplexityThreshold = 0.7 // Balanced
     }
   }
 

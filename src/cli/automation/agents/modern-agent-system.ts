@@ -42,7 +42,7 @@ export class ModernAgent {
     }
 
     try {
-      console.log(chalk.blue(`🤖 ${this.name} starting task: ${task}`))
+      console.log(chalk.blue(`🔌 ${this.name} starting task: ${task}`))
 
       const messages: CoreMessage[] = [
         {
@@ -61,7 +61,7 @@ export class ModernAgent {
       execution.endTime = new Date()
       execution.result = result
 
-      console.log(chalk.green(`✅ ${this.name} completed successfully`))
+      console.log(chalk.green(`✓ ${this.name} completed successfully`))
       return execution
     } catch (error: any) {
       execution.status = 'failed'

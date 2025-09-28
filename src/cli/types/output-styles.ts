@@ -287,7 +287,7 @@ export class OutputStyleUtils {
    * Compares two styles by verbosity
    */
   static compareVerbosity(style1: OutputStyle, style2: OutputStyle): number {
-    return this.getVerbosityLevel(style1) - this.getVerbosityLevel(style2)
+    return OutputStyleUtils.getVerbosityLevel(style1) - OutputStyleUtils.getVerbosityLevel(style2)
   }
 }
 

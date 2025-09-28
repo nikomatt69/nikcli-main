@@ -37,7 +37,7 @@ targets.forEach((target) => {
 
     // Aggiungi estensione .exe per Windows
     if (target.includes('win')) {
-      const exePath = outputPath + '.exe'
+      const exePath = `${outputPath}.exe`
       if (fs.existsSync(outputPath)) {
         fs.renameSync(outputPath, exePath)
         console.log(`✅ Built: ${exePath}`)

@@ -93,7 +93,7 @@ export class InputQueue {
 
     try {
       advancedUI.logInfo(
-        `🔄 Processing queued input: ${nextInput.input.substring(0, 30)}${nextInput.input.length > 30 ? '...' : ''}`
+        `⚡︎ Processing queued input: ${nextInput.input.substring(0, 30)}${nextInput.input.length > 30 ? '...' : ''}`
       )
 
       // Timeout per evitare blocchi
@@ -105,7 +105,7 @@ export class InputQueue {
       await this.processingPromise
 
       advancedUI.logSuccess(
-        `✅ Queued input processed: ${nextInput.input.substring(0, 30)}${nextInput.input.length > 30 ? '...' : ''}`
+        `✓ Queued input processed: ${nextInput.input.substring(0, 30)}${nextInput.input.length > 30 ? '...' : ''}`
       )
 
       return nextInput
@@ -115,7 +115,7 @@ export class InputQueue {
       // Rimetti l'input in coda se è un errore temporaneo
       if (error.message.includes('timeout') || error.message.includes('network')) {
         this.queue.unshift(nextInput)
-        advancedUI.logWarning(`🔄 Re-queued input due to temporary error`)
+        advancedUI.logWarning(`⚡︎ Re-queued input due to temporary error`)
       }
 
       return nextInput

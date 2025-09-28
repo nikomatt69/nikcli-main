@@ -133,7 +133,7 @@ describe('WriteFileTool', () => {
       const filePath = 'validated.js'
       tempFiles.push(filePath)
 
-      const validator = async (content: string, filePath: string) => ({
+      const validator = async (content: string, _filePath: string) => ({
         isValid: !content.includes('console.log'),
         errors: content.includes('console.log') ? ['console.log not allowed'] : [],
         warnings: [],
@@ -150,7 +150,7 @@ describe('WriteFileTool', () => {
       const filePath = 'transformed.txt'
       tempFiles.push(filePath)
 
-      const transformer = async (content: string, filePath: string) => content.toUpperCase()
+      const transformer = async (content: string, _filePath: string) => content.toUpperCase()
 
       const result = await writeFileTool.execute(filePath, content, { transformers: [transformer as any] })
 
@@ -207,7 +207,7 @@ describe('WriteFileTool', () => {
       const result = await writeFileTool.append(filePath, appendContent)
 
       expect(result.success).toBe(true)
-      expect(await readFile(filePath)).toBe(initialContent + '\n' + appendContent)
+      expect(await readFile(filePath)).toBe(`${initialContent}\n${appendContent}`)
     })
   })
 

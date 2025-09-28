@@ -53,7 +53,7 @@ export const smartDocsSearchTool: CoreTool = tool({
   }),
   execute: async ({ query, autoLoad, maxResults, category, urgency }) => {
     try {
-      console.log(chalk.blue(`🤖 Agent searching docs: "${query}"`))
+      console.log(chalk.blue(`🔌 Agent searching docs: "${query}"`))
 
       const results: SmartDocsResults = {
         found: false,
@@ -72,7 +72,7 @@ export const smartDocsSearchTool: CoreTool = tool({
           category: result.entry.category,
           url: result.entry.url,
           tags: result.entry.tags,
-          score: (result.score * 100).toFixed(1) + '%',
+          score: `${(result.score * 100).toFixed(1)}%`,
           snippet: result.snippet?.substring(0, 200) || '',
           source: 'local',
         }))
@@ -96,8 +96,8 @@ export const smartDocsSearchTool: CoreTool = tool({
             category: doc.category,
             url: doc.url,
             tags: doc.tags,
-            score: (doc.popularity_score * 100).toFixed(1) + '%',
-            snippet: doc.content.substring(0, 200) + '...',
+            score: `${(doc.popularity_score * 100).toFixed(1)}%`,
+            snippet: `${doc.content.substring(0, 200)}...`,
             source: 'shared',
           }))
 
@@ -135,7 +135,7 @@ export const smartDocsSearchTool: CoreTool = tool({
               summary: doc.summary || '',
             }))
 
-            console.log(chalk.green(`🤖 Auto-loaded ${loadedDocs.length} docs for agent context`))
+            console.log(chalk.green(`🔌 Auto-loaded ${loadedDocs.length} docs for agent context`))
           }
         } catch (error) {
           console.error('Auto-load failed:', error)
@@ -163,7 +163,7 @@ export const smartDocsSearchTool: CoreTool = tool({
 3. Checking available categories with /doc-list`
       } else {
         results.summary = `Found ${totalFound} relevant documentation entries for "${query}".
-${loaded > 0 ? `✅ ${loaded} documents automatically loaded into context and ready to use.` : ''}
+${loaded > 0 ? `✓ ${loaded} documents automatically loaded into context and ready to use.` : ''}
 ${results.suggestions.length > 0 ? `\n💡 Related topics: ${results.suggestions.join(', ')}` : ''}
 
 Available documentation:
@@ -212,12 +212,12 @@ export const smartDocsLoadTool: CoreTool = tool({
   }),
   execute: async ({ docNames, replace }) => {
     try {
-      console.log(chalk.blue(`🤖 Agent loading docs: ${docNames.join(', ')}`))
+      console.log(chalk.blue(`🔌 Agent loading docs: ${docNames.join(', ')}`))
 
       // Clear existing context if replace is true
       if (replace) {
         await docsContextManager.unloadDocs()
-        console.log(chalk.gray('🤖 Cleared existing documentation context'))
+        console.log(chalk.gray('🔌 Cleared existing documentation context'))
       }
 
       // Load requested documents
@@ -301,7 +301,7 @@ export const smartDocsContextTool: CoreTool = tool({
           summary: doc.summary || '',
           ...(includeContent
             ? {
-                contentPreview: doc.content.substring(0, 500) + '...',
+                contentPreview: `${doc.content.substring(0, 500)}...`,
               }
             : {}),
         })),

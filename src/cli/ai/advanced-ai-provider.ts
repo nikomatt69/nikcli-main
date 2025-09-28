@@ -10,7 +10,7 @@ import { type CoreMessage, type CoreTool, generateText, streamText, type ToolCal
 import chalk from 'chalk'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
-// 🧠 Import Cognitive Orchestration Types
+// ⚡︎ Import Cognitive Orchestration Types
 import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
 import { docsContextManager } from '../context/docs-context-manager'
 import { AdvancedTools } from '../core/advanced-tools'
@@ -98,7 +98,7 @@ export interface StreamEvent {
 export interface AutonomousProvider {
   streamChatWithFullAutonomy(messages: CoreMessage[], abortSignal?: AbortSignal): AsyncGenerator<StreamEvent>
   executeAutonomousTask(task: string, context?: any): AsyncGenerator<StreamEvent>
-  // 🧠 Enhanced Cognitive Methods
+  // ⚡︎ Enhanced Cognitive Methods
   generateWithCognition(messages: CoreMessage[], cognition?: TaskCognition): AsyncGenerator<StreamEvent>
   optimizePromptWithPlan(messages: CoreMessage[], plan?: OrchestrationPlan): CoreMessage[]
   adaptResponseToCognition(response: string, cognition?: TaskCognition): string
@@ -113,7 +113,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
   private commandTemplates: Map<string, Command> = new Map()
   private streamSilentMode: boolean = false
 
-  generateWithTools(planningMessages: CoreMessage[]): Promise<{
+  generateWithTools(_planningMessages: CoreMessage[]): Promise<{
     text: string
     toolCalls: any[]
     toolResults: any[]
@@ -124,16 +124,16 @@ export class AdvancedAIProvider implements AutonomousProvider {
   // Truncate long free-form strings to keep prompts safe
   private truncateForPrompt(s: string, maxChars: number = 2000): string {
     if (!s) return ''
-    return s.length > maxChars ? s.slice(0, maxChars) + '…[truncated]' : s
+    return s.length > maxChars ? `${s.slice(0, maxChars)}…[truncated]` : s
   }
 
   // 🗜️ Compress tool results intelligently to prevent token overflow
-  private compressToolResult(result: any, toolName: string): any {
+  private compressToolResult(result: any, _toolName: string): any {
     if (!result) return result
 
     // Compress large text results
     if (typeof result === 'string' && result.length > 1000) {
-      return this.truncateForPrompt(result, 800) + ' [compressed for token efficiency]'
+      return `${this.truncateForPrompt(result, 800)} [compressed for token efficiency]`
     }
 
     // Compress object results
@@ -143,7 +143,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
       // Keep essential fields and compress large ones
       for (const [key, value] of Object.entries(result)) {
         if (typeof value === 'string' && value.length > 500) {
-          compressed[key] = this.truncateForPrompt(value, 300) + ' [compressed]'
+          compressed[key] = `${this.truncateForPrompt(value, 300)} [compressed]`
         } else if (Array.isArray(value) && value.length > 10) {
           compressed[key] = value.slice(0, 5).concat([`...and ${value.length - 5} more items [compressed]`])
         } else {
@@ -439,7 +439,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
 
       const basePrompt = `You are an advanced AI development assistant with enhanced capabilities:
 
-🧠 **Enhanced Intelligence**:
+⚡︎ **Enhanced Intelligence**:
 - Context-aware analysis and reasoning
 - Multi-step problem solving
 - Pattern recognition and optimization
@@ -608,7 +608,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             // Load tool-specific prompt for context
             const toolPrompt = await this.getToolPrompt('write_file', {
               path,
-              content: content.substring(0, 100) + '...',
+              content: `${content.substring(0, 100)}...`,
               backup,
               validate,
             })
@@ -621,7 +621,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
               mkdirSync(dir, { recursive: true })
             }
 
-            // 🧠 VALIDATION WITH LSP - Before writing anything
+            // ⚡︎ VALIDATION WITH LSP - Before writing anything
             let validationResult = null
             let finalContent = content
 
@@ -660,9 +660,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 }
 
                 if (validationResult.formatted) {
-                  console.log(chalk.green(`✅ File formatted and validated successfully`))
+                  console.log(chalk.green(`✓ File formatted and validated successfully`))
                 } else {
-                  console.log(chalk.green(`✅ Validation passed for ${path}`))
+                  console.log(chalk.green(`✓ Validation passed for ${path}`))
                 }
               }
             }
@@ -720,7 +720,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             writeFileSync(fullPath, finalContent, 'utf-8')
             const stats = statSync(fullPath)
 
-            console.log(chalk.green(`✅ File written successfully: ${path} (${stats.size} bytes)`))
+            console.log(chalk.green(`✓ File written successfully: ${path} (${stats.size} bytes)`))
 
             // Update context
             this.executionContext.set(`file:${path}`, {
@@ -743,10 +743,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                    isValid: validationResult.isValid,
-                    errors: validationResult.errors,
-                    warnings: validationResult.warnings,
-                  }
+                  isValid: validationResult.isValid,
+                  errors: validationResult.errors,
+                  warnings: validationResult.warnings,
+                }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -922,7 +922,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         }),
         execute: async ({ action, packages, dev, global }) => {
           try {
-            let command = 'yarn'
+            const command = 'yarn'
             let args: string[] = []
 
             switch (action) {
@@ -1076,8 +1076,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                  .join('')
+                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -1126,7 +1126,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
       // 🛡️ TOKEN GUARD: Check toolchain token limits before starting
       const globalNikCLI = (global as any).__nikcli
-      if (globalNikCLI && globalNikCLI.manageToolchainTokens) {
+      if (globalNikCLI?.manageToolchainTokens) {
         const estimatedToolchainTokens = Math.max(originalTokens, truncatedTokens) * 2 // Estimate toolchain overhead
         const canProceed = globalNikCLI.manageToolchainTokens('streamChat', estimatedToolchainTokens)
 
@@ -1166,7 +1166,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
 5. Use find_files_tool first, then read_file_tool in small groups`
 
         // Add the instruction to the system context
-        const enhancedSystemContext = systemContext + '\n\n' + chainedInstruction
+        const enhancedSystemContext = `${systemContext}\n\n${chainedInstruction}`
 
         // Update messages with enhanced context
         const enhancedMessages = messages.map((msg) =>
@@ -1204,14 +1204,14 @@ Respond in a helpful, professional manner with clear explanations and actionable
         maxToolRoundtrips: isAnalysisRequest ? 40 : 60, // Increased for deeper analysis and toolchains
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => {},
+        onStepFinish: (_evt: any) => { },
       }
       if (provider !== 'openai' && provider !== 'openrouter') {
         streamOpts.maxTokens = params.maxTokens
       }
       const result = streamText(streamOpts)
 
-      let currentToolCalls: ToolCallPart[] = []
+      const currentToolCalls: ToolCallPart[] = []
       let accumulatedText = ''
       let toolCallCount = 0
       const maxToolCallsForAnalysis = 20 // REDUCED: Aggressive limit to prevent token overflow
@@ -1256,13 +1256,13 @@ Respond in a helpful, professional manner with clear explanations and actionable
               }
               break
 
-            case 'tool-call':
+            case 'tool-call': {
               toolCallCount++
               currentToolCalls.push(delta)
 
               // 🛡️ TOKEN GUARD: Check tool call token usage
               const globalNikCLI = (global as any).__nikcli
-              if (globalNikCLI && globalNikCLI.manageToolchainTokens) {
+              if (globalNikCLI?.manageToolchainTokens) {
                 const toolTokens = this.estimateToolCallTokens(delta)
                 const canProceed = globalNikCLI.manageToolchainTokens(delta.toolName, toolTokens)
 
@@ -1325,7 +1325,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
                 yield {
                   type: 'thinking',
-                  content: this.truncateForPrompt(`🔄 Round ${this.completedRounds} complete. ${gapAnalysis}`, 100),
+                  content: this.truncateForPrompt(`⚡︎ Round ${this.completedRounds} complete. ${gapAnalysis}`, 100),
                 }
                 yield {
                   type: 'text_delta',
@@ -1351,8 +1351,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 metadata: { toolCallId: delta.toolCallId },
               }
               break
+            }
 
-            case 'tool-call-delta':
+            case 'tool-call-delta': {
               const toolCall = currentToolCalls.find((tc) => tc.toolCallId === delta.toolCallId)
 
               // Update tool history with result
@@ -1376,6 +1377,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 },
               }
               break
+            }
 
             case 'step-finish':
               if (delta.isContinued) {
@@ -1409,10 +1411,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                          .map((part) =>
-                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                          )
-                          .join('')
+                        .map((part) =>
+                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                        )
+                        .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -1517,7 +1519,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
       const requiresParallelAgents = this.analyzeParallelRequirements(task)
 
       if (requiresParallelAgents) {
-        yield { type: 'thinking', content: '🔄 Task requires parallel agent execution...' }
+        yield { type: 'thinking', content: '⚡︎ Task requires parallel agent execution...' }
 
         // Esegui con agenti paralleli
         for await (const event of this.executeParallelTask(task, context)) {
@@ -1580,7 +1582,7 @@ Execute task autonomously with tools. Be direct. Stay within project directory.`
 
   // Esegue task con agenti paralleli
   private async *executeParallelTask(task: string, context?: any): AsyncGenerator<StreamEvent> {
-    yield { type: 'thinking', content: '🔄 Planning parallel execution...' }
+    yield { type: 'thinking', content: '⚡︎ Planning parallel execution...' }
 
     try {
       // Dividi il task in sottotask paralleli
@@ -1604,7 +1606,7 @@ Execute task autonomously with tools. Be direct. Stay within project directory.`
 
       yield {
         type: 'complete',
-        content: `✅ Parallel execution complete: ${successful} successful, ${failed} failed`,
+        content: `✓ Parallel execution complete: ${successful} successful, ${failed} failed`,
         metadata: { parallel: true, subtasks: subtasks.length },
       }
     } catch (error: any) {
@@ -1664,30 +1666,6 @@ Stay within project directory.`,
     return result
   }
 
-  // Safely stringify and truncate large contexts to prevent prompt overflow - AGGRESSIVE
-  private safeStringifyContext(ctx: any, maxChars: number = 1000): string {
-    // REDUCED from 4000
-    if (!ctx) return '{}'
-    try {
-      const str = JSON.stringify(ctx, (key, value) => {
-        // Truncate long strings AGGRESSIVELY
-        if (typeof value === 'string') {
-          return value.length > 100 ? value.slice(0, 100) + '…[truncated]' : value // REDUCED from 512
-        }
-        // Limit large arrays
-        if (Array.isArray(value)) {
-          const limited = value.slice(0, 20)
-          if (value.length > 20) limited.push('…[+' + (value.length - 20) + ' more]')
-          return limited
-        }
-        return value
-      })
-      return str.length > maxChars ? str.slice(0, maxChars) + '…[truncated]' : str
-    } catch {
-      return '[unstringifiable context]'
-    }
-  }
-
   /**
    * Convert technical error messages to user-friendly ones with helpful suggestions
    */
@@ -1716,7 +1694,7 @@ Stay within project directory.`,
 
     // Model not found
     if (lowerError.includes('model not found') || lowerError.includes('invalid model')) {
-      return '🤖 Model not available. Try switching models with `/models` command.'
+      return '🔌 Model not available. Try switching models with `/models` command.'
     }
 
     // Generic server errors
@@ -1762,27 +1740,6 @@ Stay within project directory.`,
     }
 
     return analysis
-  }
-
-  private validateFileContent(content: string, extension: string): any {
-    const validation: any = { valid: true, errors: [] }
-
-    switch (extension) {
-      case '.json':
-        try {
-          JSON.parse(content)
-        } catch (error: any) {
-          validation.valid = false
-          validation.errors.push(`Invalid JSON: ${error.message}`)
-        }
-        break
-      case '.ts':
-      case '.tsx':
-        // Basic TypeScript validation could be added here
-        break
-    }
-
-    return validation
   }
 
   private exploreDirectoryStructure(dirPath: string, maxDepth: number, includeHidden: boolean, filterBy: string): any {
@@ -2035,8 +1992,8 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-            { role: 'user', content: `${type}: ${description} (${language})` } as any,
-          ])
+          { role: 'user', content: `${type}: ${description} (${language})` } as any,
+        ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -2093,7 +2050,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
         else console.log(chalk.dim(msg))
-      } catch {}
+      } catch { }
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
@@ -2242,25 +2199,6 @@ Requirements:
     }
   }
 
-  // Build provider-specific options to satisfy differing token parameter names
-  private getProviderOptions(maxTokens: number): any {
-    try {
-      const provider = this.getCurrentModelInfo().config.provider
-      switch (provider) {
-        case 'openai':
-          return { openai: { max_completion_tokens: maxTokens } }
-        case 'google':
-          // Google Generative AI expects max_output_tokens
-          return { google: { max_output_tokens: maxTokens } }
-        // Anthropic and others work with normalized maxTokens via AI SDK
-        default:
-          return {}
-      }
-    } catch {
-      return {}
-    }
-  }
-
   // Build a provider-safe message array by enforcing hard character caps
   private sanitizeMessagesForProvider(provider: string, messages: CoreMessage[]): CoreMessage[] {
     const maxTotalChars = provider === 'openai' ? 800_000 : 400_000 // conservative caps
@@ -2326,16 +2264,16 @@ Requirements:
         const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
 
         // Check for React/Next.js
-        if (packageJson.dependencies?.['next'] || packageJson.devDependencies?.['next']) {
+        if (packageJson.dependencies?.next || packageJson.devDependencies?.next) {
           return 'next.js'
         }
-        if (packageJson.dependencies?.['react'] || packageJson.devDependencies?.['react']) {
+        if (packageJson.dependencies?.react || packageJson.devDependencies?.react) {
           return 'react'
         }
-        if (packageJson.dependencies?.['express'] || packageJson.devDependencies?.['express']) {
+        if (packageJson.dependencies?.express || packageJson.devDependencies?.express) {
           return 'express'
         }
-        if (packageJson.dependencies?.['typescript'] || packageJson.devDependencies?.['typescript']) {
+        if (packageJson.dependencies?.typescript || packageJson.devDependencies?.typescript) {
           return 'typescript'
         }
 
@@ -2414,8 +2352,8 @@ Requirements:
       const readFile = await this.getToolPrompt('read_file', { path: 'test.txt' })
 
       return {
-        baseAgent: baseAgent.substring(0, 4000) + '...',
-        readFile: readFile.substring(0, 4000) + '...',
+        baseAgent: `${baseAgent.substring(0, 4000)}...`,
+        readFile: `${readFile.substring(0, 4000)}...`,
       }
     } catch (error: any) {
       return {
@@ -2432,7 +2370,7 @@ Requirements:
     }
 
     // Restore proper formatting
-    let formatted = cachedText
+    const formatted = cachedText
       // Fix missing spaces after punctuation
       .replace(/([.!?,:;])([A-Z])/g, '$1 $2')
       // Fix missing spaces after commas and periods
@@ -2521,7 +2459,7 @@ Requirements:
 
   // Generate specific clarifying questions (token-optimized)
   private generateClarifyingQuestion(
-    gapAnalysis: string,
+    _gapAnalysis: string,
     originalQuery: string,
     toolHistory: Array<{ toolName: string; args: any; result: any; success: boolean }>
   ): string {
@@ -2559,7 +2497,7 @@ Requirements:
 
     // What was done
     summary += `📊 **Operations Completed:** ${totalOperations} total operations across ${this.completedRounds} rounds\n`
-    summary += `✅ **Successful:** ${successful} operations\n`
+    summary += `✓ **Successful:** ${successful} operations\n`
     summary += `❌ **Failed:** ${failed} operations\n`
     summary += `🔨 **Tools Used:** ${tools.join(', ')}\n\n`
 
@@ -2618,10 +2556,10 @@ Requirements:
     return this.truncateForPrompt(summary, 800)
   }
 
-  // ====================== 🧠 COGNITIVE ENHANCEMENT METHODS ======================
+  // ====================== ⚡︎ COGNITIVE ENHANCEMENT METHODS ======================
 
   /**
-   * 🧠 Generate with Cognitive Understanding
+   * ⚡︎ Generate with Cognitive Understanding
    * Enhanced generation method that uses task cognition for better responses
    */
   async *generateWithCognition(messages: CoreMessage[], cognition?: TaskCognition): AsyncGenerator<StreamEvent> {
@@ -2641,8 +2579,8 @@ Requirements:
       yield {
         type: 'thinking',
         content: cognition
-          ? `🧠 Using cognitive understanding: ${cognition.intent.primary} task with ${cognition.estimatedComplexity}/10 complexity`
-          : '🧠 Processing without cognitive context',
+          ? `⚡︎ Using cognitive understanding: ${cognition.intent.primary} task with ${cognition.estimatedComplexity}/10 complexity`
+          : '⚡︎ Processing without cognitive context',
       }
 
       // Step 2: Use enhanced streaming with cognitive awareness
@@ -2719,7 +2657,7 @@ Focus on the current execution phase and use the orchestration strategy for opti
   }
 
   /**
-   * 🧠 Adapt Response to Cognitive Understanding
+   * ⚡︎ Adapt Response to Cognitive Understanding
    * Modifies AI responses based on task cognition for better alignment
    */
   adaptResponseToCognition(response: string, cognition?: TaskCognition): string {
@@ -2745,19 +2683,19 @@ Focus on the current execution phase and use the orchestration strategy for opti
 
     // Adapt based on urgency
     if (cognition.intent.urgency === 'critical') {
-      adaptedResponse = '🚨 URGENT: ' + adaptedResponse
+      adaptedResponse = `🚨 URGENT: ${adaptedResponse}`
     } else if (cognition.intent.urgency === 'high') {
-      adaptedResponse = '⚡ HIGH PRIORITY: ' + adaptedResponse
+      adaptedResponse = `⚡ HIGH PRIORITY: ${adaptedResponse}`
     }
 
     // Adapt based on complexity
     if (cognition.estimatedComplexity >= 8) {
-      adaptedResponse = '🔥 COMPLEX TASK: ' + adaptedResponse
+      adaptedResponse = `🔥 COMPLEX TASK: ${adaptedResponse}`
     }
 
     // Adapt based on risk level
     if (cognition.riskLevel === 'high') {
-      adaptedResponse = '⚠️ HIGH RISK - ' + adaptedResponse
+      adaptedResponse = `⚠️ HIGH RISK - ${adaptedResponse}`
     }
 
     return adaptedResponse
@@ -2780,7 +2718,7 @@ Focus on the current execution phase and use the orchestration strategy for opti
     // Add cognitive context to system prompt
     const cognitiveContext = `
 
-🧠 COGNITIVE UNDERSTANDING:
+⚡︎ COGNITIVE UNDERSTANDING:
 - Primary Intent: ${cognition.intent.primary} (confidence: ${Math.round(cognition.intent.confidence * 100)}%)
 - Complexity Level: ${cognition.estimatedComplexity}/10
 - Risk Assessment: ${cognition.riskLevel}
@@ -2834,7 +2772,7 @@ Use this cognitive understanding to provide more targeted and effective response
     riskAwareness?: boolean
   }): void {
     // Configuration would be stored and used in cognitive methods
-    console.log('🧠 Cognitive configuration updated:', config)
+    console.log('⚡︎ Cognitive configuration updated:', config)
   }
 
   // ====================== 🔧 AUTONOMOUS COMMAND SYSTEM ======================
@@ -2892,7 +2830,7 @@ Use this cognitive understanding to provide more targeted and effective response
       this.packageCache.set(cacheKey, validatedResults)
 
       if (!this.streamSilentMode) {
-        console.log(chalk.green(`✅ Found ${validatedResults.length} relevant packages`))
+        console.log(chalk.green(`✓ Found ${validatedResults.length} relevant packages`))
       }
 
       return validatedResults
@@ -3011,7 +2949,7 @@ Use this cognitive understanding to provide more targeted and effective response
       this.commandHistory.push(validatedResult)
 
       if (!this.streamSilentMode) {
-        console.log(chalk.green(`✅ Command completed in ${duration}ms`))
+        console.log(chalk.green(`✓ Command completed in ${duration}ms`))
       }
 
       return validatedResult
@@ -3039,7 +2977,7 @@ Use this cognitive understanding to provide more targeted and effective response
   }
 
   /**
-   * 🔄 Stream Commands with Clean Output
+   * ⚡︎ Stream Commands with Clean Output
    * Enhanced streaming with clean, organized output
    */
   async *streamCommandExecution(command: Command): AsyncGenerator<StreamEvent> {
@@ -3072,7 +3010,7 @@ Use this cognitive understanding to provide more targeted and effective response
       if (result.success) {
         yield {
           type: 'tool_result',
-          content: `✅ ${command.description} completed successfully`,
+          content: `✓ ${command.description} completed successfully`,
           toolName: command.type,
           toolResult: {
             success: true,
@@ -3121,7 +3059,7 @@ Use this cognitive understanding to provide more targeted and effective response
   }
 
   /**
-   * 🧠 Suggest Commands Based on Context
+   * ⚡︎ Suggest Commands Based on Context
    * AI-powered command suggestions based on project state and intent
    */
   async suggestCommands(
@@ -3211,7 +3149,7 @@ Use this cognitive understanding to provide more targeted and effective response
     }
   }
 
-  private buildTestCommand(context: any): Partial<Command> {
+  private buildTestCommand(_context: any): Partial<Command> {
     return {
       type: 'npm',
       command: 'npm test',
@@ -3221,7 +3159,7 @@ Use this cognitive understanding to provide more targeted and effective response
     }
   }
 
-  private buildLintCommand(context: any): Partial<Command> {
+  private buildLintCommand(_context: any): Partial<Command> {
     return {
       type: 'npm',
       command: 'npm run lint',
@@ -3231,7 +3169,7 @@ Use this cognitive understanding to provide more targeted and effective response
     }
   }
 
-  private buildDeployCommand(context: any): Partial<Command> {
+  private buildDeployCommand(_context: any): Partial<Command> {
     return {
       type: 'npm',
       command: 'npm run deploy',
@@ -3242,7 +3180,7 @@ Use this cognitive understanding to provide more targeted and effective response
     }
   }
 
-  private buildAnalyzeCommand(context: any): Partial<Command> {
+  private buildAnalyzeCommand(_context: any): Partial<Command> {
     return {
       type: 'bash',
       command: 'npm audit',
@@ -3347,7 +3285,7 @@ Use this cognitive understanding to provide more targeted and effective response
   }
 
   private async extractPackageNames(text: string): Promise<string[]> {
-    const npmPackagePattern = /(?:npm install |add |install )([a-z0-9\-@\/\s]+)/gi
+    const npmPackagePattern = /(?:npm install |add |install )([a-z0-9\-@/\s]+)/gi
     const matches = [...text.matchAll(npmPackagePattern)]
 
     return matches
@@ -3417,7 +3355,7 @@ Use this cognitive understanding to provide more targeted and effective response
     intelligentCommands: boolean
     adaptivePlanning: boolean
   }): void {
-    console.log(chalk.cyan(`🧠 AdvancedAIProvider cognitive features configured`))
+    console.log(chalk.cyan(`⚡︎ AdvancedAIProvider cognitive features configured`))
     if (config.enableCognition) {
       console.log(chalk.cyan(`🎯 Cognitive features enabled (level: ${config.orchestrationLevel})`))
     }

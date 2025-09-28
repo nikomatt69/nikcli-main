@@ -10,7 +10,7 @@ import { configManager, type ModelConfig } from '../core/config-manager'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 import { ReasoningDetector } from './reasoning-detector'
 
-// ====================== 🧠 ZOD VALIDATION SCHEMAS ======================
+// ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
 // Chat Message Schema
 export const ChatMessageSchema = z.object({
@@ -95,7 +95,7 @@ export class ModelProvider {
     const globalReasoningConfig = configManager.get('reasoning')
 
     if (globalReasoningConfig.logReasoning) {
-      const capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
+      const _capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
       const summary = ReasoningDetector.getModelReasoningSummary(provider, modelId)
 
       try {
@@ -256,13 +256,13 @@ export class ModelProvider {
           if (nik?.advancedUI) {
             nik.advancedUI.logInfo('Model Reasoning', reasoningData.reasoningText)
           } else {
-            console.log(require('chalk').cyan('\n🧠 Model Reasoning:'))
+            console.log(require('chalk').cyan('\n⚡︎ Model Reasoning:'))
             console.log(require('chalk').gray(reasoningData.reasoningText))
             console.log('')
           }
         } catch {
           // Fallback display
-          console.log('\n🧠 Model Reasoning:', reasoningData.reasoningText, '\n')
+          console.log('\n⚡︎ Model Reasoning:', reasoningData.reasoningText, '\n')
         }
       }
     }
@@ -288,7 +288,7 @@ export class ModelProvider {
 
     // Show reasoning summary before streaming if enabled
     if (reasoningEnabled) {
-      const capabilities = ReasoningDetector.detectReasoningSupport(
+      const _capabilities = ReasoningDetector.detectReasoningSupport(
         currentModelConfig.provider,
         currentModelConfig.model
       )
@@ -297,12 +297,12 @@ export class ModelProvider {
       try {
         const chalk = require('chalk')
         // Pre-stream reasoning info in dark gray as requested
-        const reasoningInfo = chalk.gray(`🧠 ${summary}`)
+        const reasoningInfo = chalk.gray(`⚡︎ ${summary}`)
         console.log(reasoningInfo)
         console.log('') // Add spacing
       } catch {
         // Fallback if chalk fails
-        console.log(`🧠 ${summary}`)
+        console.log(`⚡︎ ${summary}`)
         console.log('')
       }
     }

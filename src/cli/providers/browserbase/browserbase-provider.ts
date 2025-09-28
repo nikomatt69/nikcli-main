@@ -9,7 +9,6 @@ import { type CoreMessage, generateObject } from 'ai'
 import chalk from 'chalk'
 import { JSDOM } from 'jsdom'
 import { z } from 'zod'
-import { ModelProvider } from '@/cli/ai/model-provider'
 import { simpleConfigManager } from '../../core/config-manager'
 import { redisProvider } from '../redis/redis-provider'
 
@@ -136,7 +135,7 @@ export class BrowserbaseProvider extends EventEmitter {
 
       this.activeSessions.set(session.id, session)
 
-      console.log(chalk.green(`✅ Session created: ${session.id}`))
+      console.log(chalk.green(`✓ Session created: ${session.id}`))
 
       this.emit('session_created', session)
 
@@ -172,7 +171,7 @@ export class BrowserbaseProvider extends EventEmitter {
       }
 
       return null
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   }
@@ -218,7 +217,7 @@ export class BrowserbaseProvider extends EventEmitter {
       }
 
       const processingTime = Date.now() - startTime
-      console.log(chalk.green(`✅ Content extracted in ${processingTime}ms`))
+      console.log(chalk.green(`✓ Content extracted in ${processingTime}ms`))
 
       this.emit('content_extracted', { sessionId, url, content, processingTime })
 
@@ -245,7 +244,7 @@ export class BrowserbaseProvider extends EventEmitter {
     const provider = options.provider || 'claude'
 
     try {
-      console.log(chalk.blue(`🤖 Analyzing content with ${provider.toUpperCase()}...`))
+      console.log(chalk.blue(`🔌 Analyzing content with ${provider.toUpperCase()}...`))
 
       // Check cache first
       const cacheKey = `browserbase:analysis:${provider}:${this.generateCacheKey(content.textContent + (options.prompt || ''))}`
@@ -284,7 +283,7 @@ export class BrowserbaseProvider extends EventEmitter {
         await this.cacheResult(cacheKey, analysis)
       }
 
-      console.log(chalk.green(`✅ Content analysis completed in ${analysis.metadata.processingTime}ms`))
+      console.log(chalk.green(`✓ Content analysis completed in ${analysis.metadata.processingTime}ms`))
 
       this.emit('content_analyzed', { content, analysis, provider })
 
@@ -321,9 +320,9 @@ export class BrowserbaseProvider extends EventEmitter {
    * Extract content from URL using Readability
    */
   private async extractContentFromUrl(
-    session: BrowserbaseSession,
+    _session: BrowserbaseSession,
     url: string,
-    options: any
+    _options: any
   ): Promise<BrowserbaseContentResult> {
     try {
       // For now, use direct HTTP fetch with JSDOM and Readability

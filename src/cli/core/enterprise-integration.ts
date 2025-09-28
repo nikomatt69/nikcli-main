@@ -1,5 +1,5 @@
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 import { featureFlagManager } from './feature-flags'
 import { promptRegistry } from './prompt-registry'
 import { toolRegistry } from './tool-registry'
@@ -45,7 +45,7 @@ export class EnterpriseIntegration {
       this.isInitialized = true
       const initTime = Date.now() - startTime
 
-      advancedUI.logSuccess(`✅ Enterprise Integration initialized (${initTime}ms)`)
+      advancedUI.logSuccess(`✓ Enterprise Integration initialized (${initTime}ms)`)
 
       // Log system stats
       this.logSystemStats()
@@ -62,11 +62,14 @@ export class EnterpriseIntegration {
       try {
         return await originalExecuteTool(toolId, ...args)
       } catch (error: any) {
-        logger.error(`Tool execution failed: ${toolId}`, {
-          error: error.message,
-          toolId,
-          argsCount: args.length,
-        })
+        structuredLogger.error(
+          `Tool execution failed: ${toolId}`,
+          JSON.stringify({
+            error: error.message,
+            toolId,
+            argsCount: args.length,
+          })
+        )
         throw error
       }
     }
@@ -86,10 +89,13 @@ export class EnterpriseIntegration {
       try {
         return await originalGetPrompt(promptId, context)
       } catch (error: any) {
-        logger.error(`Prompt registry error: ${promptId}`, {
-          error: error.message,
-          promptId,
-        })
+        structuredLogger.error(
+          `Prompt registry error: ${promptId}`,
+          JSON.stringify({
+            error: error.message,
+            promptId,
+          })
+        )
         throw error
       }
     }
@@ -123,8 +129,8 @@ export class EnterpriseIntegration {
       `   🚩 Feature Flags: ${status.featureFlags.stats.total} total, ${status.featureFlags.stats.enabled} enabled`
     )
     console.log(`   🔧 Tool Registry: ${status.toolRegistry.totalTools} tools loaded`)
-    console.log(`   🧠 Prompt Registry: ${status.promptRegistry.totalPrompts} prompts available`)
-    console.log(`   ✅ All systems operational`)
+    console.log(`   ⚡︎ Prompt Registry: ${status.promptRegistry.totalPrompts} prompts available`)
+    console.log(`   ✓ All systems operational`)
   }
 
   async cleanup(): Promise<void> {

@@ -207,7 +207,7 @@ export class UnifiedChatInterface extends EventEmitter {
         const isComplexTask = await this.assessTaskComplexity(input)
 
         if (isComplexTask) {
-          console.log(chalk.cyan('🧠 Detected complex task - auto-generating execution todos...'))
+          console.log(chalk.cyan('⚡︎ Detected complex task - auto-generating execution todos...'))
 
           // Generate todos automatically and orchestrate background agents
           await this.autoGenerateTodosAndOrchestrate(input)
@@ -275,16 +275,16 @@ export class UnifiedChatInterface extends EventEmitter {
   private displayPlan(plan: ExecutionPlan): void {
     const planBox = boxen(
       chalk.white.bold(`📋 ${plan.title}\n\n`) +
-        chalk.gray(`${plan.description}\n\n`) +
-        chalk.blue(`🕒 Estimated Duration: ${plan.estimatedDuration} minutes\n`) +
-        chalk.yellow(`⚠️  Risk Level: ${plan.riskLevel.toUpperCase()}\n\n`) +
-        chalk.white.bold('📝 Execution Steps:\n') +
-        plan.steps
-          .map(
-            (step, i) =>
-              `${i + 1}. ${chalk.cyan(step.title)}\n   ${chalk.dim(step.description)}\n   ${step.requiresPermission ? chalk.red('🔒 Requires permission') : chalk.green('✅ Auto-approved')}`
-          )
-          .join('\n\n'),
+      chalk.gray(`${plan.description}\n\n`) +
+      chalk.blue(`🕒 Estimated Duration: ${plan.estimatedDuration} minutes\n`) +
+      chalk.yellow(`⚠️  Risk Level: ${plan.riskLevel.toUpperCase()}\n\n`) +
+      chalk.white.bold('📝 Execution Steps:\n') +
+      plan.steps
+        .map(
+          (step, i) =>
+            `${i + 1}. ${chalk.cyan(step.title)}\n   ${chalk.dim(step.description)}\n   ${step.requiresPermission ? chalk.red('🔒 Requires permission') : chalk.green('✓ Auto-approved')}`
+        )
+        .join('\n\n'),
       {
         padding: 1,
         margin: 1,
@@ -341,7 +341,7 @@ export class UnifiedChatInterface extends EventEmitter {
         await this.processQueuedPrompts()
       }
 
-      console.log(chalk.green.bold('✅ Plan execution completed successfully!'))
+      console.log(chalk.green.bold('✓ Plan execution completed successfully!'))
       this.addAssistantMessage(`Successfully completed: ${plan.title}`)
     } catch (error: any) {
       console.log(chalk.red(`❌ Plan execution failed: ${error.message}`))
@@ -367,10 +367,10 @@ export class UnifiedChatInterface extends EventEmitter {
   private async requestStepPermission(step: PlanStep): Promise<boolean> {
     const permissionBox = boxen(
       chalk.yellow.bold('🔒 Permission Required\n\n') +
-        chalk.white(`Step: ${step.title}\n`) +
-        chalk.gray(`Description: ${step.description}\n`) +
-        chalk.cyan(`Tool: ${step.toolName}\n`) +
-        chalk.dim(`Parameters: ${JSON.stringify(step.parameters, null, 2)}`),
+      chalk.white(`Step: ${step.title}\n`) +
+      chalk.gray(`Description: ${step.description}\n`) +
+      chalk.cyan(`Tool: ${step.toolName}\n`) +
+      chalk.dim(`Parameters: ${JSON.stringify(step.parameters, null, 2)}`),
       {
         padding: 1,
         borderStyle: 'round',
@@ -400,7 +400,7 @@ export class UnifiedChatInterface extends EventEmitter {
       // Simulate tool execution (replace with actual tool calls)
       await new Promise((resolve) => setTimeout(resolve, step.estimatedTime * 100))
 
-      console.log(chalk.green(`✅ Completed: ${step.title}`))
+      console.log(chalk.green(`✓ Completed: ${step.title}`))
     } catch (error: any) {
       console.log(chalk.red(`❌ Step failed: ${error.message}`))
       throw error
@@ -431,7 +431,7 @@ export class UnifiedChatInterface extends EventEmitter {
     if (this.session.promptQueue.length === 0) return
 
     console.log(
-      chalk.magenta(`🤖 Processing ${this.session.promptQueue.length} queued prompts with secondary agents...`)
+      chalk.magenta(`🔌 Processing ${this.session.promptQueue.length} queued prompts with secondary agents...`)
     )
 
     // Process each queued prompt
@@ -441,12 +441,12 @@ export class UnifiedChatInterface extends EventEmitter {
       try {
         // Launch secondary agent for this prompt
         const agentId = `secondary-${Date.now()}`
-        console.log(chalk.magenta(`🤖 [${agentId}] Processing: "${queuedPrompt.content.slice(0, 40)}..."`))
+        console.log(chalk.magenta(`🔌 [${agentId}] Processing: "${queuedPrompt.content.slice(0, 40)}..."`))
 
         // Simulate secondary agent work
         await new Promise((resolve) => setTimeout(resolve, 1000))
 
-        console.log(chalk.green(`✅ [${agentId}] Completed secondary task`))
+        console.log(chalk.green(`✓ [${agentId}] Completed secondary task`))
       } catch (error: any) {
         console.log(chalk.red(`❌ Secondary agent failed: ${error.message}`))
       }
@@ -560,15 +560,15 @@ export class UnifiedChatInterface extends EventEmitter {
           priority: t.priority,
           progress: t.progress,
         }))
-        ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+          ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
       })
-    } catch {}
+    } catch { }
   }
 
   /**
    * Execute todos in background using orchestrated agents
    */
-  private executeInBackground(todos: any[], agentId: string): void {
+  private executeInBackground(_todos: any[], agentId: string): void {
     // Non-blocking execution
     const timer = setTimeout(async () => {
       try {
@@ -578,7 +578,7 @@ export class UnifiedChatInterface extends EventEmitter {
 
         const { agentTodoManager } = await import('./core/agent-todo-manager')
         await agentTodoManager.executeTodos(agentId)
-        console.log(chalk.green('\n✅ Background execution completed!'))
+        console.log(chalk.green('\n✓ Background execution completed!'))
         this.addAssistantMessage('All background tasks have been completed successfully.')
       } catch (error: any) {
         console.log(chalk.red(`\n❌ Background execution failed: ${error.message}`))
@@ -591,7 +591,7 @@ export class UnifiedChatInterface extends EventEmitter {
   /**
    * Generate direct response without planning
    */
-  private async generateDirectResponse(prompt: string): Promise<void> {
+  private async generateDirectResponse(_prompt: string): Promise<void> {
     console.log(chalk.cyan('💭 Generating response...'))
 
     try {
@@ -680,25 +680,25 @@ export class UnifiedChatInterface extends EventEmitter {
    */
   private showHelp(): void {
     const helpBox = boxen(
-      chalk.white.bold('🤖 NikCLI Commands\n\n') +
-        chalk.green('/help') +
-        chalk.gray('     - Show this help\n') +
-        chalk.green('/plan') +
-        chalk.gray('     - Toggle plan mode (currently: ') +
-        (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
-        chalk.gray(') - Ask approval before execution\n') +
-        chalk.green('/status') +
-        chalk.gray('   - Show current status\n') +
-        chalk.green('/queue') +
-        chalk.gray('    - Show prompt queue\n') +
-        chalk.green('/stop') +
-        chalk.gray('     - Stop current execution\n') +
-        chalk.green('/clear') +
-        chalk.gray('    - Clear screen\n') +
-        chalk.green('/exit') +
-        chalk.gray('     - Exit NikCLI\n\n') +
-        chalk.yellow('💡 Default mode: Auto-generates todos for complex tasks and executes in background\n') +
-        chalk.yellow('💡 Plan mode: Creates detailed plans and asks for approval first'),
+      chalk.white.bold('🔌 NikCLI Commands\n\n') +
+      chalk.green('/help') +
+      chalk.gray('     - Show this help\n') +
+      chalk.green('/plan') +
+      chalk.gray('     - Toggle plan mode (currently: ') +
+      (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
+      chalk.gray(') - Ask approval before execution\n') +
+      chalk.green('/status') +
+      chalk.gray('   - Show current status\n') +
+      chalk.green('/queue') +
+      chalk.gray('    - Show prompt queue\n') +
+      chalk.green('/stop') +
+      chalk.gray('     - Stop current execution\n') +
+      chalk.green('/clear') +
+      chalk.gray('    - Clear screen\n') +
+      chalk.green('/exit') +
+      chalk.gray('     - Exit NikCLI\n\n') +
+      chalk.yellow('💡 Default mode: Auto-generates todos for complex tasks and executes in background\n') +
+      chalk.yellow('💡 Plan mode: Creates detailed plans and asks for approval first'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -715,23 +715,23 @@ export class UnifiedChatInterface extends EventEmitter {
   private showStatus(): void {
     const statusBox = boxen(
       chalk.white.bold('📊 NikCLI Status\n\n') +
-        chalk.blue('Working Directory: ') +
-        chalk.cyan(this.session.workingDirectory) +
-        '\n' +
-        chalk.blue('Plan Mode: ') +
-        (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
-        '\n' +
-        chalk.blue('Executing: ') +
-        (this.session.isExecuting ? chalk.yellow('YES') : chalk.green('NO')) +
-        '\n' +
-        chalk.blue('Current Plan: ') +
-        (this.session.currentPlan ? chalk.cyan(this.session.currentPlan.title) : chalk.gray('None')) +
-        '\n' +
-        chalk.blue('Queued Prompts: ') +
-        chalk.yellow(this.session.promptQueue.length.toString()) +
-        '\n' +
-        chalk.blue('Messages: ') +
-        chalk.cyan(this.session.messages.length.toString()),
+      chalk.blue('Working Directory: ') +
+      chalk.cyan(this.session.workingDirectory) +
+      '\n' +
+      chalk.blue('Plan Mode: ') +
+      (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
+      '\n' +
+      chalk.blue('Executing: ') +
+      (this.session.isExecuting ? chalk.yellow('YES') : chalk.green('NO')) +
+      '\n' +
+      chalk.blue('Current Plan: ') +
+      (this.session.currentPlan ? chalk.cyan(this.session.currentPlan.title) : chalk.gray('None')) +
+      '\n' +
+      chalk.blue('Queued Prompts: ') +
+      chalk.yellow(this.session.promptQueue.length.toString()) +
+      '\n' +
+      chalk.blue('Messages: ') +
+      chalk.cyan(this.session.messages.length.toString()),
       {
         padding: 1,
         borderStyle: 'round',
@@ -753,12 +753,12 @@ export class UnifiedChatInterface extends EventEmitter {
 
     const queueBox = boxen(
       chalk.white.bold(`📥 Prompt Queue (${this.session.promptQueue.length})\n\n`) +
-        this.session.promptQueue
-          .map(
-            (prompt, i) =>
-              `${i + 1}. ${chalk.cyan(prompt.content.slice(0, 50))}${prompt.content.length > 50 ? '...' : ''}\n   ${chalk.dim(prompt.timestamp.toLocaleTimeString())}`
-          )
-          .join('\n\n'),
+      this.session.promptQueue
+        .map(
+          (prompt, i) =>
+            `${i + 1}. ${chalk.cyan(prompt.content.slice(0, 50))}${prompt.content.length > 50 ? '...' : ''}\n   ${chalk.dim(prompt.timestamp.toLocaleTimeString())}`
+        )
+        .join('\n\n'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -797,12 +797,12 @@ export class UnifiedChatInterface extends EventEmitter {
     console.log(chalk.cyanBright(banner))
 
     const welcomeBox = boxen(
-      chalk.white.bold('🤖 Autonomous AI Development Assistant\n\n') +
-        chalk.gray('• Intelligent planning and execution\n') +
-        chalk.gray('• Real-time prompt queue management\n') +
-        chalk.gray('• Interactive permission system\n') +
-        chalk.gray('• Multi-agent orchestration\n\n') +
-        chalk.cyan('Ready to help with your development tasks!'),
+      chalk.white.bold('🔌 Autonomous AI Development Assistant\n\n') +
+      chalk.gray('• Intelligent planning and execution\n') +
+      chalk.gray('• Real-time prompt queue management\n') +
+      chalk.gray('• Interactive permission system\n') +
+      chalk.gray('• Multi-agent orchestration\n\n') +
+      chalk.cyan('Ready to help with your development tasks!'),
       {
         padding: 1,
         margin: 1,
@@ -826,7 +826,7 @@ export class UnifiedChatInterface extends EventEmitter {
     if (this.session.promptQueue.length > 0) indicators.push(chalk.blue(`queue:${this.session.promptQueue.length}`))
 
     const modeStr = indicators.length > 0 ? ` [${indicators.join(' ')}]` : ''
-    const prompt = chalk.cyan(`\n┌─[🤖:${workingDir}${modeStr}]\n└─❯ `)
+    const prompt = chalk.cyan(`\n┌─[🔌:${workingDir}${modeStr}]\n└─❯ `)
 
     this.rl.setPrompt(prompt)
     this.rl.prompt()
@@ -837,11 +837,11 @@ export class UnifiedChatInterface extends EventEmitter {
    */
   private showGoodbye(): void {
     const goodbyeBox = boxen(
-      chalk.white.bold('🤖 NikCLI Session Complete\n\n') +
-        chalk.gray('Thank you for using NikCLI!\n') +
-        chalk.blue(`Messages processed: ${this.session.messages.length}\n`) +
-        chalk.green(`Session duration: ${Math.round((Date.now() - parseInt(this.session.id)) / 1000)}s\n\n`) +
-        chalk.cyan('Happy coding! 🚀'),
+      chalk.white.bold('🔌 NikCLI Session Complete\n\n') +
+      chalk.gray('Thank you for using NikCLI!\n') +
+      chalk.blue(`Messages processed: ${this.session.messages.length}\n`) +
+      chalk.green(`Session duration: ${Math.round((Date.now() - parseInt(this.session.id, 10)) / 1000)}s\n\n`) +
+      chalk.cyan('Happy coding! 🚀'),
       {
         padding: 1,
         margin: 1,
@@ -869,9 +869,9 @@ export class UnifiedChatInterface extends EventEmitter {
       this.displayBanner()
 
       // Initialize services
-      console.log(chalk.blue('🔄 Initializing services...'))
+      console.log(chalk.blue('⚡︎ Initializing services...'))
       await this.chatOrchestrator.initialize()
-      console.log(chalk.green('✅ Services initialized'))
+      console.log(chalk.green('✓ Services initialized'))
 
       // Show initial prompt
       this.showPrompt()

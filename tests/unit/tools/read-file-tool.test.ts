@@ -243,7 +243,7 @@ describe('ReadFileTool', () => {
 
         const fileInfo = await readFileTool.getFileInfo(filePath)
 
-        expect(fileInfo.extension).toBe('.' + file.name.split('.').pop())
+        expect(fileInfo.extension).toBe(`.${file.name.split('.').pop()}`)
       }
     })
   })

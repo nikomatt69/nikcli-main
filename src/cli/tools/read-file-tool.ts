@@ -240,7 +240,7 @@ export class ReadFileTool extends BaseTool {
         content = content.replace(/\/\*[\s\S]*?\*\//g, '')
         break
       case '.html':
-      case '.xml':
+      case '.xml': {
         // Remove HTML/XML comments with complete sanitization
         let previousContent
         do {
@@ -248,6 +248,7 @@ export class ReadFileTool extends BaseTool {
           content = content.replace(/<!--[\s\S]*?-->/g, '')
         } while (content !== previousContent)
         break
+      }
     }
 
     // Clean up extra whitespace
@@ -343,7 +344,7 @@ export class ReadFileTool extends BaseTool {
       console.log(chalk.green('✓ Image analysis completed'))
 
       // Display image analysis in UI
-      if (analysis && analysis.description) {
+      if (analysis?.description) {
         advancedUI.showFileContent(filePath, analysis.description)
       }
 

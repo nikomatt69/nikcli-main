@@ -273,7 +273,7 @@ async function main() {
     passed++
 
   // Print summary
-  console.log('\n' + '='.repeat(50))
+  console.log(`\n${'='.repeat(50)}`)
   console.log('📊 TEST COHERENCE VERIFICATION SUMMARY')
   console.log('='.repeat(50))
   console.log(`✅ Passed: ${passed}/${total}`)

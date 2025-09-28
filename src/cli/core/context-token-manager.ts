@@ -1,8 +1,7 @@
 import { EventEmitter } from 'node:events'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
-import { adaptiveModelRouter, type ModelRouteDecision } from '../ai/adaptive-model-router'
-import { logger } from '../utils/logger'
+import { structuredLogger } from '../utils/structured-logger'
 import { type ModelLimits, type TokenUsage, universalTokenizer } from './universal-tokenizer-service'
 
 export interface SessionContext {
@@ -120,12 +119,15 @@ export class ContextTokenManager extends EventEmitter {
     this.messageHistory.clear()
     this.conversationMessages = []
 
-    logger.info('Started new token tracking session', {
-      sessionId: this.currentSession.sessionId,
-      provider,
-      model,
-      contextLimit: limits.context,
-    })
+    structuredLogger.info(
+      'Started new token tracking session',
+      JSON.stringify({
+        sessionId: this.currentSession.sessionId,
+        provider,
+        model,
+        contextLimit: limits.context,
+      })
+    )
 
     this.emit('session_started', this.currentSession)
     return this.currentSession
@@ -319,7 +321,7 @@ export class ContextTokenManager extends EventEmitter {
     const systemMessages = this.conversationMessages.filter((m) => m.role === 'system')
     const nonSystemMessages = this.conversationMessages.filter((m) => m.role !== 'system')
 
-    let optimizedMessages: CoreMessage[] = [...systemMessages]
+    const optimizedMessages: CoreMessage[] = [...systemMessages]
     let tokensUsed = 0
 
     // Add system message tokens
@@ -416,13 +418,16 @@ export class ContextTokenManager extends EventEmitter {
 
     const endedSession = { ...this.currentSession }
 
-    logger.info('Ended token tracking session', {
-      sessionId: endedSession.sessionId,
-      duration: Date.now() - endedSession.startTime.getTime(),
-      totalTokens: endedSession.totalInputTokens + endedSession.totalOutputTokens,
-      totalCost: endedSession.totalCost,
-      messageCount: endedSession.messageCount,
-    })
+    structuredLogger.info(
+      'Ended token tracking session',
+      JSON.stringify({
+        sessionId: endedSession.sessionId,
+        duration: Date.now() - endedSession.startTime.getTime(),
+        totalTokens: endedSession.totalInputTokens + endedSession.totalOutputTokens,
+        totalCost: endedSession.totalCost,
+        messageCount: endedSession.messageCount,
+      })
+    )
 
     this.emit('session_ended', endedSession)
 
@@ -449,11 +454,14 @@ export class ContextTokenManager extends EventEmitter {
     this.currentSession.modelLimits = universalTokenizer.getModelLimits(newModel, newProvider)
     this.currentSession.lastActivity = new Date()
 
-    logger.info('Switched model in active session', {
-      sessionId: this.currentSession.sessionId,
-      oldModel,
-      newModel: `${newProvider}:${newModel}`,
-    })
+    structuredLogger.info(
+      'Switched model in active session',
+      JSON.stringify({
+        sessionId: this.currentSession.sessionId,
+        oldModel,
+        newModel: `${newProvider}:${newModel}`,
+      })
+    )
 
     this.emit('model_switched', {
       session: this.currentSession,

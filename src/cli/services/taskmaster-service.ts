@@ -4,7 +4,6 @@ import { nanoid } from 'nanoid'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
 import type { PlanTodo } from '../planning/types'
 import type {
-  InitProjectOptions,
   TaskMasterConfig,
   TaskMasterIntegrationConfig,
   TaskMasterModule,
@@ -71,7 +70,7 @@ export class TaskMasterService extends EventEmitter {
 
       this.initialized = true
 
-      console.log(chalk.green('✅ TaskMaster service initialized'))
+      console.log(chalk.green('✓ TaskMaster service initialized'))
       this.emit('initialized')
 
       // Log initialization success with provider info
@@ -102,7 +101,7 @@ export class TaskMasterService extends EventEmitter {
       // Create .nikcli/taskmaster directory structure
       await fs.mkdir(taskMasterDir, { recursive: true })
 
-      console.log(chalk.green('✅ NikCLI TaskMaster structure initialized'))
+      console.log(chalk.green('✓ NikCLI TaskMaster structure initialized'))
     } catch (error: any) {
       console.log(chalk.gray(`ℹ️ Directory structure already exists or error: ${error.message}`))
     }
@@ -121,13 +120,13 @@ export class TaskMasterService extends EventEmitter {
       if (this.taskMaster && this.initialized) {
         // Since TaskMaster is primarily a CLI tool, we'll create a basic plan
         // and use TaskMaster's project management capabilities
-        console.log(chalk.cyan('🤖 Using TaskMaster for project organization...'))
+        console.log(chalk.cyan('🔌 Using TaskMaster for project organization...'))
 
         // Create a TaskMaster-compatible plan structure
         const plan = await this.createTaskMasterCompatiblePlan(planId, userRequest, context)
         this.activePlans.set(planId, plan)
 
-        console.log(chalk.green(`✅ Plan ${planId} created and stored`))
+        console.log(chalk.green(`✓ Plan ${planId} created and stored`))
         console.log(chalk.gray(`📋 Total active plans: ${this.activePlans.size}`))
 
         // Try to write the plan to TaskMaster's task format if possible
@@ -298,7 +297,7 @@ export class TaskMasterService extends EventEmitter {
    */
   private async generateSmartTodos(userRequest: string, _context?: PlanningContext): Promise<PlanTodo[]> {
     // SEMPRE usa l'AI per generare i todo, indipendentemente dal tipo di richiesta
-    console.log(chalk.cyan('🧠 Using AI for todo generation (all requests)'))
+    console.log(chalk.cyan('⚡︎ Using AI for todo generation (all requests)'))
 
     try {
       const aiTasks = await this.generateTasksWithAI(userRequest)
@@ -419,7 +418,7 @@ export class TaskMasterService extends EventEmitter {
    */
   private async generateTasksWithAI(userRequest: string): Promise<PlanTodo[]> {
     try {
-      console.log(chalk.cyan('🧠 Generating custom tasks with AI...'))
+      console.log(chalk.cyan('⚡︎ Generating custom tasks with AI...'))
 
       const prompt = `You are TaskMaster AI, an expert project planning assistant. Your job is to ALWAYS generate actionable tasks for ANY request.
 
@@ -469,13 +468,13 @@ Generate tasks NOW (JSON only):`
             if (contentToParse) {
               try {
                 // Prova parsing diretto
-                let parsed = JSON.parse(contentToParse)
+                const parsed = JSON.parse(contentToParse)
                 if (Array.isArray(parsed) && parsed.length > 0) {
                   aiTasks = parsed
                   success = true
                   break
                 }
-              } catch (parseError) {
+              } catch (_parseError) {
                 // Prova a estrarre JSON da markdown o testo misto
                 try {
                   const jsonMatch = contentToParse.match(/\[[\s\S]*\]/)
@@ -569,13 +568,13 @@ Generate tasks NOW (JSON only):`
 
       console.log(
         chalk.green(
-          `✅ Generated ${todos.length} tasks with AI (${aiTasks.length} from AI, ${todos.length - aiTasks.length} fallback)`
+          `✓ Generated ${todos.length} tasks with AI (${aiTasks.length} from AI, ${todos.length - aiTasks.length} fallback)`
         )
       )
       return todos
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ AI task generation failed: ${error.message}`))
-      console.log(chalk.gray('🔄 Falling back to comprehensive analysis tasks...'))
+      console.log(chalk.gray('⚡︎ Falling back to comprehensive analysis tasks...'))
 
       // Professional fallback tasks
       return [
@@ -794,7 +793,7 @@ Generate tasks NOW (JSON only):`
 
       await fs.writeFile(configFile, JSON.stringify(config, null, 2))
 
-      console.log(chalk.green('✅ Plan synced with TaskMaster project structure'))
+      console.log(chalk.green('✓ Plan synced with TaskMaster project structure'))
     } catch (error: any) {
       console.log(chalk.gray(`ℹ️ TaskMaster sync skipped: ${error.message}`))
     }
@@ -935,7 +934,7 @@ Generate tasks NOW (JSON only):`
    */
   private setupFallbackMode(): void {
     this.initialized = false
-    console.log(chalk.cyan('🔄 Running in fallback mode - basic planning available'))
+    console.log(chalk.cyan('⚡︎ Running in fallback mode - basic planning available'))
   }
 
   /**
@@ -1005,55 +1004,6 @@ Generate tasks NOW (JSON only):`
         return 'in-progress'
       case 'failed':
         return 'cancelled'
-      case 'pending':
-      default:
-        return 'pending'
-    }
-  }
-
-  /**
-   * Map TaskMaster status to NikCLI status
-   */
-  private mapFromTaskMasterStatus(taskMasterStatus: TaskStatus): 'pending' | 'in_progress' | 'completed' | 'failed' {
-    switch (taskMasterStatus) {
-      case 'done':
-        return 'completed'
-      case 'in-progress':
-        return 'in_progress'
-      case 'cancelled':
-      case 'deferred':
-        return 'failed'
-      case 'review':
-        return 'completed' // Treat review as completed for NikCLI
-      case 'pending':
-      default:
-        return 'pending'
-    }
-  }
-
-  /**
-   * Map TaskMaster status to TaskMasterPlan status
-   */
-  private mapToTaskMasterPlanStatus(
-    taskMasterStatus: 'pending' | 'running' | 'completed' | 'failed' | TaskStatus
-  ): 'pending' | 'running' | 'completed' | 'failed' {
-    switch (taskMasterStatus) {
-      case 'done':
-        return 'completed'
-      case 'in-progress':
-        return 'running'
-      case 'cancelled':
-      case 'deferred':
-        return 'failed'
-      case 'review':
-        return 'completed'
-      case 'completed':
-        return 'completed'
-      case 'running':
-        return 'running'
-      case 'failed':
-        return 'failed'
-      case 'pending':
       default:
         return 'pending'
     }

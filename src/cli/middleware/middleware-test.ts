@@ -19,7 +19,7 @@ async function testMiddlewareSystem() {
   // Initialize middleware system
   console.log('1. Initializing middleware system...')
   await MiddlewareBootstrap.initialize(policyManager)
-  console.log('✅ Middleware system initialized\n')
+  console.log('✓ Middleware system initialized\n')
 
   // Test middleware execution
   console.log('2. Testing middleware pipeline execution...')
@@ -38,7 +38,7 @@ async function testMiddlewareSystem() {
     const result = await middlewareManager.execute('test-operation', ['arg1', 'arg2'], moduleContext, 'command')
 
     if (result.success) {
-      console.log('✅ Middleware pipeline executed successfully')
+      console.log('✓ Middleware pipeline executed successfully')
       console.log(`📊 Executed middleware: ${result.executedMiddleware.join(', ')}`)
       console.log(`⚡ Total execution time: ${result.totalDuration}ms`)
     } else {
@@ -61,7 +61,7 @@ async function testMiddlewareSystem() {
 
   console.log('\n5. Shutting down middleware system...')
   await MiddlewareBootstrap.shutdown()
-  console.log('✅ Middleware system shut down successfully')
+  console.log('✓ Middleware system shut down successfully')
 
   console.log('\n🎉 Middleware system test completed successfully!')
 }

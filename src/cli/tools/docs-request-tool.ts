@@ -54,7 +54,7 @@ export const docsRequestTool: CoreTool = tool({
   }),
   execute: async ({ concept, context, urgency, autoLoad, suggestSources }) => {
     try {
-      console.log(chalk.blue(`🤖 Agent requesting docs: "${concept}"`))
+      console.log(chalk.blue(`🔌 Agent requesting docs: "${concept}"`))
 
       const result: DocsRequestResult = {
         concept,
@@ -86,7 +86,7 @@ export const docsRequestTool: CoreTool = tool({
           relevance: 'already-loaded',
         }))
 
-        result.summary = `✅ Found ${relevantLoaded.length} relevant documents already loaded in context:\n${relevantLoaded.map((doc) => `- ${doc.title}`).join('\n')}\n\nYou can use this information immediately.`
+        result.summary = `✓ Found ${relevantLoaded.length} relevant documents already loaded in context:\n${relevantLoaded.map((doc) => `- ${doc.title}`).join('\n')}\n\nYou can use this information immediately.`
         return result
       }
 
@@ -100,7 +100,7 @@ export const docsRequestTool: CoreTool = tool({
         `${concept} best practices`,
       ]
 
-      let bestMatches = []
+      const bestMatches = []
       const cloudProvider = getCloudDocsProvider()
 
       // Search through different queries to find the best matches
@@ -166,7 +166,7 @@ export const docsRequestTool: CoreTool = tool({
               relevance: 'auto-loaded',
             }))
 
-            console.log(chalk.green(`🤖 Auto-loaded ${loadedDocs.length} docs for "${concept}"`))
+            console.log(chalk.green(`🔌 Auto-loaded ${loadedDocs.length} docs for "${concept}"`))
           } catch (error) {
             console.error('Auto-load failed:', error)
           }
@@ -177,7 +177,7 @@ export const docsRequestTool: CoreTool = tool({
           title: match.entry.title,
           category: match.entry.category,
           source: match.source,
-          score: Math.round(match.score * 100) + '%',
+          score: `${Math.round(match.score * 100)}%`,
           url: match.entry.url,
         }))
       }
@@ -247,17 +247,16 @@ export const docsRequestTool: CoreTool = tool({
         result.summary = `🎯 Found documentation for "${concept}"!\n\n`
 
         if (loaded > 0) {
-          result.summary += `✅ **Auto-loaded ${loaded} documents into context:**\n`
-          result.summary += result.loadedDocs.map((doc) => `- ${doc.title} (${doc.category})`).join('\n') + '\n\n'
+          result.summary += `✓ **Auto-loaded ${loaded} documents into context:**\n`
+          result.summary += `${result.loadedDocs.map((doc) => `- ${doc.title} (${doc.category})`).join('\n')}\n\n`
         }
 
         if (available > loaded) {
-          result.summary += `📚 **Additional documentation available:**\n`
-          result.summary +=
-            result.suggestions
-              .slice(loaded)
-              .map((doc) => `- ${doc.title} (${doc.category}) - ${doc.score} match`)
-              .join('\n') + '\n\n'
+          result.summary += `⚡︎ **Additional documentation available:**\n`
+          result.summary += `${result.suggestions
+            .slice(loaded)
+            .map((doc) => `- ${doc.title} (${doc.category}) - ${doc.score} match`)
+            .join('\n')}\n\n`
           result.summary += `💡 Use the smart_docs_load tool to load additional documents.\n\n`
         }
 
@@ -276,10 +275,9 @@ export const docsRequestTool: CoreTool = tool({
 
         if (result.externalSources.length > 0) {
           result.summary += `🌐 **Suggested external sources:**\n`
-          result.summary +=
-            result.externalSources
-              .map((source) => `- [${source.name}](${source.url}) - ${source.description}`)
-              .join('\n') + '\n\n'
+          result.summary += `${result.externalSources
+            .map((source) => `- [${source.name}](${source.url}) - ${source.description}`)
+            .join('\n')}\n\n`
 
           result.summary += `💡 **Recommendation:** Use the /doc-add command to add documentation from these sources to your local library for future use.\n\n`
         }

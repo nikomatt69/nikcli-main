@@ -1,16 +1,17 @@
 /**
- * CAD Commands for NikCLI
- * Provides slash commands to interact with the text-to-CAD AI system
- */
+* CAD Commands for NikCLI
+* Provides slash commands to interact with the text-to-CAD AI system
+*/
 
 import chalk from 'chalk'
 import { TextToCADAgent } from '../agents/text-to-cad-agent'
 import { getCadService } from '../services/cad-gcode-service'
+import boxen from 'boxen'
 
 export class CADCommands {
   private cadAgent: TextToCADAgent
   private cadService = getCadService()
-
+  private cliInstance: any
   constructor() {
     this.cadAgent = new TextToCADAgent()
   }
@@ -23,7 +24,6 @@ export class CADCommands {
       this.showCADHelp()
       return
     }
-
     const subcommand = args[0]
     const restArgs = args.slice(1)
 
@@ -53,8 +53,6 @@ export class CADCommands {
       case 'status':
         await this.showSystemStatus()
         break
-
-      case 'help':
       default:
         this.showCADHelp()
         break
@@ -77,7 +75,7 @@ export class CADCommands {
     try {
       const result = await this.cadService.generateCAD(description)
       if (result?.model || result?.description) {
-        console.log(chalk.green('✅ CAD model generated'))
+        console.log(chalk.green('✓ CAD model generated'))
         console.log(chalk.gray(result.model.substring(0, 1000)))
       } else {
         console.log(chalk.red('❌ CAD generation returned no data'))
@@ -98,12 +96,12 @@ export class CADCommands {
     }
 
     const description = args.join(' ')
-    console.log(chalk.blue(`🔄 Starting streaming generation: "${description}"`))
+    console.log(chalk.blue(`⚡︎ Starting streaming generation: "${description}"`))
     // For now, fallback to non-streaming service call
     try {
       const result = await this.cadService.generateCAD(description)
       if (result?.model) {
-        console.log(chalk.green('✅ CAD model generated'))
+        console.log(chalk.green('✓ CAD model generated'))
         console.log(chalk.gray(result.model.substring(0, 1000)))
       } else {
         console.log(chalk.red('❌ Streaming not supported via provider yet'))
@@ -137,7 +135,7 @@ export class CADCommands {
     try {
       const result = await this.cadService.generateCAD(description)
       if (result?.model) {
-        console.log(chalk.green('✅ CAD model generated'))
+        console.log(chalk.green('✓ CAD model generated'))
         console.log(chalk.gray(`Format requested: ${format.toUpperCase()}`))
         console.log(chalk.gray(result.model.substring(0, 1000)))
       } else {
@@ -152,75 +150,159 @@ export class CADCommands {
    * Show supported output formats
    */
   private showSupportedFormats(): void {
-    console.log(chalk.cyan.bold('📁 Supported CAD Export Formats:'))
-    console.log('')
-    console.log(chalk.blue('• STL') + chalk.gray('  - Stereolithography (3D printing)'))
-    console.log(chalk.blue('• STEP') + chalk.gray(' - Standard for Exchange of Product Data'))
-    console.log(chalk.blue('• DWG') + chalk.gray('  - AutoCAD Drawing format'))
-    console.log(chalk.blue('• SCAD') + chalk.gray(' - OpenSCAD script export'))
-    console.log(chalk.blue('• JSON') + chalk.gray(' - Internal element structure'))
-    console.log('')
-    console.log(chalk.gray('Usage: /cad export <format> <description>'))
+    const content = [
+      '📁 Supported CAD Export Formats:',
+      '',
+      '• STL  - Stereolithography (3D printing)',
+      '• STEP - Standard for Exchange of Product Data',
+      '• DWG  - AutoCAD Drawing format',
+      '• SCAD - OpenSCAD script export',
+      '• JSON - Internal element structure',
+      '',
+      'Usage: /cad export <format> <description>'
+    ].join('\n')
+
+    if (this.cliInstance?.printPanel) {
+      this.cliInstance.printPanel(
+        boxen(content, {
+          title: '📁 CAD Export Formats',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan'
+        })
+      )
+    } else {
+      console.log(boxen(content, {
+        title: '📁 CAD Export Formats',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan'
+      }))
+    }
   }
 
   /**
    * Show usage examples
    */
   private showExamples(): void {
-    console.log(chalk.cyan.bold('🎨 CAD Generation Examples:'))
-    console.log('')
-    console.log(chalk.yellow('Basic generation:'))
-    console.log(chalk.gray('  /cad generate "mechanical bracket with 4 mounting holes"'))
-    console.log(chalk.gray('  /cad create "gear wheel 20 teeth, 5mm bore"'))
-    console.log('')
-    console.log(chalk.yellow('With dimensions:'))
-    console.log(chalk.gray('  /cad generate "rectangular plate 100mm x 50mm x 5mm"'))
-    console.log(chalk.gray('  /cad create "cylindrical housing 30mm diameter, 15mm height"'))
-    console.log('')
-    console.log(chalk.yellow('Streaming generation:'))
-    console.log(chalk.gray('  /cad stream "complex assembly with motor mount"'))
-    console.log('')
-    console.log(chalk.yellow('Export to file:'))
-    console.log(chalk.gray('  /cad export stl "simple bracket for 3D printing"'))
-    console.log(chalk.gray('  /cad export step "precision machined part"'))
+    const content = [
+      '🎨 CAD Generation Examples:',
+      '',
+      'Basic generation:',
+      '  /cad generate "mechanical bracket with 4 mounting holes"',
+      '  /cad create "gear wheel 20 teeth, 5mm bore"',
+      '',
+      'With dimensions:',
+      '  /cad generate "rectangular plate 100mm x 50mm x 5mm"',
+      '  /cad create "cylindrical housing 30mm diameter, 15mm height"',
+      '',
+      'Streaming generation:',
+      '  /cad stream "complex assembly with motor mount"',
+      '',
+      'Export to file:',
+      '  /cad export stl "simple bracket for 3D printing"',
+      '  /cad export step "precision machined part"'
+    ].join('\n')
+
+    if (this.cliInstance?.printPanel) {
+      this.cliInstance.printPanel(
+        boxen(content, {
+          title: '🎨 CAD Examples',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan'
+        })
+      )
+    } else {
+      console.log(boxen(content, {
+        title: '🎨 CAD Examples',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan'
+      }))
+    }
   }
 
   /**
    * Show CAD system status
    */
   private async showSystemStatus(): Promise<void> {
-    console.log(chalk.cyan.bold('🔧 Text-to-CAD System Status:'))
-    console.log('')
-
     const capabilities = this.cadAgent.getCapabilities()
-    console.log(chalk.blue('Available capabilities:'))
-    capabilities.forEach((cap) => {
-      console.log(chalk.gray(`  ✅ ${cap}`))
-    })
+    const content = [
+      '🔧 Text-to-CAD System Status:',
+      '',
+      'Available capabilities:',
+      ...capabilities.map(cap => `  ✓ ${cap}`),
+      '',
+      '🟢 System ready for CAD generation'
+    ].join('\n')
 
-    console.log('')
-    console.log(chalk.green('🟢 System ready for CAD generation'))
+    if (this.cliInstance?.printPanel) {
+      this.cliInstance.printPanel(
+        boxen(content, {
+          title: '🔧 CAD System Status',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green'
+        })
+      )
+    } else {
+      console.log(boxen(content, {
+        title: '🔧 CAD System Status',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'green'
+      }))
+    }
   }
 
   /**
    * Show CAD command help
    */
   private showCADHelp(): void {
-    console.log(chalk.cyan.bold('🎨 Text-to-CAD AI Commands:'))
-    console.log('')
-    console.log(chalk.yellow('Generation Commands:'))
-    console.log(chalk.blue('  /cad generate <description>') + chalk.gray(' - Generate CAD model'))
-    console.log(chalk.blue('  /cad stream <description>') + chalk.gray('   - Generate with real-time progress'))
-    console.log(chalk.blue('  /cad export <format> <desc>') + chalk.gray(' - Generate and export to file'))
-    console.log('')
-    console.log(chalk.yellow('Information Commands:'))
-    console.log(chalk.blue('  /cad formats') + chalk.gray('                 - Show supported export formats'))
-    console.log(chalk.blue('  /cad examples') + chalk.gray('                - Show usage examples'))
-    console.log(chalk.blue('  /cad status') + chalk.gray('                  - Show system status'))
-    console.log(chalk.blue('  /cad help') + chalk.gray('                    - Show this help'))
-    console.log('')
-    console.log(chalk.gray('💡 Tip: Use detailed descriptions for better results'))
-    console.log(chalk.gray('Example: "aluminum bracket 50x30x5mm with 4x M6 bolt holes"'))
+    const content = [
+      '🎨 Text-to-CAD AI Commands:',
+      '',
+      'Generation Commands:',
+      '  /cad generate <description> - Generate CAD model',
+      '  /cad stream <description>   - Generate with real-time progress',
+      '  /cad export <format> <desc> - Generate and export to file',
+      '',
+      'Information Commands:',
+      '  /cad formats                 - Show supported export formats',
+      '  /cad examples                - Show usage examples',
+      '  /cad status                  - Show system status',
+      '  /cad help                    - Show this help',
+      '',
+      '💡 Tip: Use detailed descriptions for better results',
+      'Example: "aluminum bracket 50x30x5mm with 4x M6 bolt holes"'
+    ].join('\n')
+
+    if (this.cliInstance?.printPanel) {
+      this.cliInstance.printPanel(
+        boxen(content, {
+          title: '🎨 Text-to-CAD AI Commands',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan'
+        })
+      )
+    } else {
+      console.log(boxen(content, {
+        title: '🎨 Text-to-CAD AI Commands',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan'
+      }))
+    }
   }
 }
 

@@ -43,7 +43,6 @@ export interface LearningData {
 export class AgentLearningSystem {
   private learningData: Map<string, LearningData> = new Map()
   private learningFile: string
-  private maxMemoryEntries = 1000
 
   constructor() {
     this.learningFile = path.join(os.homedir(), '.nikcli', 'agent-learning.json')
@@ -123,7 +122,7 @@ export class AgentLearningSystem {
 
     // Record failure pattern if necessary
     if (outcome === 'failure' && error) {
-      let failurePattern = learningData.failurePatterns.find((fp) => fp.tool === chosenTool && fp.error === error)
+      const failurePattern = learningData.failurePatterns.find((fp) => fp.tool === chosenTool && fp.error === error)
 
       if (failurePattern) {
         failurePattern.frequency++
@@ -155,7 +154,7 @@ export class AgentLearningSystem {
   /**
    * Get learning insights for a specific agent
    */
-  getAgentInsights(agentType?: string): {
+  getAgentInsights(_agentType?: string): {
     totalPatterns: number
     mostSuccessfulTool: string
     commonFailures: Array<{ tool: string; error: string; frequency: number }>
@@ -203,7 +202,7 @@ export class AgentLearningSystem {
   /**
    * Predice la probabilità di successo per una scelta specifica
    */
-  predictSuccessProbability(context: DecisionContext, proposedTool: string, parameters?: any): number {
+  predictSuccessProbability(context: DecisionContext, proposedTool: string, _parameters?: any): number {
     const pattern = this.extractPattern(context)
     const learningData = this.learningData.get(pattern)
 
@@ -296,7 +295,7 @@ export class AgentLearningSystem {
     return `${taskKey}_${contextKey}`
   }
 
-  private calculateToolScores(learningData: LearningData, context: DecisionContext): Record<string, number> {
+  private calculateToolScores(learningData: LearningData, _context: DecisionContext): Record<string, number> {
     const scores: Record<string, number> = {}
 
     // Analizza scelte passate
@@ -373,7 +372,7 @@ export class AgentLearningSystem {
     }
   }
 
-  private generateReasoning(tool: string, learningData: LearningData, context: DecisionContext): string {
+  private generateReasoning(tool: string, learningData: LearningData, _context: DecisionContext): string {
     const relevantChoices = learningData.successfulChoices.filter((c) => c.tool === tool)
     const successRate = relevantChoices.filter((c) => c.outcome === 'success').length / relevantChoices.length
     const avgTime = relevantChoices.reduce((sum, c) => sum + c.executionTime, 0) / relevantChoices.length
@@ -384,7 +383,7 @@ export class AgentLearningSystem {
     )
   }
 
-  private generatePreventiveActions(learningData: LearningData, context: DecisionContext): string[] {
+  private generatePreventiveActions(learningData: LearningData, _context: DecisionContext): string[] {
     const actions: string[] = []
 
     // Analizza failure patterns comuni
@@ -423,7 +422,7 @@ export class AgentLearningSystem {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
 
-    topFailures.forEach(([error, frequency]) => {
+    topFailures.forEach(([error, _frequency]) => {
       if (error.includes('permission')) {
         suggestions.push('Implement permission checking before file operations')
       } else if (error.includes('timeout')) {
@@ -435,7 +434,7 @@ export class AgentLearningSystem {
 
     // Analizza tool performance
     const lowPerformanceTools = Array.from(toolUsage.entries())
-      .filter(([tool, usage]) => usage.total > 5 && usage.success / usage.total < 0.7)
+      .filter(([_tool, usage]) => usage.total > 5 && usage.success / usage.total < 0.7)
       .map(([tool]) => tool)
 
     if (lowPerformanceTools.length > 0) {
@@ -445,7 +444,7 @@ export class AgentLearningSystem {
     return suggestions
   }
 
-  private getBaseConfidence(tool: string, context: DecisionContext): number {
+  private getBaseConfidence(tool: string, _context: DecisionContext): number {
     // Confidence di base senza dati storici
     const toolConfidence: Record<string, number> = {
       docs_request: 0.8,
@@ -460,7 +459,7 @@ export class AgentLearningSystem {
     return toolConfidence[tool] || 0.6
   }
 
-  private getExploratoryTools(context: DecisionContext): string[] {
+  private getExploratoryTools(_context: DecisionContext): string[] {
     return ['docs_request', 'smart_docs_search', 'read_file', 'code_analysis']
   }
 

@@ -30,7 +30,7 @@ export class MiddlewareContextBuilder {
   }
 
   static forRequest(operation: string, args: any[], baseContext: ModuleContext): MiddlewareContext {
-    return this.fromModuleContext(baseContext, {
+    return MiddlewareContextBuilder.fromModuleContext(baseContext, {
       operation,
       args: args.length,
       argsTypes: args.map((arg) => typeof arg),
@@ -55,7 +55,7 @@ export class ContextSanitizer {
   static sanitizeForLogging(context: MiddlewareContext): MiddlewareContext {
     return {
       ...context,
-      metadata: this.sanitizeObject(context.metadata),
+      metadata: ContextSanitizer.sanitizeObject(context.metadata),
     }
   }
 
@@ -65,15 +65,15 @@ export class ContextSanitizer {
     }
 
     if (Array.isArray(obj)) {
-      return obj.map((item) => this.sanitizeObject(item))
+      return obj.map((item) => ContextSanitizer.sanitizeObject(item))
     }
 
     const sanitized: any = {}
     for (const [key, value] of Object.entries(obj)) {
-      if (this.isSensitiveKey(key)) {
+      if (ContextSanitizer.isSensitiveKey(key)) {
         sanitized[key] = '[REDACTED]'
       } else if (typeof value === 'object') {
-        sanitized[key] = this.sanitizeObject(value)
+        sanitized[key] = ContextSanitizer.sanitizeObject(value)
       } else {
         sanitized[key] = value
       }
@@ -84,6 +84,6 @@ export class ContextSanitizer {
 
   private static isSensitiveKey(key: string): boolean {
     const lowerKey = key.toLowerCase()
-    return this.SENSITIVE_KEYS.some((sensitive) => lowerKey.includes(sensitive.toLowerCase()))
+    return ContextSanitizer.SENSITIVE_KEYS.some((sensitive) => lowerKey.includes(sensitive.toLowerCase()))
   }
 }

@@ -241,7 +241,7 @@ export class ContextAwareRAGSystem {
 
     for (const [_path, file] of this.memory.files) {
       // Simple text similarity (in production, use proper embeddings)
-      const similarity = this.calculateSimilarity(query, file.content + ' ' + file.summary)
+      const similarity = this.calculateSimilarity(query, `${file.content} ${file.summary}`)
 
       if (similarity > 0.1) {
         results.push({ file, similarity })

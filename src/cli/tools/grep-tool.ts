@@ -138,7 +138,7 @@ export class GrepTool extends BaseTool {
         },
       }
 
-      CliUI.logSuccess(`✅ Found ${result.totalMatches} matches in ${filesWithMatches} files`)
+      CliUI.logSuccess(`✓ Found ${result.totalMatches} matches in ${filesWithMatches} files`)
 
       // Show grep results in structured UI
       if (result.matches.length > 0) {
@@ -270,7 +270,7 @@ export class GrepTool extends BaseTool {
     filePath: string,
     regex: RegExp,
     contextLines: number,
-    params: GrepToolParams
+    _params: GrepToolParams
   ): Promise<GrepMatch[]> {
     const content = await readFile(filePath, 'utf-8')
     const lines = content.split('\n')

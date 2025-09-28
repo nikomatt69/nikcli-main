@@ -81,7 +81,7 @@ export class PerformanceMiddleware extends BaseMiddleware {
   async execute(
     request: MiddlewareRequest,
     next: MiddlewareNext,
-    context: MiddlewareExecutionContext
+    _context: MiddlewareExecutionContext
   ): Promise<MiddlewareResponse> {
     const startTime = Date.now()
     const startMemory = this.getMemoryUsage()
@@ -169,7 +169,7 @@ export class PerformanceMiddleware extends BaseMiddleware {
     return usage.heapUsed
   }
 
-  private recordBenchmark(operation: string, metrics: PerformanceMetrics, success: boolean): void {
+  private recordBenchmark(operation: string, metrics: PerformanceMetrics, _success: boolean): void {
     let benchmark = this.benchmarks.get(operation)
 
     if (!benchmark) {
@@ -314,8 +314,8 @@ export class PerformanceMiddleware extends BaseMiddleware {
     console.log(chalk.yellow.bold('\\n⚠️  Slow Operation Detected'))
     console.log(chalk.gray('─'.repeat(50)))
     console.log(`${chalk.blue('Operation:')} ${operation}`)
-    console.log(`${chalk.blue('Execution Time:')} ${chalk.yellow(metrics.executionTime + 'ms')}`)
-    console.log(`${chalk.blue('Memory Delta:')} ${chalk.cyan(Math.round(metrics.memoryDelta / 1024) + 'KB')}`)
+    console.log(`${chalk.blue('Execution Time:')} ${chalk.yellow(`${metrics.executionTime}ms`)}`)
+    console.log(`${chalk.blue('Memory Delta:')} ${chalk.cyan(`${Math.round(metrics.memoryDelta / 1024)}KB`)}`)
 
     if (benchmark) {
       console.log(`${chalk.blue('Average Time:')} ${Math.round(benchmark.averageTime)}ms`)

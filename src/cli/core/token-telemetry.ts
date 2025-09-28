@@ -16,14 +16,14 @@ export class TokenTelemetry {
   }
 
   static getInstance(): TokenTelemetry {
-    if (!this.instance) this.instance = new TokenTelemetry()
-    return this.instance
+    if (!TokenTelemetry.instance) TokenTelemetry.instance = new TokenTelemetry()
+    return TokenTelemetry.instance
   }
 
   private async append(event: TelemetryEvent): Promise<void> {
     try {
       await fs.mkdir(path.dirname(this.logFile), { recursive: true })
-      await fs.appendFile(this.logFile, JSON.stringify(event) + '\n')
+      await fs.appendFile(this.logFile, `${JSON.stringify(event)}\n`)
     } catch {
       // silent
     }

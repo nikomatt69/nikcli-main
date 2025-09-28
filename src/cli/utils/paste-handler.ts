@@ -44,7 +44,7 @@ export class PasteHandler {
    */
   detectPasteOperation(input: string): boolean {
     const currentTime = Date.now()
-    const timeDiff = currentTime - this.lastInputTime
+    const _timeDiff = currentTime - this.lastInputTime
     this.lastInputTime = currentTime
 
     const lineCount = this.countLines(input)
@@ -145,7 +145,7 @@ export class PasteHandler {
     const maxLineLength = 100
     preview = preview
       .split('\n')
-      .map((line) => (line.length > maxLineLength ? line.substring(0, maxLineLength) + '...' : line))
+      .map((line) => (line.length > maxLineLength ? `${line.substring(0, maxLineLength)}...` : line))
       .join('\n')
 
     if (lineCount > this.config.maxDisplayLines) {

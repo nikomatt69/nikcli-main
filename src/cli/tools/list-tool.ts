@@ -246,7 +246,6 @@ export class ListTool extends BaseTool {
           return b.size - a.size
         case 'modified':
           return b.modified.getTime() - a.modified.getTime()
-        case 'name':
         default:
           // Directory prima, poi file, entrambi alfabetici
           if (a.type !== b.type) {

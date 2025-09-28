@@ -105,7 +105,7 @@ export class SnapshotProvider extends EventEmitter {
       await this.loadExistingSnapshots()
       this.isInitialized = true
 
-      structuredLogger.success('Snapshots', `✅ Snapshot provider initialized (${this.config.provider})`)
+      structuredLogger.success('Snapshots', `✓ Snapshot provider initialized (${this.config.provider})`)
       this.emit('initialized')
     } catch (error: any) {
       structuredLogger.error('Snapshots', `❌ Snapshot provider initialization failed: ${error.message}`)
@@ -139,7 +139,7 @@ export class SnapshotProvider extends EventEmitter {
         throw new Error(`GitHub API error: ${response.status}`)
       }
 
-      structuredLogger.success('Snapshots', '✅ GitHub connection verified')
+      structuredLogger.success('Snapshots', '✓ GitHub connection verified')
     } catch (error: any) {
       throw new Error(`GitHub initialization failed: ${error.message}`)
     }
@@ -163,7 +163,7 @@ export class SnapshotProvider extends EventEmitter {
         throw new Error(`Supabase API error: ${response.status}`)
       }
 
-      structuredLogger.success('Snapshots', '✅ Supabase connection verified')
+      structuredLogger.success('Snapshots', '✓ Supabase connection verified')
     } catch (error: any) {
       throw new Error(`Supabase initialization failed: ${error.message}`)
     }
@@ -219,7 +219,7 @@ export class SnapshotProvider extends EventEmitter {
       // Cleanup old snapshots if needed
       await this.cleanupOldSnapshots()
 
-      console.log(chalk.green(`✅ Snapshot created: ${snapshotId.substring(0, 8)}...`))
+      console.log(chalk.green(`✓ Snapshot created: ${snapshotId.substring(0, 8)}...`))
       console.log(
         chalk.gray(`   Files: ${snapshot.metadata.fileCount}, Size: ${this.formatSize(snapshot.metadata.size)}`)
       )
@@ -253,10 +253,10 @@ export class SnapshotProvider extends EventEmitter {
 
     const targetPath = options.targetPath || process.cwd()
     const filesToRestore = options.selectedFiles
-      ? snapshot.files.filter((f) => options.selectedFiles!.includes(f.path))
+      ? snapshot.files.filter((f) => options.selectedFiles?.includes(f.path))
       : snapshot.files
 
-    console.log(chalk.blue(`🔄 Restoring snapshot: ${snapshot.name}`))
+    console.log(chalk.blue(`⚡︎ Restoring snapshot: ${snapshot.name}`))
     console.log(chalk.gray(`   Target: ${targetPath}`))
     console.log(chalk.gray(`   Files: ${filesToRestore.length}/${snapshot.files.length}`))
 
@@ -291,7 +291,7 @@ export class SnapshotProvider extends EventEmitter {
       }
     }
 
-    console.log(chalk.green(`✅ Snapshot restored: ${restoredCount} files`))
+    console.log(chalk.green(`✓ Snapshot restored: ${restoredCount} files`))
     if (skippedCount > 0) {
       console.log(chalk.gray(`   Skipped: ${skippedCount} files (use --overwrite to replace)`))
     }
@@ -313,7 +313,7 @@ export class SnapshotProvider extends EventEmitter {
     }
 
     if (options.tags && options.tags.length > 0) {
-      results = results.filter((s) => options.tags!.some((tag) => s.metadata.tags.includes(tag)))
+      results = results.filter((s) => options.tags?.some((tag) => s.metadata.tags.includes(tag)))
     }
 
     if (options.dateRange) {
@@ -350,7 +350,7 @@ export class SnapshotProvider extends EventEmitter {
       await this.removeStoredSnapshot(snapshotId)
       this.snapshots.delete(snapshotId)
 
-      console.log(chalk.green(`✅ Snapshot deleted: ${snapshotId.substring(0, 8)}...`))
+      console.log(chalk.green(`✓ Snapshot deleted: ${snapshotId.substring(0, 8)}...`))
       this.emit('snapshot_deleted', { snapshotId })
 
       return true
@@ -574,10 +574,11 @@ export class SnapshotProvider extends EventEmitter {
 
   private async removeStoredSnapshot(snapshotId: string): Promise<void> {
     switch (this.config.provider) {
-      case 'local':
+      case 'local': {
         const snapshotPath = path.join(this.config.localPath!, `${snapshotId}.json`)
         await fs.unlink(snapshotPath)
         break
+      }
       // GitHub and Supabase deletion implementation
     }
   }

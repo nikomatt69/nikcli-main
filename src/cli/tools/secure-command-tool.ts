@@ -213,7 +213,7 @@ export class SecureCommandTool {
     const sessionDuration = options.sessionDuration || 30 // 30 minutes default
     const expiresAt = new Date(Date.now() + sessionDuration * 60 * 1000)
 
-    console.log(chalk.blue.bold('\n🔄 Creating Batch Execution Session'))
+    console.log(chalk.blue.bold('\n⚡︎ Creating Batch Execution Session'))
     console.log(chalk.gray(`Session ID: ${sessionId}`))
     console.log(chalk.gray(`Commands: ${commands.length}`))
     console.log(chalk.gray(`Expires: ${expiresAt.toLocaleTimeString()}`))
@@ -229,7 +229,7 @@ export class SecureCommandTool {
 
     commands.forEach((cmd, index) => {
       const analysis = analyses[index].analysis
-      const icon = analysis.safe ? '✅' : analysis.dangerous ? '🚫' : '⚠️'
+      const icon = analysis.safe ? '✓' : analysis.dangerous ? '🚫' : '⚠️'
       const color = analysis.safe ? chalk.green : analysis.dangerous ? chalk.red : chalk.yellow
       console.log(color(`${icon} ${index + 1}. ${cmd}`))
 
@@ -293,7 +293,7 @@ export class SecureCommandTool {
       this.batchSessions.set(sessionId, session)
 
       if (approved) {
-        console.log(chalk.green(`✅ Batch approved! Session ID: ${sessionId}`))
+        console.log(chalk.green(`✓ Batch approved! Session ID: ${sessionId}`))
       } else {
         console.log(chalk.red('❌ Batch execution cancelled by user'))
       }
@@ -350,7 +350,7 @@ export class SecureCommandTool {
             const result = await this.execute(command, { ...options, skipConfirmation: true })
             session.results.push(result)
 
-            console.log(chalk.green(`✅ [${i + 1}/${session.commands.length}] Completed: ${command}`))
+            console.log(chalk.green(`✓ [${i + 1}/${session.commands.length}] Completed: ${command}`))
 
             // Stop on first failure unless continuing
             if (result.exitCode !== 0) {
@@ -370,7 +370,7 @@ export class SecureCommandTool {
         }
 
         session.status = 'completed'
-        console.log(chalk.green.bold(`\n✅ Batch Execution Complete: ${sessionId}`))
+        console.log(chalk.green.bold(`\n✓ Batch Execution Complete: ${sessionId}`))
         console.log(chalk.gray(`Executed: ${session.results.length}/${session.commands.length} commands`))
 
         // Completion callback
@@ -511,7 +511,7 @@ export class SecureCommandTool {
         duration,
       })
 
-      console.log(chalk.green(`✅ Command completed in ${duration}ms`))
+      console.log(chalk.green(`✓ Command completed in ${duration}ms`))
 
       if (stdout) {
         console.log(chalk.white('📤 Output:'))
@@ -641,7 +641,7 @@ export class SecureCommandTool {
    */
   addSafeCommand(command: string): void {
     SAFE_COMMANDS.add(command)
-    console.log(chalk.green(`✅ Added to safe commands: ${command}`))
+    console.log(chalk.green(`✓ Added to safe commands: ${command}`))
   }
 
   /**

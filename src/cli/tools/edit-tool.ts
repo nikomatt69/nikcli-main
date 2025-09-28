@@ -118,7 +118,7 @@ export class EditTool extends BaseTool {
       // Scrivi nuovo contenuto
       if (editResult.replacementsMade > 0) {
         await this.writeFileWithValidation(filePath, editResult.changes, params)
-        CliUI.logSuccess(`✅ File edited successfully: ${editResult.replacementsMade} replacements made`)
+        CliUI.logSuccess(`✓ File edited successfully: ${editResult.replacementsMade} replacements made`)
       } else {
         CliUI.logWarning('⚠️ No replacements made - pattern not found')
       }

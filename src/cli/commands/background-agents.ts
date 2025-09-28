@@ -28,7 +28,7 @@ export class BackgroundAgentsCommand {
       .option('--draft', 'Create draft PR')
       .option('--priority <priority>', 'Job priority (0-10)', '5')
       .action(async (options) => {
-        await this.startJob(options)
+        await BackgroundAgentsCommand.startJob(options)
       })
 
     // List jobs
@@ -40,7 +40,7 @@ export class BackgroundAgentsCommand {
       .option('-l, --limit <limit>', 'Limit results', '20')
       .option('--json', 'Output as JSON')
       .action(async (options) => {
-        await this.listJobs(options)
+        await BackgroundAgentsCommand.listJobs(options)
       })
 
     // Show job details
@@ -48,7 +48,7 @@ export class BackgroundAgentsCommand {
       .description('Show job details')
       .option('--json', 'Output as JSON')
       .action(async (jobId, options) => {
-        await this.showJob(jobId, options)
+        await BackgroundAgentsCommand.showJob(jobId, options)
       })
 
     // Stream job logs
@@ -57,14 +57,14 @@ export class BackgroundAgentsCommand {
       .option('-f, --follow', 'Follow logs')
       .option('--tail <lines>', 'Show last N lines', '50')
       .action(async (jobId, options) => {
-        await this.streamLogs(jobId, options)
+        await BackgroundAgentsCommand.streamLogs(jobId, options)
       })
 
     // Cancel job
     bg.command('cancel <jobId>')
       .description('Cancel a running job')
       .action(async (jobId) => {
-        await this.cancelJob(jobId)
+        await BackgroundAgentsCommand.cancelJob(jobId)
       })
 
     // Send follow-up message
@@ -73,7 +73,7 @@ export class BackgroundAgentsCommand {
       .description('Send follow-up message to running job')
       .option('-p, --priority <priority>', 'Message priority', 'normal')
       .action(async (jobId, message, options) => {
-        await this.sendFollowUp(jobId, message, options)
+        await BackgroundAgentsCommand.sendFollowUp(jobId, message, options)
       })
 
     // Open job PR/console
@@ -81,7 +81,7 @@ export class BackgroundAgentsCommand {
       .description('Open job in browser')
       .option('--pr', 'Open PR instead of console')
       .action(async (jobId, options) => {
-        await this.openJob(jobId, options)
+        await BackgroundAgentsCommand.openJob(jobId, options)
       })
 
     // Job statistics
@@ -89,14 +89,14 @@ export class BackgroundAgentsCommand {
       .description('Show background agent statistics')
       .option('--json', 'Output as JSON')
       .action(async (options) => {
-        await this.showStats(options)
+        await BackgroundAgentsCommand.showStats(options)
       })
 
     // Retry failed job
     bg.command('retry <jobId>')
       .description('Retry a failed job')
       .action(async (jobId) => {
-        await this.retryJob(jobId)
+        await BackgroundAgentsCommand.retryJob(jobId)
       })
   }
 
@@ -113,8 +113,8 @@ export class BackgroundAgentsCommand {
         task: options.task,
         playbook: options.playbook,
         limits: {
-          timeMin: parseInt(options.time),
-          maxToolCalls: parseInt(options.tokens),
+          timeMin: parseInt(options.time, 10),
+          maxToolCalls: parseInt(options.tokens, 10),
           maxMemoryMB: 2048,
         },
         reviewers: options.reviewers ? options.reviewers.split(',').map((r: string) => r.trim()) : undefined,
@@ -127,12 +127,12 @@ export class BackgroundAgentsCommand {
       // Show job details
       const job = backgroundAgentService.getJob(jobId)
       if (job) {
-        this.displayJobInfo(job)
+        BackgroundAgentsCommand.displayJobInfo(job)
       }
 
       // Start log streaming
       console.log(chalk.dim('\nStreaming logs (Ctrl+C to stop)...'))
-      await this.streamLogs(jobId, { follow: true, tail: '0' })
+      await BackgroundAgentsCommand.streamLogs(jobId, { follow: true, tail: '0' })
     } catch (error: any) {
       spinner.fail(`Failed to create job: ${error.message}`)
       process.exit(1)
@@ -146,7 +146,7 @@ export class BackgroundAgentsCommand {
     try {
       const jobs = backgroundAgentService.listJobs({
         status: options.status as JobStatus,
-        limit: parseInt(options.limit),
+        limit: parseInt(options.limit, 10),
       })
 
       if (options.json) {
@@ -165,9 +165,9 @@ export class BackgroundAgentsCommand {
         ID: job.id.substring(0, 8),
         Repo: job.repo,
         Task: job.task.substring(0, 40) + (job.task.length > 40 ? '...' : ''),
-        Status: this.formatStatus(job.status),
-        Created: this.formatTime(job.createdAt),
-        Duration: this.formatDuration(job),
+        Status: BackgroundAgentsCommand.formatStatus(job.status),
+        Created: BackgroundAgentsCommand.formatTime(job.createdAt),
+        Duration: BackgroundAgentsCommand.formatDuration(job),
       }))
 
       console.table(table)
@@ -193,7 +193,7 @@ export class BackgroundAgentsCommand {
         return
       }
 
-      this.displayJobDetails(job)
+      BackgroundAgentsCommand.displayJobDetails(job)
     } catch (error: any) {
       console.error(chalk.red(`Failed to show job: ${error.message}`))
       process.exit(1)
@@ -212,16 +212,16 @@ export class BackgroundAgentsCommand {
       }
 
       // Show recent logs
-      const recentLogs = job.logs.slice(-parseInt(options.tail))
+      const recentLogs = job.logs.slice(-parseInt(options.tail, 10))
       recentLogs.forEach((log) => {
-        console.log(this.formatLogEntry(log))
+        console.log(BackgroundAgentsCommand.formatLogEntry(log))
       })
 
       // Follow logs if requested
       if (options.follow) {
         backgroundAgentService.on('job:log', (logJobId: string, logEntry: any) => {
           if (logJobId === jobId) {
-            console.log(this.formatLogEntry(logEntry))
+            console.log(BackgroundAgentsCommand.formatLogEntry(logEntry))
           }
         })
 
@@ -381,13 +381,13 @@ export class BackgroundAgentsCommand {
   private static displayJobInfo(job: BackgroundJob): void {
     const box = boxen(
       [
-        chalk.bold('🤖 Background Job Created'),
+        chalk.bold('🔌 Background Job Created'),
         '',
         `${chalk.cyan('ID:')} ${job.id}`,
         `${chalk.cyan('Repository:')} ${job.repo}`,
         `${chalk.cyan('Branch:')} ${job.baseBranch} → ${job.workBranch}`,
         `${chalk.cyan('Task:')} ${job.task}`,
-        `${chalk.cyan('Status:')} ${this.formatStatus(job.status)}`,
+        `${chalk.cyan('Status:')} ${BackgroundAgentsCommand.formatStatus(job.status)}`,
         job.playbook ? `${chalk.cyan('Playbook:')} ${job.playbook}` : '',
       ]
         .filter(Boolean)
@@ -406,26 +406,26 @@ export class BackgroundAgentsCommand {
    * Display detailed job information
    */
   private static displayJobDetails(job: BackgroundJob): void {
-    console.log(chalk.bold(`\n🤖 Job: ${job.id}\n`))
+    console.log(chalk.bold(`\n🔌 Job: ${job.id}\n`))
 
     // Basic info
     console.log(chalk.cyan('Repository:'), job.repo)
     console.log(chalk.cyan('Branch:'), `${job.baseBranch} → ${job.workBranch}`)
     console.log(chalk.cyan('Task:'), job.task)
-    console.log(chalk.cyan('Status:'), this.formatStatus(job.status))
+    console.log(chalk.cyan('Status:'), BackgroundAgentsCommand.formatStatus(job.status))
 
     if (job.playbook) {
       console.log(chalk.cyan('Playbook:'), job.playbook)
     }
 
     // Timing
-    console.log(chalk.cyan('Created:'), this.formatTime(job.createdAt))
+    console.log(chalk.cyan('Created:'), BackgroundAgentsCommand.formatTime(job.createdAt))
     if (job.startedAt) {
-      console.log(chalk.cyan('Started:'), this.formatTime(job.startedAt))
+      console.log(chalk.cyan('Started:'), BackgroundAgentsCommand.formatTime(job.startedAt))
     }
     if (job.completedAt) {
-      console.log(chalk.cyan('Completed:'), this.formatTime(job.completedAt))
-      console.log(chalk.cyan('Duration:'), this.formatDuration(job))
+      console.log(chalk.cyan('Completed:'), BackgroundAgentsCommand.formatTime(job.completedAt))
+      console.log(chalk.cyan('Duration:'), BackgroundAgentsCommand.formatDuration(job))
     }
 
     // Metrics
@@ -452,7 +452,7 @@ export class BackgroundAgentsCommand {
     if (job.logs.length > 0) {
       console.log(chalk.bold('\n📝 Recent Logs'))
       job.logs.slice(-5).forEach((log) => {
-        console.log(this.formatLogEntry(log))
+        console.log(BackgroundAgentsCommand.formatLogEntry(log))
       })
     }
   }
@@ -500,7 +500,7 @@ export class BackgroundAgentsCommand {
    */
   private static formatLogEntry(log: any): string {
     const timestamp = chalk.dim(log.timestamp.toISOString().substring(11, 19))
-    const level = this.formatLogLevel(log.level)
+    const level = BackgroundAgentsCommand.formatLogLevel(log.level)
     const source = chalk.dim(`[${log.source}]`)
 
     return `${timestamp} ${level} ${source} ${log.message}`

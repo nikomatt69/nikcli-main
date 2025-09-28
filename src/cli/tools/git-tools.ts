@@ -133,7 +133,7 @@ export class GitTools extends BaseTool {
   private async diff(args: { staged?: boolean; pathspec?: string[] } = {}): Promise<ToolExecutionResult> {
     const start = Date.now()
     const cmd = args.staged ? 'git diff --staged' : 'git diff'
-    const withPaths = args.pathspec && args.pathspec.length ? `${cmd} -- ${args.pathspec.join(' ')}` : cmd
+    const withPaths = args.pathspec?.length ? `${cmd} -- ${args.pathspec.join(' ')}` : cmd
     const res = await this.runner.execute(withPaths, { skipConfirmation: true })
     return {
       success: true,
@@ -192,7 +192,7 @@ export class GitTools extends BaseTool {
     }
 
     // Optionally add files
-    if (args.add && args.add.length) {
+    if (args.add?.length) {
       await this.runner.execute(`git add -- ${args.add.join(' ')}`, { skipConfirmation: true })
     }
     const allowEmptyFlag = args.allowEmpty ? ' --allow-empty' : ''

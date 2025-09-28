@@ -84,10 +84,10 @@ export {
 export function initializeSecureTools(workingDir?: string): void {
   console.log(chalk.green.bold('\n🔒 Secure Tools Initialized'))
   console.log(chalk.gray('─'.repeat(50)))
-  console.log(chalk.green('✅ Path sanitization enabled'))
-  console.log(chalk.green('✅ User confirmation for write operations'))
-  console.log(chalk.green('✅ Command allow-listing active'))
-  console.log(chalk.green('✅ Execution tracking enabled'))
+  console.log(chalk.green('✓ Path sanitization enabled'))
+  console.log(chalk.green('✓ User confirmation for write operations'))
+  console.log(chalk.green('✓ Command allow-listing active'))
+  console.log(chalk.green('✓ Execution tracking enabled'))
   console.log(chalk.yellow('⚠️  Legacy ToolsManager deprecated'))
   console.log(chalk.blue('💡 Use secureTools.* methods for all operations'))
 

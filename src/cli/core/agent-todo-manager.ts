@@ -64,7 +64,7 @@ export class AgentTodoManager {
   async planTodos(agentId: string, goal: string, context?: any): Promise<AgentTodo[]> {
     console.log(
       chalk.blue(
-        `🧠 Agent ${agentId} is planning todos for: ${goal}${this.useTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable() ? ' (TaskMaster AI)' : ''}`
+        `⚡︎ Agent ${agentId} is planning todos for: ${goal}${this.useTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable() ? ' (TaskMaster AI)' : ''}`
       )
     )
 
@@ -78,7 +78,7 @@ export class AgentTodoManager {
     // Try TaskMaster first if available
     if (this.useTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable()) {
       try {
-        console.log(chalk.cyan(`🤖 Using TaskMaster AI for agent ${agentId} planning...`))
+        console.log(chalk.cyan(`🔌 Using TaskMaster AI for agent ${agentId} planning...`))
 
         // Create TaskMaster plan for the agent
         const taskMasterPlan = await taskMasterService.createPlan(goal, {
@@ -90,10 +90,10 @@ export class AgentTodoManager {
         // Convert TaskMaster todos to AgentTodos
         plannedTodos = taskMasterPlan.todos.map((todo) => this.taskMasterAdapter.taskMasterToAgentTodo(todo, agentId))
 
-        console.log(chalk.green(`✅ TaskMaster AI generated ${plannedTodos.length} todos for agent ${agentId}`))
+        console.log(chalk.green(`✓ TaskMaster AI generated ${plannedTodos.length} todos for agent ${agentId}`))
       } catch (error: any) {
         console.log(chalk.yellow(`⚠️ TaskMaster planning failed for agent ${agentId}: ${error.message}`))
-        console.log(chalk.cyan(`🔄 Falling back to rule-based planning...`))
+        console.log(chalk.cyan(`⚡︎ Falling back to rule-based planning...`))
 
         // Fallback to rule-based planning
         plannedTodos = await this.generateTodosFromGoal(agentId, goal, context)
@@ -118,7 +118,7 @@ export class AgentTodoManager {
         const taskMasterPlan = this.taskMasterAdapter.workPlanToTaskMaster(workPlan)
         await taskMasterService.updatePlan(taskMasterPlan.id, taskMasterPlan)
 
-        console.log(chalk.cyan(`🔄 Synced agent ${agentId} todos with TaskMaster`))
+        console.log(chalk.cyan(`⚡︎ Synced agent ${agentId} todos with TaskMaster`))
       } catch (syncError: any) {
         console.log(chalk.gray(`ℹ️ TaskMaster sync failed: ${syncError.message}`))
       }
@@ -306,7 +306,7 @@ export class AgentTodoManager {
       )
     }
 
-    return baseTodos.map((todoBase, index) => ({
+    return baseTodos.map((todoBase, _index) => ({
       id: nanoid(),
       agentId,
       title: todoBase.title!,
@@ -349,7 +349,7 @@ export class AgentTodoManager {
 
     // Show final summary
     console.log(chalk.green.bold(`\n🎉 Execution Summary:`))
-    console.log(chalk.green(`✅ Completed: ${completedCount}/${pendingTodos.length} todos`))
+    console.log(chalk.green(`✓ Completed: ${completedCount}/${pendingTodos.length} todos`))
     if (failedCount > 0) {
       console.log(chalk.red(`❌ Failed: ${failedCount} todos`))
     }
@@ -377,7 +377,7 @@ export class AgentTodoManager {
           nikCliInstance.currentMode = 'default'
         }
         if (nikCliInstance && typeof nikCliInstance.showPrompt === 'function') {
-          console.log(chalk.dim('🔄 Returning to chat mode...'))
+          console.log(chalk.dim('⚡︎ Returning to chat mode...'))
           nikCliInstance.showPrompt()
         } else {
           // More visible fallback
@@ -412,7 +412,7 @@ export class AgentTodoManager {
       todo.actualDuration = Math.round((Date.now() - startTime) / 1000 / 60)
       todo.progress = 100
 
-      console.log(chalk.green(`✅ Completed: ${todo.title} (${todo.actualDuration}min)`))
+      console.log(chalk.green(`✓ Completed: ${todo.title} (${todo.actualDuration}min)`))
     } catch (error) {
       todo.status = 'failed'
       todo.progress = 50 // Partial progress
@@ -434,7 +434,7 @@ export class AgentTodoManager {
       // Poll for completion with timeout
       const maxWaitMs = 10 * 60 * 1000 // 10 minutes
       const start = Date.now()
-      let result: any = undefined
+      let result: any
       while (Date.now() - start < maxWaitMs) {
         const status = agentService.getTaskStatus(taskId)
         if (status?.status === 'completed') {
@@ -473,7 +473,7 @@ export class AgentTodoManager {
           const parsed = JSON.parse(result)
           if (parsed.plan && parsed.completed) {
             console.log(chalk.cyan(`\n📋 ${todo.title} - Results:`))
-            console.log(chalk.green(`✅ Task completed successfully`))
+            console.log(chalk.green(`✓ Task completed successfully`))
             if (parsed.plan.description) {
               console.log(chalk.white(`📄 ${parsed.plan.description}`))
             }
@@ -560,7 +560,7 @@ export class AgentTodoManager {
     console.log(chalk.gray('═'.repeat(50)))
 
     console.log(`📝 Total Todos: ${stats.totalTodos}`)
-    console.log(`✅ Completed: ${chalk.green(stats.completed.toString())}`)
+    console.log(`✓ Completed: ${chalk.green(stats.completed.toString())}`)
     console.log(`⚡ In Progress: ${chalk.yellow(stats.inProgress.toString())}`)
     console.log(`📋 Pending: ${chalk.cyan(stats.pending.toString())}`)
     console.log(`❌ Failed: ${chalk.red(stats.failed.toString())}`)
@@ -572,7 +572,7 @@ export class AgentTodoManager {
       todos.slice(0, 5).forEach((todo) => {
         const status =
           todo.status === 'completed'
-            ? '✅'
+            ? '✓'
             : todo.status === 'in_progress'
               ? '⚡'
               : todo.status === 'failed'
@@ -607,7 +607,7 @@ export class AgentTodoManager {
    */
   setTaskMasterEnabled(enabled: boolean): void {
     this.useTaskMaster = enabled
-    console.log(chalk.cyan(`🤖 TaskMaster integration ${enabled ? 'enabled' : 'disabled'} for agent todo manager`))
+    console.log(chalk.cyan(`🔌 TaskMaster integration ${enabled ? 'enabled' : 'disabled'} for agent todo manager`))
   }
 
   /**
@@ -650,7 +650,7 @@ export class AgentTodoManager {
 
       const { unified, conflicts } = await this.taskMasterAdapter.syncTodos(sessionTodos as any, agentTodos)
 
-      console.log(chalk.green(`✅ Synced ${unified.length} todos with TaskMaster for agent ${agentId}`))
+      console.log(chalk.green(`✓ Synced ${unified.length} todos with TaskMaster for agent ${agentId}`))
 
       if (conflicts.length > 0) {
         console.log(chalk.yellow(`⚠️ ${conflicts.length} conflicts detected:`))

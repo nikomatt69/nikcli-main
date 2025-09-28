@@ -62,7 +62,7 @@ export class StatusBar implements Component<Widgets.BoxElement> {
     const { separator = '  |  ', showIcons = false, itemSpacing = 2 } = this.props
     let currentLeft = 0
 
-    this.items.forEach((item, index) => {
+    this.items.forEach((item, _index) => {
       let content = ''
 
       if (showIcons && item.icon) {

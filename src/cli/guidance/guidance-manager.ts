@@ -59,7 +59,7 @@ export class GuidanceManager {
   async initialize(onContextUpdate?: (context: GuidanceContext) => void): Promise<void> {
     this.onContextUpdate = onContextUpdate
 
-    structuredLogger.info('Guidance', '🧠 Initializing guidance system...')
+    structuredLogger.info('Guidance', '⚡︎ Initializing guidance system...')
 
     // Scan for existing guidance files
     await this.scanGuidanceFiles()
@@ -70,7 +70,7 @@ export class GuidanceManager {
     // Build initial context
     await this.updateContext()
 
-    structuredLogger.success('Guidance', `✅ Guidance system initialized with ${this.guidanceFiles.size} files`)
+    structuredLogger.success('Guidance', `✓ Guidance system initialized with ${this.guidanceFiles.size} files`)
   }
 
   /**
@@ -152,7 +152,7 @@ export class GuidanceManager {
   /**
    * Parse guidance file content and extract structured information
    */
-  private async parseGuidanceFile(content: string, type: 'nikocli' | 'agents'): Promise<any> {
+  private async parseGuidanceFile(content: string, _type: 'nikocli' | 'agents'): Promise<any> {
     const parsed: any = {
       sections: {},
       instructions: [],
@@ -190,9 +190,9 @@ export class GuidanceManager {
         // Extract instructions from lists
         const items = this.extractListItems(token)
         parsed.instructions.push(...items)
-        currentContent += this.tokenToText(token) + '\n'
+        currentContent += `${this.tokenToText(token)}\n`
       } else {
-        currentContent += this.tokenToText(token) + '\n'
+        currentContent += `${this.tokenToText(token)}\n`
       }
     }
 
@@ -270,7 +270,7 @@ export class GuidanceManager {
       this.watchers.push(watcher)
     }
 
-    structuredLogger.info('Guidance', '👀 File watchers active for guidance files')
+    structuredLogger.info('Guidance', '⚡︎ File watchers active for guidance files')
   }
 
   private async handleFileChange(filePath: string, changeType: 'add' | 'change' | 'unlink'): Promise<void> {
@@ -323,7 +323,7 @@ export class GuidanceManager {
    * Merge instructions from multiple guidance files
    */
   private mergeInstructions(global: GuidanceFile[], project: GuidanceFile[], subdir: GuidanceFile[]): string {
-    let instructions: string[] = []
+    const instructions: string[] = []
 
     // Add global instructions first
     for (const file of global) {
@@ -388,7 +388,7 @@ export class GuidanceManager {
     if (agentType) {
       const agentSpecific = Array.from(this.guidanceFiles.values())
         .filter((f) => f.type === 'agents' && f.parsed?.sections?.[agentType.toLowerCase()])
-        .map((f) => f.parsed!.sections![agentType.toLowerCase()])
+        .map((f) => f.parsed?.sections?.[agentType.toLowerCase()])
         .join('\n\n')
 
       if (agentSpecific) {
@@ -527,7 +527,7 @@ You are a backend specialist focusing on:
 
     try {
       fs.writeFileSync(targetPath, content, 'utf-8')
-      console.log(chalk.green(`✅ Created sample ${type} guidance file: ${targetPath}`))
+      console.log(chalk.green(`✓ Created sample ${type} guidance file: ${targetPath}`))
       return targetPath
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to create guidance file: ${error.message}`))
@@ -583,7 +583,7 @@ You are a backend specialist focusing on:
     this.guidanceFiles.clear()
     this.currentContext = null
 
-    console.log(chalk.green('✅ Guidance system cleaned up'))
+    console.log(chalk.green('✓ Guidance system cleaned up'))
   }
 }
 

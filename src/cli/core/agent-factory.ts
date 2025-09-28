@@ -12,7 +12,7 @@ import { agentTodoManager } from './agent-todo-manager'
 import { blueprintStorage } from './blueprint-storage'
 import { configManager } from './config-manager'
 
-// ====================== 🧠 ZOD VALIDATION SCHEMAS ======================
+// ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
 // VM Container Configuration Schema
 export const VMContainerConfigSchema = z.object({
@@ -59,7 +59,7 @@ const AgentPersonalitySchema = z.object({
 export const AgentBlueprintSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1).max(100),
-  description: z.string().min(10).max(500),
+  description: z.string().min(10).max(5000),
   specialization: z.string().min(1),
   systemPrompt: z.string().min(10),
   capabilities: z.array(z.string()).min(1),
@@ -119,7 +119,7 @@ export class DynamicAgent extends BaseAgent {
 
   protected async onInitialize(): Promise<void> {
     agentStream.startAgentStream(this.id)
-    agentStream.emitEvent(this.id, 'info', `🤖 Dynamic agent ${this.id} initialized`)
+    agentStream.emitEvent(this.id, 'info', `🔌 Dynamic agent ${this.id} initialized`)
     agentStream.emitEvent(this.id, 'info', `Specialization: ${this.blueprint.specialization}`)
     agentStream.emitEvent(this.id, 'info', `Autonomy Level: ${this.blueprint.autonomyLevel}`)
   }
@@ -439,7 +439,7 @@ export class DynamicAgent extends BaseAgent {
     }
   }
 
-  private async executeFileSystemTodo(todo: any): Promise<any> {
+  private async executeFileSystemTodo(_todo: any): Promise<any> {
     agentStream.emitEvent(this.id, 'executing', 'Analyzing file system...')
 
     // Autonomously decide what files to read/analyze
@@ -918,14 +918,14 @@ Context Scope: ${requirements.contextScope || 'project'}`,
         createdAt: new Date(),
       }
 
-      // ✅ Validate with Zod schema
+      // ✓ Validate with Zod schema
       const blueprint = AgentBlueprintSchema.parse(blueprintData)
 
       // Store in memory and persistent storage
       this.blueprints.set(blueprint.id, blueprint)
       await blueprintStorage.saveBlueprint(blueprint)
 
-      console.log(chalk.green(`✅ Agent blueprint created: ${blueprint.name}`))
+      console.log(chalk.green(`✓ Agent blueprint created: ${blueprint.name}`))
       console.log(chalk.gray(`   Blueprint ID: ${blueprint.id}`))
       console.log(chalk.gray(`   Capabilities: ${blueprint.capabilities.join(', ')}`))
       console.log(chalk.gray(`   Autonomy: ${blueprint.autonomyLevel}`))
@@ -940,7 +940,7 @@ Context Scope: ${requirements.contextScope || 'project'}`,
       console.log(chalk.red(`❌ Failed to create agent blueprint: ${error.message}`))
 
       // Try to create a fallback blueprint if the main process fails
-      console.log(chalk.yellow('🔄 Creating fallback blueprint...'))
+      console.log(chalk.yellow('⚡︎ Creating fallback blueprint...'))
       try {
         const fallbackBlueprint = this.createFallbackBlueprint(requirements.specialization)
 
@@ -973,7 +973,7 @@ Context Scope: ${requirements.contextScope || 'project'}`,
         this.blueprints.set(validatedBlueprint.id, validatedBlueprint)
         await blueprintStorage.saveBlueprint(validatedBlueprint)
 
-        console.log(chalk.green(`✅ Fallback agent blueprint created: ${validatedBlueprint.name}`))
+        console.log(chalk.green(`✓ Fallback agent blueprint created: ${validatedBlueprint.name}`))
         console.log(chalk.gray(`   Blueprint ID: ${validatedBlueprint.id}`))
         console.log(chalk.gray(`   Capabilities: ${validatedBlueprint.capabilities.join(', ')}`))
 
@@ -1131,12 +1131,12 @@ Execute tasks step-by-step and verify results before proceeding.`
       createdAt: new Date(),
     }
 
-    // ✅ Validate with Zod schema
+    // ✓ Validate with Zod schema
     const blueprint = AgentBlueprintSchema.parse(blueprintData)
 
     this.blueprints.set(blueprint.id, blueprint)
 
-    console.log(chalk.green(`✅ VM agent blueprint created: ${blueprint.id}`))
+    console.log(chalk.green(`✓ VM agent blueprint created: ${blueprint.id}`))
     console.log(chalk.gray(`   Type: 🐳 VM Agent`))
     console.log(chalk.gray(`   Capabilities: ${blueprint.capabilities.join(', ')}`))
     console.log(chalk.gray(`   Container Image: ${blueprint.vmConfig?.containerImage}`))
@@ -1201,7 +1201,7 @@ Execute tasks step-by-step and verify results before proceeding.`
         return existing
       } else {
         // Agent is no longer healthy, remove and recreate
-        console.log(chalk.yellow(`🔄 Existing agent ${blueprint.name} is unhealthy, recreating...`))
+        console.log(chalk.yellow(`⚡︎ Existing agent ${blueprint.name} is unhealthy, recreating...`))
         this.instances.delete(blueprint.name)
         await this.cleanupAgent(existing)
       }
@@ -1212,7 +1212,7 @@ Execute tasks step-by-step and verify results before proceeding.`
     try {
       await agent.initialize()
       this.instances.set(blueprint.name, agent)
-      console.log(chalk.green(`✅ Agent ${blueprint.name} launched successfully`))
+      console.log(chalk.green(`✓ Agent ${blueprint.name} launched successfully`))
 
       // If a task is provided, execute it immediately
       if (task) {
@@ -1289,7 +1289,7 @@ Execute tasks step-by-step and verify results before proceeding.`
     const deleted = await blueprintStorage.deleteBlueprint(blueprint.id)
 
     if (deleted) {
-      console.log(chalk.green(`✅ Blueprint deleted: ${blueprint.name}`))
+      console.log(chalk.green(`✓ Blueprint deleted: ${blueprint.name}`))
     }
 
     return deleted
@@ -1403,7 +1403,7 @@ Execute tasks step-by-step and verify results before proceeding.`
     try {
       await Promise.allSettled(cleanupPromises)
       this.instances.clear()
-      console.log(chalk.green('✅ All agents cleaned up successfully'))
+      console.log(chalk.green('✓ All agents cleaned up successfully'))
     } catch (_error) {
       console.log(chalk.yellow('⚠️  Some agents may not have cleaned up properly'))
     }
@@ -1474,7 +1474,7 @@ Execute tasks step-by-step and verify results before proceeding.`
     console.log(chalk.gray('═'.repeat(50)))
 
     console.log(`📋 Blueprints: ${blueprints.length}`)
-    console.log(`🤖 Active Agents: ${allAgents.length}`)
+    console.log(`🔌 Active Agents: ${allAgents.length}`)
     console.log(`🏃 Running Agents: ${runningAgents.length}`)
     console.log(`💾 Storage: ${storageStats.storageSize} in ${storageStats.storageDir}`)
 
@@ -1492,12 +1492,12 @@ Execute tasks step-by-step and verify results before proceeding.`
     }
 
     if (allAgents.length > 0) {
-      console.log(chalk.blue.bold('\n🤖 Active Agents:'))
+      console.log(chalk.blue.bold('\n🔌 Active Agents:'))
       allAgents.forEach((agent) => {
         const blueprint = agent.getBlueprint()
         const stats = agentTodoManager.getAgentStats(agent.id)
 
-        console.log(`  🤖 ${chalk.bold(agent.id)} (${blueprint.specialization})`)
+        console.log(`  🔌 ${chalk.bold(agent.id)} (${blueprint.specialization})`)
         console.log(`    Status: ${agent.isActive() ? chalk.green('Running') : chalk.yellow('Idle')}`)
         console.log(`    Todos: ${stats.completed} completed, ${stats.pending} pending`)
         console.log(`    Efficiency: ${Math.round(stats.efficiency)}%`)
@@ -1517,7 +1517,7 @@ Execute tasks step-by-step and verify results before proceeding.`
   // ====================== 🎯 MULTI-DIMENSIONAL AGENT SELECTION ======================
 
   /**
-   * 🧠 Advanced Agent Selection based on 15+ metrics
+   * ⚡︎ Advanced Agent Selection based on 15+ metrics
    * Selects optimal agents using multi-dimensional analysis
    */
   async selectOptimalAgentsForTask(
@@ -1575,7 +1575,7 @@ Execute tasks step-by-step and verify results before proceeding.`
 
     console.log(
       chalk.green(
-        `✅ Selected ${primary.getBlueprint().name} as primary agent (confidence: ${Math.round(confidence * 100)}%)`
+        `✓ Selected ${primary.getBlueprint().name} as primary agent (confidence: ${Math.round(confidence * 100)}%)`
       )
     )
 
@@ -1809,7 +1809,7 @@ Execute tasks step-by-step and verify results before proceeding.`
   }
 
   /**
-   * 🔄 Score working style compatibility
+   * ⚡︎ Score working style compatibility
    */
   private scoreWorkingStyle(workingStyle: AgentBlueprint['workingStyle'], estimatedComplexity: number): number {
     const styleScores = {
@@ -1839,7 +1839,7 @@ Execute tasks step-by-step and verify results before proceeding.`
   /**
    * 📈 Score recent performance (placeholder - would use real metrics)
    */
-  private scoreRecentPerformance(agentName: string): number {
+  private scoreRecentPerformance(_agentName: string): number {
     // In real implementation, this would use historical performance data
     return 0.75 // Placeholder score
   }
@@ -1855,7 +1855,7 @@ Execute tasks step-by-step and verify results before proceeding.`
   }
 
   /**
-   * 🔄 Score freshness (newer agents might have better capabilities)
+   * ⚡︎ Score freshness (newer agents might have better capabilities)
    */
   private scoreFreshness(createdAt: Date): number {
     const daysSinceCreation = (Date.now() - createdAt.getTime()) / (24 * 60 * 60 * 1000)
@@ -1892,7 +1892,7 @@ Execute tasks step-by-step and verify results before proceeding.`
   }
 
   /**
-   * 🔄 Dynamic Agent Rebalancing based on performance
+   * ⚡︎ Dynamic Agent Rebalancing based on performance
    */
   async rebalanceAgentSelection(
     taskId: string,
@@ -1903,7 +1903,7 @@ Execute tasks step-by-step and verify results before proceeding.`
       errorCount: number
     }
   ): Promise<{ shouldRebalance: boolean; newPrimary?: DynamicAgent; reasoning: string }> {
-    console.log(chalk.yellow(`🔄 Evaluating agent rebalancing for task ${taskId}...`))
+    console.log(chalk.yellow(`⚡︎ Evaluating agent rebalancing for task ${taskId}...`))
 
     // Determine if rebalancing is needed
     const shouldRebalance =
@@ -1935,7 +1935,7 @@ Execute tasks step-by-step and verify results before proceeding.`
 
     console.log(
       chalk.green(
-        `✅ Rebalancing recommended: ${currentPrimary.getBlueprint().name} → ${newPrimary.getBlueprint().name}`
+        `✓ Rebalancing recommended: ${currentPrimary.getBlueprint().name} → ${newPrimary.getBlueprint().name}`
       )
     )
 

@@ -95,10 +95,6 @@ export class AdvancedCliUI {
   private cleanChatMode: boolean = false
   // When true, clear live updates automatically when idle/finished
   private ephemeralLiveUpdates: boolean = false
-  private cliInstance: any
-  // Tool call tracking
-  private toolCalls: ToolCallInfo[] = []
-  private currentSession: boolean = false
   constructor() {
     this.theme = {
       primary: chalk.blue,
@@ -385,7 +381,7 @@ export class AdvancedCliUI {
   logSuccess(message: string, details?: string): void {
     this.addLiveUpdate({
       type: 'log',
-      content: `✅ ${message}`,
+      content: `✓ ${message}`,
       source: details,
     })
   }
@@ -417,7 +413,7 @@ export class AdvancedCliUI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\\n\\n` +
-        `${chalk.green('✅ Completed:')} ${completed}\\n` +
+        `${chalk.green('✓ Completed:')} ${completed}\\n` +
         `${chalk.red('❌ Failed:')} ${failed}\\n` +
         `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
         `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
@@ -458,7 +454,7 @@ export class AdvancedCliUI {
   async askConfirmation(question: string, details?: string, defaultValue: boolean = false): Promise<boolean> {
     // In chat mode, just return default to avoid blocking
     // Log the question for user awareness but don't block execution
-    const icon = defaultValue ? '✅' : '❓'
+    const icon = defaultValue ? '✓' : '❓'
     console.log(
       `${icon} ${chalk.cyan(question)} ${chalk.yellow.bold(`(auto-${defaultValue ? 'approved' : 'rejected'})`)}`
     )
@@ -502,8 +498,8 @@ export class AdvancedCliUI {
         rl.close()
 
         let selection = defaultIndex
-        const num = parseInt(answer.trim())
-        if (!isNaN(num) && num >= 1 && num <= choices.length) {
+        const num = parseInt(answer.trim(), 10)
+        if (!Number.isNaN(num) && num >= 1 && num <= choices.length) {
           selection = num - 1
         }
 
@@ -522,7 +518,7 @@ export class AdvancedCliUI {
     this.createIndicator(watcherId, `Watching files: ${pattern}`)
     this.updateIndicator(watcherId, { status: 'running' })
 
-    this.logInfo(`👀 Started watching: ${pattern}`)
+    this.logInfo(`⚡︎ Started watching: ${pattern}`)
 
     return watcherId
   }
@@ -530,7 +526,7 @@ export class AdvancedCliUI {
   /**
    * Report file change
    */
-  reportFileChange(watcherId: string, filePath: string, changeType: 'created' | 'modified' | 'deleted'): void {
+  reportFileChange(_watcherId: string, filePath: string, changeType: 'created' | 'modified' | 'deleted'): void {
     const emoji = changeType === 'created' ? '📄' : changeType === 'modified' ? '✏️' : '🗑️'
 
     this.addLiveUpdate({
@@ -685,9 +681,9 @@ export class AdvancedCliUI {
       case 'pending':
         return '⏳'
       case 'running':
-        return '🔄'
+        return '⚡︎'
       case 'completed':
-        return '✅'
+        return '✓'
       case 'failed':
         return '❌'
       case 'warning':
@@ -751,22 +747,6 @@ export class AdvancedCliUI {
       const remainingSeconds = seconds % 60
       return `${minutes}m ${remainingSeconds}s`
     }
-  }
-
-  private getOverallStatus(): string {
-    const indicators = Array.from(this.indicators.values())
-
-    if (indicators.length === 0) return chalk.gray('Idle')
-
-    const hasRunning = indicators.some((i) => i.status === 'running')
-    const hasFailed = indicators.some((i) => i.status === 'failed')
-    const hasWarning = indicators.some((i) => i.status === 'warning')
-
-    if (hasRunning) return chalk.blue('Running')
-    if (hasFailed) return chalk.red('Failed')
-    if (hasWarning) return chalk.yellow('Warning')
-
-    return chalk.green('Ready')
   }
 
   /** Determine if there are no running/pending indicators, spinners, or progress bars */
@@ -860,9 +840,9 @@ export class AdvancedCliUI {
       // Enhanced status icons
       const statusIcon =
         t.status === 'completed'
-          ? '✅'
+          ? '✓'
           : t.status === 'in_progress'
-            ? '🔄'
+            ? '⚡︎'
             : t.status === 'failed'
               ? '❌'
               : t.status === 'skipped'
@@ -1000,7 +980,7 @@ export class AdvancedCliUI {
     }
 
     const statusIcon = (s: string) =>
-      s === 'completed' ? '✅' : s === 'in_progress' ? '🔄' : s === 'failed' ? '❌' : '⏳'
+      s === 'completed' ? '✓' : s === 'in_progress' ? '⚡︎' : s === 'failed' ? '❌' : '⏳'
 
     const fmt = (s: string) => {
       if (s === 'completed') return this.theme.success.strikethrough
@@ -1022,7 +1002,7 @@ export class AdvancedCliUI {
       list.forEach((i) => {
         const bar =
           opts?.showBars && i.status === 'in_progress' && typeof i.progress === 'number'
-            ? ` ${this.theme.muted('[' + '█'.repeat(Math.floor(i.progress / 5)) + '░'.repeat(20 - Math.floor(i.progress / 5)) + `] ${i.progress}%`)}`
+            ? ` ${this.theme.muted(`[${'█'.repeat(Math.floor(i.progress / 5))}${'░'.repeat(20 - Math.floor(i.progress / 5))}] ${i.progress}%`)}`
             : ''
         const badge = opts?.showBadges ? ` ${prioBadge(i.priority)}` : ''
         lines.push(`  ${statusIcon(i.status)}${badge} ${fmt(i.status)(i.text)}${bar}`)
@@ -1035,12 +1015,12 @@ export class AdvancedCliUI {
     lines.push(chalk.bold('Progress'))
     lines.push(pctBar)
     lines.push(
-      `${chalk.green('✅ ' + completed)}   ${chalk.blue('🔄 ' + inProgress)}   ${chalk.cyan('⏳ ' + pending)}   ${chalk.red('🛑 ' + failed)}   ${chalk.gray('• Total ' + total)}`
+      `${chalk.green(`✓ ${completed}`)}   ${chalk.blue(`⚡︎ ${inProgress}`)}   ${chalk.cyan(`⏳ ${pending}`)}   ${chalk.red(`🛑 ${failed}`)}   ${chalk.gray(`• Total ${total}`)}`
     )
     lines.push(chalk.gray('─'.repeat(60)))
 
     // Summary section (if description provided)
-    if (description && description.trim()) {
+    if (description?.trim()) {
       lines.push(chalk.bold('Summary'))
       // Wrap description text to fit within panel width
       const maxWidth = 60
@@ -1086,7 +1066,7 @@ export class AdvancedCliUI {
       const lines = markdown.split(/\r?\n/)
       let inTodos = false
       let currentTitle: string | null = null
-      let currentStatus: string | undefined = undefined
+      let currentStatus: string | undefined
 
       const flush = () => {
         if (currentTitle) {
@@ -1120,11 +1100,10 @@ export class AdvancedCliUI {
         const mStatus = line.match(/^Status:\s*(.+)$/i)
         if (mStatus) {
           const s = mStatus[1].toLowerCase()
-          if (s.includes('complete') || s.includes('done') || s.includes('✅')) currentStatus = 'completed'
+          if (s.includes('complete') || s.includes('done') || s.includes('✓')) currentStatus = 'completed'
           else if (s.includes('progress')) currentStatus = 'in_progress'
           else if (s.includes('pending') || s.includes('todo')) currentStatus = 'pending'
           else currentStatus = undefined
-          continue
         }
       }
       flush()
@@ -1168,7 +1147,7 @@ export class AdvancedCliUI {
    */
   showFileList(files: string[], title: string = '📁 Files'): void {
     const listContent = files
-      .map((file, index) => {
+      .map((file, _index) => {
         const icon = this.getFileIcon(path.extname(file))
         return `${icon} ${file}`
       })
@@ -1295,7 +1274,7 @@ export class AdvancedCliUI {
     // Recompute layout and render
     this.autoLayout()
     if (!this.isInteractiveMode) {
-      console.log(chalk.green(`✅ Panel '${withDefaults.title}' created`))
+      console.log(chalk.green(`✓ Panel '${withDefaults.title}' created`))
     }
     this.emitEvent({ type: 'panel', panel: withDefaults.type, action: 'create', config: withDefaults })
   }
@@ -1500,9 +1479,9 @@ export class AdvancedCliUI {
             const isHighlighted = highlightLines.includes(index + 1)
 
             if (isHighlighted) {
-              return chalk.bgYellow.black(`${lineNum}`) + ` ${line}`
+              return `${chalk.bgYellow.black(`${lineNum}`)} ${line}`
             } else {
-              return chalk.gray(`${lineNum}`) + ` ${line}`
+              return `${chalk.gray(`${lineNum}`)} ${line}`
             }
           })
           .join('\n')
@@ -1919,13 +1898,13 @@ export class AdvancedCliUI {
       case 'idle':
         return '⏸️'
       case 'working':
-        return '🔄'
+        return '⚡︎'
       case 'completed':
-        return '✅'
+        return '✓'
       case 'error':
         return '❌'
       default:
-        return '🤖'
+        return '🔌'
     }
   }
 
@@ -1966,7 +1945,7 @@ export class AdvancedCliUI {
 
     this.panels.set('agents', {
       id: 'agents',
-      title: '🤖 Background Agents',
+      title: '🔌 Background Agents',
       content,
       type: 'agents',
       visible: true,
@@ -2029,7 +2008,7 @@ export class AdvancedCliUI {
         currentLine = currentLine ? `${currentLine} ${word}` : word
       } else {
         if (currentLine) lines.push(currentLine)
-        currentLine = word.length > maxWidth ? word.substring(0, maxWidth - 3) + '...' : word
+        currentLine = word.length > maxWidth ? `${word.substring(0, maxWidth - 3)}...` : word
       }
     }
 

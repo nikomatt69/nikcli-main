@@ -173,7 +173,7 @@ export function createBufferedStreamAdapter(): {
   })
 
   const output = new Writable({
-    write(chunk, encoding, callback) {
+    write(_chunk, _encoding, callback) {
       // Buffered output for testing
       callback()
     },

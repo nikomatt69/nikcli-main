@@ -1,7 +1,7 @@
 // api/health.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default function handler(_req: VercelRequest, res: VercelResponse) {
   return res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -9,7 +9,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     version: '0.2.3',
     endpoints: {
       webhook: '/v1/github/webhook',
-      health: '/health'
-    }
+      health: '/health',
+    },
   })
 }

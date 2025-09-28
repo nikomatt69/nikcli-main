@@ -1,6 +1,6 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import chalk from 'chalk'
-import fs from 'fs/promises'
-import path from 'path'
 
 export interface AICadSdkConfig {
   moduleName?: string // default: 'ai-cad-sdk'
@@ -68,7 +68,7 @@ export class AICadSdkBridge {
           this.moduleRef = mod
           this.entryFn = fn
           this.available = true
-          console.log(chalk.green('✅ ai-cad-sdk detected and usable'))
+          console.log(chalk.green('✓ ai-cad-sdk detected and usable'))
           return true
         }
       } catch (e: any) {

@@ -49,7 +49,7 @@ export abstract class BaseAgent implements AgentInstance {
    */
   async initialize(): Promise<void> {
     try {
-      CliUI.logInfo(`🤖 Initializing agent: ${this.id}`)
+      CliUI.logInfo(`🔌 Initializing agent: ${this.id}`)
 
       // Setup event listeners
       this.setupEventListeners()
@@ -67,7 +67,7 @@ export abstract class BaseAgent implements AgentInstance {
         specialization: this.specialization,
       })
 
-      CliUI.logSuccess(`✅ Agent ${this.id} initialized successfully`)
+      CliUI.logSuccess(`✓ Agent ${this.id} initialized successfully`)
     } catch (error: any) {
       this.status = 'error'
       CliUI.logError(`❌ Failed to initialize agent ${this.id}: ${error.message}`)
@@ -124,7 +124,7 @@ export abstract class BaseAgent implements AgentInstance {
         duration: execution.duration,
       })
 
-      CliUI.logSuccess(`✅ Task ${task.id} completed in ${execution.duration}ms`)
+      CliUI.logSuccess(`✓ Task ${task.id} completed in ${execution.duration}ms`)
 
       return result
     } catch (error: any) {
@@ -184,7 +184,7 @@ export abstract class BaseAgent implements AgentInstance {
         agentId: this.id,
       })
 
-      CliUI.logSuccess(`✅ Agent ${this.id} stopped successfully`)
+      CliUI.logSuccess(`✓ Agent ${this.id} stopped successfully`)
     } catch (error: any) {
       CliUI.logError(`❌ Failed to stop agent ${this.id}: ${error.message}`)
       throw error
@@ -282,7 +282,7 @@ export abstract class BaseAgent implements AgentInstance {
   protected abstract onStop(): Promise<void>
 
   // Legacy compatibility methods
-  async run?(task: string): Promise<any> {
+  async run?(_task: string): Promise<any> {
     return await this.onExecuteTask({
       id: `task_${Date.now()}`,
       type: 'legacy',

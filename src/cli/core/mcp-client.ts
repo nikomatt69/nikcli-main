@@ -291,10 +291,10 @@ export class McpClient extends EventEmitter {
 
       if (retryCount < maxRetries) {
         this.retryAttempts.set(serverName, retryCount + 1)
-        console.log(chalk.yellow(`🔄 Retrying MCP call to ${serverName} (${retryCount + 1}/${maxRetries})`))
+        console.log(chalk.yellow(`⚡︎ Retrying MCP call to ${serverName} (${retryCount + 1}/${maxRetries})`))
 
         // Exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, retryCount) * 1000))
+        await new Promise((resolve) => setTimeout(resolve, 2 ** retryCount * 1000))
 
         return this.call(serverName, request)
       }
@@ -572,7 +572,7 @@ export class McpClient extends EventEmitter {
   /**
    * Execute WebSocket-based MCP request
    */
-  private async executeWebSocketRequest(server: McpServerConfig, request: McpRequest): Promise<McpResponse> {
+  private async executeWebSocketRequest(_server: McpServerConfig, _request: McpRequest): Promise<McpResponse> {
     // WebSocket implementation would go here
     // For now, throw not implemented error
     throw new Error('WebSocket MCP servers not yet implemented')
@@ -663,13 +663,13 @@ export class McpClient extends EventEmitter {
     switch (auth.type) {
       case 'bearer':
         if (auth.token) {
-          headers['Authorization'] = `Bearer ${auth.token}`
+          headers.Authorization = `Bearer ${auth.token}`
         }
         break
       case 'basic':
         if (auth.username && auth.password) {
           const credentials = Buffer.from(`${auth.username}:${auth.password}`).toString('base64')
-          headers['Authorization'] = `Basic ${credentials}`
+          headers.Authorization = `Basic ${credentials}`
         }
         break
       case 'api_key':

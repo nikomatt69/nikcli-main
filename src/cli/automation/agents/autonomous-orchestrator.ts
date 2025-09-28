@@ -129,7 +129,7 @@ Consider parallel execution where possible.`,
 
       if (result.success) {
         completedTasks.add(task.id)
-        console.log(chalk.green(`✅ Task ${task.id} completed (${result.duration}ms)`))
+        console.log(chalk.green(`✓ Task ${task.id} completed (${result.duration}ms)`))
       } else {
         console.log(chalk.red(`❌ Task ${task.id} failed: ${result.error}`))
       }
@@ -150,7 +150,7 @@ Consider parallel execution where possible.`,
 
   public async executeTask(task: any): Promise<TaskResult> {
     const startTime = new Date()
-    console.log(chalk.cyan(`🔄 Starting task: ${task.description} (${task.agent})`))
+    console.log(chalk.cyan(`⚡︎ Starting task: ${task.description} (${task.agent})`))
 
     try {
       const agent = this.agentManager.getAgent(task.agent)
@@ -199,7 +199,7 @@ Consider parallel execution where possible.`,
     const successful = results.filter((r) => r.success).length
     const failed = results.filter((r) => !r.success).length
 
-    console.log(chalk.green(`✅ Parallel execution complete: ${successful} successful, ${failed} failed`))
+    console.log(chalk.green(`✓ Parallel execution complete: ${successful} successful, ${failed} failed`))
 
     return results
   }
@@ -220,7 +220,7 @@ Consider parallel execution where possible.`,
 
     try {
       // Plan the tasks
-      console.log(chalk.blue('🧠 Planning task execution...'))
+      console.log(chalk.blue('⚡︎ Planning task execution...'))
       const plan = await this.planTasks(task)
 
       if (plan.error) {
@@ -263,7 +263,7 @@ Consider parallel execution where possible.`,
       const totalTime = results.reduce((sum, r) => sum + r.duration, 0)
 
       console.log(chalk.blue.bold('\n📊 Execution Summary:'))
-      console.log(chalk.green(`✅ Successful tasks: ${successful}`))
+      console.log(chalk.green(`✓ Successful tasks: ${successful}`))
       console.log(chalk.red(`❌ Failed tasks: ${failed}`))
       console.log(chalk.gray(`⏱️  Total time: ${totalTime}ms`))
 
@@ -356,7 +356,7 @@ Consider parallel execution where possible.`,
    */
   private async executeTaskOptimized(task: any): Promise<TaskResult> {
     const startTime = new Date()
-    console.log(chalk.cyan(`🔄 Optimized execution: ${task.description} (${task.agent})`))
+    console.log(chalk.cyan(`⚡︎ Optimized execution: ${task.description} (${task.agent})`))
 
     try {
       let result: any
@@ -366,7 +366,7 @@ Consider parallel execution where possible.`,
         const routingResult = await this.agentRouter.routeTask(task)
         if (routingResult.success) {
           result = routingResult.result
-          console.log(chalk.green(`✅ Routed to ${routingResult.assignedAgent}`))
+          console.log(chalk.green(`✓ Routed to ${routingResult.assignedAgent}`))
         } else {
           // Fallback to direct agent execution
           result = await this.executeTaskDirect(task)
@@ -429,7 +429,7 @@ Consider parallel execution where possible.`,
       if (!groups.has(priority)) {
         groups.set(priority, [])
       }
-      groups.get(priority)!.push(task)
+      groups.get(priority)?.push(task)
     }
 
     // Return in execution order: critical -> high -> normal -> low

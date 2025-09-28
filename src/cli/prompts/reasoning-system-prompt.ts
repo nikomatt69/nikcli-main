@@ -26,7 +26,7 @@ export interface ReasoningStep {
 export function createReasoningSystemPrompt(context: ReasoningContext): string {
   return `You are ${context.agentId}, an expert AI development assistant.
 
-🧠 INTERNAL REASONING PROTOCOL - NEVER SHOW TO USER:
+⚡︎ INTERNAL REASONING PROTOCOL - NEVER SHOW TO USER:
 
 You MUST internally follow this 5-step process but NEVER display it:
 
@@ -43,7 +43,7 @@ You MUST internally follow this 5-step process but NEVER display it:
 - Planning discussions or validation thoughts
 - Any meta-commentary about your process
 
-✅ REQUIRED BEHAVIOR:
+✓ REQUIRED BEHAVIOR:
 - Think internally, act directly
 - Show only essential tool calls and results
 - Provide concise status updates only when necessary
@@ -98,7 +98,7 @@ You MUST internally follow this 5-step process but NEVER display it:
 ## CODE QUALITY REQUIREMENTS:
 
 ### For TypeScript/JavaScript:
-✅ REQUIRED:
+✓ REQUIRED:
 - Use strict TypeScript types
 - Follow ESLint rules
 - Include proper error handling
@@ -115,7 +115,7 @@ You MUST internally follow this 5-step process but NEVER display it:
 - JSDoc comments unless specifically requested
 
 ### For React/Next.js:
-✅ REQUIRED:
+✓ REQUIRED:
 - Use functional components with hooks
 - Include proper prop types/interfaces
 - Follow React best practices
@@ -130,7 +130,7 @@ You MUST internally follow this 5-step process but NEVER display it:
 - Inline styles (use CSS modules/Tailwind)
 
 ### For Node.js/Express:
-✅ REQUIRED:
+✓ REQUIRED:
 - Proper error middleware
 - Input validation and sanitization
 - Environment variable configuration
@@ -155,7 +155,7 @@ You MUST internally follow this 5-step process but NEVER display it:
 - Comments explaining why something was done
 - Educational comments for the user
 
-✅ **WRITE ONLY:**
+✓ **WRITE ONLY:**
 - Pure, clean, executable code
 - Essential imports and exports
 - Function/variable names that are self-explanatory
@@ -170,7 +170,7 @@ interface User {
   name: string; // User display name
 }
 
-✅ GOOD:
+✓ GOOD:
 interface User {
   id: string;
   name: string;
@@ -312,12 +312,12 @@ For each request, determine the most appropriate approach:
 ## QUALITY ASSURANCE:
 
 Every operation must pass these checks:
-- ✅ Syntax validation
-- ✅ Type checking
-- ✅ Code formatting
-- ✅ Best practice compliance
-- ✅ Security considerations
-- ✅ Performance implications
+- ✓ Syntax validation
+- ✓ Type checking
+- ✓ Code formatting
+- ✓ Best practice compliance
+- ✓ Security considerations
+- ✓ Performance implications
 
 You are now ready to assist with any development task using the mandatory reasoning framework.`
 }
@@ -395,7 +395,7 @@ export function validateReasoningResponse(response: string): {
   // Controlla se contiene ragionamenti visibili che dovrebbero essere interni
   const forbiddenPatterns = [
     /STEP \d+ - [A-Z]+:/i,
-    /🧠 REASONING:/i,
+    /⚡︎ REASONING:/i,
     /I will (first|now|next)/i,
     /Let me (analyze|create|check)/i,
     /My plan is to/i,

@@ -76,7 +76,7 @@ export class Mem0Provider extends EventEmitter {
       importance_decay_days: 30,
     }
 
-    structuredLogger.info('Memory', '🧠 Mem0 Provider initialized')
+    structuredLogger.info('Memory', '⚡︎ Mem0 Provider initialized')
   }
 
   /**
@@ -98,7 +98,7 @@ export class Mem0Provider extends EventEmitter {
       }
 
       this.isInitialized = true
-      structuredLogger.success('Memory', '✅ Mem0 memory system initialized')
+      structuredLogger.success('Memory', '✓ Mem0 memory system initialized')
     } catch (error: any) {
       structuredLogger.error('Memory', `❌ Mem0 initialization failed: ${error.message}`)
       throw error
@@ -408,7 +408,7 @@ export class Mem0Provider extends EventEmitter {
         path: chromaUrl,
       })
 
-      structuredLogger.success('Memory', '✅ ChromaDB vector store connected')
+      structuredLogger.success('Memory', '✓ ChromaDB vector store connected')
     } catch (error: any) {
       structuredLogger.warning('Memory', `⚠️ ChromaDB not available: ${error.message}`)
       structuredLogger.info('Memory', '📝 Falling back to in-memory storage')
@@ -599,17 +599,17 @@ export class Mem0Provider extends EventEmitter {
     })
   }
 
-  private async storeInVectorDB(memory: MemoryEntry): Promise<void> {
+  private async storeInVectorDB(_memory: MemoryEntry): Promise<void> {
     // Vector DB storage implementation
     // Placeholder for actual implementation
   }
 
-  private async updateInVectorDB(memory: MemoryEntry): Promise<void> {
+  private async updateInVectorDB(_memory: MemoryEntry): Promise<void> {
     // Vector DB update implementation
     // Placeholder for actual implementation
   }
 
-  private async deleteFromVectorDB(memoryId: string): Promise<void> {
+  private async deleteFromVectorDB(_memoryId: string): Promise<void> {
     // Vector DB deletion implementation
     // Placeholder for actual implementation
   }
@@ -662,7 +662,7 @@ export class Mem0Provider extends EventEmitter {
             this.memories.set(memory.id, memory)
           }
         }
-        structuredLogger.info('Memory', `📚 Loaded ${this.memories.size} memories from cache`)
+        structuredLogger.info('Memory', `⚡︎ Loaded ${this.memories.size} memories from cache`)
       }
     } catch (_error) {
       structuredLogger.warning('Memory', '⚠️ Failed to load memories from cache')
@@ -711,7 +711,7 @@ export class Mem0Provider extends EventEmitter {
    */
   updateConfig(newConfig: Partial<Mem0Config>): void {
     this.config = { ...this.config, ...newConfig }
-    structuredLogger.info('Memory', '🧠 Mem0 configuration updated')
+    structuredLogger.info('Memory', '⚡︎ Mem0 configuration updated')
     this.emit('config_updated', this.config)
   }
 }

@@ -74,7 +74,7 @@ export function validateAllSchemas(): { passed: string[]; failed: { name: string
 // CLI runner
 if (require.main === module) {
   const { passed, failed } = validateAllSchemas()
-  console.log(`✅ Passed: ${passed.length}`)
+  console.log(`✓ Passed: ${passed.length}`)
   console.log(`❌ Failed: ${failed.length}`)
   if (failed.length) {
     for (const f of failed) {

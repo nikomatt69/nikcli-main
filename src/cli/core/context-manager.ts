@@ -2,8 +2,6 @@ import path from 'node:path'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
 import { calculateTokenCost, getModelPricing, TOKEN_LIMITS } from '../config/token-limits'
-import { unifiedRAGSystem } from '../context/rag-system'
-import { semanticSearchEngine } from '../context/semantic-search-engine'
 import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
 // Import RAG and context systems for integration
 import { workspaceContext } from '../context/workspace-context'
@@ -225,14 +223,14 @@ export class ContextManager {
     const activeStrategy = { ...this.defaultStrategy, ...strategy }
     const optimizationSteps: string[] = []
 
-    console.log(chalk.blue('🧠 Starting advanced context optimization...'))
+    console.log(chalk.blue('⚡︎ Starting advanced context optimization...'))
 
     // Check cache first
     const cacheKey = this.generateContextCacheKey(messages, activeStrategy)
     const cached = this.contextCache.get(cacheKey)
     if (cached && Date.now() - startTime < this.CONTEXT_CACHE_TTL) {
       this.performanceMetrics.cacheHits++
-      console.log(chalk.green('✅ Using cached optimization result'))
+      console.log(chalk.green('✓ Using cached optimization result'))
       return cached
     }
 
@@ -295,7 +293,7 @@ export class ContextManager {
     const optimizationTime = Date.now() - startTime
     this.updatePerformanceMetrics(optimizationTime)
 
-    console.log(chalk.green(`✅ Advanced optimization completed in ${optimizationTime}ms`))
+    console.log(chalk.green(`✓ Advanced optimization completed in ${optimizationTime}ms`))
     console.log(chalk.gray(`   ${messages.length} → ${optimizedMessages.length} messages`))
     console.log(chalk.gray(`   ${initialMetrics.estimatedTokens} → ${finalMetrics.estimatedTokens} tokens`))
     console.log(chalk.gray(`   Semantic preservation: ${Math.round(semanticPreservation * 100)}%`))
@@ -331,7 +329,7 @@ export class ContextManager {
    */
   optimizeContext(messages: CoreMessage[]): { optimizedMessages: CoreMessage[]; metrics: ContextMetrics } {
     // For sync compatibility, use a simplified version without RAG integration
-    console.log(chalk.blue('🔄 Using legacy context optimization (consider upgrading to optimizeContextAdvanced)'))
+    console.log(chalk.blue('⚡︎ Using legacy context optimization (consider upgrading to optimizeContextAdvanced)'))
 
     this.checkMetricsSize()
     if (messages.length === 0) {
@@ -395,7 +393,7 @@ export class ContextManager {
 
     console.log(
       chalk.green(
-        `✅ Context optimized: ${messages.length} → ${optimized.length} messages, ${totalTokens} → ${optimizedTokens} tokens`
+        `✓ Context optimized: ${messages.length} → ${optimized.length} messages, ${totalTokens} → ${optimizedTokens} tokens`
       )
     )
 
@@ -471,7 +469,7 @@ export class ContextManager {
 
   private async performIntelligentCompression(
     messages: CoreMessage[],
-    strategy: OptimizationStrategy
+    _strategy: OptimizationStrategy
   ): Promise<{ messages: CoreMessage[]; steps: string[] }> {
     const steps: string[] = []
     let optimized = [...messages]
@@ -488,7 +486,7 @@ export class ContextManager {
 
   private async performSemanticCompression(
     messages: CoreMessage[],
-    strategy: OptimizationStrategy
+    _strategy: OptimizationStrategy
   ): Promise<{ messages: CoreMessage[]; steps: string[] }> {
     const steps: string[] = []
     let optimized = [...messages]
@@ -714,7 +712,7 @@ export class ContextManager {
 
       console.log(
         chalk.green(
-          `✅ Workspace analyzed: ${summary.totalFiles} files, ${Object.keys(summary.languages).length} languages`
+          `✓ Workspace analyzed: ${summary.totalFiles} files, ${Object.keys(summary.languages).length} languages`
         )
       )
 
@@ -826,7 +824,7 @@ export class ContextManager {
     this.contextCache.clear()
     this.workspaceCache = null
     this.lastWorkspaceAnalysis = 0
-    console.log(chalk.green('✅ All context manager caches cleared'))
+    console.log(chalk.green('✓ All context manager caches cleared'))
   }
 
   setOptimizationStrategy(strategy: Partial<OptimizationStrategy>): void {
@@ -945,7 +943,7 @@ export class ContextManager {
       // Extract code blocks
       const codeMatches = content.match(/```[\s\S]*?```/g)
       if (codeMatches) {
-        codeBlocks.push(...codeMatches.map((code) => code.substring(0, 100) + '...'))
+        codeBlocks.push(...codeMatches.map((code) => `${code.substring(0, 100)}...`))
       }
 
       // Extract questions

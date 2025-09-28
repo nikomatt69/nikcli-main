@@ -204,7 +204,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
       // Get wallet info
       const walletInfo = await this.agentKitProvider.getWalletInfo()
 
-      console.log(chalk.green('✅ Coinbase AgentKit initialized successfully'))
+      console.log(chalk.green('✓ Coinbase AgentKit initialized successfully'))
       console.log(chalk.blue(`🔗 Wallet: ${walletInfo.address}`))
       console.log(chalk.blue(`🌐 Network: ${walletInfo.networkId}`))
 
@@ -263,7 +263,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
     }
 
     try {
-      console.log(chalk.blue(`🤖 Processing: ${message}`))
+      console.log(chalk.blue(`🔌 Processing: ${message}`))
 
       // Add a one-time system hint to encourage tool usage (no explicit provider names)
       if (!this.toolHintInjected) {
@@ -299,7 +299,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
       }
       let toolsUsed: string[] = []
       const toolsUsedNames = toolsUsed && toolsUsed.length > 0 ? ` [${toolsUsed.join(', ')}]` : ''
-      console.log(chalk.green(`✅ Response generated (${toolCalls.length} tool calls)${toolsUsedNames}`))
+      console.log(chalk.green(`✓ Response generated (${toolCalls.length} tool calls)${toolsUsedNames}`))
 
       // Extract tool names if available
 

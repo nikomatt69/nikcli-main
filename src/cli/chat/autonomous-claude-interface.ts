@@ -41,7 +41,6 @@ export class AutonomousClaudeInterface {
   private rl: readline.Interface
   private session: AutonomousChatSession
   private isProcessing = false
-  private currentSpinner?: Ora
   private activeTools: Map<string, ToolExecutionTracker> = new Map()
   private streamBuffer = ''
   private lastStreamTime = Date.now()
@@ -112,7 +111,7 @@ export class AutonomousClaudeInterface {
     }
 
     // Handle keypress events for interactive features
-    process.stdin.on('keypress', (str, key) => {
+    process.stdin.on('keypress', (_str, key) => {
       if (key && key.name === 'slash' && !this.isProcessing) {
         // Show command suggestions when / is pressed
         setTimeout(() => this.showCommandSuggestions(), 50)
@@ -213,7 +212,7 @@ export class AutonomousClaudeInterface {
     // Interrupt any active agent executions
     const interruptedAgents = modernAgentOrchestrator.interruptActiveExecutions()
     if (interruptedAgents > 0) {
-      console.log(chalk.yellow(`🤖 Stopped ${interruptedAgents} running agents`))
+      console.log(chalk.yellow(`🔌 Stopped ${interruptedAgents} running agents`))
     }
 
     // Clean up processing state
@@ -233,7 +232,7 @@ export class AutonomousClaudeInterface {
     // Initialize structured UI mode
 
     // Show welcome message
-    console.log(chalk.cyan('\n🤖 Autonomous Claude Assistant Ready - Structured UI Mode'))
+    console.log(chalk.cyan('\n🔌 Autonomous Claude Assistant Ready - Structured UI Mode'))
     console.log(chalk.gray('Type your request and panels will appear automatically as I work!'))
   }
 
@@ -305,7 +304,7 @@ export class AutonomousClaudeInterface {
   }
 
   private showWelcome(): void {
-    const title = chalk.cyanBright('🤖 Autonomous Claude Assistant')
+    const title = chalk.cyanBright('🔌 Autonomous Claude Assistant')
     const subtitle = chalk.gray('Terminal Velocity Development - Fully Autonomous Mode')
     const version = chalk.dim('v2.0.0 Advanced')
 
@@ -314,7 +313,7 @@ export class AutonomousClaudeInterface {
         `${title}\n${subtitle}\n\n${version}\n\n` +
           `${chalk.blue('🎯 Autonomous Mode:')} Enabled\n` +
           `${chalk.blue('📁 Working Dir:')} ${chalk.cyan(this.session.workingDirectory)}\n` +
-          `${chalk.blue('🧠 Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n\n` +
+          `${chalk.blue('⚡︎ Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n\n` +
           `${chalk.gray('I operate with full autonomy:')}\n` +
           `• ${chalk.green('Read & write files automatically')}\n` +
           `• ${chalk.green('Execute commands when needed')}\n` +
@@ -364,13 +363,13 @@ Working Directory: ${this.session.workingDirectory}
 Current Date: ${new Date().toISOString()}
 
 CAPABILITIES:
-✅ read_file - Read and analyze any file with automatic content analysis
-✅ write_file - Create/modify files with automatic backups and validation  
-✅ explore_directory - Intelligent directory exploration with filtering
-✅ execute_command - Autonomous command execution with safety checks
-✅ analyze_project - Comprehensive project analysis with metrics
-✅ manage_packages - Automatic dependency management with yarn
-✅ generate_code - Context-aware code generation with best practices
+✓ read_file - Read and analyze any file with automatic content analysis
+✓ write_file - Create/modify files with automatic backups and validation  
+✓ explore_directory - Intelligent directory exploration with filtering
+✓ execute_command - Autonomous command execution with safety checks
+✓ analyze_project - Comprehensive project analysis with metrics
+✓ manage_packages - Automatic dependency management with yarn
+✓ generate_code - Context-aware code generation with best practices
 
 AUTONOMOUS BEHAVIOR:
 • Take immediate action on user requests without seeking permission
@@ -392,7 +391,7 @@ COMMUNICATION STYLE:
 You are NOT a cautious assistant - you are a proactive, autonomous developer who gets things done efficiently.`,
       })
 
-      spinner.succeed('🤖 Autonomous assistant ready')
+      spinner.succeed('🔌 Autonomous assistant ready')
 
       // Brief pause to show readiness
       await new Promise((resolve) => setTimeout(resolve, 500))
@@ -444,7 +443,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
       case 'agents':
         this.showAvailableAgents()
         break
-      case 'auto':
+      case 'auto': {
         const autoTask = args.join(' ')
         if (autoTask) {
           await this.handleAutoMode(autoTask)
@@ -452,6 +451,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
           console.log(chalk.red('Usage: /auto <task description>'))
         }
         break
+      }
       case 'cd':
         await this.changeDirectory(args[0] || process.cwd())
         break
@@ -542,7 +542,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
               ? chalk.red('⚠️  Over Limit - Auto-compression active')
               : metrics.estimatedTokens > metrics.tokenLimit * 0.8
                 ? chalk.yellow('⚠️  High Usage - Monitor closely')
-                : chalk.green('✅ Within Limits')
+                : chalk.green('✓ Within Limits')
           }\n\n` +
           `${chalk.dim('Compression Ratio:')} ${(metrics.compressionRatio * 100).toFixed(1)}%`,
         {
@@ -608,7 +608,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
 
     try {
       console.log() // Add spacing
-      console.log(chalk.blue('🤖 ') + chalk.dim('Autonomous assistant thinking...'))
+      console.log(chalk.blue('🔌 ') + chalk.dim('Autonomous assistant thinking...'))
       console.log(chalk.dim('💡 Press ESC to interrupt operation'))
 
       let assistantMessage = ''
@@ -669,7 +669,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
             this.handleToolResult(event)
             break
 
-          case 'complete':
+          case 'complete': {
             // Flush any remaining buffer
             if (this.streamBuffer) {
               process.stdout.write(this.streamBuffer)
@@ -681,6 +681,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
             console.log() // Add extra spacing before completion message
             console.log(chalk.green(`✨ Completed in ${duration}ms • ${toolsExecuted} tools used`))
             break
+          }
 
           case 'error':
             console.log(chalk.red(`\\n❌ Error: ${event.error}`))
@@ -897,7 +898,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
       return
     }
 
-    console.log(chalk.blue(`\\n🤖 Launching ${agentName} agent in autonomous mode...`))
+    console.log(chalk.blue(`\\n🔌 Launching ${agentName} agent in autonomous mode...`))
     console.log(chalk.gray(`Task: ${task}\\n`))
 
     this.isProcessing = true
@@ -926,7 +927,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
             break
           case 'result':
             bridge.push('\n')
-            console.log(chalk.green(`✅ ${event.content}`))
+            console.log(chalk.green(`✓ ${event.content}`))
             break
           case 'complete':
             bridge.end()
@@ -1031,7 +1032,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
       console.log(chalk.yellow('⚠️ Autonomous mode disabled - will ask for confirmation'))
     } else {
       this.session.autonomous = true
-      console.log(chalk.green('✅ Autonomous mode enabled - full independence'))
+      console.log(chalk.green('✓ Autonomous mode enabled - full independence'))
     }
   }
 
@@ -1043,7 +1044,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
       return
     }
 
-    console.log(chalk.cyan.bold('\\n🧠 Execution Context'))
+    console.log(chalk.cyan.bold('\\n⚡︎ Execution Context'))
     console.log(chalk.gray('─'.repeat(40)))
 
     for (const [key, value] of context) {
@@ -1064,7 +1065,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     const metricsAfter = contextManager.getContextMetrics(this.session.messages)
     const tokensFreed = metricsBefore.estimatedTokens - metricsAfter.estimatedTokens
 
-    console.log(chalk.green(`✅ Session cleared - freed ${tokensFreed.toLocaleString()} tokens`))
+    console.log(chalk.green(`✓ Session cleared - freed ${tokensFreed.toLocaleString()} tokens`))
   }
 
   private showExecutionHistory(): void {
@@ -1078,15 +1079,15 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     console.log(chalk.cyan.bold('\\n📜 Recent Execution History'))
     console.log(chalk.gray('─'.repeat(50)))
 
-    history.forEach((event, index) => {
+    history.forEach((event, _index) => {
       const icon =
-        event.type === 'tool_call' ? '🔧' : event.type === 'tool_result' ? '✅' : event.type === 'error' ? '❌' : '•'
+        event.type === 'tool_call' ? '🔧' : event.type === 'tool_result' ? '✓' : event.type === 'error' ? '❌' : '•'
       console.log(`${icon} ${chalk.dim(event.type)}: ${event.content?.slice(0, 60) || 'N/A'}`)
     })
   }
 
   private showAdvancedHelp(): void {
-    console.log(chalk.cyan.bold('\\n🤖 Autonomous Claude Assistant - Command Reference'))
+    console.log(chalk.cyan.bold('\\n🔌 Autonomous Claude Assistant - Command Reference'))
     console.log(chalk.gray('═'.repeat(60)))
 
     console.log(chalk.white.bold('\\n🚀 Autonomous Features:'))
@@ -1127,7 +1128,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
       this.session.workingDirectory = resolvedPath
       advancedAIProvider.setWorkingDirectory(resolvedPath)
 
-      console.log(chalk.green(`✅ Changed to: ${resolvedPath}`))
+      console.log(chalk.green(`✓ Changed to: ${resolvedPath}`))
     } catch (error: any) {
       console.log(chalk.red(`Error changing directory: ${error.message}`))
     }
@@ -1178,7 +1179,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     try {
       advancedAIProvider.setModel(modelName)
       configManager.setCurrentModel(modelName)
-      console.log(chalk.green(`✅ Switched to: ${modelName}`))
+      console.log(chalk.green(`✓ Switched to: ${modelName}`))
     } catch (error: any) {
       console.log(chalk.red(`Error: ${error.message}`))
     }
@@ -1186,11 +1187,11 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
 
   private showCurrentModel(): void {
     const modelInfo = advancedAIProvider.getCurrentModelInfo()
-    console.log(chalk.blue(`🧠 Current model: ${modelInfo.name} (${modelInfo.config})`))
+    console.log(chalk.blue(`⚡︎ Current model: ${modelInfo.name} (${modelInfo.config})`))
   }
 
   private showAvailableAgents(): void {
-    console.log(chalk.cyan.bold('\\n🤖 Available Specialized Agents'))
+    console.log(chalk.cyan.bold('\\n🔌 Available Specialized Agents'))
     console.log(chalk.gray('─'.repeat(50)))
 
     Object.entries(AGENT_CAPABILITIES).forEach(([name, capability]) => {
@@ -1206,7 +1207,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
 
     const workingDir = require('node:path').basename(this.session.workingDirectory)
     const modeIcon = this.session.autonomous
-      ? '🤖'
+      ? '🔌'
       : this.session.planMode
         ? '🎯'
         : this.session.autoAcceptEdits
@@ -1294,7 +1295,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
   private showCommandSuggestions(): void {
     if (this.isProcessing) return
 
-    console.log('\n' + chalk.cyan.bold('📋 Available Commands:'))
+    console.log(`\n${chalk.cyan.bold('📋 Available Commands:')}`)
     console.log(chalk.gray('─'.repeat(80)))
 
     // System Commands
@@ -1339,7 +1340,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     console.log(`${chalk.green('/bug')}            Submit feedback about Claude Code`)
 
     // Agent Commands - Enhanced with all available agents
-    console.log(chalk.white.bold('\n🤖 Agent Commands:'))
+    console.log(chalk.white.bold('\n🔌 Agent Commands:'))
     console.log(chalk.dim('💡 Tip: Press @ to see auto-complete suggestions'))
     console.log(`${chalk.blue('@universal-agent')} <task>  All-in-one enterprise agent (default)`)
     console.log(`${chalk.blue('@ai-analysis')} <task>     AI code analysis and review`)
@@ -1367,7 +1368,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     console.log(chalk.dim('• "Set up Docker and CI/CD for deployment"'))
     console.log(chalk.dim('• "Optimize this component for performance"'))
 
-    console.log(chalk.gray('\n' + '─'.repeat(80)))
+    console.log(chalk.gray(`\n${'─'.repeat(80)}`))
     console.log(chalk.yellow('💡 Tip: Use TAB for auto-completion, Ctrl+C to cancel operations'))
     console.log('')
     this.showPrompt()
@@ -1404,7 +1405,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     diffManager.setAutoAccept(this.session.autoAcceptEdits)
 
     if (this.session.autoAcceptEdits) {
-      console.log(chalk.green('\n✅ auto-accept edits on ') + chalk.dim('(shift+tab to cycle)'))
+      console.log(chalk.green('\n✓ auto-accept edits on ') + chalk.dim('(shift+tab to cycle)'))
     } else {
       console.log(chalk.yellow('\n⚠️ auto-accept edits off'))
     }
@@ -1475,8 +1476,8 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
         case 'approval':
           if (['never', 'untrusted', 'always'].includes(value)) {
             // Policy update - would need to extend config manager
-            console.log(chalk.green(`✅ Approval policy set to: ${value}`))
-            console.log(chalk.green(`✅ Approval policy set to: ${value}`))
+            console.log(chalk.green(`✓ Approval policy set to: ${value}`))
+            console.log(chalk.green(`✓ Approval policy set to: ${value}`))
           } else {
             console.log(chalk.red('Invalid approval policy. Use: never, untrusted, or always'))
           }
@@ -1484,8 +1485,8 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
         case 'sandbox':
           if (['read-only', 'workspace-write', 'system-write'].includes(value)) {
             // Sandbox update - would need to extend config manager
-            console.log(chalk.green(`✅ Sandbox mode set to: ${value}`))
-            console.log(chalk.green(`✅ Sandbox mode set to: ${value}`))
+            console.log(chalk.green(`✓ Sandbox mode set to: ${value}`))
+            console.log(chalk.green(`✓ Sandbox mode set to: ${value}`))
           } else {
             console.log(chalk.red('Invalid sandbox mode. Use: read-only, workspace-write, or system-write'))
           }
@@ -1498,92 +1499,13 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     }
   }
 
-  /**
-   * Ask for user confirmation on risky commands
-   */
-  private async askForCommandConfirmation(command: string): Promise<boolean> {
-    const risk = await this.policyManager.evaluateCommandRisk(command)
-
-    if (!risk.requiresApproval) {
-      return risk.allowed
-    }
-
-    if (!risk.allowed) {
-      this.cliInstance.printPanel(
-        boxen(
-          `${chalk.red.bold('⚠️  Command Blocked')}\\n\\n` +
-            `Command: ${chalk.yellow(command)}\\n` +
-            `Risk Level: ${this.getRiskColor(risk.riskLevel)}\\n\\n` +
-            `Reasons:\\n${risk.reasons.map((r) => `• ${r}`).join('\\n')}\\n\\n` +
-            `${chalk.dim('This command is not allowed in the current security policy.')}`,
-          {
-            padding: 1,
-            borderStyle: 'round',
-            borderColor: 'red',
-          }
-        )
-      )
-      return false
-    }
-
-    this.cliInstance.printPanel(
-      boxen(
-        `${chalk.yellow.bold('⚠️  High-Risk Command Detected')}\\n\\n` +
-          `Command: ${chalk.cyan(command)}\\n` +
-          `Risk Level: ${this.getRiskColor(risk.riskLevel)}\\n\\n` +
-          `Reasons:\\n${risk.reasons.map((r) => `• ${r}`).join('\\n')}\\n\\n` +
-          `${chalk.dim('This command requires your explicit approval.')}`,
-        {
-          padding: 1,
-          borderStyle: 'round',
-          borderColor: 'yellow',
-        }
-      )
-    )
-
-    return await this.promptYesNo('Do you want to proceed? (y/N)')
-  }
-
-  /**
-   * Prompt for yes/no confirmation
-   */
-  private async promptYesNo(question: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      const tempRl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-      })
-
-      tempRl.question(chalk.yellow(`${question} `), (answer) => {
-        tempRl.close()
-        resolve(answer.toLowerCase().startsWith('y'))
-      })
-    })
-  }
-
-  /**
-   * Get risk level color
-   */
-  private getRiskColor(level: string): string {
-    switch (level) {
-      case 'low':
-        return chalk.green('Low')
-      case 'medium':
-        return chalk.yellow('Medium')
-      case 'high':
-        return chalk.red('High')
-      default:
-        return chalk.gray(level)
-    }
-  }
-
   private showGoodbye(): void {
     const executionCount = this.session.executionHistory.length
     const toolsUsed = this.session.executionHistory.filter((e) => e.type === 'tool_call').length
 
     this.cliInstance.printPanel(
       boxen(
-        `${chalk.cyanBright('🤖 Autonomous Claude Assistant')}\\n\\n` +
+        `${chalk.cyanBright('🔌 Autonomous Claude Assistant')}\\n\\n` +
           `${chalk.gray('Session completed!')}\\n\\n` +
           `${chalk.dim('Autonomous Actions:')}\\n` +
           `• ${chalk.blue('Messages:')} ${this.session.messages.length}\\n` +

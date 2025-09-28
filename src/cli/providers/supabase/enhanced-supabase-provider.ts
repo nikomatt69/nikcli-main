@@ -120,7 +120,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       }
 
       this.isConnected = true
-      console.log(chalk.green('✅ Supabase connected successfully'))
+      console.log(chalk.green('✓ Supabase connected successfully'))
       this.emit('connected')
 
       // Setup real-time if enabled

@@ -83,7 +83,7 @@ export class SecurityPolicy {
     const violations: SecurityViolation[] = []
 
     // Check blocked commands
-    for (const blocked of this.BLOCKED_COMMANDS) {
+    for (const blocked of SecurityPolicy.BLOCKED_COMMANDS) {
       if (command.toLowerCase().includes(blocked.toLowerCase())) {
         violations.push({
           type: 'command',
@@ -114,7 +114,7 @@ export class SecurityPolicy {
 
     // Check if command requires approval in safe mode
     if (safeMode) {
-      for (const approval of this.APPROVAL_REQUIRED) {
+      for (const approval of SecurityPolicy.APPROVAL_REQUIRED) {
         if (command.includes(approval) && !policies.allowedCommands?.includes(command)) {
           violations.push({
             type: 'command',
@@ -176,11 +176,11 @@ export class SecurityPolicy {
     }
 
     if (policies.networkPolicy === 'restricted') {
-      const allowedDomains = policies.allowedDomains || this.DEFAULT_ALLOWED_DOMAINS
+      const allowedDomains = policies.allowedDomains || SecurityPolicy.DEFAULT_ALLOWED_DOMAINS
       const urlObj = new URL(url)
       const domain = urlObj.hostname
 
-      const domainAllowed = allowedDomains.some((allowed) => domain === allowed || domain.endsWith('.' + allowed))
+      const domainAllowed = allowedDomains.some((allowed) => domain === allowed || domain.endsWith(`.${allowed}`))
 
       if (!domainAllowed) {
         violations.push({
@@ -337,7 +337,7 @@ export class SecurityPolicy {
   /**
    * Get current resource usage for a job
    */
-  private async getCurrentResourceUsage(jobId: string): Promise<ResourceMonitor> {
+  private async getCurrentResourceUsage(_jobId: string): Promise<ResourceMonitor> {
     // This would integrate with actual system monitoring
     // For now, return mock data
     return {
@@ -438,8 +438,8 @@ export class SecurityPolicy {
       maxTokens: job.limits.maxToolCalls * 1000, // Estimate tokens per tool call
       timeout: job.limits.timeMin * 60 * 1000,
       allowCommands: policies.allowedCommands,
-      denyCommands: policies.blockedCommands || this.BLOCKED_COMMANDS,
-      allowNetwork: policies.allowedDomains || this.DEFAULT_ALLOWED_DOMAINS,
+      denyCommands: policies.blockedCommands || SecurityPolicy.BLOCKED_COMMANDS,
+      allowNetwork: policies.allowedDomains || SecurityPolicy.DEFAULT_ALLOWED_DOMAINS,
       safeMode: true,
     }
   }

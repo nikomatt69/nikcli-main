@@ -22,7 +22,6 @@ export class VMStatusIndicator extends EventEmitter {
 
   // UI Configuration
   private readonly UPDATE_INTERVAL = 2000 // 2 seconds
-  private readonly COMPACT_MAX_AGENTS = 3
   private readonly LOG_BUFFER_SIZE = 1000
 
   private constructor() {
@@ -43,7 +42,7 @@ export class VMStatusIndicator extends EventEmitter {
   /**
    * Register VM agent for status tracking
    */
-  registerAgent(agentOrId: SecureVirtualizedAgent | string, name?: string, status?: VMState): void {
+  registerAgent(agentOrId: SecureVirtualizedAgent | string, _name?: string, status?: VMState): void {
     // Handle overloaded method - can accept agent instance or parameters
     if (typeof agentOrId === 'string') {
       const agentStatus: VMAgentStatus = {
@@ -173,7 +172,7 @@ export class VMStatusIndicator extends EventEmitter {
     }
 
     const lines = []
-    lines.push(chalk.cyan.bold(`🤖 Active VM Agents (${this.activeAgents.size})`))
+    lines.push(chalk.cyan.bold(`🔌 Active VM Agents (${this.activeAgents.size})`))
     lines.push(chalk.gray('─'.repeat(60)))
 
     for (const [agentId, status] of this.activeAgents.entries()) {
@@ -236,7 +235,7 @@ export class VMStatusIndicator extends EventEmitter {
         securityIssues++
         lines.push(chalk.red(`⚠️ ${agentId}: ${issues.join(', ')}`))
       } else {
-        lines.push(chalk.green(`✅ ${agentId}: Secure`))
+        lines.push(chalk.green(`✓ ${agentId}: Secure`))
       }
     }
 
@@ -300,7 +299,7 @@ export class VMStatusIndicator extends EventEmitter {
   private getMultiAgentIndicator(_count: number): string {
     const runningAgents = Array.from(this.activeAgents.values()).filter((agent) => agent.vmState === 'running').length
 
-    return chalk.blue(`${runningAgents}🤖`)
+    return chalk.blue(`${runningAgents}🔌`)
   }
 
   /**

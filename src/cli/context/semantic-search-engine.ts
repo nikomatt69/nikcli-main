@@ -1,10 +1,6 @@
 import { createHash } from 'node:crypto'
-import { existsSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import chalk from 'chalk'
-import { type EmbeddingResult, unifiedEmbeddingInterface } from './unified-embedding-interface'
+import { unifiedEmbeddingInterface } from './unified-embedding-interface'
 
 export interface QueryAnalysis {
   originalQuery: string
@@ -99,11 +95,9 @@ export interface EnhancedSearchResult {
 export class SemanticSearchEngine {
   private queryCache: Map<string, QueryAnalysis> = new Map()
   private expansionCache: Map<string, SemanticExpansion> = new Map()
-  private scoringCache: Map<string, number> = new Map()
 
   // Domain knowledge bases
   private technicalTerms: Map<string, string[]> = new Map()
-  private codePatterns: Map<string, RegExp[]> = new Map()
   private frameworkMappings: Map<string, string[]> = new Map()
   private synonymDatabase: Map<string, string[]> = new Map()
 
@@ -115,10 +109,6 @@ export class SemanticSearchEngine {
     expansionRate: 0,
     lastOptimization: new Date(),
   }
-
-  private readonly CACHE_TTL = 1800000 // 30 minutes
-  private readonly MAX_CACHE_SIZE = 5000
-  private readonly CACHE_FILE = join(homedir(), '.nikcli', 'semantic-cache.json')
 
   constructor() {
     this.initializeDomainKnowledge()
@@ -140,7 +130,7 @@ export class SemanticSearchEngine {
       return cached
     }
 
-    console.log(chalk.blue(`🧠 Analyzing query: "${query}"`))
+    console.log(chalk.blue(`⚡︎ Analyzing query: "${query}"`))
 
     // 1. Preprocess query (cleaning, normalization)
     const processedQuery = this.preprocessQuery(query)
@@ -185,7 +175,7 @@ export class SemanticSearchEngine {
     const processingTime = Date.now() - startTime
     this.updatePerformanceStats(processingTime)
 
-    console.log(chalk.green(`✅ Query analyzed in ${processingTime}ms (confidence: ${Math.round(confidence * 100)}%)`))
+    console.log(chalk.green(`✓ Query analyzed in ${processingTime}ms (confidence: ${Math.round(confidence * 100)}%)`))
     this.logAnalysisDetails(analysis)
 
     return analysis
@@ -726,7 +716,7 @@ export class SemanticSearchEngine {
 
   async shutdown(): Promise<void> {
     await this.saveCacheToDisk()
-    console.log(chalk.gray('🧠 Semantic Search Engine shut down'))
+    console.log(chalk.gray('⚡︎ Semantic Search Engine shut down'))
   }
 
   private async loadCacheFromDisk(): Promise<void> {
@@ -744,11 +734,11 @@ export class SemanticSearchEngine {
     return query.trim().replace(/\s+/g, ' ')
   }
 
-  private identifyTechnicalTerms(query: string): string[] {
+  private identifyTechnicalTerms(_query: string): string[] {
     return []
   }
 
-  private recognizeCodePatterns(query: string): CodePattern[] {
+  private recognizeCodePatterns(_query: string): CodePattern[] {
     return []
   }
 
@@ -756,24 +746,24 @@ export class SemanticSearchEngine {
     intent: QueryIntent,
     entities: ExtractedEntity[],
     keywords: QueryKeyword[],
-    technicalTerms: string[]
+    _technicalTerms: string[]
   ): number {
     return Math.min(1.0, intent.confidence + entities.length * 0.1 + keywords.length * 0.05)
   }
 
-  private analyzeQueryStructure(query: string, intentType: string): number {
+  private analyzeQueryStructure(_query: string, _intentType: string): number {
     return 0.1
   }
 
-  private generateEntityVariants(text: string, type: string): string[] {
+  private generateEntityVariants(text: string, _type: string): string[] {
     return [text.toLowerCase(), text.toUpperCase()]
   }
 
-  private extractTechnicalTermsAsEntities(query: string): ExtractedEntity[] {
+  private extractTechnicalTermsAsEntities(_query: string): ExtractedEntity[] {
     return []
   }
 
-  private enhanceEntitiesWithContext(entities: ExtractedEntity[], intent: QueryIntent): void {
+  private enhanceEntitiesWithContext(_entities: ExtractedEntity[], _intent: QueryIntent): void {
     // Context-aware entity enhancement
   }
 
@@ -787,19 +777,19 @@ export class SemanticSearchEngine {
     })
   }
 
-  private getDomainSpecificTerms(text: string, type: string): string[] {
+  private getDomainSpecificTerms(_text: string, type: string): string[] {
     return this.technicalTerms.get(type) || []
   }
 
-  private getCodeRelatedTerms(query: string, workspaceContext?: any): string[] {
+  private getCodeRelatedTerms(_query: string, _workspaceContext?: any): string[] {
     return []
   }
 
-  private async getConceptuallyRelatedTerms(query: string): Promise<string[]> {
+  private async getConceptuallyRelatedTerms(_query: string): Promise<string[]> {
     return []
   }
 
-  private filterExpansionTerms(terms: string[], originalQuery: string): string[] {
+  private filterExpansionTerms(terms: string[], _originalQuery: string): string[] {
     return terms.slice(0, 10) // Limit expansion
   }
 
@@ -807,11 +797,11 @@ export class SemanticSearchEngine {
     return expansion.originalTerms.concat(expansion.expandedTerms.slice(0, 5)).join(' ')
   }
 
-  private calculateContextScore(metadata: Record<string, any>, context: ScoringContext): number {
+  private calculateContextScore(_metadata: Record<string, any>, _context: ScoringContext): number {
     return 0.5
   }
 
-  private calculateRecencyScore(metadata: Record<string, any>): number {
+  private calculateRecencyScore(_metadata: Record<string, any>): number {
     return 0.5
   }
 
@@ -819,11 +809,11 @@ export class SemanticSearchEngine {
     return metadata.importance || 0.5
   }
 
-  private calculateDiversityScore(content: string, queryAnalysis: QueryAnalysis): number {
+  private calculateDiversityScore(_content: string, _queryAnalysis: QueryAnalysis): number {
     return 0.5
   }
 
-  private getScoreWeights(intent: QueryIntent): Record<string, number> {
+  private getScoreWeights(_intent: QueryIntent): Record<string, number> {
     return {
       semanticScore: 0.4,
       keywordScore: 0.3,

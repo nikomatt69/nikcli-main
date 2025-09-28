@@ -123,5 +123,5 @@ export async function showUnifiedDiff(oldPath: string | undefined, newPath: stri
   }
 
   const colored = colorizeUnifiedDiff(patch)
-  console.log('\n' + colored + '\n')
+  console.log(`\n${colored}\n`)
 }

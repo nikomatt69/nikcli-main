@@ -140,7 +140,7 @@ export class CompletionProtocolCache {
   /**
    * Store completion pattern for future use
    */
-  async storeCompletion(request: CompletionRequest, completion: string, actualTokens?: number): Promise<void> {
+  async storeCompletion(request: CompletionRequest, completion: string, _actualTokens?: number): Promise<void> {
     const { prefix, context, model } = request
 
     // Don't store very short completions
@@ -313,7 +313,7 @@ export class CompletionProtocolCache {
    */
   private extractTags(prefix: string, completion: string, context: string): string[] {
     const tags: string[] = []
-    const combined = (prefix + ' ' + completion + ' ' + context).toLowerCase()
+    const combined = `${prefix} ${completion} ${context}`.toLowerCase()
 
     // Programming language detection
     if (combined.includes('function') || combined.includes('const ') || combined.includes('let ')) {
@@ -350,13 +350,13 @@ export class CompletionProtocolCache {
       if (!this.prefixIndex.has(prefixKey)) {
         this.prefixIndex.set(prefixKey, [])
       }
-      this.prefixIndex.get(prefixKey)!.push(pattern.id)
+      this.prefixIndex.get(prefixKey)?.push(pattern.id)
     }
 
     if (!this.contextIndex.has(pattern.contextHash)) {
       this.contextIndex.set(pattern.contextHash, [])
     }
-    this.contextIndex.get(pattern.contextHash)!.push(pattern.id)
+    this.contextIndex.get(pattern.contextHash)?.push(pattern.id)
   }
 
   /**

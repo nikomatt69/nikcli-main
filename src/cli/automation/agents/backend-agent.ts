@@ -37,7 +37,7 @@ export class BackendAgent extends BaseAgent {
     // Setup backend-specific tool configurations
     await this.configureBackendTools()
 
-    CliUI.logSuccess('✅ Backend Agent ready for server-side tasks')
+    CliUI.logSuccess('✓ Backend Agent ready for server-side tasks')
   }
 
   protected async onExecuteTask(task: AgentTask): Promise<any> {
@@ -395,11 +395,11 @@ export class BackendAgent extends BaseAgent {
   }
 
   // Placeholder methods for complex backend operations
-  private async generateAPIRoutes(apiName: string, methods: string[], framework: string): Promise<string> {
+  private async generateAPIRoutes(apiName: string, _methods: string[], framework: string): Promise<string> {
     return `// ${apiName} API routes for ${framework}\nexport default router;`
   }
 
-  private async generateController(apiName: string, methods: string[], database: string): Promise<string> {
+  private async generateController(apiName: string, _methods: string[], database: string): Promise<string> {
     return `// ${apiName} controller with ${database}\nexport class ${apiName}Controller {}`
   }
 
@@ -407,11 +407,11 @@ export class BackendAgent extends BaseAgent {
     return `// ${apiName} model for ${database}\nexport class ${apiName}Model {}`
   }
 
-  private async generateAPITests(apiName: string, methods: string[]): Promise<string> {
+  private async generateAPITests(apiName: string, _methods: string[]): Promise<string> {
     return `// Tests for ${apiName} API\ndescribe('${apiName}', () => {});`
   }
 
-  private async generateDatabaseSchema(entities: any[], relationships: any[], dbType: string): Promise<string> {
+  private async generateDatabaseSchema(entities: any[], _relationships: any[], dbType: string): Promise<string> {
     return `-- Database schema for ${dbType}\n-- Entities: ${entities?.length || 0}`
   }
 
@@ -460,15 +460,15 @@ export class BackendAgent extends BaseAgent {
   }
 
   // Path determination methods
-  private async determineRoutePath(apiName: string, framework: string): Promise<string> {
+  private async determineRoutePath(apiName: string, _framework: string): Promise<string> {
     return `src/routes/${apiName}.ts`
   }
 
-  private async determineControllerPath(apiName: string, framework: string): Promise<string> {
+  private async determineControllerPath(apiName: string, _framework: string): Promise<string> {
     return `src/controllers/${apiName}.controller.ts`
   }
 
-  private async determineModelPath(apiName: string, database: string): Promise<string> {
+  private async determineModelPath(apiName: string, _database: string): Promise<string> {
     return `src/models/${apiName}.model.ts`
   }
 
@@ -514,15 +514,15 @@ export class BackendAgent extends BaseAgent {
     return `// Health check endpoints\nexport const healthRouter = {};`
   }
 
-  private async setupBackendTesting(task: AgentTask): Promise<any> {
+  private async setupBackendTesting(_task: AgentTask): Promise<any> {
     return { success: true, message: 'Backend testing setup completed' }
   }
 
-  private async generateTaskPlan(task: AgentTask): Promise<any> {
+  private async generateTaskPlan(_task: AgentTask): Promise<any> {
     return { steps: [], estimated_duration: 120000 }
   }
 
-  private async executePlan(plan: any): Promise<any> {
+  private async executePlan(_plan: any): Promise<any> {
     return { success: true, message: 'Backend plan executed successfully' }
   }
 }

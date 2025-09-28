@@ -59,7 +59,7 @@ export class SnapshotService extends EventEmitter {
       await snapshotProvider.initialize()
       this.isInitialized = true
 
-      structuredLogger.success('Snapshot Service', '✅ Snapshot Service initialized')
+      structuredLogger.success('Snapshot Service', '✓ Snapshot Service initialized')
       this.emit('initialized')
     } catch (error: any) {
       structuredLogger.error('Snapshot Service', `❌ Snapshot Service initialization failed: ${error.message}`)
@@ -277,7 +277,7 @@ export class SnapshotService extends EventEmitter {
 
     // Filter by tags
     if (criteria.tags && criteria.tags.length > 0) {
-      toDelete = toDelete.filter((s) => criteria.tags!.some((tag) => s.metadata.tags.includes(tag)))
+      toDelete = toDelete.filter((s) => criteria.tags?.some((tag) => s.metadata.tags.includes(tag)))
     }
 
     // Keep most recent if keepCount specified
@@ -310,7 +310,7 @@ export class SnapshotService extends EventEmitter {
       this.scheduleTemplate(name, template)
     }
 
-    console.log(chalk.green(`✅ Template created: ${name}`))
+    console.log(chalk.green(`✓ Template created: ${name}`))
     this.emit('template_created', { name, template })
   }
 
@@ -335,7 +335,7 @@ export class SnapshotService extends EventEmitter {
         this.scheduleTimers.delete(name)
       }
 
-      console.log(chalk.green(`✅ Template deleted: ${name}`))
+      console.log(chalk.green(`✓ Template deleted: ${name}`))
       this.emit('template_deleted', { name })
     }
 
@@ -406,13 +406,13 @@ export class SnapshotService extends EventEmitter {
         )
 
         // Cleanup old scheduled snapshots if maxKeep is set
-        if (template.schedule!.maxKeep) {
+        if (template.schedule?.maxKeep) {
           const scheduledSnapshots = await this.getSnapshotsByTag('scheduled')
           const templatedSnapshots = scheduledSnapshots.filter((s) => s.metadata.tags.includes(name))
 
-          if (templatedSnapshots.length > template.schedule!.maxKeep) {
+          if (templatedSnapshots.length > template.schedule?.maxKeep) {
             templatedSnapshots.sort((a, b) => b.timestamp - a.timestamp)
-            const toDelete = templatedSnapshots.slice(template.schedule!.maxKeep)
+            const toDelete = templatedSnapshots.slice(template.schedule?.maxKeep)
 
             for (const snapshot of toDelete) {
               await this.deleteSnapshot(snapshot.id)
