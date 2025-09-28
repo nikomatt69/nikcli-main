@@ -1,8 +1,8 @@
 // api/github/webhook.ts
+
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { Octokit } from '@octokit/rest'
-import { GitHubWebhookHandler } from '../../src/cli/github-bot/webhook-handler'
 import type { GitHubBotConfig } from '../../src/cli/github-bot/types'
+import { GitHubWebhookHandler } from '../../src/cli/github-bot/webhook-handler'
 
 // Initialize GitHub Bot configuration
 const config: GitHubBotConfig = {
@@ -10,7 +10,7 @@ const config: GitHubBotConfig = {
   webhookSecret: process.env.GITHUB_WEBHOOK_SECRET!,
   appId: process.env.GITHUB_APP_ID!,
   privateKey: process.env.GITHUB_PRIVATE_KEY!,
-  installationId: process.env.GITHUB_INSTALLATION_ID!
+  installationId: process.env.GITHUB_INSTALLATION_ID!,
 }
 
 // Initialize webhook handler
@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.status(405).json({
       error: 'Method not allowed',
-      message: 'Only POST requests are supported'
+      message: 'Only POST requests are supported',
     })
     return
   }
@@ -47,8 +47,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       method: req.method,
       headers: {
         'x-github-event': req.headers['x-github-event'],
-        'x-hub-signature-256': req.headers['x-hub-signature-256'] ? 'present' : 'missing'
-      }
+        'x-hub-signature-256': req.headers['x-hub-signature-256'] ? 'present' : 'missing',
+      },
     })
 
     // Validate required environment variables
@@ -57,15 +57,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'GITHUB_WEBHOOK_SECRET',
       'GITHUB_APP_ID',
       'GITHUB_PRIVATE_KEY',
-      'GITHUB_INSTALLATION_ID'
+      'GITHUB_INSTALLATION_ID',
     ]
 
-    const missingVars = requiredEnvVars.filter(envVar => !process.env[envVar])
+    const missingVars = requiredEnvVars.filter((envVar) => !process.env[envVar])
     if (missingVars.length > 0) {
       console.error('❌ Missing environment variables:', missingVars)
       return res.status(500).json({
         error: 'Configuration error',
-        message: `Missing required environment variables: ${missingVars.join(', ')}`
+        message: `Missing required environment variables: ${missingVars.join(', ')}`,
       })
     }
 
@@ -76,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Forward rawBody if provided by Vercel/Next (to enable HMAC verification)
       rawBody: (req as any).rawBody || (typeof req.body === 'string' ? req.body : undefined),
       method: req.method,
-      url: req.url
+      url: req.url,
     } as any
 
     const mockRes = {
@@ -87,25 +87,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.log(`📤 Response: ${code}`, data)
             res.json(data)
           },
-          end: () => res.end()
+          end: () => res.end(),
         }
       },
       json: (data: any) => res.json(data),
-      end: () => res.end()
+      end: () => res.end(),
     } as any
 
     // Handle webhook using existing handler
     const handler = getWebhookHandler()
     await handler.handleWebhook(mockReq, mockRes)
-
   } catch (error) {
     console.error('❌ Webhook handler error:', error)
 
     return res.status(500).json({
       error: 'Internal server error',
-      message: process.env.NODE_ENV === 'development'
-        ? (error instanceof Error ? error.message : 'Unknown error')
-        : 'Something went wrong processing the webhook'
+      message:
+        process.env.NODE_ENV === 'development'
+          ? error instanceof Error
+            ? error.message
+            : 'Unknown error'
+          : 'Something went wrong processing the webhook',
     })
   }
 }

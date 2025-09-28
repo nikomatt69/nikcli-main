@@ -1,10 +1,9 @@
 import { EventEmitter } from 'node:events'
 import { countTokens as anthropicCountTokens } from '@anthropic-ai/tokenizer'
 import type { CoreMessage } from 'ai'
-import chalk from 'chalk'
-import { decode, encode } from 'gpt-tokenizer'
+import { encode } from 'gpt-tokenizer'
 import { encodingForModel } from 'js-tiktoken'
-import { MODEL_COSTS, type ModelPricing } from '../config/token-limits'
+import { MODEL_COSTS } from '../config/token-limits'
 import { logger } from '../utils/logger'
 
 /**

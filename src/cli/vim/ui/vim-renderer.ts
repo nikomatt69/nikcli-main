@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { CursorPosition, VimMode, type VimState } from '../types/vim-types'
+import { VimMode, type VimState } from '../types/vim-types'
 import type { VimModeConfig } from '../vim-mode-manager'
 
 interface RenderOptions {

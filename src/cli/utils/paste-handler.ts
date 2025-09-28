@@ -44,7 +44,7 @@ export class PasteHandler {
    */
   detectPasteOperation(input: string): boolean {
     const currentTime = Date.now()
-    const timeDiff = currentTime - this.lastInputTime
+    const _timeDiff = currentTime - this.lastInputTime
     this.lastInputTime = currentTime
 
     const lineCount = this.countLines(input)

@@ -3,16 +3,15 @@
  * Converts text descriptions into CAD elements and models
  */
 
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import boxen from 'boxen'
 import chalk from 'chalk'
-import fs from 'fs/promises'
-import path from 'path'
 import { z } from 'zod'
 import { convertCadElementsToSTL } from '../converters/cad-to-stl'
 import { type AICadSdkBridge, createAICadSdkBridge } from '../integrations/ai-cad-sdk-bridge'
 import { type CADCamFunBridge, createCADCamFunBridge } from '../integrations/cadcamfun-bridge'
-import { compilePrompt, nikCLIPromptTemplates, promptTemplates } from '../prompts/promptTemplates'
-import { CliUI } from '../utils/cli-ui'
+import { compilePrompt, promptTemplates } from '../prompts/promptTemplates'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 export const CADGenerationOptionsSchema = z.object({
@@ -361,8 +360,8 @@ export class TextToCADTool extends BaseTool {
       console.log(chalk.gray('🤖 Enhancing description with AI analysis (enterprise prompt)...'))
 
       // Compile the Enterprise Text-to-CAD prompt (system + user)
-      const systemPrompt = promptTemplates.textToCAD.system
-      const userPrompt = compilePrompt(promptTemplates.textToCAD.user, {
+      const _systemPrompt = promptTemplates.textToCAD.system
+      const _userPrompt = compilePrompt(promptTemplates.textToCAD.user, {
         description: params.description,
         complexity: 'medium',
         style: 'industrial',
@@ -374,7 +373,7 @@ export class TextToCADTool extends BaseTool {
 
       console.log(chalk.green('✅ Description enhanced with engineering specifications'))
       return enhancedDescription
-    } catch (error) {
+    } catch (_error) {
       console.log(chalk.yellow('⚠️ AI enhancement failed, using original description'))
       return null
     }

@@ -1,6 +1,5 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
-import { structuredLogger } from '../utils/structured-logger'
 import type { SecureVirtualizedAgent } from './secure-vm-agent'
 import {
   type VMBridgeResponse,

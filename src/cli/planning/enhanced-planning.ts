@@ -620,7 +620,7 @@ export class EnhancedPlanningSystem {
       ])
 
       return answers.approved === true
-    } catch (e) {
+    } catch (_e) {
       // On any prompt error, be safe and refuse
       return false
     } finally {

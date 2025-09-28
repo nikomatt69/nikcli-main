@@ -1,6 +1,5 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
-import { nanoid } from 'nanoid'
 import type { AgentTodo, AgentWorkPlan } from '../core/agent-todo-manager'
 import type {
   ExecutionPlan,

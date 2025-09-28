@@ -4,7 +4,7 @@ import crypto from 'node:crypto'
 import { Octokit } from '@octokit/rest'
 import { CommentProcessor } from './comment-processor'
 import { TaskExecutor } from './task-executor'
-import type { GitHubBotConfig, GitHubWebhookEvent, NikCLIMention, ProcessingJob } from './types'
+import type { GitHubBotConfig, GitHubWebhookEvent, ProcessingJob } from './types'
 
 /**
  * GitHub Bot Webhook Handler for @nikcli mentions

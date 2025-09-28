@@ -4,7 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UniversalAgent } from '../../src/cli/automation/agents/universal-agent'
-import { AgentContext, AgentTask } from '../../src/cli/types/types'
+import type { AgentContext, AgentTask } from '../../src/cli/types/types'
 import { mockConsole } from '../helpers/test-utils'
 
 vi.mock('../../src/cli/utils/logger', () => ({

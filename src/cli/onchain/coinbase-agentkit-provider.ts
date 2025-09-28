@@ -13,7 +13,7 @@ let erc20ActionProvider: any = null
 let pythActionProvider: any = null
 let CdpSmartWalletProvider: any = null
 let walletActionProvider: any = null
-let WalletProvider: any = null
+let _WalletProvider: any = null
 let wethActionProvider: any = null
 let getVercelAITools: any = null
 let defillamaActionProvider: any = null
@@ -27,7 +27,7 @@ try {
   pythActionProvider = agentkit.pythActionProvider
   CdpSmartWalletProvider = agentkit.CdpSmartWalletProvider
   walletActionProvider = agentkit.walletActionProvider
-  WalletProvider = agentkit.WalletProvider
+  _WalletProvider = agentkit.WalletProvider
   wethActionProvider = agentkit.wethActionProvider
   // Optional providers (may not be present in all versions)
   try {
@@ -45,10 +45,9 @@ try {
 }
 
 import * as fs from 'node:fs'
-import { join } from 'node:path'
 import type { CoreTool } from 'ai'
 import type { Address, Hex, LocalAccount } from 'viem'
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { privateKeyToAccount } from 'viem/accounts'
 
 // Configure a file to persist the agent's Smart Wallet + Private Key data
 const WALLET_DATA_FILE = '.nikcli/nikcli-wallet-data.txt'

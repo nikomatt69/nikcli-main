@@ -94,7 +94,7 @@ export class TextToCADAgent extends BaseAgent {
   private async initializeCADSystem(): Promise<void> {
     try {
       // Dynamic import of your CAD AI system
-      const cadSystemPath = '/Volumes/SSD/Development/dev/cadcamfun/src/lib/ai'
+      const _cadSystemPath = '/Volumes/SSD/Development/dev/cadcamfun/src/lib/ai'
 
       // We'll import your services here
       console.log(chalk.blue('🔧 Initializing Text-to-CAD AI system...'))
@@ -108,7 +108,7 @@ export class TextToCADAgent extends BaseAgent {
       }
 
       console.log(chalk.green('✅ Text-to-CAD AI system initialized'))
-    } catch (error) {
+    } catch (_error) {
       console.log(chalk.yellow('⚠️ CAD AI system not available, using mock mode'))
     }
   }

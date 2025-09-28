@@ -15,7 +15,7 @@ import { ModernAgentOrchestrator } from './automation/agents/modern-agent-system
 import { chatManager } from './chat/chat-manager'
 import { SlashCommandHandler } from './chat/nik-cli-commands'
 import { CADCommands } from './commands/cad-commands'
-import { calculateTokenCost, MODEL_COSTS, TOKEN_LIMITS } from './config/token-limits'
+import { TOKEN_LIMITS } from './config/token-limits'
 import { docsContextManager } from './context/docs-context-manager'
 import { workspaceContext } from './context/workspace-context'
 import { agentFactory } from './core/agent-factory'
@@ -28,7 +28,6 @@ import { configManager, type SimpleConfigManager, simpleConfigManager } from './
 import { contextTokenManager } from './core/context-token-manager'
 import { type DocumentationEntry, docLibrary } from './core/documentation-library'
 import { enhancedTokenCache } from './core/enhanced-token-cache'
-import { EnhancedToolRouter } from './core/enhanced-tool-router'
 import { inputQueue } from './core/input-queue'
 import { type McpServerConfig, mcpClient } from './core/mcp-client'
 import { QuietCacheLogger, TokenOptimizer } from './core/performance-optimizer'
@@ -44,7 +43,6 @@ import { PlanningManager } from './planning/planning-manager'
 import type { ExecutionPlan } from './planning/types'
 import { authProvider } from './providers/supabase/auth-provider'
 import { enhancedSupabaseProvider } from './providers/supabase/enhanced-supabase-provider'
-import { visionProvider } from './providers/vision'
 import { registerAgents } from './register-agents'
 import { agentService } from './services/agent-service'
 // New enhanced services
@@ -54,7 +52,6 @@ import { type PlanExecutionEvent, planningService } from './services/planning-se
 import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
 import { StreamingOrchestrator } from './streaming-orchestrator'
-import { secureTools } from './tools/secure-tools-registry'
 import { toolsManager } from './tools/tools-manager'
 import { advancedUI } from './ui/advanced-cli-ui'
 import { approvalSystem } from './ui/approval-system'
@@ -2009,7 +2006,6 @@ export class NikCLI {
     if (shouldUseStructuredUI) {
       console.log(chalk.cyan('\n🎨 UI Selection: AdvancedCliUI selected (structuredUI = true)'))
       advancedUI.startInteractiveMode()
-      advancedUI.logInfo('AdvancedCliUI Ready', `Mode: ${this.currentMode} - 4 Panels configured`)
     } else {
       console.log(chalk.dim('\n📺 UI Selection: Console stdout selected (structuredUI = false)'))
     }
@@ -2243,8 +2239,11 @@ export class NikCLI {
       lines.push('  /images               Pick and analyze images')
       lines.push('  /web3 status          Onchain status')
       lines.push('  /web3 wallets         Pick a wallet')
+      lines.push('  /web3 polymarket init Initialize Polymarket')
+      lines.push('  /web3 bet "message"   Natural language betting')
       lines.push('  /doc-search <query>   Search docs')
       lines.push('  /set-coin-keys        Configure Coinbase keys')
+      lines.push('  /set-key-poly         Configure Polymarket keys')
       lines.push('  /set-key-bb           Configure Browserbase keys')
       lines.push('  /set-key-redis        Configure Redis/Upstash keys')
       lines.push('  /set-vector-key       Configure Upstash Vector keys')
@@ -2889,7 +2888,7 @@ export class NikCLI {
         priority = 'low'
       }
 
-      const queueId = inputQueue.enqueue(actualInput, priority, 'user')
+      const _queueId = inputQueue.enqueue(actualInput, priority, 'user')
       console.log(
         chalk.cyan(
           `📥 Input queued (${priority} priority): ${displayText.substring(0, 40)}${displayText.length > 40 ? '...' : ''}`
@@ -3264,6 +3263,11 @@ export class NikCLI {
 
         case 'set-coin-keys': {
           await this.interactiveSetCoinbaseKeys()
+          break
+        }
+
+        case 'set-key-poly': {
+          await this.interactiveSetPolymarketKeys()
           break
         }
 
@@ -8633,11 +8637,8 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         })
 
         if (cloudDocsConfig.autoSync) {
-          structuredLogger.info('Docs Cloud', '📚 Auto-syncing documentation library...')
           await provider.sync()
         }
-
-        structuredLogger.info('Docs Cloud', '✓ Cloud documentation system ready')
       } else {
         structuredLogger.info('Docs Cloud', 'ℹ️ Cloud documentation disabled')
       }
@@ -9118,7 +9119,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
         try {
           const { cacheService } = await import('./services/cache-service')
           await cacheService.clearAll()
-        } catch (error) {
+        } catch (_error) {
           // Redis cache service not available, silently continue
         }
 
@@ -9160,7 +9161,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
             `  Total Hits: ${chalk.green(cacheStats.totalHits.toLocaleString())}\n` +
             `  Hit Rate: ${chalk.blue(cacheStats.hitRate.toFixed(1))}%\n` +
             `  Fallback: ${cacheStats.fallback.enabled ? chalk.cyan('SmartCache') : chalk.gray('None')}\n\n`
-        } catch (error) {
+        } catch (_error) {
           redisStats = `${chalk.red('🚀 Redis Cache:')}\n` + `  Status: ${chalk.gray('Unavailable')}\n\n`
         }
 
@@ -9283,7 +9284,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
           }))
           preciseTokens = await universalTokenizer.countMessagesTokens(coreMessages, currentModel, currentProvider)
           isPrecise = true
-        } catch (error) {
+        } catch (_error) {
           console.warn('Precise counting failed, using character estimation')
           preciseTokens = Math.round(totalChars / 4)
         }
@@ -9386,7 +9387,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
               lines.push(
                 `${mark}${cost.model}  $${cost.totalCost.toFixed(4)} (In $${cost.inputCost.toFixed(4)} | Out $${cost.outputCost.toFixed(4)})`
               )
-            } catch (error) {
+            } catch (_error) {
               // Skip models that don't have pricing info
             }
           })
@@ -10239,6 +10240,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
       // API Keys & Configuration
       ['/set-key <model> <key>', 'Set API key for AI models'],
       ['/set-coin-keys', 'Configure Coinbase CDP API keys'],
+      ['/set-key-poly', 'Configure Polymarket API credentials'],
       ['/set-key-bb', 'Configure Browserbase API credentials'],
       ['/set-key-figma', 'Configure Figma and v0 API credentials'],
       ['/set-key-redis', 'Configure Redis/Upstash cache credentials'],
@@ -10397,7 +10399,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
 
     lines.push('💡 Shortcuts: Ctrl+C exit | Esc interrupt | Cmd+Esc default')
 
-    const maxHeight = this.getAvailablePanelHeight()
+    const _maxHeight = this.getAvailablePanelHeight()
     let content = lines.join('\n')
 
     // Always show full content - no height restrictions
@@ -10747,7 +10749,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     // Calculate session info
     const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60)
     const totalTokens = this.sessionTokenUsage + this.contextTokens
-    const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
+    const _tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
     const costDisplay =
       this.realTimeCost > 0 ? chalk.magenta(`$${this.realTimeCost.toFixed(4)}`) : chalk.magenta('$0.0000')
 
@@ -10779,7 +10781,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const currentModel = this.configManager.getCurrentModel()
     const providerIcon = this.getProviderIcon(currentModel)
     const modelColor = this.getProviderColor(currentModel)
-    const modelDisplay = `${providerIcon} ${modelColor(currentModel)}`
+    const _modelDisplay = `${providerIcon} ${modelColor(currentModel)}`
 
     // Responsive layout based on terminal width
     const layout = this.createResponsiveStatusLayout(terminalWidth)
@@ -11334,7 +11336,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     // Calculate session info (copied from showLegacyPrompt)
     const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60)
     const totalTokens = this.sessionTokenUsage + this.contextTokens
-    const tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
+    const _tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
     const costDisplay =
       this.realTimeCost > 0 ? chalk.magenta(`$${this.realTimeCost.toFixed(4)}`) : chalk.magenta('$0.0000')
 
@@ -11370,7 +11372,7 @@ Max ${maxTodos} todos. Context: ${truncatedContext}`,
     const currentModel2 = this.configManager.getCurrentModel()
     const providerIcon2 = this.getProviderIcon(currentModel2)
     const modelColor2 = this.getProviderColor(currentModel2)
-    const modelDisplay2 = `${providerIcon2} ${modelColor2(currentModel2)}`
+    const _modelDisplay2 = `${providerIcon2} ${modelColor2(currentModel2)}`
 
     // Queue/agents
     const queueStatus2 = inputQueue.getStatus()
@@ -15422,9 +15424,25 @@ Generated by NikCLI on ${new Date().toISOString()}
         `   Status: ${coinbaseReady ? chalk.green('Ready for Web3 operations') : chalk.yellow('Configure with /set-coin-keys')}`
       )
 
-      // 14) Web Browsing & Analysis (Browserbase)
+      // 14) Prediction Markets (Polymarket)
       lines.push('')
-      lines.push(chalk.green('14) Web Browsing & Analysis (Browserbase)'))
+      lines.push(chalk.green('14) Prediction Markets (Polymarket)'))
+      const polymarketApiKey = configManager.getApiKey('polymarket_api_key')
+      const polymarketSecret = configManager.getApiKey('polymarket_secret')
+      const polymarketPassphrase = configManager.getApiKey('polymarket_passphrase')
+      const polymarketPrivateKey = configManager.getApiKey('polymarket_private_key')
+      lines.push(`   API Key: ${polymarketApiKey ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   Secret: ${polymarketSecret ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   Passphrase: ${polymarketPassphrase ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      lines.push(`   Private Key: ${polymarketPrivateKey ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
+      const polymarketReady = polymarketApiKey && polymarketSecret && polymarketPassphrase && polymarketPrivateKey
+      lines.push(
+        `   Status: ${polymarketReady ? chalk.green('Ready for prediction trading') : chalk.yellow('Configure with /set-key-poly')}`
+      )
+
+      // 15) Web Browsing & Analysis (Browserbase)
+      lines.push('')
+      lines.push(chalk.green('15) Web Browsing & Analysis (Browserbase)'))
       const browserbaseKey = configManager.getApiKey('browserbase')
       const browserbaseProject = configManager.getApiKey('browserbase_project_id')
       lines.push(`   API Key: ${browserbaseKey ? chalk.green('✅ configured') : chalk.red('❌ missing')}`)
@@ -16132,6 +16150,125 @@ Generated by NikCLI on ${new Date().toISOString()}
   }
 
   /**
+   * Polymarket keys interactive wizard with panels
+   */
+  private async interactiveSetPolymarketKeys(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('./core/input-queue')
+
+      // Header panel
+      this.printPanel(
+        boxen(
+          'Configure Polymarket credentials. Keys are stored encrypted in ~/.nikcli/config.json and applied to this session. Leave a field blank to keep the current value.',
+          { title: '🎯 Set Polymarket Keys', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' }
+        )
+      )
+
+      const currentApiKey = configManager.getApiKey('polymarket_api_key')
+      const currentSecret = configManager.getApiKey('polymarket_secret')
+      const currentPassphrase = configManager.getApiKey('polymarket_passphrase')
+      const currentPrivateKey = configManager.getApiKey('polymarket_private_key')
+      const currentFunderAddress = configManager.getApiKey('polymarket_funder_address')
+
+      // Suspend prompt for interactive input
+      this.suspendPrompt()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'password',
+            name: 'apiKey',
+            message: 'POLYMARKET_API_KEY',
+            mask: '*',
+            suffix: currentApiKey ? chalk.gray(' (configured)') : '',
+          },
+          {
+            type: 'password',
+            name: 'secret',
+            message: 'POLYMARKET_SECRET',
+            mask: '*',
+            suffix: currentSecret ? chalk.gray(' (configured)') : '',
+          },
+          {
+            type: 'password',
+            name: 'passphrase',
+            message: 'POLYMARKET_PASSPHRASE',
+            mask: '*',
+            suffix: currentPassphrase ? chalk.gray(' (configured)') : '',
+          },
+          {
+            type: 'password',
+            name: 'privateKey',
+            message: 'POLYMARKET_PRIVATE_KEY',
+            mask: '*',
+            suffix: currentPrivateKey ? chalk.gray(' (configured)') : '',
+          },
+          {
+            type: 'input',
+            name: 'funderAddress',
+            message: 'POLYMARKET_FUNDER_ADDRESS (optional)',
+            suffix: currentFunderAddress ? chalk.gray(' (configured)') : chalk.gray(' (optional for proxy wallets)'),
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        this.resumePromptAndRender()
+      }
+
+      const setIfProvided = (label: string, value: string | undefined, setter: (v: string) => void) => {
+        if (value && value.trim()) {
+          setter(value.trim())
+          console.log(chalk.green(`✅ ${label} updated`))
+        }
+      }
+
+      setIfProvided('POLYMARKET_API_KEY', answers.apiKey, (v) => {
+        configManager.setApiKey('polymarket_api_key', v)
+        process.env.POLYMARKET_API_KEY = v
+      })
+      setIfProvided('POLYMARKET_SECRET', answers.secret, (v) => {
+        configManager.setApiKey('polymarket_secret', v)
+        process.env.POLYMARKET_SECRET = v
+      })
+      setIfProvided('POLYMARKET_PASSPHRASE', answers.passphrase, (v) => {
+        configManager.setApiKey('polymarket_passphrase', v)
+        process.env.POLYMARKET_PASSPHRASE = v
+      })
+      setIfProvided('POLYMARKET_PRIVATE_KEY', answers.privateKey, (v) => {
+        configManager.setApiKey('polymarket_private_key', v)
+        process.env.POLYMARKET_PRIVATE_KEY = v
+      })
+      setIfProvided('POLYMARKET_FUNDER_ADDRESS', answers.funderAddress, (v) => {
+        configManager.setApiKey('polymarket_funder_address', v)
+        process.env.POLYMARKET_FUNDER_ADDRESS = v
+      })
+
+      this.printPanel(
+        boxen('Polymarket keys updated. You can now run /web3 polymarket init', {
+          title: '✅ Keys Saved',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Failed to set Polymarket keys: ${error.message}`, {
+          title: '❌ Set Polymarket Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    this.renderPromptAfterOutput()
+  }
+
+  /**
    * Interactive Browserbase credentials setup
    */
   private async interactiveSetBrowserbaseKeys(): Promise<void> {
@@ -16429,9 +16566,9 @@ Generated by NikCLI on ${new Date().toISOString()}
       // Suspend prompt for interactive input
       this.suspendPrompt()
       inputQueue.enableBypass()
-      let answers: any
+      let _answers: any
       try {
-        answers = await inquirer.prompt([
+        _answers = await inquirer.prompt([
           {
             type: 'input',
             name: 'vectorUrl',
@@ -16458,7 +16595,7 @@ Generated by NikCLI on ${new Date().toISOString()}
         this.resumePromptAndRender()
       }
 
-      const setIfProvided = (label: string, value: string | undefined, setter: (v: string) => void) => {
+      const _setIfProvided = (label: string, value: string | undefined, setter: (v: string) => void) => {
         if (value && value.trim().length > 0) {
           setter(value.trim())
           console.log(chalk.green(`✅ Saved ${label}`))

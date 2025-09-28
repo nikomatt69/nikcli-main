@@ -14,7 +14,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import axios, { type AxiosInstance } from 'axios'
 import chalk from 'chalk'
-import { simpleConfigManager } from '../core/config-manager'
 import { imageGenerator } from '../providers/image'
 import { approvalSystem } from '../ui/approval-system'
 
@@ -929,7 +928,7 @@ export default FigmaComponent`
 
     // First get file info to find exportable nodes
     console.log(chalk.blue('📋 Getting file structure...'))
-    const fileInfo = await this.getFileInfo(fileId)
+    const _fileInfo = await this.getFileInfo(fileId)
 
     // Get exportable node IDs from the file
     const nodeIds = await this.getExportableNodeIds(fileId)
@@ -1133,9 +1132,9 @@ export default FigmaComponent`
     designTokens: any
   }> {
     // Analyze the component structure and extract design information
-    const hasProps = componentCode.includes('props') || componentCode.includes('interface')
-    const hasState = componentCode.includes('useState') || componentCode.includes('state')
-    const hasEffects = componentCode.includes('useEffect') || componentCode.includes('componentDidMount')
+    const _hasProps = componentCode.includes('props') || componentCode.includes('interface')
+    const _hasState = componentCode.includes('useState') || componentCode.includes('state')
+    const _hasEffects = componentCode.includes('useEffect') || componentCode.includes('componentDidMount')
 
     // Extract JSX structure
     const jsxPattern = /return\s*\(?([\s\S]*?)\)?(?:\s*}|\s*$)/

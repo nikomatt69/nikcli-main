@@ -1,7 +1,6 @@
 import { EventEmitter } from 'node:events'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
-import { adaptiveModelRouter, type ModelRouteDecision } from '../ai/adaptive-model-router'
 import { logger } from '../utils/logger'
 import { type ModelLimits, type TokenUsage, universalTokenizer } from './universal-tokenizer-service'
 

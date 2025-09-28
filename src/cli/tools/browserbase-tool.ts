@@ -1,7 +1,6 @@
 import chalk from 'chalk'
 import { z } from 'zod'
 import {
-  type BrowserbaseAIAnalysis,
   type BrowserbaseContentResult,
   type BrowserbaseSession,
   browserbaseProvider,

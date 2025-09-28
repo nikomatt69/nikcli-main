@@ -293,7 +293,7 @@ export class SlashCommandHandler {
     this.commands.set('images', this.imagesCommand.bind(this))
     this.commands.set('create-image', this.generateImageCommand.bind(this))
 
-    // Blockchain/Web3 (Coinbase AgentKit)
+    // Blockchain/Web3 (Coinbase AgentKit + Polymarket)
     this.commands.set('web3', this.web3Command.bind(this))
     this.commands.set('blockchain', this.web3Command.bind(this))
 
@@ -432,6 +432,14 @@ ${chalk.cyan('/web3 transfer <amount> <to> [--token ETH|USDC|WETH]')} - Transfer
 ${chalk.cyan('/web3 chat "message"')} - Natural language blockchain request
 ${chalk.cyan('/web3 wallets')} - List known wallets and pick one
 ${chalk.cyan('/web3 use-wallet <0x...>')} - Use a specific wallet by address
+
+${chalk.blue.bold('Prediction Markets (Polymarket):')}
+${chalk.cyan('/web3 polymarket init')} - Initialize Polymarket with API credentials
+${chalk.cyan('/web3 polymarket status')} - Show Polymarket connection status
+${chalk.cyan('/web3 polymarket positions')} - Show your betting portfolio
+${chalk.cyan('/web3 polymarket markets <query>')} - Search prediction markets
+${chalk.cyan('/web3 polymarket "analyze AI markets"')} - Natural language market analysis
+${chalk.cyan('/web3 bet "place $50 on Trump wins"')} - Natural language betting interface
 
 ${chalk.blue.bold('Memory & Personalization:')}
 ${chalk.cyan('/remember "fact"')} - Store important information in long-term memory
@@ -1580,7 +1588,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const webFlags = new Set(['--web', '--type', '--mode', '--includeContent', '--maxContentBytes', '--maxResults'])
     const searchFlags = new Set(['--semantic', '--text'])
     const hasWebFlag = args.some((a) => a.startsWith('--') && webFlags.has(a.split('=')[0]))
-    const hasSearchFlag = args.some((a) => a.startsWith('--') && searchFlags.has(a.split('=')[0]))
+    const _hasSearchFlag = args.some((a) => a.startsWith('--') && searchFlags.has(a.split('=')[0]))
 
     if (hasWebFlag) {
       try {
@@ -1699,7 +1707,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           semanticOnly: false,
           workingDirectory: directory === '.' ? process.cwd() : directory,
         })
-      } catch (error) {
+      } catch (_error) {
         console.log(chalk.yellow('⚠️ Semantic search unavailable, using traditional search'))
       }
 
@@ -4279,9 +4287,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.cliInstance.printPanel(
         boxen(
           [
-            chalk.bold('⛓️  Web3 (Coinbase AgentKit) Commands'),
+            chalk.bold('⛓️  Web3 (Coinbase AgentKit + Polymarket) Commands'),
             chalk.gray('────────────────────────────────────────────'),
             '',
+            chalk.yellow.bold('Coinbase AgentKit:'),
             `${chalk.cyan('/web3 status')}  – AgentKit status`,
             `${chalk.cyan('/web3 init')}    – Initialize with CDP credentials`,
             `${chalk.cyan('/web3 wallet')}  – Show wallet and network`,
@@ -4291,8 +4300,22 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             `${chalk.cyan('/web3 wallets')} – List known wallets`,
             `${chalk.cyan('/web3 use-wallet <0x...>')} – Use a specific wallet`,
             '',
-            chalk.gray('Env required: CDP_API_KEY_ID, CDP_API_KEY_SECRET, CDP_WALLET_SECRET'),
-            chalk.gray('Tip: /set-coin-keys to enter them interactively'),
+            chalk.magenta.bold('Polymarket Prediction Markets:'),
+            `${chalk.cyan('/web3 polymarket init')} – Initialize Polymarket`,
+            `${chalk.cyan('/web3 polymarket status')} – Show connection status`,
+            `${chalk.cyan('/web3 polymarket diagnose')} – Diagnose setup issues`,
+            `${chalk.cyan('/web3 polymarket trending')} – Get trending markets (Gamma API)`,
+            `${chalk.cyan('/web3 polymarket sports [sport]')} – Get sports markets (Gamma API)`,
+            `${chalk.cyan('/web3 polymarket positions')} – Show betting portfolio`,
+            `${chalk.cyan('/web3 polymarket markets <query>')} – Search prediction markets`,
+            `${chalk.cyan('/web3 polymarket "analyze AI markets"')} – Natural language analysis`,
+            `${chalk.cyan('/web3 bet "place $50 on Trump wins"')} – Natural language betting`,
+            '',
+            chalk.gray('Coinbase: CDP_API_KEY_ID, CDP_API_KEY_SECRET, CDP_WALLET_SECRET'),
+            chalk.gray(
+              'Polymarket: POLYMARKET_API_KEY, POLYMARKET_SECRET, POLYMARKET_PASSPHRASE, POLYMARKET_PRIVATE_KEY'
+            ),
+            chalk.gray('Tip: /set-coin-keys for Coinbase, /set-key-poly for Polymarket'),
           ].join('\n'),
           { title: 'Web3', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
         )
@@ -4422,6 +4445,82 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
         const result = await secureTools.executeCoinbaseAgentKit('chat', { message })
         const content = this.formatWeb3ChatPanel(message, result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'polymarket') {
+        // Handle Polymarket commands
+        const polymarketArgs = args.slice(1)
+        if (polymarketArgs.length === 0) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /web3 polymarket <init|status|positions|markets|"message">', {
+              title: 'Polymarket',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'magenta',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const polymarketSub = polymarketArgs[0].toLowerCase()
+
+        if (polymarketSub === 'init') {
+          const result = await secureTools.executePolymarket('init')
+          const content = this.formatPolymarketInitPanel(result)
+          this.cliInstance.printPanel(content)
+        } else if (polymarketSub === 'status') {
+          const result = await secureTools.executePolymarket('status')
+          const content = this.formatPolymarketStatusPanel(result)
+          this.cliInstance.printPanel(content)
+        } else if (polymarketSub === 'diagnose') {
+          const result = await secureTools.executePolymarket('diagnose')
+          const content = this.formatPolymarketDiagnosePanel(result)
+          this.cliInstance.printPanel(content)
+        } else if (polymarketSub === 'trending') {
+          const category = polymarketArgs.slice(1).join(' ').trim().replace(/^"|"$/g, '')
+          const result = await secureTools.executePolymarket('trending', { category })
+          const content = this.formatPolymarketTrendingPanel(result)
+          this.cliInstance.printPanel(content)
+        } else if (polymarketSub === 'sports') {
+          const sport = polymarketArgs.slice(1).join(' ').trim().replace(/^"|"$/g, '')
+          const result = await secureTools.executePolymarket('sports', { sport })
+          const content = this.formatPolymarketSportsPanel(result)
+          this.cliInstance.printPanel(content)
+        } else if (polymarketSub === 'positions' || polymarketSub === 'portfolio') {
+          const result = await secureTools.executePolymarket('positions')
+          const content = this.formatPolymarketPositionsPanel(result)
+          this.cliInstance.printPanel(content)
+        } else if (polymarketSub === 'markets' || polymarketSub === 'search') {
+          const query = polymarketArgs.slice(1).join(' ').trim().replace(/^"|"$/g, '')
+          const result = await secureTools.executePolymarket('markets', { query })
+          const content = this.formatPolymarketMarketPanel(result)
+          this.cliInstance.printPanel(content)
+        } else {
+          // Treat as natural language message
+          const message = polymarketArgs.join(' ').trim().replace(/^"|"$/g, '')
+          const result = await secureTools.executePolymarket('chat', { message })
+          const content = this.formatPolymarketChatPanel(message, result)
+          this.cliInstance.printPanel(content)
+        }
+      } else if (sub === 'bet') {
+        // Handle betting commands with smart workflow
+        const message = args.slice(1).join(' ').trim().replace(/^"|"$/g, '')
+        if (!message) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /web3 bet "your betting request"', {
+              title: 'Polymarket Betting',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        // Use bet action for smart workflow integration
+        const result = await secureTools.executePolymarket('bet', { message })
+        const content = this.formatPolymarketBetPanel(message, result)
         this.cliInstance.printPanel(content)
       } else if (false && sub === 'defi') {
         // Defi-specific commands intentionally disabled. Use /web3 chat and the agent's tools.
@@ -4628,6 +4727,440 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+  }
+
+  /**
+   * Polymarket panel formatters - Following exact Web3 patterns
+   */
+  private formatPolymarketStatusPanel(result: any): string {
+    const title = 'Polymarket Status'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+
+    if (ok) {
+      const data = dataBlock
+      lines.push(chalk.green('✅ Polymarket status'))
+      lines.push('')
+      lines.push(`${chalk.gray('Initialized:')} ${data.initialized ? chalk.green('Yes') : chalk.red('No')}`)
+      lines.push(`${chalk.gray('Provider Connected:')} ${data.providerStatus ? chalk.green('Yes') : chalk.red('No')}`)
+
+      if (data.providerStatus) {
+        const status = data.providerStatus
+        lines.push(
+          `${chalk.gray('Chain:')} ${status.chain === 'polygon' ? chalk.green('Polygon (Mainnet)') : chalk.yellow('Polygon Amoy (Testnet)')}`
+        )
+        lines.push(`${chalk.gray('Host:')} ${status.host}`)
+        lines.push(
+          `${chalk.gray('AI Tools:')} ${status.hasGoatPlugin ? chalk.green('Available') : chalk.yellow('Limited')}`
+        )
+        lines.push(
+          `${chalk.gray('Connection:')} ${status.connectionTested ? chalk.green('Tested') : chalk.yellow('Untested')}`
+        )
+      }
+
+      if (data.conversationLength !== undefined) {
+        lines.push(`${chalk.gray('Chat History:')} ${data.conversationLength} messages`)
+      }
+    } else {
+      lines.push(chalk.red('❌ Not initialized'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+      lines.push('')
+      lines.push(chalk.yellow('Run /web3 polymarket init to set up Polymarket'))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  private formatPolymarketInitPanel(result: any): string {
+    const title = 'Polymarket Initialize'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+
+    if (ok) {
+      const data = dataBlock
+      lines.push(chalk.green('✅ Polymarket initialized successfully'))
+      lines.push('')
+
+      if (data.status) {
+        const status = data.status
+        lines.push(
+          `${chalk.gray('Chain:')} ${status.chain === 'polygon' ? chalk.green('Polygon (Mainnet)') : chalk.yellow('Polygon Amoy (Testnet)')}`
+        )
+        lines.push(`${chalk.gray('Host:')} ${status.host}`)
+        lines.push(
+          `${chalk.gray('AI Integration:')} ${status.hasGoatPlugin ? chalk.green('Full') : chalk.yellow('Basic')}`
+        )
+      }
+
+      if (data.toolsAvailable) {
+        lines.push(`${chalk.gray('Tools:')} ${data.toolsAvailable} available`)
+      }
+
+      if (data.status?.chain !== 'polygon') {
+        lines.push('')
+        lines.push(chalk.yellow('💡 Using testnet - no real money'))
+      } else {
+        lines.push('')
+        lines.push(chalk.red('⚠️ MAINNET - Real money trading enabled'))
+      }
+    } else {
+      lines.push(chalk.red('❌ Initialization failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+      lines.push('')
+      lines.push(chalk.yellow('Check your Polymarket credentials with /set-key-poly'))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  private formatPolymarketPositionsPanel(result: any): string {
+    const title = 'Polymarket Positions'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+
+    if (ok) {
+      const positions = dataBlock.positions || []
+      lines.push(chalk.cyan('📊 Portfolio Overview'))
+      lines.push('')
+
+      if (Array.isArray(positions) && positions.length > 0) {
+        lines.push(`${chalk.gray('Active Positions:')} ${positions.length}`)
+        lines.push('')
+
+        positions.slice(0, 5).forEach((pos: any, index: number) => {
+          const market = pos.market || pos.marketName || `Market ${index + 1}`
+          const outcome = pos.outcome || pos.side || 'Unknown'
+          const size = pos.size || pos.shares || '0'
+          const value = pos.value || pos.currentValue || '—'
+          const pnl = pos.pnl || pos.unrealizedPnl || '—'
+
+          lines.push(chalk.white(`${index + 1}. ${market}`))
+          lines.push(
+            `   ${chalk.gray('Outcome:')} ${outcome === 'YES' ? chalk.green('YES') : outcome === 'NO' ? chalk.red('NO') : outcome}`
+          )
+          lines.push(
+            `   ${chalk.gray('Shares:')} ${size} | ${chalk.gray('Value:')} $${value} | ${chalk.gray('P&L:')} ${pnl === '—' ? pnl : parseFloat(pnl) >= 0 ? chalk.green(`+$${pnl}`) : chalk.red(`-$${Math.abs(parseFloat(pnl))}`)}`
+          )
+          if (index < Math.min(4, positions.length - 1)) lines.push('')
+        })
+
+        if (positions.length > 5) {
+          lines.push('')
+          lines.push(chalk.gray(`... and ${positions.length - 5} more positions`))
+        }
+      } else {
+        lines.push(chalk.gray('No active positions'))
+        lines.push('')
+        lines.push(chalk.yellow('💡 Use /web3 bet to start trading prediction markets'))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to fetch positions'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  private formatPolymarketChatPanel(message: string, result: any): string {
+    const title = 'Polymarket AI'
+    const lines: string[] = []
+    lines.push(`${chalk.gray('Query:')} ${message}`)
+    lines.push('')
+
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✅ AI Response'))
+      lines.push('')
+
+      if (dataBlock.response) {
+        // Split long responses into readable chunks
+        const response = dataBlock.response
+        if (response.length > 300) {
+          const chunks = response.match(/.{1,280}(\s|$)/g) || [response]
+          chunks.forEach((chunk: string, index: number) => {
+            lines.push(chalk.white(chunk.trim()))
+            if (index < chunks.length - 1) lines.push('')
+          })
+        } else {
+          lines.push(chalk.white(response))
+        }
+      }
+
+      if (dataBlock.toolCalls > 0) {
+        lines.push('')
+        lines.push(`${chalk.gray('Tools executed:')} ${dataBlock.toolCalls}`)
+      }
+
+      if (dataBlock.toolsUsed && dataBlock.toolsUsed.length > 0) {
+        lines.push(`${chalk.gray('Functions used:')} ${dataBlock.toolsUsed.join(', ')}`)
+      }
+    } else {
+      lines.push(chalk.red('❌ AI request failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+      lines.push('')
+      lines.push(chalk.yellow('💡 Try simplifying your request or check your Polymarket credentials'))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  private formatPolymarketMarketPanel(result: any): string {
+    const title = 'Polymarket Markets'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+
+    if (ok) {
+      const markets = dataBlock.markets || []
+      lines.push(chalk.cyan('🎯 Market Search Results'))
+      lines.push('')
+
+      if (Array.isArray(markets) && markets.length > 0) {
+        lines.push(`${chalk.gray('Found:')} ${markets.length} markets`)
+        lines.push('')
+
+        markets.slice(0, 3).forEach((market: any, index: number) => {
+          const question = market.question || market.title || `Market ${index + 1}`
+          const yesPrice = market.prices?.yes || market.yesPrice || '—'
+          const noPrice = market.prices?.no || market.noPrice || '—'
+          const volume = market.volume || market.totalVolume || '—'
+          const liquidity = market.liquidity || market.totalLiquidity || '—'
+
+          lines.push(chalk.white(`${index + 1}. ${question}`))
+          lines.push(
+            `   ${chalk.gray('YES:')} ${yesPrice === '—' ? yesPrice : chalk.green(`$${yesPrice}`)} | ${chalk.gray('NO:')} ${noPrice === '—' ? noPrice : chalk.red(`$${noPrice}`)}`
+          )
+          lines.push(`   ${chalk.gray('Volume:')} $${volume} | ${chalk.gray('Liquidity:')} $${liquidity}`)
+          if (index < Math.min(2, markets.length - 1)) lines.push('')
+        })
+
+        if (markets.length > 3) {
+          lines.push('')
+          lines.push(chalk.gray(`... and ${markets.length - 3} more markets`))
+        }
+      } else {
+        lines.push(chalk.gray('No markets found'))
+        lines.push('')
+        lines.push(chalk.yellow('💡 Try different search terms or check trending markets'))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to fetch markets'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  private formatPolymarketBetPanel(message: string, result: any): string {
+    const title = 'Polymarket Betting'
+    const lines: string[] = []
+    lines.push(`${chalk.gray('Bet Request:')} ${message}`)
+    lines.push('')
+
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = (result && result.data && result.data.data) || result?.data || {}
+
+    if (ok) {
+      // Check if it's a successful bet placement
+      if (dataBlock.placed || dataBlock.result) {
+        lines.push(chalk.green('✅ Bet placed successfully'))
+        lines.push('')
+
+        if (dataBlock.tokenId) lines.push(`${chalk.gray('Token ID:')} ${dataBlock.tokenId}`)
+        if (dataBlock.side) lines.push(`${chalk.gray('Side:')} ${chalk.white(dataBlock.side)}`)
+        if (dataBlock.amount) lines.push(`${chalk.gray('Amount:')} ${chalk.white(dataBlock.amount)} USDC`)
+        if (dataBlock.result?.orderId) lines.push(`${chalk.gray('Order ID:')} ${dataBlock.result.orderId}`)
+
+        lines.push('')
+        lines.push(chalk.cyan('💰 Your bet has been submitted to Polymarket'))
+      } else if (dataBlock.aiSearched) {
+        // AI-powered search result
+        lines.push(chalk.blue('🤖 AI Market Analysis'))
+        lines.push('')
+
+        if (dataBlock.marketId && dataBlock.tokenId) {
+          lines.push(chalk.green('✅ Market found and ready for betting'))
+          lines.push(`${chalk.gray('Market ID:')} ${dataBlock.marketId}`)
+          lines.push(`${chalk.gray('Token ID:')} ${dataBlock.tokenId}`)
+          lines.push(`${chalk.gray('Outcome:')} ${dataBlock.outcome}`)
+          lines.push('')
+          lines.push(chalk.cyan('💡 Use the market details above to place your bet'))
+        } else if (dataBlock.needsManualReview) {
+          lines.push(chalk.yellow('⚠️ Market analysis completed - manual review needed'))
+          lines.push('')
+          if (dataBlock.toolsUsed?.length > 0) {
+            lines.push(`${chalk.gray('Tools used:')} ${dataBlock.toolsUsed.join(', ')}`)
+          }
+        }
+
+        if (dataBlock.response) {
+          lines.push('')
+          lines.push(chalk.white(dataBlock.response))
+        }
+      } else if (dataBlock.cancelled) {
+        lines.push(chalk.yellow('⚠️ Bet cancelled by user'))
+      } else if (dataBlock.response) {
+        // AI response about betting
+        lines.push(chalk.blue('🤖 AI Analysis'))
+        lines.push('')
+
+        const response = dataBlock.response
+        if (response.length > 300) {
+          const chunks = response.match(/.{1,280}(\s|$)/g) || [response]
+          chunks.forEach((chunk: string, index: number) => {
+            lines.push(chalk.white(chunk.trim()))
+            if (index < chunks.length - 1) lines.push('')
+          })
+        } else {
+          lines.push(chalk.white(response))
+        }
+
+        if (dataBlock.toolCalls > 0) {
+          lines.push('')
+          lines.push(`${chalk.gray('Tools executed:')} ${dataBlock.toolCalls}`)
+        }
+      } else {
+        lines.push(chalk.green('✅ Request processed'))
+        lines.push('')
+        lines.push(chalk.gray('Check the details above for betting information'))
+      }
+    } else {
+      lines.push(chalk.red('❌ Betting failed'))
+      if (result?.error) {
+        lines.push('')
+        lines.push(chalk.gray(result.error))
+      }
+
+      lines.push('')
+      lines.push(chalk.yellow('💡 Check your Polymarket credentials and try again'))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'green' })
+  }
+
+  /**
+   * Format Polymarket diagnose panel
+   */
+  private formatPolymarketDiagnosePanel(result: any): string {
+    const title = 'Polymarket Diagnostics'
+    const lines: string[] = []
+
+    if (result?.success && result?.data?.diagnosis) {
+      const { diagnosis, summary } = result.data
+
+      lines.push(chalk.blue('🔍 System Diagnostics'))
+      lines.push('')
+      lines.push(`Dependencies: ${summary.dependencies}`)
+      lines.push(`Credentials: ${summary.credentials}`)
+      lines.push(`Issues found: ${summary.issues}`)
+      lines.push('')
+
+      if (diagnosis.issues.length > 0) {
+        lines.push(chalk.red('❌ Issues Found:'))
+        diagnosis.issues.forEach((issue: string) => {
+          lines.push(`  • ${issue}`)
+        })
+        lines.push('')
+      }
+
+      if (diagnosis.recommendations.length > 0) {
+        lines.push(chalk.yellow('💡 Recommendations:'))
+        diagnosis.recommendations.forEach((rec: string) => {
+          lines.push(`  • ${rec}`)
+        })
+      }
+    } else {
+      lines.push(chalk.red('❌ Diagnostics failed'))
+      if (result?.error) {
+        lines.push('')
+        lines.push(chalk.gray(result.error))
+      }
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  /**
+   * Format Polymarket trending markets panel
+   */
+  private formatPolymarketTrendingPanel(result: any): string {
+    const title = 'Trending Markets (Gamma API)'
+    const lines: string[] = []
+
+    if (result?.success && result?.data?.markets) {
+      const { markets, count, category } = result.data
+
+      lines.push(chalk.blue(`🔥 ${count} trending markets found`))
+      if (category && category !== 'all') {
+        lines.push(chalk.gray(`Category: ${category}`))
+      }
+      lines.push('')
+
+      markets.slice(0, 8).forEach((market: any, i: number) => {
+        lines.push(chalk.white(`${i + 1}. ${market.title || market.question}`))
+        if (market.volume) lines.push(`   Volume: $${market.volume}`)
+        if (market.liquidity) lines.push(`   Liquidity: $${market.liquidity}`)
+        if (market.tags) lines.push(`   Tags: ${market.tags.join(', ')}`)
+        lines.push('')
+      })
+
+      lines.push(chalk.gray('📊 Source: Polymarket Gamma API'))
+    } else {
+      lines.push(chalk.red('❌ Failed to get trending markets'))
+      if (result?.error) {
+        lines.push('')
+        lines.push(chalk.gray(result.error))
+      }
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  /**
+   * Format Polymarket sports markets panel
+   */
+  private formatPolymarketSportsPanel(result: any): string {
+    const title = 'Sports Markets (Gamma API)'
+    const lines: string[] = []
+
+    if (result?.success && result?.data?.markets) {
+      const { markets, count, sport } = result.data
+
+      lines.push(chalk.blue(`⚽ ${count} sports markets found`))
+      if (sport && sport !== 'all') {
+        lines.push(chalk.gray(`Sport: ${sport}`))
+      }
+      lines.push('')
+
+      markets.slice(0, 8).forEach((market: any, i: number) => {
+        lines.push(chalk.white(`${i + 1}. ${market.title || market.question}`))
+
+        // Show token prices if available
+        if (market.tokens && Array.isArray(market.tokens)) {
+          market.tokens.forEach((token: any) => {
+            const name = token.name || token.outcome || 'Unknown'
+            const price = token.price || token.last_price
+            if (price) lines.push(`   ${name}: $${price}`)
+          })
+        }
+
+        if (market.volume) lines.push(`   Volume: $${market.volume}`)
+        if (market.endDate || market.end_date) {
+          lines.push(`   Ends: ${market.endDate || market.end_date}`)
+        }
+        lines.push('')
+      })
+
+      lines.push(chalk.gray('🏆 Source: Polymarket Gamma API (Sports)'))
+    } else {
+      lines.push(chalk.red('❌ Failed to get sports markets'))
+      if (result?.error) {
+        lines.push('')
+        lines.push(chalk.gray(result.error))
+      }
+    }
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
   }
 

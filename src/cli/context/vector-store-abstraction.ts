@@ -145,19 +145,19 @@ class ChromaDBVectorStore extends VectorStore {
           // Clean up test document
           await this.collection.delete({ ids: ['test-embedding-check'] })
           console.log(chalk.gray(`📂 Using existing collection: ${this.config.collectionName}`))
-        } catch (embeddingError) {
+        } catch (_embeddingError) {
           // Collection exists but has no embedding function, recreate it
           console.log(
             chalk.yellow(`⚠️ Collection ${this.config.collectionName} lacks embedding function, recreating...`)
           )
           try {
             await this.client.deleteCollection({ name: this.config.collectionName })
-          } catch (deleteError) {
+          } catch (_deleteError) {
             console.log(chalk.yellow(`⚠️ Failed to delete collection, will attempt recreation anyway`))
           }
           throw new Error('Recreate collection')
         }
-      } catch (createError) {
+      } catch (_createError) {
         try {
           this.collection = await this.client.createCollection({
             name: this.config.collectionName,

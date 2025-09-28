@@ -12,6 +12,7 @@ import { GitTools } from './git-tools'
 import { type GrepResult, GrepTool, type GrepToolParams } from './grep-tool'
 import { JsonPatchTool } from './json-patch-tool'
 import { MultiReadTool } from './multi-read-tool'
+import { PolymarketTool } from './polymarket-tool'
 
 /**
  * Tool execution context with security metadata
@@ -53,6 +54,7 @@ export class SecureToolsRegistry {
   private secureCommandTool: SecureCommandTool
   private findFilesTool: FindFilesTool
   private coinbaseAgentKitTool: CoinbaseAgentKitTool
+  private polymarketTool: PolymarketTool
   private jsonPatchTool: JsonPatchTool
   private gitTools: GitTools
   private multiReadTool: MultiReadTool
@@ -72,6 +74,7 @@ export class SecureToolsRegistry {
     this.secureCommandTool = new SecureCommandTool(this.workingDirectory)
     this.findFilesTool = new FindFilesTool(this.workingDirectory)
     this.coinbaseAgentKitTool = new CoinbaseAgentKitTool(this.workingDirectory)
+    this.polymarketTool = new PolymarketTool(this.workingDirectory)
     this.jsonPatchTool = new JsonPatchTool(this.workingDirectory)
     this.gitTools = new GitTools(this.workingDirectory)
     this.multiReadTool = new MultiReadTool(this.workingDirectory)
@@ -510,6 +513,24 @@ export class SecureToolsRegistry {
         userConfirmed: !options.skipConfirmation,
       }
     )
+  }
+
+  /**
+   * Execute Polymarket operations
+   */
+  async executePolymarket(
+    action: string,
+    params: any = {},
+    options: {
+      skipConfirmation?: boolean
+    } = {}
+  ): Promise<ToolResult<any>> {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+
+    return this.executeWithTracking('Polymarket', () => this.polymarketTool.execute(action, params), context, {
+      pathValidated: true,
+      userConfirmed: !options.skipConfirmation,
+    })
   }
 
   /**

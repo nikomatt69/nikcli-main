@@ -9,7 +9,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     version: '0.2.3',
     endpoints: {
       webhook: '/v1/github/webhook',
-      health: '/health'
-    }
+      health: '/health',
+    },
   })
 }

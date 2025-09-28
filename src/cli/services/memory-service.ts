@@ -60,7 +60,6 @@ export class MemoryService extends EventEmitter {
       await mem0Provider.initialize()
       this.isInitialized = true
 
-      structuredLogger.success('Memory Service', '✅ Memory Service initialized')
       this.emit('initialized')
     } catch (error: any) {
       structuredLogger.error('Memory Service', `❌ Memory Service initialization failed: ${error.message}`)
@@ -205,7 +204,7 @@ export class MemoryService extends EventEmitter {
       }
 
       return await this.addMemory(content, enhancedMetadata)
-    } catch (error) {
+    } catch (_error) {
       // Fallback to regular memory addition
       console.log(chalk.yellow('⚠️ Semantic embedding failed, using standard memory'))
       return await this.addMemory(content, metadata)
@@ -254,7 +253,7 @@ export class MemoryService extends EventEmitter {
         // Hybrid: semantic + traditional search
         return await this.searchMemories(query, options)
       }
-    } catch (error) {
+    } catch (_error) {
       console.log(chalk.yellow('⚠️ Semantic memory search failed, using traditional search'))
       return await this.searchMemories(query, options)
     }

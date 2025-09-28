@@ -5,7 +5,7 @@ import { createTaskMasterAdapter, type TaskMasterAdapter } from '../adapters/tas
 import { AutonomousPlanner, type PlanningEvent } from '../planning/autonomous-planner'
 import { PlanGenerator } from '../planning/plan-generator'
 import type { ExecutionPlan, PlannerContext, PlanningToolCapability, PlanTodo } from '../planning/types'
-import { type TaskMasterService, taskMasterService } from './taskmaster-service'
+import { taskMasterService } from './taskmaster-service'
 import { type ToolCapability, toolService } from './tool-service'
 
 export interface PlanningOptions {

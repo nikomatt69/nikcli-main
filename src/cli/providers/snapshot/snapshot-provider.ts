@@ -105,7 +105,6 @@ export class SnapshotProvider extends EventEmitter {
       await this.loadExistingSnapshots()
       this.isInitialized = true
 
-      structuredLogger.success('Snapshots', `✅ Snapshot provider initialized (${this.config.provider})`)
       this.emit('initialized')
     } catch (error: any) {
       structuredLogger.error('Snapshots', `❌ Snapshot provider initialization failed: ${error.message}`)
@@ -531,8 +530,6 @@ export class SnapshotProvider extends EventEmitter {
           }
         }
       }
-
-      structuredLogger.info('Snapshots', `📁 Loaded ${this.snapshots.size} local snapshots`)
     } catch (_error) {
       // Directory doesn't exist or is empty
     }

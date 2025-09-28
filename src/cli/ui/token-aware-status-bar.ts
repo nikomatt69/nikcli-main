@@ -1,9 +1,8 @@
 // TODO: Consider refactoring for reduced complexity
 import { EventEmitter } from 'node:events'
-import blessed, { type Widgets } from 'blessed'
+import blessed from 'blessed'
 import chalk from 'chalk'
 import { type ModelLimits, type TokenUsage, universalTokenizer } from '../core/universal-tokenizer-service'
-import { logger } from '../utils/logger'
 
 export interface TokenDisplayOptions {
   showPercentage?: boolean

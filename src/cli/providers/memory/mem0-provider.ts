@@ -75,8 +75,6 @@ export class Mem0Provider extends EventEmitter {
       similarity_threshold: 0.7,
       importance_decay_days: 30,
     }
-
-    structuredLogger.info('Memory', '🧠 Mem0 Provider initialized')
   }
 
   /**
@@ -98,7 +96,6 @@ export class Mem0Provider extends EventEmitter {
       }
 
       this.isInitialized = true
-      structuredLogger.success('Memory', '✅ Mem0 memory system initialized')
     } catch (error: any) {
       structuredLogger.error('Memory', `❌ Mem0 initialization failed: ${error.message}`)
       throw error
@@ -367,7 +364,7 @@ export class Mem0Provider extends EventEmitter {
         break
       case 'memory':
         // In-memory storage, no vector DB
-        structuredLogger.warning('Memory', '⚠️ Using in-memory storage (no persistence)')
+
         break
     }
   }
@@ -662,7 +659,6 @@ export class Mem0Provider extends EventEmitter {
             this.memories.set(memory.id, memory)
           }
         }
-        structuredLogger.info('Memory', `📚 Loaded ${this.memories.size} memories from cache`)
       }
     } catch (_error) {
       structuredLogger.warning('Memory', '⚠️ Failed to load memories from cache')

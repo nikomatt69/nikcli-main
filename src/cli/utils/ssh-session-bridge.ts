@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import type { EnhancedSessionData, EnhancedSessionManager } from '../persistence/enhanced-session-manager'
+import type { EnhancedSessionManager } from '../persistence/enhanced-session-manager'
 import { type TmuxSession, tmuxIntegration } from './tmux-integration'
 
 export interface SSHSessionInfo {

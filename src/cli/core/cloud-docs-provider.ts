@@ -78,7 +78,7 @@ export class CloudDocsProvider {
     }
 
     this.cacheDir = cacheDir
-    structuredLogger.info('Docs Cloud', `📂 Cache directory: ${this.cacheDir}`)
+
     this.sharedIndexFile = path.join(cacheDir, 'shared-docs-index.json')
 
     // Non chiamare async nel costruttore - inizializzazione lazy
@@ -105,7 +105,6 @@ export class CloudDocsProvider {
 
       this.supabase = createClient(this.config.apiUrl, this.config.apiKey)
       this.isInitialized = true
-      structuredLogger.success('Docs Cloud', '✅ Connected to Supabase docs cloud')
     } catch (error: any) {
       structuredLogger.error('Docs Cloud', `❌ Failed to initialize Supabase: ${error.message}`)
     }
@@ -120,8 +119,6 @@ export class CloudDocsProvider {
     if (!this.isInitialized || !this.supabase) {
       throw new Error('Cloud docs provider not initialized')
     }
-
-    structuredLogger.info('Docs Cloud', '🔄 Synchronizing with cloud library...')
 
     try {
       // Download nuovi docs dal cloud

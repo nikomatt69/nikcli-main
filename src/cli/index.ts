@@ -76,7 +76,6 @@ import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
 import { diffManager } from './ui/diff-manager'
 import { Logger as UtilsLogger } from './utils/logger'
-import { structuredLogger } from './utils/structured-logger'
 
 // Global declarations for vision/image providers
 declare global {
@@ -1221,11 +1220,11 @@ class ServiceModule {
       // If already created or creation failed silently, proceed
     }
 
-    const agents = this.agentManager.listAgents()
+    const _agents = this.agentManager.listAgents()
   }
 
   static async initializeTools(): Promise<void> {
-    const tools = toolService.getAvailableTools()
+    const _tools = toolService.getAvailableTools()
   }
 
   static async initializePlanning(): Promise<void> {
@@ -1328,7 +1327,7 @@ class ServiceModule {
     for (const step of steps) {
       try {
         await step.fn()
-      } catch (error: any) {
+      } catch (_error: any) {
         return false
       }
     }
@@ -1688,8 +1687,6 @@ class MainOrchestrator {
       UtilsLogger.getInstance().setConsoleOutput(true)
 
       // Welcome message
-      console.log(chalk.green.bold('\n🎉 Welcome to NikCLI!'))
-      console.log(chalk.gray('─'.repeat(40)))
 
       // Show quick start guide
 

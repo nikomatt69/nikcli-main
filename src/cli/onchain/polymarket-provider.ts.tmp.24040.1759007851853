@@ -1,0 +1,667 @@
+/*
+ * Official Polymarket Integration for NikCLI
+ *
+ * Production-ready integration with Polymarket's CLOB API and GOAT SDK
+ * Follows the same architecture as Coinbase AgentKit provider
+ */
+
+// Conditional imports for Polymarket dependencies
+let ClobClient: any = null
+let OrderType: any = null
+let Side: any = null
+let polymarket: any = null
+
+try {
+  const clobClient = require('@polymarket/clob-client')
+  ClobClient = clobClient.ClobClient
+  OrderType = clobClient.OrderType
+  Side = clobClient.Side
+} catch {
+  // CLOB client not installed
+}
+
+try {
+  const goatPolymarket = require('@goat-sdk/plugin-polymarket')
+  polymarket = goatPolymarket.polymarket
+} catch {
+  // GOAT SDK not installed
+}
+
+// GOAT SDK core imports for proper integration
+let getOnChainActions: any = null
+let viem: any = null
+
+try {
+  const goatCore = require('@goat-sdk/core')
+  getOnChainActions = goatCore.getOnChainActions
+} catch {
+  // GOAT core not installed
+}
+
+try {
+  const goatWalletViem = require('@goat-sdk/wallet-viem')
+  viem = goatWalletViem.viem
+} catch {
+  // GOAT viem wallet not installed
+}
+
+// GOAT SDK Vercel AI adapter for tool conversion
+let getVercelAITools: any = null
+try {
+  const goatVercelAdapter = require('@goat-sdk/adapter-vercel-ai')
+  getVercelAITools = goatVercelAdapter.getVercelAITools
+} catch {
+  try {
+    const goatVercelAdapterAlt = require('@goat-sdk/adapters-vercel-ai')
+    getVercelAITools = goatVercelAdapterAlt.getVercelAITools
+  } catch {
+    // Adapter not available; will use manual tools
+  }
+}
+
+import * as fs from 'node:fs'
+import * as https from 'node:https'
+import type { CoreTool } from 'ai'
+import { polygon } from 'viem/chains'
+
+// Configure a file to persist Polymarket configuration
+const POLYMARKET_CONFIG_FILE = '.nikcli/polymarket-config.json'
+
+// GOAT SDK compatible credentials type
+export interface ApiKeyCredentials {
+  key: string
+  secret: string
+  passphrase: string
+}
+
+type PolymarketConfig = {
+  credentials?: ApiKeyCredentials
+  privateKey?: string
+  funderAddress?: string
+  chain: 'polygon' | 'polygon-amoy'
+  host: string
+}
+
+export interface PolymarketInitConfig {
+  apiKey?: string
+  secret?: string
+  passphrase?: string
+  privateKey?: string
+  funderAddress?: string
+  testnet?: boolean
+}
+
+/**
+ * Official Polymarket provider for NikCLI
+ * Uses production CLOB API and GOAT SDK for AI-powered trading
+ */
+export class PolymarketProvider {
+  private clobClient: any = null
+  private goatPlugin: any = null
+  private walletClient: any = null
+  private onChainActions: any = null
+  private isInitialized: boolean = false
+  private configFile: string = POLYMARKET_CONFIG_FILE
+  private config: PolymarketConfig
+  private walletProvider: 'goat' | 'none' = 'none'
+
+  constructor(config: PolymarketInitConfig = {}) {
+    this.config = {
+      chain: config.testnet ? 'polygon-amoy' : 'polygon',
+      host: config.testnet ? 'https://clob-staging.polymarket.com' : 'https://clob.polymarket.com',
+      credentials: config.apiKey && config.secret && config.passphrase ? {
+        key: config.apiKey,
+        secret: config.secret,
+        passphrase: config.passphrase,
+      } : undefined,
+      privateKey: config.privateKey,
+      funderAddress: config.funderAddress,
+    }
+  }
+
+  /**
+   * Check if Polymarket dependencies are installed
+   */
+  static async isInstalled(): Promise<boolean> {
+    try {
+      require('@polymarket/clob-client')
+      // GOAT SDK is optional - we can work without it
+      return true
+    } catch {
+      return false
+    }
+  }
+
+
+  /**
+   * Validate required environment variables with comprehensive checks
+   */
+  static validateEnvironment(): void {
+    const required = ['POLYMARKET_API_KEY', 'POLYMARKET_SECRET', 'POLYMARKET_PASSPHRASE', 'POLYMARKET_PRIVATE_KEY']
+    const missing = required.filter((key) => !process.env[key])
+
+    if (missing.length > 0) {
+      throw new Error(`Missing required Polymarket environment variables: ${missing.join(', ')}`)
+    }
+
+    // Additional validation for private key format
+    const privateKey = process.env.POLYMARKET_PRIVATE_KEY
+    if (privateKey && !privateKey.startsWith('0x') && !/^[a-fA-F0-9]{64}$/.test(privateKey)) {
+      throw new Error('POLYMARKET_PRIVATE_KEY must be a valid 64-character hex string or 0x-prefixed hex string')
+    }
+
+    // Validate API key format (basic length check)
+    const apiKey = process.env.POLYMARKET_API_KEY
+    if (apiKey && apiKey.length < 10) {
+      throw new Error('POLYMARKET_API_KEY appears to be invalid (too short)')
+    }
+
+    // Validate passphrase is not empty or just whitespace
+    const passphrase = process.env.POLYMARKET_PASSPHRASE
+    if (passphrase && !passphrase.trim()) {
+      throw new Error('POLYMARKET_PASSPHRASE cannot be empty or whitespace only')
+    }
+  }
+
+  /**
+   * Initialize Polymarket with real production configuration
+   */
+  async initialize(config: PolymarketInitConfig = {}): Promise<void> {
+    // Validate environment or use provided config with comprehensive error handling
+    if (!config.apiKey && !process.env.POLYMARKET_API_KEY) {
+      try {
+        PolymarketProvider.validateEnvironment()
+      } catch (error: any) {
+        throw new Error(`Environment validation failed: ${error.message}`)
+      }
+    }
+
+    // Load credentials from env or config - GOAT SDK compatible format
+    const credentials: ApiKeyCredentials = {
+      key: config.apiKey || process.env.POLYMARKET_API_KEY!,
+      secret: config.secret || process.env.POLYMARKET_SECRET!,
+      passphrase: config.passphrase || process.env.POLYMARKET_PASSPHRASE!,
+    }
+
+    // Validate credentials are not empty after loading
+    if (!credentials.key || !credentials.secret || !credentials.passphrase) {
+      throw new Error('Polymarket credentials cannot be empty after configuration loading')
+    }
+
+    const privateKey = config.privateKey || process.env.POLYMARKET_PRIVATE_KEY!
+    if (!privateKey) {
+      throw new Error('Private key is required for Polymarket integration')
+    }
+
+    const funderAddress = config.funderAddress || process.env.POLYMARKET_FUNDER_ADDRESS
+
+    // Update internal config
+    this.config = {
+      ...this.config,
+      credentials,
+      privateKey,
+      funderAddress,
+    }
+
+    // Validate chain compatibility (GOAT SDK requires Polygon)
+    const chainId = this.config.chain === 'polygon' ? polygon.id : 80002 // Amoy testnet
+    if (chainId !== polygon.id && chainId !== 80002) {
+      throw new Error(`Unsupported chain: ${this.config.chain}. Polymarket only supports Polygon.`)
+    }
+
+    // Initialize CLOB Client for direct trading
+    this.clobClient = new ClobClient(
+      this.config.host,
+      chainId,
+      credentials,
+      privateKey,
+      funderAddress
+    )
+
+    // Smart wallet provider selection and initialization
+    await this.initializeWalletProvider(config, privateKey)
+
+    // Initialize GOAT SDK following official pattern
+    if (!getOnChainActions || !polymarket || !getVercelAITools) {
+      throw new Error('GOAT SDK dependencies not properly installed')
+    }
+
+    try {
+      // Initialize GOAT Plugin
+      this.goatPlugin = polymarket({
+        credentials: credentials,
+      })
+
+      // Initialize OnChain Actions
+      this.onChainActions = getOnChainActions({
+        wallet: this.walletClient,
+        plugins: [this.goatPlugin],
+      })
+
+      console.log('✅ GOAT SDK integration initialized')
+    } catch (error) {
+      throw new Error(`GOAT SDK initialization failed: ${error}`)
+    }
+
+    // Test connection
+    try {
+      await this.testConnection()
+      this.isInitialized = true
+
+      // Save config for persistence
+      this.saveConfig()
+
+      console.log('✅ Polymarket provider initialized successfully')
+    } catch (error) {
+      throw new Error(`Polymarket initialization failed: ${error}`)
+    }
+  }
+
+  /**
+   * Initialize GOAT SDK wallet provider (simplified, following Coinbase pattern)
+   */
+  private async initializeWalletProvider(config: PolymarketInitConfig, privateKey: string): Promise<void> {
+    try {
+      console.log('🔍 Debugging wallet initialization...')
+      console.log('  createWalletClient available:', !!createWalletClient)
+      console.log('  privateKey provided:', !!privateKey)
+      console.log('  privateKey length:', privateKey?.length || 0)
+
+      if (!createWalletClient) {
+        throw new Error('createWalletClient function not available from @goat-sdk/wallet-evm')
+      }
+
+      if (!privateKey) {
+        throw new Error('Private key not provided')
+      }
+
+      // Ensure private key has 0x prefix for GOAT SDK
+      const formattedPrivateKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`
+      console.log('  formattedPrivateKey length:', formattedPrivateKey.length)
+
+      // GOAT SDK uses viem chain objects, not string names
+      const chainConfig = this.config.chain === 'polygon' ? polygon : { id: 80002, name: 'polygon-amoy' }
+      console.log('  chain config:', chainConfig)
+
+      console.log('🔧 Attempting to create wallet client...')
+      this.walletClient = createWalletClient({
+        privateKey: formattedPrivateKey,
+        chain: chainConfig,
+      })
+
+      if (this.walletClient) {
+        this.walletProvider = 'goat'
+        console.log('✅ GOAT SDK wallet initialized successfully')
+      } else {
+        throw new Error('createWalletClient returned null/undefined')
+      }
+    } catch (error: any) {
+      console.error('❌ GOAT wallet initialization failed:', error)
+      console.error('   Error details:', error.message)
+      console.error('   Stack:', error.stack)
+      throw new Error(`Wallet initialization failed: ${error.message}`)
+    }
+  }
+
+
+  /**
+   * Test connection to Polymarket CLOB
+   */
+  private async testConnection(): Promise<void> {
+    try {
+      // Test basic API connectivity
+      await this.clobClient.getMarkets({ limit: 1 })
+    } catch (error) {
+      throw new Error(`CLOB connection test failed: ${error}`)
+    }
+  }
+
+  /**
+   * Save configuration to file
+   */
+  private saveConfig(): void {
+    try {
+      const configDir = '.nikcli'
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true })
+      }
+
+      // Don't save sensitive data in plain text
+      const safeConfig = {
+        chain: this.config.chain,
+        host: this.config.host,
+        hasCredentials: !!(this.config.credentials?.key && this.config.credentials?.secret && this.config.credentials?.passphrase),
+        lastUsed: new Date().toISOString(),
+      }
+
+      fs.writeFileSync(this.configFile, JSON.stringify(safeConfig, null, 2))
+    } catch (error) {
+      console.warn('⚠️ Could not save Polymarket config:', error)
+    }
+  }
+
+  /**
+   * Get Polymarket markets
+   */
+  async getMarkets(params: { limit?: number; offset?: number; tags?: string[]; query?: string } = {}): Promise<any[]> {
+    if (!this.isInitialized || !this.clobClient) {
+      throw new Error('Polymarket not initialized')
+    }
+
+    try {
+      const markets = await this.clobClient.getMarkets({
+        limit: params.limit || 20,
+        offset: params.offset || 0,
+        tags: params.tags,
+        ...(params.query && { search: params.query }),
+      })
+
+      const list: any[] = markets.data || markets
+      // Clamp and summarize to avoid giant payloads
+      const max = Math.min(params.limit || 20, 20)
+      return list.slice(0, max).map((m) => ({
+        id: m.id ?? m.market_id, // never fall back to slug for id
+        slug: m.slug,
+        title: m.title ?? m.question ?? m.slug,
+        tags: m.tags ?? [],
+        volume: m.volume ?? m.liquidity ?? undefined,
+        endDate: m.end_date ?? m.endDate ?? m.close_time,
+      }))
+    } catch (error) {
+      throw new Error(`Failed to get markets: ${error}`)
+    }
+  }
+
+  /**
+   * Get market by ID
+   */
+  async getMarket(marketId: string): Promise<any> {
+    if (!this.isInitialized || !this.clobClient) {
+      throw new Error('Polymarket not initialized')
+    }
+
+    try {
+      return await this.clobClient.getMarket(marketId)
+    } catch (error) {
+      throw new Error(`Failed to get market ${marketId}: ${error}`)
+    }
+  }
+
+  /**
+   * Get market orderbook
+   */
+  async getOrderbook(tokenId: string): Promise<any> {
+    if (!this.isInitialized || !this.clobClient) {
+      throw new Error('Polymarket not initialized')
+    }
+
+    try {
+      return await this.clobClient.getOrderBook(tokenId)
+    } catch (error) {
+      throw new Error(`Failed to get orderbook for ${tokenId}: ${error}`)
+    }
+  }
+
+  /**
+   * Place a bet/order on Polymarket
+   */
+  async placeBet(params: {
+    tokenId: string
+    side: 'BUY' | 'SELL'
+    amount: number
+    price?: number
+    orderType?: 'MARKET' | 'LIMIT'
+  }): Promise<any> {
+    if (!this.isInitialized || !this.clobClient) {
+      throw new Error('Polymarket not initialized')
+    }
+
+    try {
+      const orderType = params.orderType || 'MARKET'
+
+      if (orderType === 'MARKET') {
+        // Market order
+        return await this.clobClient.postOrder({
+          tokenID: params.tokenId,
+          side: params.side === 'BUY' ? Side.BUY : Side.SELL,
+          size: params.amount.toString(),
+          orderType: OrderType.MARKET,
+        })
+      } else {
+        // Limit order
+        if (!params.price) {
+          throw new Error('Price required for limit orders')
+        }
+
+        return await this.clobClient.postOrder({
+          tokenID: params.tokenId,
+          side: params.side === 'BUY' ? Side.BUY : Side.SELL,
+          size: params.amount.toString(),
+          price: params.price.toString(),
+          orderType: OrderType.LIMIT,
+        })
+      }
+    } catch (error) {
+      throw new Error(`Failed to place bet: ${error}`)
+    }
+  }
+
+  /**
+   * Get user positions
+   */
+  async getPositions(): Promise<any[]> {
+    if (!this.isInitialized || !this.clobClient) {
+      throw new Error('Polymarket not initialized')
+    }
+
+    try {
+      return await this.clobClient.getPositions()
+    } catch (error) {
+      throw new Error(`Failed to get positions: ${error}`)
+    }
+  }
+
+  /**
+   * Get user orders
+   */
+  async getOrders(params: { marketId?: string } = {}): Promise<any[]> {
+    if (!this.isInitialized || !this.clobClient) {
+      throw new Error('Polymarket not initialized')
+    }
+
+    try {
+      return await this.clobClient.getOrders(params.marketId)
+    } catch (error) {
+      throw new Error(`Failed to get orders: ${error}`)
+    }
+  }
+
+  // ===================== GAMMA API (slug-based) HELPERS =====================
+  private fetchJson(url: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      https
+        .get(url, (res) => {
+          let data = ''
+          res.on('data', (chunk) => (data += chunk))
+          res.on('end', () => {
+            try {
+              resolve(JSON.parse(data))
+            } catch (e) {
+              reject(e)
+            }
+          })
+        })
+        .on('error', reject)
+    })
+  }
+
+  /**
+   * Fetch event by slug via Gamma API
+   */
+  async getEventBySlug(slug: string): Promise<any | null> {
+    try {
+      const url = `https://gamma-api.polymarket.com/events/slug/${encodeURIComponent(slug)}`
+      return await this.fetchJson(url)
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Fetch market by slug via Gamma API
+   */
+  async getMarketBySlug(slug: string): Promise<any | null> {
+    try {
+      const url = `https://gamma-api.polymarket.com/markets/slug/${encodeURIComponent(slug)}`
+      return await this.fetchJson(url)
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Resolve marketId and tokenId from slug and desired outcome
+   */
+  async resolveFromSlug(
+    slug: string,
+    outcome: 'YES' | 'NO' = 'YES'
+  ): Promise<{ marketId?: string; tokenId?: string } | undefined> {
+    // Try direct market slug first
+    const market = await this.getMarketBySlug(slug)
+    const yesNoKeys = outcome === 'YES' ? ['YES', 'Y', 'TRUE'] : ['NO', 'N', 'FALSE']
+    const pickToken = (m: any): string | undefined => {
+      try {
+        if (Array.isArray(m?.tokens)) {
+          for (const t of m.tokens) {
+            const name = String(t?.name || t?.outcome || '').toUpperCase()
+            if (yesNoKeys.includes(name)) return t?.token_id || t?.tokenId || t?.id
+          }
+        }
+        if (Array.isArray(m?.outcomes)) {
+          for (const o of m.outcomes) {
+            const name = String(o?.name || o?.outcome || '').toUpperCase()
+            if (yesNoKeys.includes(name)) return o?.token_id || o?.tokenId || o?.id
+          }
+        }
+        if (Array.isArray(m?.outcomeTokens)) {
+          for (const t of m.outcomeTokens) {
+            const name = String(t?.label || t?.name || '').toUpperCase()
+            if (yesNoKeys.includes(name)) return t?.token_id || t?.tokenId || t?.id
+          }
+        }
+      } catch { }
+      return undefined
+    }
+
+    if (market && (market.id || market.market_id)) {
+      const marketId = market.id || market.market_id
+      const tokenId = pickToken(market)
+      return { marketId, tokenId }
+    }
+
+    // Fallback: event slug → pick first market
+    const event = await this.getEventBySlug(slug)
+    if (event && Array.isArray(event.markets) && event.markets.length > 0) {
+      const best = event.markets[0]
+      const marketId = best.id || best.market_id
+      const tokenId = pickToken(best)
+      return { marketId, tokenId }
+    }
+
+    return undefined
+  }
+
+  /**
+   * Cancel order
+   */
+  async cancelOrder(orderId: string): Promise<any> {
+    if (!this.isInitialized || !this.clobClient) {
+      throw new Error('Polymarket not initialized')
+    }
+
+    try {
+      return await this.clobClient.cancelOrder(orderId)
+    } catch (error) {
+      throw new Error(`Failed to cancel order ${orderId}: ${error}`)
+    }
+  }
+
+  /**
+   * Get GOAT SDK tools for AI integration (simplified, following Coinbase pattern)
+   */
+  getTools(): Record<string, CoreTool> {
+    if (!this.onChainActions || typeof getVercelAITools !== 'function') {
+      throw new Error('GOAT SDK not properly initialized. OnChain actions or Vercel AI tools not available.')
+    }
+
+    try {
+      return getVercelAITools(this.onChainActions)
+    } catch (error) {
+      throw new Error(`Failed to get GOAT SDK tools: ${error}`)
+    }
+  }
+
+
+  /**
+   * Get system prompt for AI agent
+   */
+  getSystemPrompt(): string {
+    const isTestnet = this.config.chain !== 'polygon'
+    const networkInfo = isTestnet ? ' (TESTNET - No real money)' : ' (MAINNET - Real money)'
+
+    return `You are an AI agent capable of making predictions and placing bets on Polymarket${networkInfo}.
+
+You can:
+- Search and analyze prediction markets by topic or keywords
+- Get detailed market information including odds, volume, and liquidity
+- Place bets (BUY for YES, SELL for NO) on prediction outcomes
+- Monitor your betting positions and orders
+- Provide market insights and analysis
+- Get real-time orderbook data
+
+IMPORTANT SAFETY RULES:
+1. ALWAYS confirm betting amounts and market details before executing trades
+2. Explain the market and odds clearly to the user
+3. Never place bets without explicit user confirmation
+4. For real money trades, double-check all parameters
+5. Provide clear risk warnings for significant amounts
+
+Market Types:
+- Binary markets: YES/NO outcomes priced 0.00-1.00 USDC
+- Multi-outcome markets: Multiple possible outcomes
+- Sports, politics, crypto, and other prediction categories
+
+Always use natural language to explain market mechanics and help users make informed decisions.`.trim()
+  }
+
+  /**
+   * Get provider status (simplified)
+   */
+  getStatus(): {
+    initialized: boolean
+    chain: string
+    host: string
+    walletProvider: string
+    toolsAvailable: boolean
+  } {
+    return {
+      initialized: this.isInitialized,
+      chain: this.config.chain,
+      host: this.config.host,
+      walletProvider: this.walletProvider,
+      toolsAvailable: !!(this.onChainActions && getVercelAITools),
+    }
+  }
+
+  /**
+   * Cleanup resources
+   */
+  async cleanup(): Promise<void> {
+    this.clobClient = null
+    this.goatPlugin = null
+    this.isInitialized = false
+  }
+}
+
+// Legacy compatibility exports
+export const PolymarketAgentProvider = PolymarketProvider

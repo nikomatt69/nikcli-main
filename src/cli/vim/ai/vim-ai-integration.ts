@@ -3,7 +3,7 @@ import type { CoreMessage } from 'ai'
 import type { ModernAIProvider } from '../../ai/modern-ai-provider'
 import type { SimpleConfigManager } from '../../core/config-manager'
 import { CliUI } from '../../utils/cli-ui'
-import { VimMode, type VimState } from '../types/vim-types'
+import type { VimState } from '../types/vim-types'
 import type { VimModeConfig } from '../vim-mode-manager'
 
 export interface VimAIRequest {

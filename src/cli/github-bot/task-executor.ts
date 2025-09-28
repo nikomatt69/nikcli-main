@@ -1,9 +1,9 @@
 // src/cli/github-bot/task-executor.ts
 
 import { execSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import type { Octokit } from '@octokit/rest'
 import { CommentProcessor } from './comment-processor'
 import type {
@@ -89,8 +89,8 @@ export class TaskExecutor {
 
       // Detect project characteristics
       const hasPackageJson = await this.fileExists(owner, repo, 'package.json')
-      const hasCargoToml = await this.fileExists(owner, repo, 'Cargo.toml')
-      const hasPyProjectToml = await this.fileExists(owner, repo, 'pyproject.toml')
+      const _hasCargoToml = await this.fileExists(owner, repo, 'Cargo.toml')
+      const _hasPyProjectToml = await this.fileExists(owner, repo, 'pyproject.toml')
 
       let packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun' | undefined
       let framework: string | undefined
@@ -115,7 +115,7 @@ export class TaskExecutor {
           else if (deps.svelte) framework = 'Svelte'
           else if (deps.next) framework = 'Next.js'
           else if (deps.nuxt) framework = 'Nuxt.js'
-        } catch (e) {
+        } catch (_e) {
           // Ignore JSON parsing errors
         }
       }

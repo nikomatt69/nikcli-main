@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { type CursorPosition, type KeyBinding, VimMode, VimMotion, type VimState } from '../types/vim-types'
+import { type CursorPosition, type KeyBinding, VimMode, type VimState } from '../types/vim-types'
 import type { VimModeConfig } from '../vim-mode-manager'
 
 export class VimKeyHandler extends EventEmitter {
@@ -232,7 +232,7 @@ export class VimKeyHandler extends EventEmitter {
           return false
       }
       return true
-    } catch (error) {
+    } catch (_error) {
       return false
     }
   }

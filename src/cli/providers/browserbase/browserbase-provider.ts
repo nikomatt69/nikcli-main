@@ -9,7 +9,6 @@ import { type CoreMessage, generateObject } from 'ai'
 import chalk from 'chalk'
 import { JSDOM } from 'jsdom'
 import { z } from 'zod'
-import { ModelProvider } from '@/cli/ai/model-provider'
 import { simpleConfigManager } from '../../core/config-manager'
 import { redisProvider } from '../redis/redis-provider'
 
@@ -172,7 +171,7 @@ export class BrowserbaseProvider extends EventEmitter {
       }
 
       return null
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   }

@@ -111,7 +111,7 @@ export class EnhancedSessionManager extends EventEmitter {
     const isMobileTerminal = mobileTerminals.some((mobile) => termProgram.includes(mobile))
 
     // SSH from mobile device patterns
-    const sshClient = process.env.SSH_CLIENT || ''
+    const _sshClient = process.env.SSH_CLIENT || ''
     const isMobileSSH = this.sessionType === 'ssh' && isMobileScreen
 
     return isMobileScreen || isMobileTerminal || isMobileSSH

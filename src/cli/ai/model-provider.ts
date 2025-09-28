@@ -95,7 +95,7 @@ export class ModelProvider {
     const globalReasoningConfig = configManager.get('reasoning')
 
     if (globalReasoningConfig.logReasoning) {
-      const capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
+      const _capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
       const summary = ReasoningDetector.getModelReasoningSummary(provider, modelId)
 
       try {
@@ -288,7 +288,7 @@ export class ModelProvider {
 
     // Show reasoning summary before streaming if enabled
     if (reasoningEnabled) {
-      const capabilities = ReasoningDetector.detectReasoningSupport(
+      const _capabilities = ReasoningDetector.detectReasoningSupport(
         currentModelConfig.provider,
         currentModelConfig.model
       )

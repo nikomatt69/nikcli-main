@@ -46,12 +46,7 @@
   "navigation": [
     {
       "group": "Get Started",
-      "pages": [
-        "introduction",
-        "quickstart/installation",
-        "quickstart/first-steps",
-        "quickstart/configuration"
-      ]
+      "pages": ["introduction", "quickstart/installation", "quickstart/first-steps", "quickstart/configuration"]
     },
     {
       "group": "User Guide",
@@ -137,35 +132,23 @@
     },
     {
       "group": "API Reference",
-      "pages": [
-        "api-reference/core-apis"
-      ]
+      "pages": ["api-reference/core-apis"]
     },
     {
       "group": "Advanced",
-      "pages": [
-        "advanced/token-management"
-      ]
+      "pages": ["advanced/token-management"]
     },
     {
       "group": "Troubleshooting",
-      "pages": [
-        "troubleshooting/common-issues",
-        "troubleshooting/faq"
-      ]
+      "pages": ["troubleshooting/common-issues", "troubleshooting/faq"]
     },
     {
       "group": "Examples",
-      "pages": [
-        "examples/basic-workflows",
-        "examples/advanced-automation"
-      ]
+      "pages": ["examples/basic-workflows", "examples/advanced-automation"]
     },
     {
       "group": "Contributing",
-      "pages": [
-        "contributing/development"
-      ]
+      "pages": ["contributing/development"]
     }
   ],
   "footerSocials": {

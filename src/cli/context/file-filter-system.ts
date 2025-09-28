@@ -1,6 +1,5 @@
-import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { basename, dirname, extname, join, relative } from 'node:path'
+import { basename, extname, join, relative } from 'node:path'
 import chalk from 'chalk'
 
 export interface FileFilterConfig {
@@ -382,7 +381,7 @@ export class FileFilterSystem {
       }
 
       try {
-        const items = require('fs').readdirSync(dirPath, { withFileTypes: true })
+        const items = require('node:fs').readdirSync(dirPath, { withFileTypes: true })
 
         for (const item of items) {
           if (filesToIndex.length >= this.config.maxTotalFiles) {
@@ -651,7 +650,7 @@ export class FileFilterSystem {
    * Detect binary files using multiple heuristics
    */
   private isBinaryFile(filePath: string, fileSize: number): boolean {
-    const fileName = basename(filePath)
+    const _fileName = basename(filePath)
     const fileExt = extname(filePath).toLowerCase()
 
     // Known binary extensions

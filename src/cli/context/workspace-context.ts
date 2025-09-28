@@ -7,8 +7,8 @@ import { toolsManager } from '../tools/tools-manager'
 // Import new unified components
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 import { unifiedRAGSystem } from './rag-system'
-import { type QueryAnalysis, semanticSearchEngine } from './semantic-search-engine'
-import { type EmbeddingResult, unifiedEmbeddingInterface } from './unified-embedding-interface'
+import { semanticSearchEngine } from './semantic-search-engine'
+import { unifiedEmbeddingInterface } from './unified-embedding-interface'
 
 export interface FileContext {
   path: string
@@ -206,7 +206,7 @@ export class WorkspaceContextManager {
     }
 
     // Use semantic search engine for enhanced query analysis
-    const queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
+    const _queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
     const results: ContextSearchResult[] = []
 
     // 1. RAG-based search (if available and enabled)
@@ -1026,7 +1026,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
             }
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Skip directories that can't be read
       }
     }

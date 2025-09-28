@@ -1,10 +1,8 @@
 import { createHash } from 'node:crypto'
-import { existsSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import { type EmbeddingResult, unifiedEmbeddingInterface } from './unified-embedding-interface'
+import { unifiedEmbeddingInterface } from './unified-embedding-interface'
 
 export interface QueryAnalysis {
   originalQuery: string

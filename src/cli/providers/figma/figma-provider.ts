@@ -10,9 +10,8 @@
  * - Error handling and retry logic
  */
 
-import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios'
+import axios, { type AxiosInstance } from 'axios'
 import chalk from 'chalk'
-import { simpleConfigManager } from '../../core/config-manager'
 
 // ==================== TYPES & INTERFACES ====================
 
@@ -290,7 +289,7 @@ export class FigmaProvider {
 
       // Extract color tokens from styles
       if (fileInfo.styles) {
-        for (const [styleId, style] of Object.entries(fileInfo.styles)) {
+        for (const [_styleId, style] of Object.entries(fileInfo.styles)) {
           if (style.styleType === 'FILL') {
             tokens.colors.push({
               name: style.name.replace(/\//g, '-').toLowerCase(),

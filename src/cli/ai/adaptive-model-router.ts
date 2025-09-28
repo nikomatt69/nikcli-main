@@ -203,7 +203,7 @@ export class AdaptiveModelRouter {
 
     // Get model limits for additional context
     const limits = universalTokenizer.getModelLimits(selected, input.provider)
-    const contextUsage = tokens / limits.context
+    const _contextUsage = tokens / limits.context
 
     return {
       selectedModel: selected,

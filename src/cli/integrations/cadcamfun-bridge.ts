@@ -3,11 +3,11 @@
  * Connects NikCLI to the existing CADCamFun text-to-CAD AI system
  */
 
+import { exec } from 'node:child_process'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { promisify } from 'node:util'
 import chalk from 'chalk'
-import { exec } from 'child_process'
-import fs from 'fs/promises'
-import path from 'path'
-import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
@@ -117,7 +117,7 @@ export class CADCamFunBridge {
       }
     }
 
-    const startTime = Date.now()
+    const _startTime = Date.now()
 
     try {
       if (this.config.serverUrl) {

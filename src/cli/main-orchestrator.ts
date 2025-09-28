@@ -96,7 +96,7 @@ export class MainOrchestrator {
       if ('clearCache' in planningService) (planningService as any).clearCache()
       if ('clearCache' in toolService) (toolService as any).clearCache()
       if ('clearCache' in snapshotService) (snapshotService as any).clearCache()
-    } catch (error) {
+    } catch (_error) {
       // Silent fallback - cache cleanup is non-critical
     }
   }

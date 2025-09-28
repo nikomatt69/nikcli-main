@@ -5,20 +5,13 @@ import { homedir } from 'node:os'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
 import { TOKEN_LIMITS } from '../config/token-limits'
-import { configManager } from '../core/config-manager'
-import { CliUI } from '../utils/cli-ui'
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 // Import semantic search engine and file filtering
 import { type QueryAnalysis, type ScoringContext, semanticSearchEngine } from './semantic-search-engine'
 
 // Import unified embedding and vector store infrastructure
-import { type EmbeddingResult, unifiedEmbeddingInterface } from './unified-embedding-interface'
-import {
-  createVectorStoreManager,
-  type VectorDocument,
-  type VectorSearchResult,
-  type VectorStoreManager,
-} from './vector-store-abstraction'
+import { unifiedEmbeddingInterface } from './unified-embedding-interface'
+import { createVectorStoreManager, type VectorDocument, type VectorStoreManager } from './vector-store-abstraction'
 // Import workspace analysis types for integration
 import type { FileEmbedding, WorkspaceContext } from './workspace-rag'
 import { WorkspaceRAG } from './workspace-rag'
@@ -92,7 +85,7 @@ function estimateCost(input: string[] | number, provider: string = 'openai'): nu
   const estimatedTokens = Math.ceil(totalChars / 4)
 
   // Use provider-specific pricing from unified embedding interface
-  const config = unifiedEmbeddingInterface.getConfig()
+  const _config = unifiedEmbeddingInterface.getConfig()
   const costPer1K = provider === 'openai' ? 0.00002 : provider === 'google' ? 0.000025 : 0.00003
   return (estimatedTokens / 1000) * costPer1K
 }
@@ -448,7 +441,7 @@ export class UnifiedRAGSystem {
         semanticOnly: true,
         queryAnalysis,
       })
-    } catch (error) {
+    } catch (_error) {
       console.log(chalk.yellow('⚠️ Semantic search failed, falling back to regular search'))
       return await this.search(query, { limit })
     }
@@ -871,7 +864,7 @@ export class UnifiedRAGSystem {
     // Calculate estimated savings for typical project
     const avgFileSize = 2000 // characters
     const avgFilesInProject = 100
-    const totalChars = avgFileSize * avgFilesInProject
+    const _totalChars = avgFileSize * avgFilesInProject
 
     const oldCost = 0.05 // Estimate for old approach
     const newCost = 0.03 // Estimate for new optimized approach
@@ -1261,7 +1254,7 @@ export class UnifiedRAGSystem {
 
     if (queryAnalysis) {
       // Use the expanded query for better results
-      const expandedQuery = queryAnalysis.expandedQuery || query
+      const _expandedQuery = queryAnalysis.expandedQuery || query
       return await this.searchVectorStoreWithSemantics(queryAnalysis, limit)
     } else {
       // Fall back to regular search

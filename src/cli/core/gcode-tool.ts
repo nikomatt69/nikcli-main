@@ -1,6 +1,3 @@
-// TODO: Consider refactoring for reduced complexity
-import type { z } from 'zod' // Optional: If Zod is available for schema; otherwise, use TS types only (as here for no-framework).
-
 /**
  * Enum-like type for supported CAD types.
  * Restricts input to valid 2D/3D formats for GCode generation.

@@ -17,13 +17,6 @@
     "isolatedModules": true,
     "allowJs": true
   },
-  "include": [
-    "api/**/*",
-    "src/cli/github-bot/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.test.ts"
-  ]
+  "include": ["api/**/*", "src/cli/github-bot/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

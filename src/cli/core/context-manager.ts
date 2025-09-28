@@ -2,8 +2,6 @@ import path from 'node:path'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
 import { calculateTokenCost, getModelPricing, TOKEN_LIMITS } from '../config/token-limits'
-import { unifiedRAGSystem } from '../context/rag-system'
-import { semanticSearchEngine } from '../context/semantic-search-engine'
 import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
 // Import RAG and context systems for integration
 import { workspaceContext } from '../context/workspace-context'

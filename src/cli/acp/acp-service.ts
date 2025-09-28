@@ -542,7 +542,7 @@ class NikCLIAgent implements Agent {
     // Integrated with NikCLI orchestrator service for production workflow
     try {
       const { OrchestratorService } = await import('../services/orchestrator-service')
-      const orchestrator = new OrchestratorService()
+      const _orchestrator = new OrchestratorService()
       // Process through orchestrator's input handling
       process.chdir(cwd)
       this.log('Successfully processed with NikCLI orchestrator', { sessionId, cwd })

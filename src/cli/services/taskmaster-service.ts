@@ -4,7 +4,6 @@ import { nanoid } from 'nanoid'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
 import type { PlanTodo } from '../planning/types'
 import type {
-  InitProjectOptions,
   TaskMasterConfig,
   TaskMasterIntegrationConfig,
   TaskMasterModule,
@@ -475,7 +474,7 @@ Generate tasks NOW (JSON only):`
                   success = true
                   break
                 }
-              } catch (parseError) {
+              } catch (_parseError) {
                 // Prova a estrarre JSON da markdown o testo misto
                 try {
                   const jsonMatch = contentToParse.match(/\[[\s\S]*\]/)
