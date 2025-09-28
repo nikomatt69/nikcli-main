@@ -1312,116 +1312,16 @@ MANDATORY: Use tools to get real market data before proceeding.`
   }
 
   /**
-   * Search for market by text description
+   * Search for market by text description - use GOAT SDK AI tools instead
    */
   private async searchMarketByDescription(
     description: string,
     outcome: 'YES' | 'NO' = 'YES'
   ): Promise<{ marketId?: string; tokenId?: string } | undefined> {
-    if (!this.polymarketProvider) return undefined
-
-    try {
-      console.log(chalk.blue(`🔍 Searching markets by description: "${description}"`))
-
-      // Extract key search terms from description
-      const searchTerms = this.extractBetSearchTerms(description)
-      console.log(chalk.gray(`  → Search terms: "${searchTerms}"`))
-
-      // Search using multiple methods
-      let markets: any[] = []
-
-      // First try category-based search for better relevance
-      const category = this.detectCategory(description)
-      if (category) {
-        try {
-          markets = await this.polymarketProvider.searchMarketsByCategory(category, 10)
-          console.log(chalk.gray(`  → Category search (${category}) found ${markets.length} markets`))
-        } catch (error) {
-          console.log(chalk.yellow(`  ⚠️ Category search failed: ${error}`))
-        }
-      }
-
-      // If no category results, try trending markets in that category
-      if (markets.length === 0 && category) {
-        try {
-          markets = await this.polymarketProvider.getTrendingMarkets({ limit: 10, category })
-          console.log(chalk.gray(`  → Trending search (${category}) found ${markets.length} markets`))
-        } catch (error) {
-          console.log(chalk.yellow(`  ⚠️ Trending search failed: ${error}`))
-        }
-      }
-
-      // Fallback to general search only if category searches failed
-      if (markets.length === 0) {
-        try {
-          markets = await this.polymarketProvider.getMarkets({ query: searchTerms, limit: 5 })
-          console.log(chalk.gray(`  → General search found ${markets.length} markets`))
-        } catch (error) {
-          console.log(chalk.yellow(`  ⚠️ General search failed: ${error}`))
-        }
-      }
-
-      if (markets.length === 0) {
-        console.log(chalk.yellow(`  📭 No markets found for description`))
-        return undefined
-      }
-
-      // Find best match using fuzzy matching
-      const bestMatch = this.findBestMarketMatch(markets, description)
-      if (!bestMatch) {
-        console.log(chalk.yellow(`  ❓ No good match found among ${markets.length} markets`))
-        return undefined
-      }
-
-      const marketId = bestMatch.id || bestMatch.market_id
-      console.log(chalk.green(`  ✅ Best match: "${bestMatch.title}" (ID: ${marketId})`))
-
-      // Try to get token directly from the search result first
-      let tokenId = findYesNoTokenId(bestMatch, outcome)
-
-      if (tokenId) {
-        console.log(chalk.green(`  ✅ Token found in search result: ${tokenId} for ${outcome}`))
-        return { marketId, tokenId }
-      }
-
-      // If not found in search result, try to get full market details via Gamma API
-      try {
-        console.log(chalk.gray(`  → Fetching full market details via Gamma API...`))
-        const gammaUrl = `https://gamma-api.polymarket.com/markets/${marketId}`
-        // Market should be retrieved using GOAT SDK AI tools instead
-        const market = null
-
-        if (market) {
-          tokenId = findYesNoTokenId(market, outcome)
-          if (tokenId) {
-            console.log(chalk.green(`  ✅ Token resolved via Gamma: ${tokenId} for ${outcome}`))
-            return { marketId, tokenId }
-          }
-        }
-      } catch (error) {
-        console.log(chalk.yellow(`  ⚠️ Gamma API fetch failed: ${error}`))
-      }
-
-      // Final fallback: try CLOB API (may fail with 403)
-      try {
-        console.log(chalk.gray(`  → Trying CLOB API as last resort...`))
-        const market = await this.polymarketProvider.getMarket(marketId)
-        tokenId = findYesNoTokenId(market, outcome)
-
-        if (tokenId) {
-          console.log(chalk.green(`  ✅ Token resolved via CLOB: ${tokenId} for ${outcome}`))
-          return { marketId, tokenId }
-        }
-      } catch (error) {
-        console.log(chalk.red(`  ❌ CLOB API failed (likely 403): ${error}`))
-      }
-
-      console.log(chalk.yellow(`  ⚠️ Could not resolve ${outcome} token for market ${marketId}`))
-      return { marketId }
-    } catch (error) {
-      console.log(chalk.red(`❌ Market search by description failed: ${error}`))
-      return undefined
-    }
+    console.log(chalk.blue(`🔍 Market search should use GOAT SDK AI tools: "${description}"`))
+    console.log(chalk.gray(`  → Use get_polymarket_events to search for markets`))
+    console.log(chalk.gray(`  → Use get_polymarket_market_info to get token details`))
+    return undefined
   }
 
   /**
@@ -1534,67 +1434,17 @@ MANDATORY: Use tools to get real market data before proceeding.`
     if (!marketId && opts.slug) {
       console.log(chalk.gray(`  → Resolving slug: ${opts.slug}`))
 
-      // Try Gamma API slug resolution first (most reliable)
-      try {
-        // Market resolution should be done using GOAT SDK AI tools instead  
-      const resolved = undefined
-        if (resolved?.marketId && resolved?.tokenId) {
-          console.log(
-            chalk.green(`  ✅ Gamma API resolved: marketId=${resolved.marketId}, tokenId=${resolved.tokenId}`)
-          )
-          return { marketId: resolved.marketId, tokenId: resolved.tokenId }
-        }
-      } catch (error) {
-        console.log(chalk.yellow(`  ⚠️ Gamma API resolution failed: ${error}`))
-      }
+      // Market resolution should be done using GOAT SDK AI tools instead
+      console.log(chalk.yellow(`  ⚠️ Market resolution via slug not available - use AI tools instead`))
 
-      // Fallback: Search markets by slug/query
-      try {
-        const results = await this.polymarketProvider.getMarkets({ query: opts.slug, limit: 5 })
-        if (Array.isArray(results) && results.length > 0) {
-          // Try to find exact slug match first
-          let match = results.find((r: any) => r.slug === opts.slug)
-          if (!match) {
-            // Fallback to partial match or first result
-            match = results.find((r: any) => r.slug && String(r.slug).includes(opts.slug!)) || results[0]
-          }
-
-          if (match) {
-            marketId = match.id || match.market_id
-            console.log(chalk.green(`  ✅ Market search resolved: marketId=${marketId}, title="${match.title}"`))
-          }
-        }
-      } catch (error) {
-        console.log(chalk.yellow(`  ⚠️ Market search failed: ${error}`))
-      }
+      // Market search should be done using GOAT SDK AI tools instead
+      console.log(chalk.gray(`  → Market search should use AI tools (get_polymarket_events)`))
     }
 
-    // Step 2: Get full market details and extract tokenId
+    // Step 2: Get full market details using GOAT SDK AI tools
     if (marketId) {
-      try {
-        console.log(chalk.gray(`  → Fetching market details for: ${marketId}`))
-        const market = await this.polymarketProvider.getMarket(marketId)
-
-        if (market) {
-          tokenId = findYesNoTokenId(market, opts.outcome || 'YES')
-          console.log(chalk.green(`  ✅ Token resolved: ${tokenId} for outcome ${opts.outcome || 'YES'}`))
-
-          // Log market structure for debugging
-          console.log(
-            chalk.gray(
-              `  → Market structure: ${JSON.stringify({
-                id: market.id || market.market_id,
-                title: market.title || market.question,
-                tokens: market.tokens?.length || 0,
-                outcomes: market.outcomes?.length || 0,
-                outcomeTokens: market.outcomeTokens?.length || 0,
-              })}`
-            )
-          )
-        }
-      } catch (error) {
-        console.log(chalk.red(`  ❌ Failed to fetch market details: ${error}`))
-      }
+      console.log(chalk.gray(`  → Market details should be fetched using AI tools (get_polymarket_market_info)`))
+      console.log(chalk.yellow(`  ⚠️ Use AI tools to resolve tokenId for outcome ${opts.outcome || 'YES'}`))
     }
 
     const result = { marketId, tokenId }
