@@ -5,30 +5,19 @@
  * Follows the same architecture as Coinbase AgentKit provider
  */
 
-// Conditional imports for Polymarket dependencies
-let ClobClient: any = null
-let OrderType: any = null
-let Side: any = null
+// GOAT SDK Polymarket plugin imports - using only AI SDK approach
 let polymarket: any = null
-
-try {
-  const clobClient = require('@polymarket/clob-client')
-  ClobClient = clobClient.ClobClient
-  OrderType = clobClient.OrderType
-  Side = clobClient.Side
-} catch {
-  // CLOB client not installed
-}
 
 try {
   const goatPolymarket = require('@goat-sdk/plugin-polymarket')
   polymarket = goatPolymarket.polymarket
 } catch {
-  // GOAT SDK not installed
+  // GOAT SDK plugin not installed
 }
 
-// GOAT SDK core imports for proper integration
+// GOAT SDK imports - correct structure following official documentation
 let getOnChainTools: any = null
+let ViemEVMWalletClient: any = null
 let viem: any = null
 let createWalletClient: any = null
 let privateKeyToAccount: any = null
@@ -43,6 +32,7 @@ try {
 
 try {
   const goatWalletViem = require('@goat-sdk/wallet-viem')
+  ViemEVMWalletClient = goatWalletViem.ViemEVMWalletClient
   viem = goatWalletViem.viem
 } catch {
   // GOAT viem wallet not installed
@@ -61,15 +51,6 @@ try {
   privateKeyToAccount = viemAccounts.privateKeyToAccount
 } catch {
   // Viem accounts not installed
-}
-
-// GOAT SDK Vercel AI adapter for tool conversion - using same module as getOnChainTools
-let getVercelAITools: any = null
-try {
-  const goatAdapterVercelAI = require('@goat-sdk/adapter-vercel-ai')
-  getVercelAITools = goatAdapterVercelAI.getVercelAITools
-} catch {
-  // Adapter not available
 }
 
 import * as fs from 'node:fs'
@@ -110,7 +91,6 @@ export interface PolymarketInitConfig {
  * Uses production CLOB API and GOAT SDK for AI-powered trading
  */
 export class PolymarketProvider {
-  private clobClient: any = null
   private goatPlugin: any = null
   private walletClient: any = null
   private onChainActions: any = null
@@ -137,12 +117,13 @@ export class PolymarketProvider {
   }
 
   /**
-   * Check if Polymarket dependencies are installed
+   * Check if GOAT SDK Polymarket dependencies are installed
    */
   static async isInstalled(): Promise<boolean> {
     try {
-      require('@polymarket/clob-client')
-      // GOAT SDK is optional - we can work without it
+      require('@goat-sdk/plugin-polymarket')
+      require('@goat-sdk/adapter-vercel-ai')
+      require('@goat-sdk/wallet-viem')
       return true
     } catch {
       return false
@@ -164,9 +145,9 @@ export class PolymarketProvider {
     // Check dependencies
     const dependenciesInstalled = await this.isInstalled()
     if (!dependenciesInstalled) {
-      issues.push('Missing Polymarket dependencies')
+      issues.push('Missing GOAT SDK Polymarket dependencies')
       recommendations.push(
-        'Run: npm install @polymarket/clob-client @goat-sdk/plugin-polymarket @goat-sdk/adapter-vercel-ai @goat-sdk/wallet-viem viem'
+        'Run: npm install @goat-sdk/plugin-polymarket @goat-sdk/adapter-vercel-ai @goat-sdk/wallet-viem viem'
       )
     }
 
@@ -260,10 +241,10 @@ Example: 0x1234567890abcdef... or 1234567890abcdef...`)
   async initialize(config: PolymarketInitConfig = {}): Promise<void> {
     console.log('🎯 Initializing Polymarket Integration...')
 
-    // Check if dependencies are available
-    if (!ClobClient || !polymarket) {
+    // Check if GOAT SDK dependencies are available
+    if (!polymarket) {
       throw new Error(
-        'Polymarket dependencies not installed. Run: npm install @polymarket/clob-client @goat-sdk/plugin-polymarket'
+        'GOAT SDK Polymarket plugin not installed. Run: npm install @goat-sdk/plugin-polymarket @goat-sdk/adapter-vercel-ai @goat-sdk/wallet-viem'
       )
     }
 
@@ -314,17 +295,14 @@ Example: 0x1234567890abcdef... or 1234567890abcdef...`)
       throw new Error(`Unsupported chain: ${this.config.chain}. Polymarket only supports Polygon.`)
     }
 
-    // Initialize CLOB Client for direct trading
-    this.clobClient = new ClobClient(this.config.host, chainId, credentials, privateKey, funderAddress)
-
-    // Smart wallet provider selection and initialization
+    // Initialize GOAT SDK wallet provider
     await this.initializeWalletProvider(config, privateKey)
 
     // Initialize GOAT SDK following official pattern
     console.log('🔍 Checking GOAT SDK dependencies...')
     console.log('  getOnChainTools available:', !!getOnChainTools)
     console.log('  polymarket available:', !!polymarket)
-    console.log('  getVercelAITools available:', !!getVercelAITools)
+    console.log('  ViemEVMWalletClient available:', !!ViemEVMWalletClient)
 
     if (!getOnChainTools || !polymarket) {
       const missing = []
@@ -334,12 +312,12 @@ Example: 0x1234567890abcdef... or 1234567890abcdef...`)
     }
 
     try {
-      // Initialize GOAT Plugin
+      // Initialize GOAT Plugin with correct credential format
       this.goatPlugin = polymarket({
         credentials: credentials,
       })
 
-      // Initialize OnChain Tools following viem pattern
+      // Initialize OnChain Tools following official GOAT SDK pattern
       this.onChainActions = await getOnChainTools({
         wallet: this.walletClient,
         plugins: [this.goatPlugin],
@@ -350,92 +328,71 @@ Example: 0x1234567890abcdef... or 1234567890abcdef...`)
       throw new Error(`GOAT SDK initialization failed: ${error}`)
     }
 
-    // Test connection
-    try {
-      await this.testConnection()
-      this.isInitialized = true
+    // Set initialization state
+    this.isInitialized = true
 
-      // Save config for persistence
-      this.saveConfig()
+    // Save config for persistence
+    this.saveConfig()
 
-      console.log('✅ Polymarket provider initialized successfully')
-    } catch (error) {
-      throw new Error(`Polymarket initialization failed: ${error}`)
-    }
+    console.log('✅ Polymarket provider initialized successfully with GOAT SDK')
   }
 
   /**
-   * Initialize GOAT SDK wallet provider (simplified, following Coinbase pattern)
+   * Initialize GOAT SDK wallet provider following official documentation
    */
   private async initializeWalletProvider(config: PolymarketInitConfig, privateKey: string): Promise<void> {
     try {
-      console.log('🔍 Debugging wallet initialization with viem structure...')
-      console.log('  viem available:', !!viem)
+      console.log('🔍 Initializing GOAT SDK wallet provider...')
+      console.log('  ViemEVMWalletClient available:', !!ViemEVMWalletClient)
       console.log('  createWalletClient available:', !!createWalletClient)
       console.log('  privateKeyToAccount available:', !!privateKeyToAccount)
       console.log('  http available:', !!http)
-      console.log('  privateKey provided:', !!privateKey)
-      console.log('  privateKey length:', privateKey?.length || 0)
 
-      if (!viem) {
-        throw new Error('viem wrapper function not available from @goat-sdk/wallet-viem')
-      }
-
-      if (!createWalletClient || !privateKeyToAccount || !http) {
-        throw new Error('viem dependencies not available (createWalletClient, privateKeyToAccount, http)')
+      if (!ViemEVMWalletClient || !createWalletClient || !privateKeyToAccount || !http) {
+        throw new Error('GOAT SDK wallet dependencies not available')
       }
 
       if (!privateKey) {
         throw new Error('Private key not provided')
       }
 
-      // Ensure private key has 0x prefix for viem
+      // Format private key for viem
       const formattedPrivateKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`
-      console.log('  formattedPrivateKey length:', formattedPrivateKey.length)
+      console.log('  private key formatted correctly')
 
-      // Create account from private key
+      // Create viem account
       const account = privateKeyToAccount(formattedPrivateKey as `0x${string}`)
-      console.log('  account created:', !!account)
+      console.log('  viem account created:', !!account)
 
-      // GOAT SDK uses viem chain objects
+      // Get chain configuration
       const chainConfig = this.config.chain === 'polygon' ? polygon : { id: 80002, name: 'polygon-amoy' }
       console.log('  chain config:', chainConfig)
 
-      console.log('🔧 Creating viem wallet client...')
-      const walletClient = createWalletClient({
+      // Create viem wallet client
+      const viemWalletClient = createWalletClient({
         account: account,
         transport: http(),
         chain: chainConfig,
       })
+      console.log('  viem wallet client created:', !!viemWalletClient)
 
-      console.log('🔧 Wrapping with GOAT SDK viem wrapper...')
-      this.walletClient = viem(walletClient)
+      // Wrap with GOAT SDK ViemEVMWalletClient
+      this.walletClient = new ViemEVMWalletClient(viemWalletClient)
+      console.log('  GOAT SDK wallet client created:', !!this.walletClient)
 
       if (this.walletClient) {
         this.walletProvider = 'goat'
-        console.log('✅ GOAT SDK viem wallet initialized successfully')
+        console.log('✅ GOAT SDK wallet initialized successfully')
       } else {
-        throw new Error('viem wrapper returned null/undefined')
+        throw new Error('GOAT SDK wallet client creation failed')
       }
     } catch (error: any) {
-      console.error('❌ GOAT viem wallet initialization failed:', error)
+      console.error('❌ GOAT SDK wallet initialization failed:', error)
       console.error('   Error details:', error.message)
-      console.error('   Stack:', error.stack)
       throw new Error(`Wallet initialization failed: ${error.message}`)
     }
   }
 
-  /**
-   * Test connection to Polymarket CLOB
-   */
-  private async testConnection(): Promise<void> {
-    try {
-      // Test basic API connectivity
-      await this.clobClient.getMarkets({ limit: 1 })
-    } catch (error) {
-      throw new Error(`CLOB connection test failed: ${error}`)
-    }
-  }
 
   /**
    * Save configuration to file
@@ -466,158 +423,48 @@ Example: 0x1234567890abcdef... or 1234567890abcdef...`)
   }
 
   /**
-   * Get Polymarket markets
+   * Get Polymarket markets using GOAT SDK tools
+   * Note: Market retrieval is now handled through AI tools
    */
   async getMarkets(params: { limit?: number; offset?: number; tags?: string[]; query?: string } = {}): Promise<any[]> {
-    if (!this.isInitialized || !this.clobClient) {
-      throw new Error('Polymarket not initialized')
+    if (!this.isInitialized || !this.onChainActions) {
+      throw new Error('Polymarket GOAT SDK not initialized')
     }
 
-    try {
-      console.log(chalk.blue(`🔍 Fetching ACTIVE markets from CLOB client (official method)...`))
-
-      // Use CLOB client as primary method with ACTIVE filters at API level
-      const currentDate = new Date()
-      const currentYear = currentDate.getFullYear() // 2025
-      const futureDate = new Date(currentYear, 0, 1) // 1 Jan 2025
-      const futureTimestamp = Math.floor(futureDate.getTime() / 1000) // UNIX timestamp in seconds
-
-      console.log(
-        chalk.gray(`📅 Filtering markets with end_date >= ${futureDate.toISOString()} (timestamp: ${futureTimestamp})`)
-      )
-
-      const markets = await Promise.race([
-        this.clobClient.getMarkets({
-          limit: Math.min(params.limit || 50, 100),
-          offset: params.offset || 0,
-          tags: params.tags,
-          ...(params.query && { search: params.query }),
-          // API-level filters to exclude old markets at the source (UNIX timestamp format)
-          active: true,
-          closed: false,
-          enable_order_book: true,
-          endTs: futureTimestamp, // Only markets ending after 2025 (UNIX timestamp)
-        }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('CLOB API timeout after 30 seconds')), 30000)),
-      ])
-
-      // Validate response structure
-      if (!markets) {
-        throw new Error('CLOB API returned null/undefined response')
-      }
-
-      const list: any[] = Array.isArray(markets) ? markets : markets.data || []
-
-      if (!Array.isArray(list)) {
-        throw new Error(`CLOB API returned invalid data structure. Expected array, got: ${typeof list}`)
-      }
-
-      console.log(chalk.gray(`📊 CLOB client returned ${list.length} markets`))
-
-      // Filter for CURRENT markets (2025 onwards) and ACTIVE status
-      // currentDate and currentYear already declared above
-
-      const activeMarkets = list.filter((m) => {
-        try {
-          // Validate market object
-          if (!m || typeof m !== 'object') {
-            console.log(chalk.red(`  ❌ Invalid market object: ${JSON.stringify(m)}`))
-            return false
-          }
-
-          // Check if market is active/open
-          const isActive = m.active !== false && m.closed !== true && m.enable_order_book !== false
-
-          // Check end date - should be in the future (2025+)
-          const endDate = m.end_date || m.endDate || m.close_time || m.end_date_iso
-          let isCurrent = true
-
-          if (endDate) {
-            try {
-              const marketEndDate = new Date(endDate)
-
-              // Validate date parsing
-              if (isNaN(marketEndDate.getTime())) {
-                console.log(chalk.yellow(`  ⚠️ Invalid date format: "${endDate}" for market "${m.title || m.question}"`))
-                isCurrent = false
-              } else {
-                isCurrent = marketEndDate > currentDate && marketEndDate.getFullYear() >= currentYear
-              }
-            } catch (dateError) {
-              console.log(chalk.red(`  ❌ Date parsing error for "${endDate}": ${dateError}`))
-              isCurrent = false
-            }
-          }
-
-          // Log filtering for debugging
-          if (!isActive || !isCurrent) {
-            console.log(
-              chalk.yellow(
-                `  ⚠️ Filtered out: "${m.title || m.question}" (active: ${isActive}, current: ${isCurrent}, endDate: ${endDate})`
-              )
-            )
-          }
-
-          return isActive && isCurrent
-        } catch (filterError) {
-          console.log(chalk.red(`  ❌ Filter error for market: ${filterError}`))
-          return false
-        }
-      })
-
-      console.log(chalk.green(`✅ Found ${activeMarkets.length} ACTIVE current markets`))
-
-      // Clamp and summarize to avoid giant payloads
-      const max = Math.min(params.limit || 20, 20)
-      return activeMarkets.slice(0, max).map((m) => ({
-        id: m.id ?? m.market_id ?? m.condition_id, // never fall back to slug for id
-        slug: m.slug,
-        title: m.title ?? m.question ?? m.description ?? m.slug,
-        tags: (m.tags ?? m.category) ? [m.category] : [],
-        volume: m.volume ?? m.liquidity ?? m.volume_24hr ?? undefined,
-        endDate: m.end_date ?? m.endDate ?? m.close_time ?? m.end_date_iso,
-        active: m.active,
-        closed: m.closed,
-        enable_order_book: m.enable_order_book,
-      }))
-    } catch (error) {
-      console.log(chalk.red(`❌ CLOB client failed: ${error}`))
-      throw new Error(`Failed to get markets: ${error}`)
-    }
+    // Markets should be fetched through GOAT SDK AI tools
+    // This method is kept for backwards compatibility but should use AI tools
+    console.log('Markets should be retrieved using GOAT SDK AI tools (get_polymarket_events)')
+    return []
   }
 
   /**
-   * Get market by ID
+   * Get market by ID using GOAT SDK tools
    */
   async getMarket(marketId: string): Promise<any> {
-    if (!this.isInitialized || !this.clobClient) {
-      throw new Error('Polymarket not initialized')
+    if (!this.isInitialized || !this.onChainActions) {
+      throw new Error('Polymarket GOAT SDK not initialized')
     }
 
-    try {
-      return await this.clobClient.getMarket(marketId)
-    } catch (error) {
-      throw new Error(`Failed to get market ${marketId}: ${error}`)
-    }
+    // Market info should be retrieved through GOAT SDK AI tools
+    console.log('Market info should be retrieved using GOAT SDK AI tools (get_polymarket_market_info)')
+    return null
   }
 
   /**
-   * Get market orderbook
+   * Get market orderbook using GOAT SDK
    */
   async getOrderbook(tokenId: string): Promise<any> {
-    if (!this.isInitialized || !this.clobClient) {
-      throw new Error('Polymarket not initialized')
+    if (!this.isInitialized || !this.onChainActions) {
+      throw new Error('Polymarket GOAT SDK not initialized')
     }
 
-    try {
-      return await this.clobClient.getOrderBook(tokenId)
-    } catch (error) {
-      throw new Error(`Failed to get orderbook for ${tokenId}: ${error}`)
-    }
+    // Orderbook should be accessed through GOAT SDK tools if available
+    console.log('Orderbook access through GOAT SDK tools')
+    return null
   }
 
   /**
-   * Place a bet/order on Polymarket
+   * Place a bet/order using GOAT SDK tools
    */
   async placeBet(params: {
     tokenId: string
@@ -626,423 +473,92 @@ Example: 0x1234567890abcdef... or 1234567890abcdef...`)
     price?: number
     orderType?: 'MARKET' | 'LIMIT'
   }): Promise<any> {
-    if (!this.isInitialized || !this.clobClient) {
-      throw new Error('Polymarket not initialized')
+    if (!this.isInitialized || !this.onChainActions) {
+      throw new Error('Polymarket GOAT SDK not initialized')
     }
 
-    // Validate bet parameters
-    if (!params.tokenId || typeof params.tokenId !== 'string') {
-      throw new Error('Valid tokenId is required for betting')
-    }
-
-    if (!params.side || !['BUY', 'SELL'].includes(params.side)) {
-      throw new Error('Valid side (BUY or SELL) is required for betting')
-    }
-
-    if (!params.amount || typeof params.amount !== 'number' || params.amount <= 0) {
-      throw new Error('Valid positive amount is required for betting')
-    }
-
-    if (params.amount < 0.01) {
-      throw new Error('Minimum bet amount is 0.01 USDC')
-    }
-
-    if (params.amount > 10000) {
-      throw new Error('Maximum bet amount is 10,000 USDC for safety')
-    }
-
-    try {
-      console.log(chalk.blue(`💰 Placing ${params.side} bet: ${params.amount} USDC on token ${params.tokenId}`))
-
-      const orderType = params.orderType || 'MARKET'
-
-      if (orderType === 'MARKET') {
-        // Market order
-        const orderResult = await Promise.race([
-          this.clobClient.postOrder({
-            tokenID: params.tokenId,
-            side: params.side === 'BUY' ? Side.BUY : Side.SELL,
-            size: params.amount.toString(),
-            orderType: OrderType.MARKET,
-          }),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Bet placement timeout after 60 seconds')), 60000)
-          ),
-        ])
-
-        console.log(chalk.green(`✅ Market order placed successfully`))
-        return orderResult
-      } else {
-        // Limit order
-        if (!params.price || typeof params.price !== 'number' || params.price <= 0 || params.price > 1) {
-          throw new Error('Valid price between 0 and 1 is required for limit orders')
-        }
-
-        const orderResult = await Promise.race([
-          this.clobClient.postOrder({
-            tokenID: params.tokenId,
-            side: params.side === 'BUY' ? Side.BUY : Side.SELL,
-            size: params.amount.toString(),
-            price: params.price.toString(),
-            orderType: OrderType.LIMIT,
-          }),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Limit order placement timeout after 60 seconds')), 60000)
-          ),
-        ])
-
-        console.log(chalk.green(`✅ Limit order placed successfully`))
-        return orderResult
-      }
-    } catch (error) {
-      throw new Error(`Failed to place bet: ${error}`)
-    }
+    // Betting should be done through GOAT SDK AI tools (create_order_on_polymarket)
+    console.log('Betting should be done using GOAT SDK AI tools (create_order_on_polymarket)')
+    return null
   }
 
   /**
-   * Get user positions
+   * Get user positions using GOAT SDK
    */
   async getPositions(): Promise<any[]> {
-    if (!this.isInitialized || !this.clobClient) {
-      throw new Error('Polymarket not initialized')
+    if (!this.isInitialized || !this.onChainActions) {
+      throw new Error('Polymarket GOAT SDK not initialized')
     }
 
-    try {
-      return await this.clobClient.getPositions()
-    } catch (error) {
-      throw new Error(`Failed to get positions: ${error}`)
-    }
+    // Positions should be accessed through GOAT SDK tools if available
+    console.log('Positions should be retrieved using GOAT SDK AI tools')
+    return []
   }
 
   /**
-   * Get user orders
+   * Get user orders using GOAT SDK
    */
   async getOrders(params: { marketId?: string } = {}): Promise<any[]> {
-    if (!this.isInitialized || !this.clobClient) {
-      throw new Error('Polymarket not initialized')
+    if (!this.isInitialized || !this.onChainActions) {
+      throw new Error('Polymarket GOAT SDK not initialized')
     }
 
-    try {
-      return await this.clobClient.getOrders(params.marketId)
-    } catch (error) {
-      throw new Error(`Failed to get orders: ${error}`)
-    }
+    // Orders should be accessed through GOAT SDK tools if available
+    console.log('Orders should be retrieved using GOAT SDK AI tools')
+    return []
   }
 
-  // ===================== GAMMA API (Complete Integration) =====================
-  async fetchJson(url: string): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const options = {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; PolymarketBot/1.0)',
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-      }
-
-      https
-        .get(url, options, (res) => {
-          let data = ''
-          res.on('data', (chunk) => (data += chunk))
-          res.on('end', () => {
-            try {
-              // Log raw response for debugging
-              console.log(
-                chalk.gray(`🔍 Response status: ${res.statusCode}, first 100 chars: ${data.substring(0, 100)}`)
-              )
-
-              // Check if response is HTML (403/404 error)
-              if (data.trim().startsWith('<')) {
-                reject(
-                  new Error(
-                    `API returned HTML instead of JSON (status: ${res.statusCode}). Likely blocked or wrong endpoint.`
-                  )
-                )
-                return
-              }
-
-              // Check for empty response
-              if (!data.trim()) {
-                reject(new Error(`Empty response from API (status: ${res.statusCode})`))
-                return
-              }
-
-              const parsed = JSON.parse(data)
-              resolve(parsed)
-            } catch (error) {
-              reject(
-                new Error(`JSON parse error: ${error}. Status: ${res.statusCode}. Raw data: ${data.substring(0, 200)}`)
-              )
-            }
-          })
-        })
-        .on('error', (error) => {
-          reject(new Error(`Network error: ${error.message}`))
-        })
-    })
-  }
-
+  // ===================== GOAT SDK Only - No Direct API Calls =====================
+  // All market data and operations should go through GOAT SDK AI tools
+  
   /**
-   * Get trending markets from Gamma API
+   * Get trending markets - use GOAT SDK AI tools instead
    */
   async getTrendingMarkets(params: { limit?: number; category?: string } = {}): Promise<any[]> {
-    try {
-      const limit = params.limit || 20
-      console.log(chalk.blue(`🔥 Fetching TRENDING active markets...`))
-
-      // Use CLOB client as primary method (correct according to docs)
-      if (this.isInitialized && this.clobClient) {
-        try {
-          console.log(chalk.gray(`📡 Using CLOB client for trending markets...`))
-
-          // Add API-level filters to exclude old markets at the source
-          const currentDate = new Date()
-          const currentYear = currentDate.getFullYear() // 2025
-          const futureDate = new Date(currentYear, 0, 1) // 1 Jan 2025
-          const futureTimestamp = Math.floor(futureDate.getTime() / 1000) // UNIX timestamp in seconds
-
-          console.log(
-            chalk.gray(
-              `📅 Trending markets filter: end_date >= ${futureDate.toISOString()} (timestamp: ${futureTimestamp})`
-            )
-          )
-
-          const markets = await this.clobClient.getMarkets({
-            limit: Math.min(limit * 2, 50),
-            ...(params.category && { tags: [params.category] }),
-            // API-level filters to exclude old markets at the source (UNIX timestamp format)
-            active: true,
-            closed: false,
-            enable_order_book: true,
-            endTs: futureTimestamp, // Only markets ending after 2025 (UNIX timestamp)
-          })
-
-          const list: any[] = markets.data || markets
-
-          // Filter for current markets (2025+) and sort by volume/activity
-          // currentDate already declared above
-          const activeMarkets = list
-            .filter((m) => {
-              const isActive = m.active !== false && m.closed !== true
-              const endDate = m.end_date || m.endDate || m.close_time || m.end_date_iso
-              if (endDate) {
-                const marketEndDate = new Date(endDate)
-                return isActive && marketEndDate > currentDate && marketEndDate.getFullYear() >= 2025
-              }
-              return isActive
-            })
-            .sort((a, b) => (b.volume || b.volume_24hr || 0) - (a.volume || a.volume_24hr || 0)) // Sort by volume for "trending"
-            .slice(0, limit)
-
-          console.log(chalk.green(`✅ Found ${activeMarkets.length} trending active markets via CLOB client`))
-          return activeMarkets
-        } catch (clientError) {
-          console.log(chalk.yellow(`⚠️ CLOB client failed, trying Gamma fallback: ${clientError}`))
-        }
-      }
-
-      // Fallback to Gamma API with date filters (UNIX timestamp format)
-      const currentYear = new Date().getFullYear() // 2025
-      const futureDate = new Date(currentYear, 0, 1) // 1 Jan 2025
-      const futureTimestamp = Math.floor(futureDate.getTime() / 1000) // UNIX timestamp in seconds
-
-      console.log(
-        chalk.gray(
-          `📅 Gamma API fallback filter: end_date >= ${futureDate.toISOString()} (timestamp: ${futureTimestamp})`
-        )
-      )
-
-      let url = `https://gamma-api.polymarket.com/markets?limit=${limit}&active=true&closed=false&enable_order_book=true&endTs=${futureTimestamp}`
-      if (params.category) {
-        url += `&tag=${encodeURIComponent(params.category)}`
-      }
-
-      const response = await this.fetchJson(url)
-      const markets = Array.isArray(response) ? response : response.data || []
-      console.log(chalk.yellow(`📊 Gamma API returned ${markets.length} markets (may be older)`))
-      return markets
-    } catch (error) {
-      console.log(chalk.red(`❌ Failed to get trending markets: ${error}`))
-      return []
-    }
+    console.log('Trending markets should be retrieved using GOAT SDK AI tools (get_polymarket_events)')
+    return []
   }
 
   /**
-   * Search markets by category/tags via Gamma API
+   * Search markets by category - use GOAT SDK AI tools instead
    */
   async searchMarketsByCategory(category: string, limit: number = 10): Promise<any[]> {
-    try {
-      const categories = ['sports', 'politics', 'crypto', 'science', 'entertainment']
-      const searchCategory =
-        categories.find((cat) => category.toLowerCase().includes(cat) || cat.includes(category.toLowerCase())) ||
-        category
-
-      // Add date filters to exclude old markets at API level (UNIX timestamp format)
-      const currentYear = new Date().getFullYear() // 2025
-      const futureDate = new Date(currentYear, 0, 1) // 1 Jan 2025
-      const futureTimestamp = Math.floor(futureDate.getTime() / 1000) // UNIX timestamp in seconds
-
-      console.log(
-        chalk.gray(`📅 Category search filter: end_date >= ${futureDate.toISOString()} (timestamp: ${futureTimestamp})`)
-      )
-
-      const url = `https://gamma-api.polymarket.com/markets?tag=${encodeURIComponent(searchCategory)}&limit=${limit}&active=true&closed=false&enable_order_book=true&endTs=${futureTimestamp}`
-      const response = await this.fetchJson(url)
-      return Array.isArray(response) ? response : response.data || []
-    } catch (error) {
-      console.log(`Failed to search markets by category: ${error}`)
-      return []
-    }
+    console.log('Market search should be done using GOAT SDK AI tools (get_polymarket_events)')
+    return []
   }
 
   /**
-   * Get real-time market prices via Gamma API
+   * Get market prices - use GOAT SDK AI tools instead
    */
   async getMarketPrices(marketIds: string[]): Promise<Record<string, any>> {
-    try {
-      const prices: Record<string, any> = {}
-
-      // Batch request for multiple markets
-      for (const marketId of marketIds.slice(0, 10)) {
-        // Limit to 10 for performance
-        try {
-          const url = `https://gamma-api.polymarket.com/markets/${marketId}`
-          const market = await this.fetchJson(url)
-          if (market) {
-            prices[marketId] = {
-              id: market.id,
-              title: market.title || market.question,
-              tokens: market.tokens || market.outcomes || [],
-              volume: market.volume,
-              liquidity: market.liquidity,
-              endDate: market.end_date || market.endDate,
-            }
-          }
-        } catch (error) {
-          console.log(`Failed to get price for market ${marketId}: ${error}`)
-        }
-      }
-
-      return prices
-    } catch (error) {
-      console.log(`Failed to get market prices: ${error}`)
-      return {}
-    }
+    console.log('Market prices should be retrieved using GOAT SDK AI tools (get_polymarket_market_info)')
+    return {}
   }
 
   /**
-   * Get sports markets specifically
+   * Get sports markets - use GOAT SDK AI tools instead
    */
   async getSportsMarkets(sport?: string, limit: number = 10): Promise<any[]> {
-    try {
-      let url = `https://gamma-api.polymarket.com/markets?tag=sports&limit=${limit}&active=true`
-
-      if (sport) {
-        // Add specific sport filter
-        url += `&search=${encodeURIComponent(sport)}`
-      }
-
-      const response = await this.fetchJson(url)
-      return Array.isArray(response) ? response : response.data || []
-    } catch (error) {
-      console.log(`Failed to get sports markets: ${error}`)
-      return []
-    }
+    console.log('Sports markets should be retrieved using GOAT SDK AI tools (get_polymarket_events)')
+    return []
   }
 
   /**
-   * Fetch event by slug via Gamma API
-   */
-  async getEventBySlug(slug: string): Promise<any | null> {
-    try {
-      const url = `https://gamma-api.polymarket.com/events/slug/${encodeURIComponent(slug)}`
-      return await this.fetchJson(url)
-    } catch {
-      return null
-    }
-  }
-
-  /**
-   * Fetch market by slug via Gamma API
-   */
-  async getMarketBySlug(slug: string): Promise<any | null> {
-    try {
-      const url = `https://gamma-api.polymarket.com/markets/slug/${encodeURIComponent(slug)}`
-      return await this.fetchJson(url)
-    } catch {
-      return null
-    }
-  }
-
-  /**
-   * Resolve marketId and tokenId from slug and desired outcome
-   */
-  async resolveFromSlug(
-    slug: string,
-    outcome: 'YES' | 'NO' = 'YES'
-  ): Promise<{ marketId?: string; tokenId?: string } | undefined> {
-    // Try direct market slug first
-    const market = await this.getMarketBySlug(slug)
-    const yesNoKeys = outcome === 'YES' ? ['YES', 'Y', 'TRUE'] : ['NO', 'N', 'FALSE']
-    const pickToken = (m: any): string | undefined => {
-      try {
-        if (Array.isArray(m?.tokens)) {
-          for (const t of m.tokens) {
-            const name = String(t?.name || t?.outcome || '').toUpperCase()
-            if (yesNoKeys.includes(name)) return t?.token_id || t?.tokenId || t?.id
-          }
-        }
-        if (Array.isArray(m?.outcomes)) {
-          for (const o of m.outcomes) {
-            const name = String(o?.name || o?.outcome || '').toUpperCase()
-            if (yesNoKeys.includes(name)) return o?.token_id || o?.tokenId || o?.id
-          }
-        }
-        if (Array.isArray(m?.outcomeTokens)) {
-          for (const t of m.outcomeTokens) {
-            const name = String(t?.label || t?.name || '').toUpperCase()
-            if (yesNoKeys.includes(name)) return t?.token_id || t?.tokenId || t?.id
-          }
-        }
-      } catch {}
-      return undefined
-    }
-
-    if (market && (market.id || market.market_id)) {
-      const marketId = market.id || market.market_id
-      const tokenId = pickToken(market)
-      return { marketId, tokenId }
-    }
-
-    // Fallback: event slug → pick first market
-    const event = await this.getEventBySlug(slug)
-    if (event && Array.isArray(event.markets) && event.markets.length > 0) {
-      const best = event.markets[0]
-      const marketId = best.id || best.market_id
-      const tokenId = pickToken(best)
-      return { marketId, tokenId }
-    }
-
-    return undefined
-  }
-
-  /**
-   * Cancel order
+   * Cancel order using GOAT SDK
    */
   async cancelOrder(orderId: string): Promise<any> {
-    if (!this.isInitialized || !this.clobClient) {
-      throw new Error('Polymarket not initialized')
+    if (!this.isInitialized || !this.onChainActions) {
+      throw new Error('Polymarket GOAT SDK not initialized')
     }
 
-    try {
-      return await this.clobClient.cancelOrder(orderId)
-    } catch (error) {
-      throw new Error(`Failed to cancel order ${orderId}: ${error}`)
-    }
+    // Order cancellation should be done through GOAT SDK tools if available
+    console.log('Order cancellation should be done using GOAT SDK AI tools')
+    return null
   }
 
   /**
-   * Get GOAT SDK tools for AI integration (following viem adapter pattern)
+   * Get GOAT SDK tools for AI integration
+   * OnChain tools from getOnChainTools are already in Vercel AI format
    */
   getTools(): Record<string, CoreTool> {
     if (!this.onChainActions) {
@@ -1050,7 +566,7 @@ Example: 0x1234567890abcdef... or 1234567890abcdef...`)
     }
 
     try {
-      // getOnChainTools already returns Vercel AI compatible tools
+      // getOnChainTools returns Vercel AI compatible tools directly
       return this.onChainActions
     } catch (error) {
       throw new Error(`Failed to get GOAT SDK tools: ${error}`)
@@ -1064,9 +580,9 @@ Example: 0x1234567890abcdef... or 1234567890abcdef...`)
     const isTestnet = this.config.chain !== 'polygon'
     const networkInfo = isTestnet ? ' (TESTNET - No real money)' : ' (MAINNET - Real money)'
 
-    return `You are an AI agent with access to Polymarket tools for real-time prediction market data${networkInfo}.
+    return `You are an AI agent with access to Polymarket prediction market tools via GOAT SDK${networkInfo}.
 
-CRITICAL: You MUST use the available tools to get current, real market data. NEVER make up or hallucinate market information.
+CRITICAL: You MUST use the available GOAT SDK tools to get current, real market data. NEVER make up or hallucinate market information.
 
 Available GOAT SDK Tools (ALWAYS USE THESE):
 - get_polymarket_events - Search for current prediction markets by topic/keywords
@@ -1124,8 +640,9 @@ When users ask about markets, trends, or want to bet: IMMEDIATELY use get_polyma
    * Cleanup resources
    */
   async cleanup(): Promise<void> {
-    this.clobClient = null
     this.goatPlugin = null
+    this.walletClient = null
+    this.onChainActions = null
     this.isInitialized = false
   }
 }

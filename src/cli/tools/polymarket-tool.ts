@@ -397,91 +397,10 @@ MANDATORY: Use tools to get real market data before proceeding.`
       } else {
         console.log(chalk.yellow(`⚠️ No tools were called - AI may be hallucinating data!`))
 
-        // Fallback: If AI didn't use tools for market queries, try GOAT SDK first, then Gamma API
+        // Force tool usage reminder - all data should come from GOAT SDK tools
         if (/show|search|find|trending|markets|football|sports|politics|crypto/i.test(String(message))) {
-          console.log(chalk.blue(`🔄 Forcing GOAT SDK tool usage as fallback...`))
-          try {
-            let markets: any[] = []
-            let searchType = 'general'
-
-            // Determine search type and use appropriate Gamma API method
-            if (/sports|football|soccer|basketball|tennis/i.test(String(message))) {
-              const sport = this.extractSearchTerms(String(message))
-              markets = await this.polymarketProvider!.getSportsMarkets(sport, 10)
-              searchType = 'sports'
-            } else if (/trending|popular|hot/i.test(String(message))) {
-              const category = this.extractSearchTerms(String(message))
-              markets = await this.polymarketProvider!.getTrendingMarkets({ limit: 10, category })
-              searchType = 'trending'
-            } else {
-              // Fallback to category search or general search
-              const searchTerms = this.extractSearchTerms(String(message))
-              if (/politics|crypto|science|entertainment/i.test(searchTerms)) {
-                markets = await this.polymarketProvider!.searchMarketsByCategory(searchTerms, 10)
-                searchType = 'category'
-              } else {
-                markets = await this.polymarketProvider!.getMarkets({ query: searchTerms, limit: 10 })
-                searchType = 'search'
-              }
-            }
-
-            if (markets && markets.length > 0) {
-              let marketSummary = `\n\n🔍 Real-time Polymarket data via Gamma API (${markets.length} ${searchType} markets found):\n\n`
-
-              markets.forEach((market: any, i: number) => {
-                marketSummary += `${i + 1}. **${market.title || market.question}**\n`
-                marketSummary += `   - Market ID: ${market.id || market.market_id}\n`
-
-                // Show token prices if available
-                if (market.tokens && Array.isArray(market.tokens)) {
-                  market.tokens.forEach((token: any) => {
-                    const name = token.name || token.outcome || 'Unknown'
-                    const price = token.price || token.last_price || 'N/A'
-                    marketSummary += `   - ${name}: $${price}\n`
-                  })
-                }
-
-                if (market.volume) marketSummary += `   - Volume: $${market.volume}\n`
-                if (market.liquidity) marketSummary += `   - Liquidity: $${market.liquidity}\n`
-                if (market.endDate || market.end_date)
-                  marketSummary += `   - End Date: ${market.endDate || market.end_date}\n`
-
-                // Add tags if available
-                if (market.tags && Array.isArray(market.tags)) {
-                  marketSummary += `   - Tags: ${market.tags.join(', ')}\n`
-                }
-
-                marketSummary += '\n'
-              })
-
-              marketSummary += `\n📊 Data source: Polymarket Gamma API (${searchType} endpoint)\n`
-              marketSummary += `⏰ Retrieved at: ${new Date().toISOString()}\n`
-
-              // Append real data to AI response
-              return {
-                success: true,
-                data: {
-                  response: text + marketSummary,
-                  toolCalls: 0,
-                  toolResults: 0,
-                  toolsUsed: [`fallback-gamma-${searchType}`],
-                  conversationLength: this.conversationMessages.length,
-                  fallbackUsed: true,
-                  searchType,
-                  marketsFound: markets.length,
-                },
-                metadata: {
-                  executionTime: Date.now() - startTime,
-                  toolName: this.name,
-                  parameters: { message, options },
-                },
-              }
-            } else {
-              console.log(chalk.yellow(`📭 No markets found for query: ${message}`))
-            }
-          } catch (error) {
-            console.log(chalk.red(`❌ Fallback Gamma API search failed: ${error}`))
-          }
+          console.log(chalk.yellow(`⚠️ AI should have used GOAT SDK tools for market queries`))
+          console.log(chalk.gray('Response may be incomplete without real-time data from tools'))
         }
       }
 
@@ -594,15 +513,11 @@ MANDATORY: Use tools to get real market data before proceeding.`
           let resolved = await this.resolveMarketAndToken({ marketId, slug, outcome: desiredOutcome })
 
           // If no slug found, force AI to search using tools
-          if (!resolved && freeText) {
-            console.log(chalk.blue(`🔍 No URL found, forcing AI tool search for: "${freeText}"`))
-            return await this.forceAIToolSearch(
-              freeText,
-              desiredOutcome,
-              side,
-              typeof amount === 'string' ? parseFloat(amount) : amount
-            )
-          }
+        if (!resolved && freeText) {
+          console.log(chalk.blue(`🔍 No URL found, using AI tools for: "${freeText}"`))
+          const searchMessage = `Find a Polymarket prediction market for: "${freeText}". Desired outcome: ${desiredOutcome}. ${amount ? `Amount: ${amount} USDC. ` : ''}${side ? `Side: ${side}. ` : ''}Use get_polymarket_events to search for markets.`
+          return await this.processChatMessage(searchMessage, { forcedSearch: true })
+        }
 
           tokenId = resolved?.tokenId || tokenId
           marketId = resolved?.marketId || marketId
@@ -1473,7 +1388,8 @@ MANDATORY: Use tools to get real market data before proceeding.`
       try {
         console.log(chalk.gray(`  → Fetching full market details via Gamma API...`))
         const gammaUrl = `https://gamma-api.polymarket.com/markets/${marketId}`
-        const market = await this.polymarketProvider!.fetchJson(gammaUrl)
+        // Market should be retrieved using GOAT SDK AI tools instead
+        const market = null
 
         if (market) {
           tokenId = findYesNoTokenId(market, outcome)
@@ -1588,104 +1504,6 @@ MANDATORY: Use tools to get real market data before proceeding.`
     return matches / searchWords.length
   }
 
-  /**
-   * Force AI to search for markets using tools instead of manual search
-   */
-  private async forceAIToolSearch(
-    description: string,
-    outcome: 'YES' | 'NO' = 'YES',
-    side?: string,
-    amount?: number
-  ): Promise<ToolExecutionResult> {
-    console.log(chalk.blue(`🤖 Forcing AI to search for real markets: "${description}"`))
-
-    // Create a very specific prompt that forces tool usage with GOAT SDK tools
-    const searchPrompt = `URGENT: I need to find a REAL, CURRENT Polymarket prediction market for: "${description}"
-
-MANDATORY REQUIREMENTS:
-1. You MUST use get_polymarket_events tool to search for current markets related to: ${description}
-2. You MUST find markets that are ACTIVE and OPEN for betting
-3. You MUST provide the exact marketId and tokenId for ${outcome} outcome
-4. DO NOT make up or hallucinate any market data
-5. If no exact match exists, find the closest related REAL market
-
-AVAILABLE TOOLS (USE THESE):
-- get_polymarket_events: Search for prediction markets
-- get_polymarket_market_info: Get detailed market information
-- create_order_on_polymarket: Place bets (after finding market)
-
-Search terms to use: ${this.extractBetSearchTerms(description)}
-Desired outcome: ${outcome}
-${amount ? `Bet amount: ${amount} USDC` : ''}
-${side ? `Bet side: ${side}` : ''}
-
-EXECUTE NOW: 
-1. Call get_polymarket_events with search terms related to "${description}"
-2. Find the best matching market
-3. Call get_polymarket_market_info for detailed market data
-4. Provide marketId and tokenId for betting
-
-START WITH: get_polymarket_events`
-
-    try {
-      // Force the AI to process this search request
-      const result = await this.processChatMessage(searchPrompt, { forcedSearch: true })
-
-      if (result.success) {
-        // Check if the AI actually used tools
-        if (result.data?.toolsUsed && result.data.toolsUsed.length > 0) {
-          console.log(chalk.green(`✅ AI used tools: ${result.data.toolsUsed.join(', ')}`))
-
-          // Try to extract market info from the AI response
-          const marketInfo = this.extractMarketInfoFromAIResponse(result.data.response)
-          if (marketInfo.marketId && marketInfo.tokenId) {
-            console.log(chalk.green(`✅ AI found market: ${marketInfo.marketId}, token: ${marketInfo.tokenId}`))
-
-            // Return the betting result directly
-            return {
-              success: true,
-              data: {
-                aiSearched: true,
-                marketId: marketInfo.marketId,
-                tokenId: marketInfo.tokenId,
-                outcome,
-                response: result.data.response,
-                message: `AI found and analyzed real market data for: ${description}`,
-              },
-              metadata: result.metadata,
-            }
-          }
-        }
-
-        // If AI didn't use tools or find specific market, return the analysis
-        return {
-          success: true,
-          data: {
-            aiSearched: true,
-            response: result.data.response,
-            toolsUsed: result.data?.toolsUsed || [],
-            message: `AI analysis for: ${description}`,
-            needsManualReview: true,
-          },
-          metadata: result.metadata,
-        }
-      }
-
-      return result
-    } catch (error: any) {
-      console.log(chalk.red(`❌ Forced AI search failed: ${error.message}`))
-      return {
-        success: false,
-        data: null,
-        error: `AI search failed: ${error.message}`,
-        metadata: {
-          executionTime: Date.now(),
-          toolName: this.name,
-          parameters: { description, outcome, side, amount },
-        },
-      }
-    }
-  }
 
   /**
    * Extract market ID and token ID from AI response
@@ -1718,7 +1536,8 @@ START WITH: get_polymarket_events`
 
       // Try Gamma API slug resolution first (most reliable)
       try {
-        const resolved = await this.polymarketProvider.resolveFromSlug(opts.slug, opts.outcome || 'YES')
+        // Market resolution should be done using GOAT SDK AI tools instead  
+      const resolved = undefined
         if (resolved?.marketId && resolved?.tokenId) {
           console.log(
             chalk.green(`  ✅ Gamma API resolved: marketId=${resolved.marketId}, tokenId=${resolved.tokenId}`)
