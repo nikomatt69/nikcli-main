@@ -19,10 +19,12 @@ export interface StatusIndicator {
 }
 
 export interface LiveUpdate {
-  type: 'status' | 'progress' | 'log' | 'error' | 'warning' | 'info'
+  type: 'status' | 'progress' | 'log' | 'error' | 'warning' | 'info' | 'step' | 'result'
   content: string
   timestamp: Date
   source?: string
+  metadata?: any
+  stepId?: string
 }
 
 export interface UITheme {

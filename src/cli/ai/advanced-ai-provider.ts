@@ -86,20 +86,48 @@ type CommandExecutionResult = z.infer<typeof CommandExecutionResult>
 const execAsync = promisify(exec)
 
 export interface StreamEvent {
-  type: 'start' | 'thinking' | 'tool_call' | 'tool_result' | 'text_delta' | 'complete' | 'error'
+  type: 'start' | 'thinking' | 'tool_call' | 'tool_result' | 'text_delta' | 'complete' | 'error' | 'step'
   content?: string
   toolName?: string
   toolArgs?: any
   toolResult?: any
   error?: string
   metadata?: any
+  stepId?: string
 }
 
 export interface AutonomousProvider {
   streamChatWithFullAutonomy(messages: CoreMessage[], abortSignal?: AbortSignal): AsyncGenerator<StreamEvent>
-  executeAutonomousTask(task: string, context?: any): AsyncGenerator<StreamEvent>
+  executeAutonomousTask(
+    task: string,
+    context?: any & {
+      steps?: Array<{
+        stepId: string
+        description: string
+        schema?: any
+      }>
+      finalStep?: {
+        description: string
+        schema?: any
+      }
+    }
+  ): AsyncGenerator<StreamEvent>
   // ⚡︎ Enhanced Cognitive Methods
-  generateWithCognition(messages: CoreMessage[], cognition?: TaskCognition): AsyncGenerator<StreamEvent>
+  generateWithCognition(
+    messages: CoreMessage[],
+    cognition?: TaskCognition,
+    options?: {
+      steps?: Array<{
+        stepId: string
+        description: string
+        schema?: any
+      }>
+      finalStep?: {
+        description: string
+        schema?: any
+      }
+    }
+  ): AsyncGenerator<StreamEvent>
   optimizePromptWithPlan(messages: CoreMessage[], plan?: OrchestrationPlan): CoreMessage[]
   adaptResponseToCognition(response: string, cognition?: TaskCognition): string
 }
@@ -1498,8 +1526,47 @@ Respond in a helpful, professional manner with clear explanations and actionable
   }
 
   // Execute autonomous task with intelligent planning and parallel agent support
-  async *executeAutonomousTask(task: string, context?: any): AsyncGenerator<StreamEvent> {
-    yield { type: 'start', content: `🎯 Starting task: ${task}` }
+  async *executeAutonomousTask(
+    task: string,
+    context?: any & {
+      steps?: Array<{
+        stepId: string
+        description: string
+        schema?: any
+      }>
+      finalStep?: {
+        description: string
+        schema?: any
+      }
+    }
+  ): AsyncGenerator<StreamEvent> {
+    yield {
+      type: 'start',
+      content: `🎯 Starting task: ${task}`,
+      metadata: {
+        hasSteps: !!(context?.steps?.length),
+        hasFinalStep: !!context?.finalStep,
+        totalSteps: (context?.steps?.length || 0) + (context?.finalStep ? 1 : 0),
+      }
+    }
+
+    // Process initial steps if provided
+    if (context?.steps?.length) {
+      for (let i = 0; i < context.steps.length; i++) {
+        const step = context.steps[i]
+        yield {
+          type: 'step',
+          stepId: step.stepId,
+          content: `📋 Step ${i + 1}/${context.steps.length}: ${step.description}`,
+          metadata: {
+            stepIndex: i,
+            totalSteps: context.steps.length,
+            stepId: step.stepId,
+            hasSchema: !!step.schema,
+          },
+        }
+      }
+    }
 
     // First, analyze the task and create a plan
     yield { type: 'thinking', content: 'Analyzing task and creating execution plan...' }
@@ -1549,6 +1616,28 @@ Execute task autonomously with tools. Be direct. Stay within project directory.`
       for await (const event of this.streamChatWithFullAutonomy(planningMessages)) {
         yield event
       }
+
+      // Process final step if provided
+      if (context?.finalStep) {
+        yield {
+          type: 'step',
+          stepId: 'final',
+          content: `🎯 Final Step: ${context.finalStep.description}`,
+          metadata: {
+            stepIndex: (context?.steps?.length || 0),
+            totalSteps: (context?.steps?.length || 0) + 1,
+            stepId: 'final',
+            hasSchema: !!context.finalStep.schema,
+            isFinalStep: true,
+          },
+        }
+
+        yield {
+          type: 'thinking',
+          content: '⚡︎ Finalizing autonomous task execution...',
+        }
+      }
+
     } catch (error: any) {
       yield {
         type: 'error',
@@ -1584,6 +1673,21 @@ Execute task autonomously with tools. Be direct. Stay within project directory.`
   private async *executeParallelTask(task: string, context?: any): AsyncGenerator<StreamEvent> {
     yield { type: 'thinking', content: '⚡︎ Planning parallel execution...' }
 
+    // Process steps if provided for parallel execution
+    if (context?.steps?.length) {
+      yield {
+        type: 'step',
+        stepId: 'parallel_setup',
+        content: `🔄 Setting up parallel execution with ${context.steps.length} steps`,
+        metadata: {
+          stepIndex: 0,
+          totalSteps: context.steps.length + (context?.finalStep ? 1 : 0),
+          stepId: 'parallel_setup',
+          isParallel: true,
+        },
+      }
+    }
+
     try {
       // Dividi il task in sottotask paralleli
       const subtasks = this.splitIntoSubtasks(task)
@@ -1604,10 +1708,37 @@ Execute task autonomously with tools. Be direct. Stay within project directory.`
       const successful = results.filter((r) => r.status === 'fulfilled').length
       const failed = results.filter((r) => r.status === 'rejected').length
 
+      // Process final step for parallel execution if provided
+      if (context?.finalStep) {
+        yield {
+          type: 'step',
+          stepId: 'parallel_final',
+          content: `🎯 Parallel Final Step: ${context.finalStep.description}`,
+          metadata: {
+            stepIndex: (context?.steps?.length || 0),
+            totalSteps: (context?.steps?.length || 0) + 1,
+            stepId: 'parallel_final',
+            hasSchema: !!context.finalStep.schema,
+            isFinalStep: true,
+            isParallel: true,
+          },
+        }
+
+        yield {
+          type: 'thinking',
+          content: '⚡︎ Finalizing parallel execution results...',
+        }
+      }
+
       yield {
         type: 'complete',
         content: `✓ Parallel execution complete: ${successful} successful, ${failed} failed`,
-        metadata: { parallel: true, subtasks: subtasks.length },
+        metadata: {
+          parallel: true,
+          subtasks: subtasks.length,
+          stepsProcessed: context?.steps?.length || 0,
+          finalStepProcessed: !!context?.finalStep,
+        },
       }
     } catch (error: any) {
       yield {
@@ -2562,7 +2693,21 @@ Requirements:
    * ⚡︎ Generate with Cognitive Understanding
    * Enhanced generation method that uses task cognition for better responses
    */
-  async *generateWithCognition(messages: CoreMessage[], cognition?: TaskCognition): AsyncGenerator<StreamEvent> {
+  async *generateWithCognition(
+    messages: CoreMessage[],
+    cognition?: TaskCognition,
+    options?: {
+      steps?: Array<{
+        stepId: string
+        description: string
+        schema?: any
+      }>
+      finalStep?: {
+        description: string
+        schema?: any
+      }
+    }
+  ): AsyncGenerator<StreamEvent> {
     try {
       yield {
         type: 'start',
@@ -2570,6 +2715,9 @@ Requirements:
           method: 'generateWithCognition',
           hasCognition: !!cognition,
           cognitionId: cognition?.id,
+          hasSteps: !!(options?.steps?.length),
+          hasFinalStep: !!options?.finalStep,
+          totalSteps: (options?.steps?.length || 0) + (options?.finalStep ? 1 : 0),
         },
       }
 
@@ -2581,6 +2729,32 @@ Requirements:
         content: cognition
           ? `⚡︎ Using cognitive understanding: ${cognition.intent.primary} task with ${cognition.estimatedComplexity}/10 complexity`
           : '⚡︎ Processing without cognitive context',
+      }
+
+      // Process steps sequentially if provided
+      if (options?.steps?.length) {
+        for (let i = 0; i < options.steps.length; i++) {
+          const step = options.steps[i]
+          yield {
+            type: 'step',
+            stepId: step.stepId,
+            content: `📋 Step ${i + 1}/${options.steps.length}: ${step.description}`,
+            metadata: {
+              stepIndex: i,
+              totalSteps: options.steps.length,
+              stepId: step.stepId,
+              hasSchema: !!step.schema,
+            },
+          }
+
+          // Simulate step processing with cognitive awareness
+          if (cognition) {
+            yield {
+              type: 'thinking',
+              content: `⚡︎ Processing step "${step.stepId}" with ${cognition.estimatedComplexity}/10 complexity...`,
+            }
+          }
+        }
       }
 
       // Step 2: Use enhanced streaming with cognitive awareness
@@ -2607,11 +2781,36 @@ Requirements:
         yield event
       }
 
+      // Process final step if provided
+      if (options?.finalStep) {
+        yield {
+          type: 'step',
+          stepId: 'final',
+          content: `🎯 Final Step: ${options.finalStep.description}`,
+          metadata: {
+            stepIndex: (options?.steps?.length || 0),
+            totalSteps: (options?.steps?.length || 0) + 1,
+            stepId: 'final',
+            hasSchema: !!options.finalStep.schema,
+            isFinalStep: true,
+          },
+        }
+
+        if (cognition) {
+          yield {
+            type: 'thinking',
+            content: `⚡︎ Finalizing with cognitive understanding: ${cognition.intent.primary}`,
+          }
+        }
+      }
+
       yield {
         type: 'complete',
         metadata: {
           method: 'generateWithCognition',
           cognitionApplied: !!cognition,
+          stepsProcessed: options?.steps?.length || 0,
+          finalStepProcessed: !!options?.finalStep,
         },
       }
     } catch (error: any) {

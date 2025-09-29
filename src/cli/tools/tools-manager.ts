@@ -4,6 +4,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { promisify } from 'node:util'
 import chalk from 'chalk'
+import { createFileFilter } from '../context/file-filter-system'
 
 const execAsync = promisify(exec)
 
@@ -131,24 +132,45 @@ export class ToolsManager {
       throw new Error(`Directory not found: ${directory}`)
     }
 
+    // Use FileFilterSystem for intelligent filtering
+    const fileFilter = createFileFilter(this.workingDirectory, {
+      respectGitignore: true,
+      maxFileSize: 1024 * 1024, // 1MB
+      maxTotalFiles: 5000,
+      includeExtensions: [], // Include all by default, filter with pattern if provided
+      excludeExtensions: [],
+      excludeDirectories: [],
+      excludePatterns: [],
+      customRules: [],
+    })
+
     const files: string[] = []
 
-    function walkDir(dir: string) {
-      const items = fs.readdirSync(dir)
+    const walkDir = (dir: string): void => {
+      try {
+        const items = fs.readdirSync(dir)
 
-      for (const item of items) {
-        const itemPath = path.join(dir, item)
-        const relativePath = path.relative(fullPath, itemPath)
+        for (const item of items) {
+          const itemPath = path.join(dir, item)
+          const relativePath = path.relative(fullPath, itemPath)
 
-        if (fs.statSync(itemPath).isDirectory()) {
-          if (!item.startsWith('.') && item !== 'node_modules') {
-            walkDir(itemPath)
-          }
-        } else {
-          if (!pattern || pattern.test(relativePath)) {
-            files.push(path.relative(directory, relativePath))
+          if (fs.statSync(itemPath).isDirectory()) {
+            // Check if directory should be included using FileFilterSystem
+            const filterResult = fileFilter.shouldIncludeFile(itemPath, this.workingDirectory)
+            if (filterResult.allowed) {
+              walkDir(itemPath)
+            }
+          } else {
+            // Check if file should be included using FileFilterSystem
+            const filterResult = fileFilter.shouldIncludeFile(itemPath, this.workingDirectory)
+            if (filterResult.allowed && (!pattern || pattern.test(relativePath))) {
+              files.push(path.relative(directory, relativePath))
+            }
           }
         }
+      } catch (error) {
+        // Skip directories that can't be read (permissions, etc.)
+        console.log(chalk.gray(`Skipped directory: ${dir} (${error instanceof Error ? error.message : 'Unknown error'})`))
       }
     }
 

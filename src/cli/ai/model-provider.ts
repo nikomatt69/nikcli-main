@@ -351,6 +351,15 @@ export class ModelProvider {
       schema: any
       schemaName?: string
       schemaDescription?: string
+      steps?: Array<{
+        stepId: string
+        description: string
+        schema: any
+      }>
+      finalStep?: {
+        description: string
+        schema: any
+      }
     }
   ): Promise<T> {
     const currentModelName = configManager.getCurrentModel()
@@ -384,7 +393,7 @@ export class ModelProvider {
     }
     const model = this.getModel({ ...currentModelConfig, model: effId3 } as ModelConfig)
 
-    const { object } = await generateObject({
+    const generateObjectParams: any = {
       model: model as any,
       messages: options.messages.map((msg) => ({
         role: msg.role,
@@ -394,7 +403,17 @@ export class ModelProvider {
       schemaName: options.schemaName,
       schemaDescription: options.schemaDescription,
       temperature: options.temperature ?? configManager.get('temperature'),
-    })
+    }
+
+    // Add AI SDK steps and finalStep support
+    if (options.steps) {
+      generateObjectParams.steps = options.steps
+    }
+    if (options.finalStep) {
+      generateObjectParams.finalStep = options.finalStep
+    }
+
+    const { object } = await generateObject(generateObjectParams)
 
     return object as T
   }

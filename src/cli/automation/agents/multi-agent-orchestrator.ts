@@ -11,7 +11,7 @@ export class MultiAgentOrchestrator {
     this.agentManager = agentManager
   }
 
-  async runParallel(concurrency: number = 2): Promise<void> {
+  async runParallel(concurrency: number = 3): Promise<void> {
     await this.agentManager.runParallel(concurrency)
   }
 }

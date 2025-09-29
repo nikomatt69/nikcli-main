@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
+import { createFileFilter } from '../context/file-filter-system'
 
 // ============================================================================
 // Diagnostic Types & Interfaces
@@ -549,6 +550,24 @@ export class IDEDiagnosticServer extends EventEmitter {
     this.detector = new ProjectDetector(workingDir)
     // File watcher is NOT initialized automatically anymore
     // It will be started only when explicitly requested
+
+    // Initialize stats for monitoring health
+    this.initializeStats()
+  }
+
+  private initializeStats(): void {
+    // Check system file descriptor limits to prevent EMFILE errors
+    try {
+      const { execSync } = require('node:child_process')
+      const limits = execSync('ulimit -n', { encoding: 'utf8' }).trim()
+      const maxFd = parseInt(limits, 10)
+
+      if (maxFd < 1024) {
+        console.warn(chalk.yellow(`⚠️ Low file descriptor limit: ${maxFd}. Consider increasing with 'ulimit -n 4096'`))
+      }
+    } catch {
+      // Ignore if ulimit check fails
+    }
   }
 
   // ========================================================================
@@ -1055,6 +1074,7 @@ export class IDEDiagnosticServer extends EventEmitter {
 
   /**
    * Start monitoring a specific path or the entire working directory
+   * Uses intelligent filtering to respect gitignore and prevent EMFILE errors
    */
   startMonitoring(specificPath?: string): void {
     if (this.isWatchingEnabled) {
@@ -1065,65 +1085,122 @@ export class IDEDiagnosticServer extends EventEmitter {
     const pathToWatch = specificPath ? resolve(this.workingDir, specificPath) : this.workingDir
 
     try {
-      const watcher = require('chokidar').watch(pathToWatch, {
-        ignored: [
-          'node_modules',
-          '.git',
-          'dist',
-          'build',
-          '.next',
-          'out',
-          'target',
-          'bin',
-          'obj',
-          '.cache',
-          '.temp',
-          'tmp',
-          '*.log',
-          '.DS_Store',
-          'Thumbs.db',
-          '.vscode',
-          '.idea',
-          '*.swp',
-          '*.swo',
-          '.nyc_output',
-          'coverage',
-          '.pytest_cache',
-          '__pycache__',
-          '*.pyc',
-          '.mypy_cache',
-          'vendor',
-          '.bundle',
-          '.sass-cache',
-          '.npm',
+      // Create intelligent file filter that respects gitignore and excludes artifacts
+      const fileFilter = createFileFilter(this.workingDir, {
+        respectGitignore: true,
+        maxFileSize: 10 * 1024 * 1024, // 10MB max file size
+        maxTotalFiles: 10000, // Reasonable file limit to prevent excessive watchers
+        includeExtensions: [], // Include all by default
+        excludeExtensions: [
+          '.map', '.min.js', '.min.css', '.bundle.js',
+          '.log', '.tmp', '.temp', '.cache'
         ],
-        ignoreInitial: true,
+        excludeDirectories: [],
+        excludePatterns: [],
+        customRules: []
       })
+
+      // Use FileFilterSystem for intelligent path filtering
+      const shouldIgnore = (path: string): boolean => {
+        try {
+          const filterResult = fileFilter.shouldIncludeFile(path, this.workingDir)
+          return !filterResult.allowed
+        } catch {
+          // If filtering fails, err on the side of caution and ignore
+          return true
+        }
+      }
+
+      // Use chokidar with intelligent filtering and strict limits
+      const watcher = require('chokidar').watch(pathToWatch, {
+        ignored: shouldIgnore,
+        ignoreInitial: true,
+        // Critical limits to prevent EMFILE errors
+        depth: 6, // Reasonable recursion depth
+        usePolling: false, // Use native file events when possible
+        atomic: 200, // Debounce file changes more aggressively
+        awaitWriteFinish: {
+          stabilityThreshold: 200,
+          pollInterval: 100
+        },
+        // Respect symlinks but don't follow them to prevent loops
+        followSymlinks: false,
+        // Additional safeguards
+        ignorePermissionErrors: true,
+        persistent: true,
+        // Limit concurrent file operations
+        interval: 100,
+        binaryInterval: 300,
+      })
+
+      // Throttle change events to prevent spam
+      let changeTimeout: NodeJS.Timeout | null = null
+      const pendingChanges = new Set<string>()
 
       watcher.on('change', (path: string) => {
-        // Invalidate cache for changed files
-        this.cache.invalidate(relative(this.workingDir, path))
+        const relativePath = relative(this.workingDir, path)
+        pendingChanges.add(relativePath)
 
-        this.emit('diagnosticUpdate', {
-          type: 'fs-change',
-          timestamp: Date.now(),
-          summary: { errors: 0, warnings: 0, affected: [relative(this.workingDir, path)] },
-          cursor: `fs:${Date.now()}`,
-        })
+        // Throttle cache invalidation and events
+        if (changeTimeout) {
+          clearTimeout(changeTimeout)
+        }
+
+        changeTimeout = setTimeout(() => {
+          // Invalidate cache for all changed files
+          for (const changedPath of pendingChanges) {
+            this.cache.invalidate(changedPath)
+          }
+
+          // Emit single event with all changes
+          this.emit('diagnosticUpdate', {
+            type: 'fs-change',
+            timestamp: Date.now(),
+            summary: {
+              errors: 0,
+              warnings: 0,
+              affected: Array.from(pendingChanges)
+            },
+            cursor: `fs:${Date.now()}`,
+          })
+
+          pendingChanges.clear()
+        }, 500) // 500ms debounce
       })
 
-      const watcherId = specificPath ? `path:${specificPath}` : 'main'
-      this.watchers.set(watcherId, watcher)
-      this.isWatchingEnabled = true
+      // Add error handling for watcher
+      watcher.on('error', (error: any) => {
+        console.warn(chalk.yellow(`🔍 File watcher error: ${error.message}`))
 
-      if (specificPath) {
-        this.watchedPaths.add(specificPath)
-        console.log(chalk.green(`🔍 Started monitoring: ${specificPath}`))
-      } else {
-        console.log(chalk.green(`🔍 Started monitoring entire project: ${this.workingDir}`))
+        // If we get EMFILE or similar, stop monitoring to prevent system issues
+        if (error.code === 'EMFILE' || error.code === 'ENFILE') {
+          console.error(chalk.red('🔍 Too many open files - stopping monitoring to prevent system issues'))
+          this.stopMonitoring()
+        }
+      })
+
+      // Log when ready
+      watcher.on('ready', () => {
+        const watcherId = specificPath ? `path:${specificPath}` : 'main'
+        this.watchers.set(watcherId, watcher)
+        this.isWatchingEnabled = true
+
+        if (specificPath) {
+          this.watchedPaths.add(specificPath)
+          console.log(chalk.green(`🔍 Started intelligent monitoring: ${specificPath}`))
+        } else {
+          console.log(chalk.green(`🔍 Started intelligent monitoring: ${this.workingDir}`))
+        }
+        console.log(chalk.gray(`🔍 Respecting gitignore and excluding artifact folders`))
+      })
+
+    } catch (error: any) {
+      console.warn(chalk.yellow(`🔍 File watching not available: ${error.message}`))
+
+      // If chokidar is not available, provide fallback
+      if (error.code === 'MODULE_NOT_FOUND') {
+        console.log(chalk.gray('🔍 Install chokidar for file monitoring: npm install chokidar'))
       }
-    } catch (error) {
-      console.warn(chalk.yellow('File watching not available:', error))
     }
   }
 

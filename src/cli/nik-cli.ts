@@ -115,10 +115,12 @@ export interface CommandResult {
 }
 
 export interface LiveUpdate {
-  type: 'status' | 'progress' | 'log' | 'error' | 'warning' | 'info'
+  type: 'status' | 'progress' | 'log' | 'error' | 'warning' | 'info' | 'step' | 'result'
   content: string
   timestamp: Date
   source?: string
+  metadata?: any
+  stepId?: string
 }
 
 export interface StatusIndicator {
@@ -5895,8 +5897,8 @@ EOF`
                 })
               )
 
-              // Set up collaboration context for this agent
-              ;(agent as any).collaborationContext = collaborationContext
+                // Set up collaboration context for this agent
+                ; (agent as any).collaborationContext = collaborationContext
 
               // Start agent execution with task
               this.startAgentExecution(agent, taskDescription, collaborationContext)
@@ -5960,7 +5962,7 @@ EOF`
         case 'factory': {
           this.beginPanelOutput()
           try {
-            this.showFactoryPanel()
+            await agentFactory.showFactoryDashboard()
           } finally {
             this.endPanelOutput()
           }
@@ -6248,27 +6250,85 @@ EOF`
 
       // Execute task with agent's specialized capabilities
       if (agent.executeTask) {
+        // Use AI SDK steps for better streaming
+        const agentSteps = [
+          {
+            stepId: 'analysis',
+            description: `${blueprint.name} analyzing task requirements`,
+            schema: { type: 'object', properties: { progress: { type: 'string' } } }
+          },
+          {
+            stepId: 'execution',
+            description: `${blueprint.name} executing specialized work`,
+            schema: { type: 'object', properties: { status: { type: 'string' } } }
+          }
+        ]
+
+        const finalStep = {
+          description: `${blueprint.name} finalizing results`,
+          schema: {
+            type: 'object', properties: {
+              summary: { type: 'string' },
+              components: { type: 'array', items: { type: 'string' } },
+              recommendations: { type: 'array', items: { type: 'string' } }
+            }
+          }
+        }
+
+        // Stream step progress
+        this.streamAgentSteps(blueprint.name, 'analysis', `Analyzing task requirements`, { status: 'started' })
+
         const result = await agent.executeTask(task, {
           tools: specializedTools,
-          collaborationContext: (agent as any).collaborationContext
+          collaborationContext: (agent as any).collaborationContext,
+          steps: agentSteps,
+          finalStep: finalStep
         })
+
+        // Stream completion
+        this.streamAgentSteps(blueprint.name, 'complete', `Task execution completed`, { status: 'finished' })
 
         agent.logToCollaboration(`Task completed successfully`)
         agent.shareData('result', result)
+
+        // Add agent result to main stream with better formatting
+        this.addLiveUpdate({
+          type: 'status',
+          content: `**${blueprint.name} Completed:**\n\n${typeof result === 'string' ? result : JSON.stringify(result, null, 2)}`,
+          source: blueprint.name
+        })
       } else {
         agent.logToCollaboration(`Agent executing with built-in capabilities...`)
 
+        // Stream initial step
+        this.streamAgentSteps(blueprint.name, 'analysis', `Starting specialized analysis`, { status: 'initiated' })
+
         // Realistic execution simulation based on specialization
         const executionTime = this.calculateExecutionTime(blueprint.specialization)
+
+        // Stream intermediate step
+        setTimeout(() => {
+          this.streamAgentSteps(blueprint.name, 'processing', `Processing with ${blueprint.specialization} capabilities`, { status: 'processing' })
+        }, executionTime / 3)
 
         setTimeout(() => {
           // Simulate specialized work based on agent type
           const result = this.simulateSpecializedWork(blueprint, task)
 
+          // Stream final step
+          this.streamAgentSteps(blueprint.name, 'complete', `Analysis completed`, { status: 'finished' })
+
           agent.logToCollaboration(`Completed specialized analysis: ${result.summary}`)
           agent.shareData('result', result)
           agent.shareData('status', 'completed')
           agent.shareData('completedAt', new Date().toISOString())
+
+          // Add agent result to main stream
+          this.addLiveUpdate({
+            type: 'status',
+            content: `**${blueprint.name} Completed:**\n\n${result.summary}\n\n**Components:** ${result.components ? result.components.join(', ') : 'None'}\n\n**Recommendations:** ${result.recommendations ? result.recommendations.join(', ') : 'None'}`,
+            source: blueprint.name
+          })
 
           // Check for collaboration opportunities
           this.checkForCollaborationOpportunities(agent, (agent as any).collaborationContext)
@@ -9135,29 +9195,52 @@ EOF`
 
   private showSlashHelp(): void {
     const commands = [
-      // Mode Control
-      ['/plan [task]', 'Switch to plan mode or generate execution plan'],
+      // 🏠 Core System Commands
+      ['/help', 'Show this comprehensive help guide'],
+      ['/exit', 'Exit NikCLI safely'],
+      ['/clear', 'Clear current session context'],
+      ['/status', 'Show comprehensive system status and health'],
+      ['/debug', 'Show detailed debug information'],
+      ['/init [--force]', 'Initialize project context and workspace'],
+
+      // 🎯 Mode Control & Navigation
       ['/default', 'Switch to default conversational mode'],
+      ['/plan [task]', 'Switch to plan mode or generate execution plan'],
       ['/vm', 'Switch to virtual machine development mode'],
       ['/vim [start|exit|config|status|help]', 'Enter vim mode with AI integration'],
 
-      // File Operations
+      // 📁 File & Directory Operations
       ['/read <file> [options]', 'Read file contents with pagination support'],
       ['/write <file> <content>', 'Write content to file with approval'],
       ['/edit <file>', 'Open file in system editor (code/open)'],
       ['/ls [directory]', 'List files and directories'],
       ['/search <query> [dir]', 'Search text in files (grep functionality)'],
 
-      // Terminal Operations
+      // ⚡ Terminal & Command Execution
       ['/run <command>', 'Execute terminal command with approval'],
+      ['/build', 'Build the current project'],
+      ['/test [pattern]', 'Run tests with optional pattern'],
       ['/npm <args>', 'Run npm commands'],
       ['/yarn <args>', 'Run yarn commands'],
       ['/git <args>', 'Run git commands'],
       ['/docker <args>', 'Run docker commands'],
-      ['/build', 'Build the current project'],
-      ['/test [pattern]', 'Run tests with optional pattern'],
 
-      // API Keys & Configuration
+      // 🤖 AI Models & Configuration
+      ['/models', 'List all available AI models'],
+      ['/model <name>', 'Switch to specific AI model'],
+      ['/temp <0.0-2.0>', 'Set AI model temperature'],
+      ['/system <prompt>', 'Set custom system prompt'],
+      ['/config [interactive]', 'Show/edit configuration'],
+      ['/env <path>', 'Import .env file and persist variables'],
+
+      // 🎨 Output Style & Display
+      ['/style set <style>', 'Set default AI output style'],
+      ['/style show', 'Display current style configuration'],
+      ['/style model <style>', 'Set style for current model'],
+      ['/style context <ctx> <style>', 'Set style for specific context'],
+      ['/styles', 'List all available output styles'],
+
+      // 🔑 API Keys & Authentication
       ['/set-key <model> <key>', 'Set API key for AI models'],
       ['/set-coin-keys', 'Configure Coinbase CDP API keys'],
       ['/set-key-bb', 'Configure Browserbase API credentials'],
@@ -9165,174 +9248,156 @@ EOF`
       ['/set-key-redis', 'Configure Redis/Upstash cache credentials'],
       ['/set-vector-key', 'Configure Upstash Vector database credentials'],
 
-      // Models & AI Configuration
-      ['/models', 'List available AI models'],
-      ['/model <name>', 'Switch to specific AI model'],
-      ['/config [interactive]', 'Show/edit configuration'],
-      ['/env <path>', 'Import .env file and persist variables'],
-      ['/temp <0.0-2.0>', 'Set AI model temperature'],
-      ['/system <prompt>', 'Set custom system prompt'],
-
-      // Output Style Configuration
-      ['/style set <style>', 'Set default AI output style'],
-      ['/style show', 'Display current style configuration'],
-      ['/style model <style>', 'Set style for current model'],
-      ['/style context <ctx> <style>', 'Set style for specific context'],
-      ['/styles', 'List all available output styles'],
-
-      // Cache & Performance
+      // 🚀 Performance & Caching
       ['/cache [stats|clear|settings]', 'Manage token cache system'],
+      ['/tokens', 'Show token usage and optimization'],
       ['/redis-enable', 'Enable Redis caching'],
       ['/redis-disable', 'Disable Redis caching'],
       ['/redis-status', 'Show Redis cache status'],
-      ['/tokens', 'Show token usage and optimization'],
 
-      // Agent Management
+      // 🤖 Agent Management & Factory
       ['/agents', 'List all available agents'],
       ['/agent <name> <task>', 'Run specific agent with task'],
-      ['/parallel [agent1, agent2] <task>', 'Run multiple factory agents in parallel'],
-      ['/parallel-logs', 'View parallel execution logs'],
-      ['/parallel-status', 'Check parallel execution status'],
       ['/factory', 'Show agent factory dashboard'],
       ['/blueprints', 'List and manage agent blueprints'],
       ['/create-agent <name> <spec>', 'Create new specialized agent'],
       ['/launch-agent <id>', 'Launch agent from blueprint'],
+      ['/parallel [agent1, agent2] <task>', 'Run multiple factory agents in parallel'],
+      ['/parallel-logs', 'View parallel execution logs'],
+      ['/parallel-status', 'Check parallel execution status'],
 
-      // Memory & Context
-      ['/remember "fact"', 'Store in long-term memory'],
-      ['/recall "query"', 'Search memories'],
-      ['/memory stats', 'Show memory statistics'],
+      // 💾 Memory & Context Management
+      ['/remember "fact"', 'Store information in long-term memory'],
+      ['/recall "query"', 'Search and retrieve memories'],
+      ['/memory stats', 'Show memory usage statistics'],
       ['/context <paths>', 'Select workspace context paths'],
-      ['/index <path>', 'Index files for better context'],
+      ['/index <path>', 'Index files for better context understanding'],
 
-      // Session Management
+      // 📋 Todo & Planning System
+      ['/todo [command]', 'Todo list operations and management'],
+      ['/todos [on|off|status]', 'Show lists; toggle auto‑todos feature'],
+
+      // 📝 Session & History Management
       ['/new [title]', 'Start new chat session'],
-      ['/sessions', 'List all sessions'],
+      ['/sessions', 'List all available sessions'],
       ['/history <on|off>', 'Enable/disable chat history'],
       ['/export [sessionId]', 'Export session to markdown'],
-      ['/debug', 'Show debug information'],
-      ['/status', 'Show system status and health'],
 
-      // VM Container Operations
+      // 🐳 VM Container Operations
       ['/vm-create <repo-url>', 'Create new VM container'],
-      ['/vm-list', 'List active containers'],
-      ['/vm-connect <id>', 'Connect to container'],
+      ['/vm-list', 'List all active containers'],
+      ['/vm-connect <id>', 'Connect to specific container'],
       ['/vm-create-pr <id> "<title>" "<desc>"', 'Create PR from container'],
 
-      // Web Browsing & Analysis
+      // 🌐 Web Browsing & Analysis
       ['/browse <url>', 'Browse web page and extract content'],
       ['/web-analyze <url>', 'Browse and analyze web page with AI'],
 
-      // Figma Design Integration
+      // 🎨 Figma Design Integration
       ['/figma-config', 'Show Figma API configuration status'],
-      ['/figma-info <file-id>', 'Get file information'],
-      ['/figma-export <file-id> [format]', 'Export designs'],
-      ['/figma-to-code <file-id>', 'Generate code from designs'],
+      ['/figma-info <file-id>', 'Get file information from Figma'],
+      ['/figma-export <file-id> [format]', 'Export designs from Figma'],
+      ['/figma-to-code <file-id>', 'Generate code from Figma designs'],
       ['/figma-create <component-path>', 'Create design from React component'],
-      ['/figma-tokens <file-id>', 'Extract design tokens'],
+      ['/figma-tokens <file-id>', 'Extract design tokens from Figma'],
 
-      // Blockchain & Web3
+      // 🔗 Blockchain & Web3 Operations
       ['/web3 status', 'Show Coinbase AgentKit status'],
       ['/web3 wallet', 'Show wallet address and network'],
       ['/web3 balance', 'Check wallet balance'],
-      ['/web3 transfer <amount> <to>', 'Transfer tokens'],
+      ['/web3 transfer <amount> <to>', 'Transfer tokens to address'],
 
-      // Vision & Images
+      // 🔍 Vision & Image Processing
       ['/analyze-image <path>', 'Analyze image with AI vision'],
       ['/generate-image "prompt"', 'Generate image with AI'],
 
-      // CAD & Manufacturing
+      // 🛠️ CAD & Manufacturing
       ['/cad generate <description>', 'Generate CAD model from text description'],
       ['/cad stream <description>', 'Generate CAD with real-time progress'],
       ['/cad export <format> <description>', 'Generate and export CAD to file format'],
       ['/cad formats', 'Show supported CAD export formats'],
       ['/cad examples', 'Show CAD generation examples'],
       ['/cad status', 'Show CAD system status'],
+
+      // ⚙️ G-code & CNC Operations
       ['/gcode generate <description>', 'Generate G-code from machining description'],
       ['/gcode cnc <description>', 'Generate CNC G-code'],
       ['/gcode 3d <description>', 'Generate 3D printer G-code'],
       ['/gcode laser <description>', 'Generate laser cutter G-code'],
       ['/gcode examples', 'Show G-code generation examples'],
 
-      // Documentation
+      // 📚 Documentation System
       ['/docs', 'Documentation system help'],
       ['/doc-search <query>', 'Search documentation'],
       ['/doc-add <url>', 'Add documentation from URL'],
 
-      // Snapshots & Backup
+      // 📸 Snapshots & Backup
       ['/snapshot <name>', 'Create project snapshot'],
       ['/restore <snapshot-id>', 'Restore from snapshot'],
       ['/snapshots', 'List available snapshots'],
 
-      // Security & Development
+      // 🔒 Security & Development
       ['/security [status|set]', 'Manage security settings'],
       ['/dev-mode [enable|status]', 'Developer mode controls'],
       ['/safe-mode', 'Enable safe mode (maximum security)'],
 
-      // IDE Integration
+      // 🔧 IDE Integration & Monitoring
       ['/diagnostic start', 'Start IDE diagnostic monitoring'],
       ['/diagnostic status', 'Show diagnostic status'],
       ['/monitor [path]', 'Monitor file changes'],
-
-      // Todo & Planning
-      ['/todo [command]', 'Todo list operations'],
-      ['/todos [on|off|status]', 'Show lists; toggle auto‑todos'],
-
-      // Basic System
-      ['/init [--force]', 'Initialize project context'],
-      ['/clear', 'Clear session context'],
-      ['/help', 'Show this help'],
-      ['/exit', 'Exit NikCLI'],
     ]
 
-    const pad = (s: string) => s.padEnd(25)
+    const pad = (s: string) => s.padEnd(32)
     const lines: string[] = []
 
     const addGroup = (title: string, a: number, b: number) => {
       lines.push(title)
       commands.slice(a, b).forEach(([cmd, desc]) => {
-        lines.push(`${pad(cmd)} ${desc}`)
+        lines.push(`   ${pad(cmd)} ${desc}`)
       })
       lines.push('')
     }
 
-    addGroup('🎯 Mode Control:', 0, 4)
-    addGroup('📁 File Operations:', 4, 9)
-    addGroup('⚡ Terminal Operations:', 9, 16)
-    addGroup('🔑 API Keys & Configuration:', 16, 22)
-    addGroup('🔌 Models & AI Configuration:', 22, 28)
-    addGroup('🎨 Output Style Configuration:', 28, 33)
-    addGroup('🚀 Cache & Performance:', 33, 38)
-    addGroup('⚡︎ Agent Management:', 38, 44)
-    addGroup('💾 Memory & Context:', 44, 49)
-    addGroup('📝 Session Management:', 49, 55)
-    addGroup('🐳 VM Container Operations:', 55, 59)
-    addGroup('🌐 Web Browsing & Analysis:', 59, 61)
-    addGroup('🎨 Figma Design Integration:', 61, 67)
-    addGroup('🔗 Blockchain & Web3:', 67, 71)
-    addGroup('🔍 Vision & Images:', 71, 73)
-    addGroup('🛠️ CAD & Manufacturing:', 73, 84)
-    addGroup('⚡︎ Documentation:', 84, 87)
-    addGroup('📸 Snapshots & Backup:', 87, 90)
-    addGroup('🔒 Security & Development:', 90, 93)
-    addGroup('🔧 IDE Integration:', 93, 96)
-    addGroup('📋 Todo & Planning:', 96, 98)
-    addGroup('🏠 Basic System:', 98, commands.length)
+    addGroup('🏠 Core System:', 0, 6)
+    addGroup('🎯 Mode Control:', 6, 10)
+    addGroup('📁 File Operations:', 10, 15)
+    addGroup('⚡ Terminal Operations:', 15, 22)
+    addGroup('🤖 AI Configuration:', 22, 28)
+    addGroup('🎨 Output Styles:', 28, 33)
+    addGroup('🔑 API Keys:', 33, 39)
+    addGroup('🚀 Performance:', 39, 44)
+    addGroup('🤖 Agent Factory:', 44, 53)
+    addGroup('💾 Memory & Context:', 53, 58)
+    addGroup('📋 Planning & Todos:', 58, 60)
+    addGroup('📝 Session Management:', 60, 64)
+    addGroup('🐳 VM Containers:', 64, 68)
+    addGroup('🌐 Web Browsing:', 68, 70)
+    addGroup('🎨 Figma Integration:', 70, 76)
+    addGroup('🔗 Blockchain/Web3:', 76, 80)
+    addGroup('🔍 Vision & Images:', 80, 82)
+    addGroup('🛠️ CAD Design:', 82, 88)
+    addGroup('⚙️ G-code/CNC:', 88, 93)
+    addGroup('📚 Documentation:', 93, 96)
+    addGroup('📸 Snapshots:', 96, 99)
+    addGroup('🔒 Security:', 99, 102)
+    addGroup('🔧 IDE Integration:', 102, commands.length)
 
-    lines.push('💡 Shortcuts: Ctrl+C exit | Esc interrupt | Cmd+Esc default')
+    lines.push('💡 Quick Tips:')
+    lines.push('   • Use Ctrl+C to exit any mode')
+    lines.push('   • Press Esc to interrupt current operation')
+    lines.push('   • Use Cmd+Esc to return to default mode')
+    lines.push('   • Commands support auto-completion with Tab')
 
-    const _maxHeight = this.getAvailablePanelHeight()
     const content = lines.join('\n')
 
-    // Always show full content - no height restrictions
     this.printPanel(
       boxen(content, {
-        title: '⚡︎ Available Slash Commands',
+        title: '⚡︎ NikCLI Command Reference',
         padding: 1,
         margin: 1,
         borderStyle: 'round',
         borderColor: 'cyan',
-        width: Math.min(120, (process.stdout.columns || 100) - 4),
+        width: Math.min(125, (process.stdout.columns || 100) - 4),
       })
     )
   }
@@ -13399,14 +13464,17 @@ This file is automatically maintained by NikCLI to provide consistent context ac
    * Show blueprints panel display
    */
   private showBlueprintsPanel(): void {
+    const pad = (s: string) => s.padEnd(32)
     const blueprintsInfo =
       `${chalk.cyan('📋 Blueprint Management')}\n\n` +
       `${chalk.yellow('Available Operations:')}\n` +
-      `• List all blueprints\n` +
-      `• Create new blueprints\n` +
-      `• Export blueprints to file\n` +
-      `• Import blueprints from file\n` +
-      `• Search by capabilities\n\n` +
+      `• ${pad('List all blueprints')} ${chalk.dim('/blueprints list')}\n` +
+      `• ${pad('Create new blueprints')} ${chalk.dim('/create-agent <name> <spec>')}\n` +
+      `• ${pad('Export blueprints to file')} ${chalk.dim('/blueprints export [file]')}\n` +
+      `• ${pad('Import blueprints from file')} ${chalk.dim('/blueprints import <file>')}\n` +
+      `• ${pad('Search by capabilities')} ${chalk.dim('/blueprints search <query>')}\n` +
+      `• ${pad('Show blueprint details')} ${chalk.dim('/blueprints show <id>')}\n` +
+      `• ${pad('Launch agent from blueprint')} ${chalk.dim('/launch-agent <id>')}\n\n` +
       `${chalk.gray('Note: Blueprint operations require Supabase integration')}\n` +
       `${chalk.dim('Use /blueprint <id> for detailed information')}`
 
@@ -15629,6 +15697,22 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   }
 
   /**
+   * Stream step-by-step progress during parallel execution
+   */
+  private streamAgentSteps(agentName: string, stepId: string, description: string, progress: any): void {
+    this.addLiveUpdate({
+      type: 'step',
+      content: `**${agentName}** - ${description}`,
+      source: agentName,
+      metadata: {
+        stepId,
+        progress,
+        timestamp: new Date().toISOString()
+      }
+    })
+  }
+
+  /**
    * Merge results from all agents into unified output
    */
   private mergeAgentResults(collaborationContext: any): void {
@@ -15652,12 +15736,43 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         }
       }
 
-      // Collect all logs
+      // Process logs in single iteration
       for (const [_agentId, logs] of collaborationContext.logs.entries()) {
         allLogs.push(...logs)
       }
 
-      // Display merged summary
+      // Build unified response content
+      let unifiedResponse = `**🔄 Parallel Execution Results**\n\n`
+      unifiedResponse += `**Task:** ${collaborationContext.task}\n`
+      unifiedResponse += `**Agents:** ${allResults.map(r => r.specialization).join(', ')}\n`
+      unifiedResponse += `**Total Actions:** ${allLogs.length}\n\n`
+
+      // Add individual agent contributions
+      unifiedResponse += `## 📊 Agent Contributions\n\n`
+      allResults.forEach(agentResult => {
+        unifiedResponse += `### ${agentResult.specialization} Agent\n`
+        unifiedResponse += `${agentResult.result.summary}\n\n`
+        if (agentResult.result.components) {
+          unifiedResponse += `**Components:** ${agentResult.result.components.join(', ')}\n\n`
+        }
+      })
+
+      // Add unified recommendations
+      const allRecommendations = allResults
+        .flatMap(r => r.result.recommendations || [])
+        .filter((rec, index, arr) => arr.indexOf(rec) === index) // Remove duplicates
+
+      if (allRecommendations.length > 0) {
+        unifiedResponse += `## 💡 Unified Recommendations\n\n`
+        allRecommendations.forEach(rec => {
+          unifiedResponse += `• ${rec}\n`
+        })
+        unifiedResponse += `\n`
+      }
+
+      unifiedResponse += `---\n**✓ Parallel execution completed successfully**`
+
+      // Display in console for debugging
       console.log(chalk.green(`✓ Task: ${collaborationContext.task}`))
       console.log(chalk.cyan(`✓ Agents: ${allResults.map(r => r.specialization).join(', ')}`))
       console.log(chalk.yellow(`✓ Total Actions: ${allLogs.length}`))
@@ -15672,11 +15787,6 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         }
       })
 
-      // Display unified recommendations
-      const allRecommendations = allResults
-        .flatMap(r => r.result.recommendations || [])
-        .filter((rec, index, arr) => arr.indexOf(rec) === index) // Remove duplicates
-
       if (allRecommendations.length > 0) {
         console.log(chalk.blue('\n💡 Unified Recommendations:'))
         allRecommendations.forEach(rec => {
@@ -15686,6 +15796,37 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       console.log(chalk.gray('\n━'.repeat(60)))
       console.log(chalk.green(`[${timestamp}] ✓ Parallel execution completed successfully\n`))
+
+      // Output final unified response as standard output stream (not live update)
+      console.log(chalk.blue.bold('🔄 Parallel Execution Results'))
+      console.log(chalk.cyan(`📋 Task: ${collaborationContext.task}`))
+      console.log(chalk.cyan(`🤖 Agents: ${allResults.map(r => r.specialization).join(', ')}`))
+      console.log(chalk.cyan(`⚡️ Total Actions: ${allLogs.length}`))
+      console.log('')
+
+      // Display individual agent contributions
+      console.log(chalk.blue('📊 Agent Contributions:'))
+      allResults.forEach(agentResult => {
+        console.log(chalk.white(`\n  ${agentResult.specialization} Agent:`))
+        console.log(chalk.gray(`    ${agentResult.result.summary}`))
+        if (agentResult.result.components) {
+          console.log(chalk.gray(`    Components: ${agentResult.result.components.join(', ')}`))
+        }
+      })
+
+      // Unified recommendations for output stream
+      const finalRecommendations = allResults
+        .flatMap(r => r.result.recommendations || [])
+        .filter((rec, index, arr) => arr.indexOf(rec) === index) // Remove duplicates
+
+      if (finalRecommendations.length > 0) {
+        console.log(chalk.blue('\n💡 Unified Recommendations:'))
+        finalRecommendations.forEach(rec => {
+          console.log(chalk.gray(`  • ${rec}`))
+        })
+      }
+
+      console.log(chalk.green('\n✓ Parallel execution completed successfully'))
 
     } catch (error: any) {
       console.error(chalk.red(`Error merging agent results: ${error.message}`))

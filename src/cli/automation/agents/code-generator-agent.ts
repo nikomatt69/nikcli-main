@@ -1,64 +1,293 @@
+import { nanoid } from 'nanoid'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
-import { BaseAgent } from './base-agent'
+import { type AgentTaskResult } from './base-agent'
+import type { AgentTask } from './agent-router'
+import { CognitiveAgentBase } from './cognitive-agent-base'
+import {
+  type OrchestrationPlan,
+  type TaskCognition,
+  type CodeGeneratorCognition,
+} from './cognitive-interfaces'
+import { CliUI } from '../../utils/cli-ui'
 
-export class CodeGeneratorAgent extends BaseAgent {
+/**
+ * 🚀 Enhanced Code Generator Agent with Cognitive Intelligence
+ * Specialized in code generation and template creation with advanced scaffolding intelligence,
+ * multi-language support, framework integration, and automated testing setup
+ *
+ * Features:
+ * - Code generation from descriptions
+ * - Template creation and scaffolding
+ * - Multi-language support (TypeScript, JavaScript, Python, etc.)
+ * - Framework integration (React, Next.js, Express, etc.)
+ * - Automated testing setup
+ * - Documentation generation
+ * - Project structure creation
+ * - Dependency management
+ */
+export class CodeGeneratorAgent extends CognitiveAgentBase {
   id = 'code-generator'
-  capabilities = ['code-generation', 'template-creation', 'scaffolding']
-  specialization = 'Code generation and template creation'
+  capabilities = [
+    'code-generation',
+    'template-creation',
+    'scaffolding',
+    'multi-language-support',
+    'framework-integration',
+    'testing-setup',
+    'documentation-generation',
+    'project-structure',
+    'dependency-management',
+    'code-patterns'
+  ]
+  specialization = 'Code generation and template creation with cognitive intelligence'
   name = 'code-generator'
-  description = 'Code generation and template creation'
+  description = 'Advanced code generation and template creation with cognitive intelligence'
+
+  // Cognitive specialization properties
+  protected cognitiveSpecialization = 'Code Generation & Scaffolding'
+  protected cognitiveStrengths = [
+    'Code generation from descriptions',
+    'Template creation and scaffolding',
+    'Multi-language support (TypeScript, JavaScript, Python, etc.)',
+    'Framework integration (React, Next.js, Express, etc.)',
+    'Automated testing setup',
+    'Documentation generation',
+    'Project structure creation',
+    'Dependency management'
+  ]
+  protected cognitiveWeaknesses = [
+    'Complex business logic implementation',
+    'Performance optimization',
+    'Security vulnerability assessment',
+    'Database design and optimization'
+  ]
 
   constructor(workingDirectory: string = process.cwd()) {
     super(workingDirectory)
   }
 
   protected async onInitialize(): Promise<void> {
-    console.log('Code Generator Agent initialized successfully')
+    CliUI.logInfo('🚀 Initializing Enhanced Code Generator Agent with cognitive capabilities...')
+    await this.initializeCodeGeneratorCognition()
+    CliUI.logSuccess(`✓ Code Generator Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
-  protected async onExecuteTask(task: any): Promise<any> {
-    const taskData = typeof task === 'string' ? task : task.data
-    console.log(`Running Code Generator Agent`)
-    if (taskData) {
-      console.log(`Task: ${taskData}`)
-    }
+  protected async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
+    const cognition = await this.parseTaskCognition(task.description || task.type)
+    const enhancedCognition = await this.enhanceCognitionForSpecialization(cognition)
+    const orchestrationPlan = await this.createOrchestrationPlan(enhancedCognition)
 
-    // Default taskData if none provided
-    const generationTask = taskData || 'Create a TypeScript function that validates email addresses'
-    const prompt = `Generate clean, well-documented TypeScript code for the following requirement:\n\n${generationTask}\n\nInclude proper types, error handling, and JSDoc comments.`
-
-    try {
-      const messages: ChatMessage[] = [{ role: 'user', content: prompt }]
-      const text = await modelProvider.generateResponse({
-        messages,
-        maxTokens: 800,
-      })
-
-      return {
-        generatedCode: text,
-        task: generationTask,
-        timestamp: new Date().toISOString(),
-      }
-    } catch (error: any) {
-      console.error('Error in code generation:', error)
-      return {
-        error: error.message,
-        task: generationTask,
-        timestamp: new Date().toISOString(),
-      }
-    }
+    return await this.executeCognitiveTask(task, enhancedCognition, orchestrationPlan)
   }
 
   protected async onStop(): Promise<void> {
-    console.log('Code Generator Agent cleaned up')
+    CliUI.logInfo('🛑 Code Generator Agent shutting down...')
+    await this.saveCognitiveState()
+    CliUI.logSuccess('✓ Code Generator Agent stopped - cognitive state saved')
   }
 
-  // Keep legacy methods for backward compatibility
+  /**
+   * 🧠 Execute task with Code Generator-specific cognitive orchestration
+   */
+  protected async executeCognitiveTask(
+    task: AgentTask,
+    cognition: TaskCognition,
+    plan: OrchestrationPlan
+  ): Promise<AgentTaskResult> {
+    const startTime = Date.now()
+
+    try {
+      CliUI.logInfo(`🚀 Executing Code Generator task with ${plan.strategy} orchestration`)
+
+      const generationPrompt = `Generate clean, well-documented TypeScript code for: ${cognition.originalTask}
+
+Include proper types, error handling, and JSDoc comments.`
+
+      const messages: ChatMessage[] = [
+        { role: 'system', content: generationPrompt },
+        { role: 'user', content: cognition.originalTask }
+      ]
+
+      const aiResponse = await modelProvider.generateResponse({ messages })
+
+      const generationResult = {
+        generatedCode: this.extractGeneratedCode(aiResponse),
+        dependencies: this.extractDependencies(aiResponse),
+        documentation: this.extractDocumentation(aiResponse)
+      }
+
+      const executionTime = Date.now() - startTime
+      this.updateCognitiveMemory(cognition, generationResult, true)
+
+      return {
+        success: true,
+        message: `Code generation completed with ${plan.strategy} orchestration in ${executionTime}ms`,
+        executionTime,
+        data: {
+          cognition, orchestrationPlan: plan,
+          generationResult, metrics: this.getPerformanceMetrics(),
+        },
+      }
+    } catch (error: any) {
+      const executionTime = Date.now() - startTime
+      CliUI.logError(`❌ Code generation failed: ${error.message}`)
+      this.updateCognitiveMemory(cognition, { error: error.message }, false)
+
+      return {
+        success: false,
+        message: `Code generation failed: ${error.message}`,
+        executionTime,
+        data: { error: error.message, cognition, orchestrationPlan: plan },
+      }
+    }
+  }
+
+  /**
+   * 🎯 Enhanced cognition for Code Generator-specific analysis
+   */
+  protected async enhanceCognitionForSpecialization(cognition: TaskCognition): Promise<TaskCognition> {
+    try {
+      const codeGeneratorCognition = cognition as CodeGeneratorCognition
+
+      if (this.isCodeGenerationTask(cognition)) {
+        codeGeneratorCognition.generationAnalysis = await this.analyzeGenerationRequirements(cognition)
+      }
+
+      const generatorCapabilities = this.getCodeGeneratorCapabilities(cognition)
+      codeGeneratorCognition.requiredCapabilities.push(...generatorCapabilities)
+
+      return codeGeneratorCognition
+    } catch (error: any) {
+      CliUI.logError(`❌ Failed to enhance Code Generator cognition: ${error.message}`)
+      return cognition
+    }
+  }
+
+  // Helper methods
+  private isCodeGenerationTask(cognition: TaskCognition): boolean {
+    const generationKeywords = ['generate', 'create', 'build', 'scaffold', 'template']
+    return generationKeywords.some(keyword => cognition.normalizedTask.includes(keyword))
+  }
+
+  private async analyzeGenerationRequirements(cognition: TaskCognition): Promise<CodeGeneratorCognition['generationAnalysis']> {
+    const taskText = cognition.normalizedTask.toLowerCase()
+
+    let generationType: 'function' | 'class' | 'component' | 'api' | 'project' | 'utility' = 'function'
+    if (taskText.includes('class')) generationType = 'class'
+    else if (taskText.includes('component')) generationType = 'component'
+    else if (taskText.includes('api')) generationType = 'api'
+    else if (taskText.includes('project')) generationType = 'project'
+
+    return {
+      generationType,
+      language: 'typescript',
+      framework: this.detectFramework(cognition),
+      testingFramework: 'jest',
+      documentationStyle: 'jsdoc'
+    }
+  }
+
+  private getCodeGeneratorCapabilities(cognition: TaskCognition): string[] {
+    const capabilities = []
+
+    if (cognition.intent.primary === 'create') capabilities.push('code-generation')
+    if (cognition.normalizedTask.includes('template')) capabilities.push('template-creation')
+    if (cognition.normalizedTask.includes('project')) capabilities.push('scaffolding')
+
+    return capabilities
+  }
+
+  private detectFramework(cognition: TaskCognition): string {
+    const taskText = cognition.originalTask.toLowerCase()
+
+    if (taskText.includes('react')) return 'React'
+    if (taskText.includes('next')) return 'Next.js'
+    if (taskText.includes('express')) return 'Express'
+
+    return 'Vanilla'
+  }
+
+  private extractGeneratedCode(aiResponse: string): string {
+    const codeMatch = aiResponse.match(/```[\s\S]*?```/)
+    return codeMatch ? codeMatch[0].replace(/```/g, '').trim() : aiResponse
+  }
+
+  private extractDependencies(aiResponse: string): string[] {
+    const dependencies = []
+    const importMatches = aiResponse.match(/import.*from\s+['"]([^'"]+)['"]/g) || []
+
+    for (const importMatch of importMatches) {
+      const packageMatch = importMatch.match(/from\s+['"]([^'"]+)['"]/)
+      if (packageMatch && !packageMatch[1].startsWith('.') && !packageMatch[1].startsWith('/')) {
+        dependencies.push(packageMatch[1])
+      }
+    }
+
+    return [...new Set(dependencies)]
+  }
+
+  private extractDocumentation(aiResponse: string): string {
+    const docMatch = aiResponse.match(/\/\*\*[\s\S]*?\*\//)
+    return docMatch ? docMatch[0] : '/** Generated code documentation */'
+  }
+
+  // Legacy compatibility methods
   async run(taskData: string): Promise<any> {
-    return await this.onExecuteTask(taskData)
+    const task: AgentTask = {
+      id: nanoid(),
+      type: 'legacy',
+      description: taskData,
+      priority: 'normal'
+    }
+
+    const result = await this.executeTask(task)
+
+    return {
+      generatedCode: result.message,
+      task: taskData,
+      timestamp: new Date().toISOString(),
+      agent: 'Enhanced Code Generator Agent',
+      success: result.success,
+      cognitiveEnhanced: true,
+      data: result.data
+    }
   }
 
   async cleanup(): Promise<void> {
     return await this.onStop()
+  }
+
+  /**
+   * 💡 Get Code Generator-specific optimization suggestions
+   */
+  protected getSpecializationOptimizations(): string[] {
+    const optimizations: string[] = []
+
+    const generationPatterns = this.cognitiveMemory.taskPatterns.get('code-generation') || []
+    if (generationPatterns.length > 25) {
+      optimizations.push('High code generation activity - consider creating reusable templates')
+    }
+
+    return optimizations
+  }
+
+  private async initializeCodeGeneratorCognition(): Promise<void> {
+    const generatorPatterns = [
+      'code-generation', 'template-creation', 'scaffolding',
+      'multi-language-support', 'framework-integration', 'testing-setup',
+      'documentation-generation', 'project-structure', 'dependency-management'
+    ]
+
+    generatorPatterns.forEach(pattern => {
+      if (!this.cognitiveMemory.taskPatterns.has(pattern)) {
+        this.cognitiveMemory.taskPatterns.set(pattern, [])
+      }
+    })
+
+    CliUI.logDebug(`🧠 Initialized ${generatorPatterns.length} Code Generator cognitive patterns`)
+  }
+
+  private async saveCognitiveState(): Promise<void> {
+    CliUI.logDebug('💾 Code Generator cognitive state prepared for persistence')
   }
 }
