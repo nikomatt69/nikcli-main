@@ -41,6 +41,19 @@ export class VMOrchestrator extends EventEmitter {
       // Generate unique container name
       const containerName = `nikcli-vm-${config.agentId}-${Date.now()}`
 
+      const volumes = [
+        // Create isolated workspace
+        `${containerName}-workspace:/workspace`,
+        // Persistent toolchain state
+        `${containerName}-nikcli-config:/home/node/.nikcli`,
+        // Shared socket for Docker-in-Docker if needed
+        '/var/run/docker.sock:/var/run/docker.sock',
+      ]
+
+      if (config.localRepoPath) {
+        volumes.push(`${config.localRepoPath}:/workspace/repo`)
+      }
+
       // Container configuration with security and isolation
       const containerConfig = {
         name: containerName,
@@ -50,14 +63,7 @@ export class VMOrchestrator extends EventEmitter {
           SESSION_TOKEN: config.sessionToken,
           PROXY_ENDPOINT: config.proxyEndpoint,
         },
-        volumes: [
-          // Create isolated workspace
-          `${containerName}-workspace:/workspace`,
-          // Persistent toolchain state
-          `${containerName}-nikcli-config:/home/node/.nikcli`,
-          // Shared socket for Docker-in-Docker if needed
-          '/var/run/docker.sock:/var/run/docker.sock',
-        ],
+        volumes,
         ports: [
           // VS Code Server port (randomized for security)
           `${this.generateVSCodePort()}:8080`,
@@ -97,6 +103,8 @@ export class VMOrchestrator extends EventEmitter {
         name: containerName,
         agentId: config.agentId,
         repositoryUrl: config.repositoryUrl,
+        localRepositoryPath: config.localRepoPath,
+        repositoryPath: '/workspace/repo',
         createdAt: new Date(),
         status: 'running',
         vscodePort: this.extractVSCodePort(containerConfig.ports[0]),
@@ -175,38 +183,64 @@ export class VMOrchestrator extends EventEmitter {
   /**
    * Setup repository in container
    */
-  async setupRepository(containerId: string, repositoryUrl: string): Promise<void> {
+  async setupRepository(
+    containerId: string,
+    repositoryUrl: string,
+    options: RepositorySetupOptions = {}
+  ): Promise<void> {
     try {
-      CliUI.logInfo(`📦 Setting up repository ${repositoryUrl} in container`)
+      const containerInfo = this.activeContainers.get(containerId)
+      const useLocalPath =
+        options.useLocalPath ?? Boolean(containerInfo?.localRepositoryPath) ?? this.looksLikeLocalPath(repositoryUrl)
 
-      const setupCommands = [
-        // Configure git to skip SSL verification for this clone (temporary workaround)
-        'git config --global http.sslverify false',
+      const setupMode = useLocalPath ? 'local path' : 'git clone'
+      CliUI.logInfo(`📦 Setting up repository ${repositoryUrl} in container (${setupMode})`)
 
-        // Clone repository to workspace
-        `cd /workspace && git clone ${repositoryUrl} repo`,
+      const setupCommands = useLocalPath
+        ? [
+          // Ensure mounted path exists inside container
+          'if [ ! -d /workspace/repo ]; then echo "Mounted repository not accessible" >&2; exit 1; fi',
 
-        // Re-enable SSL verification
-        'git config --global http.sslverify true',
+          // Print git status when available, otherwise continue
+          'cd /workspace/repo && if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git status; else echo "Directory is not a git repository"; fi',
 
-        // Install dependencies if package.json exists (npm preferred)
-        'cd /workspace/repo && if [ -f package.json ]; then npm install; fi',
+          // Install dependencies if package.json exists (npm preferred)
+          'cd /workspace/repo && if [ -f package.json ]; then (npm install || npm ci || true); fi',
 
-        // Install Python dependencies if requirements.txt exists and pip3 is available
-        'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
+          // Install Python dependencies if requirements.txt exists and pip3 is available
+          'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
+        ]
+        : [
+          // Configure git to skip SSL verification for this clone (temporary workaround)
+          'git config --global http.sslverify false',
 
-        // Make directory accessible
-        'chmod -R 755 /workspace',
-      ]
+          // Clone repository to workspace
+          `cd /workspace && git clone ${repositoryUrl} repo`,
+
+          // Re-enable SSL verification
+          'git config --global http.sslverify true',
+
+          // Install dependencies if package.json exists (npm preferred)
+          'cd /workspace/repo && if [ -f package.json ]; then npm install; fi',
+
+          // Install Python dependencies if requirements.txt exists and pip3 is available
+          'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
+
+          // Make directory accessible
+          'chmod -R 755 /workspace',
+        ]
 
       for (const command of setupCommands) {
         await this.executeCommand(containerId, command)
       }
 
       // Update container info
-      const containerInfo = this.activeContainers.get(containerId)
+
       if (containerInfo) {
         containerInfo.repositoryPath = '/workspace/repo'
+        containerInfo.localRepositoryPath = useLocalPath
+          ? containerInfo.localRepositoryPath || (this.looksLikeLocalPath(repositoryUrl) ? repositoryUrl : undefined)
+          : undefined
         this.activeContainers.set(containerId, containerInfo)
       }
 
@@ -790,6 +824,27 @@ export class VMOrchestrator extends EventEmitter {
     return `${description}${metadata}`
   }
 
+  private looksLikeLocalPath(repositoryTarget: string): boolean {
+    if (!repositoryTarget) {
+      return false
+    }
+
+    if (/^file:\/\//i.test(repositoryTarget)) {
+      return true
+    }
+
+    if (/^[a-zA-Z]:\\/.test(repositoryTarget)) {
+      return true
+    }
+
+    return (
+      repositoryTarget.startsWith('/') ||
+      repositoryTarget.startsWith('./') ||
+      repositoryTarget.startsWith('../') ||
+      repositoryTarget.startsWith('~')
+    )
+  }
+
   /**
    * Setup cleanup handlers for graceful shutdown
    */
@@ -829,9 +884,14 @@ export class VMOrchestrator extends EventEmitter {
 }
 
 // Type definitions
+export interface RepositorySetupOptions {
+  useLocalPath?: boolean
+}
+
 export interface ContainerCreationConfig {
   agentId: string
   repositoryUrl: string
+  localRepoPath?: string
   sessionToken: string
   proxyEndpoint: string
   capabilities: string[]
@@ -842,6 +902,7 @@ export interface ContainerInfo {
   name: string
   agentId: string
   repositoryUrl: string
+  localRepositoryPath?: string
   repositoryPath?: string
   createdAt: Date
   status: 'running' | 'stopped' | 'error'

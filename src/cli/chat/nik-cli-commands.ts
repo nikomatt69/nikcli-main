@@ -178,6 +178,25 @@ export class SlashCommandHandler {
     return Array.from(this.commands.keys())
   }
 
+  /**
+   * Print a boxed panel - identical to nik-cli.ts printPanel
+   */
+  private printPanel(content: string): void {
+    // If CLI instance is available, use its printPanel method for proper status bar handling
+    if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+      this.cliInstance.printPanel(content)
+      return
+    }
+
+    // Fallback: simple output
+    try {
+      console.log(content)
+      console.log('\n'.repeat(2))
+    } catch (error) {
+      console.log(content)
+    }
+  }
+
   private registerCommands(): void {
     this.commands.set('help', this.helpCommand.bind(this))
     this.commands.set('quit', this.quitCommand.bind(this))
@@ -327,6 +346,18 @@ export class SlashCommandHandler {
     this.commands.set('figma-open', this.figmaOpenCommand.bind(this))
     this.commands.set('figma-tokens', this.figmaTokensCommand.bind(this))
     this.commands.set('figma-config', this.figmaConfigCommand.bind(this))
+
+    // Work session management commands
+    this.commands.set('resume', this.resumeSessionCommand.bind(this))
+    this.commands.set('work-sessions', this.workSessionsCommand.bind(this))
+    this.commands.set('save-session', this.saveSessionCommand.bind(this))
+    this.commands.set('delete-session', this.deleteSessionCommand.bind(this))
+    this.commands.set('export-session', this.exportSessionCommand.bind(this))
+
+    // Edit history commands (undo/redo)
+    this.commands.set('undo', this.undoCommand.bind(this))
+    this.commands.set('redo', this.redoCommand.bind(this))
+    this.commands.set('edit-history', this.editHistoryCommand.bind(this))
     this.commands.set('figma-create', this.figmaCreateCommand.bind(this))
   }
 
@@ -381,6 +412,18 @@ ${chalk.blue.bold('Session Management:')}
 ${chalk.cyan('/sessions')} - List all chat sessions
 ${chalk.cyan('/export [sessionId]')} - Export session to markdown
 ${chalk.cyan('/stats')} - Show usage statistics
+
+${chalk.blue.bold('Work Session Management:')}
+${chalk.cyan('/resume [session-id]')} - Resume previous work session
+${chalk.cyan('/work-sessions')} - List all saved work sessions
+${chalk.cyan('/save-session [name]')} - Save current work session
+${chalk.cyan('/delete-session <id>')} - Delete a work session
+${chalk.cyan('/export-session <id> <path>')} - Export work session to file
+
+${chalk.blue.bold('Edit History (Undo/Redo):')}
+${chalk.cyan('/undo [count]')} - Undo last N file edits (default: 1)
+${chalk.cyan('/redo [count]')} - Redo last N undone edits (default: 1)
+${chalk.cyan('/edit-history')} - Show edit history and statistics
 
 ${chalk.blue.bold('Agent Management:')}
 ${chalk.cyan('/agents')} - List all available agents
@@ -509,15 +552,35 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   }
 
   private async clearCommand(): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
     chatManager.clearCurrentSession()
-    console.log(chalk.green('✓ Chat history cleared'))
+
+    this.printPanel(
+      boxen('Chat history cleared successfully', {
+        title: '✓ Session Cleared',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'green',
+      })
+    )
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async modelCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     if (args.length === 0) {
       const current = modelProvider.getCurrentModelInfo()
-      console.log(chalk.green(`Current model: ${current.name} (${current.config.provider})`))
+      this.printPanel(
+        boxen(`${chalk.cyan(current.name)}\nProvider: ${chalk.gray(current.config.provider)}`, {
+          title: '🤖 Current Model',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -627,7 +690,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: 'cyan',
+              borderColor: 'blue',
             })
           )
           break
@@ -665,7 +728,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: 'magenta',
+              borderColor: 'blue',
             })
           )
         }
@@ -698,7 +761,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     if (args.length < 2) {
-      console.log(
+      this.printPanel(
         chalk.red(
           'Usage: /set-key <model|coinbase-id|coinbase-secret|coinbase-wallet-secret|browserbase-api-key|browserbase-project-id> <api-key>'
         )
@@ -765,7 +828,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'cyan',
+          borderColor: 'blue',
         })
       )
       nik?.endPanelOutput?.()
@@ -864,7 +927,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'cyan',
+          borderColor: 'blue',
         })
       )
       nik?.endPanelOutput?.()
@@ -1021,10 +1084,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async vmCreatePRCommand(args: string[]): Promise<CommandResult> {
     if (args.length < 3) {
-      console.log(
+      this.printPanel(
         chalk.red('Usage: /vm-create-pr <container-id> "<title>" "<description>" [branch] [baseBranch] [draft]')
       )
-      console.log(
+      this.printPanel(
         chalk.gray('Example: /vm-create-pr abc123 "Add CI pipeline" "Adds GitHub Actions for CI" feature/ci main true')
       )
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -1144,10 +1207,19 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   }
 
   private async systemCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     if (args.length === 0) {
       const session = chatManager.getCurrentSession()
-      console.log(chalk.green('Current system prompt:'))
-      console.log(chalk.gray(session?.systemPrompt || 'None'))
+      this.printPanel(
+        boxen(session?.systemPrompt || 'None', {
+          title: '🎯 Current System Prompt',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -1173,52 +1245,115 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   }
 
   private async statsCommand(): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
     const stats = chatManager.getSessionStats()
     const modelInfo = modelProvider.getCurrentModelInfo()
 
-    console.log(chalk.blue.bold('\n📊 Usage Statistics:'))
-    console.log(chalk.gray('─'.repeat(40)))
-    console.log(chalk.green(`Current Model: ${modelInfo.name}`))
-    console.log(chalk.green(`Total Sessions: ${stats.totalSessions}`))
-    console.log(chalk.green(`Total Messages: ${stats.totalMessages}`))
-    console.log(chalk.green(`Current Session Messages: ${stats.currentSessionMessages}`))
+    const content = [
+      `Current Model: ${chalk.cyan(modelInfo.name)}`,
+      `Total Sessions: ${chalk.cyan(stats.totalSessions)}`,
+      `Total Messages: ${chalk.cyan(stats.totalMessages)}`,
+      `Current Session Messages: ${chalk.cyan(stats.currentSessionMessages)}`
+    ].join('\n')
+
+    this.printPanel(
+      boxen(content, {
+        title: '📊 Usage Statistics',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'blue',
+      })
+    )
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async temperatureCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     if (args.length === 0) {
-      console.log(chalk.green(`Current temperature: ${configManager.get('temperature')}`))
+      this.printPanel(
+        boxen(`Current temperature: ${chalk.cyan(configManager.get('temperature'))}`, {
+          title: '🌡️ Temperature',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     const temp = parseFloat(args[0])
     if (Number.isNaN(temp) || temp < 0 || temp > 2) {
-      console.log(chalk.red('Temperature must be between 0.0 and 2.0'))
+      this.printPanel(
+        boxen('Temperature must be between 0.0 and 2.0', {
+          title: '❌ Invalid Value',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     configManager.set('temperature', temp)
-    console.log(chalk.green(`✓ Temperature set to ${temp}`))
+    this.printPanel(
+      boxen(`Temperature set to ${chalk.cyan(temp)}`, {
+        title: '✓ Temperature Updated',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'green',
+      })
+    )
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async historyCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     if (args.length === 0) {
       const enabled = configManager.get('chatHistory')
-      console.log(chalk.green(`Chat history: ${enabled ? 'enabled' : 'disabled'}`))
+      this.printPanel(
+        boxen(`Status: ${chalk.cyan(enabled ? 'enabled' : 'disabled')}`, {
+          title: '📜 Chat History',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     const setting = args[0].toLowerCase()
     if (setting !== 'on' && setting !== 'off') {
-      console.log(chalk.red('Usage: /history <on|off>'))
+      this.printPanel(
+        boxen('Usage: /history <on|off>', {
+          title: '❌ Invalid Argument',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     configManager.set('chatHistory', setting === 'on')
-    console.log(chalk.green(`✓ Chat history ${setting === 'on' ? 'enabled' : 'disabled'}`))
+    this.printPanel(
+      boxen(`Chat history ${chalk.cyan(setting === 'on' ? 'enabled' : 'disabled')}`, {
+        title: '✓ History Updated',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'green',
+      })
+    )
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
@@ -1314,7 +1449,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async agentCommand(args: string[]): Promise<CommandResult> {
     if (args.length < 2) {
       console.log(chalk.red('Usage: /agent <name> <task>'))
-      console.log(
+      this.printPanel(
         chalk.gray('Example: /agent coding-agent "analyze this function: function add(a,b) { return a + b; }"')
       )
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -1457,8 +1592,18 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   // File Operations
   private async readFileCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     if (args.length === 0) {
-      console.log(chalk.red('Usage: /read <filepath>'))
+      this.printPanel(
+        boxen('Usage: /read <filepath>', {
+          title: '❌ Missing Argument',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -1466,10 +1611,16 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const filePath = args[0]
       const fileInfo = await toolsManager.readFile(filePath)
 
-      console.log(chalk.blue(`📄 File: ${filePath} (${fileInfo.size} bytes, ${fileInfo.language || 'unknown'})`))
-      console.log(chalk.gray('─'.repeat(50)))
+      this.printPanel(
+        boxen(`File: ${chalk.cyan(filePath)}\nSize: ${chalk.gray(fileInfo.size + ' bytes')}\nLanguage: ${chalk.gray(fileInfo.language || 'unknown')}`, {
+          title: '📄 File Info',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
       console.log(fileInfo.content)
-      console.log(chalk.gray('─'.repeat(50)))
     } catch (error: any) {
       console.log(chalk.red(`❌ Error reading file: ${error.message}`))
     }
@@ -1478,8 +1629,18 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   }
 
   private async writeFileCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     if (args.length < 2) {
-      console.log(chalk.red('Usage: /write <filepath> <content>'))
+      this.printPanel(
+        boxen('Usage: /write <filepath> <content>', {
+          title: '❌ Missing Arguments',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -1495,7 +1656,15 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const approved = await approvalSystem.requestFileApproval(`Write file: ${filePath}`, [fileDiff], 'medium')
 
       if (!approved) {
-        console.log(chalk.yellow('❌ File write operation cancelled'))
+        this.printPanel(
+          boxen('File write operation cancelled', {
+            title: '⚠️ Cancelled',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -1506,56 +1675,117 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       await toolsManager.writeFile(filePath, content)
 
       advancedUI.stopSpinner(writeId, true, `File written: ${filePath}`)
-      console.log(chalk.green(`✓ File written: ${filePath}`))
+      this.printPanel(
+        boxen(`File: ${chalk.cyan(filePath)}\nContent: ${chalk.gray(content.length + ' chars')}`, {
+          title: '✓ File Written',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
     } catch (error: any) {
       advancedUI.logError(`Error writing file: ${error.message}`)
-      console.log(chalk.red(`❌ Error writing file: ${error.message}`))
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ Write Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async editFileCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     if (args.length === 0) {
-      console.log(chalk.red('Usage: /edit <filepath>'))
+      this.printPanel(
+        boxen('Usage: /edit <filepath>', {
+          title: '❌ Missing Argument',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     try {
       const filePath = args[0]
-      console.log(chalk.blue(`📝 Use your system editor to edit: ${filePath}`))
+      this.printPanel(
+        boxen(`Opening ${chalk.cyan(filePath)} in system editor...`, {
+          title: '📝 Edit File',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
 
       // Use system editor
       await toolsManager.runCommand('code', [filePath])
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error opening editor: ${error.message}`))
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ Editor Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async listFilesCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     try {
       const directory = args[0] || '.'
       const files = await toolsManager.listFiles(directory)
 
-      console.log(chalk.blue(`📁 Files in ${directory}:`))
-      console.log(chalk.gray('─'.repeat(40)))
-
       if (files.length === 0) {
-        console.log(chalk.yellow('No files found'))
+        this.printPanel(
+          boxen('No files found', {
+            title: '📁 Empty Directory',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
       } else {
-        files.slice(0, 50).forEach((file) => {
-          // Limit to 50 files
-          console.log(`${chalk.cyan('•')} ${file}`)
-        })
+        const fileList = files.slice(0, 50).map(file => `${chalk.cyan('•')} ${file}`).join('\n')
+        const summary = files.length > 50 ? `\n\n${chalk.gray(`... and ${files.length - 50} more files`)}` : ''
 
-        if (files.length > 50) {
-          console.log(chalk.gray(`... and ${files.length - 50} more files`))
-        }
+        this.printPanel(
+          boxen(`${fileList}${summary}`, {
+            title: `📁 Files in ${directory} (${files.length} total)`,
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          })
+        )
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error listing files: ${error.message}`))
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ List Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -1567,7 +1797,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray('  /search <query> [directory] - Enhanced semantic + text search'))
       console.log(chalk.gray('  /search --semantic <query> [directory] - Semantic search only'))
       console.log(chalk.gray('  /search --text <query> [directory] - Text search only'))
-      console.log(
+      this.printPanel(
         chalk.gray(
           '  /search --web <query> [--type general|technical|documentation|stackoverflow] [--mode results|answer] [--includeContent] [--maxContentBytes N] [--maxResults N]'
         )
@@ -1636,7 +1866,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
         const query = queryParts.join(' ').trim()
         if (!query) {
-          console.log(
+          this.printPanel(
             chalk.red(
               'Usage: /search --web <query> [--type ...] [--mode ...] [--includeContent] [--maxContentBytes N] [--maxResults N]'
             )
@@ -1922,49 +2152,111 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   // Project Operations
   private async buildCommand(): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     try {
-      console.log(chalk.blue('🔨 Building project...'))
+      this.printPanel(
+        boxen('Building project...', {
+          title: '🔨 Build',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
 
       const result = await toolsManager.build()
 
       if (result.success) {
-        console.log(chalk.green('✓ Build completed successfully'))
-      } else {
-        console.log(chalk.red('❌ Build failed'))
-        if (result.errors && result.errors.length > 0) {
-          console.log(chalk.yellow('Errors found:'))
-          result.errors.forEach((error) => {
-            console.log(`  ${chalk.red('•')} ${error.message}`)
+        this.printPanel(
+          boxen('Build completed successfully', {
+            title: '✓ Build Success',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
           })
-        }
+        )
+      } else {
+        const errors = result.errors && result.errors.length > 0
+          ? '\n\n' + result.errors.map(e => `${chalk.red('•')} ${e.message}`).join('\n')
+          : ''
+        this.printPanel(
+          boxen(`Build failed${errors}`, {
+            title: '❌ Build Failed',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error building: ${error.message}`))
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ Build Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async testCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     try {
       const pattern = args[0]
-      console.log(chalk.blue(`🧪 Running tests${pattern ? ` (${pattern})` : ''}...`))
+      this.printPanel(
+        boxen(`Running tests${pattern ? ` with pattern: ${chalk.cyan(pattern)}` : ''}...`, {
+          title: '🧪 Tests',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
 
       const result = await toolsManager.runTests(pattern)
 
       if (result.success) {
-        console.log(chalk.green('✓ All tests passed'))
-      } else {
-        console.log(chalk.red('❌ Some tests failed'))
-        if (result.errors && result.errors.length > 0) {
-          console.log(chalk.yellow('Test errors:'))
-          result.errors.forEach((error) => {
-            console.log(`  ${chalk.red('•')} ${error.message}`)
+        this.printPanel(
+          boxen('All tests passed', {
+            title: '✓ Tests Passed',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
           })
-        }
+        )
+      } else {
+        const errors = result.errors && result.errors.length > 0
+          ? '\n\n' + result.errors.map(e => `${chalk.red('•')} ${e.message}`).join('\n')
+          : ''
+        this.printPanel(
+          boxen(`Some tests failed${errors}`, {
+            title: '❌ Tests Failed',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error running tests: ${error.message}`))
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ Test Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -2032,7 +2324,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(`${chalk.cyan('/vm-remove <id>')}        - Remove container`)
       console.log(`${chalk.cyan('/vm-connect <id>')}       - Connect to container`)
       console.log(`${chalk.cyan('/vm-logs <id>')}          - View container logs`)
-      console.log(
+      this.printPanel(
         `${chalk.cyan('/vm-create-pr <id> "<title>" "<desc>" [branch] [base] [draft]')} - Create PR from container`
       )
       console.log(`${chalk.cyan('/vm-mode')}               - Enter VM chat mode`)
@@ -2072,20 +2364,78 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
   }
 
+  private resolveRepositoryTarget(input: string): { target: string; isLocal: boolean } {
+    const repositoryInput = input?.trim()
+
+    if (!repositoryInput) {
+      throw new Error('A repository URL or local path is required')
+    }
+
+    const gitLikePattern = /^(https?:\/\/|git@)/i
+    if (gitLikePattern.test(repositoryInput)) {
+      return { target: repositoryInput, isLocal: false }
+    }
+
+    if (repositoryInput.startsWith('file://')) {
+      const fileUrl = new URL(repositoryInput)
+      const decodedPath = decodeURIComponent(fileUrl.pathname)
+      return this.resolveRepositoryTarget(decodedPath)
+    }
+
+    let resolvedPath = repositoryInput
+    if (repositoryInput.startsWith('~')) {
+      const homeDir = process.env.HOME || process.env.USERPROFILE
+      if (!homeDir) {
+        throw new Error('Unable to resolve ~ in repository path: HOME directory not set')
+      }
+      resolvedPath = resolve(homeDir, repositoryInput.slice(1))
+    } else {
+      resolvedPath = resolve(repositoryInput)
+    }
+
+    if (!existsSync(resolvedPath)) {
+      throw new Error(`Local repository path not found: ${resolvedPath}`)
+    }
+
+    if (!statSync(resolvedPath).isDirectory()) {
+      throw new Error(`Local repository path must be a directory: ${resolvedPath}`)
+    }
+
+    return { target: resolvedPath, isLocal: true }
+  }
+
   private async vmCreateCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     if (args.length === 0) {
-      console.log(chalk.red('Usage: /vm-create <repository-url>'))
-      console.log(chalk.gray('Example: /vm-create https://github.com/user/repo.git'))
+      this.printPanel(
+        boxen('Usage: /vm-create <repository-url>\n\nExample: /vm-create https://github.com/user/repo.git', {
+          title: '❌ Missing Repository URL',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     try {
-      const repositoryUrl = args[0]
-      console.log(chalk.blue(`🚀 Creating VM container for repository: ${repositoryUrl}`))
+      const { target: repositoryLocation, isLocal } = this.resolveRepositoryTarget(args[0])
+      this.printPanel(
+        boxen(`Creating VM container for:\n${chalk.cyan(repositoryLocation)}`, {
+          title: '🚀 VM Create',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
 
       const config = {
         agentId: `vm-agent-${Date.now()}`,
-        repositoryUrl,
+        repositoryUrl: repositoryLocation,
+        localRepoPath: isLocal ? repositoryLocation : undefined,
         sessionToken: `session-${Date.now()}`,
         proxyEndpoint: 'http://localhost:3000',
         capabilities: ['read', 'write', 'execute', 'network'],
@@ -2094,103 +2444,227 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const containerId = await this.vmOrchestrator.createSecureContainer(config)
 
       // Setup repository and development environment
-      await this.vmOrchestrator.setupRepository(containerId, repositoryUrl)
+      await this.vmOrchestrator.setupRepository(containerId, repositoryLocation, {
+        useLocalPath: isLocal,
+      })
       await this.vmOrchestrator.setupDevelopmentEnvironment(containerId)
       await this.vmOrchestrator.setupVSCodeServer(containerId)
 
       const vscodePort = await this.vmOrchestrator.getVSCodePort(containerId)
 
-      console.log(chalk.green(`✓ VM container created successfully!`))
-      console.log(chalk.gray(`Container ID: ${containerId}`))
-      console.log(chalk.gray(`VS Code Server: http://localhost:${vscodePort}`))
-      console.log(chalk.gray(`Use /vm-connect ${containerId.slice(0, 8)} to interact`))
+      const content = [
+        `Container ID: ${chalk.cyan(containerId)}`,
+        `VS Code Server: ${chalk.cyan('http://localhost:' + vscodePort)}`,
+        `\nConnect with: ${chalk.gray('/vm-connect ' + containerId.slice(0, 8))}`,
+        `\n${chalk.yellow('⚡︎ Switching to VM mode...')}`
+      ].join('\n')
+
+      this.printPanel(
+        boxen(content, {
+          title: '✓ VM Container Created',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
 
       // Automatically switch to VM mode for seamless integration
-      console.log(chalk.cyan(`⚡︎ Switching to VM mode for seamless development...`))
       this.cliInstance.currentMode = 'vm'
 
       // Set the active container for tool routing
       this.cliInstance.activeVMContainer = containerId
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to create VM container: ${error.message}`))
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ VM Creation Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async vmListCommand(): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     try {
       const containers = this.vmOrchestrator.getActiveContainers()
 
-      console.log(chalk.blue.bold('🐳 Active VM Containers'))
-      console.log(chalk.gray('─'.repeat(50)))
-
       if (containers.length === 0) {
-        console.log(chalk.yellow('No active containers'))
-        console.log(chalk.gray('Use /vm-create <repo-url> to create one'))
+        this.printPanel(
+          boxen('No active containers\n\nUse /vm-create <repo-url> to create one', {
+            title: '🐳 VM Containers',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
-      containers.forEach((container) => {
+      const containerList = containers.map((container) => {
         const uptime = Math.round((Date.now() - container.createdAt.getTime()) / 1000 / 60)
-        console.log(`${chalk.cyan('•')} ${chalk.bold(container.id.slice(0, 12))}`)
-        console.log(`  Agent: ${container.agentId}`)
-        console.log(`  Repository: ${container.repositoryUrl}`)
-        console.log(
-          `  Status: ${container.status === 'running' ? chalk.green('running') : chalk.yellow(container.status)}`
-        )
-        console.log(`  VS Code Port: ${container.vscodePort}`)
-        console.log(`  Uptime: ${uptime} minutes`)
-        console.log()
-      })
+        const status = container.status === 'running' ? chalk.green('running') : chalk.yellow(container.status)
+        return [
+          `${chalk.cyan('•')} ${chalk.bold(container.id.slice(0, 12))}`,
+          `  Agent: ${container.agentId}`,
+          `  Repository: ${container.repositoryUrl}`,
+          `  Status: ${status}`,
+          `  VS Code Port: ${container.vscodePort}`,
+          `  Uptime: ${uptime} minutes`,
+          ''
+        ].join('\n')
+      }).join('\n')
+
+      this.printPanel(
+        boxen(containerList, {
+          title: `🐳 Active VM Containers (${containers.length})`,
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to list containers: ${error.message}`))
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ List Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async vmStopCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     if (args.length === 0) {
-      console.log(chalk.red('Usage: /vm-stop <container-id>'))
+      this.printPanel(
+        boxen('Usage: /vm-stop <container-id>', {
+          title: '❌ Missing Container ID',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     try {
       const containerId = args[0]
-      console.log(chalk.blue(`🛑 Stopping container ${containerId}`))
+      this.printPanel(
+        boxen(`Stopping container ${chalk.cyan(containerId)}...`, {
+          title: '🛑 VM Stop',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'yellow',
+        })
+      )
 
       await this.vmOrchestrator.stopContainer(containerId)
-      console.log(chalk.green(`✓ Container ${containerId} stopped`))
+      this.printPanel(
+        boxen(`Container ${chalk.cyan(containerId)} stopped successfully`, {
+          title: '✓ Container Stopped',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to stop container: ${error.message}`))
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ Stop Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async vmRemoveCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     if (args.length === 0) {
-      console.log(chalk.red('Usage: /vm-remove <container-id>'))
+      this.printPanel(
+        boxen('Usage: /vm-remove <container-id>', {
+          title: '❌ Missing Container ID',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
     try {
       const containerId = args[0]
-      console.log(chalk.blue(`🗑️ Removing container ${containerId}`))
+      this.printPanel(
+        boxen(`Removing container ${chalk.cyan(containerId)}...`, {
+          title: '🗑️ VM Remove',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'yellow',
+        })
+      )
 
       await this.vmOrchestrator.removeContainer(containerId)
-      console.log(chalk.green(`✓ Container ${containerId} removed`))
+      this.printPanel(
+        boxen(`Container ${chalk.cyan(containerId)} removed successfully`, {
+          title: '✓ Container Removed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to remove container: ${error.message}`))
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ Remove Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async vmConnectCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
     if (args.length === 0) {
-      console.log(chalk.red('Usage: /vm-connect <container-id>'))
+      this.printPanel(
+        boxen('Usage: /vm-connect <container-id>', {
+          title: '❌ Missing Container ID',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -2200,22 +2674,49 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const container = containers.find((c) => c.id.startsWith(containerId))
 
       if (!container) {
-        console.log(chalk.red(`❌ Container ${containerId} not found`))
-        console.log(chalk.gray('Use /vm-list to see active containers'))
+        this.printPanel(
+          boxen(`Container ${chalk.cyan(containerId)} not found\n\nUse /vm-list to see active containers`, {
+            title: '❌ Container Not Found',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
-      console.log(chalk.green(`🔗 Connected to container ${container.id.slice(0, 12)}`))
-      console.log(chalk.gray(`VS Code Server: http://localhost:${container.vscodePort}`))
-      console.log(chalk.gray(`Repository: ${container.repositoryUrl}`))
-      console.log(chalk.blue('💬 You can now chat directly with the VM agent'))
-      console.log(chalk.gray('Type /vm-mode to enter dedicated VM chat mode'))
+      const content = [
+        `Container ID: ${chalk.cyan(container.id.slice(0, 12))}`,
+        `VS Code Server: ${chalk.cyan('http://localhost:' + container.vscodePort)}`,
+        `Repository: ${chalk.gray(container.repositoryUrl)}`,
+        `\n💬 You can now chat directly with the VM agent`,
+        `Type ${chalk.gray('/vm-mode')} to enter dedicated VM chat mode`
+      ].join('\n')
+
+      this.printPanel(
+        boxen(content, {
+          title: '🔗 Connected to VM',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
 
       // Store current VM connection for chat mode (using session context)
       // configManager.set('currentVMContainer', container.id);
       console.log(chalk.gray(`Container ${container.id} is now active for VM mode`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to connect to container: ${error.message}`))
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ Connection Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: true }
@@ -2307,7 +2808,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const selectedVM = await vmSelector.switchVM()
         if (selectedVM) {
           console.log(chalk.green(`✓ Switched to VM: ${selectedVM.name}`))
-          console.log(
+          this.printPanel(
             chalk.gray(
               `Container: ${selectedVM.containerId.slice(0, 12)} | Repository: ${selectedVM.repositoryUrl || 'N/A'}`
             )
@@ -2324,18 +2825,78 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   }
 
   private async vmDashboardCommand(): Promise<CommandResult> {
-    // Call the enhanced VM Dashboard Panel from nik-cli.ts
-    if (this.cliInstance?.showVMDashboardPanel) {
-      await this.cliInstance.showVMDashboardPanel()
-    } else {
-      // Fallback to simple dashboard
-      console.log(chalk.blue('🐳 VM Dashboard'))
+    const boxen = (await import('boxen')).default
 
-      try {
-        await vmSelector.showVMDashboard()
-      } catch (error: any) {
-        console.log(chalk.red(`❌ Failed to show VM dashboard: ${error.message}`))
+    try {
+      const vms = await vmSelector.getAvailableVMs({ showInactive: true, sortBy: 'status' })
+
+      if (vms.length === 0) {
+        this.printPanel(
+          boxen(
+            `${chalk.yellow('No VM containers found')}\n\n${chalk.gray('Use /vm-create <repo-url> to create your first VM')}`,
+            {
+              title: '🐳 VM Dashboard',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'cyan',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
       }
+
+      // Build dashboard content
+      let content = ''
+
+      // Show currently selected VM
+      const selectedVM = vmSelector.getSelectedVM()
+      if (selectedVM) {
+        content += `${chalk.green.bold('🎯 Currently Selected:')}\n`
+        content += `   ${chalk.cyan(selectedVM.name)}\n`
+        content += `   Container: ${chalk.gray(selectedVM.containerId.slice(0, 12))}\n`
+        content += `   Status: ${this.formatStatus(selectedVM.status)}\n\n`
+      }
+
+      // List all VMs
+      content += `${chalk.white.bold('📋 Available VMs:')}\n`
+      content += chalk.gray('─'.repeat(60)) + '\n\n'
+
+      vms.forEach((vm, index) => {
+        const isSelected = selectedVM?.id === vm.id
+        const prefix = isSelected ? chalk.green('▶ ') : '  '
+        const name = isSelected ? chalk.green.bold(vm.name) : chalk.white(vm.name)
+
+        content += `${prefix}${name} (${chalk.gray(vm.containerId.slice(0, 8))})\n`
+        content += `   Status: ${this.formatStatus(vm.status)}\n`
+        content += `   Repository: ${chalk.gray(vm.repositoryUrl || 'N/A')}\n`
+
+        if (vm.systemInfo) {
+          content += `   System: ${chalk.gray(vm.systemInfo.os + ' ' + vm.systemInfo.arch)}\n`
+        }
+
+        if (index < vms.length - 1) content += '\n'
+      })
+
+      this.printPanel(
+        boxen(content, {
+          title: `🐳 VM Dashboard (${vms.length} containers)`,
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ VM Dashboard Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -2349,7 +2910,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const selectedVM = await vmSelector.selectVM({ interactive: true, sortBy: 'activity' })
         if (selectedVM) {
           console.log(chalk.green(`✓ Selected VM: ${selectedVM.name}`))
-          console.log(
+          this.printPanel(
             chalk.gray(
               `Container: ${selectedVM.containerId.slice(0, 12)} | Repository: ${selectedVM.repositoryUrl || 'N/A'}`
             )
@@ -2382,20 +2943,90 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   // OS-like VM Commands
   private async vmStatusCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
     const vmId = args[0]
 
-    // Call the enhanced VM Status Panel from nik-cli.ts
-    if (this.cliInstance?.showVMStatusPanel) {
-      await this.cliInstance.showVMStatusPanel(vmId)
-    } else {
-      // Fallback to simple status
-      console.log(chalk.blue('🖥️ VM System Status'))
-
-      try {
-        await vmSelector.showVMSystemStatus(vmId)
-      } catch (error: any) {
-        console.log(chalk.red(`❌ Failed to show VM status: ${error.message}`))
+    try {
+      // Determine target VM - use getAvailableVMs to get VMTarget with all info
+      let targetVM: any = null
+      if (vmId) {
+        const vms = await vmSelector.getAvailableVMs({ showInactive: true })
+        targetVM = vms.find((v) => v.id === vmId || v.containerId === vmId)
+      } else {
+        targetVM = vmSelector.getSelectedVM()
       }
+
+      if (!targetVM) {
+        this.printPanel(
+          boxen(
+            `${chalk.yellow('No VM selected or found')}\n\n${chalk.gray('Use /vm-select to choose a VM or provide VM ID')}`,
+            {
+              title: '🖥️ VM System Status',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Build system status content
+      let content = ''
+      content += `${chalk.cyan.bold(targetVM.name || 'Unknown')}\n`
+      content += chalk.gray('─'.repeat(60)) + '\n\n'
+
+      content += `${chalk.white.bold('Container Info:')}\n`
+      content += `   ID: ${chalk.gray(targetVM.containerId.slice(0, 12))}\n`
+      content += `   Status: ${this.formatStatus(targetVM.status)}\n`
+      if (targetVM.repositoryUrl) {
+        content += `   Repository: ${chalk.gray(targetVM.repositoryUrl)}\n`
+      }
+      content += '\n'
+
+      if (targetVM.systemInfo) {
+        content += `${chalk.white.bold('System Information:')}\n`
+        content += `   OS: ${chalk.gray(targetVM.systemInfo.os || 'N/A')}\n`
+        content += `   Arch: ${chalk.gray(targetVM.systemInfo.arch || 'N/A')}\n`
+        if (targetVM.systemInfo.workingDirectory) {
+          content += `   Working Dir: ${chalk.gray(targetVM.systemInfo.workingDirectory)}\n`
+        }
+        if (targetVM.systemInfo.nodeVersion) {
+          content += `   Node: ${chalk.gray(targetVM.systemInfo.nodeVersion)}\n`
+        }
+        if (targetVM.systemInfo.npmVersion) {
+          content += `   npm: ${chalk.gray(targetVM.systemInfo.npmVersion)}\n`
+        }
+        content += '\n'
+      }
+
+      if (targetVM.resourceUsage) {
+        content += `${chalk.white.bold('Resource Usage:')}\n`
+        content += `   Memory: ${chalk.gray(targetVM.resourceUsage.memory || 'N/A')}\n`
+        content += `   CPU: ${chalk.gray(targetVM.resourceUsage.cpu || 'N/A')}\n`
+        content += `   Disk: ${chalk.gray(targetVM.resourceUsage.disk || 'N/A')}\n`
+      }
+
+      this.printPanel(
+        boxen(content, {
+          title: '🖥️ VM System Status',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ VM Status Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -2536,13 +3167,110 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
-  private async vmStatsCommand(): Promise<CommandResult> {
-    console.log(chalk.blue('📊 Generating VM session statistics...'))
+  private async vmStatsCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+    const vmId = args[0]
 
     try {
-      await vmSelector.getVMSessionStats()
+      const vms = await vmSelector.getAvailableVMs({ showInactive: true })
+
+      if (vms.length === 0) {
+        this.printPanel(
+          boxen(`${chalk.yellow('No VM containers found')}`, {
+            title: '📊 VM Session Statistics',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Calculate statistics
+      let totalMessages = 0
+      let activeChats = 0
+      const vmStats: any[] = []
+
+      for (const vm of vms) {
+        const history = vmSelector.getChatHistory(vm.id)
+        const isActive = vm.status === 'running'
+
+        totalMessages += history.length
+        if (isActive && history.length > 0) activeChats++
+
+        vmStats.push({
+          name: vm.name,
+          id: vm.id.slice(0, 8),
+          status: vm.status,
+          messages: history.length,
+          lastActivity: vm.lastActivity || 'Never',
+          isActive,
+        })
+      }
+
+      // Build stats content
+      let content = ''
+
+      // Overview
+      content += `${chalk.white.bold('🎯 Overview:')}\n`
+      content += `   Total VMs: ${chalk.cyan(vms.length)}\n`
+      content += `   Active VMs: ${chalk.green(vms.filter((vm) => vm.status === 'running').length)}\n`
+      content += `   Active Chats: ${chalk.cyan(activeChats)}\n`
+      content += `   Total Messages: ${chalk.cyan(totalMessages)}\n\n`
+
+      // Individual VM stats
+      if (vmId) {
+        // Show stats for specific VM
+        const targetStat = vmStats.find((s) => s.id === vmId.slice(0, 8) || s.name === vmId)
+        if (targetStat) {
+          content += `${chalk.white.bold('📋 VM Details:')}\n`
+          content += chalk.gray('─'.repeat(60)) + '\n\n'
+
+          const statusIcon = targetStat.status === 'running' ? '🟢' : '🔴'
+          const activeIcon = targetStat.isActive && targetStat.messages > 0 ? '💬' : '💤'
+
+          content += `${statusIcon} ${activeIcon} ${chalk.white(targetStat.name)} (${chalk.gray(targetStat.id)})\n`
+          content += `   Messages: ${chalk.cyan(targetStat.messages)}\n`
+          content += `   Status: ${chalk.gray(targetStat.status)}\n`
+          content += `   Last Activity: ${chalk.gray(typeof targetStat.lastActivity === 'object' ? targetStat.lastActivity.toLocaleString() : targetStat.lastActivity)}\n`
+        } else {
+          content += `${chalk.yellow('VM not found: ' + vmId)}\n`
+        }
+      } else {
+        // Show all VM stats
+        content += `${chalk.white.bold('📋 Individual VM Stats:')}\n`
+        content += chalk.gray('─'.repeat(60)) + '\n\n'
+
+        vmStats.forEach((stat) => {
+          const statusIcon = stat.status === 'running' ? '🟢' : '🔴'
+          const activeIcon = stat.isActive && stat.messages > 0 ? '💬' : '💤'
+
+          content += `${statusIcon} ${activeIcon} ${chalk.white(stat.name)} (${chalk.gray(stat.id)})\n`
+          content += `   Messages: ${chalk.cyan(stat.messages)} | Status: ${chalk.gray(stat.status)}\n`
+          content += `   Last Activity: ${chalk.gray(typeof stat.lastActivity === 'object' ? stat.lastActivity.toLocaleString() : stat.lastActivity)}\n\n`
+        })
+      }
+
+      this.printPanel(
+        boxen(content.trim(), {
+          title: '📊 VM Session Statistics',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
     } catch (error: any) {
-      console.log(chalk.red(`❌ Stats generation failed: ${error.message}`))
+      this.printPanel(
+        boxen(`Error: ${error.message}`, {
+          title: '❌ VM Stats Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
@@ -3380,7 +4108,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.cyan.bold('\n🔒 Security Status'))
           console.log(chalk.gray('═'.repeat(50)))
           console.log(`${chalk.blue('Security Mode:')} ${this.formatSecurityMode(securityStatus.mode)}`)
-          console.log(
+          this.printPanel(
             `${chalk.blue('Developer Mode:')} ${securityStatus.devModeActive ? chalk.yellow('Active') : chalk.gray('Inactive')}`
           )
           console.log(`${chalk.blue('Session Approvals:')} ${securityStatus.sessionApprovals}`)
@@ -3408,7 +4136,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         case 'set': {
           if (args.length < 3) {
             console.log(chalk.yellow('Usage: /security set <mode> <value>'))
-            console.log(
+            this.printPanel(
               chalk.gray('Available modes: security-mode, file-ops, git-ops, package-ops, system-cmds, network-reqs')
             )
             break
@@ -3594,7 +4322,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(`\n${index + 1}. ${chalk.bold(blueprint.name)} ${chalk.gray(`(${blueprint.id.slice(0, 8)}...)`)}`)
           console.log(`   Specialization: ${blueprint.specialization}`)
           console.log(`   Autonomy: ${blueprint.autonomyLevel} | Context: ${blueprint.contextScope}`)
-          console.log(
+          this.printPanel(
             `   Capabilities: ${blueprint.capabilities.slice(0, 3).join(', ')}${blueprint.capabilities.length > 3 ? '...' : ''}`
           )
           console.log(`   Created: ${blueprint.createdAt}`)
@@ -3790,7 +4518,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         results.forEach((blueprint, index) => {
           console.log(`${index + 1}. ${chalk.bold(blueprint.name)} ${chalk.gray(`(${blueprint.id.slice(0, 8)}...)`)}`)
           console.log(`   Specialization: ${blueprint.specialization}`)
-          console.log(
+          this.printPanel(
             `   Capabilities: ${blueprint.capabilities.slice(0, 3).join(', ')}${blueprint.capabilities.length > 3 ? '...' : ''}`
           )
           console.log(`   Match: ${this.getMatchReason(query, blueprint)}`)
@@ -3836,7 +4564,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.blue('🎞️Vision Analysis Commands:'))
       console.log('')
       console.log(`${chalk.cyan('/analyze-image <path>')} - Analyze an image file`)
-      console.log(
+      this.printPanel(
         `${chalk.cyan('/analyze-image <path> --provider <claude|openai|google|vercel>')} - Use specific provider`
       )
       console.log(`${chalk.cyan('/analyze-image <path> --prompt "custom prompt"')} - Custom analysis prompt`)
@@ -3946,7 +4674,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             padding: 1,
             margin: 1,
             borderStyle: 'round',
-            borderColor: 'magenta',
+            borderColor: 'blue',
           })
         )
         console.log(chalk.green(`✓ Image analysis completed in ${Date.now() - _startTime}ms`))
@@ -4041,7 +4769,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             padding: 1,
             margin: 1,
             borderStyle: 'round',
-            borderColor: 'cyan',
+            borderColor: 'blue',
           }
         )
       )
@@ -4095,7 +4823,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.blue('🎨 Image Generation Commands:'))
       console.log('')
       console.log(`${chalk.cyan('/generate-image "prompt"')} - Generate an image from text prompt`)
-      console.log(
+      this.printPanel(
         `${chalk.cyan('/generate-image "prompt" --model <dall-e-3|dall-e-2|gpt-image-1>')} - Use specific model`
       )
       console.log(`${chalk.cyan('/generate-image "prompt" --size <1024x1024|1792x1024|1024x1792>')} - Set image size`)
@@ -4293,7 +5021,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             chalk.gray('Env required: CDP_API_KEY_ID, CDP_API_KEY_SECRET, CDP_WALLET_SECRET'),
             chalk.gray('Tip: /set-coin-keys to enter them interactively'),
           ].join('\n'),
-          { title: 'Web3', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+          { title: 'Web3', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }
         )
       )
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -4482,7 +5210,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.yellow('No wallets recorded yet'))
       lines.push(chalk.gray('Run /web3 init to create or connect a wallet'))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
   private formatWeb3UseWalletPanel(result: any): string {
@@ -4498,7 +5226,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Failed to select wallet'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
   private formatWeb3StatusPanel(result: any): string {
     const title = 'Web3 Status'
@@ -4521,7 +5249,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push('')
       lines.push(chalk.yellow('Run /web3 init to set up AgentKit'))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
   private formatWeb3InitPanel(result: any): string {
@@ -4540,7 +5268,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Initialization failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
   private formatWeb3WalletPanel(result: any): string {
@@ -4558,7 +5286,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Failed to fetch wallet info'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
   private formatWeb3BalancePanel(result: any): string {
@@ -4577,7 +5305,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Failed to fetch balance'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
   private formatWeb3TransferPanel({ result, amount, to, token }: any): string {
@@ -4598,7 +5326,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Transfer failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
   private formatWeb3ChatPanel(message: string, result: any): string {
@@ -4627,7 +5355,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
   /**
@@ -5209,7 +5937,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Show stats
       const stats = snapshotService.getSnapshotStats()
-      console.log(
+      this.printPanel(
         chalk.cyan(`📊 Total snapshots: ${stats.totalSnapshots}, Total size: ${this.formatSize(stats.totalSize)}`)
       )
     } catch (error: any) {
@@ -5327,7 +6055,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const size = this.formatSize(snapshot.metadata.size)
 
         console.log(chalk.cyan(`📸 ${snapshot.name}`))
-        console.log(
+        this.printPanel(
           chalk.gray(`   ID: ${id} | Created: ${created} | Size: ${size} | Files: ${snapshot.metadata.fileCount}`)
         )
 
@@ -5348,7 +6076,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Show stats
       const stats = snapshotService.getSnapshotStats()
-      console.log(
+      this.printPanel(
         chalk.cyan(`📊 Total: ${stats.totalSnapshots} snapshots, ${this.formatSize(stats.totalSize)} total size`)
       )
 
@@ -5472,7 +6200,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     console.log(chalk.gray('─'.repeat(40)))
     console.log(chalk.cyan(`User ID: ${personalization.userId}`))
     console.log(chalk.cyan(`Communication Style: ${personalization.communication_style}`))
-    console.log(
+    this.printPanel(
       chalk.cyan(`Preferred Response Length: ${personalization.interaction_patterns.preferred_response_length}`)
     )
     console.log(chalk.cyan(`Preferred Detail Level: ${personalization.interaction_patterns.preferred_detail_level}`))
@@ -5486,7 +6214,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     if (personalization.interaction_patterns.common_tasks.length > 0) {
-      console.log(
+      this.printPanel(
         chalk.cyan(`Common Tasks: ${personalization.interaction_patterns.common_tasks.slice(0, 3).join(', ')}`)
       )
     }
@@ -5655,10 +6383,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Show RAG system stats
       const ragStats = unifiedRAGSystem.getStats()
       console.log(chalk.cyan('\n🤖 RAG System Status:'))
-      console.log(
+      this.printPanel(
         `  Vector DB: ${(ragStats as any).vectorDBAvailable ? chalk.green('Available') : chalk.yellow('Unavailable')}`
       )
-      console.log(
+      this.printPanel(
         `  Workspace RAG: ${(ragStats as any).workspaceRAGAvailable ? chalk.green('Available') : chalk.yellow('Unavailable')}`
       )
       console.log(`  Embeddings cache: ${(ragStats as any).embeddingsCacheSize || 0} items`)
@@ -5847,7 +6575,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Display VCS status
       console.log(`${chalk.blue('Branch:')} ${context.vcsStatus.branch}`)
       if (context.vcsStatus.hasChanges) {
-        console.log(
+        this.printPanel(
           `${chalk.yellow('Changes:')} ${context.vcsStatus.stagedFiles} staged, ${context.vcsStatus.unstagedFiles} unstaged`
         )
       }
@@ -6287,12 +7015,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(chalk.gray('─'.repeat(50)))
         console.log(chalk.blue('📝 Design Tokens Found:'))
         if (data.designDescription.designTokens.colors.length > 0) {
-          console.log(
+          this.printPanel(
             `  ${chalk.green('Colors:')} ${data.designDescription.designTokens.colors.slice(0, 3).join(', ')}${data.designDescription.designTokens.colors.length > 3 ? '...' : ''}`
           )
         }
         if (data.designDescription.designTokens.spacing.length > 0) {
-          console.log(
+          this.printPanel(
             `  ${chalk.green('Spacing:')} ${data.designDescription.designTokens.spacing.slice(0, 3).join(', ')}${data.designDescription.designTokens.spacing.length > 3 ? '...' : ''}`
           )
         }
@@ -6582,6 +7310,431 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
     } catch (error: any) {
       console.error(chalk.red(`Vim command failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  // ====================== WORK SESSION MANAGEMENT COMMANDS ======================
+
+  /**
+   * Resume a work session
+   */
+  private async resumeSessionCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const { workSessionManager } = await import('../persistence/work-session-manager')
+
+      await workSessionManager.initialize()
+
+      // If no session ID provided, show list and let user choose
+      if (args.length === 0) {
+        const sessions = await workSessionManager.listSessions()
+
+        if (sessions.length === 0) {
+          const boxen = (await import('boxen')).default
+          this.printPanel(
+            boxen('No saved work sessions found.\n\nCreate one with: /save-session [name]', {
+              title: '💼 Work Sessions',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const boxen = (await import('boxen')).default
+        const lines: string[] = []
+        lines.push(`Found ${sessions.length} work session(s)\n`)
+
+        sessions.slice(0, 10).forEach((session, index) => {
+          const lastAccessed = new Date(session.lastAccessedAt).toLocaleString()
+          lines.push(`${index + 1}. ${session.name}`)
+          lines.push(`   ID: ${session.id.substring(0, 8)}...`)
+          lines.push(`   Last: ${lastAccessed}`)
+          lines.push(`   ${session.totalEdits} edits | ${session.totalMessages} msgs`)
+          if (index < sessions.length - 1) lines.push('')
+        })
+
+        if (sessions.length > 10) {
+          lines.push('')
+          lines.push(`... and ${sessions.length - 10} more`)
+        }
+
+        lines.push('')
+        lines.push('Usage: /resume <session-id>')
+
+        this.printPanel(
+          boxen(lines.join('\n'), {
+            title: '💼 Available Work Sessions',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          })
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Resume specified session
+      const sessionId = args[0]
+      const session = await workSessionManager.resumeSession(sessionId)
+
+      // Restore chat messages if available
+      if (session.messages.length > 0 && this.cliInstance) {
+        console.log(chalk.blue(`📜 Restoring ${session.messages.length} conversation messages...`))
+        // Restore to chat manager
+        for (const msg of session.messages) {
+          if (msg.role === 'user' || msg.role === 'assistant') {
+            chatManager.addMessage(msg.content, msg.role)
+          }
+        }
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: true }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to resume session: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * List all work sessions
+   */
+  private async workSessionsCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const { workSessionManager } = await import('../persistence/work-session-manager')
+      const boxen = (await import('boxen')).default
+
+      await workSessionManager.initialize()
+
+      const sessions = await workSessionManager.listSessions()
+
+      if (sessions.length === 0) {
+        this.printPanel(
+          boxen('No saved work sessions found.\n\nCreate one with: /save-session [name]', {
+            title: '💼 Work Sessions',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const lines: string[] = []
+      lines.push(`Total: ${sessions.length} session(s)\n`)
+
+      sessions.forEach((session, index) => {
+        const created = new Date(session.createdAt).toLocaleDateString()
+        const lastAccessed = new Date(session.lastAccessedAt).toLocaleString()
+
+        lines.push(`${index + 1}. ${session.name}`)
+        lines.push(`   ID: ${session.id.substring(0, 8)}...`)
+        lines.push(`   Created: ${created}`)
+        lines.push(`   Last: ${lastAccessed}`)
+        lines.push(`   ${session.totalEdits} edits | ${session.totalMessages} msgs | ${session.filesModified} files`)
+
+        if ((session.tags?.length ?? 0) > 0) {
+          lines.push(`   Tags: ${session.tags!.join(', ')}`)
+        }
+
+        if (index < sessions.length - 1) lines.push('')
+      })
+
+      lines.push('')
+      lines.push('Commands:')
+      lines.push('  /resume <id>           Resume session')
+      lines.push('  /delete-session <id>   Delete session')
+      lines.push('  /export-session <id> <path>  Export to file')
+
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '💼 Work Sessions',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      const boxen = (await import('boxen')).default
+      this.printPanel(
+        boxen(`Failed to list sessions:\n${error.message}`, {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * Save current work session
+   */
+  private async saveSessionCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const { workSessionManager } = await import('../persistence/work-session-manager')
+
+      await workSessionManager.initialize()
+
+      const sessionName = args.join(' ') || undefined
+      let currentSession = workSessionManager.getCurrentSession()
+
+      // If no active session, create one
+      if (!currentSession) {
+        currentSession = await workSessionManager.createSession(sessionName)
+        console.log(chalk.green(`✓ New work session created: ${currentSession.name}`))
+      } else {
+        // Update name if provided
+        if (sessionName) {
+          currentSession.name = sessionName
+        }
+
+        // Add current chat messages
+        const messages = chatManager.getMessages()
+        currentSession.messages = messages.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp?.toISOString() || new Date().toISOString(),
+          metadata: {},
+        }))
+
+        await workSessionManager.saveCurrentSession()
+        console.log(chalk.green(`✓ Work session saved: ${currentSession.name}`))
+        console.log(chalk.gray(`   ID: ${currentSession.id}`))
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to save session: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * Delete a work session
+   */
+  private async deleteSessionCommand(args: string[]): Promise<CommandResult> {
+    try {
+      if (args.length === 0) {
+        console.log(chalk.red('❌ Please provide a session ID'))
+        console.log(chalk.dim('Usage: /delete-session <session-id>'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const { workSessionManager } = await import('../persistence/work-session-manager')
+      await workSessionManager.initialize()
+
+      const sessionId = args[0]
+      const success = await workSessionManager.deleteSession(sessionId)
+
+      if (success) {
+        console.log(chalk.green(`✓ Session deleted: ${sessionId}`))
+      } else {
+        console.log(chalk.yellow(`⚠️ Session not found: ${sessionId}`))
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to delete session: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * Export a work session
+   */
+  private async exportSessionCommand(args: string[]): Promise<CommandResult> {
+    try {
+      if (args.length < 2) {
+        console.log(chalk.red('❌ Please provide session ID and export path'))
+        console.log(chalk.dim('Usage: /export-session <session-id> <output-path>'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const { workSessionManager } = await import('../persistence/work-session-manager')
+      await workSessionManager.initialize()
+
+      const sessionId = args[0]
+      const exportPath = args[1]
+
+      await workSessionManager.exportSession(sessionId, exportPath)
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Failed to export session: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  // ====================== EDIT HISTORY COMMANDS (UNDO/REDO) ======================
+
+  /**
+   * Undo file edits
+   */
+  private async undoCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const { workSessionManager } = await import('../persistence/work-session-manager')
+
+      const currentSession = workSessionManager.getCurrentSession()
+      if (!currentSession) {
+        console.log(chalk.yellow('⚠️ No active work session'))
+        console.log(chalk.dim('Start a session with /save-session or resume one with /resume'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const count = args.length > 0 ? parseInt(args[0]) : 1
+
+      if (isNaN(count) || count < 1) {
+        console.log(chalk.red('❌ Invalid count. Please provide a positive number.'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      console.log(chalk.blue(`⏪ Undoing ${count} edit${count > 1 ? 's' : ''}...`))
+
+      const undoneOps = await workSessionManager.undo(count)
+
+      if (undoneOps.length === 0) {
+        console.log(chalk.yellow('⚠️ No operations to undo'))
+      } else {
+        console.log(chalk.green(`✓ Undone ${undoneOps.length} operation${undoneOps.length > 1 ? 's' : ''}`))
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Undo failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * Redo file edits
+   */
+  private async redoCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const { workSessionManager } = await import('../persistence/work-session-manager')
+
+      const currentSession = workSessionManager.getCurrentSession()
+      if (!currentSession) {
+        console.log(chalk.yellow('⚠️ No active work session'))
+        console.log(chalk.dim('Start a session with /save-session or resume one with /resume'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const count = args.length > 0 ? parseInt(args[0]) : 1
+
+      if (isNaN(count) || count < 1) {
+        console.log(chalk.red('❌ Invalid count. Please provide a positive number.'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      console.log(chalk.blue(`⏩ Redoing ${count} edit${count > 1 ? 's' : ''}...`))
+
+      const redoneOps = await workSessionManager.redo(count)
+
+      if (redoneOps.length === 0) {
+        console.log(chalk.yellow('⚠️ No operations to redo'))
+      } else {
+        console.log(chalk.green(`✓ Redone ${redoneOps.length} operation${redoneOps.length > 1 ? 's' : ''}`))
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Redo failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * Show edit history
+   */
+  private async editHistoryCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const { workSessionManager } = await import('../persistence/work-session-manager')
+      const boxen = (await import('boxen')).default
+
+      const currentSession = workSessionManager.getCurrentSession()
+      if (!currentSession) {
+        this.printPanel(
+          boxen(
+            'No active work session.\n\nStart one with: /save-session [name]\nor resume: /resume [session-id]',
+            {
+              title: '↩️ Edit History',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const editHistory = currentSession.editHistory
+      const lines: string[] = []
+
+      lines.push('Stack Status:')
+      lines.push(`  Undo available: ${editHistory.undoStack.length} operations`)
+      lines.push(`  Redo available: ${editHistory.redoStack.length} operations`)
+      lines.push('')
+
+      if (editHistory.undoStack.length > 0) {
+        lines.push('Recent Edits:')
+        lines.push('')
+
+        const recentOps = editHistory.undoStack.slice(-10).reverse()
+        recentOps.forEach((op) => {
+          const timestamp = new Date(op.timestamp).toLocaleTimeString()
+          const icon = op.operation === 'create' ? '🆕' : op.operation === 'delete' ? '🗑️' : '✏️'
+
+          lines.push(`${icon} ${timestamp} - ${op.operation.toUpperCase()}`)
+          lines.push(`   ${op.filePath}`)
+
+          if (op.metadata?.replacementsMade) {
+            lines.push(`   ${op.metadata.replacementsMade} replacement(s) made`)
+          }
+          lines.push('')
+        })
+
+        lines.push('Commands:')
+        lines.push('  /undo [count]   Revert last N edits')
+        lines.push('  /redo [count]   Restore reverted edits')
+      } else {
+        lines.push('No edit history available yet.')
+        lines.push('')
+        lines.push('Edit history is recorded automatically when you')
+        lines.push('modify files during this session.')
+      }
+
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '↩️ Edit History',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      const boxen = (await import('boxen')).default
+      this.printPanel(
+        boxen(`Failed to show history:\n${error.message}`, {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }

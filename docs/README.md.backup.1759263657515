@@ -1,0 +1,78 @@
+# NikCLI Documentation
+
+This directory contains the core documentation files for NikCLI, the autonomous AI development assistant.
+
+## Current Structure
+
+The documentation is organized as follows:
+
+- **Root Files**:
+  - `QUICKSTART.md` - Quick start guide for core features and background agents
+  - `SETUP_GUIDE.md` - Complete setup and configuration instructions
+  - `BACKGROUND_AGENTS.md` - Detailed guide to background agents system
+  - `BOXEN_PANELS.md` - Terminal UI components using Boxen
+  - `WEB_INTERFACE.md` - (Placeholder) Web interface documentation
+  - `ide-diagnostic-server.md` - IDE diagnostic server integration
+  - `QUICK_SETUP.md` - Simplified setup overview
+  - `README.md` - This file
+
+- **Subdirectories** (for future expansion):
+  - `advanced/` - Advanced topics
+  - `agent-system/` - Agent architecture
+  - `api-reference/` - API references
+  - `cli-reference/` - CLI command details
+  - `components/` - System components
+  - `contributing/` - Contribution guidelines
+  - `diagrams/` - Architecture diagrams
+  - `examples/` - Usage examples
+  - `images/` - Documentation images
+  - `logo/` - Branding assets
+  - `quickstart/` - Getting started materials
+  - `troubleshooting/` - Issue resolution
+  - `user-guide/` - User workflows
+
+## Building and Viewing
+
+NikCLI documentation is primarily in Markdown format for easy reading in any editor or GitHub.
+
+For local preview:
+
+```bash
+# Install a Markdown preview tool (optional)
+npx @vscode/vscode-md # Or use VS Code built-in preview
+
+# Or use a static site generator like Docusaurus (future)
+yarn install docusaurus
+yarn docusaurus start
+```
+
+## Key Topics Covered
+
+- **Core CLI Usage**: Interactive assistant with /commands
+- **Background Agents**: Asynchronous job management with nikctl and nikd
+- **AI Integration**: Multiple providers (Anthropic, OpenAI, Ollama)
+- **Tool Ecosystem**: File operations, Git, package management
+- **Security Policies**: Execution safeguards and best practices
+- **Setup and Configuration**: Environment variables and deployment
+
+## Contributing to Documentation
+
+1. **Add New Files**: Create .md files in appropriate subdirectories
+2. **Update Existing**: Edit content to reflect current CLI reality
+3. **Standards**:
+   - Use consistent Markdown formatting
+   - Include code examples with `bash or `typescript
+   - Add links to related sections
+   - Keep language clear and concise
+4. **Review**: Submit PR with changes to docs/
+
+For full contribution guidelines, see the root [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+## Future Plans
+
+- Expand subdirectories with detailed guides
+- Add API reference for background agents server
+- Include screenshots and diagrams
+- Integrate with documentation site generator
+
+**Note**: This documentation mirrors the current NikCLI CLI capabilities. Update files as features evolve.

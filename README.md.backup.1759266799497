@@ -1,4 +1,3 @@
-// TODO: Consider refactoring for reduced complexity
 # NikCLI - Context-Aware AI Development Assistant
 
 **Transform your development workflow with intelligent AI agents that understand your code, execute commands, and build applications autonomously.**
@@ -99,7 +98,6 @@ nikcli
 - 🤖 [Agent System](https://nikcli.mintlify.app/agent-system/overview)
 - 🔨 [Configuration](https://nikcli.mintlify.app/configuration)
 - 🔨 [Development Guide](https://nikcli.mintlify.app/contributing/development)
-- 📝 [Vim Integration Guide](https://nikcli.mintlify.app/features/vim-mode) (New!)
 
 ## ✨ Key Features
 
@@ -110,18 +108,6 @@ nikcli
 - **📊 Multiple AI Providers**: Claude, GPT, Gemini, Ollama support
 - **📦 Universal Package Manager Support**: Works with npm, yarn, pnpm, and bun
 - **🚀 Production Ready**: Comprehensive testing and enterprise-grade architecture
-
-### 🆕 **Vim Mode Integration (v0.2.3+)**
-
-NikCLI now includes seamless Vim integration for developers who prefer modal editing within the CLI ecosystem:
-
-- **Auto-Configured Vim**: Generates .vimrc with vim-plug, popular plugins (NERDTree, ALE linter, Gruvbox theme), and custom mappings (e.g., jj to escape, leader-w to save).
-- **Commands**: `/vim setup` (install config), `/vim open <file>` (edit with session tracking), `/vim diff <file1> <file2>`, `/vim quick-edit`, `/vim config add-plugin`.
-- **AI-Enhanced Editing**: Use agents inside Vim sessions, e.g., `/agent code-review` while editing for real-time suggestions.
-- **Session Management**: Auto-saves sessions to `~/.vim/sessions`, tracks active edits.
-- **Requirements**: System Vim installed; NikCLI spawns processes securely.
-
-This brings terminal-grade editing power directly into your AI development workflow!
 
 ### 🆕 New CLI UI Enhancements (v+)
 
@@ -157,10 +143,6 @@ nikcli
 
 # Use diff viewer for changes
 /diff compare --file myfile.js
-
-# Setup and use Vim integration
-/vim setup
-/vim open src/main.ts
 
 # Help and commands
 /help

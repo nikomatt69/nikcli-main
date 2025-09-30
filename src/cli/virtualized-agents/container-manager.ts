@@ -62,7 +62,7 @@ export class ContainerManager extends EventEmitter {
       })
 
       // Volumes
-      ;(config.volumes || []).forEach((volume) => args.push('-v', volume))
+      ;(config.volumes || []).forEach((volume) => args.push('-v', this.shellQuote(volume)))
 
       // Ports
       ;(config.ports || []).forEach((port) => args.push('-p', port))
@@ -407,6 +407,14 @@ export class ContainerManager extends EventEmitter {
     }
 
     return multipliers[unit] || 1
+  }
+
+  private shellQuote(value: string): string {
+    if (/^[A-Za-z0-9._\/-=:]+$/.test(value)) {
+      return value
+    }
+
+    return `'${value.replace(/'/g, "'\\''")}'`
   }
 
   private isWarningOnly(stderr: string): boolean {
