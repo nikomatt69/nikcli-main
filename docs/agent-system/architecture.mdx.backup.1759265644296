@@ -13,8 +13,7 @@ NikCLI's agent system is the core of its autonomous development capabilities. Bu
     Comprehensive agent with 35 full-stack development capabilities
   </Card>
   <Card title="VM Agent" icon="container">
-    Secure virtualized agent with 20 specialized capabilities for isolated
-    development
+    Secure virtualized agent with 20 specialized capabilities for isolated development
   </Card>
   <Card title="Agent Orchestration" icon="workflow">
     Coordinated execution with dependency management
@@ -310,58 +309,26 @@ The **Universal Agent** is NikCLI's flagship agent with 35 comprehensive develop
 class UniversalAgent extends BaseAgent {
   capabilities = [
     // Core capabilities (7)
-    "code-generation",
-    "code-analysis",
-    "code-review",
-    "optimization",
-    "debugging",
-    "refactoring",
-    "testing",
-
-    // Frontend capabilities (11)
-    "react",
-    "nextjs",
-    "typescript",
-    "javascript",
-    "html",
-    "css",
-    "frontend",
-    "components",
-    "hooks",
-    "jsx",
-    "tsx",
-
+    "code-generation", "code-analysis", "code-review",
+    "optimization", "debugging", "refactoring", "testing",
+    
+    // Frontend capabilities (11)  
+    "react", "nextjs", "typescript", "javascript",
+    "html", "css", "frontend", "components", "hooks", "jsx", "tsx",
+    
     // Backend capabilities (8)
-    "backend",
-    "nodejs",
-    "api-development",
-    "database",
-    "server-architecture",
-    "rest-api",
-    "graphql",
-    "microservices",
-
+    "backend", "nodejs", "api-development", "database",
+    "server-architecture", "rest-api", "graphql", "microservices",
+    
     // DevOps capabilities (8)
-    "devops",
-    "ci-cd",
-    "docker",
-    "kubernetes",
-    "deployment",
-    "infrastructure",
-    "monitoring",
-    "security",
-
+    "devops", "ci-cd", "docker", "kubernetes",
+    "deployment", "infrastructure", "monitoring", "security",
+    
     // Analysis capabilities (5)
-    "file-operations",
-    "project-creation",
-    "autonomous-coding",
-    "system-administration",
-    "full-stack-development",
-    "performance-analysis",
-    "security-analysis",
-    "quality-assessment",
-    "architecture-review",
-    "documentation-generation",
+    "file-operations", "project-creation", "autonomous-coding",
+    "system-administration", "full-stack-development",
+    "performance-analysis", "security-analysis", "quality-assessment",
+    "architecture-review", "documentation-generation"
   ];
 
   async executeTask(task: AgentTask): Promise<AgentExecution> {
@@ -389,40 +356,27 @@ class UniversalAgent extends BaseAgent {
 
 ```typescript
 class SecureVirtualizedAgent extends BaseAgent {
-  specialization = "Virtualized Autonomous Development";
-
+  specialization = 'Virtualized Autonomous Development';
+  
   capabilities = [
     // VM-specific capabilities (7)
-    "vm-management",
-    "container-orchestration",
-    "isolated-execution",
-    "repository-cloning",
-    "vscode-server",
-    "autonomous-development",
-    "pull-request-automation",
-
+    'vm-management', 'container-orchestration', 'isolated-execution',
+    'repository-cloning', 'vscode-server', 'autonomous-development',
+    'pull-request-automation',
+    
     // Repository management (5)
-    "repository-analysis",
-    "dependency-management",
-    "testing-automation",
-    "documentation-generation",
-    "code-quality-analysis",
-
+    'repository-analysis', 'dependency-management', 'testing-automation',
+    'documentation-generation', 'code-quality-analysis',
+    
     // Security capabilities (5)
-    "secure-api-communication",
-    "token-budget-management",
-    "audit-logging",
-    "resource-isolation",
-    "credential-management",
-
+    'secure-api-communication', 'token-budget-management', 'audit-logging',
+    'resource-isolation', 'credential-management',
+    
     // Development workflows (3)
-    "full-stack-development",
-    "ci-cd-integration",
-    "git-operations",
-    "package-management",
-    "environment-setup",
+    'full-stack-development', 'ci-cd-integration', 'git-operations',
+    'package-management', 'environment-setup'
   ];
-
+  
   async executeInContainer(task: AgentTask): Promise<ContainerExecution> {
     // Secure container-based execution
   }
@@ -432,7 +386,7 @@ class SecureVirtualizedAgent extends BaseAgent {
 **20 Specialized Capabilities:**
 
 - **VM Operations** (7): Container management, orchestration, isolation, repository cloning, VS Code server
-- **Repository Management** (5): Analysis, dependency management, testing automation, documentation, quality analysis
+- **Repository Management** (5): Analysis, dependency management, testing automation, documentation, quality analysis  
 - **Security Features** (5): Secure communication, token management, audit logging, resource isolation
 - **Development Workflows** (3): Full-stack development, CI/CD integration, Git operations
 

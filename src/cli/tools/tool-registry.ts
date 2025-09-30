@@ -268,6 +268,26 @@ export class ToolRegistry {
       supportedFileTypes: ['*'],
       tags: ['read', 'filesystem'],
     })
+    this.registerTool('multi-read-tool', new MultiReadTool(workingDirectory), {
+      description: 'Read file contents with security validation',
+      category: 'filesystem',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 2000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['read', 'filesystem'],
+    })
+    this.registerTool('read-file-tool', new ReadFileTool(workingDirectory), {
+      description: 'Read file contents with security validation',
+      category: 'filesystem',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 2000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['read', 'filesystem'],
+    })
 
     this.registerTool('write-file-tool', new WriteFileTool(workingDirectory), {
       description: 'Write files with backup and validation',

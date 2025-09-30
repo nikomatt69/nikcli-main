@@ -2349,10 +2349,6 @@ export class NikCLI {
       // Route commands
       if (actualInput.startsWith('/')) {
         await this.dispatchSlash(actualInput)
-      } else if (actualInput.startsWith('@')) {
-        await this.dispatchAt(actualInput)
-      } else if (actualInput.startsWith('*')) {
-        await this.dispatchStar(actualInput)
       } else {
         await this.handleChatInput(optimizedInput)
       }
@@ -2391,10 +2387,6 @@ export class NikCLI {
         // Route slash and agent-prefixed commands, otherwise treat as chat
         if (input.startsWith('/')) {
           await this.dispatchSlash(input)
-        } else if (input.startsWith('@')) {
-          await this.dispatchAt(input)
-        } else if (input.startsWith('*')) {
-          await this.dispatchStar(input)
         } else {
           await this.handleChatInput(input)
         }
@@ -2974,6 +2966,121 @@ export class NikCLI {
           await this.shutdown()
           return
 
+        // Work Session Management
+        case 'resume':
+          await this.handleResumeCommand(args)
+          break
+        case 'work-sessions':
+          await this.handleWorkSessionsList()
+          break
+        case 'save-session':
+          await this.handleSaveSessionCommand(args)
+          break
+        case 'delete-session':
+          await this.handleDeleteSessionCommand(args)
+          break
+        case 'export-session':
+          await this.handleExportSessionCommand(args)
+          break
+
+        // Edit History (Undo/Redo)
+        case 'undo':
+          await this.handleUndoCommand(args)
+          break
+        case 'redo':
+          await this.handleRedoCommand(args)
+          break
+        case 'edit-history':
+          await this.handleEditHistoryCommand()
+          break
+
+        // VM Container Detailed Commands
+        case 'vm-create':
+        case 'vm-list':
+        case 'vm-stop':
+        case 'vm-remove':
+        case 'vm-connect':
+        case 'vm-create-pr':
+        case 'vm-logs':
+        case 'vm-mode':
+        case 'vm-switch':
+        case 'vm-dashboard':
+        case 'vm-select':
+        case 'vm-status':
+        case 'vm-exec':
+        case 'vm-ls':
+        case 'vm-broadcast':
+        case 'vm-health':
+        case 'vm-backup':
+        case 'vm-stats':
+          await this.handleVMContainerCommands(cmd, args)
+          break
+
+        // Vision & Image Commands
+        case 'analyze-image':
+        case 'vision':
+        case 'generate-image':
+        case 'images':
+        case 'create-image':
+          await this.handleVisionCommands(cmd, args)
+          break
+
+        // Memory Commands
+        case 'remember':
+        case 'recall':
+        case 'forget':
+          await this.handleMemoryCommands(cmd, args)
+          break
+
+        // Blueprint Commands
+        case 'blueprint':
+        case 'delete-blueprint':
+        case 'export-blueprint':
+        case 'import-blueprint':
+        case 'search-blueprints': {
+          const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
+          if (result.shouldExit) {
+            await this.shutdown()
+            return
+          }
+          break
+        }
+
+        // Web3 Commands
+        case 'web3':
+        case 'blockchain':
+          await this.handleWeb3Commands(cmd, args)
+          break
+
+        // Miscellaneous Commands
+        case 'env':
+          await this.handleEnvCommand(args)
+          break
+        case 'auto':
+          await this.handleAutoCommand(args)
+          break
+        case 'super-compact':
+          await this.handleSuperCompactCommand()
+          break
+        case 'plan-clean':
+          await this.handlePlanCleanCommand()
+          break
+        case 'todo-hide':
+          await this.handleTodoHideCommand()
+          break
+        case 'todo-show':
+          await this.handleTodoShowCommand()
+          break
+        case 'index':
+          await this.handleIndexCommand(args)
+          break
+        case 'router':
+          await this.handleRouterCommand(args)
+          break
+        case 'figma-open':
+          await this.handleFigmaOpenCommand(args)
+          break
+
         default: {
           const result = await this.slashHandler.handle(command)
           if (result.shouldExit) {
@@ -3006,58 +3113,7 @@ export class NikCLI {
     this.renderPromptAfterOutput()
   }
 
-  /**
-   * Handle * file selection and tagging commands
-   */
-  private async dispatchStar(input: string): Promise<void> {
-    const trimmed = input.slice(1).trim() // Remove * and trim
 
-    console.log(chalk.cyan('🔍 Interactive File Picker'))
-    console.log(chalk.gray('─'.repeat(50)))
-
-    try {
-      // If no pattern provided, show current directory
-      const pattern = trimmed || '*'
-      const pickerId = `file-picker-${Date.now()}`
-
-      this.createStatusIndicator(pickerId, `Finding files: ${pattern}`)
-      this.startAdvancedSpinner(pickerId, 'Scanning files...')
-
-      // Use the FilePickerHandler for better file selection management
-      const { FilePickerHandler } = await import('./handlers/file-picker-handler')
-      const filePickerHandler = new FilePickerHandler(this.workingDirectory)
-
-      try {
-        const selection = await filePickerHandler.selectFiles(pattern, {
-          maxDisplay: 50,
-          maxFilesPerDirectory: 10,
-          showIcons: true,
-          groupByDirectory: true,
-        })
-
-        this.stopAdvancedSpinner(pickerId, true, `Selected ${selection.files.length} files`)
-
-        // Store selection in our internal system for reference
-        this.storeSelectedFiles(selection.files, pattern)
-      } catch (selectionError: any) {
-        this.stopAdvancedSpinner(pickerId, false, 'No files found')
-
-        console.log(chalk.yellow(selectionError.message))
-        console.log(chalk.dim('Try different patterns like:'))
-        console.log(chalk.dim('  * *.ts     - TypeScript files'))
-        console.log(chalk.dim('  * src/**   - Files in src directory'))
-        console.log(chalk.dim('  * **/*.js  - JavaScript files recursively'))
-        console.log(chalk.dim('  * *.json   - Configuration files'))
-        console.log(chalk.dim('  * test/**  - Test files'))
-      }
-    } catch (error: any) {
-      console.log(chalk.red(`Error during file search: ${error.message}`))
-    }
-
-    // Ensure output is flushed and visible before showing prompt
-    console.log()
-    this.renderPromptAfterOutput()
-  }
 
   /**
    * Store selected files in session context for future reference
@@ -9703,11 +9759,37 @@ EOF`
       ['/history <on|off>', 'Enable/disable chat history'],
       ['/export [sessionId]', 'Export session to markdown'],
 
+      // 💼 Work Session Management
+      ['/resume [session-id]', 'Resume previous work session'],
+      ['/work-sessions', 'List all saved work sessions'],
+      ['/save-session [name]', 'Save current work session'],
+      ['/delete-session <id>', 'Delete a work session'],
+      ['/export-session <id> <path>', 'Export work session to file'],
+
+      // ↩️ Edit History (Undo/Redo)
+      ['/undo [count]', 'Undo last N file edits (default: 1)'],
+      ['/redo [count]', 'Redo last N undone edits (default: 1)'],
+      ['/edit-history', 'Show edit history and statistics'],
+
       // 🐳 VM Container Operations
       ['/vm-create <repo-url>', 'Create new VM container'],
       ['/vm-list', 'List all active containers'],
       ['/vm-connect <id>', 'Connect to specific container'],
+      ['/vm-stop <id>', 'Stop running container'],
+      ['/vm-remove <id>', 'Remove container'],
       ['/vm-create-pr <id> "<title>" "<desc>"', 'Create PR from container'],
+      ['/vm-logs <id>', 'View container logs'],
+      ['/vm-mode <mode>', 'Set VM execution mode'],
+      ['/vm-switch <id>', 'Switch active VM context'],
+      ['/vm-dashboard', 'Show VM dashboard overview'],
+      ['/vm-select', 'Interactively select VM container'],
+      ['/vm-status <id>', 'Show detailed container status'],
+      ['/vm-exec <id> <command>', 'Execute command in container'],
+      ['/vm-ls <id> [path]', 'List files in container'],
+      ['/vm-broadcast <command>', 'Broadcast command to all VMs'],
+      ['/vm-health', 'Check health of all containers'],
+      ['/vm-backup <id>', 'Create container backup'],
+      ['/vm-stats <id>', 'Show container resource stats'],
 
       // 🌐 Web Browsing & Analysis
       ['/browse <url>', 'Browse web page and extract content'],
@@ -9790,17 +9872,19 @@ EOF`
     addGroup('💾 Memory & Context:', 53, 58)
     addGroup('📋 Planning & Todos:', 58, 60)
     addGroup('📝 Session Management:', 60, 64)
-    addGroup('🐳 VM Containers:', 64, 68)
-    addGroup('🌐 Web Browsing:', 68, 70)
-    addGroup('🎨 Figma Integration:', 70, 76)
-    addGroup('🔗 Blockchain/Web3:', 76, 80)
-    addGroup('🔍 Vision & Images:', 80, 82)
-    addGroup('🛠️ CAD Design:', 82, 88)
-    addGroup('⚙️ G-code/CNC:', 88, 93)
-    addGroup('📚 Documentation:', 93, 96)
-    addGroup('📸 Snapshots:', 96, 99)
-    addGroup('🔒 Security:', 99, 102)
-    addGroup('🔧 IDE Integration:', 102, commands.length)
+    addGroup('💼 Work Session Management:', 64, 69)
+    addGroup('↩️ Edit History (Undo/Redo):', 69, 72)
+    addGroup('🐳 VM Containers:', 72, 90)
+    addGroup('🌐 Web Browsing:', 90, 92)
+    addGroup('🎨 Figma Integration:', 92, 98)
+    addGroup('🔗 Blockchain/Web3:', 98, 102)
+    addGroup('🔍 Vision & Images:', 102, 104)
+    addGroup('🛠️ CAD Design:', 104, 110)
+    addGroup('⚙️ G-code/CNC:', 110, 115)
+    addGroup('📚 Documentation:', 115, 118)
+    addGroup('📸 Snapshots:', 118, 121)
+    addGroup('🔒 Security:', 121, 124)
+    addGroup('🔧 IDE Integration:', 124, commands.length)
 
     lines.push('💡 Quick Tips:')
     lines.push('   • Use Ctrl+C to exit any mode')
@@ -12972,6 +13056,742 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           borderColor: 'red',
         })
       )
+    }
+  }
+
+  /**
+   * Panelized Resume Session command
+   */
+  private async handleResumeCommand(args: string[]): Promise<void> {
+    try {
+      const { workSessionManager } = await import('./persistence/work-session-manager')
+
+      if (args.length === 0) {
+        // Show list of available sessions
+        const sessions = await workSessionManager.listSessions()
+
+        if (sessions.length === 0) {
+          this.printPanel(
+            boxen('No saved sessions found.\n\nUse /save-session to create a new session.', {
+              title: '💼 Work Sessions',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return
+        }
+
+        const lines: string[] = []
+        lines.push(`Found ${sessions.length} saved session(s)\n`)
+        sessions.slice(0, 10).forEach((s, idx) => {
+          const date = new Date(s.lastAccessedAt).toLocaleString()
+          lines.push(`${idx + 1}. ${s.name}`)
+          lines.push(`   ID: ${s.id}`)
+          lines.push(`   Last accessed: ${date}`)
+          lines.push(`   Edits: ${s.totalEdits} | Messages: ${s.totalMessages} | Files: ${s.filesModified}`)
+          if (idx < sessions.length - 1) lines.push('')
+        })
+        lines.push('\nUse /resume <session-id> to resume a session')
+
+        this.printPanel(
+          boxen(lines.join('\n'), {
+            title: '💼 Available Work Sessions',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          })
+        )
+        return
+      }
+
+      const sessionId = args[0]
+      const session = await workSessionManager.resumeSession(sessionId)
+
+      // Restore messages to chat manager
+      if (session.messages.length > 0) {
+        // Create new chat session without system prompt to avoid duplicate system message
+        const newChatSession = chatManager.createNewSession(session.name, undefined)
+
+        // Directly populate messages array to avoid side effects
+        // This prevents duplicate messages and avoids triggering history trim
+        if (newChatSession) {
+          newChatSession.messages = session.messages.map((msg) => {
+            let timestamp: Date
+            try {
+              timestamp = new Date()
+              // Validate date is not Invalid Date
+              if (isNaN(timestamp.getTime())) {
+                timestamp = new Date()
+              }
+            } catch (error) {
+              timestamp = new Date()
+            }
+
+            return {
+              role: msg.role as 'user' | 'assistant' | 'system',
+              content: msg.content || '',
+              timestamp,
+            }
+          })
+
+          try {
+            newChatSession.updatedAt = new Date(session.updatedAt)
+            // Validate date
+            if (isNaN(newChatSession.updatedAt.getTime())) {
+              newChatSession.updatedAt = new Date()
+            }
+          } catch (error) {
+            newChatSession.updatedAt = new Date()
+          }
+        }
+
+        console.log(chalk.blue(`✓ Restored ${session.messages.length} messages to chat session "${session.name}"`))
+      }
+
+      this.printPanel(
+        boxen(`Session resumed: ${session.name}\n\nMessages: ${session.metadata.totalMessages}\nEdits: ${session.metadata.totalEdits}\nFiles modified: ${session.stats.filesModified}`, {
+          title: '✓ Session Resumed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Failed to resume session: ${error.message}`, {
+          title: '❌ Resume Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Panelized Work Sessions List
+   */
+  private async handleWorkSessionsList(): Promise<void> {
+    try {
+      const { workSessionManager } = await import('./persistence/work-session-manager')
+      const sessions = await workSessionManager.listSessions()
+
+      if (sessions.length === 0) {
+        this.printPanel(
+          boxen('No saved sessions found.\n\nUse /save-session <name> to create a new session.', {
+            title: '💼 Work Sessions',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const lines: string[] = []
+      lines.push(`Total sessions: ${sessions.length}\n`)
+      sessions.forEach((s, idx) => {
+        const created = new Date(s.createdAt).toLocaleString()
+        const accessed = new Date(s.lastAccessedAt).toLocaleString()
+        const tags = (s.tags?.length ?? 0) > 0 ? ` [${s.tags!.join(', ')}]` : '';
+
+        lines.push(`${idx + 1}. ${s.name}${tags}`)
+        lines.push(`   ID: ${s.id}`)
+        lines.push(`   Created: ${created}`)
+        lines.push(`   Last accessed: ${accessed}`)
+        lines.push(`   Stats: ${s.totalEdits} edits, ${s.totalMessages} messages, ${s.filesModified} files`)
+        if (idx < sessions.length - 1) lines.push('')
+      })
+
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '💼 All Work Sessions',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Failed to list sessions: ${error.message}`, {
+          title: '❌ List Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Panelized Save Session command
+   */
+  private async handleSaveSessionCommand(args: string[]): Promise<void> {
+    try {
+      const { workSessionManager } = await import('./persistence/work-session-manager')
+
+      // Get current chat session messages
+      const chatSession = chatManager.getCurrentSession()
+      const chatMessages = (chatSession?.messages || []).filter(
+        (msg) => msg.role && msg.content && (msg.role === 'user' || msg.role === 'assistant' || msg.role === 'system')
+      )
+
+      const currentWorkSession = workSessionManager.getCurrentSession()
+
+      if (!currentWorkSession) {
+        // Create new work session with validated name
+        const rawName = args.join(' ').trim() || chatSession?.title || ''
+        const name = rawName || `Session ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`
+
+        // Validate name length
+        const validatedName = name.length > 100 ? name.substring(0, 100) + '...' : name
+
+        const session = await workSessionManager.createSession(validatedName)
+
+        // Add chat messages to work session with validation
+        if (chatMessages.length > 0) {
+          chatMessages.forEach((msg) => {
+            try {
+              workSessionManager.addMessage({
+                role: msg.role as 'user' | 'assistant',
+                content: msg.content || '',
+                timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : new Date().toISOString(),
+                metadata: {},
+              })
+            } catch (error) {
+              console.log(chalk.gray(`⚠️ Skipped invalid message`))
+            }
+          })
+        }
+
+        await workSessionManager.saveCurrentSession()
+
+        this.printPanel(
+          boxen(`New session created: ${session.name}\nID: ${session.id}\nMessages: ${session.metadata.totalMessages}`, {
+            title: '✓ Session Created',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          })
+        )
+      } else {
+        // Update existing session name if provided
+        if (args.length > 0) {
+          const rawNewName = args.join(' ').trim()
+          const validatedNewName = rawNewName.length > 100 ? rawNewName.substring(0, 100) + '...' : rawNewName
+          workSessionManager.updateCurrentSession({ name: validatedNewName })
+        }
+
+        // Sync current chat messages to work session (only new ones)
+        const existingMessageCount = currentWorkSession.messages.length
+        if (chatMessages.length > existingMessageCount) {
+          // Add new messages that aren't already in work session with validation
+          const newMessages = chatMessages.slice(existingMessageCount)
+          newMessages.forEach((msg) => {
+            try {
+              workSessionManager.addMessage({
+                role: msg.role as 'user' | 'assistant',
+                content: msg.content || '',
+                timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : new Date().toISOString(),
+                metadata: {},
+              })
+            } catch (error) {
+              console.log(chalk.gray(`⚠️ Skipped invalid message`))
+            }
+          })
+        }
+
+        await workSessionManager.saveCurrentSession()
+
+        this.printPanel(
+          boxen(`Session saved: ${currentWorkSession.name}\nID: ${currentWorkSession.id}\nEdits: ${currentWorkSession.metadata.totalEdits} | Messages: ${currentWorkSession.metadata.totalMessages}`, {
+            title: '💾 Session Saved',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          })
+        )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Failed to save session: ${error.message}`, {
+          title: '❌ Save Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Panelized Delete Session command
+   */
+  private async handleDeleteSessionCommand(args: string[]): Promise<void> {
+    try {
+      if (args.length === 0) {
+        this.printPanel(
+          boxen('Usage: /delete-session <session-id>\n\nUse /work-sessions to see all sessions.', {
+            title: '💼 Delete Session',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const { workSessionManager } = await import('./persistence/work-session-manager')
+      const sessionId = args[0]
+      const success = await workSessionManager.deleteSession(sessionId)
+
+      if (success) {
+        this.printPanel(
+          boxen(`Session deleted: ${sessionId}`, {
+            title: '✓ Session Deleted',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          })
+        )
+      } else {
+        this.printPanel(
+          boxen(`Session not found: ${sessionId}`, {
+            title: '⚠️ Not Found',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Failed to delete session: ${error.message}`, {
+          title: '❌ Delete Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Panelized Export Session command
+   */
+  private async handleExportSessionCommand(args: string[]): Promise<void> {
+    try {
+      if (args.length < 2) {
+        this.printPanel(
+          boxen('Usage: /export-session <session-id> <export-path>\n\nExample: /export-session abc123 ./backup/session.json', {
+            title: '📦 Export Session',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const { workSessionManager } = await import('./persistence/work-session-manager')
+      const sessionId = args[0]
+      const exportPath = args[1]
+
+      await workSessionManager.exportSession(sessionId, exportPath)
+
+      this.printPanel(
+        boxen(`Session exported successfully\n\nFrom: ${sessionId}\nTo: ${exportPath}`, {
+          title: '✓ Session Exported',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Failed to export session: ${error.message}`, {
+          title: '❌ Export Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Panelized Undo command
+   */
+  private async handleUndoCommand(args: string[]): Promise<void> {
+    try {
+      const { workSessionManager } = await import('./persistence/work-session-manager')
+      const currentSession = workSessionManager.getCurrentSession()
+
+      if (!currentSession) {
+        this.printPanel(
+          boxen('No active work session.\n\nUse /save-session to create a session before using undo.', {
+            title: '⚠️ No Active Session',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const count = args.length > 0 ? parseInt(args[0], 10) : 1
+      if (isNaN(count) || count < 1) {
+        this.printPanel(
+          boxen('Invalid count. Usage: /undo [count]\n\nExample: /undo 3', {
+            title: '⚠️ Invalid Input',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const undoneOps = await workSessionManager.undo(count)
+
+      if (undoneOps.length === 0) {
+        this.printPanel(
+          boxen('No operations to undo.', {
+            title: '↶ Undo',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const lines: string[] = []
+      lines.push(`Undone ${undoneOps.length} operation(s)\n`)
+      undoneOps.forEach((op) => {
+        const opIcon = op.operation === 'create' ? '🆕' : op.operation === 'delete' ? '🗑️' : '✏️'
+        lines.push(`${opIcon} ${op.operation.toUpperCase()} - ${op.filePath}`)
+      })
+
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '↶ Undo Complete',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Undo failed: ${error.message}`, {
+          title: '❌ Undo Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Panelized Redo command
+   */
+  private async handleRedoCommand(args: string[]): Promise<void> {
+    try {
+      const { workSessionManager } = await import('./persistence/work-session-manager')
+      const currentSession = workSessionManager.getCurrentSession()
+
+      if (!currentSession) {
+        this.printPanel(
+          boxen('No active work session.\n\nUse /save-session to create a session before using redo.', {
+            title: '⚠️ No Active Session',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const count = args.length > 0 ? parseInt(args[0], 10) : 1
+      if (isNaN(count) || count < 1) {
+        this.printPanel(
+          boxen('Invalid count. Usage: /redo [count]\n\nExample: /redo 2', {
+            title: '⚠️ Invalid Input',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const redoneOps = await workSessionManager.redo(count)
+
+      if (redoneOps.length === 0) {
+        this.printPanel(
+          boxen('No operations to redo.', {
+            title: '↷ Redo',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const lines: string[] = []
+      lines.push(`Redone ${redoneOps.length} operation(s)\n`)
+      redoneOps.forEach((op) => {
+        const opIcon = op.operation === 'create' ? '🆕' : op.operation === 'delete' ? '🗑️' : '✏️'
+        lines.push(`${opIcon} ${op.operation.toUpperCase()} - ${op.filePath}`)
+      })
+
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '↷ Redo Complete',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Redo failed: ${error.message}`, {
+          title: '❌ Redo Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Panelized Edit History command
+   */
+  private async handleEditHistoryCommand(): Promise<void> {
+    try {
+      const { workSessionManager } = await import('./persistence/work-session-manager')
+      const currentSession = workSessionManager.getCurrentSession()
+
+      if (!currentSession) {
+        this.printPanel(
+          boxen('No active work session.\n\nUse /save-session to create a session.', {
+            title: '⚠️ No Active Session',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const { editHistoryManager } = await import('./persistence/edit-history-manager')
+      const summary = editHistoryManager.getHistorySummary()
+      const stats = editHistoryManager.getStatistics()
+
+      const lines: string[] = []
+      lines.push('Stack Status:')
+      lines.push(`  Undo available: ${summary.undoCount} operations`)
+      lines.push(`  Redo available: ${summary.redoCount} operations`)
+      lines.push('')
+      lines.push('Statistics:')
+      lines.push(`  Total operations: ${stats.totalOperations}`)
+      lines.push(`  Edit operations: ${stats.editOperations}`)
+      lines.push(`  Create operations: ${stats.createOperations}`)
+      lines.push(`  Delete operations: ${stats.deleteOperations}`)
+      lines.push(`  Unique files: ${stats.uniqueFiles}`)
+
+      if (summary.recentOperations.length > 0) {
+        lines.push('')
+        lines.push('Recent Edits:')
+        summary.recentOperations.slice(0, 5).forEach((op) => {
+          const opIcon = op.operation === 'create' ? '🆕' : op.operation === 'delete' ? '🗑️' : '✏️'
+          const timestamp = new Date(op.timestamp).toLocaleTimeString()
+          lines.push(`  ${opIcon} ${timestamp} - ${op.operation.toUpperCase()}`)
+          lines.push(`     ${op.filePath}`)
+        })
+      }
+
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '📝 Edit History',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Failed to get edit history: ${error.message}`, {
+          title: '❌ History Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Delegate VM Container commands to slash handler
+   */
+  private async handleVMContainerCommands(cmd: string, args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Vision commands to slash handler
+   */
+  private async handleVisionCommands(cmd: string, args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Memory commands to slash handler
+   */
+  private async handleMemoryCommands(cmd: string, args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Web3 commands to slash handler
+   */
+  private async handleWeb3Commands(cmd: string, args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Env command to slash handler
+   */
+  private async handleEnvCommand(args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/env ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Auto command to slash handler
+   */
+  private async handleAutoCommand(args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/auto ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Super Compact command to slash handler
+   */
+  private async handleSuperCompactCommand(): Promise<void> {
+    const result = await this.slashHandler.handle('/super-compact')
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Plan Clean command to slash handler
+   */
+  private async handlePlanCleanCommand(): Promise<void> {
+    const result = await this.slashHandler.handle('/plan-clean')
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Todo Hide command to slash handler
+   */
+  private async handleTodoHideCommand(): Promise<void> {
+    const result = await this.slashHandler.handle('/todo-hide')
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Todo Show command to slash handler
+   */
+  private async handleTodoShowCommand(): Promise<void> {
+    const result = await this.slashHandler.handle('/todo-show')
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Index command to slash handler
+   */
+  private async handleIndexCommand(args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/index ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Router command to slash handler
+   */
+  private async handleRouterCommand(args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/router ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Figma Open command to slash handler
+   */
+  private async handleFigmaOpenCommand(args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/figma-open ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
     }
   }
 

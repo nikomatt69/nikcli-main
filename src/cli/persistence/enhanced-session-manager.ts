@@ -66,7 +66,7 @@ export class EnhancedSessionManager extends EventEmitter {
 
   constructor(dir?: string) {
     super()
-    this.baseDir = dir || path.join(process.cwd(), 'sessions')
+    this.baseDir = dir || path.join(process.cwd(), '.nikcli', 'work-sessions')
 
     const supabaseConfig = simpleConfigManager.getSupabaseConfig()
     this.autoSyncEnabled = supabaseConfig.enabled && supabaseConfig.features.database

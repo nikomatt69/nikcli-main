@@ -1,4 +1,6 @@
+import { existsSync, statSync } from 'node:fs'
 import { EventEmitter } from 'node:events'
+import { resolve } from 'node:path'
 import type {
   Agent,
   AgentConfig,
@@ -401,19 +403,24 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       this.vmState = 'starting'
       this.startTime = new Date()
 
-      CliUI.logInfo(`🐳 Creating isolated VM container for ${repoUrl}`)
+      const { target: repositoryTarget, isLocal } = this.resolveRepositoryTarget(repoUrl)
+
+      CliUI.logInfo(`🐳 Creating isolated VM container for ${repositoryTarget}`)
 
       // Create secure container
       this.containerId = await this.vmOrchestrator.createSecureContainer({
         agentId: this.id,
-        repositoryUrl: repoUrl,
+        repositoryUrl: repositoryTarget,
+        localRepoPath: isLocal ? repositoryTarget : undefined,
         sessionToken: this.sessionJWT!,
         proxyEndpoint: await this.apiProxy.getEndpoint(),
         capabilities: this.capabilities,
       })
 
       // Setup repository and environment
-      await this.vmOrchestrator.setupRepository(this.containerId, repoUrl)
+      await this.vmOrchestrator.setupRepository(this.containerId, repositoryTarget, {
+        useLocalPath: isLocal,
+      })
       this.repositoryPath = '/workspace/repo'
       await this.vmOrchestrator.setupVSCodeServer(this.containerId)
       await this.vmOrchestrator.setupDevelopmentEnvironment(this.containerId)
@@ -584,9 +591,70 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
    * Extract repository URL from task description
    */
   private extractRepositoryUrl(task: AgentTask): string | null {
-    const urlPattern = /https?:\/\/github\.com\/[\w-]+\/[\w-]+/
-    const match = task.description.match(urlPattern)
-    return match ? match[0] : null
+    const taskData = task.data as Record<string, any> | undefined
+    const dataRepository =
+      taskData?.repositoryUrl || taskData?.repositoryPath || taskData?.localRepoPath || taskData?.repoUrl
+
+    if (typeof dataRepository === 'string' && dataRepository.trim().length > 0) {
+      return dataRepository.trim()
+    }
+
+    const githubPattern = /https?:\/\/github\.com\/[\w.-]+\/[\w.-]+(?:\.git)?/i
+    const githubMatch = task.description.match(githubPattern)
+    if (githubMatch) {
+      return githubMatch[0]
+    }
+
+    const filePattern = /file:\/\/[\S]+/i
+    const fileMatch = task.description.match(filePattern)
+    if (fileMatch) {
+      return fileMatch[0]
+    }
+
+    const pathPattern = /(?:~|\.{1,2}|\/)\S+/
+    const pathMatch = task.description.match(pathPattern)
+
+    return pathMatch ? pathMatch[0] : null
+  }
+
+  private resolveRepositoryTarget(repository: string): { target: string; isLocal: boolean } {
+    const repositoryInput = repository?.trim()
+
+    if (!repositoryInput) {
+      throw new Error('A repository URL or local path is required to start the VM environment')
+    }
+
+    const remotePattern = /^(https?:\/\/|git@)/i
+    if (remotePattern.test(repositoryInput)) {
+      return { target: repositoryInput, isLocal: false }
+    }
+
+    if (/^file:\/\//i.test(repositoryInput)) {
+      const fileUrl = new URL(repositoryInput)
+      const decodedPath = decodeURIComponent(fileUrl.pathname)
+      return this.resolveRepositoryTarget(decodedPath)
+    }
+
+    let resolvedPath = repositoryInput
+    if (repositoryInput.startsWith('~')) {
+      const homeDir = process.env.HOME || process.env.USERPROFILE
+      if (!homeDir) {
+        throw new Error('Unable to resolve ~ in repository path: HOME directory not set')
+      }
+      resolvedPath = resolve(homeDir, repositoryInput.slice(1))
+    } else {
+      resolvedPath = resolve(repositoryInput)
+    }
+
+    if (!existsSync(resolvedPath)) {
+      throw new Error(`Local repository path not found: ${resolvedPath}`)
+    }
+
+    if (!statSync(resolvedPath).isDirectory()) {
+      throw new Error(`Local repository path must be a directory: ${resolvedPath}`)
+    }
+
+    return { target: resolvedPath, isLocal: true }
   }
 
   /**
