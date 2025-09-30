@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
-import blessed from 'blessed'
+import * as blessed from 'blessed'
 import chalk from 'chalk'
+import * as readline from 'readline'
 import { CliUI } from '../utils/cli-ui'
 import { VimCommandProcessor } from './commands/vim-command-processor'
 import { VimKeyHandler } from './keybindings/vim-key-handler'
@@ -15,6 +16,20 @@ export interface VimModeConfig {
     lineNumbers: boolean
 }
 
+export interface CliModeState {
+    current: 'default' | 'plan' | 'vim'
+    previous: 'default' | 'plan' | 'vim' | null
+    isTransitioning: boolean
+}
+
+export interface ComponentState {
+    promptSuspended: boolean
+    blessedSuspended: boolean
+    listenersActive: boolean
+    suspendedComponents: Set<any>
+    suspendedListeners: Map<string, any[]>
+}
+
 export class VimModeManager extends EventEmitter {
     private state: VimState
     private keyHandler: VimKeyHandler
@@ -27,6 +42,24 @@ export class VimModeManager extends EventEmitter {
     private screen?: blessed.Widgets.Screen
     private editor?: blessed.Widgets.TextareaElement
     private statusBar?: blessed.Widgets.BoxElement
+
+    // CLI Mode Management
+    private cliModeState: CliModeState = {
+        current: 'default',
+        previous: null,
+        isTransitioning: false
+    }
+
+    private componentState: ComponentState = {
+        promptSuspended: false,
+        blessedSuspended: false,
+        listenersActive: true,
+        suspendedComponents: new Set(),
+        suspendedListeners: new Map()
+    }
+
+    private promptInterface?: readline.Interface
+    private restoreCallback?: () => void
 
     constructor(config: Partial<VimModeConfig> = {}) {
         super()
@@ -71,11 +104,14 @@ export class VimModeManager extends EventEmitter {
         }
     }
 
-    async activate(): Promise<void> {
+    async activate(promptInterface?: readline.Interface, restoreCallback?: () => void): Promise<void> {
         if (this.isActive) {
             CliUI.logWarning('Vim mode already active')
             return
         }
+
+        // Enter vim mode with proper CLI component management
+        await this.enterVimMode(promptInterface, restoreCallback)
 
         this.isActive = true
         this.state.mode = VimMode.NORMAL
@@ -244,6 +280,10 @@ export class VimModeManager extends EventEmitter {
         process.stdout.write('\u001B[?25h')  // Show cursor
 
         await this.renderer.clear()
+
+        // Exit vim mode with proper CLI component restoration
+        await this.exitVimMode()
+
         this.emit('deactivated', { resumeReadline: true })
 
         // Give a moment for screen to clear then show exit message
@@ -355,5 +395,332 @@ export class VimModeManager extends EventEmitter {
         this.commandProcessor.removeAllListeners()
         this.renderer.destroy()
         this.removeAllListeners()
+    }
+
+    // ============== CLI MODE MANAGEMENT ==============
+
+    /**
+     * Enter vim mode with proper CLI component suspension
+     */
+    private async enterVimMode(promptInterface?: readline.Interface, restoreCallback?: () => void): Promise<void> {
+        if (this.cliModeState.current === 'vim') {
+            return
+        }
+
+        this.cliModeState.isTransitioning = true
+        this.cliModeState.previous = this.cliModeState.current
+        this.cliModeState.current = 'vim'
+
+        this.promptInterface = promptInterface
+        this.restoreCallback = restoreCallback
+
+        // Suspend ALL CLI components ONLY when entering vim
+        this.suspendAllCliComponents()
+
+        this.emit('cliModeChange', this.cliModeState.previous, 'vim')
+        this.cliModeState.isTransitioning = false
+    }
+
+    /**
+     * Exit vim mode and restore CLI components
+     */
+    private async exitVimMode(): Promise<void> {
+        if (this.cliModeState.current !== 'vim') {
+            return
+        }
+
+        this.cliModeState.isTransitioning = true
+
+        // Restore ALL CLI components
+        this.restoreAllCliComponents()
+
+        // Return to previous mode
+        const previousMode = this.cliModeState.previous || 'default'
+        this.cliModeState.current = previousMode
+        this.cliModeState.previous = null
+
+        this.promptInterface = undefined
+        this.restoreCallback = undefined
+
+        this.emit('cliModeChange', 'vim', previousMode)
+        this.cliModeState.isTransitioning = false
+    }
+
+    /**
+     * Suspend all CLI components (blessed + prompt + listeners)
+     */
+    private suspendAllCliComponents(): void {
+        // Suspend blessed components from other CLI modes
+        this.suspendBlessedComponents()
+
+        // Suspend prompt interface
+        if (this.promptInterface) {
+            this.suspendPromptInterface()
+        }
+
+        // Deactivate all non-vim listeners
+        this.deactivateListeners()
+    }
+
+    /**
+     * Restore all CLI components
+     */
+    private restoreAllCliComponents(): void {
+        // Restore blessed components
+        this.restoreBlessedComponents()
+
+        // Restore prompt interface
+        this.restorePromptInterface()
+
+        // Reactivate listeners based on current mode
+        this.reactivateListeners()
+    }
+
+    /**
+     * Suspend blessed components from other CLI modes
+     */
+    private suspendBlessedComponents(): void {
+        if (this.componentState.blessedSuspended) return
+
+        // Find and suspend blessed components from plan mode, chat UI, etc.
+        const globalComponents = [
+            (global as any).screen,
+            (global as any).progressBar,
+            (global as any).statusLine,
+            (global as any).chatInterface,
+            (global as any).planInterface,
+            (global as any).advancedCliUI
+        ]
+
+        globalComponents.forEach(component => {
+            if (component && typeof component.hide === 'function') {
+                try {
+                    this.componentState.suspendedComponents.add(component)
+                    component.hide()
+                } catch (error) {
+                    // Silently handle component suspension errors
+                }
+            }
+        })
+
+        this.componentState.blessedSuspended = true
+    }
+
+    /**
+     * Restore blessed components
+     */
+    private restoreBlessedComponents(): void {
+        if (!this.componentState.blessedSuspended) return
+
+        this.componentState.suspendedComponents.forEach(component => {
+            try {
+                if (component && typeof component.show === 'function') {
+                    component.show()
+                }
+            } catch (error) {
+                // Silently handle component restoration errors
+            }
+        })
+
+        this.componentState.suspendedComponents.clear()
+        this.componentState.blessedSuspended = false
+    }
+
+    /**
+     * Suspend prompt interface ONLY when vim is active
+     */
+    private suspendPromptInterface(): void {
+        if (this.componentState.promptSuspended || !this.promptInterface) return
+
+        try {
+            // Pause the prompt interface
+            if (typeof this.promptInterface.pause === 'function') {
+                this.promptInterface.pause()
+            }
+
+            // Clear current prompt line
+            if (typeof this.promptInterface.write === 'function') {
+                this.promptInterface.write('\x1b[2K\r') // Clear line and return to start
+            }
+
+            this.componentState.promptSuspended = true
+        } catch (error) {
+            console.error(chalk.red('Error suspending prompt:'), error)
+        }
+    }
+
+    /**
+     * Restore prompt interface when exiting vim
+     */
+    private restorePromptInterface(): void {
+        if (!this.componentState.promptSuspended || !this.promptInterface) return
+
+        try {
+            // Resume the prompt interface
+            if (typeof this.promptInterface.resume === 'function') {
+                this.promptInterface.resume()
+            }
+
+            // Execute restore callback if provided
+            if (this.restoreCallback) {
+                this.restoreCallback()
+            }
+
+            this.componentState.promptSuspended = false
+        } catch (error) {
+            console.error(chalk.red('Error restoring prompt:'), error)
+        }
+    }
+
+    /**
+     * Deactivate listeners during vim mode
+     */
+    private deactivateListeners(): void {
+        if (!this.componentState.listenersActive) return
+
+        // Store and remove process listeners
+        const processEvents = ['SIGINT', 'SIGTERM', 'uncaughtException']
+        processEvents.forEach(event => {
+            const listeners = process.listeners(event as any)
+            if (listeners.length > 0) {
+                this.componentState.suspendedListeners.set(`process_${event}`, [...listeners])
+                process.removeAllListeners(event as any)
+            }
+        })
+
+        // Store and remove readline listeners
+        if (this.promptInterface) {
+            const readlineEvents = ['line', 'keypress', 'close', 'SIGINT']
+            readlineEvents.forEach(event => {
+                const listeners = this.promptInterface!.listeners(event)
+                if (listeners.length > 0) {
+                    this.componentState.suspendedListeners.set(`readline_${event}`, [...listeners])
+                    this.promptInterface!.removeAllListeners(event)
+                }
+            })
+        }
+
+        this.componentState.listenersActive = false
+    }
+
+    /**
+     * Reactivate listeners based on current CLI mode
+     */
+    private reactivateListeners(): void {
+        if (this.componentState.listenersActive) return
+
+        // Restore all suspended listeners
+        this.componentState.suspendedListeners.forEach((listeners, key) => {
+            if (key.startsWith('process_')) {
+                const event = key.replace('process_', '')
+                listeners.forEach(listener => {
+                    process.on(event as any, listener)
+                })
+            } else if (key.startsWith('readline_')) {
+                const event = key.replace('readline_', '')
+                if (this.promptInterface) {
+                    listeners.forEach(listener => {
+                        this.promptInterface!.on(event, listener)
+                    })
+                }
+            }
+        })
+
+        this.componentState.suspendedListeners.clear()
+        this.componentState.listenersActive = true
+    }
+
+    /**
+     * Get current CLI mode
+     */
+    public getCurrentCliMode(): string {
+        return this.cliModeState.current
+    }
+
+    /**
+     * Check if vim mode is active
+     */
+    public isVimModeActive(): boolean {
+        return this.cliModeState.current === 'vim' && this.isActive
+    }
+
+    /**
+     * Force CLI mode transition (emergency)
+     */
+    public forceCliModeTo(mode: 'default' | 'plan' | 'vim'): void {
+        if (this.cliModeState.isTransitioning) {
+            console.log(chalk.yellow('⚠️ CLI mode transition already in progress'))
+            return
+        }
+
+        const previousMode = this.cliModeState.current
+        this.cliModeState.previous = previousMode
+        this.cliModeState.current = mode
+
+        if (previousMode === 'vim' && mode !== 'vim') {
+            this.exitVimMode()
+        }
+
+        this.emit('cliModeChange', previousMode, mode)
+    }
+
+    /**
+     * Ensure CLI mode consistency
+     */
+    public ensureCliModeConsistency(): void {
+        // Clean up stale vim mode if no vim processes
+        if (this.cliModeState.current === 'vim' && !this.isActive) {
+            console.log(chalk.yellow('🔧 Cleaning up stale vim mode'))
+            this.forceCliModeTo('default')
+        }
+
+        // Ensure components are in correct state for current mode
+        if (this.cliModeState.current !== 'vim') {
+            if (this.componentState.blessedSuspended) {
+                this.restoreBlessedComponents()
+            }
+            if (!this.componentState.listenersActive) {
+                this.reactivateListeners()
+            }
+        }
+    }
+
+    /**
+     * Setup mode-specific behavior based on CLI mode
+     */
+    public setupModeSpecificBehavior(mode: 'default' | 'plan' | 'vim'): void {
+        this.cliModeState.current = mode
+
+        switch (mode) {
+            case 'vim':
+                // Vim mode: suspended CLI, vim UI active
+                break
+            case 'plan':
+                // Plan mode: streaming interface, progress tracking
+                this.ensureListenersForPlanMode()
+                break
+            case 'default':
+                // Default mode: full CLI interface
+                this.ensureListenersForDefaultMode()
+                break
+        }
+    }
+
+    /**
+     * Ensure listeners are configured for plan mode
+     */
+    private ensureListenersForPlanMode(): void {
+        if (this.componentState.listenersActive && this.cliModeState.current === 'plan') {
+            this.emit('planModeReady')
+        }
+    }
+
+    /**
+     * Ensure listeners are configured for default mode
+     */
+    private ensureListenersForDefaultMode(): void {
+        if (this.componentState.listenersActive && this.cliModeState.current === 'default') {
+            this.emit('defaultModeReady')
+        }
     }
 }

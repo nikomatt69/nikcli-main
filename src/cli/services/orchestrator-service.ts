@@ -447,7 +447,64 @@ export class OrchestratorService extends EventEmitter {
     }
   }
 
+  private formatTaskResult(result: any): string {
+    if (!result) return 'No result available'
+
+    // Handle string results directly
+    if (typeof result === 'string') {
+      return result.length > 200 ? result.substring(0, 200) + '...' : result
+    }
+
+    // Handle agent factory structure: { success, todosCompleted, todosFailed, results, agent, summary }
+    if (result.success !== undefined && result.agent && (result.todosCompleted !== undefined || result.results)) {
+      const parts: string[] = []
+
+      // Add success summary
+      if (result.todosCompleted && result.totalTodos) {
+        parts.push(`✅ Completed ${result.todosCompleted}/${result.totalTodos} tasks`)
+      }
+
+      if (result.todosFailed && result.todosFailed > 0) {
+        parts.push(`❌ Failed ${result.todosFailed} tasks`)
+      }
+
+      // Extract summary if available
+      if (result.summary && typeof result.summary === 'string') {
+        const summary = result.summary.length > 150 ? result.summary.substring(0, 150) + '...' : result.summary
+        parts.push(`📋 ${summary}`)
+      }
+
+      return parts.join('\\n') || 'Task completed successfully'
+    }
+
+    // Handle task wrapper structure: { taskId, success, result }
+    if (result.taskId && result.success !== undefined && result.result) {
+      return this.formatTaskResult(result.result)
+    }
+
+    // Handle simple success structure
+    if (result.success && result.message) {
+      const message = result.message.length > 200 ? result.message.substring(0, 200) + '...' : result.message
+      return message
+    }
+
+    // Handle object with content or message
+    if (result.content) {
+      const content = result.content.length > 200 ? result.content.substring(0, 200) + '...' : result.content
+      return content
+    }
+    if (result.message) {
+      const message = result.message.length > 200 ? result.message.substring(0, 200) + '...' : result.message
+      return message
+    }
+
+    // Final fallback - try to extract meaningful text
+    const text = JSON.stringify(result, null, 2)
+    return text.length > 200 ? text.substring(0, 200) + '...' : text
+  }
+
   private displayAgentResult(task: AgentTask): void {
+    const cleanResult = this.formatTaskResult(task.result)
     this.cliInstance.printPanel(
       boxen(
         `${chalk.green.bold('🎉 Agent Result')}\\n\\n` +
@@ -456,7 +513,7 @@ export class OrchestratorService extends EventEmitter {
           `${chalk.blue('Duration:')} ${
             task.endTime && task.startTime ? Math.round((task.endTime.getTime() - task.startTime.getTime()) / 1000) : 0
           }s\\n\\n` +
-          `${chalk.cyan('Result:')} ${JSON.stringify(task.result, null, 2).slice(0, 200)}...`,
+          `${chalk.cyan('Result:')} ${cleanResult}`,
         {
           padding: 1,
           margin: 1,

@@ -744,6 +744,10 @@ export class SimpleConfigManager {
     },
 
     // OpenRouter models
+    'anthropic/claude-sonnet-4.5': {
+      provider: 'openrouter',
+      model: 'anthropic/claude-sonnet-4.5',
+    },
     'anthropic/claude-sonnet-4': {
       provider: 'openrouter',
       model: 'anthropic/claude-sonnet-4',
@@ -764,10 +768,7 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'anthropic/claude-3.5-sonnet',
     },
-    'google/gemini-2.5-flash-lite': {
-      provider: 'openrouter',
-      model: 'google/gemini-2.5-flash-lite',
-    },
+
 
     'nvidia/nemotron-nano-9b-v2:free': {
       provider: 'openrouter',
@@ -777,7 +778,18 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'openai/gpt-5',
     },
-
+    'openai/gpt-5-codex': {
+      provider: 'openrouter',
+      model: 'openai/gpt-5-codex',
+    },
+    'openai/gpt-5-mini': {
+      provider: 'openrouter',
+      model: 'openai/gpt-5-mini',
+    },
+    'openai/gpt-5-nano': {
+      provider: 'openrouter',
+      model: 'openai/gpt-5-nano',
+    },
     'openai/gpt-5-mini-2025-08-07': {
       provider: 'openrouter',
       model: 'openai/gpt-5-mini-2025-08-07',
@@ -794,6 +806,23 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'meta-llama/llama-3.1-8b-instruct',
     },
+    'google/gemini-2.5-flash-lite': {
+      provider: 'openrouter',
+      model: 'google/gemini-2.5-flash-lite',
+    },
+    'google/gemini-2.5-flash': {
+      provider: 'openrouter',
+      model: 'google/gemini-2.5-flash',
+    },
+    'google/gemini-2.5-flash-image-preview': {
+      provider: 'openrouter',
+      model: 'google/gemini-2.5-flash-image-preview',
+    },
+    'google/gemini-2.5-pro': {
+      provider: 'openrouter',
+      model: 'google/gemini-2.5-pro',
+    },
+
     'google/gemini-2.0-flash-exp': {
       provider: 'openrouter',
       model: 'google/gemini-2.0-flash-exp',
@@ -834,6 +863,10 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'deepseek/deepseek-v3.1-terminus',
     },
+    'deepseek/deepseek-v3.2-exp': {
+      provider: 'openrouter',
+      model: 'deepseek/deepseek-v3.2-exp',
+    },
     'moonshotai/kimi-k2-0905': {
       provider: 'openrouter',
       model: 'moonshotai/kimi-k2-0905',
@@ -869,6 +902,10 @@ export class SimpleConfigManager {
     '@preset/nikcli': {
       provider: 'openrouter',
       model: '@preset/nikcli',
+    },
+    '@preset/nikcli-pro': {
+      provider: 'openrouter',
+      model: '@preset/nikcli-pro',
     },
   }
 

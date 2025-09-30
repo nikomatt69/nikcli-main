@@ -138,7 +138,6 @@
     "ollama-ai-provider": "^1.2.0",
     "ora": "^8.0.1",
     "p-limit": "^7.1.1",
-    "playwright": "^1.55.0",
     "postcss": "^8.5.6",
     "prismjs": "^1.30.0",
     "prom-client": "^15.1.3",

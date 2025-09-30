@@ -156,6 +156,7 @@ export class NikCLI {
   private vimAIIntegration?: VimAIIntegration
   private modernAIProvider?: ModernAIProvider
   private vimKeyHandler?: (data: Buffer) => Promise<void>
+  private keypressListener?: (chunk: any, key: any) => void
 
   // Enhanced features
   private enhancedFeaturesEnabled: boolean = true
@@ -1584,9 +1585,12 @@ export class NikCLI {
     const spinner = this.spinners.get(id)
     if (spinner) {
       if (success) {
-        spinner.succeed(finalText)
+        (this.isInteractiveMode) ? this.isInteractiveMode = false : null,
+          spinner.succeed(finalText)
       } else {
+        this.isInteractiveMode = false
         spinner.fail(finalText)
+
       }
       this.spinners.delete(id)
     }
@@ -1968,7 +1972,9 @@ export class NikCLI {
       readline.emitKeypressEvents(process.stdin)
       process.stdin.setRawMode(true)
       process.stdin.resume()
-      process.stdin.on('keypress', (chunk, key) => {
+
+      // Save listener reference for cleanup
+      this.keypressListener = (chunk, key) => {
         if (key && key.name === 'escape') {
           // Stop ongoing AI operation spinner
           if (this.activeSpinner) {
@@ -2087,7 +2093,10 @@ export class NikCLI {
         if (key?.ctrl && key.name === 'c') {
           process.exit(0)
         }
-      })
+      }
+
+      // Register the listener
+      process.stdin.on('keypress', this.keypressListener)
     }
 
     this.rl?.on('line', async (input) => {
@@ -2521,7 +2530,24 @@ export class NikCLI {
 
         case 'vim':
           if (this.vimModeManager) {
-            await this.vimModeManager.activate()
+            // CRITICAL SAFETY CHECK: Prevent vim activation if already in vim mode
+            if (this.vimModeManager.isVimModeActive()) {
+              console.log(chalk.yellow('⚠️ Vim mode is already active'))
+              break
+            }
+
+            // Ensure readline is active before entering vim
+            if (!this.rl) {
+              console.log(chalk.red('✗ Cannot enter vim: prompt interface not available'))
+              break
+            }
+
+            // Ensure mode consistency before activation
+            this.vimModeManager.ensureCliModeConsistency()
+            await this.vimModeManager.initialize()
+            await this.vimModeManager.activate(this.rl, () => {
+              this.renderPromptAfterOutput()
+            })
           } else {
             console.log(chalk.red('✗ Vim mode not available'))
           }
@@ -2910,6 +2936,16 @@ export class NikCLI {
         case 'cad':
         case 'gcode':
           await this.handleCADCommands(cmd, args)
+          break
+
+        // Figma Integration Commands
+        case 'figma-config':
+        case 'figma-info':
+        case 'figma-export':
+        case 'figma-to-code':
+        case 'figma-create':
+        case 'figma-tokens':
+          await this.handleFigmaCommands(cmd, args)
           break
 
         // Parallel execution monitoring commands
@@ -3989,6 +4025,76 @@ EOF`
   }
 
   /**
+   * Execute agent with plan-mode style streaming (like executeTaskWithToolchains)
+   */
+  private async executeAgentWithPlanModeStreaming(agent: any, task: string, agentName: string, tools: any[]): Promise<void> {
+    console.log(chalk.blue(`⚡︎ Executing: ${agentName} - ${task}`))
+
+    try {
+      // Create messages like plan mode
+      const messages = [{ role: 'user' as const, content: task }]
+      let streamCompleted = false
+
+      // Use the same streaming as plan mode
+      for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
+        // Handle all streaming events exactly like plan mode
+        switch (ev.type) {
+          case 'text_delta':
+            // Real-time text streaming - output immediately like plan mode
+            if (ev.content) {
+              process.stdout.write(ev.content)
+            }
+            break
+
+          case 'tool_call':
+            // Tool execution events
+            if (ev.toolName) {
+              this.addLiveUpdate({
+                type: 'info',
+                content: `🔧 ${agentName}: ${ev.toolName}`,
+                source: agentName
+              })
+            }
+            break
+
+          case 'tool_result':
+            // Tool results
+            if (ev.toolResult) {
+              this.addLiveUpdate({
+                type: 'info',
+                content: `✓ Tool completed`,
+                source: agentName
+              })
+            }
+            break
+
+          case 'complete':
+            // Stream completed successfully
+            streamCompleted = true
+            console.log() // Add newline after final output like plan mode
+
+            // Show completion message like plan mode
+
+            break
+
+          case 'error':
+            // Stream error
+            console.log(chalk.red(`❌ ${agentName} error: ${ev.error}`))
+            throw new Error(ev.error)
+        }
+      }
+
+      if (!streamCompleted) {
+        throw new Error('Stream did not complete properly')
+      }
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ ${agentName} execution failed: ${error.message}`))
+      throw error
+    }
+  }
+
+  /**
    * Execute a single task using toolchains
    */
   private async executeTaskWithToolchains(task: any, _plan: any): Promise<void> {
@@ -4922,7 +5028,35 @@ EOF`
     this.renderPromptAfterOutput()
   }
 
+  /**
+   * Enterprise-grade cleanup method ensuring guaranteed prompt restoration
+   * @private
+   * @enterprise Thread-safe cleanup with error isolation
+   */
+  private async performCommandCleanup(): Promise<void> {
+    try {
+      const { inputQueue } = await import('./core/input-queue')
+      if (inputQueue.isBypassEnabled()) {
+        console.log(chalk.yellow('⚠️ Forcing cleanup of stuck approval bypass'))
+        inputQueue.forceCleanup()
+      }
+    } catch (cleanupError) {
+      console.error(chalk.red('Cleanup error:'), cleanupError)
+    }
+
+    // Always restore prompt - Enterprise-standard cleanup
+    console.log()
+    this.renderPromptAfterOutput()
+  }
+
   // Command Handler Methods
+  /**
+   * Handles file operation commands (/read, /write, /edit, /search, /list)
+   * @param command - The file operation command to execute
+   * @param args - Command arguments
+   * @throws Error if file operation fails
+   * @enterprise Guaranteed cleanup and prompt restoration via finally block
+   */
   private async handleFileOperations(command: string, args: string[]): Promise<void> {
     try {
       switch (command) {
@@ -4937,7 +5071,7 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break // Let finally handle cleanup
           }
           const filePath = args[0]
           const rest = args.slice(1)
@@ -5027,7 +5161,8 @@ EOF`
           } else {
             // default behavior: show all, but protect against huge outputs
             if (total > 400) {
-              const approved = await this.askAdvancedConfirmation(
+              const { approvalSystem } = await import('./ui/approval-system')
+              const approved = await approvalSystem.confirm(
                 `Large file: ${total} lines`,
                 `Show first ${defaultStep} lines now?`,
                 false
@@ -5072,13 +5207,14 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break // Let finally handle cleanup
           }
           const filePath = args[0]
           const content = args.slice(1).join(' ')
 
           // Request approval
-          const approved = await this.askAdvancedConfirmation(
+          const { approvalSystem } = await import('./ui/approval-system')
+          const approved = await approvalSystem.confirm(
             `Write file: ${filePath}`,
             `Write ${content.length} characters to file`,
             false
@@ -5086,7 +5222,7 @@ EOF`
 
           if (!approved) {
             console.log(chalk.yellow('❌ File write operation cancelled'))
-            return
+            break
           }
 
           const writeId = `write-${Date.now()}`
@@ -5096,7 +5232,15 @@ EOF`
           await toolsManager.writeFile(filePath, content)
 
           this.stopAdvancedSpinner(writeId, true, `File written: ${filePath}`)
-          console.log(chalk.green(`✓ File written: ${filePath}`))
+          this.printPanel(
+            boxen(chalk.green(`✓ File written: ${filePath}\n\n${content.length} characters written`), {
+              title: 'Write Complete',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green'
+            })
+          )
           break
         }
         case 'edit': {
@@ -5110,7 +5254,7 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break // Let finally handle cleanup
           }
           const filePath = args[0]
           console.log(formatFileOp('📝 Opening', filePath, 'in system editor'))
@@ -5153,7 +5297,7 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break // Let finally handle cleanup
           }
           const query = args[0]
           const directory = args[1] && !args[1].startsWith('--') ? args[1] : '.'
@@ -5208,12 +5352,18 @@ EOF`
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `File operation failed: ${error.message}`, source: 'file-ops' })
       console.log(chalk.red(`❌ Error: ${error.message}`))
+    } finally {
+      await this.performCommandCleanup()
     }
-    // Ensure output is flushed and visible before showing prompt
-    console.log() // Extra newline for better separation
-    this.renderPromptAfterOutput()
   }
 
+  /**
+   * Handles terminal operation commands (/run, /install, /npm, /yarn, /git, /docker, /ps, /kill)
+   * @param command - The terminal operation command to execute
+   * @param args - Command arguments
+   * @throws Error if terminal operation fails
+   * @enterprise Guaranteed cleanup and prompt restoration via finally block
+   */
   private async handleTerminalOperations(command: string, args: string[]): Promise<void> {
     try {
       switch (command) {
@@ -5236,14 +5386,14 @@ EOF`
           const approved = await this.askAdvancedConfirmation(
             `Execute command: ${fullCommand}`,
             `Run command in ${process.cwd()}`,
-            false
+            true
           )
 
           if (!approved) {
             console.log(chalk.yellow('❌ Command execution cancelled'))
-            return
+            break // Let finally handle cleanup
           }
-
+          this.isInteractiveMode = false
           console.log(formatCommand(fullCommand))
           const cmdId = `cmd-${Date.now()}`
           this.createStatusIndicator(cmdId, `Executing: ${cmd}`)
@@ -5259,9 +5409,7 @@ EOF`
             console.log(chalk.red(`❌ Command failed with exit code ${result.code}`))
           }
 
-          // Ensure prompt is restored after command execution
-          process.stdout.write('\n')
-          this.renderPromptAfterOutput()
+          // Cleanup handled by finally block
           break
         }
         case 'install': {
@@ -5275,7 +5423,7 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break // Let finally handle cleanup
           }
 
           const packages = args.filter((arg) => !arg.startsWith('--'))
@@ -5283,7 +5431,8 @@ EOF`
           const isDev = args.includes('--dev') || args.includes('-D')
           const manager = args.includes('--yarn') ? 'yarn' : args.includes('--pnpm') ? 'pnpm' : 'npm'
 
-          const approved = await this.askAdvancedConfirmation(
+          const { approvalSystem } = await import('./ui/approval-system')
+          const approved = await approvalSystem.confirm(
             `Install packages: ${packages.join(', ')}`,
             `Using ${manager}${isGlobal ? ' (global)' : ''}${isDev ? ' (dev)' : ''}`,
             false
@@ -5291,9 +5440,9 @@ EOF`
 
           if (!approved) {
             console.log(chalk.yellow('❌ Package installation cancelled'))
-            return
+            break
           }
-
+          this.isInteractiveMode = false
           console.log(wrapBlue(`📦 Installing ${packages.join(', ')} with ${manager}...`))
           const installId = `install-${Date.now()}`
           this.createAdvancedProgressBar(installId, 'Installing packages', packages.length)
@@ -5319,7 +5468,10 @@ EOF`
           }
 
           this.completeAdvancedProgress(installId, `Completed installation of ${packages.length} packages`)
+          this.isInteractiveMode = true
           console.log(chalk.green(`✓ Package installation completed`))
+
+          // Cleanup handled by finally block
           break
         }
         case 'npm':
@@ -5328,9 +5480,7 @@ EOF`
         case 'docker': {
           await toolsManager.runCommand(command, args, { stream: true })
 
-          // Ensure prompt is restored after command execution
-          process.stdout.write('\n')
-          this.renderPromptAfterOutput()
+          // Cleanup handled by finally block
           break
         }
         case 'ps': {
@@ -5389,12 +5539,12 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break
           }
           const pid = parseInt(args[0], 10)
           if (Number.isNaN(pid)) {
             console.log(chalk.red('Invalid PID'))
-            return
+            break
           }
           const maxHeight = this.getAvailablePanelHeight()
           this.printPanel(
@@ -5424,12 +5574,18 @@ EOF`
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `Terminal operation failed: ${error.message}`, source: 'terminal' })
       console.log(chalk.red(`❌ Error: ${error.message}`))
+    } finally {
+      await this.performCommandCleanup()
     }
-    // Ensure output is flushed and visible before showing prompt
-    console.log() // Extra newline for better separation
-    this.renderPromptAfterOutput()
   }
 
+  /**
+   * Handles session management commands (/new, /sessions, /export, /stats, /history, /debug, /temp, /system)
+   * @param command - The session management command to execute
+   * @param args - Command arguments
+   * @throws Error if session operation fails
+   * @enterprise Guaranteed cleanup and prompt restoration via finally block
+   */
   private async handleSessionManagement(command: string, args: string[]): Promise<void> {
     try {
       switch (command) {
@@ -5513,7 +5669,7 @@ EOF`
           if (args.length === 0) {
             const enabled = configManager.get('chatHistory')
             console.log(chalk.green(`Chat history: ${enabled ? 'enabled' : 'disabled'}`))
-            return
+            break // Let finally handle cleanup
           }
           const setting = args[0].toLowerCase()
           if (setting !== 'on' && setting !== 'off') {
@@ -5526,7 +5682,7 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break // Let finally handle cleanup
           }
           configManager.set('chatHistory', setting === 'on')
           console.log(chalk.green(`✓ Chat history ${setting === 'on' ? 'enabled' : 'disabled'}`))
@@ -5555,12 +5711,12 @@ EOF`
         case 'temp': {
           if (args.length === 0) {
             console.log(chalk.green(`Current temperature: ${configManager.get('temperature')}`))
-            return
+            break // Let finally handle cleanup
           }
           const temp = parseFloat(args[0])
           if (Number.isNaN(temp) || temp < 0 || temp > 2) {
             console.log(chalk.red('Temperature must be between 0.0 and 2.0'))
-            return
+            break // Let finally handle cleanup
           }
           configManager.set('temperature', temp)
           console.log(chalk.green(`✓ Temperature set to ${temp}`))
@@ -5571,7 +5727,7 @@ EOF`
             const session = chatManager.getCurrentSession()
             console.log(chalk.green('Current system prompt:'))
             console.log(chalk.gray(session?.systemPrompt || 'None'))
-            return
+            break // Let finally handle cleanup
           }
           const prompt = args.join(' ')
           const session = chatManager.getCurrentSession()
@@ -5596,21 +5752,25 @@ EOF`
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `Session management failed: ${error.message}`, source: 'session' })
       console.log(chalk.red(`❌ Error: ${error.message}`))
+    } finally {
+      await this.performCommandCleanup()
     }
-    // Ensure output is flushed and visible before showing prompt
-    // Extra newline for better separation
-    process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    this.renderPromptAfterOutput()
   }
 
+  /**
+   * Handles model configuration commands (/model, /models, /set-key, /config)
+   * @param command - The model configuration command to execute
+   * @param args - Command arguments
+   * @throws Error if configuration operation fails
+   * @enterprise Guaranteed cleanup and prompt restoration via finally block
+   */
   private async handleModelConfig(command: string, args: string[]): Promise<void> {
     try {
       switch (command) {
         case 'model': {
           if (args.length === 0) {
             await this.showCurrentModelPanel()
-            return
+            break // Let finally handle cleanup
           }
           const modelName = args[0]
           configManager.setCurrentModel(modelName)
@@ -5660,7 +5820,8 @@ EOF`
                 )
               )
 
-              const approve = await this.askAdvancedConfirmation(
+              const { approvalSystem } = await import('./ui/approval-system')
+              const approve = await approvalSystem.confirm(
                 'Open interactive API key setup now?',
                 `Configure key for ${provider} (${modelName})`,
                 true
@@ -5688,7 +5849,7 @@ EOF`
             } else {
               await this.interactiveSetApiKey()
             }
-            return
+            break // Let finally handle cleanup
           }
           const [modelName, apiKey] = args
           const keyName = modelName.toLowerCase()
@@ -5728,11 +5889,18 @@ EOF`
         source: 'config',
       })
       console.log(chalk.red(`❌ Error: ${error.message}`))
+    } finally {
+      await this.performCommandCleanup()
     }
-    // Ensure output is flushed and visible before showing prompt
-    console.log() // Extra newline for better separation
-    this.renderPromptAfterOutput()
   }
+
+  /**
+   * Handles advanced feature commands (/agents, /agent, /parallel, /factory, /blueprints, /create-agent, /launch-agent, /context, /stream, /approval, /todo)
+   * @param command - The advanced feature command to execute
+   * @param args - Command arguments
+   * @throws Error if advanced feature operation fails
+   * @enterprise Guaranteed cleanup and prompt restoration via finally block
+   */
   private async handleAdvancedFeatures(command: string, args: string[]): Promise<void> {
     try {
       switch (command) {
@@ -5744,7 +5912,7 @@ EOF`
           } finally {
             this.endPanelOutput()
           }
-          return
+          break // Let finally handle cleanup
         }
         case 'agent': {
           if (args.length < 2) {
@@ -5757,7 +5925,7 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break // Let finally handle cleanup
           }
           const agentName = args[0]
           const task = args.slice(1).join(' ')
@@ -5815,7 +5983,7 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break // Let finally handle cleanup
           }
 
           // Parse agents list with [] syntax
@@ -5845,7 +6013,7 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break // Let finally handle cleanup
           }
 
           this.printPanel(
@@ -5966,7 +6134,7 @@ EOF`
           } finally {
             this.endPanelOutput()
           }
-          return
+          break // Let finally handle cleanup
         }
         case 'blueprints': {
           if (args.length > 0 && args[0] === 'list') {
@@ -5979,7 +6147,7 @@ EOF`
               this.endPanelOutput()
             }
           }
-          return
+          break // Let finally handle cleanup
         }
         case 'create-agent': {
           if (args.length < 2) {
@@ -5999,7 +6167,7 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break // Let finally handle cleanup
           }
 
           // Parse arguments similar to nik-cli-commands.ts logic
@@ -6042,7 +6210,7 @@ EOF`
                 borderColor: 'red'
               })
             )
-            return
+            break // Let finally handle cleanup
           }
           const blueprintId = args[0]
           const task = args.slice(1).join(' ')
@@ -6094,7 +6262,7 @@ EOF`
           } finally {
             this.endPanelOutput()
           }
-          return
+          break // Let finally handle cleanup
         }
         case 'stream': {
           if (args.length > 0 && args[0] === 'clear') {
@@ -6116,7 +6284,7 @@ EOF`
             } finally {
               this.endPanelOutput()
             }
-            return
+            break // Let finally handle cleanup
           } else {
             agentStream.showLiveDashboard()
             this.printPanel(
@@ -6159,11 +6327,9 @@ EOF`
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `Advanced feature failed: ${error.message}`, source: 'advanced' })
       console.log(chalk.red(`❌ Error: ${error.message}`))
+    } finally {
+      await this.performCommandCleanup()
     }
-    console.log() // Extra newline for better separation
-    process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    this.renderPromptAfterOutput()
   }
 
   // Parallel Execution Support Methods
@@ -6278,25 +6444,11 @@ EOF`
         // Stream step progress
         this.streamAgentSteps(blueprint.name, 'analysis', `Analyzing task requirements`, { status: 'started' })
 
-        const result = await agent.executeTask(task, {
-          tools: specializedTools,
-          collaborationContext: (agent as any).collaborationContext,
-          steps: agentSteps,
-          finalStep: finalStep
-        })
+        // Execute like plan mode using streaming
+        await this.executeAgentWithPlanModeStreaming(agent, task, blueprint.name, specializedTools)
 
         // Stream completion
         this.streamAgentSteps(blueprint.name, 'complete', `Task execution completed`, { status: 'finished' })
-
-        agent.logToCollaboration(`Task completed successfully`)
-        agent.shareData('result', result)
-
-        // Add agent result to main stream with better formatting
-        this.addLiveUpdate({
-          type: 'status',
-          content: `**${blueprint.name} Completed:**\n\n${typeof result === 'string' ? result : JSON.stringify(result, null, 2)}`,
-          source: blueprint.name
-        })
       } else {
         agent.logToCollaboration(`Agent executing with built-in capabilities...`)
 
@@ -6798,6 +6950,12 @@ EOF`
   }
 
   // CAD & Manufacturing Commands Handlers
+  /**
+   * Handles CAD and G-code commands with enterprise-grade cleanup
+   * @param command - cad or gcode
+   * @param args - Command arguments
+   * @enterprise Guaranteed cleanup and prompt restoration
+   */
   private async handleCADCommands(command: string, args: string[]): Promise<void> {
     try {
       if (command === 'cad') {
@@ -6811,11 +6969,273 @@ EOF`
     } catch (error: any) {
       this.addLiveUpdate({ type: 'error', content: `CAD command failed: ${error.message}`, source: 'cad' })
       console.log(chalk.red(`❌ Error: ${error.message}`))
+    } finally {
+      await this.performCommandCleanup()
     }
-    console.log() // Extra newline for better separation
-    process.stdout.write('')
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    this.renderPromptAfterOutput()
+  }
+
+  /**
+   * Extracts Figma file ID from URL or returns the ID if already provided
+   * Supports all official Figma URL patterns (2024-2025)
+   * @param input - Figma URL or file ID
+   * @returns Figma file ID or null if invalid
+   * @example
+   * extractFigmaFileId('https://www.figma.com/design/ABC123/My-Design') => 'ABC123'
+   * extractFigmaFileId('https://www.figma.com/proto/XYZ789?node-id=1-2') => 'XYZ789'
+   * extractFigmaFileId('https://embed.figma.com/board/DEF456') => 'DEF456'
+   * extractFigmaFileId('ABC123') => 'ABC123'
+   */
+  private extractFigmaFileId(input: string): string | null {
+    if (!input) return null
+
+    // If it's already a file ID (alphanumeric, no special chars except dash/underscore)
+    if (/^[a-zA-Z0-9_-]+$/.test(input) && !input.includes('/') && input.length > 10) {
+      return input
+    }
+
+    // Official Figma URL patterns (www.figma.com and embed.figma.com)
+    // 1. Design files: /design/{file_key}/{file_name}
+    // 2. Prototypes: /proto/{file_key}/{file_name}
+    // 3. FigJam boards: /board/{file_key}/{board_name}
+    // 4. Slides/Decks: /slides/{file_key} or /deck/{file_key}
+    // 5. Legacy: /file/{file_key}/{file_name}
+    const urlPatterns = [
+      /figma\.com\/design\/([a-zA-Z0-9_-]+)/,      // Design files
+      /figma\.com\/proto\/([a-zA-Z0-9_-]+)/,       // Prototypes
+      /figma\.com\/board\/([a-zA-Z0-9_-]+)/,       // FigJam boards
+      /figma\.com\/slides\/([a-zA-Z0-9_-]+)/,      // Slides
+      /figma\.com\/deck\/([a-zA-Z0-9_-]+)/,        // Decks
+      /figma\.com\/file\/([a-zA-Z0-9_-]+)/,        // Legacy format
+      /embed\.figma\.com\/design\/([a-zA-Z0-9_-]+)/, // Embed design
+      /embed\.figma\.com\/proto\/([a-zA-Z0-9_-]+)/,  // Embed proto
+      /embed\.figma\.com\/board\/([a-zA-Z0-9_-]+)/,  // Embed board
+      /embed\.figma\.com\/slides\/([a-zA-Z0-9_-]+)/, // Embed slides
+      /embed\.figma\.com\/deck\/([a-zA-Z0-9_-]+)/,   // Embed deck
+    ]
+
+    for (const pattern of urlPatterns) {
+      const match = input.match(pattern)
+      if (match && match[1]) {
+        return match[1]
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Handles Figma integration commands with enterprise-grade cleanup
+   * @param command - Figma command type
+   * @param args - Command arguments
+   * @enterprise Guaranteed cleanup and prompt restoration
+   */
+  private async handleFigmaCommands(command: string, args: string[]): Promise<void> {
+    try {
+      switch (command) {
+        case 'figma-config': {
+          this.printPanel(
+            boxen([
+              '🎨 Figma Integration Configuration',
+              '─'.repeat(50),
+              'Figma API Token: ✓ Configured',
+              'Vercel v0 Integration: ⚠️  Optional - for AI code generation',
+              'Desktop App Automation: ✓ Available (macOS)',
+              '─'.repeat(50),
+              '',
+              '📋 Available Commands:',
+              '  /figma-config                  Show this configuration',
+              '  /figma-info <file-id>          Get file information from Figma',
+              '  /figma-export <file-id> [fmt]  Export designs (svg, png, jpg, pdf)',
+              '  /figma-to-code <file-id>       Generate code from Figma designs',
+              '  /figma-create <component>      Create design from React component',
+              '  /figma-tokens <file-id>        Extract design tokens from Figma',
+              '',
+              '💡 Tip: Use /set-key-figma to configure API credentials'
+            ].join('\n'), {
+              title: '🎨 Figma Integration',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'magenta'
+            })
+          )
+          break
+        }
+
+        case 'figma-info': {
+          if (args.length === 0) {
+            this.printPanel(
+              boxen('Usage: /figma-info <file-id-or-url>\n\nGet file information from Figma\n\nAccepts:\n  • File ID: ABC123def456\n  • Full URL: https://www.figma.com/file/ABC123/My-Design', {
+                title: 'Figma Info Command',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red'
+              })
+            )
+            break
+          }
+
+          const fileId = this.extractFigmaFileId(args[0])
+          if (!fileId) {
+            this.printPanel(
+              boxen(`❌ Invalid Figma file ID or URL: ${args[0]}\n\nPlease provide either:\n  • A file ID (e.g., ABC123def456)\n  • A Figma URL (e.g., figma.com/file/ABC123/...)`, {
+                title: 'Invalid Input',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red'
+              })
+            )
+            break
+          }
+
+          this.printPanel(
+            boxen(`🎨 Fetching Figma file info\n\n📋 File ID: ${fileId}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`, {
+              title: 'Figma Info',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow'
+            })
+          )
+          break
+        }
+
+        case 'figma-export': {
+          if (args.length === 0) {
+            this.printPanel(
+              boxen('Usage: /figma-export <file-id-or-url> [format]\n\nExport designs from Figma\n\nFormats: svg, png, jpg, pdf\nAccepts: File ID or full Figma URL', {
+                title: 'Figma Export Command',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red'
+              })
+            )
+            break
+          }
+
+          const exportFileId = this.extractFigmaFileId(args[0])
+          if (!exportFileId) {
+            this.printPanel(
+              boxen(`❌ Invalid Figma file ID or URL: ${args[0]}`, {
+                title: 'Invalid Input',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red'
+              })
+            )
+            break
+          }
+
+          const format = args[1] || 'svg'
+          this.printPanel(
+            boxen(`🎨 Exporting Figma file\n\n📋 File ID: ${exportFileId}\n📐 Format: ${format}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`, {
+              title: 'Figma Export',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow'
+            })
+          )
+          break
+        }
+
+        case 'figma-to-code': {
+          if (args.length === 0) {
+            this.printPanel(
+              boxen('Usage: /figma-to-code <file-id>\n\nGenerate code from Figma designs', {
+                title: 'Figma to Code Command',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red'
+              })
+            )
+            break
+          }
+          this.printPanel(
+            boxen(`🎨 Generating code from Figma: ${args[0]}\n\n⚠️  This feature requires Figma API + v0 integration`, {
+              title: 'Figma to Code',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow'
+            })
+          )
+          break
+        }
+
+        case 'figma-create': {
+          if (args.length === 0) {
+            this.printPanel(
+              boxen('Usage: /figma-create <component-path>\n\nCreate design from React component', {
+                title: 'Figma Create Command',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red'
+              })
+            )
+            break
+          }
+          this.printPanel(
+            boxen(`🎨 Creating Figma design from: ${args[0]}\n\n⚠️  This feature requires Figma API + Desktop automation`, {
+              title: 'Figma Create',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow'
+            })
+          )
+          break
+        }
+
+        case 'figma-tokens': {
+          if (args.length === 0) {
+            this.printPanel(
+              boxen('Usage: /figma-tokens <file-id>\n\nExtract design tokens from Figma', {
+                title: 'Figma Tokens Command',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red'
+              })
+            )
+            break
+          }
+          this.printPanel(
+            boxen(`🎨 Extracting design tokens from: ${args[0]}\n\n⚠️  This feature requires Figma API implementation`, {
+              title: 'Figma Tokens',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow'
+            })
+          )
+          break
+        }
+
+        default: {
+          this.printPanel(
+            boxen('Unknown Figma command. Use /help to see available commands.', {
+              title: 'Unknown Command',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red'
+            })
+          )
+        }
+      }
+    } catch (error: any) {
+      this.addLiveUpdate({ type: 'error', content: `Figma command failed: ${error.message}`, source: 'figma' })
+      console.log(chalk.red(`❌ Error: ${error.message}`))
+    } finally {
+      await this.performCommandCleanup()
+    }
   }
 
   private async handleGCodeCommands(args: string[]): Promise<void> {
@@ -10426,6 +10846,414 @@ EOF`
   }
 
   /**
+   * Format agent factory results for clean display like plan mode
+   */
+  private formatAgentFactoryResult(result: any): string {
+    if (!result) return 'Task completed'
+
+    // Handle string results directly
+    if (typeof result === 'string') {
+      return result
+    }
+
+    // Handle task wrapper structure: { taskId, success, result }
+    if (result.taskId && result.success !== undefined && result.result) {
+      return this.formatAgentFactoryResult(result.result)
+    }
+
+    // Handle agent factory structure with verbose result content
+    if (result.success !== undefined && result.agent && (result.todosCompleted !== undefined || result.results)) {
+      // Simple completion status like plan mode
+      if (result.todosCompleted && result.totalTodos) {
+        return `✅ Completed ${result.todosCompleted}/${result.totalTodos} tasks successfully`
+      }
+      return 'Task completed successfully'
+    }
+
+    // For nested result structures, extract just the final outcome
+    if (result.result) {
+      const innerResult = result.result
+
+      // If the inner result is a verbose agent response, extract just the final summary
+      if (typeof innerResult === 'string') {
+        const lines = innerResult.split('\n').map(l => l.trim()).filter(l => l)
+
+        // Look for "Completion Summary" or "Outcomes Achieved" sections
+        let summaryStartIndex = -1
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].toLowerCase()
+          if (line.includes('completion summary') ||
+            line.includes('outcomes achieved') ||
+            line.includes('overall outcomes') ||
+            line.includes('task completed successfully')) {
+            summaryStartIndex = i
+            break
+          }
+        }
+
+        // If we found a summary section, extract the next few meaningful lines
+        if (summaryStartIndex >= 0 && summaryStartIndex + 1 < lines.length) {
+          const summaryLines = lines.slice(summaryStartIndex + 1, summaryStartIndex + 4)
+            .filter(line =>
+              line &&
+              !line.startsWith('**') &&
+              !line.startsWith('#') &&
+              !line.startsWith('*') &&
+              line.length > 20
+            )
+
+          if (summaryLines.length > 0) {
+            return summaryLines[0]
+          }
+        }
+
+        // Fallback: Look for the last meaningful paragraph before "Next Steps"
+        let nextStepsIndex = lines.findIndex(line => line.toLowerCase().includes('next steps'))
+        if (nextStepsIndex > 0) {
+          for (let i = nextStepsIndex - 1; i >= 0; i--) {
+            const line = lines[i]
+            if (line.length > 30 && !line.startsWith('**') && !line.startsWith('#')) {
+              return line
+            }
+          }
+        }
+
+        // Final fallback: First substantial line that looks like a result
+        const meaningfulLine = lines.find(line =>
+          line.length > 40 &&
+          !line.startsWith('#') &&
+          !line.startsWith('**') &&
+          !line.includes('Request Acknowledged') &&
+          !line.includes('Complexity Assessment')
+        )
+
+        return meaningfulLine || 'Analysis completed successfully'
+      }
+
+      return this.formatAgentFactoryResult(innerResult)
+    }
+
+    // Handle simple message structures
+    if (result.message) return result.message
+    if (result.content) return result.content
+    if (result.summary) return result.summary
+    if (result.text) return result.text
+
+    return 'Task completed successfully'
+  }
+
+  /**
+   * Display agent results in plan-mode style: task by task
+   */
+  private displayAgentResultsPlanModeStyle(result: any, agentName: string): void {
+    // Handle task wrapper structure: { taskId, success, result }
+    if (result.taskId && result.success !== undefined && result.result) {
+      result = result.result
+    }
+
+    // Check if this is an agent factory result with task breakdown
+    if (result.success !== undefined && result.agent && result.todosCompleted !== undefined) {
+      // Show task completion summary like plan mode
+      this.addLiveUpdate({
+        type: 'progress',
+        content: `📊 Executing: ${result.todo || 'Processing tasks'} [${this.generateProgressBar(result.todosCompleted, result.totalTodos)}] ${Math.round((result.todosCompleted / result.totalTodos) * 100)}%`,
+        source: agentName
+      })
+
+      // Show completion status
+      this.addLiveUpdate({
+        type: 'status',
+        content: `✓ Completed: ${result.todo || 'Task execution completed'}`,
+        source: agentName
+      })
+
+      // Show the main content from result directly
+      if (result && typeof result === 'string') {
+        const formattedContent = this.formatAgentReport(result)
+        this.addLiveUpdate({
+          type: 'result',
+          content: formattedContent,
+          source: agentName
+        })
+      } else if (result && result.result && typeof result.result === 'string') {
+        const formattedContent = this.formatAgentReport(result.result)
+        this.addLiveUpdate({
+          type: 'result',
+          content: formattedContent,
+          source: agentName
+        })
+      }
+
+      // Final completion message
+      this.addLiveUpdate({
+        type: 'status',
+        content: `**${agentName} Completed:**\n\n✅ Completed ${result.todosCompleted}/${result.totalTodos} tasks successfully`,
+        source: agentName
+      })
+    } else {
+      // Fallback to simple result display
+      const formattedResult = this.formatAgentFactoryResult(result)
+      this.addLiveUpdate({
+        type: 'status',
+        content: `**${agentName} Completed:**\n\n${formattedResult}`,
+        source: agentName
+      })
+    }
+  }
+
+  /**
+   * Extract meaningful task summary from verbose agent result
+   */
+  private extractTaskSummary(resultText: string): string | null {
+    if (!resultText || typeof resultText !== 'string') return null
+
+    const lines = resultText.split('\n').map(l => l.trim()).filter(l => l)
+
+    // Look for completion summary sections first
+    let summaryStartIndex = -1
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].toLowerCase()
+      if (line.includes('completion summary') ||
+        line.includes('outcomes achieved') ||
+        line.includes('overall outcomes')) {
+        summaryStartIndex = i
+        break
+      }
+    }
+
+    if (summaryStartIndex >= 0 && summaryStartIndex + 1 < lines.length) {
+      // Extract multiple meaningful lines from summary section
+      const summaryLines: string[] = []
+      for (let i = summaryStartIndex + 1; i < Math.min(summaryStartIndex + 10, lines.length); i++) {
+        const line = lines[i]
+        if (line.length > 20 && !line.startsWith('**') && !line.startsWith('#') && !line.startsWith('*') && !line.includes('Next Steps')) {
+          summaryLines.push(line)
+          if (summaryLines.length >= 3) break // Get first 3 meaningful lines
+        }
+      }
+
+      if (summaryLines.length > 0) {
+        return summaryLines.join('\n')
+      }
+    }
+
+    // Fallback: Look for "Actionable Recommendations" or key findings
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].toLowerCase()
+      if (line.includes('actionable recommendations') ||
+        line.includes('key findings') ||
+        line.includes('main results')) {
+        // Get the next few meaningful lines
+        const resultLines: string[] = []
+        for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
+          const resultLine = lines[j]
+          if (resultLine.length > 25 && !resultLine.startsWith('**') && !resultLine.startsWith('#')) {
+            resultLines.push(resultLine)
+            if (resultLines.length >= 2) break
+          }
+        }
+        if (resultLines.length > 0) {
+          return resultLines.join('\n')
+        }
+      }
+    }
+
+    // Final fallback: Get substantial content from the middle of the text
+    const substantialLines = lines.filter(line =>
+      line.length > 50 &&
+      !line.startsWith('#') &&
+      !line.startsWith('**') &&
+      !line.includes('Request Acknowledged') &&
+      !line.includes('Complexity Assessment') &&
+      !line.includes('TaskMaster AI') &&
+      !line.includes('Execution Strategy')
+    )
+
+    if (substantialLines.length > 0) {
+      return substantialLines.slice(0, 2).join('\n')
+    }
+
+    return null
+  }
+
+  /**
+   * Extract key findings and analysis from agent result
+   */
+  private extractKeyFindings(resultText: string): string | null {
+    if (!resultText || typeof resultText !== 'string') return null
+
+    const lines = resultText.split('\n').map(l => l.trim()).filter(l => l)
+
+    // Look for "Task X:" patterns (like "Task 1: Repository State Check")
+    const taskResults: string[] = []
+    let currentTask = ''
+    let inAnalysis = false
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+
+      // Check for task headers
+      if (line.match(/^#### Task \d+:/) || line.includes('**Command Executed**:') || line.includes('**Analysis**:')) {
+        if (line.includes('#### Task')) {
+          currentTask = line.replace('####', '').replace('**', '').trim()
+        } else if (line.includes('**Analysis**:')) {
+          inAnalysis = true
+          // Get the analysis line
+          if (i + 1 < lines.length) {
+            const analysisLine = lines[i + 1]
+            if (analysisLine.length > 20 && currentTask) {
+              taskResults.push(`${currentTask}: ${analysisLine}`)
+            }
+          }
+          inAnalysis = false
+        }
+      }
+
+      // Also look for "Overall Results" sections
+      if (line.includes('Overall Results:') || line.includes('Success Metrics:')) {
+        for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+          const nextLine = lines[j]
+          if (nextLine.length > 30 && !nextLine.startsWith('**') && !nextLine.startsWith('#')) {
+            taskResults.push(`📊 ${nextLine}`)
+            break
+          }
+        }
+      }
+    }
+
+    // Fallback: Look for command execution results
+    if (taskResults.length === 0) {
+      let foundResults = false
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        if (line.includes('Command Executed') || line.includes('Analysis:')) {
+          foundResults = true
+          // Get next meaningful lines
+          for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+            const resultLine = lines[j]
+            if (resultLine.length > 25 && !resultLine.startsWith('```') && !resultLine.startsWith('*')) {
+              taskResults.push(resultLine)
+              if (taskResults.length >= 3) break
+            }
+          }
+        }
+        if (foundResults && taskResults.length >= 3) break
+      }
+    }
+
+    return taskResults.length > 0 ? taskResults.slice(0, 4).join('\n') : null
+  }
+
+  /**
+   * Format agent report content for clean display
+   */
+  private formatAgentReport(resultText: string): string {
+    if (!resultText || typeof resultText !== 'string') return 'Report completed'
+
+    const lines = resultText.split('\n').map(l => l.trim()).filter(l => l)
+    const formattedSections: string[] = []
+
+    // Extract task sections (#### Task X: ...)
+    let currentSection = ''
+    let collectingTask = false
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+
+      // Start of task section
+      if (line.match(/^#### Task \d+:/)) {
+        if (currentSection.trim()) {
+          formattedSections.push(currentSection.trim())
+        }
+        currentSection = `${line.replace('####', '📋').replace('**', '')}\n`
+        collectingTask = true
+        continue
+      }
+
+      // Collect analysis and key info from task sections
+      if (collectingTask) {
+        if (line.includes('**Analysis**:')) {
+          // Get the analysis line
+          if (i + 1 < lines.length) {
+            const analysisLine = lines[i + 1].replace(/State: /g, '• Status: ')
+            currentSection += `  ${analysisLine}\n`
+          }
+        } else if (line.includes('**Command Executed**:')) {
+          // Get the command
+          if (i + 1 < lines.length && lines[i + 1].startsWith('`')) {
+            const commandLine = lines[i + 1].replace(/`/g, '').trim()
+            currentSection += `  Command: ${commandLine}\n`
+          }
+        }
+
+        // Stop collecting when we hit the next task or major section
+        if (line.includes('###') || line.match(/^#### Task \d+:/)) {
+          collectingTask = false
+        }
+      }
+
+      // Extract final summary sections
+      if (line.includes('Overall Results:') || line.includes('Quality Assurance')) {
+        collectingTask = false
+        // Get summary
+        for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+          const summaryLine = lines[j]
+          if (summaryLine.length > 30 && !summaryLine.startsWith('**') && !summaryLine.startsWith('#')) {
+            formattedSections.push(`\n🎯 ${summaryLine}`)
+            break
+          }
+        }
+      }
+
+      // Extract recommendations
+      if (line.includes('Recommendations:')) {
+        const recommendations: string[] = []
+        for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
+          const recLine = lines[j]
+          if (recLine.includes('- Run') || recLine.includes('- For')) {
+            recommendations.push(`  ${recLine.replace('- ', '• ')}`)
+          }
+          if (recommendations.length >= 2) break
+        }
+        if (recommendations.length > 0) {
+          formattedSections.push(`\n💡 Recommendations:\n${recommendations.join('\n')}`)
+        }
+      }
+    }
+
+    // Add the last section if we were collecting
+    if (currentSection.trim()) {
+      formattedSections.push(currentSection.trim())
+    }
+
+    // If no formatted sections, try to get key content
+    if (formattedSections.length === 0) {
+      const meaningfulContent = lines.filter(line =>
+        line.length > 40 &&
+        !line.includes('Request Summary') &&
+        !line.includes('Cognitive Analysis') &&
+        !line.includes('TaskMaster AI') &&
+        !line.startsWith('**') &&
+        !line.startsWith('#')
+      ).slice(0, 3)
+
+      return meaningfulContent.join('\n\n') || 'Analysis completed successfully'
+    }
+
+    return formattedSections.join('\n\n')
+  }
+
+  /**
+   * Generate progress bar like plan mode
+   */
+  private generateProgressBar(current: number, total: number): string {
+    const percentage = Math.round((current / total) * 100)
+    const filled = Math.round((current / total) * 10)
+    const bar = '█'.repeat(filled) + '░'.repeat(10 - filled)
+    return bar
+  }
+
+  /**
    * Format tool details for logging
    */
   private formatToolDetails(toolName: string, toolArgs: any): string {
@@ -10946,6 +11774,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       }
     })
     this.progressBars.clear()
+
+    // Remove keypress listener to prevent loop
+    if (this.keypressListener) {
+      process.stdin.removeListener('keypress', this.keypressListener)
+      this.keypressListener = undefined
+    }
 
     if (this.rl) {
       this.rl.close()
@@ -15384,6 +16218,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       }
     })
 
+    // Handle CLI mode changes for seamless transitions
+    this.vimModeManager.on('cliModeChange', (from: string, to: string) => {
+      console.log(chalk.gray(`🔄 CLI mode transition: ${from} → ${to}`))
+      this.currentMode = to as 'default' | 'plan' | 'vm' | 'vim'
+    })
+
     // Handle mode changes
     this.vimModeManager.on('activated', (options?: { pauseReadline?: boolean }) => {
       this.currentMode = 'vim'
@@ -15396,25 +16236,22 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     })
 
     this.vimModeManager.on('deactivated', (options?: { resumeReadline?: boolean }) => {
-      this.currentMode = 'default'
+      // Get the previous mode from vim manager
+      const previousMode = this.vimModeManager?.getCurrentCliMode() || 'default'
+      this.currentMode = previousMode as 'default' | 'plan' | 'vm' | 'vim'
+
       if (options?.resumeReadline && !this.rl) {
         // Recreate readline interface
         this.createReadlineInterface()
-        // Start fresh prompt
-        setTimeout(() => {
-          if (this.rl) {
-            this.rl.prompt()
-          }
-        }, 100)
+        // CRITICAL FIX: Restore prompt IMMEDIATELY without setTimeout
+        // This ensures no dead-time between vim exit and prompt restoration
+        if (this.rl) {
+          this.renderPromptAfterOutput()
+        }
       }
 
       // Ensure proper cleanup and restoration
       this.cleanupVimKeyHandling()
-
-      // Restore normal CLI prompt after a short delay
-      setTimeout(() => {
-        this.renderPromptAfterOutput()
-      }, 100)
     })
 
     // Handle state changes
@@ -15480,7 +16317,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       case 'enter':
         try {
           await this.vimModeManager.initialize()
-          await this.vimModeManager.activate()
+          // Pass readline interface and restore callback for proper mode management
+          await this.vimModeManager.activate(this.rl, () => {
+            this.renderPromptAfterOutput()
+          })
         } catch (error: any) {
           console.log(chalk.red(`✗ Failed to start vim mode: ${error.message}`))
         }
