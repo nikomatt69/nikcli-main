@@ -501,7 +501,7 @@ export class UnifiedRAGSystem {
       console.log(
         chalk.green(
           `✓ Found ${finalResults.length} results in ${duration}ms ` +
-            `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
+          `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
         )
       )
 
@@ -763,76 +763,29 @@ export class UnifiedRAGSystem {
       const cacheFilePath = join(this.CACHE_DIR, 'embeddings-cache.json')
       const hashFilePath = join(this.CACHE_DIR, 'file-hashes.json')
 
-      console.log(chalk.gray(`✓ Cache directory: ${this.CACHE_DIR}`))
+
 
       // Check if cache files exist
       const cacheExists = existsSync(cacheFilePath)
       const hashExists = existsSync(hashFilePath)
 
-      console.log(chalk.gray(`✓ Embeddings cache: ${cacheExists ? 'exists' : 'will be created'}`))
-      console.log(chalk.gray(`✓ File hashes cache: ${hashExists ? 'exists' : 'will be created'}`))
+
 
       // Test cache functionality by adding a test entry and saving
       const testKey = `cache-test-${Date.now()}`
       const testEmbedding = [0.1, 0.2, 0.3] // Simple test embedding
 
       this.embeddingsCache.set(testKey, testEmbedding)
-      console.log(chalk.gray(`✓ Test cache entry added (${this.embeddingsCache.size} total entries)`))
+
 
       // Show cost optimization summary
-      this.showCostOptimizations()
+
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Cache test warning: ${error.message}`))
+
     }
   }
 
-  /**
-   * Display RAG cost optimizations and savings
-   */
-  private showCostOptimizations(): void {
-    console.log(chalk.blue('\n💰 RAG Cost Optimizations:'))
 
-    // Show chunk optimization savings
-    const oldChunkTokens = 700
-    const newChunkTokens = this.config.chunkSize
-    const chunkSavings = ((oldChunkTokens - newChunkTokens) / oldChunkTokens) * 100
-
-    const oldOverlap = 80
-    const newOverlap = this.config.overlapSize
-    const overlapSavings = ((oldOverlap - newOverlap) / oldOverlap) * 100
-
-    console.log(
-      chalk.gray(
-        `✓ Chunk size: ${oldChunkTokens} → ${newChunkTokens} tokens (${Math.abs(chunkSavings).toFixed(1)}% ${chunkSavings < 0 ? 'increase for better context' : 'reduction'})`
-      )
-    )
-    console.log(
-      chalk.gray(
-        `✓ Overlap reduction: ${oldOverlap} → ${newOverlap} tokens (${overlapSavings.toFixed(1)}% less duplication)`
-      )
-    )
-
-    // Calculate estimated savings for typical project
-    const avgFileSize = 2000 // characters
-    const avgFilesInProject = 100
-    const _totalChars = avgFileSize * avgFilesInProject
-
-    const oldCost = 0.05 // Estimate for old approach
-    const newCost = 0.03 // Estimate for new optimized approach
-    const savings = ((oldCost - newCost) / oldCost) * 100
-
-    console.log(
-      chalk.gray(
-        `✓ Estimated project savings: ${savings.toFixed(1)}% ($${oldCost.toFixed(4)} → $${newCost.toFixed(4)})`
-      )
-    )
-    console.log(chalk.gray(`✓ Cache hits save: 100% on re-embeddings`))
-
-    // Show current efficiency metrics
-    if (this.embeddingsCache.size > 0) {
-      console.log(chalk.gray(`✓ Cache efficiency: ${this.embeddingsCache.size} embeddings cached`))
-    }
-  }
 
   /**
    * Generate file content hash for change detection
@@ -1839,7 +1792,7 @@ export class UnifiedRAGSystem {
     console.log(
       chalk.blue(
         `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-          `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
       )
     )
 

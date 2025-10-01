@@ -168,6 +168,7 @@ class BannerAnimator {
 
     await new Promise<void>((resolve) => {
       let index = 0
+      let timer: NodeJS.Timeout
 
       const renderFrame = () => {
         console.clear()
@@ -175,7 +176,7 @@ class BannerAnimator {
         index += 1
 
         if (index >= totalFrames) {
-          clearInterval(timer)
+          if (timer) clearInterval(timer)
           console.clear()
           console.log(frames[frames.length - 1])
           resolve()
@@ -183,7 +184,7 @@ class BannerAnimator {
       }
 
       renderFrame()
-      const timer = setInterval(renderFrame, frameInterval)
+      timer = setInterval(renderFrame, frameInterval)
     })
   }
 }
@@ -1351,6 +1352,10 @@ class StreamingModule extends EventEmitter {
   private messageQueue: StreamMessage[] = []
   private processingMessage = false
   private activeAgents = new Map<string, any>()
+  private messageProcessorInterval?: NodeJS.Timeout
+  private keypressHandler?: (str: any, key: any) => void
+  private eventHandlers: Map<string, (...args: any[]) => void> = new Map()
+  private cleanupCompleted = false
 
   constructor() {
     super()
@@ -1391,7 +1396,7 @@ class StreamingModule extends EventEmitter {
     }
 
     // Keypress handlers
-    process.stdin.on('keypress', (str, key) => {
+    this.keypressHandler = (str, key) => {
       if (key && key.name === 'slash' && !this.processingMessage) {
         setTimeout(() => this.showCommandMenu(), 50)
       }
@@ -1407,10 +1412,11 @@ class StreamingModule extends EventEmitter {
           this.gracefulExit()
         }
       }
-    })
+    }
+    process.stdin.on('keypress', this.keypressHandler)
 
     // Input handler
-    this.rl.on('line', async (input: string) => {
+    const lineHandler = async (input: string) => {
       const trimmed = input.trim()
       if (!trimmed) {
         this.showPrompt()
@@ -1419,11 +1425,15 @@ class StreamingModule extends EventEmitter {
 
       await this.queueUserInput(trimmed)
       this.showPrompt()
-    })
+    }
+    this.eventHandlers.set('line', lineHandler)
+    this.rl.on('line', lineHandler)
 
-    this.rl.on('close', () => {
+    const closeHandler = () => {
       this.gracefulExit()
-    })
+    }
+    this.eventHandlers.set('close', closeHandler)
+    this.rl.on('close', closeHandler)
 
     this.setupServiceListeners()
   }
@@ -1574,7 +1584,7 @@ class StreamingModule extends EventEmitter {
   }
 
   private startMessageProcessor(): void {
-    setInterval(() => {
+    this.messageProcessorInterval = setInterval(() => {
       if (!this.processingMessage) {
         this.processNextMessage()
       }
@@ -1599,6 +1609,48 @@ class StreamingModule extends EventEmitter {
     }, 100)
   }
 
+  private cleanup(): void {
+    if (this.cleanupCompleted) return
+    this.cleanupCompleted = true
+
+    try {
+      // Stop message processor
+      if (this.messageProcessorInterval) {
+        clearInterval(this.messageProcessorInterval)
+        this.messageProcessorInterval = undefined
+      }
+
+      // Remove keypress handler
+      if (this.keypressHandler) {
+        process.stdin.removeListener('keypress', this.keypressHandler)
+        this.keypressHandler = undefined
+      }
+
+      // Remove event handlers
+      if (this.rl) {
+        this.eventHandlers.forEach((handler, event) => {
+          this.rl.removeListener(event, handler)
+        })
+        this.eventHandlers.clear()
+      }
+
+      // Reset raw mode
+      try {
+        if (process.stdin.isTTY && (process.stdin as any).isRaw) {
+          ;(process.stdin as any).setRawMode(false)
+        }
+      } catch (error) {
+        // Ignore
+      }
+
+      // Clear data structures
+      this.activeAgents.clear()
+      this.messageQueue = []
+    } catch (error: any) {
+      console.error('Cleanup error:', error.message)
+    }
+  }
+
   private gracefulExit(): void {
     console.log(chalk.blue('\n👋 Shutting down orchestrator...'))
 
@@ -1606,6 +1658,7 @@ class StreamingModule extends EventEmitter {
       console.log(chalk.yellow(`⏳ Waiting for ${this.activeAgents.size} agents to finish...`))
     }
 
+    this.cleanup()
     console.log(chalk.green('✓ Goodbye!'))
     process.exit(0)
   }
@@ -1614,7 +1667,11 @@ class StreamingModule extends EventEmitter {
     this.showPrompt()
 
     return new Promise<void>((resolve) => {
-      this.rl.on('close', resolve)
+      const resolveHandler = () => {
+        this.cleanup()
+        resolve()
+      }
+      this.rl.on('close', resolveHandler)
     })
   }
 }

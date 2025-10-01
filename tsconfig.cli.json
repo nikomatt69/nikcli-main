@@ -28,8 +28,8 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": "./src",
-    "declaration": false,
-    "sourceMap": false,
+    "declaration": true,
+    "sourceMap": true,
     "removeComments": true,
     "jsx": "react-jsx",
     "paths": {

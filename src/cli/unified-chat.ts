@@ -14,9 +14,12 @@ import * as readline from 'readline'
 import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { WorkflowOrchestrator } from './automation/workflow-orchestrator'
 import { ChatOrchestrator } from './chat/chat-orchestrator'
+import { agentTodoManager } from './core/agent-todo-manager'
 import { simpleConfigManager as configManager } from './core/config-manager'
+import { EnhancedSessionManager } from './persistence/enhanced-session-manager'
 import { agentService } from './services/agent-service'
 import { planningService } from './services/planning-service'
+import { workSessionManager } from './persistence/work-session-manager'
 
 // Types
 interface ChatMessage {
@@ -83,7 +86,9 @@ export class UnifiedChatInterface extends EventEmitter {
   private workflowOrchestrator: WorkflowOrchestrator
   private chatOrchestrator: ChatOrchestrator
   private initialized = false
-  private activeTimers: NodeJS.Timeout[] = []
+  private activeTimers: Set<NodeJS.Timeout> = new Set()
+  private eventHandlers: Map<string, (...args: any[]) => void> = new Map()
+  private cleanupCompleted = false
 
   constructor() {
     super()
@@ -108,8 +113,8 @@ export class UnifiedChatInterface extends EventEmitter {
     this.workflowOrchestrator = new WorkflowOrchestrator(this.session.workingDirectory)
     this.chatOrchestrator = new ChatOrchestrator(
       agentService as any,
-      {} as any, // todoManager placeholder
-      {} as any, // sessionManager placeholder
+      agentTodoManager,
+      workSessionManager as any,
       configManager
     )
 
@@ -120,20 +125,23 @@ export class UnifiedChatInterface extends EventEmitter {
    * Setup event handlers for graceful operation
    */
   private setupEventHandlers(): void {
-    // Graceful shutdown
-    this.rl.on('SIGINT', () => {
+    // Store handlers for later cleanup
+    const sigintHandler = () => {
       if (this.session.isExecuting) {
         console.log(chalk.yellow('\n⏸️  Stopping current execution...'))
         this.stopExecution()
         this.showPrompt()
       } else {
+        this.cleanup()
         this.showGoodbye()
         process.exit(0)
       }
-    })
+    }
+    this.eventHandlers.set('SIGINT', sigintHandler)
+    this.rl.on('SIGINT', sigintHandler)
 
     // Handle input
-    this.rl.on('line', async (input: string) => {
+    const lineHandler = async (input: string) => {
       const trimmed = input.trim()
 
       if (!trimmed) {
@@ -141,14 +149,25 @@ export class UnifiedChatInterface extends EventEmitter {
         return
       }
 
-      await this.handleInput(trimmed)
-      this.showPrompt()
-    })
+      try {
+        await this.handleInput(trimmed)
+      } catch (error: any) {
+        console.log(chalk.red(`Error handling input: ${error.message}`))
+      } finally {
+        this.showPrompt()
+      }
+    }
+    this.eventHandlers.set('line', lineHandler)
+    this.rl.on('line', lineHandler)
 
-    this.rl.on('close', () => {
+    // Handle close
+    const closeHandler = () => {
+      this.cleanup()
       this.showGoodbye()
       process.exit(0)
-    })
+    }
+    this.eventHandlers.set('close', closeHandler)
+    this.rl.on('close', closeHandler)
   }
 
   /**
@@ -275,16 +294,16 @@ export class UnifiedChatInterface extends EventEmitter {
   private displayPlan(plan: ExecutionPlan): void {
     const planBox = boxen(
       chalk.white.bold(`📋 ${plan.title}\n\n`) +
-        chalk.gray(`${plan.description}\n\n`) +
-        chalk.blue(`🕒 Estimated Duration: ${plan.estimatedDuration} minutes\n`) +
-        chalk.yellow(`⚠️  Risk Level: ${plan.riskLevel.toUpperCase()}\n\n`) +
-        chalk.white.bold('📝 Execution Steps:\n') +
-        plan.steps
-          .map(
-            (step, i) =>
-              `${i + 1}. ${chalk.cyan(step.title)}\n   ${chalk.dim(step.description)}\n   ${step.requiresPermission ? chalk.red('🔒 Requires permission') : chalk.green('✓ Auto-approved')}`
-          )
-          .join('\n\n'),
+      chalk.gray(`${plan.description}\n\n`) +
+      chalk.blue(`🕒 Estimated Duration: ${plan.estimatedDuration} minutes\n`) +
+      chalk.yellow(`⚠️  Risk Level: ${plan.riskLevel.toUpperCase()}\n\n`) +
+      chalk.white.bold('📝 Execution Steps:\n') +
+      plan.steps
+        .map(
+          (step, i) =>
+            `${i + 1}. ${chalk.cyan(step.title)}\n   ${chalk.dim(step.description)}\n   ${step.requiresPermission ? chalk.red('🔒 Requires permission') : chalk.green('✓ Auto-approved')}`
+        )
+        .join('\n\n'),
       {
         padding: 1,
         margin: 1,
@@ -354,10 +373,9 @@ export class UnifiedChatInterface extends EventEmitter {
       const timer = setTimeout(() => {
         this.showPrompt()
         // Remove from active timers
-        const index = this.activeTimers.indexOf(timer)
-        if (index > -1) this.activeTimers.splice(index, 1)
+        this.activeTimers.delete(timer)
       }, 100)
-      this.activeTimers.push(timer)
+      this.activeTimers.add(timer)
     }
   }
 
@@ -367,10 +385,10 @@ export class UnifiedChatInterface extends EventEmitter {
   private async requestStepPermission(step: PlanStep): Promise<boolean> {
     const permissionBox = boxen(
       chalk.yellow.bold('🔒 Permission Required\n\n') +
-        chalk.white(`Step: ${step.title}\n`) +
-        chalk.gray(`Description: ${step.description}\n`) +
-        chalk.cyan(`Tool: ${step.toolName}\n`) +
-        chalk.dim(`Parameters: ${JSON.stringify(step.parameters, null, 2)}`),
+      chalk.white(`Step: ${step.title}\n`) +
+      chalk.gray(`Description: ${step.description}\n`) +
+      chalk.cyan(`Tool: ${step.toolName}\n`) +
+      chalk.dim(`Parameters: ${JSON.stringify(step.parameters, null, 2)}`),
       {
         padding: 1,
         borderStyle: 'round',
@@ -560,9 +578,9 @@ export class UnifiedChatInterface extends EventEmitter {
           priority: t.priority,
           progress: t.progress,
         }))
-        ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+          ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
       })
-    } catch {}
+    } catch { }
   }
 
   /**
@@ -573,8 +591,7 @@ export class UnifiedChatInterface extends EventEmitter {
     const timer = setTimeout(async () => {
       try {
         // Remove from active timers at start
-        const index = this.activeTimers.indexOf(timer)
-        if (index > -1) this.activeTimers.splice(index, 1)
+        this.activeTimers.delete(timer)
 
         const { agentTodoManager } = await import('./core/agent-todo-manager')
         await agentTodoManager.executeTodos(agentId)
@@ -585,7 +602,7 @@ export class UnifiedChatInterface extends EventEmitter {
         this.addAssistantMessage(`Some background tasks encountered issues: ${error.message}`)
       }
     }, 100) // Small delay to avoid blocking the chat
-    this.activeTimers.push(timer)
+    this.activeTimers.add(timer)
   }
 
   /**
@@ -681,24 +698,24 @@ export class UnifiedChatInterface extends EventEmitter {
   private showHelp(): void {
     const helpBox = boxen(
       chalk.white.bold('🔌 NikCLI Commands\n\n') +
-        chalk.green('/help') +
-        chalk.gray('     - Show this help\n') +
-        chalk.green('/plan') +
-        chalk.gray('     - Toggle plan mode (currently: ') +
-        (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
-        chalk.gray(') - Ask approval before execution\n') +
-        chalk.green('/status') +
-        chalk.gray('   - Show current status\n') +
-        chalk.green('/queue') +
-        chalk.gray('    - Show prompt queue\n') +
-        chalk.green('/stop') +
-        chalk.gray('     - Stop current execution\n') +
-        chalk.green('/clear') +
-        chalk.gray('    - Clear screen\n') +
-        chalk.green('/exit') +
-        chalk.gray('     - Exit NikCLI\n\n') +
-        chalk.yellow('💡 Default mode: Auto-generates todos for complex tasks and executes in background\n') +
-        chalk.yellow('💡 Plan mode: Creates detailed plans and asks for approval first'),
+      chalk.green('/help') +
+      chalk.gray('     - Show this help\n') +
+      chalk.green('/plan') +
+      chalk.gray('     - Toggle plan mode (currently: ') +
+      (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
+      chalk.gray(') - Ask approval before execution\n') +
+      chalk.green('/status') +
+      chalk.gray('   - Show current status\n') +
+      chalk.green('/queue') +
+      chalk.gray('    - Show prompt queue\n') +
+      chalk.green('/stop') +
+      chalk.gray('     - Stop current execution\n') +
+      chalk.green('/clear') +
+      chalk.gray('    - Clear screen\n') +
+      chalk.green('/exit') +
+      chalk.gray('     - Exit NikCLI\n\n') +
+      chalk.yellow('💡 Default mode: Auto-generates todos for complex tasks and executes in background\n') +
+      chalk.yellow('💡 Plan mode: Creates detailed plans and asks for approval first'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -715,23 +732,23 @@ export class UnifiedChatInterface extends EventEmitter {
   private showStatus(): void {
     const statusBox = boxen(
       chalk.white.bold('📊 NikCLI Status\n\n') +
-        chalk.blue('Working Directory: ') +
-        chalk.cyan(this.session.workingDirectory) +
-        '\n' +
-        chalk.blue('Plan Mode: ') +
-        (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
-        '\n' +
-        chalk.blue('Executing: ') +
-        (this.session.isExecuting ? chalk.yellow('YES') : chalk.green('NO')) +
-        '\n' +
-        chalk.blue('Current Plan: ') +
-        (this.session.currentPlan ? chalk.cyan(this.session.currentPlan.title) : chalk.gray('None')) +
-        '\n' +
-        chalk.blue('Queued Prompts: ') +
-        chalk.yellow(this.session.promptQueue.length.toString()) +
-        '\n' +
-        chalk.blue('Messages: ') +
-        chalk.cyan(this.session.messages.length.toString()),
+      chalk.blue('Working Directory: ') +
+      chalk.cyan(this.session.workingDirectory) +
+      '\n' +
+      chalk.blue('Plan Mode: ') +
+      (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
+      '\n' +
+      chalk.blue('Executing: ') +
+      (this.session.isExecuting ? chalk.yellow('YES') : chalk.green('NO')) +
+      '\n' +
+      chalk.blue('Current Plan: ') +
+      (this.session.currentPlan ? chalk.cyan(this.session.currentPlan.title) : chalk.gray('None')) +
+      '\n' +
+      chalk.blue('Queued Prompts: ') +
+      chalk.yellow(this.session.promptQueue.length.toString()) +
+      '\n' +
+      chalk.blue('Messages: ') +
+      chalk.cyan(this.session.messages.length.toString()),
       {
         padding: 1,
         borderStyle: 'round',
@@ -753,12 +770,12 @@ export class UnifiedChatInterface extends EventEmitter {
 
     const queueBox = boxen(
       chalk.white.bold(`📥 Prompt Queue (${this.session.promptQueue.length})\n\n`) +
-        this.session.promptQueue
-          .map(
-            (prompt, i) =>
-              `${i + 1}. ${chalk.cyan(prompt.content.slice(0, 50))}${prompt.content.length > 50 ? '...' : ''}\n   ${chalk.dim(prompt.timestamp.toLocaleTimeString())}`
-          )
-          .join('\n\n'),
+      this.session.promptQueue
+        .map(
+          (prompt, i) =>
+            `${i + 1}. ${chalk.cyan(prompt.content.slice(0, 50))}${prompt.content.length > 50 ? '...' : ''}\n   ${chalk.dim(prompt.timestamp.toLocaleTimeString())}`
+        )
+        .join('\n\n'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -798,11 +815,11 @@ export class UnifiedChatInterface extends EventEmitter {
 
     const welcomeBox = boxen(
       chalk.white.bold('🔌 Autonomous AI Development Assistant\n\n') +
-        chalk.gray('• Intelligent planning and execution\n') +
-        chalk.gray('• Real-time prompt queue management\n') +
-        chalk.gray('• Interactive permission system\n') +
-        chalk.gray('• Multi-agent orchestration\n\n') +
-        chalk.cyan('Ready to help with your development tasks!'),
+      chalk.gray('• Intelligent planning and execution\n') +
+      chalk.gray('• Real-time prompt queue management\n') +
+      chalk.gray('• Interactive permission system\n') +
+      chalk.gray('• Multi-agent orchestration\n\n') +
+      chalk.cyan('Ready to help with your development tasks!'),
       {
         padding: 1,
         margin: 1,
@@ -838,10 +855,10 @@ export class UnifiedChatInterface extends EventEmitter {
   private showGoodbye(): void {
     const goodbyeBox = boxen(
       chalk.white.bold('🔌 NikCLI Session Complete\n\n') +
-        chalk.gray('Thank you for using NikCLI!\n') +
-        chalk.blue(`Messages processed: ${this.session.messages.length}\n`) +
-        chalk.green(`Session duration: ${Math.round((Date.now() - parseInt(this.session.id, 10)) / 1000)}s\n\n`) +
-        chalk.cyan('Happy coding! 🚀'),
+      chalk.gray('Thank you for using NikCLI!\n') +
+      chalk.blue(`Messages processed: ${this.session.messages.length}\n`) +
+      chalk.green(`Session duration: ${Math.round((Date.now() - parseInt(this.session.id, 10)) / 1000)}s\n\n`) +
+      chalk.cyan('Happy coding! 🚀'),
       {
         padding: 1,
         margin: 1,
@@ -890,16 +907,48 @@ export class UnifiedChatInterface extends EventEmitter {
     this.activeTimers.forEach((timer) => {
       clearTimeout(timer)
     })
-    this.activeTimers = []
+    this.activeTimers.clear()
   }
 
   /**
-   * Shutdown cleanup
+   * Complete cleanup of all resources
+   */
+  private cleanup(): void {
+    if (this.cleanupCompleted) return
+    this.cleanupCompleted = true
+
+    try {
+      // Clean up all timers
+      this.cleanupTimers()
+
+      // Remove all event listeners
+      if (this.rl) {
+        this.eventHandlers.forEach((handler, event) => {
+          this.rl.removeListener(event, handler)
+        })
+        this.eventHandlers.clear()
+      }
+
+      // Clear session data
+      this.session.activeAgents.clear()
+      this.session.promptQueue = []
+    } catch (error: any) {
+      // Silent cleanup errors to prevent exit issues
+      console.error('Cleanup error:', error.message)
+    }
+  }
+
+  /**
+   * Shutdown cleanup - public interface
    */
   public shutdown(): void {
-    this.cleanupTimers()
-    if (this.rl) {
-      this.rl.close()
+    this.cleanup()
+    if (this.rl && !(this.rl as any).closed) {
+      try {
+        this.rl.close()
+      } catch (error) {
+        // Ignore close errors
+      }
     }
   }
 }

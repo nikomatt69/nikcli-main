@@ -7,23 +7,55 @@ import { autonomousClaudeInterface } from './chat/autonomous-claude-interface'
 
 async function main() {
   try {
-    autonomousClaudeInterface.start()
+    await autonomousClaudeInterface.start()
   } catch (error) {
     console.error('Failed to start autonomous interface:', error)
+    // Ensure cleanup before exit
+    try {
+      autonomousClaudeInterface.stop()
+    } catch (cleanupError) {
+      console.error('Cleanup error:', cleanupError)
+    }
     process.exit(1)
   }
 }
 
-// Handle process termination
-process.on('SIGINT', () => {
-  autonomousClaudeInterface.stop()
-  process.exit(0)
+// Handle process termination gracefully
+let isShuttingDown = false
+
+const gracefulShutdown = (signal: string) => {
+  if (isShuttingDown) return
+  isShuttingDown = true
+
+  console.log(`\nReceived ${signal}, shutting down gracefully...`)
+
+  try {
+    autonomousClaudeInterface.stop()
+  } catch (error) {
+    console.error('Error during shutdown:', error)
+  } finally {
+    process.exit(0)
+  }
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+
+// Handle uncaught errors
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error)
+  gracefulShutdown('uncaughtException')
 })
 
-process.on('SIGTERM', () => {
-  autonomousClaudeInterface.stop()
-  process.exit(0)
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason)
+  // Don't exit on unhandled rejection, just log it
 })
 
 // Start the CLI
-main()
+
+main().catch((error) => {
+  console.error('Fatal error in main:', error)
+  process.exit(1)
+})
+

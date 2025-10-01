@@ -49,6 +49,12 @@ export class AutonomousClaudeInterface {
   private shouldInterrupt = false
   private currentStreamController?: AbortController
   private cliInstance: any
+  private streamOptimizationInterval?: NodeJS.Timeout
+  private tokenOptimizationInterval?: NodeJS.Timeout
+  private keypressHandler?: (str: any, key: any) => void
+  private eventHandlers: Map<string, (...args: any[]) => void> = new Map()
+  private cleanupCompleted = false
+
   constructor() {
     this.rl = readline.createInterface({
       input: process.stdin,
@@ -90,28 +96,31 @@ export class AutonomousClaudeInterface {
 
   private setupEventHandlers(): void {
     // Handle Ctrl+C gracefully
-    this.rl.on('SIGINT', () => {
+    const sigintHandler = () => {
       if (this.isProcessing) {
         console.log(chalk.yellow('\\n⏸️  Stopping current operation...'))
         this.stopAllActiveOperations()
         this.showPrompt()
       } else {
+        this.cleanup()
         this.showGoodbye()
         process.exit(0)
       }
-    })
+    }
+    this.eventHandlers.set('SIGINT', sigintHandler)
+    this.rl.on('SIGINT', sigintHandler)
 
     // Enable raw mode for keypress detection
     if (process.stdin.isTTY) {
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ;(process.stdin as any).setRawMode(true)
+        ; (process.stdin as any).setRawMode(true)
       }
-      ;(process.stdin as any).resume()
+      ; (process.stdin as any).resume()
     }
 
     // Handle keypress events for interactive features
-    process.stdin.on('keypress', (_str, key) => {
+    this.keypressHandler = (_str, key) => {
       if (key && key.name === 'slash' && !this.isProcessing) {
         // Show command suggestions when / is pressed
         setTimeout(() => this.showCommandSuggestions(), 50)
@@ -131,10 +140,11 @@ export class AutonomousClaudeInterface {
       if (key && key.name === 'escape' && this.isProcessing) {
         this.interruptProcessing()
       }
-    })
+    }
+    process.stdin.on('keypress', this.keypressHandler)
 
     // Handle line input
-    this.rl.on('line', async (input) => {
+    const lineHandler = async (input: string) => {
       const trimmed = input.trim()
 
       if (!trimmed) {
@@ -142,27 +152,30 @@ export class AutonomousClaudeInterface {
         return
       }
 
-      await this.handleInput(trimmed)
-      this.showPrompt()
-    })
+      try {
+        await this.handleInput(trimmed)
+      } catch (error: any) {
+        console.log(chalk.red(`Error: ${error.message}`))
+      } finally {
+        this.showPrompt()
+      }
+    }
+    this.eventHandlers.set('line', lineHandler)
+    this.rl.on('line', lineHandler)
 
     // Handle close
-    this.rl.on('close', () => {
-      try {
-        if (process.stdin.isTTY && (process.stdin as any).isRaw) {
-          ;(process.stdin as any).setRawMode(false)
-        }
-      } catch {
-        /* ignore */
-      }
+    const closeHandler = () => {
+      this.cleanup()
       this.showGoodbye()
       process.exit(0)
-    })
+    }
+    this.eventHandlers.set('close', closeHandler)
+    this.rl.on('close', closeHandler)
   }
 
   private setupStreamOptimization(): void {
     // Buffer stream output for smoother rendering
-    setInterval(() => {
+    this.streamOptimizationInterval = setInterval(() => {
       if (this.streamBuffer && Date.now() - this.lastStreamTime > 50) {
         process.stdout.write(this.streamBuffer)
         this.streamBuffer = ''
@@ -172,7 +185,7 @@ export class AutonomousClaudeInterface {
 
   private setupTokenOptimization(): void {
     // Check token usage periodically and suggest cleanup
-    setInterval(() => {
+    this.tokenOptimizationInterval = setInterval(() => {
       const metrics = contextManager.getContextMetrics(this.session.messages)
 
       // Warn if approaching limit
@@ -274,13 +287,13 @@ export class AutonomousClaudeInterface {
       this.cliInstance.printPanel(
         boxen(
           `${chalk.red('⚠️  No API Keys Found')}\n\n` +
-            `Please set at least one API key:\n\n` +
-            `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\n` +
-            `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\n` +
-            `${chalk.blue('• GOOGLE_GENERATIVE_AI_API_KEY')} - for Gemini models\n\n` +
-            `${chalk.yellow('Example:')}\n` +
-            `${chalk.dim('export ANTHROPIC_API_KEY="your-key-here"')}\n` +
-            `${chalk.dim('npm run chat')}`,
+          `Please set at least one API key:\n\n` +
+          `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\n` +
+          `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\n` +
+          `${chalk.blue('• GOOGLE_GENERATIVE_AI_API_KEY')} - for Gemini models\n\n` +
+          `${chalk.yellow('Example:')}\n` +
+          `${chalk.dim('export ANTHROPIC_API_KEY="your-key-here"')}\n` +
+          `${chalk.dim('npm run chat')}`,
           {
             padding: 1,
             margin: 1,
@@ -311,18 +324,18 @@ export class AutonomousClaudeInterface {
     this.cliInstance.printPanel(
       boxen(
         `${title}\n${subtitle}\n\n${version}\n\n` +
-          `${chalk.blue('🎯 Autonomous Mode:')} Enabled\n` +
-          `${chalk.blue('📁 Working Dir:')} ${chalk.cyan(this.session.workingDirectory)}\n` +
-          `${chalk.blue('⚡︎ Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n\n` +
-          `${chalk.gray('I operate with full autonomy:')}\n` +
-          `• ${chalk.green('Read & write files automatically')}\n` +
-          `• ${chalk.green('Execute commands when needed')}\n` +
-          `• ${chalk.green('Analyze project structure')}\n` +
-          `• ${chalk.green('Generate code and configurations')}\n` +
-          `• ${chalk.green('Manage dependencies autonomously')}\n\n` +
-          `${chalk.yellow('Just tell me what you want - I handle everything')}\n\n` +
-          `${chalk.yellow('💡 Press TAB or / for command suggestions')}\n` +
-          `${chalk.dim('Commands: /help /agents /auto /cd /model /exit')}`,
+        `${chalk.blue('🎯 Autonomous Mode:')} Enabled\n` +
+        `${chalk.blue('📁 Working Dir:')} ${chalk.cyan(this.session.workingDirectory)}\n` +
+        `${chalk.blue('⚡︎ Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n\n` +
+        `${chalk.gray('I operate with full autonomy:')}\n` +
+        `• ${chalk.green('Read & write files automatically')}\n` +
+        `• ${chalk.green('Execute commands when needed')}\n` +
+        `• ${chalk.green('Analyze project structure')}\n` +
+        `• ${chalk.green('Generate code and configurations')}\n` +
+        `• ${chalk.green('Manage dependencies autonomously')}\n\n` +
+        `${chalk.yellow('Just tell me what you want - I handle everything')}\n\n` +
+        `${chalk.yellow('💡 Press TAB or / for command suggestions')}\n` +
+        `${chalk.dim('Commands: /help /agents /auto /cd /model /exit')}`,
         {
           padding: 1,
           margin: 1,
@@ -533,18 +546,17 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     this.cliInstance.printPanel(
       boxen(
         `${chalk.blue.bold('📊 Token Usage Metrics')}\n\n` +
-          `${chalk.green('Messages:')} ${metrics.totalMessages}\n` +
-          `${chalk.green('Estimated Tokens:')} ${metrics.estimatedTokens.toLocaleString()}\n` +
-          `${chalk.green('Token Limit:')} ${metrics.tokenLimit.toLocaleString()}\n` +
-          `${chalk.green('Usage:')} ${((metrics.estimatedTokens / metrics.tokenLimit) * 100).toFixed(1)}%\n\n` +
-          `${chalk.cyan('Status:')} ${
-            metrics.estimatedTokens > metrics.tokenLimit
-              ? chalk.red('⚠️  Over Limit - Auto-compression active')
-              : metrics.estimatedTokens > metrics.tokenLimit * 0.8
-                ? chalk.yellow('⚠️  High Usage - Monitor closely')
-                : chalk.green('✓ Within Limits')
-          }\n\n` +
-          `${chalk.dim('Compression Ratio:')} ${(metrics.compressionRatio * 100).toFixed(1)}%`,
+        `${chalk.green('Messages:')} ${metrics.totalMessages}\n` +
+        `${chalk.green('Estimated Tokens:')} ${metrics.estimatedTokens.toLocaleString()}\n` +
+        `${chalk.green('Token Limit:')} ${metrics.tokenLimit.toLocaleString()}\n` +
+        `${chalk.green('Usage:')} ${((metrics.estimatedTokens / metrics.tokenLimit) * 100).toFixed(1)}%\n\n` +
+        `${chalk.cyan('Status:')} ${metrics.estimatedTokens > metrics.tokenLimit
+          ? chalk.red('⚠️  Over Limit - Auto-compression active')
+          : metrics.estimatedTokens > metrics.tokenLimit * 0.8
+            ? chalk.yellow('⚠️  High Usage - Monitor closely')
+            : chalk.green('✓ Within Limits')
+        }\n\n` +
+        `${chalk.dim('Compression Ratio:')} ${(metrics.compressionRatio * 100).toFixed(1)}%`,
         {
           padding: 1,
           margin: 1,
@@ -1442,14 +1454,14 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     this.cliInstance.printPanel(
       boxen(
         `${chalk.blue.bold('🔒 Security Policy Status')}\n\n` +
-          `${chalk.green('Current Policy:')} ${summary.currentPolicy.approval}\n` +
-          `${chalk.green('Sandbox Mode:')} ${summary.currentPolicy.sandbox}\n` +
-          `${chalk.green('Timeout:')} ${summary.currentPolicy.timeoutMs}ms\n\n` +
-          `${chalk.cyan('Commands:')}\n` +
-          `• ${chalk.green('Allowed:')} ${summary.allowedCommands}\n` +
-          `• ${chalk.red('Blocked:')} ${summary.deniedCommands}\n\n` +
-          `${chalk.cyan('Trusted Commands:')} ${summary.trustedCommands.slice(0, 5).join(', ')}...\n` +
-          `${chalk.red('Dangerous Commands:')} ${summary.dangerousCommands.slice(0, 3).join(', ')}...`,
+        `${chalk.green('Current Policy:')} ${summary.currentPolicy.approval}\n` +
+        `${chalk.green('Sandbox Mode:')} ${summary.currentPolicy.sandbox}\n` +
+        `${chalk.green('Timeout:')} ${summary.currentPolicy.timeoutMs}ms\n\n` +
+        `${chalk.cyan('Commands:')}\n` +
+        `• ${chalk.green('Allowed:')} ${summary.allowedCommands}\n` +
+        `• ${chalk.red('Blocked:')} ${summary.deniedCommands}\n\n` +
+        `${chalk.cyan('Trusted Commands:')} ${summary.trustedCommands.slice(0, 5).join(', ')}...\n` +
+        `${chalk.red('Dangerous Commands:')} ${summary.dangerousCommands.slice(0, 3).join(', ')}...`,
         {
           padding: 1,
           margin: 1,
@@ -1506,13 +1518,13 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     this.cliInstance.printPanel(
       boxen(
         `${chalk.cyanBright('🔌 Autonomous Claude Assistant')}\\n\\n` +
-          `${chalk.gray('Session completed!')}\\n\\n` +
-          `${chalk.dim('Autonomous Actions:')}\\n` +
-          `• ${chalk.blue('Messages:')} ${this.session.messages.length}\\n` +
-          `• ${chalk.green('Tools Used:')} ${toolsUsed}\\n` +
-          `• ${chalk.cyan('Total Events:')} ${executionCount}\\n` +
-          `• ${chalk.yellow('Duration:')} ${Math.round((Date.now() - this.session.createdAt.getTime()) / 1000)}s\\n\\n` +
-          `${chalk.blue('Thanks for using autonomous development! 🚀')}`,
+        `${chalk.gray('Session completed!')}\\n\\n` +
+        `${chalk.dim('Autonomous Actions:')}\\n` +
+        `• ${chalk.blue('Messages:')} ${this.session.messages.length}\\n` +
+        `• ${chalk.green('Tools Used:')} ${toolsUsed}\\n` +
+        `• ${chalk.cyan('Total Events:')} ${executionCount}\\n` +
+        `• ${chalk.yellow('Duration:')} ${Math.round((Date.now() - this.session.createdAt.getTime()) / 1000)}s\\n\\n` +
+        `${chalk.blue('Thanks for using autonomous development! 🚀')}`,
         {
           padding: 1,
           margin: 1,
@@ -1524,9 +1536,75 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     )
   }
 
+  /**
+   * Complete cleanup of all resources
+   */
+  private cleanup(): void {
+    if (this.cleanupCompleted) return
+    this.cleanupCompleted = true
+
+    try {
+      // Stop all active operations
+      this.stopAllActiveOperations()
+
+      // Abort any active streams
+      if (this.currentStreamController) {
+        this.currentStreamController.abort()
+        this.currentStreamController = undefined
+      }
+
+      // Clear intervals
+      if (this.streamOptimizationInterval) {
+        clearInterval(this.streamOptimizationInterval)
+        this.streamOptimizationInterval = undefined
+      }
+      if (this.tokenOptimizationInterval) {
+        clearInterval(this.tokenOptimizationInterval)
+        this.tokenOptimizationInterval = undefined
+      }
+
+      // Remove keypress handler
+      if (this.keypressHandler) {
+        process.stdin.removeListener('keypress', this.keypressHandler)
+        this.keypressHandler = undefined
+      }
+
+      // Remove all event handlers from readline
+      if (this.rl) {
+        this.eventHandlers.forEach((handler, event) => {
+          this.rl.removeListener(event, handler)
+        })
+        this.eventHandlers.clear()
+      }
+
+      // Reset raw mode
+      try {
+        if (process.stdin.isTTY && (process.stdin as any).isRaw) {
+          ; (process.stdin as any).setRawMode(false)
+        }
+      } catch (error) {
+        // Ignore raw mode errors
+      }
+
+      // Clear session data
+      this.session.messages = []
+      this.session.executionHistory = []
+      this.activeTools.clear()
+    } catch (error: any) {
+      // Silent cleanup errors
+      console.error('Cleanup error:', error.message)
+    }
+  }
+
   stop(): void {
-    this.stopAllActiveOperations()
-    this.rl.close()
+    this.cleanup()
+    if (this.rl && !(this.rl as any).closed) {
+      try {
+        this.rl.close()
+      } catch (error) {
+        // Ignore close errors
+      }
+    }
   }
 }
 

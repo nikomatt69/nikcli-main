@@ -15485,6 +15485,103 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         lines.push(`   ${bullet} ${chalk.cyan(name)}  (${(mc as any).provider}/${(mc as any).model})  ${keyStatus}`)
       })
 
+      // 18) MCP Servers Configuration
+      lines.push('')
+      lines.push(chalk.green('18) MCP Servers Configuration'))
+      const mcpConfig = (cfg as any).mcp || {}
+      const mcpServers = Object.entries(mcpConfig)
+      if (mcpServers.length > 0) {
+        lines.push(`   Total Servers: ${chalk.cyan(String(mcpServers.length))}`)
+        mcpServers.forEach(([name, server]: [string, any]) => {
+          const enabled = server.enabled !== false
+          const serverType = server.type || 'unknown'
+          const statusIcon = enabled ? chalk.green('✓') : chalk.gray('○')
+          const typeLabel = serverType === 'local' ? chalk.cyan('local') : chalk.blue('remote')
+          lines.push(`   ${statusIcon} ${name} (${typeLabel})`)
+          if (server.capabilities && server.capabilities.length > 0) {
+            lines.push(`      Capabilities: ${chalk.gray(server.capabilities.join(', '))}`)
+          }
+        })
+      } else {
+        lines.push(`   ${chalk.gray('No MCP servers configured')}`)
+      }
+
+      // 19) Middleware System
+      lines.push('')
+      lines.push(chalk.green('19) Middleware System'))
+      const middleware = (cfg as any).middleware || {}
+      lines.push(`   Enabled: ${middleware.enabled !== false ? chalk.green('yes') : chalk.gray('no')}`)
+      if (middleware.security) {
+        lines.push(`   Security: ${middleware.security.enabled ? chalk.green('on') : chalk.gray('off')} (priority: ${chalk.cyan(String(middleware.security.priority))})`)
+        lines.push(`      Strict Mode: ${middleware.security.strictMode ? chalk.green('yes') : chalk.gray('no')}`)
+        lines.push(`      Require Approval: ${middleware.security.requireApproval ? chalk.green('yes') : chalk.gray('no')}`)
+        lines.push(`      Risk Threshold: ${chalk.cyan(middleware.security.riskThreshold || 'medium')}`)
+      }
+      if (middleware.logging) {
+        lines.push(`   Logging: ${middleware.logging.enabled ? chalk.green('on') : chalk.gray('off')} (priority: ${chalk.cyan(String(middleware.logging.priority))})`)
+        lines.push(`      Log Level: ${chalk.cyan(middleware.logging.logLevel || 'info')}`)
+        lines.push(`      Log to File: ${middleware.logging.logToFile ? chalk.green('yes') : chalk.gray('no')}`)
+        lines.push(`      Sanitize Data: ${middleware.logging.sanitizeData ? chalk.green('yes') : chalk.gray('no')}`)
+      }
+      if (middleware.validation) {
+        lines.push(`   Validation: ${middleware.validation.enabled ? chalk.green('on') : chalk.gray('off')} (priority: ${chalk.cyan(String(middleware.validation.priority))})`)
+        lines.push(`      Strict Mode: ${middleware.validation.strictMode ? chalk.green('yes') : chalk.gray('no')}`)
+        lines.push(`      Validate Args: ${middleware.validation.validateArgs ? chalk.green('yes') : chalk.gray('no')}`)
+      }
+      if (middleware.performance) {
+        lines.push(`   Performance: ${middleware.performance.enabled ? chalk.green('on') : chalk.gray('off')} (priority: ${chalk.cyan(String(middleware.performance.priority))})`)
+        lines.push(`      Track Memory: ${middleware.performance.trackMemory ? chalk.green('yes') : chalk.gray('no')}`)
+        lines.push(`      Slow Execution Threshold: ${chalk.cyan(String(middleware.performance.slowExecutionThreshold || 5000))}ms`)
+      }
+      if (middleware.audit) {
+        lines.push(`   Audit: ${middleware.audit.enabled ? chalk.green('on') : chalk.gray('off')} (priority: ${chalk.cyan(String(middleware.audit.priority))})`)
+        lines.push(`      Audit Level: ${chalk.cyan(middleware.audit.auditLevel || 'standard')}`)
+        lines.push(`      Data Retention: ${chalk.cyan(String(middleware.audit.dataRetentionDays || 90))} days`)
+      }
+
+      // 20) Reasoning Configuration
+      lines.push('')
+      lines.push(chalk.green('20) Reasoning Configuration'))
+      const reasoning = (cfg as any).reasoning || {}
+      lines.push(`   Global Reasoning: ${reasoning.enabled !== false ? chalk.green('enabled') : chalk.gray('disabled')}`)
+      lines.push(`   Auto-Detect Models: ${reasoning.autoDetect !== false ? chalk.green('yes') : chalk.gray('no')}`)
+      lines.push(`   Show Process: ${reasoning.showReasoningProcess ? chalk.green('yes') : chalk.gray('no')}`)
+      lines.push(`   Log Reasoning: ${reasoning.logReasoning ? chalk.green('yes') : chalk.gray('no')}`)
+
+      // 21) Embedding Provider
+      lines.push('')
+      lines.push(chalk.green('21) Embedding Provider'))
+      const embeddingProvider = (cfg as any).embeddingProvider || {}
+      lines.push(`   Default Provider: ${chalk.cyan(embeddingProvider.default || 'openai')}`)
+      if (embeddingProvider.fallbackChain && embeddingProvider.fallbackChain.length > 0) {
+        lines.push(`   Fallback Chain: ${chalk.gray(embeddingProvider.fallbackChain.join(' → '))}`)
+      }
+      lines.push(`   Cost Optimization: ${embeddingProvider.costOptimization !== false ? chalk.green('yes') : chalk.gray('no')}`)
+      lines.push(`   Auto-Switch on Failure: ${embeddingProvider.autoSwitchOnFailure !== false ? chalk.green('yes') : chalk.gray('no')}`)
+
+      // 22) Diff Display
+      lines.push('')
+      lines.push(chalk.green('22) Diff Display'))
+      const diff = (cfg as any).diff || {}
+      lines.push(`   Enabled: ${diff.enabled !== false ? chalk.green('yes') : chalk.gray('no')}`)
+      lines.push(`   Style: ${chalk.cyan(diff.style || 'unified')}`)
+      lines.push(`   Theme: ${chalk.cyan(diff.theme || 'auto')}`)
+      lines.push(`   Line Numbers: ${diff.showLineNumbers !== false ? chalk.green('yes') : chalk.gray('no')}`)
+      lines.push(`   Context Lines: ${chalk.cyan(String(diff.contextLines !== undefined ? diff.contextLines : 3))}`)
+      lines.push(`   Syntax Highlighting: ${diff.syntaxHighlight !== false ? chalk.green('yes') : chalk.gray('no')}`)
+
+      // 23) Output Style Configuration
+      lines.push('')
+      lines.push(chalk.green('23) Output Style Configuration'))
+      const outputStyle = (cfg as any).outputStyle || {}
+      lines.push(`   Default Style: ${chalk.cyan(outputStyle.defaultStyle || 'production-focused')}`)
+      if (outputStyle.customizations) {
+        lines.push(`   Verbosity Level: ${chalk.cyan(String(outputStyle.customizations.verbosityLevel || 5))}`)
+        lines.push(`   Include Code Examples: ${outputStyle.customizations.includeCodeExamples !== false ? chalk.green('yes') : chalk.gray('no')}`)
+        lines.push(`   Include Step-by-Step: ${outputStyle.customizations.includeStepByStep !== false ? chalk.green('yes') : chalk.gray('no')}`)
+        lines.push(`   Max Response Length: ${chalk.cyan(outputStyle.customizations.maxResponseLength || 'medium')}`)
+      }
+
       const configBox = boxen(lines.join('\n'), {
         title: '�  Configuration Panel',
         padding: 1,
@@ -15529,6 +15626,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         { name: 'Session Settings', value: 'session' },
         { name: 'Sandbox', value: 'sandbox' },
         { name: 'Models & Keys', value: 'models' },
+        { name: 'Middleware', value: 'middleware' },
+        { name: 'Reasoning', value: 'reasoning' },
+        { name: 'Embedding Provider', value: 'embedding' },
+        { name: 'Diff Display', value: 'diff' },
+        { name: 'Output Style', value: 'outputstyle' },
+        { name: 'MCP Servers', value: 'mcp' },
         { name: 'Exit', value: 'exit' },
       ]
 
@@ -15771,6 +15874,133 @@ This file is automatically maintained by NikCLI to provide consistent context ac
               console.log(chalk.green(`✓ Current model set: ${model}`))
             } else if (selection === 'setkey') {
               await this.interactiveSetApiKey()
+            }
+            break
+          }
+          case 'middleware': {
+            const m = cfg.middleware
+            const security = await inquirer.prompt([
+              { type: 'confirm', name: 'enabled', message: 'Enable security middleware?', default: m.security.enabled },
+              { type: 'list', name: 'riskThreshold', message: 'Risk threshold', choices: ['low', 'medium', 'high'], default: m.security.riskThreshold },
+            ])
+            const logging = await inquirer.prompt([
+              { type: 'confirm', name: 'enabled', message: 'Enable logging middleware?', default: m.logging.enabled },
+              { type: 'list', name: 'logLevel', message: 'Log level', choices: ['debug', 'info', 'warn', 'error'], default: m.logging.logLevel },
+            ])
+            const performance = await inquirer.prompt([
+              { type: 'confirm', name: 'enabled', message: 'Enable performance middleware?', default: m.performance.enabled },
+              { type: 'input', name: 'slowThreshold', message: 'Slow execution threshold (ms)', default: m.performance.slowExecutionThreshold, validate: (v: any) => asNumber(v, 100, 60000) },
+            ])
+            this.configManager.set('middleware', {
+              ...m,
+              security: { ...m.security, ...security },
+              logging: { ...m.logging, ...logging },
+              performance: { ...m.performance, slowExecutionThreshold: Number(performance.slowThreshold) },
+            } as any)
+            console.log(chalk.green('✓ Updated Middleware settings'))
+            break
+          }
+          case 'reasoning': {
+            const r = cfg.reasoning
+            const ans = await inquirer.prompt([
+              { type: 'confirm', name: 'enabled', message: 'Enable reasoning globally?', default: r.enabled },
+              { type: 'confirm', name: 'autoDetect', message: 'Auto-detect reasoning models?', default: r.autoDetect },
+              { type: 'confirm', name: 'showReasoningProcess', message: 'Show reasoning process to user?', default: r.showReasoningProcess },
+              { type: 'confirm', name: 'logReasoning', message: 'Log reasoning to debug?', default: r.logReasoning },
+            ])
+            this.configManager.set('reasoning', ans as any)
+            console.log(chalk.green('✓ Updated Reasoning settings'))
+            break
+          }
+          case 'embedding': {
+            const e = cfg.embeddingProvider
+            const ans = await inquirer.prompt([
+              { type: 'list', name: 'default', message: 'Default provider', choices: ['openai', 'google', 'anthropic', 'openrouter'], default: e.default },
+              { type: 'confirm', name: 'costOptimization', message: 'Enable cost optimization?', default: e.costOptimization },
+              { type: 'confirm', name: 'autoSwitchOnFailure', message: 'Auto-switch on failure?', default: e.autoSwitchOnFailure },
+            ])
+            this.configManager.set('embeddingProvider', { ...e, ...ans } as any)
+            console.log(chalk.green('✓ Updated Embedding Provider settings'))
+            break
+          }
+          case 'diff': {
+            const d = cfg.diff
+            const ans = await inquirer.prompt([
+              { type: 'confirm', name: 'enabled', message: 'Enable diff display?', default: d.enabled },
+              { type: 'list', name: 'style', message: 'Diff style', choices: ['unified', 'side-by-side', 'compact'], default: d.style },
+              { type: 'list', name: 'theme', message: 'Theme', choices: ['dark', 'light', 'auto'], default: d.theme },
+              { type: 'confirm', name: 'showLineNumbers', message: 'Show line numbers?', default: d.showLineNumbers },
+              { type: 'input', name: 'contextLines', message: 'Context lines', default: d.contextLines, validate: (v: any) => asNumber(v, 0, 10) },
+            ])
+            this.configManager.set('diff', { ...d, ...ans, contextLines: Number(ans.contextLines) } as any)
+            console.log(chalk.green('✓ Updated Diff Display settings'))
+            break
+          }
+          case 'outputstyle': {
+            const o = cfg.outputStyle
+            const { defaultStyle } = await inquirer.prompt([
+              { type: 'list', name: 'defaultStyle', message: 'Default output style', choices: ['production-focused', 'balanced', 'detailed', 'minimal', 'educational'], default: o.defaultStyle },
+            ])
+            if (o.customizations) {
+              const custom = await inquirer.prompt([
+                { type: 'input', name: 'verbosityLevel', message: 'Verbosity level (1-10)', default: o.customizations.verbosityLevel, validate: (v: any) => asNumber(v, 1, 10) },
+                { type: 'confirm', name: 'includeCodeExamples', message: 'Include code examples?', default: o.customizations.includeCodeExamples },
+                { type: 'confirm', name: 'includeStepByStep', message: 'Include step-by-step?', default: o.customizations.includeStepByStep },
+                { type: 'list', name: 'maxResponseLength', message: 'Max response length', choices: ['short', 'medium', 'long'], default: o.customizations.maxResponseLength },
+              ])
+              this.configManager.set('outputStyle', { ...o, defaultStyle, customizations: { ...o.customizations, ...custom, verbosityLevel: Number(custom.verbosityLevel) } } as any)
+            } else {
+              this.configManager.set('outputStyle', { ...o, defaultStyle } as any)
+            }
+            console.log(chalk.green('✓ Updated Output Style settings'))
+            break
+          }
+          case 'mcp': {
+            const mcpServers = cfg.mcp || {}
+            const serverNames = Object.keys(mcpServers)
+            if (serverNames.length === 0) {
+              console.log(chalk.yellow('No MCP servers configured. Edit config.json directly to add servers.'))
+              break
+            }
+            const { action } = await inquirer.prompt<{ action: string }>([
+              {
+                type: 'list',
+                name: 'action',
+                message: 'MCP Servers',
+                choices: [
+                  { name: 'Enable/Disable server', value: 'toggle' },
+                  { name: 'View server details', value: 'view' },
+                  { name: 'Back', value: 'back' },
+                ],
+              },
+            ])
+            if (action === 'toggle') {
+              const { serverName } = await inquirer.prompt<{ serverName: string }>([
+                {
+                  type: 'list',
+                  name: 'serverName',
+                  message: 'Select server',
+                  choices: serverNames.map(name => ({ name: `${name} (${mcpServers[name].enabled ? '✓ enabled' : '○ disabled'})`, value: name })),
+                },
+              ])
+              const server = mcpServers[serverName]
+              const { enabled } = await inquirer.prompt([
+                { type: 'confirm', name: 'enabled', message: `Enable ${serverName}?`, default: server.enabled },
+              ])
+              server.enabled = enabled
+              this.configManager.set('mcp', mcpServers as any)
+              console.log(chalk.green(`✓ ${serverName} ${enabled ? 'enabled' : 'disabled'}`))
+            } else if (action === 'view') {
+              const { serverName } = await inquirer.prompt<{ serverName: string }>([
+                { type: 'list', name: 'serverName', message: 'Select server', choices: serverNames },
+              ])
+              const server = mcpServers[serverName]
+              console.log(chalk.blue(`\nMCP Server: ${serverName}`))
+              console.log(`  Type: ${server.type}`)
+              console.log(`  Enabled: ${server.enabled ? 'yes' : 'no'}`)
+              if (server.type === 'local' && server.command) console.log(`  Command: ${server.command.join(' ')}`)
+              if (server.type === 'remote' && server.url) console.log(`  URL: ${server.url}`)
+              if (server.capabilities) console.log(`  Capabilities: ${server.capabilities.join(', ')}`)
             }
             break
           }

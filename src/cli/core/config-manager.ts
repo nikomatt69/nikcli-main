@@ -842,6 +842,10 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'z-ai/glm-4.5',
     },
+    'z-ai/glm-4.6': {
+      provider: 'openrouter',
+      model: 'z-ai/glm-4.6',
+    },
     'mistralai/mistral-large': {
       provider: 'openrouter',
       model: 'mistralai/mistral-large',
