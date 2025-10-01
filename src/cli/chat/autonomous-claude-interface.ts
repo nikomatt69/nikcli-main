@@ -49,6 +49,12 @@ export class AutonomousClaudeInterface {
   private shouldInterrupt = false
   private currentStreamController?: AbortController
   private cliInstance: any
+  private streamOptimizationInterval?: NodeJS.Timeout
+  private tokenOptimizationInterval?: NodeJS.Timeout
+  private keypressHandler?: (str: any, key: any) => void
+  private eventHandlers: Map<string, (...args: any[]) => void> = new Map()
+  private cleanupCompleted = false
+
   constructor() {
     this.rl = readline.createInterface({
       input: process.stdin,
@@ -90,16 +96,19 @@ export class AutonomousClaudeInterface {
 
   private setupEventHandlers(): void {
     // Handle Ctrl+C gracefully
-    this.rl.on('SIGINT', () => {
+    const sigintHandler = () => {
       if (this.isProcessing) {
         console.log(chalk.yellow('\\n⏸️  Stopping current operation...'))
         this.stopAllActiveOperations()
         this.showPrompt()
       } else {
+        this.cleanup()
         this.showGoodbye()
         process.exit(0)
       }
-    })
+    }
+    this.eventHandlers.set('SIGINT', sigintHandler)
+    this.rl.on('SIGINT', sigintHandler)
 
     // Enable raw mode for keypress detection
     if (process.stdin.isTTY) {
@@ -111,7 +120,7 @@ export class AutonomousClaudeInterface {
     }
 
     // Handle keypress events for interactive features
-    process.stdin.on('keypress', (_str, key) => {
+    this.keypressHandler = (_str, key) => {
       if (key && key.name === 'slash' && !this.isProcessing) {
         // Show command suggestions when / is pressed
         setTimeout(() => this.showCommandSuggestions(), 50)
@@ -131,10 +140,11 @@ export class AutonomousClaudeInterface {
       if (key && key.name === 'escape' && this.isProcessing) {
         this.interruptProcessing()
       }
-    })
+    }
+    process.stdin.on('keypress', this.keypressHandler)
 
     // Handle line input
-    this.rl.on('line', async (input) => {
+    const lineHandler = async (input: string) => {
       const trimmed = input.trim()
 
       if (!trimmed) {
@@ -142,27 +152,30 @@ export class AutonomousClaudeInterface {
         return
       }
 
-      await this.handleInput(trimmed)
-      this.showPrompt()
-    })
+      try {
+        await this.handleInput(trimmed)
+      } catch (error: any) {
+        console.log(chalk.red(`Error: ${error.message}`))
+      } finally {
+        this.showPrompt()
+      }
+    }
+    this.eventHandlers.set('line', lineHandler)
+    this.rl.on('line', lineHandler)
 
     // Handle close
-    this.rl.on('close', () => {
-      try {
-        if (process.stdin.isTTY && (process.stdin as any).isRaw) {
-          ;(process.stdin as any).setRawMode(false)
-        }
-      } catch {
-        /* ignore */
-      }
+    const closeHandler = () => {
+      this.cleanup()
       this.showGoodbye()
       process.exit(0)
-    })
+    }
+    this.eventHandlers.set('close', closeHandler)
+    this.rl.on('close', closeHandler)
   }
 
   private setupStreamOptimization(): void {
     // Buffer stream output for smoother rendering
-    setInterval(() => {
+    this.streamOptimizationInterval = setInterval(() => {
       if (this.streamBuffer && Date.now() - this.lastStreamTime > 50) {
         process.stdout.write(this.streamBuffer)
         this.streamBuffer = ''
@@ -172,7 +185,7 @@ export class AutonomousClaudeInterface {
 
   private setupTokenOptimization(): void {
     // Check token usage periodically and suggest cleanup
-    setInterval(() => {
+    this.tokenOptimizationInterval = setInterval(() => {
       const metrics = contextManager.getContextMetrics(this.session.messages)
 
       // Warn if approaching limit
@@ -1524,9 +1537,75 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     )
   }
 
+  /**
+   * Complete cleanup of all resources
+   */
+  private cleanup(): void {
+    if (this.cleanupCompleted) return
+    this.cleanupCompleted = true
+
+    try {
+      // Stop all active operations
+      this.stopAllActiveOperations()
+
+      // Abort any active streams
+      if (this.currentStreamController) {
+        this.currentStreamController.abort()
+        this.currentStreamController = undefined
+      }
+
+      // Clear intervals
+      if (this.streamOptimizationInterval) {
+        clearInterval(this.streamOptimizationInterval)
+        this.streamOptimizationInterval = undefined
+      }
+      if (this.tokenOptimizationInterval) {
+        clearInterval(this.tokenOptimizationInterval)
+        this.tokenOptimizationInterval = undefined
+      }
+
+      // Remove keypress handler
+      if (this.keypressHandler) {
+        process.stdin.removeListener('keypress', this.keypressHandler)
+        this.keypressHandler = undefined
+      }
+
+      // Remove all event handlers from readline
+      if (this.rl) {
+        this.eventHandlers.forEach((handler, event) => {
+          this.rl.removeListener(event, handler)
+        })
+        this.eventHandlers.clear()
+      }
+
+      // Reset raw mode
+      try {
+        if (process.stdin.isTTY && (process.stdin as any).isRaw) {
+          ;(process.stdin as any).setRawMode(false)
+        }
+      } catch (error) {
+        // Ignore raw mode errors
+      }
+
+      // Clear session data
+      this.session.messages = []
+      this.session.executionHistory = []
+      this.activeTools.clear()
+    } catch (error: any) {
+      // Silent cleanup errors
+      console.error('Cleanup error:', error.message)
+    }
+  }
+
   stop(): void {
-    this.stopAllActiveOperations()
-    this.rl.close()
+    this.cleanup()
+    if (this.rl && !this.rl.closed) {
+      try {
+        this.rl.close()
+      } catch (error) {
+        // Ignore close errors
+      }
+    }
   }
 }
 

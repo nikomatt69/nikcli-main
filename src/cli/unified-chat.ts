@@ -14,7 +14,9 @@ import * as readline from 'readline'
 import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { WorkflowOrchestrator } from './automation/workflow-orchestrator'
 import { ChatOrchestrator } from './chat/chat-orchestrator'
+import { agentTodoManager } from './core/agent-todo-manager'
 import { simpleConfigManager as configManager } from './core/config-manager'
+import { EnhancedSessionManager } from './persistence/enhanced-session-manager'
 import { agentService } from './services/agent-service'
 import { planningService } from './services/planning-service'
 
@@ -83,7 +85,9 @@ export class UnifiedChatInterface extends EventEmitter {
   private workflowOrchestrator: WorkflowOrchestrator
   private chatOrchestrator: ChatOrchestrator
   private initialized = false
-  private activeTimers: NodeJS.Timeout[] = []
+  private activeTimers: Set<NodeJS.Timeout> = new Set()
+  private eventHandlers: Map<string, (...args: any[]) => void> = new Map()
+  private cleanupCompleted = false
 
   constructor() {
     super()
@@ -106,10 +110,20 @@ export class UnifiedChatInterface extends EventEmitter {
     }
 
     this.workflowOrchestrator = new WorkflowOrchestrator(this.session.workingDirectory)
+    
+    // Initialize session manager with proper configuration
+    const sessionManager = new EnhancedSessionManager({
+      storageType: 'local',
+      storageDir: '.nikcli/sessions',
+      maxSessions: 100,
+      autoSave: true,
+      compressionEnabled: true,
+    })
+    
     this.chatOrchestrator = new ChatOrchestrator(
       agentService as any,
-      {} as any, // todoManager placeholder
-      {} as any, // sessionManager placeholder
+      agentTodoManager,
+      sessionManager as any,
       configManager
     )
 
@@ -120,20 +134,23 @@ export class UnifiedChatInterface extends EventEmitter {
    * Setup event handlers for graceful operation
    */
   private setupEventHandlers(): void {
-    // Graceful shutdown
-    this.rl.on('SIGINT', () => {
+    // Store handlers for later cleanup
+    const sigintHandler = () => {
       if (this.session.isExecuting) {
         console.log(chalk.yellow('\n⏸️  Stopping current execution...'))
         this.stopExecution()
         this.showPrompt()
       } else {
+        this.cleanup()
         this.showGoodbye()
         process.exit(0)
       }
-    })
+    }
+    this.eventHandlers.set('SIGINT', sigintHandler)
+    this.rl.on('SIGINT', sigintHandler)
 
     // Handle input
-    this.rl.on('line', async (input: string) => {
+    const lineHandler = async (input: string) => {
       const trimmed = input.trim()
 
       if (!trimmed) {
@@ -141,14 +158,25 @@ export class UnifiedChatInterface extends EventEmitter {
         return
       }
 
-      await this.handleInput(trimmed)
-      this.showPrompt()
-    })
+      try {
+        await this.handleInput(trimmed)
+      } catch (error: any) {
+        console.log(chalk.red(`Error handling input: ${error.message}`))
+      } finally {
+        this.showPrompt()
+      }
+    }
+    this.eventHandlers.set('line', lineHandler)
+    this.rl.on('line', lineHandler)
 
-    this.rl.on('close', () => {
+    // Handle close
+    const closeHandler = () => {
+      this.cleanup()
       this.showGoodbye()
       process.exit(0)
-    })
+    }
+    this.eventHandlers.set('close', closeHandler)
+    this.rl.on('close', closeHandler)
   }
 
   /**
@@ -354,10 +382,9 @@ export class UnifiedChatInterface extends EventEmitter {
       const timer = setTimeout(() => {
         this.showPrompt()
         // Remove from active timers
-        const index = this.activeTimers.indexOf(timer)
-        if (index > -1) this.activeTimers.splice(index, 1)
+        this.activeTimers.delete(timer)
       }, 100)
-      this.activeTimers.push(timer)
+      this.activeTimers.add(timer)
     }
   }
 
@@ -573,8 +600,7 @@ export class UnifiedChatInterface extends EventEmitter {
     const timer = setTimeout(async () => {
       try {
         // Remove from active timers at start
-        const index = this.activeTimers.indexOf(timer)
-        if (index > -1) this.activeTimers.splice(index, 1)
+        this.activeTimers.delete(timer)
 
         const { agentTodoManager } = await import('./core/agent-todo-manager')
         await agentTodoManager.executeTodos(agentId)
@@ -585,7 +611,7 @@ export class UnifiedChatInterface extends EventEmitter {
         this.addAssistantMessage(`Some background tasks encountered issues: ${error.message}`)
       }
     }, 100) // Small delay to avoid blocking the chat
-    this.activeTimers.push(timer)
+    this.activeTimers.add(timer)
   }
 
   /**
@@ -890,16 +916,48 @@ export class UnifiedChatInterface extends EventEmitter {
     this.activeTimers.forEach((timer) => {
       clearTimeout(timer)
     })
-    this.activeTimers = []
+    this.activeTimers.clear()
   }
 
   /**
-   * Shutdown cleanup
+   * Complete cleanup of all resources
+   */
+  private cleanup(): void {
+    if (this.cleanupCompleted) return
+    this.cleanupCompleted = true
+
+    try {
+      // Clean up all timers
+      this.cleanupTimers()
+
+      // Remove all event listeners
+      if (this.rl) {
+        this.eventHandlers.forEach((handler, event) => {
+          this.rl.removeListener(event, handler)
+        })
+        this.eventHandlers.clear()
+      }
+
+      // Clear session data
+      this.session.activeAgents.clear()
+      this.session.promptQueue = []
+    } catch (error: any) {
+      // Silent cleanup errors to prevent exit issues
+      console.error('Cleanup error:', error.message)
+    }
+  }
+
+  /**
+   * Shutdown cleanup - public interface
    */
   public shutdown(): void {
-    this.cleanupTimers()
-    if (this.rl) {
-      this.rl.close()
+    this.cleanup()
+    if (this.rl && !this.rl.closed) {
+      try {
+        this.rl.close()
+      } catch (error) {
+        // Ignore close errors
+      }
     }
   }
 }
