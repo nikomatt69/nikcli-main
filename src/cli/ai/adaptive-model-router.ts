@@ -14,6 +14,26 @@ export interface ModelRouteInput {
   sizeHints?: { fileCount?: number; totalBytes?: number }
 }
 
+/**
+ * Performance metrics for intelligent fallback
+ */
+interface ModelPerformanceMetrics {
+  consecutiveFailures: number
+  totalFailures: number
+  totalSuccesses: number
+  lastFailure?: Date
+}
+
+/**
+ * Safe fallback models per provider (reliable models for emergency use)
+ */
+const SAFE_FALLBACK_MODELS: Record<string, string> = {
+  openrouter: 'openai/gpt-5', // GPT-5 as safe fallback
+  openai: 'gpt-5',
+  anthropic: 'claude-3-5-sonnet-latest',
+  google: 'gemini-2.5-flash',
+}
+
 export interface ModelRouteDecision {
   selectedModel: string
   tier: 'light' | 'medium' | 'heavy'
@@ -122,7 +142,7 @@ function pickOpenRouter(baseModel: string, _tier: 'light' | 'medium' | 'heavy', 
   // No hardcoding - routes to any available model via OpenRouter
   // For vision, prefer vision-capable if baseModel indicates, but keep dynamic
   let selected = baseModel
-  if (needsVision && baseModel.includes('claude-3-5-sonnet-latest')) {
+  if (needsVision && baseModel.includes('@preset/nikcli')) {
     selected = baseModel // Keep if vision-capable
   }
   return selected // e.g., returns 'openrouter-claude-3-7-sonnet-20250219' directly
@@ -154,8 +174,12 @@ function determineTier(tokens: number, scope?: ModelScope, content?: string): 'l
 }
 
 export class AdaptiveModelRouter {
+  private performanceMetrics: Map<string, ModelPerformanceMetrics> = new Map()
+  private readonly FAILURE_THRESHOLD = 3 // Switch to fallback after 3 consecutive failures
+  private readonly CONTEXT_WARNING_THRESHOLD = 0.8 // Warn when using >80% of context
+
   /**
-   * Choose optimal model with precise token counting
+   * Choose optimal model with precise token counting and intelligent fallback
    */
   async choose(input: ModelRouteInput): Promise<ModelRouteDecision> {
     // Filter and ensure messages have required properties
@@ -206,7 +230,36 @@ export class AdaptiveModelRouter {
 
     // Get model limits for additional context
     const limits = universalTokenizer.getModelLimits(selected, input.provider)
-    const _contextUsage = tokens / limits.context
+    const contextUsage = tokens / limits.context
+
+    // Context usage warning
+    if (contextUsage > this.CONTEXT_WARNING_THRESHOLD) {
+      structuredLogger.warning(
+        `High context usage: ${Math.round(contextUsage * 100)}%`,
+        JSON.stringify({
+          model: selected,
+          tokens,
+          contextLimit: limits.context,
+          tier,
+        })
+      )
+    }
+
+    // Check for consecutive failures and use safe fallback if needed
+    const metrics = this.getMetrics(input.baseModel)
+    if (metrics.consecutiveFailures >= this.FAILURE_THRESHOLD && input.provider in SAFE_FALLBACK_MODELS) {
+      const fallbackModel = SAFE_FALLBACK_MODELS[input.provider]
+      structuredLogger.warning(
+        `Model ${input.baseModel} has ${metrics.consecutiveFailures} consecutive failures, using safe fallback`,
+        JSON.stringify({
+          originalModel: selected,
+          fallbackModel,
+          failures: metrics.consecutiveFailures,
+        })
+      )
+      selected = fallbackModel
+      reason = `${reason} (fallback due to failures)`
+    }
 
     return {
       selectedModel: selected,
@@ -306,6 +359,87 @@ export class AdaptiveModelRouter {
       estimatedCost: cost.inputCost,
       recommendedTier: decision.tier,
     }
+  }
+
+  /**
+   * Record model success (resets consecutive failures)
+   */
+  recordSuccess(modelKey: string): void {
+    const metrics = this.getMetrics(modelKey)
+    metrics.consecutiveFailures = 0
+    metrics.totalSuccesses++
+    this.performanceMetrics.set(modelKey, metrics)
+  }
+
+  /**
+   * Record model failure (increments consecutive failures)
+   */
+  recordFailure(modelKey: string): void {
+    const metrics = this.getMetrics(modelKey)
+    metrics.consecutiveFailures++
+    metrics.totalFailures++
+    metrics.lastFailure = new Date()
+    this.performanceMetrics.set(modelKey, metrics)
+
+    if (metrics.consecutiveFailures >= this.FAILURE_THRESHOLD) {
+      structuredLogger.error(
+        `Model ${modelKey} reached failure threshold (${metrics.consecutiveFailures} consecutive failures)`,
+        JSON.stringify({
+          totalFailures: metrics.totalFailures,
+          totalSuccesses: metrics.totalSuccesses,
+          lastFailure: metrics.lastFailure,
+        })
+      )
+    }
+  }
+
+  /**
+   * Get performance metrics for a model
+   */
+  getMetrics(modelKey: string): ModelPerformanceMetrics {
+    if (!this.performanceMetrics.has(modelKey)) {
+      this.performanceMetrics.set(modelKey, {
+        consecutiveFailures: 0,
+        totalFailures: 0,
+        totalSuccesses: 0,
+      })
+    }
+    return this.performanceMetrics.get(modelKey)!
+  }
+
+  /**
+   * Get model health status
+   */
+  getModelHealth(modelKey: string): {
+    status: 'healthy' | 'degraded' | 'failing'
+    consecutiveFailures: number
+    successRate: number
+  } {
+    const metrics = this.getMetrics(modelKey)
+    const total = metrics.totalFailures + metrics.totalSuccesses
+    const successRate = total > 0 ? metrics.totalSuccesses / total : 1.0
+
+    let status: 'healthy' | 'degraded' | 'failing'
+    if (metrics.consecutiveFailures >= this.FAILURE_THRESHOLD) {
+      status = 'failing'
+    } else if (metrics.consecutiveFailures > 0 || successRate < 0.8) {
+      status = 'degraded'
+    } else {
+      status = 'healthy'
+    }
+
+    return {
+      status,
+      consecutiveFailures: metrics.consecutiveFailures,
+      successRate,
+    }
+  }
+
+  /**
+   * Reset metrics for a model (useful after recovery)
+   */
+  resetMetrics(modelKey: string): void {
+    this.performanceMetrics.delete(modelKey)
   }
 }
 

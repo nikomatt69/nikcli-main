@@ -1,0 +1,14 @@
+Fast file pattern matching with glob support. Use this instead of bash find or ls commands.
+
+Features:
+- Fast glob patterns: **.ts, src/**/*.{js,tsx}, **/migrations/*.sql
+- Files sorted by modification time (or name, size)
+- Multiple pattern support
+- Gitignore pattern integration
+- Size and date filtering
+- Returns relative paths
+
+Examples:
+glob({ pattern: "**/*.ts" })
+glob({ pattern: ["src/**/*.tsx", "**/*.test.ts"], sortBy: "mtime" })
+glob({ pattern: "**/config.{js,json}", maxDepth: 3 })

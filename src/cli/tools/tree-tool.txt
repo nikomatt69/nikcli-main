@@ -1,0 +1,15 @@
+Beautiful directory structure visualization.
+
+Features:
+- Tree-style output with ASCII art
+- File/directory icons
+- Size information
+- Gitignore support
+- Max depth control
+- Sort by name, size, or type
+- File/directory statistics
+
+Examples:
+tree({ path: "./src" })
+tree({ maxDepth: 3, showSize: true, onlyDirectories: true })
+tree({ path: ".", useIcons: true, sortBy: "size" })

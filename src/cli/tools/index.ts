@@ -36,6 +36,11 @@ export {
   isValidFigmaFileId,
 } from './figma-tool'
 export { GitTools } from './git-tools'
+// New advanced tools
+export { type GlobMatch, type GlobResult, GlobTool, type GlobToolParams } from './glob-tool'
+export { type DiffChange, DiffTool, type DiffResult, type DiffToolParams } from './diff-tool'
+export { TreeTool, type TreeNode, type TreeResult, type TreeToolParams } from './tree-tool'
+export { type WatchEvent, type WatchResult, WatchTool, type WatchToolParams } from './watch-tool'
 export {
   ImageGenerationTool,
   type ImageGenerationToolOptions,

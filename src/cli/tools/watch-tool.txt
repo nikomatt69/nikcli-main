@@ -1,0 +1,14 @@
+Real-time file system monitoring and change detection.
+
+Features:
+- Watch files/directories for changes
+- Multiple event types (add, change, unlink)
+- Pattern-based filtering
+- Debouncing support
+- Custom callbacks on changes
+- Event statistics
+
+Examples:
+watch({ path: "./src", events: ["change", "add"] })
+watch({ path: ["src", "tests"], ignorePatterns: ["**/*.log"], callback: (e) => console.log(e) })
+watch({ path: ".", debounceDelay: 500, maxEvents: 50 })
