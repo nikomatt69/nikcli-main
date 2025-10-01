@@ -3,11 +3,11 @@
  * Production-ready vim integration with intelligent editing workflows
  */
 
-import { spawn, ChildProcess } from 'child_process'
-import * as fs from 'fs'
-import * as path from 'path'
-import * as os from 'os'
 import chalk from 'chalk'
+import { ChildProcess, spawn } from 'child_process'
+import * as fs from 'fs'
+import * as os from 'os'
+import * as path from 'path'
 
 export interface VimConfig {
   theme: 'gruvbox' | 'desert' | 'molokai' | 'solarized'
@@ -65,7 +65,7 @@ export class VimManager {
         'jiangmiao/auto-pairs',
         'vim-airline/vim-airline',
         'morhetz/gruvbox',
-        'easymotion/vim-easymotion'
+        'easymotion/vim-easymotion',
       ],
       customMappings: {
         '<leader>w': ':w<CR>',
@@ -73,9 +73,9 @@ export class VimManager {
         '<leader>x': ':wq<CR>',
         '<leader>t': ':NERDTreeToggle<CR>',
         '<leader>f': ':NERDTreeFind<CR>',
-        'jj': '<Esc>',
-        '<C-p>': ':CtrlP<CR>'
-      }
+        jj: '<Esc>',
+        '<C-p>': ':CtrlP<CR>',
+      },
     }
   }
 
@@ -89,10 +89,10 @@ export class VimManager {
       path.join(os.homedir(), '.vim', 'swap'),
       path.join(os.homedir(), '.vim', 'undo'),
       path.join(os.homedir(), '.vim', 'autoload'),
-      this.sessionsDir
+      this.sessionsDir,
     ]
 
-    dirs.forEach(dir => {
+    dirs.forEach((dir) => {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true })
       }
@@ -103,7 +103,7 @@ export class VimManager {
    * Generate production-ready .vimrc
    */
   public generateVimrc(): string {
-    const pluginList = this.config.plugins.map(plugin => `Plug '${plugin}'`).join('\n')
+    const pluginList = this.config.plugins.map((plugin) => `Plug '${plugin}'`).join('\n')
 
     const mappingsList = Object.entries(this.config.customMappings)
       .map(([key, command]) => `nnoremap ${key} ${command}`)
@@ -178,7 +178,7 @@ ${mappingsList}
 " Plugin Configurations
 " NERDTree
 let NERDTreeShowHidden=1
-let NERDTreeIgnore=['\\\.git$', '\\\.DS_Store$', '\\\.swp$', '\\\.swo$']
+let NERDTreeIgnore=['\\.git$', '\\.DS_Store$', '\\.swp$', '\\.swo$']
 
 " CtrlP
 let g:ctrlp_show_hidden = 1
@@ -270,7 +270,7 @@ echo "🚀 NikCLI Vim Configuration Loaded!"
         '-fLo',
         path.join(os.homedir(), '.vim', 'autoload', 'plug.vim'),
         '--create-dirs',
-        'https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
+        'https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim',
       ])
 
       curl.on('close', (code) => {
@@ -289,12 +289,15 @@ echo "🚀 NikCLI Vim Configuration Loaded!"
   /**
    * Open file in vim with NikCLI integration
    */
-  public async openFile(filePath: string, options: {
-    lineNumber?: number
-    column?: number
-    readonly?: boolean
-    diff?: boolean
-  } = {}): Promise<VimSession> {
+  public async openFile(
+    filePath: string,
+    options: {
+      lineNumber?: number
+      column?: number
+      readonly?: boolean
+      diff?: boolean
+    } = {}
+  ): Promise<VimSession> {
     const absolutePath = path.resolve(filePath)
     const sessionId = `vim_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
@@ -322,7 +325,7 @@ echo "🚀 NikCLI Vim Configuration Loaded!"
       file: absolutePath,
       startTime: new Date(),
       isActive: true,
-      changes: 0
+      changes: 0,
     }
 
     this.sessions.set(sessionId, session)
@@ -330,7 +333,7 @@ echo "🚀 NikCLI Vim Configuration Loaded!"
     // Spawn vim process
     const vimProcess = spawn('vim', vimArgs, {
       stdio: 'inherit',
-      cwd: path.dirname(absolutePath)
+      cwd: path.dirname(absolutePath),
     })
 
     return new Promise((resolve, reject) => {
@@ -373,7 +376,7 @@ echo "🚀 NikCLI Vim Configuration Loaded!"
     console.log(chalk.blue(`🔍 Comparing ${path.basename(file1)} vs ${path.basename(file2)}`))
 
     const vimProcess = spawn('vim', ['-d', file1, file2], {
-      stdio: 'inherit'
+      stdio: 'inherit',
     })
 
     return new Promise((resolve, reject) => {
@@ -394,7 +397,7 @@ echo "🚀 NikCLI Vim Configuration Loaded!"
    * Get active vim sessions
    */
   public getActiveSessions(): VimSession[] {
-    return Array.from(this.sessions.values()).filter(session => session.isActive)
+    return Array.from(this.sessions.values()).filter((session) => session.isActive)
   }
 
   /**
@@ -461,12 +464,12 @@ echo "🚀 NikCLI Vim Configuration Loaded!"
       vim.on('close', (code) => {
         if (code === 0) {
           const lines = output.split('\n')
-          const versionLine = lines.find(line => line.includes('VIM - Vi IMproved'))
+          const versionLine = lines.find((line) => line.includes('VIM - Vi IMproved'))
           const version = versionLine?.match(/\d+\.\d+/)?.[0] || 'unknown'
 
           const features = lines
-            .filter(line => line.startsWith('+') || line.startsWith('-'))
-            .map(line => line.trim())
+            .filter((line) => line.startsWith('+') || line.startsWith('-'))
+            .map((line) => line.trim())
 
           resolve({ version, features })
         } else {

@@ -6,6 +6,7 @@ import { parse as parseDotenv } from 'dotenv'
 import { z } from 'zod'
 import { modelProvider } from '../ai/model-provider'
 import { modernAIProvider } from '../ai/modern-ai-provider'
+import { backgroundAgentService } from '../background-agents/background-agent-service'
 import { unifiedRAGSystem } from '../context/rag-system'
 import { workspaceContext } from '../context/workspace-context'
 import { agentFactory } from '../core/agent-factory'
@@ -292,6 +293,12 @@ export class SlashCommandHandler {
     this.commands.set('vm-mode', this.vmModeCommand.bind(this))
     this.commands.set('vm-switch', this.vmSwitchCommand.bind(this))
 
+    // Background Agent operations
+    this.commands.set('bg-agent', this.bgAgentCommand.bind(this))
+    this.commands.set('bg-jobs', this.bgJobsCommand.bind(this))
+    this.commands.set('bg-status', this.bgStatusCommand.bind(this))
+    this.commands.set('bg-logs', this.bgLogsCommand.bind(this))
+
     // Vim operations
     this.commands.set('vim', this.vimCommand.bind(this))
     this.commands.set('vm-dashboard', this.vmDashboardCommand.bind(this))
@@ -503,6 +510,12 @@ ${chalk.cyan('/build')} - Build the project
 ${chalk.cyan('/test [pattern]')} - Run tests
 ${chalk.cyan('/lint')} - Run linting
 ${chalk.cyan('/create <type> <name>')} - Create new project
+
+${chalk.blue.bold('Background Agent Commands:')}
+${chalk.cyan('/bg-agent <task>')} - Create background job with VM execution + auto PR
+${chalk.cyan('/bg-jobs [status]')} - List all background jobs (filter by status)
+${chalk.cyan('/bg-status <jobId>')} - Get detailed status of specific job
+${chalk.cyan('/bg-logs <jobId> [limit]')} - View job execution logs
 
 ${chalk.blue.bold('VM Container Commands:')}
 ${chalk.cyan('/vm')} - Show VM management help
@@ -1253,7 +1266,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       `Current Model: ${chalk.cyan(modelInfo.name)}`,
       `Total Sessions: ${chalk.cyan(stats.totalSessions)}`,
       `Total Messages: ${chalk.cyan(stats.totalMessages)}`,
-      `Current Session Messages: ${chalk.cyan(stats.currentSessionMessages)}`
+      `Current Session Messages: ${chalk.cyan(stats.currentSessionMessages)}`,
     ].join('\n')
 
     this.printPanel(
@@ -1612,13 +1625,16 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const fileInfo = await toolsManager.readFile(filePath)
 
       this.printPanel(
-        boxen(`File: ${chalk.cyan(filePath)}\nSize: ${chalk.gray(fileInfo.size + ' bytes')}\nLanguage: ${chalk.gray(fileInfo.language || 'unknown')}`, {
-          title: '📄 File Info',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'blue',
-        })
+        boxen(
+          `File: ${chalk.cyan(filePath)}\nSize: ${chalk.gray(fileInfo.size + ' bytes')}\nLanguage: ${chalk.gray(fileInfo.language || 'unknown')}`,
+          {
+            title: '📄 File Info',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          }
+        )
       )
       console.log(fileInfo.content)
     } catch (error: any) {
@@ -1763,7 +1779,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           })
         )
       } else {
-        const fileList = files.slice(0, 50).map(file => `${chalk.cyan('•')} ${file}`).join('\n')
+        const fileList = files
+          .slice(0, 50)
+          .map((file) => `${chalk.cyan('•')} ${file}`)
+          .join('\n')
         const summary = files.length > 50 ? `\n\n${chalk.gray(`... and ${files.length - 50} more files`)}` : ''
 
         this.printPanel(
@@ -2178,9 +2197,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           })
         )
       } else {
-        const errors = result.errors && result.errors.length > 0
-          ? '\n\n' + result.errors.map(e => `${chalk.red('•')} ${e.message}`).join('\n')
-          : ''
+        const errors =
+          result.errors && result.errors.length > 0
+            ? '\n\n' + result.errors.map((e) => `${chalk.red('•')} ${e.message}`).join('\n')
+            : ''
         this.printPanel(
           boxen(`Build failed${errors}`, {
             title: '❌ Build Failed',
@@ -2234,9 +2254,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           })
         )
       } else {
-        const errors = result.errors && result.errors.length > 0
-          ? '\n\n' + result.errors.map(e => `${chalk.red('•')} ${e.message}`).join('\n')
-          : ''
+        const errors =
+          result.errors && result.errors.length > 0
+            ? '\n\n' + result.errors.map((e) => `${chalk.red('•')} ${e.message}`).join('\n')
+            : ''
         this.printPanel(
           boxen(`Some tests failed${errors}`, {
             title: '❌ Tests Failed',
@@ -2456,7 +2477,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         `Container ID: ${chalk.cyan(containerId)}`,
         `VS Code Server: ${chalk.cyan('http://localhost:' + vscodePort)}`,
         `\nConnect with: ${chalk.gray('/vm-connect ' + containerId.slice(0, 8))}`,
-        `\n${chalk.yellow('⚡︎ Switching to VM mode...')}`
+        `\n${chalk.yellow('⚡︎ Switching to VM mode...')}`,
       ].join('\n')
 
       this.printPanel(
@@ -2508,19 +2529,21 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
-      const containerList = containers.map((container) => {
-        const uptime = Math.round((Date.now() - container.createdAt.getTime()) / 1000 / 60)
-        const status = container.status === 'running' ? chalk.green('running') : chalk.yellow(container.status)
-        return [
-          `${chalk.cyan('•')} ${chalk.bold(container.id.slice(0, 12))}`,
-          `  Agent: ${container.agentId}`,
-          `  Repository: ${container.repositoryUrl}`,
-          `  Status: ${status}`,
-          `  VS Code Port: ${container.vscodePort}`,
-          `  Uptime: ${uptime} minutes`,
-          ''
-        ].join('\n')
-      }).join('\n')
+      const containerList = containers
+        .map((container) => {
+          const uptime = Math.round((Date.now() - container.createdAt.getTime()) / 1000 / 60)
+          const status = container.status === 'running' ? chalk.green('running') : chalk.yellow(container.status)
+          return [
+            `${chalk.cyan('•')} ${chalk.bold(container.id.slice(0, 12))}`,
+            `  Agent: ${container.agentId}`,
+            `  Repository: ${container.repositoryUrl}`,
+            `  Status: ${status}`,
+            `  VS Code Port: ${container.vscodePort}`,
+            `  Uptime: ${uptime} minutes`,
+            '',
+          ].join('\n')
+        })
+        .join('\n')
 
       this.printPanel(
         boxen(containerList, {
@@ -2691,7 +2714,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         `VS Code Server: ${chalk.cyan('http://localhost:' + container.vscodePort)}`,
         `Repository: ${chalk.gray(container.repositoryUrl)}`,
         `\n💬 You can now chat directly with the VM agent`,
-        `Type ${chalk.gray('/vm-mode')} to enter dedicated VM chat mode`
+        `Type ${chalk.gray('/vm-mode')} to enter dedicated VM chat mode`,
       ].join('\n')
 
       this.printPanel(
@@ -7663,16 +7686,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const currentSession = workSessionManager.getCurrentSession()
       if (!currentSession) {
         this.printPanel(
-          boxen(
-            'No active work session.\n\nStart one with: /save-session [name]\nor resume: /resume [session-id]',
-            {
-              title: '↩️ Edit History',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow',
-            }
-          )
+          boxen('No active work session.\n\nStart one with: /save-session [name]\nor resume: /resume [session-id]', {
+            title: '↩️ Edit History',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
         )
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
@@ -7737,5 +7757,248 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       )
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
+  }
+
+  // ====================== 🔌 BACKGROUND AGENT COMMANDS ======================
+
+  /**
+   * /bg-agent <task> - Create background job that executes in VM and creates PR
+   */
+  private async bgAgentCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
+    if (args.length === 0) {
+      this.printPanel(
+        boxen('Usage: /bg-agent <task>\n\nExample: /bg-agent "Fix authentication bug in auth.ts"', {
+          title: '🔌 Background Agent',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const task = args.join(' ')
+
+    try {
+      console.log(chalk.blue('🔌 Creating background job...'))
+
+      // Get current git repo info
+      const { execSync } = await import('node:child_process')
+      let repo = 'owner/repo'
+      let baseBranch = 'main'
+
+      try {
+        const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf8' }).trim()
+        const match = remoteUrl.match(/github\.com[/:]([^/:]+\/[^/.]+)(?:\.git)?/)
+        if (match) {
+          repo = match[1]
+        }
+
+        try {
+          baseBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim()
+        } catch {
+          baseBranch = 'main'
+        }
+      } catch (error) {
+        console.log(chalk.yellow('⚠️ Not in git repository, using default values'))
+      }
+
+      // Create background job
+      const jobId = await backgroundAgentService.createJob({
+        repo,
+        baseBranch,
+        task,
+        limits: {
+          timeMin: 30,
+          maxToolCalls: 100,
+          maxMemoryMB: 2048,
+        },
+      })
+
+      console.log(chalk.green(`✓ Background job created: ${jobId}`))
+      console.log(chalk.gray(`Repository: ${repo}`))
+      console.log(chalk.gray(`Base branch: ${baseBranch}`))
+      console.log(chalk.gray(`Task: ${task}`))
+      console.log('')
+      console.log(chalk.cyan('Monitor progress:'))
+      console.log(chalk.gray(`  /bg-status ${jobId}`))
+      console.log(chalk.gray(`  /bg-logs ${jobId}`))
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error creating background job: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * /bg-jobs - List all background jobs
+   */
+  private async bgJobsCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
+    try {
+      const status = args[0] as any
+      const jobs = await backgroundAgentService.listJobs({ status, limit: 20 })
+      const stats = await backgroundAgentService.getStats()
+
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error listing jobs: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * /bg-status <jobId> - Get status of specific background job
+   */
+  private async bgStatusCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
+    if (args.length === 0) {
+      this.printPanel(
+        boxen('Usage: /bg-status <jobId>', {
+          title: '📊 Job Status',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const jobId = args[0]
+
+    try {
+      const job = backgroundAgentService.getJob(jobId)
+
+      if (!job) {
+        console.log(chalk.red(`❌ Job not found: ${jobId}`))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const lines = []
+      lines.push(`ID: ${job.id}`)
+      lines.push(`Status: ${job.status.toUpperCase()}`)
+      lines.push(`Repo: ${job.repo}`)
+      lines.push(`Branch: ${job.workBranch}`)
+      lines.push(`Task: ${job.task}`)
+      lines.push('')
+      lines.push(`Created: ${job.createdAt.toLocaleString()}`)
+      if (job.startedAt) {
+        lines.push(`Started: ${job.startedAt.toLocaleString()}`)
+      }
+      if (job.completedAt) {
+        lines.push(`Completed: ${job.completedAt.toLocaleString()}`)
+      }
+      lines.push('')
+      lines.push(`Metrics:`)
+      lines.push(`  Token Usage: ${job.metrics.tokenUsage}`)
+      lines.push(`  Tool Calls: ${job.metrics.toolCalls}`)
+      lines.push(`  Execution Time: ${Math.round(job.metrics.executionTime / 1000)}s`)
+      lines.push(`  Memory Usage: ${job.metrics.memoryUsage}MB`)
+
+      if (job.containerId) {
+        lines.push('')
+        lines.push(`Container: ${job.containerId}`)
+      }
+
+      if (job.prUrl) {
+        lines.push('')
+        lines.push(`PR: ${job.prUrl}`)
+      }
+
+      if (job.error) {
+        lines.push('')
+        lines.push(`Error: ${job.error}`)
+      }
+
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: '📊 Job Status',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error getting job status: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * /bg-logs <jobId> - View logs for specific background job
+   */
+  private async bgLogsCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
+    if (args.length === 0) {
+      this.printPanel(
+        boxen('Usage: /bg-logs <jobId> [limit]', {
+          title: '📝 Job Logs',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const jobId = args[0]
+    const limit = args[1] ? parseInt(args[1], 10) : 50
+
+    try {
+      const job = backgroundAgentService.getJob(jobId)
+
+      if (!job) {
+        console.log(chalk.red(`❌ Job not found: ${jobId}`))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const logs = job.logs.slice(-limit)
+
+      if (logs.length === 0) {
+        console.log(chalk.yellow('No logs available yet'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const lines = []
+      lines.push(`Showing last ${logs.length} log entries:`)
+      lines.push('')
+
+      logs.forEach((log) => {
+        const levelIcon = {
+          info: 'ℹ️',
+          warn: '⚠️',
+          error: '❌',
+          debug: '🐛',
+        }[log.level]
+
+        const timestamp = new Date(log.timestamp).toLocaleTimeString()
+        lines.push(`${levelIcon} ${timestamp} [${log.source}]`)
+        lines.push(`   ${log.message}`)
+      })
+
+      this.printPanel(
+        boxen(lines.join('\n'), {
+          title: `📝 Logs - ${jobId.slice(0, 8)}`,
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error getting job logs: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
   }
 }

@@ -4,10 +4,10 @@
  */
 
 import chalk from 'chalk'
-import * as path from 'path'
 import * as fs from 'fs'
+import * as path from 'path'
 import VimManager from './vim-manager'
-import { VimModeConfig } from './vim-mode-manager'
+import type { VimModeConfig } from './vim-mode-manager'
 
 export interface VimCommandResult {
   success: boolean
@@ -30,19 +30,19 @@ export class VimCommands {
       if (!VimManager.isVimAvailable()) {
         return {
           success: false,
-          message: chalk.red('❌ Vim is not installed. Please install vim first.')
+          message: chalk.red('❌ Vim is not installed. Please install vim first.'),
         }
       }
 
       await this.vimManager.setupVim()
       return {
         success: true,
-        message: chalk.green('✅ Vim setup completed successfully!')
+        message: chalk.green('✅ Vim setup completed successfully!'),
       }
     } catch (error) {
       return {
         success: false,
-        message: chalk.red(`❌ Setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        message: chalk.red(`❌ Setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`),
       }
     }
   }
@@ -50,12 +50,15 @@ export class VimCommands {
   /**
    * Edit file command
    */
-  async editFile(filePath: string, options: {
-    line?: number
-    column?: number
-    create?: boolean
-    readonly?: boolean
-  } = {}): Promise<VimCommandResult> {
+  async editFile(
+    filePath: string,
+    options: {
+      line?: number
+      column?: number
+      create?: boolean
+      readonly?: boolean
+    } = {}
+  ): Promise<VimCommandResult> {
     try {
       // Resolve path
       const resolvedPath = path.resolve(filePath)
@@ -74,7 +77,7 @@ export class VimCommands {
         } else {
           return {
             success: false,
-            message: chalk.red(`❌ File does not exist: ${filePath}. Use --create to create it.`)
+            message: chalk.red(`❌ File does not exist: ${filePath}. Use --create to create it.`),
           }
         }
       }
@@ -82,18 +85,18 @@ export class VimCommands {
       const session = await this.vimManager.openFile(resolvedPath, {
         lineNumber: options.line,
         column: options.column,
-        readonly: options.readonly
+        readonly: options.readonly,
       })
 
       return {
         success: true,
         message: chalk.green(`✅ Editing session completed for ${path.basename(filePath)}`),
-        data: session
+        data: session,
       }
     } catch (error) {
       return {
         success: false,
-        message: chalk.red(`❌ Edit failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        message: chalk.red(`❌ Edit failed: ${error instanceof Error ? error.message : 'Unknown error'}`),
       }
     }
   }
@@ -106,12 +109,12 @@ export class VimCommands {
       await this.vimManager.quickEdit(filePath, content)
       return {
         success: true,
-        message: chalk.green(`✅ Quick edit completed for ${path.basename(filePath)}`)
+        message: chalk.green(`✅ Quick edit completed for ${path.basename(filePath)}`),
       }
     } catch (error) {
       return {
         success: false,
-        message: chalk.red(`❌ Quick edit failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        message: chalk.red(`❌ Quick edit failed: ${error instanceof Error ? error.message : 'Unknown error'}`),
       }
     }
   }
@@ -127,26 +130,26 @@ export class VimCommands {
       if (!fs.existsSync(path1)) {
         return {
           success: false,
-          message: chalk.red(`❌ File does not exist: ${file1}`)
+          message: chalk.red(`❌ File does not exist: ${file1}`),
         }
       }
 
       if (!fs.existsSync(path2)) {
         return {
           success: false,
-          message: chalk.red(`❌ File does not exist: ${file2}`)
+          message: chalk.red(`❌ File does not exist: ${file2}`),
         }
       }
 
       await this.vimManager.diffFiles(path1, path2)
       return {
         success: true,
-        message: chalk.green(`✅ Diff completed for ${path.basename(file1)} vs ${path.basename(file2)}`)
+        message: chalk.green(`✅ Diff completed for ${path.basename(file1)} vs ${path.basename(file2)}`),
       }
     } catch (error) {
       return {
         success: false,
-        message: chalk.red(`❌ Diff failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        message: chalk.red(`❌ Diff failed: ${error instanceof Error ? error.message : 'Unknown error'}`),
       }
     }
   }
@@ -166,7 +169,7 @@ export class VimCommands {
     console.log(chalk.cyan(`Tab Width: ${config.tabWidth}`))
 
     console.log(chalk.blue.bold('\n📦 Installed Plugins:'))
-    config.plugins.forEach(plugin => {
+    config.plugins.forEach((plugin) => {
       console.log(chalk.green(`  ✓ ${plugin}`))
     })
 
@@ -177,7 +180,7 @@ export class VimCommands {
 
     return {
       success: true,
-      data: config
+      data: config,
     }
   }
 
@@ -189,12 +192,12 @@ export class VimCommands {
       this.vimManager.addPlugin(plugin)
       return {
         success: true,
-        message: chalk.green(`✅ Plugin added: ${plugin}`)
+        message: chalk.green(`✅ Plugin added: ${plugin}`),
       }
     } catch (error) {
       return {
         success: false,
-        message: chalk.red(`❌ Failed to add plugin: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        message: chalk.red(`❌ Failed to add plugin: ${error instanceof Error ? error.message : 'Unknown error'}`),
       }
     }
   }
@@ -207,12 +210,12 @@ export class VimCommands {
       this.vimManager.removePlugin(plugin)
       return {
         success: true,
-        message: chalk.yellow(`🗑️ Plugin removed: ${plugin}`)
+        message: chalk.yellow(`🗑️ Plugin removed: ${plugin}`),
       }
     } catch (error) {
       return {
         success: false,
-        message: chalk.red(`❌ Failed to remove plugin: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        message: chalk.red(`❌ Failed to remove plugin: ${error instanceof Error ? error.message : 'Unknown error'}`),
       }
     }
   }
@@ -229,7 +232,7 @@ export class VimCommands {
     }
 
     console.log(chalk.blue.bold('\n📝 Active Vim Sessions'))
-    sessions.forEach(session => {
+    sessions.forEach((session) => {
       console.log(chalk.green(`  📄 ${path.basename(session.file)}`))
       console.log(chalk.gray(`     Started: ${session.startTime.toLocaleTimeString()}`))
       console.log(chalk.gray(`     File: ${session.file}`))
@@ -238,7 +241,7 @@ export class VimCommands {
 
     return {
       success: true,
-      data: sessions
+      data: sessions,
     }
   }
 
@@ -250,7 +253,7 @@ export class VimCommands {
       if (!VimManager.isVimAvailable()) {
         return {
           success: false,
-          message: chalk.red('❌ Vim is not available on this system')
+          message: chalk.red('❌ Vim is not available on this system'),
         }
       }
 
@@ -263,7 +266,7 @@ export class VimCommands {
       // Show key features
       const keyFeatures = ['+clipboard', '+python3', '+lua', '+ruby', '+perl']
       console.log(chalk.blue.bold('\n🔧 Key Features:'))
-      keyFeatures.forEach(feature => {
+      keyFeatures.forEach((feature) => {
         const hasFeature = vimInfo.features.includes(feature)
         const status = hasFeature ? chalk.green('✓') : chalk.red('✗')
         console.log(`  ${status} ${feature}`)
@@ -277,12 +280,12 @@ export class VimCommands {
 
       return {
         success: true,
-        data: vimInfo
+        data: vimInfo,
       }
     } catch (error) {
       return {
         success: false,
-        message: chalk.red(`❌ Failed to get vim info: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        message: chalk.red(`❌ Failed to get vim info: ${error instanceof Error ? error.message : 'Unknown error'}`),
       }
     }
   }
@@ -295,12 +298,12 @@ export class VimCommands {
       this.vimManager.updateConfig(updates)
       return {
         success: true,
-        message: chalk.green('✅ Configuration updated. Run vim-setup to apply changes.')
+        message: chalk.green('✅ Configuration updated. Run vim-setup to apply changes.'),
       }
     } catch (error) {
       return {
         success: false,
-        message: chalk.red(`❌ Failed to update config: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        message: chalk.red(`❌ Failed to update config: ${error instanceof Error ? error.message : 'Unknown error'}`),
       }
     }
   }
@@ -311,19 +314,21 @@ export class VimCommands {
   async createTemplate(templateType: string, filePath: string): Promise<VimCommandResult> {
     try {
       const templates = {
-        'typescript': this.getTypeScriptTemplate(),
-        'javascript': this.getJavaScriptTemplate(),
-        'python': this.getPythonTemplate(),
-        'markdown': this.getMarkdownTemplate(),
-        'vue': this.getVueTemplate(),
-        'react': this.getReactTemplate()
+        typescript: this.getTypeScriptTemplate(),
+        javascript: this.getJavaScriptTemplate(),
+        python: this.getPythonTemplate(),
+        markdown: this.getMarkdownTemplate(),
+        vue: this.getVueTemplate(),
+        react: this.getReactTemplate(),
       }
 
       const template = templates[templateType as keyof typeof templates]
       if (!template) {
         return {
           success: false,
-          message: chalk.red(`❌ Unknown template type: ${templateType}. Available: ${Object.keys(templates).join(', ')}`)
+          message: chalk.red(
+            `❌ Unknown template type: ${templateType}. Available: ${Object.keys(templates).join(', ')}`
+          ),
         }
       }
 
@@ -341,12 +346,12 @@ export class VimCommands {
 
       return {
         success: true,
-        message: chalk.green(`✅ Template created and opened in vim`)
+        message: chalk.green(`✅ Template created and opened in vim`),
       }
     } catch (error) {
       return {
         success: false,
-        message: chalk.red(`❌ Template creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        message: chalk.red(`❌ Template creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`),
       }
     }
   }

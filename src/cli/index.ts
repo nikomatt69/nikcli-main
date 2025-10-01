@@ -77,7 +77,6 @@ import { toolService } from './services/tool-service'
 import { diffManager } from './ui/diff-manager'
 import { Logger as UtilsLogger } from './utils/logger'
 
-
 // Global declarations for vision/image providers
 declare global {
   var visionProvider: any
@@ -136,32 +135,32 @@ class BannerAnimator {
   ]
 
   private static ensureFrames(): void {
-    if (this.frames.length > 0) {
+    if (BannerAnimator.frames.length > 0) {
       return
     }
 
-    this.frames = this.palettes.map((colors) => gradient(colors).multiline(banner))
+    BannerAnimator.frames = BannerAnimator.palettes.map((colors) => gradient(colors).multiline(banner))
   }
 
   static renderStatic(): string {
-    this.ensureFrames()
-    return this.frames[0] || chalk.cyanBright(banner)
+    BannerAnimator.ensureFrames()
+    return BannerAnimator.frames[0] || chalk.cyanBright(banner)
   }
 
   static printStatic(): void {
-    console.log(this.renderStatic())
+    console.log(BannerAnimator.renderStatic())
   }
 
   static async play(options: { cycles?: number; frameInterval?: number } = {}): Promise<void> {
     const cycles = options.cycles ?? 3
     const frameInterval = options.frameInterval ?? 90
 
-    this.ensureFrames()
-    const frames = this.frames
+    BannerAnimator.ensureFrames()
+    const frames = BannerAnimator.frames
 
     if (!process.stdout.isTTY || process.env.CI || process.env.NIKCLI_NO_ANIMATION === '1' || frames.length === 0) {
       console.clear()
-      this.printStatic()
+      BannerAnimator.printStatic()
       return
     }
 
@@ -279,22 +278,22 @@ class IntroductionModule {
     // Enhanced TUI version with better theming and structure
     const setupBox = boxen(
       chalk.yellow.bold('  API Key Required\n\n') +
-      chalk.white('To use NikCLI, please set at least one API key:\n\n') +
-      chalk.green('• ANTHROPIC_API_KEY') +
-      chalk.gray(' - for Claude models (recommended)\n') +
-      chalk.blue('• OPENAI_API_KEY') +
-      chalk.gray(' - for GPT models\n') +
-      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
-      chalk.gray(' - for Gemini models\n') +
-      chalk.cyan('• AI_GATEWAY_API_KEY') +
-      chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
-      chalk.white.bold('Setup Examples:\n') +
-      chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
-      chalk.dim('export OPENAI_API_KEY="your-key-here"\n') +
-      chalk.dim('export GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"\n') +
-      chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
-      chalk.cyan('Then run: ') +
-      chalk.white.bold('npm start'),
+        chalk.white('To use NikCLI, please set at least one API key:\n\n') +
+        chalk.green('• ANTHROPIC_API_KEY') +
+        chalk.gray(' - for Claude models (recommended)\n') +
+        chalk.blue('• OPENAI_API_KEY') +
+        chalk.gray(' - for GPT models\n') +
+        chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+        chalk.gray(' - for Gemini models\n') +
+        chalk.cyan('• AI_GATEWAY_API_KEY') +
+        chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
+        chalk.white.bold('Setup Examples:\n') +
+        chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
+        chalk.dim('export OPENAI_API_KEY="your-key-here"\n') +
+        chalk.dim('export GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"\n') +
+        chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
+        chalk.cyan('Then run: ') +
+        chalk.white.bold('npm start'),
       {
         padding: 1,
         margin: 1,
@@ -312,13 +311,13 @@ class IntroductionModule {
     // Enhanced TUI version with status indicators
     const startupBox = boxen(
       chalk.green.bold('🚀 Starting NikCLI...\n\n') +
-      chalk.white('Initializing autonomous AI assistant\n') +
-      chalk.gray('• Loading project context\n') +
-      chalk.gray('• Preparing planning system\n') +
-      chalk.gray('• Setting up tool integrations\n\n') +
-      chalk.cyan('Type ') +
-      chalk.white.bold('/help') +
-      chalk.cyan(' for available commands'),
+        chalk.white('Initializing autonomous AI assistant\n') +
+        chalk.gray('• Loading project context\n') +
+        chalk.gray('• Preparing planning system\n') +
+        chalk.gray('• Setting up tool integrations\n\n') +
+        chalk.cyan('Type ') +
+        chalk.white.bold('/help') +
+        chalk.cyan(' for available commands'),
       {
         padding: 1,
         margin: 1,
@@ -357,19 +356,19 @@ class OnboardingModule {
     await BannerAnimator.play()
 
     // Step 1: Version Information
-    await this.showVersionInfo()
+    await OnboardingModule.showVersionInfo()
 
     // Step 2: Beta Warning
-    await this.showBetaWarning()
+    await OnboardingModule.showBetaWarning()
 
     // Step 3: API Key Setup
-    const _hasKeys = await this.setupApiKeys()
+    const _hasKeys = await OnboardingModule.setupApiKeys()
 
     // Step 4: Enhanced Services Setup (optional)
-    await this.setupEnhancedServices()
+    await OnboardingModule.setupEnhancedServices()
 
     // Step 5: System Check
-    const systemOk = await this.checkSystemRequirements()
+    const systemOk = await OnboardingModule.checkSystemRequirements()
 
     // Onboarding is complete if system requirements are met
     // API keys and enhanced services are optional
@@ -379,15 +378,15 @@ class OnboardingModule {
   private static async showBetaWarning(): Promise<void> {
     const warningBox = boxen(
       chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
-      chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
-      chalk.yellow.bold('Potential Risks:\n') +
-      chalk.white('• File system modifications\n') +
-      chalk.white('• Code generation may not always be optimal\n') +
-      chalk.white('• AI responses may be inaccurate\n') +
-      chalk.white('• System resource usage\n\n') +
-      chalk.cyan('For detailed security information, visit:\n') +
-      chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
-      chalk.white('By continuing, you acknowledge these risks.'),
+        chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
+        chalk.yellow.bold('Potential Risks:\n') +
+        chalk.white('• File system modifications\n') +
+        chalk.white('• Code generation may not always be optimal\n') +
+        chalk.white('• AI responses may be inaccurate\n') +
+        chalk.white('• System resource usage\n\n') +
+        chalk.cyan('For detailed security information, visit:\n') +
+        chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
+        chalk.white('By continuing, you acknowledge these risks.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -397,7 +396,7 @@ class OnboardingModule {
       }
     )
 
-    this.renderSection([warningBox])
+    OnboardingModule.renderSection([warningBox])
 
     const rl = readline.createInterface({
       input: process.stdin,
@@ -425,7 +424,7 @@ class OnboardingModule {
     const gatewayKey = process.env.AI_GATEWAY_API_KEY || process.env.GATEWAY_API_KEY
 
     if (anthropicKey || openaiKey || openrouterKey || googleKey || vercelKey || gatewayKey) {
-      this.apiKeyStatus = 'present'
+      OnboardingModule.apiKeyStatus = 'present'
       return true
     }
 
@@ -434,7 +433,7 @@ class OnboardingModule {
       const currentModel = configManager.get('currentModel')
       const modelCfg = (configManager.get('models') as any)[currentModel]
       if (modelCfg && modelCfg.provider === 'ollama') {
-        this.apiKeyStatus = 'ollama'
+        OnboardingModule.apiKeyStatus = 'ollama'
         return true
       }
     } catch (_) {
@@ -443,21 +442,21 @@ class OnboardingModule {
 
     const setupBox = boxen(
       chalk.yellow.bold('⚠️  No API keys detected\n\n') +
-      chalk.white('To unlock the best experience, add at least one API key:\n\n') +
-      chalk.green('• ANTHROPIC_API_KEY') +
-      chalk.gray(' – Claude models (recommended)\n') +
-      chalk.blue('• OPENAI_API_KEY') +
-      chalk.gray(' – GPT models\n') +
-      chalk.yellow('• OPENROUTER_API_KEY') +
-      chalk.gray(' – Multi-provider routing\n') +
-      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
-      chalk.gray(' – Gemini models\n') +
-      chalk.cyan('• AI_GATEWAY_API_KEY / V0_API_KEY') +
-      chalk.gray(' – Vercel integrations\n\n') +
-      chalk.white.bold('Example commands:\n') +
-      chalk.dim('export ANTHROPIC_API_KEY="your-key"\n') +
-      chalk.dim('export OPENROUTER_API_KEY="your-key"\n\n') +
-      chalk.cyan('Prefer local models? Configure Ollama below.'),
+        chalk.white('To unlock the best experience, add at least one API key:\n\n') +
+        chalk.green('• ANTHROPIC_API_KEY') +
+        chalk.gray(' – Claude models (recommended)\n') +
+        chalk.blue('• OPENAI_API_KEY') +
+        chalk.gray(' – GPT models\n') +
+        chalk.yellow('• OPENROUTER_API_KEY') +
+        chalk.gray(' – Multi-provider routing\n') +
+        chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+        chalk.gray(' – Gemini models\n') +
+        chalk.cyan('• AI_GATEWAY_API_KEY / V0_API_KEY') +
+        chalk.gray(' – Vercel integrations\n\n') +
+        chalk.white.bold('Example commands:\n') +
+        chalk.dim('export ANTHROPIC_API_KEY="your-key"\n') +
+        chalk.dim('export OPENROUTER_API_KEY="your-key"\n\n') +
+        chalk.cyan('Prefer local models? Configure Ollama below.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -467,7 +466,7 @@ class OnboardingModule {
       }
     )
 
-    this.renderSection([header, setupBox])
+    OnboardingModule.renderSection([header, setupBox])
 
     const rl = readline.createInterface({
       input: process.stdin,
@@ -486,12 +485,12 @@ class OnboardingModule {
         backgroundColor: '#001a33',
         title: 'Setup Required',
       })
-      this.renderSection([header, exitBox])
+      OnboardingModule.renderSection([header, exitBox])
       process.exit(0)
     }
 
-    const configured = await this.setupOllama()
-    this.apiKeyStatus = configured ? 'ollama' : 'skipped'
+    const configured = await OnboardingModule.setupOllama()
+    OnboardingModule.apiKeyStatus = configured ? 'ollama' : 'skipped'
     return configured
   }
 
@@ -499,7 +498,7 @@ class OnboardingModule {
     let runtimeOk = true
 
     try {
-      // @ts-ignore - Bun global exists when running with Bun
+      // @ts-expect-error - Bun global exists when running with Bun
       if (typeof Bun !== 'undefined') {
         runtimeOk = true
       } else {
@@ -544,9 +543,9 @@ class OnboardingModule {
       // Show minimal success box
       const summaryBox = boxen(
         chalk.white('✓ Node.js v') +
-        chalk.white(process.version) +
-        '\n' +
-        chalk.white('✓ Cloud API provider configured'),
+          chalk.white(process.version) +
+          '\n' +
+          chalk.white('✓ Cloud API provider configured'),
         {
           padding: 1,
           borderStyle: 'round',
@@ -583,9 +582,9 @@ class OnboardingModule {
 
         const modelsBox = boxen(
           chalk.green.bold('✓ Local Ollama models detected\n\n') +
-          list +
-          '\n\n' +
-          chalk.white('Use a local model to run NikCLI without external API keys.'),
+            list +
+            '\n\n' +
+            chalk.white('Use a local model to run NikCLI without external API keys.'),
           {
             padding: 1,
             borderStyle: 'round',
@@ -595,7 +594,7 @@ class OnboardingModule {
           }
         )
 
-        this.renderSection([header, modelsBox])
+        OnboardingModule.renderSection([header, modelsBox])
 
         const rl = readline.createInterface({
           input: process.stdin,
@@ -631,20 +630,20 @@ class OnboardingModule {
             backgroundColor: '#001a00',
             title: 'Configuration Updated',
           })
-          this.renderSection([header, successBox])
-          await this.pause()
+          OnboardingModule.renderSection([header, successBox])
+          await OnboardingModule.pause()
           return true
         }
 
-        this.renderSection([header, providerMissingBox()])
-        await this.pause()
+        OnboardingModule.renderSection([header, providerMissingBox()])
+        await OnboardingModule.pause()
         return false
       }
 
       const promptBox = boxen(
         chalk.yellow.bold('No Ollama models configured yet.\n\n') +
-        chalk.white('Add the default `llama3.1:8b` model now?\n') +
-        chalk.dim('This enables fully local inference without API keys.'),
+          chalk.white('Add the default `llama3.1:8b` model now?\n') +
+          chalk.dim('This enables fully local inference without API keys.'),
         {
           padding: 1,
           borderStyle: 'round',
@@ -654,7 +653,7 @@ class OnboardingModule {
         }
       )
 
-      this.renderSection([header, promptBox])
+      OnboardingModule.renderSection([header, promptBox])
 
       const rl = readline.createInterface({
         input: process.stdin,
@@ -679,8 +678,8 @@ class OnboardingModule {
           backgroundColor: '#001a00',
           title: 'Configuration Updated',
         })
-        this.renderSection([header, successBox])
-        await this.pause()
+        OnboardingModule.renderSection([header, successBox])
+        await OnboardingModule.pause()
         return true
       }
     } catch (_error) {
@@ -691,11 +690,11 @@ class OnboardingModule {
         backgroundColor: '#2a1a00',
         title: 'Ollama Setup',
       })
-      this.renderSection([header, errorBox])
+      OnboardingModule.renderSection([header, errorBox])
     }
 
-    this.renderSection([header, providerMissingBox()])
-    await this.pause()
+    OnboardingModule.renderSection([header, providerMissingBox()])
+    await OnboardingModule.pause()
     return false
   }
 
@@ -719,8 +718,8 @@ class OnboardingModule {
           title: 'Optional Services',
         }
       )
-      this.renderSection([header, infoBox])
-      await this.pause()
+      OnboardingModule.renderSection([header, infoBox])
+      await OnboardingModule.pause()
       return
     }
 
@@ -762,7 +761,7 @@ class OnboardingModule {
           sections.push(supabaseLines.join('\n'))
 
           if (supabaseConfig!.features.auth) {
-            await this.setupAuthentication()
+            await OnboardingModule.setupAuthentication()
           }
         } else {
           sections.push(
@@ -784,8 +783,8 @@ class OnboardingModule {
         backgroundColor: '#001a2a',
         title: 'Service Status',
       })
-      this.renderSection([header, servicesBox])
-      await this.pause()
+      OnboardingModule.renderSection([header, servicesBox])
+      await OnboardingModule.pause()
     }
   }
 
@@ -793,7 +792,7 @@ class OnboardingModule {
     const header = chalk.cyanBright('🔐 Authentication Setup')
     const introBox = boxen(
       chalk.white('Sign in to sync progress across devices and unlock collaborative features.\n') +
-      chalk.gray('You can always connect later with the /auth command.'),
+        chalk.gray('You can always connect later with the /auth command.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -803,7 +802,7 @@ class OnboardingModule {
       }
     )
 
-    this.renderSection([header, introBox])
+    OnboardingModule.renderSection([header, introBox])
 
     const rl = readline.createInterface({
       input: process.stdin,
@@ -826,7 +825,7 @@ class OnboardingModule {
             title: 'Choose Method',
           }
         )
-        this.renderSection([header, optionsBox])
+        OnboardingModule.renderSection([header, optionsBox])
 
         const methodChoice = await new Promise<string>((resolve) =>
           rl.question(chalk.yellow('Select option (1-3, default 3): '), resolve)
@@ -834,14 +833,14 @@ class OnboardingModule {
 
         switch ((methodChoice.trim() || '3').toLowerCase()) {
           case '1':
-            await this.handleSignIn(rl, header)
+            await OnboardingModule.handleSignIn(rl, header)
             break
           case '2':
-            await this.handleSignUp(rl, header)
+            await OnboardingModule.handleSignUp(rl, header)
             break
           case '3':
           default:
-            this.renderSection([
+            OnboardingModule.renderSection([
               header,
               boxen(chalk.gray('👤 Continuing as guest. Connect later with /auth.'), {
                 padding: 1,
@@ -851,11 +850,11 @@ class OnboardingModule {
                 title: 'Guest Mode',
               }),
             ])
-            await this.pause()
+            await OnboardingModule.pause()
             break
         }
       } else {
-        this.renderSection([
+        OnboardingModule.renderSection([
           header,
           boxen(chalk.gray('👤 Authentication skipped. You can sign in anytime with /auth.'), {
             padding: 1,
@@ -865,10 +864,10 @@ class OnboardingModule {
             title: 'Guest Mode',
           }),
         ])
-        await this.pause()
+        await OnboardingModule.pause()
       }
     } catch (error: any) {
-      this.renderSection([
+      OnboardingModule.renderSection([
         header,
         boxen(chalk.yellow(`⚠️ Authentication setup failed: ${error.message}`), {
           padding: 1,
@@ -878,7 +877,7 @@ class OnboardingModule {
           title: 'Authentication',
         }),
       ])
-      await this.pause()
+      await OnboardingModule.pause()
     } finally {
       rl.close()
     }
@@ -893,7 +892,7 @@ class OnboardingModule {
         return
       }
 
-      this.renderSection([
+      OnboardingModule.renderSection([
         header,
         boxen(chalk.blue('⚡︎ Signing in...'), {
           padding: 1,
@@ -913,8 +912,8 @@ class OnboardingModule {
       if (result) {
         const successBox = boxen(
           chalk.green(`✓ Welcome back, ${result.profile.email || result.profile.username}!`) +
-          '\n' +
-          chalk.gray(`Subscription: ${result.profile.subscription_tier}`),
+            '\n' +
+            chalk.gray(`Subscription: ${result.profile.subscription_tier}`),
           {
             padding: 1,
             borderStyle: 'round',
@@ -923,7 +922,7 @@ class OnboardingModule {
             title: 'Signed In',
           }
         )
-        this.renderSection([header, successBox])
+        OnboardingModule.renderSection([header, successBox])
       } else {
         const failureBox = boxen(chalk.red('❌ Sign in failed. Check your credentials and try again.'), {
           padding: 1,
@@ -932,7 +931,7 @@ class OnboardingModule {
           backgroundColor: '#2a0000',
           title: 'Signed In',
         })
-        this.renderSection([header, failureBox])
+        OnboardingModule.renderSection([header, failureBox])
       }
     } catch (_error: any) {
       const errorBox = boxen(chalk.red('❌ Sign in error'), {
@@ -942,9 +941,9 @@ class OnboardingModule {
         backgroundColor: '#2a0000',
         title: 'Signed In',
       })
-      this.renderSection([header, errorBox])
+      OnboardingModule.renderSection([header, errorBox])
     } finally {
-      await this.pause()
+      await OnboardingModule.pause()
     }
   }
 
@@ -958,7 +957,7 @@ class OnboardingModule {
         return
       }
 
-      this.renderSection([
+      OnboardingModule.renderSection([
         header,
         boxen(chalk.blue('⚡︎ Creating account...'), {
           padding: 1,
@@ -978,10 +977,10 @@ class OnboardingModule {
       if (result) {
         const successBox = boxen(
           chalk.green('✓ Account created successfully!') +
-          '\n' +
-          chalk.gray(`Welcome, ${result.profile.email}!`) +
-          '\n' +
-          chalk.dim('Check your email for verification if required.'),
+            '\n' +
+            chalk.gray(`Welcome, ${result.profile.email}!`) +
+            '\n' +
+            chalk.dim('Check your email for verification if required.'),
           {
             padding: 1,
             borderStyle: 'round',
@@ -990,7 +989,7 @@ class OnboardingModule {
             title: 'Account Created',
           }
         )
-        this.renderSection([header, successBox])
+        OnboardingModule.renderSection([header, successBox])
       } else {
         const failureBox = boxen(chalk.red('❌ Account creation failed. Please try again later.'), {
           padding: 1,
@@ -999,7 +998,7 @@ class OnboardingModule {
           backgroundColor: '#2a0000',
           title: 'Account Created',
         })
-        this.renderSection([header, failureBox])
+        OnboardingModule.renderSection([header, failureBox])
       }
     } catch (_error: any) {
       const errorBox = boxen(chalk.red('❌ Sign up error'), {
@@ -1009,9 +1008,9 @@ class OnboardingModule {
         backgroundColor: '#2a0000',
         title: 'Account Created',
       })
-      this.renderSection([header, errorBox])
+      OnboardingModule.renderSection([header, errorBox])
     } finally {
-      await this.pause()
+      await OnboardingModule.pause()
     }
   }
 
@@ -1045,7 +1044,7 @@ class OnboardingModule {
         title: versionInfo.hasUpdate ? 'Update Available' : 'Version Status',
       })
 
-      this.renderSection([header, versionBox])
+      OnboardingModule.renderSection([header, versionBox])
     } catch (_error: any) {
       const warningBox = boxen(chalk.yellow(`⚠️ Unable to check version`), {
         padding: 1,
@@ -1055,7 +1054,7 @@ class OnboardingModule {
         title: 'Version Status',
       })
 
-      this.renderSection([header, warningBox])
+      OnboardingModule.renderSection([header, warningBox])
     }
   }
 }
@@ -1089,7 +1088,7 @@ class SystemModule {
   static checkNodeVersion(): boolean {
     // Prefer Bun if present
     try {
-      // @ts-ignore - Bun exists at runtime when using Bun
+      // @ts-expect-error - Bun exists at runtime when using Bun
       if (typeof Bun !== 'undefined') {
         return true
       }
@@ -1177,7 +1176,11 @@ class SystemModule {
   }
 
   static async checkSystemRequirements(): Promise<boolean> {
-    const checks = [this.checkNodeVersion(), await this.checkApiKeys(), await this.checkOllamaAvailability()]
+    const checks = [
+      SystemModule.checkNodeVersion(),
+      await SystemModule.checkApiKeys(),
+      await SystemModule.checkOllamaAvailability(),
+    ]
     const allPassed = checks.every((r) => r)
     return allPassed
   }
@@ -1206,22 +1209,22 @@ class ServiceModule {
 
   static async initializeAgents(): Promise<void> {
     // Create and initialize the core AgentManager
-    if (!this.agentManager) {
-      this.agentManager = new AgentManager(configManager as any)
-      await this.agentManager.initialize()
+    if (!ServiceModule.agentManager) {
+      ServiceModule.agentManager = new AgentManager(configManager as any)
+      await ServiceModule.agentManager.initialize()
     }
 
     // Register agent classes (e.g., UniversalAgent)
-    registerAgents(this.agentManager)
+    registerAgents(ServiceModule.agentManager)
 
     // Ensure at least one agent instance is created (universal-agent)
     try {
-      await this.agentManager.createAgent('universal-agent')
+      await ServiceModule.agentManager.createAgent('universal-agent')
     } catch (_) {
       // If already created or creation failed silently, proceed
     }
 
-    const agents = this.agentManager.listAgents()
+    const agents = ServiceModule.agentManager.listAgents()
   }
 
   static async initializeTools(): Promise<void> {
@@ -1282,12 +1285,12 @@ class ServiceModule {
         const { visionProvider } = await import('./providers/vision')
         const { imageGenerator } = await import('./providers/image')
 
-          // Providers initialize automatically in their constructors
+        // Providers initialize automatically in their constructors
 
-          // Make providers globally accessible for chat
-          ; (global as any).visionProvider = visionProvider
-          ; (global as any).imageGenerator = imageGenerator
-      } catch (_error: any) { }
+        // Make providers globally accessible for chat
+        ;(global as any).visionProvider = visionProvider
+        ;(global as any).imageGenerator = imageGenerator
+      } catch (_error: any) {}
 
       // Initialize CAD/GCode provider and services once at startup
       try {
@@ -1296,10 +1299,10 @@ class ServiceModule {
 
         await cadGcodeProvider.initialize()
 
-          // Expose globally for command handlers and autonomous flows
-          ; (global as any).cadGcodeProvider = cadGcodeProvider
-          ; (global as any).cadService = getCadService()
-          ; (global as any).gcodeService = getGcodeService()
+        // Expose globally for command handlers and autonomous flows
+        ;(global as any).cadGcodeProvider = cadGcodeProvider
+        ;(global as any).cadService = getCadService()
+        ;(global as any).gcodeService = getGcodeService()
       } catch (_error: any) {
         // Silent: CAD/GCode provider optional
       }
@@ -1310,19 +1313,19 @@ class ServiceModule {
   }
 
   static async initializeSystem(): Promise<boolean> {
-    if (this.initialized) return true
+    if (ServiceModule.initialized) return true
 
     const steps = [
-      { name: 'Services', fn: this.initializeServices.bind(this) },
+      { name: 'Services', fn: ServiceModule.initializeServices.bind(ServiceModule) },
       {
         name: 'Enhanced Services',
-        fn: this.initializeEnhancedServices.bind(this),
+        fn: ServiceModule.initializeEnhancedServices.bind(ServiceModule),
       },
-      { name: 'Agents', fn: this.initializeAgents.bind(this) },
-      { name: 'Tools', fn: this.initializeTools.bind(this) },
-      { name: 'Planning', fn: this.initializePlanning.bind(this) },
-      { name: 'Security', fn: this.initializeSecurity.bind(this) },
-      { name: 'Context', fn: this.initializeContext.bind(this) },
+      { name: 'Agents', fn: ServiceModule.initializeAgents.bind(ServiceModule) },
+      { name: 'Tools', fn: ServiceModule.initializeTools.bind(ServiceModule) },
+      { name: 'Planning', fn: ServiceModule.initializePlanning.bind(ServiceModule) },
+      { name: 'Security', fn: ServiceModule.initializeSecurity.bind(ServiceModule) },
+      { name: 'Context', fn: ServiceModule.initializeContext.bind(ServiceModule) },
     ]
 
     for (const step of steps) {
@@ -1333,7 +1336,7 @@ class ServiceModule {
       }
     }
 
-    this.initialized = true
+    ServiceModule.initialized = true
     return true
   }
 }
@@ -1382,9 +1385,9 @@ class StreamingModule extends EventEmitter {
     if (process.stdin.isTTY) {
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ; (process.stdin as any).setRawMode(true)
+        ;(process.stdin as any).setRawMode(true)
       }
-      ; (process.stdin as any).resume()
+      ;(process.stdin as any).resume()
     }
 
     // Keypress handlers
@@ -1688,7 +1691,6 @@ class MainOrchestrator {
       UtilsLogger.getInstance().setConsoleOutput(true)
 
       // Welcome message
-
 
       // Show quick start guide
 

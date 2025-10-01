@@ -1,20 +1,16 @@
 import { nanoid } from 'nanoid'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
-import { type AgentTaskResult } from './base-agent'
+import type { AgentTaskResult } from './base-agent'
 import { CognitiveAgentBase } from './cognitive-agent-base'
-import {
-  type BackendCognition,
-  type OrchestrationPlan,
-  type TaskCognition,
-} from './cognitive-interfaces'
+import type { BackendCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
 
 /**
  * 🔧 Enhanced Backend Agent with Cognitive Intelligence
  * Specialized in server-side development with advanced API design intelligence,
  * database optimization suggestions, security vulnerability assessment,
  * and microservices architecture analysis
- * 
+ *
  * Features:
  * - API design pattern recognition
  * - Database optimization intelligence
@@ -239,10 +235,10 @@ export class BackendAgent extends CognitiveAgentBase {
       'performance-tuning',
       'microservices-architecture',
       'containerization',
-      'monitoring-setup'
+      'monitoring-setup',
     ]
 
-    backendPatterns.forEach(pattern => {
+    backendPatterns.forEach((pattern) => {
       if (!this.cognitiveMemory.taskPatterns.has(pattern)) {
         this.cognitiveMemory.taskPatterns.set(pattern, [])
       }
@@ -260,7 +256,7 @@ export class BackendAgent extends CognitiveAgentBase {
       'security_validation_middleware',
     ]
 
-    backendLearningPatterns.forEach(pattern => {
+    backendLearningPatterns.forEach((pattern) => {
       if (!this.cognitiveMemory.learningDatabase.has(pattern)) {
         this.cognitiveMemory.learningDatabase.set(pattern, 0.5)
       }
@@ -277,7 +273,9 @@ export class BackendAgent extends CognitiveAgentBase {
       cognitiveMetrics: this.getPerformanceMetrics(),
     }
 
-    CliUI.logDebug(`💾 Backend cognitive state prepared for persistence (${Object.keys(stateData.taskPatterns).length} patterns)`)
+    CliUI.logDebug(
+      `💾 Backend cognitive state prepared for persistence (${Object.keys(stateData.taskPatterns).length} patterns)`
+    )
   }
 
   // Backend analysis methods
@@ -310,14 +308,12 @@ export class BackendAgent extends CognitiveAgentBase {
     }
 
     const backendCognition = cognition as BackendCognition
-    return backendCognition.apiAnalysis || await this.analyzeAPIRequirements(cognition)
+    return backendCognition.apiAnalysis || (await this.analyzeAPIRequirements(cognition))
   }
 
   private async performSecurityAssessment(cognition: TaskCognition, context: any): Promise<any> {
     const securityKeywords = ['auth', 'security', 'login', 'permission', 'access', 'token']
-    const hasSecurityConcerns = securityKeywords.some(keyword =>
-      cognition.normalizedTask.includes(keyword)
-    )
+    const hasSecurityConcerns = securityKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
 
     if (!hasSecurityConcerns) {
       return { assessed: false }
@@ -331,8 +327,8 @@ export class BackendAgent extends CognitiveAgentBase {
         'Authentication and authorization',
         'HTTPS enforcement',
         'Rate limiting implementation',
-        'Security headers configuration'
-      ]
+        'Security headers configuration',
+      ],
     }
   }
 
@@ -357,7 +353,7 @@ export class BackendAgent extends CognitiveAgentBase {
             id: cognition.id,
             type: 'create-api',
             description: cognition.originalTask,
-            priority: 'normal'
+            priority: 'normal',
           })
           break
         case 'database-design':
@@ -366,7 +362,7 @@ export class BackendAgent extends CognitiveAgentBase {
             id: cognition.id,
             type: 'design-database',
             description: cognition.originalTask,
-            priority: 'normal'
+            priority: 'normal',
           })
           break
         case 'authentication':
@@ -375,7 +371,7 @@ export class BackendAgent extends CognitiveAgentBase {
             id: cognition.id,
             type: 'implement-authentication',
             description: cognition.originalTask,
-            priority: 'normal'
+            priority: 'normal',
           })
           break
         case 'performance':
@@ -384,7 +380,7 @@ export class BackendAgent extends CognitiveAgentBase {
             id: cognition.id,
             type: 'optimize-performance',
             description: cognition.originalTask,
-            priority: 'normal'
+            priority: 'normal',
           })
           break
         default:
@@ -393,7 +389,7 @@ export class BackendAgent extends CognitiveAgentBase {
             id: cognition.id,
             type: 'generic',
             description: cognition.originalTask,
-            priority: 'normal'
+            priority: 'normal',
           })
       }
 
@@ -416,7 +412,7 @@ export class BackendAgent extends CognitiveAgentBase {
         testing: await this.performTestValidation(implementation),
       }
 
-      const overallSuccess = Object.values(validation).every(v => !v.hasErrors)
+      const overallSuccess = Object.values(validation).every((v) => !v.hasErrors)
 
       if (overallSuccess) {
         CliUI.logSuccess('✓ All backend validations passed')
@@ -434,7 +430,7 @@ export class BackendAgent extends CognitiveAgentBase {
   // Helper methods
   private isAPIRelatedTask(cognition: TaskCognition): boolean {
     const apiKeywords = ['api', 'endpoint', 'route', 'controller', 'service', 'rest', 'graphql']
-    return apiKeywords.some(keyword => cognition.normalizedTask.includes(keyword))
+    return apiKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
   }
 
   private async analyzeAPIRequirements(cognition: TaskCognition): Promise<BackendCognition['apiAnalysis']> {
@@ -463,7 +459,7 @@ export class BackendAgent extends CognitiveAgentBase {
       dataComplexity,
       scalabilityNeeds,
       securityRequirements,
-      performanceRequirements
+      performanceRequirements,
     }
   }
 
@@ -542,7 +538,7 @@ export class BackendAgent extends CognitiveAgentBase {
     const optimizations = []
 
     if (patterns.length > 10) {
-      const restCount = patterns.filter(p => p.normalizedTask.includes('rest')).length
+      const restCount = patterns.filter((p) => p.normalizedTask.includes('rest')).length
       if (restCount / patterns.length > 0.8) {
         optimizations.push('High REST API usage - consider GraphQL for complex data fetching')
       }
@@ -556,8 +552,8 @@ export class BackendAgent extends CognitiveAgentBase {
     const dbPatterns = this.cognitiveMemory.taskPatterns.get('database-optimization') || []
 
     if (dbPatterns.length > 5) {
-      const sqlCount = dbPatterns.filter(p =>
-        p.normalizedTask.includes('sql') || p.normalizedTask.includes('postgres')
+      const sqlCount = dbPatterns.filter(
+        (p) => p.normalizedTask.includes('sql') || p.normalizedTask.includes('postgres')
       ).length
 
       if (sqlCount / dbPatterns.length > 0.7) {
@@ -571,12 +567,12 @@ export class BackendAgent extends CognitiveAgentBase {
   private analyzeSecurityPatterns(): string[] {
     const optimizations = []
     const securityHistory = this.cognitiveMemory.performanceHistory
-      .filter(h => h.cognition.requiredCapabilities.includes('security-assessment'))
+      .filter((h) => h.cognition.requiredCapabilities.includes('security-assessment'))
       .slice(-10)
 
     if (securityHistory.length > 3) {
-      const authCount = securityHistory.filter(h =>
-        h.cognition.normalizedTask.includes('auth') || h.cognition.normalizedTask.includes('jwt')
+      const authCount = securityHistory.filter(
+        (h) => h.cognition.normalizedTask.includes('auth') || h.cognition.normalizedTask.includes('jwt')
       ).length
 
       if (authCount / securityHistory.length > 0.6) {
@@ -590,12 +586,13 @@ export class BackendAgent extends CognitiveAgentBase {
   private analyzePerformancePatterns(): string[] {
     const optimizations = []
     const performanceHistory = this.cognitiveMemory.performanceHistory
-      .filter(h => h.cognition.requiredCapabilities.includes('performance-optimization'))
+      .filter((h) => h.cognition.requiredCapabilities.includes('performance-optimization'))
       .slice(-15)
 
     if (performanceHistory.length > 5) {
       const avgDuration = performanceHistory.reduce((sum, h) => sum + h.duration, 0) / performanceHistory.length
-      if (avgDuration > 150000) { // 2.5 minutes
+      if (avgDuration > 150000) {
+        // 2.5 minutes
         optimizations.push('Performance optimization tasks taking too long - consider automated profiling tools')
       }
     }
@@ -620,7 +617,7 @@ export class BackendAgent extends CognitiveAgentBase {
     const hasTests = implementation?.result?.hasTests || false
     return {
       hasErrors: !hasTests,
-      details: hasTests ? 'Tests implemented' : 'No tests found'
+      details: hasTests ? 'Tests implemented' : 'No tests found',
     }
   }
 
@@ -1078,7 +1075,7 @@ export class BackendAgent extends CognitiveAgentBase {
       id: nanoid(),
       type: 'legacy',
       description: taskData,
-      priority: 'normal'
+      priority: 'normal',
     }
 
     const result = await this.executeTask(task)
@@ -1089,7 +1086,7 @@ export class BackendAgent extends CognitiveAgentBase {
       agent: 'Enhanced Backend Agent',
       success: result.success,
       cognitiveEnhanced: true,
-      data: result.data
+      data: result.data,
     }
   }
 

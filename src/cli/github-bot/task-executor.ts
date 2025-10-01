@@ -5,6 +5,7 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Octokit } from '@octokit/rest'
+import { backgroundAgentService } from '../background-agents/background-agent-service'
 import { CommentProcessor } from './comment-processor'
 import type {
   CommandParseResult,
@@ -16,29 +17,55 @@ import type {
 } from './types'
 
 /**
+ * Execution modes for GitHub bot tasks
+ */
+export type ExecutionMode = 'background-agent' | 'local-execution' | 'auto'
+
+/**
  * Executes tasks requested via @nikcli mentions in GitHub
- * Handles repository cloning, task execution, and PR creation
+ * Supports both background agent execution (VM-based) and local execution with intelligent fallback
  */
 export class TaskExecutor {
   private octokit: Octokit
   private config: GitHubBotConfig
   private commentProcessor: CommentProcessor
   private workingDir: string
+  private executionMode: ExecutionMode
+  private useBackgroundAgents: boolean
 
-  constructor(octokit: Octokit, config: GitHubBotConfig) {
+  constructor(octokit: Octokit, config: GitHubBotConfig, executionMode: ExecutionMode = 'auto') {
     this.octokit = octokit
     this.config = config
     this.commentProcessor = new CommentProcessor()
     this.workingDir = join(tmpdir(), 'nikcli-github-bot')
+    this.executionMode = executionMode
 
-    // Ensure working directory exists
+    // Determine if background agents are available
+    this.useBackgroundAgents = this.detectBackgroundAgentAvailability()
+
+    // Ensure working directory exists for local execution fallback
     if (!existsSync(this.workingDir)) {
       mkdirSync(this.workingDir, { recursive: true })
+    }
+
+    console.log(`🔧 TaskExecutor initialized in ${this.executionMode} mode (BG agents: ${this.useBackgroundAgents})`)
+  }
+
+  /**
+   * Detect if background agent service is available
+   */
+  private detectBackgroundAgentAvailability(): boolean {
+    try {
+      // Check if backgroundAgentService is accessible
+      return typeof backgroundAgentService !== 'undefined' && typeof backgroundAgentService.createJob === 'function'
+    } catch {
+      return false
     }
   }
 
   /**
    * Execute task from processing job
+   * Intelligently routes to background agent or local execution
    */
   async executeTask(job: ProcessingJob): Promise<TaskResult> {
     console.log(`🚀 Executing task: ${job.mention.command}`)
@@ -50,28 +77,204 @@ export class TaskExecutor {
         throw new Error(`Invalid command: ${job.mention.command}`)
       }
 
-      // Build repository context
-      const repoContext = await this.buildRepositoryContext(job.repository)
+      // Determine execution mode
+      const shouldUseBackgroundAgent = this.shouldUseBackgroundAgent(parsedCommand)
 
-      // Setup task execution context
-      const taskContext = await this.setupTaskContext(job, repoContext)
-
-      // Execute the specific command
-      const result = await this.executeCommand(parsedCommand, taskContext)
-
-      // Create PR if changes were made
-      if (result.files.length > 0) {
-        const prUrl = await this.createPullRequest(taskContext, result)
-        result.prUrl = prUrl
-        result.shouldComment = true
+      if (shouldUseBackgroundAgent) {
+        console.log(`🔌 Routing to background agent service`)
+        return await this.executeViaBackgroundAgent(job, parsedCommand)
+      } else {
+        console.log(`🖥️ Executing locally`)
+        return await this.executeLocally(job, parsedCommand)
       }
-
-      console.log(`✓ Task completed successfully`)
-      return result
     } catch (error) {
       console.error(`❌ Task execution failed:`, error)
       throw error
     }
+  }
+
+  /**
+   * Determine if task should use background agent
+   */
+  private shouldUseBackgroundAgent(command: CommandParseResult): boolean {
+    // Force modes
+    if (this.executionMode === 'background-agent') return true
+    if (this.executionMode === 'local-execution') return false
+
+    // Auto mode: use background agents if available and task is complex
+    if (!this.useBackgroundAgents) return false
+
+    // Complex tasks benefit from VM isolation
+    const complexCommands = ['add', 'refactor', 'test', 'security']
+    return complexCommands.includes(command.command)
+  }
+
+  /**
+   * Execute task via background agent service
+   */
+  private async executeViaBackgroundAgent(job: ProcessingJob, command: CommandParseResult): Promise<TaskResult> {
+    console.log(`📋 Creating background job for ${job.repository}`)
+
+    // Create background job
+    const jobId = await backgroundAgentService.createJob({
+      repo: job.repository,
+      baseBranch: 'main', // Default, could be detected
+      task: this.buildTaskDescription(command),
+      limits: {
+        timeMin: 15,
+        maxToolCalls: 100,
+        maxMemoryMB: 2048,
+      },
+      githubContext: {
+        issueNumber: job.issueNumber,
+        commentId: job.commentId,
+        repository: job.repository,
+        author: job.author,
+        isPR: job.isPR,
+        isPRReview: job.isPRReview,
+        isIssue: job.isIssue,
+      },
+    })
+
+    console.log(`✓ Background job created: ${jobId}`)
+
+    // Monitor job progress
+    const result = await this.monitorBackgroundJob(jobId)
+
+    return {
+      success: result.status === 'succeeded',
+      summary: result.task,
+      files: result.files || [],
+      prUrl: result.prUrl,
+      shouldComment: true,
+      details: {
+        jobId,
+        containerId: result.containerId,
+        executionTime: result.metrics?.executionTime,
+        tokenUsage: result.metrics?.tokenUsage,
+      },
+    }
+  }
+
+  /**
+   * Execute task locally (original implementation)
+   */
+  private async executeLocally(job: ProcessingJob, parsedCommand: CommandParseResult): Promise<TaskResult> {
+    // Build repository context
+    const repoContext = await this.buildRepositoryContext(job.repository)
+
+    // Setup task execution context
+    const taskContext = await this.setupTaskContext(job, repoContext)
+
+    // Execute the specific command
+    const result = await this.executeCommand(parsedCommand, taskContext)
+
+    // Create PR if changes were made
+    if (result.files.length > 0) {
+      const prUrl = await this.createPullRequest(taskContext, result)
+      result.prUrl = prUrl
+      result.shouldComment = true
+    }
+
+    console.log(`✓ Task completed successfully`)
+    return result
+  }
+
+  /**
+   * Build task description from parsed command
+   */
+  private buildTaskDescription(command: CommandParseResult): string {
+    let description = command.command
+
+    if (command.target) {
+      description += ` ${command.target}`
+    }
+
+    if (command.description) {
+      description += `: ${command.description}`
+    }
+
+    return description
+  }
+
+  /**
+   * Monitor background job until completion
+   */
+  private async monitorBackgroundJob(jobId: string): Promise<any> {
+    console.log(`⏳ Monitoring background job ${jobId}`)
+
+    return new Promise((resolve, reject) => {
+      let checkInterval: NodeJS.Timeout | null = null
+      let timeoutHandle: NodeJS.Timeout | null = null
+
+      const cleanup = () => {
+        if (checkInterval) clearInterval(checkInterval)
+        if (timeoutHandle) clearTimeout(timeoutHandle)
+      }
+
+      checkInterval = setInterval(async () => {
+        try {
+          const job = backgroundAgentService.getJob(jobId)
+
+          if (!job) {
+            cleanup()
+            reject(new Error(`Job ${jobId} not found`))
+            return
+          }
+
+          console.log(`📊 Job ${jobId} status: ${job.status}`)
+
+          if (job.status === 'succeeded') {
+            cleanup()
+            resolve({
+              status: job.status,
+              task: job.task,
+              prUrl: job.prUrl,
+              files: this.extractFilesFromLogs(job.logs),
+              containerId: job.containerId,
+              metrics: job.metrics,
+            })
+          } else if (
+            job.status === 'failed' ||
+            job.status === 'cancelled' ||
+            job.status === 'timeout'
+          ) {
+            cleanup()
+            reject(new Error(job.error || `Job ${job.status}`))
+          }
+        } catch (error) {
+          cleanup()
+          reject(new Error(`Failed to check job status: ${error}`))
+        }
+      }, 2000) // Check every 2 seconds
+
+      // Timeout after 30 minutes
+      timeoutHandle = setTimeout(() => {
+        cleanup()
+        reject(new Error('Job monitoring timeout'))
+      }, 30 * 60 * 1000)
+    })
+  }
+
+  /**
+   * Extract modified files from job logs
+   */
+  private extractFilesFromLogs(logs: any[]): string[] {
+    const files: string[] = []
+
+    for (const log of logs) {
+      const message = log.message || ''
+
+      // Look for file modification patterns in logs
+      if (message.includes('Modified:') || message.includes('Created:') || message.includes('Updated:')) {
+        const match = message.match(/(?:Modified|Created|Updated):\s*(.+)/)
+        if (match) {
+          files.push(match[1].trim())
+        }
+      }
+    }
+
+    return files
   }
 
   /**

@@ -156,7 +156,17 @@ export interface SystemAdminCognition extends TaskCognition {
 
 export interface CodingCognition extends TaskCognition {
   codingAnalysis?: {
-    taskType: 'create' | 'read' | 'update' | 'delete' | 'analyze' | 'optimize' | 'deploy' | 'test' | 'debug' | 'refactor'
+    taskType:
+      | 'create'
+      | 'read'
+      | 'update'
+      | 'delete'
+      | 'analyze'
+      | 'optimize'
+      | 'deploy'
+      | 'test'
+      | 'debug'
+      | 'refactor'
     complexity: 'low' | 'medium' | 'high' | 'extreme'
     targetFiles: string[]
     targetFunctions: string[]
@@ -197,4 +207,3 @@ export interface CodeGeneratorCognition extends TaskCognition {
     documentationStyle: string
   }
 }
-

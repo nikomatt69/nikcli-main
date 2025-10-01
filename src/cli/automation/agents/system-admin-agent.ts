@@ -3,15 +3,11 @@ import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
 import { toolsManager } from '../../tools/tools-manager'
-import { type AgentTaskResult } from './base-agent'
-import type { AgentTask } from './agent-router'
-import { CognitiveAgentBase } from './cognitive-agent-base'
-import {
-  type SystemAdminCognition,
-  type OrchestrationPlan,
-  type TaskCognition,
-} from './cognitive-interfaces'
 import { CliUI } from '../../utils/cli-ui'
+import type { AgentTask } from './agent-router'
+import type { AgentTaskResult } from './base-agent'
+import { CognitiveAgentBase } from './cognitive-agent-base'
+import type { OrchestrationPlan, SystemAdminCognition, TaskCognition } from './cognitive-interfaces'
 
 const SystemCommandSchema = z.object({
   commands: z.array(
@@ -32,7 +28,7 @@ const SystemCommandSchema = z.object({
  * Specialized in system administration with advanced monitoring intelligence,
  * predictive system health monitoring, resource usage optimization,
  * security audit automation, and performance bottleneck detection
- * 
+ *
  * Features:
  * - Predictive system health monitoring
  * - Resource usage optimization
@@ -190,11 +186,11 @@ Generate a structured plan with commands to execute.`,
       }
 
       console.log(chalk.blue.bold('\nCommands to execute:'))
-        ; (planResult.commands || []).forEach((cmd: any, index: number) => {
-          console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
-          console.log(`   ${chalk.gray(cmd.description)}`)
-          if (cmd.sudo) console.log(`   ${chalk.red('⚠️ Requires sudo')}`)
-        })
+      ;(planResult.commands || []).forEach((cmd: any, index: number) => {
+        console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
+        console.log(`   ${chalk.gray(cmd.description)}`)
+        if (cmd.sudo) console.log(`   ${chalk.red('⚠️ Requires sudo')}`)
+      })
 
       // Ask for confirmation
       const readline = require('readline').createInterface({
@@ -439,8 +435,12 @@ Generate a structured plan with commands to execute.`,
         message: `System Admin task completed with ${plan.strategy} orchestration in ${executionTime}ms`,
         executionTime,
         data: {
-          cognition, orchestrationPlan: plan, systemContext,
-          implementation, validation, metrics: this.getPerformanceMetrics(),
+          cognition,
+          orchestrationPlan: plan,
+          systemContext,
+          implementation,
+          validation,
+          metrics: this.getPerformanceMetrics(),
         },
       }
     } catch (error: any) {
@@ -497,11 +497,15 @@ Generate a structured plan with commands to execute.`,
 
   private async initializeSystemAdminCognition(): Promise<void> {
     const systemAdminPatterns = [
-      'system-monitoring', 'performance-analysis', 'security-audit',
-      'resource-optimization', 'log-analysis', 'maintenance-scheduling'
+      'system-monitoring',
+      'performance-analysis',
+      'security-audit',
+      'resource-optimization',
+      'log-analysis',
+      'maintenance-scheduling',
     ]
 
-    systemAdminPatterns.forEach(pattern => {
+    systemAdminPatterns.forEach((pattern) => {
       if (!this.cognitiveMemory.taskPatterns.has(pattern)) {
         this.cognitiveMemory.taskPatterns.set(pattern, [])
       }
@@ -522,7 +526,7 @@ Generate a structured plan with commands to execute.`,
         architecture: systemInfo.arch,
         nodeVersion: systemInfo.nodeVersion || process.version,
         totalMemory: (systemInfo as any).totalMemory || 0,
-        cpuCores: (systemInfo.cpus || 1),
+        cpuCores: systemInfo.cpus || 1,
       }
     } catch (error: any) {
       throw new Error(`System environment analysis failed: ${error.message}`)
@@ -530,7 +534,9 @@ Generate a structured plan with commands to execute.`,
   }
 
   private async executeIntelligentSystemAdministration(
-    cognition: TaskCognition, context: any, plan: OrchestrationPlan
+    cognition: TaskCognition,
+    context: any,
+    plan: OrchestrationPlan
   ): Promise<any> {
     try {
       CliUI.logInfo('🚀 Executing intelligent System Administration...')
@@ -551,7 +557,7 @@ Generate working commands, scripts, and configurations.`
 
       const messages: ChatMessage[] = [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: cognition.originalTask }
+        { role: 'user', content: cognition.originalTask },
       ]
 
       const aiResponse = await modelProvider.generateResponse({ messages })
@@ -562,7 +568,9 @@ Generate working commands, scripts, and configurations.`
         monitoringSetup: aiResponse.toLowerCase().includes('monitoring') || aiResponse.toLowerCase().includes('cron'),
       }
 
-      CliUI.logSuccess(`✓ System administration complete - ${implementation.commandsGenerated.length} commands generated`)
+      CliUI.logSuccess(
+        `✓ System administration complete - ${implementation.commandsGenerated.length} commands generated`
+      )
       return implementation
     } catch (error: any) {
       CliUI.logError(`❌ System administration failed: ${error.message}`)
@@ -575,18 +583,18 @@ Generate working commands, scripts, and configurations.`
       commands: { hasErrors: false, details: 'Commands validated' },
       monitoring: {
         hasErrors: !implementation.monitoringSetup,
-        details: implementation.monitoringSetup ? 'Monitoring included' : 'No monitoring configured'
-      }
+        details: implementation.monitoringSetup ? 'Monitoring included' : 'No monitoring configured',
+      },
     }
 
-    const overallSuccess = Object.values(validation).every(v => !v.hasErrors)
+    const overallSuccess = Object.values(validation).every((v) => !v.hasErrors)
     return { validation, overallSuccess }
   }
 
   // Helper methods
   private isSystemOperationTask(cognition: TaskCognition): boolean {
     const systemKeywords = ['system', 'monitor', 'performance', 'resource', 'process', 'service']
-    return systemKeywords.some(keyword => cognition.normalizedTask.includes(keyword))
+    return systemKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
   }
 
   private async analyzeSystemRequirements(cognition: TaskCognition): Promise<SystemAdminCognition['systemAnalysis']> {
@@ -612,7 +620,7 @@ Generate working commands, scripts, and configurations.`
       criticalityLevel,
       automationPotential,
       securityImplications: taskText.includes('security') ? ['Security audit required'] : [],
-      maintenanceRequirements: taskText.includes('maintain') ? ['Regular maintenance needed'] : []
+      maintenanceRequirements: taskText.includes('maintain') ? ['Regular maintenance needed'] : [],
     }
   }
 
@@ -750,7 +758,7 @@ Generate working commands, scripts, and configurations.`
       id: nanoid(),
       type: 'legacy',
       description: taskData,
-      priority: 'normal'
+      priority: 'normal',
     }
 
     const result = await this.executeTask(task)
@@ -761,7 +769,7 @@ Generate working commands, scripts, and configurations.`
       agent: 'Enhanced System Admin Agent',
       success: result.success,
       cognitiveEnhanced: true,
-      data: result.data
+      data: result.data,
     }
   }
 

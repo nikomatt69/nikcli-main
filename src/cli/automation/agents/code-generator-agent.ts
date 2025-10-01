@@ -1,14 +1,10 @@
 import { nanoid } from 'nanoid'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
-import { type AgentTaskResult } from './base-agent'
-import type { AgentTask } from './agent-router'
-import { CognitiveAgentBase } from './cognitive-agent-base'
-import {
-  type OrchestrationPlan,
-  type TaskCognition,
-  type CodeGeneratorCognition,
-} from './cognitive-interfaces'
 import { CliUI } from '../../utils/cli-ui'
+import type { AgentTask } from './agent-router'
+import type { AgentTaskResult } from './base-agent'
+import { CognitiveAgentBase } from './cognitive-agent-base'
+import type { CodeGeneratorCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
 
 /**
  * 🚀 Enhanced Code Generator Agent with Cognitive Intelligence
@@ -37,7 +33,7 @@ export class CodeGeneratorAgent extends CognitiveAgentBase {
     'documentation-generation',
     'project-structure',
     'dependency-management',
-    'code-patterns'
+    'code-patterns',
   ]
   specialization = 'Code generation and template creation with cognitive intelligence'
   name = 'code-generator'
@@ -53,13 +49,13 @@ export class CodeGeneratorAgent extends CognitiveAgentBase {
     'Automated testing setup',
     'Documentation generation',
     'Project structure creation',
-    'Dependency management'
+    'Dependency management',
   ]
   protected cognitiveWeaknesses = [
     'Complex business logic implementation',
     'Performance optimization',
     'Security vulnerability assessment',
-    'Database design and optimization'
+    'Database design and optimization',
   ]
 
   constructor(workingDirectory: string = process.cwd()) {
@@ -105,7 +101,7 @@ Include proper types, error handling, and JSDoc comments.`
 
       const messages: ChatMessage[] = [
         { role: 'system', content: generationPrompt },
-        { role: 'user', content: cognition.originalTask }
+        { role: 'user', content: cognition.originalTask },
       ]
 
       const aiResponse = await modelProvider.generateResponse({ messages })
@@ -113,7 +109,7 @@ Include proper types, error handling, and JSDoc comments.`
       const generationResult = {
         generatedCode: this.extractGeneratedCode(aiResponse),
         dependencies: this.extractDependencies(aiResponse),
-        documentation: this.extractDocumentation(aiResponse)
+        documentation: this.extractDocumentation(aiResponse),
       }
 
       const executionTime = Date.now() - startTime
@@ -124,8 +120,10 @@ Include proper types, error handling, and JSDoc comments.`
         message: `Code generation completed with ${plan.strategy} orchestration in ${executionTime}ms`,
         executionTime,
         data: {
-          cognition, orchestrationPlan: plan,
-          generationResult, metrics: this.getPerformanceMetrics(),
+          cognition,
+          orchestrationPlan: plan,
+          generationResult,
+          metrics: this.getPerformanceMetrics(),
         },
       }
     } catch (error: any) {
@@ -166,10 +164,12 @@ Include proper types, error handling, and JSDoc comments.`
   // Helper methods
   private isCodeGenerationTask(cognition: TaskCognition): boolean {
     const generationKeywords = ['generate', 'create', 'build', 'scaffold', 'template']
-    return generationKeywords.some(keyword => cognition.normalizedTask.includes(keyword))
+    return generationKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
   }
 
-  private async analyzeGenerationRequirements(cognition: TaskCognition): Promise<CodeGeneratorCognition['generationAnalysis']> {
+  private async analyzeGenerationRequirements(
+    cognition: TaskCognition
+  ): Promise<CodeGeneratorCognition['generationAnalysis']> {
     const taskText = cognition.normalizedTask.toLowerCase()
 
     let generationType: 'function' | 'class' | 'component' | 'api' | 'project' | 'utility' = 'function'
@@ -183,7 +183,7 @@ Include proper types, error handling, and JSDoc comments.`
       language: 'typescript',
       framework: this.detectFramework(cognition),
       testingFramework: 'jest',
-      documentationStyle: 'jsdoc'
+      documentationStyle: 'jsdoc',
     }
   }
 
@@ -237,7 +237,7 @@ Include proper types, error handling, and JSDoc comments.`
       id: nanoid(),
       type: 'legacy',
       description: taskData,
-      priority: 'normal'
+      priority: 'normal',
     }
 
     const result = await this.executeTask(task)
@@ -249,7 +249,7 @@ Include proper types, error handling, and JSDoc comments.`
       agent: 'Enhanced Code Generator Agent',
       success: result.success,
       cognitiveEnhanced: true,
-      data: result.data
+      data: result.data,
     }
   }
 
@@ -273,12 +273,18 @@ Include proper types, error handling, and JSDoc comments.`
 
   private async initializeCodeGeneratorCognition(): Promise<void> {
     const generatorPatterns = [
-      'code-generation', 'template-creation', 'scaffolding',
-      'multi-language-support', 'framework-integration', 'testing-setup',
-      'documentation-generation', 'project-structure', 'dependency-management'
+      'code-generation',
+      'template-creation',
+      'scaffolding',
+      'multi-language-support',
+      'framework-integration',
+      'testing-setup',
+      'documentation-generation',
+      'project-structure',
+      'dependency-management',
     ]
 
-    generatorPatterns.forEach(pattern => {
+    generatorPatterns.forEach((pattern) => {
       if (!this.cognitiveMemory.taskPatterns.has(pattern)) {
         this.cognitiveMemory.taskPatterns.set(pattern, [])
       }

@@ -24,7 +24,6 @@ export class VMKeyboardControls extends EventEmitter {
   private selectedAgentIndex = 0
   private originalRawMode: boolean
 
-
   // Panel states
   private currentPanel: PanelType | null = null
   private panelContent = ''

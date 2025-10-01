@@ -308,7 +308,7 @@ export class AgentStreamManager extends EventEmitter {
     const averageActionDuration =
       completedActions.length > 0
         ? completedActions.reduce((sum, action) => sum + (action.endTime!.getTime() - action.startTime.getTime()), 0) /
-        completedActions.length
+          completedActions.length
         : 0
 
     return {

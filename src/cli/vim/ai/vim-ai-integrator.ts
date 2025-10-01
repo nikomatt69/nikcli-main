@@ -1,4 +1,3 @@
-
 /**
  * vim-ai-integrator.ts
  *
@@ -19,30 +18,28 @@
  * Usage: Instantiate in the main orchestrator, e.g.,
  * const integrator = new VimAIIntegrator(vimManager, modelProvider);
  */
-import { EventEmitter } from 'events'; // Node.js built-in for type compatibility if needed
-import { ModelProvider } from '../../ai/model-provider'; // Adjust path as per project structure
-import { VimModeManager } from '../vim-mode-manager';
+import { EventEmitter } from 'events' // Node.js built-in for type compatibility if needed
+import { ModelProvider } from '../../ai/model-provider' // Adjust path as per project structure
+import type { VimModeManager } from '../vim-mode-manager'
+
 // Assumed interface for VimModeManager (extend if actual interface differs)
 interface VimModeManagerInterface {
-  on(event: 'aiRequest', listener: (command: string) => void): this;
-  handleAIResponse(response: string): void;
+  on(event: 'aiRequest', listener: (command: string) => void): this
+  handleAIResponse(response: string): void
 }
 // Assumed ModelProvider interface (based on typical AI provider patterns)
 // Supports both Promise<string> and AsyncIterable<string> for streaming flexibility
 interface AIProviderOptions {
-  model?: string; // e.g., 'claude', 'gpt-4'
-  stream?: boolean; // Enable streaming if supported
+  model?: string // e.g., 'claude', 'gpt-4'
+  stream?: boolean // Enable streaming if supported
 }
 interface ModelProviderInterface {
-  generate(
-    prompt: string,
-    options?: AIProviderOptions
-  ): Promise<string> | AsyncIterable<string>;
+  generate(prompt: string, options?: AIProviderOptions): Promise<string> | AsyncIterable<string>
 }
 // Internal type for parsed AI requests
 interface ParsedAIRequest {
-  type: 'generate' | 'explain' | string; // Extensible for more types
-  prompt: string;
+  type: 'generate' | 'explain' | string // Extensible for more types
+  prompt: string
 }
 /**
  * VimAIIntegrator class for handling AI requests in a Vim-CLI integration.
@@ -50,11 +47,11 @@ interface ParsedAIRequest {
  * and feeds responses back to the manager.
  */
 export class VimAIIntegrator {
-  private manager: VimModeManager;
-  private modelProvider: ModelProviderInterface;
-  private cache: Map<string, string> = new Map(); // In-memory cache: key = `${type}:${prompt}`
-  private defaultModel: string = 'claude'; // Default AI model (Claude preferred for reasoning tasks)
-  private aiRequestListener: (command: string) => void; // Store listener for removal
+  private manager: VimModeManager
+  private modelProvider: ModelProviderInterface
+  private cache: Map<string, string> = new Map() // In-memory cache: key = `${type}:${prompt}`
+  private defaultModel: string = 'claude' // Default AI model (Claude preferred for reasoning tasks)
+  private aiRequestListener: (command: string) => void // Store listener for removal
   /**
    * Constructor.
    * @param manager - Instance of VimModeManager to listen to and respond via.
@@ -62,14 +59,14 @@ export class VimAIIntegrator {
    */
   constructor(manager: VimModeManager, modelProvider: ModelProviderInterface) {
     if (!manager || !modelProvider) {
-      throw new Error('VimModeManager and ModelProvider are required for integration.');
+      throw new Error('VimModeManager and ModelProvider are required for integration.')
     }
-    this.manager = manager;
-    this.modelProvider = modelProvider;
+    this.manager = manager
+    this.modelProvider = modelProvider
     // Store the listener for later removal
-    this.aiRequestListener = this.handleAIRequest.bind(this);
+    this.aiRequestListener = this.handleAIRequest.bind(this)
     // Set up event listener for AI requests
-    this.manager.on('aiRequest', this.aiRequestListener);
+    this.manager.on('aiRequest', this.aiRequestListener)
     // Optional: Clear cache periodically or on demand in production (e.g., via setInterval or external signal)
   }
   /**
@@ -79,31 +76,32 @@ export class VimAIIntegrator {
    */
   private async handleAIRequest(command: string): Promise<void> {
     try {
-      const parsed = this.parseRequest(command);
-      const cacheKey = `${parsed.type}:${parsed.prompt}`;
+      const parsed = this.parseRequest(command)
+      const cacheKey = `${parsed.type}:${parsed.prompt}`
       // Check cache for repeated prompts (exact match for simplicity)
       if (this.cache.has(cacheKey)) {
-        console.log(`[VimAIIntegrator] Cache hit for: ${cacheKey}`);
-        this.manager.handleAIResponse(this.cache.get(cacheKey)!);
-        return;
+        console.log(`[VimAIIntegrator] Cache hit for: ${cacheKey}`)
+        this.manager.handleAIResponse(this.cache.get(cacheKey)!)
+        return
       }
-      console.log(`[VimAIIntegrator] Processing new AI request: ${parsed.type} - ${parsed.prompt.substring(0, 50)}...`);
+      console.log(`[VimAIIntegrator] Processing new AI request: ${parsed.type} - ${parsed.prompt.substring(0, 50)}...`)
       // Invoke AI model (non-streaming by default; see _generateWithStreaming for stream handling)
-      const response = await this.generateAIResponse(parsed.prompt, { model: this.defaultModel });
+      const response = await this.generateAIResponse(parsed.prompt, { model: this.defaultModel })
       // Cache the response (limit size in production to avoid memory bloat)
-      this.cache.set(cacheKey, response);
-      if (this.cache.size > 100) { // Example eviction policy: keep last 100 entries
-        const firstKey = this.cache.keys().next().value;
-        this.cache.delete(firstKey!);
+      this.cache.set(cacheKey, response)
+      if (this.cache.size > 100) {
+        // Example eviction policy: keep last 100 entries
+        const firstKey = this.cache.keys().next().value
+        this.cache.delete(firstKey!)
       }
       // Feed full response back to manager
-      this.manager.handleAIResponse(response);
-      console.log(`[VimAIIntegrator] AI response processed successfully.`);
+      this.manager.handleAIResponse(response)
+      console.log(`[VimAIIntegrator] AI response processed successfully.`)
     } catch (error) {
-      const errorMsg = `AI integration error: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      console.error(`[VimAIIntegrator] ${errorMsg}`, error);
+      const errorMsg = `AI integration error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      console.error(`[VimAIIntegrator] ${errorMsg}`, error)
       // Provide fallback response to manager (e.g., error message or empty)
-      this.manager.handleAIResponse(errorMsg);
+      this.manager.handleAIResponse(errorMsg)
     }
   }
   /**
@@ -115,24 +113,24 @@ export class VimAIIntegrator {
    */
   private parseRequest(command: string): ParsedAIRequest {
     if (typeof command !== 'string' || command.trim().length === 0) {
-      throw new Error('Invalid AI request: command must be a non-empty string.');
+      throw new Error('Invalid AI request: command must be a non-empty string.')
     }
-    const trimmed = command.trim();
-    const colonIndex = trimmed.indexOf(':');
+    const trimmed = command.trim()
+    const colonIndex = trimmed.indexOf(':')
     if (colonIndex === -1) {
-      throw new Error(`Invalid command format: '${trimmed}'. Expected 'type: prompt'.`);
+      throw new Error(`Invalid command format: '${trimmed}'. Expected 'type: prompt'.`)
     }
-    const type = trimmed.substring(0, colonIndex).trim().toLowerCase();
-    const prompt = trimmed.substring(colonIndex + 1).trim();
+    const type = trimmed.substring(0, colonIndex).trim().toLowerCase()
+    const prompt = trimmed.substring(colonIndex + 1).trim()
     if (!prompt) {
-      throw new Error(`Invalid command: prompt cannot be empty in '${trimmed}'.`);
+      throw new Error(`Invalid command: prompt cannot be empty in '${trimmed}'.`)
     }
     // Validate supported types (extensible)
-    const supportedTypes = ['generate', 'explain'] as const;
+    const supportedTypes = ['generate', 'explain'] as const
     if (!supportedTypes.includes(type as any)) {
-      console.warn(`[VimAIIntegrator] Unsupported type '${type}'; treating as 'generate'.`);
+      console.warn(`[VimAIIntegrator] Unsupported type '${type}'; treating as 'generate'.`)
     }
-    return { type: type as ParsedAIRequest['type'], prompt };
+    return { type: type as ParsedAIRequest['type'], prompt }
   }
   /**
    * Generates AI response using ModelProvider.
@@ -143,57 +141,54 @@ export class VimAIIntegrator {
    * @returns Full response string.
    * @throws Error on AI provider failure.
    */
-  private async generateAIResponse(
-    prompt: string,
-    options: AIProviderOptions = {}
-  ): Promise<string> {
+  private async generateAIResponse(prompt: string, options: AIProviderOptions = {}): Promise<string> {
     const result = this.modelProvider.generate(prompt, {
       ...options,
       stream: false, // Disable streaming for now; set to true and adapt if incremental handling is added
-    });
+    })
     // Handle Promise<string> case
     if (typeof (result as Promise<string>).then === 'function') {
-      return await (result as Promise<string>);
+      return await (result as Promise<string>)
     }
     // Handle AsyncIterable<string> (streaming) case: collect into full string
     // Note: In production, for low-latency, stream chunks directly to manager if supported
-    let fullResponse = '';
+    let fullResponse = ''
     try {
-      for await (const chunk of (result as AsyncIterable<string>)) {
-        fullResponse += chunk;
+      for await (const chunk of result as AsyncIterable<string>) {
+        fullResponse += chunk
         // Optional: Incremental update if manager supports it
         // this.manager.handleAIResponseChunk?.(chunk);
       }
     } catch (streamError) {
-      throw new Error(`Streaming failed: ${streamError instanceof Error ? streamError.message : 'Unknown'}`);
+      throw new Error(`Streaming failed: ${streamError instanceof Error ? streamError.message : 'Unknown'}`)
     }
-    return fullResponse;
+    return fullResponse
   }
   /**
    * Optional: Public method to clear cache (e.g., for testing or reset).
    */
   public clearCache(): void {
-    this.cache.clear();
-    console.log('[VimAIIntegrator] Cache cleared.');
+    this.cache.clear()
+    console.log('[VimAIIntegrator] Cache cleared.')
   }
   /**
    * Optional: Public method to set default model.
    * @param model - New default model (e.g., 'gpt-4').
    */
   public setDefaultModel(model: string): void {
-    this.defaultModel = model;
-    console.log(`[VimAIIntegrator] Default model set to: ${model}`);
+    this.defaultModel = model
+    console.log(`[VimAIIntegrator] Default model set to: ${model}`)
   }
   /**
    * Destroys the integrator, removing event listeners to prevent memory leaks.
    */
   public destroy(): void {
     if (this.manager && this.aiRequestListener) {
-      this.manager.on('aiRequest', this.aiRequestListener);
+      this.manager.on('aiRequest', this.aiRequestListener)
     }
-    this.cache.clear();
-    this.aiRequestListener = undefined as any;
-    console.log('[VimAIIntegrator] Destroyed and cleaned up.');
+    this.cache.clear()
+    this.aiRequestListener = undefined as any
+    console.log('[VimAIIntegrator] Destroyed and cleaned up.')
   }
 }
 // TypeScript best practices applied:

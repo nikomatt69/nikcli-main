@@ -1,21 +1,17 @@
 import { nanoid } from 'nanoid'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
-import { type AgentTaskResult } from './base-agent'
-import type { AgentTask } from './agent-router'
-import { CognitiveAgentBase } from './cognitive-agent-base'
-import {
-  type DevOpsCognition,
-  type OrchestrationPlan,
-  type TaskCognition,
-} from './cognitive-interfaces'
 import { CliUI } from '../../utils/cli-ui'
+import type { AgentTask } from './agent-router'
+import type { AgentTaskResult } from './base-agent'
+import { CognitiveAgentBase } from './cognitive-agent-base'
+import type { DevOpsCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
 
 /**
  * 🚀 Enhanced DevOps Agent with Cognitive Intelligence
  * Specialized in infrastructure management with advanced deployment intelligence,
  * cost optimization suggestions, security compliance checking,
  * and auto-scaling configuration intelligence
- * 
+ *
  * Features:
  * - Infrastructure cost optimization
  * - Deployment strategy selection
@@ -107,13 +103,17 @@ export class DevOpsAgent extends CognitiveAgentBase {
       // Phase 1: Infrastructure Environment Analysis
       const infraContext = await this.analyzeInfrastructureEnvironment(cognition)
 
-      // Phase 2: Security & Cost Analysis  
+      // Phase 2: Security & Cost Analysis
       const securityAnalysis = await this.performSecurityCompliance(cognition, infraContext)
       const costAnalysis = await this.performCostOptimization(cognition, infraContext)
 
       // Phase 3: Intelligent Implementation
       const implementation = await this.executeIntelligentDevOpsImplementation(
-        cognition, infraContext, securityAnalysis, costAnalysis, plan
+        cognition,
+        infraContext,
+        securityAnalysis,
+        costAnalysis,
+        plan
       )
 
       // Phase 4: Infrastructure Validation
@@ -127,8 +127,13 @@ export class DevOpsAgent extends CognitiveAgentBase {
         message: `DevOps task completed with ${plan.strategy} orchestration in ${executionTime}ms`,
         executionTime,
         data: {
-          cognition, orchestrationPlan: plan, infraContext,
-          securityAnalysis, costAnalysis, implementation, validation,
+          cognition,
+          orchestrationPlan: plan,
+          infraContext,
+          securityAnalysis,
+          costAnalysis,
+          implementation,
+          validation,
           metrics: this.getPerformanceMetrics(),
         },
       }
@@ -155,7 +160,9 @@ export class DevOpsAgent extends CognitiveAgentBase {
 
       if (this.isInfrastructureTask(cognition)) {
         devopsCognition.infrastructureAnalysis = await this.analyzeInfrastructureRequirements(cognition)
-        CliUI.logDebug(`🏗️ Infrastructure analysis: ${devopsCognition.infrastructureAnalysis?.deploymentTarget || 'unknown'}`)
+        CliUI.logDebug(
+          `🏗️ Infrastructure analysis: ${devopsCognition.infrastructureAnalysis?.deploymentTarget || 'unknown'}`
+        )
       }
 
       const devopsCapabilities = this.getDevOpsCapabilities(cognition)
@@ -170,7 +177,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
   }
 
   /**
-   * 💡 Get DevOps-specific optimization suggestions  
+   * 💡 Get DevOps-specific optimization suggestions
    */
   protected getSpecializationOptimizations(): string[] {
     const optimizations: string[] = []
@@ -178,7 +185,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
     // Infrastructure patterns analysis
     const infraPatterns = this.cognitiveMemory.taskPatterns.get('infrastructure-deployment') || []
     if (infraPatterns.length > 8) {
-      const k8sCount = infraPatterns.filter(p => p.normalizedTask.includes('kubernetes')).length
+      const k8sCount = infraPatterns.filter((p) => p.normalizedTask.includes('kubernetes')).length
       if (k8sCount / infraPatterns.length > 0.7) {
         optimizations.push('High Kubernetes usage - consider cluster optimization')
       }
@@ -190,11 +197,16 @@ export class DevOpsAgent extends CognitiveAgentBase {
   // DevOps-specific cognitive methods
   private async initializeDevOpsCognition(): Promise<void> {
     const devopsPatterns = [
-      'infrastructure-deployment', 'container-orchestration', 'ci-cd-pipeline',
-      'monitoring-setup', 'security-compliance', 'cost-optimization', 'auto-scaling'
+      'infrastructure-deployment',
+      'container-orchestration',
+      'ci-cd-pipeline',
+      'monitoring-setup',
+      'security-compliance',
+      'cost-optimization',
+      'auto-scaling',
     ]
 
-    devopsPatterns.forEach(pattern => {
+    devopsPatterns.forEach((pattern) => {
       if (!this.cognitiveMemory.taskPatterns.has(pattern)) {
         this.cognitiveMemory.taskPatterns.set(pattern, [])
       }
@@ -225,34 +237,32 @@ export class DevOpsAgent extends CognitiveAgentBase {
 
   private async performSecurityCompliance(cognition: TaskCognition, context: any): Promise<any> {
     const securityKeywords = ['security', 'compliance', 'ssl', 'https', 'secrets']
-    const hasSecurityConcerns = securityKeywords.some(keyword =>
-      cognition.normalizedTask.includes(keyword)
-    )
+    const hasSecurityConcerns = securityKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
 
     return {
       assessed: hasSecurityConcerns,
-      recommendations: hasSecurityConcerns ? [
-        'HTTPS/TLS enforcement', 'Secret management', 'RBAC configuration'
-      ] : []
+      recommendations: hasSecurityConcerns ? ['HTTPS/TLS enforcement', 'Secret management', 'RBAC configuration'] : [],
     }
   }
 
   private async performCostOptimization(cognition: TaskCognition, context: any): Promise<any> {
     const costKeywords = ['cost', 'optimize', 'scale', 'resource']
-    const hasCostConcerns = costKeywords.some(keyword =>
-      cognition.normalizedTask.includes(keyword)
-    )
+    const hasCostConcerns = costKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
 
     return {
       analyzed: hasCostConcerns,
-      recommendations: hasCostConcerns ? [
-        'Right-sizing instances', 'Auto-scaling configuration', 'Resource cleanup'
-      ] : []
+      recommendations: hasCostConcerns
+        ? ['Right-sizing instances', 'Auto-scaling configuration', 'Resource cleanup']
+        : [],
     }
   }
 
   private async executeIntelligentDevOpsImplementation(
-    cognition: TaskCognition, context: any, securityAnalysis: any, costAnalysis: any, plan: OrchestrationPlan
+    cognition: TaskCognition,
+    context: any,
+    securityAnalysis: any,
+    costAnalysis: any,
+    plan: OrchestrationPlan
   ): Promise<any> {
     try {
       const systemPrompt = `You are an advanced DevOps expert with cognitive understanding.
@@ -265,7 +275,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
 
       const messages: ChatMessage[] = [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: cognition.originalTask }
+        { role: 'user', content: cognition.originalTask },
       ]
 
       const aiResponse = await modelProvider.generateResponse({ messages })
@@ -273,7 +283,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
       const implementation = {
         resourcesCreated: this.extractResourcesFromResponse(aiResponse),
         configurationsGenerated: this.extractConfigurationsFromResponse(aiResponse),
-        monitoringSetup: aiResponse.toLowerCase().includes('monitoring')
+        monitoringSetup: aiResponse.toLowerCase().includes('monitoring'),
       }
 
       CliUI.logSuccess(`✓ Implementation complete - ${implementation.resourcesCreated.length} resources`)
@@ -290,21 +300,23 @@ Create production-ready infrastructure with security-first approach, cost optimi
       security: { hasErrors: false, details: 'Security validated' },
       monitoring: {
         hasErrors: !implementation.monitoringSetup,
-        details: implementation.monitoringSetup ? 'Monitoring included' : 'No monitoring found'
-      }
+        details: implementation.monitoringSetup ? 'Monitoring included' : 'No monitoring found',
+      },
     }
 
-    const overallSuccess = Object.values(validation).every(v => !v.hasErrors)
+    const overallSuccess = Object.values(validation).every((v) => !v.hasErrors)
     return { validation, overallSuccess }
   }
 
   // Helper methods
   private isInfrastructureTask(cognition: TaskCognition): boolean {
     const infraKeywords = ['infrastructure', 'deploy', 'container', 'kubernetes', 'docker', 'cloud']
-    return infraKeywords.some(keyword => cognition.normalizedTask.includes(keyword))
+    return infraKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
   }
 
-  private async analyzeInfrastructureRequirements(cognition: TaskCognition): Promise<DevOpsCognition['infrastructureAnalysis']> {
+  private async analyzeInfrastructureRequirements(
+    cognition: TaskCognition
+  ): Promise<DevOpsCognition['infrastructureAnalysis']> {
     const taskText = cognition.normalizedTask.toLowerCase()
 
     let deploymentTarget: 'development' | 'staging' | 'production' = 'development'
@@ -320,7 +332,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
       scalingNeeds,
       securityCompliance: [],
       costOptimization: [],
-      monitoringNeeds: []
+      monitoringNeeds: [],
     }
   }
 
@@ -336,19 +348,23 @@ Create production-ready infrastructure with security-first approach, cost optimi
     return capabilities
   }
 
-  // Detection methods  
+  // Detection methods
   private async detectDocker(): Promise<boolean> {
     try {
       const fs = require('fs')
       return fs.existsSync('Dockerfile') || fs.existsSync('docker-compose.yml')
-    } catch { return false }
+    } catch {
+      return false
+    }
   }
 
   private async detectKubernetes(): Promise<boolean> {
     try {
       const fs = require('fs')
       return fs.existsSync('k8s') || fs.existsSync('deployment.yaml')
-    } catch { return false }
+    } catch {
+      return false
+    }
   }
 
   private async detectCI(): Promise<string | null> {
@@ -357,7 +373,9 @@ Create production-ready infrastructure with security-first approach, cost optimi
       if (fs.existsSync('.github/workflows')) return 'GitHub Actions'
       if (fs.existsSync('.gitlab-ci.yml')) return 'GitLab CI'
       return null
-    } catch { return null }
+    } catch {
+      return null
+    }
   }
 
   private async detectCloudProvider(): Promise<string | null> {
@@ -366,7 +384,9 @@ Create production-ready infrastructure with security-first approach, cost optimi
       if (fs.existsSync('main.tf')) return 'Multi-cloud (Terraform)'
       if (fs.existsSync('cloudformation')) return 'AWS'
       return null
-    } catch { return null }
+    } catch {
+      return null
+    }
   }
 
   private extractResourcesFromResponse(response: string): string[] {
@@ -397,7 +417,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
       id: nanoid(),
       type: 'legacy',
       description: taskData,
-      priority: 'normal'
+      priority: 'normal',
     }
 
     const result = await this.executeTask(task)
@@ -408,7 +428,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
       agent: 'Enhanced DevOps Agent',
       success: result.success,
       cognitiveEnhanced: true,
-      data: result.data
+      data: result.data,
     }
   }
 

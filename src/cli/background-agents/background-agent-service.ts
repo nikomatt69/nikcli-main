@@ -3,6 +3,7 @@
 import { EventEmitter } from 'node:events'
 import { v4 as uuidv4 } from 'uuid'
 import { agentService } from '../services/agent-service'
+import { VMStatusIndicator } from '../ui/vm-status-indicator'
 import { ContainerManager } from '../virtualized-agents/container-manager'
 import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
 import { VercelKVBackgroundAgentAdapter, vercelKVAdapter } from './adapters/vercel-kv-adapter'
@@ -22,6 +23,7 @@ export interface BackgroundJobStats {
 export class BackgroundAgentService extends EventEmitter {
   private jobs: Map<string, BackgroundJob> = new Map()
   private vmOrchestrator: VMOrchestrator
+  private vmStatusIndicator: VMStatusIndicator
   private maxConcurrentJobs = 3
   private runningJobs = 0
   private useVercelKV = false
@@ -30,6 +32,7 @@ export class BackgroundAgentService extends EventEmitter {
   constructor() {
     super()
     this.vmOrchestrator = new VMOrchestrator(new ContainerManager())
+    this.vmStatusIndicator = VMStatusIndicator.getInstance()
     this.initializeService()
   }
 
@@ -120,6 +123,7 @@ export class BackgroundAgentService extends EventEmitter {
         memoryUsage: 0,
       },
       followUpMessages: [],
+      githubContext: request.githubContext,
     }
 
     this.jobs.set(jobId, job)
@@ -135,13 +139,13 @@ export class BackgroundAgentService extends EventEmitter {
       }
     }
 
-    this.emit('job:created', job)
+    this.emit('job:created', job.id, job)
 
     // Start job execution if we have capacity
     if (this.runningJobs < this.maxConcurrentJobs) {
       this.executeJob(jobId).catch((error) => {
         this.logJob(job, 'error', `Failed to start job: ${error.message}`)
-        this.emit('job:failed', job)
+        this.emit('job:failed', job.id, job)
       })
     }
 
@@ -255,7 +259,7 @@ export class BackgroundAgentService extends EventEmitter {
     this.runningJobs++
 
     this.logJob(job, 'info', 'Starting background job execution')
-    this.emit('job:started', job)
+    this.emit('job:started', job.id, job)
 
     try {
       // Set execution timeout
@@ -276,14 +280,14 @@ export class BackgroundAgentService extends EventEmitter {
       job.metrics.executionTime = job.completedAt.getTime() - job.startedAt?.getTime()
 
       this.logJob(job, 'info', 'Job completed successfully')
-      this.emit('job:completed', job)
+      this.emit('job:completed', job.id, job)
     } catch (error: any) {
       job.status = 'failed'
       job.error = error.message
       job.completedAt = new Date()
 
       this.logJob(job, 'error', `Job failed: ${error.message}`)
-      this.emit('job:failed', job)
+      this.emit('job:failed', job.id, job)
     } finally {
       this.runningJobs--
 
@@ -435,13 +439,49 @@ export class BackgroundAgentService extends EventEmitter {
    */
   private async setupExecutionEnvironment(
     job: BackgroundJob,
-    _workspaceDir: string,
+    workspaceDir: string,
     _environment: any
   ): Promise<string> {
-    // For now, use local execution
-    // In production, this would setup a proper container/VM
-    this.logJob(job, 'info', 'Using local execution environment')
-    return 'local'
+    try {
+      this.logJob(job, 'info', 'Creating VM container for isolated execution')
+
+      const containerId = await this.vmOrchestrator.createSecureContainer({
+        agentId: job.id,
+        repositoryUrl: `https://github.com/${job.repo}.git`,
+        localRepoPath: `${workspaceDir}/repo`,
+        sessionToken: `bg-job-${job.id}`,
+        proxyEndpoint: process.env.API_PROXY_ENDPOINT || 'http://localhost:3002',
+        capabilities: ['code-generation', 'testing', 'refactoring', 'pull-request-creation'],
+      })
+
+      job.containerId = containerId
+      this.logJob(job, 'info', `VM container created: ${containerId.slice(0, 12)}`)
+
+      // Register container with VM status indicator
+      this.vmStatusIndicator.registerAgent(job.id, `BG Job ${job.id.slice(0, 8)}`, 'running')
+      this.vmStatusIndicator.updateAgentStatus(job.id, {
+        agentId: job.id,
+        vmState: 'running',
+        containerId,
+        tokenUsage: { used: 0, budget: 50000, remaining: 50000 },
+        startTime: new Date(),
+        lastActivity: new Date(),
+        logs: [],
+        metrics: {
+          cpuUsage: 0,
+          memoryUsage: 0,
+          networkActivity: 0,
+          diskUsage: 0,
+        },
+      })
+
+      this.logJob(job, 'info', `VM status tracking enabled for container ${containerId.slice(0, 12)}`)
+
+      return containerId
+    } catch (error: any) {
+      this.logJob(job, 'warn', `Failed to create VM container, falling back to local: ${error.message}`)
+      return 'local'
+    }
   }
 
   /**
@@ -606,6 +646,21 @@ export class BackgroundAgentService extends EventEmitter {
    */
   private async cleanupWorkspace(job: BackgroundJob, workspaceDir: string): Promise<void> {
     try {
+      // Stop and remove VM container if it exists
+      if (job.containerId && job.containerId !== 'local') {
+        try {
+          // Unregister from VM status indicator
+          this.vmStatusIndicator.unregisterAgent(job.id)
+
+          await this.vmOrchestrator.stopContainer(job.containerId)
+          await this.vmOrchestrator.removeContainer(job.containerId)
+          this.logJob(job, 'info', `VM container ${job.containerId.slice(0, 12)} removed`)
+        } catch (containerError: any) {
+          this.logJob(job, 'warn', `Failed to cleanup container: ${containerError.message}`)
+        }
+      }
+
+      // Cleanup workspace directory
       const fs = await import('node:fs/promises')
       await fs.rm(workspaceDir, { recursive: true, force: true })
       this.logJob(job, 'info', 'Workspace cleaned up')
@@ -631,6 +686,21 @@ export class BackgroundAgentService extends EventEmitter {
     }
 
     job.logs.push(logEntry)
+
+    // Sync log to VM status indicator
+    if (job.containerId && job.containerId !== 'local') {
+      this.vmStatusIndicator.addAgentLog(job.id, {
+        timestamp: logEntry.timestamp,
+        level,
+        message,
+        source,
+      })
+
+      // Update last activity
+      this.vmStatusIndicator.updateAgentStatus(job.id, {
+        lastActivity: new Date(),
+      } as any)
+    }
 
     // Update job in Vercel KV if available
     if (this.useVercelKV && this.kvAdapter) {

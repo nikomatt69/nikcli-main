@@ -63,7 +63,7 @@ temp-nikcli-*
 build/
 export/
 dist/
-
+SYSTEM_PROMPT.md
 # TypeScript
 *.tsbuildinfo
 tsconfig.cli.tsbuildinfo

@@ -410,7 +410,7 @@ export class ContainerManager extends EventEmitter {
   }
 
   private shellQuote(value: string): string {
-    if (/^[A-Za-z0-9._\/-=:]+$/.test(value)) {
+    if (/^[A-Za-z0-9._/-=:]+$/.test(value)) {
       return value
     }
 

@@ -61,9 +61,9 @@ import { structuredLogger } from './utils/structured-logger'
 import { configureSyntaxHighlighting } from './utils/syntax-highlighter'
 import { formatAgent, formatCommand, formatFileOp, formatSearch, formatStatus, wrapBlue } from './utils/text-wrapper'
 import { VimAIIntegration } from './vim/ai/vim-ai-integration'
+import { VimMode } from './vim/types/vim-types'
 // Vim Mode imports
 import { VimModeManager } from './vim/vim-mode-manager'
-import { VimMode } from './vim/types/vim-types'
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
 
@@ -264,7 +264,7 @@ export class NikCLI {
     // Compact mode by default (cleaner output unless explicitly disabled)
     try {
       if (!process.env.NIKCLI_COMPACT) process.env.NIKCLI_COMPACT = '1'
-    } catch { }
+    } catch {}
 
     // Initialize core managers
     this.configManager = simpleConfigManager
@@ -290,8 +290,8 @@ export class NikCLI {
     // Initialize token tracking system
     this.initializeTokenTrackingSystem()
 
-      // Expose this instance globally for command handlers
-      ; (global as any).__nikCLI = this
+    // Expose this instance globally for command handlers
+    ;(global as any).__nikCLI = this
 
     this.setupEventHandlers()
     // Bridge orchestrator events into NikCLI output
@@ -320,14 +320,14 @@ export class NikCLI {
     // Render initial prompt
     this.renderPromptArea()
 
-      // Expose NikCLI globally for token management
-      ; (global as any).__nikcli = this
+    // Expose NikCLI globally for token management
+    ;(global as any).__nikcli = this
 
     // Patch inquirer to avoid status bar redraw during interactive prompts
     try {
       const originalPrompt = (inquirer as any).prompt?.bind(inquirer)
       if (originalPrompt) {
-        ; (inquirer as any).prompt = async (...args: any[]) => {
+        ;(inquirer as any).prompt = async (...args: any[]) => {
           this.isInquirerActive = true
           this.stopStatusBar()
           try {
@@ -827,19 +827,19 @@ export class NikCLI {
     process.on('unhandledRejection', (reason: any) => {
       try {
         console.log(require('chalk').red(`\n❌ Unhandled rejection: ${reason?.message || reason}`))
-      } catch { }
+      } catch {}
       try {
         this.renderPromptAfterOutput()
-      } catch { }
+      } catch {}
     })
 
     process.on('uncaughtException', (err: any) => {
       try {
         console.log(require('chalk').red(`\n❌ Uncaught exception: ${err?.message || err}`))
-      } catch { }
+      } catch {}
       try {
         this.renderPromptAfterOutput()
-      } catch { }
+      } catch {}
     })
   }
   // Bridge StreamingOrchestrator agent lifecycle events into NikCLI output
@@ -982,6 +982,27 @@ export class NikCLI {
         parameters: event.parameters || event.args,
       })
     })
+
+    // 4.1 Background Agent Service Events (job lifecycle)
+    import('./background-agents/background-agent-service')
+      .then(({ backgroundAgentService }) => {
+        backgroundAgentService.on('job:created', (jobId: string, job: any) => {
+          this.showBackgroundJobPanel('created', jobId, job)
+        })
+
+        backgroundAgentService.on('job:started', (jobId: string, job: any) => {
+          this.showBackgroundJobPanel('started', jobId, job)
+        })
+
+        backgroundAgentService.on('job:completed', (jobId: string, job: any) => {
+          this.showBackgroundJobPanel('completed', jobId, job)
+        })
+
+        backgroundAgentService.on('job:failed', (jobId: string, job: any) => {
+          this.showBackgroundJobPanel('failed', jobId, job)
+        })
+      })
+      .catch((err) => console.error('Failed to setup background agent listeners:', err))
 
     // 5. Chat Stream (modelProvider.streamResponse(messages) events)
     // This is handled in the streaming loop in handleDefaultMode - chat stream events are processed inline
@@ -1585,12 +1606,10 @@ export class NikCLI {
     const spinner = this.spinners.get(id)
     if (spinner) {
       if (success) {
-        (this.isInteractiveMode) ? this.isInteractiveMode = false : null,
-          spinner.succeed(finalText)
+        this.isInteractiveMode ? (this.isInteractiveMode = false) : null, spinner.succeed(finalText)
       } else {
         this.isInteractiveMode = false
         spinner.fail(finalText)
-
       }
       this.spinners.delete(id)
     }
@@ -1699,9 +1718,9 @@ export class NikCLI {
   private showAdvancedHeader(): void {
     const header = boxen(
       `${chalk.cyanBright.bold('🔌 NikCLI')} ${chalk.gray('v0.3.1-beta')}\n` +
-      `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
-      `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
-      `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
+        `${chalk.gray('Autonomous AI Developer Assistant')}\n\n` +
+        `${chalk.blue('Status:')} ${this.getOverallStatus()}  ${chalk.blue('Active Tasks:')} ${this.indicators.size}\n` +
+        `${chalk.blue('Mode:')} ${this.currentMode}  ${chalk.blue('Live Updates:')} Enabled`,
       {
         padding: 1,
         margin: { top: 0, bottom: 1, left: 0, right: 0 },
@@ -1883,9 +1902,6 @@ export class NikCLI {
    * Start interactive chat mode (main Claude Code experience)
    */
   async startChat(options: NikCLIOptions): Promise<void> {
-
-
-
     // Apply options
     if (options.model) {
       this.switchModel(options.model)
@@ -1996,22 +2012,22 @@ export class NikCLI {
           // Kill any running subprocesses started by tools
           try {
             const procs = toolsManager.getRunningProcesses?.() || []
-              ; (async () => {
-                let killed = 0
-                await Promise.all(
-                  procs.map(async (p: any) => {
-                    try {
-                      const ok = await toolsManager.killProcess?.(p.pid)
-                      if (ok) killed++
-                    } catch {
-                      /* ignore */
-                    }
-                  })
-                )
-                if (killed > 0) {
-                  console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
-                }
-              })()
+            ;(async () => {
+              let killed = 0
+              await Promise.all(
+                procs.map(async (p: any) => {
+                  try {
+                    const ok = await toolsManager.killProcess?.(p.pid)
+                    if (ok) killed++
+                  } catch {
+                    /* ignore */
+                  }
+                })
+              )
+              if (killed > 0) {
+                console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
+              }
+            })()
           } catch {
             /* ignore */
           }
@@ -2586,7 +2602,7 @@ export class NikCLI {
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             return
@@ -2602,7 +2618,7 @@ export class NikCLI {
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             return
@@ -2655,7 +2671,7 @@ export class NikCLI {
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             return
@@ -3113,8 +3129,6 @@ export class NikCLI {
     this.renderPromptAfterOutput()
   }
 
-
-
   /**
    * Store selected files in session context for future reference
    */
@@ -3174,7 +3188,7 @@ export class NikCLI {
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'cyan'
+        borderColor: 'cyan',
       })
     )
 
@@ -3184,7 +3198,7 @@ export class NikCLI {
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'cyan'
+        borderColor: 'cyan',
       })
     )
   }
@@ -3202,7 +3216,7 @@ export class NikCLI {
       '* src/**       Browse files in src directory',
       '* **/*.tsx     Find React component files',
       '* package.json Find package.json files',
-      '* *.md         Find all markdown files'
+      '* *.md         Find all markdown files',
     ].join('\n')
 
     this.printPanel(
@@ -3211,21 +3225,24 @@ export class NikCLI {
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'magenta'
+        borderColor: 'magenta',
       })
     )
 
     this.printPanel(
-      boxen([
-        '💡 Usage: * <pattern> to find and select files',
-        '📋 Selected files can be referenced in your next message'
-      ].join('\n'), {
-        title: 'File Selection Tip',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan'
-      })
+      boxen(
+        [
+          '💡 Usage: * <pattern> to find and select files',
+          '📋 Selected files can be referenced in your next message',
+        ].join('\n'),
+        {
+          title: 'File Selection Tip',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        }
+      )
     )
     // Ensure output is flushed and visible before showing prompt
 
@@ -3293,16 +3310,12 @@ export class NikCLI {
       const vmOrchestrator = this.slashHandler.getVMOrchestrator?.()
       if (!vmOrchestrator) {
         this.printPanel(
-          boxen([
-            '❌ VM Orchestrator not available',
-            '',
-            'Use /vm-init to initialize VM system'
-          ].join('\n'), {
+          boxen(['❌ VM Orchestrator not available', '', 'Use /vm-init to initialize VM system'].join('\n'), {
             title: 'VM Error',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
-            borderColor: 'red'
+            borderColor: 'red',
           })
         )
         return
@@ -3386,37 +3399,32 @@ export class NikCLI {
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'cyan'
+                borderColor: 'cyan',
               })
             )
           } else {
             this.printPanel(
-              boxen([
-                `❌ VM Agent error: ${response.error}`,
-                '',
-                'Try /vm-dashboard to check VM health'
-              ].join('\n'), {
+              boxen([`❌ VM Agent error: ${response.error}`, '', 'Try /vm-dashboard to check VM health'].join('\n'), {
                 title: 'VM Agent Error',
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
           }
         } else {
           this.printPanel(
-            boxen([
-              '❌ VM Bridge not initialized',
-              '',
-              'VM communication system requires proper initialization'
-            ].join('\n'), {
-              title: 'VM Bridge Error',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'red'
-            })
+            boxen(
+              ['❌ VM Bridge not initialized', '', 'VM communication system requires proper initialization'].join('\n'),
+              {
+                title: 'VM Bridge Error',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              }
+            )
           )
         }
 
@@ -3467,7 +3475,7 @@ export class NikCLI {
     try {
       process.env.NIKCLI_COMPACT = '1'
       process.env.NIKCLI_SUPER_COMPACT = '1'
-    } catch { }
+    } catch {}
     console.log(chalk.blue('🎯 Entering Enhanced Planning Mode with TaskMaster AI...'))
 
     try {
@@ -3573,10 +3581,10 @@ export class NikCLI {
 
         try {
           inputQueue.disableBypass()
-        } catch { }
+        } catch {}
         try {
           advancedUI.stopInteractiveMode?.()
-        } catch { }
+        } catch {}
         this.resumePromptAndRender()
       } else {
         console.log(chalk.yellow('\n📝 Plan saved to todo.md'))
@@ -3609,10 +3617,10 @@ export class NikCLI {
 
         try {
           inputQueue.disableBypass()
-        } catch { }
+        } catch {}
         try {
           advancedUI.stopInteractiveMode?.()
-        } catch { }
+        } catch {}
 
         this.cleanupPlanArtifacts()
         this.resumePromptAndRender()
@@ -3913,7 +3921,7 @@ EOF`
       // Stop interactive mode
       try {
         advancedUI.stopInteractiveMode?.()
-      } catch { }
+      } catch {}
 
       // Restore prompt
       this.resumePromptAndRender()
@@ -3935,7 +3943,7 @@ EOF`
     this.activeTimers.forEach((timer) => {
       try {
         clearTimeout(timer)
-      } catch { }
+      } catch {}
     })
     this.activeTimers.clear()
   }
@@ -3947,7 +3955,7 @@ EOF`
     this.inquirerInstances.forEach((instance) => {
       try {
         instance.removeAllListeners?.()
-      } catch { }
+      } catch {}
     })
     this.inquirerInstances.clear()
   }
@@ -4083,7 +4091,12 @@ EOF`
   /**
    * Execute agent with plan-mode style streaming (like executeTaskWithToolchains)
    */
-  private async executeAgentWithPlanModeStreaming(agent: any, task: string, agentName: string, tools: any[]): Promise<void> {
+  private async executeAgentWithPlanModeStreaming(
+    agent: any,
+    task: string,
+    agentName: string,
+    tools: any[]
+  ): Promise<void> {
     console.log(chalk.blue(`⚡︎ Executing: ${agentName} - ${task}`))
 
     try {
@@ -4108,7 +4121,7 @@ EOF`
               this.addLiveUpdate({
                 type: 'info',
                 content: `🔧 ${agentName}: ${ev.toolName}`,
-                source: agentName
+                source: agentName,
               })
             }
             break
@@ -4119,7 +4132,7 @@ EOF`
               this.addLiveUpdate({
                 type: 'info',
                 content: `✓ Tool completed`,
-                source: agentName
+                source: agentName,
               })
             }
             break
@@ -4143,7 +4156,6 @@ EOF`
       if (!streamCompleted) {
         throw new Error('Stream did not complete properly')
       }
-
     } catch (error: any) {
       console.log(chalk.red(`❌ ${agentName} execution failed: ${error.message}`))
       throw error
@@ -4515,11 +4527,11 @@ EOF`
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\n\n` +
-      `${chalk.green('✓ Completed:')} ${completed}\n` +
-      `${chalk.red('❌ Failed:')} ${failed}\n` +
-      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
-      `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
-      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+        `${chalk.green('✓ Completed:')} ${completed}\n` +
+        `${chalk.red('❌ Failed:')} ${failed}\n` +
+        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\n` +
+        `${chalk.blue('📊 Total:')} ${indicators.length}\n\n` +
+        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -4792,7 +4804,7 @@ EOF`
         if (interactiveStarted) {
           try {
             advancedUI.stopInteractiveMode?.()
-          } catch { }
+          } catch {}
         }
         this.rl?.prompt()
       }
@@ -5124,7 +5136,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break // Let finally handle cleanup
@@ -5236,7 +5248,7 @@ EOF`
                       padding: 1,
                       margin: 1,
                       borderStyle: 'round',
-                      borderColor: 'cyan'
+                      borderColor: 'cyan',
                     })
                   )
                 }
@@ -5260,7 +5272,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break // Let finally handle cleanup
@@ -5294,7 +5306,7 @@ EOF`
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: 'green'
+              borderColor: 'green',
             })
           )
           break
@@ -5307,7 +5319,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break // Let finally handle cleanup
@@ -5350,7 +5362,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break // Let finally handle cleanup
@@ -5431,7 +5443,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             return
@@ -5476,7 +5488,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break // Let finally handle cleanup
@@ -5592,7 +5604,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break
@@ -5735,7 +5747,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break // Let finally handle cleanup
@@ -5869,9 +5881,9 @@ EOF`
               this.printPanel(
                 boxen(
                   `Provider: ${provider}\n` +
-                  `Model: ${modelCfg?.model || modelName}\n` +
-                  `API key not configured.\n` +
-                  `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
+                    `Model: ${modelCfg?.model || modelName}\n` +
+                    `API key not configured.\n` +
+                    `Tip: /set-key ${modelName} <your-api-key>  |  ${tip}`,
                   { title: '🔑 API Key Missing', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
                 )
               )
@@ -5978,7 +5990,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break // Let finally handle cleanup
@@ -5992,7 +6004,7 @@ EOF`
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: 'blue'
+              borderColor: 'blue',
             })
           )
 
@@ -6004,7 +6016,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'green'
+                borderColor: 'green',
               })
             )
           } catch (error: any) {
@@ -6014,7 +6026,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
           }
@@ -6023,21 +6035,24 @@ EOF`
         case 'parallel': {
           if (args.length < 2) {
             this.printPanel(
-              boxen([
-                'Usage: /parallel [agent1, agent2, agent3] <description>',
-                '',
-                'Examples:',
-                '  /parallel [react-expert, code-reviewer] "analyze this component"',
-                '  /parallel [security-agent, performance-agent] "audit API endpoint"',
-                '',
-                'Note: Use square brackets [] to specify factory agents by blueprint name/ID'
-              ].join('\n'), {
-                title: 'Parallel Command',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'red'
-              })
+              boxen(
+                [
+                  'Usage: /parallel [agent1, agent2, agent3] <description>',
+                  '',
+                  'Examples:',
+                  '  /parallel [react-expert, code-reviewer] "analyze this component"',
+                  '  /parallel [security-agent, performance-agent] "audit API endpoint"',
+                  '',
+                  'Note: Use square brackets [] to specify factory agents by blueprint name/ID',
+                ].join('\n'),
+                {
+                  title: 'Parallel Command',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'red',
+                }
+              )
             )
             break // Let finally handle cleanup
           }
@@ -6066,7 +6081,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break // Let finally handle cleanup
@@ -6078,7 +6093,7 @@ EOF`
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: 'blue'
+              borderColor: 'blue',
             })
           )
 
@@ -6088,7 +6103,7 @@ EOF`
             agents: agentList,
             task: taskDescription,
             logs: new Map<string, string[]>(),
-            sharedData: new Map<string, any>()
+            sharedData: new Map<string, any>(),
           }
 
           // Execute factory agents in parallel
@@ -6107,22 +6122,25 @@ EOF`
               collaborationContext.logs.set(agentIdentifier, [])
 
               this.printPanel(
-                boxen([
-                  `✓ Launched: ${blueprint.name || agentIdentifier}`,
-                  `Specialization: ${blueprint.specialization}`,
-                  `Agent ID: ${agent.id.slice(-8)}`,
-                  `Blueprint ID: ${blueprint.id.slice(-8)}`
-                ].join('\n'), {
-                  title: `Agent Started: ${agentIdentifier}`,
-                  padding: 1,
-                  margin: 1,
-                  borderStyle: 'round',
-                  borderColor: 'green'
-                })
+                boxen(
+                  [
+                    `✓ Launched: ${blueprint.name || agentIdentifier}`,
+                    `Specialization: ${blueprint.specialization}`,
+                    `Agent ID: ${agent.id.slice(-8)}`,
+                    `Blueprint ID: ${blueprint.id.slice(-8)}`,
+                  ].join('\n'),
+                  {
+                    title: `Agent Started: ${agentIdentifier}`,
+                    padding: 1,
+                    margin: 1,
+                    borderStyle: 'round',
+                    borderColor: 'green',
+                  }
+                )
               )
 
-                // Set up collaboration context for this agent
-                ; (agent as any).collaborationContext = collaborationContext
+              // Set up collaboration context for this agent
+              ;(agent as any).collaborationContext = collaborationContext
 
               // Start agent execution with task
               this.startAgentExecution(agent, taskDescription, collaborationContext)
@@ -6131,7 +6149,7 @@ EOF`
                 agentIdentifier,
                 agent,
                 blueprint,
-                success: true
+                success: true,
               }
             } catch (error: any) {
               this.printPanel(
@@ -6140,43 +6158,48 @@ EOF`
                   padding: 1,
                   margin: 1,
                   borderStyle: 'round',
-                  borderColor: 'red'
+                  borderColor: 'red',
                 })
               )
               return {
                 agentIdentifier,
                 error: error.message,
-                success: false
+                success: false,
               }
             }
           })
 
           // Wait for all agents to start
           const results = await Promise.allSettled(agentPromises)
-          const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length
+          const successful = results.filter((r) => r.status === 'fulfilled' && r.value.success).length
           const failed = results.length - successful
 
           // Show parallel execution summary
           this.printPanel(
-            boxen([
-              `🚀 Parallel Factory Execution Initiated`,
-              `✓ Successfully launched: ${successful} agents`,
-              failed > 0 ? `❌ Failed to launch: ${failed} agents` : '',
-              '',
-              `📋 Collaboration Context: ${collaborationContext.sessionId}`,
-              '🔄 Agents are running with shared context and collaboration',
-              '',
-              'Commands:',
-              '  /agents           - Monitor active agents',
-              '  /parallel-logs    - View collaboration logs',
-              '  /parallel-status  - Check execution status'
-            ].filter(Boolean).join('\n'), {
-              title: 'Parallel Execution Summary',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: successful === agentList.length ? 'green' : 'yellow'
-            })
+            boxen(
+              [
+                `🚀 Parallel Factory Execution Initiated`,
+                `✓ Successfully launched: ${successful} agents`,
+                failed > 0 ? `❌ Failed to launch: ${failed} agents` : '',
+                '',
+                `📋 Collaboration Context: ${collaborationContext.sessionId}`,
+                '🔄 Agents are running with shared context and collaboration',
+                '',
+                'Commands:',
+                '  /agents           - Monitor active agents',
+                '  /parallel-logs    - View collaboration logs',
+                '  /parallel-status  - Check execution status',
+              ]
+                .filter(Boolean)
+                .join('\n'),
+              {
+                title: 'Parallel Execution Summary',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: successful === agentList.length ? 'green' : 'yellow',
+              }
+            )
           )
 
           // Store collaboration context for monitoring
@@ -6208,20 +6231,23 @@ EOF`
         case 'create-agent': {
           if (args.length < 2) {
             this.printPanel(
-              boxen([
-                'Usage: /create-agent [--vm|--container] <name> <specialization>',
-                '',
-                'Examples:',
-                '  /create-agent react-expert "React development and testing"',
-                '  /create-agent --vm repo-analyzer "Repository analysis and documentation"',
-                '  /create-agent --container test-runner "Isolated testing environment"'
-              ].join('\n'), {
-                title: 'Create Agent Command',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'red'
-              })
+              boxen(
+                [
+                  'Usage: /create-agent [--vm|--container] <name> <specialization>',
+                  '',
+                  'Examples:',
+                  '  /create-agent react-expert "React development and testing"',
+                  '  /create-agent --vm repo-analyzer "Repository analysis and documentation"',
+                  '  /create-agent --container test-runner "Isolated testing environment"',
+                ].join('\n'),
+                {
+                  title: 'Create Agent Command',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'red',
+                }
+              )
             )
             break // Let finally handle cleanup
           }
@@ -6263,7 +6289,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break // Let finally handle cleanup
@@ -6431,7 +6457,7 @@ EOF`
         collaborationContext.sharedData.set(`${agent.blueprintId}:request:${targetAgent}`, {
           request,
           timestamp: new Date().toISOString(),
-          status: 'pending'
+          status: 'pending',
         })
       }
 
@@ -6440,7 +6466,7 @@ EOF`
         collaborationContext.sharedData.set(`${fromAgent}:response:${agent.blueprintId}`, {
           response,
           timestamp: new Date().toISOString(),
-          from: agent.blueprintId
+          from: agent.blueprintId,
         })
       }
 
@@ -6453,7 +6479,6 @@ EOF`
 
       // Monitor for completion and trigger merge when all agents are done
       this.monitorAgentCompletion(agent, collaborationContext)
-
     } catch (error: any) {
       console.error(`Failed to start agent execution: ${error.message}`)
     }
@@ -6477,24 +6502,25 @@ EOF`
           {
             stepId: 'analysis',
             description: `${blueprint.name} analyzing task requirements`,
-            schema: { type: 'object', properties: { progress: { type: 'string' } } }
+            schema: { type: 'object', properties: { progress: { type: 'string' } } },
           },
           {
             stepId: 'execution',
             description: `${blueprint.name} executing specialized work`,
-            schema: { type: 'object', properties: { status: { type: 'string' } } }
-          }
+            schema: { type: 'object', properties: { status: { type: 'string' } } },
+          },
         ]
 
         const finalStep = {
           description: `${blueprint.name} finalizing results`,
           schema: {
-            type: 'object', properties: {
+            type: 'object',
+            properties: {
               summary: { type: 'string' },
               components: { type: 'array', items: { type: 'string' } },
-              recommendations: { type: 'array', items: { type: 'string' } }
-            }
-          }
+              recommendations: { type: 'array', items: { type: 'string' } },
+            },
+          },
         }
 
         // Stream step progress
@@ -6516,7 +6542,12 @@ EOF`
 
         // Stream intermediate step
         setTimeout(() => {
-          this.streamAgentSteps(blueprint.name, 'processing', `Processing with ${blueprint.specialization} capabilities`, { status: 'processing' })
+          this.streamAgentSteps(
+            blueprint.name,
+            'processing',
+            `Processing with ${blueprint.specialization} capabilities`,
+            { status: 'processing' }
+          )
         }, executionTime / 3)
 
         setTimeout(() => {
@@ -6535,15 +6566,13 @@ EOF`
           this.addLiveUpdate({
             type: 'status',
             content: `**${blueprint.name} Completed:**\n\n${result.summary}\n\n**Components:** ${result.components ? result.components.join(', ') : 'None'}\n\n**Recommendations:** ${result.recommendations ? result.recommendations.join(', ') : 'None'}`,
-            source: blueprint.name
+            source: blueprint.name,
           })
 
           // Check for collaboration opportunities
           this.checkForCollaborationOpportunities(agent, (agent as any).collaborationContext)
-
         }, executionTime)
       }
-
     } catch (error: any) {
       agent.logToCollaboration(`Task execution failed: ${error.message}`)
       throw error
@@ -6605,7 +6634,7 @@ EOF`
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'yellow'
+          borderColor: 'yellow',
         })
       )
       return
@@ -6616,7 +6645,7 @@ EOF`
       `📋 Collaboration Session: ${context.sessionId}`,
       `🎯 Task: ${context.task}`,
       `👥 Agents: ${context.agents.join(', ')}`,
-      ''
+      '',
     ]
 
     // Collect logs from all agents
@@ -6624,7 +6653,7 @@ EOF`
       const agentLogs = context.logs.get(agentId) || []
       if (agentLogs.length > 0) {
         logLines.push(`🤖 Agent: ${agentId}`)
-        logLines.push(...agentLogs.map(log => `  ${log}`))
+        logLines.push(...agentLogs.map((log) => `  ${log}`))
         logLines.push('')
       }
     }
@@ -6643,7 +6672,7 @@ EOF`
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'cyan'
+        borderColor: 'cyan',
       })
     )
   }
@@ -6654,30 +6683,30 @@ EOF`
 
       if (blueprints.length === 0) {
         this.printPanel(
-          boxen([
-            'No blueprints found in factory',
-            '',
-            'Create a new agent blueprint:',
-            '  /create-agent <name> <specialization>',
-            '',
-            'Examples:',
-            '  /create-agent react-expert "React component analysis and optimization"',
-            '  /create-agent security-auditor "Security vulnerability assessment"'
-          ].join('\n'), {
-            title: '🏭 Available Blueprints',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'yellow'
-          })
+          boxen(
+            [
+              'No blueprints found in factory',
+              '',
+              'Create a new agent blueprint:',
+              '  /create-agent <name> <specialization>',
+              '',
+              'Examples:',
+              '  /create-agent react-expert "React component analysis and optimization"',
+              '  /create-agent security-auditor "Security vulnerability assessment"',
+            ].join('\n'),
+            {
+              title: '🏭 Available Blueprints',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }
+          )
         )
         return
       }
 
-      const blueprintLines: string[] = [
-        `Found ${blueprints.length} blueprint(s) in factory:`,
-        ''
-      ]
+      const blueprintLines: string[] = [`Found ${blueprints.length} blueprint(s) in factory:`, '']
 
       blueprints.forEach((blueprint, index) => {
         blueprintLines.push(`${index + 1}. ${blueprint.name || blueprint.id.slice(-8)}`)
@@ -6691,7 +6720,12 @@ EOF`
       })
 
       blueprintLines.push('Usage Examples:')
-      blueprintLines.push(`  /parallel [${blueprints.slice(0, 2).map(b => b.name || b.id.slice(-8)).join(', ')}] "analyze this code"`)
+      blueprintLines.push(
+        `  /parallel [${blueprints
+          .slice(0, 2)
+          .map((b) => b.name || b.id.slice(-8))
+          .join(', ')}] "analyze this code"`
+      )
       blueprintLines.push(`  /launch-agent ${blueprints[0]?.id || 'blueprint-id'} "specific task"`)
 
       this.printPanel(
@@ -6700,10 +6734,9 @@ EOF`
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'cyan'
+          borderColor: 'cyan',
         })
       )
-
     } catch (error: any) {
       this.printPanel(
         boxen(`Failed to load blueprints: ${error.message}`, {
@@ -6711,7 +6744,7 @@ EOF`
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'red'
+          borderColor: 'red',
         })
       )
     }
@@ -6725,7 +6758,7 @@ EOF`
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'yellow'
+          borderColor: 'yellow',
         })
       )
       return
@@ -6736,7 +6769,7 @@ EOF`
       `📋 Session: ${context.sessionId}`,
       `🎯 Task: ${context.task}`,
       `⏰ Started: ${new Date(parseInt(context.sessionId.split('-')[1])).toLocaleString()}`,
-      ''
+      '',
     ]
 
     // Agent status
@@ -6750,7 +6783,9 @@ EOF`
 
     statusLines.push('')
     statusLines.push(`🔄 Shared Data Items: ${context.sharedData.size}`)
-    statusLines.push(`📝 Total Log Entries: ${Array.from(context.logs.values()).reduce((total, logs) => total + logs.length, 0)}`)
+    statusLines.push(
+      `📝 Total Log Entries: ${Array.from(context.logs.values()).reduce((total, logs) => total + logs.length, 0)}`
+    )
 
     this.printPanel(
       boxen(statusLines.join('\n'), {
@@ -6758,7 +6793,7 @@ EOF`
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'blue'
+        borderColor: 'blue',
       })
     )
   }
@@ -6804,7 +6839,7 @@ EOF`
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'red'
+          borderColor: 'red',
         })
       )
     }
@@ -6835,7 +6870,7 @@ EOF`
       '  minimal-efficient    Minimalist output with only essential information',
       '',
       'Examples:',
-      '  /style set production-focused  # Set concise, results-oriented style'
+      '  /style set production-focused  # Set concise, results-oriented style',
     ].join('\n')
 
     this.printPanel(
@@ -6844,7 +6879,7 @@ EOF`
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'cyan'
+        borderColor: 'cyan',
       })
     )
   }
@@ -6861,7 +6896,7 @@ EOF`
       '• educational-verbose  - Detailed learning explanations',
       '• minimal-efficient    - Essential information only',
       '',
-      'Use /style set <style-name> to apply a style'
+      'Use /style set <style-name> to apply a style',
     ].join('\n')
 
     this.printPanel(
@@ -6870,7 +6905,7 @@ EOF`
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'cyan'
+        borderColor: 'cyan',
       })
     )
   }
@@ -6883,7 +6918,7 @@ EOF`
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'red'
+          borderColor: 'red',
         })
       )
       return
@@ -6897,23 +6932,23 @@ EOF`
       'friendly-casual',
       'technical-precise',
       'educational-verbose',
-      'minimal-efficient'
+      'minimal-efficient',
     ]
 
     if (!validStyles.includes(styleName)) {
       this.printPanel(
-        boxen([
-          `Invalid style: ${styleName}`,
-          '',
-          'Valid styles:',
-          ...validStyles.map(style => `  • ${style}`)
-        ].join('\n'), {
-          title: 'Invalid Style',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'red'
-        })
+        boxen(
+          [`Invalid style: ${styleName}`, '', 'Valid styles:', ...validStyles.map((style) => `  • ${style}`)].join(
+            '\n'
+          ),
+          {
+            title: 'Invalid Style',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
       )
       return
     }
@@ -6925,7 +6960,7 @@ EOF`
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'green'
+        borderColor: 'green',
       })
     )
   }
@@ -6937,7 +6972,7 @@ EOF`
       '',
       `Default Style: ${currentStyle}`,
       '',
-      'Style applies to all AI responses unless overridden by context-specific settings.'
+      'Style applies to all AI responses unless overridden by context-specific settings.',
     ].join('\n')
 
     this.printPanel(
@@ -6946,7 +6981,7 @@ EOF`
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'cyan'
+        borderColor: 'cyan',
       })
     )
   }
@@ -6959,7 +6994,7 @@ EOF`
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'red'
+          borderColor: 'red',
         })
       )
       return
@@ -6973,7 +7008,7 @@ EOF`
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'green'
+        borderColor: 'green',
       })
     )
   }
@@ -6986,7 +7021,7 @@ EOF`
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'red'
+          borderColor: 'red',
         })
       )
       return
@@ -7000,7 +7035,7 @@ EOF`
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'green'
+        borderColor: 'green',
       })
     )
   }
@@ -7056,17 +7091,17 @@ EOF`
     // 4. Slides/Decks: /slides/{file_key} or /deck/{file_key}
     // 5. Legacy: /file/{file_key}/{file_name}
     const urlPatterns = [
-      /figma\.com\/design\/([a-zA-Z0-9_-]+)/,      // Design files
-      /figma\.com\/proto\/([a-zA-Z0-9_-]+)/,       // Prototypes
-      /figma\.com\/board\/([a-zA-Z0-9_-]+)/,       // FigJam boards
-      /figma\.com\/slides\/([a-zA-Z0-9_-]+)/,      // Slides
-      /figma\.com\/deck\/([a-zA-Z0-9_-]+)/,        // Decks
-      /figma\.com\/file\/([a-zA-Z0-9_-]+)/,        // Legacy format
+      /figma\.com\/design\/([a-zA-Z0-9_-]+)/, // Design files
+      /figma\.com\/proto\/([a-zA-Z0-9_-]+)/, // Prototypes
+      /figma\.com\/board\/([a-zA-Z0-9_-]+)/, // FigJam boards
+      /figma\.com\/slides\/([a-zA-Z0-9_-]+)/, // Slides
+      /figma\.com\/deck\/([a-zA-Z0-9_-]+)/, // Decks
+      /figma\.com\/file\/([a-zA-Z0-9_-]+)/, // Legacy format
       /embed\.figma\.com\/design\/([a-zA-Z0-9_-]+)/, // Embed design
-      /embed\.figma\.com\/proto\/([a-zA-Z0-9_-]+)/,  // Embed proto
-      /embed\.figma\.com\/board\/([a-zA-Z0-9_-]+)/,  // Embed board
+      /embed\.figma\.com\/proto\/([a-zA-Z0-9_-]+)/, // Embed proto
+      /embed\.figma\.com\/board\/([a-zA-Z0-9_-]+)/, // Embed board
       /embed\.figma\.com\/slides\/([a-zA-Z0-9_-]+)/, // Embed slides
-      /embed\.figma\.com\/deck\/([a-zA-Z0-9_-]+)/,   // Embed deck
+      /embed\.figma\.com\/deck\/([a-zA-Z0-9_-]+)/, // Embed deck
     ]
 
     for (const pattern of urlPatterns) {
@@ -7090,30 +7125,33 @@ EOF`
       switch (command) {
         case 'figma-config': {
           this.printPanel(
-            boxen([
-              '🎨 Figma Integration Configuration',
-              '─'.repeat(50),
-              'Figma API Token: ✓ Configured',
-              'Vercel v0 Integration: ⚠️  Optional - for AI code generation',
-              'Desktop App Automation: ✓ Available (macOS)',
-              '─'.repeat(50),
-              '',
-              '📋 Available Commands:',
-              '  /figma-config                  Show this configuration',
-              '  /figma-info <file-id>          Get file information from Figma',
-              '  /figma-export <file-id> [fmt]  Export designs (svg, png, jpg, pdf)',
-              '  /figma-to-code <file-id>       Generate code from Figma designs',
-              '  /figma-create <component>      Create design from React component',
-              '  /figma-tokens <file-id>        Extract design tokens from Figma',
-              '',
-              '💡 Tip: Use /set-key-figma to configure API credentials'
-            ].join('\n'), {
-              title: '🎨 Figma Integration',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'magenta'
-            })
+            boxen(
+              [
+                '🎨 Figma Integration Configuration',
+                '─'.repeat(50),
+                'Figma API Token: ✓ Configured',
+                'Vercel v0 Integration: ⚠️  Optional - for AI code generation',
+                'Desktop App Automation: ✓ Available (macOS)',
+                '─'.repeat(50),
+                '',
+                '📋 Available Commands:',
+                '  /figma-config                  Show this configuration',
+                '  /figma-info <file-id>          Get file information from Figma',
+                '  /figma-export <file-id> [fmt]  Export designs (svg, png, jpg, pdf)',
+                '  /figma-to-code <file-id>       Generate code from Figma designs',
+                '  /figma-create <component>      Create design from React component',
+                '  /figma-tokens <file-id>        Extract design tokens from Figma',
+                '',
+                '💡 Tip: Use /set-key-figma to configure API credentials',
+              ].join('\n'),
+              {
+                title: '🎨 Figma Integration',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'magenta',
+              }
+            )
           )
           break
         }
@@ -7121,13 +7159,16 @@ EOF`
         case 'figma-info': {
           if (args.length === 0) {
             this.printPanel(
-              boxen('Usage: /figma-info <file-id-or-url>\n\nGet file information from Figma\n\nAccepts:\n  • File ID: ABC123def456\n  • Full URL: https://www.figma.com/file/ABC123/My-Design', {
-                title: 'Figma Info Command',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'red'
-              })
+              boxen(
+                'Usage: /figma-info <file-id-or-url>\n\nGet file information from Figma\n\nAccepts:\n  • File ID: ABC123def456\n  • Full URL: https://www.figma.com/file/ABC123/My-Design',
+                {
+                  title: 'Figma Info Command',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'red',
+                }
+              )
             )
             break
           }
@@ -7135,25 +7176,31 @@ EOF`
           const fileId = this.extractFigmaFileId(args[0])
           if (!fileId) {
             this.printPanel(
-              boxen(`❌ Invalid Figma file ID or URL: ${args[0]}\n\nPlease provide either:\n  • A file ID (e.g., ABC123def456)\n  • A Figma URL (e.g., figma.com/file/ABC123/...)`, {
-                title: 'Invalid Input',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'red'
-              })
+              boxen(
+                `❌ Invalid Figma file ID or URL: ${args[0]}\n\nPlease provide either:\n  • A file ID (e.g., ABC123def456)\n  • A Figma URL (e.g., figma.com/file/ABC123/...)`,
+                {
+                  title: 'Invalid Input',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'red',
+                }
+              )
             )
             break
           }
 
           this.printPanel(
-            boxen(`🎨 Fetching Figma file info\n\n📋 File ID: ${fileId}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`, {
-              title: 'Figma Info',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow'
-            })
+            boxen(
+              `🎨 Fetching Figma file info\n\n📋 File ID: ${fileId}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`,
+              {
+                title: 'Figma Info',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }
+            )
           )
           break
         }
@@ -7161,13 +7208,16 @@ EOF`
         case 'figma-export': {
           if (args.length === 0) {
             this.printPanel(
-              boxen('Usage: /figma-export <file-id-or-url> [format]\n\nExport designs from Figma\n\nFormats: svg, png, jpg, pdf\nAccepts: File ID or full Figma URL', {
-                title: 'Figma Export Command',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'red'
-              })
+              boxen(
+                'Usage: /figma-export <file-id-or-url> [format]\n\nExport designs from Figma\n\nFormats: svg, png, jpg, pdf\nAccepts: File ID or full Figma URL',
+                {
+                  title: 'Figma Export Command',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'red',
+                }
+              )
             )
             break
           }
@@ -7180,7 +7230,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break
@@ -7188,13 +7238,16 @@ EOF`
 
           const format = args[1] || 'svg'
           this.printPanel(
-            boxen(`🎨 Exporting Figma file\n\n📋 File ID: ${exportFileId}\n📐 Format: ${format}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`, {
-              title: 'Figma Export',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow'
-            })
+            boxen(
+              `🎨 Exporting Figma file\n\n📋 File ID: ${exportFileId}\n📐 Format: ${format}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`,
+              {
+                title: 'Figma Export',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }
+            )
           )
           break
         }
@@ -7207,7 +7260,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break
@@ -7218,7 +7271,7 @@ EOF`
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: 'yellow'
+              borderColor: 'yellow',
             })
           )
           break
@@ -7232,19 +7285,22 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break
           }
           this.printPanel(
-            boxen(`🎨 Creating Figma design from: ${args[0]}\n\n⚠️  This feature requires Figma API + Desktop automation`, {
-              title: 'Figma Create',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow'
-            })
+            boxen(
+              `🎨 Creating Figma design from: ${args[0]}\n\n⚠️  This feature requires Figma API + Desktop automation`,
+              {
+                title: 'Figma Create',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }
+            )
           )
           break
         }
@@ -7257,7 +7313,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             break
@@ -7268,7 +7324,7 @@ EOF`
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: 'yellow'
+              borderColor: 'yellow',
             })
           )
           break
@@ -7281,7 +7337,7 @@ EOF`
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: 'red'
+              borderColor: 'red',
             })
           )
         }
@@ -7333,17 +7389,20 @@ EOF`
   private async handleGCodeGenerate(args: string[], machineType?: string): Promise<void> {
     if (args.length === 0) {
       this.printPanel(
-        boxen([
-          'Usage: /gcode generate <description>',
-          '',
-          'Example: /gcode generate "drill 4 holes in aluminum plate"'
-        ].join('\n'), {
-          title: 'G-code Generate Command',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'red'
-        })
+        boxen(
+          [
+            'Usage: /gcode generate <description>',
+            '',
+            'Example: /gcode generate "drill 4 holes in aluminum plate"',
+          ].join('\n'),
+          {
+            title: 'G-code Generate Command',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
       )
       return
     }
@@ -7386,7 +7445,7 @@ EOF`
       '  /gcode help                   - Show this help',
       '',
       '💡 Tip: Be specific about materials, tools, and operations',
-      'Example: "drill 4x M6 holes in 3mm aluminum plate with HSS bit"'
+      'Example: "drill 4x M6 holes in 3mm aluminum plate with HSS bit"',
     ].join('\n')
 
     this.printPanel(
@@ -7395,7 +7454,7 @@ EOF`
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'cyan'
+        borderColor: 'cyan',
       })
     )
   }
@@ -7414,7 +7473,7 @@ EOF`
       '',
       'Laser Cutting:',
       '  /gcode laser "cut 3mm acrylic sheet with rounded corners"',
-      '  /gcode laser "engrave text on wood surface 5mm deep"'
+      '  /gcode laser "engrave text on wood surface 5mm deep"',
     ].join('\n')
 
     this.printPanel(
@@ -7423,7 +7482,7 @@ EOF`
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'cyan'
+        borderColor: 'cyan',
       })
     )
   }
@@ -7499,18 +7558,21 @@ EOF`
     try {
       if (args.length === 0) {
         this.printPanel(
-          boxen([
-            'Usage: /doc-search <query> [category]',
-            '',
-            'Example: /doc-search "react hooks"',
-            'Example: /doc-search "api" backend'
-          ].join('\n'), {
-            title: 'Doc Search Command',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'red'
-          })
+          boxen(
+            [
+              'Usage: /doc-search <query> [category]',
+              '',
+              'Example: /doc-search "react hooks"',
+              'Example: /doc-search "api" backend',
+            ].join('\n'),
+            {
+              title: 'Doc Search Command',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
         )
         return
       }
@@ -7550,18 +7612,21 @@ EOF`
     try {
       if (args.length === 0) {
         this.printPanel(
-          boxen([
-            'Usage: /doc-add <url> [category] [tags...]',
-            '',
-            'Example: /doc-add https://reactjs.org/',
-            'Example: /doc-add https://nodejs.org/ backend node,api'
-          ].join('\n'), {
-            title: 'Doc Add Command',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'red'
-          })
+          boxen(
+            [
+              'Usage: /doc-add <url> [category] [tags...]',
+              '',
+              'Example: /doc-add https://reactjs.org/',
+              'Example: /doc-add https://nodejs.org/ backend node,api',
+            ].join('\n'),
+            {
+              title: 'Doc Add Command',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
         )
         return
       }
@@ -7945,18 +8010,21 @@ EOF`
       const query = args.join(' ')
       if (!query) {
         this.printPanel(
-          boxen([
-            'Usage: /doc-suggest <query>',
-            '',
-            'Example: /doc-suggest react hooks',
-            'Example: /doc-suggest authentication'
-          ].join('\n'), {
-            title: 'Doc Suggest Command',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'red'
-          })
+          boxen(
+            [
+              'Usage: /doc-suggest <query>',
+              '',
+              'Example: /doc-suggest react hooks',
+              'Example: /doc-suggest authentication',
+            ].join('\n'),
+            {
+              title: 'Doc Suggest Command',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
         )
         return
       }
@@ -8310,9 +8378,9 @@ EOF`
       this.printPanel(
         boxen(
           `${chalk.cyan('Session Tokens:')}\n` +
-          `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
-          `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
-          `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
+            `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
+            `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
+            `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
           {
             padding: 1,
             margin: 1,
@@ -8327,10 +8395,10 @@ EOF`
       console.log(
         chalk.white(
           'Model'.padEnd(30) +
-          'Total Cost'.padStart(12) +
-          'Input Cost'.padStart(12) +
-          'Output Cost'.padStart(12) +
-          'Provider'.padStart(15)
+            'Total Cost'.padStart(12) +
+            'Input Cost'.padStart(12) +
+            'Output Cost'.padStart(12) +
+            'Provider'.padStart(15)
         )
       )
       console.log(chalk.gray('─'.repeat(90)))
@@ -8391,13 +8459,13 @@ EOF`
       this.printPanel(
         boxen(
           `${chalk.cyan('Current Model:')}\n` +
-          `${chalk.white(pricing.displayName)}\n\n` +
-          `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
-          `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
-          `${chalk.yellow('Examples:')}\n` +
-          `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
-          `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
-          `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
+            `${chalk.white(pricing.displayName)}\n\n` +
+            `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
+            `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
+            `${chalk.yellow('Examples:')}\n` +
+            `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
+            `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
+            `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
           {
             padding: 1,
             margin: 1,
@@ -8440,9 +8508,9 @@ EOF`
       this.printPanel(
         boxen(
           `${chalk.cyan('Estimation Parameters:')}\n` +
-          `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
-          `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
-          `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
+            `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
+            `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
+            `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
           {
             padding: 1,
             margin: 1,
@@ -8491,7 +8559,7 @@ EOF`
       '  /tokens              # Show current usage',
       '  /tokens compare      # Compare all models',
       '  /tokens estimate 100000  # Estimate cost for 100K tokens',
-      '  /tokens cache clear  # Clear token caches'
+      '  /tokens cache clear  # Clear token caches',
     ].join('\n')
 
     this.printPanel(
@@ -8500,7 +8568,7 @@ EOF`
         padding: 1,
         margin: 1,
         borderStyle: 'round',
-        borderColor: 'blue'
+        borderColor: 'blue',
       })
     )
   }
@@ -8568,18 +8636,18 @@ EOF`
         this.printPanel(
           boxen(
             `${chalk.cyan.bold('🔮 Advanced Cache System Statistics')}\n\n` +
-            redisStats +
-            `${chalk.magenta('📦 Full Response Cache:')}\n` +
-            `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
-            `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
-            `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
-            `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
-            `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
-            `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
-            `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
-            `${chalk.green.bold('💰 Total Savings:')}\n` +
-            `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
-            `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
+              redisStats +
+              `${chalk.magenta('📦 Full Response Cache:')}\n` +
+              `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
+              `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
+              `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
+              `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
+              `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
+              `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
+              `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
+              `${chalk.green.bold('💰 Total Savings:')}\n` +
+              `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
+              `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
             {
               padding: 1,
               margin: 1,
@@ -8624,19 +8692,19 @@ EOF`
           this.printPanel(
             boxen(
               `${chalk.cyan('🎯 Precise Token Tracking Session')}\n\n` +
-              `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
-              `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
-              `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
-              `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
-              `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
-              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-              `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
-              `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
-              `Total Session Cost: ${chalk.yellow.bold(`$${stats.session.totalCost.toFixed(6)}`)}\n` +
-              `Average per Message: ${chalk.green(`$${stats.costPerMessage.toFixed(6)}`)}\n` +
-              `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
-              `Session Duration: ${`${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000)} min`}`,
+                `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
+                `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
+                `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
+                `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
+                `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
+                `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+                `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+                `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
+                `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
+                `Total Session Cost: ${chalk.yellow.bold(`$${stats.session.totalCost.toFixed(6)}`)}\n` +
+                `Average per Message: ${chalk.green(`$${stats.costPerMessage.toFixed(6)}`)}\n` +
+                `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
+                `Session Duration: ${`${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000)} min`}`,
               {
                 padding: 1,
                 margin: 1,
@@ -8653,9 +8721,9 @@ EOF`
             this.printPanel(
               boxen(
                 `${chalk.yellow('⚡ Optimization Recommendations:')}\n\n` +
-                `Status: ${optimization.recommendation === 'continue' ? chalk.green('✓ Good') : chalk.yellow('⚠️  Attention needed')}\n` +
-                `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
-                `Reason: ${chalk.gray(optimization.reason)}`,
+                  `Status: ${optimization.recommendation === 'continue' ? chalk.green('✓ Good') : chalk.yellow('⚠️  Attention needed')}\n` +
+                  `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
+                  `Reason: ${chalk.gray(optimization.reason)}`,
                 {
                   padding: 1,
                   margin: 1,
@@ -8704,18 +8772,18 @@ EOF`
         this.printPanel(
           boxen(
             `${chalk.cyan(`${isPrecise ? '🎯' : '📊'} Session Token Analysis`)}\n\n` +
-            `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
-            `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
-            `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
-            `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-            `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-            `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
-            `${chalk.yellow('💰 Cost Analysis:')}\n` +
-            `Model: ${chalk.white(currentCost.model)}\n` +
-            `Input Cost: ${chalk.green(`$${currentCost.inputCost.toFixed(6)}`)}\n` +
-            `Output Cost: ${chalk.green(`$${currentCost.outputCost.toFixed(6)}`)}\n` +
-            `Total Cost: ${chalk.yellow.bold(`$${currentCost.totalCost.toFixed(6)}`)}\n\n` +
-            `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✓') : chalk.yellow('Character estimation (fallback)')}`,
+              `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
+              `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
+              `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
+              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+              `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
+              `${chalk.yellow('💰 Cost Analysis:')}\n` +
+              `Model: ${chalk.white(currentCost.model)}\n` +
+              `Input Cost: ${chalk.green(`$${currentCost.inputCost.toFixed(6)}`)}\n` +
+              `Output Cost: ${chalk.green(`$${currentCost.outputCost.toFixed(6)}`)}\n` +
+              `Total Cost: ${chalk.yellow.bold(`$${currentCost.totalCost.toFixed(6)}`)}\n\n` +
+              `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✓') : chalk.yellow('Character estimation (fallback)')}`,
             {
               padding: 1,
               margin: 1,
@@ -8735,8 +8803,8 @@ EOF`
         this.printPanel(
           boxen(
             `System: ${systemMsgs.length} messages (${sysTokens.toLocaleString()} tokens)\n` +
-            `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
-            `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
+              `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
+              `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
             {
               title: '📋 Message Breakdown',
               padding: 1,
@@ -8751,8 +8819,8 @@ EOF`
         this.printPanel(
           boxen(
             `${chalk.yellow('💡 Tip:')} For more precise tracking, start a new session to enable\n` +
-            `real-time token monitoring with the Universal Tokenizer.\n\n` +
-            `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
+              `real-time token monitoring with the Universal Tokenizer.\n\n` +
+              `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
             {
               padding: 1,
               margin: 1,
@@ -8844,7 +8912,7 @@ EOF`
               const c = calc(userTokens, assistantTokens, name)
               const avgPer1K = (c.totalCost / sessionTokens) * 1000
               lines.push(`${c.model}  avg $/1K: $${avgPer1K.toFixed(4)}  total: $${c.totalCost.toFixed(4)}`)
-            } catch { }
+            } catch {}
           })
           if (lines.length > 0) {
             this.printPanel(
@@ -8857,7 +8925,7 @@ EOF`
               })
             )
           }
-        } catch { }
+        } catch {}
 
         // Recommendations
         if (preciseTokens > 150000) {
@@ -9170,17 +9238,20 @@ EOF`
         case 'add-local':
           if (restArgs.length < 2) {
             this.printPanel(
-              boxen([
-                'Usage: /mcp add-local <name> <command-array>',
-                '',
-                'Example: /mcp add-local filesystem ["uvx", "mcp-server-filesystem", "--path", "."]'
-              ].join('\n'), {
-                title: 'MCP Add Local Command',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'red'
-              })
+              boxen(
+                [
+                  'Usage: /mcp add-local <name> <command-array>',
+                  '',
+                  'Example: /mcp add-local filesystem ["uvx", "mcp-server-filesystem", "--path", "."]',
+                ].join('\n'),
+                {
+                  title: 'MCP Add Local Command',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'red',
+                }
+              )
             )
             return
           }
@@ -9190,17 +9261,20 @@ EOF`
         case 'add-remote':
           if (restArgs.length < 2) {
             this.printPanel(
-              boxen([
-                'Usage: /mcp add-remote <name> <url>',
-                '',
-                'Example: /mcp add-remote myapi https://api.example.com/mcp'
-              ].join('\n'), {
-                title: 'MCP Add Remote Command',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'red'
-              })
+              boxen(
+                [
+                  'Usage: /mcp add-remote <name> <url>',
+                  '',
+                  'Example: /mcp add-remote myapi https://api.example.com/mcp',
+                ].join('\n'),
+                {
+                  title: 'MCP Add Remote Command',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'red',
+                }
+              )
             )
             return
           }
@@ -9220,7 +9294,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             return
@@ -9236,7 +9310,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             return
@@ -9256,7 +9330,7 @@ EOF`
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
-                borderColor: 'red'
+                borderColor: 'red',
               })
             )
             return
@@ -9474,24 +9548,27 @@ EOF`
   private async addMcpServer(args: string[]): Promise<void> {
     if (args.length < 3) {
       this.printPanel(
-        boxen([
-          'Usage: /mcp add <name> <type> <endpoint/command>',
-          '',
-          'Types: http, websocket, command, stdio',
-          '',
-          'Examples:',
-          '  /mcp add myapi http https://api.example.com/mcp',
-          '  /mcp add local command "/usr/local/bin/mcp-server"',
-          '  /mcp add ws websocket wss://example.com/mcp',
-          '',
-          '💡 Consider using /mcp add-local or /mcp add-remote for Claude Code compatibility'
-        ].join('\n'), {
-          title: 'MCP Add Command',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'red'
-        })
+        boxen(
+          [
+            'Usage: /mcp add <name> <type> <endpoint/command>',
+            '',
+            'Types: http, websocket, command, stdio',
+            '',
+            'Examples:',
+            '  /mcp add myapi http https://api.example.com/mcp',
+            '  /mcp add local command "/usr/local/bin/mcp-server"',
+            '  /mcp add ws websocket wss://example.com/mcp',
+            '',
+            '💡 Consider using /mcp add-local or /mcp add-remote for Claude Code compatibility',
+          ].join('\n'),
+          {
+            title: 'MCP Add Command',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
       )
       return
     }
@@ -9771,6 +9848,12 @@ EOF`
       ['/redo [count]', 'Redo last N undone edits (default: 1)'],
       ['/edit-history', 'Show edit history and statistics'],
 
+      // 🔌 Background Agent Operations
+      ['/bg-agent <task>', 'Create background job with VM execution + auto PR'],
+      ['/bg-jobs [status]', 'List all background jobs (filter by status)'],
+      ['/bg-status <jobId>', 'Get detailed status of specific job'],
+      ['/bg-logs <jobId> [limit]', 'View job execution logs'],
+
       // 🐳 VM Container Operations
       ['/vm-create <repo-url>', 'Create new VM container'],
       ['/vm-list', 'List all active containers'],
@@ -9874,17 +9957,18 @@ EOF`
     addGroup('📝 Session Management:', 60, 64)
     addGroup('💼 Work Session Management:', 64, 69)
     addGroup('↩️ Edit History (Undo/Redo):', 69, 72)
-    addGroup('🐳 VM Containers:', 72, 90)
-    addGroup('🌐 Web Browsing:', 90, 92)
-    addGroup('🎨 Figma Integration:', 92, 98)
-    addGroup('🔗 Blockchain/Web3:', 98, 102)
-    addGroup('🔍 Vision & Images:', 102, 104)
-    addGroup('🛠️ CAD Design:', 104, 110)
-    addGroup('⚙️ G-code/CNC:', 110, 115)
-    addGroup('📚 Documentation:', 115, 118)
-    addGroup('📸 Snapshots:', 118, 121)
-    addGroup('🔒 Security:', 121, 124)
-    addGroup('🔧 IDE Integration:', 124, commands.length)
+    addGroup('🔌 Background Agents:', 72, 76)
+    addGroup('🐳 VM Containers:', 76, 94)
+    addGroup('🌐 Web Browsing:', 94, 96)
+    addGroup('🎨 Figma Integration:', 96, 102)
+    addGroup('🔗 Blockchain/Web3:', 102, 106)
+    addGroup('🔍 Vision & Images:', 106, 108)
+    addGroup('🛠️ CAD Design:', 108, 114)
+    addGroup('⚙️ G-code/CNC:', 114, 119)
+    addGroup('📚 Documentation:', 119, 122)
+    addGroup('📸 Snapshots:', 122, 125)
+    addGroup('🔒 Security:', 125, 128)
+    addGroup('🔧 IDE Integration:', 128, commands.length)
 
     lines.push('💡 Quick Tips:')
     lines.push('   • Use Ctrl+C to exit any mode')
@@ -9905,8 +9989,6 @@ EOF`
       })
     )
   }
-
-
 
   /**
    * Display cognitive orchestration status
@@ -10223,7 +10305,8 @@ EOF`
     const workingDir = chalk.blue(path.basename(this.workingDirectory))
 
     // Mode info
-    const modeIcon = this.currentMode === 'plan' ? '⚡︎' : this.currentMode === 'vm' ? '🐳' : this.currentMode === 'vim' ? '✏️' : '💎'
+    const modeIcon =
+      this.currentMode === 'plan' ? '⚡︎' : this.currentMode === 'vm' ? '🐳' : this.currentMode === 'vim' ? '✏️' : '💎'
     const _modeText = this.currentMode.toUpperCase()
 
     // VM info if in VM mode
@@ -10351,11 +10434,11 @@ EOF`
 
       process.stdout.write(
         chalk.cyan('│') +
-        chalk.green(displayLeft) +
-        ' '.repeat(padding) +
-        chalk.gray(displayRight) +
-        chalk.cyan('│') +
-        '\n'
+          chalk.green(displayLeft) +
+          ' '.repeat(padding) +
+          chalk.gray(displayRight) +
+          chalk.cyan('│') +
+          '\n'
       )
       process.stdout.write(`${chalk.cyan(`╰${'─'.repeat(terminalWidth - 2)}╯`)}\n`)
     }
@@ -10736,7 +10819,8 @@ EOF`
     const planHudLines = this.planHudVisible ? this.buildPlanHudLines(terminalWidth) : []
 
     // Mode info
-    const _modeIcon = this.currentMode === 'plan' ? '✅' : this.currentMode === 'vm' ? '🐳' : this.currentMode === 'vim' ? '✏️' : '💎'
+    const _modeIcon =
+      this.currentMode === 'plan' ? '✅' : this.currentMode === 'vm' ? '🐳' : this.currentMode === 'vim' ? '✏️' : '💎'
     const modeText = this.currentMode.toUpperCase()
 
     // Status info
@@ -10877,11 +10961,11 @@ EOF`
         if (adjustedPadding >= 0) {
           process.stdout.write(
             chalk.cyan('│') +
-            chalk.green(displayLeft) +
-            ' '.repeat(adjustedPadding) +
-            chalk.gray(displayRight) +
-            chalk.cyan('│') +
-            '\n'
+              chalk.green(displayLeft) +
+              ' '.repeat(adjustedPadding) +
+              chalk.gray(displayRight) +
+              chalk.cyan('│') +
+              '\n'
           )
         } else {
           // Fallback: ensure we don't have negative padding
@@ -10960,16 +11044,21 @@ EOF`
 
       // If the inner result is a verbose agent response, extract just the final summary
       if (typeof innerResult === 'string') {
-        const lines = innerResult.split('\n').map(l => l.trim()).filter(l => l)
+        const lines = innerResult
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l)
 
         // Look for "Completion Summary" or "Outcomes Achieved" sections
         let summaryStartIndex = -1
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].toLowerCase()
-          if (line.includes('completion summary') ||
+          if (
+            line.includes('completion summary') ||
             line.includes('outcomes achieved') ||
             line.includes('overall outcomes') ||
-            line.includes('task completed successfully')) {
+            line.includes('task completed successfully')
+          ) {
             summaryStartIndex = i
             break
           }
@@ -10977,13 +11066,11 @@ EOF`
 
         // If we found a summary section, extract the next few meaningful lines
         if (summaryStartIndex >= 0 && summaryStartIndex + 1 < lines.length) {
-          const summaryLines = lines.slice(summaryStartIndex + 1, summaryStartIndex + 4)
-            .filter(line =>
-              line &&
-              !line.startsWith('**') &&
-              !line.startsWith('#') &&
-              !line.startsWith('*') &&
-              line.length > 20
+          const summaryLines = lines
+            .slice(summaryStartIndex + 1, summaryStartIndex + 4)
+            .filter(
+              (line) =>
+                line && !line.startsWith('**') && !line.startsWith('#') && !line.startsWith('*') && line.length > 20
             )
 
           if (summaryLines.length > 0) {
@@ -10992,7 +11079,7 @@ EOF`
         }
 
         // Fallback: Look for the last meaningful paragraph before "Next Steps"
-        let nextStepsIndex = lines.findIndex(line => line.toLowerCase().includes('next steps'))
+        const nextStepsIndex = lines.findIndex((line) => line.toLowerCase().includes('next steps'))
         if (nextStepsIndex > 0) {
           for (let i = nextStepsIndex - 1; i >= 0; i--) {
             const line = lines[i]
@@ -11003,12 +11090,13 @@ EOF`
         }
 
         // Final fallback: First substantial line that looks like a result
-        const meaningfulLine = lines.find(line =>
-          line.length > 40 &&
-          !line.startsWith('#') &&
-          !line.startsWith('**') &&
-          !line.includes('Request Acknowledged') &&
-          !line.includes('Complexity Assessment')
+        const meaningfulLine = lines.find(
+          (line) =>
+            line.length > 40 &&
+            !line.startsWith('#') &&
+            !line.startsWith('**') &&
+            !line.includes('Request Acknowledged') &&
+            !line.includes('Complexity Assessment')
         )
 
         return meaningfulLine || 'Analysis completed successfully'
@@ -11041,14 +11129,14 @@ EOF`
       this.addLiveUpdate({
         type: 'progress',
         content: `📊 Executing: ${result.todo || 'Processing tasks'} [${this.generateProgressBar(result.todosCompleted, result.totalTodos)}] ${Math.round((result.todosCompleted / result.totalTodos) * 100)}%`,
-        source: agentName
+        source: agentName,
       })
 
       // Show completion status
       this.addLiveUpdate({
         type: 'status',
         content: `✓ Completed: ${result.todo || 'Task execution completed'}`,
-        source: agentName
+        source: agentName,
       })
 
       // Show the main content from result directly
@@ -11057,14 +11145,14 @@ EOF`
         this.addLiveUpdate({
           type: 'result',
           content: formattedContent,
-          source: agentName
+          source: agentName,
         })
       } else if (result && result.result && typeof result.result === 'string') {
         const formattedContent = this.formatAgentReport(result.result)
         this.addLiveUpdate({
           type: 'result',
           content: formattedContent,
-          source: agentName
+          source: agentName,
         })
       }
 
@@ -11072,7 +11160,7 @@ EOF`
       this.addLiveUpdate({
         type: 'status',
         content: `**${agentName} Completed:**\n\n✅ Completed ${result.todosCompleted}/${result.totalTodos} tasks successfully`,
-        source: agentName
+        source: agentName,
       })
     } else {
       // Fallback to simple result display
@@ -11080,7 +11168,7 @@ EOF`
       this.addLiveUpdate({
         type: 'status',
         content: `**${agentName} Completed:**\n\n${formattedResult}`,
-        source: agentName
+        source: agentName,
       })
     }
   }
@@ -11091,15 +11179,20 @@ EOF`
   private extractTaskSummary(resultText: string): string | null {
     if (!resultText || typeof resultText !== 'string') return null
 
-    const lines = resultText.split('\n').map(l => l.trim()).filter(l => l)
+    const lines = resultText
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l)
 
     // Look for completion summary sections first
     let summaryStartIndex = -1
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].toLowerCase()
-      if (line.includes('completion summary') ||
+      if (
+        line.includes('completion summary') ||
         line.includes('outcomes achieved') ||
-        line.includes('overall outcomes')) {
+        line.includes('overall outcomes')
+      ) {
         summaryStartIndex = i
         break
       }
@@ -11110,7 +11203,13 @@ EOF`
       const summaryLines: string[] = []
       for (let i = summaryStartIndex + 1; i < Math.min(summaryStartIndex + 10, lines.length); i++) {
         const line = lines[i]
-        if (line.length > 20 && !line.startsWith('**') && !line.startsWith('#') && !line.startsWith('*') && !line.includes('Next Steps')) {
+        if (
+          line.length > 20 &&
+          !line.startsWith('**') &&
+          !line.startsWith('#') &&
+          !line.startsWith('*') &&
+          !line.includes('Next Steps')
+        ) {
           summaryLines.push(line)
           if (summaryLines.length >= 3) break // Get first 3 meaningful lines
         }
@@ -11124,9 +11223,11 @@ EOF`
     // Fallback: Look for "Actionable Recommendations" or key findings
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].toLowerCase()
-      if (line.includes('actionable recommendations') ||
+      if (
+        line.includes('actionable recommendations') ||
         line.includes('key findings') ||
-        line.includes('main results')) {
+        line.includes('main results')
+      ) {
         // Get the next few meaningful lines
         const resultLines: string[] = []
         for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
@@ -11143,14 +11244,15 @@ EOF`
     }
 
     // Final fallback: Get substantial content from the middle of the text
-    const substantialLines = lines.filter(line =>
-      line.length > 50 &&
-      !line.startsWith('#') &&
-      !line.startsWith('**') &&
-      !line.includes('Request Acknowledged') &&
-      !line.includes('Complexity Assessment') &&
-      !line.includes('TaskMaster AI') &&
-      !line.includes('Execution Strategy')
+    const substantialLines = lines.filter(
+      (line) =>
+        line.length > 50 &&
+        !line.startsWith('#') &&
+        !line.startsWith('**') &&
+        !line.includes('Request Acknowledged') &&
+        !line.includes('Complexity Assessment') &&
+        !line.includes('TaskMaster AI') &&
+        !line.includes('Execution Strategy')
     )
 
     if (substantialLines.length > 0) {
@@ -11166,7 +11268,10 @@ EOF`
   private extractKeyFindings(resultText: string): string | null {
     if (!resultText || typeof resultText !== 'string') return null
 
-    const lines = resultText.split('\n').map(l => l.trim()).filter(l => l)
+    const lines = resultText
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l)
 
     // Look for "Task X:" patterns (like "Task 1: Repository State Check")
     const taskResults: string[] = []
@@ -11234,7 +11339,10 @@ EOF`
   private formatAgentReport(resultText: string): string {
     if (!resultText || typeof resultText !== 'string') return 'Report completed'
 
-    const lines = resultText.split('\n').map(l => l.trim()).filter(l => l)
+    const lines = resultText
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l)
     const formattedSections: string[] = []
 
     // Extract task sections (#### Task X: ...)
@@ -11312,14 +11420,17 @@ EOF`
 
     // If no formatted sections, try to get key content
     if (formattedSections.length === 0) {
-      const meaningfulContent = lines.filter(line =>
-        line.length > 40 &&
-        !line.includes('Request Summary') &&
-        !line.includes('Cognitive Analysis') &&
-        !line.includes('TaskMaster AI') &&
-        !line.startsWith('**') &&
-        !line.startsWith('#')
-      ).slice(0, 3)
+      const meaningfulContent = lines
+        .filter(
+          (line) =>
+            line.length > 40 &&
+            !line.includes('Request Summary') &&
+            !line.includes('Cognitive Analysis') &&
+            !line.includes('TaskMaster AI') &&
+            !line.startsWith('**') &&
+            !line.startsWith('#')
+        )
+        .slice(0, 3)
 
       return meaningfulContent.join('\n\n') || 'Analysis completed successfully'
     }
@@ -11548,8 +11659,8 @@ EOF`
       this.updateSpinnerText(operation)
     }, 500)
 
-      // Store interval for cleanup
-      ; (this.activeSpinner as any)._interval = interval
+    // Store interval for cleanup
+    ;(this.activeSpinner as any)._interval = interval
   }
 
   /**
@@ -12021,7 +12132,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                     padding: 1,
                     margin: 1,
                     borderStyle: 'round',
-                    borderColor: 'yellow'
+                    borderColor: 'yellow',
                   })
                 )
             }
@@ -12077,7 +12188,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
                     padding: 1,
                     margin: 1,
                     borderStyle: 'round',
-                    borderColor: 'yellow'
+                    borderColor: 'yellow',
                   })
                 )
             }
@@ -12260,7 +12371,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             padding: 1,
             margin: 1,
             borderStyle: 'round',
-            borderColor: 'yellow'
+            borderColor: 'yellow',
           })
         )
     }
@@ -13152,13 +13263,16 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       }
 
       this.printPanel(
-        boxen(`Session resumed: ${session.name}\n\nMessages: ${session.metadata.totalMessages}\nEdits: ${session.metadata.totalEdits}\nFiles modified: ${session.stats.filesModified}`, {
-          title: '✓ Session Resumed',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'green',
-        })
+        boxen(
+          `Session resumed: ${session.name}\n\nMessages: ${session.metadata.totalMessages}\nEdits: ${session.metadata.totalEdits}\nFiles modified: ${session.stats.filesModified}`,
+          {
+            title: '✓ Session Resumed',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          }
+        )
       )
     } catch (error: any) {
       this.printPanel(
@@ -13199,7 +13313,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       sessions.forEach((s, idx) => {
         const created = new Date(s.createdAt).toLocaleString()
         const accessed = new Date(s.lastAccessedAt).toLocaleString()
-        const tags = (s.tags?.length ?? 0) > 0 ? ` [${s.tags!.join(', ')}]` : '';
+        const tags = (s.tags?.length ?? 0) > 0 ? ` [${s.tags!.join(', ')}]` : ''
 
         lines.push(`${idx + 1}. ${s.name}${tags}`)
         lines.push(`   ID: ${s.id}`)
@@ -13275,13 +13389,16 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         await workSessionManager.saveCurrentSession()
 
         this.printPanel(
-          boxen(`New session created: ${session.name}\nID: ${session.id}\nMessages: ${session.metadata.totalMessages}`, {
-            title: '✓ Session Created',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'green',
-          })
+          boxen(
+            `New session created: ${session.name}\nID: ${session.id}\nMessages: ${session.metadata.totalMessages}`,
+            {
+              title: '✓ Session Created',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
         )
       } else {
         // Update existing session name if provided
@@ -13313,13 +13430,16 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         await workSessionManager.saveCurrentSession()
 
         this.printPanel(
-          boxen(`Session saved: ${currentWorkSession.name}\nID: ${currentWorkSession.id}\nEdits: ${currentWorkSession.metadata.totalEdits} | Messages: ${currentWorkSession.metadata.totalMessages}`, {
-            title: '💾 Session Saved',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'green',
-          })
+          boxen(
+            `Session saved: ${currentWorkSession.name}\nID: ${currentWorkSession.id}\nEdits: ${currentWorkSession.metadata.totalEdits} | Messages: ${currentWorkSession.metadata.totalMessages}`,
+            {
+              title: '💾 Session Saved',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
         )
       }
     } catch (error: any) {
@@ -13398,13 +13518,16 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     try {
       if (args.length < 2) {
         this.printPanel(
-          boxen('Usage: /export-session <session-id> <export-path>\n\nExample: /export-session abc123 ./backup/session.json', {
-            title: '📦 Export Session',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'yellow',
-          })
+          boxen(
+            'Usage: /export-session <session-id> <export-path>\n\nExample: /export-session abc123 ./backup/session.json',
+            {
+              title: '📦 Export Session',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }
+          )
         )
         return
       }
@@ -14568,17 +14691,20 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   private async handleDatabaseCommands(args: string[]): Promise<void> {
     if (args.length === 0) {
       this.printPanel(
-        boxen([
-          'Usage: /db [sessions|blueprints|users|metrics] [action] [options]',
-          '',
-          'Available actions: list, get, create, update, delete, stats'
-        ].join('\n'), {
-          title: 'Database Command',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'yellow'
-        })
+        boxen(
+          [
+            'Usage: /db [sessions|blueprints|users|metrics] [action] [options]',
+            '',
+            'Available actions: list, get, create, update, delete, stats',
+          ].join('\n'),
+          {
+            title: 'Database Command',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }
+        )
       )
       return
     }
@@ -15373,7 +15499,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'cyan'
+          borderColor: 'cyan',
         })
       )
     } catch (error: any) {
@@ -15388,10 +15514,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     // Prevent user input queue interference during interactive prompts
     try {
       this.suspendPrompt()
-    } catch { }
+    } catch {}
     try {
       inputQueue.enableBypass()
-    } catch { }
+    } catch {}
 
     try {
       const sectionChoices = [
@@ -15659,7 +15785,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Always disable bypass and restore prompt
       try {
         inputQueue.disableBypass()
-      } catch { }
+      } catch {}
       process.stdout.write('')
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
@@ -15919,7 +16045,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     } finally {
       try {
         inputQueue.disableBypass()
-      } catch { }
+      } catch {}
       this.resumePromptAndRender()
     }
   }
@@ -16447,12 +16573,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
           if (stats.redis.health) {
             statusContent += `  Latency: ${chalk.blue(stats.redis.health.latency)}ms\n`
-            statusContent += `  Status: ${stats.redis.health.status === 'healthy'
-              ? chalk.green('Healthy')
-              : stats.redis.health.status === 'degraded'
-                ? chalk.yellow('Degraded')
-                : chalk.red('Unhealthy')
-              }\n`
+            statusContent += `  Status: ${
+              stats.redis.health.status === 'healthy'
+                ? chalk.green('Healthy')
+                : stats.redis.health.status === 'degraded'
+                  ? chalk.yellow('Degraded')
+                  : chalk.red('Unhealthy')
+            }\n`
           }
 
           statusContent += `\n${chalk.cyan('Performance:')}\n`
@@ -16508,16 +16635,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   private async handleBrowseCommand(args: string[]): Promise<void> {
     if (args.length < 1) {
       this.printPanel(
-        boxen([
-          'Usage: /browse <url>',
-          '',
-          'Example: /browse https://example.com'
-        ].join('\n'), {
+        boxen(['Usage: /browse <url>', '', 'Example: /browse https://example.com'].join('\n'), {
           title: 'Browse Command',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'red'
+          borderColor: 'red',
         })
       )
       return
@@ -16567,18 +16690,21 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   private async handleWebAnalyzeCommand(args: string[]): Promise<void> {
     if (args.length < 1) {
       this.printPanel(
-        boxen([
-          'Usage: /web-analyze <url> [provider]',
-          '',
-          'Example: /web-analyze https://example.com claude',
-          'Providers: claude, openai, google, openrouter'
-        ].join('\n'), {
-          title: 'Web Analyze Command',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'red'
-        })
+        boxen(
+          [
+            'Usage: /web-analyze <url> [provider]',
+            '',
+            'Example: /web-analyze https://example.com claude',
+            'Providers: claude, openai, google, openrouter',
+          ].join('\n'),
+          {
+            title: 'Web Analyze Command',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
       )
       return
     }
@@ -17155,7 +17281,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         }
         break
 
-      case 'status':
+      case 'status': {
         const isActive = this.vimModeManager.getCurrentMode()
         const mode = this.vimModeManager.getCurrentMode()
         console.log(chalk.blue('📋 Vim Mode Status:'))
@@ -17163,6 +17289,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(`  Mode: ${chalk.cyan(mode)}`)
         console.log(`  Buffer Lines: ${chalk.cyan(this.vimModeManager.getBuffer().split('\n').length)}`)
         break
+      }
 
       case 'config':
         console.log(chalk.blue('⚙️ Vim Mode Configuration:'))
@@ -17220,8 +17347,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           this.checkForCollaborationOpportunities(agent, collaborationContext)
 
           // Check if all agents are done for merge
-          const allAgentsCompleted = Array.from(collaborationContext.logs.values())
-            .every((logs: any) => (logs as string[]).some((log: string) => log.includes('Completed specialized analysis')))
+          const allAgentsCompleted = Array.from(collaborationContext.logs.values()).every((logs: any) =>
+            (logs as string[]).some((log: string) => log.includes('Completed specialized analysis'))
+          )
 
           if (allAgentsCompleted) {
             console.log(chalk.blue('\n🔄 All agents completed - initiating merge process...'))
@@ -17231,7 +17359,6 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           }
         }
       }, 500) // Check every 500ms
-
     } catch (error: any) {
       console.error(chalk.red(`Error monitoring agent completion: ${error.message}`))
     }
@@ -17243,17 +17370,17 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   private calculateExecutionTime(specialization: string): number {
     const baseTime = 2000 // 2 seconds base
     const specializationMultipliers: Record<string, number> = {
-      'fullstack': 1.5,
-      'frontend': 1.2,
-      'backend': 1.4,
-      'devops': 1.6,
-      'security': 1.3,
+      fullstack: 1.5,
+      frontend: 1.2,
+      backend: 1.4,
+      devops: 1.6,
+      security: 1.3,
       'data-science': 1.8,
-      'mobile': 1.3,
-      'testing': 1.1,
-      'documentation': 0.8,
+      mobile: 1.3,
+      testing: 1.1,
+      documentation: 0.8,
       'ui-ux': 1.0,
-      'default': 1.0
+      default: 1.0,
     }
 
     const multiplier = specializationMultipliers[specialization.toLowerCase()] || specializationMultipliers.default
@@ -17269,37 +17396,37 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
     // Generate specialized results based on agent type
     const specializationResults: Record<string, any> = {
-      'fullstack': {
+      fullstack: {
         summary: `Full-stack analysis: frontend & backend components identified`,
         components: ['React components', 'API endpoints', 'Database schema'],
-        recommendations: ['Use TypeScript', 'Implement proper error handling', 'Add testing']
+        recommendations: ['Use TypeScript', 'Implement proper error handling', 'Add testing'],
       },
-      'frontend': {
+      frontend: {
         summary: `Frontend analysis: UI/UX components and interactions`,
         components: ['Components', 'Styling', 'State management'],
-        recommendations: ['Responsive design', 'Accessibility', 'Performance optimization']
+        recommendations: ['Responsive design', 'Accessibility', 'Performance optimization'],
       },
-      'backend': {
+      backend: {
         summary: `Backend analysis: API design and data flow`,
         components: ['REST endpoints', 'Database queries', 'Business logic'],
-        recommendations: ['Input validation', 'Rate limiting', 'Caching strategy']
+        recommendations: ['Input validation', 'Rate limiting', 'Caching strategy'],
       },
-      'devops': {
+      devops: {
         summary: `DevOps analysis: deployment and infrastructure`,
         components: ['CI/CD pipeline', 'Infrastructure', 'Monitoring'],
-        recommendations: ['Containerization', 'Auto-scaling', 'Logging strategy']
+        recommendations: ['Containerization', 'Auto-scaling', 'Logging strategy'],
       },
-      'security': {
+      security: {
         summary: `Security analysis: vulnerabilities and protection`,
         components: ['Authentication', 'Authorization', 'Data protection'],
-        recommendations: ['Input sanitization', 'HTTPS enforcement', 'Security headers']
-      }
+        recommendations: ['Input sanitization', 'HTTPS enforcement', 'Security headers'],
+      },
     }
 
     const result = specializationResults[specialization] || {
       summary: `General analysis completed for: ${task}`,
       components: ['Core functionality', 'Dependencies', 'Configuration'],
-      recommendations: ['Code review', 'Documentation', 'Testing']
+      recommendations: ['Code review', 'Documentation', 'Testing'],
     }
 
     return {
@@ -17307,7 +17434,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       timestamp,
       agentName: blueprint.name,
       taskAnalyzed: task,
-      confidence: Math.floor(75 + Math.random() * 20) // 75-95% confidence
+      confidence: Math.floor(75 + Math.random() * 20), // 75-95% confidence
     }
   }
 
@@ -17332,17 +17459,19 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           ['backend', 'devops'],
           ['security', 'backend'],
           ['testing', 'fullstack'],
-          ['ui-ux', 'frontend']
+          ['ui-ux', 'frontend'],
         ]
 
-        return collaborationPairs.some(pair =>
-          (pair.includes(agentSpec) && pair.includes(otherSpec))
-        )
+        return collaborationPairs.some((pair) => pair.includes(agentSpec) && pair.includes(otherSpec))
       })
 
       if (collaborationOpportunities.length > 0) {
         const timestamp = new Date().toLocaleTimeString()
-        console.log(chalk.cyan(`[${timestamp}] [${agent.blueprint.name}] 🤝 Collaboration opportunities found with ${collaborationOpportunities.length} agents`))
+        console.log(
+          chalk.cyan(
+            `[${timestamp}] [${agent.blueprint.name}] 🤝 Collaboration opportunities found with ${collaborationOpportunities.length} agents`
+          )
+        )
 
         // Log collaboration details
         collaborationOpportunities.forEach(([otherId, _otherData]: [string, any]) => {
@@ -17367,8 +17496,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       metadata: {
         stepId,
         progress,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     })
   }
 
@@ -17391,7 +17520,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             agentId,
             agentName: agentData.result.agentName,
             specialization: agentData.result.agentName?.split(' ')[0] || 'Unknown',
-            result: agentData.result
+            result: agentData.result,
           })
         }
       }
@@ -17404,12 +17533,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Build unified response content
       let unifiedResponse = `**🔄 Parallel Execution Results**\n\n`
       unifiedResponse += `**Task:** ${collaborationContext.task}\n`
-      unifiedResponse += `**Agents:** ${allResults.map(r => r.specialization).join(', ')}\n`
+      unifiedResponse += `**Agents:** ${allResults.map((r) => r.specialization).join(', ')}\n`
       unifiedResponse += `**Total Actions:** ${allLogs.length}\n\n`
 
       // Add individual agent contributions
       unifiedResponse += `## 📊 Agent Contributions\n\n`
-      allResults.forEach(agentResult => {
+      allResults.forEach((agentResult) => {
         unifiedResponse += `### ${agentResult.specialization} Agent\n`
         unifiedResponse += `${agentResult.result.summary}\n\n`
         if (agentResult.result.components) {
@@ -17419,12 +17548,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       // Add unified recommendations
       const allRecommendations = allResults
-        .flatMap(r => r.result.recommendations || [])
+        .flatMap((r) => r.result.recommendations || [])
         .filter((rec, index, arr) => arr.indexOf(rec) === index) // Remove duplicates
 
       if (allRecommendations.length > 0) {
         unifiedResponse += `## 💡 Unified Recommendations\n\n`
-        allRecommendations.forEach(rec => {
+        allRecommendations.forEach((rec) => {
           unifiedResponse += `• ${rec}\n`
         })
         unifiedResponse += `\n`
@@ -17434,12 +17563,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       // Display in console for debugging
       console.log(chalk.green(`✓ Task: ${collaborationContext.task}`))
-      console.log(chalk.cyan(`✓ Agents: ${allResults.map(r => r.specialization).join(', ')}`))
+      console.log(chalk.cyan(`✓ Agents: ${allResults.map((r) => r.specialization).join(', ')}`))
       console.log(chalk.yellow(`✓ Total Actions: ${allLogs.length}`))
 
       // Display individual agent contributions
       console.log(chalk.blue('\n📊 Agent Contributions:'))
-      allResults.forEach(agentResult => {
+      allResults.forEach((agentResult) => {
         console.log(chalk.white(`\n  ${agentResult.specialization} Agent:`))
         console.log(chalk.gray(`    ${agentResult.result.summary}`))
         if (agentResult.result.components) {
@@ -17449,7 +17578,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       if (allRecommendations.length > 0) {
         console.log(chalk.blue('\n💡 Unified Recommendations:'))
-        allRecommendations.forEach(rec => {
+        allRecommendations.forEach((rec) => {
           console.log(chalk.gray(`  • ${rec}`))
         })
       }
@@ -17460,13 +17589,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Output final unified response as standard output stream (not live update)
       console.log(chalk.blue.bold('🔄 Parallel Execution Results'))
       console.log(chalk.cyan(`📋 Task: ${collaborationContext.task}`))
-      console.log(chalk.cyan(`🤖 Agents: ${allResults.map(r => r.specialization).join(', ')}`))
+      console.log(chalk.cyan(`🤖 Agents: ${allResults.map((r) => r.specialization).join(', ')}`))
       console.log(chalk.cyan(`⚡️ Total Actions: ${allLogs.length}`))
       console.log('')
 
       // Display individual agent contributions
       console.log(chalk.blue('📊 Agent Contributions:'))
-      allResults.forEach(agentResult => {
+      allResults.forEach((agentResult) => {
         console.log(chalk.white(`\n  ${agentResult.specialization} Agent:`))
         console.log(chalk.gray(`    ${agentResult.result.summary}`))
         if (agentResult.result.components) {
@@ -17476,21 +17605,96 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       // Unified recommendations for output stream
       const finalRecommendations = allResults
-        .flatMap(r => r.result.recommendations || [])
+        .flatMap((r) => r.result.recommendations || [])
         .filter((rec, index, arr) => arr.indexOf(rec) === index) // Remove duplicates
 
       if (finalRecommendations.length > 0) {
         console.log(chalk.blue('\n💡 Unified Recommendations:'))
-        finalRecommendations.forEach(rec => {
+        finalRecommendations.forEach((rec) => {
           console.log(chalk.gray(`  • ${rec}`))
         })
       }
 
       console.log(chalk.green('\n✓ Parallel execution completed successfully'))
-
     } catch (error: any) {
       console.error(chalk.red(`Error merging agent results: ${error.message}`))
     }
+  }
+
+  /**
+   * Show background job status panel
+   */
+  private showBackgroundJobPanel(status: string, jobId: string, job: any): void {
+    const statusConfig = {
+      created: {
+        icon: '🔌',
+        title: 'Background Job Created',
+        color: 'cyan' as const,
+      },
+      started: {
+        icon: '🚀',
+        title: 'Background Job Started',
+        color: 'blue' as const,
+      },
+      completed: {
+        icon: '✅',
+        title: 'Background Job Completed',
+        color: 'green' as const,
+      },
+      failed: {
+        icon: '❌',
+        title: 'Background Job Failed',
+        color: 'red' as const,
+      },
+    }
+
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.created
+    const lines: string[] = []
+
+    lines.push(`${config.icon} Job ID: ${jobId.slice(0, 8)}`)
+    lines.push(`Repository: ${job.repo || 'N/A'}`)
+    lines.push(`Task: ${job.task || 'N/A'}`)
+    lines.push('')
+
+    if (status === 'created') {
+      lines.push(`Status: Queued for execution`)
+      lines.push(`Branch: ${job.workBranch || 'N/A'}`)
+    } else if (status === 'started') {
+      lines.push(`Status: Executing in VM container`)
+      if (job.containerId) {
+        lines.push(`Container: ${job.containerId.slice(0, 12)}`)
+      }
+    } else if (status === 'completed') {
+      lines.push(`Status: Successfully completed`)
+      if (job.prUrl) {
+        lines.push('')
+        lines.push(`${chalk.bold.green('🎉 Pull Request Created:')}`)
+        lines.push(chalk.cyan(job.prUrl))
+      }
+      if (job.metrics) {
+        lines.push('')
+        lines.push(`Metrics:`)
+        lines.push(`  Token Usage: ${job.metrics.tokenUsage || 0}`)
+        lines.push(`  Tool Calls: ${job.metrics.toolCalls || 0}`)
+        lines.push(`  Duration: ${Math.round((job.metrics.executionTime || 0) / 1000)}s`)
+      }
+    } else if (status === 'failed') {
+      lines.push(`Status: Failed`)
+      if (job.error) {
+        lines.push('')
+        lines.push(`Error: ${job.error}`)
+      }
+    }
+
+    this.printPanel(
+      boxen(lines.join('\n'), {
+        title: config.title,
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: config.color,
+      })
+    )
   }
 }
 
@@ -17500,6 +17704,6 @@ let globalNikCLI: NikCLI | null = null
 // Export function to set global instance
 export function setGlobalNikCLI(instance: NikCLI): void {
   globalNikCLI = instance
-    // Use consistent global variable name
-    ; (global as any).__nikCLI = instance
+  // Use consistent global variable name
+  ;(global as any).__nikCLI = instance
 }

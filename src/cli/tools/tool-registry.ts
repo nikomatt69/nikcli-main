@@ -258,26 +258,7 @@ export class ToolRegistry {
     // Additional tools would be registered here
     // For now, we'll create placeholder registrations for the tools referenced in the planner
 
-    this.registerTool('read-file-tool', new ReadFileTool(workingDirectory), {
-      description: 'Read file contents with security validation',
-      category: 'filesystem',
-      riskLevel: 'low',
-      reversible: true,
-      estimatedDuration: 2000,
-      requiredPermissions: ['read'],
-      supportedFileTypes: ['*'],
-      tags: ['read', 'filesystem'],
-    })
-    this.registerTool('multi-read-tool', new MultiReadTool(workingDirectory), {
-      description: 'Read file contents with security validation',
-      category: 'filesystem',
-      riskLevel: 'low',
-      reversible: true,
-      estimatedDuration: 2000,
-      requiredPermissions: ['read'],
-      supportedFileTypes: ['*'],
-      tags: ['read', 'filesystem'],
-    })
+
     this.registerTool('read-file-tool', new ReadFileTool(workingDirectory), {
       description: 'Read file contents with security validation',
       category: 'filesystem',

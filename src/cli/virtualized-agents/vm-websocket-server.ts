@@ -53,7 +53,6 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       this.setupHeartbeat()
 
       this.isRunning = true
-
     } catch (error: any) {
       console.error(chalk.red(`❌ Failed to start VM WebSocket Server: ${error.message}`))
       throw error
@@ -230,8 +229,8 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       }
     }, 10000) // 10 second timeout
 
-      // Store temporary connection until initialized
-      ; (ws as any)._initTimeout = initTimeout
+    // Store temporary connection until initialized
+    ;(ws as any)._initTimeout = initTimeout
   }
 
   private async handleMessage(ws: WebSocket, data: any): Promise<void> {

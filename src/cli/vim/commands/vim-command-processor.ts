@@ -314,19 +314,22 @@ export class VimCommandProcessor extends EventEmitter {
       case 'gen':
         this.emit('aiRequest', `generate: ${prompt}`)
         break
-      case 'explain':
+      case 'explain': {
         const context = this.getSelectedText() || this.getCurrentLine()
         this.emit('aiRequest', `explain: ${context}`)
         break
+      }
       case 'refactor':
-      case 'ref':
+      case 'ref': {
         const refactorContext = this.getSelectedText() || this.getCurrentLine()
         this.emit('aiRequest', `refactor: ${refactorContext} -> ${prompt}`)
         break
-      case 'comment':
+      }
+      case 'comment': {
         const commentContext = this.getSelectedText() || this.getCurrentLine()
         this.emit('aiRequest', `comment: ${commentContext}`)
         break
+      }
       default:
         return { success: false, error: `Unknown AI command: ${subcommand}` }
     }

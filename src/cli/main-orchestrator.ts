@@ -362,9 +362,9 @@ export class MainOrchestrator {
       await this.streamOrchestrator.streamToPanel(
         'vm-metrics',
         `📊 ${data.containerId?.slice(0, 8)}:\n` +
-        `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
-        `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
-        `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
+          `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
+          `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
+          `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
       )
     })
 

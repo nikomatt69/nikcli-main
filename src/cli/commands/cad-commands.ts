@@ -1,12 +1,12 @@
 /**
-* CAD Commands for NikCLI
-* Provides slash commands to interact with the text-to-CAD AI system
-*/
+ * CAD Commands for NikCLI
+ * Provides slash commands to interact with the text-to-CAD AI system
+ */
 
+import boxen from 'boxen'
 import chalk from 'chalk'
 import { TextToCADAgent } from '../agents/text-to-cad-agent'
 import { getCadService } from '../services/cad-gcode-service'
-import boxen from 'boxen'
 
 export class CADCommands {
   private cadAgent: TextToCADAgent
@@ -159,7 +159,7 @@ export class CADCommands {
       '• SCAD - OpenSCAD script export',
       '• JSON - Internal element structure',
       '',
-      'Usage: /cad export <format> <description>'
+      'Usage: /cad export <format> <description>',
     ].join('\n')
 
     if (this.cliInstance?.printPanel) {
@@ -169,17 +169,19 @@ export class CADCommands {
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'cyan'
+          borderColor: 'cyan',
         })
       )
     } else {
-      console.log(boxen(content, {
-        title: '📁 CAD Export Formats',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan'
-      }))
+      console.log(
+        boxen(content, {
+          title: '📁 CAD Export Formats',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
     }
   }
 
@@ -203,7 +205,7 @@ export class CADCommands {
       '',
       'Export to file:',
       '  /cad export stl "simple bracket for 3D printing"',
-      '  /cad export step "precision machined part"'
+      '  /cad export step "precision machined part"',
     ].join('\n')
 
     if (this.cliInstance?.printPanel) {
@@ -213,17 +215,19 @@ export class CADCommands {
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'cyan'
+          borderColor: 'cyan',
         })
       )
     } else {
-      console.log(boxen(content, {
-        title: '🎨 CAD Examples',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan'
-      }))
+      console.log(
+        boxen(content, {
+          title: '🎨 CAD Examples',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
     }
   }
 
@@ -236,9 +240,9 @@ export class CADCommands {
       '🔧 Text-to-CAD System Status:',
       '',
       'Available capabilities:',
-      ...capabilities.map(cap => `  ✓ ${cap}`),
+      ...capabilities.map((cap) => `  ✓ ${cap}`),
       '',
-      '🟢 System ready for CAD generation'
+      '🟢 System ready for CAD generation',
     ].join('\n')
 
     if (this.cliInstance?.printPanel) {
@@ -248,17 +252,19 @@ export class CADCommands {
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'green'
+          borderColor: 'green',
         })
       )
     } else {
-      console.log(boxen(content, {
-        title: '🔧 CAD System Status',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'green'
-      }))
+      console.log(
+        boxen(content, {
+          title: '🔧 CAD System Status',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
     }
   }
 
@@ -281,7 +287,7 @@ export class CADCommands {
       '  /cad help                    - Show this help',
       '',
       '💡 Tip: Use detailed descriptions for better results',
-      'Example: "aluminum bracket 50x30x5mm with 4x M6 bolt holes"'
+      'Example: "aluminum bracket 50x30x5mm with 4x M6 bolt holes"',
     ].join('\n')
 
     if (this.cliInstance?.printPanel) {
@@ -291,17 +297,19 @@ export class CADCommands {
           padding: 1,
           margin: 1,
           borderStyle: 'round',
-          borderColor: 'cyan'
+          borderColor: 'cyan',
         })
       )
     } else {
-      console.log(boxen(content, {
-        title: '🎨 Text-to-CAD AI Commands',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan'
-      }))
+      console.log(
+        boxen(content, {
+          title: '🎨 Text-to-CAD AI Commands',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
     }
   }
 }

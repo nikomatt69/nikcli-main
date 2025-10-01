@@ -49,8 +49,6 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
     }
 
     try {
-
-
       // Ensure WebSocket server is running
       if (!vmWebSocketServer.getServerStats().isRunning) {
         await vmWebSocketServer.start()

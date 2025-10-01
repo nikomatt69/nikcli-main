@@ -19,6 +19,8 @@ export interface BackgroundJob {
   prUrl?: string
   metrics: JobMetrics
   followUpMessages: FollowUpMessage[]
+  githubContext?: GitHubContext
+  containerId?: string
 }
 
 export interface JobLimits {
@@ -197,6 +199,7 @@ export interface CreateBackgroundJobRequest {
   reviewers?: string[]
   labels?: string[]
   draft?: boolean
+  githubContext?: GitHubContext
 }
 
 export interface QueueStats {
@@ -205,4 +208,14 @@ export interface QueueStats {
   completed: number
   failed: number
   delayed: number
+}
+
+export interface GitHubContext {
+  issueNumber: number
+  commentId: number
+  repository: string
+  author: string
+  isPR?: boolean
+  isPRReview?: boolean
+  isIssue?: boolean
 }

@@ -2,15 +2,11 @@ import chalk from 'chalk'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
-import { type AgentTaskResult } from './base-agent'
-import type { AgentTask } from './agent-router'
-import { CognitiveAgentBase } from './cognitive-agent-base'
-import {
-  CodingCognition,
-  type OrchestrationPlan,
-  type TaskCognition,
-} from './cognitive-interfaces'
 import { CliUI } from '../../utils/cli-ui'
+import type { AgentTask } from './agent-router'
+import type { AgentTaskResult } from './base-agent'
+import { CognitiveAgentBase } from './cognitive-agent-base'
+import type { CodingCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
 
 const CodeAnalysisSchema = z.object({
   language: z.string(),
@@ -67,7 +63,7 @@ export class CodingAgent extends CognitiveAgentBase {
     'test-generation',
     'documentation',
     'performance-optimization',
-    'security-analysis'
+    'security-analysis',
   ]
   specialization = 'General purpose coding assistance with cognitive intelligence'
   name = 'coding-agent'
@@ -83,13 +79,13 @@ export class CodingAgent extends CognitiveAgentBase {
     'Bug debugging and fixes',
     'Test generation automation',
     'Refactoring intelligence',
-    'Multi-language support'
+    'Multi-language support',
   ]
   protected cognitiveWeaknesses = [
     'Domain-specific business logic',
     'UI/UX design optimization',
     'Database schema design',
-    'Infrastructure management'
+    'Infrastructure management',
   ]
 
   constructor(workingDirectory: string = process.cwd()) {
@@ -104,11 +100,15 @@ export class CodingAgent extends CognitiveAgentBase {
 
   private async initializeCodingCognition(): Promise<void> {
     const codingPatterns = [
-      'code-analysis', 'code-generation', 'debugging',
-      'test-generation', 'documentation', 'refactoring'
+      'code-analysis',
+      'code-generation',
+      'debugging',
+      'test-generation',
+      'documentation',
+      'refactoring',
     ]
 
-    codingPatterns.forEach(pattern => {
+    codingPatterns.forEach((pattern) => {
       if (!this.cognitiveMemory.taskPatterns.has(pattern)) {
         this.cognitiveMemory.taskPatterns.set(pattern, [])
       }
@@ -162,12 +162,12 @@ export class CodingAgent extends CognitiveAgentBase {
     const messages: ChatMessage[] = [
       {
         role: 'system',
-        content: `You are an expert coding assistant. Help with: ${cognition.originalTask}`
+        content: `You are an expert coding assistant. Help with: ${cognition.originalTask}`,
       },
       {
         role: 'user',
-        content: cognition.originalTask
-      }
+        content: cognition.originalTask,
+      },
     ]
 
     const response = await modelProvider.generateResponse({ messages })
@@ -178,8 +178,6 @@ export class CodingAgent extends CognitiveAgentBase {
     const codeMatch = cognition.originalTask.match(/```[\s\S]*?```/)
     return codeMatch ? codeMatch[0].replace(/```/g, '').trim() : null
   }
-
-
 
   /**
    * 🧠 Execute task with Coding-specific cognitive orchestration
@@ -225,8 +223,11 @@ export class CodingAgent extends CognitiveAgentBase {
         message: `Coding task completed with ${plan.strategy} orchestration in ${executionTime}ms`,
         executionTime,
         data: {
-          cognition, orchestrationPlan: plan, taskType,
-          result, metrics: this.getPerformanceMetrics(),
+          cognition,
+          orchestrationPlan: plan,
+          taskType,
+          result,
+          metrics: this.getPerformanceMetrics(),
         },
       }
     } catch (error: any) {
@@ -248,9 +249,10 @@ export class CodingAgent extends CognitiveAgentBase {
    */
   private isCodingTask(cognition: TaskCognition): boolean {
     const codingKeywords = ['code', 'function', 'class', 'bug', 'debug', 'refactor', 'optimize', 'test']
-    return codingKeywords.some(keyword =>
-      cognition.normalizedTask.toLowerCase().includes(keyword) ||
-      cognition.entities.some(entity => entity.type === 'function' || entity.type === 'class')
+    return codingKeywords.some(
+      (keyword) =>
+        cognition.normalizedTask.toLowerCase().includes(keyword) ||
+        cognition.entities.some((entity) => entity.type === 'function' || entity.type === 'class')
     )
   }
 
@@ -258,13 +260,13 @@ export class CodingAgent extends CognitiveAgentBase {
    * Analyze coding requirements from task cognition
    */
   private async analyzeCodingRequirements(cognition: TaskCognition): Promise<any> {
-    const entities = cognition.entities.filter(e => ['function', 'class', 'file'].includes(e.type))
+    const entities = cognition.entities.filter((e) => ['function', 'class', 'file'].includes(e.type))
     return {
       taskType: cognition.intent.primary,
       complexity: cognition.intent.complexity,
-      targetFiles: entities.filter(e => e.type === 'file').map(e => e.name),
-      targetFunctions: entities.filter(e => e.type === 'function').map(e => e.name),
-      targetClasses: entities.filter(e => e.type === 'class').map(e => e.name),
+      targetFiles: entities.filter((e) => e.type === 'file').map((e) => e.name),
+      targetFunctions: entities.filter((e) => e.type === 'function').map((e) => e.name),
+      targetClasses: entities.filter((e) => e.type === 'class').map((e) => e.name),
     }
   }
 
@@ -511,7 +513,6 @@ export class CodingAgent extends CognitiveAgentBase {
     }
   }
 
-
   // Task-specific methods for AgentTask interface
   private async performCodeAnalysis(task: AgentTask): Promise<AgentTaskResult> {
     const startTime = Date.now()
@@ -521,7 +522,7 @@ export class CodingAgent extends CognitiveAgentBase {
       message: `Code analysis completed for ${task.type}`,
       data: result,
       executionTime: Date.now() - startTime,
-      metadata: { taskId: task.id, type: 'analysis' }
+      metadata: { taskId: task.id, type: 'analysis' },
     }
   }
 
@@ -533,7 +534,7 @@ export class CodingAgent extends CognitiveAgentBase {
       message: `Code refactoring completed for ${task.type}`,
       data: result,
       executionTime: Date.now() - startTime,
-      metadata: { taskId: task.id, type: 'refactoring' }
+      metadata: { taskId: task.id, type: 'refactoring' },
     }
   }
 
@@ -545,7 +546,7 @@ export class CodingAgent extends CognitiveAgentBase {
       message: `Code debugging completed for ${task.type}`,
       data: result,
       executionTime: Date.now() - startTime,
-      metadata: { taskId: task.id, type: 'debugging' }
+      metadata: { taskId: task.id, type: 'debugging' },
     }
   }
 
@@ -557,7 +558,7 @@ export class CodingAgent extends CognitiveAgentBase {
       message: `Generic coding task completed for ${task.type}`,
       data: result,
       executionTime: Date.now() - startTime,
-      metadata: { taskId: task.id, type: 'generic' }
+      metadata: { taskId: task.id, type: 'generic' },
     }
   }
 
@@ -576,7 +577,7 @@ export class CodingAgent extends CognitiveAgentBase {
           message: `Code generation completed for ${task.type}`,
           data: result,
           executionTime: Date.now() - startTime,
-          metadata: { taskId: task.id, type: 'generation' }
+          metadata: { taskId: task.id, type: 'generation' },
         }
       }
       case 'refactor':
@@ -591,7 +592,7 @@ export class CodingAgent extends CognitiveAgentBase {
           message: `Test generation completed for ${task.type}`,
           data: result,
           executionTime: Date.now() - startTime,
-          metadata: { taskId: task.id, type: 'test-generation' }
+          metadata: { taskId: task.id, type: 'test-generation' },
         }
       }
       case 'optimize': {
@@ -602,7 +603,7 @@ export class CodingAgent extends CognitiveAgentBase {
           message: `Code optimization completed for ${task.type}`,
           data: result,
           executionTime: Date.now() - startTime,
-          metadata: { taskId: task.id, type: 'optimization' }
+          metadata: { taskId: task.id, type: 'optimization' },
         }
       }
       default:
@@ -621,7 +622,7 @@ export class CodingAgent extends CognitiveAgentBase {
       id: nanoid(),
       type: 'legacy',
       description: taskData,
-      priority: 'normal'
+      priority: 'normal',
     }
 
     const result = await this.executeTask(task)
@@ -632,7 +633,7 @@ export class CodingAgent extends CognitiveAgentBase {
       agent: 'Enhanced Coding Agent',
       success: result.success,
       cognitiveEnhanced: true,
-      data: result.data
+      data: result.data,
     }
   }
 

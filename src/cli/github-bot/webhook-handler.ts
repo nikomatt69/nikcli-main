@@ -240,8 +240,16 @@ export class GitHubWebhookHandler {
         await this.addReactionToIssueComment(job.repository, job.commentId, 'eyes')
       }
 
+      // Post initial status comment
+      const statusCommentId = await this.postStatusComment(job, 'started')
+
       // Execute the requested task
       const result = await this.taskExecutor.executeTask(job)
+
+      // Update status comment with progress
+      if (result.details?.jobId) {
+        await this.updateStatusComment(job, statusCommentId, 'running', result.details.jobId)
+      }
 
       job.status = 'completed'
       job.completedAt = new Date()
@@ -260,6 +268,11 @@ export class GitHubWebhookHandler {
       if (result.shouldComment) {
         await this.postResultComment(job, result)
       }
+
+      // Update final status
+      if (statusCommentId) {
+        await this.updateStatusComment(job, statusCommentId, 'completed', result.details?.jobId)
+      }
     } catch (error) {
       console.error(`❌ Job failed: ${job.id}`, error)
 
@@ -277,6 +290,86 @@ export class GitHubWebhookHandler {
       // Post error comment
       await this.postErrorComment(job, error)
     }
+  }
+
+  /**
+   * Post status comment
+   */
+  private async postStatusComment(job: ProcessingJob, status: string): Promise<number | null> {
+    try {
+      const [owner, repo] = job.repository.split('/')
+
+      const comment = this.formatStatusComment(job, status)
+
+      const response = await this.octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: job.issueNumber,
+        body: comment,
+      })
+
+      return response.data.id
+    } catch (error) {
+      console.error('Failed to post status comment:', error)
+      return null
+    }
+  }
+
+  /**
+   * Update status comment
+   */
+  private async updateStatusComment(
+    job: ProcessingJob,
+    commentId: number | null,
+    status: string,
+    jobId?: string
+  ): Promise<void> {
+    if (!commentId) return
+
+    try {
+      const [owner, repo] = job.repository.split('/')
+
+      const comment = this.formatStatusComment(job, status, jobId)
+
+      await this.octokit.rest.issues.updateComment({
+        owner,
+        repo,
+        comment_id: commentId,
+        body: comment,
+      })
+    } catch (error) {
+      console.error('Failed to update status comment:', error)
+    }
+  }
+
+  /**
+   * Format status comment
+   */
+  private formatStatusComment(job: ProcessingJob, status: string, jobId?: string): string {
+    const statusEmoji = {
+      started: '⚡',
+      running: '🔌',
+      completed: '✅',
+      failed: '❌',
+    }
+
+    const emoji = statusEmoji[status as keyof typeof statusEmoji] || '⚙️'
+
+    let comment = `${emoji} **NikCLI Status Update**\n\n`
+    comment += `**Task:** \`${job.mention.command}\`\n`
+    comment += `**Status:** ${status}\n`
+
+    if (jobId) {
+      comment += `**Job ID:** \`${jobId}\`\n`
+    }
+
+    if (status === 'running') {
+      comment += `\n_Processing in isolated VM environment..._\n`
+    }
+
+    comment += `\n---\n_Updated: ${new Date().toISOString()}_`
+
+    return comment
   }
 
   /**
@@ -353,11 +446,10 @@ ${error instanceof Error ? error.message : 'Unknown error'}
 Please check your request and try again. If the issue persists, please create an issue in the [NikCLI repository](https://github.com/nikomatt69/nikcli-main).
 
 ---
-*Processing time: ${
-        job.startedAt && job.completedAt
+*Processing time: ${job.startedAt && job.completedAt
           ? `${((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2)}s`
           : 'N/A'
-      }*`
+        }*`
 
       await this.octokit.rest.issues.createComment({
         owner,

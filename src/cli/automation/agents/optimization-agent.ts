@@ -1,14 +1,10 @@
 import { nanoid } from 'nanoid'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
-import { type AgentTaskResult } from './base-agent'
-import type { AgentTask } from './agent-router'
-import { CognitiveAgentBase } from './cognitive-agent-base'
-import {
-  type OrchestrationPlan,
-  type TaskCognition,
-  type OptimizationCognition,
-} from './cognitive-interfaces'
 import { CliUI } from '../../utils/cli-ui'
+import type { AgentTask } from './agent-router'
+import type { AgentTaskResult } from './base-agent'
+import { CognitiveAgentBase } from './cognitive-agent-base'
+import type { OptimizationCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
 
 /**
  * ⚡ Enhanced Optimization Agent with Cognitive Intelligence
@@ -37,7 +33,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
     'benchmarking',
     'code-efficiency',
     'performance-monitoring',
-    'resource-optimization'
+    'resource-optimization',
   ]
   specialization = 'Performance optimization and analysis with cognitive intelligence'
 
@@ -51,13 +47,13 @@ export class OptimizationAgent extends CognitiveAgentBase {
     'Error handling enhancement',
     'Type safety improvements',
     'Performance profiling and benchmarking',
-    'Bottleneck identification'
+    'Bottleneck identification',
   ]
   protected cognitiveWeaknesses = [
     'Domain-specific business logic',
     'UI/UX design optimization',
     'Database query optimization',
-    'Network performance optimization'
+    'Network performance optimization',
   ]
 
   constructor(workingDirectory: string = process.cwd()) {
@@ -102,7 +98,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
 
       const messages: ChatMessage[] = [
         { role: 'system', content: optimizationPrompt },
-        { role: 'user', content: `Optimize this code:\n\n\`\`\`\n${originalCode}\n\`\`\`` }
+        { role: 'user', content: `Optimize this code:\n\n\`\`\`\n${originalCode}\n\`\`\`` },
       ]
 
       const aiResponse = await modelProvider.generateResponse({ messages })
@@ -121,8 +117,10 @@ export class OptimizationAgent extends CognitiveAgentBase {
         message: `Optimization completed with ${plan.strategy} orchestration in ${executionTime}ms`,
         executionTime,
         data: {
-          cognition, orchestrationPlan: plan,
-          optimizationResult, metrics: this.getPerformanceMetrics(),
+          cognition,
+          orchestrationPlan: plan,
+          optimizationResult,
+          metrics: this.getPerformanceMetrics(),
         },
       }
     } catch (error: any) {
@@ -148,7 +146,9 @@ export class OptimizationAgent extends CognitiveAgentBase {
 
       if (this.isOptimizationTask(cognition)) {
         optimizationCognition.optimizationAnalysis = await this.analyzeOptimizationRequirements(cognition)
-        CliUI.logDebug(`⚡ Optimization analysis: ${optimizationCognition.optimizationAnalysis?.optimizationType || 'unknown'}`)
+        CliUI.logDebug(
+          `⚡ Optimization analysis: ${optimizationCognition.optimizationAnalysis?.optimizationType || 'unknown'}`
+        )
       }
 
       const optimizationCapabilities = this.getOptimizationCapabilities(cognition)
@@ -164,10 +164,12 @@ export class OptimizationAgent extends CognitiveAgentBase {
   // Helper methods
   private isOptimizationTask(cognition: TaskCognition): boolean {
     const optimizationKeywords = ['optimize', 'performance', 'speed', 'memory', 'efficient']
-    return optimizationKeywords.some(keyword => cognition.normalizedTask.includes(keyword))
+    return optimizationKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
   }
 
-  private async analyzeOptimizationRequirements(cognition: TaskCognition): Promise<OptimizationCognition['optimizationAnalysis']> {
+  private async analyzeOptimizationRequirements(
+    cognition: TaskCognition
+  ): Promise<OptimizationCognition['optimizationAnalysis']> {
     const taskText = cognition.normalizedTask.toLowerCase()
 
     let optimizationType: 'performance' | 'memory' | 'readability' | 'type-safety' | 'comprehensive' = 'comprehensive'
@@ -180,7 +182,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
       optimizationType,
       priority: cognition.intent.urgency === 'normal' ? 'medium' : cognition.intent.urgency,
       targetAreas: [],
-      constraints: []
+      constraints: [],
     }
   }
 
@@ -249,8 +251,8 @@ Provide the optimized version with explanations of improvements made.`
       percentage: 25,
       metrics: {
         executionTime: 'Improved by 25%',
-        memoryUsage: 'Reduced by 15%'
-      }
+        memoryUsage: 'Reduced by 15%',
+      },
     }
   }
 
@@ -260,19 +262,20 @@ Provide the optimized version with explanations of improvements made.`
       id: nanoid(),
       type: 'legacy',
       description: taskData,
-      priority: 'normal'
+      priority: 'normal',
     }
 
     const result = await this.executeTask(task)
 
     return {
       optimization: result.message,
-      originalCode: this.extractCodeFromCognition(await this.parseTaskCognition(taskData)) || this.getDefaultCodeToOptimize(),
+      originalCode:
+        this.extractCodeFromCognition(await this.parseTaskCognition(taskData)) || this.getDefaultCodeToOptimize(),
       timestamp: new Date().toISOString(),
       agent: 'Enhanced Optimization Agent',
       success: result.success,
       cognitiveEnhanced: true,
-      data: result.data
+      data: result.data,
     }
   }
 
@@ -288,7 +291,8 @@ Provide the optimized version with explanations of improvements made.`
 
     const performancePatterns = this.cognitiveMemory.taskPatterns.get('performance-optimization') || []
     if (performancePatterns.length > 10) {
-      const avgComplexity = performancePatterns.reduce((sum, p) => sum + p.estimatedComplexity, 0) / performancePatterns.length
+      const avgComplexity =
+        performancePatterns.reduce((sum, p) => sum + p.estimatedComplexity, 0) / performancePatterns.length
       if (avgComplexity > 7) {
         optimizations.push('High complexity optimization tasks - focus on algorithmic improvements')
       }
@@ -299,11 +303,15 @@ Provide the optimized version with explanations of improvements made.`
 
   private async initializeOptimizationCognition(): Promise<void> {
     const optimizationPatterns = [
-      'performance-optimization', 'memory-optimization', 'algorithm-optimization',
-      'code-efficiency', 'bottleneck-detection', 'benchmarking'
+      'performance-optimization',
+      'memory-optimization',
+      'algorithm-optimization',
+      'code-efficiency',
+      'bottleneck-detection',
+      'benchmarking',
     ]
 
-    optimizationPatterns.forEach(pattern => {
+    optimizationPatterns.forEach((pattern) => {
       if (!this.cognitiveMemory.taskPatterns.has(pattern)) {
         this.cognitiveMemory.taskPatterns.set(pattern, [])
       }

@@ -153,11 +153,12 @@ export class VimKeyHandler extends EventEmitter {
           this.moveCursor(0, -this.state.cursor.column)
           this.setMode(VimMode.INSERT)
           break
-        case 'enterInsertModeEnd':
+        case 'enterInsertModeEnd': {
           const lineLength = this.getCurrentLine().length
           this.moveCursor(0, lineLength - this.state.cursor.column)
           this.setMode(VimMode.INSERT)
           break
+        }
         case 'enterVisualMode':
           this.setMode(VimMode.VISUAL)
           break
@@ -188,10 +189,11 @@ export class VimKeyHandler extends EventEmitter {
         case 'moveLineBeginning':
           this.moveCursor(0, -this.state.cursor.column)
           break
-        case 'moveLineEnd':
+        case 'moveLineEnd': {
           const line = this.getCurrentLine()
           this.moveCursor(0, line.length - this.state.cursor.column - 1)
           break
+        }
         case 'moveFileBeginning':
           this.setCursorPosition({ line: 0, column: 0 })
           break

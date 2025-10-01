@@ -456,7 +456,7 @@ Error Context:
             const [key, ...valueParts] = line.split(':')
             if (key && valueParts.length > 0) {
               const value = valueParts.join(':').trim()
-                ; (metadata as Record<string, any>)[key.trim()] = value.replace(/^["']|["']$/g, '')
+              ;(metadata as Record<string, any>)[key.trim()] = value.replace(/^["']|["']$/g, '')
             }
           }
           template = metadataMatch[2]
@@ -517,7 +517,7 @@ Error Context:
     // Simple template engine - replace {{variable}} with context values
     const variablePattern = /\{\{(\w+)\}\}/g
     compiled = compiled.replace(variablePattern, (match, variableName) => {
-      if (context.hasOwnProperty(variableName)) {
+      if (Object.hasOwn(context, variableName)) {
         return String(context[variableName])
       }
       return match // Keep original if not found in context

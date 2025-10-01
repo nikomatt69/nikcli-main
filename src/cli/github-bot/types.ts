@@ -153,6 +153,10 @@ export interface TaskResult {
     commits?: string[] // Commit SHAs
     testsRun?: boolean // Whether tests were executed
     linting?: boolean // Whether linting was applied
+    jobId?: string // Background job ID if using background agent
+    containerId?: string // Container ID if using VM execution
+    executionTime?: number // Execution time in milliseconds
+    tokenUsage?: number // Token usage for AI operations
   }
 }
 

@@ -771,10 +771,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                  isValid: validationResult.isValid,
-                  errors: validationResult.errors,
-                  warnings: validationResult.warnings,
-                }
+                    isValid: validationResult.isValid,
+                    errors: validationResult.errors,
+                    warnings: validationResult.warnings,
+                  }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -1104,8 +1104,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                .join('')
+                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                  .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -1232,7 +1232,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         maxToolRoundtrips: isAnalysisRequest ? 40 : 60, // Increased for deeper analysis and toolchains
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => { },
+        onStepFinish: (_evt: any) => {},
       }
       if (provider !== 'openai' && provider !== 'openrouter') {
         streamOpts.maxTokens = params.maxTokens
@@ -1439,10 +1439,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                        .map((part) =>
-                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                        )
-                        .join('')
+                          .map((part) =>
+                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                          )
+                          .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -1544,10 +1544,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
       type: 'start',
       content: `🎯 Starting task: ${task}`,
       metadata: {
-        hasSteps: !!(context?.steps?.length),
+        hasSteps: !!context?.steps?.length,
         hasFinalStep: !!context?.finalStep,
         totalSteps: (context?.steps?.length || 0) + (context?.finalStep ? 1 : 0),
-      }
+      },
     }
 
     // Process initial steps if provided
@@ -1624,7 +1624,7 @@ Execute task autonomously with tools. Be direct. Stay within project directory.`
           stepId: 'final',
           content: `🎯 Final Step: ${context.finalStep.description}`,
           metadata: {
-            stepIndex: (context?.steps?.length || 0),
+            stepIndex: context?.steps?.length || 0,
             totalSteps: (context?.steps?.length || 0) + 1,
             stepId: 'final',
             hasSchema: !!context.finalStep.schema,
@@ -1637,7 +1637,6 @@ Execute task autonomously with tools. Be direct. Stay within project directory.`
           content: '⚡︎ Finalizing autonomous task execution...',
         }
       }
-
     } catch (error: any) {
       yield {
         type: 'error',
@@ -1715,7 +1714,7 @@ Execute task autonomously with tools. Be direct. Stay within project directory.`
           stepId: 'parallel_final',
           content: `🎯 Parallel Final Step: ${context.finalStep.description}`,
           metadata: {
-            stepIndex: (context?.steps?.length || 0),
+            stepIndex: context?.steps?.length || 0,
             totalSteps: (context?.steps?.length || 0) + 1,
             stepId: 'parallel_final',
             hasSchema: !!context.finalStep.schema,
@@ -2123,8 +2122,8 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-          { role: 'user', content: `${type}: ${description} (${language})` } as any,
-        ])
+            { role: 'user', content: `${type}: ${description} (${language})` } as any,
+          ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -2181,7 +2180,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
         else console.log(chalk.dim(msg))
-      } catch { }
+      } catch {}
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
@@ -2715,7 +2714,7 @@ Requirements:
           method: 'generateWithCognition',
           hasCognition: !!cognition,
           cognitionId: cognition?.id,
-          hasSteps: !!(options?.steps?.length),
+          hasSteps: !!options?.steps?.length,
           hasFinalStep: !!options?.finalStep,
           totalSteps: (options?.steps?.length || 0) + (options?.finalStep ? 1 : 0),
         },
@@ -2788,7 +2787,7 @@ Requirements:
           stepId: 'final',
           content: `🎯 Final Step: ${options.finalStep.description}`,
           metadata: {
-            stepIndex: (options?.steps?.length || 0),
+            stepIndex: options?.steps?.length || 0,
             totalSteps: (options?.steps?.length || 0) + 1,
             stepId: 'final',
             hasSchema: !!options.finalStep.schema,

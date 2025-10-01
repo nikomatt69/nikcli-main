@@ -769,7 +769,6 @@ export class SimpleConfigManager {
       model: 'anthropic/claude-3.5-sonnet',
     },
 
-
     'nvidia/nemotron-nano-9b-v2:free': {
       provider: 'openrouter',
       model: 'nvidia/nemotron-nano-9b-v2:free',

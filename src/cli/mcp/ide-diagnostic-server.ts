@@ -138,7 +138,7 @@ class ProjectDetector {
       try {
         execSync(`${runner.command} --version`, { stdio: 'ignore', timeout: 5000 })
         return { ...runner, available: true }
-      } catch { }
+      } catch {}
     }
 
     return { type: 'npm', command: 'npm', available: false }
@@ -438,11 +438,11 @@ class DiagnosticParser {
           file: relative(process.cwd(), file),
           range: startCol
             ? {
-              startLine: parseInt(startLine, 10),
-              startCol: parseInt(startCol, 10),
-              endLine: parseInt(startLine, 10),
-              endCol: parseInt(startCol, 10),
-            }
+                startLine: parseInt(startLine, 10),
+                startCol: parseInt(startCol, 10),
+                endLine: parseInt(startLine, 10),
+                endCol: parseInt(startCol, 10),
+              }
             : undefined,
           message: message.trim(),
           source: 'build',
@@ -1091,13 +1091,10 @@ export class IDEDiagnosticServer extends EventEmitter {
         maxFileSize: 10 * 1024 * 1024, // 10MB max file size
         maxTotalFiles: 10000, // Reasonable file limit to prevent excessive watchers
         includeExtensions: [], // Include all by default
-        excludeExtensions: [
-          '.map', '.min.js', '.min.css', '.bundle.js',
-          '.log', '.tmp', '.temp', '.cache'
-        ],
+        excludeExtensions: ['.map', '.min.js', '.min.css', '.bundle.js', '.log', '.tmp', '.temp', '.cache'],
         excludeDirectories: [],
         excludePatterns: [],
-        customRules: []
+        customRules: [],
       })
 
       // Use FileFilterSystem for intelligent path filtering
@@ -1121,7 +1118,7 @@ export class IDEDiagnosticServer extends EventEmitter {
         atomic: 200, // Debounce file changes more aggressively
         awaitWriteFinish: {
           stabilityThreshold: 200,
-          pollInterval: 100
+          pollInterval: 100,
         },
         // Respect symlinks but don't follow them to prevent loops
         followSymlinks: false,
@@ -1159,7 +1156,7 @@ export class IDEDiagnosticServer extends EventEmitter {
             summary: {
               errors: 0,
               warnings: 0,
-              affected: Array.from(pendingChanges)
+              affected: Array.from(pendingChanges),
             },
             cursor: `fs:${Date.now()}`,
           })
@@ -1193,7 +1190,6 @@ export class IDEDiagnosticServer extends EventEmitter {
         }
         console.log(chalk.gray(`🔍 Respecting gitignore and excluding artifact folders`))
       })
-
     } catch (error: any) {
       console.warn(chalk.yellow(`🔍 File watching not available: ${error.message}`))
 

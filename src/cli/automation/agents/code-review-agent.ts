@@ -1,14 +1,10 @@
 import { nanoid } from 'nanoid'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
-import { type AgentTaskResult } from './base-agent'
-import type { AgentTask } from './agent-router'
-import { CognitiveAgentBase } from './cognitive-agent-base'
-import {
-  type CodeReviewCognition,
-  type OrchestrationPlan,
-  type TaskCognition,
-} from './cognitive-interfaces'
 import { CliUI } from '../../utils/cli-ui'
+import type { AgentTask } from './agent-router'
+import type { AgentTaskResult } from './base-agent'
+import { CognitiveAgentBase } from './cognitive-agent-base'
+import type { CodeReviewCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
 
 /**
  * 🔍 Enhanced Code Review Agent with Cognitive Intelligence
@@ -37,7 +33,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
     'documentation-review',
     'standards-compliance',
     'bug-detection',
-    'refactoring-suggestions'
+    'refactoring-suggestions',
   ]
   specialization = 'Code review and quality analysis with cognitive intelligence'
 
@@ -51,13 +47,13 @@ export class CodeReviewAgent extends CognitiveAgentBase {
     'Type safety improvements',
     'Documentation quality assessment',
     'Maintainability scoring',
-    'Code standard compliance checking'
+    'Code standard compliance checking',
   ]
   protected cognitiveWeaknesses = [
     'Business logic understanding',
     'Domain-specific requirements',
     'Performance profiling',
-    'Architecture design review'
+    'Architecture design review',
   ]
 
   constructor(workingDirectory: string = process.cwd()) {
@@ -102,7 +98,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
 
       const messages: ChatMessage[] = [
         { role: 'system', content: reviewPrompt },
-        { role: 'user', content: `Review this code:\n\n\`\`\`\n${codeToReview}\n\`\`\`` }
+        { role: 'user', content: `Review this code:\n\n\`\`\`\n${codeToReview}\n\`\`\`` },
       ]
 
       const aiResponse = await modelProvider.generateResponse({ messages })
@@ -110,7 +106,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
       const reviewResult = {
         review: this.extractReviewText(aiResponse),
         recommendations: this.extractReviewRecommendations(aiResponse),
-        score: this.calculateReviewScore(aiResponse)
+        score: this.calculateReviewScore(aiResponse),
       }
 
       const executionTime = Date.now() - startTime
@@ -121,8 +117,10 @@ export class CodeReviewAgent extends CognitiveAgentBase {
         message: `Code review completed with ${plan.strategy} orchestration in ${executionTime}ms`,
         executionTime,
         data: {
-          cognition, orchestrationPlan: plan,
-          reviewResult, metrics: this.getPerformanceMetrics(),
+          cognition,
+          orchestrationPlan: plan,
+          reviewResult,
+          metrics: this.getPerformanceMetrics(),
         },
       }
     } catch (error: any) {
@@ -163,7 +161,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
   // Helper methods
   private isCodeReviewTask(cognition: TaskCognition): boolean {
     const reviewKeywords = ['review', 'analyze', 'check', 'audit', 'quality']
-    return reviewKeywords.some(keyword => cognition.normalizedTask.includes(keyword))
+    return reviewKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
   }
 
   private async analyzeReviewRequirements(cognition: TaskCognition): Promise<CodeReviewCognition['reviewAnalysis']> {
@@ -178,7 +176,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
       reviewType,
       depth: cognition.intent.complexity as 'low' | 'medium' | 'high' | 'critical',
       focusAreas: [],
-      standards: []
+      standards: [],
     }
   }
 
@@ -256,7 +254,7 @@ Provide specific suggestions for improvement with detailed explanations.`
       id: nanoid(),
       type: 'legacy',
       description: taskData,
-      priority: 'normal'
+      priority: 'normal',
     }
 
     const result = await this.executeTask(task)
@@ -268,7 +266,7 @@ Provide specific suggestions for improvement with detailed explanations.`
       agent: 'Enhanced Code Review Agent',
       success: result.success,
       cognitiveEnhanced: true,
-      data: result.data
+      data: result.data,
     }
   }
 
@@ -292,11 +290,15 @@ Provide specific suggestions for improvement with detailed explanations.`
 
   private async initializeCodeReviewCognition(): Promise<void> {
     const reviewPatterns = [
-      'code-review', 'quality-analysis', 'security-review',
-      'performance-review', 'maintainability-assessment', 'standards-compliance'
+      'code-review',
+      'quality-analysis',
+      'security-review',
+      'performance-review',
+      'maintainability-assessment',
+      'standards-compliance',
     ]
 
-    reviewPatterns.forEach(pattern => {
+    reviewPatterns.forEach((pattern) => {
       if (!this.cognitiveMemory.taskPatterns.has(pattern)) {
         this.cognitiveMemory.taskPatterns.set(pattern, [])
       }

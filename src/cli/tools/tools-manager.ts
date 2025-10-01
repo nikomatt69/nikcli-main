@@ -170,7 +170,9 @@ export class ToolsManager {
         }
       } catch (error) {
         // Skip directories that can't be read (permissions, etc.)
-        console.log(chalk.gray(`Skipped directory: ${dir} (${error instanceof Error ? error.message : 'Unknown error'})`))
+        console.log(
+          chalk.gray(`Skipped directory: ${dir} (${error instanceof Error ? error.message : 'Unknown error'})`)
+        )
       }
     }
 
