@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
 import { TOKEN_LIMITS } from '../config/token-limits'
+import { globalCacheManager, type CacheProvider } from '../core/cache-provider'
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 // Import semantic search engine and file filtering
 import { type QueryAnalysis, type ScoringContext, semanticSearchEngine } from './semantic-search-engine'
@@ -199,12 +200,10 @@ export class UnifiedRAGSystem {
   private workspaceRAG: any // WorkspaceRAG instance
   private vectorStoreManager: VectorStoreManager | null = null
   private fileFilter: FileFilterSystem | null = null
-  private embeddingsCache: Map<string, number[]> = new Map()
-  private analysisCache: Map<string, RAGAnalysisResult> = new Map()
-  private lastAnalysis: number = 0
+  private embeddingsCache: CacheProvider
+  private analysisCache: CacheProvider
+  private fileHashCache: CacheProvider
   private readonly CACHE_TTL = 300000 // 5 minutes
-  private readonly CACHE_DIR = join(homedir(), '.nikcli', 'embeddings')
-  private fileHashCache: Map<string, string> = new Map()
 
   // Performance monitoring
   private searchMetrics = {
@@ -235,9 +234,23 @@ export class UnifiedRAGSystem {
       ...config,
     }
 
+    // Initialize cache providers
+    this.embeddingsCache = globalCacheManager.getCache('rag-embeddings', {
+      defaultTTL: 24 * 60 * 60 * 1000, // 24 hours for embeddings
+      maxMemorySize: 200 * 1024 * 1024, // 200MB for embeddings
+    })
+
+    this.analysisCache = globalCacheManager.getCache('rag-analysis', {
+      defaultTTL: this.CACHE_TTL,
+      maxMemorySize: 50 * 1024 * 1024, // 50MB for analysis results
+    })
+
+    this.fileHashCache = globalCacheManager.getCache('rag-file-hashes', {
+      defaultTTL: 7 * 24 * 60 * 60 * 1000, // 7 days for file hashes
+      maxMemorySize: 10 * 1024 * 1024, // 10MB for hashes
+    })
+
     this.initializeClients()
-    this.loadPersistentCache()
-    this.testPersistentCache()
   }
 
   private async initializeClients(): Promise<void> {
@@ -308,8 +321,8 @@ export class UnifiedRAGSystem {
 
     // Check cache
     const cacheKey = `analysis-${projectPath}`
-    const cached = this.analysisCache.get(cacheKey)
-    if (cached && Date.now() - this.lastAnalysis < this.CACHE_TTL) {
+    const cached = this.analysisCache.get<RAGAnalysisResult>(cacheKey)
+    if (cached) {
       console.log(chalk.green('✓ Using cached analysis'))
       return cached
     }
@@ -351,9 +364,10 @@ export class UnifiedRAGSystem {
       fallbackMode: !this.config.useVectorDB || vectorDBStatus !== 'available',
     }
 
-    // Cache result
-    this.analysisCache.set(cacheKey, result)
-    this.lastAnalysis = Date.now()
+    // Cache result with tags for easy management
+    this.analysisCache.set(cacheKey, result, {
+      tags: ['analysis', 'project'],
+    })
 
     console.log(chalk.green(`✓ RAG analysis completed in ${result.processingTime}ms`))
     console.log(
@@ -718,72 +732,7 @@ export class UnifiedRAGSystem {
     return chunks.length > 0 ? chunks : [content]
   }
 
-  /**
-   * Load persistent embeddings cache from disk
-   */
-  private async loadPersistentCache(): Promise<void> {
-    if (!this.config.cacheEmbeddings) return
-
-    try {
-      await mkdir(this.CACHE_DIR, { recursive: true })
-
-      const cacheFilePath = join(this.CACHE_DIR, 'embeddings-cache.json')
-      const hashFilePath = join(this.CACHE_DIR, 'file-hashes.json')
-
-      if (existsSync(cacheFilePath)) {
-        const cacheData = JSON.parse(readFileSync(cacheFilePath, 'utf-8'))
-        for (const [key, value] of Object.entries(cacheData)) {
-          this.embeddingsCache.set(key, value as number[])
-        }
-        console.log(chalk.blue(`📦 Loaded ${this.embeddingsCache.size} cached embeddings`))
-      }
-
-      if (existsSync(hashFilePath)) {
-        const hashData = JSON.parse(readFileSync(hashFilePath, 'utf-8'))
-        for (const [key, value] of Object.entries(hashData)) {
-          this.fileHashCache.set(key, value as string)
-        }
-      }
-    } catch (_error) {
-      console.log(chalk.yellow('⚠️ Failed to load embeddings cache'))
-    }
-  }
-
-  /**
-   * Test persistent cache functionality
-   */
-  private testPersistentCache(): void {
-    if (!this.config.cacheEmbeddings) {
-      console.log(chalk.yellow('⚠️ Persistent cache disabled'))
-      return
-    }
-
-    try {
-      // Check cache directory exists
-      const cacheFilePath = join(this.CACHE_DIR, 'embeddings-cache.json')
-      const hashFilePath = join(this.CACHE_DIR, 'file-hashes.json')
-
-
-
-      // Check if cache files exist
-      const cacheExists = existsSync(cacheFilePath)
-      const hashExists = existsSync(hashFilePath)
-
-
-
-      // Test cache functionality by adding a test entry and saving
-      const testKey = `cache-test-${Date.now()}`
-      const testEmbedding = [0.1, 0.2, 0.3] // Simple test embedding
-
-      this.embeddingsCache.set(testKey, testEmbedding)
-
-
-      // Show cost optimization summary
-
-    } catch (error: any) {
-
-    }
-  }
+  // Cache methods removed - now handled by CacheProvider
 
 
 
@@ -1607,13 +1556,34 @@ export class UnifiedRAGSystem {
   clearCaches(): void {
     this.embeddingsCache.clear()
     this.analysisCache.clear()
+    this.fileHashCache.clear()
     console.log(chalk.green('✓ RAG caches cleared'))
   }
 
   getStats() {
+    const embeddingsCacheStats = this.embeddingsCache.getStats()
+    const analysisCacheStats = this.analysisCache.getStats()
+    const fileHashCacheStats = this.fileHashCache.getStats()
+
     return {
-      embeddingsCacheSize: this.embeddingsCache.size,
-      analysisCacheSize: this.analysisCache.size,
+      caches: {
+        embeddings: {
+          entries: embeddingsCacheStats.totalEntries,
+          size: `${(embeddingsCacheStats.totalSize / 1024 / 1024).toFixed(2)} MB`,
+          hitRate: `${embeddingsCacheStats.hitRate.toFixed(1)}%`,
+          hits: embeddingsCacheStats.totalHits,
+          misses: embeddingsCacheStats.totalMisses,
+        },
+        analysis: {
+          entries: analysisCacheStats.totalEntries,
+          size: `${(analysisCacheStats.totalSize / 1024 / 1024).toFixed(2)} MB`,
+          hitRate: `${analysisCacheStats.hitRate.toFixed(1)}%`,
+        },
+        fileHashes: {
+          entries: fileHashCacheStats.totalEntries,
+          size: `${(fileHashCacheStats.totalSize / 1024).toFixed(2)} KB`,
+        },
+      },
       vectorDBAvailable: !!this.vectorStoreManager,
       workspaceRAGAvailable: !!this.workspaceRAG,
       config: this.config,

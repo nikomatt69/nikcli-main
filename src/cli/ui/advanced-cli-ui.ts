@@ -573,18 +573,28 @@ export class AdvancedCliUI {
   }
 
   /**
-   * Show recent updates
+   * Show recent updates in structured format
    */
   private showRecentUpdates(): void {
     const recentUpdates = this.liveUpdates.slice(-10)
     if (recentUpdates.length === 0) return
 
-    console.log(chalk.blue.bold('📝 Recent Updates:'))
-    console.log(chalk.gray('─'.repeat(60)))
+    // Raggruppa updates per source
+    const groupedUpdates = this.groupUpdatesBySource(recentUpdates)
 
-    recentUpdates.forEach((update) => {
-      this.printLiveUpdate(update)
-    })
+    // Rendering strutturato per source
+    for (const [source, updates] of groupedUpdates.entries()) {
+      // Header del gruppo con ⏺ - usa lowercase per il nome funzione
+      const functionName = this.formatSourceAsFunctionName(source).toLowerCase()
+      console.log(chalk.cyan(`⏺ ${functionName}()`))
+
+      // Updates del gruppo con ⎿
+      updates.forEach(update => {
+        this.printLiveUpdateStructured(update)
+      })
+
+      console.log() // Spazio tra gruppi
+    }
   }
 
   /**
@@ -658,6 +668,87 @@ export class AdvancedCliUI {
   }
 
   /**
+   * Print live update in structured format (⏺ style)
+   */
+  private printLiveUpdateStructured(update: LiveUpdate): void {
+    const typeIcon = this.getStatusIconForUpdate(update.type)
+    const color = this.getUpdateTypeColor(update.type)
+
+    let content = color(update.content)
+
+    // Se update ha metadata.progress, aggiungi progress bar
+    if (update.metadata?.progress !== undefined) {
+      const progress = update.metadata.progress
+      const progressBar = this.createProgressBarString(progress, 20)
+      content += ` ${progressBar}`
+    }
+
+    // Se update ha metadata.duration, aggiungi durata
+    if (update.metadata?.duration) {
+      content += ` ${chalk.gray(`(${update.metadata.duration})`)}`
+    }
+
+    // Rendering con tutto grigio scuro tranne il contenuto colorato
+    console.log(`${chalk.dim('  ⎿  ')}${chalk.dim(typeIcon)} ${content}`)
+  }
+
+  /**
+   * Get status icon for update type
+   */
+  private getStatusIconForUpdate(type: LiveUpdate['type']): string {
+    switch (type) {
+      case 'log':
+        return '✓'
+      case 'status':
+        return '⚡︎'
+      case 'progress':
+        return '▶'
+      case 'error':
+        return '❌'
+      case 'warning':
+        return '⚠️'
+      case 'info':
+        return 'ℹ'
+      case 'step':
+        return '●'
+      case 'result':
+        return '✓'
+      default:
+        return '○'
+    }
+  }
+
+  /**
+   * Group updates by source
+   */
+  private groupUpdatesBySource(updates: LiveUpdate[]): Map<string, LiveUpdate[]> {
+    const grouped = new Map<string, LiveUpdate[]>()
+
+    for (const update of updates) {
+      const source = update.source || 'System'
+      if (!grouped.has(source)) {
+        grouped.set(source, [])
+      }
+      grouped.get(source)!.push(update)
+    }
+
+    return grouped
+  }
+
+  /**
+   * Format source name as function name
+   */
+  private formatSourceAsFunctionName(source: string): string {
+    // "Guidance" -> "Guidance"
+    // "Docs Cloud" -> "DocsCloud"
+    // "System Init" -> "SystemInit"
+    return source
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join('')
+  }
+
+  /**
    * Log status update in non-interactive mode
    */
   private logStatusUpdate(indicator: StatusIndicator): void {
@@ -728,11 +819,30 @@ export class AdvancedCliUI {
   }
 
   private createProgressBarString(progress: number, width: number = 20): string {
-    const filled = Math.round((progress / 100) * width)
-    const empty = width - filled
+    // Usa caratteri Unicode per maggiore risoluzione
+    const filledChar = '█'
+    const emptyChar = '░'
+    const partialChars = ['▏', '▎', '▍', '▌', '▋', '▊', '▉', '█']
 
-    const bar = chalk.cyan('█'.repeat(filled)) + chalk.gray('░'.repeat(empty))
-    return `[${bar}] ${progress}%`
+    // Calcola porzione frazionaria
+    const exactFilled = (progress / 100) * width
+    const fullBlocks = Math.floor(exactFilled)
+    const fraction = exactFilled - fullBlocks
+    const partialIndex = Math.floor(fraction * partialChars.length)
+    const partialChar = partialIndex > 0 ? partialChars[partialIndex] : ''
+
+    // Costruisci barra
+    const fullPart = filledChar.repeat(fullBlocks)
+    const emptyPart = emptyChar.repeat(width - fullBlocks - (partialChar ? 1 : 0))
+    const bar = fullPart + partialChar + emptyPart
+
+    // Colore dinamico basato su progresso
+    const colorFn = progress < 30 ? chalk.red
+                  : progress < 70 ? chalk.yellow
+                  : progress >= 100 ? chalk.green
+                  : chalk.cyan
+
+    return `[${colorFn(bar)}] ${progress}%`
   }
 
   private getDuration(indicator: StatusIndicator): string | null {

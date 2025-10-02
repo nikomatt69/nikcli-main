@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { basename, extname, join, relative } from 'node:path'
+import { basename, extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
 
 export interface FileFilterConfig {
@@ -369,6 +369,9 @@ export class FileFilterSystem {
     const filesToIndex: string[] = []
     const visited = new Set<string>()
 
+    // Ensure projectRoot is absolute
+    const absoluteProjectRoot = resolve(projectRoot)
+
     const scanDirectory = (dirPath: string, depth: number = 0): void => {
       // Prevent infinite recursion and excessive depth
       if (depth > 10 || visited.has(dirPath)) return
@@ -376,7 +379,7 @@ export class FileFilterSystem {
 
       // Check if directory should be excluded
       const dirName = basename(dirPath)
-      if (this.isDirectoryExcluded(dirName, dirPath, projectRoot)) {
+      if (this.isDirectoryExcluded(dirName, dirPath, absoluteProjectRoot)) {
         return
       }
 
@@ -394,7 +397,7 @@ export class FileFilterSystem {
           if (item.isDirectory()) {
             scanDirectory(fullPath, depth + 1)
           } else if (item.isFile()) {
-            const filterResult = this.shouldIncludeFile(fullPath, projectRoot)
+            const filterResult = this.shouldIncludeFile(fullPath, absoluteProjectRoot)
             if (filterResult.allowed) {
               filesToIndex.push(fullPath)
             }
@@ -408,7 +411,7 @@ export class FileFilterSystem {
     console.log(chalk.blue('📁 Scanning project for indexable files...'))
     const startTime = Date.now()
 
-    scanDirectory(projectRoot)
+    scanDirectory(absoluteProjectRoot)
 
     const duration = Date.now() - startTime
     console.log(chalk.green(`✓ Scanned ${this.stats.totalScanned} files in ${duration}ms`))
