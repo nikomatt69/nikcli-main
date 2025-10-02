@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, statSync } from 'node:fs'
-import { mkdir, readFile } from 'node:fs/promises'
+import { statSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
@@ -321,7 +321,7 @@ export class UnifiedRAGSystem {
 
     // Check cache
     const cacheKey = `analysis-${projectPath}`
-    const cached = this.analysisCache.get<RAGAnalysisResult>(cacheKey)
+    const cached = await this.analysisCache.get<RAGAnalysisResult>(cacheKey)
     if (cached) {
       console.log(chalk.green('✓ Using cached analysis'))
       return cached
@@ -365,7 +365,7 @@ export class UnifiedRAGSystem {
     }
 
     // Cache result with tags for easy management
-    this.analysisCache.set(cacheKey, result, {
+    await this.analysisCache.set(cacheKey, result, {
       tags: ['analysis', 'project'],
     })
 
@@ -1553,10 +1553,10 @@ export class UnifiedRAGSystem {
     console.log(chalk.blue('🔧 RAG configuration updated'))
   }
 
-  clearCaches(): void {
-    this.embeddingsCache.clear()
-    this.analysisCache.clear()
-    this.fileHashCache.clear()
+  async clearCaches(): Promise<void> {
+    await this.embeddingsCache.clear()
+    await this.analysisCache.clear()
+    await this.fileHashCache.clear()
     console.log(chalk.green('✓ RAG caches cleared'))
   }
 
