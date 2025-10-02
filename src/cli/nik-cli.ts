@@ -12154,54 +12154,41 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     }
 
     private async runCommand(command: string): Promise<void> {
-        let cmdId: string | null = null
-
+        // Avoid spinner during streaming to prevent prompt overlap/races
+        const uniqueId = `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        let finalized = false
         try {
-            cmdId = `cmd-${Date.now()}`
-            this.createStatusIndicator(cmdId, `Executing: ${command}`)
-            this.startAdvancedSpinner(cmdId, `Running: ${command}`)
+            this.createStatusIndicator(uniqueId, `Executing: ${command}`)
+            console.log(chalk.blue(`⚡ Running: ${command}`))
 
-            const result = await toolsManager.runCommand(command.split(' ')[0], command.split(' ').slice(1), { stream: true })
+            const result = await toolsManager.runCommand(
+                command.split(' ')[0],
+                command.split(' ').slice(1),
+                { stream: true }
+            )
 
             const success = result.code === 0
-            this.stopAdvancedSpinner(cmdId, success, success ? 'Command completed' : 'Command failed')
+            this.updateStatusIndicator(uniqueId, {
+                status: success ? 'completed' : 'failed',
+                details: success ? 'Command completed' : `Exit code ${result.code}`,
+            })
+            finalized = true
 
-            // Collect all output first to avoid multiple prompt renders
-            let hasOutput = false
-
-            if (result.stdout) {
-                console.log(chalk.blue.bold(`\n💻 Output:`))
-                console.log(result.stdout)
-                hasOutput = true
-            }
-
-            if (result.stderr) {
-                console.log(chalk.red.bold(`\n❌ Error:`))
-                console.log(result.stderr)
-                hasOutput = true
-            }
-
+            // Summary line only; stdout/stderr already streamed by toolsManager
             console.log(chalk.gray(`\n📊 Exit Code: ${result.code}`))
-
-            // Single prompt restoration after all output
-            if (hasOutput) {
-                process.stdout.write('\n')
-                await new Promise((resolve) => setTimeout(resolve, 100)) // Brief pause for output to settle
-            }
         } catch (error: any) {
             console.log(chalk.red(`❌ Command failed: ${error.message}`))
-
-            // Ensure spinner is stopped even on error
-            if (cmdId) {
-                try {
-                    this.stopAdvancedSpinner(cmdId, false, 'Command failed')
-                } catch {
-                    // Ignore cleanup errors
-                }
-            }
         } finally {
-            // Guaranteed final cleanup and prompt restoration
-            process.stdout.write('')
+            try {
+                if (!finalized) {
+                    this.updateStatusIndicator(uniqueId, { status: 'failed', details: 'Command aborted' })
+                }
+            } catch {}
+            // Ensure the prompt is rendered on a clean line without overlaps
+            try {
+                process.stdout.write('\n')
+                await new Promise((resolve) => setTimeout(resolve, 50))
+            } catch {}
             this.renderPromptAfterOutput()
         }
     }

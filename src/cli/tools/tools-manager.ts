@@ -287,20 +287,32 @@ export class ToolsManager {
       this.runningProcesses.set(child.pid!, processInfo)
 
       if (!options.interactive && child.stdout && child.stderr) {
+        // Serialize writes to minimize interleaving with the main prompt/TUI
+        let writeQueue = Promise.resolve()
+        const enqueueWrite = (fn: () => void) => (writeQueue = writeQueue.then(() => new Promise<void>((resolve) => {
+          try {
+            fn()
+            // Small micro-delay to allow prompt to yield
+            setTimeout(resolve, 0)
+          } catch {
+            resolve()
+          }
+        })))
+
         child.stdout.on('data', (data) => {
           const output = data.toString()
           stdout += output
-          process.stdout.write(chalk.cyan(output))
+          enqueueWrite(() => process.stdout.write(chalk.cyan(output)))
         })
 
         child.stderr.on('data', (data) => {
           const output = data.toString()
           stderr += output
-          process.stderr.write(chalk.yellow(output))
+          enqueueWrite(() => process.stderr.write(chalk.yellow(output)))
         })
       }
 
-      child.on('close', (code) => {
+      child.on('close', async (code) => {
         processInfo.status = code === 0 ? 'completed' : 'failed'
         processInfo.exitCode = code || 0
         this.runningProcesses.delete(child.pid!)
@@ -312,6 +324,11 @@ export class ToolsManager {
         } else {
           console.log(chalk.red(`❌ Process failed with code ${code} (PID: ${child.pid})`))
         }
+
+        // Ensure trailing newline to separate from prompt and avoid overlaps
+        try {
+          process.stdout.write('\n')
+        } catch {}
 
         resolve({ stdout, stderr, code: code || 0, pid: child.pid! })
       })

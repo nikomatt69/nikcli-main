@@ -2008,6 +2008,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
+    // Ensure robust cleanup and avoid TUI/console overlaps by not using spinners during streaming
+    const uniqueId = `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    let finalized = false
     try {
       const [command, ...commandArgs] = args
       const fullCommand = `${command} ${commandArgs.join(' ')}`
@@ -2020,24 +2023,42 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
+      // Create a non-spinner indicator to avoid race conditions with streaming output
+      advancedUI.createIndicator(uniqueId, `Executing: ${fullCommand}`)
       console.log(chalk.blue(`⚡ Running: ${fullCommand}`))
-
-      // Create progress indicator
-      const cmdId = advancedUI.createIndicator('command', `Executing: ${command}`).id
-      advancedUI.startSpinner(cmdId, `Running: ${fullCommand}`)
 
       const result = await toolsManager.runCommand(command, commandArgs, { stream: true })
 
+      finalized = true
+      advancedUI.updateIndicator(uniqueId, {
+        status: result.code === 0 ? 'completed' : 'failed',
+        details: result.code === 0 ? 'Command completed successfully' : `Exit code ${result.code}`,
+      })
+
       if (result.code === 0) {
-        advancedUI.stopSpinner(cmdId, true, 'Command completed successfully')
         console.log(chalk.green('✓ Command completed successfully'))
       } else {
-        advancedUI.stopSpinner(cmdId, false, `Command failed with exit code ${result.code}`)
         console.log(chalk.red(`❌ Command failed with exit code ${result.code}`))
       }
     } catch (error: any) {
       advancedUI.logError(`Error running command: ${error.message}`)
       console.log(chalk.red(`❌ Error running command: ${error.message}`))
+    } finally {
+      // Always finalize indicator state and print a newline to separate from the prompt
+      try {
+        if (!finalized) {
+          advancedUI.updateIndicator(uniqueId, { status: 'failed', details: 'Command aborted' })
+        }
+      } catch {
+        // ignore cleanup errors
+      }
+      try {
+        process.stdout.write('\n')
+        // Allow any pending stdout flushes to complete to avoid prompt overlap
+        await new Promise((resolve) => setTimeout(resolve, 30))
+      } catch {
+        // ignore
+      }
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
