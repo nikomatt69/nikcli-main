@@ -36,11 +36,13 @@ export interface SearchResult {
 export class DocumentationLibrary {
   private docs: Map<string, DocumentationEntry> = new Map()
   private docsFile: string
+  private docsDir: string
   private searchIndex: Map<string, string[]> = new Map() // term -> entry IDs
   private categories: Set<string> = new Set()
   private maxDocs: number = 1000
 
   constructor(docsDir: string = './.nikcli') {
+    this.docsDir = docsDir
     this.docsFile = path.join(docsDir, 'documentation-library.json')
     this.loadLibrary()
   }
@@ -52,49 +54,29 @@ export class DocumentationLibrary {
     try {
       console.log(chalk.blue(`📖 Fetching documentation from: ${url}`))
 
-      // Estrai contenuto dalla pagina web
-      const content = await this.extractWebContent(url)
+      // Scarica HTML e testo in un solo passaggio
+      const { html, text } = await this.fetchPage(url)
 
-      if (!content || content.length < 100) {
+      if (!text || text.length < 100) {
         throw new Error('Content too short or empty')
       }
 
-      // Genera titolo dal contenuto
-      const title = this.extractTitle(content, url)
+      // Crea e salva l'entry per la pagina iniziale
+      const entry = await this.createAndStoreEntry(url, text, category, tags)
 
-      // Analizza il contenuto
-      const analysis = this.analyzeContent(content)
-
-      const entry: DocumentationEntry = {
-        id: this.generateId(),
-        url,
-        title,
-        content: content.substring(0, 50000), // Limita dimensione
-        category,
-        tags: [...tags, ...analysis.suggestedTags],
-        timestamp: new Date(),
-        lastAccessed: new Date(),
-        accessCount: 1,
-        relevance: 1.0,
-        metadata: {
-          wordCount: analysis.wordCount,
-          language: analysis.language,
-          source: 'web',
-          extractedAt: new Date(),
-        },
+      // Heuristics: se sembra una root docs, prova a estrarre sotto-pagine
+      if (this.shouldCrawlSubpages(url, html)) {
+        console.log(chalk.cyan('🔗 Crawling documentation subpages (limited for safety)...'))
+        try {
+          const added = await this.crawlDocumentation(url, category, tags, { initialHtml: html })
+          if (added > 0) {
+            console.log(chalk.green(`✓ Added ${added} subpages from ${new URL(url).origin}`))
+          }
+        } catch (crawlError: any) {
+          console.log(chalk.yellow(`⚠️ Subpage crawl failed or partially completed: ${crawlError.message || crawlError}`))
+        }
       }
 
-      // Gestisci dimensione libreria
-      if (this.docs.size >= this.maxDocs) {
-        this.evictOldEntries()
-      }
-
-      this.docs.set(entry.id, entry)
-      this.categories.add(category)
-      this.updateSearchIndex(entry)
-      await this.saveLibrary()
-
-      console.log(chalk.green(`✓ Added: ${title} (${analysis.wordCount} words, ${analysis.language})`))
       return entry
     } catch (error: any) {
       console.error(chalk.red(`❌ Failed to add documentation: ${error.message}`))
@@ -188,6 +170,20 @@ export class DocumentationLibrary {
   }
 
   /**
+   * Scarica HTML e testo in una singola chiamata
+   */
+  private async fetchPage(url: string): Promise<{ html: string; text: string }> {
+    try {
+      const { stdout } = await execAsync(`curl -s -L "${url}" -H "User-Agent: Mozilla/5.0 NikCLI"`)
+      const html = stdout as string
+      const text = this.extractTextFromHTML(html)
+      return { html, text }
+    } catch (error) {
+      throw new Error(`Failed to fetch page: ${error}`)
+    }
+  }
+
+  /**
    * Estrae testo da HTML
    */
   private extractTextFromHTML(html: string): string {
@@ -227,6 +223,197 @@ export class DocumentationLibrary {
     } catch {
       return url.substring(0, 50)
     }
+  }
+
+  /**
+   * Crea e memorizza un'entry a partire da contenuto testo
+   */
+  private async createAndStoreEntry(
+    url: string,
+    content: string,
+    category: string,
+    tags: string[]
+  ): Promise<DocumentationEntry> {
+    // Genera titolo e analisi
+    const title = this.extractTitle(content, url)
+    const analysis = this.analyzeContent(content)
+
+    const entry: DocumentationEntry = {
+      id: this.generateId(),
+      url,
+      title,
+      content: content.substring(0, 50000),
+      category,
+      tags: [...tags, ...analysis.suggestedTags],
+      timestamp: new Date(),
+      lastAccessed: new Date(),
+      accessCount: 1,
+      relevance: 1.0,
+      metadata: {
+        wordCount: analysis.wordCount,
+        language: analysis.language,
+        source: 'web',
+        extractedAt: new Date(),
+      },
+    }
+
+    // Gestisci dimensione libreria
+    if (this.docs.size >= this.maxDocs) {
+      this.evictOldEntries()
+    }
+
+    this.docs.set(entry.id, entry)
+    this.categories.add(category)
+    this.updateSearchIndex(entry)
+    await this.saveLibrary()
+
+    console.log(
+      chalk.green(`✓ Added: ${entry.title} (${analysis.wordCount} words, ${analysis.language})`)
+    )
+    return entry
+  }
+
+  /**
+   * Decide se effettuare crawling delle sottopagine per l'URL dato
+   */
+  private shouldCrawlSubpages(url: string, html: string): boolean {
+    try {
+      const u = new URL(url)
+      const urlHint = /docs|documentation|guide|manual|reference/i.test(
+        `${u.hostname}${u.pathname}`
+      )
+      const linkCount = (html.match(/<a\s+[^>]*href=/gi) || []).length
+      // Heuristics: se è pagina docs o ha molti link interni
+      return urlHint || linkCount > 30
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Estrae link assoluti dal HTML e li filtra per restare nel sito e path base
+   */
+  private extractAndFilterLinks(html: string, base: URL): string[] {
+    const links: string[] = []
+    const anchorRegex = /<a\s+[^>]*href=["']([^"'#]+)["'][^>]*>/gi
+    let match: RegExpExecArray | null
+    while ((match = anchorRegex.exec(html)) !== null) {
+      const href = match[1]
+      // Escludi mailto/tel/javascript/anchors
+      if (/^(mailto:|tel:|javascript:)/i.test(href)) continue
+      try {
+        const absolute = new URL(href, base).toString()
+        links.push(absolute)
+      } catch {
+        // ignore invalid
+      }
+    }
+
+    const basePath = base.pathname.endsWith('/') ? base.pathname : base.pathname + '/'
+    const allowed: string[] = []
+    const seen = new Set<string>()
+    for (const link of links) {
+      try {
+        const u = new URL(link)
+        if (u.hostname !== base.hostname) continue
+        // Normalizza: rimuovi hash e query per dedup
+        u.hash = ''
+        u.search = ''
+
+        // Mantieni solo pagine sotto il path base
+        if (!u.pathname.startsWith(basePath) && basePath !== '/') continue
+
+        // Escludi asset statici
+        if (/\.(png|jpe?g|gif|svg|webp|css|js|ico|pdf|zip|rar|gz|tgz|mp4|mp3|woff2?|ttf|eot)$/i.test(u.pathname))
+          continue
+
+        // Preferisci pagine senza estensione o .html
+        const hasExt = /\.[a-zA-Z0-9]+$/.test(u.pathname)
+        if (hasExt && !/\.html?$/.test(u.pathname)) continue
+
+        const normalized = u.toString()
+        if (!seen.has(normalized)) {
+          seen.add(normalized)
+          allowed.push(normalized)
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return allowed
+  }
+
+  /**
+   * Esegue crawling BFS limitato per includere sottopagine di documentazione
+   */
+  private async crawlDocumentation(
+    startUrl: string,
+    category: string,
+    tags: string[],
+    options?: { initialHtml?: string; maxPages?: number; maxDepth?: number }
+  ): Promise<number> {
+    const maxPages = options?.maxPages ?? 120
+    const maxDepth = options?.maxDepth ?? 3
+    let addedCount = 0
+    const visited = new Set<string>()
+    const queue: Array<{ url: string; depth: number }> = []
+
+    let startHtml = options?.initialHtml
+    const start = new URL(startUrl)
+    const startNormalized = new URL(start.href)
+    startNormalized.hash = ''
+    startNormalized.search = ''
+    queue.push({ url: startNormalized.toString(), depth: 0 })
+
+    while (queue.length > 0 && addedCount < maxPages) {
+      const { url, depth } = queue.shift()!
+      if (visited.has(url)) continue
+      visited.add(url)
+
+      let html: string
+      let text: string
+      try {
+        if (startHtml && url === startNormalized.toString()) {
+          html = startHtml
+          text = this.extractTextFromHTML(html)
+          startHtml = undefined
+        } else {
+          const page = await this.fetchPage(url)
+          html = page.html
+          text = page.text
+        }
+      } catch {
+        continue
+      }
+
+      // Non ri-aggiungere la prima pagina (già aggiunta da addDocumentation)
+      if (url !== startNormalized.toString()) {
+        try {
+          if (text && text.length > 100) {
+            await this.createAndStoreEntry(url, text, category, tags)
+            addedCount++
+          }
+        } catch {
+          // continue on errors
+        }
+      }
+
+      // Espandi link
+      if (depth < maxDepth) {
+        const links = this.extractAndFilterLinks(html, new URL(startNormalized.toString()))
+        for (const link of links) {
+          if (!visited.has(link)) queue.push({ url: link, depth: depth + 1 })
+          if (queue.length + addedCount >= maxPages) break
+        }
+      }
+    }
+
+    // Persisti stato finale
+    try {
+      await this.saveLibrary()
+    } catch {}
+
+    return addedCount
   }
 
   /**
@@ -438,6 +625,7 @@ export class DocumentationLibrary {
    */
   private async loadLibrary(): Promise<void> {
     try {
+      await this.ensureLibraryDir()
       const data = await fs.readFile(this.docsFile, 'utf-8')
       const parsed = JSON.parse(data)
 
@@ -466,10 +654,22 @@ export class DocumentationLibrary {
    */
   private async saveLibrary(): Promise<void> {
     try {
+      await this.ensureLibraryDir()
       const data = JSON.stringify(Object.fromEntries(this.docs), null, 2)
       await fs.writeFile(this.docsFile, data)
     } catch (error) {
       console.error('Failed to save documentation library:', error)
+    }
+  }
+
+  /**
+   * Assicura l'esistenza della directory della libreria
+   */
+  private async ensureLibraryDir(): Promise<void> {
+    try {
+      await fs.mkdir(path.dirname(this.docsFile), { recursive: true })
+    } catch {
+      // ignore
     }
   }
 
