@@ -2,6 +2,7 @@ import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
 import { docsContextManager } from '../context/docs-context-manager'
 import { workspaceContext } from '../context/workspace-context'
+import { advancedUI } from '../ui/advanced-cli-ui'
 // Import existing systems for integration
 import { contextManager } from './context-manager'
 
@@ -136,7 +137,11 @@ export class ContextEnhancer {
       return smartContext
     }
 
-    console.log(chalk.yellow(`⚠️ Context optimization needed: ${smartContext.totalTokens} > ${maxTokens} tokens`))
+    advancedUI.logFunctionUpdate(
+      'warning',
+      `Context optimization needed: ${smartContext.totalTokens} > ${maxTokens} tokens`,
+      '⚠︎'
+    )
 
     // Intelligent context compression
     const optimizedSources: ContextSource[] = []
@@ -248,7 +253,7 @@ export class ContextEnhancer {
         tokens: this.estimateTokens(content),
       }
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ Could not load workspace context'))
+      advancedUI.logFunctionUpdate('warning', 'Could not load workspace context', '⚠︎')
       return null
     }
   }
@@ -472,7 +477,7 @@ export class ContextEnhancer {
 
 ⚡︎ **Context Intelligence**: ${stats}
 📁 **Working Directory**: ${context.workingDirectory}
-🔧 **Available Tools**: read_file, write_file, explore_directory, run_command, analyze_project
+ **Available Tools**: read_file, write_file, explore_directory, run_command, analyze_project
 
 **Context Sources Loaded**:
 ${smartContext.sources.map((s) => `• ${s.metadata.title || s.id} (Priority: ${s.priority}, Relevance: ${Math.round((s.relevanceScore || 0) * 100)}%)`).join('\n')}
@@ -551,7 +556,7 @@ Use this rich context to provide accurate, contextually-aware responses. Always 
 
   clearCache(): void {
     this.smartContextCache.clear()
-    console.log(chalk.green('✓ Context enhancer cache cleared'))
+    advancedUI.logFunctionUpdate('success', 'Context enhancer cache cleared', '✓')
   }
 
   getCacheStats(): { size: number; maxSize: number; hitRate: number } {

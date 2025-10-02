@@ -5,6 +5,7 @@ import { promisify } from 'node:util'
 import { tool } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 const execAsync = promisify(exec)
 
@@ -32,7 +33,7 @@ export class IDEContextEnricher {
       }),
       execute: async ({ includeDependencies, includeGitInfo, includeRecentFiles, includeOpenFiles }) => {
         try {
-          console.log(chalk.blue('🔍 Analyzing IDE and workspace context...'))
+          advancedUI.logFunctionUpdate('info', 'Analyzing IDE and workspace context...', 'ℹ')
 
           const context: IDEContext = {
             editor: await this.detectEditor(),

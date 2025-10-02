@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { structuredLogger } from '../../utils/structured-logger'
 import { redisProvider } from '../redis/redis-provider'
 
@@ -76,7 +77,8 @@ export class Mem0Provider extends EventEmitter {
       importance_decay_days: 30,
     }
 
-    structuredLogger.info('Memory', '⚡︎ Mem0 Provider initialized')
+    advancedUI.logFunctionCall('mem0providerinit')
+    advancedUI.logFunctionUpdate('success', 'Mem0 Provider initialized', '✓')
   }
 
   /**
@@ -147,7 +149,7 @@ export class Mem0Provider extends EventEmitter {
     // Cache to Redis
     await this.cacheMemory(memory)
 
-    console.log(chalk.gray(`💾 Stored memory: ${memoryId.substring(0, 8)}... | "${content.substring(0, 50)}..."`))
+    console.log(chalk.gray(` Stored memory: ${memoryId.substring(0, 8)}... | "${content.substring(0, 50)}..."`))
 
     this.emit('memory_stored', { memory, id: memoryId })
 

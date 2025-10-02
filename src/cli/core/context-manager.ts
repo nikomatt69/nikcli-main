@@ -5,6 +5,7 @@ import { calculateTokenCost, getModelPricing, TOKEN_LIMITS } from '../config/tok
 import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
 // Import RAG and context systems for integration
 import { workspaceContext } from '../context/workspace-context'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { contextEnhancer, type SmartContext } from './context-enhancer'
 import { tokenTelemetry } from './token-telemetry'
 
@@ -664,7 +665,7 @@ export class ContextManager {
       return this.workspaceCache
     }
 
-    console.log(chalk.blue('🔍 Analyzing workspace...'))
+    advancedUI.logFunctionUpdate('info', 'Analyzing workspace...', 'ℹ')
 
     try {
       const cwd = process.cwd()
@@ -829,7 +830,7 @@ export class ContextManager {
 
   setOptimizationStrategy(strategy: Partial<OptimizationStrategy>): void {
     this.defaultStrategy = { ...this.defaultStrategy, ...strategy }
-    console.log(chalk.blue('🔧 Context optimization strategy updated'))
+    console.log(chalk.blue(' Context optimization strategy updated'))
   }
 
   /**

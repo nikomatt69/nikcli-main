@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Octokit } from '@octokit/rest'
 import { backgroundAgentService } from '../background-agents/background-agent-service'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CommentProcessor } from './comment-processor'
 import type {
   CommandParseResult,
@@ -48,7 +49,7 @@ export class TaskExecutor {
       mkdirSync(this.workingDir, { recursive: true })
     }
 
-    console.log(`🔧 TaskExecutor initialized in ${this.executionMode} mode (BG agents: ${this.useBackgroundAgents})`)
+    console.log(` TaskExecutor initialized in ${this.executionMode} mode (BG agents: ${this.useBackgroundAgents})`)
   }
 
   /**
@@ -68,9 +69,10 @@ export class TaskExecutor {
    * Intelligently routes to background agent or local execution
    */
   async executeTask(job: ProcessingJob): Promise<TaskResult> {
-    console.log(`🚀 Executing task: ${job.mention.command}`)
+    advancedUI.logFunctionCall('executing')
+    advancedUI.logFunctionUpdate('info', job.mention.command, '●')
 
-    try {
+    try{
       // Parse the command
       const parsedCommand = this.commentProcessor.parseCommand(job.mention)
       if (!parsedCommand) {
@@ -81,10 +83,10 @@ export class TaskExecutor {
       const shouldUseBackgroundAgent = this.shouldUseBackgroundAgent(parsedCommand)
 
       if (shouldUseBackgroundAgent) {
-        console.log(`🔌 Routing to background agent service`)
+        advancedUI.logFunctionUpdate('info', 'Routing to background agent service', 'ℹ')
         return await this.executeViaBackgroundAgent(job, parsedCommand)
       } else {
-        console.log(`🖥️ Executing locally`)
+        advancedUI.logFunctionUpdate('info', 'Executing locally', 'ℹ')
         return await this.executeLocally(job, parsedCommand)
       }
     } catch (error) {
@@ -136,7 +138,7 @@ export class TaskExecutor {
       },
     })
 
-    console.log(`✓ Background job created: ${jobId}`)
+    advancedUI.logFunctionUpdate('success', `Background job created: ${jobId}`, '✓')
 
     // Monitor job progress
     const result = await this.monitorBackgroundJob(jobId)
@@ -176,7 +178,7 @@ export class TaskExecutor {
       result.shouldComment = true
     }
 
-    console.log(`✓ Task completed successfully`)
+    advancedUI.logFunctionUpdate('success', 'Task completed successfully', '✓')
     return result
   }
 
@@ -234,11 +236,7 @@ export class TaskExecutor {
               containerId: job.containerId,
               metrics: job.metrics,
             })
-          } else if (
-            job.status === 'failed' ||
-            job.status === 'cancelled' ||
-            job.status === 'timeout'
-          ) {
+          } else if (job.status === 'failed' || job.status === 'cancelled' || job.status === 'timeout') {
             cleanup()
             reject(new Error(job.error || `Job ${job.status}`))
           }
@@ -249,10 +247,13 @@ export class TaskExecutor {
       }, 2000) // Check every 2 seconds
 
       // Timeout after 30 minutes
-      timeoutHandle = setTimeout(() => {
-        cleanup()
-        reject(new Error('Job monitoring timeout'))
-      }, 30 * 60 * 1000)
+      timeoutHandle = setTimeout(
+        () => {
+          cleanup()
+          reject(new Error('Job monitoring timeout'))
+        },
+        30 * 60 * 1000
+      )
     })
   }
 
@@ -396,7 +397,7 @@ export class TaskExecutor {
    * Execute specific command based on parsed command
    */
   private async executeCommand(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
-    console.log(`🔧 Executing command: ${command.command}`)
+    console.log(` Executing command: ${command.command}`)
 
     switch (command.command) {
       case 'fix':

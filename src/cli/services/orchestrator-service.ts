@@ -6,6 +6,7 @@ import { simpleConfigManager as configManager } from '../core/config-manager'
 import { type ModuleContext, ModuleManager } from '../core/module-manager'
 import { MiddlewareBootstrap, middlewareManager } from '../middleware'
 import { ExecutionPolicyManager } from '../policies/execution-policy'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { type AgentTask, agentService } from './agent-service'
 import { lspService } from './lsp-service'
@@ -179,19 +180,19 @@ export class OrchestratorService extends EventEmitter {
       // Avoid duplicate logging if NikCLI is active
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed
       if (!nikCliActive) {
-        console.log(chalk.magenta(`  🔧 ${task.agentType} using ${update.tool}: ${update.description}`))
+        console.log(chalk.magenta(`   ${task.agentType} using ${update.tool}: ${update.description}`))
       }
     })
 
     agentService.on('task_complete', (task: AgentTask) => {
       this.activeAgentTasks.delete(task.id)
       if (task.status === 'completed') {
-        console.log(chalk.green(`✓ Agent ${task.agentType} completed successfully`))
+        advancedUI.logFunctionUpdate('success', `Agent ${task.agentType} completed successfully`, '✓')
         if (task.result) {
           this.displayAgentResult(task)
         }
       } else {
-        console.log(chalk.red(`❌ Agent ${task.agentType} failed: ${task.error}`))
+        advancedUI.logFunctionUpdate('error', `Agent ${task.agentType} failed: ${task.error}`, '❌')
       }
 
       // Check if all background tasks are complete and return to default mode
@@ -236,7 +237,7 @@ export class OrchestratorService extends EventEmitter {
     await lspService.autoStartServers(this.context.workingDirectory)
 
     this.initialized = true
-    console.log(chalk.dim('🚀 All services initialized'))
+    advancedUI.logFunctionUpdate('success', 'All services initialized', '✓')
   }
 
   private async handleInput(input: string): Promise<void> {
@@ -257,7 +258,11 @@ export class OrchestratorService extends EventEmitter {
       )
 
       if (!middlewareResult.success) {
-        console.log(chalk.red(`❌ Operation blocked: ${middlewareResult.error?.message || 'Unknown error'}`))
+        advancedUI.logFunctionUpdate(
+          'error',
+          `Operation blocked: ${middlewareResult.error?.message || 'Unknown error'}`,
+          '❌'
+        )
         return
       }
 
@@ -279,7 +284,7 @@ export class OrchestratorService extends EventEmitter {
       // Handle natural language requests
       await this.handleNaturalLanguageRequest(input)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Error processing input: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Error processing input: ${error.message}`, '❌')
     } finally {
       this.context.isProcessing = false
     }
@@ -504,16 +509,21 @@ export class OrchestratorService extends EventEmitter {
   }
 
   private displayAgentResult(task: AgentTask): void {
+    const { OutputFormatter } = require('../ui/output-formatter')
     const cleanResult = this.formatTaskResult(task.result)
+    const duration =
+      task.endTime && task.startTime ? Math.round((task.endTime.getTime() - task.startTime.getTime()) / 1000) : 0
+
+    // Apply rich formatting to the result content
+    const formattedResult = OutputFormatter.formatFinalOutput(cleanResult)
+
     this.cliInstance.printPanel(
       boxen(
         `${chalk.green.bold('🎉 Agent Result')}\\n\\n` +
           `${chalk.blue('Agent:')} ${task.agentType}\\n` +
           `${chalk.blue('Task:')} ${task.task.slice(0, 60)}...\\n` +
-          `${chalk.blue('Duration:')} ${
-            task.endTime && task.startTime ? Math.round((task.endTime.getTime() - task.startTime.getTime()) / 1000) : 0
-          }s\\n\\n` +
-          `${chalk.cyan('Result:')} ${cleanResult}`,
+          `${chalk.blue('Duration:')} ${duration}s\\n\\n` +
+          `${chalk.cyan('Result:')}\\n${formattedResult}`,
         {
           padding: 1,
           margin: 1,
@@ -583,7 +593,7 @@ export class OrchestratorService extends EventEmitter {
     const toolHistory = toolService.getExecutionHistory().slice(-5)
     const planStats = planningService.getStatistics()
 
-    console.log(chalk.cyan.bold('\\n🔧 Services Status'))
+    console.log(chalk.cyan.bold('\\n Services Status'))
     console.log(chalk.gray('─'.repeat(50)))
 
     console.log(chalk.white.bold('\\nLSP Servers:'))
@@ -643,7 +653,7 @@ export class OrchestratorService extends EventEmitter {
     console.log(`${chalk.green('/services')}       Show detailed service information`)
     console.log(`${chalk.green('/agents')}         Show active agents and queue`)
 
-    console.log(chalk.white.bold('\\n🔧 Module Commands:'))
+    console.log(chalk.white.bold('\\n Module Commands:'))
     const commands = this.moduleManager.getCommands()
     const categories = ['system', 'file', 'analysis', 'diff', 'security']
 
@@ -949,7 +959,7 @@ export class OrchestratorService extends EventEmitter {
   }
 
   private async showMiddlewareStatus(): Promise<void> {
-    console.log(chalk.cyan.bold('\n🔧 Middleware System Status'))
+    console.log(chalk.cyan.bold('\n Middleware System Status'))
     console.log(chalk.gray('─'.repeat(60)))
 
     // Show middleware manager status

@@ -19,7 +19,7 @@ export interface StatusIndicator {
 }
 
 export interface LiveUpdate {
-  type: 'status' | 'progress' | 'log' | 'error' | 'warning' | 'info' | 'step' | 'result'
+  type: 'status' | 'progress' | 'log' | 'error' | 'warning' | 'info' | 'step' | 'result' | 'cognitive'
   content: string
   timestamp: Date
   source?: string
@@ -97,6 +97,8 @@ export class AdvancedCliUI {
   private cleanChatMode: boolean = false
   // When true, clear live updates automatically when idle/finished
   private ephemeralLiveUpdates: boolean = false
+  // Track last printed source to avoid duplicate ⏺ headers
+  private lastPrintedSource: string | null = null
   constructor() {
     this.theme = {
       primary: chalk.blue,
@@ -380,10 +382,18 @@ export class AdvancedCliUI {
     })
   }
 
+  logCognitive(message: string, details?: string): void {
+    this.addLiveUpdate({
+      type: 'cognitive',
+      content: message,
+      source: details,
+    })
+  }
+
   logSuccess(message: string, details?: string): void {
     this.addLiveUpdate({
       type: 'log',
-      content: `✓ ${message}`,
+      content: message,
       source: details,
     })
   }
@@ -391,7 +401,7 @@ export class AdvancedCliUI {
   logWarning(message: string, details?: string): void {
     this.addLiveUpdate({
       type: 'warning',
-      content: `⚠️ ${message}`,
+      content: message,
       source: details,
     })
   }
@@ -399,7 +409,7 @@ export class AdvancedCliUI {
   logError(message: string, details?: string): void {
     this.addLiveUpdate({
       type: 'error',
-      content: `❌ ${message}`,
+      content: message,
       source: details,
     })
   }
@@ -415,11 +425,11 @@ export class AdvancedCliUI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\\n\\n` +
-        `${chalk.green('✓ Completed:')} ${completed}\\n` +
-        `${chalk.red('❌ Failed:')} ${failed}\\n` +
-        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
-        `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
-        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+      `${chalk.green('✓ Completed:')} ${completed}\\n` +
+      `${chalk.red('❌ Failed:')} ${failed}\\n` +
+      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
+      `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
+      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -589,7 +599,7 @@ export class AdvancedCliUI {
       console.log(chalk.cyan(`⏺ ${functionName}()`))
 
       // Updates del gruppo con ⎿
-      updates.forEach(update => {
+      updates.forEach((update) => {
         this.printLiveUpdateStructured(update)
       })
 
@@ -656,15 +666,20 @@ export class AdvancedCliUI {
   }
 
   /**
-   * Print live update
+   * Print live update - with source grouping
    */
   private printLiveUpdate(update: LiveUpdate): void {
-    const timeStr = update.timestamp.toLocaleTimeString()
-    const typeColor = this.getUpdateTypeColor(update.type)
-    const sourceStr = update.source ? chalk.gray(`[${update.source}]`) : ''
+    const currentSource = update.source || 'System'
 
-    const line = `${chalk.gray(timeStr)} ${sourceStr} ${typeColor(update.content)}`
-    console.log(line)
+    // Print ⏺ header only if source changed
+    if (this.lastPrintedSource !== currentSource) {
+      const functionName = this.formatSourceAsFunctionName(currentSource).toLowerCase()
+      console.log(chalk.cyan(`⏺ ${functionName}()`))
+      this.lastPrintedSource = currentSource
+    }
+
+    // Print ⎿ sub-item
+    this.printLiveUpdateStructured(update)
   }
 
   /**
@@ -709,6 +724,8 @@ export class AdvancedCliUI {
         return '⚠️'
       case 'info':
         return 'ℹ'
+      case 'cognitive':
+        return '🧠'
       case 'step':
         return '●'
       case 'result':
@@ -744,8 +761,52 @@ export class AdvancedCliUI {
     // "System Init" -> "SystemInit"
     return source
       .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join('')
+  }
+
+  /**
+   * Log function call header - Public API for structured logging
+   * Used for ⏺ functionname() format
+   */
+  logFunctionCall(functionName: string, data?: Record<string, any>): void {
+    const formattedName = functionName.toLowerCase()
+    console.log(chalk.cyan(`⏺ ${formattedName}()`))
+
+    if (data) {
+      this.logFunctionUpdate('info', JSON.stringify(data))
+    }
+  }
+
+  /**
+   * Log function update/sub-item - Public API for structured logging
+   * Used for ⎿ prefix format under function calls
+   */
+  logFunctionUpdate(level: 'info' | 'success' | 'warning' | 'error', message: string, icon?: string): void {
+    let defaultIcon = '✓'
+    let color = chalk.white
+
+    switch (level) {
+      case 'success':
+        defaultIcon = '✓'
+        color = chalk.green
+        break
+      case 'info':
+        defaultIcon = 'ℹ'
+        color = chalk.white
+        break
+      case 'warning':
+        defaultIcon = '⚠︎'
+        color = chalk.yellow
+        break
+      case 'error':
+        defaultIcon = '❌'
+        color = chalk.red
+        break
+    }
+
+    const displayIcon = icon || defaultIcon
+    console.log(`${chalk.dim('  ⎿  ')}${chalk.dim(displayIcon)} ${color(message)}`)
   }
 
   /**
@@ -811,6 +872,8 @@ export class AdvancedCliUI {
         return chalk.yellow
       case 'info':
         return chalk.blue
+      case 'cognitive':
+        return chalk.hex('#3a3a3a')
       case 'log':
         return chalk.green
       default:
@@ -837,10 +900,8 @@ export class AdvancedCliUI {
     const bar = fullPart + partialChar + emptyPart
 
     // Colore dinamico basato su progresso
-    const colorFn = progress < 30 ? chalk.red
-                  : progress < 70 ? chalk.yellow
-                  : progress >= 100 ? chalk.green
-                  : chalk.cyan
+    const colorFn =
+      progress < 30 ? chalk.red : progress < 70 ? chalk.yellow : progress >= 100 ? chalk.green : chalk.cyan
 
     return `[${colorFn(bar)}] ${progress}%`
   }
@@ -1944,7 +2005,7 @@ export class AdvancedCliUI {
       '.gitattributes': '📋',
 
       // Templates
-      '.hbs': '🔧',
+      '.hbs': '',
       '.mustache': '👨',
       '.ejs': '📄',
       '.erb': '💎',
@@ -2131,3 +2192,6 @@ export class AdvancedCliUI {
 
 // Export singleton instance
 export const advancedUI = new AdvancedCliUI()
+
+// Export OutputFormatter for direct usage
+export { OutputFormatter } from './output-formatter'

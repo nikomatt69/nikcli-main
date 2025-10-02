@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import {
   createVMChatMessage,
   DEFAULT_VM_SESSION_CONFIG,
@@ -68,7 +69,11 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
     this.sessions.set(sessionId, session)
     this.messageQueues.set(sessionId, [])
 
-    console.log(chalk.green(`📝 Created VM session ${sessionId} for container ${containerId.slice(0, 12)}`))
+    advancedUI.logFunctionUpdate(
+      'success',
+      `Created VM session ${sessionId} for container ${containerId.slice(0, 12)}`,
+      '📝'
+    )
 
     // Initialize session with container
     await this.initializeSession(session)
@@ -110,7 +115,7 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
     const queue = this.messageQueues.get(sessionId)
     if (queue) {
       queue.length = 0
-      console.log(chalk.cyan(`🧹 Cleared message queue for session ${sessionId}`))
+      advancedUI.logFunctionUpdate('info', `Cleared message queue for session ${sessionId}`, '🧹')
     }
   }
 
@@ -132,13 +137,19 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
       // Send via WebSocket if container connected
       if (vmWebSocketServer.isConnected(session.containerId)) {
         await vmWebSocketServer.sendMessage(session.containerId, message)
-        console.log(
-          chalk.blue(`💬 Sent chat message to ${session.containerId.slice(0, 12)}: ${content.slice(0, 50)}...`)
+        advancedUI.logFunctionUpdate(
+          'info',
+          `Sent chat message to ${session.containerId.slice(0, 12)}: ${content.slice(0, 50)}...`,
+          '💬'
         )
       } else {
         // Queue message for when container reconnects
         this.queueMessage(sessionId, message)
-        console.log(chalk.yellow(`📫 Queued message for ${session.containerId.slice(0, 12)} (disconnected)`))
+        advancedUI.logFunctionUpdate(
+          'warning',
+          `Queued message for ${session.containerId.slice(0, 12)} (disconnected)`,
+          '📫'
+        )
       }
 
       // Update session activity
@@ -176,9 +187,13 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
       // Emit message received event
       this.emit('message_received', message.sessionId, message)
 
-      console.log(chalk.blue(`📥 Received message from ${session.containerId.slice(0, 12)}: ${message.type}`))
+      advancedUI.logFunctionUpdate(
+        'info',
+        `Received message from ${session.containerId.slice(0, 12)}: ${message.type}`,
+        '📥'
+      )
     } catch (error: any) {
-      console.error(chalk.red(`❌ Error processing received message: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Error processing received message: ${error.message}`, '❌')
     }
   }
 
@@ -200,11 +215,11 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
       // Clean up message queue
       this.messageQueues.delete(sessionId)
 
-      console.log(chalk.yellow(`📝 Ended VM session ${sessionId}: ${reason}`))
+      advancedUI.logFunctionUpdate('warning', `Ended VM session ${sessionId}: ${reason}`, '📝')
 
       this.emit('session_ended', sessionId, reason)
     } catch (error: any) {
-      console.error(chalk.red(`❌ Error ending session ${sessionId}: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Error ending session ${sessionId}: ${error.message}`, '❌')
     }
   }
 
@@ -296,7 +311,7 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
       // Process any queued messages
       await this.processQueuedMessages(session.sessionId)
 
-      console.log(chalk.green(`✓ Initialized session ${session.sessionId}`))
+      advancedUI.logFunctionUpdate('success', `Initialized session ${session.sessionId}`, '✓')
     } catch (error: any) {
       session.status = 'error'
       session.isActive = false
@@ -352,7 +367,7 @@ export class VMSessionManager extends EventEmitter implements VMEventEmitter {
     // Implementation for session persistence (file system, database, etc.)
     // For now, just log that we would save it
     console.log(
-      chalk.cyan(`💾 Would save session history for ${session.sessionId} (${session.history.messages.length} messages)`)
+      chalk.cyan(` Would save session history for ${session.sessionId} (${session.history.messages.length} messages)`)
     )
   }
 

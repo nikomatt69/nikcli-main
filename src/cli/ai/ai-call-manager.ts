@@ -4,6 +4,7 @@ import ora from 'ora'
 import { z } from 'zod'
 import * as ragSystem from '../context/rag-system'
 import { type BatchSession, secureTools } from '../tools/secure-tools-registry'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { type ChatMessage, modelProvider } from './model-provider'
 
 /**
@@ -207,10 +208,8 @@ Estimate realistic durations and assess risk levels accurately.`
       sessionDuration?: number
     } = {}
   ): Promise<ToolCallResult[]> {
-    console.log(
-      chalk.blue.bold(`
-🚀 Executing Plan: ${plan.description}`)
-    )
+    advancedUI.logFunctionCall('executing')
+    advancedUI.logFunctionUpdate('info', plan.description, '●')
     console.log(chalk.gray(`Plan ID: ${plan.id}`))
     console.log(chalk.gray(`Tool calls: ${plan.toolCalls.length}`))
 
@@ -497,7 +496,7 @@ Estimate realistic durations and assess risk levels accurately.`
     console.log(chalk.blue(`Average Execution Time: ${Math.round(stats.averageExecutionTime)}ms`))
 
     if (stats.mostUsedTools.length > 0) {
-      console.log(chalk.blue('\n🔧 Most Used Tools:'))
+      console.log(chalk.blue('\n Most Used Tools:'))
       stats.mostUsedTools.forEach((tool) => {
         console.log(chalk.gray(`  • ${tool.name}: ${tool.count} calls`))
       })

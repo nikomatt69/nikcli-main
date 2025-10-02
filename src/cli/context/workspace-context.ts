@@ -3,6 +3,7 @@ import * as fs from 'node:fs'
 import * as fsPromises from 'node:fs/promises'
 import * as path from 'node:path'
 import chalk from 'chalk'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { toolsManager } from '../tools/tools-manager'
 // Import new unified components
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
@@ -154,7 +155,8 @@ export class WorkspaceContextManager {
   // Initialize RAG system integration
   private async initializeRAGIntegration(): Promise<void> {
     try {
-      console.log(chalk.blue('⚡︎ Initializing workspace RAG integration...'))
+      advancedUI.logFunctionCall('workspaceragintegrationinit')
+      advancedUI.logFunctionUpdate('info', 'Initializing workspace RAG integration...', 'ℹ')
       this.ragAnalysisPromise = unifiedRAGSystem.analyzeProject(this.context.rootPath)
       const ragResult = await this.ragAnalysisPromise
 
@@ -174,7 +176,7 @@ export class WorkspaceContextManager {
   // Initialize integrated components
   private async initializeIntegratedComponents(): Promise<void> {
     try {
-      console.log(chalk.blue('🔧 Initializing integrated file filtering and semantic search...'))
+      advancedUI.logFunctionUpdate('info', 'Initializing integrated file filtering and semantic search...', 'ℹ')
 
       // File filter is already initialized in constructor
 
@@ -907,7 +909,8 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       return
     }
 
-    console.log(chalk.blue('⚡︎ Refreshing workspace index with smart filtering...'))
+    advancedUI.logFunctionCall('workspaceindexrefresh')
+    advancedUI.logFunctionUpdate('info', 'Refreshing workspace index with smart filtering...', 'ℹ')
 
     try {
       // Get filtered file list by scanning directory
@@ -1379,7 +1382,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
 
     console.log(`📄 Files: ${this.context.files.size}`)
     console.log(`📁 Directories: ${this.context.directories.size}`)
-    console.log(`🔧 Framework: ${this.context.projectMetadata.framework || 'Unknown'}`)
+    console.log(` Framework: ${this.context.projectMetadata.framework || 'Unknown'}`)
     console.log(`💻 Languages: ${this.context.projectMetadata.languages.join(', ')}`)
     console.log(`📦 Dependencies: ${this.context.projectMetadata.dependencies.length}`)
     console.log(`🕐 Last Updated: ${this.context.lastUpdated.toLocaleTimeString()}`)

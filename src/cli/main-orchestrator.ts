@@ -19,6 +19,7 @@ import { StreamingOrchestrator } from './streaming-orchestrator'
 import { diffManager } from './ui/diff-manager'
 import { ContainerManager } from './virtualized-agents/container-manager'
 import { VMOrchestrator } from './virtualized-agents/vm-orchestrator'
+import { advancedUI } from './ui/advanced-cli-ui'
 
 export class MainOrchestrator {
   private streamOrchestrator: StreamingOrchestrator
@@ -66,7 +67,7 @@ export class MainOrchestrator {
       // Save any pending diffs
       const pendingDiffs = diffManager.getPendingCount()
       if (pendingDiffs > 0) {
-        console.log(chalk.yellow(`💾 ${pendingDiffs} diffs still pending`))
+        console.log(chalk.yellow(` ${pendingDiffs} diffs still pending`))
       }
 
       // Clear resources
@@ -120,7 +121,8 @@ export class MainOrchestrator {
   }
 
   private async checkSystemRequirements(): Promise<boolean> {
-    console.log(chalk.blue('🔍 Checking system requirements...'))
+    advancedUI.logFunctionCall('checksystemrequirements')
+    advancedUI.logFunctionUpdate('info', 'Checking system requirements...', 'ℹ')
 
     const checks = [
       this.checkNodeVersion(),
@@ -207,7 +209,8 @@ export class MainOrchestrator {
   }
 
   private async initializeSystem(): Promise<boolean> {
-    console.log(chalk.blue('🚀 Initializing AI Development Orchestrator...'))
+    advancedUI.logFunctionCall('aidevelopmentorchestratorinit')
+    advancedUI.logFunctionUpdate('info', 'Initializing AI Development Orchestrator...', 'ℹ')
     console.log(chalk.gray('─'.repeat(60)))
 
     const steps = [
@@ -362,9 +365,9 @@ export class MainOrchestrator {
       await this.streamOrchestrator.streamToPanel(
         'vm-metrics',
         `📊 ${data.containerId?.slice(0, 8)}:\n` +
-          `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
-          `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
-          `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
+        `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
+        `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
+        `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
       )
     })
 

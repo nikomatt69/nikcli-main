@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
 import { toolsManager } from '../../tools/tools-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
@@ -81,19 +82,19 @@ export class SystemAdminAgent extends CognitiveAgentBase {
   }
 
   protected async onInitialize(): Promise<void> {
-    CliUI.logInfo('🖥️ Initializing Enhanced System Admin Agent with cognitive capabilities...')
+    advancedUI.logCognitive('🖥️ Initializing Enhanced System Admin Agent with cognitive capabilities...')
     await this.initializeSystemAdminCognition()
-    CliUI.logSuccess(`✓ System Admin Agent initialized with ${this.capabilities.length} capabilities`)
+    advancedUI.logSuccess(`✓ System Admin Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
   protected async onStop(): Promise<void> {
-    CliUI.logInfo('🛑 System Admin Agent shutting down...')
+    advancedUI.logInfo('🛑 System Admin Agent shutting down...')
     await this.saveCognitiveState()
-    CliUI.logSuccess('✓ System Admin Agent stopped - cognitive state saved')
+    advancedUI.logCognitive('✓ System Admin Agent stopped - cognitive state saved')
   }
 
   async analyzeSystem(): Promise<any> {
-    console.log(chalk.blue('🔍 Analyzing system...'))
+    advancedUI.logFunctionUpdate('info', 'Analyzing system...', 'ℹ')
 
     const systemInfo = await toolsManager.getSystemInfo()
     const dependencies = await toolsManager.checkDependencies([
@@ -186,11 +187,11 @@ Generate a structured plan with commands to execute.`,
       }
 
       console.log(chalk.blue.bold('\nCommands to execute:'))
-      ;(planResult.commands || []).forEach((cmd: any, index: number) => {
-        console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
-        console.log(`   ${chalk.gray(cmd.description)}`)
-        if (cmd.sudo) console.log(`   ${chalk.red('⚠️ Requires sudo')}`)
-      })
+        ; (planResult.commands || []).forEach((cmd: any, index: number) => {
+          console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
+          console.log(`   ${chalk.gray(cmd.description)}`)
+          if (cmd.sudo) console.log(`   ${chalk.red('⚠️ Requires sudo')}`)
+        })
 
       // Ask for confirmation
       const readline = require('readline').createInterface({
@@ -515,7 +516,7 @@ Generate a structured plan with commands to execute.`,
   }
 
   private async saveCognitiveState(): Promise<void> {
-    CliUI.logDebug('💾 System Admin cognitive state prepared for persistence')
+    CliUI.logDebug(' System Admin cognitive state prepared for persistence')
   }
 
   private async analyzeSystemEnvironmentCognitive(cognition: TaskCognition): Promise<any> {
@@ -539,7 +540,8 @@ Generate a structured plan with commands to execute.`,
     plan: OrchestrationPlan
   ): Promise<any> {
     try {
-      CliUI.logInfo('🚀 Executing intelligent System Administration...')
+      advancedUI.logFunctionCall('executing')
+      advancedUI.logFunctionUpdate('info', 'Intelligent System Administration', '●')
 
       const systemPrompt = `You are an advanced System Administrator with cognitive understanding.
 

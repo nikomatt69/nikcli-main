@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
 import { cacheService } from '../../services/cache-service'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { enhancedSupabaseProvider, type SupabaseUser } from './enhanced-supabase-provider'
 
 export interface AuthSession {
@@ -91,9 +92,10 @@ export class AuthProvider extends EventEmitter {
         this.setupAutoRefresh()
       }
 
-      console.log(chalk.blue('🔐 Auth Provider initialized'))
+      advancedUI.logFunctionCall('authproviderinit')
+      advancedUI.logFunctionUpdate('success', 'Auth Provider initialized', '✓')
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Auth initialization failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Auth initialization failed: ${error.message}`, '❌')
     }
   }
 

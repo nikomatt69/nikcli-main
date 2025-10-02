@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
@@ -6,7 +7,7 @@ import { CognitiveAgentBase } from './cognitive-agent-base'
 import type { BackendCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
 
 /**
- * 🔧 Enhanced Backend Agent with Cognitive Intelligence
+ *  Enhanced Backend Agent with Cognitive Intelligence
  * Specialized in server-side development with advanced API design intelligence,
  * database optimization suggestions, security vulnerability assessment,
  * and microservices architecture analysis
@@ -66,7 +67,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   protected async onInitialize(): Promise<void> {
-    CliUI.logInfo('🔧 Initializing Enhanced Backend Agent with cognitive capabilities...')
+    advancedUI.logCognitive(' Initializing Enhanced Backend Agent with cognitive capabilities...')
 
     // Initialize backend-specific cognitive patterns
     await this.initializeBackendCognition()
@@ -110,7 +111,7 @@ export class BackendAgent extends CognitiveAgentBase {
     const startTime = Date.now()
 
     try {
-      CliUI.logInfo(`🔧 Executing Backend task with ${plan.strategy} orchestration`)
+      CliUI.logInfo(` Executing Backend task with ${plan.strategy} orchestration`)
 
       // Phase 1: Backend Environment Analysis
       const backendContext = await this.analyzeBackendEnvironment(cognition)
@@ -190,7 +191,7 @@ export class BackendAgent extends CognitiveAgentBase {
         }
       }
 
-      CliUI.logDebug(`🔧 Enhanced Backend cognition - Complexity: ${backendCognition.estimatedComplexity}/10`)
+      CliUI.logDebug(` Enhanced Backend cognition - Complexity: ${backendCognition.estimatedComplexity}/10`)
 
       return backendCognition
     } catch (error: any) {
@@ -274,7 +275,7 @@ export class BackendAgent extends CognitiveAgentBase {
     }
 
     CliUI.logDebug(
-      `💾 Backend cognitive state prepared for persistence (${Object.keys(stateData.taskPatterns).length} patterns)`
+      ` Backend cognitive state prepared for persistence (${Object.keys(stateData.taskPatterns).length} patterns)`
     )
   }
 
@@ -340,7 +341,8 @@ export class BackendAgent extends CognitiveAgentBase {
     plan: OrchestrationPlan
   ): Promise<any> {
     try {
-      CliUI.logInfo('🚀 Executing intelligent Backend implementation...')
+      advancedUI.logFunctionCall('executing')
+      advancedUI.logFunctionUpdate('info', 'Intelligent Backend implementation', '●')
 
       // Determine which specialized method to use based on task analysis
       const taskType = this.determineBackendTaskType(cognition, apiAnalysis)
@@ -903,7 +905,7 @@ export class BackendAgent extends CognitiveAgentBase {
    * Handle generic backend tasks
    */
   private async handleGenericBackendTask(task: AgentTask): Promise<any> {
-    CliUI.logInfo(`🔧 Handling generic backend task: ${task.type}`)
+    CliUI.logInfo(` Handling generic backend task: ${task.type}`)
 
     // Use planning system for complex tasks
     const plan = await this.generateTaskPlan(task)
@@ -934,7 +936,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   private async configureBackendTools(): Promise<void> {
-    CliUI.logDebug('🔧 Configuring backend-specific tools')
+    CliUI.logDebug(' Configuring backend-specific tools')
   }
 
   // Placeholder methods for complex backend operations

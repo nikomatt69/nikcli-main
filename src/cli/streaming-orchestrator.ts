@@ -12,8 +12,10 @@ import { lspService } from './services/lsp-service'
 import { planningService } from './services/planning-service'
 import { toolService } from './services/tool-service'
 import { diffManager } from './ui/diff-manager'
+import { OutputFormatter } from './ui/output-formatter'
 import { CliUI } from './utils/cli-ui'
 import { PasteHandler } from './utils/paste-handler'
+import { advancedUI } from './ui/advanced-cli-ui'
 
 interface StreamMessage {
   id: string
@@ -98,8 +100,8 @@ class StreamingOrchestratorImpl extends EventEmitter {
     // Initialize paste handler for long text processing
     this.pasteHandler = PasteHandler.getInstance()
 
-    // Expose streaming orchestrator globally for VM agent communications
-    ;(global as any).__streamingOrchestrator = this
+      // Expose streaming orchestrator globally for VM agent communications
+      ; (global as any).__streamingOrchestrator = this
 
     // Don't setup interface automatically - only when start() is called
   }
@@ -112,9 +114,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
       this.originalRawMode = (process.stdin as any).isRaw || false
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ;(process.stdin as any).setRawMode(true)
+        ; (process.stdin as any).setRawMode(true)
       }
-      ;(process.stdin as any).resume()
+      ; (process.stdin as any).resume()
     }
 
     // Keypress handlers
@@ -227,7 +229,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         this.keypressHandler = undefined
       }
       if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
-        ;(process.stdin as any).setRawMode(this.originalRawMode)
+        ; (process.stdin as any).setRawMode(this.originalRawMode)
       }
     } catch {
       // ignore
@@ -263,7 +265,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     agentService.on('tool_use', (task, update) => {
       this.queueMessage({
         type: 'tool',
-        content: `🔧 ${task.agentType} using ${update.tool}: ${update.description}`,
+        content: ` ${task.agentType} using ${update.tool}: ${update.description}`,
         metadata: { agentId: task.id, tool: update.tool },
       })
     })
@@ -726,7 +728,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         // The plan is now ready and saved, no need for approval here
         console.log(chalk.gray('💡 Use the plan mode interface to start tasks'))
         // After execution ensure prompt is visible
-        import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => {})
+        import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => { })
         this.processingMessage = false
         this.showPrompt()
       } catch (error: any) {
@@ -777,8 +779,20 @@ class StreamingOrchestratorImpl extends EventEmitter {
     })
 
     let prefix = ''
-    const content = message.content
+    let content = message.content
     let color = chalk.white
+
+    // Apply rich formatting for final outputs (non-streaming, completed messages)
+    const isFinalOutput =
+      message.status === 'completed' &&
+      (message.type === 'agent' || message.type === 'vm') &&
+      !message.metadata?.isStreaming &&
+      content.length > 200 // Only format substantial outputs
+
+    if (isFinalOutput) {
+      // Apply rich text highlighting to final outputs
+      content = OutputFormatter.formatFinalOutput(content)
+    }
 
     switch (message.type) {
       case 'user':
@@ -794,7 +808,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         color = chalk.cyan
         break
       case 'tool':
-        prefix = '🔧'
+        prefix = ''
         color = chalk.magenta
         break
       case 'error':
@@ -813,7 +827,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         if (message.metadata?.isStreaming) {
           // For streaming chunks, use a more compact display
           const streamPrefix = chalk.dim('🌊')
-          console.log(`${streamPrefix}${color(content)}`)
+          console.log(`${streamPrefix}${chalk.hex('#3a3a3a')(content)}`)
           return // Skip normal display for streaming chunks
         }
         break
@@ -828,7 +842,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
             ? chalk.dim('📤')
             : ''
 
-    console.log(`${chalk.dim(timestamp)} ${prefix} ${color(content)} ${statusIndicator}`)
+    // For formatted outputs, don't apply color wrapper (already formatted)
+    const displayContent = isFinalOutput ? content : color(content)
+    console.log(`${chalk.dim(timestamp)} ${prefix} ${displayContent} ${statusIndicator}`)
 
     // Show progress bar for agent messages
     if (message.progress && message.progress > 0) {
@@ -880,11 +896,15 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     console.log(chalk.cyan('\n═══ Panels ═══'))
     for (const [_id, panel] of this.panels) {
-      console.log(chalk.blue(`\n▌ ${panel.title}`))
-      console.log(chalk.gray('─'.repeat(40)))
+      const isCognitivePanel = panel.id === 'cognitive-analysis' || /cognitive/i.test(panel.title)
+      const lineColor = isCognitivePanel ? chalk.hex('#3a3a3a') : chalk.dim
+      const titleColor = isCognitivePanel ? chalk.hex('#3a3a3a') : chalk.blue
+
+      console.log(titleColor(`\n▌ ${panel.title}`))
+      console.log((isCognitivePanel ? chalk.hex('#3a3a3a') : chalk.gray)('─'.repeat(40)))
       const displayLines = panel.content.slice(-5) // Show last 5 lines
       displayLines.forEach((line) => {
-        if (line) console.log(chalk.dim(`  ${line}`))
+        if (line) console.log(lineColor(`  ${line}`))
       })
     }
     console.log(chalk.cyan('═══════════════\n'))
@@ -960,7 +980,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     console.log(chalk.cyan.bold('\\n🔨 Adaptive Features:'))
     console.log(`${chalk.blue('Adaptive Supervision:')} ${this.context.adaptiveSupervision ? '✓' : '❌'}`)
     console.log(`${chalk.blue('Intelligent Prioritization:')} ${this.context.intelligentPrioritization ? '✓' : '❌'}`)
-    console.log(`${chalk.blue('Cognitive Filtering:')} ${this.context.cognitiveFiltering ? '✓' : '❌'}`)
+    console.log(chalk.hex('#3a3a3a')(`Cognitive Filtering: ${this.context.cognitiveFiltering ? '✓' : '❌'}`))
     console.log(`${chalk.blue('Orchestration Awareness:')} ${this.context.orchestrationAwareness ? '✓' : '❌'}`)
 
     // Input queue status
@@ -1000,7 +1020,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       try {
         process.env.NIKCLI_COMPACT = '1'
         process.env.NIKCLI_SUPER_COMPACT = '1'
-      } catch {}
+      } catch { }
       console.log(chalk.green('\\n✓ plan mode on ') + chalk.dim('(shift+tab to cycle)'))
     } else if (this.context.planMode && !this.context.autoAcceptEdits && !this.context.vmMode) {
       // Plan → Auto-accept
@@ -1023,17 +1043,17 @@ class StreamingOrchestratorImpl extends EventEmitter {
       try {
         delete (process.env as any).NIKCLI_COMPACT
         delete (process.env as any).NIKCLI_SUPER_COMPACT
-      } catch {}
+      } catch { }
       // Reset processing and show prompt to accept new input
       this.processingMessage = false
       import('./core/input-queue')
         .then(({ inputQueue }) => inputQueue.disableBypass())
         .then(() => {
           try {
-            ;(global as any).__nikCLI?.resumePromptAndRender?.()
-          } catch {}
+            ; (global as any).__nikCLI?.resumePromptAndRender?.()
+          } catch { }
         })
-        .catch(() => {})
+        .catch(() => { })
       this.showPrompt()
 
       // Cleanup VM agent when exiting VM mode
@@ -1315,11 +1335,11 @@ class StreamingOrchestratorImpl extends EventEmitter {
       this.context.vmMode = false
       try {
         diffManager.setAutoAccept(false)
-      } catch {}
+      } catch { }
 
       // Cleanup VM agent if any
       if (this.activeVMAgent) {
-        this.cleanupVMAgent().catch(() => {})
+        this.cleanupVMAgent().catch(() => { })
       }
 
       // Show prompt after a small delay to ensure messages are processed
@@ -1352,7 +1372,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     // Cleanup VM agent if active
     if (this.activeVMAgent) {
-      this.cleanupVMAgent().catch(() => {})
+      this.cleanupVMAgent().catch(() => { })
     }
 
     console.log(chalk.green('✓ Goodbye!'))
@@ -1424,7 +1444,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     // Auto-start relevant services
     await lspService.autoStartServers(this.context.workingDirectory)
 
-    console.log(chalk.dim('🚀 Services initialized'))
+    advancedUI.logFunctionUpdate('success', 'Services initialized', '✓')
   }
 
   /**
@@ -1458,7 +1478,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
   configureAdaptiveSupervision(config: any): void {
     console.log(chalk.cyan(`⚡︎ Adaptive supervision configured`))
     if (config.adaptiveSupervision) {
-      console.log(chalk.cyan(`🎯 Cognitive features enabled`))
+      console.log(chalk.hex('#3a3a3a')('🎯 Cognitive features enabled'))
     }
   }
 }

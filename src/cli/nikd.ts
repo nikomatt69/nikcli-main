@@ -8,6 +8,7 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
 import { BackgroundAgentsAPIServer, defaultAPIConfig } from './background-agents/api/server'
+import { advancedUI } from './ui/advanced-cli-ui'
 
 const program = new Command()
 
@@ -25,7 +26,8 @@ interface NikdOptions {
 }
 
 async function startDaemon(options: NikdOptions) {
-  console.log(chalk.cyan('🚀 Starting nikd (Background Agent Runner)...'))
+  advancedUI.logFunctionCall('nikdstart')
+  advancedUI.logFunctionUpdate('info', 'Starting nikd (Background Agent Runner)...', 'ℹ')
 
   try {
     // Parse Redis URL if provided

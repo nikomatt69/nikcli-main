@@ -6,6 +6,7 @@
 import chalk from 'chalk'
 import type { AgentTask } from '../automation/agents/agent-router'
 import { BaseAgent } from '../automation/agents/base-agent'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 // Agent interface definitions
 interface AgentOptions {
@@ -97,7 +98,7 @@ export class TextToCADAgent extends BaseAgent {
       const _cadSystemPath = '/Volumes/SSD/Development/dev/cadcamfun/src/lib/ai'
 
       // We'll import your services here
-      console.log(chalk.blue('🔧 Initializing Text-to-CAD AI system...'))
+      console.log(chalk.blue(' Initializing Text-to-CAD AI system...'))
 
       // For now, we'll create a mock interface
       // Later we'll connect to your actual services
@@ -107,9 +108,9 @@ export class TextToCADAgent extends BaseAgent {
         cadActionHandler: null, // Will connect to your CADActionHandler
       }
 
-      console.log(chalk.green('✓ Text-to-CAD AI system initialized'))
+      advancedUI.logFunctionUpdate('success', 'Text-to-CAD AI system initialized', '✓')
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ CAD AI system not available, using mock mode'))
+      advancedUI.logFunctionUpdate('warning', 'CAD AI system not available, using mock mode', '⚠︎')
     }
   }
 
@@ -248,7 +249,7 @@ export class TextToCADAgent extends BaseAgent {
       })
     }
 
-    console.log(chalk.green('✓ Streaming generation completed'))
+    advancedUI.logFunctionUpdate('success', 'Streaming generation completed', '✓')
 
     return {
       elements,
@@ -277,7 +278,7 @@ export class TextToCADAgent extends BaseAgent {
       },
     ]
 
-    console.log(chalk.green('✓ Standard generation completed'))
+    advancedUI.logFunctionUpdate('success', 'Standard generation completed', '✓')
 
     return {
       elements,

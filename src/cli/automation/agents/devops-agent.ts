@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
@@ -69,15 +70,15 @@ export class DevOpsAgent extends CognitiveAgentBase {
   }
 
   protected async onInitialize(): Promise<void> {
-    CliUI.logInfo('🚀 Initializing Enhanced DevOps Agent with cognitive capabilities...')
+    advancedUI.logCognitive('🚀 Initializing Enhanced DevOps Agent with cognitive capabilities...')
     await this.initializeDevOpsCognition()
-    CliUI.logSuccess(`✓ DevOps Agent initialized with ${this.capabilities.length} capabilities`)
+    advancedUI.logSuccess(`✓ DevOps Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
   protected async onStop(): Promise<void> {
-    CliUI.logInfo('🛑 DevOps Agent shutting down...')
+    advancedUI.logInfo('🛑 DevOps Agent shutting down...')
     await this.saveCognitiveState()
-    CliUI.logSuccess('✓ DevOps Agent stopped - cognitive state saved')
+    advancedUI.logCognitive('✓ DevOps Agent stopped - cognitive state saved')
   }
 
   protected async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
@@ -98,7 +99,8 @@ export class DevOpsAgent extends CognitiveAgentBase {
     const startTime = Date.now()
 
     try {
-      CliUI.logInfo(`🚀 Executing DevOps task with ${plan.strategy} orchestration`)
+      advancedUI.logFunctionCall('executing')
+      advancedUI.logFunctionUpdate('info', `DevOps task with ${plan.strategy} orchestration`, '●')
 
       // Phase 1: Infrastructure Environment Analysis
       const infraContext = await this.analyzeInfrastructureEnvironment(cognition)
@@ -216,7 +218,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
   }
 
   private async saveCognitiveState(): Promise<void> {
-    CliUI.logDebug('💾 DevOps cognitive state prepared for persistence')
+    CliUI.logDebug(' DevOps cognitive state prepared for persistence')
   }
 
   private async analyzeInfrastructureEnvironment(cognition: TaskCognition): Promise<any> {

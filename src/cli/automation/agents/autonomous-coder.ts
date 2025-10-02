@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { z } from 'zod'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
 import { type ErrorAnalysis, toolsManager } from '../../tools/tools-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { BaseAgent } from './base-agent'
 
 const _CodingTaskSchema = z.object({
@@ -50,7 +51,7 @@ export class AutonomousCoder extends BaseAgent {
   }
 
   async analyzeProject(): Promise<any> {
-    console.log(chalk.blue('🔍 Analyzing project structure...'))
+    advancedUI.logFunctionUpdate('info', 'Analyzing project structure...', 'ℹ')
 
     const analysis = await toolsManager.analyzeProject()
 
@@ -290,7 +291,7 @@ ${error.line ? `Line: ${error.line}` : ''}`,
   private async applyFix(fix: any): Promise<void> {
     if (!fix.file || !fix.changes) return
 
-    console.log(chalk.cyan(`🔧 Applying fix to ${fix.file}`))
+    console.log(chalk.cyan(` Applying fix to ${fix.file}`))
 
     try {
       // Read the file first to understand context

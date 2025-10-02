@@ -2,8 +2,11 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { Redis } from '@upstash/redis'
+import axios from 'axios'
 import chalk from 'chalk'
 import { ChromaClient, CloudClient } from 'chromadb'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { unifiedEmbeddingInterface } from './unified-embedding-interface'
 
 export interface VectorDocument {
@@ -23,7 +26,7 @@ export interface VectorSearchResult {
 }
 
 export interface VectorStoreConfig {
-  provider: 'chromadb' | 'pinecone' | 'weaviate' | 'local'
+  provider: 'chromadb' | 'pinecone' | 'weaviate' | 'local' | 'upstash'
   connectionConfig: Record<string, any>
   collectionName: string
   embeddingDimensions: number
@@ -112,7 +115,7 @@ class ChromaDBVectorStore extends VectorStore {
           tenant: config.tenant,
           database: config.database || 'nikcli',
         })
-        console.log(chalk.gray(`🔗 Connecting to ChromaDB Cloud (${config.tenant})`))
+        advancedUI.logFunctionUpdate('info', `Connecting to ChromaDB Cloud (${config.tenant})`, 'ℹ')
       } else {
         this.client = new ChromaClient({
           host: config.host || 'localhost',
@@ -403,6 +406,315 @@ class ChromaDBVectorStore extends VectorStore {
 }
 
 /**
+ * Upstash (Redis) vector store implementation
+ */
+class UpstashVectorStore extends VectorStore {
+  private redis: Redis | null = null
+  private indexKey: string = ''
+  private mode: 'redis' | 'vector' = 'redis'
+  private vectorBaseUrl: string | null = null
+  private vectorToken: string | null = null
+
+  async connect(): Promise<boolean> {
+    try {
+      const cfg = this.config.connectionConfig || {}
+      const vectorUrl: string | undefined = cfg.vectorUrl || process.env.UPSTASH_VECTOR_REST_URL
+      const vectorToken: string | undefined = cfg.vectorToken || process.env.UPSTASH_VECTOR_REST_TOKEN
+      const redisUrl: string | undefined = cfg.redisUrl || process.env.UPSTASH_REDIS_REST_URL
+      const redisToken: string | undefined = cfg.redisToken || process.env.UPSTASH_REDIS_REST_TOKEN
+
+      if (vectorUrl && vectorToken) {
+        // Use Upstash Vector REST API
+        this.mode = 'vector'
+        this.vectorBaseUrl = vectorUrl
+        this.vectorToken = vectorToken
+        this.indexKey = `vec:index:${this.config.collectionName}`
+        console.log(chalk.gray('🔗 Using Upstash Vector (REST)'))
+        // Quick GET to ensure reachable
+        try {
+          await axios.get(vectorUrl, { headers: { Authorization: `Bearer ${vectorToken}` } })
+        } catch (_e) {
+          // Endpoint root may not be public; ignore
+        }
+        console.log(chalk.green('✓ Upstash Vector ready'))
+        return true
+      }
+
+      if (redisUrl && redisToken) {
+        // Fallback to Upstash Redis (manual vector store)
+        this.mode = 'redis'
+        this.redis = new Redis({ url: redisUrl, token: redisToken })
+        this.indexKey = `vec:index:${this.config.collectionName}`
+        console.log(chalk.gray('🔗 Connecting to Upstash Redis (vector store)'))
+        try {
+          await this.redis.ping()
+        } catch (_e) {}
+        console.log(chalk.green('✓ Upstash Redis connected'))
+        return true
+      }
+
+      console.log(
+        chalk.yellow('⚠️ Upstash not configured. Set UPSTASH_VECTOR_REST_URL/TOKEN or UPSTASH_REDIS_REST_URL/TOKEN')
+      )
+      return false
+    } catch (error) {
+      console.error(chalk.red(`❌ Upstash connection failed: ${String(error)}`))
+      this.stats.errors++
+      return false
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    // Upstash clients are stateless over REST; noop
+    this.redis = null
+    console.log(chalk.gray('🔌 Upstash Redis disconnected'))
+  }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      if (!this.redis) return false
+      // ping may not be supported everywhere; treat as healthy if client exists
+      this.stats.lastHealthCheck = new Date()
+      return true
+    } catch {
+      this.stats.errors++
+      return false
+    }
+  }
+
+  async createCollection(_name: string): Promise<boolean> {
+    // Logical collection via key prefix; no action needed
+    return true
+  }
+
+  async deleteCollection(_name: string): Promise<boolean> {
+    // Not implemented to avoid accidental mass-deletes over REST
+    return true
+  }
+
+  async addDocuments(documents: VectorDocument[]): Promise<boolean> {
+    try {
+      for (const doc of documents) {
+        if (!doc.embedding || doc.embedding.length === 0) {
+          const result = await unifiedEmbeddingInterface.generateEmbedding(doc.content, doc.id)
+          doc.embedding = result.vector
+        }
+
+        if (this.mode === 'vector' && this.vectorBaseUrl && this.vectorToken) {
+          // Upstash Vector upsert
+          const body: any = {
+            id: doc.id,
+            vector: doc.embedding,
+            metadata: { ...doc.metadata, content: doc.content, timestamp: doc.timestamp.toISOString() },
+          }
+          await axios.post(`${this.vectorBaseUrl}/upsert`, body, {
+            headers: { Authorization: `Bearer ${this.vectorToken}` },
+          })
+        } else if (this.redis) {
+          // Redis manual store
+          const key = `vec:doc:${this.config.collectionName}:${doc.id}`
+          const payload = {
+            id: doc.id,
+            content: doc.content,
+            embedding: doc.embedding,
+            metadata: doc.metadata,
+            timestamp: doc.timestamp.toISOString(),
+          }
+          await this.redis.set(key, JSON.stringify(payload))
+          await this.redis.sadd(this.indexKey, key)
+        }
+      }
+
+      this.stats.indexedDocuments += documents.length
+      return true
+    } catch (error) {
+      console.error(chalk.red(`❌ Failed to add documents to Upstash: ${String(error)}`))
+      this.stats.errors++
+      return false
+    }
+  }
+
+  async updateDocument(document: VectorDocument): Promise<boolean> {
+    return await this.addDocuments([document])
+  }
+
+  async deleteDocument(id: string): Promise<boolean> {
+    try {
+      if (this.mode === 'vector' && this.vectorBaseUrl && this.vectorToken) {
+        try {
+          await axios.post(
+            `${this.vectorBaseUrl}/delete`,
+            { id },
+            { headers: { Authorization: `Bearer ${this.vectorToken}` } }
+          )
+        } catch (_e) {}
+        return true
+      }
+
+      if (this.redis) {
+        const key = `vec:doc:${this.config.collectionName}:${id}`
+        await this.redis.del(key)
+        await this.redis.srem(this.indexKey, key)
+        return true
+      }
+      return false
+    } catch {
+      this.stats.errors++
+      return false
+    }
+  }
+
+  async search(query: string, limit = 10, threshold = 0.3): Promise<VectorSearchResult[]> {
+    // Naive client-side KNN using stored vectors
+    const start = Date.now()
+    try {
+      const queryEmbedding = (await unifiedEmbeddingInterface.generateEmbedding(query)).vector
+
+      if (this.mode === 'vector' && this.vectorBaseUrl && this.vectorToken) {
+        const body: any = { vector: queryEmbedding, top_k: limit, include_metadata: true }
+        const res = await axios.post(`${this.vectorBaseUrl}/query`, body, {
+          headers: { Authorization: `Bearer ${this.vectorToken}` },
+        })
+        const items: any[] =
+          (res.data?.result as any[]) || (res.data?.results as any[]) || (res.data?.vectors as any[]) || []
+        const results: VectorSearchResult[] = []
+        for (const item of items) {
+          const score = typeof item.score === 'number' ? item.score : 1 - (item.distance ?? 1)
+          if (score >= threshold) {
+            const md = item.metadata || {}
+            results.push({
+              id: item.id || '',
+              content: md.content || '',
+              score,
+              metadata: md,
+            })
+          }
+        }
+        this.updateSearchStats(Date.now() - start)
+        return results.sort((a, b) => b.score - a.score).slice(0, limit)
+      }
+
+      if (!this.redis) return []
+      const rawKeys = await this.redis.smembers(this.indexKey)
+      const keys = (rawKeys as unknown as string[]) || []
+      const results: VectorSearchResult[] = []
+      for (const key of keys) {
+        const raw = await this.redis.get<string>(key)
+        if (!raw) continue
+        const data = JSON.parse(raw)
+        const embedding: number[] = data.embedding || []
+        if (embedding.length === 0) continue
+        const score = unifiedEmbeddingInterface.calculateSimilarity(queryEmbedding, embedding)
+        if (score >= threshold) {
+          results.push({ id: data.id, content: data.content, score, metadata: data.metadata || {} })
+        }
+      }
+      this.updateSearchStats(Date.now() - start)
+      return results.sort((a, b) => b.score - a.score).slice(0, limit)
+    } catch (error) {
+      console.error(chalk.red(`❌ Upstash search failed: ${String(error)}`))
+      this.stats.errors++
+      return []
+    }
+  }
+
+  async searchByVector(embedding: number[], limit = 10, threshold = 0.3): Promise<VectorSearchResult[]> {
+    const start = Date.now()
+    try {
+      if (this.mode === 'vector' && this.vectorBaseUrl && this.vectorToken) {
+        const body: any = { vector: embedding, top_k: limit, include_metadata: true }
+        const res = await axios.post(`${this.vectorBaseUrl}/query`, body, {
+          headers: { Authorization: `Bearer ${this.vectorToken}` },
+        })
+        const items: any[] =
+          (res.data?.result as any[]) || (res.data?.results as any[]) || (res.data?.vectors as any[]) || []
+        const results: VectorSearchResult[] = []
+        for (const item of items) {
+          const score = typeof item.score === 'number' ? item.score : 1 - (item.distance ?? 1)
+          if (score >= threshold) {
+            const md = item.metadata || {}
+            results.push({
+              id: item.id || '',
+              content: md.content || '',
+              score,
+              metadata: md,
+              embedding: Array.isArray(item.vector) ? (item.vector as number[]) : undefined,
+            })
+          }
+        }
+        this.updateSearchStats(Date.now() - start)
+        return results.sort((a, b) => b.score - a.score).slice(0, limit)
+      }
+
+      if (!this.redis) return []
+      const rawKeys = await this.redis.smembers(this.indexKey)
+      const keys = (rawKeys as unknown as string[]) || []
+      const results: VectorSearchResult[] = []
+      for (const key of keys) {
+        const raw = await this.redis.get<string>(key)
+        if (!raw) continue
+        const data = JSON.parse(raw)
+        const docEmbedding: number[] = data.embedding || []
+        if (docEmbedding.length === 0) continue
+        const score = unifiedEmbeddingInterface.calculateSimilarity(embedding, docEmbedding)
+        if (score >= threshold) {
+          results.push({
+            id: data.id,
+            content: data.content,
+            score,
+            metadata: data.metadata || {},
+            embedding: docEmbedding,
+          })
+        }
+      }
+      this.updateSearchStats(Date.now() - start)
+      return results.sort((a, b) => b.score - a.score).slice(0, limit)
+    } catch (error) {
+      console.error(chalk.red(`❌ Upstash vector search failed: ${String(error)}`))
+      this.stats.errors++
+      return []
+    }
+  }
+
+  async getDocument(id: string): Promise<VectorDocument | null> {
+    try {
+      if (this.mode === 'vector' && this.vectorBaseUrl && this.vectorToken) {
+        // No direct get endpoint spec; emulate via metadata query by id if available
+        // Fallback: return null
+        return null
+      }
+      if (!this.redis) return null
+      const key = `vec:doc:${this.config.collectionName}:${id}`
+      const raw = await this.redis.get<string>(key)
+      if (!raw) return null
+      const data = JSON.parse(raw)
+      return {
+        id: data.id,
+        content: data.content,
+        metadata: data.metadata || {},
+        embedding: data.embedding || [],
+        timestamp: new Date(data.timestamp || Date.now()),
+      }
+    } catch {
+      this.stats.errors++
+      return null
+    }
+  }
+
+  async getDocumentsCount(): Promise<number> {
+    try {
+      if (!this.redis) return 0
+      const count = await this.redis.scard(this.indexKey)
+      this.stats.documentsCount = Number(count || 0)
+      return this.stats.documentsCount
+    } catch {
+      this.stats.errors++
+      return 0
+    }
+  }
+}
+
+/**
  * Local filesystem vector store implementation (fallback)
  */
 class LocalVectorStore extends VectorStore {
@@ -634,6 +946,9 @@ export class VectorStoreManager {
         case 'chromadb':
           this.stores.push(new ChromaDBVectorStore(config))
           break
+        case 'upstash':
+          this.stores.push(new UpstashVectorStore(config))
+          break
         case 'local': {
           const localStore = new LocalVectorStore(config)
           this.stores.push(localStore)
@@ -659,7 +974,8 @@ export class VectorStoreManager {
    * Initialize and connect to the best available vector store
    */
   async initialize(): Promise<boolean> {
-    console.log(chalk.blue('🔌 Initializing vector store manager...'))
+    advancedUI.logFunctionCall('vectorstoremanagerinit')
+    advancedUI.logFunctionUpdate('info', 'Initializing vector store manager...', 'ℹ')
 
     // Try to connect to stores in order of preference
     for (const store of this.stores) {
@@ -714,6 +1030,16 @@ export class VectorStoreManager {
     if (!this.activeStore) {
       console.error(chalk.red('❌ No active vector store'))
       return false
+    }
+
+    const broadcastWrites = process.env.VECTOR_BROADCAST_WRITES === 'true'
+    if (broadcastWrites) {
+      const results = await Promise.allSettled(this.stores.map((store) => store.addDocuments(documents)))
+      const success = results.some((r) => r.status === 'fulfilled' && r.value)
+      if (!success) {
+        console.log(chalk.yellow('⚠️ Broadcast writes failed on all stores'))
+      }
+      return success
     }
 
     return await this.activeStore.addDocuments(documents)

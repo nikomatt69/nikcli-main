@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
@@ -63,9 +64,9 @@ export class CodeGeneratorAgent extends CognitiveAgentBase {
   }
 
   protected async onInitialize(): Promise<void> {
-    CliUI.logInfo('🚀 Initializing Enhanced Code Generator Agent with cognitive capabilities...')
+    advancedUI.logCognitive('🚀 Initializing Enhanced Code Generator Agent with cognitive capabilities...')
     await this.initializeCodeGeneratorCognition()
-    CliUI.logSuccess(`✓ Code Generator Agent initialized with ${this.capabilities.length} capabilities`)
+    advancedUI.logSuccess(`✓ Code Generator Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
   protected async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
@@ -93,7 +94,8 @@ export class CodeGeneratorAgent extends CognitiveAgentBase {
     const startTime = Date.now()
 
     try {
-      CliUI.logInfo(`🚀 Executing Code Generator task with ${plan.strategy} orchestration`)
+      advancedUI.logFunctionCall('executing')
+      advancedUI.logFunctionUpdate('info', `Code Generator task with ${plan.strategy} orchestration`, '●')
 
       const generationPrompt = `Generate clean, well-documented TypeScript code for: ${cognition.originalTask}
 
@@ -294,6 +296,6 @@ Include proper types, error handling, and JSDoc comments.`
   }
 
   private async saveCognitiveState(): Promise<void> {
-    CliUI.logDebug('💾 Code Generator cognitive state prepared for persistence')
+    CliUI.logDebug(' Code Generator cognitive state prepared for persistence')
   }
 }

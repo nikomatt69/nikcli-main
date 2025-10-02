@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import type { SecureVirtualizedAgent } from './secure-vm-agent'
 import {
   type VMBridgeResponse,
@@ -44,22 +45,24 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.log(chalk.yellow('⚠️ VM Chat Bridge already initialized'))
+      advancedUI.logFunctionUpdate('warning', 'VM Chat Bridge already initialized', '⚠️')
       return
     }
 
     try {
+      advancedUI.logFunctionCall('vmchatbridgeinit')
+
       // Ensure WebSocket server is running
       if (!vmWebSocketServer.getServerStats().isRunning) {
         await vmWebSocketServer.start()
       }
 
       this.isInitialized = true
-      console.log(chalk.green('✓ VM Chat Bridge initialized successfully'))
+      advancedUI.logFunctionUpdate('success', 'VM Chat Bridge initialized successfully', '✓')
 
       this.emit('bridge_initialized')
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to initialize VM Chat Bridge: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Failed to initialize VM Chat Bridge: ${error.message}`, '❌')
       throw error
     }
   }
@@ -75,13 +78,13 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       const containerId = agent.getContainerId()
       if (containerId) {
         const session = await vmSessionManager.createSession(containerId, agent.id)
-        console.log(chalk.green(`📝 Created session ${session.sessionId} for VM agent ${agent.id}`))
+        advancedUI.logFunctionUpdate('success', `Created session ${session.sessionId} for VM agent ${agent.id}`, '📝')
       }
 
-      console.log(chalk.cyan(`🔌 Registered VM agent ${agent.id} with bridge`))
+      advancedUI.logFunctionUpdate('success', `Registered VM agent ${agent.id} with bridge`, '🔌')
       this.updateStats()
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to register VM agent ${agent.id}: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Failed to register VM agent ${agent.id}: ${error.message}`, '❌')
       throw error
     }
   }
@@ -101,10 +104,10 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       }
 
       this.activeAgents.delete(agentId)
-      console.log(chalk.yellow(`🔌 Unregistered VM agent ${agentId} from bridge`))
+      advancedUI.logFunctionUpdate('warning', `Unregistered VM agent ${agentId} from bridge`, '🔌')
       this.updateStats()
     } catch (error: any) {
-      console.error(chalk.red(`❌ Failed to unregister VM agent ${agentId}: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Failed to unregister VM agent ${agentId}: ${error.message}`, '❌')
     }
   }
 
@@ -146,7 +149,11 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       this.bridgeStats.successfulRequests++
       this.updateAverageResponseTime(responseTime)
 
-      console.log(chalk.green(`💬 Successfully routed message to agent ${agentId} (${responseTime}ms)`))
+      advancedUI.logFunctionUpdate(
+        'success',
+        `Successfully routed message to agent ${agentId} (${responseTime}ms)`,
+        '💬'
+      )
 
       // Flush message queue after successful processing
       await this.flushMessageQueue(session.sessionId)
@@ -325,7 +332,8 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
    */
   async shutdown(): Promise<void> {
     try {
-      console.log(chalk.yellow('🌉 Shutting down VM Chat Bridge...'))
+      advancedUI.logFunctionCall('vmchatbridgeshutdown')
+      advancedUI.logFunctionUpdate('warning', 'Shutting down VM Chat Bridge...', '🌉')
 
       // Unregister all agents
       for (const agentId of this.activeAgents.keys()) {
@@ -339,9 +347,9 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       }
 
       this.isInitialized = false
-      console.log(chalk.green('✓ VM Chat Bridge shutdown complete'))
+      advancedUI.logFunctionUpdate('success', 'VM Chat Bridge shutdown complete', '✓')
     } catch (error: any) {
-      console.error(chalk.red(`❌ Error during bridge shutdown: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Error during bridge shutdown: ${error.message}`, '❌')
     }
   }
 

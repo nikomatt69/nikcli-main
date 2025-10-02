@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { createOpenAI } from '@ai-sdk/openai'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { redisProvider } from '../redis/redis-provider'
 
 export interface ImageGenerationOptions {
@@ -72,7 +73,8 @@ export class ImageGenerator extends EventEmitter {
       mkdirSync(this.config.output_directory, { recursive: true })
     }
 
-    console.log(chalk.blue('🎨 Image Generator initialized'))
+    advancedUI.logFunctionCall('imagegeneratorinit')
+    advancedUI.logFunctionUpdate('success', 'Image Generator initialized', '✓')
   }
 
   /**
@@ -422,7 +424,7 @@ export class ImageGenerator extends EventEmitter {
       // Save image
       writeFileSync(outputPath, imageBuffer)
 
-      console.log(chalk.gray(`💾 Image saved to: ${outputPath}`))
+      console.log(chalk.gray(` Image saved to: ${outputPath}`))
       return outputPath
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ Failed to save image locally: ${error.message}`))

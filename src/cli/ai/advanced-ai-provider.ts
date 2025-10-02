@@ -33,12 +33,15 @@ import { WebSearchProvider } from '../core/web-search-provider'
 import { PromptManager } from '../prompts/prompt-manager'
 import { aiDocsTools } from '../tools/docs-request-tool'
 import { smartDocsTools } from '../tools/smart-docs-tool'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { compactAnalysis, safeStringifyContext } from '../utils/analysis-utils'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 
-// 🔧 Command System Schemas with Zod
+const cognitiveColor = chalk.hex('#3a3a3a')
+
+//  Command System Schemas with Zod
 const CommandSchema = z.object({
   type: z.enum(['npm', 'bash', 'git', 'docker', 'node', 'build', 'test', 'lint']),
   command: z.string().min(1).max(500),
@@ -135,7 +138,7 @@ export interface AutonomousProvider {
 export class AdvancedAIProvider implements AutonomousProvider {
   private tokenOptimizer: TokenOptimizer
 
-  // 🔧 Command System Properties
+  //  Command System Properties
   private commandHistory: CommandExecutionResult[] = []
   private packageCache: Map<string, PackageSearchResult[]> = new Map()
   private commandTemplates: Map<string, Command> = new Map()
@@ -435,6 +438,11 @@ export class AdvancedAIProvider implements AutonomousProvider {
       // Get documentation context if available
       const docsContext = await this.getDocumentationContext()
 
+      // Detect package manager
+      const { PackageManagerDetector } = await import('../utils/package-manager-detector')
+      const pmDetector = new PackageManagerDetector(this.workingDirectory)
+      const packageManagerContext = pmDetector.getContextString()
+
       // Try to load base agent prompt first
       const basePrompt = await this.promptManager.loadPromptForContext({
         agentId: 'base-agent',
@@ -445,6 +453,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
             .map((tool) => `${tool.tool}: ${tool.description}`)
             .join(', '),
           documentationContext: docsContext,
+          packageManager: packageManagerContext,
           ...context,
         },
       })
@@ -464,6 +473,11 @@ export class AdvancedAIProvider implements AutonomousProvider {
 
       // Get documentation context for fallback too
       const docsContext = await this.getDocumentationContext()
+
+      // Detect package manager for fallback
+      const { PackageManagerDetector } = await import('../utils/package-manager-detector')
+      const pmDetector = new PackageManagerDetector(this.workingDirectory)
+      const packageManagerContext = pmDetector.getContextString()
 
       const basePrompt = `You are an advanced AI development assistant with enhanced capabilities:
 
@@ -500,6 +514,8 @@ export class AdvancedAIProvider implements AutonomousProvider {
 
 **Current Working Directory**: ${this.workingDirectory}
 **Available Tools**: ${toolDescriptions}
+
+${packageManagerContext}
 
 Respond in a helpful, professional manner with clear explanations and actionable insights.`
 
@@ -654,7 +670,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             let finalContent = content
 
             if (validate) {
-              console.log(chalk.cyan(`🔍 Validating ${path} with LSP before writing...`))
+              advancedUI.logFunctionCall(`validating:${path}`)
+              advancedUI.logFunctionUpdate('info', 'Validating with LSP before writing...', 'ℹ')
 
               const validationContext: ValidationContext = {
                 filePath: fullPath,
@@ -670,7 +687,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 // Auto-fix was attempted in ValidatorManager
                 if (validationResult.fixedContent) {
                   finalContent = validationResult.fixedContent
-                  console.log(chalk.green(`🔧 Auto-fix and formatting applied successfully`))
+                  advancedUI.logFunctionUpdate('success', 'Auto-fix and formatting applied successfully', '✓')
                 } else {
                   // If validation fails and no auto-fix available, return error
                   return {
@@ -688,9 +705,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 }
 
                 if (validationResult.formatted) {
-                  console.log(chalk.green(`✓ File formatted and validated successfully`))
+                  advancedUI.logFunctionUpdate('success', 'File formatted and validated successfully', '✓')
                 } else {
-                  console.log(chalk.green(`✓ Validation passed for ${path}`))
+                  advancedUI.logFunctionUpdate('success', `Validation passed for ${path}`, '✓')
                 }
               }
             }
@@ -701,7 +718,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
               const backupPath = `${fullPath}.backup.${Date.now()}`
               writeFileSync(backupPath, readFileSync(fullPath, 'utf-8'))
               backedUp = true
-              console.log(chalk.blue(`📁 Backup created: ${backupPath}`))
+              advancedUI.logFunctionUpdate('info', `Backup created: ${backupPath}`, 'ℹ')
             }
 
             // Prepare diff preview before writing
@@ -748,7 +765,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             writeFileSync(fullPath, finalContent, 'utf-8')
             const stats = statSync(fullPath)
 
-            console.log(chalk.green(`✓ File written successfully: ${path} (${stats.size} bytes)`))
+            advancedUI.logFunctionUpdate('success', `File written successfully: ${path} (${stats.size} bytes)`, '✓')
 
             // Update context
             this.executionContext.set(`file:${path}`, {
@@ -771,10 +788,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                    isValid: validationResult.isValid,
-                    errors: validationResult.errors,
-                    warnings: validationResult.warnings,
-                  }
+                  isValid: validationResult.isValid,
+                  errors: validationResult.errors,
+                  warnings: validationResult.warnings,
+                }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -858,7 +875,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
               }
             }
 
-            console.log(chalk.blue(`🚀 Executing: ${fullCommand}`))
+            advancedUI.logFunctionCall('executing')
+            advancedUI.logFunctionUpdate('info', fullCommand, '●')
 
             const startTime = Date.now()
             const { stdout, stderr } = await execAsync(fullCommand, {
@@ -893,7 +911,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
               cwd: commandCwd,
             }
           } catch (error: any) {
-            console.log(chalk.red(`❌ Command failed: ${error.message}`))
+            advancedUI.logFunctionUpdate('error', `Command failed: ${error.message}`, '❌')
             return {
               command: `${command} ${args.join(' ')}`,
               error: error.message,
@@ -914,7 +932,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         }),
         execute: async ({ includeMetrics, analyzeDependencies, securityScan }) => {
           try {
-            console.log(chalk.blue('🔍 Starting comprehensive project analysis...'))
+            advancedUI.logFunctionUpdate('info', 'Starting comprehensive project analysis...', 'ℹ')
 
             const analysis = await this.performAdvancedProjectAnalysis({
               includeMetrics,
@@ -973,7 +991,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 break
             }
 
-            console.log(chalk.blue(`📦 ${action} packages: ${packages.join(', ') || 'all'}`))
+            advancedUI.logFunctionCall(`${action}packages`)
+            advancedUI.logFunctionUpdate('info', `${packages.join(', ') || 'all'}`, '●')
 
             const { stdout, stderr } = await execAsync(`${command} ${args.join(' ')}`, {
               cwd: this.workingDirectory,
@@ -1010,7 +1029,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
         }),
         execute: async ({ type, description, language, framework, outputPath }) => {
           try {
-            console.log(chalk.blue(`🎨 Generating ${type}: ${description}`))
+            advancedUI.logFunctionCall(`generating${type}`)
+            advancedUI.logFunctionUpdate('info', description, '●')
 
             const projectContext = this.executionContext.get('project:analysis')
             const codeGenResult = await this.generateIntelligentCode({
@@ -1104,8 +1124,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                  .join('')
+                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -1143,7 +1163,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
             return
           }
         } else if (isAnalysisRequest) {
-          yield { type: 'start', content: '🔍 Starting fresh analysis (bypassing cache)...' }
+          yield { type: 'start', content: 'Starting fresh analysis (bypassing cache)...' }
         }
       }
 
@@ -1232,7 +1252,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         maxToolRoundtrips: isAnalysisRequest ? 40 : 60, // Increased for deeper analysis and toolchains
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => {},
+        onStepFinish: (_evt: any) => { },
       }
       if (provider !== 'openai' && provider !== 'openrouter') {
         streamOpts.maxTokens = params.maxTokens
@@ -1439,10 +1459,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                          .map((part) =>
-                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                          )
-                          .join('')
+                        .map((part) =>
+                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                        )
+                        .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -2122,8 +2142,8 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-            { role: 'user', content: `${type}: ${description} (${language})` } as any,
-          ])
+          { role: 'user', content: `${type}: ${description} (${language})` } as any,
+        ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -2178,9 +2198,9 @@ Requirements:
       try {
         const nik = (global as any).__nikCLI
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
-        if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
+        if (nik?.advancedUI) nik.advancedUI.logInfo('model router', msg)
         else console.log(chalk.dim(msg))
-      } catch {}
+      } catch { }
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
@@ -2960,7 +2980,7 @@ Use this cognitive understanding to provide more targeted and effective response
   }
 
   /**
-   * 🔧 Configure Cognitive Enhancement
+   *  Configure Cognitive Enhancement
    * Allows customization of cognitive processing behavior
    */
   configureCognition(config: {
@@ -2970,10 +2990,10 @@ Use this cognitive understanding to provide more targeted and effective response
     riskAwareness?: boolean
   }): void {
     // Configuration would be stored and used in cognitive methods
-    console.log('⚡︎ Cognitive configuration updated:', config)
+    console.log(cognitiveColor('⚡︎ Cognitive configuration updated:'), config)
   }
 
-  // ====================== 🔧 AUTONOMOUS COMMAND SYSTEM ======================
+  // ======================  AUTONOMOUS COMMAND SYSTEM ======================
 
   /**
    * 🔍 Intelligent Package Search with NPM Registry
@@ -2991,7 +3011,8 @@ Use this cognitive understanding to provide more targeted and effective response
 
     try {
       if (!this.streamSilentMode) {
-        console.log(chalk.blue(`🔍 Searching packages for: ${query} (context: ${context})`))
+        advancedUI.logFunctionCall('searchingpackages')
+        advancedUI.logFunctionUpdate('info', `${query} (context: ${context})`, '●')
       }
 
       // Execute NPM search with context-aware filtering
@@ -3028,13 +3049,13 @@ Use this cognitive understanding to provide more targeted and effective response
       this.packageCache.set(cacheKey, validatedResults)
 
       if (!this.streamSilentMode) {
-        console.log(chalk.green(`✓ Found ${validatedResults.length} relevant packages`))
+        advancedUI.logFunctionUpdate('success', `Found ${validatedResults.length} relevant packages`, '✓')
       }
 
       return validatedResults
     } catch (error: any) {
       if (!this.streamSilentMode) {
-        console.log(chalk.red(`❌ Package search failed: ${error.message}`))
+        advancedUI.logFunctionUpdate('error', `Package search failed: ${error.message}`, '❌')
       }
       return []
     }
@@ -3103,7 +3124,8 @@ Use this cognitive understanding to provide more targeted and effective response
     const startTime = Date.now()
 
     if (!this.streamSilentMode) {
-      console.log(chalk.blue(`⚡ Executing: ${command.description}`))
+      advancedUI.logFunctionCall('executing')
+      advancedUI.logFunctionUpdate('info', command.description, '●')
     }
 
     try {
@@ -3147,7 +3169,7 @@ Use this cognitive understanding to provide more targeted and effective response
       this.commandHistory.push(validatedResult)
 
       if (!this.streamSilentMode) {
-        console.log(chalk.green(`✓ Command completed in ${duration}ms`))
+        advancedUI.logFunctionUpdate('success', `Command completed in ${duration}ms`, '✓')
       }
 
       return validatedResult
@@ -3167,7 +3189,7 @@ Use this cognitive understanding to provide more targeted and effective response
       this.commandHistory.push(validatedErrorResult)
 
       if (!this.streamSilentMode) {
-        console.log(chalk.red(`❌ Command failed: ${error.message}`))
+        advancedUI.logFunctionUpdate('error', `Command failed: ${error.message}`, '❌')
       }
 
       return validatedErrorResult
@@ -3185,7 +3207,7 @@ Use this cognitive understanding to provide more targeted and effective response
 
       yield {
         type: 'start',
-        content: `🔧 Preparing: ${command.description}`,
+        content: ` Preparing: ${command.description}`,
         metadata: {
           command: command.command,
           safety: command.safety,
@@ -3318,7 +3340,7 @@ Use this cognitive understanding to provide more targeted and effective response
     return suggestions.slice(0, 3) // Limit to top 3 suggestions
   }
 
-  // ====================== 🔧 COMMAND BUILDER HELPERS ======================
+  // ======================  COMMAND BUILDER HELPERS ======================
 
   private buildInstallCommand(context: any): Partial<Command> {
     const packages = context.packages || []
@@ -3553,15 +3575,15 @@ Use this cognitive understanding to provide more targeted and effective response
     intelligentCommands: boolean
     adaptivePlanning: boolean
   }): void {
-    console.log(chalk.cyan(`⚡︎ AdvancedAIProvider cognitive features configured`))
+    console.log(cognitiveColor('⚡︎ AdvancedAIProvider cognitive features configured'))
     if (config.enableCognition) {
-      console.log(chalk.cyan(`🎯 Cognitive features enabled (level: ${config.orchestrationLevel})`))
+      console.log(cognitiveColor(`🎯 Cognitive features enabled (level: ${config.orchestrationLevel})`))
     }
     if (config.intelligentCommands) {
-      console.log(chalk.cyan(`⚡ Intelligent commands active`))
+      console.log(cognitiveColor('⚡ Intelligent commands active'))
     }
     if (config.adaptivePlanning) {
-      console.log(chalk.cyan(`📋 Adaptive planning enabled`))
+      console.log(cognitiveColor('📋 Adaptive planning enabled'))
     }
   }
 }

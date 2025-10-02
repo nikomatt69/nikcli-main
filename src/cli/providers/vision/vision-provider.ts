@@ -8,6 +8,7 @@ import { type CoreMessage, generateObject } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { simpleConfigManager } from '../../core/config-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { redisProvider } from '../redis/redis-provider'
 
 export interface VisionAnalysisResult {
@@ -60,7 +61,8 @@ export class VisionProvider extends EventEmitter {
       quality: 'auto',
     }
 
-    console.log(chalk.blue('🎞️ Vision Provider initialized'))
+    advancedUI.logFunctionCall('visionproviderinit')
+    advancedUI.logFunctionUpdate('success', 'Vision Provider initialized', '✓')
   }
 
   /**

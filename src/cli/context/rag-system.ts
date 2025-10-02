@@ -4,9 +4,9 @@ import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { TOKEN_LIMITS } from '../config/token-limits'
-import { globalCacheManager, type CacheProvider } from '../core/cache-provider'
+import { type CacheProvider, globalCacheManager } from '../core/cache-provider'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 // Import semantic search engine and file filtering
 import { type QueryAnalysis, type ScoringContext, semanticSearchEngine } from './semantic-search-engine'
@@ -131,6 +131,26 @@ function createVectorStoreConfigs() {
         ssl: chromaUrl.startsWith('https'),
       },
       collectionName: 'unified_project_index',
+      embeddingDimensions: 1536,
+      indexingBatchSize: 100,
+      maxRetries: 3,
+      healthCheckInterval: 300000,
+      autoFallback: true,
+    })
+  }
+
+  // Optional Upstash Redis vector store configuration
+  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL
+  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN
+  const upstashCollection = process.env.UPSTASH_VECTOR_COLLECTION || 'unified_project_index'
+  if (upstashUrl && upstashToken) {
+    configs.push({
+      provider: 'upstash' as const,
+      connectionConfig: {
+        redisUrl: upstashUrl,
+        redisToken: upstashToken,
+      },
+      collectionName: upstashCollection,
       embeddingDimensions: 1536,
       indexingBatchSize: 100,
       maxRetries: 3,
@@ -282,7 +302,7 @@ export class UnifiedRAGSystem {
       })
 
       if (!process.env.NIKCLI_QUIET_STARTUP) {
-        advancedUI.logInfo(chalk.blue('🔍 File filter system initialized'), '●')
+        console.log(chalk.blue('🔍 File filter system initialized'))
       }
 
       // Initialize workspace RAG (local analysis)
@@ -298,18 +318,18 @@ export class UnifiedRAGSystem {
 
           const initialized = await this.vectorStoreManager.initialize()
           if (initialized) {
-            advancedUI.logSuccess('Vector Store Manager initialized with fallback support', '●')
+            console.log(chalk.green('✓ Vector Store Manager initialized with fallback support'))
           } else {
-            advancedUI.logWarning('Vector Store Manager failed to initialize, using workspace analysis only', '●')
+            console.log(chalk.yellow('⚠️ Vector Store Manager failed to initialize, using workspace analysis only'))
             this.config.useVectorDB = false
           }
         } catch (error: any) {
-          advancedUI.logWarning(`Vector DB unavailable: ${error.message}, using workspace analysis only`, '●')
+          console.log(chalk.yellow(`⚠️ Vector DB unavailable: ${error.message}, using workspace analysis only`))
           this.config.useVectorDB = false
         }
       }
     } catch (error: any) {
-      advancedUI.logWarning(`RAG initialization warning: ${error}`, '●')
+      console.log(chalk.yellow('⚠️ RAG initialization warning:', error))
     }
   }
 
@@ -318,13 +338,14 @@ export class UnifiedRAGSystem {
    */
   async analyzeProject(projectPath: string): Promise<RAGAnalysisResult> {
     const startTime = Date.now()
-    advancedUI.logInfo(chalk.blue('⚡︎ Starting unified RAG analysis...'), '●')
+    advancedUI.logFunctionCall('unifiedraganalysis')
+    advancedUI.logFunctionUpdate('info', 'Starting unified RAG analysis...', 'ℹ')
 
     // Check cache
     const cacheKey = `analysis-${projectPath}`
     const cached = await this.analysisCache.get<RAGAnalysisResult>(cacheKey)
     if (cached) {
-      advancedUI.logSuccess('Using cached analysis', '●')
+      console.log(chalk.green('✓ Using cached analysis'))
       return cached
     }
 
@@ -335,9 +356,9 @@ export class UnifiedRAGSystem {
 
     // 1. Workspace Analysis (always run)
     if (this.config.enableWorkspaceAnalysis && this.workspaceRAG) {
-      advancedUI.logInfo(chalk.cyan('📁 Analyzing workspace structure...'), '●')
+      console.log(chalk.cyan('📁 Analyzing workspace structure...'))
       workspaceContext = await this.workspaceRAG.analyzeWorkspace()
-      advancedUI.logSuccess(`Analyzed ${workspaceContext.files.size} files`, '●')
+      console.log(chalk.green(`✓ Analyzed ${workspaceContext.files.size} files`))
     } else {
       // Fallback minimal analysis
       workspaceContext = this.createMinimalWorkspaceContext(projectPath)
@@ -351,7 +372,7 @@ export class UnifiedRAGSystem {
         embeddingsCost = indexResult.cost
         indexedFiles = indexResult.indexedFiles
       } catch (_error) {
-        advancedUI.logWarning('Vector DB indexing failed, using workspace analysis only', '●')
+        console.log(chalk.yellow('⚠️ Vector DB indexing failed, using workspace analysis only'))
         vectorDBStatus = 'error'
       }
     }
@@ -370,10 +391,9 @@ export class UnifiedRAGSystem {
       tags: ['analysis', 'project'],
     })
 
-    advancedUI.logSuccess(`RAG analysis completed in ${result.processingTime}ms`, '●')
-    advancedUI.logInfo(
-      chalk.gray(`   Indexed: ${indexedFiles} files, Cost: $${embeddingsCost.toFixed(4)}, Vector DB: ${vectorDBStatus}`),
-      '●'
+    console.log(chalk.green(`✓ RAG analysis completed in ${result.processingTime}ms`))
+    console.log(
+      chalk.gray(`   Indexed: ${indexedFiles} files, Cost: $${embeddingsCost.toFixed(4)}, Vector DB: ${vectorDBStatus}`)
     )
 
     return result
@@ -395,11 +415,10 @@ export class UnifiedRAGSystem {
     try {
       // Use semantic search engine for query analysis
       const queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
-      advancedUI.logInfo(
+      console.log(
         chalk.blue(
           `⚡︎ Query intent: ${queryAnalysis.intent.type} (${Math.round(queryAnalysis.confidence * 100)}% confidence)`
-        ),
-        '●'
+        )
       )
 
       // Use the enhanced search with semantic analysis
@@ -410,7 +429,7 @@ export class UnifiedRAGSystem {
         queryAnalysis,
       })
     } catch (_error) {
-      advancedUI.logWarning('Semantic search failed, falling back to regular search', '●')
+      console.log(chalk.yellow('⚠️ Semantic search failed, falling back to regular search'))
       return await this.search(query, { limit })
     }
   }
@@ -434,14 +453,14 @@ export class UnifiedRAGSystem {
     this.searchMetrics.totalSearches++
     const searchTypes: string[] = []
 
-    advancedUI.logInfo(chalk.blue(`🔍 Searching: "${query}"`), '●')
+    console.log(chalk.blue(`🔍 Searching: "${query}"`))
 
     try {
       // Apply query optimization pipeline
       const optimizedQuery = this.optimizeQuery(query)
       if (optimizedQuery !== query) {
         this.searchMetrics.queryOptimizations++
-        advancedUI.logInfo(chalk.gray(`🔧 Query optimized: "${query}" → "${optimizedQuery}"`), '●')
+        console.log(chalk.gray(` Query optimized: "${query}" → "${optimizedQuery}"`))
       }
 
       // Run hybrid searches concurrently (vector, workspace, and BM25)
@@ -453,7 +472,7 @@ export class UnifiedRAGSystem {
         this.searchMetrics.vectorSearches++
         searchPromises.push(
           this.searchVectorStore(optimizedQuery, Math.ceil(limit * 0.5)).catch(() => {
-            advancedUI.logWarning('Vector search failed', '●')
+            console.log(chalk.yellow('⚠️ Vector search failed'))
             this.searchMetrics.errors++
             return []
           })
@@ -466,7 +485,7 @@ export class UnifiedRAGSystem {
         this.searchMetrics.workspaceSearches++
         searchPromises.push(
           this.searchWorkspace(optimizedQuery, Math.ceil(limit * 0.3)).catch(() => {
-            advancedUI.logWarning('Workspace search failed', '●')
+            console.log(chalk.yellow('⚠️ Workspace search failed'))
             this.searchMetrics.errors++
             return []
           })
@@ -479,7 +498,7 @@ export class UnifiedRAGSystem {
         this.searchMetrics.bm25Searches++
         searchPromises.push(
           this.bm25Search(optimizedQuery, Math.ceil(limit * 0.2)).catch(() => {
-            advancedUI.logWarning('BM25 search failed', '●')
+            console.log(chalk.yellow('⚠️ BM25 search failed'))
             this.searchMetrics.errors++
             return []
           })
@@ -515,9 +534,11 @@ export class UnifiedRAGSystem {
       this.searchMetrics.totalLatency += duration
       this.searchMetrics.averageLatency = this.searchMetrics.totalLatency / this.searchMetrics.totalSearches
 
-      advancedUI.logSuccess(
-        `Found ${finalResults.length} results in ${duration}ms (${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`,
-        '●'
+      console.log(
+        chalk.green(
+          `✓ Found ${finalResults.length} results in ${duration}ms ` +
+            `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
+        )
       )
 
       return finalResults
@@ -527,7 +548,7 @@ export class UnifiedRAGSystem {
       this.searchMetrics.totalLatency += duration
       this.searchMetrics.averageLatency = this.searchMetrics.totalLatency / this.searchMetrics.totalSearches
 
-      advancedUI.logError(`Search failed in ${duration}ms: ${(error as Error).message}`, '●')
+      console.log(chalk.red(`❌ Search failed in ${duration}ms: ${(error as Error).message}`))
       throw error
     }
   }
@@ -541,18 +562,18 @@ export class UnifiedRAGSystem {
         throw new Error('Vector store manager or file filter not initialized')
       }
 
-      advancedUI.logInfo(chalk.cyan('📊 Starting intelligent vector store indexing...'), '●')
+      console.log(chalk.cyan('📊 Starting intelligent vector store indexing...'))
 
       // Use intelligent file filtering to get indexable files
       const filesToIndex = this.fileFilter.getFilesToIndex(projectPath)
-      advancedUI.logInfo(chalk.blue(`📁 Found ${filesToIndex.length} files to index after filtering`), '●')
+      console.log(chalk.blue(`📁 Found ${filesToIndex.length} files to index after filtering`))
 
       // Show filtering statistics
       this.fileFilter.logStats()
 
       let totalCost = 0
       let indexedCount = 0
-      const documentsToIndex: VectorDocument[] = []
+      let documentsToIndex: VectorDocument[] = []
 
       for (const filePath of filesToIndex) {
         try {
@@ -565,7 +586,7 @@ export class UnifiedRAGSystem {
           // Estimate cost before processing
           const estimatedCost = estimateCost([content])
           if (totalCost + estimatedCost > this.config.costThreshold) {
-            advancedUI.logWarning(`Cost threshold reached at $${this.config.costThreshold}, stopping indexing`, '●')
+            console.log(chalk.yellow(`⚠️ Cost threshold reached at $${this.config.costThreshold}, stopping indexing`))
             break
           }
 
@@ -614,19 +635,36 @@ export class UnifiedRAGSystem {
 
             // Progress feedback for large indexing operations
             if (indexedCount % 100 === 0) {
-              advancedUI.logInfo(chalk.gray(`   Processed ${indexedCount} files, cost: $${totalCost.toFixed(6)}`), '●')
+              console.log(chalk.gray(`   Processed ${indexedCount} files, cost: $${totalCost.toFixed(6)}`))
             }
           }
         } catch (fileError) {
-          advancedUI.logWarning(`Failed to index ${relative(projectPath, filePath)}: ${fileError}`, '●')
+          console.log(chalk.yellow(`⚠️ Failed to index ${relative(projectPath, filePath)}: ${fileError}`))
         }
       }
 
       // Batch index documents with progress tracking
       if (documentsToIndex.length > 0) {
-        advancedUI.logInfo(chalk.cyan(`📤 Uploading ${documentsToIndex.length} document chunks to vector store...`), '●')
+        console.log(chalk.cyan(`📤 Uploading ${documentsToIndex.length} document chunks to vector store...`))
 
-        const batchSize = this.config.chunkSize || 50
+        // ChromaDB free tier has quota limits (typically 300-1000 records)
+        // Use smaller batches to respect quota and avoid overwhelming the API
+        const MAX_CHROMADB_BATCH_SIZE = 100 // Conservative batch size for quota limits
+        const batchSize = Math.min(MAX_CHROMADB_BATCH_SIZE, 100)
+
+        // Limit total documents to prevent quota exceeded errors
+        const MAX_TOTAL_DOCUMENTS = 300 // Free tier limit
+        if (documentsToIndex.length > MAX_TOTAL_DOCUMENTS) {
+          console.log(
+            chalk.yellow(`⚠️ Document count (${documentsToIndex.length}) exceeds quota limit (${MAX_TOTAL_DOCUMENTS})`)
+          )
+          console.log(chalk.yellow(`   Limiting to ${MAX_TOTAL_DOCUMENTS} most important documents`))
+          // Sort by priority (files with more code content first)
+          documentsToIndex = documentsToIndex
+            .sort((a, b) => b.content.length - a.content.length)
+            .slice(0, MAX_TOTAL_DOCUMENTS)
+        }
+
         let successfulBatches = 0
 
         for (let i = 0; i < documentsToIndex.length; i += batchSize) {
@@ -634,29 +672,29 @@ export class UnifiedRAGSystem {
           const batchNumber = Math.floor(i / batchSize) + 1
           const totalBatches = Math.ceil(documentsToIndex.length / batchSize)
 
-          advancedUI.logInfo(chalk.gray(`   Uploading batch ${batchNumber}/${totalBatches} (${batch.length} chunks)`), '●')
+          console.log(chalk.gray(`   Uploading batch ${batchNumber}/${totalBatches} (${batch.length} chunks)`))
 
           const success = await this.vectorStoreManager.addDocuments(batch)
 
           if (success) {
             successfulBatches++
           } else {
-            advancedUI.logWarning(`Failed to upload batch ${batchNumber}`, '●')
+            console.log(chalk.yellow(`⚠️ Failed to upload batch ${batchNumber}`))
           }
         }
 
         const successRate = (successfulBatches / Math.ceil(documentsToIndex.length / batchSize)) * 100
 
-        advancedUI.logSuccess('Indexing complete!', '●')
-        advancedUI.logInfo(chalk.gray(`   Files processed: ${indexedCount}`), '●')
-        advancedUI.logInfo(chalk.gray(`   Document chunks: ${documentsToIndex.length}`), '●')
-        advancedUI.logInfo(chalk.gray(`   Upload success rate: ${successRate.toFixed(1)}%`), '●')
-        advancedUI.logInfo(chalk.gray(`   Total cost: $${totalCost.toFixed(6)}`), '●')
+        console.log(chalk.green(`✓ Indexing complete!`))
+        console.log(chalk.gray(`   Files processed: ${indexedCount}`))
+        console.log(chalk.gray(`   Document chunks: ${documentsToIndex.length}`))
+        console.log(chalk.gray(`   Upload success rate: ${successRate.toFixed(1)}%`))
+        console.log(chalk.gray(`   Total cost: $${totalCost.toFixed(6)}`))
       }
 
       return { success: true, cost: totalCost, indexedFiles: indexedCount }
     } catch (error) {
-      advancedUI.logError(`Vector store indexing failed: ${error}`, '●')
+      console.error(chalk.red(`❌ Vector store indexing failed: ${error}`))
       return { success: false, cost: 0, indexedFiles: 0 }
     }
   }
@@ -734,8 +772,6 @@ export class UnifiedRAGSystem {
   }
 
   // Cache methods removed - now handled by CacheProvider
-
-
 
   /**
    * Generate file content hash for change detection
@@ -1047,7 +1083,7 @@ export class UnifiedRAGSystem {
         .filter((r) => r.score > 40) // Higher threshold for semantic results
         .sort((a, b) => b.score - a.score)
     } catch (error: any) {
-      advancedUI.logError(`Enhanced vector search error: ${error.message}`, '●')
+      console.log(chalk.red(`Enhanced vector search error: ${error.message}`))
       throw error
     }
   }
@@ -1156,7 +1192,7 @@ export class UnifiedRAGSystem {
 
       return searchResults.filter((r) => r.score > 30) // Filter low confidence results
     } catch (error: any) {
-      advancedUI.logError(`Vector store search error: ${error.message}`, '●')
+      console.log(chalk.red(`Vector store search error: ${error.message}`))
       throw error
     }
   }
@@ -1335,7 +1371,7 @@ export class UnifiedRAGSystem {
     if (!this.workspaceRAG) return []
 
     try {
-      advancedUI.logInfo(chalk.gray('🔤 Performing BM25 sparse search'), '●')
+      console.log(chalk.gray('🔤 Performing BM25 sparse search'))
 
       const queryTerms = query
         .toLowerCase()
@@ -1383,7 +1419,7 @@ export class UnifiedRAGSystem {
           },
         }))
     } catch (error) {
-      advancedUI.logWarning(`BM25 search error: ${(error as Error).message}`, '●')
+      console.log(chalk.yellow(`⚠️ BM25 search error: ${(error as Error).message}`))
       return []
     }
   }
@@ -1551,14 +1587,14 @@ export class UnifiedRAGSystem {
 
   updateConfig(updates: Partial<UnifiedRAGConfig>): void {
     this.config = { ...this.config, ...updates }
-    advancedUI.logInfo('🔧 RAG configuration updated', '●')
+    console.log(chalk.blue(' RAG configuration updated'))
   }
 
   async clearCaches(): Promise<void> {
     await this.embeddingsCache.clear()
     await this.analysisCache.clear()
     await this.fileHashCache.clear()
-    advancedUI.logSuccess('RAG caches cleared', '●')
+    console.log(chalk.green('✓ RAG caches cleared'))
   }
 
   getStats() {
@@ -1649,7 +1685,7 @@ export class UnifiedRAGSystem {
       queryOptimizations: 0,
       reranks: 0,
     }
-    advancedUI.logSuccess('RAG performance metrics reset', '●')
+    console.log(chalk.green('✓ RAG performance metrics reset'))
   }
 
   /**
@@ -1658,40 +1694,37 @@ export class UnifiedRAGSystem {
   logPerformanceReport() {
     const metrics = this.getPerformanceMetrics()
 
-    advancedUI.logInfo(chalk.blue.bold('\n📊 RAG Performance Report'), '●')
-    advancedUI.logInfo(chalk.gray('═'.repeat(50)), '●')
+    console.log(chalk.blue.bold('\n📊 RAG Performance Report'))
+    console.log(chalk.gray('═'.repeat(50)))
 
-    advancedUI.logInfo(chalk.cyan('Search Distribution:'), '●')
-    advancedUI.logInfo(`  Total Searches: ${metrics.searches.total}`, '●')
-    advancedUI.logInfo(
-      `  Vector: ${metrics.searches.vector} (${((metrics.searches.vector / metrics.searches.total) * 100).toFixed(1)}%)`,
-      '●'
+    console.log(chalk.cyan('Search Distribution:'))
+    console.log(`  Total Searches: ${metrics.searches.total}`)
+    console.log(
+      `  Vector: ${metrics.searches.vector} (${((metrics.searches.vector / metrics.searches.total) * 100).toFixed(1)}%)`
     )
-    advancedUI.logInfo(
-      `  Workspace: ${metrics.searches.workspace} (${((metrics.searches.workspace / metrics.searches.total) * 100).toFixed(1)}%)`,
-      '●'
+    console.log(
+      `  Workspace: ${metrics.searches.workspace} (${((metrics.searches.workspace / metrics.searches.total) * 100).toFixed(1)}%)`
     )
-    advancedUI.logInfo(
-      `  BM25: ${metrics.searches.bm25} (${((metrics.searches.bm25 / metrics.searches.total) * 100).toFixed(1)}%)`,
-      '●'
+    console.log(
+      `  BM25: ${metrics.searches.bm25} (${((metrics.searches.bm25 / metrics.searches.total) * 100).toFixed(1)}%)`
     )
 
-    advancedUI.logInfo(chalk.cyan('\nPerformance:'), '●')
-    advancedUI.logInfo(`  Average Latency: ${metrics.performance.averageLatency}ms`, '●')
-    advancedUI.logInfo(`  Error Rate: ${metrics.performance.errorRate}`, '●')
+    console.log(chalk.cyan('\nPerformance:'))
+    console.log(`  Average Latency: ${metrics.performance.averageLatency}ms`)
+    console.log(`  Error Rate: ${metrics.performance.errorRate}`)
 
-    advancedUI.logInfo(chalk.cyan('\nOptimizations:'), '●')
-    advancedUI.logInfo(`  Cache Hit Rate: ${metrics.optimization.cacheHitRate}`, '●')
-    advancedUI.logInfo(`  Query Optimizations: ${metrics.optimization.queryOptimizations}`, '●')
-    advancedUI.logInfo(`  Re-rank Rate: ${metrics.optimization.rerankRate}`, '●')
+    console.log(chalk.cyan('\nOptimizations:'))
+    console.log(`  Cache Hit Rate: ${metrics.optimization.cacheHitRate}`)
+    console.log(`  Query Optimizations: ${metrics.optimization.queryOptimizations}`)
+    console.log(`  Re-rank Rate: ${metrics.optimization.rerankRate}`)
 
     const efficiency = this.calculateEfficiencyScore(metrics)
-    advancedUI.logInfo(chalk.cyan('\nEfficiency Score:'), '●')
-    advancedUI.logInfo(`  Overall: ${efficiency.overall}/100 ${this.getEfficiencyEmoji(efficiency.overall)}`, '●')
-    advancedUI.logInfo(`  Latency: ${efficiency.latency}/25`, '●')
-    advancedUI.logInfo(`  Cache: ${efficiency.cache}/25`, '●')
-    advancedUI.logInfo(`  Error Rate: ${efficiency.errorRate}/25`, '●')
-    advancedUI.logInfo(`  Feature Usage: ${efficiency.featureUsage}/25`, '●')
+    console.log(chalk.cyan('\nEfficiency Score:'))
+    console.log(`  Overall: ${efficiency.overall}/100 ${this.getEfficiencyEmoji(efficiency.overall)}`)
+    console.log(`  Latency: ${efficiency.latency}/25`)
+    console.log(`  Cache: ${efficiency.cache}/25`)
+    console.log(`  Error Rate: ${efficiency.errorRate}/25`)
+    console.log(`  Feature Usage: ${efficiency.featureUsage}/25`)
   }
 
   /**
@@ -1763,12 +1796,11 @@ export class UnifiedRAGSystem {
     // Apply token-aware truncation
     const truncatedResults = tokenAwareTruncate(results, maxTokens)
 
-    advancedUI.logInfo(
+    console.log(
       chalk.blue(
         `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
-      ),
-      '●'
+          `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+      )
     )
 
     return truncatedResults
@@ -1780,17 +1812,17 @@ export const unifiedRAGSystem = new UnifiedRAGSystem()
 
 // Legacy functions for backward compatibility
 export async function indexProject(projectPath: string) {
-  advancedUI.logInfo('⚡︎ Using legacy indexProject (consider upgrading to UnifiedRAGSystem)', '●')
+  console.log(chalk.blue('⚡︎ Using legacy indexProject (consider upgrading to UnifiedRAGSystem)'))
   try {
     const result = await unifiedRAGSystem.analyzeProject(projectPath)
-    advancedUI.logSuccess(`Legacy indexing completed - ${result.indexedFiles} files processed`, '●')
+    console.log(chalk.green(`✓ Legacy indexing completed - ${result.indexedFiles} files processed`))
   } catch (error: any) {
-    advancedUI.logError(`Legacy indexing failed: ${error.message}`, '●')
+    console.error(chalk.red('❌ Legacy indexing failed:'), error.message)
   }
 }
 
 export async function search(query: string) {
-  advancedUI.logInfo('⚡︎ Using legacy search (consider upgrading to UnifiedRAGSystem)', '●')
+  console.log(chalk.blue('⚡︎ Using legacy search (consider upgrading to UnifiedRAGSystem)'))
   try {
     const results = await unifiedRAGSystem.search(query, { limit: 5 })
     // Convert to legacy format
@@ -1807,7 +1839,7 @@ export async function search(query: string) {
       ],
     }
   } catch (error: any) {
-    advancedUI.logError(`Legacy search failed: ${error.message}`, '●')
+    console.error(chalk.red('❌ Legacy search failed:'), error.message)
     return { documents: [[]], metadatas: [[]] }
   }
 }

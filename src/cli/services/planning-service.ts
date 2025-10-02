@@ -5,6 +5,7 @@ import { createTaskMasterAdapter, type TaskMasterAdapter } from '../adapters/tas
 import { AutonomousPlanner, type PlanningEvent } from '../planning/autonomous-planner'
 import { PlanGenerator } from '../planning/plan-generator'
 import type { ExecutionPlan, PlannerContext, PlanningToolCapability, PlanTodo } from '../planning/types'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { taskMasterService } from './taskmaster-service'
 import { type ToolCapability, toolService } from './tool-service'
 
@@ -44,7 +45,7 @@ export class PlanningService {
   private async initializeTaskMaster(): Promise<void> {
     try {
       await taskMasterService.initialize()
-      console.log(chalk.green('✓ TaskMaster planning integration enabled'))
+      advancedUI.logFunctionUpdate('success', 'TaskMaster planning integration enabled', '✓')
 
       // Listen for TaskMaster events
       this.taskMasterAdapter.on('initialized', () => {
@@ -52,11 +53,11 @@ export class PlanningService {
       })
 
       this.taskMasterAdapter.on('fallback', () => {
-        console.log(chalk.yellow('⚠️ TaskMaster unavailable, using legacy planning'))
+        advancedUI.logFunctionUpdate('warning', 'TaskMaster unavailable, using legacy planning', '⚠︎')
         this.useTaskMasterByDefault = false
       })
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ TaskMaster initialization failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('warning', `TaskMaster initialization failed: ${error.message}`, '⚠︎')
       this.useTaskMasterByDefault = false
     }
   }
@@ -230,9 +231,9 @@ export class PlanningService {
           projectType: await this.detectProjectType(),
         })
 
-        console.log(chalk.green('✓ TaskMaster plan generated'))
+        advancedUI.logFunctionUpdate('success', 'TaskMaster plan generated', '✓')
       } catch (error: any) {
-        console.log(chalk.yellow(`⚠️ TaskMaster planning failed: ${error.message}`))
+        advancedUI.logFunctionUpdate('warning', `TaskMaster planning failed: ${error.message}`, '⚠︎')
 
         if (!options.fallbackToLegacy) {
           throw error
@@ -244,7 +245,7 @@ export class PlanningService {
     } else {
       // Use legacy planning
       if (shouldUseTaskMaster) {
-        console.log(chalk.yellow('⚠️ TaskMaster not available, using legacy planning'))
+        advancedUI.logFunctionUpdate('warning', 'TaskMaster not available, using legacy planning', '⚠︎')
       }
       plan = await this.createLegacyPlan(userRequest, options)
     }
@@ -312,8 +313,11 @@ export class PlanningService {
       return
     }
 
-    const superCompact = process.env.NIKCLI_SUPER_COMPACT === '1'
-    if (!superCompact) console.log(chalk.green(`🚀 Executing plan: ${plan.title}`))
+    const superCompact = process.env.NIKCLI_COMPACT === '1'
+    if (!superCompact) {
+      advancedUI.logFunctionCall('executing')
+      advancedUI.logFunctionUpdate('info', plan.title, '●')
+    }
 
     try {
       // Use autonomous planner for execution with streaming
@@ -329,15 +333,15 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch {}
+                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch { }
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'pending' })
             break
           case 'plan_created':
             if (!superCompact) console.log(chalk.blue(`⚡︎ ${event.result}`))
             break
           case 'todo_start':
-            if (!superCompact) console.log(chalk.green(`✓ ${event.todoId}`))
+            if (!superCompact) advancedUI.logFunctionUpdate('success', event.todoId || 'Todo started', '✓')
             if (event.todoId) this.updateTodoStatus(plan.id, event.todoId, 'in_progress')
             try {
               const { advancedUI } = await import('../ui/advanced-cli-ui')
@@ -347,8 +351,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch {}
+                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch { }
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'in_progress' })
             break
           case 'todo_progress':
@@ -361,11 +365,11 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch {}
+                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch { }
             break
           case 'todo_complete':
-            if (!superCompact) console.log(chalk.green(`✓ Todo completed`))
+            if (!superCompact) advancedUI.logFunctionUpdate('success', 'Todo completed', '✓')
             if (event.todoId) {
               const status = event.error ? 'failed' : 'completed'
               this.updateTodoStatus(plan.id, event.todoId, status)
@@ -378,12 +382,12 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch {}
+                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch { }
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: event.error ? 'failed' : 'completed' })
             break
           case 'plan_failed':
-            if (!superCompact) console.log(chalk.red(`❌ Plan execution failed: ${event.error}`))
+            if (!superCompact) advancedUI.logFunctionUpdate('error', `Plan execution failed: ${event.error}`, '❌')
             this.updatePlanStatus(plan.id, 'failed')
             this.emitPlanEvent({ ...event, planId: plan.id })
             try {
@@ -394,8 +398,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch {}
+                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch { }
             break
           case 'plan_complete':
             this.updatePlanStatus(plan.id, 'completed')
@@ -404,7 +408,7 @@ export class PlanningService {
         }
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Plan execution error: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Plan execution error: ${error.message}`, '❌')
       plan.status = 'failed'
       // Ensure prompt is restored on error
       try {
@@ -412,10 +416,10 @@ export class PlanningService {
         if (nik) {
           try {
             nik.assistantProcessing = false
-          } catch {}
+          } catch { }
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
-      } catch {}
+      } catch { }
     } finally {
       // Always render prompt after execution cycle
       try {
@@ -423,15 +427,15 @@ export class PlanningService {
         if (nik) {
           try {
             nik.assistantProcessing = false
-          } catch {}
+          } catch { }
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
         // Disable possible bypass and resume prompt
         try {
           const { inputQueue } = await import('../core/input-queue')
           inputQueue.disableBypass()
-        } catch {}
-      } catch {}
+        } catch { }
+      } catch { }
     }
   }
 
@@ -516,7 +520,7 @@ export class PlanningService {
           progress: typeof t.progress === 'number' ? t.progress : 0,
         }))
         todoStore.setTodos(String(sessionId), list)
-      } catch {}
+      } catch { }
     }
   }
 
@@ -545,7 +549,7 @@ export class PlanningService {
             progress: typeof t.progress === 'number' ? t.progress : 0,
           }))
           todoStore.setTodos(String(sessionId), list)
-        } catch {}
+        } catch { }
       }
     }
   }
@@ -627,7 +631,7 @@ export class PlanningService {
         priority: (t as any).priority,
         progress: (t as any).progress,
       }))
-      ;(advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
+        ; (advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
     } catch (error: any) {
       console.log(chalk.gray(`ℹ️ Could not show dashboard: ${error.message}`))
     }

@@ -10,6 +10,7 @@ import chalk from 'chalk'
 import { JSDOM } from 'jsdom'
 import { z } from 'zod'
 import { simpleConfigManager } from '../../core/config-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { redisProvider } from '../redis/redis-provider'
 
 export interface BrowserbaseSession {
@@ -87,9 +88,10 @@ export class BrowserbaseProvider extends EventEmitter {
       cacheTtl: 1800, // 30 minutes
     }
 
-    console.log(chalk.blue('🌐 Browserbase Provider initialized'))
+    advancedUI.logFunctionCall('browserbaseproviderinit')
+    advancedUI.logFunctionUpdate('success', 'Browserbase Provider initialized', '✓')
     if (!this.config.enabled) {
-      console.log(chalk.yellow('⚠️ Browserbase not configured. Set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID'))
+      advancedUI.logFunctionUpdate('warning', 'Browserbase not configured. Set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID', '⚠︎')
     }
   }
 
