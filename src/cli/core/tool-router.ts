@@ -9,6 +9,9 @@ import type { OrchestrationPlan, TaskCognition } from '../automation/agents/univ
 // 🔧 Import Unified Tool Registry
 import { ToolRegistry } from '../tools/tool-registry'
 
+// 🧠 Import Cognitive Route Analyzer
+import { createCognitiveRouteAnalyzer, type CognitiveAnalysisResult } from './cognitive-route-analyzer'
+
 // 🔧 Enhanced Tool Routing Schemas
 const ToolSecurityLevel = z.enum(['safe', 'moderate', 'risky', 'dangerous'])
 const ToolCategory = z.enum(['file', 'command', 'search', 'analysis', 'git', 'package', 'ide', 'ai', 'blockchain'])
@@ -58,11 +61,22 @@ export interface ToolRecommendation {
 
 export class ToolRouter extends EventEmitter {
   private toolRegistry: ToolRegistry
+  private cognitiveAnalyzer: ReturnType<typeof createCognitiveRouteAnalyzer>
+  private workingDirectory: string
+  private cognitiveMode: boolean = true
+  private analysisCache: Map<string, CognitiveAnalysisResult> = new Map()
 
   constructor(workingDirectory: string = process.cwd()) {
     super()
+    this.workingDirectory = workingDirectory
     // 🔧 Initialize unified tool registry
     this.toolRegistry = new ToolRegistry(workingDirectory)
+    // 🧠 Initialize cognitive route analyzer
+    this.cognitiveAnalyzer = createCognitiveRouteAnalyzer(workingDirectory)
+
+    if (!process.env.NIKCLI_QUIET_STARTUP) {
+      console.log(chalk.blue('🧠 Cognitive routing enabled - Advanced tool selection active'))
+    }
   }
 
   private toolKeywords: ToolKeyword[] = [
@@ -433,6 +447,129 @@ export class ToolRouter extends EventEmitter {
         'get figma file information',
       ],
     },
+
+    // Documentation Search Tools
+    {
+      tool: 'doc_search',
+      keywords: ['documentation', 'docs', 'search docs', 'find documentation', 'library', 'reference', 'manual'],
+      priority: 7,
+      description: 'Search documentation library for concepts and APIs',
+      examples: ['search documentation for react hooks', 'find docs about authentication', 'documentation library'],
+    },
+
+    {
+      tool: 'smart_docs_search',
+      keywords: [
+        'smart search',
+        'intelligent search',
+        'auto-load docs',
+        'documentation help',
+        'need docs',
+        'learn about',
+      ],
+      priority: 8,
+      description: 'Smart documentation search with auto-loading into context',
+      examples: ['smart search for express middleware', 'auto-load documentation', 'need help with react hooks'],
+    },
+
+    {
+      tool: 'docs_request',
+      keywords: [
+        'request docs',
+        'need documentation',
+        'dont know',
+        "don't understand",
+        'help me learn',
+        'unknown concept',
+        'new technology',
+      ],
+      priority: 7,
+      description: 'Request documentation when encountering unknown concepts',
+      examples: ['request docs for graphql', 'need documentation about microservices', "don't know what is JWT"],
+    },
+
+    // CAD and Manufacturing Tools
+    {
+      tool: 'text_to_cad',
+      keywords: [
+        'cad',
+        'modeling',
+        '3d model',
+        'design',
+        'engineering',
+        'step',
+        'stl',
+        'dwg',
+        'mechanical',
+        'parametric',
+        'solidworks',
+        'fusion360',
+      ],
+      priority: 6,
+      description: 'Generate CAD models from text descriptions',
+      examples: ['create a 3d model of a gear', 'generate CAD file for a bracket', 'design a mechanical part'],
+    },
+
+    {
+      tool: 'text_to_gcode',
+      keywords: [
+        'gcode',
+        'cnc',
+        '3d printing',
+        'manufacturing',
+        'machining',
+        'laser cutting',
+        'milling',
+        'toolpath',
+        'print',
+        'fabrication',
+      ],
+      priority: 6,
+      description: 'Generate G-code for CNC and 3D printing',
+      examples: ['generate gcode for 3d printing', 'cnc milling toolpath', 'laser cutting gcode'],
+    },
+
+    // Additional File Operations
+    {
+      tool: 'diff_tool',
+      keywords: ['diff', 'difference', 'compare', 'changes', 'what changed', 'comparison'],
+      priority: 6,
+      description: 'Compare files and show differences',
+      examples: ['diff between two files', 'show changes', 'compare versions'],
+    },
+
+    {
+      tool: 'tree_tool',
+      keywords: ['tree', 'directory structure', 'folder tree', 'hierarchical view', 'file tree'],
+      priority: 5,
+      description: 'Display directory structure as tree',
+      examples: ['show directory tree', 'tree view of project', 'hierarchical structure'],
+    },
+
+    {
+      tool: 'watch_tool',
+      keywords: ['watch', 'monitor', 'file watch', 'auto reload', 'live update', 'observe changes'],
+      priority: 5,
+      description: 'Watch files for changes',
+      examples: ['watch files for changes', 'monitor directory', 'auto reload on change'],
+    },
+
+    {
+      tool: 'snapshot_tool',
+      keywords: ['snapshot', 'backup', 'save state', 'checkpoint', 'restore', 'rollback'],
+      priority: 6,
+      description: 'Create and restore file snapshots',
+      examples: ['create snapshot', 'save current state', 'restore from snapshot'],
+    },
+
+    // Todo and Task Management
+    {
+      tool: 'todo_management',
+      keywords: ['todo', 'task', 'checklist', 'reminder', 'action items', 'todos', 'tasks'],
+      priority: 5,
+      description: 'Manage todos and tasks',
+      examples: ['add todo', 'list tasks', 'complete todo'],
+    },
   ]
 
   // Analyze user message and recommend tools
@@ -508,6 +645,17 @@ export class ToolRouter extends EventEmitter {
       browse_web: 'browserbase-tool',
       web_browse: 'browserbase-tool',
       browserbase: 'browserbase-tool',
+      figma_design: 'figma-tool',
+      doc_search: 'doc-search-tool',
+      smart_docs_search: 'smart-docs-search-tool',
+      docs_request: 'docs-request-tool',
+      text_to_cad: 'text-to-cad-tool',
+      text_to_gcode: 'text-to-gcode-tool',
+      diff_tool: 'diff-tool',
+      tree_tool: 'tree-tool',
+      watch_tool: 'watch-tool',
+      snapshot_tool: 'snapshot-tool',
+      todo_management: 'todo-tool',
     }
     return map[name] || name
   }
@@ -746,6 +894,46 @@ export class ToolRouter extends EventEmitter {
     }
 
     try {
+      // 🧠 USE COGNITIVE ROUTE ANALYZER for complete analysis
+      if (this.cognitiveMode) {
+        const cognitiveResult = await this.cognitiveAnalyzer.analyzeCognitiveRoute(context.userIntent, {
+          previousCognition: context.cognition,
+          orchestrationPlan: context.orchestrationPlan,
+        })
+
+        // Cache result
+        this.analysisCache.set(context.userIntent, cognitiveResult)
+
+        // Emit cognitive analysis event
+        this.emit('cognitive-analysis', {
+          userIntent: context.userIntent,
+          cognition: cognitiveResult.taskCognition,
+          confidence: cognitiveResult.confidence,
+          toolCount: cognitiveResult.toolRecommendations.length,
+          strategy: cognitiveResult.executionStrategy.type,
+        })
+
+        // Convert cognitive recommendations to advanced format
+        const advancedRecommendations = cognitiveResult.toolRecommendations.map((rec, index) => ({
+          ...rec,
+          securityLevel: this.mapToolToSecurityLevel(rec.tool),
+          category: this.mapToolToCategory(rec.tool),
+          executionOrder: index + 1,
+          estimatedDuration: cognitiveResult.routePlan.steps[index]?.estimatedDuration || 5000,
+          requiresApproval: cognitiveResult.riskAssessment.requiresApproval,
+          workspaceRestricted: true,
+        })) as AdvancedToolRecommendation[]
+
+        console.log(
+          chalk.green(
+            `✓ Cognitive routing: ${advancedRecommendations.length} tools, confidence ${(cognitiveResult.confidence * 100).toFixed(0)}%`
+          )
+        )
+
+        return advancedRecommendations
+      }
+
+      // FALLBACK: Original advanced routing (without cognitive)
       // Step 1: 🔍 Analyze Intent and Extract Tool Requirements
       const intentAnalysis = this.analyzeIntentAdvanced(context.userIntent)
 
@@ -785,6 +973,72 @@ export class ToolRouter extends EventEmitter {
       const basicRecommendations = this.analyzeMessage({ role: 'user', content: context.userIntent })
       return this.convertToAdvancedRecommendations(basicRecommendations)
     }
+  }
+
+  /**
+   * Enable/disable cognitive mode
+   */
+  setCognitiveMode(enabled: boolean): void {
+    this.cognitiveMode = enabled
+    console.log(chalk.blue(`🧠 Cognitive routing ${enabled ? 'enabled' : 'disabled'}`))
+  }
+
+  /**
+   * Get latest cognitive analysis result
+   */
+  getLatestCognitiveAnalysis(userMessage?: string): CognitiveAnalysisResult | undefined {
+    if (userMessage) {
+      return this.analysisCache.get(userMessage)
+    }
+    // Return most recent
+    const entries = Array.from(this.analysisCache.entries())
+    return entries.length > 0 ? entries[entries.length - 1][1] : undefined
+  }
+
+  /**
+   * Get cognitive routing statistics
+   */
+  getCognitiveStatistics() {
+    return this.cognitiveAnalyzer.getRoutingStatistics()
+  }
+
+  /**
+   * Map tool name to security level
+   */
+  private mapToolToSecurityLevel(toolName: string): 'safe' | 'moderate' | 'risky' | 'dangerous' {
+    const metadata = this.toolRegistry.getToolMetadata(toolName)
+    if (!metadata) return 'moderate'
+
+    const riskMap: Record<string, any> = {
+      low: 'safe',
+      medium: 'moderate',
+      high: 'risky',
+    }
+
+    return riskMap[metadata.riskLevel] || 'moderate'
+  }
+
+  /**
+   * Map tool name to category
+   */
+  private mapToolToCategory(
+    toolName: string
+  ): 'file' | 'command' | 'search' | 'analysis' | 'git' | 'package' | 'ide' | 'ai' | 'blockchain' {
+    const metadata = this.toolRegistry.getToolMetadata(toolName)
+    if (!metadata) return 'analysis'
+
+    const categoryMap: Record<string, any> = {
+      filesystem: 'file',
+      system: 'command',
+      search: 'search',
+      analysis: 'analysis',
+      vcs: 'git',
+      package: 'package',
+      ai: 'ai',
+      blockchain: 'blockchain',
+    }
+
+    return categoryMap[metadata.category] || 'analysis'
   }
 
   /**

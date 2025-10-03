@@ -35,6 +35,9 @@ import { ContainerManager } from '../virtualized-agents/container-manager'
 import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
 import { initializeVMSelector, vmSelector } from '../virtualized-agents/vm-selector'
 import { chatManager } from './chat-manager'
+import { contextTokenManager } from '../core/context-token-manager'
+import { BenchmarkCommandHandler } from '../benchmarks/benchmark-command-handler'
+import { generateText } from 'ai'
 
 // ====================== ⚡︎ ZOD COMMAND VALIDATION SCHEMAS ======================
 
@@ -160,6 +163,7 @@ export class SlashCommandHandler {
   private agentManager: AgentManager
   private vmOrchestrator: VMOrchestrator
   private cliInstance: any // Reference to main CLI instance
+  private benchmarkHandler: BenchmarkCommandHandler
 
   constructor(cliInstance?: any) {
     this.cliInstance = cliInstance
@@ -167,6 +171,7 @@ export class SlashCommandHandler {
     registerAgents(this.agentManager)
     const containerManager = new ContainerManager()
     this.vmOrchestrator = new VMOrchestrator(containerManager)
+    this.benchmarkHandler = new BenchmarkCommandHandler()
 
     // Initialize VM selector with the orchestrator
     initializeVMSelector(this.vmOrchestrator)
@@ -338,6 +343,9 @@ export class SlashCommandHandler {
     // Snapshot commands
     this.commands.set('snapshot', this.snapshotCommand.bind(this))
     this.commands.set('snap', this.snapshotCommand.bind(this))
+
+    // Benchmark commands
+    this.commands.set('bench', this.benchCommand.bind(this))
     this.commands.set('restore', this.restoreCommand.bind(this))
     this.commands.set('snapshots', this.listSnapshotsCommand.bind(this))
 
@@ -3432,7 +3440,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
   private async contextCommand(args: string[]): Promise<CommandResult> {
     if (args.length === 0) {
-      workspaceContext.showContextSummary()
+      // Show comprehensive context stats panel
+      await this.showContextStatsPanel()
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -3448,8 +3457,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
         await workspaceContext.selectPaths(pathList)
 
-        // Enhanced context display with files and directories
-        await this.showEnhancedContext()
+        // Enhanced context display with files and directories + progress bar
+        await this.showEnhancedContextWithProgress(pathList)
       } else {
         // Show current context when no args provided
         await this.showEnhancedContext()
@@ -3549,6 +3558,233 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     console.log(chalk.gray(`  • Root: ${context.rootPath}`))
 
     console.log(chalk.gray('\n📝 Use /context <paths> to select specific directories or files'))
+  }
+
+  /**
+   * Show comprehensive context stats panel with progress bar
+   */
+  private async showContextStatsPanel(): Promise<void> {
+    const session = contextTokenManager.getCurrentSession()
+    const stats = contextTokenManager.getSessionStats()
+
+    if (!session || !stats) {
+      console.log(chalk.yellow('⚠️ No active session. Start a conversation to see context stats.'))
+      return
+    }
+
+    const lines: string[] = []
+
+    // Header
+    lines.push(chalk.blue.bold('📊 Context & Token Statistics'))
+    lines.push(chalk.gray('─'.repeat(70)))
+    lines.push('')
+
+    // Model info
+    lines.push(chalk.cyan('🤖 Model Configuration:'))
+    lines.push(`  Provider: ${chalk.white(session.provider)}`)
+    lines.push(`  Model: ${chalk.white(session.model)}`)
+    lines.push(`  Max Context: ${chalk.white(this.formatTokens(session.modelLimits.context))}`)
+    lines.push(`  Max Output: ${chalk.white(this.formatTokens(session.modelLimits.output))}`)
+    lines.push('')
+
+    // Session stats
+    const totalTokens = session.totalInputTokens + session.totalOutputTokens
+    const percentage = (totalTokens / session.modelLimits.context) * 100
+    const remaining = session.modelLimits.context - totalTokens
+
+    lines.push(chalk.cyan('📈 Session Usage:'))
+    lines.push(`  Total Tokens: ${chalk.white(this.formatTokens(totalTokens))} / ${this.formatTokens(session.modelLimits.context)}`)
+    lines.push(`  Input Tokens: ${chalk.white(this.formatTokens(session.totalInputTokens))}`)
+    lines.push(`  Output Tokens: ${chalk.white(this.formatTokens(session.totalOutputTokens))}`)
+    lines.push(`  Total Cost: ${chalk.green(`$${session.totalCost.toFixed(6)}`)}`)
+    lines.push(`  Messages: ${chalk.white(session.messageCount.toString())}`)
+    lines.push('')
+
+    // Progress bar for context usage
+    lines.push(chalk.cyan('📊 Context Usage:'))
+    const progressBar = this.createProgressBar(percentage, 50)
+    const color = percentage >= 90 ? chalk.red : percentage >= 80 ? chalk.yellow : chalk.green
+    lines.push(`  ${progressBar} ${color(percentage.toFixed(1) + '%')}`)
+    lines.push(`  Remaining: ${chalk.white(this.formatTokens(remaining))} (${chalk.white((100 - percentage).toFixed(1) + '%')})`)
+    lines.push('')
+
+    // Rate and efficiency
+    const sessionMinutes = (Date.now() - session.startTime.getTime()) / 60000
+    lines.push(chalk.cyan('⚡ Performance:'))
+    lines.push(`  Tokens/Minute: ${chalk.white(stats.tokensPerMinute.toFixed(0))}`)
+    lines.push(`  Avg Tokens/Message: ${chalk.white(stats.averageTokensPerMessage.toFixed(0))}`)
+    lines.push(`  Cost/Message: ${chalk.green(`$${stats.costPerMessage.toFixed(6)}`)}`)
+    lines.push(`  Session Duration: ${chalk.white(this.formatDuration(sessionMinutes))}`)
+    lines.push('')
+
+    // Breakdown by message role (if we can get message history)
+    const messageHistory = contextTokenManager.getMessageHistory()
+    if (messageHistory.length > 0) {
+      const roleBreakdown: Record<string, { count: number; tokens: number }> = {}
+
+      for (const msg of messageHistory) {
+        if (!roleBreakdown[msg.role]) {
+          roleBreakdown[msg.role] = { count: 0, tokens: 0 }
+        }
+        roleBreakdown[msg.role].count++
+        roleBreakdown[msg.role].tokens += msg.tokens
+      }
+
+      lines.push(chalk.cyan('💬 Message Breakdown:'))
+      for (const [role, data] of Object.entries(roleBreakdown).sort((a, b) => b[1].tokens - a[1].tokens)) {
+        const roleIcon = role === 'system' ? '⚙️' : role === 'user' ? '👤' : role === 'assistant' ? '🤖' : '🔧'
+        const rolePct = (data.tokens / totalTokens) * 100
+        const miniBar = this.createProgressBar(rolePct, 20)
+        lines.push(`  ${roleIcon} ${role.padEnd(10)} ${miniBar} ${this.formatTokens(data.tokens).padStart(6)} (${rolePct.toFixed(1)}%)`)
+      }
+      lines.push('')
+    }
+
+    // Optimization status
+    const optimization = contextTokenManager.analyzeContextOptimization()
+    lines.push(chalk.cyan('🎯 Optimization Status:'))
+
+    let statusIcon = '✅'
+    let statusColor = chalk.green
+    if (optimization.recommendation === 'summarize') {
+      statusIcon = '🔴'
+      statusColor = chalk.red
+    } else if (optimization.recommendation === 'trim_context') {
+      statusIcon = '⚠️'
+      statusColor = chalk.yellow
+    }
+
+    lines.push(`  Status: ${statusIcon} ${statusColor(optimization.recommendation.replace('_', ' ').toUpperCase())}`)
+    lines.push(`  ${chalk.gray(optimization.reason)}`)
+    lines.push('')
+
+    // Tips
+    lines.push(chalk.gray('💡 Tips:'))
+    if (percentage >= 80) {
+      lines.push(chalk.gray('  • Context usage is high. Consider starting a new session with /session new'))
+      lines.push(chalk.gray('  • Use /clear to reset conversation history'))
+    } else if (percentage >= 50) {
+      lines.push(chalk.gray('  • Monitor context usage to avoid trimming'))
+    } else {
+      lines.push(chalk.gray('  • Context usage is healthy'))
+    }
+    lines.push(chalk.gray('  • Use /context <path> to add specific files/directories'))
+
+    this.printPanel(
+      boxen(lines.join('\n'), {
+        title: '📊 Context Statistics',
+        padding: 1,
+        borderColor: percentage >= 90 ? 'red' : percentage >= 80 ? 'yellow' : 'cyan',
+        borderStyle: 'round',
+      })
+    )
+  }
+
+  /**
+   * Show enhanced context with progress bar for specific path
+   */
+  private async showEnhancedContextWithProgress(pathList: string[]): Promise<void> {
+    // First show the standard enhanced context
+    await this.showEnhancedContext()
+
+    // Now add progress bar for the selected path contribution
+    const session = contextTokenManager.getCurrentSession()
+    if (!session) {
+      return
+    }
+
+    console.log('')
+    console.log(chalk.blue.bold('📊 Path Context Contribution:'))
+    console.log(chalk.gray('─'.repeat(70)))
+
+    // Calculate approximate token contribution from selected paths
+    const context = (workspaceContext as any).context
+    let pathTokens = 0
+
+    for (const selectedPath of context.selectedPaths) {
+      try {
+        const stats = require('node:fs').statSync(selectedPath)
+
+        if (stats.isFile()) {
+          const file = context.files.get(selectedPath)
+          if (file) {
+            // Rough estimate: ~4 chars per token
+            pathTokens += Math.ceil(file.size / 4)
+          }
+        } else if (stats.isDirectory()) {
+          const dir = context.directories.get(selectedPath)
+          if (dir && dir.totalFiles) {
+            // Estimate based on file count
+            pathTokens += dir.totalFiles * 200 // ~200 tokens per file average
+          }
+        }
+      } catch (error) {
+        // Ignore errors for individual paths
+      }
+    }
+
+    const totalTokens = session.totalInputTokens + session.totalOutputTokens
+    const pathPercentage = totalTokens > 0 ? (pathTokens / totalTokens) * 100 : 0
+    const progressBar = this.createProgressBar(pathPercentage, 50)
+
+    console.log('')
+    pathList.forEach((path) => {
+      const relativePath = require('node:path').relative(context.rootPath, path)
+      console.log(`  📁 ${chalk.cyan(relativePath || '.')}`)
+    })
+    console.log('')
+    console.log(`  ${progressBar} ${chalk.white(pathPercentage.toFixed(1) + '%')}`)
+    console.log(`  Estimated tokens: ~${chalk.white(this.formatTokens(pathTokens))} of ${this.formatTokens(totalTokens)} total`)
+    console.log('')
+  }
+
+  /**
+   * Create a text progress bar
+   */
+  private createProgressBar(percentage: number, width: number): string {
+    const filled = Math.round((percentage / 100) * width)
+    const empty = width - filled
+
+    const filledChar = '█'
+    const emptyChar = '░'
+
+    let color = chalk.green
+    if (percentage >= 90) {
+      color = chalk.red
+    } else if (percentage >= 80) {
+      color = chalk.yellow
+    } else if (percentage >= 50) {
+      color = chalk.cyan
+    }
+
+    return `[${color(filledChar.repeat(filled))}${chalk.gray(emptyChar.repeat(empty))}]`
+  }
+
+  /**
+   * Format tokens with K/M suffix
+   */
+  private formatTokens(tokens: number): string {
+    if (tokens >= 1000000) {
+      return `${(tokens / 1000000).toFixed(1)}M`
+    } else if (tokens >= 1000) {
+      return `${(tokens / 1000).toFixed(1)}k`
+    }
+    return tokens.toString()
+  }
+
+  /**
+   * Format duration in minutes to readable string
+   */
+  private formatDuration(minutes: number): string {
+    if (minutes < 1) {
+      return `${Math.round(minutes * 60)}s`
+    } else if (minutes < 60) {
+      return `${Math.round(minutes)}m`
+    } else {
+      const hours = Math.floor(minutes / 60)
+      const mins = Math.round(minutes % 60)
+      return `${hours}h ${mins}m`
+    }
   }
 
   /**
@@ -7998,6 +8234,48 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       console.log(chalk.red(`❌ Error getting job logs: ${error.message}`))
     }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Benchmark command - Run AI model benchmarks
+   */
+  private async benchCommand(args: string[]): Promise<CommandResult> {
+    // Create a model executor that wraps the current AI model
+    const modelExecutor = async (prompt: string) => {
+      const provider = modernAIProvider.getCurrentModelInfo().config.provider
+      const model = modernAIProvider.getCurrentModelInfo().name
+
+      // Call the model with the prompt
+      const result = await generateText({
+        model: modernAIProvider.getCurrentModelInfo().config.model as any,
+        prompt,
+        temperature: 0.7,
+      })
+
+      // Extract token usage and cost
+      const tokensUsed = {
+        input: result.usage?.promptTokens || 0,
+        output: result.usage?.completionTokens || 0,
+        total: (result.usage?.promptTokens || 0) + (result.usage?.completionTokens || 0),
+      }
+
+      // Estimate cost (simplified - actual costs vary by model)
+      const costPerInputToken = 0.000003 // $3 per million tokens
+      const costPerOutputToken = 0.000015 // $15 per million tokens
+      const cost =
+        (tokensUsed.input * costPerInputToken) +
+        (tokensUsed.output * costPerOutputToken)
+
+      return {
+        output: result.text,
+        tokensUsed,
+        cost,
+      }
+    }
+
+    await this.benchmarkHandler.handle(args, modelExecutor)
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }

@@ -95,7 +95,7 @@ export class UnifiedEmbeddingInterface {
       ...config,
     }
 
-    this.persistentCacheDir = join(homedir(), '.nikcli', 'embeddings')
+    this.persistentCacheDir = join(homedir(), '.nikcli', 'vector-cache')
     this.stats = this.initializeStats()
     this.initializePersistentCache()
   }
@@ -122,9 +122,7 @@ export class UnifiedEmbeddingInterface {
       }
     }
 
-    console.log(
-      chalk.blue(`🔍 Embeddings: ${results.length}/${queries.length} from cache, ${uncachedQueries.length} to generate`)
-    )
+
 
     // Generate embeddings for uncached queries
     if (uncachedQueries.length > 0) {
@@ -181,7 +179,7 @@ export class UnifiedEmbeddingInterface {
       this.queryLatencies = this.queryLatencies.slice(-1000)
     }
 
-    console.log(chalk.green(`✓ Generated ${results.length} embeddings in ${latency}ms`))
+
 
     return results
   }
@@ -305,7 +303,7 @@ export class UnifiedEmbeddingInterface {
     this.stats.cacheHitRate =
       this.stats.totalQueries > 0
         ? (this.stats.totalQueries - Object.values(this.stats.byProvider).reduce((sum, p) => sum + p.count, 0)) /
-          this.stats.totalQueries
+        this.stats.totalQueries
         : 0
 
     return { ...this.stats }

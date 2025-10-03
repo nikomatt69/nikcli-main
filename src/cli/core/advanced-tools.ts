@@ -10,6 +10,7 @@ import chalk from 'chalk'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 import { configManager } from './config-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 const execAsync = promisify(exec)
 
@@ -94,7 +95,7 @@ export class AdvancedTools {
         available: !!openaiKey,
         model: 'text-embedding-3-small',
       })
-    } catch {}
+    } catch { }
 
     try {
       const googleKey = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY
@@ -103,7 +104,7 @@ export class AdvancedTools {
         available: !!googleKey,
         model: 'text-embedding-004',
       })
-    } catch {}
+    } catch { }
 
     return providers
   }
@@ -245,7 +246,7 @@ export class AdvancedTools {
       }),
       execute: async ({ filePath, analysisType }) => {
         try {
-          console.log(chalk.blue(`🔍 Analyzing code: ${filePath} (${analysisType})`))
+          advancedUI.logInfo(`🔍 Analyzing code: ${filePath} (${analysisType})`)
 
           if (!existsSync(filePath)) {
             return { error: `File not found: ${filePath}` }
@@ -318,7 +319,7 @@ Provide detailed analysis including:
       }),
       execute: async ({ includeDevDeps, checkSecurity, suggestOptimizations }) => {
         try {
-          console.log(chalk.blue('📦 Analyzing project dependencies...'))
+          advancedUI.logInfo('📦 Analyzing project dependencies...')
 
           if (!existsSync('package.json')) {
             return { error: 'No package.json found in current directory' }
@@ -397,7 +398,7 @@ Provide:
       }),
       execute: async ({ analyzeCommits, checkBranching, suggestWorkflow }) => {
         try {
-          console.log(chalk.blue('📊 Analyzing Git workflow...'))
+          advancedUI.logInfo('📊 Analyzing Git workflow...')
 
           // Get Git information
           const { stdout: branch } = await execAsync('git branch --show-current')

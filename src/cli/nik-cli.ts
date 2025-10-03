@@ -686,7 +686,7 @@ export class NikCLI {
   private initializeStructuredUI(): void {
     const compact = process.env.NIKCLI_COMPACT === '1' || this.currentMode === 'plan'
     if (!compact) {
-      console.log(chalk.dim('🎨 Setting up AdvancedCliUI with 4 panels...'))
+
     }
 
     // Enable interactive mode for structured panels
@@ -1303,7 +1303,7 @@ export class NikCLI {
   private initializeStructuredPanels(): void {
     // Use the existing advanced UI system
     advancedUI.startInteractiveMode()
-    console.log(chalk.dim('\n🎨 Structured UI panels ready - using advanced-cli-ui system'))
+
   }
 
   private setupFileWatching(): void {
@@ -1381,9 +1381,9 @@ export class NikCLI {
       // Store watcher for cleanup
       this.fileWatcher = watcher
 
-      console.log(chalk.dim('⚡︎ File watching enabled'))
+      advancedUI.logFunctionUpdate('info', chalk.dim('⚡︎ File watching enabled'))
     } catch (_error: any) {
-      console.log(chalk.gray('⚠️ File watching not available (chokidar not installed)'))
+      advancedUI.logFunctionUpdate('warning', chalk.gray('⚠️ File watching not available (chokidar not installed)'))
     }
   }
 
@@ -1494,7 +1494,7 @@ export class NikCLI {
       },
     }
 
-    console.log(chalk.dim('📊 Progress tracking enabled'))
+
   }
 
   // Advanced UI Methods (from advanced-cli-ui.ts)
@@ -4351,7 +4351,7 @@ EOF`
         )
 
         // Execute like default mode - start structured UI
-        console.log(chalk.dim('🎨 Plan Mode Task Execution - Activating structured UI...'))
+
         let interactiveStarted = false
         try {
           advancedUI.startInteractiveMode()
@@ -4836,7 +4836,7 @@ EOF`
         }
 
         // Activate structured UI for better visualization
-        console.log(chalk.dim('🎨 Default Mode (Unified Aggregator) - Activating structured UI...'))
+
         advancedUI.startInteractiveMode()
         interactiveStarted = true
 

@@ -297,10 +297,10 @@ export class ModernAIProvider {
       rootPath: relative(process.cwd(), rootPath),
       packageInfo: packageInfo
         ? {
-            name: packageInfo.name,
-            version: packageInfo.version,
-            description: packageInfo.description,
-          }
+          name: packageInfo.name,
+          version: packageInfo.version,
+          description: packageInfo.description,
+        }
         : null,
       framework,
       technologies,
@@ -611,6 +611,11 @@ export class ModernAIProvider {
       name: this.currentModel,
       config: config || { provider: 'unknown', model: 'unknown' },
     }
+  }
+
+  // Get current model name (helper for other modules)
+  getCurrentModel(): string {
+    return this.currentModel
   }
 
   // Validate API key for current model

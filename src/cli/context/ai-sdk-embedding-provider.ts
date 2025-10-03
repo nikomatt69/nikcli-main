@@ -164,11 +164,6 @@ export class AiSdkEmbeddingProvider {
       return cachedResults as number[][]
     }
 
-    console.log(
-      chalk.blue(
-        `🔍 Cache: ${cachedResults.filter((r) => r !== null).length}/${texts.length} hits, generating ${uncachedTexts.length} embeddings`
-      )
-    )
 
     try {
       const result = await this.generateWithProvider(uncachedTexts, this.currentProvider)

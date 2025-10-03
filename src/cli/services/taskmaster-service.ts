@@ -12,6 +12,7 @@ import type {
   TaskPriority,
   TaskStatus,
 } from '../types/taskmaster-types'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * TaskMaster AI Integration Service
@@ -28,7 +29,7 @@ export class TaskMasterService extends EventEmitter {
     super()
     TaskMasterService.instanceCount++
 
-    console.log(chalk.gray(`🔧 Creating TaskMasterService instance #${TaskMasterService.instanceCount}`))
+    advancedUI.logFunctionUpdate('info', chalk.gray(`🔧 Creating TaskMasterService instance #${TaskMasterService.instanceCount}`))
 
     // Initialize base config first
     this.config = {
@@ -66,20 +67,20 @@ export class TaskMasterService extends EventEmitter {
 
       // Skip automatic TaskMaster initialization to prevent unwanted directory creation
       // We'll manually manage TaskMaster files in .nikcli directory
-      console.log(chalk.gray('   Skipping automatic TaskMaster init to use custom .nikcli structure'))
+
 
       this.initialized = true
 
-      console.log(chalk.green('✓ TaskMaster service initialized'))
+      advancedUI.logFunctionCall(chalk.green('✓ TaskMaster service initialized'))
       this.emit('initialized')
 
       // Log initialization success with provider info
-      console.log(chalk.gray(`   Provider: ${this.config.aiProvider}`))
-      console.log(chalk.gray(`   Model: ${this.config.model}`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`   Provider: ${this.config.aiProvider}`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`   Model: ${this.config.model}`))
     } catch (error: any) {
-      console.log(chalk.yellow('⚠️ TaskMaster initialization failed, using fallback mode'))
-      console.log(chalk.gray(`   Provider: ${this.config.aiProvider}`))
-      console.log(chalk.gray(`   Error: ${error.message}`))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow('⚠️ TaskMaster initialization failed, using fallback mode'))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`   Provider: ${this.config.aiProvider}`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`   Error: ${error.message}`))
 
       // Set up fallback mode
       this.setupFallbackMode()
@@ -101,9 +102,9 @@ export class TaskMasterService extends EventEmitter {
       // Create .nikcli/taskmaster directory structure
       await fs.mkdir(taskMasterDir, { recursive: true })
 
-      console.log(chalk.green('✓ NikCLI TaskMaster structure initialized'))
+      advancedUI.logFunctionUpdate('info', chalk.green('✓ NikCLI TaskMaster structure initialized'))
     } catch (error: any) {
-      console.log(chalk.gray(`ℹ️ Directory structure already exists or error: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`ℹ️ Directory structure already exists or error: ${error.message}`))
     }
   }
 
@@ -120,14 +121,14 @@ export class TaskMasterService extends EventEmitter {
       if (this.taskMaster && this.initialized) {
         // Since TaskMaster is primarily a CLI tool, we'll create a basic plan
         // and use TaskMaster's project management capabilities
-        console.log(chalk.cyan('🔌 Using TaskMaster for project organization...'))
+        advancedUI.logFunctionUpdate('info', chalk.cyan('🔌 Using TaskMaster for project organization...'))
 
         // Create a TaskMaster-compatible plan structure
         const plan = await this.createTaskMasterCompatiblePlan(planId, userRequest, context)
         this.activePlans.set(planId, plan)
 
-        console.log(chalk.green(`✓ Plan ${planId} created and stored`))
-        console.log(chalk.gray(`📋 Total active plans: ${this.activePlans.size}`))
+        advancedUI.logFunctionUpdate('info', chalk.green(`✓ Plan ${planId} created and stored`))
+        advancedUI.logFunctionUpdate('info', chalk.gray(`📋 Total active plans: ${this.activePlans.size}`))
 
         // Try to write the plan to TaskMaster's task format if possible
         await this.syncWithTaskMasterProject(plan)
@@ -135,13 +136,13 @@ export class TaskMasterService extends EventEmitter {
         return plan
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ TaskMaster plan generation failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠️ TaskMaster plan generation failed: ${error.message}`))
     }
 
     // Fallback to rule-based planning
     const fallbackPlan = this.createFallbackPlan(planId, userRequest, context)
     this.activePlans.set(planId, fallbackPlan)
-    console.log(chalk.yellow(`⚠️ Using fallback plan ${planId}`))
+    advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠️ Using fallback plan ${planId}`))
     return fallbackPlan
   }
 
@@ -149,13 +150,13 @@ export class TaskMasterService extends EventEmitter {
    * Execute a plan using TaskMaster's execution engine
    */
   async executePlan(planId: string): Promise<TaskMasterExecutionResult> {
-    console.log(chalk.gray(`🔍 Looking for plan ${planId}`))
-    console.log(chalk.gray(`📋 Active plans: ${Array.from(this.activePlans.keys()).join(', ')}`))
+    advancedUI.logFunctionUpdate('info', chalk.gray(`🔍 Looking for plan ${planId}`))
+    advancedUI.logFunctionUpdate('info', chalk.gray(`📋 Active plans: ${Array.from(this.activePlans.keys()).join(', ')}`))
 
     const plan = this.activePlans.get(planId)
     if (!plan) {
-      console.log(chalk.red(`❌ Plan ${planId} not found in active plans`))
-      console.log(chalk.gray(`Available plans: ${JSON.stringify(Array.from(this.activePlans.keys()))}`))
+      advancedUI.logFunctionUpdate('error', chalk.red(`❌ Plan ${planId} not found in active plans`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`Available plans: ${JSON.stringify(Array.from(this.activePlans.keys()))}`))
       throw new Error(`Plan not found: ${planId}`)
     }
 
@@ -166,7 +167,7 @@ export class TaskMasterService extends EventEmitter {
         return this.convertExecutionResult(result)
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ TaskMaster execution failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠️ TaskMaster execution failed: ${error.message}`))
     }
 
     // Fallback execution
@@ -185,7 +186,7 @@ export class TaskMasterService extends EventEmitter {
         return await this.taskMaster.getPlanStatus(planId)
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ TaskMaster status check failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ TaskMaster status check failed: ${error.message}`))
     }
 
     // Fallback status
@@ -297,7 +298,7 @@ export class TaskMasterService extends EventEmitter {
    */
   private async generateSmartTodos(userRequest: string, _context?: PlanningContext): Promise<PlanTodo[]> {
     // SEMPRE usa l'AI per generare i todo, indipendentemente dal tipo di richiesta
-    console.log(chalk.cyan('⚡︎ Using AI for todo generation (all requests)'))
+    advancedUI.logFunctionUpdate('info', chalk.cyan('⚡︎ Using AI for todo generation (all requests)'))
 
     try {
       const aiTasks = await this.generateTasksWithAI(userRequest)
@@ -305,7 +306,7 @@ export class TaskMasterService extends EventEmitter {
         return aiTasks
       }
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ AI generation failed, using enhanced fallback: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ AI generation failed, using enhanced fallback: ${error.message}`))
     }
 
     // Fallback più intelligente solo se l'AI non funziona
@@ -487,14 +488,14 @@ Generate tasks NOW (JSON only):`
                     }
                   }
                 } catch {
-                  console.log(chalk.yellow(`⚠️ Failed to extract JSON from AI response`))
+                  advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ Failed to extract JSON from AI response`))
                 }
               }
             }
           }
         }
       } catch (error: any) {
-        console.log(chalk.yellow(`⚠️ Advanced AI provider failed: ${error.message}`))
+        advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ Advanced AI provider failed: ${error.message}`))
       }
 
       if (!success) {
@@ -559,22 +560,22 @@ Generate tasks NOW (JSON only):`
 
       // Assicurati che abbiamo sempre almeno 3 task validi
       if (todos.length < 3) {
-        console.log(chalk.yellow(`⚠️ AI generated only ${todos.length} tasks, adding fallback tasks`))
+        advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ AI generated only ${todos.length} tasks, adding fallback tasks`))
 
         // Aggiungi task generici basati sulla richiesta
         const fallbackTasks = this.generateFallbackTasks(userRequest, 5 - todos.length)
         todos.push(...fallbackTasks)
       }
 
-      console.log(
+      advancedUI.logFunctionUpdate('success',
         chalk.green(
           `✓ Generated ${todos.length} tasks with AI (${aiTasks.length} from AI, ${todos.length - aiTasks.length} fallback)`
         )
       )
       return todos
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ AI task generation failed: ${error.message}`))
-      console.log(chalk.gray('⚡︎ Falling back to comprehensive analysis tasks...'))
+      advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠️ AI task generation failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.gray('⚡︎ Falling back to comprehensive analysis tasks...'))
 
       // Professional fallback tasks
       return [
@@ -793,9 +794,9 @@ Generate tasks NOW (JSON only):`
 
       await fs.writeFile(configFile, JSON.stringify(config, null, 2))
 
-      console.log(chalk.green('✓ Plan synced with TaskMaster project structure'))
+      advancedUI.logFunctionUpdate('info', chalk.green('✓ Plan synced with TaskMaster project structure'))
     } catch (error: any) {
-      console.log(chalk.gray(`ℹ️ TaskMaster sync skipped: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`ℹ️ TaskMaster sync skipped: ${error.message}`))
     }
   }
 

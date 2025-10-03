@@ -63,7 +63,7 @@ export class OutputFormatter {
                 continue
             }
 
-            if (trimmed.match(/^(File|Path|Location|src\/|api\/|\.\/)/i)) {
+            if (trimmed.match(/^(File|Path|Location|src\/|api\/|\.\/|\/)/i)) {
                 formatted.push(OutputFormatter.formatFilePath(trimmed))
                 continue
             }
@@ -86,7 +86,28 @@ export class OutputFormatter {
             formatted.push(OutputFormatter.formatPlainText(line))
         }
 
+        // Add bottom padding to prevent overlap with HUD menu and prompt area
+        const bottomPadding = OutputFormatter.getBottomPadding()
+        for (let i = 0; i < bottomPadding; i++) {
+            formatted.push('')
+        }
+
         return formatted.join('\n')
+    }
+
+    /**
+     * Calculate bottom padding based on terminal size to avoid overlap with HUD/prompt
+     */
+    private static getBottomPadding(): number {
+        const terminalHeight = process.stdout.rows || 24
+
+        if (terminalHeight < 20) {
+            return 3 // Minimal padding for small terminals
+        } else if (terminalHeight < 40) {
+            return 5 // Standard padding for medium terminals
+        } else {
+            return 6 // Extra padding for large terminals
+        }
     }
 
     static formatHeader(text: string): string {
@@ -136,9 +157,17 @@ export class OutputFormatter {
     }
 
     static formatFilePath(text: string): string {
-        return text.replace(/([a-zA-Z0-9_\-\.\/]+\.[a-z]{2,4})/gi, (match) => {
-            return chalk.cyan.underline(match)
+        // Match file paths with extensions
+        let formatted = text.replace(/([a-zA-Z0-9_\-\.\/]+\.[a-z]{2,4})/gi, (match) => {
+            return chalk.blueBright.bold.underline(match)
         })
+        // Match paths without extensions (like /api/github/webhook or src/cli/utils)
+        formatted = formatted.replace(/(\/?(?:[a-zA-Z0-9_\-]+\/)+[a-zA-Z0-9_\-]+)/g, (match) => {
+            // Avoid re-formatting already formatted paths
+            if (match.match(/\.[a-z]{2,4}$/i)) return match
+            return chalk.blueBright.bold(match)
+        })
+        return formatted
     }
 
     static formatStatusLine(text: string): string {
@@ -184,15 +213,33 @@ export class OutputFormatter {
 
     static formatPlainText(text: string): string {
         let formatted = text
-        formatted = formatted.replace(/\.(ts|js|tsx|jsx|json|md|yml|yaml|toml|env)(\s|$)/gi, (match) => {
-            return chalk.cyan(match)
-        })
-        formatted = formatted.replace(/\b\d+(\.\d+)?%?\b/g, (match) => {
-            return chalk.yellow(match)
-        })
+
+        // URLs first (to avoid conflicts with paths)
         formatted = formatted.replace(/(https?:\/\/[^\s]+)/g, (match) => {
             return chalk.blueBright.underline(match)
         })
+
+        // File paths WITH extensions - include brackets for [jobId] patterns
+        // Match: bin/cli.ts, api/jobs/[jobId].ts, dist/cli/vim/ui/vim-renderer.js
+        formatted = formatted.replace(/\b([a-zA-Z0-9_\-]+(?:\/[a-zA-Z0-9_\-\[\]]+)+\.[a-z]{2,4})\b/gi, (match) => {
+            return chalk.blueBright.bold.underline(match)
+        })
+
+        // File paths WITHOUT extensions - like api/github/webhook
+        // Must have at least one slash to be considered a path
+        formatted = formatted.replace(/\b([a-zA-Z0-9_\-]+(?:\/[a-zA-Z0-9_\-]+)+)\b/g, (match) => {
+            // Skip if already has extension or is a URL
+            if (match.match(/\.[a-z]{2,4}$/i) || match.includes(':')) {
+                return match
+            }
+            return chalk.blueBright.bold(match)
+        })
+
+        // Numbers in yellow
+        formatted = formatted.replace(/\b\d+(\.\d+)?%?\b/g, (match) => {
+            return chalk.yellow(match)
+        })
+
         return formatted
     }
 
@@ -308,6 +355,12 @@ export class OutputFormatter {
 
         if (report.recommendations && report.recommendations.length > 0) {
             sections.push(OutputFormatter.createSummaryBox('💡 Recommendations', report.recommendations))
+            sections.push('')
+        }
+
+        // Add bottom padding to prevent overlap with HUD menu and prompt area
+        const bottomPadding = OutputFormatter.getBottomPadding()
+        for (let i = 0; i < bottomPadding; i++) {
             sections.push('')
         }
 

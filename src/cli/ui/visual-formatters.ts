@@ -18,7 +18,7 @@ export class VisualFormatter {
         }
     }
 
-    processStreamChunk(chunk: string): string {
+    processStreamChunk(chunk: string, isLast: boolean = false): string {
         if (!chunk) return ''
         const lines = chunk.split('\n')
         const result: string[] = []
@@ -53,7 +53,30 @@ export class VisualFormatter {
             result.push(this.formatMarkdownLine(line))
         }
 
+        // Add bottom padding on last chunk to prevent overlap with HUD/prompt
+        if (isLast) {
+            const bottomPadding = this.getBottomPadding()
+            for (let i = 0; i < bottomPadding; i++) {
+                result.push('')
+            }
+        }
+
         return result.join('\n')
+    }
+
+    /**
+     * Calculate bottom padding based on terminal size to avoid overlap with HUD/prompt
+     */
+    private getBottomPadding(): number {
+        const terminalHeight = process.stdout.rows || 24
+
+        if (terminalHeight < 20) {
+            return 3
+        } else if (terminalHeight < 40) {
+            return 5
+        } else {
+            return 6
+        }
     }
 
     formatMarkdownLine(line: string): string {
@@ -68,6 +91,17 @@ export class VisualFormatter {
         formatted = formatted.replace(/\*\*([^*]+)\*\*/g, (_: string, text: string) => chalk.white.bold(text))
         formatted = formatted.replace(/\*([^*]+)\*/g, (_: string, text: string) => chalk.gray.italic(text))
         formatted = formatted.replace(/`([^`]+)`/g, (_: string, code: string) => chalk.bgHex('#2b2b2b').white(` ${code} `))
+
+        // Highlight file paths in bright blue bold
+        formatted = formatted.replace(/([a-zA-Z0-9_\-\.\/]+\.[a-z]{2,4})/gi, (match: string) => {
+            return chalk.blueBright.bold.underline(match)
+        })
+        // Paths without extensions (like /api/github/webhook)
+        formatted = formatted.replace(/(\/?(?:[a-zA-Z0-9_\-]+\/)+[a-zA-Z0-9_\-]+)/g, (match: string) => {
+            if (match.match(/\.[a-z]{2,4}$/i)) return match
+            return chalk.blueBright.bold(match)
+        })
+
         formatted = formatted.replace(
             /^(\s*)([-*+])\s+(.+)$/,
             (_: string, indent: string, bullet: string, text: string) => `${indent}${chalk.cyanBright(bullet)} ${text}`
@@ -203,6 +237,15 @@ export class VisualFormatter {
             language: null,
             fenceMarker: null,
         }
+    }
+
+    /**
+     * Add bottom padding to any output string to prevent TUI overlap
+     */
+    addBottomPadding(content: string): string {
+        const padding = this.getBottomPadding()
+        const lines = '\n'.repeat(padding)
+        return content + lines
     }
 }
 

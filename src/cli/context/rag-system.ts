@@ -96,7 +96,32 @@ function estimateCost(input: string[] | number, provider: string = 'openai'): nu
 function createVectorStoreConfigs() {
   const configs = []
 
-  // ChromaDB configuration (primary)
+  // 🚀 PRIMARY: Upstash Vector/Redis (10,000 vectors free, no limits)
+  const upstashVectorUrl = process.env.UPSTASH_VECTOR_REST_URL
+  const upstashVectorToken = process.env.UPSTASH_VECTOR_REST_TOKEN
+  const upstashRedisUrl = process.env.UPSTASH_REDIS_REST_URL
+  const upstashRedisToken = process.env.UPSTASH_REDIS_REST_TOKEN
+  const upstashCollection = process.env.UPSTASH_VECTOR_COLLECTION || 'unified_project_index'
+
+  if ((upstashVectorUrl && upstashVectorToken) || (upstashRedisUrl && upstashRedisToken)) {
+    configs.push({
+      provider: 'upstash' as const,
+      connectionConfig: {
+        vectorUrl: upstashVectorUrl,
+        vectorToken: upstashVectorToken,
+        redisUrl: upstashRedisUrl,
+        redisToken: upstashRedisToken,
+      },
+      collectionName: upstashCollection,
+      embeddingDimensions: 1536,
+      indexingBatchSize: 100,
+      maxRetries: 3,
+      healthCheckInterval: 300000,
+      autoFallback: true,
+    })
+  }
+
+  // 🔄 SECONDARY: ChromaDB (fallback if Upstash unavailable)
   const chromaUrl = process.env.CHROMA_URL || 'http://localhost:8005'
   const chromaApiKey = process.env.CHROMA_API_KEY || process.env.CHROMA_CLOUD_API_KEY
   const chromaTenant = process.env.CHROMA_TENANT
@@ -119,8 +144,8 @@ function createVectorStoreConfigs() {
       healthCheckInterval: 300000,
       autoFallback: true,
     })
-  } else {
-    // Local ChromaDB configuration
+  } else if (process.env.CHROMA_URL || process.env.ENABLE_CHROMADB === 'true') {
+    // Local ChromaDB configuration (only if explicitly enabled)
     const [host, port] = chromaUrl.replace('http://', '').replace('https://', '').split(':')
     configs.push({
       provider: 'chromadb' as const,
@@ -139,27 +164,7 @@ function createVectorStoreConfigs() {
     })
   }
 
-  // Optional Upstash Redis vector store configuration
-  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL
-  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN
-  const upstashCollection = process.env.UPSTASH_VECTOR_COLLECTION || 'unified_project_index'
-  if (upstashUrl && upstashToken) {
-    configs.push({
-      provider: 'upstash' as const,
-      connectionConfig: {
-        redisUrl: upstashUrl,
-        redisToken: upstashToken,
-      },
-      collectionName: upstashCollection,
-      embeddingDimensions: 1536,
-      indexingBatchSize: 100,
-      maxRetries: 3,
-      healthCheckInterval: 300000,
-      autoFallback: true,
-    })
-  }
-
-  // Always add local fallback
+  // 💾 TERTIARY: Local filesystem (always available as final fallback)
   configs.push({
     provider: 'local' as const,
     connectionConfig: {
@@ -537,7 +542,7 @@ export class UnifiedRAGSystem {
       console.log(
         chalk.green(
           `✓ Found ${finalResults.length} results in ${duration}ms ` +
-            `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
+          `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
         )
       )
 
@@ -648,21 +653,45 @@ export class UnifiedRAGSystem {
         console.log(chalk.cyan(`📤 Uploading ${documentsToIndex.length} document chunks to vector store...`))
 
         // ChromaDB free tier has quota limits (typically 300-1000 records)
-        // Use smaller batches to respect quota and avoid overwhelming the API
-        const MAX_CHROMADB_BATCH_SIZE = 100 // Conservative batch size for quota limits
-        const batchSize = Math.min(MAX_CHROMADB_BATCH_SIZE, 100)
+        // Upstash free tier: 10,000 vectors
+        const MAX_CHROMADB_BATCH_SIZE = 100
+        const MAX_UPSTASH_BATCH_SIZE = 1000
+        const batchSize = Math.min(MAX_UPSTASH_BATCH_SIZE, 100)
 
-        // Limit total documents to prevent quota exceeded errors
-        const MAX_TOTAL_DOCUMENTS = 300 // Free tier limit
+        // Limit total documents for ChromaDB free tier only
+        const activeProvider = this.vectorStoreManager?.getStats()?.provider
+        const isChromaDB = activeProvider === 'chromadb'
+        const MAX_TOTAL_DOCUMENTS = isChromaDB ? 300 : 10000 // ChromaDB vs Upstash limits
+
         if (documentsToIndex.length > MAX_TOTAL_DOCUMENTS) {
           console.log(
-            chalk.yellow(`⚠️ Document count (${documentsToIndex.length}) exceeds quota limit (${MAX_TOTAL_DOCUMENTS})`)
+            chalk.yellow(`⚠️ Document count (${documentsToIndex.length}) exceeds ${activeProvider} quota limit (${MAX_TOTAL_DOCUMENTS})`)
           )
           console.log(chalk.yellow(`   Limiting to ${MAX_TOTAL_DOCUMENTS} most important documents`))
           // Sort by priority (files with more code content first)
           documentsToIndex = documentsToIndex
             .sort((a, b) => b.content.length - a.content.length)
             .slice(0, MAX_TOTAL_DOCUMENTS)
+        }
+
+        // 🚀 OPTIMIZATION: Pre-generate embeddings in large batches (much faster!)
+        console.log(chalk.cyan(`⚡ Generating embeddings in batch...`))
+        const embeddingBatchSize = 100 // OpenAI can handle 100+ at once
+
+        for (let i = 0; i < documentsToIndex.length; i += embeddingBatchSize) {
+          const embeddingBatch = documentsToIndex.slice(i, i + embeddingBatchSize)
+          const embeddingQueries = embeddingBatch.map((doc) => ({ text: doc.content, id: doc.id }))
+
+          try {
+            const embeddings = await unifiedEmbeddingInterface.generateEmbeddings(embeddingQueries)
+
+            // Attach embeddings to documents
+            for (let j = 0; j < embeddingBatch.length; j++) {
+              embeddingBatch[j].embedding = embeddings[j].vector
+            }
+          } catch (error) {
+            console.log(chalk.yellow(`⚠️ Failed to generate embeddings for batch ${Math.floor(i / embeddingBatchSize) + 1}: ${error}`))
+          }
         }
 
         let successfulBatches = 0
@@ -1799,7 +1828,7 @@ export class UnifiedRAGSystem {
     console.log(
       chalk.blue(
         `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-          `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
       )
     )
 

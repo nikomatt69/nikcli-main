@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { createServer, type Server } from 'node:http'
+import chalk from 'chalk'
 import cors from 'cors'
 import express, { type Express, type Request, type Response } from 'express'
 import rateLimit from 'express-rate-limit'
@@ -256,6 +257,9 @@ export class APIKeyProxy extends EventEmitter {
             case 'text_delta':
               if (streamEvent.content) {
                 accumulatedContent += streamEvent.content
+
+                // DEBUG: Log text_delta to verify it's being received
+                console.log(chalk.magenta(`🌊 TEXT_DELTA: ${streamEvent.content.slice(0, 80)}...`))
 
                 // Yield content chunk
                 yield {
