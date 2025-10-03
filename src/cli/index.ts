@@ -1242,6 +1242,12 @@ class ServiceModule {
 
   static async initializeContext(): Promise<void> {
     // Context management initialization
+    try {
+      const { contextRagInterceptor } = await import('./context/context-rag-interceptor')
+      await contextRagInterceptor.install()
+    } catch {
+      // Silent: interceptor optional
+    }
   }
 
   static async initializeEnhancedServices(): Promise<void> {
