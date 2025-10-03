@@ -143,7 +143,7 @@ export class ReadFileTool extends BaseTool {
       }
 
       // Log error for debugging
-      CliUI.logError(`Failed to read file ${filePath}: ${error.message}`)
+      advancedUI.logError(`Failed to read file ${filePath}: ${error.message}`)
 
       return errorResult
     }
@@ -384,11 +384,11 @@ export class ReadFileTool extends BaseTool {
           const warnings = lspContext.diagnostics.filter((d) => d.severity === 2)
 
           if (errors.length > 0) {
-            CliUI.logInfo(`LSP analysis: ${errors.length} errors in ${filePath}`)
+            advancedUI.logInfo(`LSP analysis: ${errors.length} errors in ${filePath}`)
           }
 
           if (warnings.length > 0) {
-            CliUI.logInfo(`LSP analysis: ${warnings.length} warnings in ${filePath}`)
+            advancedUI.logInfo(`LSP analysis: ${warnings.length} warnings in ${filePath}`)
           }
         }
       }
@@ -420,7 +420,7 @@ export class ReadFileTool extends BaseTool {
       // Update workspace context
       await this.contextSystem.analyzeFile(filePath)
     } catch (error: any) {
-      CliUI.logWarning(`LSP/Context analysis failed for ${filePath}: ${error.message}`)
+      advancedUI.logWarning(`LSP/Context analysis failed for ${filePath}: ${error.message}`)
     }
   }
 }

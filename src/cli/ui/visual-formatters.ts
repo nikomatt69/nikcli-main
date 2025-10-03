@@ -61,16 +61,16 @@ export class VisualFormatter {
 
         formatted = formatted.replace(/^(#{1,6})\s+(.+)$/, (_: string, hashes: string, text: string) => {
             const level = hashes.length
-            const color = level === 1 ? chalk.blue.bold : level === 2 ? chalk.cyan.bold : chalk.gray.bold
+            const color = level === 1 ? chalk.blueBright.bold : level === 2 ? chalk.white.bold : chalk.gray.bold
             return color(`${hashes} ${text}`)
         })
 
-        formatted = formatted.replace(/\*\*([^*]+)\*\*/g, (_: string, text: string) => chalk.bold(text))
-        formatted = formatted.replace(/\*([^*]+)\*/g, (_: string, text: string) => chalk.italic(text))
-        formatted = formatted.replace(/`([^`]+)`/g, (_: string, code: string) => chalk.bgGray.white(` ${code} `))
+        formatted = formatted.replace(/\*\*([^*]+)\*\*/g, (_: string, text: string) => chalk.white.bold(text))
+        formatted = formatted.replace(/\*([^*]+)\*/g, (_: string, text: string) => chalk.gray.italic(text))
+        formatted = formatted.replace(/`([^`]+)`/g, (_: string, code: string) => chalk.bgHex('#2b2b2b').white(` ${code} `))
         formatted = formatted.replace(
             /^(\s*)([-*+])\s+(.+)$/,
-            (_: string, indent: string, bullet: string, text: string) => `${indent}${chalk.cyan(bullet)} ${text}`
+            (_: string, indent: string, bullet: string, text: string) => `${indent}${chalk.cyanBright(bullet)} ${text}`
         )
 
         return formatted
@@ -82,7 +82,7 @@ export class VisualFormatter {
         const width = (process.stdout.columns || 80) - 4
         const lang = language || 'code'
         const headerPadding = '─'.repeat(Math.max(0, width - lang.length - 4))
-        lines.push(chalk.cyan(`┌─ ${lang} ${headerPadding}┐`))
+        lines.push(chalk.cyanBright(`┌─ ${lang} ${headerPadding}┐`))
 
         let highlighted = code
         if (language && hljs.getLanguage(language)) {
@@ -93,9 +93,9 @@ export class VisualFormatter {
         const filteredLines = codeLines.filter((l, i) => l.trim() || i < codeLines.length - 1)
         for (const ln of filteredLines) {
             const truncated = ln.length > width ? ln.substring(0, width - 3) + '...' : ln
-            lines.push(chalk.gray('│ ') + truncated)
+            lines.push(chalk.white('│ ') + truncated)
         }
-        lines.push(chalk.cyan(`└${'─'.repeat(width + 2)}┘`))
+        lines.push(chalk.cyanBright(`└${'─'.repeat(width + 2)}┘`))
         return lines.join('\n')
     }
 

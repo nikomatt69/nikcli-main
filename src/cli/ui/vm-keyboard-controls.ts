@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import * as readline from 'readline'
-import { CliUI } from '../utils/cli-ui'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { VMStatusIndicator } from './vm-status-indicator'
 
 /**
@@ -86,7 +86,7 @@ export class VMKeyboardControls extends EventEmitter {
     this.isActive = true
     this.enableRawMode()
 
-    CliUI.logInfo('⌨️ VM keyboard controls activated')
+    advancedUI.logInfo('⌨️ VM keyboard controls activated')
     this.showKeyboardHelp()
     this.emit('controls:activated')
   }
@@ -101,7 +101,7 @@ export class VMKeyboardControls extends EventEmitter {
     this.closePanels()
     this.disableRawMode()
 
-    CliUI.logInfo('⌨️ VM keyboard controls deactivated')
+    advancedUI.logInfo('⌨️ VM keyboard controls deactivated')
     this.emit('controls:deactivated')
   }
 
@@ -148,7 +148,7 @@ export class VMKeyboardControls extends EventEmitter {
         this.handlePanelInput(str, key)
       }
     } catch (error: any) {
-      CliUI.logError(`❌ Keyboard handler error: ${error.message}`)
+      advancedUI.logError(`❌ Keyboard handler error: ${error.message}`)
     }
   }
 

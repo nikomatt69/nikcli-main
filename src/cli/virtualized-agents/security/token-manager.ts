@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import jwt from 'jsonwebtoken'
-import { CliUI } from '../../utils/cli-ui'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 
 /**
  * TokenManager - Secure JWT token management for VM agents
@@ -103,12 +103,12 @@ export class TokenManager extends EventEmitter {
 
       this.activeTokens.set(tokenId, tokenInfo)
 
-      CliUI.logSuccess(`🔑 Session token generated for agent ${agentId} (TTL: ${ttl}s)`)
+      advancedUI.logSuccess(`🔑 Session token generated for agent ${agentId} (TTL: ${ttl}s)`)
       this.emit('token:generated', { agentId, tokenId, ttl })
 
       return token
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to generate session token: ${error.message}`)
+      advancedUI.logError(`❌ Failed to generate session token: ${error.message}`)
       throw error
     }
   }
@@ -148,11 +148,11 @@ export class TokenManager extends EventEmitter {
       return payload
     } catch (error: any) {
       if (error.name === 'TokenExpiredError') {
-        CliUI.logWarning(`⚠️ Token expired: ${error.message}`)
+        advancedUI.logWarning(`⚠️ Token expired: ${error.message}`)
       } else if (error.name === 'JsonWebTokenError') {
-        CliUI.logError(`❌ Invalid token: ${error.message}`)
+        advancedUI.logError(`❌ Invalid token: ${error.message}`)
       } else {
-        CliUI.logError(`❌ Token verification failed: ${error.message}`)
+        advancedUI.logError(`❌ Token verification failed: ${error.message}`)
       }
       throw error
     }
@@ -193,10 +193,10 @@ export class TokenManager extends EventEmitter {
         this.activeTokens.set(tokenId, tokenInfo)
       }
 
-      CliUI.logInfo(`🚫 Token revoked for agent ${agentId}`)
+      advancedUI.logInfo(`🚫 Token revoked for agent ${agentId}`)
       this.emit('token:revoked', { agentId, tokenId })
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to revoke token: ${error.message}`)
+      advancedUI.logError(`❌ Failed to revoke token: ${error.message}`)
       throw error
     }
   }
@@ -222,12 +222,12 @@ export class TokenManager extends EventEmitter {
         maxTokensPerRequest: payload.maxTokensPerRequest,
       })
 
-      CliUI.logInfo(`⚡︎ Token refreshed for agent ${payload.agentId}`)
+      advancedUI.logInfo(`⚡︎ Token refreshed for agent ${payload.agentId}`)
       this.emit('token:refreshed', { agentId: payload.agentId })
 
       return newToken
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to refresh token: ${error.message}`)
+      advancedUI.logError(`❌ Failed to refresh token: ${error.message}`)
       throw error
     }
   }
@@ -306,7 +306,7 @@ export class TokenManager extends EventEmitter {
     }
 
     if (cleanedCount > 0) {
-      CliUI.logDebug(`🧹 Cleaned up ${cleanedCount} expired tokens`)
+      advancedUI.logInfo(`   Cleaned up ${cleanedCount} expired tokens`)
       this.emit('tokens:cleanup', { cleanedCount })
     }
   }
@@ -316,7 +316,7 @@ export class TokenManager extends EventEmitter {
    */
   private generateSecretKey(): string {
     const secret = crypto.randomBytes(64).toString('hex')
-    CliUI.logWarning('⚠️ Using generated JWT secret. Set NIKCLI_JWT_SECRET environment variable for production')
+    advancedUI.logWarning('⚠️ Using generated JWT secret. Set NIKCLI_JWT_SECRET environment variable for production')
     return secret
   }
 
@@ -328,7 +328,7 @@ export class TokenManager extends EventEmitter {
       this.cleanupExpiredTokens()
     }, this.TOKEN_CLEANUP_INTERVAL)
 
-    CliUI.logDebug(`🔧 Token cleanup scheduled every ${this.TOKEN_CLEANUP_INTERVAL / 1000}s`)
+    advancedUI.logInfo(`🔧 Token cleanup scheduled every ${this.TOKEN_CLEANUP_INTERVAL / 1000}s`)
   }
 }
 

@@ -5,6 +5,7 @@ import type { VMMetrics } from './secure-vm-agent'
 import { vmChatBridge } from './vm-chat-bridge'
 import { vmSessionManager } from './vm-session-manager'
 import { vmWebSocketServer } from './vm-websocket-server'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * VMOrchestrator - Manages complete lifecycle of VM containers
@@ -36,7 +37,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   async createSecureContainer(config: ContainerCreationConfig): Promise<string> {
     try {
-      CliUI.logInfo(`🐳 Creating secure container for agent ${config.agentId}`)
+      advancedUI.logInfo(`🐳 Creating secure container for agent ${config.agentId}`)
 
       // Generate unique container name
       const containerName = `nikcli-vm-${config.agentId}-${Date.now()}`
@@ -118,12 +119,12 @@ export class VMOrchestrator extends EventEmitter {
       // Create and register VM agent
       await this.createAndRegisterVMAgent(containerId, config)
 
-      CliUI.logSuccess(`✓ Secure container created: ${containerId}`)
+      advancedUI.logSuccess(`✓ Secure container created: ${containerId}`)
       this.emit('container:created', { containerId, agentId: config.agentId })
 
       return containerId
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to create secure container: ${error.message}`)
+      advancedUI.logError(`❌ Failed to create secure container: ${error.message}`)
       throw error
     }
   }
@@ -132,7 +133,7 @@ export class VMOrchestrator extends EventEmitter {
    * Initialize container with basic tools and security setup
    */
   private async initializeContainer(containerId: string): Promise<void> {
-    CliUI.logInfo(`🔧 Initializing container ${containerId}`)
+    advancedUI.logInfo(`🔧 Initializing container ${containerId}`)
 
     const initCommands = [
       // Install git using Alpine package manager (Node.js already included in base image)
@@ -158,17 +159,17 @@ export class VMOrchestrator extends EventEmitter {
     for (let i = 0; i < initCommands.length; i++) {
       const command = initCommands[i]
       try {
-        CliUI.logDebug(`Executing init command ${i + 1}/${initCommands.length}`)
+        advancedUI.logInfo(`Executing init command ${i + 1}/${initCommands.length}`)
         await this.executeCommand(containerId, command)
 
         // Wait after package installation
         if (i === 0) {
-          CliUI.logInfo('⏳ Waiting for packages to install...')
+          advancedUI.logInfo('⏳ Waiting for packages to install...')
           await new Promise((resolve) => setTimeout(resolve, 2000)) // Wait 2 seconds
-          CliUI.logSuccess('✓ Packages installed')
+          advancedUI.logSuccess('✓ Packages installed')
         }
       } catch (error: any) {
-        CliUI.logError(`Warning: Init command failed: ${command} - ${error.message}`)
+        advancedUI.logError(`Warning: Init command failed: ${command} - ${error.message}`)
 
         // If it's the first command (package installation), this is critical
         if (i === 0) {
@@ -177,7 +178,7 @@ export class VMOrchestrator extends EventEmitter {
       }
     }
 
-    CliUI.logSuccess(`✓ Container ${containerId} initialized`)
+    advancedUI.logSuccess(`✓ Container ${containerId} initialized`)
   }
 
   /**
@@ -194,41 +195,41 @@ export class VMOrchestrator extends EventEmitter {
         options.useLocalPath ?? Boolean(containerInfo?.localRepositoryPath) ?? this.looksLikeLocalPath(repositoryUrl)
 
       const setupMode = useLocalPath ? 'local path' : 'git clone'
-      CliUI.logInfo(`📦 Setting up repository ${repositoryUrl} in container (${setupMode})`)
+      advancedUI.logInfo(`📦 Setting up repository ${repositoryUrl} in container (${setupMode})`)
 
       const setupCommands = useLocalPath
         ? [
-            // Ensure mounted path exists inside container
-            'if [ ! -d /workspace/repo ]; then echo "Mounted repository not accessible" >&2; exit 1; fi',
+          // Ensure mounted path exists inside container
+          'if [ ! -d /workspace/repo ]; then echo "Mounted repository not accessible" >&2; exit 1; fi',
 
-            // Print git status when available, otherwise continue
-            'cd /workspace/repo && if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git status; else echo "Directory is not a git repository"; fi',
+          // Print git status when available, otherwise continue
+          'cd /workspace/repo && if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git status; else echo "Directory is not a git repository"; fi',
 
-            // Install dependencies if package.json exists (npm preferred)
-            'cd /workspace/repo && if [ -f package.json ]; then (npm install || npm ci || true); fi',
+          // Install dependencies if package.json exists (npm preferred)
+          'cd /workspace/repo && if [ -f package.json ]; then (npm install || npm ci || true); fi',
 
-            // Install Python dependencies if requirements.txt exists and pip3 is available
-            'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
-          ]
+          // Install Python dependencies if requirements.txt exists and pip3 is available
+          'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
+        ]
         : [
-            // Configure git to skip SSL verification for this clone (temporary workaround)
-            'git config --global http.sslverify false',
+          // Configure git to skip SSL verification for this clone (temporary workaround)
+          'git config --global http.sslverify false',
 
-            // Clone repository to workspace
-            `cd /workspace && git clone ${repositoryUrl} repo`,
+          // Clone repository to workspace
+          `cd /workspace && git clone ${repositoryUrl} repo`,
 
-            // Re-enable SSL verification
-            'git config --global http.sslverify true',
+          // Re-enable SSL verification
+          'git config --global http.sslverify true',
 
-            // Install dependencies if package.json exists (npm preferred)
-            'cd /workspace/repo && if [ -f package.json ]; then npm install; fi',
+          // Install dependencies if package.json exists (npm preferred)
+          'cd /workspace/repo && if [ -f package.json ]; then npm install; fi',
 
-            // Install Python dependencies if requirements.txt exists and pip3 is available
-            'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
+          // Install Python dependencies if requirements.txt exists and pip3 is available
+          'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
 
-            // Make directory accessible
-            'chmod -R 755 /workspace',
-          ]
+          // Make directory accessible
+          'chmod -R 755 /workspace',
+        ]
 
       for (const command of setupCommands) {
         await this.executeCommand(containerId, command)
@@ -244,9 +245,9 @@ export class VMOrchestrator extends EventEmitter {
         this.activeContainers.set(containerId, containerInfo)
       }
 
-      CliUI.logSuccess(`✓ Repository setup completed in container ${containerId}`)
+      advancedUI.logSuccess(`✓ Repository setup completed in container ${containerId}`)
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to setup repository: ${error.message}`)
+      advancedUI.logError(`❌ Failed to setup repository: ${error.message}`)
       throw error
     }
   }
@@ -256,7 +257,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   async setupVSCodeServer(containerId: string): Promise<void> {
     try {
-      CliUI.logInfo(`🔨 Setting up development environment in container ${containerId}`)
+      advancedUI.logInfo(`🔨 Setting up development environment in container ${containerId}`)
 
       const devCommands = [
         // Verify Node.js is working
@@ -270,9 +271,9 @@ export class VMOrchestrator extends EventEmitter {
         await this.executeCommand(containerId, command)
       }
 
-      CliUI.logSuccess(`✓ Development environment ready`)
+      advancedUI.logSuccess(`✓ Development environment ready`)
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to setup development environment: ${error.message}`)
+      advancedUI.logError(`❌ Failed to setup development environment: ${error.message}`)
       throw error
     }
   }
@@ -289,7 +290,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   async setupDevelopmentEnvironment(containerId: string): Promise<void> {
     try {
-      CliUI.logInfo(`🔨 Setting up shell environment in container ${containerId}`)
+      advancedUI.logInfo(`🔨 Setting up shell environment in container ${containerId}`)
 
       const devCommands = [
         // Setup shell environment
@@ -301,9 +302,9 @@ export class VMOrchestrator extends EventEmitter {
         await this.executeCommand(containerId, command)
       }
 
-      CliUI.logSuccess(`✓ Shell environment ready`)
+      advancedUI.logSuccess(`✓ Shell environment ready`)
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to setup shell environment: ${error.message}`)
+      advancedUI.logError(`❌ Failed to setup shell environment: ${error.message}`)
       throw error
     }
   }
@@ -316,7 +317,7 @@ export class VMOrchestrator extends EventEmitter {
       const result = await this.containerManager.executeCommand(containerId, command)
 
       // Log command execution for debugging
-      CliUI.logDebug(`🔧 Container ${containerId.slice(0, 8)}: ${command}`)
+      advancedUI.logInfo(`🔧 Container ${containerId.slice(0, 8)}: ${command}`)
 
       // Emit command execution event for streaming
       this.emit('command:executed', {
@@ -328,7 +329,7 @@ export class VMOrchestrator extends EventEmitter {
 
       return result
     } catch (error: any) {
-      CliUI.logError(`❌ Command failed in ${containerId.slice(0, 8)}: ${command}`)
+      advancedUI.logError(`❌ Command failed in ${containerId.slice(0, 8)}: ${command}`)
 
       // Emit command error event
       this.emit('command:error', {
@@ -350,7 +351,7 @@ export class VMOrchestrator extends EventEmitter {
     command: string
   ): AsyncGenerator<CommandStreamChunk, void, unknown> {
     try {
-      CliUI.logDebug(`🌊 Streaming command in ${containerId.slice(0, 8)}: ${command}`)
+      advancedUI.logInfo(`🌊 Streaming command in ${containerId.slice(0, 8)}: ${command}`)
 
       // Emit start event
       yield {
@@ -396,7 +397,7 @@ export class VMOrchestrator extends EventEmitter {
         timestamp: new Date(),
       })
     } catch (error: any) {
-      CliUI.logError(`❌ Streaming command failed in ${containerId.slice(0, 8)}: ${command}`)
+      advancedUI.logError(`❌ Streaming command failed in ${containerId.slice(0, 8)}: ${command}`)
 
       // Yield error
       yield {
@@ -424,7 +425,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   async createPullRequest(containerId: string, prConfig: PullRequestConfig): Promise<string> {
     try {
-      CliUI.logInfo(`📝 Creating pull request from container ${containerId}`)
+      advancedUI.logInfo(`📝 Creating pull request from container ${containerId}`)
       const branchName = prConfig.branch || `automated-changes-${Date.now()}`
 
       const prCommands = [
@@ -446,10 +447,10 @@ export class VMOrchestrator extends EventEmitter {
         branchName
       )
 
-      CliUI.logSuccess(`✓ Pull request created: ${prUrl}`)
+      advancedUI.logSuccess(`✓ Pull request created: ${prUrl}`)
       return prUrl
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to create pull request: ${error.message}`)
+      advancedUI.logError(`❌ Failed to create pull request: ${error.message}`)
       throw error
     }
   }
@@ -477,9 +478,9 @@ export class VMOrchestrator extends EventEmitter {
       // Get GitHub token from environment with enhanced validation
       const githubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN
       if (!githubToken || !fetchFn) {
-        CliUI.logWarning('⚠️ Missing GitHub token; generating manual PR URL')
+        advancedUI.logWarning('⚠️ Missing GitHub token; generating manual PR URL')
         const manualUrl = this.generateManualPRUrl(owner, repoName, branchName, prConfig)
-        CliUI.logInfo(`📋 Manual PR URL: ${manualUrl}`)
+        advancedUI.logInfo(`📋 Manual PR URL: ${manualUrl}`)
         return manualUrl
       }
 
@@ -564,7 +565,7 @@ export class VMOrchestrator extends EventEmitter {
       const pullRequest = (await response.json()) as { html_url: string }
       return pullRequest.html_url
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to create GitHub PR: ${error.message}`)
+      advancedUI.logError(`❌ Failed to create GitHub PR: ${error.message}`)
 
       // Enhanced fallback with repository validation
       const repoMatch = prConfig.repositoryUrl?.match(/github\.com[/:]([^/:]+)\/([^/]+)(?:\.git)?/)
@@ -583,7 +584,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   async stopContainer(containerId: string): Promise<void> {
     try {
-      CliUI.logInfo(`🛑 Stopping container ${containerId}`)
+      advancedUI.logInfo(`🛑 Stopping container ${containerId}`)
 
       await this.containerManager.stopContainer(containerId)
 
@@ -596,7 +597,7 @@ export class VMOrchestrator extends EventEmitter {
 
       this.emit('container:stopped', { containerId })
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to stop container: ${error.message}`)
+      advancedUI.logError(`❌ Failed to stop container: ${error.message}`)
       throw error
     }
   }
@@ -606,7 +607,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   async removeContainer(containerId: string): Promise<void> {
     try {
-      CliUI.logInfo(`🗑️ Removing container ${containerId}`)
+      advancedUI.logInfo(`🗑️ Removing container ${containerId}`)
 
       await this.containerManager.removeContainer(containerId)
 
@@ -616,7 +617,7 @@ export class VMOrchestrator extends EventEmitter {
 
       this.emit('container:removed', { containerId })
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to remove container: ${error.message}`)
+      advancedUI.logError(`❌ Failed to remove container: ${error.message}`)
       throw error
     }
   }
@@ -639,7 +640,7 @@ export class VMOrchestrator extends EventEmitter {
       this.containerMetrics.set(containerId, metrics)
       return metrics
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to get container metrics: ${error.message}`)
+      advancedUI.logError(`❌ Failed to get container metrics: ${error.message}`)
       return {
         memoryUsage: 0,
         cpuUsage: 0,
@@ -698,9 +699,9 @@ export class VMOrchestrator extends EventEmitter {
 
           // Create session for new container
           const session = await vmSessionManager.createSession(containerId, agentId)
-          CliUI.logSuccess(`📝 Created VM session ${session.sessionId} for container ${containerId.slice(0, 12)}`)
+          advancedUI.logSuccess(`📝 Created VM session ${session.sessionId} for container ${containerId.slice(0, 12)}`)
         } catch (error: any) {
-          CliUI.logError(`❌ Failed to create session for container ${containerId}: ${error.message}`)
+          advancedUI.logError(`❌ Failed to create session for container ${containerId}: ${error.message}`)
         }
       })
 
@@ -713,9 +714,9 @@ export class VMOrchestrator extends EventEmitter {
       })
 
       this.bridgeInitialized = true
-      CliUI.logSuccess('✓ VM communication bridge initialized')
+      advancedUI.logSuccess('✓ VM communication bridge initialized')
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to initialize VM communication bridge: ${error.message}`)
+      advancedUI.logError(`❌ Failed to initialize VM communication bridge: ${error.message}`)
     }
   }
 
@@ -725,9 +726,9 @@ export class VMOrchestrator extends EventEmitter {
   async registerVMAgent(agent: any): Promise<void> {
     try {
       await vmChatBridge.registerVMAgent(agent)
-      CliUI.logSuccess(`🔌 Registered VM agent ${agent.id} with communication bridge`)
+      advancedUI.logSuccess(`🔌 Registered VM agent ${agent.id} with communication bridge`)
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to register VM agent with bridge: ${error.message}`)
+      advancedUI.logError(`❌ Failed to register VM agent with bridge: ${error.message}`)
       throw error
     }
   }
@@ -739,7 +740,7 @@ export class VMOrchestrator extends EventEmitter {
     try {
       return await vmChatBridge.sendMessageToAgent(agentId, message)
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to send message to agent ${agentId}: ${error.message}`)
+      advancedUI.logError(`❌ Failed to send message to agent ${agentId}: ${error.message}`)
       throw error
     }
   }
@@ -753,7 +754,7 @@ export class VMOrchestrator extends EventEmitter {
         yield chunk
       }
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to stream message to agent ${agentId}: ${error.message}`)
+      advancedUI.logError(`❌ Failed to stream message to agent ${agentId}: ${error.message}`)
       throw error
     }
   }
@@ -770,7 +771,7 @@ export class VMOrchestrator extends EventEmitter {
    */
   private async createAndRegisterVMAgent(containerId: string, config: ContainerCreationConfig): Promise<void> {
     try {
-      CliUI.logInfo(`🔌 Creating VM agent for container ${containerId.slice(0, 12)}`)
+      advancedUI.logInfo(`🔌 Creating VM agent for container ${containerId.slice(0, 12)}`)
 
       // Dynamically import SecureVirtualizedAgent to avoid circular dependencies
       const { SecureVirtualizedAgent } = await import('./secure-vm-agent')
@@ -793,9 +794,9 @@ export class VMOrchestrator extends EventEmitter {
       // Register with bridge
       await this.registerVMAgent(agent)
 
-      CliUI.logSuccess(`✓ VM agent ${config.agentId} created and registered`)
+      advancedUI.logSuccess(`✓ VM agent ${config.agentId} created and registered`)
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to create VM agent: ${error.message}`)
+      advancedUI.logError(`❌ Failed to create VM agent: ${error.message}`)
       throw error
     }
   }
@@ -856,7 +857,7 @@ export class VMOrchestrator extends EventEmitter {
    * Cleanup all active containers
    */
   private async cleanupAllContainers(): Promise<void> {
-    CliUI.logInfo(`🧹 Cleaning up ${this.activeContainers.size} active containers`)
+    advancedUI.logInfo(`🧹 Cleaning up ${this.activeContainers.size} active containers`)
 
     // Shutdown communication bridge
     if (this.bridgeInitialized) {
@@ -864,7 +865,7 @@ export class VMOrchestrator extends EventEmitter {
         await vmChatBridge.shutdown()
         await vmWebSocketServer.stop()
       } catch (error: any) {
-        CliUI.logError(`Error shutting down communication bridge: ${error.message}`)
+        advancedUI.logError(`Error shutting down communication bridge: ${error.message}`)
       }
     }
 
@@ -873,7 +874,7 @@ export class VMOrchestrator extends EventEmitter {
         await this.stopContainer(containerId)
         await this.removeContainer(containerId)
       } catch (error: any) {
-        CliUI.logError(`Error cleaning up container ${containerId}: ${error.message}`)
+        advancedUI.logError(`Error cleaning up container ${containerId}: ${error.message}`)
       }
     })
 

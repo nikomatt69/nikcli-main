@@ -7,6 +7,7 @@ import type {
   PlanningToolCapability,
   PlanValidationResult,
 } from './types'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Production-ready Plan Generator
@@ -23,7 +24,7 @@ export class PlanGenerator {
    * Generate an execution plan from user request and context
    */
   async generatePlan(context: PlannerContext): Promise<ExecutionPlan> {
-    CliUI.startSpinner('Analyzing request and generating execution plan...')
+    advancedUI.startSpinner('Analyzing request and generating execution plan...', 'info')
 
     try {
       // Parse and analyze the user request

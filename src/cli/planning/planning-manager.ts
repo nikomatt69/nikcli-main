@@ -4,6 +4,7 @@ import { CliUI } from '../utils/cli-ui'
 import { PlanExecutor } from './plan-executor'
 import { PlanGenerator } from './plan-generator'
 import type { ExecutionPlan, PlanExecutionResult, PlannerConfig, PlannerContext, PlanValidationResult } from './types'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Production-ready Planning Manager
@@ -36,8 +37,8 @@ export class PlanningManager extends EventEmitter {
    * Main entry point: Plan and execute a user request
    */
   async planAndExecute(userRequest: string, projectPath: string): Promise<PlanExecutionResult> {
-    CliUI.logSection('AI Planning & Execution System')
-    CliUI.logInfo(`Processing request: ${CliUI.highlight(userRequest)}`)
+    advancedUI.logFunctionCall('AI Planning & Execution System')
+    advancedUI.logFunctionUpdate('info', `Processing request: ${CliUI.highlight(userRequest)}`)
 
     try {
       // Step 1: Analyze project context
@@ -65,7 +66,7 @@ export class PlanningManager extends EventEmitter {
 
       return result
     } catch (error: any) {
-      CliUI.logError(`Planning and execution failed: ${error.message}`)
+      advancedUI.logError(`Planning and execution failed: ${error.message}`)
       throw error
     }
   }
@@ -96,7 +97,7 @@ export class PlanningManager extends EventEmitter {
       throw new Error(`Plan not found: ${planId}`)
     }
 
-    CliUI.logSection('Plan Execution')
+    advancedUI.logFunctionCall('Plan Execution')
     return await this.executeWithEventTracking(plan)
   }
 
@@ -214,7 +215,7 @@ export class PlanningManager extends EventEmitter {
     try {
       // If the todo has tool information, execute it
       if (todo.toolName && todo.toolArgs) {
-        CliUI.logInfo(`Executing tool: ${todo.toolName}`)
+        advancedUI.logInfo(`Executing tool: ${todo.toolName}`)
 
         // Get tool metadata for validation
         const toolMetadata = this.toolRegistry.getToolMetadata(todo.toolName)
@@ -231,17 +232,17 @@ export class PlanningManager extends EventEmitter {
         const result = await tool.execute(todo.toolArgs)
 
         if (this.config.logLevel === 'debug') {
-          CliUI.logInfo(`Tool execution result: ${JSON.stringify(result, null, 2)}`)
+          advancedUI.logInfo(`Tool execution result: ${JSON.stringify(result, null, 2)}`)
         }
       } else {
         // For steps without specific tools, log the action
-        CliUI.logInfo(`Executing step: ${todo.title || todo.description}`)
+        advancedUI.logInfo(`Executing step: ${todo.title || todo.description}`)
 
         // Simulate execution time for non-tool steps
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
     } catch (error: any) {
-      CliUI.logError(`Failed to execute step: ${error.message}`)
+      advancedUI.logError(`Failed to execute step: ${error.message}`)
       throw error
     }
   }
@@ -290,9 +291,9 @@ export class PlanningManager extends EventEmitter {
       averageExecutionTime:
         executions.length > 0
           ? executions.reduce((sum, e) => {
-              const duration = e.endTime ? e.endTime.getTime() - e.startTime.getTime() : 0
-              return sum + duration
-            }, 0) / executions.length
+            const duration = e.endTime ? e.endTime.getTime() - e.startTime.getTime() : 0
+            return sum + duration
+          }, 0) / executions.length
           : 0,
       riskDistribution: this.calculateRiskDistribution(plans),
       toolUsageStats: this.calculateToolUsage(plans),
@@ -429,15 +430,15 @@ export class PlanningManager extends EventEmitter {
    * Display plan details
    */
   private displayPlan(plan: ExecutionPlan): void {
-    CliUI.logSection(`Generated Plan: ${plan.title}`)
+    advancedUI.logFunctionCall(`Generated Plan: ${plan.title}`)
 
-    CliUI.logKeyValue('Plan ID', plan.id)
-    CliUI.logKeyValue('Description', plan.description)
-    CliUI.logKeyValue('Total Steps', plan.steps.length.toString())
-    CliUI.logKeyValue('Estimated Duration', `${Math.round(plan.estimatedTotalDuration / 1000)}s`)
-    CliUI.logKeyValue('Risk Level', plan.riskAssessment.overallRisk)
+    advancedUI.logFunctionUpdate('info', 'Plan ID', plan.id)
+    advancedUI.logFunctionUpdate('info', 'Description', plan.description)
+    advancedUI.logFunctionUpdate('info', 'Total Steps', plan.steps.length.toString())
+    advancedUI.logFunctionUpdate('info', 'Estimated Duration', `${Math.round(plan.estimatedTotalDuration / 1000)}s`)
+    advancedUI.logFunctionUpdate('info', 'Risk Level', plan.riskAssessment.overallRisk)
 
-    CliUI.logSubsection('Execution Steps')
+    advancedUI.logFunctionUpdate('info', 'Execution Steps')
     plan.steps.forEach((step, index) => {
       const riskIcon = step.riskLevel === 'high' ? '🔴' : step.riskLevel === 'medium' ? '🟡' : '🟢'
       const typeIcon =
@@ -464,10 +465,10 @@ export class PlanningManager extends EventEmitter {
         priority: (t as any).priority,
         progress: (t as any).progress,
       }))
-      ;(advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
+        ; (advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
     } catch (error: any) {
       if (this.config.logLevel === 'debug') {
-        CliUI.logError(`Failed to render todos UI: ${error?.message || error}`)
+        advancedUI.logError(`Failed to render todos UI: ${error?.message || error}`)
       }
     }
   }
@@ -477,18 +478,18 @@ export class PlanningManager extends EventEmitter {
    */
   private displayValidationResults(validation: PlanValidationResult): void {
     if (validation.errors.length > 0) {
-      CliUI.logSubsection('Validation Errors')
-      validation.errors.forEach((error) => CliUI.logError(error))
+      advancedUI.logFunctionUpdate('error', 'Validation Errors')
+      validation.errors.forEach((error) => advancedUI.logError(error))
     }
 
     if (validation.warnings.length > 0) {
-      CliUI.logSubsection('Validation Warnings')
-      validation.warnings.forEach((warning) => CliUI.logWarning(warning))
+      advancedUI.logFunctionUpdate('warning', 'Validation Warnings')
+      validation.warnings.forEach((warning) => advancedUI.logWarning(warning))
     }
 
     if (validation.suggestions.length > 0) {
-      CliUI.logSubsection('Suggestions')
-      validation.suggestions.forEach((suggestion) => CliUI.logInfo(suggestion))
+      advancedUI.logFunctionUpdate('info', 'Suggestions')
+      validation.suggestions.forEach((suggestion) => advancedUI.logInfo(suggestion))
     }
   }
 
@@ -496,21 +497,21 @@ export class PlanningManager extends EventEmitter {
    * Log complete planning session results
    */
   private logPlanningSession(plan: ExecutionPlan, result: PlanExecutionResult): void {
-    CliUI.logSection('Planning Session Complete')
+    advancedUI.logFunctionCall('Planning Session Complete')
 
     const duration = result.endTime ? result.endTime.getTime() - result.startTime.getTime() : 0
 
-    CliUI.logKeyValue('Plan ID', plan.id)
-    CliUI.logKeyValue('Execution Status', result.status.toUpperCase())
-    CliUI.logKeyValue('Total Duration', `${Math.round(duration / 1000)}s`)
-    CliUI.logKeyValue('Steps Executed', `${result.summary.successfulSteps}/${result.summary.totalSteps}`)
+    advancedUI.logFunctionUpdate('info', 'Plan ID', plan.id)
+    advancedUI.logFunctionUpdate('info', 'Execution Status', result.status.toUpperCase())
+    advancedUI.logFunctionUpdate('info', 'Total Duration', `${Math.round(duration / 1000)}s`)
+    advancedUI.logFunctionUpdate('info', 'Steps Executed', `${result.summary.successfulSteps}/${result.summary.totalSteps}`)
 
     if (result.summary.failedSteps > 0) {
-      CliUI.logWarning(`${result.summary.failedSteps} steps failed`)
+      advancedUI.logWarning(`${result.summary.failedSteps} steps failed`)
     }
 
     if (result.summary.skippedSteps > 0) {
-      CliUI.logInfo(`${result.summary.skippedSteps} steps skipped`)
+      advancedUI.logInfo(`${result.summary.skippedSteps} steps skipped`)
     }
 
     // Save session log
@@ -531,7 +532,7 @@ export class PlanningManager extends EventEmitter {
     }
 
     // In production, this would save to a persistent log store
-    CliUI.logInfo(`Session logged: ${plan.id}`)
+    advancedUI.logInfo(`Session logged: ${plan.id}`)
   }
 
   /**

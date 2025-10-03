@@ -4,6 +4,7 @@ import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Production-ready Replace In File Tool
@@ -86,9 +87,9 @@ export class ReplaceInFileTool extends BaseTool {
       }
 
       if (replaceResult.matchCount > 0) {
-        CliUI.logSuccess(`Replaced ${replaceResult.matchCount} occurrence(s) in ${filePath}`)
+        advancedUI.logSuccess(`Replaced ${replaceResult.matchCount} occurrence(s) in ${filePath}`)
       } else {
-        CliUI.logInfo(`No matches found in ${filePath}`)
+        advancedUI.logInfo(`No matches found in ${filePath}`)
       }
 
       return {
@@ -119,7 +120,7 @@ export class ReplaceInFileTool extends BaseTool {
         },
       }
 
-      CliUI.logError(`Failed to replace in file ${filePath}: ${error.message}`)
+      advancedUI.logError(`Failed to replace in file ${filePath}: ${error.message}`)
       return {
         success: false,
         data: errorResult,

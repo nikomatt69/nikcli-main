@@ -7,6 +7,7 @@ import { VimCommandProcessor } from './commands/vim-command-processor'
 import { VimKeyHandler } from './keybindings/vim-key-handler'
 import { type CursorPosition, VimMode, type VimState } from './types/vim-types'
 import { VimRenderer } from './ui/vim-renderer'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface VimModeConfig {
   aiIntegration: boolean
@@ -97,16 +98,16 @@ export class VimModeManager extends EventEmitter {
       await this.commandProcessor.initialize()
       await this.renderer.initialize()
 
-      CliUI.logSuccess('Vim mode initialized successfully')
+      advancedUI.logSuccess('Vim mode initialized successfully')
     } catch (error: any) {
-      CliUI.logError(`Failed to initialize vim mode: ${error.message}`)
+      advancedUI.logError(`Failed to initialize vim mode: ${error.message}`)
       throw error
     }
   }
 
   async activate(promptInterface?: readline.Interface, restoreCallback?: () => void): Promise<void> {
     if (this.isActive) {
-      CliUI.logWarning('Vim mode already active')
+      advancedUI.logWarning('Vim mode already active')
       return
     }
 

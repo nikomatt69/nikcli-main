@@ -2,7 +2,7 @@ import { watch } from 'chokidar'
 import { relative } from 'node:path'
 import chalk from 'chalk'
 import { PromptManager } from '../prompts/prompt-manager'
-import { CliUI } from '../utils/cli-ui'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
 
@@ -78,7 +78,7 @@ export class WatchTool extends BaseTool {
         parameters: params,
       })
 
-      CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+      advancedUI.logInfo(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
 
       const watchPaths = params.path || this.workingDirectory
       const maxEvents = params.maxEvents || 100
@@ -90,7 +90,7 @@ export class WatchTool extends BaseTool {
         ? watchPaths.map((p) => sanitizePath(p, this.workingDirectory))
         : [sanitizePath(watchPaths, this.workingDirectory)]
 
-      CliUI.logInfo(`👁️  Watching: ${CliUI.highlight(sanitizedPaths.join(', '))}`)
+      advancedUI.logInfo(`👁️  Watching: ${sanitizedPaths.join(', ')}`)
 
       const startTime = new Date()
 
@@ -112,9 +112,9 @@ export class WatchTool extends BaseTool {
         depth: params.depth,
         awaitWriteFinish: params.awaitWriteFinish
           ? {
-              stabilityThreshold: debounceDelay,
-              pollInterval: 100,
-            }
+            stabilityThreshold: debounceDelay,
+            pollInterval: 100,
+          }
           : false,
       }
 
@@ -139,20 +139,20 @@ export class WatchTool extends BaseTool {
         // Log event
         const icon = this.getEventIcon(type)
         const color = this.getEventColor(type)
-        CliUI.logInfo(`${icon} ${color(type.toUpperCase())}: ${chalk.cyan(event.relativePath)}`)
+        advancedUI.logInfo(`${icon} ${color(type.toUpperCase())}: ${chalk.cyan(event.relativePath)}`)
 
         // Execute callback if provided
         if (params.callback) {
           try {
             await params.callback(event)
           } catch (error: any) {
-            CliUI.logError(`Callback failed: ${error.message}`)
+            advancedUI.logError(`Callback failed: ${error.message}`)
           }
         }
 
         // Stop if max events reached
         if (this.events.length >= maxEvents) {
-          CliUI.logWarning(`⚠️  Max events (${maxEvents}) reached, stopping watcher`)
+          advancedUI.logWarning(`⚠️  Max events (${maxEvents}) reached, stopping watcher`)
           await this.stopWatcher()
         }
       }
@@ -164,11 +164,11 @@ export class WatchTool extends BaseTool {
       this.watcher.on('unlinkDir', (path: string) => handleEvent('unlinkDir', path))
 
       this.watcher.on('error', (error: Error) => {
-        CliUI.logError(`Watch error: ${error.message}`)
+        advancedUI.logError(`Watch error: ${error.message}`)
       })
 
       this.watcher.on('ready', () => {
-        CliUI.logSuccess('✓ Watcher ready')
+        advancedUI.logSuccess('✓ Watcher ready')
       })
 
       const result: WatchResult = {
@@ -196,7 +196,7 @@ export class WatchTool extends BaseTool {
         },
       }
     } catch (error: any) {
-      CliUI.logError(`Watch tool failed: ${error.message}`)
+      advancedUI.logError(`Watch tool failed: ${error.message}`)
       return {
         success: false,
         error: error.message,
@@ -217,7 +217,7 @@ export class WatchTool extends BaseTool {
     if (this.watcher) {
       await this.watcher.close()
       this.watcher = null
-      CliUI.logInfo('👋 Watcher stopped')
+      advancedUI.logInfo('👋 Watcher stopped')
     }
   }
 

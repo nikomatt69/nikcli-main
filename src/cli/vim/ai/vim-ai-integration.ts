@@ -5,6 +5,7 @@ import type { SimpleConfigManager } from '../../core/config-manager'
 import { CliUI } from '../../utils/cli-ui'
 import { VimMode, type VimState } from '../types/vim-types'
 import type { VimModeConfig } from '../vim-mode-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 
 export interface VimAIRequest {
   type: 'generate' | 'explain' | 'refactor' | 'comment' | 'assist'
@@ -69,7 +70,7 @@ export class VimAIIntegration extends EventEmitter {
 
       return response.text
     } catch (error: any) {
-      CliUI.logError(`AI request failed: ${error.message}`)
+      advancedUI.logError(`AI request failed: ${error.message}`)
       throw error
     }
   }

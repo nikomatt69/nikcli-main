@@ -91,7 +91,7 @@ export class OutputFormatter {
 
     static formatHeader(text: string): string {
         const cleaned = text.trim()
-        return `\n${chalk.blue.bold('═'.repeat(60))}\n${chalk.cyan.bold(`  ${cleaned}`)}\n${chalk.blue.bold('═'.repeat(60))}`
+        return `\n${chalk.blueBright.bold('═'.repeat(60))}\n${chalk.white.bold(`  ${cleaned}`)}\n${chalk.blueBright.bold('═'.repeat(60))}`
     }
 
     static formatListItem(text: string): string {
@@ -124,14 +124,14 @@ export class OutputFormatter {
             padding: 1,
             margin: { top: 1, bottom: 1, left: 2, right: 2 },
             borderStyle: 'round',
-            borderColor: 'gray',
+            borderColor: 'cyan',
             backgroundColor: '#1e1e1e',
         })
     }
 
     static formatInlineCode(text: string): string {
         return text.replace(/`([^`]+)`/g, (_match, code) => {
-            return chalk.bgGray.white(` ${code} `)
+            return chalk.bgHex('#2b2b2b').white(` ${code} `)
         })
     }
 
@@ -162,13 +162,13 @@ export class OutputFormatter {
 
         let badge = ''
         if (priority.includes('CRITICAL') || priority === 'P0') {
-            badge = chalk.bgRed.white.bold(` ${priority} `)
+            badge = chalk.bgHex('#8B0000').white.bold(` ${priority} `)
         } else if (priority.includes('HIGH') || priority === 'P1') {
-            badge = chalk.bgYellow.black.bold(` ${priority} `)
+            badge = chalk.bgHex('#B8860B').black.bold(` ${priority} `)
         } else if (priority.includes('MEDIUM') || priority === 'P2') {
-            badge = chalk.bgBlue.white(` ${priority} `)
+            badge = chalk.bgHex('#1E3A8A').white(` ${priority} `)
         } else {
-            badge = chalk.bgGray.white(` ${priority} `)
+            badge = chalk.bgHex('#374151').white(` ${priority} `)
         }
 
         return `${badge} ${chalk.white(content)}`
@@ -191,7 +191,7 @@ export class OutputFormatter {
             return chalk.yellow(match)
         })
         formatted = formatted.replace(/(https?:\/\/[^\s]+)/g, (match) => {
-            return chalk.blue.underline(match)
+            return chalk.blueBright.underline(match)
         })
         return formatted
     }

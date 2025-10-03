@@ -2,7 +2,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { globby } from 'globby'
 import { PromptManager } from '../prompts/prompt-manager'
-import { CliUI } from '../utils/cli-ui'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { IGNORE_PATTERNS } from './list-tool'
 import { sanitizePath } from './secure-file-tools'
@@ -104,7 +104,7 @@ export class MultiReadTool extends BaseTool {
         toolName: 'multi-read-tool',
         parameters: params,
       })
-      CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+      advancedUI.logInfo(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
 
       const root = sanitizePath(params.root || '.', this.getWorkingDirectory())
       const includeHidden = !!params.includeHidden
@@ -234,7 +234,7 @@ export class MultiReadTool extends BaseTool {
         ...(search ? { search: { pattern: params.pattern!, totalMatches, filesWithMatches } } : {}),
       }
 
-      CliUI.logSuccess(`📖 Read ${results.length}/${filtered.length} files${search ? `, ${totalMatches} matches` : ''}`)
+      advancedUI.logSuccess(`📖 Read ${results.length}/${filtered.length} files${search ? `, ${totalMatches} matches` : ''}`)
 
       return {
         success: true,
@@ -242,7 +242,7 @@ export class MultiReadTool extends BaseTool {
         metadata: { executionTime: Date.now() - startTime, toolName: this.getName(), parameters: params },
       }
     } catch (error: any) {
-      CliUI.logError(`Multi-read tool failed: ${error.message}`)
+      advancedUI.logError(`Multi-read tool failed: ${error.message}`)
       return {
         success: false,
         error: error.message,

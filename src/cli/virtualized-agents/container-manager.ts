@@ -1,7 +1,7 @@
 import { exec } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { promisify } from 'node:util'
-import { CliUI } from '../utils/cli-ui'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 const execAsync = promisify(exec)
 
@@ -29,7 +29,7 @@ export class ContainerManager extends EventEmitter {
    */
   async createContainer(config: ContainerConfig): Promise<string> {
     try {
-      CliUI.logInfo(`🐳 Creating container for agent ${config.name}`)
+      advancedUI.logInfo(`🐳 Creating container for agent ${config.name}`)
 
       // Build docker run command honoring config
       const args: string[] = ['docker', 'run', '-d']
@@ -45,8 +45,8 @@ export class ContainerManager extends EventEmitter {
       if (config.security?.readOnlyRootfs) {
         args.push('--read-only')
       }
-      ;(config.security?.capabilities?.drop || []).forEach((cap) => args.push('--cap-drop', cap))
-      ;(config.security?.capabilities?.add || []).forEach((cap) => args.push('--cap-add', cap))
+      ; (config.security?.capabilities?.drop || []).forEach((cap) => args.push('--cap-drop', cap))
+        ; (config.security?.capabilities?.add || []).forEach((cap) => args.push('--cap-add', cap))
 
       // Tmpfs mounts for extra isolation
       args.push('--tmpfs', '/tmp:rw,noexec,nosuid,size=100m')
@@ -61,16 +61,16 @@ export class ContainerManager extends EventEmitter {
         args.push('-e', `${key}=${value}`)
       })
 
-      // Volumes
-      ;(config.volumes || []).forEach((volume) => args.push('-v', this.shellQuote(volume)))
+        // Volumes
+        ; (config.volumes || []).forEach((volume) => args.push('-v', this.shellQuote(volume)))
 
-      // Ports
-      ;(config.ports || []).forEach((port) => args.push('-p', port))
+        // Ports
+        ; (config.ports || []).forEach((port) => args.push('-p', port))
 
       // Image and default command (keep container alive)
       args.push(config.image, 'sleep', 'infinity')
 
-      CliUI.logDebug(`Docker command: ${args.join(' ')}`)
+      advancedUI.logInfo(`Docker command: ${args.join(' ')}`)
 
       // Execute Docker run command
       const { stdout, stderr } = await execAsync(args.join(' '), { timeout: 120000 })
@@ -96,12 +96,12 @@ export class ContainerManager extends EventEmitter {
         throw new Error('Failed to get container ID from Docker')
       }
 
-      CliUI.logSuccess(`✓ Container created: ${containerId.slice(0, 12)}`)
+      advancedUI.logSuccess(`✓ Container created: ${containerId.slice(0, 12)}`)
       this.emit('container:created', { containerId, name: config.name })
 
       return containerId
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to create container: ${error.message}`)
+      advancedUI.logError(`❌ Failed to create container: ${error.message}`)
       throw error
     }
   }
@@ -111,7 +111,7 @@ export class ContainerManager extends EventEmitter {
    */
   async startContainer(containerId: string): Promise<void> {
     try {
-      CliUI.logInfo(`▶️ Starting container: ${containerId.slice(0, 12)}`)
+      advancedUI.logInfo(`▶️ Starting container: ${containerId.slice(0, 12)}`)
 
       const { stderr } = await execAsync(`docker start ${containerId}`)
 
@@ -122,10 +122,10 @@ export class ContainerManager extends EventEmitter {
       // Wait for container to be ready
       await this.waitForContainer(containerId)
 
-      CliUI.logSuccess(`✓ Container started: ${containerId.slice(0, 12)}`)
+      advancedUI.logSuccess(`✓ Container started: ${containerId.slice(0, 12)}`)
       this.emit('container:started', { containerId })
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to start container: ${error.message}`)
+      advancedUI.logError(`❌ Failed to start container: ${error.message}`)
       throw error
     }
   }
@@ -135,26 +135,26 @@ export class ContainerManager extends EventEmitter {
    */
   async stopContainer(containerId: string): Promise<void> {
     try {
-      CliUI.logInfo(`⏹️ Stopping container: ${containerId.slice(0, 12)}`)
+      advancedUI.logInfo(`⏹️ Stopping container: ${containerId.slice(0, 12)}`)
 
       // Give container 10 seconds to stop gracefully
       const { stderr } = await execAsync(`docker stop -t 10 ${containerId}`)
 
       if (stderr && !stderr.includes('Warning')) {
-        CliUI.logError(`Warning stopping container: ${stderr}`)
+        advancedUI.logError(`Warning stopping container: ${stderr}`)
       }
 
-      CliUI.logSuccess(`✓ Container stopped: ${containerId.slice(0, 12)}`)
+      advancedUI.logSuccess(`✓ Container stopped: ${containerId.slice(0, 12)}`)
       this.emit('container:stopped', { containerId })
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to stop container: ${error.message}`)
+      advancedUI.logError(`❌ Failed to stop container: ${error.message}`)
 
       // Force kill if graceful stop fails
       try {
         await execAsync(`docker kill ${containerId}`)
-        CliUI.logWarning(`⚠️ Container force killed: ${containerId.slice(0, 12)}`)
+        advancedUI.logWarning(`⚠️ Container force killed: ${containerId.slice(0, 12)}`)
       } catch (killError: any) {
-        CliUI.logError(`❌ Failed to kill container: ${killError.message}`)
+        advancedUI.logError(`❌ Failed to kill container: ${killError.message}`)
       }
     }
   }
@@ -164,19 +164,19 @@ export class ContainerManager extends EventEmitter {
    */
   async removeContainer(containerId: string): Promise<void> {
     try {
-      CliUI.logInfo(`🗑️ Removing container: ${containerId.slice(0, 12)}`)
+      advancedUI.logInfo(`🗑️ Removing container: ${containerId.slice(0, 12)}`)
 
       // Remove container and associated volumes
       const { stderr } = await execAsync(`docker rm -v ${containerId}`)
 
       if (stderr && !stderr.includes('Warning')) {
-        CliUI.logError(`Warning removing container: ${stderr}`)
+        advancedUI.logError(`Warning removing container: ${stderr}`)
       }
 
-      CliUI.logSuccess(`✓ Container removed: ${containerId.slice(0, 12)}`)
+      advancedUI.logSuccess(`✓ Container removed: ${containerId.slice(0, 12)}`)
       this.emit('container:removed', { containerId })
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to remove container: ${error.message}`)
+      advancedUI.logError(`❌ Failed to remove container: ${error.message}`)
     }
   }
 
@@ -187,25 +187,25 @@ export class ContainerManager extends EventEmitter {
     try {
       const dockerExecCommand = `docker exec ${containerId} sh -c "${command.replace(/"/g, '\\"')}"`
 
-      CliUI.logDebug(`🔧 Executing: ${command}`)
-      CliUI.logDebug(`📋 Docker command: ${dockerExecCommand}`)
+      advancedUI.logInfo(`🔧 Executing: ${command}`)
+      advancedUI.logInfo(`📋 Docker command: ${dockerExecCommand}`)
 
       const { stdout, stderr } = await execAsync(dockerExecCommand, {
         timeout: 180000, // 180 second timeout to accommodate installs
       })
 
       if (stdout) {
-        CliUI.logDebug(`📤 Command output: ${stdout.trim()}`)
+        advancedUI.logInfo(`📤 Command output: ${stdout.trim()}`)
       }
 
       if (stderr && !this.isWarningOnly(stderr)) {
-        CliUI.logError(`⚠️ Command stderr: ${stderr}`)
+        advancedUI.logError(`⚠️ Command stderr: ${stderr}`)
       }
 
       return stdout
     } catch (error: any) {
-      CliUI.logError(`❌ Command execution failed: ${error.message}`)
-      CliUI.logError(`❌ Command failed in ${containerId.slice(0, 8)}: ${command}`)
+      advancedUI.logError(`❌ Command execution failed: ${error.message}`)
+      advancedUI.logError(`❌ Command failed in ${containerId.slice(0, 8)}: ${command}`)
       throw new Error(`Command failed: ${command} - ${error.message}`)
     }
   }
@@ -215,17 +215,17 @@ export class ContainerManager extends EventEmitter {
    */
   async getContainerLogs(containerId: string, lines: number = 100): Promise<string> {
     try {
-      CliUI.logInfo(`📋 Getting logs for container ${containerId.slice(0, 12)}`)
+      advancedUI.logInfo(`📋 Getting logs for container ${containerId.slice(0, 12)}`)
 
       const { stdout, stderr } = await execAsync(`docker logs --tail ${lines} ${containerId}`)
 
       if (stderr) {
-        CliUI.logError(`⚠️ Docker logs stderr: ${stderr}`)
+        advancedUI.logError(`⚠️ Docker logs stderr: ${stderr}`)
       }
 
       return stdout || stderr || 'No logs available'
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to get container logs: ${error.message}`)
+      advancedUI.logError(`❌ Failed to get container logs: ${error.message}`)
       throw error
     }
   }
@@ -255,7 +255,7 @@ export class ContainerManager extends EventEmitter {
         uptime: await this.getContainerUptime(containerId),
       }
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to get container stats: ${error.message}`)
+      advancedUI.logError(`❌ Failed to get container stats: ${error.message}`)
       return {
         memory_usage: 0,
         cpu_usage: 0,
@@ -274,7 +274,7 @@ export class ContainerManager extends EventEmitter {
       await execAsync('docker version --format "{{.Server.Version}}"')
       return true
     } catch (_error) {
-      CliUI.logError('❌ Docker is not available or not running')
+      advancedUI.logError('❌ Docker is not available or not running')
       return false
     }
   }
@@ -286,14 +286,14 @@ export class ContainerManager extends EventEmitter {
     try {
       // Check if network exists
       await execAsync(`docker network inspect ${this.networkName}`)
-      CliUI.logDebug(`Docker network ${this.networkName} already exists`)
+      advancedUI.logInfo(`Docker network ${this.networkName} already exists`)
     } catch (_error) {
       // Network doesn't exist, create it
       try {
         await execAsync(`docker network create --driver bridge ${this.networkName}`)
-        CliUI.logSuccess(`✓ Created secure Docker network: ${this.networkName}`)
+        advancedUI.logSuccess(`✓ Created secure Docker network: ${this.networkName}`)
       } catch (createError: any) {
-        CliUI.logError(`❌ Failed to create Docker network: ${createError.message}`)
+        advancedUI.logError(`❌ Failed to create Docker network: ${createError.message}`)
       }
     }
   }

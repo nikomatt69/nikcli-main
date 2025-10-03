@@ -1,3 +1,4 @@
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { BashTool } from './bash-tool'
@@ -43,7 +44,7 @@ export class ToolRegistry {
    */
   registerTool(name: string, tool: BaseTool, metadata?: Partial<ToolMetadata>): void {
     if (this.tools.has(name)) {
-      CliUI.logWarning(`Tool ${name} is already registered. Overwriting...`)
+      advancedUI.logWarning(`Tool ${name} is already registered. Overwriting...`)
     }
 
     this.tools.set(name, tool)
@@ -62,7 +63,7 @@ export class ToolRegistry {
     })
 
     if (!process.env.NIKCLI_SUPPRESS_TOOL_REGISTER_LOGS && !process.env.NIKCLI_QUIET_STARTUP) {
-      CliUI.logInfo(`Registered tool: ${CliUI.highlight(name)}`)
+      advancedUI.logInfo(`Registered tool: ${CliUI.highlight(name)}`)
     }
   }
 
@@ -208,27 +209,27 @@ export class ToolRegistry {
   importConfig(config: ToolRegistryConfig): void {
     // Note: This would require dynamic tool instantiation
     // For now, we'll just log the import attempt
-    CliUI.logInfo(`Import config with ${config.tools.length} tools (not implemented)`)
+    advancedUI.logInfo(`Import config with ${config.tools.length} tools (not implemented)`)
   }
 
   /**
    * Display tool registry information
    */
   displayRegistry(): void {
-    CliUI.logSection('Tool Registry')
+    advancedUI.logInfo('Tool Registry')
 
     const stats = this.getToolStats()
-    CliUI.logKeyValue('Total Tools', stats.totalTools.toString())
-    CliUI.logKeyValue('Categories', stats.categories.join(', '))
-    CliUI.logKeyValue('Reversible Tools', stats.reversibleTools.toString())
+    advancedUI.logInfo('Total Tools', stats.totalTools.toString())
+    advancedUI.logInfo('Categories', stats.categories.join(', '))
+    advancedUI.logInfo('Reversible Tools', stats.reversibleTools.toString())
 
-    CliUI.logSubsection('Risk Distribution')
+    advancedUI.logInfo('Risk Distribution')
     Object.entries(stats.riskDistribution).forEach(([risk, count]) => {
       const icon = risk === 'high' ? '🔴' : risk === 'medium' ? '🟡' : '🟢'
-      CliUI.logKeyValue(`${icon} ${risk}`, count.toString())
+      advancedUI.logInfo(`${icon} ${risk}`, count.toString())
     })
 
-    CliUI.logSubsection('Available Tools')
+    advancedUI.logInfo('Available Tools')
     Array.from(this.toolMetadata.entries()).forEach(([name, metadata]) => {
       const riskIcon = metadata.riskLevel === 'high' ? '🔴' : metadata.riskLevel === 'medium' ? '🟡' : '🟢'
       const reversibleIcon = metadata.reversible ? '↩️' : '⚠️'
@@ -479,7 +480,7 @@ export class ToolRegistry {
     })
 
     if (!process.env.NIKCLI_QUIET_STARTUP) {
-      CliUI.logInfo(`Initialized tool registry with ${this.tools.size} tools`)
+      advancedUI.logSuccess(`Initialized tool registry with ${this.tools.size} tools`)
     }
   }
 }

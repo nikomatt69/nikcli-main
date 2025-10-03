@@ -12,6 +12,7 @@ import type {
   PlannerConfig,
   StepExecutionResult,
 } from './types'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Production-ready Plan Executor
@@ -61,7 +62,7 @@ export class PlanExecutor {
    * Execute a plan with user approval and monitoring
    */
   async executePlan(plan: ExecutionPlan): Promise<PlanExecutionResult> {
-    CliUI.logSection(`Executing Plan: ${plan.title}`)
+    advancedUI.logFunctionCall(`Executing Plan: ${plan.title}`)
 
     const startTime = new Date()
     const result: PlanExecutionResult = {
@@ -82,7 +83,7 @@ export class PlanExecutor {
       const approval = await this.requestApproval(plan)
       if (!approval.approved) {
         result.status = 'cancelled'
-        CliUI.logWarning('Plan execution cancelled by user')
+        advancedUI.logWarning('Plan execution cancelled by user')
         // Cleanup/reset before returning
         this.resetCliContext()
         return result
@@ -91,7 +92,7 @@ export class PlanExecutor {
       // Filter steps based on approval
       const stepsToExecute = plan.steps.filter((step) => !approval.modifiedSteps?.includes(step.id))
 
-      CliUI.logInfo(`Executing ${stepsToExecute.length} steps...`)
+      advancedUI.logInfo(`Executing ${stepsToExecute.length} steps...`)
 
       // Execute steps in dependency order
       const executionOrder = this.resolveDependencyOrder(stepsToExecute)
@@ -101,7 +102,7 @@ export class PlanExecutor {
         try {
           const nik = (global as any).__nikCLI
           if (nik?.shouldInterrupt) {
-            CliUI.logWarning('Execution interrupted by user')
+            advancedUI.logWarning('Execution interrupted by user')
             result.status = 'cancelled'
             nik.shouldInterrupt = false
             break
@@ -111,7 +112,7 @@ export class PlanExecutor {
         }
         const step = executionOrder[i]
 
-        CliUI.logProgress(i + 1, executionOrder.length, `Executing: ${step.title}`)
+        advancedUI.logFunctionUpdate('info', `Executing: ${step.title}`, '●')
 
         const stepResult = await this.executeStep(step, plan)
         result.stepResults.push(stepResult)
@@ -169,7 +170,7 @@ export class PlanExecutor {
     } catch (error: any) {
       result.status = 'failed'
       result.endTime = new Date()
-      CliUI.logError(`Plan execution failed: ${error.message}`)
+      advancedUI.logError(`Plan execution failed: ${error.message}`)
       // Cleanup/reset after failure
       this.resetCliContext()
       return result
@@ -195,8 +196,8 @@ export class PlanExecutor {
 
     // Enable bypass for approval inputs and suspend main prompt
     try {
-      ;(global as any).__nikCLI?.suspendPrompt?.()
-    } catch {}
+      ; (global as any).__nikCLI?.suspendPrompt?.()
+    } catch { }
     inputQueue.enableBypass()
 
     try {
@@ -241,8 +242,8 @@ export class PlanExecutor {
       // Always disable bypass after approval and resume prompt cleanly
       inputQueue.disableBypass()
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
   }
 
@@ -260,7 +261,7 @@ export class PlanExecutor {
     }
 
     try {
-      CliUI.startSpinner(`Executing: ${step.title}`)
+      advancedUI.startSpinner(`Executing: ${step.title}`, 'info')
 
       switch (step.type) {
         case 'tool': {
@@ -302,7 +303,7 @@ export class PlanExecutor {
       result.duration = Date.now() - startTime
 
       CliUI.failSpinner(`Failed: ${step.title}`)
-      CliUI.logError(`Step failed: ${error.message}`)
+      advancedUI.logError(`Step failed: ${error.message}`)
     }
 
     return result
@@ -340,7 +341,7 @@ export class PlanExecutor {
     }
     const onToolUse = (_t: AgentTask, update: any) => {
       try {
-        CliUI.logInfo(`🔧 ${update?.tool}: ${update?.description || ''}`)
+        advancedUI.logInfo(`🔧 ${update?.tool}: ${update?.description || ''}`)
       } catch {
         /* noop */
       }
@@ -474,7 +475,7 @@ export class PlanExecutor {
    */
   private async executeValidation(_step: ExecutionStep, _plan: ExecutionPlan): Promise<any> {
     // Implement validation logic based on step requirements
-    CliUI.updateSpinner('Running validation checks...')
+    advancedUI.updateSpinner('Running validation checks...', 'info')
 
     // Simulate validation
     await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -489,8 +490,8 @@ export class PlanExecutor {
     CliUI.stopSpinner()
 
     try {
-      ;(global as any).__nikCLI?.suspendPrompt?.()
-    } catch {}
+      ; (global as any).__nikCLI?.suspendPrompt?.()
+    } catch { }
     inputQueue.enableBypass()
     try {
       const answers = await inquirer.prompt([
@@ -510,8 +511,8 @@ export class PlanExecutor {
     } finally {
       inputQueue.disableBypass()
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
   }
 
@@ -520,7 +521,7 @@ export class PlanExecutor {
    */
   private async executeDecision(_step: ExecutionStep, _plan: ExecutionPlan): Promise<any> {
     // Implement decision logic
-    CliUI.updateSpinner('Evaluating decision criteria...')
+    advancedUI.updateSpinner('Evaluating decision criteria...', 'info')
 
     // Simulate decision making
     await new Promise((resolve) => setTimeout(resolve, 500))
@@ -536,11 +537,11 @@ export class PlanExecutor {
     result: StepExecutionResult,
     _plan: ExecutionPlan
   ): Promise<'abort' | 'skip' | 'retry' | 'continue'> {
-    CliUI.logError(`Step "${step.title}" failed: ${result.error?.message}`)
+    advancedUI.logError(`Step "${step.title}" failed: ${result.error?.message}`)
 
     try {
-      ;(global as any).__nikCLI?.suspendPrompt?.()
-    } catch {}
+      ; (global as any).__nikCLI?.suspendPrompt?.()
+    } catch { }
     inputQueue.enableBypass()
     try {
       // For non-critical steps, offer to continue
@@ -592,8 +593,8 @@ export class PlanExecutor {
     } finally {
       inputQueue.disableBypass()
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
   }
 
@@ -639,23 +640,23 @@ export class PlanExecutor {
    * Display plan details for user approval
    */
   private displayPlanForApproval(plan: ExecutionPlan): void {
-    CliUI.logSection('Plan Approval Required')
+    advancedUI.logFunctionCall('Plan Approval Required')
 
-    CliUI.logKeyValue('Plan Title', plan.title)
-    CliUI.logKeyValue('Description', plan.description)
-    CliUI.logKeyValue('Total Steps', plan.steps.length.toString())
-    CliUI.logKeyValue('Estimated Duration', `${Math.round(plan.estimatedTotalDuration / 1000)}s`)
-    CliUI.logKeyValue('Risk Level', plan.riskAssessment.overallRisk)
+    advancedUI.logFunctionUpdate('info', 'Plan Title', plan.title)
+    advancedUI.logFunctionUpdate('info', 'Description', plan.description)
+    advancedUI.logFunctionUpdate('info', 'Total Steps', plan.steps.length.toString())
+    advancedUI.logFunctionUpdate('info', 'Estimated Duration', `${Math.round(plan.estimatedTotalDuration / 1000)}s`)
+    advancedUI.logFunctionUpdate('info', 'Risk Level', plan.riskAssessment.overallRisk)
 
     if (plan.riskAssessment.destructiveOperations > 0) {
-      CliUI.logWarning(`⚠️  ${plan.riskAssessment.destructiveOperations} potentially destructive operations`)
+      advancedUI.logWarning(`⚠️  ${plan.riskAssessment.destructiveOperations} potentially destructive operations`)
     }
 
-    CliUI.logSubsection('Execution Steps')
+    advancedUI.logFunctionUpdate('info', 'Execution Steps')
     plan.steps.forEach((step, index) => {
       const riskIcon = step.riskLevel === 'high' ? '🔴' : step.riskLevel === 'medium' ? '🟡' : '🟢'
-      console.log(`  ${index + 1}. ${riskIcon} ${step.title}`)
-      console.log(`     ${CliUI.dim(step.description)}`)
+      advancedUI.logFunctionUpdate('info', `  ${index + 1}. ${riskIcon} ${step.title}`)
+      advancedUI.logFunctionUpdate('info', `     ${CliUI.dim(step.description)}`)
     })
   }
 
@@ -688,21 +689,21 @@ export class PlanExecutor {
    * Log execution summary
    */
   private logExecutionSummary(result: PlanExecutionResult): void {
-    CliUI.logSection('Execution Summary')
+    advancedUI.logFunctionCall('Execution Summary')
 
     const duration = result.endTime ? result.endTime.getTime() - result.startTime.getTime() : 0
 
-    CliUI.logKeyValue('Status', result.status.toUpperCase())
-    CliUI.logKeyValue('Duration', `${Math.round(duration / 1000)}s`)
-    CliUI.logKeyValue('Total Steps', result.summary.totalSteps.toString())
-    CliUI.logKeyValue('Successful', result.summary.successfulSteps.toString())
-    CliUI.logKeyValue('Failed', result.summary.failedSteps.toString())
-    CliUI.logKeyValue('Skipped', result.summary.skippedSteps.toString())
+    advancedUI.logFunctionUpdate('info', 'Status', result.status.toUpperCase())
+    advancedUI.logFunctionUpdate('info', 'Duration', `${Math.round(duration / 1000)}s`)
+    advancedUI.logFunctionUpdate('info', 'Total Steps', result.summary.totalSteps.toString())
+    advancedUI.logFunctionUpdate('info', 'Successful', result.summary.successfulSteps.toString())
+    advancedUI.logFunctionUpdate('info', 'Failed', result.summary.failedSteps.toString())
+    advancedUI.logFunctionUpdate('info', 'Skipped', result.summary.skippedSteps.toString())
 
     // Show status icon
     const statusIcon = result.status === 'completed' ? '✓' : result.status === 'partial' ? '⚠️' : '❌'
 
-    console.log(`\n${statusIcon} Plan execution ${result.status}`)
+    advancedUI.logFunctionUpdate('info', `\n${statusIcon} Plan execution ${result.status}`)
   }
 
   /**

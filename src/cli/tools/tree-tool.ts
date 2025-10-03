@@ -6,6 +6,7 @@ import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { IGNORE_PATTERNS } from './list-tool'
 import { sanitizePath } from './secure-file-tools'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * TreeTool - Directory structure visualization
@@ -107,7 +108,7 @@ export class TreeTool extends BaseTool {
         parameters: params,
       })
 
-      CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+      advancedUI.logInfo(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
 
       const searchPath = params.path || this.workingDirectory
       const maxDepth = params.maxDepth !== undefined ? params.maxDepth : 5
@@ -117,7 +118,7 @@ export class TreeTool extends BaseTool {
       // Security validation
       const sanitized = sanitizePath(searchPath, this.workingDirectory)
 
-      CliUI.logInfo(`🌳 Building tree for: ${CliUI.highlight(sanitized)}`)
+      advancedUI.logInfo(` Building tree for: ${CliUI.info(sanitized)}`)
 
       const startTime = Date.now()
 
@@ -148,7 +149,7 @@ export class TreeTool extends BaseTool {
         },
       }
 
-      CliUI.logSuccess(
+      advancedUI.logSuccess(
         `✓ Tree complete: ${this.totalDirectories} directories, ${this.totalFiles} files`
       )
 
@@ -171,7 +172,7 @@ export class TreeTool extends BaseTool {
         },
       }
     } catch (error: any) {
-      CliUI.logError(`Tree tool failed: ${error.message}`)
+      advancedUI.logError(`Tree tool failed: ${error.message}`)
       return {
         success: false,
         error: error.message,
@@ -247,7 +248,7 @@ export class TreeTool extends BaseTool {
           const child = await this.buildTree(entryPath, depth + 1, maxDepth, params)
           children.push(child)
         } catch (error) {
-          CliUI.logDebug(`Skipping ${entry}: ${error}`)
+          advancedUI.logInfo(`Skipping ${entry}: ${error}`)
         }
       }
 
@@ -256,7 +257,7 @@ export class TreeTool extends BaseTool {
 
       node.children = children
     } catch (error) {
-      CliUI.logDebug(`Cannot read directory ${path}: ${error}`)
+      advancedUI.logInfo(`Cannot read directory ${path}: ${error}`)
     }
 
     return node

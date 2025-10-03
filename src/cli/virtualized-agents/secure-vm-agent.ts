@@ -10,7 +10,7 @@ import type {
   AgentTaskResult,
   AgentTodo,
 } from '../types/types'
-import { CliUI } from '../utils/cli-ui'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { ContainerManager } from './container-manager'
 import { APIKeyProxy } from './security/api-key-proxy'
 import { TokenManager } from './security/token-manager'
@@ -103,7 +103,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
    */
   protected async onInitialize(): Promise<void> {
     try {
-      CliUI.logInfo(`🔐 Initializing secure VM agent: ${this.id}`)
+      advancedUI.logInfo(`🔐 Initializing secure VM agent: ${this.id}`)
 
       // Generate secure session token
       this.sessionJWT = await this.tokenManager.generateSessionToken(this.id, {
@@ -115,9 +115,9 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       // Register with API proxy
       await this.apiProxy.registerAgent(this.id, this.sessionJWT)
 
-      CliUI.logSuccess(`✓ VM agent ${this.id} security initialized`)
+      advancedUI.logSuccess(`✓ VM agent ${this.id} security initialized`)
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to initialize VM agent security: ${error.message}`)
+      advancedUI.logError(`❌ Failed to initialize VM agent security: ${error.message}`)
       throw error
     }
   }
@@ -128,13 +128,13 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
   async initialize(_context?: AgentContext): Promise<void> {
     try {
       this.status = 'initializing'
-      CliUI.logInfo(`🔐 Initializing secure VM agent: ${this.id}`)
+      advancedUI.logInfo(`🔐 Initializing secure VM agent: ${this.id}`)
 
       // Ensure API proxy is started
       try {
         await this.apiProxy.getEndpoint()
       } catch (_proxyError) {
-        CliUI.logInfo(`🚀 Starting API proxy server...`)
+        advancedUI.logInfo(`🚀 Starting API proxy server...`)
         await this.apiProxy.start()
       }
 
@@ -149,10 +149,10 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       await this.apiProxy.registerAgent(this.id, this.sessionJWT)
 
       this.status = 'ready'
-      CliUI.logSuccess(`✓ VM agent ${this.id} security initialized`)
+      advancedUI.logSuccess(`✓ VM agent ${this.id} security initialized`)
     } catch (error: any) {
       this.status = 'error'
-      CliUI.logError(`❌ Failed to initialize VM agent security: ${error.message}`)
+      advancedUI.logError(`❌ Failed to initialize VM agent security: ${error.message}`)
       throw error
     }
   }
@@ -166,7 +166,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
     this.status = 'busy'
 
     try {
-      CliUI.logInfo(`🚀 VM Agent ${this.id} starting autonomous task`)
+      advancedUI.logInfo(`🚀 VM Agent ${this.id} starting autonomous task`)
 
       // Parse repository URL from task
       const repoUrl = this.extractRepositoryUrl(task)
@@ -201,7 +201,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       this.status = 'error'
       this.currentTasks--
 
-      CliUI.logError(`❌ VM Agent task failed: ${error.message}`)
+      advancedUI.logError(`❌ VM Agent task failed: ${error.message}`)
 
       return {
         taskId: task.id,
@@ -251,7 +251,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
    */
   protected async onExecuteTask(task: AgentTask): Promise<any> {
     try {
-      CliUI.logInfo(`🚀 VM Agent ${this.id} starting autonomous task`)
+      advancedUI.logInfo(`🚀 VM Agent ${this.id} starting autonomous task`)
 
       // Parse repository URL from task
       const repoUrl = this.extractRepositoryUrl(task)
@@ -272,7 +272,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
 
       return result
     } catch (error: any) {
-      CliUI.logError(`❌ VM Agent task failed: ${error.message}`)
+      advancedUI.logError(`❌ VM Agent task failed: ${error.message}`)
       throw error
     }
   }
@@ -282,7 +282,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
    */
   protected async onStop(): Promise<void> {
     try {
-      CliUI.logInfo(`🛑 Stopping VM agent: ${this.id}`)
+      advancedUI.logInfo(`🛑 Stopping VM agent: ${this.id}`)
 
       // Stop VM environment
       if (this.containerId) {
@@ -292,9 +292,9 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       // Cleanup security credentials
       await this.cleanupSecurity()
 
-      CliUI.logSuccess(`✓ VM agent ${this.id} stopped and cleaned up`)
+      advancedUI.logSuccess(`✓ VM agent ${this.id} stopped and cleaned up`)
     } catch (error: any) {
-      CliUI.logError(`❌ Error stopping VM agent: ${error.message}`)
+      advancedUI.logError(`❌ Error stopping VM agent: ${error.message}`)
     }
   }
 
@@ -370,7 +370,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
    */
   updateGuidance(_guidance: string): void {
     // VM agents operate autonomously and don't use guidance
-    CliUI.logDebug(`VM agent ${this.id} ignoring guidance update`)
+    advancedUI.logInfo(`VM agent ${this.id} ignoring guidance update`)
   }
 
   /**
@@ -385,7 +385,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       this.tokenBudget = config.maxTokens
     }
 
-    CliUI.logInfo(`VM agent ${this.id} configuration updated`)
+    advancedUI.logInfo(`VM agent ${this.id} configuration updated`)
   }
 
   /**
@@ -405,7 +405,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
 
       const { target: repositoryTarget, isLocal } = this.resolveRepositoryTarget(repoUrl)
 
-      CliUI.logInfo(`🐳 Creating isolated VM container for ${repositoryTarget}`)
+      advancedUI.logInfo(`🐳 Creating isolated VM container for ${repositoryTarget}`)
 
       // Create secure container
       this.containerId = await this.vmOrchestrator.createSecureContainer({
@@ -428,7 +428,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       this.vmState = 'running'
       this.vscodeServerPort = await this.vmOrchestrator.getVSCodePort(this.containerId)
 
-      CliUI.logSuccess(`✓ VM environment ready - VS Code available on port ${this.vscodeServerPort}`)
+      advancedUI.logSuccess(`✓ VM environment ready - VS Code available on port ${this.vscodeServerPort}`)
     } catch (error: any) {
       this.vmState = 'error'
       throw new Error(`Failed to start VM environment: ${error.message}`)
@@ -443,7 +443,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       throw new Error('VM environment not initialized')
     }
 
-    CliUI.logInfo(`🔌 Executing autonomous workflow in VM`)
+    advancedUI.logInfo(`🔌 Executing autonomous workflow in VM`)
 
     // Execute autonomous development commands in VM
     const workflow = [
@@ -509,7 +509,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       throw new Error('VM environment not available')
     }
 
-    CliUI.logInfo(`📝 Creating pull request for autonomous changes`)
+    advancedUI.logInfo(`📝 Creating pull request for autonomous changes`)
 
     // Commit changes
     await this.vmOrchestrator.executeCommand(
@@ -523,7 +523,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       description: `Automated changes generated by VM agent\n\nResults: ${JSON.stringify(result, null, 2)}`,
     })
 
-    CliUI.logSuccess(`✓ Pull request created: ${prUrl}`)
+    advancedUI.logSuccess(`✓ Pull request created: ${prUrl}`)
     return prUrl
   }
 
@@ -543,7 +543,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       this.vmState = 'stopped'
       this.containerId = undefined
     } catch (error: any) {
-      CliUI.logError(`Error stopping VM: ${error.message}`)
+      advancedUI.logError(`Error stopping VM: ${error.message}`)
     }
   }
 
@@ -566,13 +566,13 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
     this.requestCount++
 
     if (this.tokenUsed > this.tokenBudget) {
-      CliUI.logError(`⚠️ Token budget exceeded: ${this.tokenUsed}/${this.tokenBudget}`)
+      advancedUI.logError(`⚠️ Token budget exceeded: ${this.tokenUsed}/${this.tokenBudget}`)
       throw new Error('Token budget exceeded')
     }
 
     // Log usage periodically
     if (this.requestCount % 10 === 0) {
-      CliUI.logInfo(`📊 Token usage: ${this.tokenUsed}/${this.tokenBudget} (${this.requestCount} requests)`)
+      advancedUI.logInfo(`📊 Token usage: ${this.tokenUsed}/${this.tokenBudget} (${this.requestCount} requests)`)
     }
   }
 
@@ -663,17 +663,17 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
   private setupVMEventHandlers(): void {
     // Handle VM events for monitoring and logging
     this.on('vm:started', (containerId: string) => {
-      CliUI.logSuccess(`🐳 VM container started: ${containerId}`)
+      advancedUI.logSuccess(`🐳 VM container started: ${containerId}`)
       this.emitVMCommunication(`Container ${containerId.slice(0, 12)} started successfully`)
     })
 
     this.on('vm:stopped', (containerId: string) => {
-      CliUI.logInfo(`🛑 VM container stopped: ${containerId}`)
+      advancedUI.logInfo(`🛑 VM container stopped: ${containerId}`)
       this.emitVMCommunication(`Container ${containerId.slice(0, 12)} stopped`)
     })
 
     this.on('vm:error', (error: Error) => {
-      CliUI.logError(`❌ VM error: ${error.message}`)
+      advancedUI.logError(`❌ VM error: ${error.message}`)
       this.emitVMCommunication(`Error: ${error.message}`)
     })
 
@@ -698,7 +698,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
   private emitVMCommunication(message: string): void {
     // Emit to global event bus for streaming orchestrator
     if (global && (global as any).__streamingOrchestrator) {
-      ;(global as any).__streamingOrchestrator.queueMessage({
+      ; (global as any).__streamingOrchestrator.queueMessage({
         type: 'vm',
         content: `[${this.id.slice(0, 8)}] ${message}`,
         metadata: {
@@ -715,7 +715,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
    */
   public async startChatMode(repositoryUrl?: string): Promise<void> {
     try {
-      CliUI.logInfo(`🐳 Starting VM Chat Mode for agent: ${this.id}`)
+      advancedUI.logInfo(`🐳 Starting VM Chat Mode for agent: ${this.id}`)
 
       // Initialize if not already done
       if (this.status === 'initializing') {
@@ -737,7 +737,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
             this.vscodeServerPort = container.vscodePort
             this.repositoryPath = container.repositoryPath || '/workspace/repo'
 
-            CliUI.logInfo(`🔗 Connected to existing container: ${container.id.slice(0, 12)}`)
+            advancedUI.logInfo(`🔗 Connected to existing container: ${container.id.slice(0, 12)}`)
           } else {
             throw new Error('No repository URL provided and no existing containers available')
           }
@@ -748,9 +748,9 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       this.status = 'ready'
       this.emitVMCommunication(`VM Chat Mode active - ready for conversation`)
 
-      CliUI.logSuccess(`✓ VM Chat Mode activated for agent: ${this.id}`)
+      advancedUI.logSuccess(`✓ VM Chat Mode activated for agent: ${this.id}`)
     } catch (error: any) {
-      CliUI.logError(`❌ Failed to start VM Chat Mode: ${error.message}`)
+      advancedUI.logError(`❌ Failed to start VM Chat Mode: ${error.message}`)
       this.status = 'error'
       throw error
     }
@@ -778,10 +778,10 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
         message.toLowerCase().includes('anallyze')
       ) {
         // Repository analysis
-        CliUI.logInfo(`🔍 Starting repository analysis...`)
+        advancedUI.logInfo(`🔍 Starting repository analysis...`)
         const repoInfo = await this.analyzeRepository()
         response = `🔍 **Repository Analysis:**\n\n${repoInfo}`
-        CliUI.logInfo(`✓ Repository analysis completed, response length: ${response.length}`)
+        advancedUI.logInfo(`✓ Repository analysis completed, response length: ${response.length}`)
       } else if (message.toLowerCase().includes('status')) {
         // Container status
         const status = await this.getContainerStatus()
@@ -811,7 +811,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       this.status = 'ready'
       this.emitVMCommunication(`Message processed successfully`)
 
-      CliUI.logInfo(`🔍 Returning response: ${response.slice(0, 100)}${response.length > 100 ? '...' : ''}`)
+      advancedUI.logInfo(`🔍 Returning response: ${response.slice(0, 100)}${response.length > 100 ? '...' : ''}`)
       return response
     } catch (error: any) {
       this.status = 'ready' // Return to ready even on error

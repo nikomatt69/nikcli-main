@@ -897,11 +897,11 @@ class StreamingOrchestratorImpl extends EventEmitter {
     console.log(chalk.cyan('\n═══ Panels ═══'))
     for (const [_id, panel] of this.panels) {
       const isCognitivePanel = panel.id === 'cognitive-analysis' || /cognitive/i.test(panel.title)
-      const lineColor = isCognitivePanel ? chalk.hex('#3a3a3a') : chalk.dim
-      const titleColor = isCognitivePanel ? chalk.hex('#3a3a3a') : chalk.blue
+      const lineColor = isCognitivePanel ? chalk.hex('#4a4a4a') : chalk.dim
+      const titleColor = isCognitivePanel ? chalk.hex('#4a4a4a') : chalk.blue
 
       console.log(titleColor(`\n▌ ${panel.title}`))
-      console.log((isCognitivePanel ? chalk.hex('#3a3a3a') : chalk.gray)('─'.repeat(40)))
+      console.log((isCognitivePanel ? chalk.hex('#4a4a4a') : chalk.gray)('─'.repeat(40)))
       const displayLines = panel.content.slice(-5) // Show last 5 lines
       displayLines.forEach((line) => {
         if (line) console.log(lineColor(`  ${line}`))
@@ -980,7 +980,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     console.log(chalk.cyan.bold('\\n🔨 Adaptive Features:'))
     console.log(`${chalk.blue('Adaptive Supervision:')} ${this.context.adaptiveSupervision ? '✓' : '❌'}`)
     console.log(`${chalk.blue('Intelligent Prioritization:')} ${this.context.intelligentPrioritization ? '✓' : '❌'}`)
-    console.log(chalk.hex('#3a3a3a')(`Cognitive Filtering: ${this.context.cognitiveFiltering ? '✓' : '❌'}`))
+    console.log(chalk.hex('#4a4a4a')(`Cognitive Filtering: ${this.context.cognitiveFiltering ? '✓' : '❌'}`))
     console.log(`${chalk.blue('Orchestration Awareness:')} ${this.context.orchestrationAwareness ? '✓' : '❌'}`)
 
     // Input queue status
@@ -1478,7 +1478,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
   configureAdaptiveSupervision(config: any): void {
     console.log(chalk.cyan(`⚡︎ Adaptive supervision configured`))
     if (config.adaptiveSupervision) {
-      console.log(chalk.hex('#3a3a3a')('🎯 Cognitive features enabled'))
+      console.log(chalk.hex('#4a4a4a')('🎯 Cognitive features enabled'))
     }
   }
 }

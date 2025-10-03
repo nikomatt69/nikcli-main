@@ -1,4 +1,5 @@
 import { PromptManager } from '../prompts/prompt-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { EditTool, type EditToolParams } from './edit-tool'
@@ -175,10 +176,10 @@ export class MultiEditTool extends BaseTool {
 
         if (fs.existsSync(backupPath)) {
           fs.copyFileSync(backupPath, originalPath)
-          CliUI.logInfo(`⚡︎ Restored: ${originalPath}`)
+          advancedUI.logInfo(`⚡︎ Restored: ${originalPath}`)
         }
       } catch (error: any) {
-        CliUI.logError(`Failed to restore ${backupPath}: ${error.message}`)
+        advancedUI.logError(`Failed to restore ${backupPath}: ${error.message}`)
       }
     }
   }

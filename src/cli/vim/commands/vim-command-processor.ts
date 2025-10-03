@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import { CliUI } from '../../utils/cli-ui'
 import { type CommandResult, type VimCommand, VimMode, type VimState } from '../types/vim-types'
 import type { VimModeConfig } from '../vim-mode-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 
 export class VimCommandProcessor extends EventEmitter {
   private state: VimState
@@ -414,9 +415,9 @@ export class VimCommandProcessor extends EventEmitter {
       if (this.commandBuffer.trim()) {
         this.execute(this.commandBuffer).then((result) => {
           if (result.success && result.message) {
-            CliUI.logInfo(result.message)
+            advancedUI.logInfo(result.message)
           } else if (!result.success && result.error) {
-            CliUI.logError(result.error)
+            advancedUI.logError(result.error)
           }
         })
       }
