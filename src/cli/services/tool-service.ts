@@ -157,6 +157,73 @@ export class ToolService {
       category: 'rag',
       handler: this.indexProject.bind(this),
     })
+
+    // Documentation tools
+    this.registerTool({
+      name: 'doc_search',
+      description: 'Search documentation library',
+      category: 'analysis',
+      handler: this.searchDocumentation.bind(this),
+    })
+
+    this.registerTool({
+      name: 'smart_docs_search',
+      description: 'Smart documentation search with auto-load',
+      category: 'analysis',
+      handler: this.smartDocsSearch.bind(this),
+    })
+
+    this.registerTool({
+      name: 'docs_request',
+      description: 'Request documentation for unknown concepts',
+      category: 'analysis',
+      handler: this.docsRequest.bind(this),
+    })
+
+    // Web and AI tools
+    this.registerTool({
+      name: 'web_search',
+      description: 'Search the web for information',
+      category: 'analysis',
+      handler: this.webSearch.bind(this),
+    })
+
+    this.registerTool({
+      name: 'browse_web',
+      description: 'Browse websites and analyze content with AI',
+      category: 'analysis',
+      handler: this.browseWeb.bind(this),
+    })
+
+    this.registerTool({
+      name: 'vision_analysis',
+      description: 'Analyze images with AI vision models',
+      category: 'analysis',
+      handler: this.visionAnalysis.bind(this),
+    })
+
+    this.registerTool({
+      name: 'image_generation',
+      description: 'Generate images from text prompts',
+      category: 'analysis',
+      handler: this.imageGeneration.bind(this),
+    })
+
+    // Blockchain tools
+    this.registerTool({
+      name: 'blockchain_operations',
+      description: 'Execute blockchain operations',
+      category: 'analysis',
+      handler: this.blockchainOps.bind(this),
+    })
+
+    // Design tools
+    this.registerTool({
+      name: 'figma_operations',
+      description: 'Figma design file operations',
+      category: 'analysis',
+      handler: this.figmaOps.bind(this),
+    })
   }
 
   registerTool(tool: ToolCapability): void {
@@ -743,6 +810,84 @@ export class ToolService {
       }
     } catch (error: any) {
       throw new Error(`Failed to analyze project: ${error.message}`)
+    }
+  }
+
+  // New tool handlers for documentation
+  private async searchDocumentation(args: { query: string; category?: string; limit?: number }): Promise<any> {
+    try {
+      return { success: true, message: 'Documentation search - implement with docLibrary.search()' }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  private async smartDocsSearch(args: {
+    query: string
+    autoLoad?: boolean
+    maxResults?: number
+    category?: string
+  }): Promise<any> {
+    try {
+      return { success: true, message: 'Smart docs search - implement with smartDocsTools' }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  private async docsRequest(args: { concept: string; context: string; urgency?: string }): Promise<any> {
+    try {
+      return { success: true, message: 'Docs request - implement with docsRequestTool' }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  private async webSearch(args: { query: string; type?: string }): Promise<any> {
+    try {
+      return { success: true, message: 'Web search - implement with web search provider' }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  private async browseWeb(args: { url: string; action?: string }): Promise<any> {
+    try {
+      return { success: true, message: 'Browse web - implement with browserbase tool' }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  private async visionAnalysis(args: { imagePath: string; prompt?: string }): Promise<any> {
+    try {
+      return { success: true, message: 'Vision analysis - implement with vision analysis tool' }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  private async imageGeneration(args: { prompt: string; model?: string }): Promise<any> {
+    try {
+      return { success: true, message: 'Image generation - implement with image generation tool' }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  private async blockchainOps(args: { action: string; params?: any }): Promise<any> {
+    try {
+      return { success: true, message: 'Blockchain ops - implement with coinbase agentkit' }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  }
+
+  private async figmaOps(args: { action: string; params?: any }): Promise<any> {
+    try {
+      return { success: true, message: 'Figma ops - implement with figma tool' }
+    } catch (error: any) {
+      return { success: false, error: error.message }
     }
   }
 

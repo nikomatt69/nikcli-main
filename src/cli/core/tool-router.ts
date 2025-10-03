@@ -433,6 +433,129 @@ export class ToolRouter extends EventEmitter {
         'get figma file information',
       ],
     },
+
+    // Documentation Search Tools
+    {
+      tool: 'doc_search',
+      keywords: ['documentation', 'docs', 'search docs', 'find documentation', 'library', 'reference', 'manual'],
+      priority: 7,
+      description: 'Search documentation library for concepts and APIs',
+      examples: ['search documentation for react hooks', 'find docs about authentication', 'documentation library'],
+    },
+
+    {
+      tool: 'smart_docs_search',
+      keywords: [
+        'smart search',
+        'intelligent search',
+        'auto-load docs',
+        'documentation help',
+        'need docs',
+        'learn about',
+      ],
+      priority: 8,
+      description: 'Smart documentation search with auto-loading into context',
+      examples: ['smart search for express middleware', 'auto-load documentation', 'need help with react hooks'],
+    },
+
+    {
+      tool: 'docs_request',
+      keywords: [
+        'request docs',
+        'need documentation',
+        'dont know',
+        "don't understand",
+        'help me learn',
+        'unknown concept',
+        'new technology',
+      ],
+      priority: 7,
+      description: 'Request documentation when encountering unknown concepts',
+      examples: ['request docs for graphql', 'need documentation about microservices', "don't know what is JWT"],
+    },
+
+    // CAD and Manufacturing Tools
+    {
+      tool: 'text_to_cad',
+      keywords: [
+        'cad',
+        'modeling',
+        '3d model',
+        'design',
+        'engineering',
+        'step',
+        'stl',
+        'dwg',
+        'mechanical',
+        'parametric',
+        'solidworks',
+        'fusion360',
+      ],
+      priority: 6,
+      description: 'Generate CAD models from text descriptions',
+      examples: ['create a 3d model of a gear', 'generate CAD file for a bracket', 'design a mechanical part'],
+    },
+
+    {
+      tool: 'text_to_gcode',
+      keywords: [
+        'gcode',
+        'cnc',
+        '3d printing',
+        'manufacturing',
+        'machining',
+        'laser cutting',
+        'milling',
+        'toolpath',
+        'print',
+        'fabrication',
+      ],
+      priority: 6,
+      description: 'Generate G-code for CNC and 3D printing',
+      examples: ['generate gcode for 3d printing', 'cnc milling toolpath', 'laser cutting gcode'],
+    },
+
+    // Additional File Operations
+    {
+      tool: 'diff_tool',
+      keywords: ['diff', 'difference', 'compare', 'changes', 'what changed', 'comparison'],
+      priority: 6,
+      description: 'Compare files and show differences',
+      examples: ['diff between two files', 'show changes', 'compare versions'],
+    },
+
+    {
+      tool: 'tree_tool',
+      keywords: ['tree', 'directory structure', 'folder tree', 'hierarchical view', 'file tree'],
+      priority: 5,
+      description: 'Display directory structure as tree',
+      examples: ['show directory tree', 'tree view of project', 'hierarchical structure'],
+    },
+
+    {
+      tool: 'watch_tool',
+      keywords: ['watch', 'monitor', 'file watch', 'auto reload', 'live update', 'observe changes'],
+      priority: 5,
+      description: 'Watch files for changes',
+      examples: ['watch files for changes', 'monitor directory', 'auto reload on change'],
+    },
+
+    {
+      tool: 'snapshot_tool',
+      keywords: ['snapshot', 'backup', 'save state', 'checkpoint', 'restore', 'rollback'],
+      priority: 6,
+      description: 'Create and restore file snapshots',
+      examples: ['create snapshot', 'save current state', 'restore from snapshot'],
+    },
+
+    // Todo and Task Management
+    {
+      tool: 'todo_management',
+      keywords: ['todo', 'task', 'checklist', 'reminder', 'action items', 'todos', 'tasks'],
+      priority: 5,
+      description: 'Manage todos and tasks',
+      examples: ['add todo', 'list tasks', 'complete todo'],
+    },
   ]
 
   // Analyze user message and recommend tools
@@ -508,6 +631,17 @@ export class ToolRouter extends EventEmitter {
       browse_web: 'browserbase-tool',
       web_browse: 'browserbase-tool',
       browserbase: 'browserbase-tool',
+      figma_design: 'figma-tool',
+      doc_search: 'doc-search-tool',
+      smart_docs_search: 'smart-docs-search-tool',
+      docs_request: 'docs-request-tool',
+      text_to_cad: 'text-to-cad-tool',
+      text_to_gcode: 'text-to-gcode-tool',
+      diff_tool: 'diff-tool',
+      tree_tool: 'tree-tool',
+      watch_tool: 'watch-tool',
+      snapshot_tool: 'snapshot-tool',
+      todo_management: 'todo-tool',
     }
     return map[name] || name
   }

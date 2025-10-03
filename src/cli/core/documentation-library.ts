@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { promisify } from 'node:util'
 import chalk from 'chalk'
+import { documentationDatabase } from './documentation-database'
 
 const execAsync = promisify(exec)
 
@@ -264,6 +265,9 @@ export class DocumentationLibrary {
     this.categories.add(category)
     this.updateSearchIndex(entry)
     await this.saveLibrary()
+
+    // Save to database if available
+    await documentationDatabase.saveDocumentation(entry)
 
     console.log(
       chalk.green(`✓ Added: ${entry.title} (${analysis.wordCount} words, ${analysis.language})`)

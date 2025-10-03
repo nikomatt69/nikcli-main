@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { z } from 'zod'
 import { docsContextManager } from '../context/docs-context-manager'
 import { getCloudDocsProvider } from '../core/cloud-docs-provider'
+import { documentationDatabase } from '../core/documentation-database'
 import { docLibrary } from '../core/documentation-library'
 
 // Types for smart docs search results to avoid never[] inference
@@ -82,6 +83,33 @@ export const smartDocsSearchTool: CoreTool = tool({
         }
       } catch (error) {
         console.error('Local docs search failed:', error)
+      }
+
+      // 1.5 Search in database if available and no local results
+      if (results.localResults.length === 0 && documentationDatabase.isDatabaseAvailable()) {
+        try {
+          console.log(chalk.cyan('🔍 Searching documentation database...'))
+          const dbDocs = await documentationDatabase.searchDocumentation(query, {
+            category,
+            limit: maxResults,
+          })
+
+          if (dbDocs.length > 0) {
+            results.localResults = dbDocs.map((doc) => ({
+              title: doc.title,
+              category: doc.category,
+              url: doc.url,
+              tags: doc.tags,
+              score: `${(doc.relevance * 100).toFixed(1)}%`,
+              snippet: doc.content.substring(0, 200),
+              source: 'local',
+            }))
+            results.found = true
+            console.log(chalk.green(`✓ Found ${dbDocs.length} documents in database`))
+          }
+        } catch (error) {
+          console.error('Database docs search failed:', error)
+        }
       }
 
       // 2. Search in shared/cloud documentation if available
