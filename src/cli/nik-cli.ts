@@ -327,8 +327,12 @@ export class NikCLI {
     // Initialize chat UI system
     this.initializeChatUI()
 
-    // Render initial prompt
-    this.renderPromptArea()
+    // Render initial UI (prompt + log panel in chat mode)
+    if (this.isChatMode) {
+      this.renderChatUI()
+    } else {
+      this.renderPromptArea()
+    }
 
       // Expose NikCLI globally for token management
       ; (global as any).__nikcli = this
@@ -4457,7 +4461,11 @@ EOF`
   public clearPlanHud(): void {
     this.activePlanForHud = undefined
     this.clearPlanHudSubscription()
-    this.renderPromptArea()
+    if (this.isChatMode) {
+      this.renderChatUI()
+    } else {
+      this.renderPromptArea()
+    }
   }
 
   private finalizePlanHud(state: 'completed' | 'failed'): void {
@@ -4485,7 +4493,11 @@ EOF`
     }
 
     this.clearPlanHudSubscription()
-    this.renderPromptArea()
+    if (this.isChatMode) {
+      this.renderChatUI()
+    } else {
+      this.renderPromptArea()
+    }
     void this.cleanupPlanArtifacts()
   }
 
@@ -4511,7 +4523,11 @@ EOF`
         tools: todo.tools,
       })),
     }
-    this.renderPromptArea()
+    if (this.isChatMode) {
+      this.renderChatUI()
+    } else {
+      this.renderPromptArea()
+    }
   }
 
   private updatePlanHudTodoStatus(todoId: string, status: 'pending' | 'in_progress' | 'completed' | 'failed'): void {
@@ -4539,7 +4555,11 @@ EOF`
         this.finalizePlanHud(allSuccessful ? 'completed' : 'failed')
       }, 500) // 500ms delay to ensure output is complete
     } else {
-      this.renderPromptArea()
+      if (this.isChatMode) {
+        this.renderChatUI()
+      } else {
+        this.renderPromptArea()
+      }
     }
   }
 
@@ -4846,7 +4866,8 @@ EOF`
         for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
           if (ev.type === 'text_delta' && ev.content) {
             assistantText += ev.content
-            bridge.push(chalk.hex('#4a4a4a')(ev.content))
+            // Redirect to log panel instead of direct bridge
+            this.addLogMessage(chalk.hex('#4a4a4a')(ev.content))
 
             // Track lines for clearing - remove ANSI codes for accurate visual width
             const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
@@ -4855,7 +4876,7 @@ EOF`
             const wrappedLines = Math.ceil(charsWithoutNewlines / terminalWidth)
             streamedLines += newlines + wrappedLines
 
-            // Text content streamed via adapter
+            // Text content streamed to log panel
           } else if (ev.type === 'complete') {
             // Mark that we should format output after stream ends
             if (assistantText.length > 200) {
@@ -11343,7 +11364,7 @@ EOF`
     this.promptRenderTimer = setTimeout(() => {
       try {
         if (!this.isPrintingPanel && !this.isInquirerActive && !(inputQueue.isBypassEnabled?.() ?? false))
-          this.renderPromptArea()
+          this.renderChatUI() // Use renderChatUI to include log panel
       } finally {
         if (this.promptRenderTimer) {
           clearTimeout(this.promptRenderTimer)
@@ -15591,8 +15612,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         content: m.content,
       }))
 
-      // Simple AI response
-      process.stdout.write(`${chalk.cyan('\nAssistant: ')}`)
+      // Simple AI response - redirect to log panel
+      this.addLogMessage(chalk.cyan('\nAssistant: '))
       let _assistantText = ''
       let _shouldFormatOutput = false
       let _streamedLines = 0
@@ -15601,7 +15622,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
         if (ev.type === 'text_delta' && ev.content) {
           _assistantText += ev.content
-          process.stdout.write(ev.content)
+          // Redirect to scrollable log panel
+          this.addLogMessage(ev.content)
 
           // Track lines for clearing
           const linesInChunk = Math.ceil(ev.content.length / _terminalWidth) + (ev.content.match(/\n/g) || []).length
