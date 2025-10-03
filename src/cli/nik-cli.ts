@@ -3579,14 +3579,14 @@ export class NikCLI {
   private async handlePlanMode(input: string): Promise<void> {
     // CRITICAL: Recursion depth protection
     if (this.recursionDepth >= this.MAX_RECURSION_DEPTH) {
-      advancedUI.logFunctionUpdate('error', `Maximum plan generation depth reached (${this.MAX_RECURSION_DEPTH})`)
-      advancedUI.logFunctionUpdate('warning', 'Returning to default mode for safety...')
+      advancedUI.addLiveUpdate({ type: 'error', content: `Maximum plan generation depth reached (${this.MAX_RECURSION_DEPTH})`, source: 'plan_mode' })
+      advancedUI.addLiveUpdate({ type: 'warning', content: 'Returning to default mode for safety...', source: 'plan_mode' })
       this.forceRecoveryToDefaultMode()
       return
     }
 
     this.recursionDepth++
-    advancedUI.logFunctionUpdate('info', `Plan depth: ${this.recursionDepth}/${this.MAX_RECURSION_DEPTH}`)
+    advancedUI.addLiveUpdate({ type: 'info', content: `Plan depth: ${this.recursionDepth}/${this.MAX_RECURSION_DEPTH}`, source: 'plan_mode' })
 
     // Force compact mode for cleaner stream in plan flow
     try {
@@ -4096,11 +4096,9 @@ EOF`
    * Start executing tasks one by one, asking for approval before each task
    */
   private async startFirstTask(plan: any): Promise<void> {
-    advancedUI.logFunctionCall('task_execution_step_by_step')
-
     const todos = Array.isArray(plan?.todos) ? plan.todos : []
     if (todos.length === 0) {
-      advancedUI.logFunctionUpdate('warning', 'No tasks found in the plan')
+      advancedUI.addLiveUpdate({ type: 'warning', content: 'No tasks found in the plan', source: 'task_execution' })
       return
     }
 
@@ -4115,15 +4113,15 @@ EOF`
     }
 
     if (!currentTask) {
-      advancedUI.logFunctionUpdate('warning', 'No tasks to execute')
+      advancedUI.addLiveUpdate({ type: 'warning', content: 'No tasks to execute', source: 'task_execution' })
       return
     }
 
     // Execute tasks one by one
     while (currentTask) {
-      advancedUI.logFunctionUpdate('info', `Task ${currentTaskIndex + 1}/${todos.length}: ${currentTask.title}`)
+      advancedUI.addLiveUpdate({ type: 'info', content: `Task ${currentTaskIndex + 1}/${todos.length}: ${currentTask.title}`, source: 'task_execution' })
       if (currentTask.description) {
-        advancedUI.logFunctionUpdate('info', `${currentTask.description}`)
+        advancedUI.addLiveUpdate({ type: 'info', content: currentTask.description, source: 'task_execution' })
       }
 
       try {
@@ -4141,7 +4139,7 @@ EOF`
         currentTask.completedAt = new Date()
         this.updatePlanHudTodoStatus(currentTask.id, 'completed')
 
-        advancedUI.logFunctionUpdate('success', `Task ${currentTaskIndex + 1} completed: ${currentTask.title}`)
+        advancedUI.addLiveUpdate({ type: 'log', content: `Task ${currentTaskIndex + 1} completed: ${currentTask.title}`, source: 'task_execution' })
 
         // Find next pending task
         currentTaskIndex++
@@ -4160,14 +4158,14 @@ EOF`
             currentTask = nextTask
             currentTaskIndex = todos.indexOf(nextTask)
           } else {
-            console.log(chalk.yellow('⏸️ Task execution stopped by user'))
+            advancedUI.addLiveUpdate({ type: 'warning', content: 'Task execution stopped by user', source: 'task_execution' })
             break
           }
         } else {
           currentTask = null // No more tasks
         }
       } catch (error: any) {
-        advancedUI.logFunctionUpdate('error', `Task execution error: ${error.message}`)
+        advancedUI.addLiveUpdate({ type: 'error', content: `Task execution error: ${error.message}`, source: 'task_execution' })
 
         // Mark task as failed
         currentTask.status = 'failed'
@@ -4198,10 +4196,9 @@ EOF`
     const failed = todos.filter((t: { status: string }) => t.status === 'failed').length
     const pending = todos.filter((t: { status: string }) => t.status === 'pending').length
 
-    advancedUI.logFunctionCall('task_execution_summary')
-    advancedUI.logFunctionUpdate('success', `Completed: ${completed}`)
-    if (failed > 0) advancedUI.logFunctionUpdate('error', `Failed: ${failed}`)
-    if (pending > 0) advancedUI.logFunctionUpdate('warning', `Remaining: ${pending}`)
+    advancedUI.addLiveUpdate({ type: 'log', content: `Completed: ${completed}`, source: 'execution_summary' })
+    if (failed > 0) advancedUI.addLiveUpdate({ type: 'error', content: `Failed: ${failed}`, source: 'execution_summary' })
+    if (pending > 0) advancedUI.addLiveUpdate({ type: 'warning', content: `Remaining: ${pending}`, source: 'execution_summary' })
   }
 
   /**
@@ -10518,8 +10515,9 @@ EOF`
       vim: '✏️ Vim Mode',
     }
 
-    this.addLiveUpdate({ type: 'info', content: `🔄 Switched to ${modeNames[nextMode]}`, source: 'mode' })
-    this.addLiveUpdate({ type: 'info', content: `💡 Use Cmd+Tab or Cmd+] to cycle modes`, source: 'mode' })
+    console.log(chalk.yellow(`\n🔄 Switched to ${modeNames[nextMode]}`))
+    console.log(chalk.gray(`💡 Use Cmd+Tab or Cmd+] to cycle modes`))
+
 
     // In plan/vm modes, avoid ephemeral clearing so updates persist
     if (this.currentMode === 'plan' || this.currentMode === 'vm') {

@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import { nanoid } from 'nanoid'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
 import { WorkspaceRAG } from '../context/workspace-rag'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import type { ExecutionPlan, PlanTodo } from './types'
 
 export interface PlanningEvent {
@@ -124,7 +125,11 @@ export class AutonomousPlanner extends EventEmitter {
   }
 
   private async generateExecutionPlan(planId: string, goal: string, workspaceContext: any): Promise<ExecutionPlan> {
-    console.log(chalk.blue('⚡︎ AI Planning: Analyzing goal and creating execution plan...'))
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: 'AI Planning: Analyzing goal and creating execution plan...',
+      source: 'ai_planning'
+    })
 
     // Use AI to break down the goal into actionable todos
     const planningMessages: CoreMessage[] = [
@@ -375,7 +380,11 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
   }
 
   private async executeTodo(todo: PlanTodo, planContext: any): Promise<any> {
-    console.log(chalk.cyan(`🔧 Executing todo: ${todo.title}`))
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Executing todo: ${todo.title}`,
+      source: 'todo_execution'
+    })
 
     // Create execution context for the todo
     const executionMessages: CoreMessage[] = [

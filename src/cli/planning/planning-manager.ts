@@ -37,8 +37,7 @@ export class PlanningManager extends EventEmitter {
    * Main entry point: Plan and execute a user request
    */
   async planAndExecute(userRequest: string, projectPath: string): Promise<PlanExecutionResult> {
-    advancedUI.logFunctionCall('AI Planning & Execution System')
-    advancedUI.logFunctionUpdate('info', `Processing request: ${CliUI.highlight(userRequest)}`)
+    advancedUI.addLiveUpdate({ type: 'info', content: `Processing request: ${userRequest}`, source: 'ai_planning_system' })
 
     try {
       // Step 1: Analyze project context
@@ -97,7 +96,7 @@ export class PlanningManager extends EventEmitter {
       throw new Error(`Plan not found: ${planId}`)
     }
 
-    advancedUI.logFunctionCall('Plan Execution')
+    advancedUI.addLiveUpdate({ type: 'info', content: 'Starting plan execution', source: 'plan_execution' })
     return await this.executeWithEventTracking(plan)
   }
 
@@ -430,25 +429,24 @@ export class PlanningManager extends EventEmitter {
    * Display plan details
    */
   private displayPlan(plan: ExecutionPlan): void {
-    advancedUI.logFunctionCall(`Generated Plan: ${plan.title}`)
+    advancedUI.addLiveUpdate({ type: 'info', content: `Generated Plan: ${plan.title}`, source: 'plan_details' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Plan ID: ${plan.id}`, source: 'plan_details' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Description: ${plan.description}`, source: 'plan_details' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Total Steps: ${plan.steps.length}`, source: 'plan_details' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Estimated Duration: ${Math.round(plan.estimatedTotalDuration / 1000)}s`, source: 'plan_details' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Risk Level: ${plan.riskAssessment.overallRisk}`, source: 'plan_details' })
 
-    advancedUI.logFunctionUpdate('info', 'Plan ID', plan.id)
-    advancedUI.logFunctionUpdate('info', 'Description', plan.description)
-    advancedUI.logFunctionUpdate('info', 'Total Steps', plan.steps.length.toString())
-    advancedUI.logFunctionUpdate('info', 'Estimated Duration', `${Math.round(plan.estimatedTotalDuration / 1000)}s`)
-    advancedUI.logFunctionUpdate('info', 'Risk Level', plan.riskAssessment.overallRisk)
-
-    advancedUI.logFunctionUpdate('info', 'Execution Steps')
+    advancedUI.addLiveUpdate({ type: 'info', content: 'Execution Steps:', source: 'plan_details' })
     plan.steps.forEach((step, index) => {
       const riskIcon = step.riskLevel === 'high' ? '🔴' : step.riskLevel === 'medium' ? '🟡' : '🟢'
       const typeIcon =
         step.type === 'tool' ? '🔧' : step.type === 'validation' ? '✓' : step.type === 'user_input' ? '👤' : '🤔'
 
-      console.log(`  ${index + 1}. ${riskIcon} ${typeIcon} ${step.title}`)
-      console.log(`     ${CliUI.dim(step.description)}`)
+      advancedUI.addLiveUpdate({ type: 'info', content: `${index + 1}. ${riskIcon} ${typeIcon} ${step.title}`, source: 'plan_details' })
+      advancedUI.addLiveUpdate({ type: 'info', content: `   ${step.description}`, source: 'plan_details' })
 
       if (step.dependencies && step.dependencies.length > 0) {
-        console.log(`     ${CliUI.dim(`Dependencies: ${step.dependencies.length} step(s)`)}`)
+        advancedUI.addLiveUpdate({ type: 'info', content: `   Dependencies: ${step.dependencies.length} step(s)`, source: 'plan_details' })
       }
     })
   }
@@ -478,18 +476,18 @@ export class PlanningManager extends EventEmitter {
    */
   private displayValidationResults(validation: PlanValidationResult): void {
     if (validation.errors.length > 0) {
-      advancedUI.logFunctionUpdate('error', 'Validation Errors')
-      validation.errors.forEach((error) => advancedUI.logError(error))
+      advancedUI.addLiveUpdate({ type: 'error', content: 'Validation Errors:', source: 'validation_results' })
+      validation.errors.forEach((error) => advancedUI.addLiveUpdate({ type: 'error', content: error, source: 'validation_results' }))
     }
 
     if (validation.warnings.length > 0) {
-      advancedUI.logFunctionUpdate('warning', 'Validation Warnings')
-      validation.warnings.forEach((warning) => advancedUI.logWarning(warning))
+      advancedUI.addLiveUpdate({ type: 'warning', content: 'Validation Warnings:', source: 'validation_results' })
+      validation.warnings.forEach((warning) => advancedUI.addLiveUpdate({ type: 'warning', content: warning, source: 'validation_results' }))
     }
 
     if (validation.suggestions.length > 0) {
-      advancedUI.logFunctionUpdate('info', 'Suggestions')
-      validation.suggestions.forEach((suggestion) => advancedUI.logInfo(suggestion))
+      advancedUI.addLiveUpdate({ type: 'info', content: 'Suggestions:', source: 'validation_results' })
+      validation.suggestions.forEach((suggestion) => advancedUI.addLiveUpdate({ type: 'info', content: suggestion, source: 'validation_results' }))
     }
   }
 
@@ -497,14 +495,12 @@ export class PlanningManager extends EventEmitter {
    * Log complete planning session results
    */
   private logPlanningSession(plan: ExecutionPlan, result: PlanExecutionResult): void {
-    advancedUI.logFunctionCall('Planning Session Complete')
-
     const duration = result.endTime ? result.endTime.getTime() - result.startTime.getTime() : 0
 
-    advancedUI.logFunctionUpdate('info', 'Plan ID', plan.id)
-    advancedUI.logFunctionUpdate('info', 'Execution Status', result.status.toUpperCase())
-    advancedUI.logFunctionUpdate('info', 'Total Duration', `${Math.round(duration / 1000)}s`)
-    advancedUI.logFunctionUpdate('info', 'Steps Executed', `${result.summary.successfulSteps}/${result.summary.totalSteps}`)
+    advancedUI.addLiveUpdate({ type: 'info', content: `Plan ID: ${plan.id}`, source: 'planning_session_complete' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Execution Status: ${result.status.toUpperCase()}`, source: 'planning_session_complete' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Total Duration: ${Math.round(duration / 1000)}s`, source: 'planning_session_complete' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Steps Executed: ${result.summary.successfulSteps}/${result.summary.totalSteps}`, source: 'planning_session_complete' })
 
     if (result.summary.failedSteps > 0) {
       advancedUI.logWarning(`${result.summary.failedSteps} steps failed`)

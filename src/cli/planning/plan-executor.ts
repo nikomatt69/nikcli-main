@@ -62,7 +62,7 @@ export class PlanExecutor {
    * Execute a plan with user approval and monitoring
    */
   async executePlan(plan: ExecutionPlan): Promise<PlanExecutionResult> {
-    advancedUI.logFunctionCall(`Executing Plan: ${plan.title}`)
+    advancedUI.addLiveUpdate({ type: 'info', content: `Executing Plan: ${plan.title}`, source: 'plan_execution' })
 
     const startTime = new Date()
     const result: PlanExecutionResult = {
@@ -112,7 +112,7 @@ export class PlanExecutor {
         }
         const step = executionOrder[i]
 
-        advancedUI.logFunctionUpdate('info', `Executing: ${step.title}`, '●')
+        advancedUI.addLiveUpdate({ type: 'info', content: `Executing: ${step.title}`, source: 'step_execution' })
 
         const stepResult = await this.executeStep(step, plan)
         result.stepResults.push(stepResult)
@@ -640,23 +640,22 @@ export class PlanExecutor {
    * Display plan details for user approval
    */
   private displayPlanForApproval(plan: ExecutionPlan): void {
-    advancedUI.logFunctionCall('Plan Approval Required')
-
-    advancedUI.logFunctionUpdate('info', 'Plan Title', plan.title)
-    advancedUI.logFunctionUpdate('info', 'Description', plan.description)
-    advancedUI.logFunctionUpdate('info', 'Total Steps', plan.steps.length.toString())
-    advancedUI.logFunctionUpdate('info', 'Estimated Duration', `${Math.round(plan.estimatedTotalDuration / 1000)}s`)
-    advancedUI.logFunctionUpdate('info', 'Risk Level', plan.riskAssessment.overallRisk)
+    advancedUI.addLiveUpdate({ type: 'info', content: 'Plan Approval Required', source: 'plan_approval' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Plan Title: ${plan.title}`, source: 'plan_approval' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Description: ${plan.description}`, source: 'plan_approval' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Total Steps: ${plan.steps.length}`, source: 'plan_approval' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Estimated Duration: ${Math.round(plan.estimatedTotalDuration / 1000)}s`, source: 'plan_approval' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Risk Level: ${plan.riskAssessment.overallRisk}`, source: 'plan_approval' })
 
     if (plan.riskAssessment.destructiveOperations > 0) {
-      advancedUI.logWarning(`⚠️  ${plan.riskAssessment.destructiveOperations} potentially destructive operations`)
+      advancedUI.addLiveUpdate({ type: 'warning', content: `${plan.riskAssessment.destructiveOperations} potentially destructive operations`, source: 'plan_approval' })
     }
 
-    advancedUI.logFunctionUpdate('info', 'Execution Steps')
+    advancedUI.addLiveUpdate({ type: 'info', content: 'Execution Steps:', source: 'plan_approval' })
     plan.steps.forEach((step, index) => {
       const riskIcon = step.riskLevel === 'high' ? '🔴' : step.riskLevel === 'medium' ? '🟡' : '🟢'
-      advancedUI.logFunctionUpdate('info', `  ${index + 1}. ${riskIcon} ${step.title}`)
-      advancedUI.logFunctionUpdate('info', `     ${CliUI.dim(step.description)}`)
+      advancedUI.addLiveUpdate({ type: 'info', content: `${index + 1}. ${riskIcon} ${step.title}`, source: 'plan_approval' })
+      advancedUI.addLiveUpdate({ type: 'info', content: `   ${step.description}`, source: 'plan_approval' })
     })
   }
 
@@ -689,21 +688,19 @@ export class PlanExecutor {
    * Log execution summary
    */
   private logExecutionSummary(result: PlanExecutionResult): void {
-    advancedUI.logFunctionCall('Execution Summary')
-
     const duration = result.endTime ? result.endTime.getTime() - result.startTime.getTime() : 0
 
-    advancedUI.logFunctionUpdate('info', 'Status', result.status.toUpperCase())
-    advancedUI.logFunctionUpdate('info', 'Duration', `${Math.round(duration / 1000)}s`)
-    advancedUI.logFunctionUpdate('info', 'Total Steps', result.summary.totalSteps.toString())
-    advancedUI.logFunctionUpdate('info', 'Successful', result.summary.successfulSteps.toString())
-    advancedUI.logFunctionUpdate('info', 'Failed', result.summary.failedSteps.toString())
-    advancedUI.logFunctionUpdate('info', 'Skipped', result.summary.skippedSteps.toString())
+    advancedUI.addLiveUpdate({ type: 'info', content: `Status: ${result.status.toUpperCase()}`, source: 'execution_summary' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Duration: ${Math.round(duration / 1000)}s`, source: 'execution_summary' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Total Steps: ${result.summary.totalSteps}`, source: 'execution_summary' })
+    advancedUI.addLiveUpdate({ type: 'log', content: `Successful: ${result.summary.successfulSteps}`, source: 'execution_summary' })
+    advancedUI.addLiveUpdate({ type: 'error', content: `Failed: ${result.summary.failedSteps}`, source: 'execution_summary' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Skipped: ${result.summary.skippedSteps}`, source: 'execution_summary' })
 
     // Show status icon
     const statusIcon = result.status === 'completed' ? '✓' : result.status === 'partial' ? '⚠️' : '❌'
 
-    advancedUI.logFunctionUpdate('info', `\n${statusIcon} Plan execution ${result.status}`)
+    advancedUI.addLiveUpdate({ type: 'info', content: `${statusIcon} Plan execution ${result.status}`, source: 'execution_summary' })
   }
 
   /**
