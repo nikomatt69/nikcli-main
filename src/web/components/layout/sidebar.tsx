@@ -8,10 +8,10 @@ import { usePathname } from 'next/navigation'
 import { ThemeSwitch } from '../ui/theme-switch'
 
 const navigation = [
-  { name: 'Overview', href: '/dashboard', icon: LayoutDashboard, description: 'Dashboard & analytics' },
-  { name: 'Background Agents', href: '/jobs', icon: Briefcase, description: 'Manage agents' },
-  { name: 'Snapshots', href: '/snapshots', icon: Camera, description: 'Project snapshots' },
-  { name: 'Integrations', href: '/config', icon: Settings, description: 'Settings & config' },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, description: 'Overview & stats' },
+  { name: 'Jobs', href: '/jobs', icon: Briefcase, description: 'All background jobs' },
+  { name: 'Create Job', href: '/jobs/new', icon: Zap, description: 'Start new agent' },
+  { name: 'Configuration', href: '/config', icon: Settings, description: 'Settings & config' },
 ]
 
 const integrations = [
