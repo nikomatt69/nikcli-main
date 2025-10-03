@@ -3404,11 +3404,11 @@ export class NikCLI {
       // Update project context disabled to avoid constant file changes
       // await this.updateProjectContext(input);
     } catch (error: any) {
-      console.log(chalk.red(`Error: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Error: ${error.message}`)
 
       // CRITICAL: If error occurred in plan mode, force recovery
       if (this.currentMode === 'plan') {
-        console.log(chalk.yellow('⚡︎ Plan mode error detected, forcing recovery...'))
+        advancedUI.logFunctionUpdate('warning', 'Plan mode error detected, forcing recovery...')
         this.forceRecoveryToDefaultMode()
       }
     }
@@ -3563,12 +3563,12 @@ export class NikCLI {
           )
         }
       } catch (error: any) {
-        console.log(chalk.red(`❌ VM communication error: ${error.message}`))
+        advancedUI.logFunctionUpdate('error', `VM communication error: ${error.message}`)
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ VM Mode error: ${error.message}`))
-      console.log(chalk.gray('Use /default to exit VM mode'))
-      console.log(chalk.gray('Use /vm-switch to select different VM'))
+      advancedUI.logFunctionUpdate('error', `VM Mode error: ${error.message}`)
+      advancedUI.logFunctionUpdate('info', 'Use /default to exit VM mode')
+      advancedUI.logFunctionUpdate('info', 'Use /vm-switch to select different VM')
     }
     // VM mode output complete - prompt render handled by caller
   }
@@ -3579,14 +3579,14 @@ export class NikCLI {
   private async handlePlanMode(input: string): Promise<void> {
     // CRITICAL: Recursion depth protection
     if (this.recursionDepth >= this.MAX_RECURSION_DEPTH) {
-      console.log(chalk.red(`❌ Maximum plan generation depth reached (${this.MAX_RECURSION_DEPTH})`))
-      console.log(chalk.yellow('⚡︎ Returning to default mode for safety...'))
+      advancedUI.logFunctionUpdate('error', `Maximum plan generation depth reached (${this.MAX_RECURSION_DEPTH})`)
+      advancedUI.logFunctionUpdate('warning', 'Returning to default mode for safety...')
       this.forceRecoveryToDefaultMode()
       return
     }
 
     this.recursionDepth++
-    console.log(chalk.gray(`📊 Plan depth: ${this.recursionDepth}/${this.MAX_RECURSION_DEPTH}`))
+    advancedUI.logFunctionUpdate('info', `Plan depth: ${this.recursionDepth}/${this.MAX_RECURSION_DEPTH}`)
 
     // Force compact mode for cleaner stream in plan flow
     try {
@@ -4096,11 +4096,11 @@ EOF`
    * Start executing tasks one by one, asking for approval before each task
    */
   private async startFirstTask(plan: any): Promise<void> {
-    console.log(chalk.blue(`🚀 Starting task execution step-by-step...`))
+    advancedUI.logFunctionCall('task_execution_step_by_step')
 
     const todos = Array.isArray(plan?.todos) ? plan.todos : []
     if (todos.length === 0) {
-      console.log(chalk.yellow('⚠️ No tasks found in the plan'))
+      advancedUI.logFunctionUpdate('warning', 'No tasks found in the plan')
       return
     }
 
@@ -4115,15 +4115,15 @@ EOF`
     }
 
     if (!currentTask) {
-      console.log(chalk.yellow('⚠️ No tasks to execute'))
+      advancedUI.logFunctionUpdate('warning', 'No tasks to execute')
       return
     }
 
     // Execute tasks one by one
     while (currentTask) {
-      console.log(chalk.cyan(`\n📋 Task ${currentTaskIndex + 1}/${todos.length}: ${currentTask.title}`))
+      advancedUI.logFunctionUpdate('info', `Task ${currentTaskIndex + 1}/${todos.length}: ${currentTask.title}`)
       if (currentTask.description) {
-        console.log(chalk.gray(`   ${currentTask.description}`))
+        advancedUI.logFunctionUpdate('info', `${currentTask.description}`)
       }
 
       try {
@@ -4141,7 +4141,7 @@ EOF`
         currentTask.completedAt = new Date()
         this.updatePlanHudTodoStatus(currentTask.id, 'completed')
 
-        console.log(chalk.green(`✓ Task ${currentTaskIndex + 1} completed: ${currentTask.title}`))
+        advancedUI.logFunctionUpdate('success', `Task ${currentTaskIndex + 1} completed: ${currentTask.title}`)
 
         // Find next pending task
         currentTaskIndex++
@@ -4167,7 +4167,7 @@ EOF`
           currentTask = null // No more tasks
         }
       } catch (error: any) {
-        console.log(chalk.red(`❌ Task execution error: ${error.message}`))
+        advancedUI.logFunctionUpdate('error', `Task execution error: ${error.message}`)
 
         // Mark task as failed
         currentTask.status = 'failed'
@@ -4198,10 +4198,10 @@ EOF`
     const failed = todos.filter((t: { status: string }) => t.status === 'failed').length
     const pending = todos.filter((t: { status: string }) => t.status === 'pending').length
 
-    console.log(chalk.blue('\n📊 Task execution summary:'))
-    console.log(chalk.green(`✓ Completed: ${completed}`))
-    if (failed > 0) console.log(chalk.red(`❌ Failed: ${failed}`))
-    if (pending > 0) console.log(chalk.yellow(`⏸️ Remaining: ${pending}`))
+    advancedUI.logFunctionCall('task_execution_summary')
+    advancedUI.logFunctionUpdate('success', `Completed: ${completed}`)
+    if (failed > 0) advancedUI.logFunctionUpdate('error', `Failed: ${failed}`)
+    if (pending > 0) advancedUI.logFunctionUpdate('warning', `Remaining: ${pending}`)
   }
 
   /**
@@ -4220,16 +4220,35 @@ EOF`
       const messages = [{ role: 'user' as const, content: task }]
       let streamCompleted = false
 
+      // Track streaming output for formatting (same as default mode)
+      let assistantText = ''
+      let shouldFormatOutput = false
+      let streamedLines = 0
+      const terminalWidth = process.stdout.columns || 80
+
+      // Bridge stream to Streamdown renderer (same as default mode)
+      const bridge = createStringPushStream()
+      const renderPromise = renderChatStreamToTerminal(bridge.generator, {
+        isCancelled: () => false,
+        enableMinimalRerender: false,
+      })
+
       // Use the same streaming as plan mode
       for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
         // Handle all streaming events exactly like plan mode
         switch (ev.type) {
           case 'text_delta':
-            // Real-time text streaming - output immediately like plan mode
+            // Stream text in dark gray like default mode
             if (ev.content) {
-              process.stdout.write(ev.content)
-              // keep prompt anchored below
-              this.renderPromptAfterOutput()
+              assistantText += ev.content
+              bridge.push(chalk.hex('#4a4a4a')(ev.content))
+
+              // Track lines for clearing (same as default mode)
+              const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
+              const newlines = (visualContent.match(/\n/g) || []).length
+              const charsWithoutNewlines = visualContent.replace(/\n/g, '').length
+              const wrappedLines = Math.ceil(charsWithoutNewlines / terminalWidth)
+              streamedLines += newlines + wrappedLines
             }
             break
 
@@ -4256,12 +4275,11 @@ EOF`
             break
 
           case 'complete':
-            // Stream completed successfully
+            // Mark that we should format output after stream ends (like default mode)
+            if (assistantText.length > 200) {
+              shouldFormatOutput = true
+            }
             streamCompleted = true
-            console.log() // Add newline after final output like plan mode
-
-            // Show completion message like plan mode
-
             break
 
           case 'error':
@@ -4269,6 +4287,25 @@ EOF`
             this.addLiveUpdate({ type: 'error', content: `❌ ${agentName} error: ${ev.error}`, source: 'plan-exec' })
             throw new Error(ev.error)
         }
+      }
+
+      bridge.end()
+      await renderPromise
+
+      // Clear streamed output and show formatted version if needed (same as default mode)
+      if (shouldFormatOutput) {
+        // Clear the streamed output
+        this.clearStreamedOutput(streamedLines)
+
+        const { OutputFormatter } = await import('./ui/output-formatter')
+        const formattedOutput = OutputFormatter.formatFinalOutput(assistantText)
+
+        // Show formatted version
+        console.log(formattedOutput)
+        console.log('')
+      } else {
+        // No formatting needed - add spacing after stream
+        console.log('\n')
       }
 
       if (!streamCompleted) {
@@ -4293,7 +4330,8 @@ EOF`
       throw new Error('Task has no title')
     }
 
-    console.log(chalk.blue(`⚡︎ Executing: ${task.title}`))
+    advancedUI.logFunctionCall('execute_task')
+    advancedUI.logFunctionUpdate('info', `Executing: ${task.title}`)
 
     // Set up task timeout to prevent hanging
     const taskTimeout = this.safeTimeout(() => {
@@ -4326,13 +4364,34 @@ EOF`
           const messages = [{ role: 'user' as const, content: task.description || task.title }]
           let streamCompleted = false
 
+          // Track streaming output for formatting (same as default mode)
+          let assistantText = ''
+          let shouldFormatOutput = false
+          let streamedLines = 0
+          const terminalWidth = process.stdout.columns || 80
+
+          // Bridge stream to Streamdown renderer (same as default mode)
+          const bridge = createStringPushStream()
+          const renderPromise = renderChatStreamToTerminal(bridge.generator, {
+            isCancelled: () => false,
+            enableMinimalRerender: false,
+          })
+
           for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
             // Handle all streaming events like default mode
             switch (ev.type) {
               case 'text_delta':
-                // Real-time text streaming - output immediately
+                // Stream text in dark gray like default mode
                 if (ev.content) {
-                  process.stdout.write(ev.content)
+                  assistantText += ev.content
+                  bridge.push(chalk.hex('#4a4a4a')(ev.content))
+
+                  // Track lines for clearing (same as default mode)
+                  const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
+                  const newlines = (visualContent.match(/\n/g) || []).length
+                  const charsWithoutNewlines = visualContent.replace(/\n/g, '').length
+                  const wrappedLines = Math.ceil(charsWithoutNewlines / terminalWidth)
+                  streamedLines += newlines + wrappedLines
                 }
                 break
 
@@ -4354,9 +4413,11 @@ EOF`
                 break
 
               case 'complete':
-                // Stream completed successfully
+                // Mark that we should format output after stream ends (like default mode)
+                if (assistantText.length > 200) {
+                  shouldFormatOutput = true
+                }
                 streamCompleted = true
-                console.log() // Add newline after final output
                 break
 
               case 'error':
@@ -4370,6 +4431,25 @@ EOF`
             }
           }
 
+          bridge.end()
+          await renderPromise
+
+          // Clear streamed output and show formatted version if needed (same as default mode)
+          if (shouldFormatOutput) {
+            // Clear the streamed output
+            this.clearStreamedOutput(streamedLines)
+
+            const { OutputFormatter } = await import('./ui/output-formatter')
+            const formattedOutput = OutputFormatter.formatFinalOutput(assistantText)
+
+            // Show formatted version
+            console.log(formattedOutput)
+            console.log('')
+          } else {
+            // No formatting needed - add spacing after stream
+            console.log('\n')
+          }
+
           // Ensure stream completed before proceeding
           if (!streamCompleted) {
             console.log(chalk.yellow(`⚠️ Stream may not have completed properly`))
@@ -4378,9 +4458,9 @@ EOF`
           // Add a small delay to ensure all output is flushed
           await new Promise((resolve) => setTimeout(resolve, 100))
 
-          console.log(chalk.green(`✓ Task completed successfully: ${task.title}`))
+          advancedUI.logFunctionUpdate('success', `Task completed successfully: ${task.title}`)
         } catch (error: any) {
-          console.log(chalk.red(`❌ Task execution failed: ${error.message}`))
+          advancedUI.logFunctionUpdate('error', `Task execution failed: ${error.message}`)
           throw error
         } finally {
           if (interactiveStarted) {
@@ -4393,29 +4473,29 @@ EOF`
         }
       } else {
         // Fallback for tasks without clear tool intent
-        console.log(chalk.cyan(`⚡︎ Performing analysis for: ${task.title}`))
+        advancedUI.logFunctionUpdate('info', `Performing analysis for: ${task.title}`)
 
         // Simple execution without phases
         const projectAnalysis = await toolService.executeTool('analyze_project', {})
-        console.log(chalk.green(`✓ Project analyzed: ${Object.keys(projectAnalysis || {}).length} components`))
+        advancedUI.logFunctionUpdate('success', `Project analyzed: ${Object.keys(projectAnalysis || {}).length} components`)
 
         // If task has specific requirements, try to read relevant files
         const relevantFiles = await this.findRelevantFiles(task)
         for (const filePath of relevantFiles.slice(0, 3)) {
           try {
             const { content } = await toolService.executeTool('read_file', { filePath })
-            console.log(chalk.green(`✓ Analyzed ${filePath}: ${content.length} characters`))
+            advancedUI.logFunctionUpdate('success', `Analyzed ${filePath}: ${content.length} characters`)
           } catch (error: any) {
-            console.log(chalk.yellow(`⚠️ Could not read ${filePath}: ${error.message}`))
+            advancedUI.logFunctionUpdate('warning', `Could not read ${filePath}: ${error.message}`)
           }
         }
 
-        console.log(chalk.green(`✓ Task analysis completed: ${task.title}`))
+        advancedUI.logFunctionUpdate('success', `Task analysis completed: ${task.title}`)
       }
     } catch (error: any) {
       // Enhanced error handling
       const errorMsg = error.message || 'Unknown execution error'
-      console.log(chalk.red(`❌ Task execution failed: ${errorMsg}`))
+      advancedUI.logFunctionUpdate('error', `Task execution failed: ${errorMsg}`)
 
       // Re-throw with enhanced context
       throw new Error(`Task execution failed: ${task.title} - ${errorMsg}`)
@@ -4540,23 +4620,23 @@ EOF`
   private async cleanupPlanArtifacts(): Promise<void> {
     // CRITICAL: Prevent race conditions with cleanup lock
     if (this.cleanupInProgress) {
-      console.log(chalk.gray('⏳ Cleanup already in progress, skipping...'))
+      advancedUI.logFunctionUpdate('info', 'Cleanup already in progress, skipping...')
       return
     }
 
     this.cleanupInProgress = true
-    console.log(chalk.gray('🧹 Starting plan artifacts cleanup...'))
+    advancedUI.logFunctionCall('cleanup_plan_artifacts')
 
     try {
       // Cleanup todo.md with error handling
       const todoPath = path.join(this.workingDirectory, 'todo.md')
       try {
         await fs.unlink(todoPath)
-        console.log(chalk.gray('🗑️ Removed todo.md'))
+        advancedUI.logFunctionUpdate('info', 'Removed todo.md')
       } catch (error: any) {
         // Only log if file exists but deletion failed (not if file doesn't exist)
         if (error.code !== 'ENOENT') {
-          console.log(chalk.yellow(`⚠️ Could not remove todo.md: ${error.message}`))
+          advancedUI.logFunctionUpdate('warning', `Could not remove todo.md: ${error.message}`)
         }
       }
 
@@ -4564,16 +4644,16 @@ EOF`
       const taskmasterDir = path.join(this.workingDirectory, '.nikcli', 'taskmaster')
       try {
         await fs.rm(taskmasterDir, { recursive: true, force: true })
-        console.log(chalk.gray('🗑️ Cleaned taskmaster directory'))
+        advancedUI.logFunctionUpdate('info', 'Cleaned taskmaster directory')
       } catch (error: any) {
         if (error.code !== 'ENOENT') {
-          console.log(chalk.yellow(`⚠️ Could not clean taskmaster directory: ${error.message}`))
+          advancedUI.logFunctionUpdate('warning', `Could not clean taskmaster directory: ${error.message}`)
         }
       }
 
-      console.log(chalk.gray('✓ Plan artifacts cleanup completed'))
+      advancedUI.logFunctionUpdate('success', 'Plan artifacts cleanup completed')
     } catch (error: any) {
-      console.log(chalk.red(`❌ Cleanup error: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Cleanup error: ${error.message}`)
     } finally {
       // CRITICAL: Always reset cleanup flag
       this.cleanupInProgress = false
@@ -4585,7 +4665,7 @@ EOF`
     try {
       await this.saveTaskMasterPlanToFile(this.activePlanForHud, 'todo.md', { silent: true })
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Could not update todo.md: ${error.message}`))
+      advancedUI.logFunctionUpdate('warning', `Could not update todo.md: ${error.message}`)
     }
   }
 
