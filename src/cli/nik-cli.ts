@@ -260,6 +260,12 @@ export class NikCLI {
   private chatAreaHeight: number = 0
   private isChatMode: boolean = false
   private isPrintingPanel: boolean = false
+  
+  // Persistent prompt and scrollable log panel
+  private logBuffer: string[] = []
+  private maxLogLines: number = 1000
+  private logScrollOffset: number = 0
+  private promptAreaHeight: number = 4 // Fixed height for prompt + status bar
 
   constructor() {
     this.workingDirectory = process.cwd()
@@ -4225,9 +4231,9 @@ EOF`
         // Handle all streaming events exactly like plan mode
         switch (ev.type) {
           case 'text_delta':
-            // Real-time text streaming - output immediately like plan mode
+            // Real-time text streaming - output to scrollable log panel
             if (ev.content) {
-              process.stdout.write(ev.content)
+              this.addLogMessage(ev.content)
               // keep prompt anchored below
               this.renderPromptAfterOutput()
             }
@@ -4330,9 +4336,9 @@ EOF`
             // Handle all streaming events like default mode
             switch (ev.type) {
               case 'text_delta':
-                // Real-time text streaming - output immediately
+                // Real-time text streaming - output to scrollable log panel
                 if (ev.content) {
-                  process.stdout.write(ev.content)
+                  this.addLogMessage(ev.content)
                 }
                 break
 
@@ -10643,6 +10649,95 @@ EOF`
       this.updateTerminalDimensions()
       this.renderChatUI()
     })
+
+    // Intercept console.log to redirect to log panel in chat mode
+    this.interceptConsoleOutput()
+  }
+
+  /**
+   * Intercept console output to redirect to scrollable log panel
+   */
+  private interceptConsoleOutput(): void {
+    const originalConsoleLog = console.log.bind(console)
+    const originalConsoleError = console.error.bind(console)
+    const originalConsoleWarn = console.warn.bind(console)
+    const originalStdoutWrite = process.stdout.write.bind(process.stdout)
+
+    // Override console.log
+    console.log = (...args: any[]) => {
+      if (this.isChatMode && !this.isPrintingPanel && !this.isInquirerActive) {
+        const message = args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ')
+        this.addLogMessage(message)
+      } else {
+        originalConsoleLog(...args)
+      }
+    }
+
+    // Override console.error
+    console.error = (...args: any[]) => {
+      if (this.isChatMode && !this.isPrintingPanel && !this.isInquirerActive) {
+        const message = chalk.red(args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' '))
+        this.addLogMessage(message)
+      } else {
+        originalConsoleError(...args)
+      }
+    }
+
+    // Override console.warn
+    console.warn = (...args: any[]) => {
+      if (this.isChatMode && !this.isPrintingPanel && !this.isInquirerActive) {
+        const message = chalk.yellow(args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' '))
+        this.addLogMessage(message)
+      } else {
+        originalConsoleWarn(...args)
+      }
+    }
+
+    // Store originals for restoration if needed
+    (this as any)._originalConsole = {
+      log: originalConsoleLog,
+      error: originalConsoleError,
+      warn: originalConsoleWarn,
+      stdoutWrite: originalStdoutWrite
+    }
+
+    // Bridge advancedUI logs to the scrollable panel
+    this.bridgeAdvancedUIToLogPanel()
+  }
+
+  /**
+   * Bridge advancedUI output to the scrollable log panel
+   */
+  private bridgeAdvancedUIToLogPanel(): void {
+    // Intercept advancedUI's addLiveUpdate to redirect to our log panel
+    const originalAddLiveUpdate = (advancedUI as any).addLiveUpdate?.bind(advancedUI)
+    if (originalAddLiveUpdate) {
+      (advancedUI as any).addLiveUpdate = (update: any) => {
+        if (this.isChatMode && !this.isPrintingPanel) {
+          // Format the update for the log panel
+          const icon = this.getUpdateIcon(update.type)
+          const message = `${icon} ${update.content}`
+          this.addLogMessage(message)
+        } else {
+          originalAddLiveUpdate(update)
+        }
+      }
+    }
+  }
+
+  /**
+   * Get icon for update type
+   */
+  private getUpdateIcon(type: string): string {
+    switch (type) {
+      case 'info': return chalk.blue('ℹ')
+      case 'success': return chalk.green('✓')
+      case 'warning': return chalk.yellow('⚠')
+      case 'error': return chalk.red('❌')
+      case 'status': return chalk.cyan('⚡︎')
+      case 'cognitive': return chalk.hex('#4a4a4a')('🧠')
+      default: return '•'
+    }
   }
 
   /**
@@ -10650,7 +10745,7 @@ EOF`
    */
   private updateTerminalDimensions(): void {
     this.terminalHeight = process.stdout.rows || 24
-    this.chatAreaHeight = this.terminalHeight - 4 // Reserve 4 lines for prompt and status
+    this.chatAreaHeight = this.terminalHeight - this.promptAreaHeight // Reserve space for fixed prompt area
   }
 
   /**
@@ -10668,14 +10763,86 @@ EOF`
   }
 
   /**
+   * Add log message to scrollable log buffer
+   */
+  private addLogMessage(message: string): void {
+    // Split message into lines if it contains newlines
+    const lines = message.split('\n')
+    for (const line of lines) {
+      if (line.trim()) {
+        this.logBuffer.push(line)
+      }
+    }
+
+    // Keep buffer size manageable
+    if (this.logBuffer.length > this.maxLogLines) {
+      this.logBuffer = this.logBuffer.slice(-this.maxLogLines)
+    }
+
+    // Auto-scroll to bottom when new content arrives
+    this.logScrollOffset = 0
+
+    // Re-render the UI
+    this.renderScrollableLogPanel()
+  }
+
+  /**
    * Render the chat UI with fixed prompt
    */
   private renderChatUI(): void {
     if (!this.isChatMode) return
     if (this.isInquirerActive) return // avoid drawing over interactive lists
     if (this.isPrintingPanel) return // avoid drawing over panels
-    // Move cursor to bottom and render prompt area
+    
+    // Render scrollable log panel first, then fixed prompt at bottom
+    this.renderScrollableLogPanel()
     this.renderPromptArea()
+  }
+
+  /**
+   * Render scrollable log panel above the fixed prompt area
+   */
+  private renderScrollableLogPanel(): void {
+    if (!this.isChatMode) return
+    if (this.isInquirerActive) return
+    if (this.isPrintingPanel) return
+
+    const terminalHeight = process.stdout.rows || 24
+    const logPanelHeight = terminalHeight - this.promptAreaHeight - 1 // -1 for separator
+
+    // Move cursor to top of terminal
+    process.stdout.write('\x1B[H')
+
+    // Get the visible portion of the log buffer
+    const startIndex = Math.max(0, this.logBuffer.length - logPanelHeight - this.logScrollOffset)
+    const endIndex = this.logBuffer.length - this.logScrollOffset
+    const visibleLogs = this.logBuffer.slice(startIndex, endIndex)
+
+    // Clear the log panel area
+    for (let i = 0; i < logPanelHeight; i++) {
+      process.stdout.write('\x1B[2K') // Clear line
+      if (i < logPanelHeight - 1) {
+        process.stdout.write('\n')
+      }
+    }
+
+    // Move cursor back to top
+    process.stdout.write('\x1B[H')
+
+    // Render visible logs
+    for (let i = 0; i < logPanelHeight; i++) {
+      if (i < visibleLogs.length) {
+        process.stdout.write(visibleLogs[i])
+      }
+      if (i < logPanelHeight - 1) {
+        process.stdout.write('\n')
+      }
+    }
+
+    // Add separator line
+    process.stdout.write('\n')
+    const terminalWidth = process.stdout.columns || 80
+    process.stdout.write(chalk.dim('\u2500'.repeat(terminalWidth)))
   }
 
   // Temporarily pause/resume CLI prompt for external interactive prompts (inquirer)
