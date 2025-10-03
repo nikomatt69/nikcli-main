@@ -9,6 +9,9 @@ import type { OrchestrationPlan, TaskCognition } from '../automation/agents/univ
 // 🔧 Import Unified Tool Registry
 import { ToolRegistry } from '../tools/tool-registry'
 
+// 🧠 Import Cognitive Route Analyzer
+import { createCognitiveRouteAnalyzer, type CognitiveAnalysisResult } from './cognitive-route-analyzer'
+
 // 🔧 Enhanced Tool Routing Schemas
 const ToolSecurityLevel = z.enum(['safe', 'moderate', 'risky', 'dangerous'])
 const ToolCategory = z.enum(['file', 'command', 'search', 'analysis', 'git', 'package', 'ide', 'ai', 'blockchain'])
@@ -58,11 +61,22 @@ export interface ToolRecommendation {
 
 export class ToolRouter extends EventEmitter {
   private toolRegistry: ToolRegistry
+  private cognitiveAnalyzer: ReturnType<typeof createCognitiveRouteAnalyzer>
+  private workingDirectory: string
+  private cognitiveMode: boolean = true
+  private analysisCache: Map<string, CognitiveAnalysisResult> = new Map()
 
   constructor(workingDirectory: string = process.cwd()) {
     super()
+    this.workingDirectory = workingDirectory
     // 🔧 Initialize unified tool registry
     this.toolRegistry = new ToolRegistry(workingDirectory)
+    // 🧠 Initialize cognitive route analyzer
+    this.cognitiveAnalyzer = createCognitiveRouteAnalyzer(workingDirectory)
+
+    if (!process.env.NIKCLI_QUIET_STARTUP) {
+      console.log(chalk.blue('🧠 Cognitive routing enabled - Advanced tool selection active'))
+    }
   }
 
   private toolKeywords: ToolKeyword[] = [
@@ -880,6 +894,46 @@ export class ToolRouter extends EventEmitter {
     }
 
     try {
+      // 🧠 USE COGNITIVE ROUTE ANALYZER for complete analysis
+      if (this.cognitiveMode) {
+        const cognitiveResult = await this.cognitiveAnalyzer.analyzeCognitiveRoute(context.userIntent, {
+          previousCognition: context.cognition,
+          orchestrationPlan: context.orchestrationPlan,
+        })
+
+        // Cache result
+        this.analysisCache.set(context.userIntent, cognitiveResult)
+
+        // Emit cognitive analysis event
+        this.emit('cognitive-analysis', {
+          userIntent: context.userIntent,
+          cognition: cognitiveResult.taskCognition,
+          confidence: cognitiveResult.confidence,
+          toolCount: cognitiveResult.toolRecommendations.length,
+          strategy: cognitiveResult.executionStrategy.type,
+        })
+
+        // Convert cognitive recommendations to advanced format
+        const advancedRecommendations = cognitiveResult.toolRecommendations.map((rec, index) => ({
+          ...rec,
+          securityLevel: this.mapToolToSecurityLevel(rec.tool),
+          category: this.mapToolToCategory(rec.tool),
+          executionOrder: index + 1,
+          estimatedDuration: cognitiveResult.routePlan.steps[index]?.estimatedDuration || 5000,
+          requiresApproval: cognitiveResult.riskAssessment.requiresApproval,
+          workspaceRestricted: true,
+        })) as AdvancedToolRecommendation[]
+
+        console.log(
+          chalk.green(
+            `✓ Cognitive routing: ${advancedRecommendations.length} tools, confidence ${(cognitiveResult.confidence * 100).toFixed(0)}%`
+          )
+        )
+
+        return advancedRecommendations
+      }
+
+      // FALLBACK: Original advanced routing (without cognitive)
       // Step 1: 🔍 Analyze Intent and Extract Tool Requirements
       const intentAnalysis = this.analyzeIntentAdvanced(context.userIntent)
 
@@ -919,6 +973,72 @@ export class ToolRouter extends EventEmitter {
       const basicRecommendations = this.analyzeMessage({ role: 'user', content: context.userIntent })
       return this.convertToAdvancedRecommendations(basicRecommendations)
     }
+  }
+
+  /**
+   * Enable/disable cognitive mode
+   */
+  setCognitiveMode(enabled: boolean): void {
+    this.cognitiveMode = enabled
+    console.log(chalk.blue(`🧠 Cognitive routing ${enabled ? 'enabled' : 'disabled'}`))
+  }
+
+  /**
+   * Get latest cognitive analysis result
+   */
+  getLatestCognitiveAnalysis(userMessage?: string): CognitiveAnalysisResult | undefined {
+    if (userMessage) {
+      return this.analysisCache.get(userMessage)
+    }
+    // Return most recent
+    const entries = Array.from(this.analysisCache.entries())
+    return entries.length > 0 ? entries[entries.length - 1][1] : undefined
+  }
+
+  /**
+   * Get cognitive routing statistics
+   */
+  getCognitiveStatistics() {
+    return this.cognitiveAnalyzer.getRoutingStatistics()
+  }
+
+  /**
+   * Map tool name to security level
+   */
+  private mapToolToSecurityLevel(toolName: string): 'safe' | 'moderate' | 'risky' | 'dangerous' {
+    const metadata = this.toolRegistry.getToolMetadata(toolName)
+    if (!metadata) return 'moderate'
+
+    const riskMap: Record<string, any> = {
+      low: 'safe',
+      medium: 'moderate',
+      high: 'risky',
+    }
+
+    return riskMap[metadata.riskLevel] || 'moderate'
+  }
+
+  /**
+   * Map tool name to category
+   */
+  private mapToolToCategory(
+    toolName: string
+  ): 'file' | 'command' | 'search' | 'analysis' | 'git' | 'package' | 'ide' | 'ai' | 'blockchain' {
+    const metadata = this.toolRegistry.getToolMetadata(toolName)
+    if (!metadata) return 'analysis'
+
+    const categoryMap: Record<string, any> = {
+      filesystem: 'file',
+      system: 'command',
+      search: 'search',
+      analysis: 'analysis',
+      vcs: 'git',
+      package: 'package',
+      ai: 'ai',
+      blockchain: 'blockchain',
+    }
+
+    return categoryMap[metadata.category] || 'analysis'
   }
 
   /**
