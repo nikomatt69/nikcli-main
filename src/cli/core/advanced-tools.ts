@@ -49,6 +49,19 @@ export class AdvancedTools {
         const geminiProvider = createGoogleGenerativeAI({ apiKey })
         return geminiProvider(configData.model)
       }
+      case 'openrouter': {
+        const apiKey = configManager.getApiKey(currentModelName)
+        if (!apiKey) throw new Error(`No API key found for model ${currentModelName} (OpenRouter)`)
+        const openrouterProvider = createOpenAI({
+          apiKey,
+          baseURL: 'https://openrouter.ai/api/v1',
+          headers: {
+            'HTTP-Referer': 'https://nikcli.ai',
+            'X-Title': 'NikCLI',
+          },
+        })
+        return openrouterProvider(configData.model)
+      }
       default:
         throw new Error(`Unsupported provider: ${configData.provider}`)
     }

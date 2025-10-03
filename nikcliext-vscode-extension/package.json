@@ -1,0 +1,120 @@
+{
+  "name": "nikcli-config-manager",
+  "displayName": "NikCLI Configuration & Agent Manager",
+  "description": "Visual configuration editor and background agent manager for NikCLI",
+  "version": "1.0.0",
+  "publisher": "nikcli",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onCommand:nikcli.openConfig",
+    "onCommand:nikcli.openAgents",
+    "onCommand:nikcli.launchBackgroundAgent",
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "nikcli.openConfig",
+        "title": "Open Configuration",
+        "category": "NikCLI",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "nikcli.openAgents",
+        "title": "Open Agent Manager",
+        "category": "NikCLI",
+        "icon": "$(robot)"
+      },
+      {
+        "command": "nikcli.launchBackgroundAgent",
+        "title": "Launch Background Agent",
+        "category": "NikCLI",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "nikcli.refreshConfig",
+        "title": "Refresh Configuration",
+        "category": "NikCLI",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "nikcli.validateConfig",
+        "title": "Validate Configuration",
+        "category": "NikCLI",
+        "icon": "$(check)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "nikcli-sidebar",
+          "title": "NikCLI",
+          "icon": "media/icons/nikcli.svg"
+        }
+      ]
+    },
+    "views": {
+      "nikcli-sidebar": [
+        {
+          "id": "nikcli.agentsView",
+          "name": "Active Agents"
+        },
+        {
+          "id": "nikcli.jobsView",
+          "name": "Background Jobs"
+        }
+      ]
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "nikcli.openConfig",
+          "when": "true"
+        },
+        {
+          "command": "nikcli.openAgents",
+          "when": "true"
+        },
+        {
+          "command": "nikcli.launchBackgroundAgent",
+          "when": "true"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "webpack --mode production",
+    "watch": "webpack --mode development --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "css-loader": "^6.8.0",
+    "eslint": "^8.45.0",
+    "style-loader": "^3.3.0",
+    "ts-loader": "^9.4.0",
+    "typescript": "^5.1.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.0"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zod": "^3.22.0"
+  }
+}
