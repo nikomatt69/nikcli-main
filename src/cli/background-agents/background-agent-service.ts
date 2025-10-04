@@ -297,20 +297,50 @@ export class BackgroundAgentService extends EventEmitter {
   }
 
   /**
-   * Handle job timeout
+   * Handle job timeout with proper cleanup
    */
-  private timeoutJob(jobId: string): void {
+  private async timeoutJob(jobId: string): Promise<void> {
     const job = this.jobs.get(jobId)
     if (job && job.status === 'running') {
       job.status = 'timeout'
       job.error = `Job timeout after ${job.limits.timeMin} minutes`
       job.completedAt = new Date()
 
-      this.logJob(job, 'error', 'Job timed out')
-      this.emit('job:timeout', job)
+      await this.logJob(job, 'error', 'Job timed out - cleaning up resources')
 
+      // Force cleanup VM container
+      if (job.containerId && job.containerId !== 'local') {
+        try {
+          await this.vmOrchestrator.stopContainer(job.containerId)
+          await this.vmOrchestrator.removeContainer(job.containerId)
+          this.vmStatusIndicator.unregisterAgent(job.id)
+          await this.logJob(job, 'info', `VM container ${job.containerId.slice(0, 12)} forcefully cleaned up`)
+        } catch (err: any) {
+          await this.logJob(job, 'error', `Failed to cleanup container: ${err.message}`)
+        }
+      }
+
+      this.emit('job:timeout', job)
       this.runningJobs--
+
+      // Notify user if GitHub context exists
+      if (job.githubContext) {
+        await this.notifyJobTimeout(job).catch((err) => {
+          console.error('Failed to notify job timeout:', err)
+        })
+      }
     }
+  }
+
+  /**
+   * Notify user about job timeout via GitHub comment
+   */
+  private async notifyJobTimeout(job: BackgroundJob): Promise<void> {
+    if (!job.githubContext) return
+
+    // This would integrate with GitHub API to post a comment
+    // For now, just log it
+    console.log(`📢 Would notify ${job.githubContext.author} about timeout for job ${job.id}`)
   }
 
   /**
@@ -498,29 +528,72 @@ export class BackgroundAgentService extends EventEmitter {
     }
 
     const playbook = playbookResult.playbook!
-    this.logJob(job, 'info', `Executing playbook: ${playbook.name}`)
+    await this.logJob(job, 'info', `Executing playbook: ${playbook.name}`)
 
     // Execute each step
     for (let i = 0; i < playbook.steps.length; i++) {
       const step = playbook.steps[i]
-      this.logJob(job, 'info', `Executing step ${i + 1}: ${step.run}`)
+      await this.logJob(job, 'info', `[Step ${i + 1}/${playbook.steps.length}] ${step.run}`)
 
       try {
+        let output = ''
         if (step.run.startsWith('nikcli')) {
           await this.executeNikCLICommand(job, repoDir, step.run)
         } else {
-          await this.executeShellCommand(job, repoDir, step.run)
+          output = await this.executeShellCommandWithOutput(job, repoDir, step.run)
         }
 
         job.metrics.toolCalls++
+        await this.logJob(job, 'info', `[Step ${i + 1}/${playbook.steps.length}] ✓ Success`)
+
+        if (output) {
+          await this.logJob(job, 'debug', `Output: ${output.substring(0, 500)}...`)
+        }
       } catch (error: any) {
+        const errorMsg = `[Step ${i + 1}/${playbook.steps.length}] Failed: ${error.message}`
+        await this.logJob(job, 'error', errorMsg)
+
+        // Log command output for debugging
+        if (error.stdout) {
+          await this.logJob(job, 'debug', `stdout: ${error.stdout}`)
+        }
+        if (error.stderr) {
+          await this.logJob(job, 'debug', `stderr: ${error.stderr}`)
+        }
+
         if (step.retry_on_failure) {
-          this.logJob(job, 'warn', `Step failed, retrying: ${error.message}`)
-          await this.executeShellCommand(job, repoDir, step.run)
+          await this.logJob(job, 'warn', `Retrying step ${i + 1}...`)
+          try {
+            await this.executeShellCommand(job, repoDir, step.run)
+            await this.logJob(job, 'info', `[Step ${i + 1}/${playbook.steps.length}] ✓ Success on retry`)
+          } catch (retryError: any) {
+            throw new Error(`Step ${i + 1} failed after retry: ${step.run} - ${retryError.message}`)
+          }
         } else {
-          throw new Error(`Step failed: ${step.run} - ${error.message}`)
+          throw new Error(`Step ${i + 1} failed: ${step.run} - ${error.message}`)
         }
       }
+    }
+  }
+
+  /**
+   * Execute shell command and return output
+   */
+  private async executeShellCommandWithOutput(job: BackgroundJob, workingDir: string, command: string): Promise<string> {
+    const { execSync } = await import('node:child_process')
+
+    try {
+      const output = execSync(command, {
+        cwd: workingDir,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      })
+      return output
+    } catch (error: any) {
+      // Preserve stdout/stderr for error reporting
+      error.stdout = error.stdout?.toString() || ''
+      error.stderr = error.stderr?.toString() || ''
+      throw error
     }
   }
 

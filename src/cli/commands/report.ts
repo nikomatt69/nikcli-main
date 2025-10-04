@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { AnalysisResult } from '../../types/report'
+import type { AnalysisResult } from '../types/report'
 import { runAnalysisWithEvents } from '../engine/events'
 import { HTMLReporter, JSONReporter, type Reporter } from '../reporters'
 
@@ -34,7 +34,7 @@ export async function generateReports(opts: ReportCmdOptions): Promise<AnalysisR
     fs.mkdirSync(path.dirname(latest), { recursive: true })
     try {
       fs.rmSync(latest, { recursive: true, force: true })
-    } catch {}
+    } catch { }
     fs.cpSync(outDir, latest, { recursive: true })
   } catch {
     /* ignore */

@@ -126,15 +126,34 @@ export class EnvironmentParser {
   private static validateConfiguration(config: NikEnvironment): string[] {
     const warnings: string[] = []
 
-    // Check for potentially dangerous commands
-    const dangerousPatterns = ['rm -rf', 'sudo', 'chmod 777', 'format']
+    // Check for potentially dangerous commands with word boundaries
+    const dangerousPatterns = [
+      { pattern: /\brm\s+-rf\s+\//g, name: 'rm -rf /' },
+      { pattern: /\bsudo\s+rm\b/g, name: 'sudo rm' },
+      { pattern: /\bchmod\s+777\b/g, name: 'chmod 777' },
+      { pattern: /\bmkfs\b/g, name: 'mkfs' },
+      { pattern: /\bdd\s+if=/g, name: 'dd if=' },
+    ]
+
+    // Check for command chaining that could be dangerous
+    const chainingPatterns = [/&&\s*rm/g, /;\s*rm/g, /\|\|\s*rm/g]
+
     const allCommands = [config.install, config.start, ...config.terminals.map((t) => t.command)]
 
     allCommands.forEach((cmd, index) => {
       if (!cmd) return
-      dangerousPatterns.forEach((pattern) => {
-        if (cmd.includes(pattern)) {
-          warnings.push(`Potentially dangerous command detected: "${pattern}" in command ${index}`)
+
+      // Check dangerous patterns
+      dangerousPatterns.forEach(({ pattern, name }) => {
+        if (pattern.test(cmd)) {
+          warnings.push(`Potentially dangerous command detected: "${name}" in command ${index}`)
+        }
+      })
+
+      // Check command chaining
+      chainingPatterns.forEach((pattern) => {
+        if (pattern.test(cmd)) {
+          warnings.push(`Potentially dangerous command chaining detected in command ${index}`)
         }
       })
     })

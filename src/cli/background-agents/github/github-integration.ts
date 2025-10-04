@@ -139,8 +139,11 @@ export class GitHubIntegration {
 
     try {
       // Check if there are changes to commit
-      const changesExist = await this.checkForChanges(job)
-      if (!changesExist) {
+      const changeResult = await this.checkForChanges(job)
+      if (changeResult.error) {
+        throw new Error(`Failed to check for changes: ${changeResult.error}`)
+      }
+      if (!changeResult.hasChanges) {
         throw new Error('No changes to commit')
       }
 
@@ -280,22 +283,51 @@ export class GitHubIntegration {
 
   /**
    * Check if there are changes in the work branch
+   * Returns: { hasChanges: boolean, error?: string }
    */
-  private async checkForChanges(job: BackgroundJob): Promise<boolean> {
+  private async checkForChanges(job: BackgroundJob, retries = 3): Promise<{ hasChanges: boolean; error?: string }> {
     const octokit = await this.getAuthenticatedOctokit()
     const [owner, repo] = job.repo.split('/')
 
-    try {
-      const comparison = await octokit.repos.compareCommitsWithBasehead({
-        owner,
-        repo,
-        basehead: `${job.baseBranch}...${job.workBranch}`,
-      })
+    let lastError: any = null
 
-      return Boolean(comparison.data.files && comparison.data.files.length > 0)
-    } catch (error: any) {
-      console.error(`Failed to check for changes:`, error.message)
-      return false
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const comparison = await octokit.repos.compareCommitsWithBasehead({
+          owner,
+          repo,
+          basehead: `${job.baseBranch}...${job.workBranch}`,
+        })
+
+        const hasChanges = Boolean(comparison.data.files && comparison.data.files.length > 0)
+        return { hasChanges }
+      } catch (error: any) {
+        lastError = error
+
+        // Check if it's a transient error (rate limit, network, server error)
+        const isTransient = error.status === 429 || // Rate limit
+          error.status >= 500 ||   // Server error
+          error.code === 'ECONNRESET' ||
+          error.code === 'ETIMEDOUT'
+
+        if (!isTransient || attempt === retries) {
+          console.error(`Failed to check for changes (attempt ${attempt}/${retries}):`, error.message)
+          return {
+            hasChanges: false,
+            error: `GitHub API error: ${error.message} (status: ${error.status || 'unknown'})`
+          }
+        }
+
+        // Wait before retry with exponential backoff
+        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000)
+        console.warn(`Transient error checking changes, retrying in ${waitTime}ms... (attempt ${attempt}/${retries})`)
+        await new Promise(resolve => setTimeout(resolve, waitTime))
+      }
+    }
+
+    return {
+      hasChanges: false,
+      error: `Failed after ${retries} attempts: ${lastError?.message || 'Unknown error'}`
     }
   }
 

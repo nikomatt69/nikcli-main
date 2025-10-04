@@ -75,9 +75,15 @@ export class BackgroundAgentsAPIServer {
   private setupMiddleware(): void {
     // Security
     this.app.use(helmet())
+
+    // Environment-driven CORS configuration
+    const allowedOrigins = process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+      : this.config.cors.origin
+
     this.app.use(
       cors({
-        origin: this.config.cors.origin,
+        origin: allowedOrigins,
         credentials: this.config.cors.credentials,
       })
     )
@@ -224,6 +230,25 @@ export class BackgroundAgentsAPIServer {
         })
         return
       }
+
+      // Require AI provider credentials from headers
+      const aiProvider = (req.headers['x-ai-provider'] as string | undefined)?.toLowerCase()
+      const aiModel = req.headers['x-ai-model'] as string | undefined
+      const aiKey = req.headers['x-ai-key'] as string | undefined
+
+      if (!aiKey || !aiProvider) {
+        res.status(400).json({
+          error: 'Bad Request',
+          message: 'Missing AI provider credentials (x-ai-provider, x-ai-key)',
+        })
+        return
+      }
+
+      // Mask key in any logs
+      const maskedKey = `${aiKey.slice(0, 4)}****${aiKey.slice(-4)}`
+      console.log('AI credentials received:', { provider: aiProvider, model: aiModel, key: maskedKey })
+
+      // TODO: inject credentials into job context (in-memory only)
 
       // Create job
       const jobId = await backgroundAgentService.createJob(request)

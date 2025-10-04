@@ -67,15 +67,17 @@ export class AdvancedTools {
     }
   }
 
-  private getEmbeddingModel(provider?: 'openai' | 'google') {
+  private getEmbeddingModel(provider?: 'openai' | 'google' | 'openrouter') {
     // Auto-detect provider based on available API keys if not specified
     if (!provider) {
       const openaiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
       const googleKey = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY
+      const openrouterKey = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
 
       if (openaiKey) provider = 'openai'
+      else if (openrouterKey) provider = 'openrouter'
       else if (googleKey) provider = 'google'
-      else throw new Error('No API key found for embeddings. Set OPENAI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY')
+      else throw new Error('No API key found for embeddings. Set OPENAI_API_KEY, OPENROUTER_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY')
     }
 
     switch (provider) {
@@ -90,6 +92,19 @@ export class AdvancedTools {
         if (!apiKey) throw new Error('Google API key not found for embeddings')
         const googleProvider = createGoogleGenerativeAI({ apiKey })
         return googleProvider.textEmbeddingModel('text-embedding-004')
+      }
+      case 'openrouter': {
+        const apiKey = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
+        if (!apiKey) throw new Error('OpenRouter API key not found for embeddings')
+        const openrouterProvider = createOpenAI({
+          apiKey,
+          baseURL: 'https://openrouter.ai/api/v1',
+          headers: {
+            'HTTP-Referer': 'https://nikcli.ai',
+            'X-Title': 'NikCLI',
+          },
+        })
+        return openrouterProvider.embedding('text-embedding-3-small')
       }
 
       default:
@@ -116,6 +131,15 @@ export class AdvancedTools {
         provider: 'google',
         available: !!googleKey,
         model: 'text-embedding-004',
+      })
+    } catch { }
+
+    try {
+      const openrouterKey = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
+      providers.push({
+        provider: 'openrouter',
+        available: !!openrouterKey,
+        model: 'text-embedding-3-small',
       })
     } catch { }
 

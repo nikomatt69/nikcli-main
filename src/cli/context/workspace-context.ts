@@ -104,6 +104,19 @@ export class WorkspaceContextManager {
   private readonly MAX_CACHE_SIZE = 1000
   private lastCacheCleanup = Date.now()
 
+  // Paths that should always surface in auto-filtered context
+  private readonly autoFilterPriorityTargets: Array<{
+    kind: 'directory' | 'file'
+    path: string
+    max?: number
+  }> = [
+      { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
+      { kind: 'directory', path: 'src/cli/cloud', max: 6 },
+      { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
+      { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
+      { kind: 'file', path: 'src/cli/core/config-manager.ts' },
+    ]
+
   // Integrated components
   private fileFilter: FileFilterSystem
   private isInitialized = false
@@ -193,7 +206,7 @@ export class WorkspaceContextManager {
 
   // Enhanced semantic search with RAG integration
   async searchSemantic(options: SemanticSearchOptions): Promise<ContextSearchResult[]> {
-    const { query, limit = 10, threshold = 0.3, useRAG = true } = options
+    const { query, limit = 20, threshold = 0.3, useRAG = true } = options
     const startTime = Date.now()
 
     // console.log(chalk.blue(`🔍 Semantic search: "${query}"`));
@@ -257,7 +270,7 @@ export class WorkspaceContextManager {
     query: string,
     limit: number,
     threshold: number,
-    maxTokens: number = 3000
+    maxTokens: number = 4000
   ): Promise<ContextSearchResult[]> {
     const results: ContextSearchResult[] = []
     const queryEmbedding = this.createSimpleEmbedding(query)
@@ -738,7 +751,7 @@ export class WorkspaceContextManager {
   // Get context for AI agents with automatic grep filtering
   getContextForAgent(
     agentId: string,
-    maxFiles: number = 20,
+    maxFiles: number = 50,
     searchQuery?: string
   ): {
     selectedPaths: string[]
@@ -774,7 +787,7 @@ export class WorkspaceContextManager {
   // Get filtered context using grep-like search
   private getFilteredContextForAgent(
     _agentId: string,
-    maxFiles: number = 20,
+    maxFiles: number = 50,
     searchQuery?: string
   ): {
     selectedPaths: string[]
@@ -1098,7 +1111,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
     // Use enhanced semantic search
     const searchResults = await this.searchSemantic({
       query,
-      limit: 10,
+      limit: 20,
       threshold: 0.2,
       includeContent: true,
       useRAG: true,
@@ -1346,7 +1359,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
     const lines = content.split('\n')
     const queryLower = query.toLowerCase()
     const snippets: string[] = []
-    const contextLines = 3 // Lines of context around matches
+    const contextLines = 5 // Lines of context around matches
 
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].toLowerCase().includes(queryLower)) {
@@ -1366,7 +1379,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       }
     }
 
-    return snippets.slice(0, 5) // Limit to 5 snippets per file
+    return snippets.slice(0, 10) // Limit to 5 snippets per file
   }
 
   // Display context summary

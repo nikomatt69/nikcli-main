@@ -6,13 +6,13 @@ import type { BackgroundJob } from '../types'
 
 export interface WebSocketMessage {
   type:
-    | 'job:created'
-    | 'job:started'
-    | 'job:completed'
-    | 'job:failed'
-    | 'job:log'
-    | 'heartbeat'
-    | 'connection:established'
+  | 'job:created'
+  | 'job:started'
+  | 'job:completed'
+  | 'job:failed'
+  | 'job:log'
+  | 'heartbeat'
+  | 'connection:established'
   data: any
   timestamp: Date
   clientId?: string
@@ -55,6 +55,15 @@ export class BackgroundAgentsWebSocketServer {
           this.handleClientMessage(clientId, message)
         } catch (error) {
           console.error('Error parsing WebSocket message:', error)
+          // Send error back to client
+          this.sendToClient(clientId, {
+            type: 'connection:established' as any,
+            data: {
+              error: 'Invalid message format',
+              details: error instanceof Error ? error.message : 'Unknown error'
+            },
+            timestamp: new Date(),
+          })
         }
       })
 

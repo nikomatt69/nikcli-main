@@ -29,9 +29,25 @@ export class GitHubWebhookHandler {
   }
 
   /**
-   * Verify GitHub webhook signature
+   * Verify GitHub webhook signature with replay attack prevention
    */
-  private verifySignature(payload: string, signature: string): boolean {
+  private verifySignature(payload: string, signature: string, timestamp?: string): boolean {
+    // Validate timestamp (reject requests older than 5 minutes to prevent replay attacks)
+    if (timestamp) {
+      const requestTime = parseInt(timestamp)
+      const now = Math.floor(Date.now() / 1000)
+      if (Math.abs(now - requestTime) > 300) {
+        console.error('❌ Webhook timestamp too old or from future')
+        return false
+      }
+    }
+
+    // Validate signature exists
+    if (!signature) {
+      console.error('❌ Missing webhook signature')
+      return false
+    }
+
     const expectedSignature = crypto
       .createHmac('sha256', this.config.webhookSecret)
       .update(payload, 'utf8')
@@ -49,13 +65,14 @@ export class GitHubWebhookHandler {
   async handleWebhook(req: any, res: any): Promise<void> {
     const signature = req.headers['x-hub-signature-256'] as string
     const event = req.headers['x-github-event'] as string
+    const timestamp = req.headers['x-hub-signature-timestamp'] as string
     // Prefer raw body for signature verification when available
     const payload = typeof req.rawBody === 'string' ? req.rawBody : JSON.stringify(req.body)
 
-    // Verify webhook signature
-    if (!this.verifySignature(payload, signature)) {
-      console.error('❌ Invalid webhook signature')
-      res.status(401).json({ error: 'Invalid signature' })
+    // Verify webhook signature with timestamp
+    if (!this.verifySignature(payload, signature, timestamp)) {
+      console.error('❌ Invalid webhook signature or timestamp')
+      res.status(401).json({ error: 'Invalid signature or timestamp' })
       return
     }
 

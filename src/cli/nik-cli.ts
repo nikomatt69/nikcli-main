@@ -6555,30 +6555,124 @@ EOF`
           this.beginPanelOutput()
           try {
             if (args.length === 0) {
-              const ctx = workspaceContext.getContextForAgent('cli', 10)
+              // Show comprehensive context stats with progress bar
+              const session = contextTokenManager.getCurrentSession()
+              const ctx = workspaceContext.getContextForAgent('universal-agent', 10)
               const lines: string[] = []
-              lines.push(`${chalk.blue('📁')} Root: ${this.workingDirectory}`)
-              lines.push(`🎯 Selected Paths (${ctx.selectedPaths.length}):`)
-              ctx.selectedPaths.forEach((p) => lines.push(`• ${p}`))
-              lines.push('')
-              lines.push('Tip: /context <paths...> to set paths')
+
+              // Helper to format tokens with k/M notation
+              const formatTokens = (tokens: number): string => {
+                if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`
+                if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`
+                return tokens.toString()
+              }
+
+              let percentage = 0
+              let borderColor: 'green' | 'red' | 'yellow' | 'cyan' = 'green'
+
+              if (!session) {
+                lines.push(chalk.yellow('⚠️ No active session'))
+                lines.push('')
+                lines.push(`${chalk.blue('📁')} Root: ${this.workingDirectory}`)
+                lines.push(`🎯 Selected Paths: ${ctx.selectedPaths.length}`)
+                lines.push('')
+                lines.push(chalk.gray('Start a conversation to see token stats'))
+              } else {
+                // Calculate token usage
+                const totalTokens = session.totalInputTokens + session.totalOutputTokens
+                const maxTokens = session.modelLimits.context
+                percentage = (totalTokens / maxTokens) * 100
+                const remaining = maxTokens - totalTokens
+
+                // Model & Session info
+                lines.push(chalk.cyan('🤖 Model:') + ` ${session.provider}/${session.model}`)
+                lines.push(chalk.cyan('📊 Context:') + ` ${formatTokens(totalTokens)}/${formatTokens(maxTokens)} tokens`)
+                lines.push('')
+
+                // Visual progress bar
+                const progressBar = this.createProgressBarString(percentage, 40)
+                lines.push(chalk.cyan('Usage:'))
+                lines.push(`  ${progressBar}`)
+                lines.push(`  ${chalk.gray('Remaining:')} ${formatTokens(remaining)} (${(100 - percentage).toFixed(1)}%)`)
+                lines.push('')
+
+                // RAG Context
+                lines.push(chalk.cyan('🗂️  RAG Context:'))
+                lines.push(`  Root: ${chalk.white(path.relative(process.cwd(), this.workingDirectory) || '.')}`)
+                lines.push(`  Indexed Paths: ${chalk.white(ctx.selectedPaths.length.toString())}`)
+
+                if (ctx.selectedPaths.length > 0) {
+                  const pathsToShow = ctx.selectedPaths.slice(0, 3)
+                  pathsToShow.forEach((p: string) => {
+                    const rel = path.relative(this.workingDirectory, p)
+                    lines.push(`    • ${chalk.gray(rel || '.')}`)
+                  })
+                  if (ctx.selectedPaths.length > 3) {
+                    lines.push(`    ${chalk.gray(`... +${ctx.selectedPaths.length - 3} more`)}`)
+                  }
+                }
+                lines.push('')
+
+                // Tips
+                if (percentage >= 80) {
+                  lines.push(chalk.yellow('⚠️  High usage! Use /clear to reset'))
+                } else {
+                  lines.push(chalk.gray('💡 Use /context <path> to load from RAG'))
+                }
+
+                // Set border color based on usage
+                borderColor = percentage >= 90 ? 'red' : percentage >= 80 ? 'yellow' : 'cyan'
+              }
 
               this.printPanel(
                 boxen(lines.join('\n'), {
-                  title: '🌍 Workspace Context',
+                  title: '📊 Context Statistics',
                   padding: 1,
                   margin: 1,
                   borderStyle: 'round',
-                  borderColor: 'green',
+                  borderColor: borderColor,
                 })
               )
             } else {
+              // Load paths with progress indication
               const paths = args
+
+              // Show loading message
+              console.log(chalk.blue(`\n⚡ Loading ${paths.length} path(s) into context...`))
+
               await workspaceContext.selectPaths(paths)
-              const confirm = [`Updated selected paths (${paths.length}):`, ...paths.map((p) => `• ${p}`)].join('\n')
+
+              console.log(chalk.green('✓ Context updated\n'))
+
+              // Show updated context stats
+              const session = contextTokenManager.getCurrentSession()
+              const ctx = workspaceContext.getContextForAgent('universal-agent', 10)
+              const lines: string[] = []
+
+              lines.push(chalk.green('✓ Paths Loaded:'))
+              paths.slice(0, 5).forEach((p) => {
+                const rel = path.relative(this.workingDirectory, p)
+                lines.push(`  • ${chalk.gray(rel || p)}`)
+              })
+              if (paths.length > 5) {
+                lines.push(`  ${chalk.gray(`... +${paths.length - 5} more`)}`)
+              }
+              lines.push('')
+
+              if (session) {
+                const totalTokens = session.totalInputTokens + session.totalOutputTokens
+                const maxTokens = session.modelLimits.context
+                const percentage = (totalTokens / maxTokens) * 100
+
+                lines.push(chalk.cyan('📊 Updated Context:'))
+                const progressBar = this.createProgressBarString(percentage, 30)
+                lines.push(`  ${progressBar}`)
+                lines.push(`  Total Indexed: ${chalk.white(ctx.selectedPaths.length.toString())} paths`)
+              }
+
               this.printPanel(
-                boxen(confirm, {
-                  title: '🌍 Workspace Context Updated',
+                boxen(lines.join('\n'), {
+                  title: '🌍 Context Updated',
                   padding: 1,
                   margin: 1,
                   borderStyle: 'round',

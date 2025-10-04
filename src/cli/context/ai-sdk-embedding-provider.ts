@@ -62,14 +62,15 @@ export class AiSdkEmbeddingProvider {
     anthropic: {
       provider: 'openai',
       model: 'text-embedding-3-small', // Fallback to text generation if no embedding
-      batchSize: 10,
+      batchSize: 100,
       maxTokens: 1000,
       costPer1KTokens: 0.0001,
     },
+
     openrouter: {
-      provider: 'openrouter',
-      model: 'openai/text-embedding-3-small', // Uses OpenAI compatible embeddings
-      batchSize: 50,
+      provider: 'openai',
+      model: 'text-embedding-3-small', // Uses OpenAI compatible embeddings
+      batchSize: 100,
       maxTokens: 8191,
       costPer1KTokens: 0.00003, // Slightly higher than OpenAI direct
     },

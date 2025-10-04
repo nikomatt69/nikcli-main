@@ -58,8 +58,16 @@ export class TaskExecutor {
   private detectBackgroundAgentAvailability(): boolean {
     try {
       // Check if backgroundAgentService is accessible
-      return typeof backgroundAgentService !== 'undefined' && typeof backgroundAgentService.createJob === 'function'
-    } catch {
+      const isAvailable = typeof backgroundAgentService !== 'undefined' && typeof backgroundAgentService.createJob === 'function'
+
+      if (!isAvailable) {
+        console.warn('⚠️  Background agent service not available - will fall back to local execution')
+      }
+
+      return isAvailable
+    } catch (error) {
+      console.error('❌ Error detecting background agent service:', error)
+      console.warn('⚠️  Falling back to local execution mode')
       return false
     }
   }
@@ -72,7 +80,7 @@ export class TaskExecutor {
     advancedUI.logFunctionCall('executing')
     advancedUI.logFunctionUpdate('info', job.mention.command, '●')
 
-    try{
+    try {
       // Parse the command
       const parsedCommand = this.commentProcessor.parseCommand(job.mention)
       if (!parsedCommand) {

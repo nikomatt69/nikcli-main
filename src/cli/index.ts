@@ -68,7 +68,10 @@ import { Logger } from './core/logger'
 import { NikCLI } from './nik-cli'
 import { ideAwareFormatter } from './ui/ide-aware-formatter'
 import { ExecutionPolicyManager } from './policies/execution-policy'
+// Core cloud services - imported to initialize singletons (enabled by default)
 import { enhancedSupabaseProvider } from './providers/supabase/enhanced-supabase-provider'
+import { redisProvider } from './providers/redis/redis-provider'
+import { cacheService } from './services/cache-service'
 import { registerAgents } from './register-agents'
 import { agentService } from './services/agent-service'
 import { lspService } from './services/lsp-service'
@@ -512,7 +515,7 @@ class OnboardingModule {
     let runtimeOk = true
 
     try {
-      // @ts-expect-error - Bun global exists when running with Bun
+
       if (typeof Bun !== 'undefined') {
         runtimeOk = true
       } else {
@@ -1102,10 +1105,10 @@ class SystemModule {
   static checkNodeVersion(): boolean {
     // Prefer Bun if present
     try {
-      // @ts-expect-error - Bun exists at runtime when using Bun
       if (typeof Bun !== 'undefined') {
         return true
       }
+      // Bun exists at runtime when using Bun
     } catch (_) {
       // ignore and fall back to Node check
     }

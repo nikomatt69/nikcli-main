@@ -38,6 +38,12 @@ export class JobQueue extends EventEmitter {
     this.config = config
     this.maxConcurrentJobs = config.maxConcurrentJobs || 3
 
+    // Prevent unhandled 'error' from crashing the process
+    this.on('error', (err) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.warn('Queue warning:', msg)
+    })
+
     if (config.type === 'redis' && config.redis) {
       this.initRedisQueue()
     }
@@ -65,6 +71,13 @@ export class JobQueue extends EventEmitter {
     this.redis.on('error', (error) => {
       console.error('Redis queue error:', error)
       this.emit('error', error)
+
+      // Gracefully degrade to local queue if Redis disconnects/errors
+      try {
+        this.redis?.disconnect()
+      } catch {}
+      this.redis = undefined
+      this.config.type = 'local'
     })
 
     // Start job processor
@@ -160,7 +173,7 @@ export class JobQueue extends EventEmitter {
   }
 
   /**
-   * Process Redis jobs
+   * Process Redis jobs with proper locking
    */
   private async processRedisJobs(): Promise<void> {
     if (!this.redis) return
@@ -175,6 +188,14 @@ export class JobQueue extends EventEmitter {
     const [jobDataStr] = jobs
     const queueData: QueuedJobData = JSON.parse(jobDataStr)
 
+    // Try to acquire lock
+    const lockAcquired = await this.acquireJobLock(queueData.jobId)
+    if (!lockAcquired) {
+      // Another process is handling this job, put it back
+      await this.redis.zadd('background-jobs:waiting', Date.now(), jobDataStr)
+      return
+    }
+
     this.processing.add(queueData.jobId)
     this.emit('job:processing', queueData.jobId)
 
@@ -183,8 +204,34 @@ export class JobQueue extends EventEmitter {
       this.emit('job:ready', queueData.jobId)
     } catch (error) {
       console.error(`Failed to process job ${queueData.jobId}:`, error)
+      await this.releaseJobLock(queueData.jobId)
       await this.retryJob(queueData)
     }
+  }
+
+  /**
+   * Acquire Redis-based job lock
+   */
+  private async acquireJobLock(jobId: string): Promise<boolean> {
+    if (!this.redis) return true
+
+    const lockKey = `background-jobs:lock:${jobId}`
+    const lockValue = `${process.pid}-${Date.now()}`
+
+    // Try to acquire lock with 10 minute expiry (EX seconds) and NX (only if not exists)
+    const result = await this.redis.set(lockKey, lockValue, 'EX', 600, 'NX')
+
+    return result === 'OK'
+  }
+
+  /**
+   * Release job lock
+   */
+  private async releaseJobLock(jobId: string): Promise<void> {
+    if (!this.redis) return
+
+    const lockKey = `background-jobs:lock:${jobId}`
+    await this.redis.del(lockKey)
   }
 
   /**
@@ -210,6 +257,7 @@ export class JobQueue extends EventEmitter {
     this.processing.delete(jobId)
 
     if (this.config.type === 'redis' && this.redis) {
+      await this.releaseJobLock(jobId)
       await this.redis.hdel('background-jobs:data', jobId)
       await this.redis.zadd('background-jobs:completed', Date.now(), jobId)
     }
@@ -229,6 +277,7 @@ export class JobQueue extends EventEmitter {
     this.processing.delete(jobId)
 
     if (this.config.type === 'redis' && this.redis) {
+      await this.releaseJobLock(jobId)
       await this.redis.hdel('background-jobs:data', jobId)
       await this.redis.zadd('background-jobs:failed', Date.now(), JSON.stringify({ jobId, error }))
     }

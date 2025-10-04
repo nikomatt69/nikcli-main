@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { EventEmitter } from 'events';
-import type { NikCLIConfig } from '../types/config.types';
+import type { NikCLIConfig, MCPServerConfig } from '../types/config.types';
 
 export class ConfigProvider extends EventEmitter {
   private configPath: string;
@@ -79,9 +79,9 @@ export class ConfigProvider extends EventEmitter {
     await this.updateSection('sandbox', { ...config.sandbox, trustedDomains });
   }
 
-  async addMCPServer(name: string, serverConfig: NikCLIConfig['mcp'][string]): Promise<void> {
+  async addMCPServer(name: string, serverConfig: MCPServerConfig): Promise<void> {
     const config = await this.readConfig();
-    const mcp = { ...config.mcp, [name]: serverConfig };
+    const mcp = { ...(config.mcp || {}), [name]: serverConfig };
     await this.updateSection('mcp', mcp);
   }
 
