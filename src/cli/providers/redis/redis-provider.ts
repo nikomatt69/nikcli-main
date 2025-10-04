@@ -264,7 +264,15 @@ export class RedisProvider extends EventEmitter {
         return null
       }
 
-      const entry: CacheEntry<T> = JSON.parse(serializedValue as string)
+      let entry: CacheEntry<T>
+      try {
+        entry = JSON.parse(serializedValue as string)
+      } catch (parseError) {
+        // Corrupted data detected - auto-clean and return null
+        console.log(chalk.yellow(`⚠️ Corrupted cache data for key ${key}, auto-cleaning...`))
+        await this.del(key).catch(() => {}) // Silent cleanup failure
+        return null
+      }
 
       // Check TTL if specified in entry
       if (entry.ttl && entry.timestamp) {
@@ -497,7 +505,14 @@ export class RedisProvider extends EventEmitter {
         return null
       }
 
-      const vectorEntry: VectorCacheEntry = JSON.parse(serializedValue as string)
+      let vectorEntry: VectorCacheEntry
+      try {
+        vectorEntry = JSON.parse(serializedValue as string)
+      } catch (parseError) {
+        // Corrupted vector cache data - auto-clean and return null
+        await this.del(cacheKey).catch(() => {})
+        return null
+      }
 
       // Verify text matches (additional security)
       const crypto = require('node:crypto')

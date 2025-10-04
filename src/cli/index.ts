@@ -516,9 +516,7 @@ class OnboardingModule {
 
     try {
 
-      if (typeof Bun !== 'undefined') {
-        runtimeOk = true
-      } else {
+      {
         const version = process.version
         const major = parseInt(version.slice(1).split('.')[0])
         if (major < 18) {
@@ -1105,7 +1103,7 @@ class SystemModule {
   static checkNodeVersion(): boolean {
     // Prefer Bun if present
     try {
-      if (typeof Bun !== 'undefined') {
+      {
         return true
       }
       // Bun exists at runtime when using Bun

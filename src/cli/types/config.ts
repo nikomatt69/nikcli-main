@@ -63,6 +63,31 @@ export interface SessionConfig {
   userPreferences: UserPreferences
 }
 
+export interface MermaidRenderingPreferences {
+  /** Rendering strategy: auto uses terminal capabilities detection */
+  strategy: 'auto' | 'inline-image' | 'ascii-art' | 'fallback'
+  /** Enable caching of rendered diagrams for performance */
+  enableCache: boolean
+  /** Horizontal spacing between nodes in ASCII rendering (default: 5) */
+  asciiPaddingX: number
+  /** Vertical spacing between nodes in ASCII rendering (default: 5) */
+  asciiPaddingY: number
+  /** Padding between text and border in ASCII rendering (default: 1) */
+  asciiBorderPadding: number
+  /** Mermaid diagram theme */
+  theme: 'default' | 'dark' | 'neutral' | 'forest'
+}
+
+// Default Mermaid rendering preferences
+export const DEFAULT_MERMAID_RENDERING_PREFERENCES: MermaidRenderingPreferences = {
+  strategy: 'auto',
+  enableCache: true,
+  asciiPaddingX: 5,
+  asciiPaddingY: 5,
+  asciiBorderPadding: 1,
+  theme: 'dark',
+}
+
 export interface UserPreferences {
   autoSave: boolean
   showTokenUsage: boolean
@@ -70,6 +95,7 @@ export interface UserPreferences {
   preferredOutputFormat: 'json' | 'markdown' | 'plain'
   theme: 'dark' | 'light' | 'auto'
   notifications: NotificationSettings
+  mermaidRendering?: MermaidRenderingPreferences
 }
 
 export interface NotificationSettings {

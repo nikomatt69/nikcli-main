@@ -430,11 +430,20 @@ class UpstashVectorStore extends VectorStore {
         this.vectorToken = vectorToken
         this.indexKey = `vec:index:${this.config.collectionName}`
         console.log(chalk.gray('🔗 Using Upstash Vector (REST)'))
-        // Quick GET to ensure reachable
+        console.log(chalk.gray(`   URL: ${vectorUrl}`))
+        console.log(chalk.gray(`   Collection: ${this.config.collectionName}`))
+
+        // Quick health check to ensure reachable
         try {
-          await axios.get(vectorUrl, { headers: { Authorization: `Bearer ${vectorToken}` } })
-        } catch (_e) {
-          // Endpoint root may not be public; ignore
+          const response = await axios.get(`${vectorUrl}/info`, {
+            headers: { Authorization: `Bearer ${vectorToken}` },
+            timeout: 5000
+          })
+          console.log(chalk.green(`✓ Upstash Vector connected (dimension: ${response.data?.dimension || 'unknown'})`))
+        } catch (error: any) {
+          // Try without /info endpoint
+          console.log(chalk.yellow(`⚠️ Vector info check failed: ${error.message}`))
+          console.log(chalk.gray('   Proceeding anyway (endpoint may not support /info)'))
         }
         console.log(chalk.green('✓ Upstash Vector ready'))
         return true

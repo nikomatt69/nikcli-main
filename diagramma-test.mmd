@@ -1,0 +1,33 @@
+
+flowchart TD
+    Start([Start]) --> EnterCredentials[Enter Username & Password]
+    EnterCredentials --> ValidateInput{Validate Input}
+    
+    ValidateInput -->|Valid| CheckCredentials{Check Credentials}
+    ValidateInput -->|Invalid| ShowError1[Show Error: Invalid Input]
+    
+    ShowError1 --> EnterCredentials
+    
+    CheckCredentials -->|Valid| CheckAccountStatus{Check Account Status}
+    CheckCredentials -->|Invalid| ShowError2[Show Error: Invalid Credentials]
+    
+    ShowError2 --> EnterCredentials
+    
+    CheckAccountStatus -->|Active| GenerateToken[Generate Auth Token]
+    CheckAccountStatus -->|Locked| ShowError3[Show Error: Account Locked]
+    CheckAccountStatus -->|Inactive| ShowError4[Show Error: Account Inactive]
+    
+    ShowError3 --> End([End])
+    ShowError4 --> End
+    
+    GenerateToken --> StoreSession[Store Session Data]
+    StoreSession --> RedirectDashboard[Redirect to Dashboard]
+    RedirectDashboard --> End
+
+    style Start fill:#90EE90
+    style End fill:#FFB6C1
+    style ShowError1 fill:#FF6B6B
+    style ShowError2 fill:#FF6B6B
+    style ShowError3 fill:#FF6B6B
+    style ShowError4 fill:#FF6B6B
+```

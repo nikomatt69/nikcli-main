@@ -8280,3 +8280,50 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 }
+
+/**
+ * Display Mermaid rendering capabilities and diagnostics
+ */
+export async function handleMermaidInfo(): Promise<void> {
+  const { TerminalCapabilityDetector } = await import('../utils/terminal-capabilities')
+  const { getMermaidRenderingPreferences } = await import('../core/config-manager')
+
+  console.log(chalk.blue.bold('\n🎨 Mermaid Diagram Rendering Info\n'))
+
+  // Terminal capabilities
+  console.log(chalk.cyan('Terminal Capabilities:'))
+  const capabilitiesInfo = TerminalCapabilityDetector.getCapabilitiesDescription()
+  console.log(capabilitiesInfo)
+
+  // Current configuration
+  console.log(chalk.cyan('\nCurrent Configuration:'))
+  const preferences = getMermaidRenderingPreferences()
+  console.log(`  Strategy: ${chalk.white(preferences.strategy)}`)
+  console.log(`  Cache Enabled: ${chalk.white(preferences.enableCache ? '✓' : '✗')}`)
+  console.log(`  Theme: ${chalk.white(preferences.theme)}`)
+  console.log(`  ASCII Padding: ${chalk.white(`X:${preferences.asciiPaddingX} Y:${preferences.asciiPaddingY} Border:${preferences.asciiBorderPadding}`)}`)
+
+  // Recommendations
+  console.log(chalk.cyan('\nRecommendations:'))
+  const caps = TerminalCapabilityDetector.getCapabilities()
+
+  if (!caps.hasMermaidAsciiBinary) {
+    console.log(chalk.yellow('  ⚠️  mermaid-ascii not installed'))
+    console.log(chalk.gray('     Install for high-quality ASCII diagrams:'))
+    console.log(chalk.gray('     See: docs/features/mermaid-rendering.md'))
+  } else {
+    console.log(chalk.green('  ✓ mermaid-ascii available - ASCII rendering enabled'))
+  }
+
+  if (caps.supportsInlineImages && caps.imageProtocol !== 'ansi-fallback') {
+    console.log(chalk.green(`  ✓ Inline images supported via ${caps.imageProtocol}`))
+  } else {
+    console.log(chalk.gray('  ℹ️  Inline images not supported in current terminal'))
+    console.log(chalk.gray('     Consider using iTerm2, Kitty, or WezTerm for image support'))
+  }
+
+  console.log(chalk.cyan('\nDocumentation:'))
+  console.log(chalk.gray('  📖 docs/features/mermaid-rendering.md'))
+  console.log(chalk.gray('  🌐 https://mermaid.live/ - Online editor'))
+  console.log('')
+}

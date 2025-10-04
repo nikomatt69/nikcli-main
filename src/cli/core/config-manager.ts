@@ -1514,3 +1514,16 @@ export const simpleConfigManager = new SimpleConfigManager()
 // Export aliases for compatibility
 export const ConfigManager = SimpleConfigManager
 export const configManager = simpleConfigManager
+
+/**
+ * Get Mermaid rendering preferences with defaults
+ * @returns Mermaid rendering preferences configuration
+ */
+export function getMermaidRenderingPreferences() {
+  // Import here to avoid circular dependencies
+  const { DEFAULT_MERMAID_RENDERING_PREFERENCES } = require('../types/config')
+
+  // TODO: In future, load from user config if available
+  // For now, return defaults
+  return DEFAULT_MERMAID_RENDERING_PREFERENCES
+}

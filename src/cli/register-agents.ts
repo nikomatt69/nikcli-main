@@ -1,7 +1,9 @@
+
 import { UniversalAgent } from './automation/agents/universal-agent'
 import type { AgentManager } from './core/agent-manager'
 import { SecureVirtualizedAgent } from './virtualized-agents/secure-vm-agent'
-
+import { CognitiveAgentBase as CognitiveAgentBaseClass } from './automation/agents/cognitive-agent-base'
+import { AutonomousOrchestrator } from './automation/agents/autonomous-orchestrator'
 export function registerAgents(agentManager: AgentManager): void {
   // Register the unified UniversalAgent for enterprise production use
   agentManager.registerAgentClass(UniversalAgent, {
@@ -101,7 +103,91 @@ export function registerAgents(agentManager: AgentManager): void {
       sandboxRestrictions: [],
     },
   })
+  agentManager.registerAgentClass(UniversalAgent, {
+    id: 'cognitive-agent-base',
+    name: 'Cognitive Agent Base',
+    description: 'Specialized cognitive agent for intelligent code generation, analysis, and autonomous development workflows',
+    specialization: 'cognitive',
+    version: '0.3.0',
+    capabilities: [
+      // Cognitive Core
+      'code-generation',
+      'code-analysis',
+      'code-review',
+      'optimization',
+      'debugging',
+      'refactoring',
+      'testing',
+      'autonomous-coding',
 
+      // Language Stack (consolidated)
+      'typescript',
+      'javascript',
+      'react',
+      'nextjs',
+      'nodejs',
+      'frontend',
+      'backend',
+      'fullstack-development',
+
+      // API & Services
+      'api-development',
+      'rest-api',
+      'graphql',
+      'database',
+      'microservices',
+
+      // DevOps Essentials
+      'ci-cd',
+      'docker',
+      'deployment',
+      'monitoring',
+
+      // Intelligence & Analysis
+      'performance-analysis',
+      'security-analysis',
+      'architecture-review',
+      'quality-assessment',
+      'documentation-generation',
+
+      // Project Operations
+      'file-operations',
+      'project-creation',
+    ],
+    category: 'cognitive',
+    tags: ['cognitive', 'intelligent', 'autonomous', 'production-ready'],
+    requiresGuidance: false,
+    defaultConfig: {
+      autonomyLevel: 'fully-autonomous',
+      maxConcurrentTasks: 3,
+      defaultTimeout: 300000,
+      retryPolicy: {
+        maxAttempts: 3,
+        backoffMs: 1000,
+        backoffMultiplier: 2,
+        retryableErrors: ['timeout', 'network', 'temporary'],
+      },
+      enabledTools: ['file', 'terminal', 'git', 'npm', 'analysis'],
+      guidanceFiles: [],
+      logLevel: 'info',
+      permissions: {
+        canReadFiles: true,
+        canWriteFiles: true,
+        canDeleteFiles: true,
+        allowedPaths: ['*'],
+        forbiddenPaths: ['/etc', '/system'],
+        canExecuteCommands: true,
+        allowedCommands: ['*'],
+        forbiddenCommands: ['rm -rf /', 'format', 'fdisk'],
+        canAccessNetwork: true,
+        allowedDomains: ['*'],
+        canInstallPackages: true,
+        canModifyConfig: true,
+        canAccessSecrets: false,
+      },
+      sandboxRestrictions: [],
+    },
+  })
   // Register SecureVirtualizedAgent for autonomous VM-based development
   agentManager.registerAgentClass(SecureVirtualizedAgent, {
     id: 'vm-agent',
