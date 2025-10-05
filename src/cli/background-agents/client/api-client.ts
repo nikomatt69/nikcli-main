@@ -314,11 +314,7 @@ export class BackgroundAgentsClient {
   /**
    * Stream job logs using Server-Sent Events
    */
-  async *streamJobLogs(jobId: string): AsyncGenerator<
-    { type: string; data: any },
-    void,
-    unknown
-  > {
+  async *streamJobLogs(jobId: string): AsyncGenerator<{ type: string; data: any }, void, unknown> {
     const response = await axios.get(`${this.baseUrl}/v1/jobs/${jobId}/stream`, {
       responseType: 'stream',
       timeout: 0, // No timeout for streaming
@@ -389,9 +385,6 @@ export class BackgroundAgentsClient {
 /**
  * Create a default client instance
  */
-export function createBackgroundAgentsClient(
-  config?: BackgroundAgentsClientConfig
-): BackgroundAgentsClient {
+export function createBackgroundAgentsClient(config?: BackgroundAgentsClientConfig): BackgroundAgentsClient {
   return new BackgroundAgentsClient(config)
 }
-

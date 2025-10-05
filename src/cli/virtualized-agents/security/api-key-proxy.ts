@@ -250,7 +250,9 @@ export class APIKeyProxy extends EventEmitter {
           maxTokens: Math.min(request.maxTokens || 2000, this.MAX_TOKENS_PER_REQUEST),
           context: request.context,
         })) {
-          advancedUI.logInfo(`📦 Stream event: ${streamEvent.type} - ${streamEvent.content?.slice(0, 50) || 'no content'}`)
+          advancedUI.logInfo(
+            `📦 Stream event: ${streamEvent.type} - ${streamEvent.content?.slice(0, 50) || 'no content'}`
+          )
 
           // Handle different types of stream events from advanced AI provider
           switch (streamEvent.type) {
@@ -509,9 +511,9 @@ export class APIKeyProxy extends EventEmitter {
       const token = authHeader.slice(7)
       const tokenData = await this.tokenManager.verifyToken(token)
 
-        // Add token data to request
-        ; (req as any).agentId = tokenData.agentId
-        ; (req as any).tokenData = tokenData
+      // Add token data to request
+      ;(req as any).agentId = tokenData.agentId
+      ;(req as any).tokenData = tokenData
 
       next()
     } catch (_error: any) {
@@ -586,7 +588,7 @@ export class APIKeyProxy extends EventEmitter {
 
           // Flush buffer for real-time streaming
           if ((res as any).flush) {
-            ; (res as any).flush()
+            ;(res as any).flush()
           }
         }
 

@@ -542,7 +542,7 @@ export class UnifiedRAGSystem {
       console.log(
         chalk.green(
           `✓ Found ${finalResults.length} results in ${duration}ms ` +
-          `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
+            `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
         )
       )
 
@@ -665,7 +665,9 @@ export class UnifiedRAGSystem {
 
         if (documentsToIndex.length > MAX_TOTAL_DOCUMENTS) {
           console.log(
-            chalk.yellow(`⚠️ Document count (${documentsToIndex.length}) exceeds ${activeProvider} quota limit (${MAX_TOTAL_DOCUMENTS})`)
+            chalk.yellow(
+              `⚠️ Document count (${documentsToIndex.length}) exceeds ${activeProvider} quota limit (${MAX_TOTAL_DOCUMENTS})`
+            )
           )
           console.log(chalk.yellow(`   Limiting to ${MAX_TOTAL_DOCUMENTS} most important documents`))
           // Sort by priority (files with more code content first)
@@ -690,7 +692,11 @@ export class UnifiedRAGSystem {
               embeddingBatch[j].embedding = embeddings[j].vector
             }
           } catch (error) {
-            console.log(chalk.yellow(`⚠️ Failed to generate embeddings for batch ${Math.floor(i / embeddingBatchSize) + 1}: ${error}`))
+            console.log(
+              chalk.yellow(
+                `⚠️ Failed to generate embeddings for batch ${Math.floor(i / embeddingBatchSize) + 1}: ${error}`
+              )
+            )
           }
         }
 
@@ -1828,7 +1834,7 @@ export class UnifiedRAGSystem {
     console.log(
       chalk.blue(
         `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+          `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
       )
     )
 

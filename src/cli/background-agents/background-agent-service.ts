@@ -579,7 +579,11 @@ export class BackgroundAgentService extends EventEmitter {
   /**
    * Execute shell command and return output
    */
-  private async executeShellCommandWithOutput(job: BackgroundJob, workingDir: string, command: string): Promise<string> {
+  private async executeShellCommandWithOutput(
+    job: BackgroundJob,
+    workingDir: string,
+    command: string
+  ): Promise<string> {
     const { execSync } = await import('node:child_process')
 
     try {

@@ -7,21 +7,21 @@ import fs from 'node:fs/promises'
 import type { BenchmarkSession } from '../types'
 
 export class HTMLGenerator {
-    /**
-     * Generate complete HTML report
-     */
-    async generateReport(session: BenchmarkSession, outputPath: string): Promise<void> {
-        const html = this.buildHTML(session)
-        await fs.writeFile(outputPath, html, 'utf-8')
-    }
+  /**
+   * Generate complete HTML report
+   */
+  async generateReport(session: BenchmarkSession, outputPath: string): Promise<void> {
+    const html = this.buildHTML(session)
+    await fs.writeFile(outputPath, html, 'utf-8')
+  }
 
-    /**
-     * Build complete HTML document
-     */
-    private buildHTML(session: BenchmarkSession): string {
-        const m = session.metrics
+  /**
+   * Build complete HTML document
+   */
+  private buildHTML(session: BenchmarkSession): string {
+    const m = session.metrics
 
-        return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -153,7 +153,9 @@ export class HTMLGenerator {
                 </tr>
             </thead>
             <tbody>
-                ${session.tasks.map(t => `
+                ${session.tasks
+                  .map(
+                    (t) => `
                 <tr>
                     <td><code>${t.taskId}</code></td>
                     <td class="${t.success ? 'success' : 'failure'}">${t.success ? '✓ Pass' : '✗ Fail'}</td>
@@ -162,7 +164,9 @@ export class HTMLGenerator {
                     <td>$${t.cost.toFixed(4)}</td>
                     <td>${t.accuracy ? (t.accuracy * 100).toFixed(1) + '%' : 'N/A'}</td>
                 </tr>
-                `).join('')}
+                `
+                  )
+                  .join('')}
             </tbody>
         </table>
 
@@ -250,6 +254,5 @@ export class HTMLGenerator {
     </script>
 </body>
 </html>`
-    }
+  }
 }
-

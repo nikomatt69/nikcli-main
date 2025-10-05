@@ -1,6 +1,6 @@
 import chalk from 'chalk'
-import { toolRouter, type ToolRecommendation } from './tool-router'
 import { ToolRegistry } from '../tools/tool-registry'
+import { type ToolRecommendation, toolRouter } from './tool-router'
 
 /**
  * Dynamic Tool Selector
@@ -67,9 +67,7 @@ export class DynamicToolSelector {
     const combinedRecommendations = [...filteredRecommendations, ...alternativeTools]
 
     // 6. Sort by final confidence and return top N
-    const sortedRecommendations = combinedRecommendations
-      .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, maxTools)
+    const sortedRecommendations = combinedRecommendations.sort((a, b) => b.confidence - a.confidence).slice(0, maxTools)
 
     // 7. Update usage history
     sortedRecommendations.forEach((rec) => {
@@ -318,5 +316,3 @@ export class DynamicToolSelector {
 export function createDynamicToolSelector(workingDirectory: string): DynamicToolSelector {
   return new DynamicToolSelector(workingDirectory)
 }
-
-

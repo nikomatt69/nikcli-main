@@ -3,7 +3,7 @@
 // Designed for cloud deployment (Railway, Render, etc.)
 
 import dotenv from 'dotenv'
-import { BackgroundAgentsAPIServer, type APIServerConfig } from './server'
+import { type APIServerConfig, BackgroundAgentsAPIServer } from './server'
 
 // Load environment variables
 dotenv.config()
@@ -126,33 +126,21 @@ async function startServer() {
   const missingVars = requiredEnvVars.filter((envVar) => !process.env[envVar])
 
   if (missingVars.length > 0) {
-    console.warn(
-      `⚠️  Missing recommended environment variables: ${missingVars.join(', ')}`
-    )
+    console.warn(`⚠️  Missing recommended environment variables: ${missingVars.join(', ')}`)
   }
 
   // Check AI provider API keys
-  const aiProviders = [
-    'ANTHROPIC_API_KEY',
-    'OPENAI_API_KEY',
-    'GOOGLE_GENERATIVE_AI_API_KEY',
-  ]
+  const aiProviders = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY']
 
-  const configuredProviders = aiProviders.filter(
-    (envVar) => process.env[envVar]
-  )
+  const configuredProviders = aiProviders.filter((envVar) => process.env[envVar])
 
   if (configuredProviders.length === 0) {
-    console.error(
-      '❌ No AI provider API keys configured. At least one is required.'
-    )
+    console.error('❌ No AI provider API keys configured. At least one is required.')
     console.error('   Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY')
     process.exit(1)
   }
 
-  console.log(
-    `✅ Configured AI providers: ${configuredProviders.length} found`
-  )
+  console.log(`✅ Configured AI providers: ${configuredProviders.length} found`)
 
   // Build config
   const config = buildServerConfig()
@@ -162,9 +150,7 @@ async function startServer() {
   console.log(`   - Port: ${config.port}`)
   console.log(`   - CORS Origins: ${config.cors.origin.join(', ')}`)
   console.log(`   - Queue Type: ${config.queue.type}`)
-  console.log(
-    `   - GitHub Integration: ${config.github ? 'enabled' : 'disabled'}`
-  )
+  console.log(`   - GitHub Integration: ${config.github ? 'enabled' : 'disabled'}`)
   console.log(`   - Rate Limit: ${config.rateLimit.max} requests per 15 min`)
   console.log()
 
@@ -200,15 +186,18 @@ async function startServer() {
 
     // Log memory usage periodically (every 5 minutes)
     if (process.env.NODE_ENV === 'production') {
-      setInterval(() => {
-        const usage = process.memoryUsage()
-        console.log('💾 Memory Usage:', {
-          heapUsed: `${Math.round(usage.heapUsed / 1024 / 1024)}MB`,
-          heapTotal: `${Math.round(usage.heapTotal / 1024 / 1024)}MB`,
-          external: `${Math.round(usage.external / 1024 / 1024)}MB`,
-          rss: `${Math.round(usage.rss / 1024 / 1024)}MB`,
-        })
-      }, 5 * 60 * 1000)
+      setInterval(
+        () => {
+          const usage = process.memoryUsage()
+          console.log('💾 Memory Usage:', {
+            heapUsed: `${Math.round(usage.heapUsed / 1024 / 1024)}MB`,
+            heapTotal: `${Math.round(usage.heapTotal / 1024 / 1024)}MB`,
+            external: `${Math.round(usage.external / 1024 / 1024)}MB`,
+            rss: `${Math.round(usage.rss / 1024 / 1024)}MB`,
+          })
+        },
+        5 * 60 * 1000
+      )
     }
   } catch (error) {
     console.error('❌ Failed to start server:', error)
@@ -221,4 +210,3 @@ startServer().catch((error) => {
   console.error('❌ Unhandled error:', error)
   process.exit(1)
 })
-

@@ -72,7 +72,9 @@ export class DocumentationLibrary {
             console.log(chalk.green(`✓ Added ${added} subpages from ${new URL(url).origin}`))
           }
         } catch (crawlError: any) {
-          console.log(chalk.yellow(`⚠️ Subpage crawl failed or partially completed: ${crawlError.message || crawlError}`))
+          console.log(
+            chalk.yellow(`⚠️ Subpage crawl failed or partially completed: ${crawlError.message || crawlError}`)
+          )
         }
       }
 
@@ -269,9 +271,7 @@ export class DocumentationLibrary {
     // Save to database if available
     await documentationDatabase.saveDocumentation(entry)
 
-    console.log(
-      chalk.green(`✓ Added: ${entry.title} (${analysis.wordCount} words, ${analysis.language})`)
-    )
+    console.log(chalk.green(`✓ Added: ${entry.title} (${analysis.wordCount} words, ${analysis.language})`))
     return entry
   }
 
@@ -281,9 +281,7 @@ export class DocumentationLibrary {
   private shouldCrawlSubpages(url: string, html: string): boolean {
     try {
       const u = new URL(url)
-      const urlHint = /docs|documentation|guide|manual|reference/i.test(
-        `${u.hostname}${u.pathname}`
-      )
+      const urlHint = /docs|documentation|guide|manual|reference/i.test(`${u.hostname}${u.pathname}`)
       const linkCount = (html.match(/<a\s+[^>]*href=/gi) || []).length
       // Heuristics: se è pagina docs o ha molti link interni
       return urlHint || linkCount > 30
@@ -413,7 +411,7 @@ export class DocumentationLibrary {
     // Persisti stato finale
     try {
       await this.saveLibrary()
-    } catch { }
+    } catch {}
 
     return addedCount
   }

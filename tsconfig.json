@@ -25,33 +25,32 @@
     "resolveJsonModule": true,
     "downlevelIteration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "declaration": false,
     "sourceMap": false,
     "removeComments": true,
     "jsx": "preserve",
     "paths": {
       "@/*": [
-        "*"
+        "src/*"
       ],
       "@cli/*": [
-        "cli/*"
+        "src/cli/*"
       ],
       "@agents/*": [
-        "cli/automation/agents/*"
+        "src/cli/automation/agents/*"
       ],
       "@core/*": [
-        "cli/core/*"
+        "src/cli/core/*"
       ],
       "@utils/*": [
-        "cli/utils/*"
+        "src/cli/utils/*"
       ],
       "@tools/*": [
-        "cli/tools/*"
+        "src/cli/tools/*"
       ],
       "@ai/*": [
-        "cli/ai/*"
+        "src/cli/ai/*"
       ]
     },
     "incremental": true,
@@ -64,12 +63,19 @@
   "include": [
     "src/cli/**/*.ts",
     "src/cli/**/*.tsx",
+    "api/**/*.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
     ".next",
-    "tests"
+    "tests",
+    "src/cli/background-agents/web/**/*",
+    "api/openrouter/**/*",
+    "api/subscription/**/*",
+    "scripts/**/*",
+    "**/*.spec.ts",
+    "**/*.test.ts"
   ]
 }

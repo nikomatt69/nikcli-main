@@ -122,11 +122,13 @@ export class AuthProvider extends EventEmitter {
         throw new Error('Sign in failed - invalid credentials')
       }
 
-      // Create session
+      // Create session using real tokens from Supabase client
+      const accessToken = await this.supabase.getAccessToken()
+      const refreshToken = await this.supabase.getRefreshToken()
       const session: AuthSession = {
         user,
-        accessToken: 'mock_access_token', // In real implementation, get from Supabase
-        refreshToken: 'mock_refresh_token',
+        accessToken: accessToken || '',
+        refreshToken: refreshToken || '',
         expiresAt: Date.now() + this.config.sessionTTL * 1000,
       }
 
@@ -190,11 +192,13 @@ export class AuthProvider extends EventEmitter {
         throw new Error('Sign up failed')
       }
 
-      // Create session
+      // Create session using real tokens from Supabase client
+      const accessToken = await this.supabase.getAccessToken()
+      const refreshToken = await this.supabase.getRefreshToken()
       const session: AuthSession = {
         user,
-        accessToken: 'mock_access_token',
-        refreshToken: 'mock_refresh_token',
+        accessToken: accessToken || '',
+        refreshToken: refreshToken || '',
         expiresAt: Date.now() + this.config.sessionTTL * 1000,
       }
 

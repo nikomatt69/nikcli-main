@@ -305,8 +305,9 @@ export class GitHubIntegration {
         lastError = error
 
         // Check if it's a transient error (rate limit, network, server error)
-        const isTransient = error.status === 429 || // Rate limit
-          error.status >= 500 ||   // Server error
+        const isTransient =
+          error.status === 429 || // Rate limit
+          error.status >= 500 || // Server error
           error.code === 'ECONNRESET' ||
           error.code === 'ETIMEDOUT'
 
@@ -314,20 +315,20 @@ export class GitHubIntegration {
           console.error(`Failed to check for changes (attempt ${attempt}/${retries}):`, error.message)
           return {
             hasChanges: false,
-            error: `GitHub API error: ${error.message} (status: ${error.status || 'unknown'})`
+            error: `GitHub API error: ${error.message} (status: ${error.status || 'unknown'})`,
           }
         }
 
         // Wait before retry with exponential backoff
-        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000)
+        const waitTime = Math.min(1000 * 2 ** (attempt - 1), 10000)
         console.warn(`Transient error checking changes, retrying in ${waitTime}ms... (attempt ${attempt}/${retries})`)
-        await new Promise(resolve => setTimeout(resolve, waitTime))
+        await new Promise((resolve) => setTimeout(resolve, waitTime))
       }
     }
 
     return {
       hasChanges: false,
-      error: `Failed after ${retries} attempts: ${lastError?.message || 'Unknown error'}`
+      error: `Failed after ${retries} attempts: ${lastError?.message || 'Unknown error'}`,
     }
   }
 

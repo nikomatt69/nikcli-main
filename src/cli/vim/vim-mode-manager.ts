@@ -2,12 +2,12 @@ import { EventEmitter } from 'node:events'
 import * as blessed from 'blessed'
 import chalk from 'chalk'
 import type * as readline from 'readline'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { VimCommandProcessor } from './commands/vim-command-processor'
 import { VimKeyHandler } from './keybindings/vim-key-handler'
 import { type CursorPosition, VimMode, type VimState } from './types/vim-types'
 import { VimRenderer } from './ui/vim-renderer'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface VimModeConfig {
   aiIntegration: boolean

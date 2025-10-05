@@ -78,7 +78,7 @@ export class BackgroundAgentsAPIServer {
 
     // Environment-driven CORS configuration
     const allowedOrigins = process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+      ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
       : this.config.cors.origin
 
     this.app.use(

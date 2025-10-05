@@ -394,10 +394,14 @@ const ConfigSchema = z.object({
         'hub.docker.com',
       ],
     }),
-  // Redis Cache System
+  // Redis Cache System (Upstash Redis - Cloud Native)
   redis: z
     .object({
       enabled: z.boolean().default(true),
+      // Upstash Redis configuration (preferred)
+      url: z.string().optional(),
+      token: z.string().optional(),
+      // Legacy configuration (for backward compatibility)
       host: z.string().default('localhost'),
       port: z.number().min(1).max(65535).default(6379),
       password: z.string().optional(),
@@ -1391,8 +1395,25 @@ export class SimpleConfigManager {
     const redisConfig = this.config.redis
     if (!redisConfig.enabled) return null
 
+    // Prefer Upstash URL if available
+    if (redisConfig.url) {
+      return redisConfig.url
+    }
+
+    // Fallback to legacy connection string
     const auth = redisConfig.password ? `:${redisConfig.password}@` : ''
     return `redis://${auth}${redisConfig.host}:${redisConfig.port}/${redisConfig.database}`
+  }
+
+  getRedisCredentials(): { url?: string; token?: string; host?: string; port?: number } {
+    const redisConfig = this.config.redis
+
+    return {
+      url: redisConfig.url || process.env.UPSTASH_REDIS_REST_URL,
+      token: redisConfig.token || process.env.UPSTASH_REDIS_REST_TOKEN,
+      host: redisConfig.host,
+      port: redisConfig.port,
+    }
   }
 
   // Supabase configuration management

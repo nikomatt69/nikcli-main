@@ -9,8 +9,8 @@ import { cosineSimilarity, embed, generateObject, tool } from 'ai'
 import chalk from 'chalk'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
-import { configManager } from './config-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { configManager } from './config-manager'
 
 const execAsync = promisify(exec)
 
@@ -77,7 +77,10 @@ export class AdvancedTools {
       if (openaiKey) provider = 'openai'
       else if (openrouterKey) provider = 'openrouter'
       else if (googleKey) provider = 'google'
-      else throw new Error('No API key found for embeddings. Set OPENAI_API_KEY, OPENROUTER_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY')
+      else
+        throw new Error(
+          'No API key found for embeddings. Set OPENAI_API_KEY, OPENROUTER_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY'
+        )
     }
 
     switch (provider) {
@@ -123,7 +126,7 @@ export class AdvancedTools {
         available: !!openaiKey,
         model: 'text-embedding-3-small',
       })
-    } catch { }
+    } catch {}
 
     try {
       const googleKey = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY
@@ -132,7 +135,7 @@ export class AdvancedTools {
         available: !!googleKey,
         model: 'text-embedding-004',
       })
-    } catch { }
+    } catch {}
 
     try {
       const openrouterKey = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
@@ -141,7 +144,7 @@ export class AdvancedTools {
         available: !!openrouterKey,
         model: 'text-embedding-3-small',
       })
-    } catch { }
+    } catch {}
 
     return providers
   }

@@ -97,13 +97,16 @@ class ContextRAGInterceptor {
       } catch {}
     })
 
-    this.warmupInterval = setInterval(() => {
-      this.withSilencedConsole(async () => {
-        try {
-          await this.rag!.analyzeProject(process.cwd())
-        } catch {}
-      })
-    }, 10 * 60 * 1000)
+    this.warmupInterval = setInterval(
+      () => {
+        this.withSilencedConsole(async () => {
+          try {
+            await this.rag!.analyzeProject(process.cwd())
+          } catch {}
+        })
+      },
+      10 * 60 * 1000
+    )
   }
 
   private withSilencedConsole<R>(fn: () => Promise<R>): void {
@@ -122,4 +125,3 @@ class ContextRAGInterceptor {
 }
 
 export const contextRagInterceptor = new ContextRAGInterceptor()
-

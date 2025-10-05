@@ -64,6 +64,12 @@
     "node_modules",
     "dist",
     ".next",
-    "tests"
+    "tests",
+    "src/cli/background-agents/web/**/*",
+    "api/openrouter/**/*",
+    "api/subscription/**/*",
+    "scripts/**/*",
+    "**/*.spec.ts",
+    "**/*.test.ts"
   ]
 }

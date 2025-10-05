@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import { type CommandResult, type VimCommand, VimMode, type VimState } from '../types/vim-types'
 import type { VimModeConfig } from '../vim-mode-manager'
-import { advancedUI } from '../../ui/advanced-cli-ui'
 
 export class VimCommandProcessor extends EventEmitter {
   private state: VimState

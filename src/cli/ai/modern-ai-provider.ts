@@ -297,10 +297,10 @@ export class ModernAIProvider {
       rootPath: relative(process.cwd(), rootPath),
       packageInfo: packageInfo
         ? {
-          name: packageInfo.name,
-          version: packageInfo.version,
-          description: packageInfo.description,
-        }
+            name: packageInfo.name,
+            version: packageInfo.version,
+            description: packageInfo.description,
+          }
         : null,
       framework,
       technologies,
@@ -447,7 +447,11 @@ export class ModernAIProvider {
       throw new Error(`Model ${model} not found in configuration`)
     }
 
-    const apiKey = simpleConfigManager.getApiKey(model)
+    let apiKey = simpleConfigManager.getApiKey(model)
+    if (!apiKey) {
+      // Fallback to shared alias/env for NikCLI-issued keys
+      apiKey = simpleConfigManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY || apiKey
+    }
     if (!apiKey) {
       throw new Error(`No API key found for model ${model}`)
     }
@@ -520,6 +524,19 @@ export class ModernAIProvider {
     }
 
     try {
+      // Quota check for OpenRouter before starting stream
+      try {
+        const cfg = simpleConfigManager?.getCurrentModel() as any
+        if (cfg?.provider === 'openrouter') {
+          const { authProvider } = await import('../providers/supabase/auth-provider')
+          if (authProvider.isAuthenticated()) {
+            const apiQuota = authProvider.checkQuota('apiCalls')
+            if (!apiQuota.allowed) {
+              throw new Error(`API quota exceeded (${apiQuota.used}/${apiQuota.limit}). Try again later.`)
+            }
+          }
+        }
+      } catch (_) {}
       const result = await streamText({
         model,
         messages,
@@ -536,6 +553,16 @@ export class ModernAIProvider {
       }
 
       const finishResult = await result.finishReason
+      // Record usage after successful stream
+      try {
+        const cfg = simpleConfigManager?.getCurrentModel() as any
+        if (cfg?.provider === 'openrouter') {
+          const { authProvider } = await import('../providers/supabase/auth-provider')
+          if (authProvider.isAuthenticated()) {
+            await authProvider.recordUsage('apiCalls', 1)
+          }
+        }
+      } catch (_) {}
       yield {
         type: 'finish',
         finishReason: finishResult,

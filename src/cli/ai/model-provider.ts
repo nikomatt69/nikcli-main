@@ -160,9 +160,15 @@ export class ModelProvider {
         return gatewayProvider(config.model)
       }
       case 'openrouter': {
-        const apiKey = configManager.getApiKey(currentModelName)
+        let apiKey = configManager.getApiKey(currentModelName)
+        // Fallback to shared alias or env (NikCLI-issued key)
         if (!apiKey) {
-          throw new Error(`API key not found for model: ${currentModelName} (OpenRouter). Use /set-key to configure.`)
+          apiKey = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
+        }
+        if (!apiKey) {
+          throw new Error(
+            `API key not found for model: ${currentModelName} (OpenRouter). Use /set-key openrouter <key> to configure.`
+          )
         }
         const openrouterProvider = createOpenAI({
           apiKey,
@@ -224,6 +230,19 @@ export class ModelProvider {
       } catch {}
     }
     const effectiveConfig: ModelConfig = { ...currentModelConfig, model: effectiveModelId } as ModelConfig
+    // Enforce light quota check for OpenRouter usage if authenticated
+    try {
+      if (effectiveConfig.provider === 'openrouter') {
+        const { authProvider } = await import('../providers/supabase/auth-provider')
+        if (authProvider.isAuthenticated()) {
+          const apiQuota = authProvider.checkQuota('apiCalls')
+          if (!apiQuota.allowed) {
+            throw new Error(`API quota exceeded (${apiQuota.used}/${apiQuota.limit}). Try again later.`)
+          }
+        }
+      }
+    } catch (_) {}
+
     const model = this.getModel(effectiveConfig)
 
     const baseOptions: Parameters<typeof generateText>[0] = {
@@ -241,6 +260,16 @@ export class ModelProvider {
       baseOptions.temperature = resolvedTemp
     }
     const result = await generateText(baseOptions)
+
+    // Record usage for OpenRouter
+    try {
+      if (effectiveConfig.provider === 'openrouter') {
+        const { authProvider } = await import('../providers/supabase/auth-provider')
+        if (authProvider.isAuthenticated()) {
+          await authProvider.recordUsage('apiCalls', 1)
+        }
+      }
+    } catch (_) {}
 
     // Extract reasoning if available and display if requested
     if (reasoningEnabled) {

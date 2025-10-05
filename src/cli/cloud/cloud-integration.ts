@@ -42,12 +42,7 @@ export class CloudIntegration {
     const now = Date.now()
 
     // Return cached status if available and fresh
-    if (
-      !forceRefresh &&
-      this.cloudStatus &&
-      this.statusCheckedAt &&
-      now - this.statusCheckedAt < this.statusCacheTTL
-    ) {
+    if (!forceRefresh && this.cloudStatus && this.statusCheckedAt && now - this.statusCheckedAt < this.statusCacheTTL) {
       return this.cloudStatus
     }
 
@@ -129,9 +124,7 @@ export class CloudIntegration {
         `✅ Background Agents API: ${chalk.green('Connected')} ${latency ? chalk.gray(`(${latency}ms)`) : ''}`
       )
     } else {
-      console.log(
-        `❌ Background Agents API: ${chalk.red('Unavailable')} ${chalk.gray('(using local mode)')}`
-      )
+      console.log(`❌ Background Agents API: ${chalk.red('Unavailable')} ${chalk.gray('(using local mode)')}`)
     }
 
     // GitHub Integration
@@ -161,11 +154,7 @@ export class CloudIntegration {
 
     // API Keys status
     if (!this.apiKeyManager.isUsingOwnKeys()) {
-      console.log(
-        chalk.cyan(
-          '🔑 Using cloud-provided API keys (set NIKCLI_USE_OWN_KEYS=true to use your own)'
-        )
-      )
+      console.log(chalk.cyan('🔑 Using cloud-provided API keys (set NIKCLI_USE_OWN_KEYS=true to use your own)'))
     } else {
       console.log(chalk.cyan('🔑 Using your own API keys'))
     }
@@ -230,12 +219,8 @@ export class CloudIntegration {
       console.log(chalk.bold('Background Agents API:'))
       if (status.services.backgroundAgents.available) {
         console.log(`  ${chalk.green('✅ Connected')}`)
-        console.log(
-          `  ${chalk.gray(`Latency: ${status.services.backgroundAgents.latency}ms`)}`
-        )
-        console.log(
-          `  ${chalk.gray(`URL: ${status.services.backgroundAgents.url}`)}`
-        )
+        console.log(`  ${chalk.gray(`Latency: ${status.services.backgroundAgents.latency}ms`)}`)
+        console.log(`  ${chalk.gray(`URL: ${status.services.backgroundAgents.url}`)}`)
 
         // Test job creation
         try {
@@ -334,4 +319,3 @@ export function getCloudIntegration(): CloudIntegration {
 export function resetCloudIntegration(): void {
   cloudIntegrationInstance = undefined
 }
-

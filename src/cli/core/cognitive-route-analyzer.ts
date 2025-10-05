@@ -1,7 +1,7 @@
 import chalk from 'chalk'
-import type { TaskCognition, OrchestrationPlan } from '../automation/agents/universal-agent'
-import { toolRouter, type ToolRecommendation } from './tool-router'
+import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
 import { createDynamicToolSelector } from './dynamic-tool-selector'
+import { type ToolRecommendation, toolRouter } from './tool-router'
 
 /**
  * Cognitive Route Analyzer
@@ -41,11 +41,7 @@ export class CognitiveRouteAnalyzer {
       const intentAnalysis = this.analyzeIntentMultiDimensional(userMessage, taskCognition)
 
       // 3. Tool routing con cognitive awareness
-      const toolRecommendations = await this.performCognitiveToolRouting(
-        userMessage,
-        taskCognition,
-        intentAnalysis
-      )
+      const toolRecommendations = await this.performCognitiveToolRouting(userMessage, taskCognition, intentAnalysis)
 
       // 4. Determina strategia di esecuzione
       const executionStrategy = this.determineExecutionStrategy(
@@ -90,10 +86,7 @@ export class CognitiveRouteAnalyzer {
   /**
    * Esegue l'analisi cognitiva del task
    */
-  private async performTaskCognition(
-    userMessage: string,
-    context?: any
-  ): Promise<TaskCognition> {
+  private async performTaskCognition(userMessage: string, context?: any): Promise<TaskCognition> {
     const normalizedMessage = this.normalizeMessage(userMessage)
 
     // Estrai intent primario
@@ -118,19 +111,10 @@ export class CognitiveRouteAnalyzer {
     const contexts = this.extractContexts(normalizedMessage, context?.conversationHistory)
 
     // Calcola complessità stimata
-    const estimatedComplexity = this.estimateTaskComplexity(
-      primaryIntent,
-      entities,
-      dependencies,
-      complexity
-    )
+    const estimatedComplexity = this.estimateTaskComplexity(primaryIntent, entities, dependencies, complexity)
 
     // Determina capacità richieste
-    const requiredCapabilities = this.determineRequiredCapabilities(
-      primaryIntent,
-      secondaryIntents,
-      entities
-    )
+    const requiredCapabilities = this.determineRequiredCapabilities(primaryIntent, secondaryIntents, entities)
 
     // Suggerisci agenti
     const suggestedAgents = this.suggestOptimalAgents(requiredCapabilities, estimatedComplexity)
@@ -162,10 +146,7 @@ export class CognitiveRouteAnalyzer {
   /**
    * Analisi multi-dimensionale dell'intento
    */
-  private analyzeIntentMultiDimensional(
-    message: string,
-    cognition: TaskCognition
-  ): IntentAnalysis {
+  private analyzeIntentMultiDimensional(message: string, cognition: TaskCognition): IntentAnalysis {
     const dimensions: IntentDimension[] = []
 
     // Dimensione tecnica
@@ -205,9 +186,7 @@ export class CognitiveRouteAnalyzer {
     }
 
     // Determina dimensione dominante
-    const dominantDimension = dimensions.reduce((prev, current) =>
-      current.score > prev.score ? current : prev
-    )
+    const dominantDimension = dimensions.reduce((prev, current) => (current.score > prev.score ? current : prev))
 
     return {
       dimensions,
@@ -240,10 +219,7 @@ export class CognitiveRouteAnalyzer {
     const baseRecommendations = await toolRouter.routeWithCognition(routingContext)
 
     // Applica enhancement basato su intent analysis
-    const enhancedRecommendations = this.enhanceWithIntentAnalysis(
-      baseRecommendations,
-      intentAnalysis
-    )
+    const enhancedRecommendations = this.enhanceWithIntentAnalysis(baseRecommendations, intentAnalysis)
 
     // Usa dynamic selector per diversità
     const dynamicRecommendations = this.dynamicSelector.selectToolsDynamically(message, {
@@ -253,10 +229,7 @@ export class CognitiveRouteAnalyzer {
     })
 
     // Merge e deduplica
-    const mergedRecommendations = this.mergeRecommendations(
-      enhancedRecommendations,
-      dynamicRecommendations
-    )
+    const mergedRecommendations = this.mergeRecommendations(enhancedRecommendations, dynamicRecommendations)
 
     return mergedRecommendations
   }
@@ -435,10 +408,7 @@ export class CognitiveRouteAnalyzer {
   /**
    * Genera route di fallback
    */
-  private generateFallbackRoutes(
-    cognition: TaskCognition,
-    tools: ToolRecommendation[]
-  ): FallbackRoute[] {
+  private generateFallbackRoutes(cognition: TaskCognition, tools: ToolRecommendation[]): FallbackRoute[] {
     const fallbacks: FallbackRoute[] = []
 
     // Fallback 1: Tool alternativi
@@ -467,7 +437,7 @@ export class CognitiveRouteAnalyzer {
     fallbacks.push({
       id: 'fallback-manual',
       type: 'manual-intervention',
-      description: 'Richiedi intervento manuale dell\'utente',
+      description: "Richiedi intervento manuale dell'utente",
       confidence: 1.0,
     })
 
@@ -490,9 +460,7 @@ export class CognitiveRouteAnalyzer {
       console.log(chalk.gray(`   Entities: ${result.taskCognition.entities.length}`))
 
       console.log(chalk.cyan('\n🎯 Intent Analysis:'))
-      console.log(
-        chalk.gray(`   Dominant: ${result.intentAnalysis.dominantDimension}`)
-      )
+      console.log(chalk.gray(`   Dominant: ${result.intentAnalysis.dominantDimension}`))
       console.log(
         chalk.gray(
           `   Dimensions: ${result.intentAnalysis.dimensions.map((d) => `${d.type}(${(d.score * 100).toFixed(0)}%)`).join(', ')}`
@@ -501,19 +469,13 @@ export class CognitiveRouteAnalyzer {
 
       console.log(chalk.cyan('\n🔧 Tool Recommendations:'))
       result.toolRecommendations.slice(0, 5).forEach((tool, i) => {
-        console.log(
-          chalk.gray(
-            `   ${i + 1}. ${tool.tool} (${(tool.confidence * 100).toFixed(0)}%) - ${tool.reason}`
-          )
-        )
+        console.log(chalk.gray(`   ${i + 1}. ${tool.tool} (${(tool.confidence * 100).toFixed(0)}%) - ${tool.reason}`))
       })
 
       console.log(chalk.cyan('\n📊 Execution Strategy:'))
       console.log(chalk.gray(`   Type: ${result.executionStrategy.type}`))
       console.log(chalk.gray(`   Phases: ${result.executionStrategy.phases}`))
-      console.log(
-        chalk.gray(`   Duration: ${(result.executionStrategy.estimatedDuration / 1000).toFixed(1)}s`)
-      )
+      console.log(chalk.gray(`   Duration: ${(result.executionStrategy.estimatedDuration / 1000).toFixed(1)}s`))
 
       console.log(chalk.cyan('\n⚠️  Risk Assessment:'))
       console.log(chalk.gray(`   Level: ${result.riskAssessment.overallLevel}`))
@@ -573,10 +535,7 @@ export class CognitiveRouteAnalyzer {
     return intents
   }
 
-  private calculateComplexity(
-    message: string,
-    context?: any
-  ): 'low' | 'medium' | 'high' | 'extreme' {
+  private calculateComplexity(message: string, context?: any): 'low' | 'medium' | 'high' | 'extreme' {
     let score = 0
 
     if (message.length > 200) score += 2
@@ -663,12 +622,7 @@ export class CognitiveRouteAnalyzer {
     return contexts
   }
 
-  private estimateTaskComplexity(
-    intent: string,
-    entities: any[],
-    dependencies: string[],
-    complexity: string
-  ): number {
+  private estimateTaskComplexity(intent: string, entities: any[], dependencies: string[], complexity: string): number {
     let score = 0
 
     // Base complexity
@@ -684,11 +638,7 @@ export class CognitiveRouteAnalyzer {
     return Math.min(Math.round(score), 10)
   }
 
-  private determineRequiredCapabilities(
-    primary: string,
-    secondary: string[],
-    entities: any[]
-  ): string[] {
+  private determineRequiredCapabilities(primary: string, secondary: string[], entities: any[]): string[] {
     const caps = new Set<string>()
 
     // From intent
@@ -720,11 +670,7 @@ export class CognitiveRouteAnalyzer {
     return agents.length > 0 ? agents : ['universal-agent']
   }
 
-  private assessRiskLevel(
-    intent: string,
-    complexity: string,
-    entities: any[]
-  ): 'low' | 'medium' | 'high' {
+  private assessRiskLevel(intent: string, complexity: string, entities: any[]): 'low' | 'medium' | 'high' {
     let riskScore = 0
 
     if (intent === 'delete') riskScore += 3
@@ -843,20 +789,14 @@ export class CognitiveRouteAnalyzer {
     return approaches[dimension] || 'Balanced approach'
   }
 
-  private enhanceWithIntentAnalysis(
-    tools: any[],
-    intentAnalysis: IntentAnalysis
-  ): ToolRecommendation[] {
+  private enhanceWithIntentAnalysis(tools: any[], intentAnalysis: IntentAnalysis): ToolRecommendation[] {
     return tools.map((tool) => {
       let enhancedConfidence = tool.confidence
 
       // Boost based on dominant dimension
       if (intentAnalysis.dominantDimension === 'technical' && /code|analysis/.test(tool.tool)) {
         enhancedConfidence *= 1.2
-      } else if (
-        intentAnalysis.dominantDimension === 'creative' &&
-        /generate|create/.test(tool.tool)
-      ) {
+      } else if (intentAnalysis.dominantDimension === 'creative' && /generate|create/.test(tool.tool)) {
         enhancedConfidence *= 1.2
       }
 
@@ -867,9 +807,7 @@ export class CognitiveRouteAnalyzer {
     })
   }
 
-  private mapIntentToTaskType(
-    intent: string
-  ): 'read' | 'write' | 'search' | 'analyze' | 'execute' | 'mixed' {
+  private mapIntentToTaskType(intent: string): 'read' | 'write' | 'search' | 'analyze' | 'execute' | 'mixed' {
     const mapping: Record<string, any> = {
       create: 'write',
       read: 'read',
@@ -885,10 +823,7 @@ export class CognitiveRouteAnalyzer {
     return mapping[intent] || 'mixed'
   }
 
-  private mergeRecommendations(
-    enhanced: ToolRecommendation[],
-    dynamic: ToolRecommendation[]
-  ): ToolRecommendation[] {
+  private mergeRecommendations(enhanced: ToolRecommendation[], dynamic: ToolRecommendation[]): ToolRecommendation[] {
     const merged = [...enhanced]
     const existingTools = new Set(enhanced.map((t) => t.tool))
 
@@ -906,11 +841,7 @@ export class CognitiveRouteAnalyzer {
     return cognition.dependencies.length <= 2 && tools.length > 2
   }
 
-  private estimateDuration(
-    cognition: TaskCognition,
-    tools: ToolRecommendation[],
-    strategy: string
-  ): number {
+  private estimateDuration(cognition: TaskCognition, tools: ToolRecommendation[], strategy: string): number {
     const baseTime = cognition.estimatedComplexity * 1000 // ms per complexity point
     const toolTime = tools.length * 2000 // 2s per tool
 
@@ -970,15 +901,12 @@ export class CognitiveRouteAnalyzer {
     return tools.filter((t) => t.confidence >= 0.4 && t.confidence <= 0.7)
   }
 
-  private calculateOverallConfidence(
-    cognition: TaskCognition,
-    tools: ToolRecommendation[]
-  ): number {
+  private calculateOverallConfidence(cognition: TaskCognition, tools: ToolRecommendation[]): number {
     const intentConfidence = cognition.intent.confidence
     const avgToolConfidence = tools.reduce((sum, t) => sum + t.confidence, 0) / tools.length
-    const complexityFactor = 1 - cognition.estimatedComplexity / 10 * 0.3
+    const complexityFactor = 1 - (cognition.estimatedComplexity / 10) * 0.3
 
-    return (intentConfidence * 0.3 + avgToolConfidence * 0.5 + complexityFactor * 0.2)
+    return intentConfidence * 0.3 + avgToolConfidence * 0.5 + complexityFactor * 0.2
   }
 
   private detectProjectType(): string {
@@ -1009,7 +937,8 @@ export class CognitiveRouteAnalyzer {
       averageConfidence: analyses.reduce((sum, a) => sum + a.confidence, 0) / analyses.length || 0,
       intentDistribution: this.calculateIntentDistribution(analyses),
       toolUsage: this.calculateToolUsage(analyses),
-      averageComplexity: analyses.reduce((sum, a) => sum + a.taskCognition.estimatedComplexity, 0) / analyses.length || 0,
+      averageComplexity:
+        analyses.reduce((sum, a) => sum + a.taskCognition.estimatedComplexity, 0) / analyses.length || 0,
       riskDistribution: this.calculateRiskDistribution(analyses),
     }
   }
@@ -1144,5 +1073,3 @@ export interface RoutingStatistics {
 export function createCognitiveRouteAnalyzer(workingDirectory: string): CognitiveRouteAnalyzer {
   return new CognitiveRouteAnalyzer(workingDirectory)
 }
-
-

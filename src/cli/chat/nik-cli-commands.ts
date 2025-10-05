@@ -209,6 +209,7 @@ export class SlashCommandHandler {
     this.commands.set('exit', this.quitCommand.bind(this))
     this.commands.set('clear', this.clearCommand.bind(this))
     this.commands.set('default', this.defaultModeCommand.bind(this))
+    this.commands.set('pro', this.proCommand.bind(this))
     this.commands.set('model', this.modelCommand.bind(this))
     this.commands.set('models', this.modelsCommand.bind(this))
     this.commands.set('set-key', this.setKeyCommand.bind(this))
@@ -406,6 +407,7 @@ ${chalk.blue.bold('Model Management:')}
 ${chalk.cyan('/model <name>')} - Switch to a model
 ${chalk.cyan('/models')} - List available models
 ${chalk.cyan('/set-key <model> <key>')} - Set API key for a model
+${chalk.gray('  e.g. /set-key openrouter sk-or-v1-...')}
 ${chalk.cyan('/set-key coinbase-id <key>')} - Set Coinbase CDP_API_KEY_ID
 ${chalk.cyan('/set-key coinbase-secret <key>')} - Set Coinbase CDP_API_KEY_SECRET
 ${chalk.cyan('/set-key coinbase-wallet-secret <key>')} - Set Coinbase CDP_WALLET_SECRET
@@ -413,6 +415,9 @@ ${chalk.cyan('/set-key coinbase')} - Interactive wizard for Coinbase keys
 ${chalk.cyan('/set-key browserbase-api-key <key>')} - Set Browserbase API key
 ${chalk.cyan('/set-key browserbase-project-id <id>')} - Set Browserbase Project ID
 ${chalk.cyan('/set-key browserbase')} - Interactive wizard for Browserbase keys
+
+${chalk.blue.bold('Plan Management:')}
+${chalk.cyan('/pro [status|activate|help]')} - Manage Pro plan and NikCLI key
 
 ${chalk.blue.bold('Configuration:')}
 ${chalk.cyan('/config')} - Show current configuration
@@ -565,6 +570,175 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     console.log(help)
     return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async proCommand(args: string[] = []): Promise<CommandResult> {
+    const sub = (args[0] || 'status').toLowerCase()
+    try {
+      const { authProvider } = await import('../providers/supabase/auth-provider')
+      const { subscriptionService } = await import('../services/subscription-service')
+      const profile = authProvider.getCurrentProfile()
+      const tier = profile?.subscription_tier || 'free'
+
+      if (sub === 'help') {
+        const nik: any = (global as any).__nikCLI
+        const panel = boxen(
+          [
+            chalk.cyan.bold('💳 Pro Plan Commands'),
+            chalk.gray('─'.repeat(30)),
+            '',
+            `${chalk.green('/pro status')}  - Show current plan status`,
+            `${chalk.green('/pro upgrade')} - Get link to upgrade to Pro`,
+            `${chalk.green('/pro activate')} - Fetch and store OpenRouter key (Pro only)`,
+          ].join('\n'),
+          { title: 'Plan', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+        )
+        if (nik?.printPanel) nik.printPanel(panel)
+        else console.log(panel)
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      if (sub === 'status') {
+        const nik: any = (global as any).__nikCLI
+        const hasKey = Boolean(simpleConfigManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY)
+        const lines: string[] = []
+        lines.push(`${chalk.white('Current plan:')} ${chalk.green(tier)}`)
+        lines.push('')
+        if (tier === 'free') {
+          lines.push(chalk.cyan('Free mode (BYOK):'))
+          lines.push(chalk.gray('• Provide your own OpenRouter key'))
+          lines.push(chalk.gray('• Configure with: /set-key openrouter <key>'))
+          lines.push(chalk.gray('• Or set env OPENROUTER_API_KEY'))
+          lines.push('')
+          lines.push(chalk.green('Upgrade to Pro:'))
+          const currentUser = authProvider.getCurrentUser()
+          if (currentUser) {
+            const paymentLink = subscriptionService.getPaymentLink(currentUser.id)
+            lines.push(chalk.gray(`• Visit: ${paymentLink}`))
+          }
+          lines.push(chalk.gray('• Or use: /pro upgrade'))
+        } else {
+          lines.push(chalk.cyan('Pro mode (Managed):'))
+          lines.push(chalk.gray('• NikCLI manages your OpenRouter key'))
+          lines.push(chalk.gray('• Key loaded automatically on login'))
+          lines.push(chalk.gray('• Manual reload: /pro activate'))
+        }
+        lines.push('')
+        lines.push(`${chalk.white('Key status:')} ${hasKey ? chalk.green('present') : chalk.yellow('not configured')}`)
+        const panel = boxen(lines.join('\n'), {
+          title: 'Plan Status',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: tier === 'free' ? 'cyan' : 'green',
+        })
+        if (nik?.printPanel) nik.printPanel(panel)
+        else console.log(panel)
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      if (sub === 'upgrade') {
+        const nik: any = (global as any).__nikCLI
+        const currentUser = authProvider.getCurrentUser()
+        if (!currentUser) {
+          console.log(chalk.yellow('Please login first: /login'))
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+        const paymentLink = subscriptionService.getPaymentLink(currentUser.id)
+        const lines: string[] = []
+        lines.push(chalk.cyan.bold('Upgrade to NikCLI Pro'))
+        lines.push('')
+        lines.push(chalk.white('Benefits:'))
+        lines.push(chalk.gray('• Managed OpenRouter API key'))
+        lines.push(chalk.gray('• No manual key configuration'))
+        lines.push(chalk.gray('• Higher usage quotas'))
+        lines.push(chalk.gray('• Priority support'))
+        lines.push('')
+        lines.push(chalk.green('Payment Link:'))
+        lines.push(chalk.blue(paymentLink))
+        const panel = boxen(lines.join('\n'), {
+          title: '💎 Upgrade to Pro',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+        if (nik?.printPanel) nik.printPanel(panel)
+        else console.log(panel)
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      if (sub === 'activate') {
+        if (tier !== 'pro' && tier !== 'enterprise') {
+          const nik: any = (global as any).__nikCLI
+          const currentUser = authProvider.getCurrentUser()
+          const paymentLink = currentUser ? subscriptionService.getPaymentLink(currentUser.id) : 'Please login first'
+          const panel = boxen(
+            [
+              chalk.yellow('⚠️ Pro subscription required'),
+              '',
+              chalk.gray(`Upgrade at: ${paymentLink}`),
+              chalk.gray('Or use: /pro upgrade')
+            ].join('\n'),
+            {
+              title: 'Plan',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow'
+            }
+          )
+          if (nik?.printPanel) nik.printPanel(panel)
+          else console.log(panel)
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        try {
+          const loaded = await subscriptionService.loadProApiKey()
+          const nik: any = (global as any).__nikCLI
+          if (loaded) {
+            const panel = boxen(chalk.green('✓ OpenRouter API key loaded from subscription'), {
+              title: 'Plan',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green'
+            })
+            if (nik?.printPanel) nik.printPanel(panel)
+            else console.log(panel)
+          } else {
+            const panel = boxen(chalk.yellow('⚠️ API key not found. Contact support if issue persists.'), {
+              title: 'Plan',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow'
+            })
+            if (nik?.printPanel) nik.printPanel(panel)
+            else console.log(panel)
+          }
+        } catch (e: any) {
+          const nik: any = (global as any).__nikCLI
+          const panel = boxen(chalk.red(`❌ Activation failed: ${e.message}`), {
+            title: 'Plan',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red'
+          })
+          if (nik?.printPanel) nik.printPanel(panel)
+          else console.log(panel)
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      console.log(chalk.red(`❌ Unknown subcommand: ${sub}`))
+      console.log(chalk.gray('Use /pro help for available commands'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Pro command failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
   }
 
   private async quitCommand(): Promise<CommandResult> {
@@ -822,6 +996,15 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         configManager.setApiKey('browserbase_project_id', apiKey)
         process.env.BROWSERBASE_PROJECT_ID = apiKey
         console.log(chalk.green('✓ Browserbase Project ID set'))
+      } else if (keyName === 'openrouter' || keyName === 'nikcli') {
+        const valid = await this.validateOpenRouterKey(apiKey)
+        if (!valid) {
+          console.log(chalk.red('❌ Invalid OpenRouter API key'))
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+        configManager.setApiKey('openrouter', apiKey)
+        process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || apiKey
+        console.log(chalk.green('✓ OpenRouter key set and validated'))
       } else {
         configManager.setApiKey(name, apiKey)
         console.log(chalk.green(`✓ API key set for ${name}`))
@@ -831,6 +1014,18 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async validateOpenRouterKey(key: string): Promise<boolean> {
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/models', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${key}` } as any,
+      } as any)
+      return res.ok
+    } catch (_e) {
+      return false
+    }
   }
 
   /**
@@ -3608,6 +3803,35 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     lines.push(`  Remaining: ${chalk.white(this.formatTokens(remaining))} (${chalk.white((100 - percentage).toFixed(1) + '%')})`)
     lines.push('')
 
+    // Detailed Context Breakdown (Claude Code style)
+    const breakdown = this.getContextBreakdown()
+    if (breakdown.categories.length > 0) {
+      lines.push(chalk.white.bold('Context Usage'))
+
+      // Main progress bar with model info
+      const mainBar = this.createDetailedProgressBar(percentage, 10)
+      const modelInfo = `${session.model} · ${this.formatTokens(totalTokens)}/${this.formatTokens(session.modelLimits.context)} tokens (${percentage.toFixed(0)}%)`
+      lines.push(`${chalk.gray('     ')}${mainBar}${chalk.gray('   ')}${chalk.gray(modelInfo)}`)
+
+      // Secondary visual bar
+      const secondaryBar = this.createDetailedProgressBar(percentage, 10)
+      lines.push(`${chalk.gray('     ')}${secondaryBar}`)
+
+      // Category breakdown with individual bars
+      for (const category of breakdown.categories) {
+        const categoryBar = this.createDetailedProgressBar(0, 10) // Empty bar as visual separator
+        const catColor = chalk.hex(category.color)
+        const tokenDisplay = this.formatTokens(category.tokens)
+        const percentDisplay = `${category.percentage.toFixed(1)}%`
+
+        lines.push(
+          `${chalk.gray('     ')}${categoryBar}${chalk.gray('   ')}${catColor(category.icon)} ${category.name}: ${tokenDisplay} tokens (${percentDisplay})`
+        )
+      }
+
+      lines.push('')
+    }
+
     // Rate and efficiency
     const sessionMinutes = (Date.now() - session.startTime.getTime()) / 60000
     lines.push(chalk.cyan('⚡ Performance:'))
@@ -3758,6 +3982,148 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     return `[${color(filledChar.repeat(filled))}${chalk.gray(emptyChar.repeat(empty))}]`
+  }
+
+  /**
+   * Create a detailed progress bar using special characters similar to Claude Code
+   */
+  private createDetailedProgressBar(percentage: number, width: number = 10): string {
+    const filledCount = Math.floor((percentage / 100) * width)
+    const emptyCount = width - filledCount
+
+    // Special characters for progress visualization
+    const filledChar = '⛁'
+    const partialChar = '⛀'
+    const emptyChar = '⛶'
+    const bufferChar = '⛝'
+
+    // Color coding based on usage
+    let color = chalk.hex('#00b2b2') // cyan-ish
+    if (percentage >= 90) {
+      color = chalk.hex('#ff3366') // red
+    } else if (percentage >= 80) {
+      color = chalk.hex('#ff9933') // orange/yellow
+    } else if (percentage >= 50) {
+      color = chalk.hex('#3366ff') // blue
+    }
+
+    // Build the bar
+    const filled = color(filledChar.repeat(filledCount))
+    const partial = percentage % (100 / width) > 0 ? color(partialChar) : ''
+    const empty = chalk.hex('#666666')(emptyChar.repeat(emptyCount))
+
+    return `${filled}${partial}${empty}`
+  }
+
+  /**
+   * Get detailed context breakdown by category
+   */
+  private getContextBreakdown(): {
+    categories: Array<{
+      name: string
+      icon: string
+      tokens: number
+      percentage: number
+      color: string
+    }>
+    totalTokens: number
+    maxTokens: number
+  } {
+    const session = contextTokenManager.getCurrentSession()
+    if (!session) {
+      return {
+        categories: [],
+        totalTokens: 0,
+        maxTokens: 0,
+      }
+    }
+
+    const totalTokens = session.totalInputTokens + session.totalOutputTokens
+    const maxTokens = session.modelLimits.context
+
+    // Estimate system components (these are approximations)
+    const systemPromptTokens = Math.floor(totalTokens * 0.02) // ~2% for system prompt
+    const systemToolsTokens = Math.floor(totalTokens * 0.08) // ~8% for system tools
+    const mcpToolsTokens = Math.floor(totalTokens * 0.006) // ~0.6% for MCP tools
+    const customAgentsTokens = Math.floor(totalTokens * 0.02) // ~2% for custom agents
+    const memoryFilesTokens = Math.floor(totalTokens * 0.017) // ~1.7% for memory files
+
+    // Messages are the remaining tokens
+    const messageTokens = Math.max(
+      0,
+      totalTokens - systemPromptTokens - systemToolsTokens - mcpToolsTokens - customAgentsTokens - memoryFilesTokens
+    )
+
+    // Free space
+    const freeSpace = maxTokens - totalTokens
+
+    // Autocompact buffer (22.5% of max context)
+    const autocompactBuffer = Math.floor(maxTokens * 0.225)
+
+    const categories = [
+      {
+        name: 'System prompt',
+        icon: '⛁',
+        tokens: systemPromptTokens,
+        percentage: (systemPromptTokens / maxTokens) * 100,
+        color: '#999999',
+      },
+      {
+        name: 'System tools',
+        icon: '⛁',
+        tokens: systemToolsTokens,
+        percentage: (systemToolsTokens / maxTokens) * 100,
+        color: '#666666',
+      },
+      {
+        name: 'MCP tools',
+        icon: '⛁',
+        tokens: mcpToolsTokens,
+        percentage: (mcpToolsTokens / maxTokens) * 100,
+        color: '#00b2b2',
+      },
+      {
+        name: 'Custom agents',
+        icon: '⛁',
+        tokens: customAgentsTokens,
+        percentage: (customAgentsTokens / maxTokens) * 100,
+        color: '#3366ff',
+      },
+      {
+        name: 'Memory files',
+        icon: '⛁',
+        tokens: memoryFilesTokens,
+        percentage: (memoryFilesTokens / maxTokens) * 100,
+        color: '#ff9933',
+      },
+      {
+        name: 'Messages',
+        icon: '⛁',
+        tokens: messageTokens,
+        percentage: (messageTokens / maxTokens) * 100,
+        color: '#800080',
+      },
+      {
+        name: 'Free space',
+        icon: '⛶',
+        tokens: freeSpace,
+        percentage: (freeSpace / maxTokens) * 100,
+        color: '#666666',
+      },
+      {
+        name: 'Autocompact buffer',
+        icon: '⛝',
+        tokens: autocompactBuffer,
+        percentage: (autocompactBuffer / maxTokens) * 100,
+        color: '#666666',
+      },
+    ]
+
+    return {
+      categories,
+      totalTokens,
+      maxTokens,
+    }
   }
 
   /**

@@ -517,7 +517,7 @@ Error Context:
     // Simple template engine - replace {{variable}} with context values
     const variablePattern = /\{\{(\w+)\}\}/g
     compiled = compiled.replace(variablePattern, (match, variableName) => {
-      if (Object.prototype.hasOwnProperty.call(context, variableName)) {
+      if (Object.hasOwn(context, variableName)) {
         return String(context[variableName])
       }
       return match // Keep original if not found in context

@@ -215,7 +215,7 @@ export class EnvironmentParser {
       install: `${packageManager} install`,
       start: '',
       terminals: [],
-      secrets: ['OPENAI_API_KEY'],
+      secrets: ['OPENAI_API_KEY,OPENROUTER_API_KEY'],
       cache: ['node_modules'],
       policies: {
         maxMemoryMB: 4096,
@@ -235,7 +235,7 @@ export class EnvironmentParser {
           { name: 'Build', command: `${packageManager} build`, autoStart: false },
         ]
         baseConfig.cache.push('.next', '.turbo')
-        baseConfig.secrets.push('NEXTAUTH_SECRET', 'DATABASE_URL')
+        baseConfig.secrets.push('NEXTAUTH_SECRET', 'DATABASE_URL', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY')
         break
 
       case 'vite':

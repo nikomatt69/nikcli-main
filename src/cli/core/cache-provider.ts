@@ -1,4 +1,4 @@
-import { cacheService } from "../services/cache-service"
+import { cacheService } from '../services/cache-service'
 
 export interface CacheOptions {
   ttl?: number
@@ -134,4 +134,3 @@ class GlobalCacheManager {
 }
 
 export const globalCacheManager = new GlobalCacheManager()
-

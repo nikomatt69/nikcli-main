@@ -437,7 +437,7 @@ class UpstashVectorStore extends VectorStore {
         try {
           const response = await axios.get(`${vectorUrl}/info`, {
             headers: { Authorization: `Bearer ${vectorToken}` },
-            timeout: 5000
+            timeout: 5000,
           })
           console.log(chalk.green(`✓ Upstash Vector connected (dimension: ${response.data?.dimension || 'unknown'})`))
         } catch (error: any) {

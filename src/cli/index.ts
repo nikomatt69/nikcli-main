@@ -742,11 +742,24 @@ class OnboardingModule {
 
     if (redisEnabled) {
       try {
+        const redisCredentials = configManager.getRedisCredentials()
         const redisConfig = config.redis
+
+        // Determine display based on Upstash vs legacy configuration
+        let connectionInfo: string
+        if (redisCredentials.url) {
+          // Upstash Redis - show URL (masked for security)
+          const url = new URL(redisCredentials.url)
+          connectionInfo = `${url.hostname}`
+        } else {
+          // Legacy Redis - show host:port
+          connectionInfo = `${redisConfig!.host}:${redisConfig!.port}`
+        }
+
         const redisLines = [
           chalk.cyan.bold('🔴 Redis Cache Service'),
-          chalk.gray(`Host: ${redisConfig!.host}:${redisConfig!.port}`),
-          chalk.gray(`Database: ${redisConfig!.database}`),
+          chalk.gray(`Host: ${connectionInfo}`),
+          redisCredentials.url ? chalk.gray('Provider: Upstash') : chalk.gray(`Database: ${redisConfig!.database}`),
           chalk.gray(`Fallback: ${redisConfig!.fallback.enabled ? 'Enabled' : 'Disabled'}`),
           chalk.green('✓ Configuration loaded'),
         ]
@@ -938,6 +951,28 @@ class OnboardingModule {
           }
         )
         OnboardingModule.renderSection([header, successBox])
+
+        // Pro/Enterprise only: fetch and store NikCLI OpenRouter key (free stays BYOK)
+        try {
+          if (result.profile.subscription_tier === 'pro' || result.profile.subscription_tier === 'enterprise') {
+            const token = result.session.accessToken
+            const endpoint = process.env.NIKCLI_KEY_ENDPOINT || '/api/keys/openrouter'
+            const baseUrl = process.env.NIKCLI_BASE_URL || ''
+            const url = `${baseUrl}${endpoint}`
+            const resp = await fetch(url, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` } as any,
+            } as any)
+            if (resp.ok) {
+              const data = (await resp.json()) as any
+              if (data?.key) {
+                configManager.setApiKey('openrouter', data.key)
+              }
+            }
+          }
+        } catch (_e) {
+          // Silent failure
+        }
       } else {
         const failureBox = boxen(chalk.red('❌ Sign in failed. Check your credentials and try again.'), {
           padding: 1,
@@ -1764,6 +1799,22 @@ class MainOrchestrator {
       if (!initialized) {
         console.log(chalk.red('\n❌ Cannot start - system initialization failed'))
         process.exit(1)
+      }
+
+      // Load Pro subscription API key if user is Pro
+      try {
+        const { authProvider } = await import('./providers/supabase/auth-provider')
+        const { subscriptionService } = await import('./services/subscription-service')
+
+        const profile = authProvider.getCurrentProfile()
+        if (profile?.subscription_tier === 'pro') {
+          const loaded = await subscriptionService.loadProApiKey()
+          if (loaded) {
+            console.log(chalk.green('✓ Pro API key loaded from subscription'))
+          }
+        }
+      } catch (error) {
+        // Silent fail - API key will be loaded manually if needed
       }
 
       // Re-enable console logging

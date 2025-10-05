@@ -62,9 +62,7 @@ export class APIKeyManager {
         this.userConfig = config.apiKeys || {}
       }
     } catch (error) {
-      console.warn(
-        chalk.yellow('⚠️  Could not load user config, using defaults')
-      )
+      console.warn(chalk.yellow('⚠️  Could not load user config, using defaults'))
     }
   }
 
@@ -98,9 +96,7 @@ export class APIKeyManager {
 
       console.log(chalk.green(`✅ Saved ${provider} API key to config`))
     } catch (error) {
-      console.error(
-        chalk.red(`❌ Failed to save API key: ${error instanceof Error ? error.message : 'Unknown error'}`)
-      )
+      console.error(chalk.red(`❌ Failed to save API key: ${error instanceof Error ? error.message : 'Unknown error'}`))
     }
   }
 
@@ -157,10 +153,7 @@ export class APIKeyManager {
    * Check if user wants to use their own keys
    */
   isUsingOwnKeys(): boolean {
-    return (
-      process.env.NIKCLI_USE_OWN_KEYS === 'true' ||
-      process.env.NIKCLI_USE_OWN_KEYS === '1'
-    )
+    return process.env.NIKCLI_USE_OWN_KEYS === 'true' || process.env.NIKCLI_USE_OWN_KEYS === '1'
   }
 
   /**
@@ -232,15 +225,7 @@ export class APIKeyManager {
   printStatus(): void {
     console.log(chalk.bold('\n🔑 API Key Configuration Status\n'))
 
-    const providers: AIProvider[] = [
-      'anthropic',
-      'openai',
-      'google',
-      'mistral',
-      'perplexity',
-      'openrouter',
-      'xai',
-    ]
+    const providers: AIProvider[] = ['anthropic', 'openai', 'google', 'mistral', 'perplexity', 'openrouter', 'xai']
 
     for (const provider of providers) {
       const source = this.getAPIKeySource(provider)
@@ -310,9 +295,7 @@ export class APIKeyManager {
 
         console.log(chalk.green(`✅ Removed ${provider} API key from config`))
       } else {
-        console.log(
-          chalk.yellow(`⚠️  ${provider} API key not found in config`)
-        )
+        console.log(chalk.yellow(`⚠️  ${provider} API key not found in config`))
       }
     } catch (error) {
       console.error(
@@ -325,11 +308,7 @@ export class APIKeyManager {
    * Get cloud service authentication token (for internal use)
    */
   getCloudAuthToken(): string | undefined {
-    return (
-      this.cloudConfig.authToken ||
-      process.env.NIKCLI_CLOUD_TOKEN ||
-      process.env.NIKCLI_AUTH_TOKEN
-    )
+    return this.cloudConfig.authToken || process.env.NIKCLI_CLOUD_TOKEN || process.env.NIKCLI_AUTH_TOKEN
   }
 
   /**
@@ -355,4 +334,3 @@ export function getAPIKeyManager(): APIKeyManager {
 export function resetAPIKeyManager(): void {
   apiKeyManagerInstance = undefined
 }
-

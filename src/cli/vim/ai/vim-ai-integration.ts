@@ -2,10 +2,10 @@ import { EventEmitter } from 'node:events'
 import type { CoreMessage } from 'ai'
 import type { ModernAIProvider } from '../../ai/modern-ai-provider'
 import type { SimpleConfigManager } from '../../core/config-manager'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import { VimMode, type VimState } from '../types/vim-types'
 import type { VimModeConfig } from '../vim-mode-manager'
-import { advancedUI } from '../../ui/advanced-cli-ui'
 
 export interface VimAIRequest {
   type: 'generate' | 'explain' | 'refactor' | 'comment' | 'assist'

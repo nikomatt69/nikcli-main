@@ -1,7 +1,7 @@
 // JWT Authentication for Background Agents API
 // Provides optional authentication for CLI users
 
-import type { Request, Response, NextFunction } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken'
 
 export interface JWTPayload {
@@ -55,10 +55,7 @@ export function generateToken(
 /**
  * Verify JWT token
  */
-export function verifyToken(
-  token: string,
-  config: AuthConfig = defaultAuthConfig
-): JWTPayload | null {
+export function verifyToken(token: string, config: AuthConfig = defaultAuthConfig): JWTPayload | null {
   try {
     const decoded = jwt.verify(token, config.jwtSecret) as JWTPayload
     return decoded
@@ -79,9 +76,7 @@ export function authMiddleware(config: AuthConfig = defaultAuthConfig) {
     }
 
     // Check if endpoint is public
-    const isPublicEndpoint = config.publicEndpoints.some((endpoint) =>
-      req.path.startsWith(endpoint)
-    )
+    const isPublicEndpoint = config.publicEndpoints.some((endpoint) => req.path.startsWith(endpoint))
 
     if (isPublicEndpoint) {
       return next()
@@ -110,9 +105,8 @@ export function authMiddleware(config: AuthConfig = defaultAuthConfig) {
         message: 'Invalid or expired token',
       })
     }
-
     // Attach user info to request
-    ; (req as any).user = payload
+    ;(req as any).user = payload
 
     next()
   }
@@ -202,7 +196,7 @@ export function cliVersionMiddleware() {
     const cliVersion = req.headers['x-cli-version'] as string | undefined
 
     if (cliVersion) {
-      ; (req as any).cliVersion = cliVersion
+      ;(req as any).cliVersion = cliVersion
     }
 
     next()
@@ -243,4 +237,3 @@ export function requireTier(minTier: 'free' | 'pro' | 'enterprise') {
     return next()
   }
 }
-

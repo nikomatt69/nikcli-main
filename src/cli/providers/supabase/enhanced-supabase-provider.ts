@@ -105,8 +105,8 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         },
         realtime: this.config.features.realtime
           ? {
-              heartbeatIntervalMs: 30000,
-            }
+            heartbeatIntervalMs: 30000,
+          }
           : undefined,
       })
 
@@ -585,6 +585,34 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       await this.client.auth.signOut()
     } catch (error: any) {
       console.log(chalk.red(`❌ Sign out failed: ${error.message}`))
+    }
+  }
+
+  /**
+   * Get current access token from Supabase session
+   */
+  async getAccessToken(): Promise<string | null> {
+    if (!this.client || !this.config.features.auth) return null
+    try {
+      const { data, error } = await this.client.auth.getSession()
+      if (error) return null
+      return data.session?.access_token || null
+    } catch (_e) {
+      return null
+    }
+  }
+
+  /**
+   * Get current refresh token from Supabase session
+   */
+  async getRefreshToken(): Promise<string | null> {
+    if (!this.client || !this.config.features.auth) return null
+    try {
+      const { data, error } = await this.client.auth.getSession()
+      if (error) return null
+      return (data.session as any)?.refresh_token || null
+    } catch (_e) {
+      return null
     }
   }
 

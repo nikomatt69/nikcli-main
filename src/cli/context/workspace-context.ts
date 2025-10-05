@@ -3,8 +3,8 @@ import * as fs from 'node:fs'
 import * as fsPromises from 'node:fs/promises'
 import * as path from 'node:path'
 import chalk from 'chalk'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { toolsManager } from '../tools/tools-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 // Import new unified components
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 import { unifiedRAGSystem } from './rag-system'
@@ -110,12 +110,12 @@ export class WorkspaceContextManager {
     path: string
     max?: number
   }> = [
-      { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
-      { kind: 'directory', path: 'src/cli/cloud', max: 6 },
-      { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
-      { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
-      { kind: 'file', path: 'src/cli/core/config-manager.ts' },
-    ]
+    { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
+    { kind: 'directory', path: 'src/cli/cloud', max: 6 },
+    { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
+    { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
+    { kind: 'file', path: 'src/cli/core/config-manager.ts' },
+  ]
 
   // Integrated components
   private fileFilter: FileFilterSystem

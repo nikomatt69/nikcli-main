@@ -69,10 +69,10 @@ export class AiSdkEmbeddingProvider {
 
     openrouter: {
       provider: 'openai',
-      model: 'text-embedding-3-small', // Uses OpenAI compatible embeddings
+      model: 'text-embedding-3-small', // OpenRouter doesn't support embeddings, fallback to OpenAI
       batchSize: 100,
       maxTokens: 8191,
-      costPer1KTokens: 0.00003, // Slightly higher than OpenAI direct
+      costPer1KTokens: 0.00002, // OpenAI direct pricing (no OpenRouter markup)
     },
   }
 
@@ -164,7 +164,6 @@ export class AiSdkEmbeddingProvider {
       console.log(chalk.green(`✓ All ${texts.length} embeddings served from cache`))
       return cachedResults as number[][]
     }
-
 
     try {
       const result = await this.generateWithProvider(uncachedTexts, this.currentProvider)
@@ -388,18 +387,17 @@ export class AiSdkEmbeddingProvider {
           break
         case 'openrouter':
           {
-            // Configure OpenRouter with API key from config or environment
-            const apiKey = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
-            if (!apiKey) {
-              throw new Error('OpenRouter API key not found')
+            // OpenRouter doesn't support embedding endpoints, fallback to OpenAI
+
+
+            const openaiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
+            if (!openaiKey) {
+              throw new Error('OpenAI API key required for embeddings when using OpenRouter provider')
             }
 
-            // OpenRouter uses OpenAI-compatible interface for embeddings
-            const openrouterProvider = createOpenAI({
-              apiKey,
-              baseURL: 'https://openrouter.ai/api/v1',
-            })
-            const model = openrouterProvider.embedding(config.model)
+            // Use OpenAI for embeddings with text-embedding-3-small model
+            const openaiProvider = createOpenAI({ apiKey: openaiKey })
+            const model = openaiProvider.embedding('text-embedding-3-small')
 
             // For multiple texts, use embedMany
             if (texts.length > 1) {
