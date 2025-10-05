@@ -1844,18 +1844,6 @@ async function main() {
   // Parse command line arguments
   const argv = process.argv.slice(2)
 
-  // Check for ACP mode
-  if (argv.includes('--acp') || argv.includes('acp') || process.env.NIKCLI_MODE === 'acp') {
-    try {
-      // Import ACP functionality
-      const { runAcpCli } = await import('./acp')
-      await runAcpCli()
-      return
-    } catch (err: any) {
-      console.error(chalk.red('ACP mode failed:'), err?.message || err)
-      process.exit(1)
-    }
-  }
 
   // Minimal non-interactive report mode for CI/VS Code
   if (argv[0] === 'report' || argv.includes('--report')) {

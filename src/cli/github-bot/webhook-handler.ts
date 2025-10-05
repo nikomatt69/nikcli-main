@@ -21,7 +21,7 @@ export class GitHubWebhookHandler {
     this.config = config
     this.octokit = new Octokit({
       auth: config.githubToken,
-      userAgent: 'nikCLI-bot/0.2.3',
+      userAgent: 'nikCLI-bot/0.3.0',
     })
 
     this.commentProcessor = new CommentProcessor()

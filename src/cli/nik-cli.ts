@@ -10551,7 +10551,7 @@ EOF`
         // Setup basic project structure
         const basicPackageJson = {
           name: path.basename(this.workingDirectory),
-          version: '0.2.3',
+          version: '0.3.0',
           description: 'Project managed by NikCLI',
           scripts: {
             start: 'node index.js',
@@ -15633,7 +15633,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         fullName: fullName || undefined,
         metadata: {
           source: 'nikcli',
-          version: '0.2.3',
+          version: '0.3.0',
           created_at: new Date().toISOString(),
         },
       })

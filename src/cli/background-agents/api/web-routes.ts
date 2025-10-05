@@ -33,7 +33,7 @@ class GitHubAPIClient {
         headers: {
           'Authorization': `token ${this.token}`,
           'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'NikCLI-BackgroundAgents/0.2.3'
+          'User-Agent': 'NikCLI-BackgroundAgents/0.3.0'
         }
       })
 
@@ -42,7 +42,7 @@ class GitHubAPIClient {
       }
 
       const repos = await response.json()
-      
+
       return repos.map((repo: any) => ({
         id: repo.id,
         name: repo.name,
@@ -71,7 +71,7 @@ class GitHubAPIClient {
         headers: {
           'Authorization': `token ${this.token}`,
           'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'NikCLI-BackgroundAgents/0.2.3'
+          'User-Agent': 'NikCLI-BackgroundAgents/0.3.0'
         }
       })
 
@@ -138,7 +138,7 @@ export function setupWebRoutes(app: express.Application): void {
 async function getWebConfig(_req: express.Request, res: express.Response): Promise<void> {
   try {
     const githubClient = new GitHubAPIClient()
-    
+
     let username: string | null = null
     let repositories: GitHubRepository[] = []
 
@@ -182,7 +182,7 @@ async function updateWebConfig(req: express.Request, res: express.Response): Pro
   try {
     const updates = req.body
     const githubClient = new GitHubAPIClient()
-    
+
     let username: string | null = null
     let repositories: GitHubRepository[] = []
 

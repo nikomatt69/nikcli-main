@@ -36,7 +36,7 @@ import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
 import { initializeVMSelector, vmSelector } from '../virtualized-agents/vm-selector'
 import { chatManager } from './chat-manager'
 import { contextTokenManager } from '../core/context-token-manager'
-import { BenchmarkCommandHandler } from '../benchmarks/benchmark-command-handler'
+
 import { generateText } from 'ai'
 
 // ====================== ⚡︎ ZOD COMMAND VALIDATION SCHEMAS ======================
@@ -163,7 +163,7 @@ export class SlashCommandHandler {
   private agentManager: AgentManager
   private vmOrchestrator: VMOrchestrator
   private cliInstance: any // Reference to main CLI instance
-  private benchmarkHandler: BenchmarkCommandHandler
+
 
   constructor(cliInstance?: any) {
     this.cliInstance = cliInstance
@@ -171,7 +171,7 @@ export class SlashCommandHandler {
     registerAgents(this.agentManager)
     const containerManager = new ContainerManager()
     this.vmOrchestrator = new VMOrchestrator(containerManager)
-    this.benchmarkHandler = new BenchmarkCommandHandler()
+
 
     // Initialize VM selector with the orchestrator
     initializeVMSelector(this.vmOrchestrator)
@@ -344,7 +344,7 @@ export class SlashCommandHandler {
     this.commands.set('snap', this.snapshotCommand.bind(this))
 
     // Benchmark commands
-    this.commands.set('bench', this.benchCommand.bind(this))
+
     this.commands.set('restore', this.restoreCommand.bind(this))
     this.commands.set('snapshots', this.listSnapshotsCommand.bind(this))
 
@@ -8585,47 +8585,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
-  /**
-   * Benchmark command - Run AI model benchmarks
-   */
-  private async benchCommand(args: string[]): Promise<CommandResult> {
-    // Create a model executor that wraps the current AI model
-    const modelExecutor = async (prompt: string) => {
-      const provider = modernAIProvider.getCurrentModelInfo().config.provider
-      const model = modernAIProvider.getCurrentModelInfo().name
-
-      // Call the model with the prompt
-      const result = await generateText({
-        model: modernAIProvider.getCurrentModelInfo().config.model as any,
-        prompt,
-        temperature: 0.7,
-      })
-
-      // Extract token usage and cost
-      const tokensUsed = {
-        input: result.usage?.promptTokens || 0,
-        output: result.usage?.completionTokens || 0,
-        total: (result.usage?.promptTokens || 0) + (result.usage?.completionTokens || 0),
-      }
-
-      // Estimate cost (simplified - actual costs vary by model)
-      const costPerInputToken = 0.000003 // $3 per million tokens
-      const costPerOutputToken = 0.000015 // $15 per million tokens
-      const cost =
-        (tokensUsed.input * costPerInputToken) +
-        (tokensUsed.output * costPerOutputToken)
-
-      return {
-        output: result.text,
-        tokensUsed,
-        cost,
-      }
-    }
-
-    await this.benchmarkHandler.handle(args, modelExecutor)
-
-    return { shouldExit: false, shouldUpdatePrompt: false }
-  }
 }
 
 /**

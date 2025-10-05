@@ -14,7 +14,7 @@ export const FeatureFlagSchema = z.object({
   enabled: z.boolean().default(false),
   category: z.enum(['core', 'tools', 'agents', 'ui', 'performance', 'security', 'experimental']),
   environment: z.array(z.enum(['development', 'staging', 'production', 'all'])).default(['all']),
-  version: z.string().default('0.2.3'),
+  version: z.string().default('0.3.0'),
   dependencies: z.array(z.string()).default([]),
   conflicts: z.array(z.string()).default([]),
   rolloutPercentage: z.number().min(0).max(100).default(100),
@@ -557,7 +557,7 @@ export class FeatureFlagManager extends EventEmitter {
   private async saveToFile(): Promise<void> {
     try {
       const data = {
-        version: '0.2.3',
+        version: '0.3.0',
         lastUpdated: new Date().toISOString(),
         environment: this.config.environment,
         flags: Array.from(this.flags.values()).map((flag) => ({

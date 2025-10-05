@@ -11,7 +11,7 @@ export function registerAgents(agentManager: AgentManager): void {
     name: 'Universal Agent',
     description: 'All-in-one enterprise agent with complete coding, analysis, and autonomous capabilities',
     specialization: 'universal',
-    version: '0.2.3',
+    version: '0.3.0',
     capabilities: [
       // Core capabilities
       'code-generation',
@@ -194,7 +194,7 @@ export function registerAgents(agentManager: AgentManager): void {
     name: 'Secure VM Agent',
     description: 'Autonomous development agent with isolated VM environment and complete repository management',
     specialization: 'virtualized-autonomous',
-    version: '0.2.3',
+    version: '0.3.0',
     capabilities: [
       // VM-specific capabilities
       'vm-management',

@@ -67,6 +67,7 @@
     "tests",
     "api/openrouter/**/*",
     "api/subscription/**/*",
+    "web/**/*",
     "scripts/**/*",
     "**/*.spec.ts",
     "**/*.test.ts"

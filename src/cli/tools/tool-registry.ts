@@ -57,7 +57,7 @@ export class ToolRegistry {
       estimatedDuration: metadata?.estimatedDuration || 5000,
       requiredPermissions: metadata?.requiredPermissions || [],
       supportedFileTypes: metadata?.supportedFileTypes || [],
-      version: metadata?.version || '0.2.3',
+      version: metadata?.version || '0.3.0',
       author: metadata?.author || 'system',
       tags: metadata?.tags || [],
     })
@@ -199,7 +199,7 @@ export class ToolRegistry {
     return {
       tools: Array.from(this.toolMetadata.values()),
       exportedAt: new Date(),
-      version: '0.2.3',
+      version: '0.3.0',
     }
   }
 
