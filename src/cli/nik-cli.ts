@@ -199,6 +199,14 @@ export class NikCLI {
   private vimKeyHandler?: (data: Buffer) => Promise<void>
   private keypressListener?: (chunk: any, key: any) => void
 
+  // Interactive slash menu state
+  private isSlashMenuActive: boolean = false
+  private slashMenuCommands: [string, string][] = []
+  private slashMenuSelectedIndex: number = 0
+  private slashMenuScrollOffset: number = 0
+  private currentSlashInput: string = ''
+  private readonly SLASH_MENU_MAX_VISIBLE: number = 5
+
   // Enhanced features
   private enhancedFeaturesEnabled: boolean = true
   private tokenDisplay = createConsoleTokenDisplay() // Real-time token display
@@ -2206,6 +2214,41 @@ export class NikCLI {
         }
 
         // Handle / key for slash command palette
+        if (chunk === '/' && !this.assistantProcessing) {
+          const currentLine = this.rl?.line || ''
+          if (currentLine.length === 1 && currentLine === '/') {
+            // Activate slash menu when "/" is typed at the beginning
+            this.activateSlashMenu('/')
+            return
+          }
+        }
+
+        // Handle slash menu navigation
+        if (this.isSlashMenuActive && this.handleSlashMenuNavigation(key)) {
+          return
+        }
+
+        // Handle typing while slash menu is active
+        if (this.isSlashMenuActive && chunk && chunk.length === 1 && !key?.ctrl && !key?.meta) {
+          const currentLine = this.rl?.line || ''
+          if (currentLine.startsWith('/')) {
+            this.updateSlashMenu(currentLine)
+          } else {
+            this.closeSlashMenu()
+          }
+          return
+        }
+
+        // Handle backspace while slash menu is active
+        if (this.isSlashMenuActive && key?.name === 'backspace') {
+          const currentLine = this.rl?.line || ''
+          if (currentLine.length === 0 || !currentLine.startsWith('/')) {
+            this.closeSlashMenu()
+          } else {
+            this.updateSlashMenu(currentLine)
+          }
+          return
+        }
 
         // Handle ? key to show a quick cheat-sheet overlay (only at start of line)
         if (chunk === '?' && !this.assistantProcessing) {
@@ -10128,8 +10171,11 @@ EOF`
     }
   }
 
-  private showSlashHelp(): void {
-    const commands = [
+  /**
+   * Get all available slash commands
+   */
+  private getSlashCommands(): [string, string][] {
+    return [
       // 🏠 Core System Commands
       ['/help', 'Show this comprehensive help guide'],
       ['/exit', 'Exit NikCLI safely'],
@@ -10315,6 +10361,29 @@ EOF`
       ['/diagnostic status', 'Show diagnostic status'],
       ['/monitor [path]', 'Monitor file changes'],
     ]
+  }
+
+  /**
+   * Filter slash commands based on input and return all matches
+   */
+  private filterSlashCommands(input: string): [string, string][] {
+    if (!input || input === '/') {
+      return this.getSlashCommands()
+    }
+
+    const searchTerm = input.toLowerCase()
+    const allCommands = this.getSlashCommands()
+
+    // Filter commands that start with the input
+    const matches = allCommands.filter(([command]) =>
+      command.toLowerCase().startsWith(searchTerm)
+    )
+
+    return matches
+  }
+
+  private showSlashHelp(): void {
+    const commands = this.getSlashCommands()
 
     const pad = (s: string) => s.padEnd(32)
     const lines: string[] = []
@@ -11217,10 +11286,14 @@ EOF`
     const readyText = this.assistantProcessing ? chalk.blue(`⏲ ${this.renderLoadingBar()}`) : chalk.green('⚡︎')
     const statusIndicator = this.assistantProcessing ? '⏳' : '✅'
 
-    // Move cursor to bottom of terminal (reserve HUD + frame + prompt)
+    // Calculate slash menu lines (header + visible items + footer + borders)
+    const slashMenuLines = this.isSlashMenuActive ?
+      Math.min(this.slashMenuCommands.length, this.SLASH_MENU_MAX_VISIBLE) + 5 : 0 // +5 for header, footer, and borders
+
+    // Move cursor to bottom of terminal (reserve HUD + frame + prompt + slash menu)
     const terminalHeight = process.stdout.rows || 24
     const hudExtraLines = planHudLines.length > 0 ? planHudLines.length + 1 : 0
-    const reservedLines = 3 + hudExtraLines
+    const reservedLines = 3 + hudExtraLines + slashMenuLines
     process.stdout.write(`\x1B[${Math.max(1, terminalHeight - reservedLines)};0H`)
 
     // Clear the bottom lines
@@ -11231,6 +11304,113 @@ EOF`
         process.stdout.write(`${line}\n`)
       }
       process.stdout.write('\n')
+    }
+
+    // Render slash menu if active
+    if (this.isSlashMenuActive && this.slashMenuCommands.length > 0) {
+      const menuWidth = Math.min(terminalWidth - 4, 80) // Leave margin and max width
+      const menuBorder = '─'.repeat(menuWidth - 2)
+
+      // Calculate visible commands window
+      const visibleCommands = this.slashMenuCommands.slice(
+        this.slashMenuScrollOffset,
+        this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE
+      )
+
+      // Menu header with scroll indicators
+      const hasMoreAbove = this.slashMenuScrollOffset > 0
+      const hasMoreBelow = this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE < this.slashMenuCommands.length
+      const scrollIndicator = hasMoreAbove || hasMoreBelow ?
+        ` ${chalk.gray(`(${this.slashMenuSelectedIndex + 1}/${this.slashMenuCommands.length})`)}` : ''
+
+      const headerText = `Commands${scrollIndicator}`
+      const headerTextLength = this._stripAnsi(headerText).length
+      const headerPadding = Math.max(0, menuWidth - headerTextLength - 2) // -2 for borders
+      const leftHeaderPad = Math.floor(headerPadding / 2)
+      const rightHeaderPad = headerPadding - leftHeaderPad
+
+      process.stdout.write(`${chalk.cyan(`╭${menuBorder}╮`)}\n`)
+      process.stdout.write(
+        chalk.cyan('│') +
+        ' '.repeat(leftHeaderPad) +
+        chalk.white.bold(headerText) +
+        ' '.repeat(rightHeaderPad) +
+        chalk.cyan('│') +
+        '\n'
+      )
+      process.stdout.write(`${chalk.cyan(`├${menuBorder}┤`)}\n`)
+
+      // Menu items (only visible window)
+      visibleCommands.forEach((command, visibleIndex) => {
+        const actualIndex = this.slashMenuScrollOffset + visibleIndex
+        const [cmd, desc] = command
+        const isSelected = actualIndex === this.slashMenuSelectedIndex
+        const maxCmdWidth = 24
+        const maxDescWidth = menuWidth - maxCmdWidth - 6 // 6 for borders and spacing
+
+        // Truncate command and description to fit
+        const truncatedCmd = cmd.length > maxCmdWidth ? `${cmd.substring(0, maxCmdWidth - 2)}..` : cmd
+        const truncatedDesc = desc.length > maxDescWidth ? `${desc.substring(0, maxDescWidth - 2)}..` : desc
+
+        const cmdPart = truncatedCmd.padEnd(maxCmdWidth)
+        const descPart = truncatedDesc.padEnd(maxDescWidth)
+
+        // Calculate exact content width without ANSI codes
+        const contentText = ` ${cmdPart} ${descPart} `
+        const contentWidth = this._stripAnsi(contentText).length
+
+        // Ensure content fits exactly within the box width
+        const availableWidth = menuWidth - 2 // -2 for left and right borders
+        const rightPadding = Math.max(0, availableWidth - contentWidth)
+
+        if (isSelected) {
+          // Highlighted selection - ensure exact width
+          const selectedContent = `${contentText}${' '.repeat(rightPadding)}`
+          process.stdout.write(
+            chalk.cyan('│') +
+            chalk.bgBlue.white(selectedContent) +
+            chalk.cyan('│') +
+            '\n'
+          )
+        } else {
+          // Normal item - ensure exact width
+          const normalContent = ` ${chalk.yellow(cmdPart)} ${chalk.gray(descPart)}${' '.repeat(rightPadding)} `
+          process.stdout.write(
+            chalk.cyan('│') +
+            normalContent +
+            chalk.cyan('│') +
+            '\n'
+          )
+        }
+      })
+
+      // Menu footer with scroll indicators
+      let footerContent = ''
+      if (hasMoreAbove && hasMoreBelow) {
+        footerContent = `${chalk.gray('↑↓')} Use arrows to scroll`
+      } else if (hasMoreAbove) {
+        footerContent = `${chalk.gray('↑')} More above`
+      } else if (hasMoreBelow) {
+        footerContent = `${chalk.gray('↓')} More below`
+      } else {
+        footerContent = `${chalk.gray('↵')} Enter to select • ${chalk.gray('Esc')} to close`
+      }
+
+      const footerTextLength = this._stripAnsi(footerContent).length
+      const footerPadding = Math.max(0, menuWidth - footerTextLength - 2) // -2 for borders
+      const leftFooterPad = Math.floor(footerPadding / 2)
+      const rightFooterPad = footerPadding - leftFooterPad
+
+      process.stdout.write(`${chalk.cyan(`├${menuBorder}┤`)}\n`)
+      process.stdout.write(
+        chalk.cyan('│') +
+        ' '.repeat(leftFooterPad) +
+        footerContent +
+        ' '.repeat(rightFooterPad) +
+        chalk.cyan('│') +
+        '\n'
+      )
+      process.stdout.write(`${chalk.cyan(`╰${menuBorder}╯`)}\n`)
     }
 
     // Model/provider
@@ -19631,6 +19811,104 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         borderColor: config.color,
       })
     )
+  }
+
+  /**
+   * Handle slash menu navigation with arrow keys and scrolling
+   */
+  private handleSlashMenuNavigation(key: any): boolean {
+    if (!this.isSlashMenuActive) return false
+
+    if (key.name === 'up') {
+      if (this.slashMenuSelectedIndex > 0) {
+        this.slashMenuSelectedIndex--
+
+        // Adjust scroll offset if selection goes above visible area
+        if (this.slashMenuSelectedIndex < this.slashMenuScrollOffset) {
+          this.slashMenuScrollOffset = this.slashMenuSelectedIndex
+        }
+      }
+      this.renderPromptArea()
+      return true
+    } else if (key.name === 'down') {
+      if (this.slashMenuSelectedIndex < this.slashMenuCommands.length - 1) {
+        this.slashMenuSelectedIndex++
+
+        // Adjust scroll offset if selection goes below visible area
+        const maxVisibleIndex = this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE - 1
+        if (this.slashMenuSelectedIndex > maxVisibleIndex) {
+          this.slashMenuScrollOffset = this.slashMenuSelectedIndex - this.SLASH_MENU_MAX_VISIBLE + 1
+        }
+      }
+      this.renderPromptArea()
+      return true
+    } else if (key.name === 'return') {
+      this.selectSlashCommand()
+      return true
+    } else if (key.name === 'escape') {
+      this.closeSlashMenu()
+      return true
+    }
+
+    return false
+  }
+
+  /**
+   * Select the currently highlighted slash command
+   */
+  private selectSlashCommand(): void {
+    if (!this.isSlashMenuActive || this.slashMenuCommands.length === 0) return
+
+    const selectedCommand = this.slashMenuCommands[this.slashMenuSelectedIndex]
+    if (selectedCommand && this.rl) {
+      // Clear current input and insert selected command
+      this.rl.write('', { ctrl: true, name: 'u' }) // Clear line
+      this.rl.write(selectedCommand[0])
+      this.closeSlashMenu()
+    }
+  }
+
+  /**
+   * Close the slash menu and reset state
+   */
+  private closeSlashMenu(): void {
+    this.isSlashMenuActive = false
+    this.slashMenuCommands = []
+    this.slashMenuSelectedIndex = 0
+    this.slashMenuScrollOffset = 0
+    this.currentSlashInput = ''
+    this.renderPromptArea()
+  }
+
+  /**
+   * Activate slash menu with initial input
+   */
+  private activateSlashMenu(input: string): void {
+    this.currentSlashInput = input
+    this.slashMenuCommands = this.filterSlashCommands(input)
+    this.slashMenuSelectedIndex = 0
+    this.slashMenuScrollOffset = 0
+    this.isSlashMenuActive = true
+    this.renderPromptArea()
+  }
+
+  /**
+   * Update slash menu with new input
+   */
+  private updateSlashMenu(input: string): void {
+    this.currentSlashInput = input
+    this.slashMenuCommands = this.filterSlashCommands(input)
+    this.slashMenuSelectedIndex = Math.min(this.slashMenuSelectedIndex, this.slashMenuCommands.length - 1)
+    this.slashMenuScrollOffset = Math.min(this.slashMenuScrollOffset, Math.max(0, this.slashMenuCommands.length - this.SLASH_MENU_MAX_VISIBLE))
+
+    // Ensure selected item is visible
+    if (this.slashMenuSelectedIndex < this.slashMenuScrollOffset) {
+      this.slashMenuScrollOffset = this.slashMenuSelectedIndex
+    } else if (this.slashMenuSelectedIndex >= this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE) {
+      this.slashMenuScrollOffset = this.slashMenuSelectedIndex - this.SLASH_MENU_MAX_VISIBLE + 1
+    }
+
+    this.renderPromptArea()
   }
 }
 
