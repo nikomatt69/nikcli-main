@@ -101,7 +101,7 @@ function createVectorStoreConfigs() {
   const upstashVectorToken = process.env.UPSTASH_VECTOR_REST_TOKEN
   const upstashRedisUrl = process.env.UPSTASH_REDIS_REST_URL
   const upstashRedisToken = process.env.UPSTASH_REDIS_REST_TOKEN
-  const upstashCollection = process.env.UPSTASH_VECTOR_COLLECTION || 'unified_project_index'
+  const upstashCollection = process.env.UPSTASH_VECTOR_COLLECTION || 'nikcli-vectors'
 
   if ((upstashVectorUrl && upstashVectorToken) || (upstashRedisUrl && upstashRedisToken)) {
     configs.push({
@@ -137,7 +137,7 @@ function createVectorStoreConfigs() {
         tenant: chromaTenant,
         database: chromaDatabase,
       },
-      collectionName: 'unified_project_index',
+      collectionName: 'nikcli-vectors',
       embeddingDimensions: 1536,
       indexingBatchSize: 100,
       maxRetries: 3,
@@ -155,7 +155,7 @@ function createVectorStoreConfigs() {
         port: parseInt(port, 10) || 8005,
         ssl: chromaUrl.startsWith('https'),
       },
-      collectionName: 'unified_project_index',
+      collectionName: 'nikcli-vectors',
       embeddingDimensions: 1536,
       indexingBatchSize: 100,
       maxRetries: 3,
@@ -542,7 +542,7 @@ export class UnifiedRAGSystem {
       console.log(
         chalk.green(
           `✓ Found ${finalResults.length} results in ${duration}ms ` +
-            `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
+          `(${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
         )
       )
 
@@ -656,7 +656,7 @@ export class UnifiedRAGSystem {
         // Upstash free tier: 10,000 vectors
         const MAX_CHROMADB_BATCH_SIZE = 100
         const MAX_UPSTASH_BATCH_SIZE = 1000
-        const batchSize = Math.min(MAX_UPSTASH_BATCH_SIZE, 100)
+        const batchSize = Math.min(MAX_UPSTASH_BATCH_SIZE, Number(process.env.INDEXING_BATCH_SIZE || 300)) // Configurable indexing batch size
 
         // Limit total documents for ChromaDB free tier only
         const activeProvider = this.vectorStoreManager?.getStats()?.provider
@@ -1834,7 +1834,7 @@ export class UnifiedRAGSystem {
     console.log(
       chalk.blue(
         `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-          `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
       )
     )
 

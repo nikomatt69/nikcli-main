@@ -65,10 +65,7 @@ const formatCognitive = chalk.hex('#4a4a4a')
 import { structuredLogger } from './utils/structured-logger'
 import { configureSyntaxHighlighting } from './utils/syntax-highlighter'
 import { formatAgent, formatCommand, formatFileOp, formatSearch, formatStatus, wrapBlue } from './utils/text-wrapper'
-import { VimAIIntegration } from './vim/ai/vim-ai-integration'
-import { VimMode } from './vim/types/vim-types'
-// Vim Mode imports
-import { VimModeManager } from './vim/vim-mode-manager'
+
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
 
@@ -185,7 +182,7 @@ export class NikCLI {
   private agentManager: AgentManager
   private planningManager: PlanningManager
   private workingDirectory: string
-  private currentMode: 'default' | 'plan' | 'vm' | 'vim' = 'default'
+  private currentMode: 'default' | 'plan' | 'vm' = 'default'
   private currentAgent?: string
   private activeVMContainer?: string
   private projectContextFile: string
@@ -193,8 +190,7 @@ export class NikCLI {
   private slashHandler: SlashCommandHandler
 
   // Vim Mode properties
-  private vimModeManager?: VimModeManager
-  private vimAIIntegration?: VimAIIntegration
+
   private modernAIProvider?: ModernAIProvider
   private vimKeyHandler?: (data: Buffer) => Promise<void>
   private keypressListener?: (chunk: any, key: any) => void
@@ -360,7 +356,7 @@ export class NikCLI {
     // Initialize cognitive orchestration system
 
     // Initialize Vim mode components
-    this.initializeVimMode()
+
     this.initializeCognitiveOrchestration()
 
     // Initialize chat UI system
@@ -731,7 +727,6 @@ export class NikCLI {
   private initializeStructuredUI(): void {
     const compact = process.env.NIKCLI_COMPACT === '1' || this.currentMode === 'plan'
     if (!compact) {
-
     }
 
     // Enable interactive mode for structured panels
@@ -1348,7 +1343,6 @@ export class NikCLI {
   private initializeStructuredPanels(): void {
     // Use the existing advanced UI system
     advancedUI.startInteractiveMode()
-
   }
 
   private setupFileWatching(): void {
@@ -1538,8 +1532,6 @@ export class NikCLI {
         }
       },
     }
-
-
   }
 
   // Advanced UI Methods (from advanced-cli-ui.ts)
@@ -2224,8 +2216,19 @@ export class NikCLI {
         }
 
         // Handle slash menu navigation
-        if (this.isSlashMenuActive && this.handleSlashMenuNavigation(key)) {
-          return
+        if (this.isSlashMenuActive) {
+          const navResult = this.handleSlashMenuNavigation(key)
+          if (navResult.shouldRenderPrompt) {
+            this.renderPromptArea()
+          }
+          if (navResult.shouldExit) {
+            // Schedule shutdown asynchronously to avoid blocking keypress handler
+            setImmediate(() => this.shutdown())
+            return
+          }
+          if (navResult.shouldRenderPrompt || navResult.shouldExit) {
+            return
+          }
         }
 
         // Handle typing while slash menu is active
@@ -2242,7 +2245,18 @@ export class NikCLI {
         // Handle backspace while slash menu is active
         if (this.isSlashMenuActive && key?.name === 'backspace') {
           const currentLine = this.rl?.line || ''
-          if (currentLine.length === 0 || !currentLine.startsWith('/')) {
+
+          // If the line doesn't start with /, we need to fix the order first
+          if (!currentLine.startsWith('/') && currentLine.includes('/')) {
+            const slashIndex = currentLine.indexOf('/')
+            const correctedLine = '/' + currentLine.substring(0, slashIndex) + currentLine.substring(slashIndex + 1)
+
+            // Clear the line and write the corrected version
+            this.rl?.write('', { ctrl: true, name: 'u' }) // Clear line
+            this.rl?.write(correctedLine)
+
+            this.updateSlashMenu(correctedLine)
+          } else if (currentLine.length === 0 || !currentLine.startsWith('/')) {
             this.closeSlashMenu()
           } else {
             this.updateSlashMenu(currentLine)
@@ -2349,7 +2363,7 @@ export class NikCLI {
     try {
       const lines: string[] = []
       lines.push('Shortcuts:')
-      lines.push('  /      Open command palette')
+      lines.push('  /      Open command palette (Shift+↑↓ to navigate)')
       lines.push('  @      Agent suggestions')
       lines.push('  *      File picker suggestions')
       lines.push('  Esc    Interrupt/return to default mode')
@@ -2731,31 +2745,6 @@ export class NikCLI {
         case 'vm':
           this.currentMode = 'vm'
           console.log(chalk.green('✓ Switched to VM mode'))
-          break
-
-        case 'vim':
-          if (this.vimModeManager) {
-            // CRITICAL SAFETY CHECK: Prevent vim activation if already in vim mode
-            if (this.vimModeManager.isVimModeActive()) {
-              console.log(chalk.yellow('⚠️ Vim mode is already active'))
-              break
-            }
-
-            // Ensure readline is active before entering vim
-            if (!this.rl) {
-              console.log(chalk.red('✗ Cannot enter vim: prompt interface not available'))
-              break
-            }
-
-            // Ensure mode consistency before activation
-            this.vimModeManager.ensureCliModeConsistency()
-            await this.vimModeManager.initialize()
-            await this.vimModeManager.activate(this.rl, () => {
-              this.renderPromptAfterOutput()
-            })
-          } else {
-            console.log(chalk.red('✗ Vim mode not available'))
-          }
           break
 
         // File Operations
@@ -3659,21 +3648,37 @@ export class NikCLI {
   private async handlePlanMode(input: string): Promise<void> {
     // CRITICAL: Recursion depth protection
     if (this.recursionDepth >= this.MAX_RECURSION_DEPTH) {
-      advancedUI.addLiveUpdate({ type: 'error', content: `Maximum plan generation depth reached (${this.MAX_RECURSION_DEPTH})`, source: 'plan_mode' })
-      advancedUI.addLiveUpdate({ type: 'warning', content: 'Returning to default mode for safety...', source: 'plan_mode' })
+      advancedUI.addLiveUpdate({
+        type: 'error',
+        content: `Maximum plan generation depth reached (${this.MAX_RECURSION_DEPTH})`,
+        source: 'plan_mode',
+      })
+      advancedUI.addLiveUpdate({
+        type: 'warning',
+        content: 'Returning to default mode for safety...',
+        source: 'plan_mode',
+      })
       this.forceRecoveryToDefaultMode()
       return
     }
 
     this.recursionDepth++
-    advancedUI.addLiveUpdate({ type: 'info', content: `Plan depth: ${this.recursionDepth}/${this.MAX_RECURSION_DEPTH}`, source: 'plan_mode' })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Plan depth: ${this.recursionDepth}/${this.MAX_RECURSION_DEPTH}`,
+      source: 'plan_mode',
+    })
 
     // Force compact mode for cleaner stream in plan flow
     try {
       process.env.NIKCLI_COMPACT = '1'
       process.env.NIKCLI_SUPER_COMPACT = '1'
     } catch { }
-    this.addLiveUpdate({ type: 'info', content: '🎯 Entering Enhanced Planning Mode with TaskMaster AI...', source: 'planning' })
+    this.addLiveUpdate({
+      type: 'info',
+      content: '🎯 Entering Enhanced Planning Mode with TaskMaster AI...',
+      source: 'planning',
+    })
 
     try {
       await this.cleanupPlanArtifacts()
@@ -3716,10 +3721,18 @@ export class NikCLI {
         try {
           await this.saveTaskMasterPlanToFile(plan, 'todo.md')
         } catch (saveError: any) {
-          this.addLiveUpdate({ type: 'warning', content: `⚠️ Could not save todo.md: ${saveError.message}`, source: 'planning' })
+          this.addLiveUpdate({
+            type: 'warning',
+            content: `⚠️ Could not save todo.md: ${saveError.message}`,
+            source: 'planning',
+          })
         }
       } catch (error: any) {
-        this.addLiveUpdate({ type: 'warning', content: `⚠️ TaskMaster planning failed: ${error.message}`, source: 'planning' })
+        this.addLiveUpdate({
+          type: 'warning',
+          content: `⚠️ TaskMaster planning failed: ${error.message}`,
+          source: 'planning',
+        })
         this.addLiveUpdate({ type: 'info', content: '⚡︎ Falling back to enhanced planning...', source: 'planning' })
 
         // Fallback to original enhanced planning
@@ -3751,9 +3764,17 @@ export class NikCLI {
       // Show plan summary (only in non-compact mode)
       if (process.env.NIKCLI_COMPACT !== '1') {
         this.addLiveUpdate({ type: 'log', content: '📋 Plan Generated', source: 'planning' })
-        this.addLiveUpdate({ type: 'log', content: `✓ Todo file saved: ${path.join(this.workingDirectory, 'todo.md')}`, source: 'planning' })
+        this.addLiveUpdate({
+          type: 'log',
+          content: `✓ Todo file saved: ${path.join(this.workingDirectory, 'todo.md')}`,
+          source: 'planning',
+        })
         this.addLiveUpdate({ type: 'info', content: `📊 ${plan.todos.length} todos created`, source: 'planning' })
-        this.addLiveUpdate({ type: 'info', content: `⏱️ Estimated duration: ${Math.round(plan.estimatedTotalDuration)} minutes`, source: 'planning' })
+        this.addLiveUpdate({
+          type: 'info',
+          content: `⏱️ Estimated duration: ${Math.round(plan.estimatedTotalDuration)} minutes`,
+          source: 'planning',
+        })
       }
 
       // Plan generated successfully - now ask if user wants to START the tasks
@@ -3769,7 +3790,11 @@ export class NikCLI {
         try {
           await this.startFirstTask(plan)
         } catch (error: any) {
-          this.addLiveUpdate({ type: 'error', content: `❌ Task execution failed: ${error.message}`, source: 'planning' })
+          this.addLiveUpdate({
+            type: 'error',
+            content: `❌ Task execution failed: ${error.message}`,
+            source: 'planning',
+          })
         }
 
         // After task execution, return to default mode
@@ -3800,8 +3825,16 @@ export class NikCLI {
             try {
               await this.handlePlanMode(newRequirements)
             } catch (error: any) {
-              this.addLiveUpdate({ type: 'error', content: `❌ Plan regeneration failed: ${error.message}`, source: 'planning' })
-              this.addLiveUpdate({ type: 'warning', content: '⚡︎ Forcing recovery to default mode...', source: 'planning' })
+              this.addLiveUpdate({
+                type: 'error',
+                content: `❌ Plan regeneration failed: ${error.message}`,
+                source: 'planning',
+              })
+              this.addLiveUpdate({
+                type: 'warning',
+                content: '⚡︎ Forcing recovery to default mode...',
+                source: 'planning',
+              })
               this.forceRecoveryToDefaultMode()
             }
             return
@@ -3831,7 +3864,11 @@ export class NikCLI {
     } finally {
       // CRITICAL: Always decrement recursion depth
       this.recursionDepth = Math.max(0, this.recursionDepth - 1)
-      this.addLiveUpdate({ type: 'info', content: `📉 Plan depth restored: ${this.recursionDepth}`, source: 'planning' })
+      this.addLiveUpdate({
+        type: 'info',
+        content: `📉 Plan depth restored: ${this.recursionDepth}`,
+        source: 'planning',
+      })
 
       // Final cleanup
       void this.cleanupPlanArtifacts()
@@ -4199,7 +4236,11 @@ EOF`
 
     // Execute tasks one by one
     while (currentTask) {
-      advancedUI.addLiveUpdate({ type: 'info', content: `Task ${currentTaskIndex + 1}/${todos.length}: ${currentTask.title}`, source: 'task_execution' })
+      advancedUI.addLiveUpdate({
+        type: 'info',
+        content: `Task ${currentTaskIndex + 1}/${todos.length}: ${currentTask.title}`,
+        source: 'task_execution',
+      })
       if (currentTask.description) {
         advancedUI.addLiveUpdate({ type: 'info', content: currentTask.description, source: 'task_execution' })
       }
@@ -4219,7 +4260,11 @@ EOF`
         currentTask.completedAt = new Date()
         this.updatePlanHudTodoStatus(currentTask.id, 'completed')
 
-        advancedUI.addLiveUpdate({ type: 'log', content: `Task ${currentTaskIndex + 1} completed: ${currentTask.title}`, source: 'task_execution' })
+        advancedUI.addLiveUpdate({
+          type: 'log',
+          content: `Task ${currentTaskIndex + 1} completed: ${currentTask.title}`,
+          source: 'task_execution',
+        })
 
         // Find next pending task
         currentTaskIndex++
@@ -4238,14 +4283,22 @@ EOF`
             currentTask = nextTask
             currentTaskIndex = todos.indexOf(nextTask)
           } else {
-            advancedUI.addLiveUpdate({ type: 'warning', content: 'Task execution stopped by user', source: 'task_execution' })
+            advancedUI.addLiveUpdate({
+              type: 'warning',
+              content: 'Task execution stopped by user',
+              source: 'task_execution',
+            })
             break
           }
         } else {
           currentTask = null // No more tasks
         }
       } catch (error: any) {
-        advancedUI.addLiveUpdate({ type: 'error', content: `Task execution error: ${error.message}`, source: 'task_execution' })
+        advancedUI.addLiveUpdate({
+          type: 'error',
+          content: `Task execution error: ${error.message}`,
+          source: 'task_execution',
+        })
 
         // Mark task as failed
         currentTask.status = 'failed'
@@ -4277,8 +4330,10 @@ EOF`
     const pending = todos.filter((t: { status: string }) => t.status === 'pending').length
 
     advancedUI.addLiveUpdate({ type: 'log', content: `Completed: ${completed}`, source: 'execution_summary' })
-    if (failed > 0) advancedUI.addLiveUpdate({ type: 'error', content: `Failed: ${failed}`, source: 'execution_summary' })
-    if (pending > 0) advancedUI.addLiveUpdate({ type: 'warning', content: `Remaining: ${pending}`, source: 'execution_summary' })
+    if (failed > 0)
+      advancedUI.addLiveUpdate({ type: 'error', content: `Failed: ${failed}`, source: 'execution_summary' })
+    if (pending > 0)
+      advancedUI.addLiveUpdate({ type: 'warning', content: `Remaining: ${pending}`, source: 'execution_summary' })
   }
 
   /**
@@ -4389,7 +4444,11 @@ EOF`
         throw new Error('Stream did not complete properly')
       }
     } catch (error: any) {
-      this.addLiveUpdate({ type: 'error', content: `❌ ${agentName} execution failed: ${error.message}`, source: 'plan-exec' })
+      this.addLiveUpdate({
+        type: 'error',
+        content: `❌ ${agentName} execution failed: ${error.message}`,
+        source: 'plan-exec',
+      })
       throw error
     }
   }
@@ -4554,7 +4613,10 @@ EOF`
 
         // Simple execution without phases
         const projectAnalysis = await toolService.executeTool('analyze_project', {})
-        advancedUI.logFunctionUpdate('success', `Project analyzed: ${Object.keys(projectAnalysis || {}).length} components`)
+        advancedUI.logFunctionUpdate(
+          'success',
+          `Project analyzed: ${Object.keys(projectAnalysis || {}).length} components`
+        )
 
         // If task has specific requirements, try to read relevant files
         const relevantFiles = await this.findRelevantFiles(task)
@@ -6672,14 +6734,18 @@ EOF`
 
                 // Model & Session info
                 lines.push(chalk.cyan('🤖 Model:') + ` ${session.provider}/${session.model}`)
-                lines.push(chalk.cyan('📊 Context:') + ` ${formatTokens(totalTokens)}/${formatTokens(maxTokens)} tokens`)
+                lines.push(
+                  chalk.cyan('📊 Context:') + ` ${formatTokens(totalTokens)}/${formatTokens(maxTokens)} tokens`
+                )
                 lines.push('')
 
                 // Visual progress bar
                 const progressBar = this.createProgressBarString(percentage, 40)
                 lines.push(chalk.cyan('Usage:'))
                 lines.push(`  ${progressBar}`)
-                lines.push(`  ${chalk.gray('Remaining:')} ${formatTokens(remaining)} (${(100 - percentage).toFixed(1)}%)`)
+                lines.push(
+                  `  ${chalk.gray('Remaining:')} ${formatTokens(remaining)} (${(100 - percentage).toFixed(1)}%)`
+                )
                 lines.push('')
 
                 // RAG Context
@@ -10188,7 +10254,6 @@ EOF`
       ['/default', 'Switch to default conversational mode'],
       ['/plan [task]', 'Switch to plan mode or generate execution plan'],
       ['/vm', 'Switch to virtual machine development mode'],
-      ['/vim [start|exit|config|status|help]', 'Enter vim mode with AI integration'],
 
       // 📁 File & Directory Operations
       ['/read <file> [options]', 'Read file contents with pagination support'],
@@ -10375,9 +10440,7 @@ EOF`
     const allCommands = this.getSlashCommands()
 
     // Filter commands that start with the input
-    const matches = allCommands.filter(([command]) =>
-      command.toLowerCase().startsWith(searchTerm)
-    )
+    const matches = allCommands.filter(([command]) => command.toLowerCase().startsWith(searchTerm))
 
     return matches
   }
@@ -10699,7 +10762,7 @@ EOF`
    * Cycle through modes: default → plan → vm → default
    */
   private cycleModes(): void {
-    const modes: Array<'default' | 'plan' | 'vm' | 'vim'> = ['default', 'plan', 'vm', 'vim']
+    const modes: Array<'default' | 'plan' | 'vm'> = ['default', 'plan', 'vm']
     const currentIndex = modes.indexOf(this.currentMode)
     const nextIndex = (currentIndex + 1) % modes.length
     const nextMode = modes[nextIndex]
@@ -10725,7 +10788,6 @@ EOF`
 
     console.log(chalk.yellow(`\n🔄 Switched to ${modeNames[nextMode]}`))
     console.log(chalk.gray(`💡 Use Cmd+Tab or Cmd+] to cycle modes`))
-
 
     // In plan/vm modes, avoid ephemeral clearing so updates persist
     if (this.currentMode === 'plan' || this.currentMode === 'vm') {
@@ -10765,7 +10827,7 @@ EOF`
 
     // Mode info
     const modeIcon =
-      this.currentMode === 'plan' ? '⚡︎' : this.currentMode === 'vm' ? '🐳' : this.currentMode === 'vim' ? '✏️' : '💎'
+      this.currentMode === 'plan' ? '⚡︎' : this.currentMode === 'vm' ? '🐳' : '💎'
     const _modeText = this.currentMode.toUpperCase()
 
     // VM info if in VM mode
@@ -10779,12 +10841,6 @@ EOF`
       }
     }
 
-    // Vim info if in vim mode
-    let vimInfo = ''
-    if (this.currentMode === 'vim') {
-      const vimMode = this.vimModeManager?.getCurrentMode() || 'NORMAL'
-      vimInfo = ` | ✏️ ${vimMode.toUpperCase()}`
-    }
 
     // Status info
     const queueStatus = inputQueue.getStatus()
@@ -10808,7 +10864,7 @@ EOF`
     const tokenRate = layout.showTokenRate ? ` | ${this.getTokenRate(layout.useCompact)}` : ''
 
     // Create responsive status bar
-    const statusLeft = `${modeIcon} ${readyText} | ${responsiveModelDisplay} | ${contextInfo}${tokenRate}${vmInfo}${vimInfo}`
+    const statusLeft = `${modeIcon} ${readyText} | ${responsiveModelDisplay} | ${contextInfo}${tokenRate}${vmInfo}`
     const queuePart = queueCount > 0 ? ` | 📥 ${queueCount}` : ''
     const visionIcon = this.getVisionStatusIcon()
     const imgIcon = this.getImageGenStatusIcon()
@@ -11279,7 +11335,7 @@ EOF`
 
     // Mode info
     const _modeIcon =
-      this.currentMode === 'plan' ? '✅' : this.currentMode === 'vm' ? '🐳' : this.currentMode === 'vim' ? '✏️' : '💎'
+      this.currentMode === 'plan' ? '✅' : this.currentMode === 'vm' ? '🐳' : '💎'
     const modeText = this.currentMode.toUpperCase()
 
     // Status info
@@ -11287,8 +11343,9 @@ EOF`
     const statusIndicator = this.assistantProcessing ? '⏳' : '✅'
 
     // Calculate slash menu lines (header + visible items + footer + borders)
-    const slashMenuLines = this.isSlashMenuActive ?
-      Math.min(this.slashMenuCommands.length, this.SLASH_MENU_MAX_VISIBLE) + 5 : 0 // +5 for header, footer, and borders
+    const slashMenuLines = this.isSlashMenuActive
+      ? Math.min(this.slashMenuCommands.length, this.SLASH_MENU_MAX_VISIBLE) + 5
+      : 0 // +5 for header, footer, and borders
 
     // Move cursor to bottom of terminal (reserve HUD + frame + prompt + slash menu)
     const terminalHeight = process.stdout.rows || 24
@@ -11320,8 +11377,10 @@ EOF`
       // Menu header with scroll indicators
       const hasMoreAbove = this.slashMenuScrollOffset > 0
       const hasMoreBelow = this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE < this.slashMenuCommands.length
-      const scrollIndicator = hasMoreAbove || hasMoreBelow ?
-        ` ${chalk.gray(`(${this.slashMenuSelectedIndex + 1}/${this.slashMenuCommands.length})`)}` : ''
+      const scrollIndicator =
+        hasMoreAbove || hasMoreBelow
+          ? ` ${chalk.gray(`(${this.slashMenuSelectedIndex + 1}/${this.slashMenuCommands.length})`)}`
+          : ''
 
       const headerText = `Commands${scrollIndicator}`
       const headerTextLength = this._stripAnsi(headerText).length
@@ -11366,32 +11425,22 @@ EOF`
         if (isSelected) {
           // Highlighted selection - ensure exact width
           const selectedContent = `${contentText}${' '.repeat(rightPadding)}`
-          process.stdout.write(
-            chalk.cyan('│') +
-            chalk.bgBlue.white(selectedContent) +
-            chalk.cyan('│') +
-            '\n'
-          )
+          process.stdout.write(chalk.cyan('│') + chalk.bgBlue.white(selectedContent) + chalk.cyan('│') + '\n')
         } else {
           // Normal item - ensure exact width
           const normalContent = ` ${chalk.yellow(cmdPart)} ${chalk.gray(descPart)}${' '.repeat(rightPadding)} `
-          process.stdout.write(
-            chalk.cyan('│') +
-            normalContent +
-            chalk.cyan('│') +
-            '\n'
-          )
+          process.stdout.write(chalk.cyan('│') + normalContent + chalk.cyan('│') + '\n')
         }
       })
 
       // Menu footer with scroll indicators
       let footerContent = ''
       if (hasMoreAbove && hasMoreBelow) {
-        footerContent = `${chalk.gray('↑↓')} Use arrows to scroll`
+        footerContent = `${chalk.gray('⇧↑↓')} Use Shift+arrows to scroll`
       } else if (hasMoreAbove) {
-        footerContent = `${chalk.gray('↑')} More above`
+        footerContent = `${chalk.gray('⇧↑')} More above`
       } else if (hasMoreBelow) {
-        footerContent = `${chalk.gray('↓')} More below`
+        footerContent = `${chalk.gray('⇧↓')} More below`
       } else {
         footerContent = `${chalk.gray('↵')} Enter to select • ${chalk.gray('Esc')} to close`
       }
@@ -11450,13 +11499,9 @@ EOF`
     }
 
     // Vim info if in vim mode
-    let vimInfo = ''
-    if (this.currentMode === 'vim') {
-      const vimMode = this.vimModeManager?.getCurrentMode() || 'NORMAL'
-      vimInfo = ` | ✏️ ${vimMode.toUpperCase()}`
-    }
 
-    const statusLeft = `${statusIndicator} ${readyText}${modeSegment}${vmInfo}${vimInfo} | ${responsiveModelDisplay2} | ${contextInfo2}${tokenRate2}`
+
+    const statusLeft = `${statusIndicator} ${readyText}${modeSegment}${vmInfo} | ${responsiveModelDisplay2} | ${contextInfo2}${tokenRate2}`
     const rightExtra = `${queueCount2 > 0 ? ` | 📥 ${queueCount2}` : ''}${runningAgents > 0 ? ` | 🔌 ${runningAgents}` : ''}`
     const visionIcon2 = this.getVisionStatusIcon()
     const imgIcon2 = this.getImageGenStatusIcon()
@@ -11548,9 +11593,15 @@ EOF`
     }
 
     if (this.rl) {
-      // Simple clean prompt
-      this.rl.setPrompt(chalk.greenBright('❯ '))
-      this.rl.prompt()
+      // Only reset prompt if slash menu is not active to avoid cursor jumping
+      if (!this.isSlashMenuActive) {
+        // Simple clean prompt
+        this.rl.setPrompt(chalk.greenBright('❯ '))
+        this.rl.prompt()
+      } else {
+        // For slash menu, just ensure the prompt is set without redrawing
+        this.rl.setPrompt(chalk.greenBright('❯ '))
+      }
     }
   }
 
@@ -12084,7 +12135,7 @@ EOF`
         const depth = toolArgs.depth ? `depth:${toolArgs.depth}` : ''
         return {
           name: 'explore_directory',
-          params: `${path}${depth ? `(${depth})` : '()'}`
+          params: `${path}${depth ? `(${depth})` : '()'}`,
         }
       }
 
@@ -12094,7 +12145,7 @@ EOF`
         const truncatedCommand = command.length > 30 ? `${command.substring(0, 30)}...` : command
         return {
           name: 'execute_command',
-          params: truncatedCommand
+          params: truncatedCommand,
         }
       }
 
@@ -12102,7 +12153,7 @@ EOF`
         const filePath = toolArgs.path || toolArgs.file_path || 'unknown'
         return {
           name: 'read_file',
-          params: filePath
+          params: filePath,
         }
       }
 
@@ -12110,7 +12161,7 @@ EOF`
         const filePath = toolArgs.path || toolArgs.file_path || 'unknown'
         return {
           name: 'write_file',
-          params: filePath
+          params: filePath,
         }
       }
 
@@ -12119,7 +12170,7 @@ EOF`
         const truncatedQuery = query.length > 30 ? `${query.substring(0, 30)}...` : query
         return {
           name: 'web_search',
-          params: `"${truncatedQuery}"`
+          params: `"${truncatedQuery}"`,
         }
       }
 
@@ -12127,7 +12178,7 @@ EOF`
         const operation = toolArgs.operation || toolArgs.action || 'unknown'
         return {
           name: 'git_workFlow',
-          params: operation
+          params: operation,
         }
       }
 
@@ -12135,7 +12186,7 @@ EOF`
         const analysisPath = toolArgs.path || toolArgs.file || 'project'
         return {
           name: 'code_analysis',
-          params: analysisPath
+          params: analysisPath,
         }
       }
 
@@ -12144,14 +12195,14 @@ EOF`
         const truncatedQuery = query.length > 30 ? `${query.substring(0, 30)}...` : query
         return {
           name: 'semantic_search',
-          params: `"${truncatedQuery}"`
+          params: `"${truncatedQuery}"`,
         }
       }
 
       default:
         return {
           name: toolName,
-          params: JSON.stringify(toolArgs).substring(0, 40)
+          params: JSON.stringify(toolArgs).substring(0, 40),
         }
     }
   }
@@ -16901,13 +16952,19 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
           console.log(chalk.cyan('  Context Usage:'))
           console.log(`    ${progressBar}`)
-          console.log(chalk.gray(`    ${totalTokens.toLocaleString()} / ${maxTokens.toLocaleString()} tokens (${percentage.toFixed(1)}%)`))
+          console.log(
+            chalk.gray(
+              `    ${totalTokens.toLocaleString()} / ${maxTokens.toLocaleString()} tokens (${percentage.toFixed(1)}%)`
+            )
+          )
           console.log()
         }
 
         console.log(chalk.cyan(`  📁 Root: `) + chalk.white(path.relative(process.cwd(), this.workingDirectory) || '.'))
         console.log(chalk.cyan(`  📂 Indexed Paths: `) + chalk.white(ctx.selectedPaths.length.toString()))
-        console.log(chalk.cyan(`  🗂️  RAG Status: `) + (ctx.ragAvailable ? chalk.green('✓ Available') : chalk.yellow('⚠ Fallback')))
+        console.log(
+          chalk.cyan(`  🗂️  RAG Status: `) + (ctx.ragAvailable ? chalk.green('✓ Available') : chalk.yellow('⚠ Fallback'))
+        )
         console.log()
 
         const { section } = await inquirer.prompt<{ section: string }>([
@@ -17019,7 +17076,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         const ctx = workspaceContext.getContext()
         const indexedFiles = Array.from(ctx.files.values())
         const totalSize = indexedFiles.reduce((sum, f) => sum + f.size, 0)
-        const languages = new Set(indexedFiles.map(f => f.language))
+        const languages = new Set(indexedFiles.map((f) => f.language))
 
         console.clear()
         console.log(chalk.blue.bold('╔═══════════════════════════════════════════════════╗'))
@@ -17134,7 +17191,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
       console.log(chalk.cyan('Session Information:'))
       console.log(`  Model: ${session.provider}/${session.model}`)
-      console.log(`  Tokens: ${totalTokens.toLocaleString()} / ${maxTokens.toLocaleString()} (${percentage.toFixed(1)}%)`)
+      console.log(
+        `  Tokens: ${totalTokens.toLocaleString()} / ${maxTokens.toLocaleString()} (${percentage.toFixed(1)}%)`
+      )
       console.log(`  Input: ${session.totalInputTokens.toLocaleString()}`)
       console.log(`  Output: ${session.totalOutputTokens.toLocaleString()}`)
       console.log()
@@ -17179,8 +17238,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(chalk.blue('\n🧠 RAG System Status:\n'))
         console.log(`  Vector DB: ${ragConfig.useVectorDB ? chalk.green('✓ Active') : chalk.yellow('○ Inactive')}`)
         console.log(`  Hybrid Mode: ${ragConfig.hybridMode ? chalk.green('✓ Active') : chalk.yellow('○ Inactive')}`)
-        console.log(`  Semantic Search: ${ragConfig.enableSemanticSearch ? chalk.green('✓ Active') : chalk.yellow('○ Inactive')}`)
-        console.log(`  Cache Embeddings: ${ragConfig.cacheEmbeddings ? chalk.green('✓ Active') : chalk.yellow('○ Inactive')}`)
+        console.log(
+          `  Semantic Search: ${ragConfig.enableSemanticSearch ? chalk.green('✓ Active') : chalk.yellow('○ Inactive')}`
+        )
+        console.log(
+          `  Cache Embeddings: ${ragConfig.cacheEmbeddings ? chalk.green('✓ Active') : chalk.yellow('○ Inactive')}`
+        )
         console.log(`  Max Index Files: ${ragConfig.maxIndexFiles}`)
         console.log(`  Chunk Size: ${ragConfig.chunkSize} tokens`)
         console.log()
@@ -17284,7 +17347,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             type: 'checkbox',
             name: 'pathsToRemove',
             message: 'Select paths to remove from RAG (use space to select):',
-            choices: selectedPaths.map(p => ({
+            choices: selectedPaths.map((p) => ({
               name: path.relative(this.workingDirectory, p),
               value: p,
             })),
@@ -17292,8 +17355,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         ])
 
         if (pathsToRemove && pathsToRemove.length > 0) {
-          const remainingPaths = selectedPaths.filter(p => !pathsToRemove.includes(p))
-          await workspaceContext.selectPaths(remainingPaths.map(p => path.relative(this.workingDirectory, p)))
+          const remainingPaths = selectedPaths.filter((p) => !pathsToRemove.includes(p))
+          await workspaceContext.selectPaths(remainingPaths.map((p) => path.relative(this.workingDirectory, p)))
 
           console.log(chalk.green(`\n✓ Removed ${pathsToRemove.length} path(s) from RAG\n`))
           pathsToRemove.forEach((p: string) => {
@@ -17476,7 +17539,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           },
         ])
 
-        console.log(chalk.green(`\n✓ Agent context configured (max files: ${maxFiles}, threshold: ${searchThreshold})\n`))
+        console.log(
+          chalk.green(`\n✓ Agent context configured (max files: ${maxFiles}, threshold: ${searchThreshold})\n`)
+        )
         await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
         break
       }
@@ -17526,7 +17591,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         ])
 
         if (newPaths) {
-          const pathList = newPaths.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
+          const pathList = newPaths
+            .split(',')
+            .map((p: string) => p.trim())
+            .filter((p: string) => p.length > 0)
           console.log(chalk.blue(`\n⚡ Selecting ${pathList.length} path(s)...\n`))
           await workspaceContext.selectPaths(pathList)
           console.log(chalk.green(`✓ Selected ${pathList.length} path(s)\n`))
@@ -17648,10 +17716,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     const ctx = workspaceContext.getContext()
     const indexedFiles = Array.from(ctx.files.values())
     const totalSize = indexedFiles.reduce((sum, f) => sum + f.size, 0)
-    const languages = new Set(indexedFiles.map(f => f.language))
+    const languages = new Set(indexedFiles.map((f) => f.language))
     const languageCounts = new Map<string, number>()
 
-    indexedFiles.forEach(f => {
+    indexedFiles.forEach((f) => {
       languageCounts.set(f.language, (languageCounts.get(f.language) || 0) + 1)
     })
 
@@ -17666,7 +17734,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .forEach(([lang, count]) => {
-        const bar = '█'.repeat(Math.min(30, Math.floor(count / Math.max(...languageCounts.values()) * 30)))
+        const bar = '█'.repeat(Math.min(30, Math.floor((count / Math.max(...languageCounts.values())) * 30)))
         console.log(`  ${lang.padEnd(15)} ${bar} ${count}`)
       })
     console.log()
@@ -17694,7 +17762,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         name: 'file',
         message: 'Browse indexed files:',
         choices: [
-          ...indexedFiles.map(f => ({
+          ...indexedFiles.map((f) => ({
             name: `${f.language.padEnd(10)} ${path.relative(this.workingDirectory, f.path)} (${this.formatBytes(f.size)})`,
             value: f.path,
           })),
@@ -17795,7 +17863,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         type: 'checkbox',
         name: 'pathsToRemove',
         message: 'Select paths to remove (use space to select):',
-        choices: selectedPaths.map(p => ({
+        choices: selectedPaths.map((p) => ({
           name: path.relative(this.workingDirectory, p),
           value: p,
         })),
@@ -17804,8 +17872,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
     if (pathsToRemove && pathsToRemove.length > 0) {
       // Filter out removed paths and update selection
-      const remainingPaths = selectedPaths.filter(p => !pathsToRemove.includes(p))
-      await workspaceContext.selectPaths(remainingPaths.map(p => path.relative(this.workingDirectory, p)))
+      const remainingPaths = selectedPaths.filter((p) => !pathsToRemove.includes(p))
+      await workspaceContext.selectPaths(remainingPaths.map((p) => path.relative(this.workingDirectory, p)))
 
       console.log(chalk.green(`\n✓ Removed ${pathsToRemove.length} path(s) from index\n`))
       pathsToRemove.forEach((p: string) => {
@@ -17875,9 +17943,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     const avgSize = indexedFiles.length > 0 ? totalSize / indexedFiles.length : 0
 
     const importanceDist = {
-      high: indexedFiles.filter(f => f.importance >= 70).length,
-      medium: indexedFiles.filter(f => f.importance >= 40 && f.importance < 70).length,
-      low: indexedFiles.filter(f => f.importance < 40).length,
+      high: indexedFiles.filter((f) => f.importance >= 70).length,
+      medium: indexedFiles.filter((f) => f.importance >= 40 && f.importance < 70).length,
+      low: indexedFiles.filter((f) => f.importance < 40).length,
     }
 
     console.log(chalk.cyan('File Statistics:'))
@@ -17896,7 +17964,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       console.log(chalk.cyan('Cache Statistics:'))
       console.log(`  Hits: ${ctx.cacheStats.hits}`)
       console.log(`  Misses: ${ctx.cacheStats.misses}`)
-      console.log(`  Hit Rate: ${((ctx.cacheStats.hits / (ctx.cacheStats.hits + ctx.cacheStats.misses)) * 100).toFixed(1)}%`)
+      console.log(
+        `  Hit Rate: ${((ctx.cacheStats.hits / (ctx.cacheStats.hits + ctx.cacheStats.misses)) * 100).toFixed(1)}%`
+      )
       console.log()
     }
   }
@@ -19234,213 +19304,6 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     return [...new Set(relevantFiles)].filter((file) => file && file.length > 0)
   }
 
-  // ======================= VIM MODE METHODS =======================
-
-  private initializeVimMode(): void {
-    try {
-      // Initialize modern AI provider for vim integration
-      this.modernAIProvider = new ModernAIProvider()
-
-      // Initialize vim mode manager with default config
-      this.vimModeManager = new VimModeManager({
-        aiIntegration: true,
-        customKeybindings: {},
-        theme: 'default',
-        statusLine: true,
-        lineNumbers: true,
-      })
-
-      // Initialize vim AI integration
-      this.vimAIIntegration = new VimAIIntegration(
-        this.vimModeManager.getState(),
-        this.vimModeManager['config'],
-        this.modernAIProvider,
-        this.configManager
-      )
-
-      // Setup vim event handlers
-      this.setupVimEventHandlers()
-    } catch (error: any) {
-      console.error(chalk.yellow(`⚠️ Failed to initialize vim mode: ${error.message}`))
-    }
-  }
-
-  private setupVimEventHandlers(): void {
-    if (!this.vimModeManager || !this.vimAIIntegration) return
-
-    // Handle AI requests from vim mode
-    this.vimModeManager.on('aiRequest', async (prompt: string) => {
-      try {
-        if (!this.vimAIIntegration) return
-
-        const response = await this.vimAIIntegration.assistWithCode(prompt)
-        await this.vimModeManager?.handleAIResponse(response)
-      } catch (error: any) {
-        console.error(chalk.red(`AI request failed: ${error.message}`))
-      }
-    })
-
-    // Handle CLI mode changes for seamless transitions
-    this.vimModeManager.on('cliModeChange', (from: string, to: string) => {
-      console.log(chalk.gray(`🔄 CLI mode transition: ${from} → ${to}`))
-      this.currentMode = to as 'default' | 'plan' | 'vm' | 'vim'
-    })
-
-    // Handle mode changes
-    this.vimModeManager.on('activated', (options?: { pauseReadline?: boolean }) => {
-      this.currentMode = 'vim'
-      if (options?.pauseReadline && this.rl) {
-        // Completely disable readline interface
-        this.rl.pause()
-        this.rl.close()
-        this.rl = undefined
-      }
-    })
-
-    this.vimModeManager.on('deactivated', (options?: { resumeReadline?: boolean }) => {
-      // Get the previous mode from vim manager
-      const previousMode = this.vimModeManager?.getCurrentCliMode() || 'default'
-      this.currentMode = previousMode as 'default' | 'plan' | 'vm' | 'vim'
-
-      if (options?.resumeReadline && !this.rl) {
-        // Recreate readline interface
-        this.createReadlineInterface()
-        // CRITICAL FIX: Restore prompt IMMEDIATELY without setTimeout
-        // This ensures no dead-time between vim exit and prompt restoration
-        if (this.rl) {
-          this.renderPromptAfterOutput()
-        }
-      }
-
-      // Ensure proper cleanup and restoration
-      this.cleanupVimKeyHandling()
-    })
-
-    // Handle state changes
-    this.vimModeManager.on('stateChanged', (_state) => {
-      // Update UI or perform other actions when vim state changes
-    })
-  }
-
-  private cleanupVimKeyHandling(): void {
-    if (process.stdin.isTTY) {
-      // Remove only our specific vim handler, not all data listeners
-      if (this.vimKeyHandler) {
-        process.stdin.removeListener('data', this.vimKeyHandler)
-        this.vimKeyHandler = undefined
-      }
-
-      // Restore normal mode
-      process.stdin.setRawMode(false)
-
-      // Ensure readline is working again
-      if (this.rl) {
-        this.rl.resume()
-      }
-    }
-  }
-
-  private createReadlineInterface(): void {
-    // Disable bracketed paste mode which can trigger dialogs
-    if (process.stdout.isTTY) {
-      process.stdout.write('\x1b[?2004l')
-    }
-
-    this.rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      historySize: 300,
-    })
-
-    // Setup keypress events
-    if (process.stdin.isTTY) {
-      if (process.platform === 'darwin') {
-        try {
-          process.stdin.setRawMode(false)
-        } catch (error) {
-          // Ignore errors setting raw mode
-        }
-      }
-    }
-
-    // Setup basic readline event handlers - specific handlers will be set up later
-  }
-
-  async handleVimCommand(args: string[]): Promise<void> {
-    if (!this.vimModeManager) {
-      console.log(chalk.red('✗ Vim mode not initialized'))
-      return
-    }
-
-    const subcommand = args[0] || 'start'
-
-    switch (subcommand) {
-      case 'start':
-      case 'enter':
-        try {
-          await this.vimModeManager.initialize()
-          // Pass readline interface and restore callback for proper mode management
-          await this.vimModeManager.activate(this.rl, () => {
-            this.renderPromptAfterOutput()
-          })
-        } catch (error: any) {
-          console.log(chalk.red(`✗ Failed to start vim mode: ${error.message}`))
-        }
-        break
-
-      case 'exit':
-      case 'quit':
-        try {
-          await this.vimModeManager.deactivate()
-        } catch (error: any) {
-          console.log(chalk.red(`✗ Failed to exit vim mode: ${error.message}`))
-        }
-        break
-
-      case 'status': {
-        const isActive = this.vimModeManager.getCurrentMode()
-        const mode = this.vimModeManager.getCurrentMode()
-        console.log(chalk.blue('📋 Vim Mode Status:'))
-        console.log(`  Active: ${isActive !== VimMode.NORMAL ? chalk.green('Yes') : chalk.yellow('No')}`)
-        console.log(`  Mode: ${chalk.cyan(mode)}`)
-        console.log(`  Buffer Lines: ${chalk.cyan(this.vimModeManager.getBuffer().split('\n').length)}`)
-        break
-      }
-
-      case 'config':
-        console.log(chalk.blue('⚙️ Vim Mode Configuration:'))
-        console.log('  AI Integration: Enabled')
-        console.log('  Theme: Enterprise')
-        console.log('  Key Bindings: Standard Vim')
-        console.log('  Status Line: Enabled')
-        break
-
-      case 'help':
-        this.showVimHelp()
-        break
-
-      default:
-        console.log(chalk.yellow(`Unknown vim command: ${subcommand}`))
-        this.showVimHelp()
-    }
-  }
-
-  private showVimHelp(): void {
-    console.log(chalk.blue.bold('\n📚 Vim Mode Help'))
-    console.log(chalk.white('Commands:'))
-    console.log(chalk.cyan('  /vim start') + chalk.gray(' - Enter vim mode'))
-    console.log(chalk.cyan('  /vim exit') + chalk.gray('  - Exit vim mode'))
-    console.log(chalk.cyan('  /vim status') + chalk.gray(' - Show vim mode status'))
-    console.log(chalk.cyan('  /vim config') + chalk.gray(' - Show configuration'))
-    console.log(chalk.cyan('  /vim help') + chalk.gray('  - Show this help'))
-    console.log(chalk.white('\nVim Mode Keys:'))
-    console.log(chalk.cyan('  ESC') + chalk.gray('     - Normal mode'))
-    console.log(chalk.cyan('  i') + chalk.gray('       - Insert mode'))
-    console.log(chalk.cyan('  v') + chalk.gray('       - Visual mode'))
-    console.log(chalk.cyan('  :') + chalk.gray('       - Command mode'))
-    console.log(chalk.cyan('  Ctrl+C') + chalk.gray('  - Exit vim mode'))
-  }
-
   /**
    * Monitor agent completion and trigger collaboration events
    */
@@ -19814,43 +19677,60 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   }
 
   /**
-   * Handle slash menu navigation with arrow keys and scrolling
+   * Handle slash menu navigation with Shift+arrow keys and scrolling
+   * Returns control flags to optimize rendering and prevent unnecessary re-renders
    */
-  private handleSlashMenuNavigation(key: any): boolean {
-    if (!this.isSlashMenuActive) return false
-
-    if (key.name === 'up') {
-      if (this.slashMenuSelectedIndex > 0) {
-        this.slashMenuSelectedIndex--
-
-        // Adjust scroll offset if selection goes above visible area
-        if (this.slashMenuSelectedIndex < this.slashMenuScrollOffset) {
-          this.slashMenuScrollOffset = this.slashMenuSelectedIndex
-        }
-      }
-      this.renderPromptArea()
-      return true
-    } else if (key.name === 'down') {
-      if (this.slashMenuSelectedIndex < this.slashMenuCommands.length - 1) {
-        this.slashMenuSelectedIndex++
-
-        // Adjust scroll offset if selection goes below visible area
-        const maxVisibleIndex = this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE - 1
-        if (this.slashMenuSelectedIndex > maxVisibleIndex) {
-          this.slashMenuScrollOffset = this.slashMenuSelectedIndex - this.SLASH_MENU_MAX_VISIBLE + 1
-        }
-      }
-      this.renderPromptArea()
-      return true
-    } else if (key.name === 'return') {
-      this.selectSlashCommand()
-      return true
-    } else if (key.name === 'escape') {
-      this.closeSlashMenu()
-      return true
+  private handleSlashMenuNavigation(key: any): { shouldRenderPrompt: boolean; shouldExit: boolean } {
+    if (!this.isSlashMenuActive) {
+      return { shouldRenderPrompt: false, shouldExit: false }
     }
 
-    return false
+    try {
+      if (key.name === 'up' && key.shift) {
+        if (this.slashMenuSelectedIndex > 0) {
+          this.slashMenuSelectedIndex--
+
+          // Adjust scroll offset if selection goes above visible area
+          if (this.slashMenuSelectedIndex < this.slashMenuScrollOffset) {
+            this.slashMenuScrollOffset = this.slashMenuSelectedIndex
+          }
+          return { shouldRenderPrompt: true, shouldExit: false } // Only render if there was an actual change
+        }
+      } else if (key.name === 'down' && key.shift) {
+        if (this.slashMenuSelectedIndex < this.slashMenuCommands.length - 1) {
+          this.slashMenuSelectedIndex++
+
+          // Adjust scroll offset if selection goes below visible area
+          const maxVisibleIndex = this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE - 1
+          if (this.slashMenuSelectedIndex > maxVisibleIndex) {
+            this.slashMenuScrollOffset = this.slashMenuSelectedIndex - this.SLASH_MENU_MAX_VISIBLE + 1
+          }
+          return { shouldRenderPrompt: true, shouldExit: false } // Only render if there was an actual change
+        }
+      } else if (key.name === 'return') {
+        try {
+          this.selectSlashCommand()
+          return { shouldRenderPrompt: true, shouldExit: false }
+          // Command selected, need to render
+        } catch (error: any) {
+          console.log(chalk.red(`Error selecting command: ${error.message}`))
+          return { shouldRenderPrompt: true, shouldExit: false } // Show error
+        }
+      } else if (key.name === 'escape') {
+        try {
+          this.closeSlashMenu()
+          return { shouldRenderPrompt: true, shouldExit: false } // Menu closed, need to render
+        } catch (error: any) {
+          console.log(chalk.red(`Error closing menu: ${error.message}`))
+          return { shouldRenderPrompt: true, shouldExit: false } // Show error
+        }
+      }
+
+      return { shouldRenderPrompt: false, shouldExit: false }
+    } catch (error: any) {
+      console.log(chalk.red(`Navigation error: ${error.message}`))
+      return { shouldRenderPrompt: true, shouldExit: false } // Render to show error
+    }
   }
 
   /**
@@ -19864,6 +19744,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Clear current input and insert selected command
       this.rl.write('', { ctrl: true, name: 'u' }) // Clear line
       this.rl.write(selectedCommand[0])
+      // Move cursor to end of the inserted command
+      this.rl.write('', { ctrl: true, name: 'e' }) // Move to end of line
       this.closeSlashMenu()
     }
   }
@@ -19899,7 +19781,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     this.currentSlashInput = input
     this.slashMenuCommands = this.filterSlashCommands(input)
     this.slashMenuSelectedIndex = Math.min(this.slashMenuSelectedIndex, this.slashMenuCommands.length - 1)
-    this.slashMenuScrollOffset = Math.min(this.slashMenuScrollOffset, Math.max(0, this.slashMenuCommands.length - this.SLASH_MENU_MAX_VISIBLE))
+    this.slashMenuScrollOffset = Math.min(
+      this.slashMenuScrollOffset,
+      Math.max(0, this.slashMenuCommands.length - this.SLASH_MENU_MAX_VISIBLE)
+    )
 
     // Ensure selected item is visible
     if (this.slashMenuSelectedIndex < this.slashMenuScrollOffset) {

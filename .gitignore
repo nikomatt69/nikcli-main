@@ -39,7 +39,7 @@ export/
 scripts/releases/
 releases/
 *.exe
-nikcli-*
+
 # Exception: Allow binary in public/bin for Vercel deployment
 !public/bin/nikcli-linux
 temp-*

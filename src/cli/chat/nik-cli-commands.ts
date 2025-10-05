@@ -305,8 +305,6 @@ export class SlashCommandHandler {
     this.commands.set('bg-status', this.bgStatusCommand.bind(this))
     this.commands.set('bg-logs', this.bgLogsCommand.bind(this))
 
-    // Vim operations
-    this.commands.set('vim', this.vimCommand.bind(this))
     this.commands.set('vm-dashboard', this.vmDashboardCommand.bind(this))
     this.commands.set('vm-select', this.vmSelectCommand.bind(this))
     this.commands.set('vm-status', this.vmStatusCommand.bind(this))
@@ -7921,23 +7919,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
-  // ====================== VIM COMMAND ======================
-
-  private async vimCommand(args: string[]): Promise<CommandResult> {
-    try {
-      // Delegate to main CLI instance vim handler
-      if (this.cliInstance && typeof this.cliInstance.handleVimCommand === 'function') {
-        await this.cliInstance.handleVimCommand(args)
-        return { shouldExit: false, shouldUpdatePrompt: false }
-      } else {
-        console.log(chalk.red('✗ Vim mode not available - CLI instance not properly initialized'))
-        return { shouldExit: false, shouldUpdatePrompt: false }
-      }
-    } catch (error: any) {
-      console.error(chalk.red(`Vim command failed: ${error.message}`))
-      return { shouldExit: false, shouldUpdatePrompt: false }
-    }
-  }
 
   // ====================== WORK SESSION MANAGEMENT COMMANDS ======================
 

@@ -639,6 +639,37 @@ export class SimpleConfigManager {
   private configPath: string
   private config!: ConfigType
 
+  /**
+   * Safe environment variable readers for embedding optimization
+   */
+  static getEmbedBatchSize(): number {
+    const value = process.env.EMBED_BATCH_SIZE
+    const parsed = value ? Number(value) : 300
+    return isNaN(parsed) || parsed < 1 ? 300 : Math.min(parsed, 1000) // Cap at 1000 for safety
+  }
+
+  static getEmbedMaxConcurrency(): number {
+    const value = process.env.EMBED_MAX_CONCURRENCY
+    const parsed = value ? Number(value) : 6
+    return isNaN(parsed) || parsed < 1 ? 6 : Math.min(parsed, 20) // Cap at 20 for safety
+  }
+
+  static getEmbedInterBatchDelay(): number {
+    const value = process.env.EMBED_INTER_BATCH_DELAY_MS
+    const parsed = value ? Number(value) : 25
+    return isNaN(parsed) || parsed < 0 ? 25 : Math.min(parsed, 1000) // Cap at 1000ms
+  }
+
+  static getIndexingBatchSize(): number {
+    const value = process.env.INDEXING_BATCH_SIZE
+    const parsed = value ? Number(value) : 300
+    return isNaN(parsed) || parsed < 1 ? 300 : Math.min(parsed, 1000) // Cap at 1000 for safety
+  }
+
+  static isAdaptiveBatchingEnabled(): boolean {
+    return process.env.EMBED_ADAPTIVE_BATCHING !== 'false'
+  }
+
   // Default models configuration
   private defaultModels: Record<string, ModelConfig> = {
     'claude-sonnet-4-20250514': {

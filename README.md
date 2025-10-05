@@ -1,4 +1,5 @@
 // TODO: Consider refactoring for reduced complexity
+
 # NikCLI - Context-Aware AI Development Assistant
 
 **Transform your development workflow with intelligent AI agents that understand your code, execute commands, and build applications autonomously.**
@@ -227,5 +228,15 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - `NIKCLI_COMPACT=1` enables compact output (fewer banners/panels).
 - `NIKCLI_CLEAN_CHAT=1` hides ephemeral toolchain logs (Recent Updates) and suppresses auxiliary router debug logs so only assistant/user stream remains.
+
+## Embedding Optimization Variables
+
+For optimal performance with OpenAI text-embedding-3-small:
+
+- `EMBED_BATCH_SIZE` (default: 300) - Batch size for embedding generation
+- `EMBED_MAX_CONCURRENCY` (default: 6) - Maximum concurrent embedding batches
+- `EMBED_INTER_BATCH_DELAY_MS` (default: 25) - Delay between batch groups (ms)
+- `INDEXING_BATCH_SIZE` (default: 300) - Batch size for vector store indexing
+- `EMBED_ADAPTIVE_BATCHING` (default: true) - Enable adaptive batch sizing based on content
 - `NIKCLI_MINIMAL_STREAM=1` alias for clean chat; same behavior as `NIKCLI_CLEAN_CHAT=1`.
 - `NIKCLI_LIVE_UPDATES_EPHEMERAL=1` clears live updates automatically when the system becomes idle or interactive mode stops.

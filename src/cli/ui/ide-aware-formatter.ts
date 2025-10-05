@@ -46,7 +46,6 @@ export class IDEAwareFormatter {
       vscode: '$(code)',
       cursor: '$(cursor)',
       jetbrains: '$(jetbrains)',
-      vim: '$(vim)',
       terminal: '$(terminal)'
     };
 
@@ -54,7 +53,6 @@ export class IDEAwareFormatter {
       vscode: chalk.blueBright,
       cursor: chalk.cyanBright,
       jetbrains: chalk.magentaBright,
-      vim: chalk.greenBright,
       terminal: chalk.gray
     };
 
@@ -125,10 +123,6 @@ export class IDEAwareFormatter {
       suggestions.push('💡 Use built-in terminal for NikCLI commands');
     }
 
-    if (caps.name === 'vim') {
-      suggestions.push('💡 Vim mode available in NikCLI chat');
-      suggestions.push('💡 Use :commands for vim-style navigation');
-    }
 
     if (caps.name === 'terminal') {
       suggestions.push('💡 Consider using VS Code for enhanced GUI features');

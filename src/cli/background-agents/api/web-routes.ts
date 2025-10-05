@@ -1,7 +1,110 @@
 // TODO: Consider refactoring for reduced complexity
 // Web interface routes for Background Agents API
 import express from 'express'
-import type { GitHubRepository, WebConfig } from '../../../web/types'
+// Local type definitions
+interface GitHubRepository {
+  id: number
+  name: string
+  full_name: string
+  private: boolean
+  html_url: string
+  clone_url: string
+  default_branch: string
+  description?: string
+  language?: string
+  updated_at: string
+}
+
+// GitHub API client
+class GitHubAPIClient {
+  private token: string | null
+
+  constructor(token?: string) {
+    this.token = token || process.env.GITHUB_TOKEN || null
+  }
+
+  async getRepositories(): Promise<GitHubRepository[]> {
+    if (!this.token) {
+      throw new Error('GitHub token not configured')
+    }
+
+    try {
+      const response = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
+        headers: {
+          'Authorization': `token ${this.token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'NikCLI-BackgroundAgents/0.2.3'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status} ${response.statusText}`)
+      }
+
+      const repos = await response.json()
+      
+      return repos.map((repo: any) => ({
+        id: repo.id,
+        name: repo.name,
+        full_name: repo.full_name,
+        private: repo.private,
+        html_url: repo.html_url,
+        clone_url: repo.clone_url,
+        default_branch: repo.default_branch,
+        description: repo.description || undefined,
+        language: repo.language || undefined,
+        updated_at: repo.updated_at
+      }))
+    } catch (error: any) {
+      console.error('Failed to fetch GitHub repositories:', error.message)
+      throw new Error(`Failed to fetch repositories: ${error.message}`)
+    }
+  }
+
+  async getUserInfo(): Promise<{ login: string; name?: string; email?: string }> {
+    if (!this.token) {
+      throw new Error('GitHub token not configured')
+    }
+
+    try {
+      const response = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `token ${this.token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'NikCLI-BackgroundAgents/0.2.3'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status} ${response.statusText}`)
+      }
+
+      const user = await response.json()
+      return {
+        login: user.login,
+        name: user.name || undefined,
+        email: user.email || undefined
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch GitHub user info:', error.message)
+      throw new Error(`Failed to fetch user info: ${error.message}`)
+    }
+  }
+}
+
+interface WebConfig {
+  github: {
+    token: string | null
+    username: string | null
+    repositories: GitHubRepository[]
+  }
+  defaultModel: string
+  defaultRepository: string | null
+  notifications: {
+    slack: boolean
+    email: boolean
+  }
+}
 import { backgroundAgentService } from '../background-agent-service'
 
 export function setupWebRoutes(app: express.Application): void {
@@ -34,12 +137,26 @@ export function setupWebRoutes(app: express.Application): void {
 // Configuration handlers
 async function getWebConfig(_req: express.Request, res: express.Response): Promise<void> {
   try {
-    // In a real implementation, this would load from a persistent store
+    const githubClient = new GitHubAPIClient()
+    
+    let username: string | null = null
+    let repositories: GitHubRepository[] = []
+
+    // Try to fetch GitHub data if token is available
+    try {
+      const userInfo = await githubClient.getUserInfo()
+      username = userInfo.login
+      repositories = await githubClient.getRepositories()
+    } catch (githubError: any) {
+      console.warn('GitHub API not available:', githubError.message)
+      // Continue with empty data if GitHub is not configured
+    }
+
     const config: WebConfig = {
       github: {
         token: process.env.GITHUB_TOKEN || null,
-        username: null, // Would be fetched from GitHub API
-        repositories: [],
+        username,
+        repositories,
       },
       defaultModel: 'claude-3-5-sonnet-latest',
       defaultRepository: null,
@@ -64,14 +181,26 @@ async function getWebConfig(_req: express.Request, res: express.Response): Promi
 async function updateWebConfig(req: express.Request, res: express.Response): Promise<void> {
   try {
     const updates = req.body
+    const githubClient = new GitHubAPIClient()
+    
+    let username: string | null = null
+    let repositories: GitHubRepository[] = []
 
-    // In a real implementation, this would persist to a store
-    // For now, we'll just return the updated config
+    // Try to fetch GitHub data if token is available
+    try {
+      const userInfo = await githubClient.getUserInfo()
+      username = userInfo.login
+      repositories = await githubClient.getRepositories()
+    } catch (githubError: any) {
+      console.warn('GitHub API not available:', githubError.message)
+      // Continue with empty data if GitHub is not configured
+    }
+
     const config: WebConfig = {
       github: {
         token: process.env.GITHUB_TOKEN || null,
-        username: null,
-        repositories: [],
+        username,
+        repositories,
       },
       defaultModel: updates.defaultModel || 'claude-3-5-sonnet-latest',
       defaultRepository: updates.defaultRepository || null,
@@ -135,24 +264,8 @@ async function handleGitHubCallback(req: express.Request, res: express.Response)
 
 async function getGitHubRepositories(_req: express.Request, res: express.Response): Promise<void> {
   try {
-    const token = process.env.GITHUB_TOKEN
-    if (!token) {
-      throw new Error('GitHub token not configured')
-    }
-
-    // Mock repositories for now - in real implementation would fetch from GitHub API
-    const repositories: GitHubRepository[] = [
-      {
-        id: 1,
-        name: 'nikcli-main',
-        full_name: 'nikomatt69/nikcli-main',
-        description: 'NikCLI - Context-Aware AI Development Assistant',
-        private: false,
-        default_branch: 'main',
-        updated_at: new Date().toISOString(),
-        language: 'TypeScript',
-      },
-    ]
+    const githubClient = new GitHubAPIClient()
+    const repositories = await githubClient.getRepositories()
 
     res.json({
       success: true,

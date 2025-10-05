@@ -82,6 +82,11 @@ export class UnifiedEmbeddingInterface {
   private readonly CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours
   private readonly MAX_MEMORY_CACHE = 10000
 
+  // Enhanced stats tracking
+  private batchLatencies: number[] = []
+  private successCount = 0
+  private failureCount = 0
+
   constructor(config?: Partial<EmbeddingConfig>) {
     this.provider = aiSdkEmbeddingProvider
     this.config = {
@@ -89,7 +94,7 @@ export class UnifiedEmbeddingInterface {
       model: 'text-embedding-3-small',
       dimensions: 1536,
       maxTokens: 8191,
-      batchSize: 100,
+      batchSize: Number(process.env.EMBED_BATCH_SIZE || 300), // Configurable via env
       cacheEnabled: true,
       persistenceEnabled: true,
       ...config,
@@ -299,7 +304,7 @@ export class UnifiedEmbeddingInterface {
     this.stats.cacheHitRate =
       this.stats.totalQueries > 0
         ? (this.stats.totalQueries - Object.values(this.stats.byProvider).reduce((sum, p) => sum + p.count, 0)) /
-          this.stats.totalQueries
+        this.stats.totalQueries
         : 0
 
     return { ...this.stats }
