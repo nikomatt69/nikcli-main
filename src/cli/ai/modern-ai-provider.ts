@@ -74,7 +74,7 @@ export class ModernAIProvider {
 
   // Core file operations tools - Claude Code style
   private getFileOperationsTools(): Record<string, CoreTool> {
-    return {
+    const tools: Record<string, CoreTool> = {
       read_file: tool({
         description: 'Read the contents of a file',
         parameters: z.object({
@@ -275,6 +275,13 @@ export class ModernAIProvider {
         },
       }),
     }
+
+    // Note: Tool-level caching via @ai-sdk-tools/cache is incompatible with AI SDK v3's CoreTool type
+    // The existing workspace context, embeddings, and RAG systems already have sophisticated
+    // multi-layer caching (in-memory Maps, persistent disk cache, TTL-based invalidation)
+    // which provides better performance for this CLI's use case
+
+    return tools
   }
 
   private async analyzeWorkspaceStructure(rootPath: string, maxDepth: number): Promise<any> {
@@ -297,10 +304,10 @@ export class ModernAIProvider {
       rootPath: relative(process.cwd(), rootPath),
       packageInfo: packageInfo
         ? {
-            name: packageInfo.name,
-            version: packageInfo.version,
-            description: packageInfo.description,
-          }
+          name: packageInfo.name,
+          version: packageInfo.version,
+          description: packageInfo.description,
+        }
         : null,
       framework,
       technologies,
@@ -536,7 +543,7 @@ export class ModernAIProvider {
             }
           }
         }
-      } catch (_) {}
+      } catch (_) { }
       const result = await streamText({
         model,
         messages,
@@ -562,7 +569,7 @@ export class ModernAIProvider {
             await authProvider.recordUsage('apiCalls', 1)
           }
         }
-      } catch (_) {}
+      } catch (_) { }
       yield {
         type: 'finish',
         finishReason: finishResult,

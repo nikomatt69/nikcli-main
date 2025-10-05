@@ -64,6 +64,9 @@
     "system:diagnose": "node -e \"console.log('Node:', process.version, 'Platform:', process.platform, 'Arch:', process.arch)\""
   },
   "dependencies": {
+    "@ai-sdk-tools/artifacts": "^0.1.0",
+    "@ai-sdk-tools/cache": "^0.1.2",
+    "@ai-sdk-tools/store": "^0.1.0",
     "@ai-sdk/anthropic": "^0.0.50",
     "@ai-sdk/gateway": "^1.0.10",
     "@ai-sdk/google": "^0.0.54",
@@ -105,7 +108,6 @@
     "boxen": "^7.1.1",
     "chalk": "^5.3.0",
     "chart.js": "^4.4.1",
-    "chartjs-node-canvas": "^4.1.6",
     "chokidar": "^4.0.3",
     "chromadb": "^3.0.11",
     "class-variance-authority": "^0.7.1",
