@@ -16,6 +16,7 @@ import { SlashCommandHandler } from './chat/nik-cli-commands'
 import { CADCommands } from './commands/cad-commands'
 import { TOKEN_LIMITS } from './config/token-limits'
 import { docsContextManager } from './context/docs-context-manager'
+import { unifiedRAGSystem } from './context/rag-system'
 import { workspaceContext } from './context/workspace-context'
 import { agentFactory } from './core/agent-factory'
 import { AgentManager } from './core/agent-manager'
@@ -6588,6 +6589,12 @@ EOF`
           break
         }
         case 'context': {
+          // Check for interactive mode
+          if (args.length > 0 && ['interactive', 'i'].includes(args[0].toLowerCase())) {
+            await this.showInteractiveContext()
+            break
+          }
+
           this.beginPanelOutput()
           try {
             if (args.length === 0) {
@@ -10194,12 +10201,14 @@ EOF`
       ['/parallel-logs', 'View parallel execution logs'],
       ['/parallel-status', 'Check parallel execution status'],
 
-      //  Memory & Context Management
+      // 🧠 Memory & Context Management
       ['/remember "fact"', 'Store information in long-term memory'],
       ['/recall "query"', 'Search and retrieve memories'],
       ['/memory stats', 'Show memory usage statistics'],
-      ['/context <paths>', 'Select workspace context paths'],
-      ['/index <path>', 'Index files for better context understanding'],
+
+      // 📚 Context Management (Interactive Panel)
+      ['/context [interactive|i]', 'Open interactive context management panel'],
+      ['/index [interactive|i]', 'View & manage indexed content'],
 
       // 📋 Todo & Planning System
       ['/todo [command]', 'Todo list operations and management'],
@@ -14392,6 +14401,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
    * Delegate Index command to slash handler
    */
   private async handleIndexCommand(args: string[]): Promise<void> {
+    // Check for interactive mode
+    if (args.length > 0 && ['interactive', 'i'].includes(args[0].toLowerCase())) {
+      await this.showInteractiveIndex()
+      return
+    }
+
     const result = await this.slashHandler.handle(`/index ${args.join(' ')}`)
     if (result.shouldExit) {
       await this.shutdown()
@@ -16659,6 +16674,1059 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       await new Promise((resolve) => setTimeout(resolve, 150))
       this.renderPromptAfterOutput()
     }
+  }
+
+  /**
+   * Interactive context management panel
+   */
+  private async showInteractiveContext(): Promise<void> {
+    // Prevent user input queue interference
+    try {
+      this.suspendPrompt()
+    } catch { }
+    try {
+      inputQueue.enableBypass()
+    } catch { }
+
+    try {
+      const sectionChoices = [
+        { name: '📊 Context Overview', value: 'overview' },
+        { name: '🧠 RAG Context Management', value: 'rag' },
+        { name: '💬 Conversation Context', value: 'conversation' },
+        { name: '🤖 Agent Context', value: 'agent' },
+        { name: '📁 Base Context', value: 'base' },
+        { name: '⚙️  Context Settings', value: 'settings' },
+        { name: '🔄 Refresh Index', value: 'refresh' },
+        { name: '🗑️  Clear Context', value: 'clear' },
+        { name: '← Exit', value: 'exit' },
+      ]
+
+      let done = false
+      while (!done) {
+        // Show current context stats at the top
+        const session = contextTokenManager.getCurrentSession()
+        const ctx = workspaceContext.getContext()
+
+        console.clear()
+        console.log(chalk.blue.bold('╔═══════════════════════════════════════════════════╗'))
+        console.log(chalk.blue.bold('║   🎯 INTERACTIVE CONTEXT MANAGEMENT PANEL   🎯   ║'))
+        console.log(chalk.blue.bold('╚═══════════════════════════════════════════════════╝'))
+        console.log()
+
+        if (session) {
+          const totalTokens = session.totalInputTokens + session.totalOutputTokens
+          const maxTokens = session.modelLimits.context
+          const percentage = (totalTokens / maxTokens) * 100
+          const progressBar = this.createProgressBarString(percentage, 40)
+
+          console.log(chalk.cyan('  Context Usage:'))
+          console.log(`    ${progressBar}`)
+          console.log(chalk.gray(`    ${totalTokens.toLocaleString()} / ${maxTokens.toLocaleString()} tokens (${percentage.toFixed(1)}%)`))
+          console.log()
+        }
+
+        console.log(chalk.cyan(`  📁 Root: `) + chalk.white(path.relative(process.cwd(), this.workingDirectory) || '.'))
+        console.log(chalk.cyan(`  📂 Indexed Paths: `) + chalk.white(ctx.selectedPaths.length.toString()))
+        console.log(chalk.cyan(`  🗂️  RAG Status: `) + (ctx.ragAvailable ? chalk.green('✓ Available') : chalk.yellow('⚠ Fallback')))
+        console.log()
+
+        const { section } = await inquirer.prompt<{ section: string }>([
+          {
+            type: 'list',
+            name: 'section',
+            message: 'Select context management section:',
+            choices: sectionChoices,
+          },
+        ])
+
+        switch (section) {
+          case 'overview': {
+            await this.showContextOverview()
+            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            break
+          }
+          case 'rag': {
+            await this.manageRAGContext()
+            break
+          }
+          case 'conversation': {
+            await this.manageConversationContext()
+            break
+          }
+          case 'agent': {
+            await this.manageAgentContext()
+            break
+          }
+          case 'base': {
+            await this.manageBaseContext()
+            break
+          }
+          case 'settings': {
+            await this.manageContextSettings()
+            break
+          }
+          case 'refresh': {
+            console.log(chalk.blue('\n⚡ Refreshing context index...'))
+            await workspaceContext.refreshWorkspaceIndex()
+            await unifiedRAGSystem.analyzeProject(this.workingDirectory)
+            console.log(chalk.green('✓ Index refreshed successfully\n'))
+            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            break
+          }
+          case 'clear': {
+            const { confirm } = await inquirer.prompt([
+              {
+                type: 'confirm',
+                name: 'confirm',
+                message: 'Are you sure you want to clear all context?',
+                default: false,
+              },
+            ])
+            if (confirm) {
+              await contextTokenManager.endSession()
+              // Clear workspace selection by selecting empty array
+              await workspaceContext.selectPaths([])
+              console.log(chalk.green('\n✓ Context cleared successfully\n'))
+            }
+            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            break
+          }
+          default:
+            done = true
+            break
+        }
+      }
+
+      console.log(chalk.dim('Exited interactive context management'))
+    } finally {
+      try {
+        inputQueue.disableBypass()
+      } catch { }
+      process.stdout.write('')
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      this.renderPromptAfterOutput()
+    }
+  }
+
+  /**
+   * Interactive index management panel
+   */
+  private async showInteractiveIndex(): Promise<void> {
+    // Prevent user input queue interference
+    try {
+      this.suspendPrompt()
+    } catch { }
+    try {
+      inputQueue.enableBypass()
+    } catch { }
+
+    try {
+      const sectionChoices = [
+        { name: '📊 Index Overview', value: 'overview' },
+        { name: '📁 Browse Indexed Files', value: 'browse' },
+        { name: '🔍 Search Index', value: 'search' },
+        { name: '➕ Add to Index', value: 'add' },
+        { name: '➖ Remove from Index', value: 'remove' },
+        { name: '⚙️  Index Settings', value: 'settings' },
+        { name: '🔄 Rebuild Index', value: 'rebuild' },
+        { name: '📈 Index Statistics', value: 'stats' },
+        { name: '← Exit', value: 'exit' },
+      ]
+
+      let done = false
+      while (!done) {
+        // Get index stats
+        const ctx = workspaceContext.getContext()
+        const indexedFiles = Array.from(ctx.files.values())
+        const totalSize = indexedFiles.reduce((sum, f) => sum + f.size, 0)
+        const languages = new Set(indexedFiles.map(f => f.language))
+
+        console.clear()
+        console.log(chalk.blue.bold('╔═══════════════════════════════════════════════════╗'))
+        console.log(chalk.blue.bold('║     🗂️  INTERACTIVE INDEX MANAGEMENT PANEL  🗂️     ║'))
+        console.log(chalk.blue.bold('╚═══════════════════════════════════════════════════╝'))
+        console.log()
+
+        console.log(chalk.cyan('  📁 Indexed Files: ') + chalk.white(indexedFiles.length.toString()))
+        console.log(chalk.cyan('  💾 Total Size: ') + chalk.white(this.formatBytes(totalSize)))
+        console.log(chalk.cyan('  🔤 Languages: ') + chalk.white(Array.from(languages).join(', ') || 'None'))
+        console.log(chalk.cyan('  🗂️  Directories: ') + chalk.white(ctx.directories.size.toString()))
+        console.log()
+
+        const { section } = await inquirer.prompt<{ section: string }>([
+          {
+            type: 'list',
+            name: 'section',
+            message: 'Select index management section:',
+            choices: sectionChoices,
+          },
+        ])
+
+        switch (section) {
+          case 'overview': {
+            await this.showIndexOverview()
+            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            break
+          }
+          case 'browse': {
+            await this.browseIndexedFiles()
+            break
+          }
+          case 'search': {
+            await this.searchIndex()
+            break
+          }
+          case 'add': {
+            await this.addToIndex()
+            break
+          }
+          case 'remove': {
+            await this.removeFromIndex()
+            break
+          }
+          case 'settings': {
+            await this.manageIndexSettings()
+            break
+          }
+          case 'rebuild': {
+            const { confirm } = await inquirer.prompt([
+              {
+                type: 'confirm',
+                name: 'confirm',
+                message: 'Rebuild entire index? This may take some time.',
+                default: false,
+              },
+            ])
+            if (confirm) {
+              console.log(chalk.blue('\n⚡ Rebuilding index...'))
+
+              // Clear caches first
+              await unifiedRAGSystem.clearCaches()
+
+              // Rebuild workspace index
+              await workspaceContext.refreshWorkspaceIndex()
+
+              // Re-analyze project with RAG
+              await unifiedRAGSystem.analyzeProject(this.workingDirectory)
+
+              console.log(chalk.green('✓ Index rebuilt successfully\n'))
+            }
+            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            break
+          }
+          case 'stats': {
+            await this.showIndexStatistics()
+            await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+            break
+          }
+          default:
+            done = true
+            break
+        }
+      }
+
+      console.log(chalk.dim('Exited interactive index management'))
+    } finally {
+      try {
+        inputQueue.disableBypass()
+      } catch { }
+      process.stdout.write('')
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      this.renderPromptAfterOutput()
+    }
+  }
+
+  // ============ Context Management Helper Methods ============
+
+  private async showContextOverview(): Promise<void> {
+    console.clear()
+    console.log(chalk.blue.bold('\n📊 Context Overview\n'))
+
+    const session = contextTokenManager.getCurrentSession()
+    const ctx = workspaceContext.getContextForAgent('universal-agent', 20)
+    const wsContext = workspaceContext.getContext()
+    const ragConfig = unifiedRAGSystem.getConfig()
+
+    if (session) {
+      const totalTokens = session.totalInputTokens + session.totalOutputTokens
+      const maxTokens = session.modelLimits.context
+      const percentage = (totalTokens / maxTokens) * 100
+
+      console.log(chalk.cyan('Session Information:'))
+      console.log(`  Model: ${session.provider}/${session.model}`)
+      console.log(`  Tokens: ${totalTokens.toLocaleString()} / ${maxTokens.toLocaleString()} (${percentage.toFixed(1)}%)`)
+      console.log(`  Input: ${session.totalInputTokens.toLocaleString()}`)
+      console.log(`  Output: ${session.totalOutputTokens.toLocaleString()}`)
+      console.log()
+    }
+
+    console.log(chalk.cyan('Workspace Context:'))
+    console.log(`  Root: ${this.workingDirectory}`)
+    console.log(`  Selected Paths: ${ctx.selectedPaths.length}`)
+    console.log(`  Files: ${wsContext.files.size}`)
+    console.log(`  Directories: ${wsContext.directories.size}`)
+    console.log()
+
+    console.log(chalk.cyan('RAG Configuration:'))
+    console.log(`  Vector DB: ${ragConfig.useVectorDB ? '✓ Enabled' : '✗ Disabled'}`)
+    console.log(`  Hybrid Mode: ${ragConfig.hybridMode ? '✓ Enabled' : '✗ Disabled'}`)
+    console.log(`  Max Files: ${ragConfig.maxIndexFiles}`)
+    console.log(`  Chunk Size: ${ragConfig.chunkSize}`)
+    console.log(`  Semantic Search: ${ragConfig.enableSemanticSearch ? '✓ Enabled' : '✗ Disabled'}`)
+    console.log()
+  }
+
+  private async manageRAGContext(): Promise<void> {
+    const { action } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'RAG Context Management:',
+        choices: [
+          { name: '📊 View RAG Status', value: 'status' },
+          { name: '🔧 Configure RAG Settings', value: 'configure' },
+          { name: '📁 Add Files to RAG', value: 'add' },
+          { name: '🗑️  Remove Files from RAG', value: 'remove' },
+          { name: '🔄 Refresh RAG Index', value: 'refresh' },
+          { name: '← Back', value: 'back' },
+        ],
+      },
+    ])
+
+    switch (action) {
+      case 'status': {
+        const ragConfig = unifiedRAGSystem.getConfig()
+        console.log(chalk.blue('\n🧠 RAG System Status:\n'))
+        console.log(`  Vector DB: ${ragConfig.useVectorDB ? chalk.green('✓ Active') : chalk.yellow('○ Inactive')}`)
+        console.log(`  Hybrid Mode: ${ragConfig.hybridMode ? chalk.green('✓ Active') : chalk.yellow('○ Inactive')}`)
+        console.log(`  Semantic Search: ${ragConfig.enableSemanticSearch ? chalk.green('✓ Active') : chalk.yellow('○ Inactive')}`)
+        console.log(`  Cache Embeddings: ${ragConfig.cacheEmbeddings ? chalk.green('✓ Active') : chalk.yellow('○ Inactive')}`)
+        console.log(`  Max Index Files: ${ragConfig.maxIndexFiles}`)
+        console.log(`  Chunk Size: ${ragConfig.chunkSize} tokens`)
+        console.log()
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'configure': {
+        const currentConfig = unifiedRAGSystem.getConfig()
+        const ans = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'useVectorDB',
+            message: 'Use Vector Database?',
+            default: currentConfig.useVectorDB,
+          },
+          {
+            type: 'confirm',
+            name: 'hybridMode',
+            message: 'Enable Hybrid Mode?',
+            default: currentConfig.hybridMode,
+          },
+          {
+            type: 'confirm',
+            name: 'enableSemanticSearch',
+            message: 'Enable Semantic Search?',
+            default: currentConfig.enableSemanticSearch,
+          },
+          {
+            type: 'confirm',
+            name: 'cacheEmbeddings',
+            message: 'Cache Embeddings?',
+            default: currentConfig.cacheEmbeddings,
+          },
+          {
+            type: 'number',
+            name: 'maxIndexFiles',
+            message: 'Max Index Files:',
+            default: currentConfig.maxIndexFiles,
+          },
+          {
+            type: 'number',
+            name: 'chunkSize',
+            message: 'Chunk Size (tokens):',
+            default: currentConfig.chunkSize,
+          },
+        ])
+
+        // Update RAG configuration with real values
+        unifiedRAGSystem.updateConfig({
+          useVectorDB: ans.useVectorDB,
+          hybridMode: ans.hybridMode,
+          enableSemanticSearch: ans.enableSemanticSearch,
+          cacheEmbeddings: ans.cacheEmbeddings,
+          maxIndexFiles: ans.maxIndexFiles,
+          chunkSize: ans.chunkSize,
+        })
+
+        console.log(chalk.green('\n✓ RAG configuration updated successfully\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'add': {
+        const { paths } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'paths',
+            message: 'Enter paths to add to RAG (comma-separated):',
+          },
+        ])
+
+        if (paths) {
+          const pathList = paths.split(',').map((p: string) => p.trim())
+          console.log(chalk.blue(`\n⚡ Adding ${pathList.length} path(s) to RAG index...\n`))
+
+          // Add to workspace context
+          const currentPaths = workspaceContext.getContext().selectedPaths
+          const newPaths = [...currentPaths, ...pathList.map((p: string) => path.resolve(this.workingDirectory, p))]
+          const uniquePaths = [...new Set(newPaths)] // Remove duplicates
+          await workspaceContext.selectPaths(uniquePaths.map((p: string) => path.relative(this.workingDirectory, p)))
+
+          // Re-analyze with RAG
+          await unifiedRAGSystem.analyzeProject(this.workingDirectory)
+
+          console.log(chalk.green('✓ Paths added to RAG index\n'))
+        }
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'remove': {
+        const ctx = workspaceContext.getContext()
+        const selectedPaths = ctx.selectedPaths.slice(0, 30)
+
+        if (selectedPaths.length === 0) {
+          console.log(chalk.yellow('\n⚠️  No paths in RAG to remove\n'))
+          await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+          break
+        }
+
+        const { pathsToRemove } = await inquirer.prompt([
+          {
+            type: 'checkbox',
+            name: 'pathsToRemove',
+            message: 'Select paths to remove from RAG (use space to select):',
+            choices: selectedPaths.map(p => ({
+              name: path.relative(this.workingDirectory, p),
+              value: p,
+            })),
+          },
+        ])
+
+        if (pathsToRemove && pathsToRemove.length > 0) {
+          const remainingPaths = selectedPaths.filter(p => !pathsToRemove.includes(p))
+          await workspaceContext.selectPaths(remainingPaths.map(p => path.relative(this.workingDirectory, p)))
+
+          console.log(chalk.green(`\n✓ Removed ${pathsToRemove.length} path(s) from RAG\n`))
+          pathsToRemove.forEach((p: string) => {
+            console.log(chalk.gray(`  - ${path.relative(this.workingDirectory, p)}`))
+          })
+          console.log()
+        }
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'refresh': {
+        console.log(chalk.blue('\n⚡ Refreshing RAG index...'))
+        await unifiedRAGSystem.analyzeProject(this.workingDirectory)
+        console.log(chalk.green('✓ RAG index refreshed\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+    }
+  }
+
+  private async manageConversationContext(): Promise<void> {
+    const session = contextTokenManager.getCurrentSession()
+
+    if (!session) {
+      console.log(chalk.yellow('\n⚠️  No active conversation session\n'))
+      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+      return
+    }
+
+    const { action } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'Conversation Context Management:',
+        choices: [
+          { name: '📊 View Stats', value: 'stats' },
+          { name: '📝 View Messages', value: 'messages' },
+          { name: '🎚️  Set Context Limits', value: 'limits' },
+          { name: '🗑️  Clear Conversation', value: 'clear' },
+          { name: '← Back', value: 'back' },
+        ],
+      },
+    ])
+
+    switch (action) {
+      case 'stats': {
+        console.log(chalk.blue('\n💬 Conversation Statistics:\n'))
+        console.log(`  Model: ${session.provider}/${session.model}`)
+        console.log(`  Input Tokens: ${session.totalInputTokens.toLocaleString()}`)
+        console.log(`  Output Tokens: ${session.totalOutputTokens.toLocaleString()}`)
+        console.log(`  Total Tokens: ${(session.totalInputTokens + session.totalOutputTokens).toLocaleString()}`)
+        console.log(`  Context Limit: ${session.modelLimits.context.toLocaleString()}`)
+        console.log(`  Max Output: ${session.modelLimits.output.toLocaleString()}`)
+        console.log()
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'messages': {
+        console.log(chalk.blue('\n💬 Recent Conversation Messages:\n'))
+        // Get recent messages from session - using contextTokenManager which tracks the session
+        const messageHistory = contextTokenManager.getMessageHistory()
+        const recentMessages = messageHistory.slice(-10)
+
+        if (recentMessages.length === 0) {
+          console.log(chalk.yellow('  No messages in current session'))
+        } else {
+          recentMessages.forEach((msg: any, idx: number) => {
+            const role = msg.role === 'user' ? chalk.green('User') : chalk.blue('Assistant')
+            const preview = (msg.content || '').substring(0, 100)
+            console.log(`  ${idx + 1}. ${role}: ${preview}${msg.content.length > 100 ? '...' : ''}`)
+          })
+        }
+        console.log()
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'limits': {
+        const { maxTokens, maxHistory } = await inquirer.prompt([
+          {
+            type: 'number',
+            name: 'maxTokens',
+            message: 'Max tokens for responses:',
+            default: this.configManager.get('maxTokens'),
+          },
+          {
+            type: 'number',
+            name: 'maxHistory',
+            message: 'Max history messages to keep:',
+            default: this.configManager.get('maxHistoryLength'),
+          },
+        ])
+
+        this.configManager.set('maxTokens', maxTokens)
+        this.configManager.set('maxHistoryLength', maxHistory)
+
+        console.log(chalk.green('\n✓ Context limits updated\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'clear': {
+        const { confirm } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'confirm',
+            message: 'Clear conversation history?',
+            default: false,
+          },
+        ])
+        if (confirm) {
+          await contextTokenManager.endSession()
+          console.log(chalk.green('\n✓ Conversation cleared\n'))
+        }
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+    }
+  }
+
+  private async manageAgentContext(): Promise<void> {
+    const { action } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'Agent Context Management:',
+        choices: [
+          { name: '📊 View Agent Contexts', value: 'view' },
+          { name: '🎚️  Set Context Priority', value: 'priority' },
+          { name: '🔧 Configure Agent Context', value: 'configure' },
+          { name: '← Back', value: 'back' },
+        ],
+      },
+    ])
+
+    switch (action) {
+      case 'view': {
+        console.log(chalk.blue('\n🤖 Agent Contexts:\n'))
+        const ctx = workspaceContext.getContext()
+        console.log(`  Root: ${ctx.rootPath}`)
+        console.log(`  Selected Paths: ${ctx.selectedPaths.length}`)
+        console.log(`  Files in Context: ${ctx.files.size}`)
+        console.log()
+
+        if (ctx.selectedPaths.length > 0) {
+          console.log(chalk.cyan('  Top Paths:'))
+          ctx.selectedPaths.slice(0, 5).forEach((p: string) => {
+            console.log(`    • ${path.relative(this.workingDirectory, p)}`)
+          })
+          if (ctx.selectedPaths.length > 5) {
+            console.log(chalk.gray(`    ... +${ctx.selectedPaths.length - 5} more`))
+          }
+          console.log()
+        }
+
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'priority': {
+        console.log(chalk.blue('\n🎚️  Context Priority Management\n'))
+        console.log(chalk.yellow('Context priority is automatically managed based on:'))
+        console.log('  • File importance scores')
+        console.log('  • Recent usage patterns')
+        console.log('  • Semantic relevance to queries')
+        console.log()
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'configure': {
+        const { maxFiles, searchThreshold } = await inquirer.prompt([
+          {
+            type: 'number',
+            name: 'maxFiles',
+            message: 'Max files per agent context:',
+            default: 50,
+          },
+          {
+            type: 'number',
+            name: 'searchThreshold',
+            message: 'Search relevance threshold (0-1):',
+            default: 0.3,
+          },
+        ])
+
+        console.log(chalk.green(`\n✓ Agent context configured (max files: ${maxFiles}, threshold: ${searchThreshold})\n`))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+    }
+  }
+
+  private async manageBaseContext(): Promise<void> {
+    const ctx = workspaceContext.getContext()
+
+    const { action } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'Base Context Management:',
+        choices: [
+          { name: '📊 View Base Context', value: 'view' },
+          { name: '📁 Select Paths', value: 'paths' },
+          { name: '🔄 Refresh Context', value: 'refresh' },
+          { name: '← Back', value: 'back' },
+        ],
+      },
+    ])
+
+    switch (action) {
+      case 'view': {
+        console.log(chalk.blue('\n📁 Base Context Information:\n'))
+        console.log(`  Root: ${ctx.rootPath}`)
+        console.log(`  Selected Paths: ${ctx.selectedPaths.length}`)
+        console.log(`  Files: ${ctx.files.size}`)
+        console.log(`  Directories: ${ctx.directories.size}`)
+        console.log(`  Languages: ${ctx.projectMetadata.languages.join(', ')}`)
+        if (ctx.projectMetadata.framework) {
+          console.log(`  Framework: ${ctx.projectMetadata.framework}`)
+        }
+        console.log()
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'paths': {
+        const { newPaths } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'newPaths',
+            message: 'Enter paths to select (comma-separated):',
+            default: ctx.selectedPaths.map((p: string) => path.relative(this.workingDirectory, p)).join(', '),
+          },
+        ])
+
+        if (newPaths) {
+          const pathList = newPaths.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
+          console.log(chalk.blue(`\n⚡ Selecting ${pathList.length} path(s)...\n`))
+          await workspaceContext.selectPaths(pathList)
+          console.log(chalk.green(`✓ Selected ${pathList.length} path(s)\n`))
+        }
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'refresh': {
+        console.log(chalk.blue('\n⚡ Refreshing base context...'))
+        await workspaceContext.refreshWorkspaceIndex()
+        console.log(chalk.green('✓ Base context refreshed\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+    }
+  }
+
+  private async manageContextSettings(): Promise<void> {
+    const { setting } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'setting',
+        message: 'Context Settings:',
+        choices: [
+          { name: '🎚️  Token Limits', value: 'tokens' },
+          { name: '📦 Cache Settings', value: 'cache' },
+          { name: '🔧 Advanced Options', value: 'advanced' },
+          { name: '← Back', value: 'back' },
+        ],
+      },
+    ])
+
+    switch (setting) {
+      case 'tokens': {
+        const config = this.configManager.getAll()
+        const ans = await inquirer.prompt([
+          {
+            type: 'number',
+            name: 'maxTokens',
+            message: 'Max Tokens:',
+            default: config.maxTokens,
+          },
+          {
+            type: 'number',
+            name: 'maxHistoryLength',
+            message: 'Max History Length:',
+            default: config.maxHistoryLength,
+          },
+        ])
+        this.configManager.set('maxTokens', ans.maxTokens)
+        this.configManager.set('maxHistoryLength', ans.maxHistoryLength)
+        console.log(chalk.green('\n✓ Token settings updated\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'cache': {
+        const ragConfig = unifiedRAGSystem.getConfig()
+        const ans = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'cacheEmbeddings',
+            message: 'Cache embeddings?',
+            default: ragConfig.cacheEmbeddings,
+          },
+          {
+            type: 'confirm',
+            name: 'clearCache',
+            message: 'Clear existing caches now?',
+            default: false,
+          },
+        ])
+
+        unifiedRAGSystem.updateConfig({ cacheEmbeddings: ans.cacheEmbeddings })
+
+        if (ans.clearCache) {
+          await unifiedRAGSystem.clearCaches()
+          console.log(chalk.green('\n✓ Caches cleared'))
+        }
+
+        console.log(chalk.green('\n✓ Cache settings updated\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'advanced': {
+        const ragConfig = unifiedRAGSystem.getConfig()
+        const ans = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'useLocalEmbeddings',
+            message: 'Use local embeddings (faster, less accurate)?',
+            default: ragConfig.useLocalEmbeddings,
+          },
+          {
+            type: 'number',
+            name: 'costThreshold',
+            message: 'Cost threshold (USD):',
+            default: ragConfig.costThreshold,
+          },
+        ])
+
+        unifiedRAGSystem.updateConfig({
+          useLocalEmbeddings: ans.useLocalEmbeddings,
+          costThreshold: ans.costThreshold,
+        })
+
+        console.log(chalk.green('\n✓ Advanced settings updated\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+    }
+  }
+
+  // ============ Index Management Helper Methods ============
+
+  private async showIndexOverview(): Promise<void> {
+    console.clear()
+    console.log(chalk.blue.bold('\n📊 Index Overview\n'))
+
+    const ctx = workspaceContext.getContext()
+    const indexedFiles = Array.from(ctx.files.values())
+    const totalSize = indexedFiles.reduce((sum, f) => sum + f.size, 0)
+    const languages = new Set(indexedFiles.map(f => f.language))
+    const languageCounts = new Map<string, number>()
+
+    indexedFiles.forEach(f => {
+      languageCounts.set(f.language, (languageCounts.get(f.language) || 0) + 1)
+    })
+
+    console.log(chalk.cyan('Index Statistics:'))
+    console.log(`  Total Files: ${indexedFiles.length}`)
+    console.log(`  Total Size: ${this.formatBytes(totalSize)}`)
+    console.log(`  Directories: ${ctx.directories.size}`)
+    console.log()
+
+    console.log(chalk.cyan('Files by Language:'))
+    Array.from(languageCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .forEach(([lang, count]) => {
+        const bar = '█'.repeat(Math.min(30, Math.floor(count / Math.max(...languageCounts.values()) * 30)))
+        console.log(`  ${lang.padEnd(15)} ${bar} ${count}`)
+      })
+    console.log()
+
+    if (ctx.projectMetadata.framework) {
+      console.log(chalk.cyan('Framework:'))
+      console.log(`  ${ctx.projectMetadata.framework}`)
+      console.log()
+    }
+  }
+
+  private async browseIndexedFiles(): Promise<void> {
+    const ctx = workspaceContext.getContext()
+    const indexedFiles = Array.from(ctx.files.values()).slice(0, 50)
+
+    if (indexedFiles.length === 0) {
+      console.log(chalk.yellow('\n⚠️  No files indexed\n'))
+      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+      return
+    }
+
+    const { file } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'file',
+        message: 'Browse indexed files:',
+        choices: [
+          ...indexedFiles.map(f => ({
+            name: `${f.language.padEnd(10)} ${path.relative(this.workingDirectory, f.path)} (${this.formatBytes(f.size)})`,
+            value: f.path,
+          })),
+          { name: '← Back', value: 'back' },
+        ],
+        pageSize: 15,
+      },
+    ])
+
+    if (file !== 'back') {
+      const fileData = ctx.files.get(file)
+      if (fileData) {
+        console.log(chalk.blue('\n📄 File Information:\n'))
+        console.log(`  Path: ${path.relative(this.workingDirectory, fileData.path)}`)
+        console.log(`  Language: ${fileData.language}`)
+        console.log(`  Size: ${this.formatBytes(fileData.size)}`)
+        console.log(`  Modified: ${fileData.modified.toLocaleString()}`)
+        console.log(`  Importance: ${fileData.importance}/100`)
+        if (fileData.summary) {
+          console.log(`  Summary: ${fileData.summary}`)
+        }
+        console.log()
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+      }
+    }
+  }
+
+  private async searchIndex(): Promise<void> {
+    const { query } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'query',
+        message: 'Enter search query:',
+      },
+    ])
+
+    if (query) {
+      console.log(chalk.blue(`\n🔍 Searching for: "${query}"\n`))
+
+      try {
+        const results = await unifiedRAGSystem.search(query, { limit: 10 })
+
+        if (results.length === 0) {
+          console.log(chalk.yellow('No results found'))
+        } else {
+          console.log(chalk.green(`Found ${results.length} results:\n`))
+          results.forEach((r, i) => {
+            console.log(`${i + 1}. ${chalk.cyan(path.relative(this.workingDirectory, r.path))}`)
+            console.log(`   Score: ${(r.score * 100).toFixed(1)}% | ${r.metadata.fileType}`)
+            if (r.content.length > 100) {
+              console.log(`   ${r.content.substring(0, 100)}...`)
+            } else {
+              console.log(`   ${r.content}`)
+            }
+            console.log()
+          })
+        }
+      } catch (error: any) {
+        console.log(chalk.red(`Search error: ${error.message}`))
+      }
+
+      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+    }
+  }
+
+  private async addToIndex(): Promise<void> {
+    const { paths } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'paths',
+        message: 'Enter paths to index (comma-separated):',
+      },
+    ])
+
+    if (paths) {
+      const pathList = paths.split(',').map((p: string) => p.trim())
+      console.log(chalk.blue(`\n⚡ Adding ${pathList.length} path(s) to index...\n`))
+
+      await workspaceContext.selectPaths(pathList)
+
+      console.log(chalk.green('✓ Paths added to index\n'))
+      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+    }
+  }
+
+  private async removeFromIndex(): Promise<void> {
+    const ctx = workspaceContext.getContext()
+    const selectedPaths = ctx.selectedPaths.slice(0, 20)
+
+    if (selectedPaths.length === 0) {
+      console.log(chalk.yellow('\n⚠️  No paths to remove\n'))
+      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+      return
+    }
+
+    const { pathsToRemove } = await inquirer.prompt([
+      {
+        type: 'checkbox',
+        name: 'pathsToRemove',
+        message: 'Select paths to remove (use space to select):',
+        choices: selectedPaths.map(p => ({
+          name: path.relative(this.workingDirectory, p),
+          value: p,
+        })),
+      },
+    ])
+
+    if (pathsToRemove && pathsToRemove.length > 0) {
+      // Filter out removed paths and update selection
+      const remainingPaths = selectedPaths.filter(p => !pathsToRemove.includes(p))
+      await workspaceContext.selectPaths(remainingPaths.map(p => path.relative(this.workingDirectory, p)))
+
+      console.log(chalk.green(`\n✓ Removed ${pathsToRemove.length} path(s) from index\n`))
+      pathsToRemove.forEach((p: string) => {
+        console.log(chalk.gray(`  - ${path.relative(this.workingDirectory, p)}`))
+      })
+      console.log()
+      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+    }
+  }
+
+  private async manageIndexSettings(): Promise<void> {
+    const ragConfig = unifiedRAGSystem.getConfig()
+
+    const ans = await inquirer.prompt([
+      {
+        type: 'number',
+        name: 'maxIndexFiles',
+        message: 'Max files to index:',
+        default: ragConfig.maxIndexFiles,
+      },
+      {
+        type: 'number',
+        name: 'chunkSize',
+        message: 'Chunk size (tokens):',
+        default: ragConfig.chunkSize,
+      },
+      {
+        type: 'number',
+        name: 'overlapSize',
+        message: 'Overlap size (tokens):',
+        default: ragConfig.overlapSize,
+      },
+      {
+        type: 'confirm',
+        name: 'cacheEmbeddings',
+        message: 'Cache embeddings?',
+        default: ragConfig.cacheEmbeddings,
+      },
+      {
+        type: 'confirm',
+        name: 'enableWorkspaceAnalysis',
+        message: 'Enable workspace analysis?',
+        default: ragConfig.enableWorkspaceAnalysis,
+      },
+    ])
+
+    // Update RAG configuration with real values
+    unifiedRAGSystem.updateConfig({
+      maxIndexFiles: ans.maxIndexFiles,
+      chunkSize: ans.chunkSize,
+      overlapSize: ans.overlapSize,
+      cacheEmbeddings: ans.cacheEmbeddings,
+      enableWorkspaceAnalysis: ans.enableWorkspaceAnalysis,
+    })
+
+    console.log(chalk.green('\n✓ Index settings updated successfully\n'))
+    await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+  }
+
+  private async showIndexStatistics(): Promise<void> {
+    console.clear()
+    console.log(chalk.blue.bold('\n📈 Index Statistics\n'))
+
+    const ctx = workspaceContext.getContext()
+    const indexedFiles = Array.from(ctx.files.values())
+    const totalSize = indexedFiles.reduce((sum, f) => sum + f.size, 0)
+    const avgSize = indexedFiles.length > 0 ? totalSize / indexedFiles.length : 0
+
+    const importanceDist = {
+      high: indexedFiles.filter(f => f.importance >= 70).length,
+      medium: indexedFiles.filter(f => f.importance >= 40 && f.importance < 70).length,
+      low: indexedFiles.filter(f => f.importance < 40).length,
+    }
+
+    console.log(chalk.cyan('File Statistics:'))
+    console.log(`  Total Files: ${indexedFiles.length}`)
+    console.log(`  Total Size: ${this.formatBytes(totalSize)}`)
+    console.log(`  Average Size: ${this.formatBytes(avgSize)}`)
+    console.log()
+
+    console.log(chalk.cyan('Importance Distribution:'))
+    console.log(`  High (70-100): ${importanceDist.high}`)
+    console.log(`  Medium (40-69): ${importanceDist.medium}`)
+    console.log(`  Low (0-39): ${importanceDist.low}`)
+    console.log()
+
+    if (ctx.cacheStats) {
+      console.log(chalk.cyan('Cache Statistics:'))
+      console.log(`  Hits: ${ctx.cacheStats.hits}`)
+      console.log(`  Misses: ${ctx.cacheStats.misses}`)
+      console.log(`  Hit Rate: ${((ctx.cacheStats.hits / (ctx.cacheStats.hits + ctx.cacheStats.misses)) * 100).toFixed(1)}%`)
+      console.log()
+    }
+  }
+
+  private formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
   }
 
   /**

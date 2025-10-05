@@ -748,6 +748,11 @@ export class WorkspaceContextManager {
     }
   }
 
+  // Get full workspace context
+  getContext(): WorkspaceContext {
+    return this.context
+  }
+
   // Get context for AI agents with automatic grep filtering
   getContextForAgent(
     agentId: string,

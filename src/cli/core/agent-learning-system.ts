@@ -504,6 +504,12 @@ export class AgentLearningSystem {
 
   private async saveLearningData(): Promise<void> {
     try {
+      // Ensure directory exists before saving
+      const dir = path.dirname(this.learningFile)
+      if (!fsSync.existsSync(dir)) {
+        fsSync.mkdirSync(dir, { recursive: true })
+      }
+
       const data = Object.fromEntries(this.learningData)
       await fs.writeFile(this.learningFile, JSON.stringify(data, null, 2))
     } catch (error) {

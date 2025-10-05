@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { Redis } from '@upstash/redis'
 import axios from 'axios'
 import chalk from 'chalk'
@@ -897,6 +897,12 @@ class LocalVectorStore extends VectorStore {
 
   private async saveDocuments(): Promise<void> {
     try {
+      // Ensure directory exists before saving
+      const dir = dirname(this.documentsPath)
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true })
+      }
+
       const data = Object.fromEntries(this.documents)
       await writeFile(this.documentsPath, JSON.stringify(data, null, 2))
     } catch (error) {
@@ -918,6 +924,12 @@ class LocalVectorStore extends VectorStore {
 
   private async saveIndex(): Promise<void> {
     try {
+      // Ensure directory exists before saving
+      const dir = dirname(this.indexPath)
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true })
+      }
+
       const data = Object.fromEntries(this.index)
       await writeFile(this.indexPath, JSON.stringify(data, null, 2))
     } catch (error) {

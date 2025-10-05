@@ -1,5 +1,6 @@
 import { exec } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
+import { existsSync, mkdirSync } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { promisify } from 'node:util'
@@ -653,6 +654,12 @@ export class DocumentationLibrary {
    */
   private async saveLibrary(): Promise<void> {
     try {
+      // Ensure directory exists before saving
+      const dir = path.dirname(this.docsFile)
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true })
+      }
+
       const data = JSON.stringify(Object.fromEntries(this.docs), null, 2)
       await fs.writeFile(this.docsFile, data)
     } catch (error) {
