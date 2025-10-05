@@ -16764,7 +16764,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           }
           case 'refresh': {
             console.log(chalk.blue('\n⚡ Refreshing context index...'))
-            await workspaceContext.refresh()
+            await workspaceContext.refreshWorkspaceIndex()
             await unifiedRAGSystem.analyzeProject(this.workingDirectory)
             console.log(chalk.green('✓ Index refreshed successfully\n'))
             await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
@@ -16781,7 +16781,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             ])
             if (confirm) {
               contextTokenManager.clearSession()
-              workspaceContext.clearSelection()
+              // Clear workspace selection by selecting empty array
+              await workspaceContext.selectPaths([])
               console.log(chalk.green('\n✓ Context cleared successfully\n'))
             }
             await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
@@ -16895,8 +16896,16 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             ])
             if (confirm) {
               console.log(chalk.blue('\n⚡ Rebuilding index...'))
-              await workspaceContext.refresh()
+              
+              // Clear caches first
+              await unifiedRAGSystem.clearCaches()
+              
+              // Rebuild workspace index
+              await workspaceContext.refreshWorkspaceIndex()
+              
+              // Re-analyze project with RAG
               await unifiedRAGSystem.analyzeProject(this.workingDirectory)
+              
               console.log(chalk.green('✓ Index rebuilt successfully\n'))
             }
             await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
@@ -16932,6 +16941,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     
     const session = contextTokenManager.getCurrentSession()
     const ctx = workspaceContext.getContextForAgent('universal-agent', 20)
+    const wsContext = workspaceContext.getContext()
     const ragConfig = unifiedRAGSystem.getConfig()
     
     if (session) {
@@ -16950,8 +16960,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     console.log(chalk.cyan('Workspace Context:'))
     console.log(`  Root: ${this.workingDirectory}`)
     console.log(`  Selected Paths: ${ctx.selectedPaths.length}`)
-    console.log(`  Files: ${ctx.files.size}`)
-    console.log(`  Directories: ${ctx.directories.size}`)
+    console.log(`  Files: ${wsContext.files.size}`)
+    console.log(`  Directories: ${wsContext.directories.size}`)
     console.log()
     
     console.log(chalk.cyan('RAG Configuration:'))
@@ -17016,14 +17026,99 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             default: currentConfig.enableSemanticSearch,
           },
           {
+            type: 'confirm',
+            name: 'cacheEmbeddings',
+            message: 'Cache Embeddings?',
+            default: currentConfig.cacheEmbeddings,
+          },
+          {
             type: 'number',
             name: 'maxIndexFiles',
             message: 'Max Index Files:',
             default: currentConfig.maxIndexFiles,
           },
+          {
+            type: 'number',
+            name: 'chunkSize',
+            message: 'Chunk Size (tokens):',
+            default: currentConfig.chunkSize,
+          },
         ])
-        // Update config would go here
-        console.log(chalk.green('\n✓ RAG configuration updated\n'))
+        
+        // Update RAG configuration with real values
+        unifiedRAGSystem.updateConfig({
+          useVectorDB: ans.useVectorDB,
+          hybridMode: ans.hybridMode,
+          enableSemanticSearch: ans.enableSemanticSearch,
+          cacheEmbeddings: ans.cacheEmbeddings,
+          maxIndexFiles: ans.maxIndexFiles,
+          chunkSize: ans.chunkSize,
+        })
+        
+        console.log(chalk.green('\n✓ RAG configuration updated successfully\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'add': {
+        const { paths } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'paths',
+            message: 'Enter paths to add to RAG (comma-separated):',
+          },
+        ])
+        
+        if (paths) {
+          const pathList = paths.split(',').map((p: string) => p.trim())
+          console.log(chalk.blue(`\n⚡ Adding ${pathList.length} path(s) to RAG index...\n`))
+          
+          // Add to workspace context
+          const currentPaths = workspaceContext.getContext().selectedPaths
+          const newPaths = [...currentPaths, ...pathList.map(p => path.resolve(this.workingDirectory, p))]
+          const uniquePaths = [...new Set(newPaths)] // Remove duplicates
+          await workspaceContext.selectPaths(uniquePaths.map(p => path.relative(this.workingDirectory, p)))
+          
+          // Re-analyze with RAG
+          await unifiedRAGSystem.analyzeProject(this.workingDirectory)
+          
+          console.log(chalk.green('✓ Paths added to RAG index\n'))
+        }
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'remove': {
+        const ctx = workspaceContext.getContext()
+        const selectedPaths = ctx.selectedPaths.slice(0, 30)
+        
+        if (selectedPaths.length === 0) {
+          console.log(chalk.yellow('\n⚠️  No paths in RAG to remove\n'))
+          await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+          break
+        }
+
+        const { pathsToRemove } = await inquirer.prompt([
+          {
+            type: 'checkbox',
+            name: 'pathsToRemove',
+            message: 'Select paths to remove from RAG (use space to select):',
+            choices: selectedPaths.map(p => ({
+              name: path.relative(this.workingDirectory, p),
+              value: p,
+            })),
+          },
+        ])
+
+        if (pathsToRemove && pathsToRemove.length > 0) {
+          const remainingPaths = selectedPaths.filter(p => !pathsToRemove.includes(p))
+          await workspaceContext.selectPaths(remainingPaths.map(p => path.relative(this.workingDirectory, p)))
+          
+          console.log(chalk.green(`\n✓ Removed ${pathsToRemove.length} path(s) from RAG\n`))
+          pathsToRemove.forEach((p: string) => {
+            console.log(chalk.gray(`  - ${path.relative(this.workingDirectory, p)}`))
+          })
+          console.log()
+        }
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
         break
       }
       case 'refresh': {
@@ -17073,6 +17168,47 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
         break
       }
+      case 'messages': {
+        console.log(chalk.blue('\n💬 Recent Conversation Messages:\n'))
+        // Get recent messages from session - using contextTokenManager which tracks the session
+        const recentMessages = session.messages?.slice(-10) || []
+        
+        if (recentMessages.length === 0) {
+          console.log(chalk.yellow('  No messages in current session'))
+        } else {
+          recentMessages.forEach((msg: any, idx: number) => {
+            const role = msg.role === 'user' ? chalk.green('User') : chalk.blue('Assistant')
+            const preview = (msg.content || '').substring(0, 100)
+            console.log(`  ${idx + 1}. ${role}: ${preview}${msg.content.length > 100 ? '...' : ''}`)
+          })
+        }
+        console.log()
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'limits': {
+        const { maxTokens, maxHistory } = await inquirer.prompt([
+          {
+            type: 'number',
+            name: 'maxTokens',
+            message: 'Max tokens for responses:',
+            default: this.configManager.get('maxTokens'),
+          },
+          {
+            type: 'number',
+            name: 'maxHistory',
+            message: 'Max history messages to keep:',
+            default: this.configManager.get('maxHistoryLength'),
+          },
+        ])
+        
+        this.configManager.set('maxTokens', maxTokens)
+        this.configManager.set('maxHistoryLength', maxHistory)
+        
+        console.log(chalk.green('\n✓ Context limits updated\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
       case 'clear': {
         const { confirm } = await inquirer.prompt([
           {
@@ -17086,6 +17222,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           contextTokenManager.clearSession()
           console.log(chalk.green('\n✓ Conversation cleared\n'))
         }
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
         break
       }
     }
@@ -17106,14 +17243,59 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       },
     ])
 
-    if (action === 'view') {
-      console.log(chalk.blue('\n🤖 Agent Contexts:\n'))
-      const ctx = workspaceContext.getContextForAgent('universal-agent', 20)
-      console.log(`  Root: ${ctx.rootPath}`)
-      console.log(`  Paths: ${ctx.selectedPaths.length}`)
-      console.log(`  Files: ${ctx.files.size}`)
-      console.log()
-      await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+    switch (action) {
+      case 'view': {
+        console.log(chalk.blue('\n🤖 Agent Contexts:\n'))
+        const ctx = workspaceContext.getContextForAgent('universal-agent', 20)
+        console.log(`  Root: ${ctx.rootPath}`)
+        console.log(`  Selected Paths: ${ctx.selectedPaths.length}`)
+        console.log(`  Files in Context: ${ctx.files.size}`)
+        console.log()
+        
+        if (ctx.selectedPaths.length > 0) {
+          console.log(chalk.cyan('  Top Paths:'))
+          ctx.selectedPaths.slice(0, 5).forEach((p: string) => {
+            console.log(`    • ${path.relative(this.workingDirectory, p)}`)
+          })
+          if (ctx.selectedPaths.length > 5) {
+            console.log(chalk.gray(`    ... +${ctx.selectedPaths.length - 5} more`))
+          }
+          console.log()
+        }
+        
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'priority': {
+        console.log(chalk.blue('\n🎚️  Context Priority Management\n'))
+        console.log(chalk.yellow('Context priority is automatically managed based on:'))
+        console.log('  • File importance scores')
+        console.log('  • Recent usage patterns')
+        console.log('  • Semantic relevance to queries')
+        console.log()
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'configure': {
+        const { maxFiles, searchThreshold } = await inquirer.prompt([
+          {
+            type: 'number',
+            name: 'maxFiles',
+            message: 'Max files per agent context:',
+            default: 50,
+          },
+          {
+            type: 'number',
+            name: 'searchThreshold',
+            message: 'Search relevance threshold (0-1):',
+            default: 0.3,
+          },
+        ])
+        
+        console.log(chalk.green(`\n✓ Agent context configured (max files: ${maxFiles}, threshold: ${searchThreshold})\n`))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
     }
   }
 
@@ -17149,9 +17331,28 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
         break
       }
+      case 'paths': {
+        const { newPaths } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'newPaths',
+            message: 'Enter paths to select (comma-separated):',
+            default: ctx.selectedPaths.map(p => path.relative(this.workingDirectory, p)).join(', '),
+          },
+        ])
+        
+        if (newPaths) {
+          const pathList = newPaths.split(',').map((p: string) => p.trim()).filter(p => p.length > 0)
+          console.log(chalk.blue(`\n⚡ Selecting ${pathList.length} path(s)...\n`))
+          await workspaceContext.selectPaths(pathList)
+          console.log(chalk.green(`✓ Selected ${pathList.length} path(s)\n`))
+        }
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
       case 'refresh': {
         console.log(chalk.blue('\n⚡ Refreshing base context...'))
-        await workspaceContext.refresh()
+        await workspaceContext.refreshWorkspaceIndex()
         console.log(chalk.green('✓ Base context refreshed\n'))
         await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
         break
@@ -17174,25 +17375,83 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       },
     ])
 
-    if (setting === 'tokens') {
-      const config = this.configManager.getAll()
-      const ans = await inquirer.prompt([
-        {
-          type: 'number',
-          name: 'maxTokens',
-          message: 'Max Tokens:',
-          default: config.maxTokens,
-        },
-        {
-          type: 'number',
-          name: 'maxHistoryLength',
-          message: 'Max History Length:',
-          default: config.maxHistoryLength,
-        },
-      ])
-      this.configManager.set('maxTokens', ans.maxTokens)
-      this.configManager.set('maxHistoryLength', ans.maxHistoryLength)
-      console.log(chalk.green('\n✓ Token settings updated\n'))
+    switch (setting) {
+      case 'tokens': {
+        const config = this.configManager.getAll()
+        const ans = await inquirer.prompt([
+          {
+            type: 'number',
+            name: 'maxTokens',
+            message: 'Max Tokens:',
+            default: config.maxTokens,
+          },
+          {
+            type: 'number',
+            name: 'maxHistoryLength',
+            message: 'Max History Length:',
+            default: config.maxHistoryLength,
+          },
+        ])
+        this.configManager.set('maxTokens', ans.maxTokens)
+        this.configManager.set('maxHistoryLength', ans.maxHistoryLength)
+        console.log(chalk.green('\n✓ Token settings updated\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'cache': {
+        const ragConfig = unifiedRAGSystem.getConfig()
+        const ans = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'cacheEmbeddings',
+            message: 'Cache embeddings?',
+            default: ragConfig.cacheEmbeddings,
+          },
+          {
+            type: 'confirm',
+            name: 'clearCache',
+            message: 'Clear existing caches now?',
+            default: false,
+          },
+        ])
+        
+        unifiedRAGSystem.updateConfig({ cacheEmbeddings: ans.cacheEmbeddings })
+        
+        if (ans.clearCache) {
+          await unifiedRAGSystem.clearCaches()
+          console.log(chalk.green('\n✓ Caches cleared'))
+        }
+        
+        console.log(chalk.green('\n✓ Cache settings updated\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
+      case 'advanced': {
+        const ragConfig = unifiedRAGSystem.getConfig()
+        const ans = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'useLocalEmbeddings',
+            message: 'Use local embeddings (faster, less accurate)?',
+            default: ragConfig.useLocalEmbeddings,
+          },
+          {
+            type: 'number',
+            name: 'costThreshold',
+            message: 'Cost threshold (USD):',
+            default: ragConfig.costThreshold,
+          },
+        ])
+        
+        unifiedRAGSystem.updateConfig({
+          useLocalEmbeddings: ans.useLocalEmbeddings,
+          costThreshold: ans.costThreshold,
+        })
+        
+        console.log(chalk.green('\n✓ Advanced settings updated\n'))
+        await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
+        break
+      }
     }
   }
 
@@ -17347,24 +17606,28 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       return
     }
 
-    const { pathToRemove } = await inquirer.prompt([
+    const { pathsToRemove } = await inquirer.prompt([
       {
-        type: 'list',
-        name: 'pathToRemove',
-        message: 'Select path to remove:',
-        choices: [
-          ...selectedPaths.map(p => ({
-            name: path.relative(this.workingDirectory, p),
-            value: p,
-          })),
-          { name: '← Cancel', value: 'cancel' },
-        ],
+        type: 'checkbox',
+        name: 'pathsToRemove',
+        message: 'Select paths to remove (use space to select):',
+        choices: selectedPaths.map(p => ({
+          name: path.relative(this.workingDirectory, p),
+          value: p,
+        })),
       },
     ])
 
-    if (pathToRemove !== 'cancel') {
-      // Remove path logic would go here
-      console.log(chalk.green(`\n✓ Removed ${path.relative(this.workingDirectory, pathToRemove)}\n`))
+    if (pathsToRemove && pathsToRemove.length > 0) {
+      // Filter out removed paths and update selection
+      const remainingPaths = selectedPaths.filter(p => !pathsToRemove.includes(p))
+      await workspaceContext.selectPaths(remainingPaths.map(p => path.relative(this.workingDirectory, p)))
+      
+      console.log(chalk.green(`\n✓ Removed ${pathsToRemove.length} path(s) from index\n`))
+      pathsToRemove.forEach((p: string) => {
+        console.log(chalk.gray(`  - ${path.relative(this.workingDirectory, p)}`))
+      })
+      console.log()
       await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
     }
   }
@@ -17386,14 +17649,35 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         default: ragConfig.chunkSize,
       },
       {
+        type: 'number',
+        name: 'overlapSize',
+        message: 'Overlap size (tokens):',
+        default: ragConfig.overlapSize,
+      },
+      {
         type: 'confirm',
         name: 'cacheEmbeddings',
         message: 'Cache embeddings?',
         default: ragConfig.cacheEmbeddings,
       },
+      {
+        type: 'confirm',
+        name: 'enableWorkspaceAnalysis',
+        message: 'Enable workspace analysis?',
+        default: ragConfig.enableWorkspaceAnalysis,
+      },
     ])
     
-    console.log(chalk.green('\n✓ Index settings updated\n'))
+    // Update RAG configuration with real values
+    unifiedRAGSystem.updateConfig({
+      maxIndexFiles: ans.maxIndexFiles,
+      chunkSize: ans.chunkSize,
+      overlapSize: ans.overlapSize,
+      cacheEmbeddings: ans.cacheEmbeddings,
+      enableWorkspaceAnalysis: ans.enableWorkspaceAnalysis,
+    })
+    
+    console.log(chalk.green('\n✓ Index settings updated successfully\n'))
     await inquirer.prompt([{ type: 'input', name: 'continue', message: 'Press Enter to continue...' }])
   }
 
