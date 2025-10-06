@@ -69,19 +69,19 @@ export class DevOpsAgent extends CognitiveAgentBase {
     super(workingDirectory)
   }
 
-  protected async onInitialize(): Promise<void> {
+  protected override async onInitialize(): Promise<void> {
     advancedUI.logCognitive('🚀 Initializing Enhanced DevOps Agent with cognitive capabilities...')
     await this.initializeDevOpsCognition()
     advancedUI.logSuccess(`✓ DevOps Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
-  protected async onStop(): Promise<void> {
+  protected override async onStop(): Promise<void> {
     advancedUI.logInfo('🛑 DevOps Agent shutting down...')
     await this.saveCognitiveState()
     advancedUI.logCognitive('✓ DevOps Agent stopped - cognitive state saved')
   }
 
-  protected async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
+  protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
     const cognition = await this.parseTaskCognition(task.description || task.type)
     const enhancedCognition = await this.enhanceCognitionForSpecialization(cognition)
     const orchestrationPlan = await this.createOrchestrationPlan(enhancedCognition)
@@ -414,7 +414,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
   }
 
   // Legacy compatibility methods
-  async run(taskData: string): Promise<any> {
+  override async run(taskData: string): Promise<any> {
     const task: AgentTask = {
       id: nanoid(),
       type: 'legacy',
@@ -434,7 +434,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
     }
   }
 
-  async cleanup(): Promise<void> {
+  override async cleanup(): Promise<void> {
     return await this.onStop()
   }
 }

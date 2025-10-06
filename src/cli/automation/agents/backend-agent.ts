@@ -66,7 +66,7 @@ export class BackendAgent extends CognitiveAgentBase {
     this.maxConcurrentTasks = 3 // Backend can handle multiple concurrent tasks
   }
 
-  protected async onInitialize(): Promise<void> {
+  protected override async onInitialize(): Promise<void> {
     advancedUI.logCognitive(' Initializing Enhanced Backend Agent with cognitive capabilities...')
 
     // Initialize backend-specific cognitive patterns
@@ -81,7 +81,7 @@ export class BackendAgent extends CognitiveAgentBase {
     CliUI.logSuccess(`✓ Backend Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
-  protected async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
+  protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
     // Enhanced cognitive task execution
     const cognition = await this.parseTaskCognition(task.description || task.type)
     const enhancedCognition = await this.enhanceCognitionForSpecialization(cognition)
@@ -90,7 +90,7 @@ export class BackendAgent extends CognitiveAgentBase {
     return await this.executeCognitiveTask(task, enhancedCognition, orchestrationPlan)
   }
 
-  protected async onStop(): Promise<void> {
+  protected override async onStop(): Promise<void> {
     CliUI.logInfo('🛑 Backend Agent shutting down...')
 
     // Save learned patterns and optimizations
@@ -1072,7 +1072,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   // Legacy compatibility methods
-  async run(taskData: string): Promise<any> {
+  override async run(taskData: string): Promise<any> {
     const task: AgentTask = {
       id: nanoid(),
       type: 'legacy',
@@ -1092,7 +1092,7 @@ export class BackendAgent extends CognitiveAgentBase {
     }
   }
 
-  async cleanup(): Promise<void> {
+  override async cleanup(): Promise<void> {
     return await this.onStop()
   }
 }

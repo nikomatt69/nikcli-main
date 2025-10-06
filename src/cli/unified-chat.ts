@@ -340,7 +340,7 @@ export class UnifiedChatInterface extends EventEmitter {
 
     try {
       for (let i = 0; i < plan.steps.length; i++) {
-        const step = plan.steps[i]
+        const step = plan.steps[i]; if (!step) continue
 
         console.log(chalk.blue(`\n📍 Step ${i + 1}/${plan.steps.length}: ${step.title}`))
 

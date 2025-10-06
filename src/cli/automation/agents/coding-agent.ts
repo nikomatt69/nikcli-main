@@ -92,7 +92,7 @@ export class CodingAgent extends CognitiveAgentBase {
     super(workingDirectory)
   }
 
-  protected async onInitialize(): Promise<void> {
+  protected override async onInitialize(): Promise<void> {
     CliUI.logInfo('💻 Initializing Enhanced Coding Agent with cognitive capabilities...')
     await this.initializeCodingCognition()
     CliUI.logSuccess(`✓ Coding Agent initialized with ${this.capabilities.length} capabilities`)
@@ -563,7 +563,7 @@ export class CodingAgent extends CognitiveAgentBase {
   }
 
   // Abstract method implementations
-  protected async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
+  protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
     CliUI.logInfo(`🔧 Coding Agent processing: ${task.type}`)
 
     switch (task.type.toLowerCase()) {
@@ -611,13 +611,13 @@ export class CodingAgent extends CognitiveAgentBase {
     }
   }
 
-  protected async onStop(): Promise<void> {
+  protected override async onStop(): Promise<void> {
     CliUI.logInfo('🔧 Coding Agent shutting down...')
     // Cleanup any coding-specific resources
   }
 
   // Legacy compatibility methods
-  async run(taskData: string): Promise<any> {
+  override async run(taskData: string): Promise<any> {
     const task: AgentTask = {
       id: nanoid(),
       type: 'legacy',
@@ -637,7 +637,7 @@ export class CodingAgent extends CognitiveAgentBase {
     }
   }
 
-  async cleanup(): Promise<void> {
+  override async cleanup(): Promise<void> {
     return await this.onStop()
   }
 }

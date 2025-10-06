@@ -471,13 +471,22 @@ export class LSPClient {
       }
 
       // Terminate server process
-      this.server.process.kill()
-      this.connection.end()
+      try {
+        this.server.process.kill()
+      } catch { }
+      try {
+        this.connection.end()
+      } catch { }
 
       console.log(chalk.green(`🛑 ${this.serverInfo.name} shutdown`))
     } catch (error: any) {
       console.log(chalk.yellow(`⚠️ Error during shutdown: ${error.message}`))
     }
+  }
+
+  // Dispose alias to unify cleanup API
+  async dispose(): Promise<void> {
+    await this.shutdown()
   }
 
   private pathToUri(path: string): string {

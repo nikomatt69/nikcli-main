@@ -969,6 +969,19 @@ export class ToolService {
       }
     })
   }
+
+  /** Clear internal state and timers if any (alias for cleanup responsibilities) */
+  async dispose(): Promise<void> {
+    try {
+      // Attempt to clear any internal executions tracking
+      this.executions.clear()
+      // Delegate to policy/approval systems if they expose cleanup
+      if ((this.policyManager as any)?.dispose) await (this.policyManager as any).dispose()
+      if ((this.approvalSystem as any)?.dispose) await (this.approvalSystem as any).dispose()
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export const toolService = new ToolService()

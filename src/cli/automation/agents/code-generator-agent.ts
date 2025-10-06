@@ -63,13 +63,13 @@ export class CodeGeneratorAgent extends CognitiveAgentBase {
     super(workingDirectory)
   }
 
-  protected async onInitialize(): Promise<void> {
+  protected override async onInitialize(): Promise<void> {
     advancedUI.logCognitive('🚀 Initializing Enhanced Code Generator Agent with cognitive capabilities...')
     await this.initializeCodeGeneratorCognition()
     advancedUI.logSuccess(`✓ Code Generator Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
-  protected async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
+  protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
     const cognition = await this.parseTaskCognition(task.description || task.type)
     const enhancedCognition = await this.enhanceCognitionForSpecialization(cognition)
     const orchestrationPlan = await this.createOrchestrationPlan(enhancedCognition)
@@ -77,7 +77,7 @@ export class CodeGeneratorAgent extends CognitiveAgentBase {
     return await this.executeCognitiveTask(task, enhancedCognition, orchestrationPlan)
   }
 
-  protected async onStop(): Promise<void> {
+  protected override async onStop(): Promise<void> {
     CliUI.logInfo('🛑 Code Generator Agent shutting down...')
     await this.saveCognitiveState()
     CliUI.logSuccess('✓ Code Generator Agent stopped - cognitive state saved')
@@ -234,7 +234,7 @@ Include proper types, error handling, and JSDoc comments.`
   }
 
   // Legacy compatibility methods
-  async run(taskData: string): Promise<any> {
+  override async run(taskData: string): Promise<any> {
     const task: AgentTask = {
       id: nanoid(),
       type: 'legacy',
@@ -255,7 +255,7 @@ Include proper types, error handling, and JSDoc comments.`
     }
   }
 
-  async cleanup(): Promise<void> {
+  override async cleanup(): Promise<void> {
     return await this.onStop()
   }
 

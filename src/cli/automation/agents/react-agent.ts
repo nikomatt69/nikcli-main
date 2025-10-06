@@ -53,19 +53,19 @@ export class ReactAgent extends CognitiveAgentBase {
     super(workingDirectory)
   }
 
-  protected async onInitialize(): Promise<void> {
+  protected override async onInitialize(): Promise<void> {
     CliUI.logInfo('🎨 Initializing Enhanced React Agent with cognitive capabilities...')
     await this.initializeReactCognition()
     CliUI.logSuccess(`✓ React Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
-  protected async onStop(): Promise<void> {
+  protected override async onStop(): Promise<void> {
     CliUI.logInfo('🛑 React Agent shutting down...')
     await this.saveCognitiveState()
     CliUI.logSuccess('✓ React Agent stopped - cognitive state saved')
   }
 
-  protected async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
+  protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
     const cognition = await this.parseTaskCognition(task.description || task.type)
     const enhancedCognition = await this.enhanceCognitionForSpecialization(cognition)
     const orchestrationPlan = await this.createOrchestrationPlan(enhancedCognition)
@@ -423,7 +423,7 @@ Provide complete, working code that can be used immediately.`
   }
 
   // Legacy compatibility
-  async run(taskData: string): Promise<any> {
+  override async run(taskData: string): Promise<any> {
     const task: AgentTask = {
       id: nanoid(),
       type: 'legacy',
@@ -443,7 +443,7 @@ Provide complete, working code that can be used immediately.`
     }
   }
 
-  async cleanup(): Promise<void> {
+  override async cleanup(): Promise<void> {
     return await this.onStop()
   }
 }

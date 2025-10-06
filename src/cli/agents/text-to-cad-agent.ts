@@ -54,8 +54,8 @@ export class TextToCADAgent extends BaseAgent {
   specialization = 'CAD model generation from text descriptions'
 
   // Legacy compatibility
-  name = 'text-to-cad'
-  description = 'Generate CAD models from text descriptions using advanced AI'
+  override name = 'text-to-cad'
+  override description = 'Generate CAD models from text descriptions using advanced AI'
 
   // Reference to your CAD AI system (will be injected)
   private cadAISystem: any = null
@@ -207,7 +207,7 @@ export class TextToCADAgent extends BaseAgent {
    */
   private extractOutputFormat(task: string, options: AgentOptions): 'stl' | 'step' | 'dwg' | 'json' {
     const formatMatch = task.match(/\.(stl|step|dwg|json)/i)
-    if (formatMatch) {
+    if (formatMatch && formatMatch[1]) {
       return formatMatch[1].toLowerCase() as any
     }
 

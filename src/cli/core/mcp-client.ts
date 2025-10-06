@@ -859,6 +859,11 @@ export class McpClient extends EventEmitter {
 
     console.log(chalk.blue('🔮 MCP Client shut down'))
   }
+
+  /** Dispose alias for unified API */
+  async dispose(): Promise<void> {
+    await this.shutdown()
+  }
 }
 
 // Export singleton instance

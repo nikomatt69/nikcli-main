@@ -139,7 +139,7 @@ export class ChatManager {
     // Include recent messages first (last 4 messages)
     const recentMessages = messages.filter((m) => m.role !== 'system').slice(-4)
     for (let i = recentMessages.length - 1; i >= 0; i--) {
-      const msg = recentMessages[i]
+      const msg = recentMessages[i]; if (!msg) continue
       const tokens = this.estimateTokens(msg.content)
 
       if (currentTokens + tokens > maxTokens) break

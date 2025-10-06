@@ -260,11 +260,11 @@ export class AgentRouter {
     const bestCandidate = candidates[0]
     return bestCandidate
       ? {
-          agentId: bestCandidate.agentId,
-          agent: bestCandidate.agent,
-          score: bestCandidate.score,
-          reasoning: bestCandidate.reasoning,
-        }
+        agentId: bestCandidate.agentId,
+        agent: bestCandidate.agent,
+        score: bestCandidate.score,
+        reasoning: bestCandidate.reasoning,
+      }
       : null
   }
 
@@ -388,7 +388,7 @@ export class AgentRouter {
       priority: 10,
       agentSelector: async (candidates, task) => {
         if (task.type.includes('frontend') || task.type.includes('ui') || task.type.includes('component')) {
-          return candidates.find((c) => c.agent.specialization === 'frontend') || candidates[0]
+          return candidates.find((c) => c.agent.specialization === 'frontend') || candidates[0] || null
         }
         return null
       },
@@ -400,7 +400,7 @@ export class AgentRouter {
       priority: 10,
       agentSelector: async (candidates, task) => {
         if (task.type.includes('backend') || task.type.includes('api') || task.type.includes('database')) {
-          return candidates.find((c) => c.agent.specialization === 'backend') || candidates[0]
+          return candidates.find((c) => c.agent.specialization === 'backend') || candidates[0] || null
         }
         return null
       },
@@ -412,7 +412,7 @@ export class AgentRouter {
       priority: 10,
       agentSelector: async (candidates, task) => {
         if (task.type.includes('test') || task.type.includes('spec') || task.type.includes('e2e')) {
-          return candidates.find((c) => c.agent.specialization === 'testing') || candidates[0]
+          return candidates.find((c) => c.agent.specialization === 'testing') || candidates[0] || null
         }
         return null
       },

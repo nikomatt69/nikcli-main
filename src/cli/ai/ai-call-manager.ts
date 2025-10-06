@@ -96,7 +96,7 @@ export class AICallManager {
 
         try {
           const searchResults = await ragSystem.search(query)
-          if (searchResults.documents && searchResults.documents.length > 0 && searchResults.documents[0].length > 0) {
+          if (searchResults.documents && searchResults.documents.length > 0 && searchResults.documents[0] && searchResults.documents[0].length > 0) {
             ragContextText = searchResults.documents[0].join('\n\n---\n\n')
             spinner.succeed(`🔍 Found ${searchResults.documents[0].length} relevant code chunks`)
           } else {
@@ -126,23 +126,21 @@ Security Guidelines:
 - Use batch sessions for multiple related commands
 - Prefer safe, read-only operations when possible
 
-${
-  ragContextText
-    ? `RELEVANT CODE CONTEXT:
+${ragContextText
+          ? `RELEVANT CODE CONTEXT:
 ${ragContextText}
 
 `
-    : ''
-}Context:
-${
-  context
-    ? `
+          : ''
+        }Context:
+${context
+          ? `
 Working Directory: ${context.workingDirectory || 'current directory'}
 Available Files: ${context.availableFiles?.slice(0, 10).join(', ') || 'none listed'}${context.availableFiles && context.availableFiles.length > 10 ? ` (and ${context.availableFiles.length - 10} more)` : ''}
 Project Info: ${context.projectInfo ? JSON.stringify(context.projectInfo, null, 2) : 'none'}
 `
-    : 'No additional context provided'
-}
+          : 'No additional context provided'
+        }
 
 User Request: ${userRequest}
 
@@ -206,6 +204,7 @@ Estimate realistic durations and assess risk levels accurately.`
       skipApproval?: boolean
       useBatchSession?: boolean
       sessionDuration?: number
+      signal?: AbortSignal
     } = {}
   ): Promise<ToolCallResult[]> {
     advancedUI.logFunctionCall('executing')
@@ -240,6 +239,9 @@ Estimate realistic durations and assess risk levels accurately.`
     let batchSession: BatchSession | undefined
 
     try {
+      if (options.signal?.aborted) {
+        throw new Error('Operation aborted')
+      }
       // If using batch session and plan requires approval, create batch session
       if (
         options.useBatchSession &&
@@ -278,7 +280,9 @@ Estimate realistic durations and assess risk levels accurately.`
 
       // Execute tool calls
       for (let i = 0; i < plan.toolCalls.length; i++) {
+        if (options.signal?.aborted) throw new Error('Operation aborted')
         const toolCall = plan.toolCalls[i]
+        if (!toolCall) continue
         const startTime = Date.now()
 
         console.log(chalk.blue(`\n[${i + 1}/${plan.toolCalls.length}] ${toolCall.name}`))

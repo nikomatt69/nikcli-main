@@ -14,6 +14,7 @@ export interface LSPServerInfo {
 export class LSPService {
   private servers: Map<string, LSPServerInfo> = new Map()
   private workingDirectory: string = process.cwd()
+  private startupTimers: Map<string, NodeJS.Timeout> = new Map()
 
   constructor() {
     this.initializeDefaultServers()
@@ -80,26 +81,30 @@ export class LSPService {
         if (server.status !== 'running' && server.process) {
           try {
             server.process.kill()
-          } catch {}
+          } catch { }
           server.status = 'error'
           console.log(chalk.red(`⏱️  ${server.name} startup timed out`))
         }
       }, 10000)
+      this.startupTimers.set(serverName, startupTimeout)
 
       process.on('spawn', () => {
         server.status = 'running'
         console.log(chalk.green(`✓ ${server.name} started successfully`))
         clearTimeout(startupTimeout)
+        this.startupTimers.delete(serverName)
       })
 
       process.on('error', (error) => {
         server.status = 'error'
         console.log(chalk.red(`❌ Failed to start ${server.name}: ${error.message}`))
         clearTimeout(startupTimeout)
+        this.startupTimers.delete(serverName)
       })
 
       process.on('exit', (code, signal) => {
         if (startupTimeout) clearTimeout(startupTimeout)
+        this.startupTimers.delete(serverName)
         const abnormal = (code !== 0 && code !== null) || !!signal
         server.process = undefined
         if (abnormal) {
@@ -193,6 +198,30 @@ export class LSPService {
     }
 
     return mapping[language] || null
+  }
+
+  /** Dispose all LSP processes and timers */
+  async dispose(): Promise<void> {
+    // Clear startup timers
+    for (const timer of this.startupTimers.values()) {
+      clearTimeout(timer)
+    }
+    this.startupTimers.clear()
+
+    // Kill any running server processes
+    for (const [name, server] of this.servers.entries()) {
+      if (server.process) {
+        try {
+          server.process.kill()
+          console.log(chalk.green(`✓ Stopped ${server.name}`))
+        } catch (error: any) {
+          console.log(chalk.yellow(`⚠️ Failed to stop ${server.name}: ${error.message}`))
+        } finally {
+          server.process = undefined
+          server.status = 'stopped'
+        }
+      }
+    }
   }
 }
 

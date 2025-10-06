@@ -619,6 +619,20 @@ export class AgentService extends EventEmitter {
     return cancelled
   }
 
+  /** Dispose all resources and listeners */
+  async dispose(): Promise<void> {
+    try {
+      this.cancelAllTasks()
+      this.runningGenerators.clear()
+      this.cancelledTasks.clear()
+      this.activeTasks.clear()
+      this.taskQueue = []
+      this.removeAllListeners()
+    } catch {
+      // ignore
+    }
+  }
+
   // Agent implementations with step-by-step reasoning and toolchains
   private async *aiAnalysisHandler(task: string, context: any) {
     try {

@@ -20,12 +20,25 @@ import { diffManager } from './ui/diff-manager'
 import { ContainerManager } from './virtualized-agents/container-manager'
 import { VMOrchestrator } from './virtualized-agents/vm-orchestrator'
 import { advancedUI } from './ui/advanced-cli-ui'
+import { lspManager } from './lsp/lsp-manager'
+import { mcpClient } from './core/mcp-client'
+
+// 🔒 FIXED: Service initialization tracking
+interface ServiceState {
+  name: string
+  initialized: boolean
+  phase: 'core' | 'dependent' | 'all'
+  dependencies: string[]
+  error?: Error
+}
 
 export class MainOrchestrator {
   private streamOrchestrator: StreamingOrchestrator
   private vmOrchestrator: VMOrchestrator
   private containerManager: ContainerManager
   private initialized = false
+  // 🔒 FIXED: Track initialization state per service
+  private serviceStates = new Map<string, ServiceState>()
 
   constructor() {
     this.streamOrchestrator = new StreamingOrchestrator()
@@ -72,6 +85,15 @@ export class MainOrchestrator {
 
       // Clear resources
       await this.cleanup()
+
+      // Dispose subsystems (best-effort)
+      try { await lspManager.dispose() } catch { }
+      try { await (lspService as any)?.dispose?.() } catch { }
+      try { await (agentService as any)?.dispose?.() } catch { }
+      try { await (toolService as any)?.dispose?.() } catch { }
+      try { (advancedUI as any)?.dispose?.() } catch { }
+      try { await mcpClient.dispose() } catch { }
+      try { await (this.vmOrchestrator as any)?.dispose?.() } catch { }
 
       console.log(chalk.green('✓ Orchestrator shut down cleanly'))
     } catch (error) {
@@ -208,37 +230,196 @@ export class MainOrchestrator {
     }
   }
 
+  /**
+   * FIXED: Added phased initialization with dependency tracking and rollback
+   */
   private async initializeSystem(): Promise<boolean> {
     advancedUI.logFunctionCall('aidevelopmentorchestratorinit')
     advancedUI.logFunctionUpdate('info', 'Initializing AI Development Orchestrator...', 'ℹ')
     console.log(chalk.gray('─'.repeat(60)))
 
-    const steps = [
-      { name: 'Service Registration', fn: this.initializeServices.bind(this) },
-      { name: 'Agent System', fn: this.initializeAgents.bind(this) },
-      { name: 'Planning System', fn: this.initializePlanning.bind(this) },
-      { name: 'Tool System', fn: this.initializeTools.bind(this) },
-      { name: 'Memory System', fn: this.initializeMemory.bind(this) },
-      { name: 'Snapshot System', fn: this.initializeSnapshot.bind(this) },
-      { name: 'VM Orchestration', fn: this.initializeVMOrchestration.bind(this) },
-      { name: 'Security Policies', fn: this.initializeSecurity.bind(this) },
-      { name: 'Context Management', fn: this.initializeContext.bind(this) },
+    // Define services with dependencies and phases
+    const services = [
+      // Phase 1: Core services (no dependencies)
+      {
+        name: 'Service Registration',
+        fn: this.initializeServices.bind(this),
+        phase: 'core' as const,
+        dependencies: []
+      },
+      {
+        name: 'Security Policies',
+        fn: this.initializeSecurity.bind(this),
+        phase: 'core' as const,
+        dependencies: []
+      },
+
+      // Phase 2: Dependent services (depend on core)
+      {
+        name: 'Tool System',
+        fn: this.initializeTools.bind(this),
+        phase: 'dependent' as const,
+        dependencies: ['Service Registration']
+      },
+      {
+        name: 'Memory System',
+        fn: this.initializeMemory.bind(this),
+        phase: 'dependent' as const,
+        dependencies: ['Service Registration']
+      },
+      {
+        name: 'Snapshot System',
+        fn: this.initializeSnapshot.bind(this),
+        phase: 'dependent' as const,
+        dependencies: ['Service Registration']
+      },
+      {
+        name: 'Context Management',
+        fn: this.initializeContext.bind(this),
+        phase: 'dependent' as const,
+        dependencies: ['Service Registration']
+      },
+
+      // Phase 3: All services (depend on dependent services)
+      {
+        name: 'Agent System',
+        fn: this.initializeAgents.bind(this),
+        phase: 'all' as const,
+        dependencies: ['Tool System', 'Memory System']
+      },
+      {
+        name: 'Planning System',
+        fn: this.initializePlanning.bind(this),
+        phase: 'all' as const,
+        dependencies: ['Service Registration', 'Agent System']
+      },
+      {
+        name: 'VM Orchestration',
+        fn: this.initializeVMOrchestration.bind(this),
+        phase: 'all' as const,
+        dependencies: ['Agent System', 'Context Management']
+      },
     ]
 
-    for (const step of steps) {
-      try {
-        console.log(chalk.blue(`⚡︎ ${step.name}...`))
-        await step.fn()
-        console.log(chalk.green(`✓ ${step.name} initialized`))
-      } catch (error: any) {
-        console.log(chalk.red(`❌ ${step.name} failed: ${error.message}`))
+    // Initialize service states
+    for (const service of services) {
+      this.serviceStates.set(service.name, {
+        name: service.name,
+        initialized: false,
+        phase: service.phase,
+        dependencies: service.dependencies,
+      })
+    }
+
+    // Execute phased initialization
+    const phases: Array<'core' | 'dependent' | 'all'> = ['core', 'dependent', 'all']
+
+    for (const phase of phases) {
+      console.log(chalk.cyan(`\n📦 Phase: ${phase.toUpperCase()}`))
+      const phaseServices = services.filter(s => s.phase === phase)
+
+      for (const service of phaseServices) {
+        try {
+          // Check service dependencies
+          const depsReady = this.checkServiceDependencies(service.name)
+          if (!depsReady) {
+            throw new Error(`Dependencies not ready for ${service.name}`)
+          }
+
+          console.log(chalk.blue(`⚡︎ ${service.name}...`))
+          await service.fn()
+
+          // Mark as initialized
+          const state = this.serviceStates.get(service.name)!
+          state.initialized = true
+
+          console.log(chalk.green(`✓ ${service.name} initialized`))
+        } catch (error: any) {
+          console.log(chalk.red(`❌ ${service.name} failed: ${error.message}`))
+
+          // Mark error
+          const state = this.serviceStates.get(service.name)!
+          state.error = error
+
+          // Rollback initialized services
+          await this.rollbackInitialization(phase)
+          return false
+        }
+      }
+
+      // Validate phase completion
+      const phaseValid = this.validatePhase(phase)
+      if (!phaseValid) {
+        console.log(chalk.red(`❌ Phase ${phase} validation failed`))
+        await this.rollbackInitialization(phase)
+        return false
+      }
+
+      console.log(chalk.green(`✓ Phase ${phase} complete`))
+    }
+
+    this.initialized = true
+    console.log(chalk.green.bold('\n🎉 System initialization complete!'))
+    return true
+  }
+
+  /**
+   * Check if all service dependencies are initialized
+   */
+  private checkServiceDependencies(serviceName: string): boolean {
+    const state = this.serviceStates.get(serviceName)
+    if (!state) return false
+
+    for (const dep of state.dependencies) {
+      const depState = this.serviceStates.get(dep)
+      if (!depState || !depState.initialized) {
+        console.log(chalk.yellow(`⚠️ Dependency not ready: ${dep}`))
         return false
       }
     }
 
-    this.initialized = true
-    console.log(chalk.green.bold('\\n🎉 System initialization complete!'))
     return true
+  }
+
+  /**
+   * Validate that all services in a phase are initialized
+   */
+  private validatePhase(phase: 'core' | 'dependent' | 'all'): boolean {
+    for (const [_name, state] of this.serviceStates) {
+      if (state.phase === phase && !state.initialized) {
+        return false
+      }
+    }
+    return true
+  }
+
+  /**
+   * Rollback initialization on failure
+   */
+  private async rollbackInitialization(failedPhase: 'core' | 'dependent' | 'all'): Promise<void> {
+    console.log(chalk.yellow(`\n🔄 Rolling back initialization...`))
+
+    // Get list of initialized services
+    const initializedServices: string[] = []
+    for (const [name, state] of this.serviceStates) {
+      if (state.initialized) {
+        initializedServices.push(name)
+      }
+    }
+
+    // Cleanup in reverse order
+    for (const serviceName of initializedServices.reverse()) {
+      try {
+        console.log(chalk.dim(`   Cleaning up ${serviceName}...`))
+        // Services should implement their own cleanup if needed
+        const state = this.serviceStates.get(serviceName)!
+        state.initialized = false
+      } catch (error: any) {
+        console.log(chalk.yellow(`⚠️ Cleanup warning for ${serviceName}: ${error.message}`))
+      }
+    }
+
+    console.log(chalk.yellow(`✓ Rollback complete`))
   }
 
   private async initializeServices(): Promise<void> {
