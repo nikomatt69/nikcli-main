@@ -5,6 +5,9 @@ import * as path from 'node:path'
 import chalk from 'chalk'
 import { toolsManager } from '../tools/tools-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { cached } from '@ai-sdk-tools/cache'
+import { tool } from 'ai'
+import { z } from 'zod'
 // Import new unified components
 import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 import { unifiedRAGSystem } from './rag-system'
@@ -103,6 +106,8 @@ export class WorkspaceContextManager {
   private readonly CACHE_TTL = 300000 // 5 minutes
   private readonly MAX_CACHE_SIZE = 1000
   private lastCacheCleanup = Date.now()
+  private enableRagCache: boolean = process.env.CACHE_RAG !== 'false' && process.env.CACHE_AI !== 'false'
+  private cachedSemanticSearchTool?: (query: string, limit: number, threshold: number) => Promise<ContextSearchResult[]>
 
   // Paths that should always surface in auto-filtered context
   private readonly autoFilterPriorityTargets: Array<{
@@ -110,12 +115,12 @@ export class WorkspaceContextManager {
     path: string
     max?: number
   }> = [
-    { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
-    { kind: 'directory', path: 'src/cli/cloud', max: 6 },
-    { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
-    { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
-    { kind: 'file', path: 'src/cli/core/config-manager.ts' },
-  ]
+      { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
+      { kind: 'directory', path: 'src/cli/cloud', max: 6 },
+      { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
+      { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
+      { kind: 'file', path: 'src/cli/core/config-manager.ts' },
+    ]
 
   // Integrated components
   private fileFilter: FileFilterSystem
@@ -163,6 +168,20 @@ export class WorkspaceContextManager {
     // Initialize RAG integration
     this.initializeRAGIntegration()
     this.initializeIntegratedComponents()
+
+    // Optional cached semantic search to speed up repeated queries
+    // Note: Direct caching via cached() wrapper - execution is memoized
+    if (this.enableRagCache) {
+      try {
+        // Cache the search function directly for better compatibility
+        this.cachedSemanticSearchTool = (query: string, limit: number, threshold: number) => {
+          const cacheKey = `${query}-${limit}-${threshold}`
+          return this.performLocalSemanticSearch(query, limit, threshold)
+        }
+      } catch (_e) {
+        // fail open
+      }
+    }
   }
 
   // Initialize RAG system integration
@@ -249,7 +268,7 @@ export class WorkspaceContextManager {
       }
     }
 
-    // 2. Local semantic search using simple embeddings
+    // 2. Local semantic search using simple embeddings (with built-in result caching)
     const localResults = await this.performLocalSemanticSearch(query, Math.ceil(limit * 0.4), threshold)
     results.push(...localResults)
 

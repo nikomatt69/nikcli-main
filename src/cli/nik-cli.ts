@@ -18,6 +18,7 @@ import { TOKEN_LIMITS } from './config/token-limits'
 import { docsContextManager } from './context/docs-context-manager'
 import { unifiedRAGSystem } from './context/rag-system'
 import { workspaceContext } from './context/workspace-context'
+import { initializeRAG } from './context/rag-setup'
 import { agentFactory } from './core/agent-factory'
 import { AgentManager } from './core/agent-manager'
 import { agentStream } from './core/agent-stream'
@@ -2200,7 +2201,8 @@ export class NikCLI {
 
         // @ key listener removed per user request (was causing issues)
 
-        // Handle * key for file picker suggestions
+
+
 
 
         // Handle ? key to show a quick cheat-sheet overlay (only at start of line)
@@ -4412,7 +4414,7 @@ EOF`
     // Set up task timeout to prevent hanging
     const taskTimeout = this.safeTimeout(() => {
       throw new Error(`Task timeout: ${task.title} (exceeded 30 minutes)`)
-    }, 1800000) //  minute timeout (30 minutes)
+    }, 1800000) // 30 minutes = 30 * 60 * 1000 ms // 5 minute timeout 
 
     try {
       // Execute task exactly like default mode using tool router
@@ -19513,6 +19515,105 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         borderColor: config.color,
       })
     )
+  }
+
+  /**
+     * Handle slash menu navigation with arrow keys and scrolling
+     */
+  private handleSlashMenuNavigation(key: any): boolean {
+    if (!this.isSlashMenuActive) return false
+
+    if (key.name === 'up') {
+      if (this.slashMenuSelectedIndex > 0) {
+        this.slashMenuSelectedIndex--
+
+        // Adjust scroll offset if selection goes above visible area
+        if (this.slashMenuSelectedIndex < this.slashMenuScrollOffset) {
+          this.slashMenuScrollOffset = this.slashMenuSelectedIndex
+        }
+      }
+      this.renderPromptArea()
+      return true
+    } else if (key.name === 'down') {
+      if (this.slashMenuSelectedIndex < this.slashMenuCommands.length - 1) {
+        this.slashMenuSelectedIndex++
+
+        // Adjust scroll offset if selection goes below visible area
+        const maxVisibleIndex = this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE - 1
+        if (this.slashMenuSelectedIndex > maxVisibleIndex) {
+          this.slashMenuScrollOffset = this.slashMenuSelectedIndex - this.SLASH_MENU_MAX_VISIBLE + 1
+        }
+      }
+      this.renderPromptArea()
+      return true
+    } else if (key.name === 'return') {
+      this.selectSlashCommand()
+      return true
+    } else if (key.name === 'escape') {
+      this.closeSlashMenu()
+      return true
+    }
+
+    return false
+  }
+
+  /**
+   * Select the currently highlighted slash command
+   */
+  private selectSlashCommand(): void {
+    if (!this.isSlashMenuActive || this.slashMenuCommands.length === 0) return
+
+    const selectedCommand = this.slashMenuCommands[this.slashMenuSelectedIndex]
+    if (selectedCommand && this.rl) {
+      // Clear current input and insert selected command
+      this.rl.write('', { ctrl: true, name: 'u' }) // Clear line
+      this.rl.write(selectedCommand[0])
+      this.rl.write('', { ctrl: true, name: 'e' })
+      this.closeSlashMenu()
+    }
+  }
+
+  /**
+   * Close the slash menu and reset state
+   */
+  private closeSlashMenu(): void {
+    this.isSlashMenuActive = false
+    this.slashMenuCommands = []
+    this.slashMenuSelectedIndex = 0
+    this.slashMenuScrollOffset = 0
+    this.currentSlashInput = ''
+    this.renderPromptArea()
+  }
+
+  /**
+   * Activate slash menu with initial input
+   */
+  private activateSlashMenu(input: string): void {
+    this.currentSlashInput = input
+    this.slashMenuCommands = this.filterSlashCommands(input)
+    this.slashMenuSelectedIndex = 0
+    this.slashMenuScrollOffset = 0
+    this.isSlashMenuActive = true
+    this.renderPromptArea()
+  }
+
+  /**
+   * Update slash menu with new input
+   */
+  private updateSlashMenu(input: string): void {
+    this.currentSlashInput = input
+    this.slashMenuCommands = this.filterSlashCommands(input)
+    this.slashMenuSelectedIndex = Math.min(this.slashMenuSelectedIndex, this.slashMenuCommands.length - 1)
+    this.slashMenuScrollOffset = Math.min(this.slashMenuScrollOffset, Math.max(0, this.slashMenuCommands.length - this.SLASH_MENU_MAX_VISIBLE))
+
+    // Ensure selected item is visible
+    if (this.slashMenuSelectedIndex < this.slashMenuScrollOffset) {
+      this.slashMenuScrollOffset = this.slashMenuSelectedIndex
+    } else if (this.slashMenuSelectedIndex >= this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE) {
+      this.slashMenuScrollOffset = this.slashMenuSelectedIndex - this.SLASH_MENU_MAX_VISIBLE + 1
+    }
+
+    this.renderPromptArea()
   }
 }
 

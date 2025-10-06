@@ -1946,6 +1946,14 @@ class MainOrchestrator {
  * Main entry point function
  */
 async function main() {
+  // Initialize RAG if configured (non-blocking)
+  try {
+    const { initializeRAG } = await import('./context/rag-setup');
+    initializeRAG().catch(() => {});
+  } catch {
+    // Ignore if RAG setup fails
+  }
+
   // Parse command line arguments
   const argv = process.argv.slice(2)
 

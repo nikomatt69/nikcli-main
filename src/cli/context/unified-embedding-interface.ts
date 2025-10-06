@@ -75,6 +75,7 @@ export class UnifiedEmbeddingInterface {
   private embeddingCache: Map<string, EmbeddingResult> = new Map()
   private persistentCacheDir: string
   private stats: UnifiedEmbeddingStats
+  private enableRagCache: boolean = process.env.CACHE_RAG !== 'false' && process.env.CACHE_AI !== 'false'
 
   // Performance monitoring
   private queryLatencies: number[] = []
@@ -132,6 +133,7 @@ export class UnifiedEmbeddingInterface {
       const texts = uncachedQueries.map((q) => q.text)
 
       try {
+        // Already cached via embeddingCache Map + persistent cache - AI SDK Tools cache would be redundant
         const embeddings = await this.provider.generate(texts)
         const currentProvider = this.provider.getCurrentProvider() || 'unknown'
 

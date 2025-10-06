@@ -1,6 +1,6 @@
 // api/github/webhook.ts
 
-import type { VercelRequest, VercelResponse } from '@vercel/node'
+import type { Response } from 'express'
 import type { GitHubBotConfig } from '../../src/cli/github-bot/types'
 import { GitHubWebhookHandler } from '../../src/cli/github-bot/webhook-handler'
 
@@ -23,7 +23,7 @@ function getWebhookHandler() {
   return webhookHandler
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*')
@@ -46,8 +46,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('🔌 GitHub webhook received:', {
       method: req.method,
       headers: {
-        'x-github-event': req.headers['x-github-event'],
-        'x-hub-signature-256': req.headers['x-hub-signature-256'] ? 'present' : 'missing',
+        'x-github-event': req.headers.get('x-github-event'),
+        'x-hub-signature-256': req.headers.get('x-hub-signature-256') ? 'present' : 'missing',
       },
     })
 
@@ -97,6 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Handle webhook using existing handler
     const handler = getWebhookHandler()
     await handler.handleWebhook(mockReq, mockRes)
+    return
   } catch (error) {
     console.error('❌ Webhook handler error:', error)
 
