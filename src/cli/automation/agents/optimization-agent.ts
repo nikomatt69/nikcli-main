@@ -60,13 +60,13 @@ export class OptimizationAgent extends CognitiveAgentBase {
     super(workingDirectory)
   }
 
-  protected async onInitialize(): Promise<void> {
+  protected override async onInitialize(): Promise<void> {
     CliUI.logInfo('⚡ Initializing Enhanced Optimization Agent with cognitive capabilities...')
     await this.initializeOptimizationCognition()
     CliUI.logSuccess(`✓ Optimization Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
-  protected async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
+  protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
     const cognition = await this.parseTaskCognition(task.description || task.type)
     const enhancedCognition = await this.enhanceCognitionForSpecialization(cognition)
     const orchestrationPlan = await this.createOrchestrationPlan(enhancedCognition)
@@ -74,7 +74,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
     return await this.executeCognitiveTask(task, enhancedCognition, orchestrationPlan)
   }
 
-  protected async onStop(): Promise<void> {
+  protected override async onStop(): Promise<void> {
     CliUI.logInfo('🛑 Optimization Agent shutting down...')
     await this.saveCognitiveState()
     CliUI.logSuccess('✓ Optimization Agent stopped - cognitive state saved')
@@ -257,7 +257,7 @@ Provide the optimized version with explanations of improvements made.`
   }
 
   // Legacy compatibility methods
-  async run(taskData: string): Promise<any> {
+  override async run(taskData: string): Promise<any> {
     const task: AgentTask = {
       id: nanoid(),
       type: 'legacy',
@@ -279,7 +279,7 @@ Provide the optimized version with explanations of improvements made.`
     }
   }
 
-  async cleanup(): Promise<void> {
+  override async cleanup(): Promise<void> {
     return await this.onStop()
   }
 

@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import { detectLanguageFromContent, detectLanguageFromExtension } from './language-detection'
 import { formatDiagnostic, LSPClient, type LSPDiagnostic, type LSPSymbol } from './lsp-client'
 import { ensureLSPDependencies, findLSPWorkspaceRoot, getApplicableLSPServers } from './lsp-servers'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface CodeContext {
   file: string
@@ -41,6 +42,7 @@ export class LSPManager {
   private fileAnalysisCache: Map<string, CodeContext> = new Map()
   private clientLastUsed: Map<string, number> = new Map() // Track last usage for cleanup
   private readonly CLIENT_IDLE_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+  private cleanupInterval?: NodeJS.Timeout
 
   constructor() {
     // Cleanup on process exit
@@ -49,7 +51,7 @@ export class LSPManager {
     process.on('SIGTERM', () => this.shutdown())
 
     // Start periodic cleanup of idle clients
-    setInterval(() => this.cleanupIdleClients(), 60000) // Every minute
+    this.cleanupInterval = setInterval(() => this.cleanupIdleClients(), 60000) // Every minute
   }
 
   // Get or create LSP clients for a file
@@ -283,7 +285,7 @@ export class LSPManager {
 
         const hover = await client.getHover(filePath, line, character)
         if (hover) return hover
-      } catch (_error) {}
+      } catch (_error) { }
     }
 
     return null
@@ -302,7 +304,7 @@ export class LSPManager {
 
         const completions = await client.getCompletion(filePath, line, character)
         allCompletions.push(...completions)
-      } catch (_error) {}
+      } catch (_error) { }
     }
 
     return allCompletions
@@ -427,10 +429,10 @@ export class LSPManager {
 
   // Shutdown all clients
   async shutdown(): Promise<void> {
-    console.log(chalk.blue('\n🛑 Shutting down LSP clients...'))
+    advancedUI.logFunctionCall(chalk.blue('\n Shutting down LSP clients...'))
 
     const shutdownPromises = Array.from(this.clients.values()).map((client) =>
-      client.shutdown().catch((err) => console.log(chalk.yellow(`⚠️ Error shutting down client: ${err.message}`)))
+      client.shutdown().catch((err) => advancedUI.logWarning(` Error shutting down client: ${err.message}`))
     )
 
     await Promise.allSettled(shutdownPromises)
@@ -439,7 +441,16 @@ export class LSPManager {
     this.workspaceRoots.clear()
     this.fileAnalysisCache.clear()
 
-    console.log(chalk.green('✓ LSP shutdown complete'))
+    advancedUI.logSuccess('✓ LSP shutdown complete')
+  }
+
+  // Dispose resources (alias of shutdown + interval clear)
+  async dispose(): Promise<void> {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval)
+      this.cleanupInterval = undefined
+    }
+    await this.shutdown()
   }
 }
 

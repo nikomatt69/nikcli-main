@@ -81,13 +81,13 @@ export class SystemAdminAgent extends CognitiveAgentBase {
     super(workingDirectory)
   }
 
-  protected async onInitialize(): Promise<void> {
+  protected override async onInitialize(): Promise<void> {
     advancedUI.logCognitive('🖥️ Initializing Enhanced System Admin Agent with cognitive capabilities...')
     await this.initializeSystemAdminCognition()
     advancedUI.logSuccess(`✓ System Admin Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
-  protected async onStop(): Promise<void> {
+  protected override async onStop(): Promise<void> {
     advancedUI.logInfo('🛑 System Admin Agent shutting down...')
     await this.saveCognitiveState()
     advancedUI.logCognitive('✓ System Admin Agent stopped - cognitive state saved')
@@ -187,11 +187,11 @@ Generate a structured plan with commands to execute.`,
       }
 
       console.log(chalk.blue.bold('\nCommands to execute:'))
-      ;(planResult.commands || []).forEach((cmd: any, index: number) => {
-        console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
-        console.log(`   ${chalk.gray(cmd.description)}`)
-        if (cmd.sudo) console.log(`   ${chalk.red('⚠️ Requires sudo')}`)
-      })
+        ; (planResult.commands || []).forEach((cmd: any, index: number) => {
+          console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
+          console.log(`   ${chalk.gray(cmd.description)}`)
+          if (cmd.sudo) console.log(`   ${chalk.red('⚠️ Requires sudo')}`)
+        })
 
       // Ask for confirmation
       const readline = require('readline').createInterface({
@@ -397,7 +397,7 @@ Generate a structured plan with commands to execute.`,
     }
   }
 
-  protected async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
+  protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
     // Enhanced cognitive task execution
     const cognition = await this.parseTaskCognition(task.description || task.type)
     const enhancedCognition = await this.enhanceCognitionForSpecialization(cognition)
@@ -755,7 +755,7 @@ Generate working commands, scripts, and configurations.`
   }
 
   // Legacy compatibility methods
-  async run(taskData: string): Promise<any> {
+  override async run(taskData: string): Promise<any> {
     const task: AgentTask = {
       id: nanoid(),
       type: 'legacy',
@@ -775,7 +775,7 @@ Generate working commands, scripts, and configurations.`
     }
   }
 
-  async cleanup(): Promise<void> {
+  override async cleanup(): Promise<void> {
     return await this.onStop()
   }
 }

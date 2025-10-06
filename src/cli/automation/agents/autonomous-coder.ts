@@ -32,11 +32,11 @@ const CodeGenerationSchema = z.object({
 })
 
 export class AutonomousCoder extends BaseAgent {
-  id = 'autonomous-coder'
-  capabilities = ['autonomous-coding', 'file-operations', 'code-generation', 'debugging']
-  specialization = 'Autonomous coding with full file system access'
-  name = 'autonomous-coder'
-  description = 'Autonomous coding agent that can read, write, and modify files independently'
+  override id = 'autonomous-coder'
+  override capabilities = ['autonomous-coding', 'file-operations', 'code-generation', 'debugging']
+  override specialization = 'Autonomous coding with full file system access'
+  override name = 'autonomous-coder'
+  override description = 'Autonomous coding agent that can read, write, and modify files independently'
 
   constructor(workingDirectory: string = process.cwd()) {
     super(workingDirectory)
@@ -72,20 +72,19 @@ export class AutonomousCoder extends BaseAgent {
 Framework: ${analysis.framework || 'Unknown'}
 Technologies: ${analysis.technologies.join(', ')}
 Structure: ${JSON.stringify(analysis.structure, null, 2)}
-Package Info: ${
-          analysis.packageInfo
+Package Info: ${analysis.packageInfo
             ? JSON.stringify(
-                {
-                  name: analysis.packageInfo.name,
-                  version: analysis.packageInfo.version,
-                  scripts: Object.keys(analysis.packageInfo.scripts || {}),
-                  dependencies: Object.keys(analysis.packageInfo.dependencies || {}),
-                },
-                null,
-                2
-              )
+              {
+                name: analysis.packageInfo.name,
+                version: analysis.packageInfo.version,
+                scripts: Object.keys(analysis.packageInfo.scripts || {}),
+                dependencies: Object.keys(analysis.packageInfo.dependencies || {}),
+              },
+              null,
+              2
+            )
             : 'No package.json found'
-        }`,
+          }`,
       },
     ]
 

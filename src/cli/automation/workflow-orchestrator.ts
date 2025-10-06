@@ -170,7 +170,8 @@ export class WorkflowOrchestrator {
     const logs: string[] = []
 
     for (let i = 0; i < chain.steps.length; i++) {
-      const step = chain.steps[i]
+      const step = chain.steps[i]; if (!step) continue
+      if (!step) continue
       context.currentStep = i + 1
 
       try {

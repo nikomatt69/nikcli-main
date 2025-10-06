@@ -4,6 +4,7 @@ import { simpleConfigManager } from '../core/config-manager'
 import { type SmartCacheManager, smartCache } from '../core/smart-cache-manager'
 import { type RedisProvider, redisProvider } from '../providers/redis/redis-provider'
 import { structuredLogger } from '../utils/structured-logger'
+import { AsyncLock } from '../utils/async-lock'
 
 export interface CacheServiceOptions {
   redisEnabled?: boolean
@@ -47,6 +48,8 @@ export class CacheService extends EventEmitter {
     fallbackHits: 0,
     errors: 0,
   }
+  // 🔒 FIXED: Lock for coordinating writes to prevent cache inconsistency
+  private writeLocks = new AsyncLock()
 
   constructor(options?: CacheServiceOptions) {
     super()
@@ -97,6 +100,9 @@ export class CacheService extends EventEmitter {
   /**
    * Set a value in cache with intelligent routing
    */
+  /**
+   * FIXED: Added AsyncLock to coordinate writes and prevent cache inconsistency
+   */
   async set<T = any>(
     key: string,
     value: T,
@@ -109,42 +115,90 @@ export class CacheService extends EventEmitter {
   ): Promise<boolean> {
     const { ttl, metadata, strategy = 'both' } = options || {}
 
+    // Acquire lock for this key to prevent concurrent writes
+    const release = await this.writeLocks.acquire(`cache-write-${key}`)
+
     try {
       let redisSuccess = false
       let smartSuccess = false
 
-      // Try Redis first if enabled and connected
-      if (this.shouldUseRedis(strategy)) {
+      // Write-through strategy: write to both in coordinated manner
+      if (strategy === 'both') {
+        // Write to both caches atomically
         try {
-          redisSuccess = await this.redis.set(key, value, ttl, metadata)
+          const [redisResult, smartResult] = await Promise.allSettled([
+            this.shouldUseRedis(strategy)
+              ? this.redis.set(key, value, ttl, metadata)
+              : Promise.resolve(false),
+            this.shouldUseFallback(strategy, false)
+              ? this.smartCache.setCachedResponse(key, JSON.stringify(value), context, {
+                tokensSaved: this.estimateTokensSaved(value),
+                responseTime: metadata?.responseTime || 0,
+                ...metadata,
+              })
+              : Promise.resolve(false)
+          ])
+
+          redisSuccess = redisResult.status === 'fulfilled' && redisResult.value === true
+          smartSuccess = smartResult.status === 'fulfilled'
+
+          // Log any failures
+          if (redisResult.status === 'rejected') {
+            structuredLogger.warning(
+              `Cache Service: Redis SET failed for ${key}`,
+              JSON.stringify({ error: redisResult.reason?.message })
+            )
+            this.stats.errors++
+          }
+          if (smartResult.status === 'rejected') {
+            structuredLogger.warning(
+              `Cache Service: SmartCache SET failed for ${key}`,
+              JSON.stringify({ error: smartResult.reason?.message })
+            )
+            this.stats.errors++
+          }
         } catch (error: any) {
-          structuredLogger.warning(
-            `Cache Service: Redis SET failed for ${key}`,
+          structuredLogger.error(
+            `Cache Service: Coordinated write failed for ${key}`,
             JSON.stringify({ error: error.message })
           )
           this.stats.errors++
         }
-      }
+      } else {
+        // Single cache strategy
+        // Try Redis first if enabled and connected
+        if (this.shouldUseRedis(strategy)) {
+          try {
+            redisSuccess = await this.redis.set(key, value, ttl, metadata)
+          } catch (error: any) {
+            structuredLogger.warning(
+              `Cache Service: Redis SET failed for ${key}`,
+              JSON.stringify({ error: error.message })
+            )
+            this.stats.errors++
+          }
+        }
 
-      // Use SmartCache as fallback or secondary storage
-      if (this.shouldUseFallback(strategy, !redisSuccess)) {
-        try {
-          // Convert to SmartCache format
-          const tokensSaved = this.estimateTokensSaved(value)
-          const responseTime = metadata?.responseTime || 0
+        // Use SmartCache as fallback or secondary storage
+        if (this.shouldUseFallback(strategy, !redisSuccess)) {
+          try {
+            // Convert to SmartCache format
+            const tokensSaved = this.estimateTokensSaved(value)
+            const responseTime = metadata?.responseTime || 0
 
-          await this.smartCache.setCachedResponse(key, JSON.stringify(value), context, {
-            tokensSaved,
-            responseTime,
-            ...metadata,
-          })
-          smartSuccess = true
-        } catch (error: any) {
-          structuredLogger.warning(
-            `Cache Service: SmartCache SET failed for ${key}`,
-            JSON.stringify({ error: error.message })
-          )
-          this.stats.errors++
+            await this.smartCache.setCachedResponse(key, JSON.stringify(value), context, {
+              tokensSaved,
+              responseTime,
+              ...metadata,
+            })
+            smartSuccess = true
+          } catch (error: any) {
+            structuredLogger.warning(
+              `Cache Service: SmartCache SET failed for ${key}`,
+              JSON.stringify({ error: error.message })
+            )
+            this.stats.errors++
+          }
         }
       }
 
@@ -153,6 +207,9 @@ export class CacheService extends EventEmitter {
       structuredLogger.error(`Cache Service: SET failed for ${key}`, JSON.stringify({ error: error.message }))
       this.stats.errors++
       return false
+    } finally {
+      // Always release lock
+      release()
     }
   }
 

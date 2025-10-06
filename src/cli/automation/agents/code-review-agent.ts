@@ -60,13 +60,13 @@ export class CodeReviewAgent extends CognitiveAgentBase {
     super(workingDirectory)
   }
 
-  protected async onInitialize(): Promise<void> {
+  protected override async onInitialize(): Promise<void> {
     CliUI.logInfo('🔍 Initializing Enhanced Code Review Agent with cognitive capabilities...')
     await this.initializeCodeReviewCognition()
     CliUI.logSuccess(`✓ Code Review Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
-  protected async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
+  protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
     const cognition = await this.parseTaskCognition(task.description || task.type)
     const enhancedCognition = await this.enhanceCognitionForSpecialization(cognition)
     const orchestrationPlan = await this.createOrchestrationPlan(enhancedCognition)
@@ -74,7 +74,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
     return await this.executeCognitiveTask(task, enhancedCognition, orchestrationPlan)
   }
 
-  protected async onStop(): Promise<void> {
+  protected override async onStop(): Promise<void> {
     CliUI.logInfo('🛑 Code Review Agent shutting down...')
     await this.saveCognitiveState()
     CliUI.logSuccess('✓ Code Review Agent stopped - cognitive state saved')
@@ -249,7 +249,7 @@ Provide specific suggestions for improvement with detailed explanations.`
   }
 
   // Legacy compatibility methods
-  async run(taskData: string): Promise<any> {
+  override async run(taskData: string): Promise<any> {
     const task: AgentTask = {
       id: nanoid(),
       type: 'legacy',
@@ -270,7 +270,7 @@ Provide specific suggestions for improvement with detailed explanations.`
     }
   }
 
-  async cleanup(): Promise<void> {
+  override async cleanup(): Promise<void> {
     return await this.onStop()
   }
 

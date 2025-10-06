@@ -1,0 +1,101 @@
+graph TB
+    subgraph "Context Sources"
+        WS[Workspace Context<br/>Project Structure]
+        FC[File Context<br/>Code & Content]
+        PC[Project Context<br/>Configuration & Dependencies]
+        DC[Dependency Context<br/>Libraries & Versions]
+        HC[Historical Context<br/>Git History & Changes]
+    end
+    
+    subgraph "Context Processing"
+        CE[Context Extractor<br/>Multi-layer Extraction]
+        CT[Context Tokenizer<br/>Semantic Analysis]
+        CC[Context Cache<br/>LRU + Predictive]
+        CM[Context Manager<br/>State Coordination]
+    end
+    
+    subgraph "RAG Pipeline"
+        DR[Document Retriever<br/>Hybrid Search]
+        EG[Embedding Generator<br/>Vector Creation]
+        VS[Vector Store<br/>ChromaDB/PGVector]
+        RR[Relevance Ranker<br/>Scoring & Filtering]
+        RC[Response Composer<br/>Context Assembly]
+    end
+    
+    subgraph "AI Integration"
+        MP[Model Provider<br/>Multi-Provider Support]
+        CR[Cognitive Router<br/>Intelligent Routing]
+        AP[Agent Processor<br/>Specialized Processing]
+        RP[Response Parser<br/>Output Formatting]
+    end
+    
+    subgraph "Memory Systems"
+        STM[Short-term Memory<br/>Session Context]
+        LTM[Long-term Memory<br/>Persistent Storage]
+        PM[Pattern Memory<br/>Learned Patterns]
+        EM[Episodic Memory<br/>Event History]
+    end
+    
+    subgraph "Learning Components"
+        PL[Pattern Learning<br/>Experience Analysis]
+        CL[Context Learning<br/>Usage Patterns]
+        RL[Relevance Learning<br/>Feedback Integration]
+        AL[Adaptive Learning<br/>Continuous Improvement]
+    end
+    
+    WS --> CE
+    FC --> CE
+    PC --> CE
+    DC --> CE
+    HC --> CE
+    
+    CE --> CT
+    CT --> CC
+    CC --> CM
+    CM --> DR
+    
+    DR --> EG
+    EG --> VS
+    VS --> RR
+    RR --> RC
+    
+    RC --> MP
+    MP --> CR
+    CR --> AP
+    AP --> RP
+    
+    CM --> STM
+    CM --> LTM
+    CM --> PM
+    CM --> EM
+    
+    PL --> PM
+    CL --> LTM
+    RL --> RR
+    AL --> CM
+    
+    RP --> STM
+    AP --> PM
+    
+    style WS fill:#e8f5e
+    style FC fill:#e8f5e9
+    style PC fill:#e8f5e9
+    style DC fill:#e8f5e9
+    style HC fill:#e8f5e9
+    style CE fill:#fff3e0
+    style CT fill:#fff3e0
+    style CC fill:#fff3e0
+    style CM fill:#fff3e0
+    style DR fill:#f3e5f5
+    style EG fill:#f3e5f5
+    style VS fill:#f3e5f5
+    style RR fill:#f3e5f5
+    style RC fill:#f3e5f5
+    style MP fill:#e3f2fd
+    style CR fill:#e3f2fd
+    style AP fill:#e3f2fd
+    style RP fill:#e3f2fd
+    style STM fill:#fce4ec
+    style LTM fill:#fce4ec
+    style PM fill:#fce4ec
+    style EM fill:#fce4ec

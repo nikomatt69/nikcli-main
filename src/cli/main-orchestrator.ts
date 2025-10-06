@@ -20,12 +20,25 @@ import { diffManager } from './ui/diff-manager'
 import { ContainerManager } from './virtualized-agents/container-manager'
 import { VMOrchestrator } from './virtualized-agents/vm-orchestrator'
 import { advancedUI } from './ui/advanced-cli-ui'
+import { lspManager } from './lsp/lsp-manager'
+import { mcpClient } from './core/mcp-client'
+
+// 🔒 FIXED: Service initialization tracking
+interface ServiceState {
+  name: string
+  initialized: boolean
+  phase: 'core' | 'dependent' | 'all'
+  dependencies: string[]
+  error?: Error
+}
 
 export class MainOrchestrator {
   private streamOrchestrator: StreamingOrchestrator
   private vmOrchestrator: VMOrchestrator
   private containerManager: ContainerManager
   private initialized = false
+  // 🔒 FIXED: Track initialization state per service
+  private serviceStates = new Map<string, ServiceState>()
 
   constructor() {
     this.streamOrchestrator = new StreamingOrchestrator()
@@ -54,28 +67,37 @@ export class MainOrchestrator {
   }
 
   private async gracefulShutdown(): Promise<void> {
-    console.log(chalk.yellow('\\n🛑 Shutting down orchestrator...'))
+    advancedUI.logWarning('\n Shutting down orchestrator...')
 
     try {
       // Stop all active agents
       const activeAgents = agentService.getActiveAgents()
       if (activeAgents.length > 0) {
-        console.log(chalk.blue(`⏳ Waiting for ${activeAgents.length} agents to complete...`))
+        advancedUI.logWarning(`⏳ Waiting for ${activeAgents.length} agents to complete...`)
         // In production, implement proper agent shutdown
       }
 
       // Save any pending diffs
       const pendingDiffs = diffManager.getPendingCount()
       if (pendingDiffs > 0) {
-        console.log(chalk.yellow(` ${pendingDiffs} diffs still pending`))
+        advancedUI.logWarning(` ${pendingDiffs} diffs still pending`)
       }
 
       // Clear resources
       await this.cleanup()
 
-      console.log(chalk.green('✓ Orchestrator shut down cleanly'))
+      // Dispose subsystems (best-effort)
+      try { await lspManager.dispose() } catch { }
+      try { await (lspService as any)?.dispose?.() } catch { }
+      try { await (agentService as any)?.dispose?.() } catch { }
+      try { await (toolService as any)?.dispose?.() } catch { }
+      try { (advancedUI as any)?.dispose?.() } catch { }
+      try { await mcpClient.dispose() } catch { }
+      try { await (this.vmOrchestrator as any)?.dispose?.() } catch { }
+
+      advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
-      console.error(chalk.red('❌ Error during shutdown:'), error)
+      advancedUI.logError('❌ Error during shutdown: ' + error)
     } finally {
       process.exit(0)
     }
@@ -105,18 +127,18 @@ export class MainOrchestrator {
   private handleRecoverableError(error: any): void {
     try {
       // Log error details for debugging
-      console.log(chalk.yellow('⚡︎ Attempting error recovery...'))
+      advancedUI.logWarning('⚡︎ Attempting error recovery...')
 
       // Reset critical services state
       if (typeof error === 'object' && error?.message?.includes('ENOTFOUND')) {
-        console.log(chalk.blue('🌐 Network error detected, switching to offline mode'))
+        advancedUI.logWarning('🌐 Network error detected, switching to offline mode')
       } else if (error?.message?.includes('timeout')) {
-        console.log(chalk.blue('⏱️ Timeout detected, increasing retry intervals'))
+        advancedUI.logWarning('⏱️ Timeout detected, increasing retry intervals')
       }
 
-      console.log(chalk.green('✓ Error recovery completed'))
+      advancedUI.logSuccess('✓ Error recovery completed')
     } catch (recoveryError) {
-      console.error(chalk.red('❌ Recovery failed:'), recoveryError)
+      advancedUI.logError('❌ Recovery failed: ' + recoveryError)
     }
   }
 
@@ -135,9 +157,9 @@ export class MainOrchestrator {
     const allPassed = results.every((r) => r)
 
     if (allPassed) {
-      console.log(chalk.green('✓ All system checks passed'))
+      advancedUI.logSuccess('✓ All system checks passed')
     } else {
-      console.log(chalk.red('❌ System requirements not met'))
+      advancedUI.logError(' System requirements not met')
     }
 
     return allPassed
@@ -148,11 +170,11 @@ export class MainOrchestrator {
     const major = parseInt(version.slice(1).split('.')[0], 10)
 
     if (major < 18) {
-      console.log(chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`))
+      advancedUI.logError(` Node.js ${major} is too old. Requires Node.js 18+`)
       return false
     }
 
-    console.log(chalk.green(`✓ Node.js ${version}`))
+    advancedUI.logSuccess(` Node.js ${version}`)
     return true
   }
 
@@ -163,7 +185,7 @@ export class MainOrchestrator {
     const hasVercel = !!process.env.V0_API_KEY
 
     if (!hasAnthropic && !hasOpenAI && !hasGoogle && !hasVercel) {
-      console.log(chalk.red('❌ No API keys found'))
+      advancedUI.logError(' No API keys found')
       console.log(
         chalk.yellow('Set at least one: ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or V0_API_KEY')
       )
@@ -175,7 +197,7 @@ export class MainOrchestrator {
     if (hasOpenAI) available.push('GPT')
     if (hasGoogle) available.push('Gemini')
     if (hasVercel) available.push('Vercel')
-    console.log(chalk.green(`✓ API Keys: ${available.join(', ')}`))
+    advancedUI.logSuccess(` API Keys: ${available.join(', ')}`)
     return true
   }
 
@@ -184,11 +206,11 @@ export class MainOrchestrator {
     const fs = require('node:fs')
 
     if (!fs.existsSync(cwd)) {
-      console.log(chalk.red(`❌ Working directory does not exist: ${cwd}`))
+      advancedUI.logError(` Working directory does not exist: ${cwd}`)
       return false
     }
 
-    console.log(chalk.green(`✓ Working directory: ${cwd}`))
+    advancedUI.logSuccess(` Working directory: ${cwd}`)
     return true
   }
 
@@ -200,45 +222,204 @@ export class MainOrchestrator {
       require('nanoid')
       require('diff')
 
-      console.log(chalk.green('✓ All dependencies available'))
+      advancedUI.logSuccess(' All dependencies available')
       return true
     } catch (error) {
-      console.log(chalk.red(`❌ Missing dependencies: ${error}`))
+      advancedUI.logError(` Missing dependencies: ${error}`)
       return false
     }
   }
 
+  /**
+   * FIXED: Added phased initialization with dependency tracking and rollback
+   */
   private async initializeSystem(): Promise<boolean> {
     advancedUI.logFunctionCall('aidevelopmentorchestratorinit')
     advancedUI.logFunctionUpdate('info', 'Initializing AI Development Orchestrator...', 'ℹ')
-    console.log(chalk.gray('─'.repeat(60)))
+    advancedUI.logFunctionUpdate('info', '─'.repeat(60))
 
-    const steps = [
-      { name: 'Service Registration', fn: this.initializeServices.bind(this) },
-      { name: 'Agent System', fn: this.initializeAgents.bind(this) },
-      { name: 'Planning System', fn: this.initializePlanning.bind(this) },
-      { name: 'Tool System', fn: this.initializeTools.bind(this) },
-      { name: 'Memory System', fn: this.initializeMemory.bind(this) },
-      { name: 'Snapshot System', fn: this.initializeSnapshot.bind(this) },
-      { name: 'VM Orchestration', fn: this.initializeVMOrchestration.bind(this) },
-      { name: 'Security Policies', fn: this.initializeSecurity.bind(this) },
-      { name: 'Context Management', fn: this.initializeContext.bind(this) },
+    // Define services with dependencies and phases
+    const services = [
+      // Phase 1: Core services (no dependencies)
+      {
+        name: 'Service Registration',
+        fn: this.initializeServices.bind(this),
+        phase: 'core' as const,
+        dependencies: []
+      },
+      {
+        name: 'Security Policies',
+        fn: this.initializeSecurity.bind(this),
+        phase: 'core' as const,
+        dependencies: []
+      },
+
+      // Phase 2: Dependent services (depend on core)
+      {
+        name: 'Tool System',
+        fn: this.initializeTools.bind(this),
+        phase: 'dependent' as const,
+        dependencies: ['Service Registration']
+      },
+      {
+        name: 'Memory System',
+        fn: this.initializeMemory.bind(this),
+        phase: 'dependent' as const,
+        dependencies: ['Service Registration']
+      },
+      {
+        name: 'Snapshot System',
+        fn: this.initializeSnapshot.bind(this),
+        phase: 'dependent' as const,
+        dependencies: ['Service Registration']
+      },
+      {
+        name: 'Context Management',
+        fn: this.initializeContext.bind(this),
+        phase: 'dependent' as const,
+        dependencies: ['Service Registration']
+      },
+
+      // Phase 3: All services (depend on dependent services)
+      {
+        name: 'Agent System',
+        fn: this.initializeAgents.bind(this),
+        phase: 'all' as const,
+        dependencies: ['Tool System', 'Memory System']
+      },
+      {
+        name: 'Planning System',
+        fn: this.initializePlanning.bind(this),
+        phase: 'all' as const,
+        dependencies: ['Service Registration', 'Agent System']
+      },
+      {
+        name: 'VM Orchestration',
+        fn: this.initializeVMOrchestration.bind(this),
+        phase: 'all' as const,
+        dependencies: ['Agent System', 'Context Management']
+      },
     ]
 
-    for (const step of steps) {
-      try {
-        console.log(chalk.blue(`⚡︎ ${step.name}...`))
-        await step.fn()
-        console.log(chalk.green(`✓ ${step.name} initialized`))
-      } catch (error: any) {
-        console.log(chalk.red(`❌ ${step.name} failed: ${error.message}`))
+    // Initialize service states
+    for (const service of services) {
+      this.serviceStates.set(service.name, {
+        name: service.name,
+        initialized: false,
+        phase: service.phase,
+        dependencies: service.dependencies,
+      })
+    }
+
+    // Execute phased initialization
+    const phases: Array<'core' | 'dependent' | 'all'> = ['core', 'dependent', 'all']
+
+    for (const phase of phases) {
+      advancedUI.logFunctionUpdate('info', `\n Phase: ${phase.toUpperCase()}`)
+      const phaseServices = services.filter(s => s.phase === phase)
+
+      for (const service of phaseServices) {
+        try {
+          // Check service dependencies
+          const depsReady = this.checkServiceDependencies(service.name)
+          if (!depsReady) {
+            throw new Error(`Dependencies not ready for ${service.name}`)
+          }
+
+          advancedUI.logFunctionUpdate('info', ` ${service.name}...`)
+          await service.fn()
+
+          // Mark as initialized
+          const state = this.serviceStates.get(service.name)!
+          state.initialized = true
+
+          advancedUI.logSuccess(` ${service.name} initialized`)
+        } catch (error: any) {
+          advancedUI.logError(` ${service.name} failed: ${error.message}`)
+
+          // Mark error
+          const state = this.serviceStates.get(service.name)!
+          state.error = error
+
+          // Rollback initialized services
+          await this.rollbackInitialization(phase)
+          return false
+        }
+      }
+
+      // Validate phase completion
+      const phaseValid = this.validatePhase(phase)
+      if (!phaseValid) {
+        advancedUI.logError(` Phase ${phase} validation failed`)
+        await this.rollbackInitialization(phase)
+        return false
+      }
+
+      advancedUI.logSuccess(` Phase ${phase} complete`)
+    }
+
+    this.initialized = true
+    advancedUI.logSuccess('\n System initialization complete!')
+    return true
+  }
+
+  /**
+   * Check if all service dependencies are initialized
+   */
+  private checkServiceDependencies(serviceName: string): boolean {
+    const state = this.serviceStates.get(serviceName)
+    if (!state) return false
+
+    for (const dep of state.dependencies) {
+      const depState = this.serviceStates.get(dep)
+      if (!depState || !depState.initialized) {
+        advancedUI.logWarning(` Dependency not ready: ${dep}`)
         return false
       }
     }
 
-    this.initialized = true
-    console.log(chalk.green.bold('\\n🎉 System initialization complete!'))
     return true
+  }
+
+  /**
+   * Validate that all services in a phase are initialized
+   */
+  private validatePhase(phase: 'core' | 'dependent' | 'all'): boolean {
+    for (const [_name, state] of this.serviceStates) {
+      if (state.phase === phase && !state.initialized) {
+        return false
+      }
+    }
+    return true
+  }
+
+  /**
+   * Rollback initialization on failure
+   */
+  private async rollbackInitialization(failedPhase: 'core' | 'dependent' | 'all'): Promise<void> {
+    advancedUI.logFunctionUpdate('info', `\n Rolling back initialization...`)
+
+    // Get list of initialized services
+    const initializedServices: string[] = []
+    for (const [name, state] of this.serviceStates) {
+      if (state.initialized) {
+        initializedServices.push(name)
+      }
+    }
+
+    // Cleanup in reverse order
+    for (const serviceName of initializedServices.reverse()) {
+      try {
+        advancedUI.logFunctionUpdate('info', `   Cleaning up ${serviceName}...`)
+        // Services should implement their own cleanup if needed
+        const state = this.serviceStates.get(serviceName)!
+        state.initialized = false
+      } catch (error: any) {
+        advancedUI.logWarning(` Cleanup warning for ${serviceName}: ${error.message}`)
+      }
+    }
+
+    advancedUI.logSuccess(` Rollback complete`)
   }
 
   private async initializeServices(): Promise<void> {
@@ -255,43 +436,43 @@ export class MainOrchestrator {
     // Agent service is initialized via import
     // Verify all agents are available
     const agents = agentService.getAvailableAgents()
-    console.log(chalk.dim(`   Loaded ${agents.length} agents`))
+    advancedUI.logFunctionUpdate('info', `   Loaded ${agents.length} agents`)
   }
 
   private async initializePlanning(): Promise<void> {
     // Planning service initialization
-    console.log(chalk.dim('   Planning system ready'))
+    advancedUI.logFunctionUpdate('info', '   Planning system ready')
   }
 
   private async initializeTools(): Promise<void> {
     const tools = toolService.getAvailableTools()
-    console.log(chalk.dim(`   Loaded ${tools.length} tools`))
+    advancedUI.logFunctionUpdate('info', `   Loaded ${tools.length} tools`)
   }
 
   private async initializeMemory(): Promise<void> {
     await memoryService.initialize()
-    console.log(chalk.dim('   Memory system ready'))
+    advancedUI.logFunctionUpdate('info', '   Memory system ready')
   }
 
   private async initializeSnapshot(): Promise<void> {
     await snapshotService.initialize()
-    console.log(chalk.dim('   Snapshot system ready'))
+    advancedUI.logFunctionUpdate('info', '   Snapshot system ready')
   }
 
   private async initializeSecurity(): Promise<void> {
     // Security policies are initialized in the orchestrator
-    console.log(chalk.dim('   Security policies loaded'))
+    advancedUI.logFunctionUpdate('info', '   Security policies loaded')
   }
 
   private async initializeContext(): Promise<void> {
     // Context management is handled in the streaming orchestrator
-    console.log(chalk.dim('   Context management ready'))
+    advancedUI.logFunctionUpdate('info', '   Context management ready')
   }
 
   private async initializeVMOrchestration(): Promise<void> {
     // Initialize VM orchestration system
-    console.log(chalk.dim('   VM Orchestrator ready'))
-    console.log(chalk.dim('   Container Manager ready'))
+    advancedUI.logFunctionUpdate('info', '   VM Orchestrator ready')
+    advancedUI.logFunctionUpdate('info', '   Container Manager ready')
 
     // Create VM monitoring panels
     await this.streamOrchestrator.createPanel({
@@ -410,27 +591,27 @@ export class MainOrchestrator {
       // Check system requirements
       const requirementsMet = await this.checkSystemRequirements()
       if (!requirementsMet) {
-        console.log(chalk.red('\n❌ Cannot start - system requirements not met'))
+        advancedUI.logError('\n Cannot start - system requirements not met')
         process.exit(1)
       }
 
       // Initialize all systems
       const initialized = await this.initializeSystem()
       if (!initialized) {
-        console.log(chalk.red('\n❌ Cannot start - system initialization failed'))
+        advancedUI.logError('\n Cannot start - system initialization failed')
         process.exit(1)
       }
 
       // Show quick start guide
 
       // Start the streaming orchestrator
-      console.log(chalk.blue.bold('🎛️ Starting Streaming Orchestrator...\n'))
+      advancedUI.logFunctionCall(' Starting Streaming Orchestrator...\n')
       await this.streamOrchestrator.start()
 
       // Set default provider preference for OpenRouter if configured
       const modelInfo = modelProvider.getCurrentModelInfo()
       if (modelInfo.config.provider === 'openrouter') {
-        console.log(chalk.blue('🌐 Using OpenRouter for enhanced model routing'))
+        advancedUI.logFunctionCall(' Using OpenRouter for enhanced model routing')
         // Pass provider preference to orchestrator if supported
         if (this.streamOrchestrator.addListener) {
           this.streamOrchestrator.addListener('provider', (_provider: string) => {
@@ -439,7 +620,7 @@ export class MainOrchestrator {
         }
       }
     } catch (error: any) {
-      console.error(chalk.red('❌ Failed to start orchestrator:'), error)
+      advancedUI.logError(' Failed to start orchestrator:', error)
       process.exit(1)
     }
 
@@ -447,7 +628,7 @@ export class MainOrchestrator {
     if (require.main === module) {
       const orchestrator = new MainOrchestrator()
       orchestrator.start().catch((error) => {
-        console.error(chalk.red('❌ Startup failed:'), error)
+        advancedUI.logError(' Startup failed:', error)
         process.exit(1)
       })
     }

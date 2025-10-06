@@ -1,0 +1,90 @@
+graph TB
+    subgraph "User Interface Layer"
+        CLI[CLI Interface<br/>Command Parser]
+        UI[Advanced UI System<br/>Panel Manager]
+        STREAM[Streaming Interface<br/>Real-time Updates]
+    end
+    
+    subgraph "Orchestration Layer"
+        MO[Main Orchestrator<br/>Service Coordination]
+        SO[Streaming Orchestrator<br/>Multi-panel Display]
+        CO[Cognitive Orchestrator<br/>AI Decision Making]
+        VM[VM Orchestrator<br/>Container Management]
+    end
+    
+    subgraph "AI Service Layer"
+        MP[Model Provider<br/>Multi-Provider Support]
+        AS[Agent Service<br/>Agent Lifecycle]
+        PS[Planning Service<br/>Task Planning]
+        CRA[Cognitive Route Analyzer<br/>Intelligent Routing]
+    end
+    
+    subgraph "Core Services Layer"
+        TS[Tool Service<br/>Tool Integration]
+        MS[Memory Service<br/>Context Storage]
+        CS[Context Service<br/>Context Extraction]
+        SS[Snapshot Service<br/>State Management]
+        LSS[LSP Service<br/>Language Support]
+    end
+    
+    subgraph "Integration Layer"
+        GS[Git Service<br/>Version Control]
+        PS2[Package Service<br/>Dependency Management]
+        DS[Docker Service<br/>Container Orchestration]
+        FS[File Service<br/>File Operations]
+    end
+    
+    subgraph "Data Layer"
+        DB[(Database<br/>PostgreSQL/MongoDB)]
+        CACHE[(Cache<br/>Redis)]
+        VECTOR[(Vector Store<br/>ChromaDB)]
+        FILE[(File System<br/>Local/Cloud)]
+    end
+    
+    CLI --> MO
+    UI --> MO
+    STREAM --> SO
+    MO --> SO
+    MO --> CO
+    MO --> VM
+    
+    CO --> MP
+    CO --> AS
+    CO --> PS
+    CO --> CRA
+    
+    AS --> TS
+    AS --> MS
+    AS --> CS
+    AS --> SS
+    
+    TS --> LSS
+    TS --> GS
+    TS --> PS2
+    TS --> DS
+    TS --> FS
+    
+    MS --> CACHE
+    CS --> VECTOR
+    SS --> DB
+    FS --> FILE
+    
+    PS --> CACHE
+    CRA --> VECTOR
+    
+    style CLI fill:#ooooo
+    style UI fill:#ooooo
+    style STREAM fill:#ooooo
+    style MO fill:#ooooo
+    style SO fill:#ooooo
+    style CO fill:#ooooo
+    style VM fill:#ooooo
+    style MP fill:#ooooo
+    style AS fill:#oooo
+    style PS fill:#ooooo
+    style CRA fill:#ooooo
+    style TS fill:#ooooo
+    style MS fill:#ooooo
+    style CS fill:#ooooo
+    style SS fill:#ooooo
+    style LSS fill:#ooooo

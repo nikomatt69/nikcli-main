@@ -3,6 +3,7 @@ import * as path from 'node:path'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import * as diff from 'diff'
+import { advancedUI } from './advanced-cli-ui'
 
 export interface FileDiff {
   filePath: string
@@ -29,16 +30,16 @@ export class DiffViewer {
     const { context = 3, showLineNumbers = true, highlightWords = true, compact = false } = options
 
     console.log()
-    console.log(chalk.blue.bold(`📄 File: ${fileDiff.filePath}`))
+    advancedUI.logFunctionCall(chalk.blue.bold(`File: ${fileDiff.filePath}`))
 
     if (fileDiff.isNew) {
-      console.log(chalk.green('✨ New file created'))
+      advancedUI.logFunctionCall(chalk.green('New file created'))
       DiffViewer.showNewFileContent(fileDiff.newContent, showLineNumbers, compact)
       return
     }
 
     if (fileDiff.isDeleted) {
-      console.log(chalk.red('🗑️  File deleted'))
+      advancedUI.logFunctionCall(chalk.red(' File deleted'))
       return
     }
 
@@ -49,7 +50,7 @@ export class DiffViewer {
     const diffResult = diff.diffLines(fileDiff.originalContent, fileDiff.newContent)
 
     if (diffResult.length === 1 && !diffResult[0].added && !diffResult[0].removed) {
-      console.log(chalk.gray('   No changes'))
+      advancedUI.logFunctionUpdate('info', chalk.gray('   No changes'))
       return
     }
 
@@ -58,11 +59,11 @@ export class DiffViewer {
     const deletions = diffResult.filter((p) => p.removed).reduce((a, p) => a + p.count!, 0)
     const header = boxen(
       `${chalk.bold('Update')}(${chalk.cyan(fileDiff.filePath)})\n` +
-        `${chalk.gray('Updated')} ${chalk.cyan(fileDiff.filePath)} ${chalk.gray('with')} ` +
-        `${chalk.green(`${additions} addition${additions === 1 ? '' : 's'}`)} ${chalk.gray('and')} ${chalk.red(`${deletions} removal${deletions === 1 ? '' : 's'}`)}`,
+      `${chalk.gray('Updated')} ${chalk.cyan(fileDiff.filePath)} ${chalk.gray('with')} ` +
+      `${chalk.green(`${additions} addition${additions === 1 ? '' : 's'}`)} ${chalk.gray('and')} ${chalk.red(`${deletions} removal${deletions === 1 ? '' : 's'}`)}`,
       { padding: 1, borderStyle: 'round', borderColor: 'yellow' }
     )
-    console.log(header)
+    advancedUI.logFunctionUpdate('info', header)
     console.log(chalk.gray('─'.repeat(80)))
 
     let addedLines = 0
@@ -81,7 +82,7 @@ export class DiffViewer {
       )
 
       for (const h of patch.hunks) {
-        console.log(chalk.cyan(`@@ -${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@`))
+        advancedUI.logFunctionUpdate('info', chalk.cyan(`@@ -${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@`))
 
         let oldNo = h.oldStart
         let newNo = h.newStart
@@ -90,18 +91,18 @@ export class DiffViewer {
           const text = raw.slice(1)
           if (sign === ' ') {
             const num = showLineNumbers ? `${chalk.gray(String(oldNo).padStart(5))} ` : ''
-            console.log(`${num}${chalk.gray(`  ${text}`)}`)
+            advancedUI.logFunctionUpdate('info', `${num}${chalk.gray(`  ${text}`)}`)
             oldNo++
             newNo++
           } else if (sign === '-') {
             removedLines++
             const num = showLineNumbers ? `${chalk.red(String(oldNo).padStart(5))} ` : ''
-            console.log(`${num}${chalk.bgRed.white(`- ${text}`)}`)
+            advancedUI.logFunctionUpdate('info', `${num}${chalk.bgRed.white(`- ${text}`)}`)
             oldNo++
           } else if (sign === '+') {
             addedLines++
             const num = showLineNumbers ? `${chalk.green(String(newNo).padStart(5))} ` : ''
-            console.log(`${num}${chalk.bgGreen.black(`+ ${text}`)}`)
+            advancedUI.logFunctionUpdate('info', `${num}${chalk.bgGreen.black(`+ ${text}`)}`)
             newNo++
           } else if (sign === '?') {
             // Inline change markers - keep subtle
@@ -122,26 +123,26 @@ export class DiffViewer {
           addedLines += lines.length
           lines.forEach((line) => {
             const lineNum = showLineNumbers ? chalk.green(`+${lineNumber.toString().padStart(4)} `) : ''
-            console.log(`${lineNum}${chalk.green(`+ ${line}`)}`)
+            advancedUI.logFunctionUpdate('info', `${lineNum}${chalk.green(`+ ${line}`)}`)
             lineNumber++
           })
         } else if (part.removed) {
           removedLines += lines.length
           lines.forEach((line) => {
             const lineNum = showLineNumbers ? chalk.red(`-${lineNumber.toString().padStart(4)} `) : ''
-            console.log(`${lineNum}${chalk.red(`- ${line}`)}`)
+            advancedUI.logFunctionUpdate('info', `${lineNum}${chalk.red(`- ${line}`)}`)
           })
         } else {
           lines.forEach((line) => {
             const lineNum = showLineNumbers ? chalk.gray(` ${lineNumber.toString().padStart(4)} `) : ''
-            console.log(`${lineNum}${chalk.gray(`  ${line}`)}`)
+            advancedUI.logFunctionUpdate('info', `${lineNum}${chalk.gray(`  ${line}`)}`)
             lineNumber++
           })
         }
       })
     }
 
-    console.log(chalk.gray('─'.repeat(80)))
+    advancedUI.logFunctionUpdate('info', chalk.gray('─'.repeat(80)))
     console.log(
       boxen(
         `${chalk.green(`+${addedLines} additions`)} ${chalk.gray('|')} ${chalk.red(`-${removedLines} deletions`)}`,
@@ -154,7 +155,7 @@ export class DiffViewer {
    * Show multiple file diffs in a summary view
    */
   static showMultiFileDiff(fileDiffs: FileDiff[], options: DiffOptions = {}): void {
-    console.log(chalk.blue.bold(`\n📁 File Changes Summary (${fileDiffs.length} files)`))
+    advancedUI.logFunctionUpdate('info', chalk.blue.bold(`\n📁 File Changes Summary (${fileDiffs.length} files)`))
     console.log(chalk.gray('═'.repeat(80)))
 
     const summary = {
@@ -163,16 +164,16 @@ export class DiffViewer {
       deleted: fileDiffs.filter((f) => f.isDeleted).length,
     }
 
-    if (summary.created > 0) console.log(chalk.green(`✨ ${summary.created} files created`))
-    if (summary.modified > 0) console.log(chalk.yellow(`📝 ${summary.modified} files modified`))
-    if (summary.deleted > 0) console.log(chalk.red(`🗑️  ${summary.deleted} files deleted`))
+    if (summary.created > 0) advancedUI.logFunctionUpdate('info', chalk.green(`✨ ${summary.created} files created`))
+    if (summary.modified > 0) advancedUI.logFunctionUpdate('info', chalk.yellow(`📝 ${summary.modified} files modified`))
+    if (summary.deleted > 0) advancedUI.logFunctionUpdate('info', chalk.red(`🗑️  ${summary.deleted} files deleted`))
 
     console.log()
 
     fileDiffs.forEach((fileDiff) => {
       const status = fileDiff.isNew ? chalk.green('NEW') : fileDiff.isDeleted ? chalk.red('DEL') : chalk.yellow('MOD')
 
-      console.log(`${status} ${fileDiff.filePath}`)
+      advancedUI.logFunctionUpdate('info', `${status} ${fileDiff.filePath}`)
 
       if (!options.compact) {
         DiffViewer.showFileDiff(fileDiff, { ...options, compact: true })
@@ -187,20 +188,20 @@ export class DiffViewer {
     const lines = content.split('\n')
 
     if (compact && lines.length > 10) {
-      console.log(chalk.green('✨ New file created'))
-      console.log(chalk.gray(`   ${lines.length} lines`))
-      console.log(chalk.gray('   First 5 lines:'))
+      advancedUI.logFunctionUpdate('info', chalk.green('✨ New file created'))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`   ${lines.length} lines`))
+      advancedUI.logFunctionUpdate('info', chalk.gray('   First 5 lines:'))
       lines.slice(0, 5).forEach((line, index) => {
         const lineNum = showLineNumbers ? chalk.green(`+${(index + 1).toString().padStart(4)} `) : ''
-        console.log(`${lineNum}${chalk.green(`+ ${line}`)}`)
+        advancedUI.logFunctionUpdate('info', `${lineNum}${chalk.green(`+ ${line}`)}`)
       })
       if (lines.length > 5) {
-        console.log(chalk.gray(`   ... ${lines.length - 5} more lines`))
+        advancedUI.logFunctionUpdate('info', chalk.gray(`   ... ${lines.length - 5} more lines`))
       }
     } else {
       lines.forEach((line, index) => {
         const lineNum = showLineNumbers ? chalk.green(`+${(index + 1).toString().padStart(4)} `) : ''
-        console.log(`${lineNum}${chalk.green(`+ ${line}`)}`)
+        advancedUI.logFunctionUpdate('info', `${lineNum}${chalk.green(`+ ${line}`)}`)
       })
     }
   }
@@ -256,11 +257,11 @@ export class DiffViewer {
    * Interactive diff approval
    */
   static async showDiffAndAskApproval(fileDiffs: FileDiff[]): Promise<boolean> {
-    console.log(chalk.yellow.bold('\n⚠️  The following files will be modified:'))
+    advancedUI.logFunctionUpdate('info', chalk.yellow.bold('\n The following files will be modified:'))
 
     DiffViewer.showMultiFileDiff(fileDiffs, { compact: true })
 
-    console.log(chalk.yellow('\n📋 Review the changes above carefully.'))
+    advancedUI.logFunctionUpdate('info', chalk.yellow('\n Review the changes above carefully.'))
 
     return new Promise((resolve) => {
       const readline = require('readline')
@@ -293,7 +294,7 @@ export class DiffViewer {
       }
     })
 
-    console.log(result)
+    advancedUI.logFunctionUpdate('info', result)
   }
 
   /**
@@ -323,6 +324,6 @@ export class DiffViewer {
     })
 
     await fs.promises.writeFile(outputPath, content, 'utf8')
-    console.log(chalk.green(`📄 Diff report saved to: ${outputPath}`))
+    advancedUI.logFunctionUpdate('info', chalk.green(`📄 Diff report saved to: ${outputPath}`))
   }
 }

@@ -81,6 +81,7 @@ import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
 import { diffManager } from './ui/diff-manager'
 import { Logger as UtilsLogger } from './utils/logger'
+import { advancedUI } from './ui/advanced-cli-ui'
 
 // Global declarations for vision/image providers
 declare global {
@@ -123,7 +124,7 @@ class BannerAnimator {
   private static frames: string[] = []
   private static readonly palettes: [string, string][] = [
     // Blue → White progression
-    ['#0ea5e9', '#ffffff'],
+    ['#0ea5e9', '#1e3a8a'],
     ['#38bdf8', '#e0f2fe'],
     ['#60a5fa', '#bfdbfe'],
     ['#3b82f6', '#93c5fd'],
@@ -818,6 +819,30 @@ class OnboardingModule {
 
   private static async setupAuthentication(): Promise<void> {
     const header = chalk.cyanBright('🔐 Authentication Setup')
+
+    // Check if already logged in
+    try {
+      const savedAuth = configManager.get('auth') as any
+      if (savedAuth?.email && savedAuth?.token) {
+        const alreadyLoggedBox = boxen(
+          chalk.green(`✓ Already logged in as ${savedAuth.email}\n`) +
+          chalk.gray('Using saved credentials.'),
+          {
+            padding: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+            backgroundColor: '#001a00',
+            title: 'Authenticated',
+          }
+        )
+        OnboardingModule.renderSection([header, alreadyLoggedBox])
+        await OnboardingModule.pause()
+        return
+      }
+    } catch (_) {
+      // No saved credentials, continue
+    }
+
     const introBox = boxen(
       chalk.white('Sign in to sync progress across devices and unlock collaborative features.\n') +
       chalk.gray('You can always connect later with the /auth command.'),
@@ -911,10 +936,64 @@ class OnboardingModule {
     }
   }
 
+  private static async readPassword(prompt: string): Promise<string> {
+    return new Promise((resolve) => {
+      const stdin = process.stdin
+      const stdout = process.stdout
+
+      stdout.write(prompt)
+
+      let password = ''
+      const wasRaw = stdin.isRaw
+
+      stdin.setRawMode(true)
+      stdin.resume()
+      stdin.setEncoding('utf8')
+
+      const onData = (char: string) => {
+        char = char.toString()
+
+        switch (char) {
+          case '\n':
+          case '\r':
+          case '\u0004': // Ctrl+D
+            stdout.write('\n')
+            stdin.setRawMode(wasRaw)
+            stdin.pause()
+            stdin.removeListener('data', onData)
+            resolve(password)
+            break
+          case '\u0003': // Ctrl+C
+            stdout.write('\n')
+            stdin.setRawMode(wasRaw)
+            stdin.pause()
+            stdin.removeListener('data', onData)
+            process.exit(130)
+            break
+          case '\u007f': // Backspace
+          case '\b':
+            if (password.length > 0) {
+              password = password.slice(0, -1)
+              stdout.write('\b \b')
+            }
+            break
+          default:
+            if (char.charCodeAt(0) >= 32) { // Printable characters
+              password += char
+              stdout.write('\b \b*') // Cancella il carattere e mostra solo *
+            }
+            break
+        }
+      }
+
+      stdin.on('data', onData)
+    })
+  }
+
   private static async handleSignIn(rl: readline.Interface, header: string): Promise<void> {
     try {
       const email = await new Promise<string>((resolve) => rl.question('Email: ', resolve))
-      const password = await new Promise<string>((resolve) => rl.question('Password: ', resolve))
+      const password = await OnboardingModule.readPassword('Password: ')
 
       if (!email || !password) {
         return
@@ -938,10 +1017,23 @@ class OnboardingModule {
       })
 
       if (result) {
+        // Save credentials to config
+        try {
+          configManager.set('auth', {
+            email: result.profile.email || email,
+            token: result.session.accessToken,
+            lastLogin: new Date().toISOString()
+          })
+        } catch (_e) {
+          // Silent failure
+        }
+
         const successBox = boxen(
           chalk.green(`✓ Welcome back, ${result.profile.email || result.profile.username}!`) +
           '\n' +
-          chalk.gray(`Subscription: ${result.profile.subscription_tier}`),
+          chalk.gray(`Subscription: ${result.profile.subscription_tier}`) +
+          '\n' +
+          chalk.dim('Credentials saved - you won\'t need to login again.'),
           {
             padding: 1,
             borderStyle: 'round',
@@ -1000,7 +1092,7 @@ class OnboardingModule {
   private static async handleSignUp(rl: readline.Interface, header: string): Promise<void> {
     try {
       const email = await new Promise<string>((resolve) => rl.question('Email: ', resolve))
-      const password = await new Promise<string>((resolve) => rl.question('Password: ', resolve))
+      const password = await OnboardingModule.readPassword('Password: ')
       const username = await new Promise<string>((resolve) => rl.question('Username (optional): ', resolve))
 
       if (!email || !password) {
@@ -1025,12 +1117,25 @@ class OnboardingModule {
       })
 
       if (result) {
+        // Save credentials to config
+        try {
+          configManager.set('auth', {
+            email: result.profile.email || email,
+            token: result.session.accessToken,
+            lastLogin: new Date().toISOString()
+          })
+        } catch (_e) {
+          // Silent failure
+        }
+
         const successBox = boxen(
           chalk.green('✓ Account created successfully!') +
           '\n' +
           chalk.gray(`Welcome, ${result.profile.email}!`) +
           '\n' +
-          chalk.dim('Check your email for verification if required.'),
+          chalk.dim('Check your email for verification if required.') +
+          '\n' +
+          chalk.dim('Credentials saved - you won\'t need to login again.'),
           {
             padding: 1,
             borderStyle: 'round',
@@ -1710,14 +1815,14 @@ class StreamingModule extends EventEmitter {
   }
 
   private gracefulExit(): void {
-    console.log(chalk.blue('\n👋 Shutting down orchestrator...'))
+    advancedUI.logWarning('\nShutting down orchestrator...')
 
     if (this.activeAgents.size > 0) {
-      console.log(chalk.yellow(`⏳ Waiting for ${this.activeAgents.size} agents to finish...`))
+      advancedUI.logWarning(`⏳ Waiting for ${this.activeAgents.size} agents to finish...`)
     }
 
     this.cleanup()
-    console.log(chalk.green('✓ Goodbye!'))
+    advancedUI.logSuccess('✓ Goodbye!')
     process.exit(0)
   }
 
@@ -1748,11 +1853,11 @@ class MainOrchestrator {
   private setupGlobalHandlers(): void {
     // Global error handler
     process.on('unhandledRejection', (reason, promise) => {
-      console.error(chalk.red('❌ Unhandled Rejection:'), reason)
+      advancedUI.logError('❌ Unhandled Rejection: ' + reason)
     })
 
     process.on('uncaughtException', (error) => {
-      console.error(chalk.red('❌ Uncaught Exception:'), error)
+      advancedUI.logError('❌ Uncaught Exception: ' + error)
       this.gracefulShutdown()
     })
 
@@ -1762,7 +1867,7 @@ class MainOrchestrator {
   }
 
   private async gracefulShutdown(): Promise<void> {
-    console.log(chalk.yellow('\n🛑 Shutting down orchestrator...'))
+    advancedUI.logWarning('\nShutting down orchestrator...')
 
     try {
       // Stop autonomous interface if running (not used in unified NikCLI entrypoint)
@@ -1773,9 +1878,9 @@ class MainOrchestrator {
         // Streaming module handles its own cleanup
       }
 
-      console.log(chalk.green('✓ Orchestrator shut down cleanly'))
+      advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
-      console.error(chalk.red('❌ Error during shutdown:'), error)
+      advancedUI.logError('❌ Error during shutdown: ' + error)
     } finally {
       process.exit(0)
     }
@@ -1790,14 +1895,14 @@ class MainOrchestrator {
       // Run onboarding flow
       const onboardingComplete = await OnboardingModule.runOnboarding()
       if (!onboardingComplete) {
-        console.log(chalk.yellow('\n⚠️ Onboarding incomplete. Please address the issues above.'))
+        advancedUI.logWarning('\nOnboarding incomplete. Please address the issues above.')
         process.exit(1)
       }
 
       // Initialize all systems
       const initialized = await ServiceModule.initializeSystem()
       if (!initialized) {
-        console.log(chalk.red('\n❌ Cannot start - system initialization failed'))
+        advancedUI.logError('\nCannot start - system initialization failed')
         process.exit(1)
       }
 
@@ -1810,7 +1915,7 @@ class MainOrchestrator {
         if (profile?.subscription_tier === 'pro') {
           const loaded = await subscriptionService.loadProApiKey()
           if (loaded) {
-            console.log(chalk.green('✓ Pro API key loaded from subscription'))
+            advancedUI.logSuccess('✓ Pro API key loaded from subscription')
           }
         }
       } catch (error) {

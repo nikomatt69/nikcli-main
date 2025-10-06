@@ -11,6 +11,7 @@ import { ToolRegistry } from '../tools/tool-registry'
 
 // 🧠 Import Cognitive Route Analyzer
 import { createCognitiveRouteAnalyzer, type CognitiveAnalysisResult } from './cognitive-route-analyzer'
+import { search } from '../context/rag-system'
 
 // 🔧 Enhanced Tool Routing Schemas
 const ToolSecurityLevel = z.enum(['safe', 'moderate', 'risky', 'dangerous'])
@@ -84,8 +85,12 @@ export class ToolRouter extends EventEmitter {
     {
       tool: 'web_search',
       keywords: [
+        'online',
+        'web',
+
+        'search engine',
         'search',
-        'find',
+
         'information',
         'documentation',
         'stackoverflow',
@@ -104,6 +109,36 @@ export class ToolRouter extends EventEmitter {
       description: 'Search for updated web information',
       examples: ['search React 18 features', 'find TypeScript tutorial', 'information about Next.js 15'],
     },
+    {
+      tool: 'grep',
+      keywords: [
+        'grep',
+        'search',
+        'find',
+        'information',
+        'documentation',
+        'stackoverflow',
+        'github',
+        'medium',
+        'blog',
+        'tutorial',
+        'guide',
+        'how to',
+        'best practice',
+        'update',
+        'news',
+        'version',
+
+        'information',
+        'documentation',
+        'how to',
+        'best practice',
+      ],
+      priority: 7,
+      description: 'Search for updated information',
+      examples: ['grep for TODO', 'find information about React', 'grep for information about Next.js'],
+    },
+
 
     // IDE Context Tools
     {
@@ -136,6 +171,39 @@ export class ToolRouter extends EventEmitter {
         'similar',
         'same',
         'pattern',
+        'search',
+        'find',
+        'information',
+        'documentation',
+        'stackoverflow',
+        'github',
+        'medium',
+        'blog',
+        'tutorial',
+        'guide',
+        'how to',
+        'best practice',
+        'update',
+        'news',
+        'version',
+        'similar',
+        'same',
+        'pattern',
+        'search',
+        'find',
+        'information',
+        'documentation',
+        'stackoverflow',
+        'github',
+        'medium',
+        'blog',
+        'tutorial',
+        'guide',
+        'how to',
+        'best practice',
+        'update',
+        'news',
+        'version',
         'model',
         'example',
         'like this',
@@ -144,7 +212,7 @@ export class ToolRouter extends EventEmitter {
         'similar component',
         'implementation',
       ],
-      priority: 9,
+      priority: 5,
       description: 'Semantic search in codebase',
       examples: ['find files similar to this', 'search similar implementations', 'similar patterns in code'],
     },
@@ -281,14 +349,14 @@ export class ToolRouter extends EventEmitter {
     },
     {
       tool: 'replace_in_file',
-      keywords: ['replace', 'regex', 'pattern', 'in-file', 'substitute'],
+      keywords: ['replace', 'regex', 'pattern', 'in-file', 'substitute', 'edit', 'modify', 'change', 'update'],
       priority: 6,
       description: 'Replace content in files with validation and backup',
       examples: ['replace API_URL in .env', 'regex replace across file'],
     },
     {
       tool: 'multi_edit',
-      keywords: ['multi', 'batch', 'atomic', 'transaction', 'multiple files'],
+      keywords: ['multi', 'batch', 'atomic', 'transaction', 'multiple files', 'parallel'],
       priority: 5,
       description: 'Apply multiple edits atomically',
       examples: ['batch replace across files', 'atomic patch multiple files'],
@@ -540,7 +608,7 @@ export class ToolRouter extends EventEmitter {
 
     {
       tool: 'tree_tool',
-      keywords: ['tree', 'directory structure', 'folder tree', 'hierarchical view', 'file tree'],
+      keywords: ['tree', 'directory structure', 'folder tree', 'hierarchical view', 'file tree', 'structure', 'architecture'],
       priority: 5,
       description: 'Display directory structure as tree',
       examples: ['show directory tree', 'tree view of project', 'hierarchical structure'],
@@ -565,7 +633,7 @@ export class ToolRouter extends EventEmitter {
     // Todo and Task Management
     {
       tool: 'todo_management',
-      keywords: ['todo', 'task', 'checklist', 'reminder', 'action items', 'todos', 'tasks'],
+      keywords: ['todo', 'task', 'checklist', 'reminder', 'action items', 'todos', 'tasks', 'plan', 'step', 'steps', 'planner', 'planner todo', 'planner task', 'planner checklist', 'planner reminder', 'planner action items', 'planner todos', 'planner tasks'],
       priority: 5,
       description: 'Manage todos and tasks',
       examples: ['add todo', 'list tasks', 'complete todo'],

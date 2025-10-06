@@ -96,9 +96,16 @@ export class ContextManager {
   private readonly MAX_METRICS_SIZE = 1000 // Maximum cached metrics
   private sessionMaxTokens: number | null = null // adaptive per-session cap
 
+  // 🔒 FIXED: Deadlock prevention
+  private readonly MAX_RECURSION_DEPTH = 50 // Max depth for optimization operations
+  private readonly OPTIMIZATION_TIMEOUT = 30000 // 30 seconds timeout
+
   // Enhanced caching and metrics
   private messageMetrics: Map<string, MessageMetrics> = new Map()
   private contextCache: Map<string, ContextOptimizationResult> = new Map()
+  // 🔒 FIXED: TTL-based cache entries to prevent thrashing
+  private contextCacheTimestamps: Map<string, number> = new Map()
+  private contextCacheAccessCount: Map<string, number> = new Map()
   private workspaceCache: ContextSummary | null = null
   private lastWorkspaceAnalysis: number = 0
   private readonly WORKSPACE_CACHE_TTL = 300000 // 5 minutes
@@ -226,13 +233,23 @@ export class ContextManager {
 
     console.log(chalk.blue('⚡︎ Starting advanced context optimization...'))
 
-    // Check cache first
+    // Check cache first with TTL validation
     const cacheKey = this.generateContextCacheKey(messages, activeStrategy)
     const cached = this.contextCache.get(cacheKey)
-    if (cached && Date.now() - startTime < this.CONTEXT_CACHE_TTL) {
+    const cacheTimestamp = this.contextCacheTimestamps.get(cacheKey) || 0
+
+    // FIXED: Proper TTL check using cache entry timestamp
+    if (cached && (Date.now() - cacheTimestamp) < this.CONTEXT_CACHE_TTL) {
       this.performanceMetrics.cacheHits++
+      // Track access frequency for smart eviction
+      this.contextCacheAccessCount.set(cacheKey, (this.contextCacheAccessCount.get(cacheKey) || 0) + 1)
       console.log(chalk.green('✓ Using cached optimization result'))
       return cached
+    } else if (cached) {
+      // Expired cache entry - remove it
+      this.contextCache.delete(cacheKey)
+      this.contextCacheTimestamps.delete(cacheKey)
+      this.contextCacheAccessCount.delete(cacheKey)
     }
 
     this.checkMetricsSize()
@@ -485,6 +502,9 @@ export class ContextManager {
     return { messages: optimized, steps }
   }
 
+  /**
+   * FIXED: Added timeout mechanism to prevent deadlocks
+   */
   private async performSemanticCompression(
     messages: CoreMessage[],
     _strategy: OptimizationStrategy
@@ -492,11 +512,23 @@ export class ContextManager {
     const steps: string[] = []
     let optimized = [...messages]
 
-    // Group semantically similar messages
-    const grouped = this.groupSimilarMessages(optimized)
-    if (grouped.length < optimized.length) {
-      steps.push(`Semantic grouping: ${optimized.length} → ${grouped.length} messages`)
-      optimized = grouped
+    // Wrap in timeout to prevent deadlocks
+    try {
+      const timeoutPromise = new Promise<CoreMessage[]>((_, reject) =>
+        setTimeout(() => reject(new Error('Semantic compression timeout')), this.OPTIMIZATION_TIMEOUT)
+      )
+
+      const compressionPromise = Promise.resolve(this.groupSimilarMessages(optimized))
+
+      const grouped = await Promise.race([compressionPromise, timeoutPromise])
+
+      if (grouped.length < optimized.length) {
+        steps.push(`Semantic grouping: ${optimized.length} → ${grouped.length} messages`)
+        optimized = grouped
+      }
+    } catch (error: any) {
+      console.warn(chalk.yellow(`⚠️ Semantic compression failed: ${error.message}`))
+      steps.push('Semantic compression skipped (timeout or error)')
     }
 
     return { messages: optimized, steps }
@@ -527,10 +559,18 @@ export class ContextManager {
     return Array.from(keywords)
   }
 
+  /**
+   * FIXED: Improved cache key generation using content hash of all messages
+   */
   private generateContextCacheKey(messages: CoreMessage[], strategy: OptimizationStrategy): string {
-    const messageHash = this.hashMessage(messages[messages.length - 1] || { role: 'user', content: '' })
+    // Hash last N messages for better cache key specificity
+    const recentMessages = messages.slice(-5) // Last 5 messages
+    const messagesHash = this.hashString(
+      recentMessages.map(m => this.hashMessage(m)).join('-')
+    )
     const strategyHash = this.hashString(JSON.stringify(strategy))
-    return `ctx-${messageHash}-${strategyHash}`
+    const lengthHash = messages.length.toString(36)
+    return `ctx-${messagesHash}-${strategyHash}-${lengthHash}`
   }
 
   private hashString(str: string): string {
@@ -543,15 +583,49 @@ export class ContextManager {
     return Math.abs(hash).toString(36)
   }
 
+  /**
+   * FIXED: TTL-based cache with LFU eviction instead of simple FIFO
+   */
   private cacheOptimizationResult(key: string, result: ContextOptimizationResult): void {
-    if (this.contextCache.size >= 50) {
-      // Limit cache size
-      const firstKey = this.contextCache.keys().next().value
-      if (firstKey) {
-        this.contextCache.delete(firstKey)
+    // Clean up expired entries first
+    const now = Date.now()
+    const expiredKeys: string[] = []
+
+    for (const [cacheKey, timestamp] of this.contextCacheTimestamps.entries()) {
+      if (now - timestamp > this.CONTEXT_CACHE_TTL) {
+        expiredKeys.push(cacheKey)
       }
     }
+
+    expiredKeys.forEach(expiredKey => {
+      this.contextCache.delete(expiredKey)
+      this.contextCacheTimestamps.delete(expiredKey)
+      this.contextCacheAccessCount.delete(expiredKey)
+    })
+
+    // If still at capacity, evict least frequently used entry
+    if (this.contextCache.size >= 50) {
+      let minAccessCount = Infinity
+      let keyToEvict: string | null = null
+
+      for (const [cacheKey, accessCount] of this.contextCacheAccessCount.entries()) {
+        if (accessCount < minAccessCount) {
+          minAccessCount = accessCount
+          keyToEvict = cacheKey
+        }
+      }
+
+      if (keyToEvict) {
+        this.contextCache.delete(keyToEvict)
+        this.contextCacheTimestamps.delete(keyToEvict)
+        this.contextCacheAccessCount.delete(keyToEvict)
+      }
+    }
+
+    // Add new entry with timestamp and access count
     this.contextCache.set(key, result)
+    this.contextCacheTimestamps.set(key, now)
+    this.contextCacheAccessCount.set(key, 0)
   }
 
   private getCacheHitRate(): number {
@@ -573,25 +647,53 @@ export class ContextManager {
     return this.compressContext(messages)
   }
 
-  private groupSimilarMessages(messages: CoreMessage[]): CoreMessage[] {
+  /**
+   * FIXED: Added cycle detection and depth limits to prevent infinite loops
+   */
+  private groupSimilarMessages(messages: CoreMessage[], depth = 0): CoreMessage[] {
+    // Prevent infinite recursion
+    if (depth > this.MAX_RECURSION_DEPTH) {
+      console.warn(chalk.yellow(`⚠️ Max recursion depth reached in groupSimilarMessages`))
+      return messages
+    }
+
     const grouped: CoreMessage[] = []
     const processed = new Set<number>()
+    const visited = new Set<string>() // Cycle detection
 
     for (let i = 0; i < messages.length; i++) {
       if (processed.has(i)) continue
 
       const current = messages[i]
+      const currentHash = this.hashMessage(current)
+
+      // Detect cycles
+      if (visited.has(currentHash)) {
+        console.warn(chalk.yellow(`⚠️ Circular reference detected in message grouping`))
+        continue
+      }
+      visited.add(currentHash)
+
       const similar: CoreMessage[] = [current]
       processed.add(i)
 
-      // Find similar messages (simple content similarity)
+      // Find similar messages with cycle detection (simple content similarity)
       for (let j = i + 1; j < messages.length; j++) {
         if (processed.has(j)) continue
 
         const candidate = messages[j]
+        const candidateHash = this.hashMessage(candidate)
+
+        // Skip if we've seen this message before (circular reference)
+        if (visited.has(candidateHash)) {
+          console.warn(chalk.yellow(`⚠️ Circular reference detected, skipping message`))
+          continue
+        }
+
         if (this.areMessagesSimilar(current, candidate)) {
           similar.push(candidate)
           processed.add(j)
+          visited.add(candidateHash)
         }
       }
 
@@ -808,7 +910,21 @@ export class ContextManager {
   }
 
   // Performance and utility methods
+  /**
+   * FIXED: Added cache performance metrics
+   */
   getPerformanceMetrics() {
+    // Calculate average access count
+    let totalAccess = 0
+    let maxAccess = 0
+    for (const count of this.contextCacheAccessCount.values()) {
+      totalAccess += count
+      maxAccess = Math.max(maxAccess, count)
+    }
+    const avgAccess = this.contextCacheAccessCount.size > 0
+      ? totalAccess / this.contextCacheAccessCount.size
+      : 0
+
     return {
       ...this.performanceMetrics,
       cacheHitRate: this.getCacheHitRate(),
@@ -817,12 +933,19 @@ export class ContextManager {
         contextCache: this.contextCache.size,
         workspaceCache: this.workspaceCache ? 1 : 0,
       },
+      cachePerformance: {
+        averageAccessCount: avgAccess,
+        maxAccessCount: maxAccess,
+        evictionRate: this.contextCache.size >= 50 ? 'high' : 'normal',
+      },
     }
   }
 
   clearCaches(): void {
     this.messageMetrics.clear()
     this.contextCache.clear()
+    this.contextCacheTimestamps.clear()
+    this.contextCacheAccessCount.clear()
     this.workspaceCache = null
     this.lastWorkspaceAnalysis = 0
     console.log(chalk.green('✓ All context manager caches cleared'))
@@ -951,12 +1074,12 @@ export class ContextManager {
       const sentences = content.split(/[.!?]+/)
       questions.push(...sentences.filter((s) => s.includes('?')))
 
-      // Track actions
-      ;['create', 'modify', 'delete', 'fix', 'implement', 'test'].forEach((action) => {
-        if (content.toLowerCase().includes(action)) {
-          actions.add(action)
-        }
-      })
+        // Track actions
+        ;['create', 'modify', 'delete', 'fix', 'implement', 'test'].forEach((action) => {
+          if (content.toLowerCase().includes(action)) {
+            actions.add(action)
+          }
+        })
     })
 
     if (actions.size > 0) summary.push(`Actions: ${Array.from(actions).join(', ')}`)

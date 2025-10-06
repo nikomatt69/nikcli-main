@@ -31,11 +31,11 @@ export interface TaskResult {
 }
 
 export class AutonomousOrchestrator extends BaseAgent {
-  id = 'autonomous-orchestrator'
-  capabilities = ['task-orchestration', 'multi-agent-coordination', 'planning', 'execution']
-  specialization = 'Autonomous agent orchestrator that plans and executes complex multi-agent tasks'
-  name = 'autonomous-orchestrator'
-  description = 'Autonomous agent orchestrator that plans and executes complex multi-agent tasks'
+  override id = 'autonomous-orchestrator'
+  override capabilities = ['task-orchestration', 'multi-agent-coordination', 'planning', 'execution']
+  override specialization = 'Autonomous agent orchestrator that plans and executes complex multi-agent tasks'
+  override name = 'autonomous-orchestrator'
+  override description = 'Autonomous agent orchestrator that plans and executes complex multi-agent tasks'
 
   private agentManager: AgentManager
   private runningTasks: Map<string, Promise<TaskResult>> = new Map()
@@ -138,12 +138,12 @@ Consider parallel execution where possible.`,
     return results
   }
 
-  protected async onInitialize(): Promise<void> {
+  protected override async onInitialize(): Promise<void> {
     console.log('Autonomous Orchestrator initialized')
     await this.setupAgentRouter()
   }
 
-  protected async onExecuteTask(task: any): Promise<any> {
+  protected override async onExecuteTask(task: any): Promise<any> {
     const taskData = typeof task === 'string' ? task : task.data
     return await this.planTasks(taskData)
   }
@@ -434,11 +434,11 @@ Consider parallel execution where possible.`,
 
     // Return in execution order: critical -> high -> normal -> low
     const ordered = new Map<string, any[]>()
-    ;['critical', 'high', 'normal', 'low'].forEach((priority) => {
-      if (groups.has(priority)) {
-        ordered.set(priority, groups.get(priority)!)
-      }
-    })
+      ;['critical', 'high', 'normal', 'low'].forEach((priority) => {
+        if (groups.has(priority)) {
+          ordered.set(priority, groups.get(priority)!)
+        }
+      })
 
     return ordered
   }
@@ -464,9 +464,9 @@ Consider parallel execution where possible.`,
           result.status === 'fulfilled'
             ? result.value
             : {
-                success: false,
-                error: result.reason?.message || 'Unknown error',
-              }
+              success: false,
+              error: result.reason?.message || 'Unknown error',
+            }
         )
       )
 
@@ -499,7 +499,7 @@ Consider parallel execution where possible.`,
   /**
    * Enhanced cleanup
    */
-  protected async onStop(): Promise<void> {
+  protected override async onStop(): Promise<void> {
     // Wait for all running tasks to complete
     await Promise.all(this.runningTasks.values())
 

@@ -257,7 +257,7 @@ export class AdaptiveModelRouter {
           failures: metrics.consecutiveFailures,
         })
       )
-      selected = fallbackModel
+      selected = fallbackModel || selected
       reason = `${reason} (fallback due to failures)`
     }
 

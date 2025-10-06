@@ -348,6 +348,14 @@ export class InputQueue {
     }, 50)
   }
 
+  /** Dispose input queue resources and reset state */
+  dispose(): void {
+    this.bypassEnabled = false
+    this.isProcessing = false
+    this.processingPromise = null
+    this.queue = []
+  }
+
   /**
    * Determina se l'input deve essere messo in coda o bypassato
    */

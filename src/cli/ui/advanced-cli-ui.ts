@@ -2041,6 +2041,19 @@ export class AdvancedCliUI {
     this.panels.clear()
   }
 
+  /** Public dispose to unify shutdown semantics */
+  dispose(): void {
+    if (this.renderTimer) {
+      clearTimeout(this.renderTimer)
+      this.renderTimer = null
+    }
+    this.cleanup()
+    this.indicators.clear()
+    this.backgroundAgents.clear()
+    this.liveUpdates = []
+    this.lastPrintedSource = null
+  }
+
   /**
    * Background Agents Management
    */

@@ -68,3 +68,11 @@ export interface ToolResult {
   error?: string
   metadata?: Record<string, any>
 }
+
+// Shared disposable contract for cleanup
+export interface Disposable {
+  dispose(): Promise<void> | void
+}
+
+export const isDisposable = (value: unknown): value is Disposable =>
+  !!value && typeof (value as any).dispose === 'function'

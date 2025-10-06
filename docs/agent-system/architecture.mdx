@@ -6,23 +6,26 @@ icon: "sitemap"
 
 ## Agent System Overview
 
-NikCLI's agent system is the core of its autonomous development capabilities. Built on a **service-oriented architecture**, it provides a sophisticated multi-agent environment where specialized AI agents collaborate to handle complex development tasks.
+NikCLI's agent system is the core of its autonomous development capabilities. Built on a **service-oriented architecture**, it provides two registered AI agents that handle all development tasks through intelligent orchestration and cognitive routing.
 
 <CardGroup cols={2}>
   <Card title="Universal Agent" icon="robot">
-    Comprehensive agent with 35 full-stack development capabilities
+    All-in-one enterprise agent with 44 comprehensive full-stack capabilities
   </Card>
   <Card title="VM Agent" icon="container">
-    Secure virtualized agent with 20 specialized capabilities for isolated
-    development
+    Secure virtualized agent for isolated development with Docker containerization
   </Card>
   <Card title="Agent Orchestration" icon="workflow">
-    Coordinated execution with dependency management
+    Cognitive routing and intelligent task decomposition
   </Card>
   <Card title="Stream Processing" icon="stream">
     Real-time communication and progress tracking
   </Card>
 </CardGroup>
+
+<Note>
+  NikCLI uses **two registered agents** (Universal Agent and VM Agent) rather than multiple specialized agents. The Universal Agent internally handles all specializations (frontend, backend, DevOps, etc.) through cognitive orchestration and intelligent routing.
+</Note>
 
 ## Architectural Principles
 
@@ -388,126 +391,164 @@ class UniversalAgent extends BaseAgent {
 ### VM Agent (Secure Virtualized Agent)
 
 ```typescript
-class SecureVirtualizedAgent extends BaseAgent {
-  specialization = "Virtualized Autonomous Development";
-
-  capabilities = [
-    // VM-specific capabilities (7)
-    "vm-management",
-    "container-orchestration",
-    "isolated-execution",
-    "repository-cloning",
-    "vscode-server",
-    "autonomous-development",
-    "pull-request-automation",
-
-    // Repository management (5)
-    "repository-analysis",
-    "dependency-management",
-    "testing-automation",
-    "documentation-generation",
-    "code-quality-analysis",
-
-    // Security capabilities (5)
-    "secure-api-communication",
-    "token-budget-management",
-    "audit-logging",
-    "resource-isolation",
-    "credential-management",
-
-    // Development workflows (3)
-    "full-stack-development",
-    "ci-cd-integration",
-    "git-operations",
-    "package-management",
-    "environment-setup",
+// From src/cli/virtualized-agents/secure-vm-agent.ts
+export class SecureVirtualizedAgent extends EventEmitter implements Agent {
+  public readonly id: string;
+  public readonly name: string = 'Secure VM Agent';
+  public readonly specialization: string = 'virtualized-autonomous';
+  public readonly version: string = '0.3.0';
+  public readonly maxConcurrentTasks: number = 1;
+  
+  // Default capabilities (configurable at registration)
+  public readonly capabilities: string[] = [
+    // VM-specific capabilities
+    'vm-management',
+    'container-orchestration',
+    'isolated-execution',
+    'repository-cloning',
+    'vscode-server',
+    'autonomous-development',
+    'pull-request-automation',
+    
+    // Repository management
+    'repository-analysis',
+    'dependency-management',
+    'testing-automation',
+    'documentation-generation',
+    'code-quality-analysis',
+    
+    // Security capabilities
+    'secure-api-communication',
+    'token-budget-management',
+    'audit-logging',
+    'resource-isolation',
+    'credential-management',
+    
+    // Development workflows
+    'full-stack-development',
+    'ci-cd-integration',
+    'git-operations',
+    'package-management',
+    'environment-setup',
   ];
 
-  async executeInContainer(task: AgentTask): Promise<ContainerExecution> {
-    // Secure container-based execution
+  // Default token budget: 50,000 tokens per session
+  private tokenBudget: number = 50000;
+
+  async executeTask(task: AgentTask): Promise<AgentTaskResult> {
+    // Create VM container if needed
+    await this.ensureContainer();
+    
+    // Execute in isolated environment with API proxy
+    return await this.executeInContainer(task);
   }
 }
 ```
 
-**20 Specialized Capabilities:**
+**20 Registered Capabilities:**
 
-- **VM Operations** (7): Container management, orchestration, isolation, repository cloning, VS Code server
-- **Repository Management** (5): Analysis, dependency management, testing automation, documentation, quality analysis
-- **Security Features** (5): Secure communication, token management, audit logging, resource isolation
-- **Development Workflows** (3): Full-stack development, CI/CD integration, Git operations
+- **VM Operations** (7): vm-management, container-orchestration, isolated-execution, repository-cloning, vscode-server, autonomous-development, pull-request-automation
+- **Repository Management** (5): repository-analysis, dependency-management, testing-automation, documentation-generation, code-quality-analysis
+- **Security Features** (5): secure-api-communication, token-budget-management, audit-logging, resource-isolation, credential-management
+- **Development Workflows** (3): full-stack-development, ci-cd-integration, git-operations, package-management, environment-setup
 
-## Agent Orchestration
+**Key Differences from Universal Agent:**
+- Runs in isolated Docker containers
+- 50,000 token budget per session (vs unlimited for Universal Agent)
+- Single concurrent task (vs 3 for Universal Agent)
+- API key proxy for zero secret exposure
+- Restricted command execution for security
 
-### Agent Coordination
+## Agent Selection and Execution
 
-NikCLI's orchestration system coordinates between Universal Agent and VM Agent:
+### How Agent Selection Works
+
+NikCLI uses **agent selection** rather than multi-agent coordination. Users choose which agent to use via commands:
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant Orchestrator
-    participant Universal
-    participant VM
+    participant CLI
+    participant SelectedAgent
+    participant AIProvider
+    participant Tools
 
-    User->>Orchestrator: "Create user authentication system"
-    Orchestrator->>Orchestrator: Analyze task & select agents
-
-    par Universal Agent Work
-        Orchestrator->>Universal: Plan and design authentication
-        Universal->>Universal: Create comprehensive solution
-        Universal->>Orchestrator: Implementation completed
-    and VM Agent Work
-        Orchestrator->>VM: Test in isolated environment
-        VM->>VM: Security validation & testing
-        VM->>Orchestrator: Validation completed
-    end
-
-    Orchestrator->>Orchestrator: Integrate results
-    Orchestrator->>User: Secure authentication system completed
+    User->>CLI: "/agent universal-agent create auth system"
+    CLI->>CLI: Parse command and select Universal Agent
+    CLI->>SelectedAgent: Execute task
+    SelectedAgent->>SelectedAgent: Cognitive task analysis
+    SelectedAgent->>AIProvider: Generate solution with tools
+    AIProvider->>Tools: Execute file operations, commands
+    Tools->>AIProvider: Return results
+    AIProvider->>SelectedAgent: Complete implementation
+    SelectedAgent->>User: Authentication system completed
 ```
 
-### Task Decomposition
+**Agent Selection Commands:**
+- `/agent universal-agent "task"` - Use Universal Agent (default for most tasks)
+- `/agent vm-agent "task"` - Use VM Agent (for isolated/secure development)
+- `/auto "task"` - Automatic agent selection based on task requirements
 
-The orchestrator breaks complex tasks into manageable subtasks:
+### Cognitive Task Understanding
+
+The Universal Agent uses cognitive orchestration to understand and decompose complex tasks:
 
 <AccordionGroup>
-  <Accordion title="Automatic Decomposition">
+  <Accordion title="Task Cognition">
     ```typescript
-    async decomposeTask(task: AgentTask): Promise<SubTask[]> {
-      const analysis = await this.analyzeComplexity(task);
-      
-      if (analysis.complexity > COMPLEXITY_THRESHOLD) {
-        return await this.createSubTasks(task, analysis);
-      }
-      
-      return [task]; // Simple task, no decomposition needed
+    // From src/cli/automation/agents/universal-agent.ts
+    async parseTaskCognition(taskDescription: string): Promise<TaskCognition> {
+      return {
+        id: nanoid(),
+        originalTask: taskDescription,
+        normalizedTask: taskDescription.toLowerCase(),
+        intent: {
+          primary: this.extractPrimaryIntent(taskDescription),
+          secondary: [],
+          confidence: 0.9,
+          complexity: 'medium',
+          urgency: 'normal'
+        },
+        entities: await this.extractEntities(taskDescription),
+        dependencies: [],
+        contexts: [],
+        estimatedComplexity: 5,
+        requiredCapabilities: [],
+        suggestedAgents: ['universal'],
+        riskLevel: 'low'
+      };
     }
     ```
   </Accordion>
   
-  <Accordion title="Dependency Resolution">
+  <Accordion title="Orchestration Planning">
     ```typescript
-    interface TaskDependency {
-      taskId: string;
-      dependsOn: string[];
-      canParallelize: boolean;
-      priority: number;
-    }
-    
-    async resolveDependencies(tasks: SubTask[]): Promise<ExecutionOrder> {
-      const dependencyGraph = this.buildDependencyGraph(tasks);
-      return this.topologicalSort(dependencyGraph);
+    async createOrchestrationPlan(cognition: TaskCognition): Promise<OrchestrationPlan> {
+      return {
+        id: nanoid(),
+        strategy: this.selectStrategy(cognition.estimatedComplexity),
+        phases: await this.generatePhases(cognition),
+        estimatedDuration: this.estimateDuration(cognition),
+        resourceRequirements: {
+          agents: 1,
+          tools: this.identifyRequiredTools(cognition),
+          memory: 1024,
+          complexity: cognition.estimatedComplexity
+        },
+        fallbackStrategies: ['retry', 'simplify', 'manual'],
+        monitoringPoints: ['start', 'mid', 'completion']
+      };
     }
     ```
   </Accordion>
   
-  <Accordion title="Resource Allocation">
+  <Accordion title="Execution Strategies">
     ```typescript
-    async allocateResources(tasks: SubTask[]): Promise<ResourceAllocation> {
-      const availableAgents = this.getAvailableAgents();
-      const resourceRequirements = this.calculateRequirements(tasks);
-      
-      return this.optimizeAllocation(availableAgents, resourceRequirements);
+    selectStrategy(complexity: number): 'sequential' | 'parallel' | 'hybrid' | 'adaptive' {
+      if (complexity <= 3) return 'sequential';
+      if (complexity <= 6) return 'parallel';
+      if (complexity <= 8) return 'hybrid';
+      return 'adaptive';
     }
     ```
   </Accordion>
@@ -753,7 +794,7 @@ The agent system includes comprehensive error handling:
 ### Agent Commands
 
 ```bash
-# Use Universal Agent for comprehensive tasks
+# Use Universal Agent for comprehensive tasks (default)
 /agent universal-agent "Create a complete e-commerce platform with React frontend, Node.js backend, and PostgreSQL database"
 
 # Use Universal Agent for full-stack development
@@ -765,11 +806,14 @@ The agent system includes comprehensive error handling:
 # Use Universal Agent for infrastructure
 /agent universal-agent "Set up Kubernetes deployment with auto-scaling and monitoring"
 
-# Use VM Agent for secure development
-/agent vm-agent "Build authentication system in isolated container with automated testing"
+# Use VM Agent for secure/isolated development
+/agent vm-agent "Clone repository and build authentication system in isolated container with automated testing"
 
-# Parallel execution with both agents
-/parallel "universal-agent,vm-agent" "Universal agent builds features, VM agent validates in secure environment"
+# Autonomous mode (auto-selects best agent)
+/auto "Build complete user authentication system with testing"
+
+# Note: Parallel multi-agent execution is NOT supported
+# The Universal Agent handles all specializations internally through cognitive routing
 ```
 
 ### Agent Configuration

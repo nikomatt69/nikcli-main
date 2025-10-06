@@ -281,6 +281,14 @@ export class EventBus extends EventEmitter {
   private generateSubscriberId(): string {
     return `sub_${Date.now()}_${randomBytes(6).toString('base64url')}`
   }
+
+  /** Dispose all subscribers and cleanup */
+  cleanup(): void {
+    this.removeAllListeners()
+    this.subscribers.clear()
+    this.eventHistory = []
+    this.eventMetrics.clear()
+  }
 }
 
 // Event type definitions

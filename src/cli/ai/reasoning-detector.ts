@@ -178,7 +178,7 @@ export class ReasoningDetector {
     }
 
     // Return default if no match found
-    return MODEL_REASONING_CAPABILITIES.default
+    return MODEL_REASONING_CAPABILITIES.default || { supportsReasoning: false, reasoningTokenCost: 1.0 }
   }
 
   /**

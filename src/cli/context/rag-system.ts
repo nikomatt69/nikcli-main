@@ -245,6 +245,8 @@ export class UnifiedRAGSystem {
     reranks: 0,
   }
 
+  private initialized = false
+
   constructor(config?: Partial<UnifiedRAGConfig>) {
     this.config = {
       useVectorDB: true,
@@ -276,7 +278,10 @@ export class UnifiedRAGSystem {
       maxMemorySize: 10 * 1024 * 1024, // 10MB for hashes
     })
 
-    this.initializeClients()
+    // Inizializza in modo sincrono (non-blocking)
+    this.initializeClients().catch(err => {
+      console.error(chalk.yellow('⚠️ RAG initialization warning:', err.message))
+    })
   }
 
   private async initializeClients(): Promise<void> {
@@ -333,8 +338,27 @@ export class UnifiedRAGSystem {
           this.config.useVectorDB = false
         }
       }
+
+      this.initialized = true
     } catch (error: any) {
       console.log(chalk.yellow('⚠️ RAG initialization warning:', error))
+      this.initialized = true // Set true even on error to prevent blocking
+    }
+  }
+
+  /**
+   * Wait for initialization to complete
+   */
+  private async ensureInitialized(): Promise<void> {
+    const maxWait = 10000 // 10 secondi max
+    const startTime = Date.now()
+
+    while (!this.initialized && Date.now() - startTime < maxWait) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+
+    if (!this.initialized) {
+      throw new Error('RAG system initialization timeout')
     }
   }
 
@@ -342,6 +366,8 @@ export class UnifiedRAGSystem {
    * Unified project analysis combining workspace and vector approaches
    */
   async analyzeProject(projectPath: string): Promise<RAGAnalysisResult> {
+    await this.ensureInitialized()
+
     const startTime = Date.now()
     advancedUI.logFunctionCall('unifiedraganalysis')
     advancedUI.logFunctionUpdate('info', 'Starting unified RAG analysis...', 'ℹ')
@@ -415,6 +441,8 @@ export class UnifiedRAGSystem {
       includeAnalysis?: boolean
     }
   ): Promise<RAGSearchResult[]> {
+    await this.ensureInitialized()
+
     const { limit = 10, threshold = 0.3, includeAnalysis = true } = options || {}
 
     try {
@@ -451,6 +479,8 @@ export class UnifiedRAGSystem {
       workingDirectory?: string
     }
   ): Promise<RAGSearchResult[]> {
+    await this.ensureInitialized()
+
     const { limit = 10, includeContent = true, semanticOnly = false } = options || {}
     const startTime = Date.now()
 
@@ -1825,6 +1855,8 @@ export class UnifiedRAGSystem {
       semanticOnly?: boolean
     }
   ): Promise<RAGSearchResult[]> {
+    await this.ensureInitialized()
+
     // Get initial results
     const results = await this.search(query, options)
 

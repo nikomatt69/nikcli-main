@@ -110,7 +110,7 @@ export class PlanExecutor {
         } catch {
           /* ignore */
         }
-        const step = executionOrder[i]
+        const step = executionOrder[i]; if (!step) continue
 
         advancedUI.addLiveUpdate({ type: 'info', content: `Executing: ${step.title}`, source: 'step_execution' })
 

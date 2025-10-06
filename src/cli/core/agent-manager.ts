@@ -17,6 +17,7 @@ import type {
 } from '../types/types'
 import { structuredLogger } from '../utils/structured-logger'
 import type { CliConfig } from './config-manager'
+import { AsyncLock } from '../utils/async-lock'
 
 /**
  * Enterprise Agent Manager
@@ -31,6 +32,7 @@ export class AgentManager extends EventEmitter {
   private config: CliConfig
   private activeTaskCount = 0
   private taskHistory = new Map<string, AgentTaskResult>()
+  private queueLocks = new AsyncLock()
 
   constructor(configManager: SimpleConfigManager, guidanceManager?: GuidanceManager) {
     super()
@@ -443,6 +445,7 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Process task queue for a specific agent
+   * FIXED: Added AsyncLock to prevent race conditions on queue access
    */
   private async processAgentQueue(agentId: string): Promise<void> {
     const agent = this.getAgent(agentId)
@@ -453,15 +456,26 @@ export class AgentManager extends EventEmitter {
     }
 
     while (queue.length > 0 && agent.currentTasks < agent.maxConcurrentTasks) {
-      const task = queue.shift()!
+      // Acquire lock before accessing queue to prevent race conditions
+      const release = await this.queueLocks.acquire(`queue-${agentId}`)
 
       try {
+        // Double-check queue after acquiring lock
+        if (queue.length === 0) {
+          release()
+          break
+        }
+
+        const task = queue.shift()!
+        release() // Release lock immediately after dequeue
+
         await this.executeTask(agentId, task)
       } catch (error: any) {
+        release() // Ensure lock is released on error
         await structuredLogger.error(
           'Queue processing failed',
           JSON.stringify({
-            taskId: task.id,
+            taskId: this.taskQueues.get(agentId)?.[0]?.id,
             agentId: agentId,
             error: error.message,
           })

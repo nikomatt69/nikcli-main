@@ -3,21 +3,21 @@ import { type ChatMessage, modelProvider } from '../../ai/model-provider'
 import { BaseAgent } from './base-agent'
 
 export class AIAnalysisAgent extends BaseAgent {
-  id = 'ai-analysis'
-  capabilities = ['code-analysis', 'ai-insights', 'best-practices']
-  specialization = 'AI-powered code analysis using Gemini'
-  name = 'ai-analysis'
-  description = 'AI-powered code analysis agent using Gemini'
+  override id = 'ai-analysis'
+  override capabilities = ['code-analysis', 'ai-insights', 'best-practices']
+  override specialization = 'AI-powered code analysis using Gemini'
+  override name = 'ai-analysis'
+  override description = 'AI-powered code analysis agent using Gemini'
 
   constructor(workingDirectory: string = process.cwd()) {
     super(workingDirectory)
   }
 
-  protected async onInitialize(): Promise<void> {
+  protected override async onInitialize(): Promise<void> {
     console.log('AI Analysis Agent initialized successfully')
   }
 
-  protected async onExecuteTask(task: any): Promise<any> {
+  protected override async onExecuteTask(task: any): Promise<any> {
     const taskData = typeof task === 'string' ? task : task.data
     console.log(`Running AI Analysis Agent`)
     if (taskData) {
@@ -57,16 +57,16 @@ export class AIAnalysisAgent extends BaseAgent {
     }
   }
 
-  protected async onStop(): Promise<void> {
+  protected override async onStop(): Promise<void> {
     console.log('AI Analysis Agent cleaned up')
   }
 
   // Keep legacy methods for backward compatibility
-  async run(task?: string): Promise<any> {
+  override async run(task?: string): Promise<any> {
     return await this.onExecuteTask(task)
   }
 
-  async cleanup(): Promise<void> {
+  override async cleanup(): Promise<void> {
     return await this.onStop()
   }
 }

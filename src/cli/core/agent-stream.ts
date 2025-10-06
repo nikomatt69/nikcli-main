@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
+import { MemoryManager } from '../utils/memory-manager'
 
 export interface StreamEvent {
   type: 'thinking' | 'planning' | 'executing' | 'progress' | 'result' | 'error' | 'info'
@@ -29,6 +30,18 @@ export class AgentStreamManager extends EventEmitter {
   private actions: Map<string, AgentAction[]> = new Map()
   private activeAgents: Set<string> = new Set()
 
+  // 🔒 FIXED: Memory managers to prevent memory leaks
+  private streamMemoryManager = new MemoryManager<StreamEvent[]>({
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxSize: 10000,
+    cleanupInterval: 60000, // 1 minute
+  })
+  private actionMemoryManager = new MemoryManager<AgentAction[]>({
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxSize: 10000,
+    cleanupInterval: 60000, // 1 minute
+  })
+
   // Start streaming for an agent
   startAgentStream(agentId: string): void {
     this.activeAgents.add(agentId)
@@ -44,7 +57,10 @@ export class AgentStreamManager extends EventEmitter {
     this.emitEvent(agentId, 'info', `✓ Agent ${agentId} stream completed`)
   }
 
-  // Emit a stream event
+  /**
+   * Emit a stream event
+   * FIXED: Added automatic cleanup to prevent memory leaks
+   */
   emitEvent(agentId: string, type: StreamEvent['type'], message: string, data?: any, progress?: number): void {
     const event: StreamEvent = {
       type,
@@ -55,10 +71,19 @@ export class AgentStreamManager extends EventEmitter {
       progress,
     }
 
-    // Add to agent's stream
+    // Add to agent's stream with memory management
     const agentStream = this.streams.get(agentId) || []
     agentStream.push(event)
+
+    // Keep only last 1000 events per agent to prevent unbounded growth
+    if (agentStream.length > 1000) {
+      agentStream.splice(0, agentStream.length - 1000)
+    }
+
     this.streams.set(agentId, agentStream)
+
+    // Also store in memory manager for time-based cleanup
+    this.streamMemoryManager.add(agentId, agentStream)
 
     // Display in real-time
     this.displayEvent(event)
@@ -119,7 +144,10 @@ export class AgentStreamManager extends EventEmitter {
     }
   }
 
-  // Track agent actions
+  /**
+   * Track agent actions
+   * FIXED: Added memory management to prevent action accumulation
+   */
   trackAction(agentId: string, actionType: AgentAction['type'], description: string, input?: any): string {
     const action: AgentAction = {
       id: `${agentId}-${Date.now()}-${randomBytes(6).toString('base64url')}`,
@@ -133,7 +161,16 @@ export class AgentStreamManager extends EventEmitter {
 
     const agentActions = this.actions.get(agentId) || []
     agentActions.push(action)
+
+    // Keep only last 500 actions per agent to prevent unbounded growth
+    if (agentActions.length > 500) {
+      agentActions.splice(0, agentActions.length - 500)
+    }
+
     this.actions.set(agentId, agentActions)
+
+    // Store in memory manager for time-based cleanup
+    this.actionMemoryManager.add(agentId, agentActions)
 
     this.emitEvent(agentId, 'executing', `Starting: ${description}`)
 
@@ -194,15 +231,71 @@ export class AgentStreamManager extends EventEmitter {
     this.emitEvent(agentId, 'progress', progressMessage, { current, total }, progress)
   }
 
-  // Get agent stream history
+  /**
+   * Get agent stream history
+   * FIXED: Check memory manager first for potentially cleaned data
+   */
   getAgentStream(agentId: string, limit?: number): StreamEvent[] {
-    const stream = this.streams.get(agentId) || []
+    // Try memory manager first
+    const managedStream = this.streamMemoryManager.get(agentId)
+    const stream = managedStream || this.streams.get(agentId) || []
     return limit ? stream.slice(-limit) : stream
   }
 
-  // Get agent actions
+  /**
+   * Get agent actions
+   * FIXED: Check memory manager first for potentially cleaned data
+   */
   getAgentActions(agentId: string): AgentAction[] {
-    return this.actions.get(agentId) || []
+    const managedActions = this.actionMemoryManager.get(agentId)
+    return managedActions || this.actions.get(agentId) || []
+  }
+
+  /**
+   * Get memory usage statistics
+   */
+  getMemoryStats(): {
+    streams: ReturnType<MemoryManager['getStats']>
+    actions: ReturnType<MemoryManager['getStats']>
+    totalStreams: number
+    totalActions: number
+  } {
+    let totalStreams = 0
+    let totalActions = 0
+
+    for (const stream of this.streams.values()) {
+      totalStreams += stream.length
+    }
+
+    for (const actions of this.actions.values()) {
+      totalActions += actions.length
+    }
+
+    return {
+      streams: this.streamMemoryManager.getStats(),
+      actions: this.actionMemoryManager.getStats(),
+      totalStreams,
+      totalActions,
+    }
+  }
+
+  /**
+   * Manually trigger cleanup (for testing or debugging)
+   */
+  cleanup(): void {
+    this.streamMemoryManager.cleanup()
+    this.actionMemoryManager.cleanup()
+  }
+
+  /**
+   * Destroy the stream manager and cleanup resources
+   */
+  destroy(): void {
+    this.streamMemoryManager.destroy()
+    this.actionMemoryManager.destroy()
+    this.streams.clear()
+    this.actions.clear()
+    this.activeAgents.clear()
   }
 
   // Get all active agents
@@ -308,7 +401,7 @@ export class AgentStreamManager extends EventEmitter {
     const averageActionDuration =
       completedActions.length > 0
         ? completedActions.reduce((sum, action) => sum + (action.endTime!.getTime() - action.startTime.getTime()), 0) /
-          completedActions.length
+        completedActions.length
         : 0
 
     return {

@@ -188,6 +188,8 @@ export function registerAgents(agentManager: AgentManager): void {
       sandboxRestrictions: [],
     },
   })
+
+
   // Register SecureVirtualizedAgent for autonomous VM-based development
   agentManager.registerAgentClass(SecureVirtualizedAgent, {
     id: 'vm-agent',
