@@ -2083,11 +2083,11 @@ export class NikCLI {
     this.structuredUIEnabled = shouldUseStructuredUI
 
     if (shouldUseStructuredUI) {
-      console.log(chalk.cyan('\n🎨 UI Selection: AdvancedCliUI selected (structuredUI = true)'))
+      advancedUI.logFunctionUpdate('info', chalk.cyan('\n🎨 UI Selection: AdvancedCliUI selected (structuredUI = true)'))
       advancedUI.startInteractiveMode()
       advancedUI.logInfo('AdvancedCliUI Ready', `Mode: ${this.currentMode} - 4 Panels configured`)
     } else {
-      console.log(chalk.dim('\n📺 UI Selection: Console stdout selected (structuredUI = false)'))
+      advancedUI.logFunctionUpdate('info', chalk.dim('\n📺 UI Selection: Console stdout selected (structuredUI = false)'))
     }
 
     if (options.plan) {
@@ -2152,7 +2152,7 @@ export class NikCLI {
           // Stop ongoing AI operation spinner
           if (this.activeSpinner) {
             this.stopAIOperation()
-            console.log(chalk.yellow('\n⏸️  AI operation interrupted by user'))
+            advancedUI.logFunctionUpdate('info', chalk.yellow('\n⏸️  AI operation interrupted by user'))
           }
 
           // Interrupt streaming/assistant processing
@@ -2163,7 +2163,7 @@ export class NikCLI {
           // Cancel background agent tasks (running and queued)
           const cancelled = agentService.cancelAllTasks?.() ?? 0
           if (cancelled > 0) {
-            console.log(chalk.yellow(`⏹️  Stopped ${cancelled} background agent task${cancelled > 1 ? 's' : ''}`))
+            advancedUI.logFunctionUpdate('info', chalk.yellow(`⏹️  Stopped ${cancelled} background agent task${cancelled > 1 ? 's' : ''}`))
           }
 
           // Kill any running subprocesses started by tools
@@ -2182,7 +2182,7 @@ export class NikCLI {
                   })
                 )
                 if (killed > 0) {
-                  console.log(chalk.yellow(`🛑 Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
+                  advancedUI.logFunctionUpdate('info', chalk.yellow(`  Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
                 }
               })()
           } catch {
@@ -2192,7 +2192,7 @@ export class NikCLI {
           // Return to default mode if not already
           if (this.currentMode !== 'default') {
             this.currentMode = 'default'
-            console.log(chalk.yellow('↩️  Cancelled. Returning to default mode.'))
+            advancedUI.logFunctionUpdate('info', chalk.yellow('↩️  Cancelled. Returning to default mode.'))
           }
 
           this.renderPromptAfterOutput()
@@ -2298,7 +2298,7 @@ export class NikCLI {
         if (key?.meta && key.name === 'escape') {
           if (this.activeSpinner) {
             this.stopAIOperation()
-            console.log(chalk.yellow('\n⏸️  AI operation interrupted by user'))
+            advancedUI.logFunctionUpdate('info', chalk.yellow('\n⏸️  AI operation interrupted by user'))
           } else if (this.assistantProcessing) {
             this.interruptProcessing()
           }
@@ -2307,9 +2307,9 @@ export class NikCLI {
           if (this.currentMode !== 'default') {
             this.currentMode = 'default'
             this.stopAIOperation()
-            console.log(chalk.cyan('🏠 Returning to default chat mode (Cmd+Esc)'))
+            advancedUI.logFunctionUpdate('info', chalk.cyan('🏠 Returning to default chat mode (Cmd+Esc)'))
           } else {
-            console.log(chalk.cyan('🏠 Already in default mode'))
+            advancedUI.logFunctionUpdate('info', chalk.cyan('🏠 Already in default mode'))
             this.stopAIOperation()
           }
           this.renderPromptAfterOutput()
@@ -2422,12 +2422,12 @@ export class NikCLI {
       input.split(' ').length > 30 // Very long command
 
     if (shouldEnableCompact && process.env.NIKCLI_COMPACT !== '1') {
-      console.log(chalk.yellow('🛡️ Auto-enabling compact mode for complex request to prevent token overflow'))
+      advancedUI.logFunctionUpdate('info', chalk.yellow('🛡️ Auto-enabling compact mode for complex request to prevent token overflow'))
       process.env.NIKCLI_COMPACT = '1'
 
       // Also set super compact for very complex requests
       if (input.length > 500 || input.split(' ').length > 50) {
-        console.log(chalk.yellow('🔥 Super compact mode enabled for very large request'))
+        advancedUI.logFunctionUpdate('info', chalk.yellow('🔥 Super compact mode enabled for very large request'))
         process.env.NIKCLI_SUPER_COMPACT = '1'
       }
     }
@@ -2439,7 +2439,7 @@ export class NikCLI {
   private interruptProcessing(): void {
     if (!this.assistantProcessing) return
 
-    console.log(chalk.red('\n\n🛑 ESC pressed - Interrupting operation...'))
+    advancedUI.logFunctionUpdate('info', chalk.red('\n\n ESC pressed - Interrupting operation...'))
 
     // Set interrupt flag
     this.shouldInterrupt = true
@@ -2457,15 +2457,15 @@ export class NikCLI {
     const orchestrator = new ModernAgentOrchestrator(this.workingDirectory)
     const interruptedAgents = orchestrator.interruptActiveExecutions()
     if (interruptedAgents > 0) {
-      console.log(chalk.yellow(`🔌 Stopped ${interruptedAgents} running agents`))
+      advancedUI.logFunctionUpdate('info', chalk.yellow(`  Stopped ${interruptedAgents} running agents`))
     }
 
     // Clean up processing state
     this.assistantProcessing = false
     this.stopStatusBar()
 
-    console.log(chalk.yellow('⏹️  Operation interrupted by user'))
-    console.log(chalk.cyan('✨ Ready for new commands\n'))
+    advancedUI.logFunctionUpdate('info', chalk.yellow('⏹️  Operation interrupted by user'))
+    advancedUI.logFunctionUpdate('info', chalk.cyan('✨ Ready for new commands\n'))
 
     // Show prompt again
     this.renderPromptAfterOutput()
@@ -2510,7 +2510,7 @@ export class NikCLI {
       displayText = truncatedLine
 
       // Visual feedback that paste was detected and truncated
-      console.log(chalk.gray(`📋 ${truncatedLine}`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`${truncatedLine}`))
     }
 
     // Continue with normal processing flow...
@@ -2557,11 +2557,11 @@ export class NikCLI {
       }
 
       const _queueId = inputQueue.enqueue(actualInput, priority, 'user')
-      console.log(
+      advancedUI.logFunctionUpdate('info', chalk.cyan(
         chalk.cyan(
           `📥 Input queued (${priority} priority): ${displayText.substring(0, 40)}${displayText.length > 40 ? '...' : ''}`
         )
-      )
+      ))
       this.renderPromptAfterOutput()
       return
     }
@@ -2603,7 +2603,7 @@ export class NikCLI {
 
     // Processa il prossimo input dalla queue
     const result = await inputQueue.processNext(async (input: string) => {
-      console.log(chalk.blue(`⚡︎ Processing queued input: ${input.substring(0, 40)}${input.length > 40 ? '...' : ''}`))
+      advancedUI.logFunctionUpdate('info', chalk.blue(`⚡︎ Processing queued input: ${input.substring(0, 40)}${input.length > 40 ? '...' : ''}`))
 
       // Simula il processing dell'input
       this.assistantProcessing = true
@@ -2625,11 +2625,11 @@ export class NikCLI {
     })
 
     if (result) {
-      console.log(
+      advancedUI.logFunctionUpdate('info', chalk.green(
         chalk.green(
           `✓ Queued input processed: ${result.input.substring(0, 40)}${result.input.length > 40 ? '...' : ''}`
         )
-      )
+      ))
 
       this.renderPromptAfterOutput()
 
@@ -2729,9 +2729,9 @@ export class NikCLI {
         case 'plan':
           if (args.length === 0) {
             this.currentMode = 'plan'
-            console.log(chalk.green('✓ Switched to plan mode'))
-            console.log(chalk.dim('   Plan mode: Creates detailed plans and asks for approval before execution'))
-            console.log(chalk.dim('   Default mode: Auto-generates todos for complex tasks and executes in background'))
+            advancedUI.logFunctionUpdate('info', chalk.green('✓ Switched to plan mode'))
+            advancedUI.logFunctionUpdate('info', chalk.dim('   Plan mode: Creates detailed plans and asks for approval before execution'))
+            advancedUI.logFunctionUpdate('info', chalk.dim('   Default mode: Auto-generates todos for complex tasks and executes in background'))
           } else {
             await this.generatePlan(args.join(' '), {})
           }
@@ -2739,12 +2739,14 @@ export class NikCLI {
 
         case 'default':
           this.currentMode = 'default'
-          console.log(chalk.green('✓ Switched to default mode'))
+          advancedUI.logFunctionUpdate('info', chalk.green('✓ Switched to default mode'))
+          advancedUI.logFunctionUpdate('info', chalk.dim('   Default mode: Auto-generates todos for complex tasks and executes in background'))
           break
 
         case 'vm':
           this.currentMode = 'vm'
-          console.log(chalk.green('✓ Switched to VM mode'))
+          advancedUI.logFunctionUpdate('info', chalk.green('✓ Switched to VM mode'))
+          advancedUI.logFunctionUpdate('info', chalk.dim('   VM mode: Creates detailed plans and asks for approval before execution'))
           break
 
         // File Operations
@@ -2863,7 +2865,7 @@ export class NikCLI {
             return
           }
           const [type, name] = args
-          console.log(chalk.blue(`Creating ${type}: ${name}`))
+          advancedUI.logFunctionUpdate('info', chalk.blue(`Creating ${type}: ${name}`))
           // Implement creation logic based on type
           break
         }
@@ -3450,7 +3452,7 @@ export class NikCLI {
         const inputMessage = { role: 'user' as const, content: input }
         await contextTokenManager.trackMessage(inputMessage)
       } catch (error) {
-        console.debug('Token tracking failed for input:', error)
+        advancedUI.logFunctionUpdate('error', `Token tracking failed for input: ${error}`)
       }
 
       // Load relevant project context for enhanced chat responses
@@ -3489,7 +3491,7 @@ export class NikCLI {
    * VM mode: Chat directly with VM agents in containers using targeted communication
    */
   private async handleVMMode(input: string): Promise<void> {
-    console.log(chalk.blue('🐳 VM Mode: Targeted OS-like VM communication...'))
+    advancedUI.logFunctionUpdate('info', chalk.blue('🐳 VM Mode: Targeted OS-like VM communication...'))
 
     try {
       // Get VM orchestrator instance from slash handler
@@ -3510,9 +3512,9 @@ export class NikCLI {
       // Check for available VMs
       const containers = this.slashHandler.getActiveVMContainers?.() || []
       if (containers.length === 0) {
-        console.log(chalk.yellow('⚠️ No active VM containers'))
-        console.log(chalk.gray('Use /vm-create <repo-url> to create one'))
-        console.log(chalk.gray('Use /default to exit VM mode'))
+        advancedUI.logFunctionUpdate('info', chalk.yellow('⚠️ No active VM containers'))
+        advancedUI.logFunctionUpdate('info', chalk.gray('Use /vm-create <repo-url> to create one'))
+        advancedUI.logFunctionUpdate('info', chalk.gray('Use /default to exit VM mode'))
         return
       }
 
@@ -3520,65 +3522,65 @@ export class NikCLI {
       let selectedVM = vmSelector.getSelectedVM()
 
       if (!selectedVM) {
-        console.log(chalk.cyan('🎯 No VM selected. Choose a VM to chat with:'))
+        advancedUI.logFunctionUpdate('info', chalk.cyan('🎯 No VM selected. Choose a VM to chat with:'))
         selectedVM = await vmSelector.selectVM({ interactive: true, sortBy: 'activity' })
 
         if (!selectedVM) {
-          console.log(chalk.gray('VM mode cancelled'))
+          advancedUI.logFunctionUpdate('info', chalk.gray('VM mode cancelled'))
           return
         }
       }
 
       // Show current VM context with enhanced info
-      console.log(chalk.green(`💬 Chatting with VM: ${chalk.bold(selectedVM.name)}`))
-      console.log(chalk.gray(`🆔 Container: ${selectedVM.containerId.slice(0, 12)}`))
+      advancedUI.logFunctionUpdate('info', chalk.green(` Chatting with VM: ${chalk.bold(selectedVM.name)}`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(` Container: ${selectedVM.containerId.slice(0, 12)}`))
 
       if (selectedVM.systemInfo) {
-        console.log(chalk.gray(`📍 System: ${selectedVM.systemInfo.os} ${selectedVM.systemInfo.arch}`))
-        console.log(chalk.gray(`⚡︎ Working Dir: ${selectedVM.systemInfo.workingDirectory}`))
+        advancedUI.logFunctionUpdate('info', chalk.gray(` System: ${selectedVM.systemInfo.os} ${selectedVM.systemInfo.arch}`))
+        advancedUI.logFunctionUpdate('info', chalk.gray(`⚡︎ Working Dir: ${selectedVM.systemInfo.workingDirectory}`))
       }
 
       if (selectedVM.repositoryUrl) {
-        console.log(chalk.gray(`🔗 Repository: ${selectedVM.repositoryUrl.split('/').pop()}`))
+        advancedUI.logFunctionUpdate('info', chalk.gray(` Repository: ${selectedVM.repositoryUrl.split('/').pop()}`))
       }
 
       // Show chat history count
       const chatHistory = vmSelector.getChatHistory(selectedVM.id)
-      console.log(chalk.gray(`💭 Chat History: ${chatHistory.length} messages`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(` Chat History: ${chatHistory.length} messages`))
 
-      console.log(chalk.gray(`📝 Message: ${input.substring(0, 80)}${input.length > 80 ? '...' : ''}`))
-      console.log(chalk.white('─'.repeat(50)))
+      advancedUI.logFunctionUpdate('info', chalk.gray(` Message: ${input.substring(0, 80)}${input.length > 80 ? '...' : ''}`))
+      advancedUI.logFunctionUpdate('info', chalk.white('─'.repeat(50)))
       console.log()
 
       try {
         // Send message to the selected VM agent through the communication bridge
-        console.log(chalk.blue(`🔌 Sending to VM Agent ${selectedVM.containerId.slice(0, 8)}...`))
+        advancedUI.logFunctionUpdate('info', chalk.blue(` Sending to VM Agent ${selectedVM.containerId.slice(0, 8)}...`))
 
         // Use real communication through VMOrchestrator bridge
         if (vmOrchestrator.sendMessageToAgent) {
           const response = await vmOrchestrator.sendMessageToAgent(selectedVM.agentId, input)
 
           if (response.success) {
-            console.log(chalk.green(`✓ VM Response received (${response.metadata?.responseTime}ms)`))
+            advancedUI.logFunctionUpdate('info', chalk.green(`✓ VM Response received (${response.metadata?.responseTime}ms)`))
             console.log()
-            console.log(chalk.cyan(`🔌 ${selectedVM.name}:`))
+            advancedUI.logFunctionUpdate('info', chalk.cyan(` ${selectedVM.name}:`))
             console.log(chalk.white(`┌${'─'.repeat(58)}┐`))
 
             // Format response with proper line breaks
             const responseLines = (response.data || '').split('\n')
             responseLines.forEach((line: string) => {
               const truncatedLine = line.length > 56 ? `${line.substring(0, 53)}...` : line
-              console.log(chalk.white(`│ ${truncatedLine.padEnd(56)} │`))
+              advancedUI.logFunctionUpdate('info', chalk.white(`│ ${truncatedLine.padEnd(56)} │`))
             })
 
-            console.log(chalk.white(`└${'─'.repeat(58)}┘`))
+            advancedUI.logFunctionUpdate('info', chalk.white(`└${'─'.repeat(58)}┘`))
 
             // Add to chat history
             await vmSelector.addChatMessage(selectedVM.id, 'user', input)
             await vmSelector.addChatMessage(selectedVM.id, 'vm', response.data || '')
 
             // Show quick actions
-            console.log()
+            advancedUI.logFunctionUpdate('info', chalk.cyan(''))
             this.printPanel(
               boxen('Quick actions: /vm-status | /vm-exec | /vm-switch | /vm-ls', {
                 title: 'VM Quick Actions',
@@ -3615,7 +3617,7 @@ export class NikCLI {
         }
 
         // Show quick VM info
-        console.log()
+        advancedUI.logFunctionUpdate('info', chalk.cyan(''))
         console.log(
           chalk.cyan(
             `📊 VM Info: ${selectedVM.containerId.slice(0, 12)} | Repository: ${selectedVM.repositoryUrl || 'N/A'}`
@@ -3625,10 +3627,9 @@ export class NikCLI {
         // Show bridge statistics
         if (vmOrchestrator.getBridgeStats) {
           const stats = vmOrchestrator.getBridgeStats()
-          console.log(
-            chalk.gray(
-              `💡 Bridge Stats: ${stats.totalMessagesRouted} messages | ${Math.round(stats.averageResponseTime)}ms avg`
-            )
+          advancedUI.logFunctionUpdate('info', chalk.gray(
+            ` Bridge Stats: ${stats.totalMessagesRouted} messages | ${Math.round(stats.averageResponseTime)}ms avg`
+          )
           )
         }
       } catch (error: any) {
@@ -4472,7 +4473,7 @@ EOF`
     // Set up task timeout to prevent hanging
     const taskTimeout = this.safeTimeout(() => {
       throw new Error(`Task timeout: ${task.title} (exceeded 10 minutes)`)
-    }, 600000) // 5 minute timeout
+    }, 1800000) // 5 minute timeout (30 minutes)
 
     try {
       // Execute task exactly like default mode using tool router
@@ -4483,11 +4484,9 @@ EOF`
 
       if (toolRecommendations.length > 0) {
         const topRecommendation = toolRecommendations[0]
-        console.log(
-          chalk.blue(
-            ` Detected ${topRecommendation.tool} intent (${Math.round(topRecommendation.confidence * 100)}% confidence)`
-          )
-        )
+        advancedUI.logFunctionUpdate('info', chalk.blue(
+          ` Detected ${topRecommendation.tool} intent (${Math.round(topRecommendation.confidence * 100)}% confidence)`
+        ))
 
         // Execute like default mode - start structured UI
 
@@ -5554,7 +5553,7 @@ EOF`
           const key = `read:${path.resolve(filePath)}`
           const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
 
-          console.log(formatFileOp('📄 File:', filePath, `${fileInfo.size} bytes, ${fileInfo.language || 'unknown'}`))
+          advancedUI.logFunctionCall(formatFileOp('File:', filePath, `${fileInfo.size} bytes, ${fileInfo.language || 'unknown'}`))
           console.log(chalk.gray(`Lines: ${total}`))
           console.log(chalk.gray('─'.repeat(50)))
 
@@ -12667,15 +12666,15 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   }
 
   private async shutdown(): Promise<void> {
-    console.log(chalk.blue('\n👋 Shutting down NikCLI...'))
+    advancedUI.logFunctionCall(chalk.blue('\n Shutting down NikCLI...'))
 
     // Stop file watcher
     if (this.fileWatcher) {
       try {
         this.fileWatcher.close()
-        console.log(chalk.dim('⚡︎ File watcher stopped'))
+        advancedUI.logFunctionUpdate('info', '⚡︎ File watcher stopped')
       } catch (error: any) {
-        console.log(chalk.gray(`File watcher cleanup warning: ${error.message}`))
+        advancedUI.logFunctionUpdate('info', `File watcher cleanup warning: ${error.message}`)
       }
     }
 
@@ -12691,10 +12690,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         })
 
         if (running.length > 0) {
-          console.log(chalk.dim(`📊 Stopped ${running.length} running operations`))
+          advancedUI.logFunctionUpdate('info', `📊 Stopped ${running.length} running operations`)
         }
       } catch (error: any) {
-        console.log(chalk.gray(`Progress tracker cleanup warning: ${error.message}`))
+        advancedUI.logFunctionUpdate('info', `Progress tracker cleanup warning: ${error.message}`)
       }
     }
 
@@ -12702,9 +12701,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     try {
       await tokenCache.saveCache()
       await cacheService.emit('saveAll') // Save all managed caches
-      console.log(chalk.dim(' All caches saved'))
+      advancedUI.logFunctionUpdate('info', ' All caches saved')
     } catch (error: any) {
-      console.log(chalk.gray(`Cache save warning: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', `Cache save warning: ${error.message}`)
     }
 
     // Clean up UI resources
@@ -12740,7 +12739,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     // Cleanup systems
     this.agentManager.cleanup()
 
-    console.log(chalk.green('✓ All systems cleaned up successfully!'))
+    advancedUI.logFunctionUpdate('info', '✓ All systems cleaned up successfully!')
     console.log(chalk.green('✓ Goodbye!'))
     process.exit(0)
   }

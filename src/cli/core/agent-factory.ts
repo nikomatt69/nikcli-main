@@ -1437,7 +1437,7 @@ Execute tasks step-by-step and verify results before proceeding.`
    * Cleanup all agents and perform shutdown
    */
   async shutdown(): Promise<void> {
-    console.log(chalk.blue('🛑 Shutting down agent factory...'))
+    console.log(chalk.blue(' Shutting down agent factory...'))
 
     const agents = Array.from(this.instances.values())
     const cleanupPromises = agents.map((agent) => this.cleanupAgent(agent))

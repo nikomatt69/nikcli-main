@@ -1,0 +1,671 @@
+// TODO: Consider refactoring for reduced complexity
+---
+title: "NikCLI Quickstart Guide"
+description: "Get started with NikCLI using real working examples of the most commonly used commands and workflows"
+icon: "rocket"
+---
+
+# NikCLI Quickstart Guide
+
+Get started with NikCLI using real working examples of the most commonly used commands and workflows. This guide includes tested examples you can run immediately.
+
+## Installation & Setup
+
+### Quick Install (Recommended)
+
+<Accordion title="Universal Installation (Any Package Manager)">
+
+<Tabs>
+  <Tab title="Unix/macOS">
+```bash
+# Auto-detects best package manager
+curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
+```
+  </Tab>
+  <Tab title="Windows">
+```powershell
+# PowerShell installer
+iwr -useb https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.ps1 | iex
+```
+  </Tab>
+</Tabs>
+
+</Accordion>
+
+### Manual Installation
+
+<Tabs>
+  <Tab title="npm">
+```bash
+npm install -g @nicomatt69/nikcli
+```
+  </Tab>
+  <Tab title="yarn">
+```bash
+yarn global add @nicomatt69/nikcli
+```
+  </Tab>
+  <Tab title="pnpm">
+```bash
+pnpm install -g @nicomatt69/nikcli
+```
+  </Tab>
+  <Tab title="bun">
+```bash
+bun install -g @nicomatt69/nikcli
+```
+  </Tab>
+</Tabs>
+
+### First Run & Configuration
+
+```bash
+# Start NikCLI - it will guide you through setup
+nikcli
+```
+
+<Info>
+The first run includes an interactive onboarding that checks system requirements, API keys, and guides you through configuration.
+</Info>
+
+## Essential Commands & Workflows
+
+### 1. Basic Chat Mode
+
+Start with natural language commands:
+
+```bash
+# Start interactive session
+nikcli
+```
+
+Then in the chat interface:
+```
+# Create a React component
+Create a React component with TypeScript that displays a user profile card
+
+# Analyze your project
+Analyze my project structure and suggest improvements
+
+# Generate code
+Write a Node.js function to validate email addresses
+```
+
+### 2. File Operations
+
+<Accordion title="Reading and Writing Files">
+
+```bash
+# Read a file with pagination
+/read src/components/Button.tsx
+
+# Read specific lines
+/read src/utils/helpers.ts --from 10 --to 25
+
+# Read with more command for large files
+/read large-file.log --more
+
+# Write content to a file
+/write config.json {"name": "my-app", "version": "1.0.0"}
+
+# Create a new file with content
+/write src/types/user.ts "export interface User { id: string; name: string; email: string; }"
+
+# List files in directory
+/ls src/components
+
+# Search for content in files
+/search "useState" src/
+
+# Find files by pattern
+/find-files "*.test.ts"
+```
+
+</Accordion>
+
+### 3. Terminal Operations
+
+<Accordion title="Command Execution">
+
+```bash
+# Run a command with approval
+/run npm test
+
+# Install dependencies
+/install lodash axios
+
+# Run npm scripts
+/npm run build
+
+# Git operations
+/git status
+/git add .
+/git commit -m "feat: add new feature"
+
+# Docker commands
+/docker ps
+/docker build -t my-app .
+
+# Check running processes
+/ps
+
+# Kill a process
+/kill 12345
+```
+
+</Accordion>
+
+### 4. Project Management
+
+<Accordion title="Project Initialization & Analysis">
+
+```bash
+# Initialize project context
+/init
+
+# Initialize with force overwrite
+/init --force
+
+# Create project structure
+/create project my-app react-typescript
+
+# Build the project
+/build
+
+# Run tests
+/test
+
+# Lint code
+/lint
+
+# Analyze project
+/analyze-project
+
+# Show project status
+/status
+```
+
+</Accordion>
+
+### 5. AI Model Management
+
+<Accordion title="Model Configuration">
+
+```bash
+# List available models
+/models
+
+# Switch model
+/model claude-3-5-sonnet-latest
+
+# Set temperature
+/temp 0.7
+
+# Show current configuration
+/config
+
+# Interactive configuration
+/config interactive
+
+# Set API keys
+/set-key anthropic your-api-key-here
+/set-key openai your-api-key-here
+```
+
+</Accordion>
+
+### 6. Agent System
+
+<Accordion title="Working with AI Agents">
+
+```bash
+# List available agents
+/agents
+
+# Run specific agent
+/agent universal-agent "create a REST API with Express and TypeScript"
+
+# Use agent factory
+/factory
+
+# Create new agent blueprint
+/create-agent my-backend-expert "Specialized in Node.js, Express, and PostgreSQL"
+
+# Launch agent from blueprint
+/launch-agent blueprint-123
+
+# Run multiple agents in parallel
+/parallel [my-frontend-expert, my-backend-expert] "create a full-stack application"
+```
+
+</Accordion>
+
+### 7. Planning & Todo Management
+
+<Accordion title="Task Planning">
+
+```bash
+# Switch to plan mode
+/plan
+
+# Generate execution plan
+/plan "refactor authentication system with JWT and refresh tokens"
+
+# Execute plan with approval
+/plan "create a new feature" --execute
+
+# List todos in current plan
+/todo list
+
+# Add todo item
+/todo add "implement user registration"
+
+# Show plan status
+/todos
+
+# Toggle auto-todos
+/todos on
+/todos off
+/todos status
+```
+
+</Accordion>
+
+### 8. VM Container Management
+
+<Accordion title="Virtual Machine Operations">
+
+```bash
+# Create VM container
+/vm-create https://github.com/user/repo
+
+# List VM containers
+/vm-list
+
+# Connect to VM
+/vm-connect container-id
+
+# Switch to VM mode
+/vm
+
+# Switch to VM and select interactively
+/vm-select
+
+# Create pull request from VM
+/vm-create-pr container-id "feat: add new feature" "This PR adds authentication"
+
+# View VM logs
+/vm-logs container-id
+
+# Stop VM
+/vm-stop container-id
+
+# Remove VM
+/vm-remove container-id
+```
+
+</Accordion>
+
+### 9. Development Tools
+
+<Accordion title="Development Utilities">
+
+```bash
+# Take a snapshot
+/snapshot current-state
+
+# List snapshots
+/snapshots
+
+# Restore from snapshot
+/restore snapshot-id
+
+# Show git history
+/commits --count 10
+
+# View diff viewer
+/diff compare src/old.ts src/new.ts
+
+# Monitor file changes
+/monitor src/
+
+# IDE diagnostics
+/diagnostic start
+/diagnostic status
+```
+
+</Accordion>
+
+### 10. Advanced Features
+
+<Accordion title="Specialized Commands">
+
+```bash
+# Browse web content
+/browse https://example.com
+
+# Analyze webpage with AI
+/web-analyze https://github.com/facebook/react
+
+# Memory management
+/remember "This project uses React 18 with TypeScript"
+/recall "project technology stack"
+
+# Token usage analysis
+/tokens
+/tokens compare
+/tokens estimate 50000
+
+# Cache management
+/cache stats
+/cache clear
+
+# Enhanced stats
+/enhanced-stats
+
+# Security settings
+/security status
+/safe-mode
+/dev-mode enable 30
+```
+
+</Accordion>
+
+## Common Workflows
+
+### Workflow 1: Project Setup
+
+<Steps>
+  <Step title="Initialize Project">
+    ```bash
+    # Start NikCLI
+    nikcli
+    
+    # In chat:
+    /init
+    ```
+  </Step>
+  <Step title="Create Project Structure">
+    ```
+    Create a React TypeScript project with the following structure:
+    - src/components/ for React components
+    - src/utils/ for utility functions  
+    - src/types/ for TypeScript interfaces
+    - tests/ for test files
+    ```
+  </Step>
+  <Step title="Set Up Dependencies">
+    ```bash
+    /install react react-dom typescript @types/react @types/react-dom
+    /install vite @vitejs/plugin-react
+    /install vitest @testing-library/react
+    ```
+  </Step>
+  <Step title="Configure Build System">
+    ```bash
+    /write package.json
+    {
+      "name": "my-react-app",
+      "version": "1.0.0",
+      "scripts": {
+        "dev": "vite",
+        "build": "tsc && vite build",
+        "test": "vitest",
+        "lint": "eslint src --ext .ts,.tsx"
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+### Workflow 2: Code Review & Analysis
+
+<Steps>
+  <Step title="Analyze Project Structure">
+    ```bash
+    /analyze-project
+    /search "TODO" src/
+    /find-files "*.ts"
+    ```
+  </Step>
+  <Step title="Review Code Quality">
+    ```bash
+    /lint
+    /run npm audit
+    /test
+    ```
+  </Step>
+  <Step title="Get Recommendations">
+    ```
+    Analyze the codebase and suggest improvements for:
+    - Code structure and organization
+    - Performance optimizations
+    - Security best practices
+    - Testing coverage
+    ```
+  </Step>
+</Steps>
+
+### Workflow 3: Feature Development
+
+<Steps>
+  <Step title="Switch to Plan Mode">
+    ```bash
+    /plan
+    ```
+  </Step>
+  <Step title="Generate Feature Plan">
+    ```
+    Create a plan to implement user authentication with:
+    - JWT token management
+    - Password hashing
+    - User registration and login
+    - Protected routes
+    - Session management
+    ```
+  </Step>
+  <Step title="Execute Plan">
+    ```bash
+    # After reviewing the generated plan
+    # Select "Yes" to execute
+    # Or manually execute steps:
+    /write src/auth/jwt.ts "import jwt from 'jsonwebtoken'; export const generateToken = () => {...}"
+    /write src/auth/password.ts "import bcrypt from 'bcrypt'; export const hashPassword = async () => {...}"
+    ```
+  </Step>
+  <Step title="Test Implementation">
+    ```bash
+    /test
+    /run npm run test:auth
+    ```
+  </Step>
+</Steps>
+
+## Configuration Examples
+
+### Environment Variables
+
+<Accordion title="Key Environment Variables">
+
+```bash
+# API Keys
+export ANTHROPIC_API_KEY="your-claude-key"
+export OPENAI_API_KEY="your-openai-key"
+export GOOGLE_GENERATIVE_AI_API_KEY="your-gemini-key"
+
+# Ollama (Local Models)
+export OLLAMA_HOST="localhost:11434"
+
+# Redis Cache
+export UPSTASH_REDIS_REST_URL="your-redis-url"
+export UPSTASH_REDIS_REST_TOKEN="your-redis-token"
+
+# Compact Mode
+export NIKCLI_COMPACT=1
+export NIKCLI_CLEAN_CHAT=1
+
+# Token Optimization
+export EMBED_BATCH_SIZE=300
+export NIKCLI_MINIMAL_STREAM=1
+```
+
+</Accordion>
+
+### Configuration File
+
+Create a `nikcli.config.json` in your project root:
+
+```json
+{
+  "currentModel": "claude-3-5-sonnet-latest",
+  "temperature": 0.7,
+  "maxTokens": 4000,
+  "chatHistory": true,
+  "maxConcurrentAgents": 3,
+  "securityMode": "default",
+  "redis": {
+    "enabled": true,
+    "host": "localhost",
+    "port": 6379
+  },
+  "supabase": {
+    "enabled": true,
+    "url": "your-supabase-url",
+    "features": {
+      "database": true,
+      "auth": true,
+      "storage": true
+    }
+  }
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+<Accordion title="Installation Issues">
+
+**Node.js Version Error:**
+```bash
+# Check Node.js version (requires 18+)
+node --version
+
+# Update Node.js if needed
+# Use nvm, fnm, or your preferred version manager
+```
+
+**Package Manager Issues:**
+```bash
+# Clear cache and reinstall
+npm cache clean --force
+npm install -g @nicomatt69/nikcli
+```
+
+**Permission Errors:**
+```bash
+# Use npx instead of global install
+npx @nicomatt69/nikcli
+
+# Or fix npm permissions
+sudo chown -R $(whoami) ~/.npm
+```
+
+</Accordion>
+
+<Accordion title="Connection Issues">
+
+**API Key Problems:**
+```bash
+# Check if keys are set
+/models
+
+# Set keys interactively
+/set-key anthropic your-key-here
+/set-key openai your-key-here
+```
+
+**Network Issues:**
+```bash
+# Test connection
+/status
+
+# Check specific API
+/test
+```
+
+</Accordion>
+
+<Accordion title="Performance Issues">
+
+**High Token Usage:**
+```bash
+# Check current usage
+/tokens
+
+# Enable compact mode
+export NIKCLI_COMPACT=1
+
+# Clear session
+/clear
+```
+
+**Slow Operations:**
+```bash
+# Enable Redis caching
+/redis-enable
+
+# Check cache status
+/cache stats
+```
+
+</Accordion>
+
+## Best Practices
+
+### 1. Start Simple
+- Begin with basic commands and natural language
+- Use `/help` frequently to discover features
+- Start with the default agent before creating custom ones
+
+### 2. Use Modes Appropriately
+- **Default Mode**: Quick tasks and questions
+- **Plan Mode**: Complex multi-step operations
+- **VM Mode**: Containerized development
+
+### 3. Security First
+- Always review commands before approving
+- Use `/security status` to check settings
+- Set appropriate approval policies for your team
+
+### 4. Leverage Context
+- Initialize projects with `/init` first
+- Use `/context` to manage project understanding
+- Keep `/NIKOCLI.md` updated for better context
+
+### 5. Monitor Usage
+- Regularly check `/tokens` for usage
+- Use `/compact` for large projects
+- Configure appropriate rate limits
+
+## Next Steps
+
+1. **Explore the CLI**: Try different commands and modes
+2. **Set up API Keys**: Configure your preferred AI providers
+3. **Join the Community**: Report issues and suggest features
+4. **Read Documentation**: Visit [nikcli.mintlify.app](https://nikcli.mintlify.app) for complete guides
+5. **Contribute**: Help improve NikCLI by contributing to the project
+
+---
+
+<Info>
+**💡 Pro Tip**: Use `Tab` completion and `?` for quick help while in the CLI interface!
+</Info>
+
+<Warning>
+**⚠️ Security Note**: Always review and approve sensitive operations. Use `/security status` to check current security settings.
+</Warning>
+
+---
+
+*This quickstart guide is continuously updated. For the latest features and examples, check the [official documentation](https://nikcli.mintlify.app).*

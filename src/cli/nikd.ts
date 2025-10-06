@@ -74,7 +74,7 @@ async function startDaemon(options: NikdOptions) {
 
     // Graceful shutdown
     const cleanup = async () => {
-      console.log(chalk.yellow('\n🛑 Shutting down nikd daemon...'))
+      console.log(chalk.yellow('\n Shutting down nikd daemon...'))
 
       try {
         await server.stop()

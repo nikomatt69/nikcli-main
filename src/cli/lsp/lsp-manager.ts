@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import { detectLanguageFromContent, detectLanguageFromExtension } from './language-detection'
 import { formatDiagnostic, LSPClient, type LSPDiagnostic, type LSPSymbol } from './lsp-client'
 import { ensureLSPDependencies, findLSPWorkspaceRoot, getApplicableLSPServers } from './lsp-servers'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface CodeContext {
   file: string
@@ -428,10 +429,10 @@ export class LSPManager {
 
   // Shutdown all clients
   async shutdown(): Promise<void> {
-    console.log(chalk.blue('\n🛑 Shutting down LSP clients...'))
+    advancedUI.logFunctionCall(chalk.blue('\n Shutting down LSP clients...'))
 
     const shutdownPromises = Array.from(this.clients.values()).map((client) =>
-      client.shutdown().catch((err) => console.log(chalk.yellow(`⚠️ Error shutting down client: ${err.message}`)))
+      client.shutdown().catch((err) => advancedUI.logWarning(` Error shutting down client: ${err.message}`))
     )
 
     await Promise.allSettled(shutdownPromises)
@@ -440,7 +441,7 @@ export class LSPManager {
     this.workspaceRoots.clear()
     this.fileAnalysisCache.clear()
 
-    console.log(chalk.green('✓ LSP shutdown complete'))
+    advancedUI.logSuccess('✓ LSP shutdown complete')
   }
 
   // Dispose resources (alias of shutdown + interval clear)

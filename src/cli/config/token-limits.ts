@@ -56,9 +56,9 @@ export const TOKEN_LIMITS = {
     CHAT_HISTORY_MAX: 3000, // Max tokens for chat history (down from 8000)
   },
 
-  // Chat trimming & summarization window - ULTRA EMERGENCY FIX for 200k limit
+  // Chat trimming & summarization window - Dynamic based on model context
   CHAT: {
-    MAX_CONTEXT_TOKENS: 80000, // DRASTICALLY reduced to 3k tokens (was 100k)
+    MAX_CONTEXT_TOKENS: 100000, // DRASTICALLY reduced to 3k tokens (was 100k)
     MAX_RECENT_NON_SYSTEM: 4, // Further reduced to 4 messages
     HEAD_TAIL_WINDOW: 2, // Reduced to 2 messages
     EMERGENCY_TRUNCATE_AT: 120000, // HARD truncate at 120k tokens (80k safety margin)
@@ -405,6 +405,134 @@ export function calculateTokenCost(
  */
 export function getModelPricing(modelName: string) {
   return MODEL_COSTS[modelName] || MODEL_COSTS.default
+}
+
+/**
+ * Model context window limits (maximum tokens including input + output)
+ * Based on research and official documentation as of 2025
+ */
+export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
+  // Claude models (Anthropic) - 200K context
+  'claude-sonnet-4-20250514': 200000,
+  'claude-3-5-sonnet-latest': 200000,
+  'claude-3-5-sonnet-20241022': 200000,
+  'claude-3-7-sonnet-20250219': 200000,
+  'claude-opus-4-20250514': 200000,
+  'claude-opus-4.1': 200000,
+  'claude-3-opus-20240229': 200000,
+  'claude-3-sonnet-20240229': 200000,
+  'claude-3-haiku-20240307': 200000,
+  'claude-3-5-haiku': 200000,
+
+  // GPT models (OpenAI) - Varied context
+  'gpt-5': 200000,
+  'gpt-5-mini-2025-08-07': 128000,
+  'gpt-5-nano-2025-08-07': 128000,
+  'gpt-4o': 128000,
+  'gpt-4.1': 1000000, // Extended 1M context
+  'gpt-4o-mini': 128000,
+  'gpt-4': 128000,
+  'gpt-4-turbo-preview': 128000,
+  'gpt-3.5-turbo': 16384,
+
+  // Gemini models (Google) - Large context windows
+  'gemini-2.5-pro': 2097152, // ~2M tokens
+  'gemini-2.5-pro-200k': 200000,
+  'gemini-2.5-flash': 1000000,
+  'gemini-2.5-flash-lite': 1000000,
+  'gemini-2.0-flash': 1000000,
+  'gemini-2.0-flash-exp': 1000000,
+  'gemini-1.5-pro': 2097152,
+  'gemini-1.5-flash': 1000000,
+
+  // xAI Grok models - 128K context
+  'grok-4': 128000,
+  'grok-3': 128000,
+  'grok-3-mini': 128000,
+  'grok-3-speedier': 128000,
+  'grok-3-mini-speedier': 128000,
+  'grok-2': 128000,
+
+  // DeepSeek models - 128K context
+  'deepseek-r1': 128000,
+  'deepseek-r1-8b': 128000,
+  'deepseek-r1-3b': 128000,
+  'deepseek-r1-7b': 128000,
+  'deepseek-r1:8b': 128000,
+  'deepseek-r1:3b': 128000,
+  'deepseek-r1:7b': 128000,
+
+  // Meta Llama models - 128K context
+  'llama3.1:8b': 128000,
+  'meta-llama/llama-3.1-405b-instruct': 128000,
+  'meta-llama/llama-3.1-70b-instruct': 128000,
+  'meta-llama/llama-3.1-8b-instruct': 128000,
+
+  // Mistral models - 128K context
+  'mistral:7b': 128000,
+  'mistralai/mistral-large': 128000,
+
+  // Vercel V0 models - 32K context (estimated)
+  'v0-1.0-md': 32000,
+  'v0-1.5-md': 32000,
+  'v0-1.5-lg': 32000,
+
+  // Other models
+  'codellama:7b': 16000,
+  'gpt-oss:20b': 128000,
+  gemma3n: 8192,
+  'gemma3n-large': 8192,
+
+  // OpenRouter model variants
+  'anthropic/claude-sonnet-4.5': 200000,
+  'anthropic/claude-sonnet-4': 200000,
+  'anthropic/claude-3.7-sonnet:thinking': 200000,
+  'anthropic/claude-3.7-sonnet': 200000,
+  'anthropic/claude-opus-4.1': 200000,
+  'anthropic/claude-3.5-sonnet': 200000,
+  'nvidia/nemotron-nano-9b-v2:free': 32000,
+  'openai/gpt-5': 200000,
+  'openai/gpt-5-codex': 200000,
+  'openai/gpt-5-mini': 128000,
+  'openai/gpt-5-nano': 128000,
+  'openai/gpt-5-mini-2025-08-07': 128000,
+  'google/gemini-2.5-flash-lite': 1000000,
+  'google/gemini-2.5-flash': 1000000,
+  'google/gemini-2.5-flash-image-preview': 1000000,
+  'google/gemini-2.5-pro': 2097152,
+  'google/gemini-2.0-flash-exp': 1000000,
+  'google/gemini-1.5-pro': 2097152,
+  'openai/gpt-oss-120b:free': 128000,
+  'z-ai/glm-4.5v': 128000,
+  'z-ai/glm-4.5': 128000,
+  'z-ai/glm-4.6': 128000,
+  'qwen/qwen3-next-80b-a3b-thinking': 128000,
+  'qwen/qwen3-coder': 128000,
+  'qwen/qwen3-coder-plus': 128000,
+  'x-ai/grok-2': 128000,
+  'x-ai/grok-3': 128000,
+  'x-ai/grok-3-mini': 128000,
+  'x-ai/grok-4': 128000,
+  'x-ai/grok-4-fast:free': 128000,
+  'x-ai/grok-code-fast-1': 128000,
+  'deepseek/deepseek-chat-v3.1:free': 128000,
+  'deepseek/deepseek-v3.1-terminus': 128000,
+  'deepseek/deepseek-v3.2-exp': 128000,
+  'moonshotai/kimi-k2-0905': 128000,
+  '@preset/nikcli': 200000,
+  '@preset/nikcli-pro': 200000,
+
+  // Default fallback for unknown models
+  default: 128000,
+}
+
+/**
+ * Get context limit for a model
+ * @param modelName The model name to lookup
+ * @returns Maximum context window in tokens
+ */
+export function getModelContextLimit(modelName: string): number {
+  return MODEL_CONTEXT_LIMITS[modelName] || MODEL_CONTEXT_LIMITS.default
 }
 
 /**

@@ -177,7 +177,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
           displayText = truncatedLine
 
           // Visual feedback that paste was detected and truncated
-          console.log(chalk.gray(`📋 ${truncatedLine}`))
+          advancedUI.logFunctionUpdate('info', `📋 ${truncatedLine}`)
         }
       }
 
@@ -390,7 +390,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         },
       }
     } catch (error) {
-      console.error('Cognitive analysis error:', error)
+      advancedUI.logError('info', 'Cognitive analysis error: ' + error)
     }
   }
 
@@ -539,7 +539,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         return
       } catch (factoryError: any) {
         // Fallback to AgentService for built-in agents
-        console.log(`Dynamic agent not found, trying built-in agents: ${factoryError.message}`)
+        advancedUI.logError('info', `Dynamic agent not found, trying built-in agents: ${factoryError.message}`)
       }
 
       const taskId = await agentService.executeTask(agentName, task, {})
@@ -600,10 +600,10 @@ class StreamingOrchestratorImpl extends EventEmitter {
       })
 
       // Check if streaming method is available
-      CliUI.logDebug(`🔍 Checking VM Agent streaming support: ${typeof this.activeVMAgent.processChatMessageStreaming}`)
+      advancedUI.logInfo('info', `🔍 Checking VM Agent streaming support: ${typeof this.activeVMAgent.processChatMessageStreaming}`)
 
       if (typeof this.activeVMAgent.processChatMessageStreaming === 'function') {
-        CliUI.logInfo(`🌊 Using streaming method for VM Agent chat`)
+        advancedUI.logInfo('info', `🌊 Using streaming method for VM Agent chat`)
 
         // Use streaming chat
         let hasContent = false
@@ -629,7 +629,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
             }
 
             for await (const chunk of this.activeVMAgent.processChatMessageStreaming(message)) {
-              CliUI.logDebug(`📦 Received chunk: ${chunk ? chunk.slice(0, 50) : 'null'}...`)
+              advancedUI.logInfo('info', `📦 Received chunk: ${chunk ? chunk.slice(0, 50) : 'null'}...`)
 
               if (chunk?.trim()) {
                 hasContent = true
@@ -660,7 +660,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
             }
           } catch (streamError: any) {
             retryCount++
-            CliUI.logError(`❌ Streaming error attempt ${retryCount}: ${streamError.message}`)
+            advancedUI.logError('info', `❌ Streaming error attempt ${retryCount}: ${streamError.message}`)
 
             if (retryCount >= maxRetries) {
               this.queueMessage({
@@ -675,7 +675,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
         // If no streaming content, show placeholder
         if (!hasContent) {
-          CliUI.logWarning(`⚠️ No streaming content received, showing placeholder`)
+          advancedUI.logWarning('info', `⚠️ No streaming content received, showing placeholder`)
           this.queueMessage({
             type: 'vm',
             content: `🔌 VM Agent processed the request but no streaming response was generated.`,
@@ -747,12 +747,12 @@ class StreamingOrchestratorImpl extends EventEmitter {
         })
 
         // Plan generated successfully - show completion message
-        console.log(chalk.green('✓ Plan generated and saved to todo.md'))
-        console.log(chalk.cyan(`📋 ${plan.todos.length} tasks created`))
+        advancedUI.logSuccess('✓ Plan generated and saved to todo.md')
+        advancedUI.logInfo('info', `📋 ${plan.todos.length} tasks created`)
 
         // Note: Task execution approval will be handled by main CLI
         // The plan is now ready and saved, no need for approval here
-        console.log(chalk.gray('💡 Use the plan mode interface to start tasks'))
+        advancedUI.logInfo('info', '💡 Use the plan mode interface to start tasks')
         // After execution ensure prompt is visible
         import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => { })
         this.processingMessage = false
@@ -853,7 +853,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         if (message.metadata?.isStreaming) {
           // For streaming chunks, use a more compact display
           const streamPrefix = chalk.dim('🌊')
-          console.log(`${streamPrefix}${chalk.hex('#3a3a3a')(content)}`)
+          advancedUI.logInfo('info', `${streamPrefix}${chalk.hex('#3a3a3a')(content)}`)
           return // Skip normal display for streaming chunks
         }
         break

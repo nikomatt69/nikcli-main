@@ -12,6 +12,7 @@ const ModelConfigSchema = z.object({
   model: z.string(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().min(1).max(8000).optional(),
+  maxContextTokens: z.number().min(1).max(10000000).optional().describe('Maximum context window for this model'),
   // Reasoning configuration
   enableReasoning: z.boolean().optional().describe('Enable reasoning for supported models'),
   reasoningMode: z.enum(['auto', 'explicit', 'disabled']).optional().describe('How to handle reasoning'),
@@ -544,6 +545,14 @@ const ConfigSchema = z.object({
       requireExplicitTrigger: z.boolean().default(false),
     })
     .default({ requireExplicitTrigger: false }),
+  // Authentication credentials
+  auth: z
+    .object({
+      email: z.string().optional(),
+      token: z.string().optional(),
+      lastLogin: z.string().optional(),
+    })
+    .optional(),
   // Enhanced diff display configuration
   diff: z
     .object({
@@ -675,275 +684,342 @@ export class SimpleConfigManager {
     'claude-sonnet-4-20250514': {
       provider: 'anthropic',
       model: 'claude-sonnet-4-20250514',
+      maxContextTokens: 200000,
     },
     'claude-3-5-sonnet-latest': {
       provider: 'anthropic',
       model: 'claude-3-5-sonnet-latest',
+      maxContextTokens: 200000,
     },
     'claude-3-7-sonnet-20250219': {
       provider: 'anthropic',
       model: 'claude-3-7-sonnet-20250219',
+      maxContextTokens: 200000,
     },
     'claude-opus-4-20250514': {
       provider: 'anthropic',
       model: 'claude-opus-4-20250514',
+      maxContextTokens: 200000,
     },
     'gpt-5-mini-2025-08-07': {
       provider: 'openai',
       model: 'gpt-5-mini-2025-08-07',
+      maxContextTokens: 128000,
     },
     'gpt-5-nano-2025-08-07': {
       provider: 'openai',
       model: 'gpt-5-nano-2025-08-07',
+      maxContextTokens: 128000,
     },
     'gpt-4o-mini': {
       provider: 'openai',
       model: 'gpt-4o-mini',
+      maxContextTokens: 128000,
     },
     'gpt-5': {
       provider: 'openai',
       model: 'gpt-5',
+      maxContextTokens: 200000,
     },
     'gpt-4o': {
       provider: 'openai',
       model: 'gpt-4o',
+      maxContextTokens: 128000,
     },
     'gpt-4.1': {
       provider: 'openai',
       model: 'gpt-4.1',
+      maxContextTokens: 1000000,
     },
     'gpt-4': {
       provider: 'openai',
       model: 'gpt-4',
+      maxContextTokens: 128000,
     },
     'v0-1.0-md': {
       provider: 'vercel',
       model: 'v0-1.0-md',
+      maxContextTokens: 32000,
     },
     'v0-1.5-md': {
       provider: 'vercel',
       model: 'v0-1.5-md',
+      maxContextTokens: 32000,
     },
     'v0-1.5-lg': {
       provider: 'vercel',
       model: 'v0-1.5-lg',
+      maxContextTokens: 32000,
     },
     'gemini-2.5-pro': {
       provider: 'google',
       model: 'gemini-2.5-pro',
+      maxContextTokens: 2097152,
     },
 
     'gemini-2.5-flash': {
       provider: 'google',
       model: 'gemini-2.5-flash',
+      maxContextTokens: 1000000,
     },
     'gemini-2.5-flash-lite': {
       provider: 'google',
       model: 'gemini-2.5-flash-lite',
+      maxContextTokens: 1000000,
     },
     'llama3.1:8b': {
       provider: 'ollama',
       model: 'llama3.1:8b',
+      maxContextTokens: 128000,
     },
     'codellama:7b': {
       provider: 'ollama',
       model: 'codellama:7b',
+      maxContextTokens: 16000,
     },
     'deepseek-r1:8b': {
       provider: 'ollama',
       model: 'deepseek-r1:8b',
+      maxContextTokens: 128000,
     },
     'deepseek-r1:3b': {
       provider: 'ollama',
       model: 'deepseek-r1:3b',
+      maxContextTokens: 128000,
     },
     'deepseek-r1:7b': {
       provider: 'ollama',
       model: 'deepseek-r1:7b',
+      maxContextTokens: 128000,
     },
     'mistral:7b': {
       provider: 'ollama',
       model: 'mistral:7b',
+      maxContextTokens: 128000,
     },
     'gpt-oss:20b': {
       provider: 'openrouter',
       model: 'gpt-oss:20b',
+      maxContextTokens: 128000,
     },
     gemma3n: {
       provider: 'openrouter',
       model: 'gemma3n',
+      maxContextTokens: 8192,
     },
     'gemma3n-large': {
       provider: 'openrouter',
       model: 'gemma3n-large',
+      maxContextTokens: 8192,
     },
 
     // OpenRouter models
     'anthropic/claude-sonnet-4.5': {
       provider: 'openrouter',
       model: 'anthropic/claude-sonnet-4.5',
+      maxContextTokens: 200000,
     },
     'anthropic/claude-sonnet-4': {
       provider: 'openrouter',
       model: 'anthropic/claude-sonnet-4',
+      maxContextTokens: 200000,
     },
     'anthropic/claude-3.7-sonnet:thinking': {
       provider: 'openrouter',
       model: 'anthropic/claude-3.7-sonnet:thinking',
+      maxContextTokens: 200000,
     },
     'anthropic/claude-3.7-sonnet': {
       provider: 'openrouter',
       model: 'anthropic/claude-3.7-sonnet',
+      maxContextTokens: 200000,
     },
     'anthropic/claude-opus-4.1': {
       provider: 'openrouter',
       model: 'anthropic/claude-opus-4.1',
+      maxContextTokens: 200000,
     },
     'anthropic/claude-3.5-sonnet': {
       provider: 'openrouter',
       model: 'anthropic/claude-3.5-sonnet',
+      maxContextTokens: 200000,
     },
 
     'nvidia/nemotron-nano-9b-v2:free': {
       provider: 'openrouter',
       model: 'nvidia/nemotron-nano-9b-v2:free',
+      maxContextTokens: 32000,
     },
     'openai/gpt-5': {
       provider: 'openrouter',
       model: 'openai/gpt-5',
+      maxContextTokens: 200000,
     },
     'openai/gpt-5-codex': {
       provider: 'openrouter',
       model: 'openai/gpt-5-codex',
+      maxContextTokens: 200000,
     },
     'openai/gpt-5-mini': {
       provider: 'openrouter',
       model: 'openai/gpt-5-mini',
+      maxContextTokens: 128000,
     },
     'openai/gpt-5-nano': {
       provider: 'openrouter',
       model: 'openai/gpt-5-nano',
+      maxContextTokens: 128000,
     },
     'openai/gpt-5-mini-2025-08-07': {
       provider: 'openrouter',
       model: 'openai/gpt-5-mini-2025-08-07',
+      maxContextTokens: 128000,
     },
     'meta-llama/llama-3.1-405b-instruct': {
       provider: 'openrouter',
       model: 'meta-llama/llama-3.1-405b-instruct',
+      maxContextTokens: 128000,
     },
     'meta-llama/llama-3.1-70b-instruct': {
       provider: 'openrouter',
       model: 'meta-llama/llama-3.1-70b-instruct',
+      maxContextTokens: 128000,
     },
     'meta-llama/llama-3.1-8b-instruct': {
       provider: 'openrouter',
       model: 'meta-llama/llama-3.1-8b-instruct',
+      maxContextTokens: 128000,
     },
     'google/gemini-2.5-flash-lite': {
       provider: 'openrouter',
       model: 'google/gemini-2.5-flash-lite',
+      maxContextTokens: 1000000,
     },
     'google/gemini-2.5-flash': {
       provider: 'openrouter',
       model: 'google/gemini-2.5-flash',
+      maxContextTokens: 1000000,
     },
     'google/gemini-2.5-flash-image-preview': {
       provider: 'openrouter',
       model: 'google/gemini-2.5-flash-image-preview',
+      maxContextTokens: 1000000,
     },
     'google/gemini-2.5-pro': {
       provider: 'openrouter',
       model: 'google/gemini-2.5-pro',
+      maxContextTokens: 2097152,
     },
 
     'google/gemini-2.0-flash-exp': {
       provider: 'openrouter',
       model: 'google/gemini-2.0-flash-exp',
+      maxContextTokens: 1000000,
     },
     'google/gemini-1.5-pro': {
       provider: 'openrouter',
       model: 'google/gemini-1.5-pro',
+      maxContextTokens: 2097152,
     },
     'openai/gpt-oss-120b:free': {
       provider: 'openrouter',
       model: 'openai/gpt-oss-120b:free',
+      maxContextTokens: 128000,
     },
     'z-ai/glm-4.5v': {
       provider: 'openrouter',
       model: 'z-ai/glm-4.5v',
+      maxContextTokens: 128000,
     },
     'z-ai/glm-4.5': {
       provider: 'openrouter',
       model: 'z-ai/glm-4.5',
+      maxContextTokens: 128000,
     },
     'z-ai/glm-4.6': {
       provider: 'openrouter',
       model: 'z-ai/glm-4.6',
+      maxContextTokens: 128000,
     },
     'mistralai/mistral-large': {
       provider: 'openrouter',
       model: 'mistralai/mistral-large',
+      maxContextTokens: 128000,
     },
     'qwen/qwen3-next-80b-a3b-thinking': {
       provider: 'openrouter',
       model: 'qwen/qwen3-next-80b-a3b-thinking',
+      maxContextTokens: 128000,
     },
     'x-ai/grok-2': {
       provider: 'openrouter',
       model: 'x-ai/grok-2',
+      maxContextTokens: 128000,
     },
     'deepseek/deepseek-chat-v3.1:free': {
       provider: 'openrouter',
       model: 'deepseek/deepseek-chat-v3.1:free',
+      maxContextTokens: 128000,
     },
     'deepseek/deepseek-v3.1-terminus': {
       provider: 'openrouter',
       model: 'deepseek/deepseek-v3.1-terminus',
+      maxContextTokens: 128000,
     },
     'deepseek/deepseek-v3.2-exp': {
       provider: 'openrouter',
       model: 'deepseek/deepseek-v3.2-exp',
+      maxContextTokens: 128000,
     },
     'moonshotai/kimi-k2-0905': {
       provider: 'openrouter',
       model: 'moonshotai/kimi-k2-0905',
+      maxContextTokens: 128000,
     },
     'qwen/qwen3-coder': {
       provider: 'openrouter',
       model: 'qwen/qwen3-coder',
+      maxContextTokens: 128000,
     },
     'x-ai/grok-4': {
       provider: 'openrouter',
       model: 'x-ai/grok-4',
+      maxContextTokens: 128000,
     },
     'x-ai/grok-3': {
       provider: 'openrouter',
       model: 'x-ai/grok-3',
+      maxContextTokens: 128000,
     },
     'x-ai/grok-3-mini': {
       provider: 'openrouter',
       model: 'x-ai/grok-3-mini',
+      maxContextTokens: 128000,
     },
     'x-ai/grok-4-fast:free': {
       provider: 'openrouter',
       model: 'x-ai/grok-4-fast:free',
+      maxContextTokens: 128000,
     },
     'x-ai/grok-code-fast-1': {
       provider: 'openrouter',
       model: 'x-ai/grok-code-fast-1',
+      maxContextTokens: 128000,
     },
     'qwen/qwen3-coder-plus': {
       provider: 'openrouter',
       model: 'qwen/qwen3-coder-plus',
+      maxContextTokens: 128000,
     },
     '@preset/nikcli': {
       provider: 'openrouter',
       model: '@preset/nikcli',
+      maxContextTokens: 200000,
     },
     '@preset/nikcli-pro': {
       provider: 'openrouter',
       model: '@preset/nikcli-pro',
+      maxContextTokens: 200000,
     },
   }
 
@@ -1557,6 +1633,34 @@ export class SimpleConfigManager {
 
     // 4. Default fallback
     return this.config.outputStyle.defaultStyle
+  }
+
+  /**
+   * Get max context tokens for current or specified model
+   * @param modelName Optional model name, defaults to current model
+   * @returns Maximum context window in tokens
+   */
+  getMaxContextTokens(modelName?: string): number {
+    const model = modelName || this.config.currentModel
+    const modelConfig = this.config.models[model]
+
+    if (modelConfig?.maxContextTokens) {
+      return modelConfig.maxContextTokens
+    }
+
+    // Fallback to imported function
+    const { getModelContextLimit } = require('../config/token-limits')
+    return getModelContextLimit(model)
+  }
+
+  /**
+   * Get safe context limit with safety margin
+   * @param modelName Optional model name, defaults to current model
+   * @param safetyRatio Safety margin ratio (0-1), default 0.8 for 80%
+   * @returns Safe context limit in tokens
+   */
+  getSafeContextLimit(modelName?: string, safetyRatio: number = 0.8): number {
+    return Math.floor(this.getMaxContextTokens(modelName) * safetyRatio)
   }
 }
 

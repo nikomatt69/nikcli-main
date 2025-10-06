@@ -67,20 +67,20 @@ export class MainOrchestrator {
   }
 
   private async gracefulShutdown(): Promise<void> {
-    console.log(chalk.yellow('\\n🛑 Shutting down orchestrator...'))
+    advancedUI.logWarning('\n Shutting down orchestrator...')
 
     try {
       // Stop all active agents
       const activeAgents = agentService.getActiveAgents()
       if (activeAgents.length > 0) {
-        console.log(chalk.blue(`⏳ Waiting for ${activeAgents.length} agents to complete...`))
+        advancedUI.logWarning(`⏳ Waiting for ${activeAgents.length} agents to complete...`)
         // In production, implement proper agent shutdown
       }
 
       // Save any pending diffs
       const pendingDiffs = diffManager.getPendingCount()
       if (pendingDiffs > 0) {
-        console.log(chalk.yellow(` ${pendingDiffs} diffs still pending`))
+        advancedUI.logWarning(` ${pendingDiffs} diffs still pending`)
       }
 
       // Clear resources
@@ -95,9 +95,9 @@ export class MainOrchestrator {
       try { await mcpClient.dispose() } catch { }
       try { await (this.vmOrchestrator as any)?.dispose?.() } catch { }
 
-      console.log(chalk.green('✓ Orchestrator shut down cleanly'))
+      advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
-      console.error(chalk.red('❌ Error during shutdown:'), error)
+      advancedUI.logError('❌ Error during shutdown: ' + error)
     } finally {
       process.exit(0)
     }
@@ -127,18 +127,18 @@ export class MainOrchestrator {
   private handleRecoverableError(error: any): void {
     try {
       // Log error details for debugging
-      console.log(chalk.yellow('⚡︎ Attempting error recovery...'))
+      advancedUI.logWarning('⚡︎ Attempting error recovery...')
 
       // Reset critical services state
       if (typeof error === 'object' && error?.message?.includes('ENOTFOUND')) {
-        console.log(chalk.blue('🌐 Network error detected, switching to offline mode'))
+        advancedUI.logWarning('🌐 Network error detected, switching to offline mode')
       } else if (error?.message?.includes('timeout')) {
-        console.log(chalk.blue('⏱️ Timeout detected, increasing retry intervals'))
+        advancedUI.logWarning('⏱️ Timeout detected, increasing retry intervals')
       }
 
-      console.log(chalk.green('✓ Error recovery completed'))
+      advancedUI.logSuccess('✓ Error recovery completed')
     } catch (recoveryError) {
-      console.error(chalk.red('❌ Recovery failed:'), recoveryError)
+      advancedUI.logError('❌ Recovery failed: ' + recoveryError)
     }
   }
 
@@ -157,9 +157,9 @@ export class MainOrchestrator {
     const allPassed = results.every((r) => r)
 
     if (allPassed) {
-      console.log(chalk.green('✓ All system checks passed'))
+      advancedUI.logSuccess('✓ All system checks passed')
     } else {
-      console.log(chalk.red('❌ System requirements not met'))
+      advancedUI.logError(' System requirements not met')
     }
 
     return allPassed
@@ -170,11 +170,11 @@ export class MainOrchestrator {
     const major = parseInt(version.slice(1).split('.')[0], 10)
 
     if (major < 18) {
-      console.log(chalk.red(`❌ Node.js ${major} is too old. Requires Node.js 18+`))
+      advancedUI.logError(` Node.js ${major} is too old. Requires Node.js 18+`)
       return false
     }
 
-    console.log(chalk.green(`✓ Node.js ${version}`))
+    advancedUI.logSuccess(` Node.js ${version}`)
     return true
   }
 
@@ -185,7 +185,7 @@ export class MainOrchestrator {
     const hasVercel = !!process.env.V0_API_KEY
 
     if (!hasAnthropic && !hasOpenAI && !hasGoogle && !hasVercel) {
-      console.log(chalk.red('❌ No API keys found'))
+      advancedUI.logError(' No API keys found')
       console.log(
         chalk.yellow('Set at least one: ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or V0_API_KEY')
       )
@@ -197,7 +197,7 @@ export class MainOrchestrator {
     if (hasOpenAI) available.push('GPT')
     if (hasGoogle) available.push('Gemini')
     if (hasVercel) available.push('Vercel')
-    console.log(chalk.green(`✓ API Keys: ${available.join(', ')}`))
+    advancedUI.logSuccess(` API Keys: ${available.join(', ')}`)
     return true
   }
 
@@ -206,11 +206,11 @@ export class MainOrchestrator {
     const fs = require('node:fs')
 
     if (!fs.existsSync(cwd)) {
-      console.log(chalk.red(`❌ Working directory does not exist: ${cwd}`))
+      advancedUI.logError(` Working directory does not exist: ${cwd}`)
       return false
     }
 
-    console.log(chalk.green(`✓ Working directory: ${cwd}`))
+    advancedUI.logSuccess(` Working directory: ${cwd}`)
     return true
   }
 
@@ -222,10 +222,10 @@ export class MainOrchestrator {
       require('nanoid')
       require('diff')
 
-      console.log(chalk.green('✓ All dependencies available'))
+      advancedUI.logSuccess(' All dependencies available')
       return true
     } catch (error) {
-      console.log(chalk.red(`❌ Missing dependencies: ${error}`))
+      advancedUI.logError(` Missing dependencies: ${error}`)
       return false
     }
   }
@@ -236,7 +236,7 @@ export class MainOrchestrator {
   private async initializeSystem(): Promise<boolean> {
     advancedUI.logFunctionCall('aidevelopmentorchestratorinit')
     advancedUI.logFunctionUpdate('info', 'Initializing AI Development Orchestrator...', 'ℹ')
-    console.log(chalk.gray('─'.repeat(60)))
+    advancedUI.logFunctionUpdate('info', '─'.repeat(60))
 
     // Define services with dependencies and phases
     const services = [
@@ -315,7 +315,7 @@ export class MainOrchestrator {
     const phases: Array<'core' | 'dependent' | 'all'> = ['core', 'dependent', 'all']
 
     for (const phase of phases) {
-      console.log(chalk.cyan(`\n📦 Phase: ${phase.toUpperCase()}`))
+      advancedUI.logFunctionUpdate('info', `\n Phase: ${phase.toUpperCase()}`)
       const phaseServices = services.filter(s => s.phase === phase)
 
       for (const service of phaseServices) {
@@ -326,16 +326,16 @@ export class MainOrchestrator {
             throw new Error(`Dependencies not ready for ${service.name}`)
           }
 
-          console.log(chalk.blue(`⚡︎ ${service.name}...`))
+          advancedUI.logFunctionUpdate('info', ` ${service.name}...`)
           await service.fn()
 
           // Mark as initialized
           const state = this.serviceStates.get(service.name)!
           state.initialized = true
 
-          console.log(chalk.green(`✓ ${service.name} initialized`))
+          advancedUI.logSuccess(` ${service.name} initialized`)
         } catch (error: any) {
-          console.log(chalk.red(`❌ ${service.name} failed: ${error.message}`))
+          advancedUI.logError(` ${service.name} failed: ${error.message}`)
 
           // Mark error
           const state = this.serviceStates.get(service.name)!
@@ -350,16 +350,16 @@ export class MainOrchestrator {
       // Validate phase completion
       const phaseValid = this.validatePhase(phase)
       if (!phaseValid) {
-        console.log(chalk.red(`❌ Phase ${phase} validation failed`))
+        advancedUI.logError(` Phase ${phase} validation failed`)
         await this.rollbackInitialization(phase)
         return false
       }
 
-      console.log(chalk.green(`✓ Phase ${phase} complete`))
+      advancedUI.logSuccess(` Phase ${phase} complete`)
     }
 
     this.initialized = true
-    console.log(chalk.green.bold('\n🎉 System initialization complete!'))
+    advancedUI.logSuccess('\n System initialization complete!')
     return true
   }
 
@@ -373,7 +373,7 @@ export class MainOrchestrator {
     for (const dep of state.dependencies) {
       const depState = this.serviceStates.get(dep)
       if (!depState || !depState.initialized) {
-        console.log(chalk.yellow(`⚠️ Dependency not ready: ${dep}`))
+        advancedUI.logWarning(` Dependency not ready: ${dep}`)
         return false
       }
     }
@@ -397,7 +397,7 @@ export class MainOrchestrator {
    * Rollback initialization on failure
    */
   private async rollbackInitialization(failedPhase: 'core' | 'dependent' | 'all'): Promise<void> {
-    console.log(chalk.yellow(`\n🔄 Rolling back initialization...`))
+    advancedUI.logFunctionUpdate('info', `\n Rolling back initialization...`)
 
     // Get list of initialized services
     const initializedServices: string[] = []
@@ -410,16 +410,16 @@ export class MainOrchestrator {
     // Cleanup in reverse order
     for (const serviceName of initializedServices.reverse()) {
       try {
-        console.log(chalk.dim(`   Cleaning up ${serviceName}...`))
+        advancedUI.logFunctionUpdate('info', `   Cleaning up ${serviceName}...`)
         // Services should implement their own cleanup if needed
         const state = this.serviceStates.get(serviceName)!
         state.initialized = false
       } catch (error: any) {
-        console.log(chalk.yellow(`⚠️ Cleanup warning for ${serviceName}: ${error.message}`))
+        advancedUI.logWarning(` Cleanup warning for ${serviceName}: ${error.message}`)
       }
     }
 
-    console.log(chalk.yellow(`✓ Rollback complete`))
+    advancedUI.logSuccess(` Rollback complete`)
   }
 
   private async initializeServices(): Promise<void> {
@@ -436,43 +436,43 @@ export class MainOrchestrator {
     // Agent service is initialized via import
     // Verify all agents are available
     const agents = agentService.getAvailableAgents()
-    console.log(chalk.dim(`   Loaded ${agents.length} agents`))
+    advancedUI.logFunctionUpdate('info', `   Loaded ${agents.length} agents`)
   }
 
   private async initializePlanning(): Promise<void> {
     // Planning service initialization
-    console.log(chalk.dim('   Planning system ready'))
+    advancedUI.logFunctionUpdate('info', '   Planning system ready')
   }
 
   private async initializeTools(): Promise<void> {
     const tools = toolService.getAvailableTools()
-    console.log(chalk.dim(`   Loaded ${tools.length} tools`))
+    advancedUI.logFunctionUpdate('info', `   Loaded ${tools.length} tools`)
   }
 
   private async initializeMemory(): Promise<void> {
     await memoryService.initialize()
-    console.log(chalk.dim('   Memory system ready'))
+    advancedUI.logFunctionUpdate('info', '   Memory system ready')
   }
 
   private async initializeSnapshot(): Promise<void> {
     await snapshotService.initialize()
-    console.log(chalk.dim('   Snapshot system ready'))
+    advancedUI.logFunctionUpdate('info', '   Snapshot system ready')
   }
 
   private async initializeSecurity(): Promise<void> {
     // Security policies are initialized in the orchestrator
-    console.log(chalk.dim('   Security policies loaded'))
+    advancedUI.logFunctionUpdate('info', '   Security policies loaded')
   }
 
   private async initializeContext(): Promise<void> {
     // Context management is handled in the streaming orchestrator
-    console.log(chalk.dim('   Context management ready'))
+    advancedUI.logFunctionUpdate('info', '   Context management ready')
   }
 
   private async initializeVMOrchestration(): Promise<void> {
     // Initialize VM orchestration system
-    console.log(chalk.dim('   VM Orchestrator ready'))
-    console.log(chalk.dim('   Container Manager ready'))
+    advancedUI.logFunctionUpdate('info', '   VM Orchestrator ready')
+    advancedUI.logFunctionUpdate('info', '   Container Manager ready')
 
     // Create VM monitoring panels
     await this.streamOrchestrator.createPanel({
@@ -591,27 +591,27 @@ export class MainOrchestrator {
       // Check system requirements
       const requirementsMet = await this.checkSystemRequirements()
       if (!requirementsMet) {
-        console.log(chalk.red('\n❌ Cannot start - system requirements not met'))
+        advancedUI.logError('\n Cannot start - system requirements not met')
         process.exit(1)
       }
 
       // Initialize all systems
       const initialized = await this.initializeSystem()
       if (!initialized) {
-        console.log(chalk.red('\n❌ Cannot start - system initialization failed'))
+        advancedUI.logError('\n Cannot start - system initialization failed')
         process.exit(1)
       }
 
       // Show quick start guide
 
       // Start the streaming orchestrator
-      console.log(chalk.blue.bold('🎛️ Starting Streaming Orchestrator...\n'))
+      advancedUI.logFunctionCall(' Starting Streaming Orchestrator...\n')
       await this.streamOrchestrator.start()
 
       // Set default provider preference for OpenRouter if configured
       const modelInfo = modelProvider.getCurrentModelInfo()
       if (modelInfo.config.provider === 'openrouter') {
-        console.log(chalk.blue('🌐 Using OpenRouter for enhanced model routing'))
+        advancedUI.logFunctionCall(' Using OpenRouter for enhanced model routing')
         // Pass provider preference to orchestrator if supported
         if (this.streamOrchestrator.addListener) {
           this.streamOrchestrator.addListener('provider', (_provider: string) => {
@@ -620,7 +620,7 @@ export class MainOrchestrator {
         }
       }
     } catch (error: any) {
-      console.error(chalk.red('❌ Failed to start orchestrator:'), error)
+      advancedUI.logError(' Failed to start orchestrator:', error)
       process.exit(1)
     }
 
@@ -628,7 +628,7 @@ export class MainOrchestrator {
     if (require.main === module) {
       const orchestrator = new MainOrchestrator()
       orchestrator.start().catch((error) => {
-        console.error(chalk.red('❌ Startup failed:'), error)
+        advancedUI.logError(' Startup failed:', error)
         process.exit(1)
       })
     }
