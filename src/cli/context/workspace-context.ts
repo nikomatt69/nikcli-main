@@ -942,7 +942,8 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
   // Refresh workspace index with file filtering
   async refreshWorkspaceIndex(): Promise<void> {
     if (!this.isInitialized || !this.fileFilter) {
-      console.log(chalk.yellow('⚠️ File filter not initialized, skipping workspace refresh'))
+      advancedUI.logFunctionCall('workspaceindexrefresh')
+      advancedUI.logFunctionUpdate('warning', 'File filter not initialized, skipping workspace refresh', '⚠')
       return
     }
 
@@ -979,7 +980,8 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
 
             this.context.files.set(filePath, fileContext)
           } catch (error) {
-            console.log(chalk.yellow(`⚠️ Error processing file ${filePath}:`, error))
+            advancedUI.logFunctionCall('workspaceindexrefresh')
+            advancedUI.logFunctionUpdate('warning', `Error processing file ${filePath}:`, `${error}`)
           }
         }
       }
@@ -994,7 +996,8 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
 
       this.context.lastUpdated = new Date()
     } catch (error) {
-      console.log(chalk.red('❌ Error refreshing workspace index:', error))
+      advancedUI.logFunctionCall('workspaceindexrefresh')
+      advancedUI.logFunctionUpdate('error', 'Error refreshing workspace index:', `${error}`)
     }
   }
 
@@ -1039,7 +1042,8 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
 
       return fileContext
     } catch (error) {
-      console.log(chalk.yellow(`⚠️ Error analyzing file ${filePath}:`, error))
+      advancedUI.logFunctionCall('workspaceindexrefresh')
+      advancedUI.logFunctionUpdate('warning', `Error analyzing file ${filePath}:`, `${error}`)
       return null
     }
   }
@@ -1110,7 +1114,8 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       if (fs.existsSync(selectedPath)) {
         const watcher = fs.watch(selectedPath, { recursive: true }, (eventType, filename) => {
           if (filename) {
-            console.log(chalk.yellow(`📁 File changed: ${filename} (${eventType})`))
+            advancedUI.logFunctionCall('workspaceindexrefresh')
+            advancedUI.logFunctionUpdate('warning', `File changed: ${filename} (${eventType})`)
             // Debounced re-analysis
             setTimeout(() => this.analyzeSelectedPaths(), 1000)
           }
@@ -1120,7 +1125,8 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       }
     })
 
-    console.log(chalk.green(`⚡︎ Watching ${this.context.selectedPaths.length} paths for changes`))
+    advancedUI.logFunctionCall('workspaceindexrefresh')
+    advancedUI.logFunctionUpdate('success', `Watching ${this.context.selectedPaths.length} paths for changes`)
   }
 
   stopWatching(): void {
@@ -1217,7 +1223,8 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       lastCleanup: new Date(),
     }
 
-    console.log(chalk.green('✓ All workspace caches cleared'))
+    advancedUI.logFunctionCall('workspaceindexrefresh')
+    advancedUI.logFunctionUpdate('success', 'All workspace caches cleared')
   }
 
   // Smart file analysis with caching
@@ -1278,7 +1285,8 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       this.context.files.set(relativePath, fileContext)
       return fileContext
     } catch (_error) {
-      console.log(chalk.yellow(`⚠️ Could not analyze file: ${filePath}`))
+      advancedUI.logFunctionCall('workspaceindexrefresh')
+      advancedUI.logFunctionUpdate('warning', `Could not analyze file: ${filePath}`)
       return null
     }
   }

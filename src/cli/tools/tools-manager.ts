@@ -5,6 +5,7 @@ import * as path from 'node:path'
 import { promisify } from 'node:util'
 import chalk from 'chalk'
 import { createFileFilter } from '../context/file-filter-system'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 const execAsync = promisify(exec)
 
@@ -97,7 +98,8 @@ export class ToolsManager {
     }
 
     fs.writeFileSync(fullPath, content, 'utf8')
-    console.log(chalk.green(`✓ File written: ${filePath}`))
+    advancedUI.logFunctionUpdate('success', `✓ File written: ${filePath}`)
+    advancedUI.logFunctionCall('write-file-tool')
   }
 
   async editFile(
@@ -170,9 +172,8 @@ export class ToolsManager {
         }
       } catch (error) {
         // Skip directories that can't be read (permissions, etc.)
-        console.log(
-          chalk.gray(`Skipped directory: ${dir} (${error instanceof Error ? error.message : 'Unknown error'})`)
-        )
+        advancedUI.logFunctionUpdate('info', `Skipped directory: ${dir} (${error instanceof Error ? error.message : 'Unknown error'}`)
+        advancedUI.logFunctionCall('tools-manager')
       }
     }
 
@@ -201,7 +202,7 @@ export class ToolsManager {
             })
           }
         })
-      } catch (_error) {}
+      } catch (_error) { }
     }
 
     return results
@@ -224,8 +225,8 @@ export class ToolsManager {
     const cwd = options.cwd ? path.resolve(this.workingDirectory, options.cwd) : this.workingDirectory
     const env = { ...process.env, ...options.env }
 
-    console.log(chalk.blue(`⚡ Executing: ${fullCommand}`))
-    console.log(chalk.gray(`📁 Working directory: ${cwd}`))
+    advancedUI.logFunctionUpdate('info', `⚡ Executing: ${fullCommand}`)
+    advancedUI.logFunctionUpdate('info', `📁 Working directory: ${cwd}`)
 
     try {
       const startTime = Date.now()
@@ -243,15 +244,17 @@ export class ToolsManager {
         const duration = Date.now() - startTime
         this.addToHistory(fullCommand, true, stdout + stderr)
 
-        console.log(chalk.green(`✓ Command completed in ${duration}ms`))
+        advancedUI.logFunctionUpdate('success', `✓ Command completed in ${duration}ms`)
         return { stdout, stderr, code: 0 }
       }
     } catch (error: any) {
       const _duration = Date.now() - Date.now()
       this.addToHistory(fullCommand, false, error.message)
 
-      console.log(chalk.red(`❌ Command failed: ${fullCommand}`))
-      console.log(chalk.gray(`Error: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `❌ Command failed: ${fullCommand}`)
+      advancedUI.logFunctionCall('tools-manager')
+      advancedUI.logFunctionUpdate('info', `Error: ${error.message}`)
+      advancedUI.logFunctionCall('tools-manager')
 
       return {
         stdout: error.stdout || '',
@@ -308,16 +311,16 @@ export class ToolsManager {
         this.addToHistory(command, code === 0, stdout + stderr)
 
         if (code === 0) {
-          console.log(chalk.green(`✓ Process completed (PID: ${child.pid})`))
+          advancedUI.logFunctionUpdate('success', `✓ Process completed (PID: ${child.pid})`)
         } else {
-          console.log(chalk.red(`❌ Process failed with code ${code} (PID: ${child.pid})`))
+          advancedUI.logFunctionUpdate('error', `❌ Process failed with code ${code} (PID: ${child.pid})`)
         }
 
         resolve({ stdout, stderr, code: code || 0, pid: child.pid! })
       })
 
       child.on('error', (error) => {
-        console.log(chalk.red(`❌ Process error: ${error.message}`))
+        advancedUI.logFunctionUpdate('error', `❌ Process error: ${error.message}`)
         processInfo.status = 'failed'
         this.runningProcesses.delete(child.pid!)
         resolve({ stdout, stderr: error.message, code: 1, pid: child.pid! })
@@ -354,14 +357,14 @@ export class ToolsManager {
         break
     }
 
-    console.log(chalk.blue(`📦 Installing ${packageName} with ${manager}...`))
+    advancedUI.logFunctionUpdate('info', `📦 Installing ${packageName} with ${manager}...`)
     const result = await this.runCommand(command, args)
 
     if (result.code === 0) {
-      console.log(chalk.green(`✓ Successfully installed ${packageName}`))
+      advancedUI.logFunctionUpdate('success', `✓ Successfully installed ${packageName}`)
       return true
     } else {
-      console.log(chalk.red(`❌ Failed to install ${packageName}`))
+      advancedUI.logFunctionUpdate('error', `❌ Failed to install ${packageName}`)
       return false
     }
   }
@@ -376,10 +379,10 @@ export class ToolsManager {
         this.runningProcesses.delete(pid)
       }
 
-      console.log(chalk.yellow(`⚠️ Process ${pid} terminated`))
+      advancedUI.logFunctionUpdate('warning', `⚠️ Process ${pid} terminated`)
       return true
     } catch (_error) {
-      console.log(chalk.red(`❌ Could not kill process ${pid}`))
+      advancedUI.logFunctionUpdate('error', `❌ Could not kill process ${pid}`)
       return false
     }
   }
@@ -537,12 +540,12 @@ export class ToolsManager {
 
   async gitAdd(files: string[]): Promise<void> {
     await this.runCommand('git', ['add', ...files])
-    console.log(chalk.green(`✓ Added files to git: ${files.join(', ')}`))
+    advancedUI.logFunctionUpdate('success', `✓ Added files to git: ${files.join(', ')}`)
   }
 
   async gitCommit(message: string): Promise<void> {
     await this.runCommand('git', ['commit', '-m', message])
-    console.log(chalk.green(`✓ Committed with message: ${message}`))
+    advancedUI.logFunctionUpdate('success', `✓ Committed with message: ${message}`)
   }
 
   // System Information and Advanced Operations
@@ -559,17 +562,17 @@ export class ToolsManager {
     try {
       const npmResult = await this.runCommand('npm', ['--version'])
       npmVersion = npmResult.stdout.trim()
-    } catch {}
+    } catch { }
 
     try {
       const gitResult = await this.runCommand('git', ['--version'])
       gitVersion = gitResult.stdout.match(/git version ([\d.]+)/)?.[1]
-    } catch {}
+    } catch { }
 
     try {
       const dockerResult = await this.runCommand('docker', ['--version'])
       dockerVersion = dockerResult.stdout.match(/Docker version ([\d.]+)/)?.[1]
-    } catch {}
+    } catch { }
 
     return {
       platform,
@@ -629,7 +632,7 @@ export class ToolsManager {
       if (!options.file) {
         try {
           fs.unlinkSync(tempFile)
-        } catch {}
+        } catch { }
       }
 
       return {
@@ -677,7 +680,7 @@ export class ToolsManager {
     let success = false
     const projectPath = path.join(this.workingDirectory, projectName)
 
-    console.log(chalk.blue(`🚀 Setting up ${projectType} project: ${projectName}`))
+    advancedUI.logFunctionUpdate('info', `🚀 Setting up ${projectType} project: ${projectName}`)
 
     try {
       switch (projectType) {
@@ -724,17 +727,17 @@ export class ToolsManager {
       }
 
       success = true
-      console.log(chalk.green(`✓ Project ${projectName} created successfully!`))
-      console.log(chalk.gray(`📁 Location: ${projectPath}`))
+      advancedUI.logFunctionUpdate('success', `✓ Project ${projectName} created successfully!`)
+      advancedUI.logFunctionUpdate('info', `📁 Location: ${projectPath}`)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to create project: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `❌ Failed to create project: ${error.message}`)
     }
 
     return { success, path: projectPath, commands }
   }
 
   async monitorLogs(logFile: string, callback?: (line: string) => void): Promise<ChildProcess> {
-    console.log(chalk.blue(`⚡︎ Monitoring logs: ${logFile}`))
+    advancedUI.logFunctionUpdate('info', `⚡︎ Monitoring logs: ${logFile}`)
 
     const child = spawn('tail', ['-f', logFile], {
       cwd: this.workingDirectory,
@@ -743,13 +746,13 @@ export class ToolsManager {
     child.stdout?.on('data', (data) => {
       const lines = data.toString().split('\n').filter(Boolean)
       lines.forEach((line: string) => {
-        console.log(chalk.cyan(`📝 ${line}`))
+        advancedUI.logFunctionUpdate('info', `📝 ${line}`)
         callback?.(line)
       })
     })
 
     child.stderr?.on('data', (data) => {
-      console.log(chalk.red(`❌ Log monitor error: ${data}`))
+      advancedUI.logFunctionUpdate('error', `❌ Log monitor error: ${data}`)
     })
 
     return child

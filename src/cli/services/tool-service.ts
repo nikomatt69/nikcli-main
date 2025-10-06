@@ -10,6 +10,7 @@ import { simpleConfigManager } from '../core/config-manager'
 import { ExecutionPolicyManager, type ToolApprovalRequest } from '../policies/execution-policy'
 import { ContentValidators } from '../tools/write-file-tool'
 import { type ApprovalRequest, type ApprovalResponse, ApprovalSystem } from '../ui/approval-system'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface ToolExecution {
   id: string
@@ -229,7 +230,7 @@ export class ToolService {
   registerTool(tool: ToolCapability): void {
     this.tools.set(tool.name, tool)
     if (!process.env.NIKCLI_SUPPRESS_TOOL_REGISTER_LOGS && !process.env.NIKCLI_QUIET_STARTUP) {
-      console.log(chalk.dim(`🔧 Registered tool: ${tool.name}`))
+      advancedUI.logFunctionUpdate('info', `🔧 Registered tool: ${tool.name}`)
     }
   }
 
@@ -464,7 +465,7 @@ export class ToolService {
       execution.status = 'failed'
       execution.error = error.message
 
-      if (!compact) console.log(chalk.red(`❌ ${toolName} failed: ${error.message}`))
+      if (!compact) advancedUI.logFunctionUpdate('error', `❌ ${toolName} failed: ${error.message}`)
       throw error
     } finally {
       if (timeoutHandle) clearTimeout(timeoutHandle)
@@ -509,7 +510,7 @@ export class ToolService {
 
     const versionValidation = await ContentValidators.noLatestVersions(args.content, args.filePath)
     if (versionValidation.warnings && versionValidation.warnings.length > 0) {
-      console.log(`⚠️  ${versionValidation.warnings.join(', ')}`)
+      advancedUI.logFunctionUpdate('warning', `⚠️  ${versionValidation.warnings.join(', ')}`)
     }
 
     // Ensure directory exists
@@ -524,7 +525,8 @@ export class ToolService {
       ? args.filePath.replace(this.workingDirectory, '').replace(/^\//, '')
       : args.filePath
 
-    console.log(chalk.green(`✓ File written: ${relativePath} (${args.content.length} bytes)`))
+    advancedUI.logFunctionUpdate('success', `✓ File written: ${relativePath} (${args.content.length} bytes)`)
+    advancedUI.logFunctionCall('write-file-tool')
 
     return {
       written: true,

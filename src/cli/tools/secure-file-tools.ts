@@ -3,6 +3,7 @@ import * as path from 'node:path'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 // Global batch approval state
 const batchApprovalState = {
@@ -64,8 +65,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
   // Start batch approval process
   batchApprovalState.approvalInProgress = true
   try {
-    ;(global as any).__nikCLI?.suspendPrompt?.()
-  } catch {}
+    ; (global as any).__nikCLI?.suspendPrompt?.()
+  } catch { }
   inputQueue.enableBypass()
 
   try {
@@ -95,8 +96,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
     batchApprovalState.approvalInProgress = false
     // Ensure prompt resumes cleanly after batch approval
     try {
-      ;(global as any).__nikCLI?.resumePromptAndRender?.()
-    } catch {}
+      ; (global as any).__nikCLI?.resumePromptAndRender?.()
+    } catch { }
   }
 }
 
@@ -157,7 +158,8 @@ export class ReadFileTool {
       const content = fs.readFileSync(safePath, 'utf8')
       const extension = path.extname(safePath).slice(1)
 
-      console.log(chalk.green(`📖 Read file: ${filePath}`))
+      advancedUI.logFunctionUpdate('success', `📖 Read file: ${filePath}`)
+      advancedUI.logFunctionCall('read-file-tool')
 
       return {
         path: filePath,
@@ -167,7 +169,8 @@ export class ReadFileTool {
         extension,
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to read file: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `❌ Failed to read file: ${error.message}`)
+      advancedUI.logFunctionCall('read-file-tool')
       throw error
     }
   }
@@ -203,7 +206,7 @@ export class WriteFileTool {
         const confirmed = await requestBatchApproval(action, filePath, content)
 
         if (!confirmed) {
-          console.log(chalk.yellow('✋ File operation cancelled by user'))
+          advancedUI.logFunctionUpdate('warning', '✋ File operation cancelled by user')
           return
         }
       }
@@ -213,14 +216,14 @@ export class WriteFileTool {
         const dir = path.dirname(safePath)
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true })
-          console.log(chalk.blue(`📁 Created directory: ${path.relative(this.workingDirectory, dir)}`))
+          advancedUI.logFunctionUpdate('info', `📁 Created directory: ${path.relative(this.workingDirectory, dir)}`)
         }
       }
 
       fs.writeFileSync(safePath, content, 'utf8')
-      console.log(chalk.green(`✓ File ${fileExists ? 'updated' : 'created'}: ${filePath}`))
+      advancedUI.logFunctionUpdate('success', `✓ File ${fileExists ? 'updated' : 'created'}: ${filePath}`)
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to write file: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `❌ Failed to write file: ${error.message}`)
       throw error
     }
   }
@@ -299,9 +302,8 @@ export class ListDirectoryTool {
 
       walkDir(safePath)
 
-      console.log(
-        chalk.green(`⚡︎ Listed directory: ${directoryPath} (${files.length} files, ${directories.length} directories)`)
-      )
+      advancedUI.logFunctionUpdate('success', `⚡︎ Listed directory: ${directoryPath} (${files.length} files, ${directories.length} directories)`)
+      advancedUI.logFunctionCall('list-directory-tool')
 
       return {
         files: files.sort(),
@@ -309,7 +311,7 @@ export class ListDirectoryTool {
         total: files.length + directories.length,
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to list directory: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `❌ Failed to list directory: ${error.message}`)
       throw error
     }
   }
@@ -366,20 +368,20 @@ export class ReplaceInFileTool {
       }
 
       if (totalReplacements === 0) {
-        console.log(chalk.yellow(`⚠️  No replacements made in: ${filePath}`))
+        advancedUI.logFunctionUpdate('warning', `⚠️  No replacements made in: ${filePath}`)
         return { replacements: 0 }
       }
 
       // Show confirmation unless skipped
       if (!options.skipConfirmation) {
-        console.log(chalk.blue(`\n📝 Proposed changes to ${filePath}:`))
-        console.log(chalk.gray(`${totalReplacements} replacement(s) will be made`))
+        advancedUI.logFunctionUpdate('info', `\n📝 Proposed changes to ${filePath}:`)
+        advancedUI.logFunctionUpdate('info', `${totalReplacements} replacement(s) will be made`)
 
         // Use batch approval system
         const confirmed = await requestBatchApproval('replace', filePath)
 
         if (!confirmed) {
-          console.log(chalk.yellow('✋ File replacement cancelled by user'))
+          advancedUI.logFunctionUpdate('warning', ' File replacement cancelled by user')
           return { replacements: 0 }
         }
       }
@@ -390,19 +392,19 @@ export class ReplaceInFileTool {
       if (options.createBackup) {
         backupPath = `${safePath}.backup.${Date.now()}`
         fs.writeFileSync(backupPath, originalContent, 'utf8')
-        console.log(chalk.blue(`💾 Backup created: ${path.relative(this.workingDirectory, backupPath)}`))
+        advancedUI.logFunctionUpdate('info', ` Backup created: ${path.relative(this.workingDirectory, backupPath)}`)
       }
 
       // Write the modified content
       fs.writeFileSync(safePath, modifiedContent, 'utf8')
-      console.log(chalk.green(`✓ Applied ${totalReplacements} replacement(s) to: ${filePath}`))
+      advancedUI.logFunctionUpdate('success', `✓ Applied ${totalReplacements} replacement(s) to: ${filePath}`)
 
       return {
         replacements: totalReplacements,
         backup: backupPath ? path.relative(this.workingDirectory, backupPath) : undefined,
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to replace in file: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `❌ Failed to replace in file: ${error.message}`)
       throw error
     }
   }

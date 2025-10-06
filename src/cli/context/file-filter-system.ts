@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { basename, extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface FileFilterConfig {
   respectGitignore: boolean
@@ -388,7 +389,7 @@ export class FileFilterSystem {
 
         for (const item of items) {
           if (filesToIndex.length >= this.config.maxTotalFiles) {
-            console.log(chalk.yellow(`⚠️ Reached maximum file limit (${this.config.maxTotalFiles})`))
+            advancedUI.logFunctionUpdate('warning', `⚠️ Reached maximum file limit (${this.config.maxTotalFiles})`)
             return
           }
 
@@ -404,19 +405,23 @@ export class FileFilterSystem {
           }
         }
       } catch (error) {
-        console.warn(chalk.yellow(`⚠️ Cannot read directory ${dirPath}: ${error}`))
+        advancedUI.logFunctionUpdate('warning', `⚠️ Cannot read directory ${dirPath}: ${error}`)
+        advancedUI.logFunctionCall('file-filter-system')
       }
     }
 
-    console.log(chalk.blue('📁 Scanning project for indexable files...'))
+    advancedUI.logFunctionUpdate('info', '📁 Scanning project for indexable files...')
     const startTime = Date.now()
 
     scanDirectory(absoluteProjectRoot)
 
     const duration = Date.now() - startTime
-    console.log(chalk.green(`✓ Scanned ${this.stats.totalScanned} files in ${duration}ms`))
-    console.log(chalk.gray(`   Included: ${this.stats.allowed}, Excluded: ${this.stats.excluded}`))
-    console.log(chalk.gray(`   Total size to index: ${this.formatFileSize(this.stats.totalSizeAllowed)}`))
+    advancedUI.logFunctionUpdate('success', `✓ Scanned ${this.stats.totalScanned} files in ${duration}ms`)
+    advancedUI.logFunctionCall('file-filter-system')
+    advancedUI.logFunctionUpdate('info', `   Included: ${this.stats.allowed}, Excluded: ${this.stats.excluded}`)
+    advancedUI.logFunctionCall('file-filter-system')
+    advancedUI.logFunctionUpdate('info', `   Total size to index: ${this.formatFileSize(this.stats.totalSizeAllowed)}`)
+    advancedUI.logFunctionCall('file-filter-system')
 
     return filesToIndex
   }
@@ -593,7 +598,7 @@ export class FileFilterSystem {
     const gitignorePath = join(projectRoot, '.gitignore')
 
     if (!existsSync(gitignorePath)) {
-      console.log(chalk.gray('No .gitignore found, using built-in exclusions only'))
+      advancedUI.logFunctionUpdate('info', 'No .gitignore found, using built-in exclusions only')
       return
     }
 
@@ -612,10 +617,11 @@ export class FileFilterSystem {
         })
 
       if (!process.env.NIKCLI_QUIET_STARTUP) {
-        console.log(chalk.gray(`📋 Loaded ${this.gitignoreRules.length} .gitignore rules`))
+        advancedUI.logFunctionUpdate('info', `📋 Loaded ${this.gitignoreRules.length} .gitignore rules`)
       }
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️ Failed to read .gitignore: ${error}`))
+      advancedUI.logFunctionUpdate('warning', `⚠️ Failed to read .gitignore: ${error}`)
+      advancedUI.logFunctionCall('file-filter-system')
     }
   }
 
@@ -824,7 +830,7 @@ export class FileFilterSystem {
   updateConfig(updates: Partial<FileFilterConfig>): void {
     this.config = { ...this.config, ...updates }
     this.filterCache.clear() // Clear cache when config changes
-    console.log(chalk.blue('🔧 File filter configuration updated'))
+    advancedUI.logFunctionUpdate('info', '🔧 File filter configuration updated')
   }
 
   /**
@@ -833,7 +839,7 @@ export class FileFilterSystem {
   clearCaches(): void {
     this.filterCache.clear()
     this.gitignoreCache.clear()
-    console.log(chalk.green('✓ File filter caches cleared'))
+    advancedUI.logFunctionUpdate('success', '✓ File filter caches cleared')
   }
 }
 

@@ -12586,63 +12586,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     process.exit(0)
   }
 
-  // File Operations Methods
-  private async readFile(filepath: string): Promise<void> {
-    try {
-      const readId = `read-${Date.now()}`
-      this.createStatusIndicator(readId, `Reading ${filepath}`)
-      this.startAdvancedSpinner(readId, 'Reading file...')
 
-      const content = await toolsManager.readFile(filepath)
-
-      this.stopAdvancedSpinner(readId, true, `Read ${filepath}`)
-      console.log(chalk.blue.bold(`\n📄 File: ${filepath}`))
-      console.log(chalk.gray('─'.repeat(50)))
-      console.log(content)
-      console.log(chalk.gray('─'.repeat(50)))
-      console.log(chalk.dim('✓ File read completed'))
-    } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to read ${filepath}: ${error.message}`))
-    }
-  }
-
-  private async writeFile(filepath: string, content: string): Promise<void> {
-    try {
-      const writeId = `write-${Date.now()}`
-      this.createStatusIndicator(writeId, `Writing ${filepath}`)
-      this.startAdvancedSpinner(writeId, 'Writing file...')
-
-      await toolsManager.writeFile(filepath, content)
-
-      this.stopAdvancedSpinner(writeId, true, `Written ${filepath}`)
-      console.log(chalk.green(`✓ File written: ${filepath}`))
-      console.log(chalk.gray('─'.repeat(50)))
-    } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to write ${filepath}: ${error.message}`))
-    }
-  }
-
-  private async listFiles(directory: string): Promise<void> {
-    try {
-      const lsId = `ls-${Date.now()}`
-      this.createStatusIndicator(lsId, `Listing ${directory}`)
-      this.startAdvancedSpinner(lsId, 'Listing files...')
-
-      const files = await toolsManager.listFiles(directory)
-
-      this.stopAdvancedSpinner(lsId, true, `Listed ${files.length} items`)
-      console.log(chalk.blue.bold(`\n📁 Directory: ${directory}`))
-      console.log(chalk.gray('─'.repeat(50)))
-      files.forEach((file) => {
-        const icon = '📄' // Simple icon for now
-        console.log(`${icon} ${chalk.cyan(file)}`)
-      })
-      console.log(chalk.gray('─'.repeat(50)))
-      console.log(chalk.dim(`✓ Listed ${files.length} files`))
-    } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to list ${directory}: ${error.message}`))
-    }
-  }
 
   private async runCommand(command: string): Promise<void> {
     // Avoid spinner during streaming to prevent prompt overlap/races
@@ -12650,7 +12594,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     let finalized = false
     try {
       this.createStatusIndicator(uniqueId, `Executing: ${command}`)
-      console.log(chalk.blue(`⚡ Running: ${command}`))
+      advancedUI.logFunctionUpdate('info', chalk.blue(`⚡ Running: ${command}`))
 
       const result = await toolsManager.runCommand(command.split(' ')[0], command.split(' ').slice(1), { stream: true })
 
@@ -12662,9 +12606,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       finalized = true
 
       // Summary line only; stdout/stderr already streamed by toolsManager
-      console.log(chalk.gray(`\n📊 Exit Code: ${result.code}`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`\n📊 Exit Code: ${result.code}`))
     } catch (error: any) {
-      console.log(chalk.red(`❌ Command failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.red(`❌ Command failed: ${error.message}`))
     } finally {
       try {
         if (!finalized) {
@@ -12789,7 +12733,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           break
       }
     } catch (error: any) {
-      console.log(chalk.red(`❌ Supabase command failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.red(`❌ Supabase command failed: ${error.message}`))
     }
   }
 
