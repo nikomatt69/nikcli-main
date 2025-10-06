@@ -12,6 +12,7 @@ import { simpleConfigManager } from '../core/config-manager'
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import type { OutputStyle } from '../types/output-styles'
 import { ReasoningDetector } from './reasoning-detector'
+import { getRAGMiddleware } from '../context/rag-setup'
 
 export interface ModelConfig {
   provider: 'openai' | 'anthropic' | 'google' | 'vercel' | 'gateway' | 'openrouter'
@@ -544,12 +545,14 @@ export class ModernAIProvider {
           }
         }
       } catch (_) { }
+      const ragMw = getRAGMiddleware();
       const result = await streamText({
         model,
         messages,
         tools,
         maxTokens: 8000,
         temperature: 1,
+        ...(ragMw || {}), // Spread middleware if available
       })
 
       for await (const delta of result.textStream) {
@@ -594,13 +597,15 @@ export class ModernAIProvider {
     this.logReasoningStatus(reasoningEnabled)
 
     try {
+      const ragMw = getRAGMiddleware();
       const result = await generateText({
         model,
         messages,
         tools,
-        maxToolRoundtrips: 25,
+        maxSteps: 25,
         maxTokens: 8000,
         temperature: 0.7,
+        ...(ragMw || {}), // Spread middleware if available
       })
 
       // Extract reasoning if available

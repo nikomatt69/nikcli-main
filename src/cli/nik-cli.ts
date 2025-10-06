@@ -18,6 +18,7 @@ import { TOKEN_LIMITS } from './config/token-limits'
 import { docsContextManager } from './context/docs-context-manager'
 import { unifiedRAGSystem } from './context/rag-system'
 import { workspaceContext } from './context/workspace-context'
+import { initializeRAG } from './context/rag-setup'
 import { agentFactory } from './core/agent-factory'
 import { AgentManager } from './core/agent-manager'
 import { agentStream } from './core/agent-stream'
@@ -4471,8 +4472,8 @@ EOF`
 
     // Set up task timeout to prevent hanging
     const taskTimeout = this.safeTimeout(() => {
-      throw new Error(`Task timeout: ${task.title} (exceeded 10 minutes)`)
-    }, 600000) // 5 minute timeout
+      throw new Error(`Task timeout: ${task.title} (exceeded 30 minutes)`)
+    }, 1800000) // 30 minutes = 30 * 60 * 1000 ms // 5 minute timeout 
 
     try {
       // Execute task exactly like default mode using tool router
