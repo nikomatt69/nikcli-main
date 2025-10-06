@@ -2201,46 +2201,9 @@ export class NikCLI {
 
         // @ key listener removed per user request (was causing issues)
 
-        // Handle * key for file picker suggestions
-        if (chunk === '*' && !this.assistantProcessing) {
-          setTimeout(() => this.showFilePickerSuggestions(), 100)
-        }
 
-        if (chunk === '/' && !this.assistantProcessing) {
-          const currentLine = this.rl?.line || ''
-          if (currentLine.length === 1 && currentLine === '/') {
-            // Activate slash menu when "/" is typed at the beginning
-            this.activateSlashMenu('/')
-            return
-          }
-        }
 
-        // Handle slash menu navigation
-        if (this.isSlashMenuActive && this.handleSlashMenuNavigation(key)) {
-          return
-        }
 
-        // Handle typing while slash menu is active
-        if (this.isSlashMenuActive && chunk && chunk.length === 1 && !key?.ctrl && !key?.meta) {
-          const currentLine = this.rl?.line || ''
-          if (currentLine.startsWith('/')) {
-            this.updateSlashMenu(currentLine)
-          } else {
-            this.closeSlashMenu()
-          }
-          return
-        }
-
-        // Handle backspace while slash menu is active
-        if (this.isSlashMenuActive && key?.name === 'backspace') {
-          const currentLine = this.rl?.line || ''
-          if (currentLine.length === 0 || !currentLine.startsWith('/')) {
-            this.closeSlashMenu()
-          } else {
-            this.updateSlashMenu(currentLine)
-          }
-          return
-        }
 
         // Handle ? key to show a quick cheat-sheet overlay (only at start of line)
         if (chunk === '?' && !this.assistantProcessing) {
@@ -11328,7 +11291,7 @@ EOF`
     // Move cursor to bottom of terminal (reserve HUD + frame + prompt + slash menu)
     const terminalHeight = process.stdout.rows || 24
     const hudExtraLines = planHudLines.length > 0 ? planHudLines.length + 1 : 0
-    const reservedLines = 3 + hudExtraLines + slashMenuLines
+    const reservedLines = 3 + hudExtraLines
     process.stdout.write(`\x1B[${Math.max(1, terminalHeight - reservedLines)};0H`)
 
     // Clear the bottom lines
@@ -11342,103 +11305,7 @@ EOF`
     }
 
     // Render slash menu if active
-    if (this.isSlashMenuActive && this.slashMenuCommands.length > 0) {
-      const menuWidth = Math.min(terminalWidth - 4, 80) // Leave margin and max width
-      const menuBorder = '─'.repeat(menuWidth - 2)
 
-      // Calculate visible commands window
-      const visibleCommands = this.slashMenuCommands.slice(
-        this.slashMenuScrollOffset,
-        this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE
-      )
-
-      // Menu header with scroll indicators
-      const hasMoreAbove = this.slashMenuScrollOffset > 0
-      const hasMoreBelow = this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE < this.slashMenuCommands.length
-      const scrollIndicator =
-        hasMoreAbove || hasMoreBelow
-          ? ` ${chalk.gray(`(${this.slashMenuSelectedIndex + 1}/${this.slashMenuCommands.length})`)}`
-          : ''
-
-      const headerText = `Commands${scrollIndicator}`
-      const headerTextLength = this._stripAnsi(headerText).length
-      const headerPadding = Math.max(0, menuWidth - headerTextLength - 2) // -2 for borders
-      const leftHeaderPad = Math.floor(headerPadding / 2)
-      const rightHeaderPad = headerPadding - leftHeaderPad
-
-      process.stdout.write(`${chalk.cyan(`╭${menuBorder}╮`)}\n`)
-      process.stdout.write(
-        chalk.cyan('│') +
-        ' '.repeat(leftHeaderPad) +
-        chalk.white.bold(headerText) +
-        ' '.repeat(rightHeaderPad) +
-        chalk.cyan('│') +
-        '\n'
-      )
-      process.stdout.write(`${chalk.cyan(`├${menuBorder}┤`)}\n`)
-
-      // Menu items (only visible window)
-      visibleCommands.forEach((command, visibleIndex) => {
-        const actualIndex = this.slashMenuScrollOffset + visibleIndex
-        const [cmd, desc] = command
-        const isSelected = actualIndex === this.slashMenuSelectedIndex
-        const maxCmdWidth = 24
-        const maxDescWidth = menuWidth - maxCmdWidth - 6 // 6 for borders and spacing
-
-        // Truncate command and description to fit
-        const truncatedCmd = cmd.length > maxCmdWidth ? `${cmd.substring(0, maxCmdWidth - 2)}..` : cmd
-        const truncatedDesc = desc.length > maxDescWidth ? `${desc.substring(0, maxDescWidth - 2)}..` : desc
-
-        const cmdPart = truncatedCmd.padEnd(maxCmdWidth)
-        const descPart = truncatedDesc.padEnd(maxDescWidth)
-
-        // Calculate exact content width without ANSI codes
-        const contentText = ` ${cmdPart} ${descPart} `
-        const contentWidth = this._stripAnsi(contentText).length
-
-        // Ensure content fits exactly within the box width
-        const availableWidth = menuWidth - 2 // -2 for left and right borders
-        const rightPadding = Math.max(0, availableWidth - contentWidth)
-
-        if (isSelected) {
-          // Highlighted selection - ensure exact width
-          const selectedContent = `${contentText}${' '.repeat(rightPadding)}`
-          process.stdout.write(chalk.cyan('│') + chalk.bgBlue.white(selectedContent) + chalk.cyan('│') + '\n')
-        } else {
-          // Normal item - ensure exact width
-          const normalContent = ` ${chalk.yellow(cmdPart)} ${chalk.gray(descPart)}${' '.repeat(rightPadding)} `
-          process.stdout.write(chalk.cyan('│') + normalContent + chalk.cyan('│') + '\n')
-        }
-      })
-
-      // Menu footer with scroll indicators
-      let footerContent = ''
-      if (hasMoreAbove && hasMoreBelow) {
-        footerContent = `${chalk.gray('⇧↑↓')} Use Shift+arrows to scroll`
-      } else if (hasMoreAbove) {
-        footerContent = `${chalk.gray('⇧↑')} More above`
-      } else if (hasMoreBelow) {
-        footerContent = `${chalk.gray('⇧↓')} More below`
-      } else {
-        footerContent = `${chalk.gray('↵')} Enter to select • ${chalk.gray('Esc')} to close`
-      }
-
-      const footerTextLength = this._stripAnsi(footerContent).length
-      const footerPadding = Math.max(0, menuWidth - footerTextLength - 2) // -2 for borders
-      const leftFooterPad = Math.floor(footerPadding / 2)
-      const rightFooterPad = footerPadding - leftFooterPad
-
-      process.stdout.write(`${chalk.cyan(`├${menuBorder}┤`)}\n`)
-      process.stdout.write(
-        chalk.cyan('│') +
-        ' '.repeat(leftFooterPad) +
-        footerContent +
-        ' '.repeat(rightFooterPad) +
-        chalk.cyan('│') +
-        '\n'
-      )
-      process.stdout.write(`${chalk.cyan(`╰${menuBorder}╯`)}\n`)
-    }
 
     // Model/provider
     const currentModel2 = this.configManager.getCurrentModel()
