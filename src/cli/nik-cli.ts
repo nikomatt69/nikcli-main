@@ -2206,7 +2206,6 @@ export class NikCLI {
           setTimeout(() => this.showFilePickerSuggestions(), 100)
         }
 
-        // Handle / key for slash command palette
         if (chunk === '/' && !this.assistantProcessing) {
           const currentLine = this.rl?.line || ''
           if (currentLine.length === 1 && currentLine === '/') {
@@ -2217,19 +2216,8 @@ export class NikCLI {
         }
 
         // Handle slash menu navigation
-        if (this.isSlashMenuActive) {
-          const navResult = this.handleSlashMenuNavigation(key)
-          if (navResult.shouldRenderPrompt) {
-            this.renderPromptArea()
-          }
-          if (navResult.shouldExit) {
-            // Schedule shutdown asynchronously to avoid blocking keypress handler
-            setImmediate(() => this.shutdown())
-            return
-          }
-          if (navResult.shouldRenderPrompt || navResult.shouldExit) {
-            return
-          }
+        if (this.isSlashMenuActive && this.handleSlashMenuNavigation(key)) {
+          return
         }
 
         // Handle typing while slash menu is active
@@ -2246,18 +2234,7 @@ export class NikCLI {
         // Handle backspace while slash menu is active
         if (this.isSlashMenuActive && key?.name === 'backspace') {
           const currentLine = this.rl?.line || ''
-
-          // If the line doesn't start with /, we need to fix the order first
-          if (!currentLine.startsWith('/') && currentLine.includes('/')) {
-            const slashIndex = currentLine.indexOf('/')
-            const correctedLine = '/' + currentLine.substring(0, slashIndex) + currentLine.substring(slashIndex + 1)
-
-            // Clear the line and write the corrected version
-            this.rl?.write('', { ctrl: true, name: 'u' }) // Clear line
-            this.rl?.write(correctedLine)
-
-            this.updateSlashMenu(correctedLine)
-          } else if (currentLine.length === 0 || !currentLine.startsWith('/')) {
+          if (currentLine.length === 0 || !currentLine.startsWith('/')) {
             this.closeSlashMenu()
           } else {
             this.updateSlashMenu(currentLine)
@@ -19678,60 +19655,43 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   }
 
   /**
-   * Handle slash menu navigation with Shift+arrow keys and scrolling
-   * Returns control flags to optimize rendering and prevent unnecessary re-renders
-   */
-  private handleSlashMenuNavigation(key: any): { shouldRenderPrompt: boolean; shouldExit: boolean } {
-    if (!this.isSlashMenuActive) {
-      return { shouldRenderPrompt: false, shouldExit: false }
-    }
+     * Handle slash menu navigation with arrow keys and scrolling
+     */
+  private handleSlashMenuNavigation(key: any): boolean {
+    if (!this.isSlashMenuActive) return false
 
-    try {
-      if (key.name === 'up' && key.shift) {
-        if (this.slashMenuSelectedIndex > 0) {
-          this.slashMenuSelectedIndex--
+    if (key.name === 'up') {
+      if (this.slashMenuSelectedIndex > 0) {
+        this.slashMenuSelectedIndex--
 
-          // Adjust scroll offset if selection goes above visible area
-          if (this.slashMenuSelectedIndex < this.slashMenuScrollOffset) {
-            this.slashMenuScrollOffset = this.slashMenuSelectedIndex
-          }
-          return { shouldRenderPrompt: true, shouldExit: false } // Only render if there was an actual change
-        }
-      } else if (key.name === 'down' && key.shift) {
-        if (this.slashMenuSelectedIndex < this.slashMenuCommands.length - 1) {
-          this.slashMenuSelectedIndex++
-
-          // Adjust scroll offset if selection goes below visible area
-          const maxVisibleIndex = this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE - 1
-          if (this.slashMenuSelectedIndex > maxVisibleIndex) {
-            this.slashMenuScrollOffset = this.slashMenuSelectedIndex - this.SLASH_MENU_MAX_VISIBLE + 1
-          }
-          return { shouldRenderPrompt: true, shouldExit: false } // Only render if there was an actual change
-        }
-      } else if (key.name === 'return') {
-        try {
-          this.selectSlashCommand()
-          return { shouldRenderPrompt: true, shouldExit: false }
-          // Command selected, need to render
-        } catch (error: any) {
-          console.log(chalk.red(`Error selecting command: ${error.message}`))
-          return { shouldRenderPrompt: true, shouldExit: false } // Show error
-        }
-      } else if (key.name === 'escape') {
-        try {
-          this.closeSlashMenu()
-          return { shouldRenderPrompt: true, shouldExit: false } // Menu closed, need to render
-        } catch (error: any) {
-          console.log(chalk.red(`Error closing menu: ${error.message}`))
-          return { shouldRenderPrompt: true, shouldExit: false } // Show error
+        // Adjust scroll offset if selection goes above visible area
+        if (this.slashMenuSelectedIndex < this.slashMenuScrollOffset) {
+          this.slashMenuScrollOffset = this.slashMenuSelectedIndex
         }
       }
+      this.renderPromptArea()
+      return true
+    } else if (key.name === 'down') {
+      if (this.slashMenuSelectedIndex < this.slashMenuCommands.length - 1) {
+        this.slashMenuSelectedIndex++
 
-      return { shouldRenderPrompt: false, shouldExit: false }
-    } catch (error: any) {
-      console.log(chalk.red(`Navigation error: ${error.message}`))
-      return { shouldRenderPrompt: true, shouldExit: false } // Render to show error
+        // Adjust scroll offset if selection goes below visible area
+        const maxVisibleIndex = this.slashMenuScrollOffset + this.SLASH_MENU_MAX_VISIBLE - 1
+        if (this.slashMenuSelectedIndex > maxVisibleIndex) {
+          this.slashMenuScrollOffset = this.slashMenuSelectedIndex - this.SLASH_MENU_MAX_VISIBLE + 1
+        }
+      }
+      this.renderPromptArea()
+      return true
+    } else if (key.name === 'return') {
+      this.selectSlashCommand()
+      return true
+    } else if (key.name === 'escape') {
+      this.closeSlashMenu()
+      return true
     }
+
+    return false
   }
 
   /**
@@ -19745,8 +19705,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       // Clear current input and insert selected command
       this.rl.write('', { ctrl: true, name: 'u' }) // Clear line
       this.rl.write(selectedCommand[0])
-      // Move cursor to end of the inserted command
-      this.rl.write('', { ctrl: true, name: 'e' }) // Move to end of line
+      this.rl.write('', { ctrl: true, name: 'e' })
       this.closeSlashMenu()
     }
   }
@@ -19782,10 +19741,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     this.currentSlashInput = input
     this.slashMenuCommands = this.filterSlashCommands(input)
     this.slashMenuSelectedIndex = Math.min(this.slashMenuSelectedIndex, this.slashMenuCommands.length - 1)
-    this.slashMenuScrollOffset = Math.min(
-      this.slashMenuScrollOffset,
-      Math.max(0, this.slashMenuCommands.length - this.SLASH_MENU_MAX_VISIBLE)
-    )
+    this.slashMenuScrollOffset = Math.min(this.slashMenuScrollOffset, Math.max(0, this.slashMenuCommands.length - this.SLASH_MENU_MAX_VISIBLE))
 
     // Ensure selected item is visible
     if (this.slashMenuSelectedIndex < this.slashMenuScrollOffset) {
