@@ -6,7 +6,11 @@ icon: "container"
 
 ## Overview
 
-The VM Agent (Secure Virtualized Agent) is NikCLI's specialized agent for autonomous development in isolated virtualized environments. It provides secure, containerized development capabilities with complete repository management and pull request automation.
+The VM Agent (SecureVirtualizedAgent) is NikCLI's second registered agent for autonomous development in isolated Docker environments. It provides secure, containerized development capabilities with complete repository management, API key proxy for zero secret exposure, and pull request automation.
+
+<Warning>
+This document describes the **VM Agent**, one of only **two registered agents** in NikCLI. Other specialized agents (React, Backend, Frontend, DevOps) exist as internal code modules but are **not registered** as separate agents - their functionality is handled by the Universal Agent through cognitive routing.
+</Warning>
 
 <CardGroup cols={2}>
   <Card title="Isolated Execution" icon="shield">
@@ -25,37 +29,43 @@ The VM Agent (Secure Virtualized Agent) is NikCLI's specialized agent for autono
 
 ## Core Capabilities
 
-The VM Agent provides **20 specialized capabilities** for virtualized development:
+The VM Agent provides **20 registered capabilities** for virtualized development (expandable via configuration):
 
-### VM-Specific Capabilities
-- **vm-management** - Container lifecycle management
-- **container-orchestration** - Docker container coordination
-- **isolated-execution** - Secure isolated code execution
-- **repository-cloning** - Git repository cloning and setup
+### VM-Specific Capabilities (7)
+- **vm-management** - Docker container lifecycle management
+- **container-orchestration** - Multi-container coordination  
+- **isolated-execution** - Secure sandboxed code execution
+- **repository-cloning** - Automated Git repository setup
 - **vscode-server** - Remote VS Code server integration
-- **autonomous-development** - Self-directed development tasks
-- **pull-request-automation** - Automated PR workflows
+- **autonomous-development** - Self-directed development workflows
+- **pull-request-automation** - Automated PR creation and management
 
-### Repository Analysis and Management
-- **repository-analysis** - Deep codebase analysis
-- **dependency-management** - Package and dependency handling
-- **testing-automation** - Automated test execution
-- **documentation-generation** - Auto-generated documentation
-- **code-quality-analysis** - Code quality assessment
+### Repository Management (5)
+- **repository-analysis** - Deep codebase analysis and structure detection
+- **dependency-management** - NPM/Yarn/PNPM package management
+- **testing-automation** - Automated test execution and reporting
+- **documentation-generation** - Auto-generated code documentation
+- **code-quality-analysis** - Static analysis and quality metrics
 
-### Security Capabilities
-- **secure-api-communication** - Secure external API calls
-- **token-budget-management** - Resource usage control
-- **audit-logging** - Complete activity logging
-- **resource-isolation** - Container resource limits
-- **credential-management** - Secure credential handling
+### Security Features (5)
+- **secure-api-communication** - API key proxy with zero secret exposure
+- **token-budget-management** - 50,000 token budget enforcement per session
+- **audit-logging** - Complete activity audit trail
+- **resource-isolation** - Container CPU/memory/disk limits
+- **credential-management** - Secure JWT-based session management
 
-### Development Workflows
-- **full-stack-development** - Complete application development
-- **ci-cd-integration** - Pipeline integration
-- **git-operations** - Advanced Git workflows
-- **package-management** - Dependency installation and management
-- **environment-setup** - Development environment configuration
+### Development Workflows (3)
+- **full-stack-development** - Complete application development in containers
+- **ci-cd-integration** - GitHub Actions/GitLab CI integration
+- **git-operations** - Full Git workflow automation
+- **package-management** - Dependency installation and updates
+- **environment-setup** - Automated environment configuration
+
+**Resource Limits:**
+- Token Budget: 50,000 tokens per session (enforced)
+- Concurrent Tasks: 1 task at a time
+- Container Timeout: 30 minutes default
+- Max Retries: 2 attempts
 
 ## Usage Examples
 

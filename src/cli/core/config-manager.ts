@@ -472,17 +472,17 @@ const ConfigSchema = z.object({
       features: z
         .object({
           database: z.boolean().default(true),
-          storage: z.boolean().default(true),
+          storage: z.boolean().default(false),
           auth: z.boolean().default(true),
           realtime: z.boolean().default(true), // ✅ Enabled by default
-          vector: z.boolean().default(true),
+          vector: z.boolean().default(false),
         })
         .default({
           database: true,
-          storage: true,
+          storage: false,
           auth: true,
           realtime: true, // ✅ Enabled by default
-          vector: true,
+          vector: false,
         }),
       tables: z
         .object({

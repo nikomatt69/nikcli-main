@@ -6,22 +6,26 @@ icon: 'users'
 
 ## Overview
 
-NikCLI's agent management system provides control over AI agents, enabling you to execute tasks with specialized agents, create custom agents, and manage agent blueprints. The system includes two registered agents: the Universal Agent for comprehensive tasks and the VM Agent for isolated development.
+NikCLI's agent management system provides control over two registered AI agents, enabling autonomous development with intelligent task orchestration. The system includes the Universal Agent for comprehensive full-stack development and the VM Agent for isolated, secure development environments.
 
 <CardGroup cols={2}>
   <Card title="Universal Agent" icon="robot">
-    Comprehensive full-stack development agent with 64 capabilities
+    All-in-one enterprise agent with 44 comprehensive full-stack capabilities
   </Card>
-  <Card title="VM Agent" icon="server">
-    Secure virtualized development environment
+  <Card title="VM Agent" icon="container">
+    Secure virtualized development with Docker isolation and 20 capabilities
   </Card>
-  <Card title="Custom Agents" icon="wrench">
-    Create and deploy specialized agents from blueprints
+  <Card title="Custom Blueprints" icon="blueprint">
+    Create and save agent configuration blueprints
   </Card>
-  <Card title="Blueprint Management" icon="blueprint">
-    Manage agent configurations and templates
+  <Card title="Cognitive Orchestration" icon="brain">
+    Intelligent task understanding and routing
   </Card>
 </CardGroup>
+
+<Note>
+  NikCLI uses **two registered agents** rather than multiple specialized agents. Both agents handle all development domains through intelligent cognitive routing and tool orchestration.
+</Note>
 
 ## Core Agent Commands
 
@@ -40,8 +44,8 @@ Display all available agents and their current status.
 - Basic capabilities overview
 
 **Available Agents:**
-- `universal-agent` - Full-stack development with 64 capabilities
-- `vm-agent` - Secure virtualized development environment
+- `universal-agent` - Full-stack development with 44 capabilities (default)
+- `vm-agent` - Secure virtualized development with Docker isolation (20 capabilities)
 
 ### `/agent` - Execute with Specific Agent
 
@@ -56,13 +60,13 @@ Execute tasks using a specific agent.
     /agent universal-agent "implement API authentication"
     ```
     
-    **Universal Agent Capabilities:**
-    - Full-stack development (React, Node.js, TypeScript)
-    - Database operations and optimization
-    - API development and integration
-    - Testing and debugging
-    - DevOps and deployment
-    - Code review and refactoring
+    **Universal Agent - 44 Capabilities:**
+    - **Core** (7): code-generation, code-analysis, code-review, optimization, debugging, refactoring, testing
+    - **Frontend** (11): React, Next.js, TypeScript, JavaScript, HTML, CSS, frontend, components, hooks, JSX, TSX
+    - **Backend** (8): Node.js, API development, database, server architecture, REST API, GraphQL, microservices
+    - **DevOps** (8): CI/CD, Docker, Kubernetes, deployment, infrastructure, monitoring, security
+    - **Autonomous** (5): File operations, project creation, autonomous coding, system admin, full-stack dev
+    - **Analysis** (5): Performance, security, quality assessment, architecture review, documentation
   </Tab>
   
   <Tab title="VM Agent">
@@ -73,11 +77,12 @@ Execute tasks using a specific agent.
     /agent vm-agent "create pull request with changes"
     ```
     
-    **VM Agent Features:**
-    - Docker container isolation
-    - Repository cloning and analysis
-    - Secure development environment
-    - Pull request creation
+    **VM Agent - 20 Capabilities:**
+    - **VM Operations** (7): vm-management, container-orchestration, isolated-execution, repository-cloning, vscode-server, autonomous-development, pull-request-automation
+    - **Repository** (5): repository-analysis, dependency-management, testing-automation, documentation-generation, code-quality-analysis
+    - **Security** (5): secure-api-communication, token-budget-management, audit-logging, resource-isolation, credential-management
+    - **Workflows** (3): full-stack-development, ci-cd-integration, git-operations, package-management, environment-setup
+    - **Limits**: 50,000 tokens per session, single concurrent task, Docker isolated
   </Tab>
 </Tabs>
 
