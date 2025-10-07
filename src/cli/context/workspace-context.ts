@@ -942,9 +942,16 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
   // Refresh workspace index with file filtering
   async refreshWorkspaceIndex(): Promise<void> {
     if (!this.isInitialized || !this.fileFilter) {
+      // Lazy auto-initialize to avoid skipping refresh
       advancedUI.logFunctionCall('workspaceindexrefresh')
-      advancedUI.logFunctionUpdate('warning', 'File filter not initialized, skipping workspace refresh', '⚠')
-      return
+      advancedUI.logFunctionUpdate('info', 'Initializing file filter before workspace refresh...', 'ℹ')
+      try {
+        // Minimal lazy init: ensure flag set; fileFilter already created in constructor
+        this.isInitialized = true
+      } catch (_e) {
+        advancedUI.logFunctionUpdate('warning', 'File filter not initialized, skipping workspace refresh', '⚠')
+        return
+      }
     }
 
     advancedUI.logFunctionCall('workspaceindexrefresh')

@@ -457,7 +457,7 @@ class UpstashVectorStore extends VectorStore {
         console.log(chalk.gray('🔗 Connecting to Upstash Redis (vector store)'))
         try {
           await this.redis.ping()
-        } catch (_e) {}
+        } catch (_e) { }
         console.log(chalk.green('✓ Upstash Redis connected'))
         return true
       }
@@ -481,6 +481,33 @@ class UpstashVectorStore extends VectorStore {
 
   async healthCheck(): Promise<boolean> {
     try {
+      // If using Upstash Vector REST, probe the /info endpoint (or a lightweight request)
+      if (this.mode === 'vector' && this.vectorBaseUrl && this.vectorToken) {
+        try {
+          await axios.get(`${this.vectorBaseUrl}/info`, {
+            headers: { Authorization: `Bearer ${this.vectorToken}` },
+            timeout: 3000,
+          })
+          this.stats.lastHealthCheck = new Date()
+          return true
+        } catch (_e) {
+          // If /info is unsupported, try a minimal POST to /query with empty vector to validate service
+          try {
+            await axios.post(
+              `${this.vectorBaseUrl}/query`,
+              { vector: [0], top_k: 1 },
+              { headers: { Authorization: `Bearer ${this.vectorToken}` }, timeout: 3000 }
+            )
+            this.stats.lastHealthCheck = new Date()
+            return true
+          } catch (__e) {
+            this.stats.errors++
+            return false
+          }
+        }
+      }
+
+      // Redis-backed (manual) mode
       if (!this.redis) return false
       // ping may not be supported everywhere; treat as healthy if client exists
       this.stats.lastHealthCheck = new Date()
@@ -556,7 +583,7 @@ class UpstashVectorStore extends VectorStore {
             { id },
             { headers: { Authorization: `Bearer ${this.vectorToken}` } }
           )
-        } catch (_e) {}
+        } catch (_e) { }
         return true
       }
 

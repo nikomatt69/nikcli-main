@@ -50,6 +50,17 @@ export class CacheService extends EventEmitter {
   }
   // 🔒 FIXED: Lock for coordinating writes to prevent cache inconsistency
   private writeLocks = new AsyncLock()
+  // Namespace TTL defaults (seconds)
+  private namespaceTtl: Record<string, number> = {
+    'token_cache': 3 * 24 * 60 * 60,
+    'session': 60 * 60,
+    'profile': 6 * 60 * 60,
+    'ai': 24 * 60 * 60,
+  }
+  // Circuit breaker state
+  private redisFailureCount = 0
+  private redisLastFailureAt = 0
+  private redisOpenUntil = 0
 
   constructor(options?: CacheServiceOptions) {
     super()
@@ -66,6 +77,10 @@ export class CacheService extends EventEmitter {
     this.smartCache = smartCache
 
     this.setupEventHandlers()
+    // Persist stats periodically (best-effort)
+    setInterval(() => {
+      void this.persistStats().catch(() => { })
+    }, 60000)
   }
 
   /**
@@ -114,6 +129,9 @@ export class CacheService extends EventEmitter {
     }
   ): Promise<boolean> {
     const { ttl, metadata, strategy = 'both' } = options || {}
+    const isOpaque = this.isOpaqueKey(key)
+    const chosenStrategy: 'redis' | 'smart' | 'both' = strategy || (isOpaque ? 'redis' : 'both')
+    const effectiveTtl = ttl ?? this.resolveTtl(key, context)
 
     // Acquire lock for this key to prevent concurrent writes
     const release = await this.writeLocks.acquire(`cache-write-${key}`)
@@ -123,14 +141,14 @@ export class CacheService extends EventEmitter {
       let smartSuccess = false
 
       // Write-through strategy: write to both in coordinated manner
-      if (strategy === 'both') {
+      if (chosenStrategy === 'both') {
         // Write to both caches atomically
         try {
           const [redisResult, smartResult] = await Promise.allSettled([
-            this.shouldUseRedis(strategy)
-              ? this.redis.set(key, value, ttl, metadata)
+            this.shouldUseRedis(chosenStrategy)
+              ? this.redis.set(key, value, effectiveTtl, metadata)
               : Promise.resolve(false),
-            this.shouldUseFallback(strategy, false)
+            this.shouldUseFallback(chosenStrategy, false)
               ? this.smartCache.setCachedResponse(key, JSON.stringify(value), context, {
                 tokensSaved: this.estimateTokensSaved(value),
                 responseTime: metadata?.responseTime || 0,
@@ -167,9 +185,10 @@ export class CacheService extends EventEmitter {
       } else {
         // Single cache strategy
         // Try Redis first if enabled and connected
-        if (this.shouldUseRedis(strategy)) {
+        if (this.shouldUseRedis(chosenStrategy)) {
           try {
-            redisSuccess = await this.redis.set(key, value, ttl, metadata)
+            redisSuccess = await this.redis.set(key, value, effectiveTtl, metadata)
+            this.noteRedisSuccess()
           } catch (error: any) {
             structuredLogger.warning(
               `Cache Service: Redis SET failed for ${key}`,
@@ -180,7 +199,7 @@ export class CacheService extends EventEmitter {
         }
 
         // Use SmartCache as fallback or secondary storage
-        if (this.shouldUseFallback(strategy, !redisSuccess)) {
+        if (this.shouldUseFallback(chosenStrategy, !redisSuccess)) {
           try {
             // Convert to SmartCache format
             const tokensSaved = this.estimateTokensSaved(value)
@@ -224,22 +243,25 @@ export class CacheService extends EventEmitter {
       preferLocal?: boolean
     }
   ): Promise<T | null> {
-    const { strategy = 'both', preferLocal = false } = options || {}
+    const isOpaque = this.isOpaqueKey(key)
+    const strategyResolved: 'redis' | 'smart' | 'both' = (options?.strategy as any)
+    const { preferLocal = false } = options || {}
 
     try {
       let result: T | null = null
 
       // Try Redis first if enabled and not preferring local
-      if (this.shouldUseRedis(strategy) && !preferLocal) {
+      if (this.shouldUseRedis(strategyResolved) && !preferLocal) {
         try {
           const redisEntry = await this.redis.get<T>(key)
           if (redisEntry) {
             this.stats.hits++
             this.stats.redisHits++
             result = redisEntry.value
+            this.noteRedisSuccess()
 
             // Update SmartCache for consistency if both strategies
-            if (strategy === 'both' && this.config.fallbackEnabled) {
+            if (strategyResolved === 'both' && this.config.fallbackEnabled) {
               try {
                 const tokensSaved = this.estimateTokensSaved(result)
                 await this.smartCache.setCachedResponse(key, JSON.stringify(result), context, {
@@ -259,11 +281,12 @@ export class CacheService extends EventEmitter {
             JSON.stringify({ error: error.message })
           )
           this.stats.errors++
+          this.noteRedisFailure()
         }
       }
 
       // Try SmartCache as fallback or primary
-      if (this.shouldUseFallback(strategy, result === null)) {
+      if (this.shouldUseFallback(strategyResolved, result === null)) {
         try {
           const smartEntry = await this.smartCache.getCachedResponse(key, context)
           if (smartEntry) {
@@ -277,8 +300,8 @@ export class CacheService extends EventEmitter {
               result = smartEntry.response as any
             }
 
-            // Promote to Redis if available and both strategies
-            if (strategy === 'both' && this.shouldUseRedis('redis')) {
+            // Promote to Redis if available
+            if (this.shouldUseRedis('redis')) {
               try {
                 await this.redis.set(key, result, undefined, {
                   tokensSaved: smartEntry.metadata.tokensSaved,
@@ -436,6 +459,8 @@ export class CacheService extends EventEmitter {
    * Determine if Redis should be used based on strategy and availability
    */
   private shouldUseRedis(strategy: 'redis' | 'smart' | 'both'): boolean {
+    const now = Date.now()
+    if (now < this.redisOpenUntil) return false
     return (strategy === 'redis' || strategy === 'both') && !!this.config.redisEnabled && this.redis.isHealthy()
   }
 
@@ -456,6 +481,48 @@ export class CacheService extends EventEmitter {
     const stringValue = typeof value === 'string' ? value : JSON.stringify(value)
     // Rough estimation: 1 token ≈ 4 characters
     return Math.ceil(stringValue.length / 4)
+  }
+
+  private isOpaqueKey(key: string): boolean {
+    return /^response:|^session:|^profile:|^auth:/i.test(key)
+  }
+
+  private resolveTtl(key: string, context: string): number | undefined {
+    const nsFromKey = key.split(':')[0]
+    const nsFromCtx = context.split(':')[0]
+    const ns = this.namespaceTtl[nsFromKey] ? nsFromKey : this.namespaceTtl[nsFromCtx] ? nsFromCtx : undefined
+    return ns ? this.namespaceTtl[ns] : undefined
+  }
+
+  private noteRedisFailure(): void {
+    const now = Date.now()
+    if (now - this.redisLastFailureAt > 10000) this.redisFailureCount = 0
+    this.redisLastFailureAt = now
+    this.redisFailureCount++
+    if (this.redisFailureCount >= 5) {
+      this.redisOpenUntil = now + 30000
+      this.redisFailureCount = 0
+    }
+  }
+
+  private noteRedisSuccess(): void {
+    this.redisFailureCount = 0
+    this.redisOpenUntil = 0
+  }
+
+  private async persistStats(): Promise<void> {
+    try {
+      if (!this.redis.isHealthy()) return
+      const payload = {
+        ts: Date.now(),
+        hits: this.stats.hits,
+        misses: this.stats.misses,
+        redisHits: this.stats.redisHits,
+        fallbackHits: this.stats.fallbackHits,
+        errors: this.stats.errors,
+      }
+      await this.redis.set('stats:cache', payload, 3600, { type: 'stats' })
+    } catch (_e) { }
   }
 
   /**

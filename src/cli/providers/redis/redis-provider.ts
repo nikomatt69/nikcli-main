@@ -161,6 +161,8 @@ export class RedisProvider extends EventEmitter {
    * Start periodic health checks
    */
   private startHealthChecks(): void {
+    // Read interval from config if present, default to 300s to reduce noise
+    const intervalMs = (this.config as any).healthIntervalMs || 300000
     this.healthCheckInterval = setInterval(async () => {
       if (this.isConnected) {
         try {
@@ -171,7 +173,7 @@ export class RedisProvider extends EventEmitter {
           console.log(chalk.yellow(`⚠️ Health check failed: ${(error as Error).message}`))
         }
       }
-    }, 30000) // Check every 30 seconds
+    }, intervalMs)
   }
 
   /**
@@ -270,7 +272,7 @@ export class RedisProvider extends EventEmitter {
       } catch (parseError) {
         // Corrupted data detected - auto-clean and return null
         console.log(chalk.yellow(`⚠️ Corrupted cache data for key ${key}, auto-cleaning...`))
-        await this.del(key).catch(() => {}) // Silent cleanup failure
+        await this.del(key).catch(() => { }) // Silent cleanup failure
         return null
       }
 
@@ -357,13 +359,21 @@ export class RedisProvider extends EventEmitter {
     }
 
     try {
-      // Upstash Redis doesn't support FLUSHALL, so we'll delete keys with our prefix
-      const pattern = this.config.keyPrefix ? `${this.config.keyPrefix}*` : '*'
-      const keys = await this.client.keys(pattern)
-
-      if (keys.length > 0) {
-        await this.client.del(...keys)
-      }
+      // Upstash Redis doesn't support FLUSHALL, so we'll SCAN and delete in batches
+      const prefix = this.config.keyPrefix ? `${this.config.keyPrefix}` : ''
+      let cursor = 0
+      const batchSize = 500
+      do {
+        const res = (await this.client.scan(cursor, {
+          match: `${prefix}*`,
+          count: batchSize,
+        })) as any
+        cursor = res[0]
+        const keys: string[] = res[1] || []
+        if (keys.length > 0) {
+          await this.client.del(...keys)
+        }
+      } while (cursor !== 0)
 
       return true
     } catch (error) {
@@ -510,7 +520,7 @@ export class RedisProvider extends EventEmitter {
         vectorEntry = JSON.parse(serializedValue as string)
       } catch (parseError) {
         // Corrupted vector cache data - auto-clean and return null
-        await this.del(cacheKey).catch(() => {})
+        await this.del(cacheKey).catch(() => { })
         return null
       }
 

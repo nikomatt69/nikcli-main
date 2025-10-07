@@ -62,7 +62,10 @@ export class EnhancedTokenCacheManager {
    */
   private generateCacheKey(prompt: string, model?: string, temperature?: number): string {
     const normalizedPrompt = this.normalizePrompt(prompt)
-    const context = `${model || 'default'}_${temperature || 0.7}`
+    // Normalize model casing and round temperature to reduce key volatility
+    const normModel = (model || 'default').toLowerCase()
+    const roundedTemp = Math.round(((temperature ?? 0.7) as number) * 10) / 10
+    const context = `${normModel}_${roundedTemp}`
     return crypto.createHash('sha256').update(`${context}:${normalizedPrompt}`).digest('hex').substring(0, 16)
   }
 
@@ -248,6 +251,8 @@ export class EnhancedTokenCacheManager {
       await this.cacheService.set(responseKey, response, `token_cache:${model || 'default'}`, {
         ttl: this.maxCacheAge / 1000,
         metadata: { type: 'response', associatedEntry: cacheKey },
+        // Redis-primary; cache-service will fallback to KV on failure
+        strategy: 'redis',
       })
 
       // Keep in memory cache for fast access
@@ -280,7 +285,11 @@ export class EnhancedTokenCacheManager {
 
       // Get the full response
       const responseKey = `response:${entry.key}`
-      const fullResponse = await this.cacheService.get<string>(responseKey, `token_cache:${model || 'default'}`)
+      const fullResponse = await this.cacheService.get<string>(
+        responseKey,
+        `token_cache:${model || 'default'}`,
+        { strategy: 'redis' }
+      )
 
       if (fullResponse) {
         // Log cache hit

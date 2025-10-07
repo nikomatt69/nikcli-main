@@ -43,6 +43,12 @@ export class AgentTodoManager {
   private agentContexts: Map<string, any> = new Map()
   private taskMasterAdapter = createTaskMasterAdapter(taskMasterService)
   private useTaskMaster = true
+  private onTodosCreatedCallback?: (agentId: string, todos: AgentTodo[]) => void
+
+  // Set callback for when todos are created
+  setOnTodosCreatedCallback(callback: (agentId: string, todos: AgentTodo[]) => void): void {
+    this.onTodosCreatedCallback = callback
+  }
 
   // Create a new work plan for an agent
   createWorkPlan(agentId: string, goal: string): AgentWorkPlan {
@@ -132,6 +138,11 @@ export class AgentTodoManager {
         console.log(`     ${chalk.gray(todo.description)}`)
       }
     })
+
+    // Notify callback if set (for HUD integration)
+    if (this.onTodosCreatedCallback) {
+      this.onTodosCreatedCallback(agentId, plannedTodos)
+    }
 
     return plannedTodos
   }

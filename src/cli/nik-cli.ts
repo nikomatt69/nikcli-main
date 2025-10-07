@@ -22,6 +22,7 @@ import { initializeRAG } from './context/rag-setup'
 import { agentFactory } from './core/agent-factory'
 import { AgentManager } from './core/agent-manager'
 import { agentStream } from './core/agent-stream'
+import { agentTodoManager } from './core/agent-todo-manager'
 
 import { createCloudDocsProvider, getCloudDocsProvider } from './core/cloud-docs-provider'
 import { completionCache } from './core/completion-protocol-cache'
@@ -290,6 +291,19 @@ export class NikCLI {
   }
   private planHudUnsubscribe?: () => void
   private planHudVisible: boolean = true
+
+  // Parallel toolchain display state
+  private parallelToolchainDisplay?: Map<string, {
+    agentName: string
+    toolName: string
+    status: 'executing' | 'completed' | 'failed'
+    display: string
+    timestamp: number
+  }>
+
+  // When the Plan HUD is visible, suppress verbose Advanced UI functionCall/functionUpdate
+  // console prints to avoid duplicated rows alongside the dedicated toolchain rows.
+  private suppressToolLogsWhilePlanHudVisible: boolean = true
 
   // Enhanced services
   private enhancedSessionManager: EnhancedSessionManager
@@ -4299,6 +4313,7 @@ EOF`
       let shouldFormatOutput = false
       let streamedLines = 0
       const terminalWidth = process.stdout.columns || 80
+      let lastToolName: string | undefined // Track last tool for result correlation
 
       // Bridge stream to Streamdown renderer (same as default mode)
       const bridge = createStringPushStream()
@@ -4327,24 +4342,28 @@ EOF`
             break
 
           case 'tool_call':
-            // Tool execution events
+            // Tool execution events - push to stream like plan mode
             if (ev.toolName) {
-              this.addLiveUpdate({
-                type: 'info',
-                content: ` ${agentName}: ${ev.toolName}`,
-                source: agentName,
-              })
+              lastToolName = ev.toolName // Track for result correlation
+
+              // Push tool call to stream (like plan mode shows tool execution)
+              if ((agent as any).collaborationContext) {
+                this.displayParallelToolchain(bridge, agentName, ev.toolName, 'executing', ev.toolArgs)
+              }
             }
             break
 
           case 'tool_result':
-            // Tool results
+            // Tool results - push to stream
             if (ev.toolResult) {
-              this.addLiveUpdate({
-                type: 'info',
-                content: `✓ Tool completed`,
-                source: agentName,
-              })
+              const toolName = ev.toolName || lastToolName
+
+              // Push tool completion to stream
+              if ((agent as any).collaborationContext && toolName) {
+                this.displayParallelToolchain(bridge, agentName, toolName, 'completed')
+              }
+
+              lastToolName = undefined // Reset after use
             }
             break
 
@@ -4385,6 +4404,12 @@ EOF`
       if (!streamCompleted) {
         throw new Error('Stream did not complete properly')
       }
+
+      // Store agent's output in collaboration context if it exists
+      if ((agent as any).collaborationContext) {
+        const ctx = (agent as any).collaborationContext
+        ctx.sharedData.set(`${agent.id}:current-output`, assistantText)
+      }
     } catch (error: any) {
       this.addLiveUpdate({
         type: 'error',
@@ -4393,6 +4418,527 @@ EOF`
       })
       throw error
     }
+  }
+
+  /**
+   * Execute parallel plan-mode: all agents execute each todo with same input, aggregate results
+   */
+  private async executeParallelPlanMode(plan: any, agents: any[], collaborationContext: any): Promise<void> {
+    try {
+      const allAggregatedResults: string[] = []
+
+      // Execute each todo in the plan with all agents in parallel
+      for (let i = 0; i < plan.todos.length; i++) {
+        const todo = plan.todos[i]
+
+        // Log at top like plan mode
+        console.log(chalk.blue.bold(`\n📝 Todo ${i + 1}/${plan.todos.length}: ${todo.title}`))
+        if (todo.description) {
+          console.log(chalk.dim(`   ${todo.description}`))
+        }
+        console.log('') // spacing
+
+        this.addLiveUpdate({
+          type: 'info',
+          content: `\n📝 Todo ${i + 1}/${plan.todos.length}: ${todo.title}`,
+          source: 'parallel-plan',
+        })
+
+        // Mark todo as in-progress
+        this.updatePlanHudTodoStatus(todo.id, 'in_progress')
+
+        // Execute this todo with all agents in parallel
+        await this.runTodoInParallel(todo, agents, collaborationContext)
+
+        // Aggregate results from all agents for this todo
+        const aggregatedResult = await this.aggregateTodoResults(todo, agents, collaborationContext)
+
+        // Store aggregated result
+        allAggregatedResults.push(aggregatedResult)
+
+        // Mark todo as completed
+        this.updatePlanHudTodoStatus(todo.id, 'completed')
+
+        this.addLiveUpdate({
+          type: 'status',
+          content: `✅ Todo completed: ${todo.title}`,
+          source: 'parallel-plan',
+        })
+
+        // Render prompt after each todo (like plan mode)
+        setTimeout(() => this.renderPromptAfterOutput(), 50)
+      }
+
+      // Generate final collaborative output
+      const finalOutput = this.aggregatePlanResults(plan, allAggregatedResults)
+      await this.renderFinalOutput(finalOutput)
+
+      this.addLiveUpdate({
+        type: 'status',
+        content: '🎉 Parallel plan execution completed successfully!',
+        source: 'parallel-plan',
+      })
+
+      // Clear toolchain display
+      this.clearParallelToolchainDisplay()
+
+      // Final prompt render after everything is done (like plan mode)
+      setTimeout(() => this.renderPromptAfterOutput(), 150)
+    } catch (error: any) {
+      this.addLiveUpdate({
+        type: 'error',
+        content: `❌ Parallel plan execution failed: ${error.message}`,
+        source: 'parallel-plan',
+      })
+
+      // Clear toolchain display on error too
+      this.clearParallelToolchainDisplay()
+
+      // Render prompt after error (like plan mode)
+      setTimeout(() => this.renderPromptAfterOutput(), 100)
+
+      throw error
+    }
+  }
+
+  /**
+   * Execute a single todo with all agents in parallel
+   */
+  private async runTodoInParallel(todo: any, agents: any[], collaborationContext: any): Promise<void> {
+    const todoText = todo.description || todo.title
+
+    // Execute with all agents concurrently
+    const agentPromises = agents.map(async (agent) => {
+      const agentName = agent.blueprint?.name || agent.blueprintId
+      const tools = this.createSpecializedToolchain(agent.blueprint)
+
+      try {
+        // Set up agent helpers for collaboration
+        this.setupAgentCollaborationHelpers(agent, collaborationContext)
+
+        // Execute using plan-mode streaming
+        await this.executeAgentWithPlanModeStreaming(agent, todoText, agentName, tools)
+
+        // Store agent's output
+        const agentOutput = collaborationContext.sharedData.get(`${agent.id}:current-output`) || ''
+        collaborationContext.sharedData.set(`${agent.id}:todo:${todo.id}:output`, {
+          raw: agentOutput,
+          agentName,
+          blueprintId: agent.blueprintId,
+          timestamp: new Date().toISOString(),
+        })
+
+        return { success: true, agentName }
+      } catch (error: any) {
+        this.addLiveUpdate({
+          type: 'error',
+          content: `❌ ${agentName} failed on todo: ${error.message}`,
+          source: agentName,
+        })
+        return { success: false, agentName, error: error.message }
+      }
+    })
+
+    await Promise.all(agentPromises)
+  }
+
+  /**
+   * Set up collaboration helpers for an agent
+   */
+  private setupAgentCollaborationHelpers(agent: any, collaborationContext: any): void {
+    agent.logToCollaboration = (message: string) => {
+      const logs = collaborationContext.logs.get(agent.blueprintId) || []
+      const logEntry = `[${new Date().toISOString()}] ${message}`
+      logs.push(logEntry)
+      collaborationContext.logs.set(agent.blueprintId, logs)
+    }
+
+    agent.shareData = (key: string, value: any) => {
+      collaborationContext.sharedData.set(`${agent.blueprintId}:${key}`, value)
+      agent.logToCollaboration(`Shared data: ${key}`)
+    }
+
+    agent.getData = (key: string) => {
+      return collaborationContext.sharedData.get(key)
+    }
+
+    agent.getOtherAgents = () => {
+      return collaborationContext.agents.filter((a: string) => a !== agent.blueprintId)
+    }
+  }
+
+  /**
+   * Aggregate results from all agents for a single todo using hybrid approach
+   */
+  private async aggregateTodoResults(todo: any, agents: any[], collaborationContext: any): Promise<string> {
+    const agentOutputs = agents.map((agent) => {
+      const output = collaborationContext.sharedData.get(`${agent.id}:todo:${todo.id}:output`)
+      return {
+        agentName: output?.agentName || agent.blueprint?.name || agent.blueprintId,
+        specialization: agent.blueprint?.specialization || 'general',
+        output: output?.raw || '',
+      }
+    })
+
+    // Pre-merge: deduplicate common sections
+    const preMerged = this.preMergeAgentOutputs(agentOutputs)
+
+    // Use LLM aggregator for final synthesis
+    const aggregatorPrompt = `You are the collaborative aggregator. Two agents with different specializations executed the SAME task and produced outputs.
+
+**Task:** ${todo.title}
+${todo.description ? `\n**Description:** ${todo.description}` : ''}
+
+**Agent Outputs:**
+
+${agentOutputs.map((ao) => `### ${ao.agentName} (${ao.specialization})
+${ao.output || '(No output)'}
+`).join('\n\n')}
+
+**Your Job:**
+Synthesize these outputs into ONE coherent result with the following sections:
+- **Summary:** High-level overview of what was accomplished
+- **Key Findings:** Important discoveries or insights from both agents
+- **Implementation Steps:** Concrete steps taken or recommended
+- **Code Changes:** Files modified and changes made (deduplicated)
+- **Risks/Considerations:** Potential issues identified
+- **Next Actions:** Recommended follow-up tasks
+
+Prefer consensus where agents agree. If conflicts exist, explain them and choose the stronger rationale based on the agent's specialization. Be concise but comprehensive.`
+
+    try {
+      const messages = [{ role: 'user' as const, content: aggregatorPrompt }]
+      let aggregatedText = ''
+
+      for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
+        if (ev.type === 'text_delta' && ev.content) {
+          aggregatedText += ev.content
+        } else if (ev.type === 'complete') {
+          break
+        }
+      }
+
+      // Display aggregated result as a live update
+      this.addLiveUpdate({
+        type: 'status',
+        content: `\n**Aggregated Result for "${todo.title}":**\n\n${aggregatedText}`,
+        source: 'aggregator',
+      })
+
+      return aggregatedText
+    } catch (error: any) {
+      // Fallback to simple concatenation if LLM fails
+      this.addLiveUpdate({
+        type: 'warning',
+        content: `⚠️ Aggregator LLM failed, using fallback merge: ${error.message}`,
+        source: 'aggregator',
+      })
+      return preMerged
+    }
+  }
+
+  /**
+   * Pre-merge agent outputs: deduplicate common sections, align headings
+   */
+  private preMergeAgentOutputs(agentOutputs: Array<{ agentName: string; specialization: string; output: string }>): string {
+    const sections: string[] = []
+
+    sections.push(`### Combined Analysis from ${agentOutputs.length} Agents\n`)
+
+    agentOutputs.forEach((ao) => {
+      sections.push(`#### ${ao.agentName} (${ao.specialization})`)
+      sections.push(ao.output)
+      sections.push('')
+    })
+
+    return sections.join('\n')
+  }
+
+  /**
+   * Aggregate all todo results into final plan output
+   */
+  private aggregatePlanResults(plan: any, todoResults: string[]): string {
+    const sections: string[] = []
+
+    sections.push(`# ${plan.title || 'Parallel Execution Results'}`)
+    sections.push('')
+    sections.push(`**Executed by:** ${this.currentCollaborationContext?.agents.length || 0} parallel agents`)
+    sections.push(`**Todos completed:** ${todoResults.length}`)
+    sections.push('')
+    sections.push('---')
+    sections.push('')
+
+    todoResults.forEach((result, index) => {
+      const todo = plan.todos[index]
+      sections.push(`## Todo ${index + 1}: ${todo.title}`)
+      sections.push('')
+      sections.push(result)
+      sections.push('')
+      sections.push('---')
+      sections.push('')
+    })
+
+    return sections.join('\n')
+  }
+
+  /**
+   * Render final collaborative output with formatting (like plan mode)
+   */
+  private async renderFinalOutput(output: string): Promise<void> {
+    this.addLiveUpdate({
+      type: 'status',
+      content: '\n\n🎯 **Final Collaborative Output:**\n',
+      source: 'final',
+    })
+
+    // Use OutputFormatter for proper rendering (same as plan mode)
+    const { OutputFormatter } = await import('./ui/output-formatter')
+    const formattedOutput = OutputFormatter.formatFinalOutput(output)
+
+    console.log('\n')
+    console.log(formattedOutput)
+    console.log('\n')
+
+    // Render prompt after output (like plan mode)
+    setTimeout(() => this.renderPromptAfterOutput(), 100)
+  }
+
+  /**
+   * Display toolchain execution in stream like Plan Mode
+   * Push tool logs directly to the stream output (not to Recent Updates panel)
+   */
+  private displayParallelToolchain(
+    bridge: any,
+    agentName: string,
+    toolName: string,
+    status: 'executing' | 'completed' | 'failed',
+    toolArgs?: any
+  ): void {
+    // Format exactly like plan mode tool display
+    const icon = status === 'executing' ? chalk.yellow('▸') : status === 'completed' ? chalk.green('✓') : chalk.red('✖')
+    const agent = chalk.bold(agentName)
+    const tool = status === 'executing' ? chalk.cyan(toolName) : status === 'completed' ? chalk.green(toolName) : chalk.red(toolName)
+    const argsPreview = toolArgs ? chalk.dim(this.formatToolArgsPreview(toolArgs, 40)) : ''
+
+    // Push to stream like plan mode does
+    const streamLine = `${icon} ${agent}: ${tool}${argsPreview ? ' ' + argsPreview : ''}\n`
+    bridge.push(streamLine)
+  }
+
+  /**
+   * Render a single toolchain row styled like Plan Mode streaming rows
+   */
+  private renderToolchainRowLikePlanMode(
+    agentName: string,
+    toolName: string,
+    status: 'executing' | 'completed' | 'failed',
+    toolArgs: any,
+    terminalWidth: number
+  ): string {
+    const icon =
+      status === 'executing' ? chalk.yellow('▸') : status === 'completed' ? chalk.green('☑') : chalk.red('✖')
+    const agent = chalk.bold(agentName)
+    const tool =
+      status === 'executing' ? chalk.cyan(toolName) : status === 'completed' ? chalk.green(toolName) : chalk.red(toolName)
+
+    // Compute available width for args preview similar to HUD truncation
+    const fixed = this._stripAnsi(`${icon} ${agent}: ${tool} `).length
+    const availableForArgs = Math.max(20, terminalWidth - fixed - 4)
+    const argsPreview = toolArgs ? this.formatToolArgsPreview(toolArgs, availableForArgs) : ''
+    const args = argsPreview ? chalk.dim(argsPreview) : ''
+
+    return `${icon} ${agent}: ${tool}${args ? ' ' + args : ''}`
+  }
+
+
+
+  /**
+   * Calculate a dynamic cap for plan-related UI heights based on terminal size
+   * Reserves a few lines for prompt/status and spacing to avoid overlap
+   */
+  private getDynamicPlanHeightCap(): number {
+    const terminalHeight = process.stdout.rows || 24
+    const reservedLinesForUI = 7 // prompt line, status, borders/spacing
+    const dynamicCap = terminalHeight - reservedLinesForUI
+    return Math.max(3, dynamicCap)
+  }
+
+  /**
+   * Calculate Plan Mode height using the same approach as the Plan HUD
+   * This keeps both UIs consistent relative to the terminal height
+   */
+  private calculatePlanModeHeight(): number {
+    return this.getDynamicPlanHeightCap()
+  }
+
+  /**
+   * Return the actual number of lines the Plan HUD will render now,
+   * mirroring plan mode's renderPromptArea usage of buildPlanHudLines.
+   */
+  private getPlanHudRenderedLineCount(): number {
+    if (!this.planHudVisible) return 0
+    const terminalWidth = Math.max(40, process.stdout.columns || 120)
+    const planHudLines = this.buildPlanHudLines(terminalWidth)
+    return planHudLines.length > 0 ? planHudLines.length + 1 : 0 // +1 for spacing after HUD
+  }
+
+  /**
+   * Render all active parallel toolchains
+   */
+  private renderParallelToolchains(maxLines: number): void {
+    if (!this.parallelToolchainDisplay || this.parallelToolchainDisplay.size === 0) {
+      return
+    }
+
+    // Clean up old completed tools (keep for 2 seconds)
+    const now = Date.now()
+    for (const [key, tool] of this.parallelToolchainDisplay.entries()) {
+      if (tool.status === 'completed' && now - tool.timestamp > 2000) {
+        this.parallelToolchainDisplay.delete(key)
+      }
+    }
+
+    // Get active tools sorted by timestamp
+    const activeTools = Array.from(this.parallelToolchainDisplay.values())
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, maxLines)
+
+    if (activeTools.length === 0) return
+
+    // Calculate Plan HUD position using the same plan mode measurement
+    const terminalHeight = process.stdout.rows || 24
+    const planHudRenderedLines = this.getPlanHudRenderedLineCount()
+
+    // Position toolchains just above Plan HUD
+    const toolchainStartLine = terminalHeight - planHudRenderedLines - activeTools.length - 2
+
+    // Save cursor position
+    process.stdout.write('\x1b7')
+
+    // Move to toolchain display area
+    process.stdout.write(`\x1b[${toolchainStartLine};0H`)
+
+    // Clear the area
+    for (let i = 0; i < activeTools.length + 1; i++) {
+      process.stdout.write('\x1b[2K') // Clear line
+      if (i < activeTools.length) {
+        process.stdout.write('\x1b[B') // Move down
+      }
+    }
+
+    // Move back to start
+    process.stdout.write(`\x1b[${toolchainStartLine};0H`)
+
+    // Render toolchains with compact header (match plan mode separators)
+    const termWidth = process.stdout.columns || 80
+    console.log(chalk.dim('─'.repeat(Math.max(10, termWidth))))
+    for (const tool of activeTools) {
+      console.log(tool.display)
+    }
+
+    // Restore cursor position
+    process.stdout.write('\x1b8')
+  }
+
+  /**
+   * Ensure we re-render toolchains on terminal resize to avoid overlap
+   */
+  private ensureParallelToolchainResizeHook(): void {
+    if ((this as any)._parallelResizeHookSet) return
+      ; (this as any)._parallelResizeHookSet = true
+    process.stdout.on('resize', () => {
+      if (!this.parallelToolchainDisplay || this.parallelToolchainDisplay.size === 0) return
+      const terminalHeight = process.stdout.rows || 24
+      const planHudRenderedLines = this.getPlanHudRenderedLineCount()
+      const availableLines = Math.max(3, terminalHeight - planHudRenderedLines - 2)
+      this.renderParallelToolchains(availableLines)
+    })
+  }
+
+  /**
+   * Format tool arguments for display preview with smart truncation
+   */
+  private formatToolArgsPreview(args: any, maxLength: number): string {
+    if (!args || typeof args !== 'object') return ''
+
+    try {
+      const keys = Object.keys(args)
+      if (keys.length === 0) return ''
+
+      // Build preview intelligently based on arg types
+      const parts: string[] = []
+      let remainingLength = maxLength - 2 // Account for parentheses
+
+      for (let i = 0; i < keys.length && remainingLength > 10; i++) {
+        const key = keys[i]
+        const value = args[key]
+
+        let valueStr: string
+        if (typeof value === 'string') {
+          // For paths, show just filename if too long
+          if (key.includes('path') || key.includes('file') || key.includes('target')) {
+            const parts = value.split('/')
+            valueStr = parts.length > 1 ? parts[parts.length - 1] : value
+          } else {
+            valueStr = value
+          }
+        } else if (typeof value === 'number') {
+          valueStr = String(value)
+        } else if (typeof value === 'boolean') {
+          valueStr = value ? '✓' : '✗'
+        } else {
+          valueStr = JSON.stringify(value)
+        }
+
+        // Truncate value if too long
+        const maxValueLength = Math.min(25, remainingLength - key.length - 4)
+        if (valueStr.length > maxValueLength) {
+          valueStr = valueStr.slice(0, maxValueLength - 1) + '…'
+        }
+
+        const part = `${key}: ${valueStr}`
+        if (part.length <= remainingLength) {
+          parts.push(part)
+          remainingLength -= part.length + 2 // +2 for ", "
+        } else {
+          break
+        }
+      }
+
+      const hasMore = parts.length < keys.length
+      const preview = parts.join(', ')
+      const result = `(${preview}${hasMore ? ', …' : ''})`
+
+      return result.length > maxLength ? result.slice(0, maxLength - 1) + '…' : result
+    } catch {
+      return ''
+    }
+  }
+
+  /**
+   * Clear parallel toolchain display
+   */
+  private clearParallelToolchainDisplay(): void {
+    if (!this.parallelToolchainDisplay) return
+
+    // Clear the display area
+    const terminalHeight = process.stdout.rows || 24
+    const displayHeight = this.parallelToolchainDisplay.size + 1
+    const planHudRenderedLines = this.getPlanHudRenderedLineCount()
+
+    const toolchainStartLine = terminalHeight - planHudRenderedLines - displayHeight - 2
+
+    // Move to display area and clear
+    process.stdout.write(`\x1b[${toolchainStartLine};0H`)
+    for (let i = 0; i < displayHeight; i++) {
+      process.stdout.write('\x1b[2K') // Clear line
+      if (i < displayHeight - 1) {
+        process.stdout.write('\x1b[B') // Move down
+      }
+    }
+
+    // Clear the map
+    this.parallelToolchainDisplay.clear()
   }
 
   /**
@@ -4474,9 +5020,11 @@ EOF`
               case 'tool_call': {
                 // Tool execution events with parameter info
                 const toolInfo = this.formatToolCallInfo(ev)
-                advancedUI.logFunctionCall(toolInfo.functionName)
-                if (toolInfo.details) {
-                  advancedUI.logFunctionUpdate('info', toolInfo.details, 'ℹ')
+                if (!this.planHudVisible || !this.suppressToolLogsWhilePlanHudVisible) {
+                  advancedUI.logFunctionCall(toolInfo.functionName)
+                  if (toolInfo.details) {
+                    advancedUI.logFunctionUpdate('info', toolInfo.details, 'ℹ')
+                  }
                 }
                 break
               }
@@ -4484,7 +5032,9 @@ EOF`
               case 'tool_result':
                 // Tool results
                 if (ev.toolResult) {
-                  advancedUI.logFunctionUpdate('success', 'Tool completed', '✓')
+                  if (!this.planHudVisible || !this.suppressToolLogsWhilePlanHudVisible) {
+                    advancedUI.logFunctionUpdate('success', 'Tool completed', '✓')
+                  }
                 }
                 break
 
@@ -6416,7 +6966,7 @@ EOF`
 
           this.printPanel(
             boxen(`Launching ${agentList.length} factory agents in parallel...`, {
-              title: 'Parallel Factory Execution',
+              title: 'Parallel Plan-Mode Execution',
               padding: 1,
               margin: 1,
               borderStyle: 'round',
@@ -6431,9 +6981,10 @@ EOF`
             task: taskDescription,
             logs: new Map<string, string[]>(),
             sharedData: new Map<string, any>(),
+            planId: '',
           }
 
-          // Execute factory agents in parallel
+          // Launch agents first
           const agentPromises = agentList.map(async (agentIdentifier) => {
             try {
               // Check if blueprint exists
@@ -6442,8 +6993,8 @@ EOF`
                 throw new Error(`Blueprint '${agentIdentifier}' not found`)
               }
 
-              // Launch agent from factory
-              const agent = await agentFactory.launchAgent(agentIdentifier, taskDescription)
+              // Launch agent from factory (but don't execute task yet)
+              const agent = await agentFactory.launchAgent(agentIdentifier)
 
               // Initialize agent logs
               collaborationContext.logs.set(agentIdentifier, [])
@@ -6468,9 +7019,6 @@ EOF`
 
                 // Set up collaboration context for this agent
                 ; (agent as any).collaborationContext = collaborationContext
-
-              // Start agent execution with task
-              this.startAgentExecution(agent, taskDescription, collaborationContext)
 
               return {
                 agentIdentifier,
@@ -6501,21 +7049,56 @@ EOF`
           const successful = results.filter((r) => r.status === 'fulfilled' && r.value.success).length
           const failed = results.length - successful
 
-          // Show parallel execution summary
+          if (successful === 0) {
+            this.printPanel(
+              boxen('❌ No agents launched successfully. Aborting parallel execution.', {
+                title: 'Error',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              })
+            )
+            break
+          }
+
+          const launchedAgents = results
+            .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value.success)
+            .map((r) => r.value.agent)
+
+          // Generate a single TaskMaster plan (like plan mode)
+          this.addLiveUpdate({ type: 'info', content: '📋 Generating execution plan...', source: 'planning' })
+          const plan = await planningService.createPlan(taskDescription, {
+            showProgress: false,
+            autoExecute: false,
+            confirmSteps: false,
+          })
+
+          collaborationContext.planId = plan.id
+
+          // Initialize Plan HUD with real todos from TaskMaster
+          this.initializePlanHud({
+            id: collaborationContext.sessionId,
+            title: `Parallel Agents (${launchedAgents.length}): ${plan.title || taskDescription}`,
+            description: plan.description || taskDescription,
+            userRequest: taskDescription,
+            estimatedTotalDuration: plan.estimatedTotalDuration,
+            riskAssessment: plan.riskAssessment,
+            todos: plan.todos,
+          })
+
           this.printPanel(
             boxen(
               [
-                `🚀 Parallel Factory Execution Initiated`,
+                `🚀 Parallel Plan-Mode Execution Initiated`,
                 `✓ Successfully launched: ${successful} agents`,
                 failed > 0 ? `❌ Failed to launch: ${failed} agents` : '',
                 '',
-                `📋 Collaboration Context: ${collaborationContext.sessionId}`,
-                '🔄 Agents are running with shared context and collaboration',
+                `📋 Plan: ${plan.title || taskDescription}`,
+                `📝 Todos: ${plan.todos.length}`,
+                `🔄 Agents will execute each todo in parallel`,
                 '',
-                'Commands:',
-                '  /agents           - Monitor active agents',
-                '  /parallel-logs    - View collaboration logs',
-                '  /parallel-status  - Check execution status',
+                `Collaboration Context: ${collaborationContext.sessionId}`,
               ]
                 .filter(Boolean)
                 .join('\n'),
@@ -6531,6 +7114,10 @@ EOF`
 
           // Store collaboration context for monitoring
           this.currentCollaborationContext = collaborationContext
+
+          // Execute todos in parallel with both agents
+          await this.executeParallelPlanMode(plan, launchedAgents, collaborationContext)
+
           break
         }
         case 'factory': {
@@ -6853,15 +7440,100 @@ EOF`
       const logs = collaborationContext.logs.get(agent.blueprintId) || []
 
       // Log task start
-      logs.push(`[${new Date().toISOString()}] Starting task: "${task}"`)
+      const startLog = `[${new Date().toISOString()}] Starting task: "${task}"`
+      logs.push(startLog)
       collaborationContext.logs.set(agent.blueprintId, logs)
+
+      // Use HUD system for structured output
+      const agentName = agent.blueprint?.name || agent.blueprintId
+      advancedUI.addLiveUpdate({
+        type: 'info',
+        content: `[${agentName}] 🚀 Starting task: "${task}"`,
+        source: `parallel-${agentName}`,
+      })
+
+      // NOTE: Legacy todo creation callback - not used in new parallel plan-mode
+      // This method is kept for backward compatibility but is superseded by executeParallelPlanMode
+      agentTodoManager.setOnTodosCreatedCallback((createdAgentId, todos) => {
+        // Legacy HUD integration code removed - now handled by Plan HUD
+        if (createdAgentId === agentId) {
+          advancedUI.addLiveUpdate({
+            type: 'info',
+            content: `[${agentName}] 📋 Created ${todos.length} todos`,
+            source: `parallel-${agentName}`,
+          })
+        }
+      })
+
+      // Subscribe to agent service events for HUD updates
+      const progressHandler = (agentTask: any, update: any) => {
+        if (agentTask.id === agentId) {
+          advancedUI.addLiveUpdate({
+            type: 'info',
+            content: `[${agentName}] 📊 Progress: ${update.progress}%`,
+            source: `parallel-${agentName}`,
+          })
+        }
+      }
+
+      const reasoningHandler = (agentTask: any, update: any) => {
+        if (agentTask.id === agentId) {
+          advancedUI.addLiveUpdate({
+            type: 'info',
+            content: `[${agentName}] ⚡︎ ${update.title}`,
+            source: `parallel-${agentName}`,
+          })
+        }
+      }
+
+      const toolUseHandler = (agentTask: any, update: any) => {
+        if (agentTask.id === agentId) {
+          advancedUI.addLiveUpdate({
+            type: 'info',
+            content: `[${agentName}] 🔧 ${update.tool}: ${update.description}`,
+            source: `parallel-${agentName}`,
+          })
+        }
+      }
+
+      const taskCompleteHandler = (agentTask: any) => {
+        if (agentTask.id === agentId) {
+          advancedUI.addLiveUpdate({
+            type: 'info',
+            content: `[${agentName}] ✓ Task completed`,
+            source: `parallel-${agentName}`,
+          })
+          // Cleanup listeners
+          agentService.off('task_progress', progressHandler)
+          agentService.off('task_reasoning', reasoningHandler)
+          agentService.off('tool_use', toolUseHandler)
+          agentService.off('task_complete', taskCompleteHandler)
+        }
+      }
+
+      // Attach event listeners
+      agentService.on('task_progress', progressHandler)
+      agentService.on('task_reasoning', reasoningHandler)
+      agentService.on('tool_use', toolUseHandler)
+      agentService.on('task_complete', taskCompleteHandler)
 
       // Set up collaboration methods for the agent
       agent.collaborationContext = collaborationContext
       agent.logToCollaboration = (message: string) => {
+        const logEntry = `[${new Date().toISOString()}] ${message}`
+
+        // Save to collaboration logs
         const currentLogs = collaborationContext.logs.get(agent.blueprintId) || []
-        currentLogs.push(`[${new Date().toISOString()}] ${message}`)
+        currentLogs.push(logEntry)
         collaborationContext.logs.set(agent.blueprintId, currentLogs)
+
+        // Use HUD live updates with agent prefix
+        const agentName = agent.blueprint?.name || agent.blueprintId
+        advancedUI.addLiveUpdate({
+          type: 'info',
+          content: `[${agentName}] ${message}`,
+          source: `parallel-${agentName}`,
+        })
       }
 
       agent.shareData = (key: string, value: any) => {
@@ -6911,7 +7583,7 @@ EOF`
       // Monitor for completion and trigger merge when all agents are done
       this.monitorAgentCompletion(agent, collaborationContext)
     } catch (error: any) {
-      console.error(`Failed to start agent execution: ${error.message}`)
+      structuredLogger.error('startAgentExecution', `Failed to start agent execution: ${error.message}`)
     }
   }
 
@@ -7005,7 +7677,7 @@ EOF`
         }, executionTime)
       }
     } catch (error: any) {
-      agent.logToCollaboration(`Task execution failed: ${error.message}`)
+      structuredLogger.error('executeAgentTask', `Task execution failed: ${error.message}`)
       throw error
     }
   }
@@ -19104,8 +19776,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           clearInterval(monitorInterval)
 
           // Log completion
-          const timestamp = new Date().toLocaleTimeString()
-          console.log(chalk.green(`[${timestamp}] [${agent.blueprint.name}] ✓ Task completed`))
+          advancedUI.logSuccess(`✓ [${agent.blueprint.name}] Task completed`)
 
           // Check for collaboration opportunities
           this.checkForCollaborationOpportunities(agent, collaborationContext)
@@ -19116,7 +19787,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           )
 
           if (allAgentsCompleted) {
-            console.log(chalk.blue('\n🔄 All agents completed - initiating merge process...'))
+            advancedUI.logFunctionCall('mergeagentresults')
+            advancedUI.logFunctionUpdate('info', '🔄 All agents completed - initiating merge process...', '🔄')
             setTimeout(() => {
               this.mergeAgentResults(collaborationContext)
             }, 1000)
@@ -19124,7 +19796,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         }
       }, 500) // Check every 500ms
     } catch (error: any) {
-      console.error(chalk.red(`Error monitoring agent completion: ${error.message}`))
+      advancedUI.logError(`Error monitoring agent completion: ${error.message}`)
     }
   }
 
@@ -19230,14 +19902,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       })
 
       if (collaborationOpportunities.length > 0) {
-        const timestamp = new Date().toLocaleTimeString()
-        console.log(
-          chalk.cyan(
-            `[${timestamp}] [${agent.blueprint.name}] 🤝 Collaboration opportunities found with ${collaborationOpportunities.length} agents`
-          )
+        advancedUI.logFunctionUpdate(
+          'info',
+          `🤝 [${agent.blueprint.name}] Collaboration opportunities found with ${collaborationOpportunities.length} agents`,
+          '🤝'
         )
 
         // Log collaboration details
+        const timestamp = new Date().toLocaleTimeString()
         collaborationOpportunities.forEach(([otherId, _otherData]: [string, any]) => {
           const logs = collaborationContext.logs.get(agent.blueprintId) || []
           logs.push(`[${timestamp}] Potential collaboration with agent ${otherId}`)
@@ -19245,7 +19917,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         })
       }
     } catch (error: any) {
-      console.error(chalk.red(`Error checking collaboration opportunities: ${error.message}`))
+      advancedUI.logError(`Error checking collaboration opportunities: ${error.message}`)
     }
   }
 
