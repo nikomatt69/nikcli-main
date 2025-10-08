@@ -10962,7 +10962,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       ['/bg-logs <jobId> [limit]', 'View job execution logs'],
 
       // 🐳 VM Container Operations
-      ['/vm-create <repo-url|os>', 'Create new VM container (supports alpine|debian/ubuntu)'],
+      ['/vm-create <repo-url|os>', 'Create VM (alpine|debian|ubuntu). Flags: --os, --mount-desktop, --no-repo'],
       ['/vm-list', 'List all active containers'],
       ['/vm-connect <id>', 'Connect to specific container'],
       ['/vm-stop <id>', 'Stop running container'],

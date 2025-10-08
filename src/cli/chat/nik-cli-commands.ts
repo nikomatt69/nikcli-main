@@ -530,7 +530,9 @@ ${chalk.cyan('/bg-logs <jobId> [limit]')} - View job execution logs
 
 ${chalk.blue.bold('VM Container Commands:')}
 ${chalk.cyan('/vm')} - Show VM management help
-${chalk.cyan('/vm-create <repo-url|os>')} - Create new VM container (supports alpine|debian|ubuntu)
+${chalk.cyan('/vm-create <repo-url|os>')} - Create VM (supports alpine|debian|ubuntu)
+${chalk.gray('  Flags: --os <alpine|debian|ubuntu>  --mount-desktop  --no-repo')}
+${chalk.gray('  Examples: /vm-create alpine --mount-desktop  |  /vm-create https://github.com/user/repo.git --os ubuntu')}
 ${chalk.cyan('/vm-list')} - List active containers
 ${chalk.cyan('/vm-stop <id>')} - Stop container
 ${chalk.cyan('/vm-remove <id>')} - Remove container
@@ -2540,7 +2542,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       console.log(chalk.blue.bold('🐳 VM Container Management'))
       console.log(chalk.gray('─'.repeat(40)))
-      console.log(`${chalk.cyan('/vm-create <repo-url|os>')} - Create new VM container (supports alpine|debian|ubuntu)`) 
+      console.log(`${chalk.cyan('/vm-create <repo-url|os>')} - Create VM (alpine|debian|ubuntu)`) 
+      console.log(`${chalk.gray('  Flags: --os <alpine|debian|ubuntu>  --mount-desktop  --no-repo')}`)
+      console.log(`${chalk.gray('  Examples: /vm-create alpine --mount-desktop  |  /vm-create https://github.com/user/repo.git --os ubuntu')}`)
       console.log(`${chalk.cyan('/vm-list')}              - List active containers`)
       console.log(`${chalk.cyan('/vm-stop <id>')}          - Stop container`)
       console.log(`${chalk.cyan('/vm-remove <id>')}        - Remove container`)
