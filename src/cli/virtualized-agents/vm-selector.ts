@@ -127,7 +127,7 @@ export class VMSelector {
 
     if (vms.length === 0) {
       console.log(chalk.yellow('⚠️ No VM containers available'))
-      console.log(chalk.gray('Use /vm-create <repo-url> to create one'))
+      console.log(chalk.gray('Use /vm-create <repo-url|os> to create one'))
       return null
     }
 
@@ -243,7 +243,7 @@ export class VMSelector {
 
     if (vms.length === 0) {
       console.log(chalk.yellow('No VM containers found'))
-      console.log(chalk.gray('Use /vm-create <repo-url> to create your first VM'))
+      console.log(chalk.gray('Use /vm-create <repo-url|os> to create your first VM'))
       return
     }
 

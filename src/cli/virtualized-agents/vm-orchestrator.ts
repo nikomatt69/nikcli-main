@@ -55,10 +55,19 @@ export class VMOrchestrator extends EventEmitter {
         volumes.push(`${config.localRepoPath}:/workspace/repo`)
       }
 
+      // Allow callers to provide additional host mounts (e.g., Desktop)
+      if (Array.isArray(config.extraVolumes)) {
+        for (const extra of config.extraVolumes) {
+          if (extra && typeof extra === 'string') {
+            volumes.push(extra)
+          }
+        }
+      }
+
       // Container configuration with security and isolation
       const containerConfig = {
         name: containerName,
-        image: 'node:18-alpine',
+        image: config.containerImage || 'node:18-alpine',
         environment: {
           AGENT_ID: config.agentId,
           SESSION_TOKEN: config.sessionToken,
@@ -136,8 +145,13 @@ export class VMOrchestrator extends EventEmitter {
     advancedUI.logInfo(`🔧 Initializing container ${containerId}`)
 
     const initCommands = [
-      // Install git using Alpine package manager (Node.js already included in base image)
-      'apk add --no-cache git curl build-base python3',
+      // Install base tooling using the available package manager (apk/apt/dnf/yum)
+      'if command -v apk >/dev/null 2>&1; then apk add --no-cache git curl build-base python3 bash; ' +
+        'elif command -v apt-get >/dev/null 2>&1; then ' +
+        'export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y git curl build-essential python3 python3-pip ca-certificates gnupg && update-ca-certificates || true; ' +
+        'elif command -v dnf >/dev/null 2>&1; then dnf install -y git curl python3 gcc gcc-c++ make bash; ' +
+        'elif command -v yum >/dev/null 2>&1; then yum install -y git curl python3 gcc gcc-c++ make bash; ' +
+        'else echo "No supported package manager found"; fi',
 
       // Verify installations
       'node --version && npm --version',
@@ -904,6 +918,8 @@ export interface ContainerCreationConfig {
   sessionToken: string
   proxyEndpoint: string
   capabilities: string[]
+  containerImage?: string
+  extraVolumes?: string[]
 }
 
 export interface ContainerInfo {
