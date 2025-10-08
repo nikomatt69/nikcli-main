@@ -3,6 +3,7 @@ import { inputQueue } from '../core/input-queue'
 import { type AgentTask, agentService } from '../services/agent-service'
 import { secureTools } from '../tools/secure-tools-registry'
 import type { ToolRegistry } from '../tools/tool-registry'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import type {
   ExecutionPlan,
@@ -12,7 +13,6 @@ import type {
   PlannerConfig,
   StepExecutionResult,
 } from './types'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Production-ready Plan Executor
@@ -110,7 +110,8 @@ export class PlanExecutor {
         } catch {
           /* ignore */
         }
-        const step = executionOrder[i]; if (!step) continue
+        const step = executionOrder[i]
+        if (!step) continue
 
         advancedUI.addLiveUpdate({ type: 'info', content: `Executing: ${step.title}`, source: 'step_execution' })
 
@@ -196,8 +197,8 @@ export class PlanExecutor {
 
     // Enable bypass for approval inputs and suspend main prompt
     try {
-      ; (global as any).__nikCLI?.suspendPrompt?.()
-    } catch { }
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
 
     try {
@@ -242,8 +243,8 @@ export class PlanExecutor {
       // Always disable bypass after approval and resume prompt cleanly
       inputQueue.disableBypass()
       try {
-        ; (global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch { }
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 
@@ -490,8 +491,8 @@ export class PlanExecutor {
     CliUI.stopSpinner()
 
     try {
-      ; (global as any).__nikCLI?.suspendPrompt?.()
-    } catch { }
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       const answers = await inquirer.prompt([
@@ -511,8 +512,8 @@ export class PlanExecutor {
     } finally {
       inputQueue.disableBypass()
       try {
-        ; (global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch { }
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 
@@ -540,8 +541,8 @@ export class PlanExecutor {
     advancedUI.logError(`Step "${step.title}" failed: ${result.error?.message}`)
 
     try {
-      ; (global as any).__nikCLI?.suspendPrompt?.()
-    } catch { }
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       // For non-critical steps, offer to continue
@@ -593,8 +594,8 @@ export class PlanExecutor {
     } finally {
       inputQueue.disableBypass()
       try {
-        ; (global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch { }
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 
@@ -644,17 +645,33 @@ export class PlanExecutor {
     advancedUI.addLiveUpdate({ type: 'info', content: `Plan Title: ${plan.title}`, source: 'plan_approval' })
     advancedUI.addLiveUpdate({ type: 'info', content: `Description: ${plan.description}`, source: 'plan_approval' })
     advancedUI.addLiveUpdate({ type: 'info', content: `Total Steps: ${plan.steps.length}`, source: 'plan_approval' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Estimated Duration: ${Math.round(plan.estimatedTotalDuration / 1000)}s`, source: 'plan_approval' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Risk Level: ${plan.riskAssessment.overallRisk}`, source: 'plan_approval' })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Estimated Duration: ${Math.round(plan.estimatedTotalDuration / 1000)}s`,
+      source: 'plan_approval',
+    })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Risk Level: ${plan.riskAssessment.overallRisk}`,
+      source: 'plan_approval',
+    })
 
     if (plan.riskAssessment.destructiveOperations > 0) {
-      advancedUI.addLiveUpdate({ type: 'warning', content: `${plan.riskAssessment.destructiveOperations} potentially destructive operations`, source: 'plan_approval' })
+      advancedUI.addLiveUpdate({
+        type: 'warning',
+        content: `${plan.riskAssessment.destructiveOperations} potentially destructive operations`,
+        source: 'plan_approval',
+      })
     }
 
     advancedUI.addLiveUpdate({ type: 'info', content: 'Execution Steps:', source: 'plan_approval' })
     plan.steps.forEach((step, index) => {
       const riskIcon = step.riskLevel === 'high' ? '🔴' : step.riskLevel === 'medium' ? '🟡' : '🟢'
-      advancedUI.addLiveUpdate({ type: 'info', content: `${index + 1}. ${riskIcon} ${step.title}`, source: 'plan_approval' })
+      advancedUI.addLiveUpdate({
+        type: 'info',
+        content: `${index + 1}. ${riskIcon} ${step.title}`,
+        source: 'plan_approval',
+      })
       advancedUI.addLiveUpdate({ type: 'info', content: `   ${step.description}`, source: 'plan_approval' })
     })
   }
@@ -690,17 +707,45 @@ export class PlanExecutor {
   private logExecutionSummary(result: PlanExecutionResult): void {
     const duration = result.endTime ? result.endTime.getTime() - result.startTime.getTime() : 0
 
-    advancedUI.addLiveUpdate({ type: 'info', content: `Status: ${result.status.toUpperCase()}`, source: 'execution_summary' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Duration: ${Math.round(duration / 1000)}s`, source: 'execution_summary' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Total Steps: ${result.summary.totalSteps}`, source: 'execution_summary' })
-    advancedUI.addLiveUpdate({ type: 'log', content: `Successful: ${result.summary.successfulSteps}`, source: 'execution_summary' })
-    advancedUI.addLiveUpdate({ type: 'error', content: `Failed: ${result.summary.failedSteps}`, source: 'execution_summary' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Skipped: ${result.summary.skippedSteps}`, source: 'execution_summary' })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Status: ${result.status.toUpperCase()}`,
+      source: 'execution_summary',
+    })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Duration: ${Math.round(duration / 1000)}s`,
+      source: 'execution_summary',
+    })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Total Steps: ${result.summary.totalSteps}`,
+      source: 'execution_summary',
+    })
+    advancedUI.addLiveUpdate({
+      type: 'log',
+      content: `Successful: ${result.summary.successfulSteps}`,
+      source: 'execution_summary',
+    })
+    advancedUI.addLiveUpdate({
+      type: 'error',
+      content: `Failed: ${result.summary.failedSteps}`,
+      source: 'execution_summary',
+    })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Skipped: ${result.summary.skippedSteps}`,
+      source: 'execution_summary',
+    })
 
     // Show status icon
     const statusIcon = result.status === 'completed' ? '✓' : result.status === 'partial' ? '⚠️' : '❌'
 
-    advancedUI.addLiveUpdate({ type: 'info', content: `${statusIcon} Plan execution ${result.status}`, source: 'execution_summary' })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `${statusIcon} Plan execution ${result.status}`,
+      source: 'execution_summary',
+    })
   }
 
   /**

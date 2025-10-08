@@ -285,11 +285,9 @@ export class EnhancedTokenCacheManager {
 
       // Get the full response
       const responseKey = `response:${entry.key}`
-      const fullResponse = await this.cacheService.get<string>(
-        responseKey,
-        `token_cache:${model || 'default'}`,
-        { strategy: 'redis' }
-      )
+      const fullResponse = await this.cacheService.get<string>(responseKey, `token_cache:${model || 'default'}`, {
+        strategy: 'redis',
+      })
 
       if (fullResponse) {
         // Log cache hit

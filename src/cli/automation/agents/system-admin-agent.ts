@@ -187,11 +187,11 @@ Generate a structured plan with commands to execute.`,
       }
 
       console.log(chalk.blue.bold('\nCommands to execute:'))
-        ; (planResult.commands || []).forEach((cmd: any, index: number) => {
-          console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
-          console.log(`   ${chalk.gray(cmd.description)}`)
-          if (cmd.sudo) console.log(`   ${chalk.red('⚠️ Requires sudo')}`)
-        })
+      ;(planResult.commands || []).forEach((cmd: any, index: number) => {
+        console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
+        console.log(`   ${chalk.gray(cmd.description)}`)
+        if (cmd.sudo) console.log(`   ${chalk.red('⚠️ Requires sudo')}`)
+      })
 
       // Ask for confirmation
       const readline = require('readline').createInterface({

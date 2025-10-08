@@ -128,7 +128,7 @@ export class AutonomousPlanner extends EventEmitter {
     advancedUI.addLiveUpdate({
       type: 'info',
       content: 'AI Planning: Analyzing goal and creating execution plan...',
-      source: 'ai_planning'
+      source: 'ai_planning',
     })
 
     // Use AI to break down the goal into actionable todos
@@ -383,7 +383,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
     advancedUI.addLiveUpdate({
       type: 'info',
       content: `Executing todo: ${todo.title}`,
-      source: 'todo_execution'
+      source: 'todo_execution',
     })
 
     // Create execution context for the todo

@@ -10,10 +10,10 @@ import { type CoreMessage, type CoreTool, generateText, streamText, type ToolCal
 import chalk from 'chalk'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
-import { getRAGMiddleware } from '../context/rag-setup'
 // ⚡︎ Import Cognitive Orchestration Types
 import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
 import { docsContextManager } from '../context/docs-context-manager'
+import { getRAGMiddleware } from '../context/rag-setup'
 import { AdvancedTools } from '../core/advanced-tools'
 import { simpleConfigManager as configManager } from '../core/config-manager'
 import { ContextEnhancer } from '../core/context-enhancer'
@@ -1257,9 +1257,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
       }
 
       // Apply RAG middleware if available
-      const ragMw = getRAGMiddleware();
+      const ragMw = getRAGMiddleware()
       if (ragMw) {
-        streamOpts.experimental_providerMetadata = ragMw;
+        streamOpts.experimental_providerMetadata = ragMw
       }
 
       if (provider !== 'openai' && provider !== 'openrouter') {

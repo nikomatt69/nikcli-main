@@ -13,15 +13,15 @@ import { memoryService } from './services/memory-service'
 import { planningService } from './services/planning-service'
 // Register session todo tools (todoread/todowrite)
 import './tools/todo-tools'
+import { mcpClient } from './core/mcp-client'
+import { lspManager } from './lsp/lsp-manager'
 import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
 import { StreamingOrchestrator } from './streaming-orchestrator'
+import { advancedUI } from './ui/advanced-cli-ui'
 import { diffManager } from './ui/diff-manager'
 import { ContainerManager } from './virtualized-agents/container-manager'
 import { VMOrchestrator } from './virtualized-agents/vm-orchestrator'
-import { advancedUI } from './ui/advanced-cli-ui'
-import { lspManager } from './lsp/lsp-manager'
-import { mcpClient } from './core/mcp-client'
 
 // 🔒 FIXED: Service initialization tracking
 interface ServiceState {
@@ -87,13 +87,27 @@ export class MainOrchestrator {
       await this.cleanup()
 
       // Dispose subsystems (best-effort)
-      try { await lspManager.dispose() } catch { }
-      try { await (lspService as any)?.dispose?.() } catch { }
-      try { await (agentService as any)?.dispose?.() } catch { }
-      try { await (toolService as any)?.dispose?.() } catch { }
-      try { (advancedUI as any)?.dispose?.() } catch { }
-      try { await mcpClient.dispose() } catch { }
-      try { await (this.vmOrchestrator as any)?.dispose?.() } catch { }
+      try {
+        await lspManager.dispose()
+      } catch {}
+      try {
+        await (lspService as any)?.dispose?.()
+      } catch {}
+      try {
+        await (agentService as any)?.dispose?.()
+      } catch {}
+      try {
+        await (toolService as any)?.dispose?.()
+      } catch {}
+      try {
+        ;(advancedUI as any)?.dispose?.()
+      } catch {}
+      try {
+        await mcpClient.dispose()
+      } catch {}
+      try {
+        await (this.vmOrchestrator as any)?.dispose?.()
+      } catch {}
 
       advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
@@ -245,13 +259,13 @@ export class MainOrchestrator {
         name: 'Service Registration',
         fn: this.initializeServices.bind(this),
         phase: 'core' as const,
-        dependencies: []
+        dependencies: [],
       },
       {
         name: 'Security Policies',
         fn: this.initializeSecurity.bind(this),
         phase: 'core' as const,
-        dependencies: []
+        dependencies: [],
       },
 
       // Phase 2: Dependent services (depend on core)
@@ -259,25 +273,25 @@ export class MainOrchestrator {
         name: 'Tool System',
         fn: this.initializeTools.bind(this),
         phase: 'dependent' as const,
-        dependencies: ['Service Registration']
+        dependencies: ['Service Registration'],
       },
       {
         name: 'Memory System',
         fn: this.initializeMemory.bind(this),
         phase: 'dependent' as const,
-        dependencies: ['Service Registration']
+        dependencies: ['Service Registration'],
       },
       {
         name: 'Snapshot System',
         fn: this.initializeSnapshot.bind(this),
         phase: 'dependent' as const,
-        dependencies: ['Service Registration']
+        dependencies: ['Service Registration'],
       },
       {
         name: 'Context Management',
         fn: this.initializeContext.bind(this),
         phase: 'dependent' as const,
-        dependencies: ['Service Registration']
+        dependencies: ['Service Registration'],
       },
 
       // Phase 3: All services (depend on dependent services)
@@ -285,19 +299,19 @@ export class MainOrchestrator {
         name: 'Agent System',
         fn: this.initializeAgents.bind(this),
         phase: 'all' as const,
-        dependencies: ['Tool System', 'Memory System']
+        dependencies: ['Tool System', 'Memory System'],
       },
       {
         name: 'Planning System',
         fn: this.initializePlanning.bind(this),
         phase: 'all' as const,
-        dependencies: ['Service Registration', 'Agent System']
+        dependencies: ['Service Registration', 'Agent System'],
       },
       {
         name: 'VM Orchestration',
         fn: this.initializeVMOrchestration.bind(this),
         phase: 'all' as const,
-        dependencies: ['Agent System', 'Context Management']
+        dependencies: ['Agent System', 'Context Management'],
       },
     ]
 
@@ -316,7 +330,7 @@ export class MainOrchestrator {
 
     for (const phase of phases) {
       advancedUI.logFunctionUpdate('info', `\n Phase: ${phase.toUpperCase()}`)
-      const phaseServices = services.filter(s => s.phase === phase)
+      const phaseServices = services.filter((s) => s.phase === phase)
 
       for (const service of phaseServices) {
         try {
@@ -546,9 +560,9 @@ export class MainOrchestrator {
       await this.streamOrchestrator.streamToPanel(
         'vm-metrics',
         `📊 ${data.containerId?.slice(0, 8)}:\n` +
-        `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
-        `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
-        `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
+          `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
+          `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
+          `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
       )
     })
 

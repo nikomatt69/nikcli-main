@@ -91,7 +91,11 @@ export class BrowserbaseProvider extends EventEmitter {
     advancedUI.logFunctionCall('browserbaseproviderinit')
     advancedUI.logFunctionUpdate('success', 'Browserbase Provider initialized', '✓')
     if (!this.config.enabled) {
-      advancedUI.logFunctionUpdate('warning', 'Browserbase not configured. Set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID', '⚠︎')
+      advancedUI.logFunctionUpdate(
+        'warning',
+        'Browserbase not configured. Set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID',
+        '⚠︎'
+      )
     }
   }
 

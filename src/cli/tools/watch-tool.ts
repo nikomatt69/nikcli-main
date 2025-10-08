@@ -1,6 +1,6 @@
-import { watch } from 'chokidar'
 import { relative } from 'node:path'
 import chalk from 'chalk'
+import { watch } from 'chokidar'
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
@@ -112,9 +112,9 @@ export class WatchTool extends BaseTool {
         depth: params.depth,
         awaitWriteFinish: params.awaitWriteFinish
           ? {
-            stabilityThreshold: debounceDelay,
-            pollInterval: 100,
-          }
+              stabilityThreshold: debounceDelay,
+              pollInterval: 100,
+            }
           : false,
       }
 

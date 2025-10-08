@@ -59,8 +59,8 @@ export class DiffViewer {
     const deletions = diffResult.filter((p) => p.removed).reduce((a, p) => a + p.count!, 0)
     const header = boxen(
       `${chalk.bold('Update')}(${chalk.cyan(fileDiff.filePath)})\n` +
-      `${chalk.gray('Updated')} ${chalk.cyan(fileDiff.filePath)} ${chalk.gray('with')} ` +
-      `${chalk.green(`${additions} addition${additions === 1 ? '' : 's'}`)} ${chalk.gray('and')} ${chalk.red(`${deletions} removal${deletions === 1 ? '' : 's'}`)}`,
+        `${chalk.gray('Updated')} ${chalk.cyan(fileDiff.filePath)} ${chalk.gray('with')} ` +
+        `${chalk.green(`${additions} addition${additions === 1 ? '' : 's'}`)} ${chalk.gray('and')} ${chalk.red(`${deletions} removal${deletions === 1 ? '' : 's'}`)}`,
       { padding: 1, borderStyle: 'round', borderColor: 'yellow' }
     )
     advancedUI.logFunctionUpdate('info', header)
@@ -82,7 +82,10 @@ export class DiffViewer {
       )
 
       for (const h of patch.hunks) {
-        advancedUI.logFunctionUpdate('info', chalk.cyan(`@@ -${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@`))
+        advancedUI.logFunctionUpdate(
+          'info',
+          chalk.cyan(`@@ -${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@`)
+        )
 
         let oldNo = h.oldStart
         let newNo = h.newStart
@@ -165,7 +168,8 @@ export class DiffViewer {
     }
 
     if (summary.created > 0) advancedUI.logFunctionUpdate('info', chalk.green(`✨ ${summary.created} files created`))
-    if (summary.modified > 0) advancedUI.logFunctionUpdate('info', chalk.yellow(`📝 ${summary.modified} files modified`))
+    if (summary.modified > 0)
+      advancedUI.logFunctionUpdate('info', chalk.yellow(`📝 ${summary.modified} files modified`))
     if (summary.deleted > 0) advancedUI.logFunctionUpdate('info', chalk.red(`🗑️  ${summary.deleted} files deleted`))
 
     console.log()

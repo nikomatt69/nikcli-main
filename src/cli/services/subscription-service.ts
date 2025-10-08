@@ -1,7 +1,7 @@
-import { enhancedSupabaseProvider } from '../providers/supabase/enhanced-supabase-provider'
-import { authProvider } from '../providers/supabase/auth-provider'
-import { simpleConfigManager } from '../core/config-manager'
 import chalk from 'chalk'
+import { simpleConfigManager } from '../core/config-manager'
+import { authProvider } from '../providers/supabase/auth-provider'
+import { enhancedSupabaseProvider } from '../providers/supabase/enhanced-supabase-provider'
 
 export interface SubscriptionStatus {
   tier: 'free' | 'pro' | 'enterprise'
@@ -18,9 +18,10 @@ export class SubscriptionService {
   private apiBaseUrl: string
 
   constructor() {
-    this.apiBaseUrl = process.env.NIKCLI_API_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000'
+    this.apiBaseUrl =
+      process.env.NIKCLI_API_URL || process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000'
   }
 
   /**
@@ -68,7 +69,9 @@ export class SubscriptionService {
     try {
       const { data, error } = await (this.supabase as any).client
         .from('user_profiles')
-        .select('subscription_tier, lemonsqueezy_subscription_id, openrouter_api_key, subscription_started_at, subscription_ends_at, subscription_canceled_at')
+        .select(
+          'subscription_tier, lemonsqueezy_subscription_id, openrouter_api_key, subscription_started_at, subscription_ends_at, subscription_canceled_at'
+        )
         .eq('id', currentUser.id)
         .single()
 
@@ -167,10 +170,7 @@ export class SubscriptionService {
       if (data.lemonsqueezySubscriptionId) updateData.lemonsqueezy_subscription_id = data.lemonsqueezySubscriptionId
       if (data.openrouterApiKey) updateData.openrouter_api_key = data.openrouterApiKey
 
-      const { error } = await (this.supabase as any).client
-        .from('user_profiles')
-        .update(updateData)
-        .eq('id', userId)
+      const { error } = await (this.supabase as any).client.from('user_profiles').update(updateData).eq('id', userId)
 
       if (error) throw error
 

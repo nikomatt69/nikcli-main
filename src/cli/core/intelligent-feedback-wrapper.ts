@@ -1,5 +1,9 @@
 import chalk from 'chalk'
 import { feedbackSystem } from './feedback-system'
+import * as fs from 'node:fs/promises'
+import * as fsSync from 'node:fs'
+import * as path from 'node:path'
+import * as os from 'node:os'
 
 export interface ToolExecutionResult {
   success: boolean
@@ -25,9 +29,14 @@ export class IntelligentFeedbackWrapper {
   private learningPatterns: Map<string, LearningPattern> = new Map()
   private executionHistory: ToolExecutionResult[] = []
   private readonly maxHistorySize = 1000
+  private learningFile: string
 
-  constructor() {
-    this.loadLearningPatterns()
+  constructor(workingDirectory: string = process.cwd()) {
+    this.learningFile = path.join(os.homedir(), '.nikcli', 'learning', 'learning-patterns.json')
+    // Load patterns asynchronously - don't await in constructor
+    this.loadLearningPatterns().catch((error) => {
+      console.debug('Failed to load learning patterns in constructor:', error)
+    })
   }
 
   /**
@@ -532,14 +541,41 @@ export class IntelligentFeedbackWrapper {
     return 'general'
   }
 
-  private loadLearningPatterns(): void {
-    // TODO: Carica pattern da file locale
-    console.debug('Learning patterns loaded')
+  private async loadLearningPatterns(): Promise<void> {
+    try {
+      // Ensure learning directory exists
+      const learningDir = path.dirname(this.learningFile)
+      if (!fsSync.existsSync(learningDir)) {
+        fsSync.mkdirSync(learningDir, { recursive: true })
+      }
+
+      if (fsSync.existsSync(this.learningFile)) {
+        const data = await fs.readFile(this.learningFile, 'utf-8')
+        const parsed = JSON.parse(data)
+        this.learningPatterns = new Map(Object.entries(parsed))
+        console.debug(`Learning patterns loaded: ${this.learningPatterns.size} patterns`)
+      } else {
+        console.debug('No existing learning patterns found, starting fresh')
+      }
+    } catch (error) {
+      console.debug('Could not load learning patterns:', error)
+    }
   }
 
-  private saveLearningPatterns(): void {
-    // TODO: Salva pattern su file locale
-    console.debug('Learning patterns saved')
+  private async saveLearningPatterns(): Promise<void> {
+    try {
+      // Ensure learning directory exists
+      const learningDir = path.dirname(this.learningFile)
+      if (!fsSync.existsSync(learningDir)) {
+        fsSync.mkdirSync(learningDir, { recursive: true })
+      }
+
+      const data = Object.fromEntries(this.learningPatterns)
+      await fs.writeFile(this.learningFile, JSON.stringify(data, null, 2))
+      console.debug(`Learning patterns saved: ${this.learningPatterns.size} patterns`)
+    } catch (error) {
+      console.debug('Failed to save learning patterns:', error)
+    }
   }
 
   /**

@@ -58,7 +58,8 @@ export class TaskExecutor {
   private detectBackgroundAgentAvailability(): boolean {
     try {
       // Check if backgroundAgentService is accessible
-      const isAvailable = typeof backgroundAgentService !== 'undefined' && typeof backgroundAgentService.createJob === 'function'
+      const isAvailable =
+        typeof backgroundAgentService !== 'undefined' && typeof backgroundAgentService.createJob === 'function'
 
       if (!isAvailable) {
         console.warn('⚠️  Background agent service not available - will fall back to local execution')

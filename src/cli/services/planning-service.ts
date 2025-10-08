@@ -333,8 +333,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'pending' })
             break
           case 'plan_created':
@@ -351,8 +351,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'in_progress' })
             break
           case 'todo_progress':
@@ -365,8 +365,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'todo_complete':
             if (!superCompact) advancedUI.logFunctionUpdate('success', 'Todo completed', '✓')
@@ -382,8 +382,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: event.error ? 'failed' : 'completed' })
             break
           case 'plan_failed':
@@ -398,8 +398,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'plan_complete':
             this.updatePlanStatus(plan.id, 'completed')
@@ -416,10 +416,10 @@ export class PlanningService {
         if (nik) {
           try {
             nik.assistantProcessing = false
-          } catch { }
+          } catch {}
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
-      } catch { }
+      } catch {}
     } finally {
       // Always render prompt after execution cycle
       try {
@@ -427,15 +427,15 @@ export class PlanningService {
         if (nik) {
           try {
             nik.assistantProcessing = false
-          } catch { }
+          } catch {}
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
         // Disable possible bypass and resume prompt
         try {
           const { inputQueue } = await import('../core/input-queue')
           inputQueue.disableBypass()
-        } catch { }
-      } catch { }
+        } catch {}
+      } catch {}
     }
   }
 
@@ -520,7 +520,7 @@ export class PlanningService {
           progress: typeof t.progress === 'number' ? t.progress : 0,
         }))
         todoStore.setTodos(String(sessionId), list)
-      } catch { }
+      } catch {}
     }
   }
 
@@ -549,7 +549,7 @@ export class PlanningService {
             progress: typeof t.progress === 'number' ? t.progress : 0,
           }))
           todoStore.setTodos(String(sessionId), list)
-        } catch { }
+        } catch {}
       }
     }
   }
@@ -631,7 +631,7 @@ export class PlanningService {
         priority: (t as any).priority,
         progress: (t as any).progress,
       }))
-        ; (advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
+      ;(advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
     } catch (error: any) {
       console.log(chalk.gray(`ℹ️ Could not show dashboard: ${error.message}`))
     }

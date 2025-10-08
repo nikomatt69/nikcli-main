@@ -3,8 +3,8 @@ import chalk from 'chalk'
 import { simpleConfigManager } from '../core/config-manager'
 import { type SmartCacheManager, smartCache } from '../core/smart-cache-manager'
 import { type RedisProvider, redisProvider } from '../providers/redis/redis-provider'
-import { structuredLogger } from '../utils/structured-logger'
 import { AsyncLock } from '../utils/async-lock'
+import { structuredLogger } from '../utils/structured-logger'
 
 export interface CacheServiceOptions {
   redisEnabled?: boolean
@@ -52,10 +52,10 @@ export class CacheService extends EventEmitter {
   private writeLocks = new AsyncLock()
   // Namespace TTL defaults (seconds)
   private namespaceTtl: Record<string, number> = {
-    'token_cache': 3 * 24 * 60 * 60,
-    'session': 60 * 60,
-    'profile': 6 * 60 * 60,
-    'ai': 24 * 60 * 60,
+    token_cache: 3 * 24 * 60 * 60,
+    session: 60 * 60,
+    profile: 6 * 60 * 60,
+    ai: 24 * 60 * 60,
   }
   // Circuit breaker state
   private redisFailureCount = 0
@@ -79,7 +79,7 @@ export class CacheService extends EventEmitter {
     this.setupEventHandlers()
     // Persist stats periodically (best-effort)
     setInterval(() => {
-      void this.persistStats().catch(() => { })
+      void this.persistStats().catch(() => {})
     }, 60000)
   }
 
@@ -150,11 +150,11 @@ export class CacheService extends EventEmitter {
               : Promise.resolve(false),
             this.shouldUseFallback(chosenStrategy, false)
               ? this.smartCache.setCachedResponse(key, JSON.stringify(value), context, {
-                tokensSaved: this.estimateTokensSaved(value),
-                responseTime: metadata?.responseTime || 0,
-                ...metadata,
-              })
-              : Promise.resolve(false)
+                  tokensSaved: this.estimateTokensSaved(value),
+                  responseTime: metadata?.responseTime || 0,
+                  ...metadata,
+                })
+              : Promise.resolve(false),
           ])
 
           redisSuccess = redisResult.status === 'fulfilled' && redisResult.value === true
@@ -244,7 +244,7 @@ export class CacheService extends EventEmitter {
     }
   ): Promise<T | null> {
     const isOpaque = this.isOpaqueKey(key)
-    const strategyResolved: 'redis' | 'smart' | 'both' = (options?.strategy as any)
+    const strategyResolved: 'redis' | 'smart' | 'both' = options?.strategy as any
     const { preferLocal = false } = options || {}
 
     try {
@@ -522,7 +522,7 @@ export class CacheService extends EventEmitter {
         errors: this.stats.errors,
       }
       await this.redis.set('stats:cache', payload, 3600, { type: 'stats' })
-    } catch (_e) { }
+    } catch (_e) {}
   }
 
   /**

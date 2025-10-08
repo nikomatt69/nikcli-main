@@ -457,7 +457,7 @@ class UpstashVectorStore extends VectorStore {
         console.log(chalk.gray('🔗 Connecting to Upstash Redis (vector store)'))
         try {
           await this.redis.ping()
-        } catch (_e) { }
+        } catch (_e) {}
         console.log(chalk.green('✓ Upstash Redis connected'))
         return true
       }
@@ -583,7 +583,7 @@ class UpstashVectorStore extends VectorStore {
             { id },
             { headers: { Authorization: `Bearer ${this.vectorToken}` } }
           )
-        } catch (_e) { }
+        } catch (_e) {}
         return true
       }
 

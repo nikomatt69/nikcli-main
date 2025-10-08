@@ -463,10 +463,11 @@ ${error instanceof Error ? error.message : 'Unknown error'}
 Please check your request and try again. If the issue persists, please create an issue in the [NikCLI repository](https://github.com/nikomatt69/nikcli-main).
 
 ---
-*Processing time: ${job.startedAt && job.completedAt
+*Processing time: ${
+        job.startedAt && job.completedAt
           ? `${((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2)}s`
           : 'N/A'
-        }*`
+      }*`
 
       await this.octokit.rest.issues.createComment({
         owner,

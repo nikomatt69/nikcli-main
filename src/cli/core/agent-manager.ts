@@ -15,9 +15,9 @@ import type {
   AgentTodo,
   TaskStatus,
 } from '../types/types'
+import { AsyncLock } from '../utils/async-lock'
 import { structuredLogger } from '../utils/structured-logger'
 import type { CliConfig } from './config-manager'
-import { AsyncLock } from '../utils/async-lock'
 
 /**
  * Enterprise Agent Manager

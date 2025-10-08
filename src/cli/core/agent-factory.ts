@@ -7,11 +7,11 @@ import { BaseAgent } from '../automation/agents/base-agent'
 import { workspaceContext } from '../context/workspace-context'
 import { AgentTaskResultSchema } from '../schemas/core-schemas'
 import { toolsManager } from '../tools/migration-to-secure-tools' // deprecated, for backward compatibility
+import { CircuitBreaker } from '../utils/circuit-breaker'
 import { agentStream } from './agent-stream'
 import { agentTodoManager } from './agent-todo-manager'
 import { blueprintStorage } from './blueprint-storage'
 import { configManager } from './config-manager'
-import { CircuitBreaker } from '../utils/circuit-breaker'
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
@@ -692,11 +692,14 @@ export class AgentFactory extends EventEmitter {
 
   // 🔒 FIXED: Capability matrix and cached scores for O(1) lookups
   private capabilityMatrix = new Map<string, Set<string>>() // agent.id -> Set of capabilities
-  private cachedScores = new Map<string, {
-    blueprint: AgentBlueprint
-    capabilities: Set<string>
-    lastUpdated: number
-  }>()
+  private cachedScores = new Map<
+    string,
+    {
+      blueprint: AgentBlueprint
+      capabilities: Set<string>
+      lastUpdated: number
+    }
+  >()
   private readonly SCORE_CACHE_TTL = 60000 // 1 minute
 
   constructor() {
@@ -1383,9 +1386,7 @@ Execute tasks step-by-step and verify results before proceeding.`
             // This is a lightweight operation that shouldn't change agent state
             const result = await Promise.race([
               agent.run(), // Call with no parameters for info/health check
-              new Promise<any>((_, reject) =>
-                setTimeout(() => reject(new Error('Health check timeout')), 5000)
-              ),
+              new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Health check timeout')), 5000)),
             ])
 
             // If we get a result without error, agent is healthy
@@ -1649,7 +1650,7 @@ Execute tasks step-by-step and verify results before proceeding.`
       const cached = this.cachedScores.get(agent.id)
 
       // Update cache if expired or missing
-      if (!cached || (now - cached.lastUpdated) > this.SCORE_CACHE_TTL) {
+      if (!cached || now - cached.lastUpdated > this.SCORE_CACHE_TTL) {
         const blueprint = agent.getBlueprint()
         const capabilities = new Set(blueprint.capabilities)
 
@@ -1667,7 +1668,7 @@ Execute tasks step-by-step and verify results before proceeding.`
         for (const cap of capabilities) {
           const related = semanticMappings[cap.toLowerCase()]
           if (related) {
-            related.forEach(r => expandedCapabilities.add(r))
+            related.forEach((r) => expandedCapabilities.add(r))
           }
         }
 
@@ -1708,9 +1709,7 @@ Execute tasks step-by-step and verify results before proceeding.`
         matches++
       }
     }
-    const capabilityScore = requiredCapabilities.length > 0
-      ? matches / requiredCapabilities.length
-      : 0.5
+    const capabilityScore = requiredCapabilities.length > 0 ? matches / requiredCapabilities.length : 0.5
     totalScore += capabilityScore * 25
     if (capabilityScore > 0.7) {
       reasons.push(`Strong capability match (${Math.round(capabilityScore * 100)}%)`)
@@ -1729,7 +1728,7 @@ Execute tasks step-by-step and verify results before proceeding.`
 
     // Subtract capability score from original (already added above)
     const capabilityMatch = this.scoreCapabilityMatch(blueprint.capabilities, requiredCapabilities)
-    const adjustedScore = originalScore.totalScore - (capabilityMatch.score * 25)
+    const adjustedScore = originalScore.totalScore - capabilityMatch.score * 25
 
     totalScore += adjustedScore
     reasons.push(...originalScore.reasons)

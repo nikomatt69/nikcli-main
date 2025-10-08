@@ -2,11 +2,11 @@ import { readdir, stat } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import chalk from 'chalk'
 import { PromptManager } from '../prompts/prompt-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { IGNORE_PATTERNS } from './list-tool'
 import { sanitizePath } from './secure-file-tools'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * TreeTool - Directory structure visualization
@@ -149,9 +149,7 @@ export class TreeTool extends BaseTool {
         },
       }
 
-      advancedUI.logSuccess(
-        `✓ Tree complete: ${this.totalDirectories} directories, ${this.totalFiles} files`
-      )
+      advancedUI.logSuccess(`✓ Tree complete: ${this.totalDirectories} directories, ${this.totalFiles} files`)
 
       // Display tree
       console.log('\n' + chalk.cyan.bold(relative(this.workingDirectory, sanitized) || '.'))
@@ -189,12 +187,7 @@ export class TreeTool extends BaseTool {
   /**
    * Build tree structure recursively
    */
-  private async buildTree(
-    path: string,
-    depth: number,
-    maxDepth: number,
-    params: TreeToolParams
-  ): Promise<TreeNode> {
+  private async buildTree(path: string, depth: number, maxDepth: number, params: TreeToolParams): Promise<TreeNode> {
     const stats = await stat(path)
     const name = require('node:path').basename(path)
 
@@ -266,13 +259,7 @@ export class TreeTool extends BaseTool {
   /**
    * Format tree for display
    */
-  private formatTree(
-    node: TreeNode,
-    prefix: string,
-    isLast: boolean,
-    useIcons: boolean,
-    showSize: boolean
-  ): string {
+  private formatTree(node: TreeNode, prefix: string, isLast: boolean, useIcons: boolean, showSize: boolean): string {
     const lines: string[] = []
 
     if (node.depth > 0) {
@@ -316,7 +303,7 @@ export class TreeTool extends BaseTool {
     const k = 1024
     const sizes = ['B', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
+    return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`
   }
 
   /**
@@ -332,10 +319,11 @@ export class TreeTool extends BaseTool {
       switch (sortBy) {
         case 'size':
           return b.size - a.size
-        case 'type':
+        case 'type': {
           const extA = require('node:path').extname(a.name)
           const extB = require('node:path').extname(b.name)
           return extA.localeCompare(extB)
+        }
         case 'name':
         default:
           return a.name.localeCompare(b.name)

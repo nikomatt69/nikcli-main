@@ -532,7 +532,8 @@ export class BackgroundAgentService extends EventEmitter {
 
     // Execute each step
     for (let i = 0; i < playbook.steps.length; i++) {
-      const step = playbook.steps[i]; if (!step) continue
+      const step = playbook.steps[i]
+      if (!step) continue
       await this.logJob(job, 'info', `[Step ${i + 1}/${playbook.steps.length}] ${step.run}`)
 
       try {

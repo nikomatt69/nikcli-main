@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { generateText } from 'ai'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import { parse as parseDotenv } from 'dotenv'
@@ -14,6 +15,7 @@ import { AgentManager } from '../core/agent-manager'
 import { agentStream } from '../core/agent-stream'
 import { blueprintStorage } from '../core/blueprint-storage'
 import { configManager, simpleConfigManager } from '../core/config-manager'
+import { contextTokenManager } from '../core/context-token-manager'
 import { WebSearchProvider } from '../core/web-search-provider'
 import { ideDiagnosticIntegration } from '../integrations/ide-diagnostic-integration'
 import { enhancedPlanning } from '../planning/enhanced-planning'
@@ -35,9 +37,6 @@ import { ContainerManager } from '../virtualized-agents/container-manager'
 import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
 import { initializeVMSelector, vmSelector } from '../virtualized-agents/vm-selector'
 import { chatManager } from './chat-manager'
-import { contextTokenManager } from '../core/context-token-manager'
-
-import { generateText } from 'ai'
 
 // ====================== ⚡︎ ZOD COMMAND VALIDATION SCHEMAS ======================
 
@@ -164,14 +163,12 @@ export class SlashCommandHandler {
   private vmOrchestrator: VMOrchestrator
   private cliInstance: any // Reference to main CLI instance
 
-
   constructor(cliInstance?: any) {
     this.cliInstance = cliInstance
     this.agentManager = new AgentManager(configManager)
     registerAgents(this.agentManager)
     const containerManager = new ContainerManager()
     this.vmOrchestrator = new VMOrchestrator(containerManager)
-
 
     // Initialize VM selector with the orchestrator
     initializeVMSelector(this.vmOrchestrator)
@@ -676,14 +673,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
               chalk.yellow('⚠️ Pro subscription required'),
               '',
               chalk.gray(`Upgrade at: ${paymentLink}`),
-              chalk.gray('Or use: /pro upgrade')
+              chalk.gray('Or use: /pro upgrade'),
             ].join('\n'),
             {
               title: 'Plan',
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: 'yellow'
+              borderColor: 'yellow',
             }
           )
           if (nik?.printPanel) nik.printPanel(panel)
@@ -700,7 +697,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: 'green'
+              borderColor: 'green',
             })
             if (nik?.printPanel) nik.printPanel(panel)
             else console.log(panel)
@@ -710,7 +707,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
               padding: 1,
               margin: 1,
               borderStyle: 'round',
-              borderColor: 'yellow'
+              borderColor: 'yellow',
             })
             if (nik?.printPanel) nik.printPanel(panel)
             else console.log(panel)
@@ -722,7 +719,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             padding: 1,
             margin: 1,
             borderStyle: 'round',
-            borderColor: 'red'
+            borderColor: 'red',
           })
           if (nik?.printPanel) nik.printPanel(panel)
           else console.log(panel)
@@ -893,7 +890,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             console.log(chalk.red('Usage: /router mode <conservative|balanced|aggressive>'))
             break
           }
-          ; (cfg.modelRouting as any).mode = mode as any
+          ;(cfg.modelRouting as any).mode = mode as any
           configManager.setAll(cfg as any)
           this.cliInstance.printPanel(
             boxen(`Routing mode set to ${mode}`, {
@@ -1262,9 +1259,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.cliInstance.printPanel(
         boxen(
           `${chalk.green('Environment variables imported successfully')}` +
-          `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
-          `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
-          `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
+            `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
+            `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
+            `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
           {
             title: '✓ Env Saved',
             padding: 1,
@@ -2109,9 +2106,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('─'.repeat(60)))
           console.log(result.answer.trim())
           console.log(chalk.gray('\nSources:'))
-            ; (result.sources || []).forEach((s: any, idx: number) => {
-              console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
-            })
+          ;(result.sources || []).forEach((s: any, idx: number) => {
+            console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
+          })
           console.log(chalk.gray('─'.repeat(60)))
         } else {
           const items = result?.results || []
@@ -2998,7 +2995,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ; (global as any).__nikCLI.currentMode = 'vm'
+      ;(global as any).__nikCLI.currentMode = 'vm'
     }
 
     console.log(chalk.blue.bold('🐳 Entering VM Chat Mode'))
@@ -3786,7 +3783,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const remaining = session.modelLimits.context - totalTokens
 
     lines.push(chalk.cyan('📈 Session Usage:'))
-    lines.push(`  Total Tokens: ${chalk.white(this.formatTokens(totalTokens))} / ${this.formatTokens(session.modelLimits.context)}`)
+    lines.push(
+      `  Total Tokens: ${chalk.white(this.formatTokens(totalTokens))} / ${this.formatTokens(session.modelLimits.context)}`
+    )
     lines.push(`  Input Tokens: ${chalk.white(this.formatTokens(session.totalInputTokens))}`)
     lines.push(`  Output Tokens: ${chalk.white(this.formatTokens(session.totalOutputTokens))}`)
     lines.push(`  Total Cost: ${chalk.green(`$${session.totalCost.toFixed(6)}`)}`)
@@ -3798,7 +3797,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const progressBar = this.createProgressBar(percentage, 50)
     const color = percentage >= 90 ? chalk.red : percentage >= 80 ? chalk.yellow : chalk.green
     lines.push(`  ${progressBar} ${color(percentage.toFixed(1) + '%')}`)
-    lines.push(`  Remaining: ${chalk.white(this.formatTokens(remaining))} (${chalk.white((100 - percentage).toFixed(1) + '%')})`)
+    lines.push(
+      `  Remaining: ${chalk.white(this.formatTokens(remaining))} (${chalk.white((100 - percentage).toFixed(1) + '%')})`
+    )
     lines.push('')
 
     // Detailed Context Breakdown (Claude Code style)
@@ -3857,7 +3858,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const roleIcon = role === 'system' ? '⚙️' : role === 'user' ? '👤' : role === 'assistant' ? '🤖' : '🔧'
         const rolePct = (data.tokens / totalTokens) * 100
         const miniBar = this.createProgressBar(rolePct, 20)
-        lines.push(`  ${roleIcon} ${role.padEnd(10)} ${miniBar} ${this.formatTokens(data.tokens).padStart(6)} (${rolePct.toFixed(1)}%)`)
+        lines.push(
+          `  ${roleIcon} ${role.padEnd(10)} ${miniBar} ${this.formatTokens(data.tokens).padStart(6)} (${rolePct.toFixed(1)}%)`
+        )
       }
       lines.push('')
     }
@@ -3956,7 +3959,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     })
     console.log('')
     console.log(`  ${progressBar} ${chalk.white(pathPercentage.toFixed(1) + '%')}`)
-    console.log(`  Estimated tokens: ~${chalk.white(this.formatTokens(pathTokens))} of ${this.formatTokens(totalTokens)} total`)
+    console.log(
+      `  Estimated tokens: ~${chalk.white(this.formatTokens(pathTokens))} of ${this.formatTokens(totalTokens)} total`
+    )
     console.log('')
   }
 
@@ -4236,10 +4241,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority as any,
                     progress: t.progress,
                   }))
-                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                   return { shouldExit: false, shouldUpdatePrompt: false }
                 }
-              } catch { }
+              } catch {}
               console.log(chalk.yellow('No active plans found. Create one with /plan create <goal>'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
@@ -4346,10 +4351,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: t.priority,
                   progress: t.progress,
                 }))
-                  ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 return { shouldExit: false, shouldUpdatePrompt: false }
               }
-            } catch { }
+            } catch {}
             console.log(chalk.gray('No todo lists found'))
             return { shouldExit: false, shouldUpdatePrompt: false }
           }
@@ -4384,8 +4389,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                  ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
-              } catch { }
+                ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+              } catch {}
               enhancedPlanning.showPlanStatus(latestPlan.id)
             } else {
               // Fallback to session todos
@@ -4401,7 +4406,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority,
                     progress: t.progress,
                   }))
-                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 } else {
                   console.log(chalk.yellow('No todo lists found'))
                 }
@@ -4421,8 +4426,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                  ; (advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
-              } catch { }
+                ;(advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
+              } catch {}
             }
             enhancedPlanning.showPlanStatus(planId)
           }
@@ -4465,7 +4470,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       // Hide the Todos HUD panel (structured UI)
       advancedUI.hidePanel('todos')
-    } catch { }
+    } catch {}
 
     try {
       // Clear session todos from the TodoStore for current session
@@ -4478,19 +4483,19 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         globalAny.__nikCLI?.context?.session?.id ||
         `${Date.now()}`
       todoStore.setTodos(String(sessionId), [])
-    } catch { }
+    } catch {}
 
     // Clear inline HUD in renderPromptArea
     try {
       const nik: any = this.cliInstance
       if (nik?.clearPlanHud) nik.clearPlanHud()
-    } catch { }
+    } catch {}
 
     console.log(chalk.green('🧹 HUD Todos cleared'))
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -4507,7 +4512,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -4517,7 +4522,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Toggle visibility on for inline HUD
       const nik: any = this.cliInstance
       if (nik?.showPlanHud) nik.showPlanHud()
-    } catch { }
+    } catch {}
     try {
       // Prefer latest active plan todos if available
       const plans = enhancedPlanning.getActivePlans?.() || []
@@ -4529,10 +4534,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           priority: (t as any).priority,
           progress: (t as any).progress,
         }))
-          ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+        ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
         shown = true
       }
-    } catch { }
+    } catch {}
 
     if (!shown) {
       try {
@@ -4554,10 +4559,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             priority: t.priority,
             progress: t.progress,
           }))
-            ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+          ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
           shown = true
         }
-      } catch { }
+      } catch {}
     }
 
     if (!shown) {
@@ -4569,7 +4574,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -4588,7 +4593,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -4607,7 +4612,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -4708,7 +4713,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ; (global as any).__nikCLI.currentMode = 'default'
+      ;(global as any).__nikCLI.currentMode = 'default'
     }
 
     console.log(chalk.green('💬 Switched to Default Chat Mode'))
@@ -5800,7 +5805,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       const panel = boxen(
         `Failed to execute web3 command: ${error.message}` +
-        '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
+          '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
         { title: 'Web3 Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
       )
       this.cliInstance.printPanel(panel)
@@ -7919,7 +7924,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
-
   // ====================== WORK SESSION MANAGEMENT COMMANDS ======================
 
   /**
@@ -8426,7 +8430,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const status = args[0] as any
       const jobs = await backgroundAgentService.listJobs({ status, limit: 20 })
       const stats = await backgroundAgentService.getStats()
-
     } catch (error: any) {
       console.log(chalk.red(`❌ Error listing jobs: ${error.message}`))
     }
@@ -8584,7 +8587,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
-
 }
 
 /**
@@ -8607,7 +8609,9 @@ export async function handleMermaidInfo(): Promise<void> {
   console.log(`  Strategy: ${chalk.white(preferences.strategy)}`)
   console.log(`  Cache Enabled: ${chalk.white(preferences.enableCache ? '✓' : '✗')}`)
   console.log(`  Theme: ${chalk.white(preferences.theme)}`)
-  console.log(`  ASCII Padding: ${chalk.white(`X:${preferences.asciiPaddingX} Y:${preferences.asciiPaddingY} Border:${preferences.asciiBorderPadding}`)}`)
+  console.log(
+    `  ASCII Padding: ${chalk.white(`X:${preferences.asciiPaddingX} Y:${preferences.asciiPaddingY} Border:${preferences.asciiBorderPadding}`)}`
+  )
 
   // Recommendations
   console.log(chalk.cyan('\nRecommendations:'))

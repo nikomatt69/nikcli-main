@@ -215,8 +215,8 @@ export class CognitiveRouteAnalyzer {
       orchestrationPlan: cognition.orchestrationPlan,
     }
 
-    // Ottieni recommendations base dal router
-    const baseRecommendations = await toolRouter.routeWithCognition(routingContext)
+    // Ottieni recommendations base dal router (non-cognitive to avoid recursion)
+    const baseRecommendations = toolRouter.analyzeMessage({ role: 'user', content: message })
 
     // Applica enhancement basato su intent analysis
     const enhancedRecommendations = this.enhanceWithIntentAnalysis(baseRecommendations, intentAnalysis)

@@ -698,7 +698,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
   private emitVMCommunication(message: string): void {
     // Emit to global event bus for streaming orchestrator
     if (global && (global as any).__streamingOrchestrator) {
-      ; (global as any).__streamingOrchestrator.queueMessage({
+      ;(global as any).__streamingOrchestrator.queueMessage({
         type: 'vm',
         content: `[${this.id.slice(0, 8)}] ${message}`,
         metadata: {

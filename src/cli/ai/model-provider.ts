@@ -6,10 +6,10 @@ import { createVercel } from '@ai-sdk/vercel'
 import { generateObject, generateText, streamText } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
+import { getRAGMiddleware } from '../context/rag-setup'
 import { configManager, type ModelConfig } from '../core/config-manager'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 import { ReasoningDetector } from './reasoning-detector'
-import { getRAGMiddleware } from '../context/rag-setup'
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
@@ -228,7 +228,7 @@ export class ModelProvider {
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
         }
-      } catch { }
+      } catch {}
     }
     const effectiveConfig: ModelConfig = { ...currentModelConfig, model: effectiveModelId } as ModelConfig
     // Enforce light quota check for OpenRouter usage if authenticated
@@ -242,7 +242,7 @@ export class ModelProvider {
           }
         }
       }
-    } catch (_) { }
+    } catch (_) {}
 
     const model = this.getModel(effectiveConfig)
 
@@ -271,7 +271,7 @@ export class ModelProvider {
           await authProvider.recordUsage('apiCalls', 1)
         }
       }
-    } catch (_) { }
+    } catch (_) {}
 
     // Extract reasoning if available and display if requested
     if (reasoningEnabled) {
@@ -356,7 +356,7 @@ export class ModelProvider {
           const msg = `[Router] ${currentModelName} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch { }
+        } catch {}
       }
     }
     const effectiveConfig2: ModelConfig = { ...currentModelConfig, model: effectiveModelId2 } as ModelConfig
@@ -420,7 +420,7 @@ export class ModelProvider {
           const msg = `[Router] ${configManager.getCurrentModel()} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch { }
+        } catch {}
       }
     }
     const model = this.getModel({ ...currentModelConfig, model: effId3 } as ModelConfig)

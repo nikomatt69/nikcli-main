@@ -320,14 +320,18 @@ export class AiSdkEmbeddingProvider {
 
     // Adjust based on text length
     let multiplier = 1.0
-    if (avgLength < 100) multiplier = 1.5      // Short texts - can handle larger batches
-    else if (avgLength < 500) multiplier = 1.2 // Medium texts
-    else if (avgLength < 1000) multiplier = 1.0 // Long texts
-    else multiplier = 0.8                      // Very long texts - smaller batches
+    if (avgLength < 100)
+      multiplier = 1.5 // Short texts - can handle larger batches
+    else if (avgLength < 500)
+      multiplier = 1.2 // Medium texts
+    else if (avgLength < 1000)
+      multiplier = 1.0 // Long texts
+    else multiplier = 0.8 // Very long texts - smaller batches
 
     // Adjust based on recent success rate
-    if (recentSuccessRate < 0.9) multiplier *= 0.8  // Reduce batch size if failing
-    else if (recentSuccessRate > 0.95) multiplier *= 1.1  // Increase if very successful
+    if (recentSuccessRate < 0.9)
+      multiplier *= 0.8 // Reduce batch size if failing
+    else if (recentSuccessRate > 0.95) multiplier *= 1.1 // Increase if very successful
 
     return Math.max(50, Math.min(500, Math.round(base * multiplier)))
   }
@@ -413,7 +417,6 @@ export class AiSdkEmbeddingProvider {
         case 'openrouter':
           {
             // OpenRouter doesn't support embedding endpoints, fallback to OpenAI
-
 
             const openaiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
             if (!openaiKey) {

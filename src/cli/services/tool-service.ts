@@ -9,8 +9,8 @@ import { workspaceContext } from '../context/workspace-context'
 import { simpleConfigManager } from '../core/config-manager'
 import { ExecutionPolicyManager, type ToolApprovalRequest } from '../policies/execution-policy'
 import { ContentValidators } from '../tools/write-file-tool'
-import { type ApprovalRequest, type ApprovalResponse, ApprovalSystem } from '../ui/approval-system'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { type ApprovalRequest, type ApprovalResponse, ApprovalSystem } from '../ui/approval-system'
 
 export interface ToolExecution {
   id: string

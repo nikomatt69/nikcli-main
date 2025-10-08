@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import chalk from 'chalk'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { detectLanguageFromContent, detectLanguageFromExtension } from './language-detection'
 import { formatDiagnostic, LSPClient, type LSPDiagnostic, type LSPSymbol } from './lsp-client'
 import { ensureLSPDependencies, findLSPWorkspaceRoot, getApplicableLSPServers } from './lsp-servers'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface CodeContext {
   file: string
@@ -285,7 +285,7 @@ export class LSPManager {
 
         const hover = await client.getHover(filePath, line, character)
         if (hover) return hover
-      } catch (_error) { }
+      } catch (_error) {}
     }
 
     return null
@@ -304,7 +304,7 @@ export class LSPManager {
 
         const completions = await client.getCompletion(filePath, line, character)
         allCompletions.push(...completions)
-      } catch (_error) { }
+      } catch (_error) {}
     }
 
     return allCompletions

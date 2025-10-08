@@ -139,7 +139,8 @@ export class ChatManager {
     // Include recent messages first (last 4 messages)
     const recentMessages = messages.filter((m) => m.role !== 'system').slice(-4)
     for (let i = recentMessages.length - 1; i >= 0; i--) {
-      const msg = recentMessages[i]; if (!msg) continue
+      const msg = recentMessages[i]
+      if (!msg) continue
       const tokens = this.estimateTokens(msg.content)
 
       if (currentTokens + tokens > maxTokens) break
@@ -181,10 +182,10 @@ export class ChatManager {
     const notice: ChatMessage | null =
       trimmedCount > 0
         ? {
-          role: 'system',
-          content: `[Conversation trimmed] ${trimmedCount} older messages were removed to fit history limits. Recent context preserved.`,
-          timestamp: new Date(),
-        }
+            role: 'system',
+            content: `[Conversation trimmed] ${trimmedCount} older messages were removed to fit history limits. Recent context preserved.`,
+            timestamp: new Date(),
+          }
         : null
 
     this.currentSession.messages = [

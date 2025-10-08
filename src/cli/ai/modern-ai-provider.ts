@@ -8,11 +8,11 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createVercel } from '@ai-sdk/vercel'
 import { type CoreMessage, type CoreTool, generateText, streamText, tool } from 'ai'
 import { z } from 'zod'
+import { getRAGMiddleware } from '../context/rag-setup'
 import { simpleConfigManager } from '../core/config-manager'
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import type { OutputStyle } from '../types/output-styles'
 import { ReasoningDetector } from './reasoning-detector'
-import { getRAGMiddleware } from '../context/rag-setup'
 
 export interface ModelConfig {
   provider: 'openai' | 'anthropic' | 'google' | 'vercel' | 'gateway' | 'openrouter'
@@ -305,10 +305,10 @@ export class ModernAIProvider {
       rootPath: relative(process.cwd(), rootPath),
       packageInfo: packageInfo
         ? {
-          name: packageInfo.name,
-          version: packageInfo.version,
-          description: packageInfo.description,
-        }
+            name: packageInfo.name,
+            version: packageInfo.version,
+            description: packageInfo.description,
+          }
         : null,
       framework,
       technologies,
@@ -544,8 +544,8 @@ export class ModernAIProvider {
             }
           }
         }
-      } catch (_) { }
-      const ragMw = getRAGMiddleware();
+      } catch (_) {}
+      const ragMw = getRAGMiddleware()
       const result = await streamText({
         model,
         messages,
@@ -572,7 +572,7 @@ export class ModernAIProvider {
             await authProvider.recordUsage('apiCalls', 1)
           }
         }
-      } catch (_) { }
+      } catch (_) {}
       yield {
         type: 'finish',
         finishReason: finishResult,
@@ -597,7 +597,7 @@ export class ModernAIProvider {
     this.logReasoningStatus(reasoningEnabled)
 
     try {
-      const ragMw = getRAGMiddleware();
+      const ragMw = getRAGMiddleware()
       const result = await generateText({
         model,
         messages,

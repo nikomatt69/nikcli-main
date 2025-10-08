@@ -23,6 +23,7 @@ export {
   type BrowserbaseToolResult,
 } from './browserbase-tool'
 export { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
+export { type DiffChange, type DiffResult, DiffTool, type DiffToolParams } from './diff-tool'
 export {
   extractFileIdFromUrl,
   type FigmaCodeGenOptions,
@@ -38,9 +39,6 @@ export {
 export { GitTools } from './git-tools'
 // New advanced tools
 export { type GlobMatch, type GlobResult, GlobTool, type GlobToolParams } from './glob-tool'
-export { type DiffChange, DiffTool, type DiffResult, type DiffToolParams } from './diff-tool'
-export { TreeTool, type TreeNode, type TreeResult, type TreeToolParams } from './tree-tool'
-export { type WatchEvent, type WatchResult, WatchTool, type WatchToolParams } from './watch-tool'
 export {
   ImageGenerationTool,
   type ImageGenerationToolOptions,
@@ -76,12 +74,14 @@ export {
 } from './secure-tools-registry'
 // Legacy ToolsManager (deprecated)
 export { ToolsManager } from './tools-manager'
+export { type TreeNode, type TreeResult, TreeTool, type TreeToolParams } from './tree-tool'
 // Export AI Vision and Image Tools
 export {
   type VisionAnalysisOptions,
   VisionAnalysisTool,
   type VisionAnalysisToolResult,
 } from './vision-analysis-tool'
+export { type WatchEvent, type WatchResult, WatchTool, type WatchToolParams } from './watch-tool'
 
 /**
  * Initialize secure tools and show security banner

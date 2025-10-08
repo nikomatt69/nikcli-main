@@ -239,7 +239,7 @@ export class ContextManager {
     const cacheTimestamp = this.contextCacheTimestamps.get(cacheKey) || 0
 
     // FIXED: Proper TTL check using cache entry timestamp
-    if (cached && (Date.now() - cacheTimestamp) < this.CONTEXT_CACHE_TTL) {
+    if (cached && Date.now() - cacheTimestamp < this.CONTEXT_CACHE_TTL) {
       this.performanceMetrics.cacheHits++
       // Track access frequency for smart eviction
       this.contextCacheAccessCount.set(cacheKey, (this.contextCacheAccessCount.get(cacheKey) || 0) + 1)
@@ -565,9 +565,7 @@ export class ContextManager {
   private generateContextCacheKey(messages: CoreMessage[], strategy: OptimizationStrategy): string {
     // Hash last N messages for better cache key specificity
     const recentMessages = messages.slice(-5) // Last 5 messages
-    const messagesHash = this.hashString(
-      recentMessages.map(m => this.hashMessage(m)).join('-')
-    )
+    const messagesHash = this.hashString(recentMessages.map((m) => this.hashMessage(m)).join('-'))
     const strategyHash = this.hashString(JSON.stringify(strategy))
     const lengthHash = messages.length.toString(36)
     return `ctx-${messagesHash}-${strategyHash}-${lengthHash}`
@@ -597,7 +595,7 @@ export class ContextManager {
       }
     }
 
-    expiredKeys.forEach(expiredKey => {
+    expiredKeys.forEach((expiredKey) => {
       this.contextCache.delete(expiredKey)
       this.contextCacheTimestamps.delete(expiredKey)
       this.contextCacheAccessCount.delete(expiredKey)
@@ -921,9 +919,7 @@ export class ContextManager {
       totalAccess += count
       maxAccess = Math.max(maxAccess, count)
     }
-    const avgAccess = this.contextCacheAccessCount.size > 0
-      ? totalAccess / this.contextCacheAccessCount.size
-      : 0
+    const avgAccess = this.contextCacheAccessCount.size > 0 ? totalAccess / this.contextCacheAccessCount.size : 0
 
     return {
       ...this.performanceMetrics,
@@ -1074,12 +1070,12 @@ export class ContextManager {
       const sentences = content.split(/[.!?]+/)
       questions.push(...sentences.filter((s) => s.includes('?')))
 
-        // Track actions
-        ;['create', 'modify', 'delete', 'fix', 'implement', 'test'].forEach((action) => {
-          if (content.toLowerCase().includes(action)) {
-            actions.add(action)
-          }
-        })
+      // Track actions
+      ;['create', 'modify', 'delete', 'fix', 'implement', 'test'].forEach((action) => {
+        if (content.toLowerCase().includes(action)) {
+          actions.add(action)
+        }
+      })
     })
 
     if (actions.size > 0) summary.push(`Actions: ${Array.from(actions).join(', ')}`)

@@ -105,8 +105,8 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         },
         realtime: this.config.features.realtime
           ? {
-            heartbeatIntervalMs: 30000,
-          }
+              heartbeatIntervalMs: 30000,
+            }
           : undefined,
       })
 

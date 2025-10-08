@@ -162,13 +162,21 @@ export class EnhancedPlanningSystem {
     // Get enhanced project context
     let projectContext = ''
     if (includeContext) {
-      advancedUI.addLiveUpdate({ type: 'info', content: 'Analyzing project context...', source: 'enhanced_planning_mode' })
+      advancedUI.addLiveUpdate({
+        type: 'info',
+        content: 'Analyzing project context...',
+        source: 'enhanced_planning_mode',
+      })
       const context = workspaceContext.getContextForAgent('planner', 15)
       projectContext = context.projectSummary
     }
 
     // Generate AI-powered plan with enhanced analysis
-    advancedUI.addLiveUpdate({ type: 'info', content: 'Generating comprehensive AI plan...', source: 'enhanced_planning_mode' })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: 'Generating comprehensive AI plan...',
+      source: 'enhanced_planning_mode',
+    })
     let todos = await this.generateTodosWithAI(goal, projectContext, maxTodos)
 
     // Enforce read-only constraints if requested by the goal (no commands, no file writes)
@@ -315,7 +323,11 @@ export class EnhancedPlanningSystem {
       await this.syncPlanTodosToStore(plan)
     } catch (error: any) {
       plan.status = 'failed'
-      advancedUI.addLiveUpdate({ type: 'error', content: `Enhanced plan execution failed: ${error.message}`, source: 'enhanced_plan_execution' })
+      advancedUI.addLiveUpdate({
+        type: 'error',
+        content: `Enhanced plan execution failed: ${error.message}`,
+        source: 'enhanced_plan_execution',
+      })
     } finally {
       // Always return to default mode after plan execution
       try {
@@ -500,7 +512,7 @@ export class EnhancedPlanningSystem {
             advancedUI.addLiveUpdate({
               type: 'error',
               content: `Toolchain failed for todo '${todo.title}': ${err?.message || err}`,
-              source: 'toolchain_execution'
+              source: 'toolchain_execution',
             })
           todo.status = 'failed'
           todo.errorMessage = String(err?.message || err)
@@ -516,7 +528,7 @@ export class EnhancedPlanningSystem {
         advancedUI.addLiveUpdate({
           type: 'error',
           content: `Toolchain execution setup failed: ${String((error as any)?.message || error)}`,
-          source: 'toolchain_setup'
+          source: 'toolchain_setup',
         })
     }
   }
@@ -780,16 +792,24 @@ Generate a comprehensive plan that is practical and executable.`,
         createdAt: new Date(),
       }))
 
-      advancedUI.addLiveUpdate({ type: 'log', content: `Generated ${todos.length} todos`, source: 'ai_plan_generation' })
+      advancedUI.addLiveUpdate({
+        type: 'log',
+        content: `Generated ${todos.length} todos`,
+        source: 'ai_plan_generation',
+      })
       return todos
     } catch (error: any) {
-      advancedUI.addLiveUpdate({ type: 'error', content: `Failed to generate AI plan: ${error.message}`, source: 'ai_plan_generation' })
+      advancedUI.addLiveUpdate({
+        type: 'error',
+        content: `Failed to generate AI plan: ${error.message}`,
+        source: 'ai_plan_generation',
+      })
       if (lastModelOutput) {
         const preview = lastModelOutput.replace(/```/g, '```').slice(0, 400)
         advancedUI.addLiveUpdate({
           type: 'info',
           content: `Raw AI output (truncated):\n${preview}${lastModelOutput.length > 400 ? '…' : ''}`,
-          source: 'ai_plan_generation'
+          source: 'ai_plan_generation',
         })
       }
 
@@ -917,7 +937,11 @@ Generate a comprehensive plan that is practical and executable.`,
       // Check for interruption to prevent infinite loops
       const shouldInterrupt = (global as any).__shouldInterrupt
       if (shouldInterrupt?.()) {
-        advancedUI.addLiveUpdate({ type: 'warning', content: 'Dependency resolution interrupted by user', source: 'dependency_resolution' })
+        advancedUI.addLiveUpdate({
+          type: 'warning',
+          content: 'Dependency resolution interrupted by user',
+          source: 'dependency_resolution',
+        })
         break
       }
 
@@ -1016,16 +1040,32 @@ Generate a comprehensive plan that is practical and executable.`,
    */
   private displayEnhancedCompletionSummary(plan: TodoPlan, completedCount: number, failedCount: number): void {
     advancedUI.addLiveUpdate({ type: 'info', content: `Plan: ${plan.title}`, source: 'plan_execution_summary' })
-    advancedUI.addLiveUpdate({ type: 'log', content: `Completed: ${completedCount}/${plan.todos.length} todos`, source: 'plan_execution_summary' })
+    advancedUI.addLiveUpdate({
+      type: 'log',
+      content: `Completed: ${completedCount}/${plan.todos.length} todos`,
+      source: 'plan_execution_summary',
+    })
 
     if (failedCount > 0) {
-      advancedUI.addLiveUpdate({ type: 'error', content: `Failed: ${failedCount} todos`, source: 'plan_execution_summary' })
+      advancedUI.addLiveUpdate({
+        type: 'error',
+        content: `Failed: ${failedCount} todos`,
+        source: 'plan_execution_summary',
+      })
     }
 
     if (plan.actualTotalDuration) {
-      advancedUI.addLiveUpdate({ type: 'info', content: `Total execution time: ${plan.actualTotalDuration} minutes`, source: 'plan_execution_summary' })
+      advancedUI.addLiveUpdate({
+        type: 'info',
+        content: `Total execution time: ${plan.actualTotalDuration} minutes`,
+        source: 'plan_execution_summary',
+      })
       const efficiency = Math.round((plan.estimatedTotalDuration / plan.actualTotalDuration) * 100)
-      advancedUI.addLiveUpdate({ type: 'info', content: `Efficiency: ${efficiency}% (estimated vs actual)`, source: 'plan_execution_summary' })
+      advancedUI.addLiveUpdate({
+        type: 'info',
+        content: `Efficiency: ${efficiency}% (estimated vs actual)`,
+        source: 'plan_execution_summary',
+      })
     }
 
     // Show statistics
@@ -1036,13 +1076,25 @@ Generate a comprehensive plan that is practical and executable.`,
    * Display execution statistics
    */
   private displayExecutionStatistics(): void {
-    advancedUI.addLiveUpdate({ type: 'info', content: `Total Plans: ${this.executionStats.totalPlans}`, source: 'execution_statistics' })
-    advancedUI.addLiveUpdate({ type: 'log', content: `Successful: ${this.executionStats.successfulPlans}`, source: 'execution_statistics' })
-    advancedUI.addLiveUpdate({ type: 'error', content: `Failed: ${this.executionStats.failedPlans}`, source: 'execution_statistics' })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Total Plans: ${this.executionStats.totalPlans}`,
+      source: 'execution_statistics',
+    })
+    advancedUI.addLiveUpdate({
+      type: 'log',
+      content: `Successful: ${this.executionStats.successfulPlans}`,
+      source: 'execution_statistics',
+    })
+    advancedUI.addLiveUpdate({
+      type: 'error',
+      content: `Failed: ${this.executionStats.failedPlans}`,
+      source: 'execution_statistics',
+    })
     advancedUI.addLiveUpdate({
       type: 'info',
       content: `Success Rate: ${this.executionStats.totalPlans > 0 ? Math.round((this.executionStats.successfulPlans / this.executionStats.totalPlans) * 100) : 0}%`,
-      source: 'execution_statistics'
+      source: 'execution_statistics',
     })
   }
 
@@ -1239,24 +1291,24 @@ Generate a comprehensive plan that is practical and executable.`,
       advancedUI.addLiveUpdate({
         type: 'info',
         content: `${index + 1}. ${statusIcon} ${priorityIcon} ${todo.title}`,
-        source: 'todo_items'
+        source: 'todo_items',
       })
       advancedUI.addLiveUpdate({
         type: 'info',
         content: `   ${todo.description}`,
-        source: 'todo_items'
+        source: 'todo_items',
       })
       advancedUI.addLiveUpdate({
         type: 'info',
         content: `   ${todo.category} | ${todo.estimatedDuration}min | ${todo.tags.join(', ')}`,
-        source: 'todo_items'
+        source: 'todo_items',
       })
 
       if (todo.dependencies.length > 0) {
         advancedUI.addLiveUpdate({
           type: 'info',
           content: `   Dependencies: ${todo.dependencies.join(', ')}`,
-          source: 'todo_items'
+          source: 'todo_items',
         })
       }
 
@@ -1264,7 +1316,7 @@ Generate a comprehensive plan that is practical and executable.`,
         advancedUI.addLiveUpdate({
           type: 'info',
           content: `   Files: ${todo.files.join(', ')}`,
-          source: 'todo_items'
+          source: 'todo_items',
         })
       }
     })
@@ -1321,7 +1373,7 @@ Generate a comprehensive plan that is practical and executable.`,
           advancedUI.addLiveUpdate({
             type: 'info',
             content: `${plan.status.toUpperCase()} ${plan.title} (${plan.todos.length} todos)`,
-            source: 'active_plans'
+            source: 'active_plans',
           })
         })
       }

@@ -29,7 +29,10 @@ export class TaskMasterService extends EventEmitter {
     super()
     TaskMasterService.instanceCount++
 
-    advancedUI.logFunctionUpdate('info', chalk.gray(`🔧 Creating TaskMasterService instance #${TaskMasterService.instanceCount}`))
+    advancedUI.logFunctionUpdate(
+      'info',
+      chalk.gray(`🔧 Creating TaskMasterService instance #${TaskMasterService.instanceCount}`)
+    )
 
     // Initialize base config first
     this.config = {
@@ -68,7 +71,6 @@ export class TaskMasterService extends EventEmitter {
       // Skip automatic TaskMaster initialization to prevent unwanted directory creation
       // We'll manually manage TaskMaster files in .nikcli directory
 
-
       this.initialized = true
 
       advancedUI.logFunctionCall(chalk.green('✓ TaskMaster service initialized'))
@@ -104,7 +106,10 @@ export class TaskMasterService extends EventEmitter {
 
       advancedUI.logFunctionUpdate('info', chalk.green('✓ NikCLI TaskMaster structure initialized'))
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('info', chalk.gray(`ℹ️ Directory structure already exists or error: ${error.message}`))
+      advancedUI.logFunctionUpdate(
+        'info',
+        chalk.gray(`ℹ️ Directory structure already exists or error: ${error.message}`)
+      )
     }
   }
 
@@ -151,12 +156,18 @@ export class TaskMasterService extends EventEmitter {
    */
   async executePlan(planId: string): Promise<TaskMasterExecutionResult> {
     advancedUI.logFunctionUpdate('info', chalk.gray(`🔍 Looking for plan ${planId}`))
-    advancedUI.logFunctionUpdate('info', chalk.gray(`📋 Active plans: ${Array.from(this.activePlans.keys()).join(', ')}`))
+    advancedUI.logFunctionUpdate(
+      'info',
+      chalk.gray(`📋 Active plans: ${Array.from(this.activePlans.keys()).join(', ')}`)
+    )
 
     const plan = this.activePlans.get(planId)
     if (!plan) {
       advancedUI.logFunctionUpdate('error', chalk.red(`❌ Plan ${planId} not found in active plans`))
-      advancedUI.logFunctionUpdate('info', chalk.gray(`Available plans: ${JSON.stringify(Array.from(this.activePlans.keys()))}`))
+      advancedUI.logFunctionUpdate(
+        'info',
+        chalk.gray(`Available plans: ${JSON.stringify(Array.from(this.activePlans.keys()))}`)
+      )
       throw new Error(`Plan not found: ${planId}`)
     }
 
@@ -306,7 +317,10 @@ export class TaskMasterService extends EventEmitter {
         return aiTasks
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ AI generation failed, using enhanced fallback: ${error.message}`))
+      advancedUI.logFunctionUpdate(
+        'info',
+        chalk.yellow(`⚠️ AI generation failed, using enhanced fallback: ${error.message}`)
+      )
     }
 
     // Fallback più intelligente solo se l'AI non funziona
@@ -560,14 +574,18 @@ Generate tasks NOW (JSON only):`
 
       // Assicurati che abbiamo sempre almeno 3 task validi
       if (todos.length < 3) {
-        advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ AI generated only ${todos.length} tasks, adding fallback tasks`))
+        advancedUI.logFunctionUpdate(
+          'info',
+          chalk.yellow(`⚠️ AI generated only ${todos.length} tasks, adding fallback tasks`)
+        )
 
         // Aggiungi task generici basati sulla richiesta
         const fallbackTasks = this.generateFallbackTasks(userRequest, 5 - todos.length)
         todos.push(...fallbackTasks)
       }
 
-      advancedUI.logFunctionUpdate('success',
+      advancedUI.logFunctionUpdate(
+        'success',
         chalk.green(
           `✓ Generated ${todos.length} tasks with AI (${aiTasks.length} from AI, ${todos.length - aiTasks.length} fallback)`
         )

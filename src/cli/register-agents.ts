@@ -1,9 +1,8 @@
-
+import { AutonomousOrchestrator } from './automation/agents/autonomous-orchestrator'
+import { CognitiveAgentBase as CognitiveAgentBaseClass } from './automation/agents/cognitive-agent-base'
 import { UniversalAgent } from './automation/agents/universal-agent'
 import type { AgentManager } from './core/agent-manager'
 import { SecureVirtualizedAgent } from './virtualized-agents/secure-vm-agent'
-import { CognitiveAgentBase as CognitiveAgentBaseClass } from './automation/agents/cognitive-agent-base'
-import { AutonomousOrchestrator } from './automation/agents/autonomous-orchestrator'
 export function registerAgents(agentManager: AgentManager): void {
   // Register the unified UniversalAgent for enterprise production use
   agentManager.registerAgentClass(UniversalAgent, {
@@ -106,7 +105,8 @@ export function registerAgents(agentManager: AgentManager): void {
   agentManager.registerAgentClass(UniversalAgent, {
     id: 'cognitive-agent-base',
     name: 'Cognitive Agent Base',
-    description: 'Specialized cognitive agent for intelligent code generation, analysis, and autonomous development workflows',
+    description:
+      'Specialized cognitive agent for intelligent code generation, analysis, and autonomous development workflows',
     specialization: 'cognitive',
     version: '0.3.0',
     capabilities: [
@@ -188,7 +188,6 @@ export function registerAgents(agentManager: AgentManager): void {
       sandboxRestrictions: [],
     },
   })
-
 
   // Register SecureVirtualizedAgent for autonomous VM-based development
   agentManager.registerAgentClass(SecureVirtualizedAgent, {

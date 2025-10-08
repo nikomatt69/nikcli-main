@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { z } from 'zod'
 import { type ChatMessage, modelProvider } from '../ai/model-provider'
 import { workspaceContext } from '../context/workspace-context'
+import { completionCache } from '../core/completion-protocol-cache'
 import { agentService } from './agent-service'
 import { memoryService } from './memory-service'
 import { toolService } from './tool-service'
@@ -73,10 +74,55 @@ export class AICompletionService {
     const startTime = Date.now()
     const cacheKey = this.getCacheKey(context)
 
-    // Check cache first
+    // 1) Check in-memory cache first
     const cached = this.getFromCache(cacheKey)
     if (cached) {
       return { ...cached, cached: true }
+    }
+
+    // 2) Check completion protocol cache
+    try {
+      const { config } = modelProvider.getCurrentModelInfo()
+      const protocolHit = await completionCache.getCompletion({
+        prefix: context.partialInput,
+        context: JSON.stringify({
+          dir: context.currentDirectory,
+          project: context.projectType,
+          files: context.openFiles,
+          agents: context.activeAgents,
+        }),
+        maxTokens: 200,
+        temperature: 0,
+        model: `${config.provider}:${config.model}`,
+      })
+
+      if (protocolHit && protocolHit.completion) {
+        const result: CompletionResult = {
+          completions: [
+            {
+              completion: protocolHit.completion,
+              confidence: protocolHit.confidence ?? 0.9,
+              reasoning: protocolHit.exactMatch ? 'protocol exact match' : 'protocol cache match',
+              category: 'natural',
+              priority: 8,
+              requiresApproval: false,
+            },
+          ],
+          cached: true,
+          processingTimeMs: Date.now() - startTime,
+          contextUsed: {
+            workspaceFiles: 0,
+            recentCommands: 0,
+            activeAgents: context.activeAgents?.length || 0,
+            lspSuggestions: 0,
+          },
+        }
+        // Also seed in-memory cache
+        this.setCache(cacheKey, result)
+        return result
+      }
+    } catch (_e) {
+      // Silent failure for protocol cache
     }
 
     try {
@@ -101,8 +147,33 @@ export class AICompletionService {
         },
       }
 
-      // Cache the result
+      // Cache the result (in-memory)
       this.setCache(cacheKey, result)
+
+      // Store top suggestion into completion protocol cache for future reuse
+      try {
+        const top = result.completions[0]
+        if (top) {
+          const { config } = modelProvider.getCurrentModelInfo()
+          await completionCache.storeCompletion(
+            {
+              prefix: context.partialInput,
+              context: JSON.stringify({
+                dir: context.currentDirectory,
+                project: context.projectType,
+                files: context.openFiles,
+                agents: context.activeAgents,
+              }),
+              maxTokens: 200,
+              temperature: 0,
+              model: `${config.provider}:${config.model}`,
+            },
+            top.completion
+          )
+        }
+      } catch (_e) {
+        // Silent store failure
+      }
 
       return result
     } catch (error) {

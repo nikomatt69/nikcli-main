@@ -272,7 +272,7 @@ export class RedisProvider extends EventEmitter {
       } catch (parseError) {
         // Corrupted data detected - auto-clean and return null
         console.log(chalk.yellow(`⚠️ Corrupted cache data for key ${key}, auto-cleaning...`))
-        await this.del(key).catch(() => { }) // Silent cleanup failure
+        await this.del(key).catch(() => {}) // Silent cleanup failure
         return null
       }
 
@@ -520,7 +520,7 @@ export class RedisProvider extends EventEmitter {
         vectorEntry = JSON.parse(serializedValue as string)
       } catch (parseError) {
         // Corrupted vector cache data - auto-clean and return null
-        await this.del(cacheKey).catch(() => { })
+        await this.del(cacheKey).catch(() => {})
         return null
       }
 

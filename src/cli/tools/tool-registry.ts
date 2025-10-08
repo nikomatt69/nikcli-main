@@ -259,7 +259,6 @@ export class ToolRegistry {
     // Additional tools would be registered here
     // For now, we'll create placeholder registrations for the tools referenced in the planner
 
-
     this.registerTool('read-file-tool', new ReadFileTool(workingDirectory), {
       description: 'Read file contents with security validation',
       category: 'filesystem',

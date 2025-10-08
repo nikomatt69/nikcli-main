@@ -279,7 +279,7 @@ export class UnifiedRAGSystem {
     })
 
     // Inizializza in modo sincrono (non-blocking)
-    this.initializeClients().catch(err => {
+    this.initializeClients().catch((err) => {
       advancedUI.logFunctionCall('unifiedraganalysis')
       advancedUI.logFunctionUpdate('warning', 'RAG initialization warning:', `${err.message}`)
     })
@@ -334,12 +334,18 @@ export class UnifiedRAGSystem {
             advancedUI.logFunctionUpdate('success', 'Vector Store Manager initialized with fallback support')
           } else {
             advancedUI.logFunctionCall('unifiedraganalysis')
-            advancedUI.logFunctionUpdate('warning', 'Vector Store Manager failed to initialize, using workspace analysis only')
+            advancedUI.logFunctionUpdate(
+              'warning',
+              'Vector Store Manager failed to initialize, using workspace analysis only'
+            )
             this.config.useVectorDB = false
           }
         } catch (error: any) {
           advancedUI.logFunctionCall('unifiedraganalysis')
-          advancedUI.logFunctionUpdate('warning', `Vector DB unavailable: ${error.message}, using workspace analysis only`)
+          advancedUI.logFunctionUpdate(
+            'warning',
+            `Vector DB unavailable: ${error.message}, using workspace analysis only`
+          )
           this.config.useVectorDB = false
         }
       }
@@ -360,7 +366,7 @@ export class UnifiedRAGSystem {
     const startTime = Date.now()
 
     while (!this.initialized && Date.now() - startTime < maxWait) {
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, 100))
     }
 
     if (!this.initialized) {
@@ -459,8 +465,10 @@ export class UnifiedRAGSystem {
       // Use semantic search engine for query analysis
       const queryAnalysis = await semanticSearchEngine.analyzeQuery(query)
       advancedUI.logFunctionCall('unifiedraganalysis')
-      advancedUI.logFunctionUpdate('info', `Query intent: ${queryAnalysis.intent.type} (${Math.round(queryAnalysis.confidence * 100)}% confidence)`)
-
+      advancedUI.logFunctionUpdate(
+        'info',
+        `Query intent: ${queryAnalysis.intent.type} (${Math.round(queryAnalysis.confidence * 100)}% confidence)`
+      )
 
       // Use the enhanced search with semantic analysis
       return await this.searchEnhanced(query, {
@@ -582,14 +590,14 @@ export class UnifiedRAGSystem {
       this.searchMetrics.totalLatency += duration
       this.searchMetrics.averageLatency = this.searchMetrics.totalLatency / this.searchMetrics.totalSearches
 
-
       advancedUI.logFunctionCall('unifiedraganalysis')
       advancedUI.logFunctionUpdate('error', `Search failed`)
 
       advancedUI.logFunctionCall('unifiedraganalysis')
-      advancedUI.logFunctionUpdate('success', `Found ${finalResults.length} results in ${duration}ms (${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`)
-
-
+      advancedUI.logFunctionUpdate(
+        'success',
+        `Found ${finalResults.length} results in ${duration}ms (${searchTypes.join('+')}, ${cacheHits} cached${shouldRerank ? ', reranked' : ''})`
+      )
 
       return finalResults
     } catch (error) {
@@ -639,7 +647,10 @@ export class UnifiedRAGSystem {
           const estimatedCost = estimateCost([content])
           if (totalCost + estimatedCost > this.config.costThreshold) {
             advancedUI.logFunctionCall('unifiedraganalysis')
-            advancedUI.logFunctionUpdate('warning', `Cost threshold reached at $${this.config.costThreshold}, stopping indexing`)
+            advancedUI.logFunctionUpdate(
+              'warning',
+              `Cost threshold reached at $${this.config.costThreshold}, stopping indexing`
+            )
             break
           }
 
@@ -716,14 +727,23 @@ export class UnifiedRAGSystem {
 
         if (documentsToIndex.length > MAX_TOTAL_DOCUMENTS) {
           advancedUI.logFunctionCall('unifiedraganalysis')
-          advancedUI.logFunctionUpdate('warning', `Document count (${documentsToIndex.length}) exceeds ${activeProvider} quota limit (${MAX_TOTAL_DOCUMENTS})`)
-          advancedUI.logFunctionUpdate('warning', chalk.yellow(
-            `⚠️ Document count (${documentsToIndex.length}) exceeds ${activeProvider} quota limit (${MAX_TOTAL_DOCUMENTS})`
-          ))
+          advancedUI.logFunctionUpdate(
+            'warning',
+            `Document count (${documentsToIndex.length}) exceeds ${activeProvider} quota limit (${MAX_TOTAL_DOCUMENTS})`
+          )
+          advancedUI.logFunctionUpdate(
+            'warning',
+            chalk.yellow(
+              `⚠️ Document count (${documentsToIndex.length}) exceeds ${activeProvider} quota limit (${MAX_TOTAL_DOCUMENTS})`
+            )
+          )
 
           advancedUI.logFunctionCall('unifiedraganalysis')
           advancedUI.logFunctionUpdate('warning', `Limiting to ${MAX_TOTAL_DOCUMENTS} most important documents`)
-          advancedUI.logFunctionUpdate('warning', chalk.yellow(`   Limiting to ${MAX_TOTAL_DOCUMENTS} most important documents`))
+          advancedUI.logFunctionUpdate(
+            'warning',
+            chalk.yellow(`   Limiting to ${MAX_TOTAL_DOCUMENTS} most important documents`)
+          )
           // Sort by priority (files with more code content first)
           documentsToIndex = documentsToIndex
             .sort((a, b) => b.content.length - a.content.length)
@@ -747,10 +767,12 @@ export class UnifiedRAGSystem {
               embeddingBatch[j].embedding = embeddings[j].vector
             }
           } catch (error) {
-            advancedUI.logFunctionUpdate('warning', chalk.yellow(
-              `⚠️ Failed to generate embeddings for batch ${Math.floor(i / embeddingBatchSize) + 1}: ${error}`
-            ))
-
+            advancedUI.logFunctionUpdate(
+              'warning',
+              chalk.yellow(
+                `⚠️ Failed to generate embeddings for batch ${Math.floor(i / embeddingBatchSize) + 1}: ${error}`
+              )
+            )
           }
         }
 
@@ -762,7 +784,10 @@ export class UnifiedRAGSystem {
           const totalBatches = Math.ceil(documentsToIndex.length / batchSize)
 
           advancedUI.logFunctionCall('unifiedraganalysis')
-          advancedUI.logFunctionUpdate('info', `Uploading batch ${batchNumber}/${totalBatches} (${batch.length} chunks)`)
+          advancedUI.logFunctionUpdate(
+            'info',
+            `Uploading batch ${batchNumber}/${totalBatches} (${batch.length} chunks)`
+          )
 
           const success = await this.vectorStoreManager.addDocuments(batch)
 
@@ -1799,9 +1824,18 @@ export class UnifiedRAGSystem {
 
     advancedUI.logFunctionUpdate('info', 'Search Distribution:')
     advancedUI.logFunctionUpdate('info', `  Total Searches: ${metrics.searches.total}`)
-    advancedUI.logFunctionUpdate('info', `  Vector: ${metrics.searches.vector} (${((metrics.searches.vector / metrics.searches.total) * 100).toFixed(1)}%)`)
-    advancedUI.logFunctionUpdate('info', `  Workspace: ${metrics.searches.workspace} (${((metrics.searches.workspace / metrics.searches.total) * 100).toFixed(1)}%)`)
-    advancedUI.logFunctionUpdate('info', `  BM25: ${metrics.searches.bm25} (${((metrics.searches.bm25 / metrics.searches.total) * 100).toFixed(1)}%)`)
+    advancedUI.logFunctionUpdate(
+      'info',
+      `  Vector: ${metrics.searches.vector} (${((metrics.searches.vector / metrics.searches.total) * 100).toFixed(1)}%)`
+    )
+    advancedUI.logFunctionUpdate(
+      'info',
+      `  Workspace: ${metrics.searches.workspace} (${((metrics.searches.workspace / metrics.searches.total) * 100).toFixed(1)}%)`
+    )
+    advancedUI.logFunctionUpdate(
+      'info',
+      `  BM25: ${metrics.searches.bm25} (${((metrics.searches.bm25 / metrics.searches.total) * 100).toFixed(1)}%)`
+    )
     advancedUI.logFunctionUpdate('info', `  Average Latency: ${metrics.performance.averageLatency}ms`)
     advancedUI.logFunctionUpdate('info', `  Error Rate: ${metrics.performance.errorRate}`)
     advancedUI.logFunctionUpdate('info', `  Cache Hit Rate: ${metrics.optimization.cacheHitRate}`)
@@ -1819,7 +1853,10 @@ export class UnifiedRAGSystem {
 
     const efficiency = this.calculateEfficiencyScore(metrics)
     advancedUI.logFunctionUpdate('info', 'Efficiency Score:')
-    advancedUI.logFunctionUpdate('info', `  Overall: ${efficiency.overall}/100 ${this.getEfficiencyEmoji(efficiency.overall)}`)
+    advancedUI.logFunctionUpdate(
+      'info',
+      `  Overall: ${efficiency.overall}/100 ${this.getEfficiencyEmoji(efficiency.overall)}`
+    )
     advancedUI.logFunctionUpdate('info', `  Latency: ${efficiency.latency}/25`)
     advancedUI.logFunctionUpdate('info', `  Cache: ${efficiency.cache}/25`)
     advancedUI.logFunctionUpdate('info', `  Error Rate: ${efficiency.errorRate}/25`)
@@ -1898,15 +1935,20 @@ export class UnifiedRAGSystem {
     const truncatedResults = tokenAwareTruncate(results, maxTokens)
 
     advancedUI.logFunctionCall('unifiedraganalysis')
-    advancedUI.logFunctionUpdate('info', `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`)
-    advancedUI.logFunctionUpdate('info', `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`)
+    advancedUI.logFunctionUpdate(
+      'info',
+      `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+    )
+    advancedUI.logFunctionUpdate(
+      'info',
+      `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+    )
     chalk.blue(
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
-
 
     return truncatedResults
   }

@@ -260,11 +260,11 @@ export class AgentRouter {
     const bestCandidate = candidates[0]
     return bestCandidate
       ? {
-        agentId: bestCandidate.agentId,
-        agent: bestCandidate.agent,
-        score: bestCandidate.score,
-        reasoning: bestCandidate.reasoning,
-      }
+          agentId: bestCandidate.agentId,
+          agent: bestCandidate.agent,
+          score: bestCandidate.score,
+          reasoning: bestCandidate.reasoning,
+        }
       : null
   }
 

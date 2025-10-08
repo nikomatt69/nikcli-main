@@ -1,6 +1,7 @@
 // TODO: Consider refactoring for reduced complexity
 // Web interface routes for Background Agents API
 import express from 'express'
+
 // Local type definitions
 interface GitHubRepository {
   id: number
@@ -31,10 +32,10 @@ class GitHubAPIClient {
     try {
       const response = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
         headers: {
-          'Authorization': `token ${this.token}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'NikCLI-BackgroundAgents/0.3.0'
-        }
+          Authorization: `token ${this.token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'NikCLI-BackgroundAgents/0.3.0',
+        },
       })
 
       if (!response.ok) {
@@ -53,7 +54,7 @@ class GitHubAPIClient {
         default_branch: repo.default_branch,
         description: repo.description || undefined,
         language: repo.language || undefined,
-        updated_at: repo.updated_at
+        updated_at: repo.updated_at,
       }))
     } catch (error: any) {
       console.error('Failed to fetch GitHub repositories:', error.message)
@@ -69,10 +70,10 @@ class GitHubAPIClient {
     try {
       const response = await fetch('https://api.github.com/user', {
         headers: {
-          'Authorization': `token ${this.token}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'NikCLI-BackgroundAgents/0.3.0'
-        }
+          Authorization: `token ${this.token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'NikCLI-BackgroundAgents/0.3.0',
+        },
       })
 
       if (!response.ok) {
@@ -83,7 +84,7 @@ class GitHubAPIClient {
       return {
         login: user.login,
         name: user.name || undefined,
-        email: user.email || undefined
+        email: user.email || undefined,
       }
     } catch (error: any) {
       console.error('Failed to fetch GitHub user info:', error.message)
@@ -105,6 +106,7 @@ interface WebConfig {
     email: boolean
   }
 }
+
 import { backgroundAgentService } from '../background-agent-service'
 
 export function setupWebRoutes(app: express.Application): void {

@@ -172,7 +172,10 @@ export class ToolsManager {
         }
       } catch (error) {
         // Skip directories that can't be read (permissions, etc.)
-        advancedUI.logFunctionUpdate('info', `Skipped directory: ${dir} (${error instanceof Error ? error.message : 'Unknown error'}`)
+        advancedUI.logFunctionUpdate(
+          'info',
+          `Skipped directory: ${dir} (${error instanceof Error ? error.message : 'Unknown error'}`
+        )
         advancedUI.logFunctionCall('tools-manager')
       }
     }
@@ -202,7 +205,7 @@ export class ToolsManager {
             })
           }
         })
-      } catch (_error) { }
+      } catch (_error) {}
     }
 
     return results
@@ -562,17 +565,17 @@ export class ToolsManager {
     try {
       const npmResult = await this.runCommand('npm', ['--version'])
       npmVersion = npmResult.stdout.trim()
-    } catch { }
+    } catch {}
 
     try {
       const gitResult = await this.runCommand('git', ['--version'])
       gitVersion = gitResult.stdout.match(/git version ([\d.]+)/)?.[1]
-    } catch { }
+    } catch {}
 
     try {
       const dockerResult = await this.runCommand('docker', ['--version'])
       dockerVersion = dockerResult.stdout.match(/Docker version ([\d.]+)/)?.[1]
-    } catch { }
+    } catch {}
 
     return {
       platform,
@@ -632,7 +635,7 @@ export class ToolsManager {
       if (!options.file) {
         try {
           fs.unlinkSync(tempFile)
-        } catch { }
+        } catch {}
       }
 
       return {

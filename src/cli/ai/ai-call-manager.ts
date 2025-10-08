@@ -96,7 +96,12 @@ export class AICallManager {
 
         try {
           const searchResults = await ragSystem.search(query)
-          if (searchResults.documents && searchResults.documents.length > 0 && searchResults.documents[0] && searchResults.documents[0].length > 0) {
+          if (
+            searchResults.documents &&
+            searchResults.documents.length > 0 &&
+            searchResults.documents[0] &&
+            searchResults.documents[0].length > 0
+          ) {
             ragContextText = searchResults.documents[0].join('\n\n---\n\n')
             spinner.succeed(`🔍 Found ${searchResults.documents[0].length} relevant code chunks`)
           } else {
@@ -126,21 +131,23 @@ Security Guidelines:
 - Use batch sessions for multiple related commands
 - Prefer safe, read-only operations when possible
 
-${ragContextText
-          ? `RELEVANT CODE CONTEXT:
+${
+  ragContextText
+    ? `RELEVANT CODE CONTEXT:
 ${ragContextText}
 
 `
-          : ''
-        }Context:
-${context
-          ? `
+    : ''
+}Context:
+${
+  context
+    ? `
 Working Directory: ${context.workingDirectory || 'current directory'}
 Available Files: ${context.availableFiles?.slice(0, 10).join(', ') || 'none listed'}${context.availableFiles && context.availableFiles.length > 10 ? ` (and ${context.availableFiles.length - 10} more)` : ''}
 Project Info: ${context.projectInfo ? JSON.stringify(context.projectInfo, null, 2) : 'none'}
 `
-          : 'No additional context provided'
-        }
+    : 'No additional context provided'
+}
 
 User Request: ${userRequest}
 

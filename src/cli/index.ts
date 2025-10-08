@@ -66,22 +66,22 @@ import { ideDetector } from './core/ide-detector'
 import { Logger } from './core/logger'
 // Core imports
 import { NikCLI } from './nik-cli'
-import { ideAwareFormatter } from './ui/ide-aware-formatter'
 import { ExecutionPolicyManager } from './policies/execution-policy'
+import { redisProvider } from './providers/redis/redis-provider'
 // Core cloud services - imported to initialize singletons (enabled by default)
 import { enhancedSupabaseProvider } from './providers/supabase/enhanced-supabase-provider'
-import { redisProvider } from './providers/redis/redis-provider'
-import { cacheService } from './services/cache-service'
 import { registerAgents } from './register-agents'
 import { agentService } from './services/agent-service'
+import { cacheService } from './services/cache-service'
 import { lspService } from './services/lsp-service'
 import { memoryService } from './services/memory-service'
 import { planningService } from './services/planning-service'
 import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
-import { diffManager } from './ui/diff-manager'
-import { Logger as UtilsLogger } from './utils/logger'
 import { advancedUI } from './ui/advanced-cli-ui'
+import { diffManager } from './ui/diff-manager'
+import { ideAwareFormatter } from './ui/ide-aware-formatter'
+import { Logger as UtilsLogger } from './utils/logger'
 
 // Global declarations for vision/image providers
 declare global {
@@ -285,22 +285,22 @@ class IntroductionModule {
     // Enhanced TUI version with better theming and structure
     const setupBox = boxen(
       chalk.yellow.bold('  API Key Required\n\n') +
-      chalk.white('To use NikCLI, please set at least one API key:\n\n') +
-      chalk.green('• ANTHROPIC_API_KEY') +
-      chalk.gray(' - for Claude models (recommended)\n') +
-      chalk.blue('• OPENAI_API_KEY') +
-      chalk.gray(' - for GPT models\n') +
-      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
-      chalk.gray(' - for Gemini models\n') +
-      chalk.cyan('• AI_GATEWAY_API_KEY') +
-      chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
-      chalk.white.bold('Setup Examples:\n') +
-      chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
-      chalk.dim('export OPENAI_API_KEY="your-key-here"\n') +
-      chalk.dim('export GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"\n') +
-      chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
-      chalk.cyan('Then run: ') +
-      chalk.white.bold('npm start'),
+        chalk.white('To use NikCLI, please set at least one API key:\n\n') +
+        chalk.green('• ANTHROPIC_API_KEY') +
+        chalk.gray(' - for Claude models (recommended)\n') +
+        chalk.blue('• OPENAI_API_KEY') +
+        chalk.gray(' - for GPT models\n') +
+        chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+        chalk.gray(' - for Gemini models\n') +
+        chalk.cyan('• AI_GATEWAY_API_KEY') +
+        chalk.gray(' - for Vercel AI Gateway (smart routing)\n\n') +
+        chalk.white.bold('Setup Examples:\n') +
+        chalk.dim('export ANTHROPIC_API_KEY="your-key-here"\n') +
+        chalk.dim('export OPENAI_API_KEY="your-key-here"\n') +
+        chalk.dim('export GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"\n') +
+        chalk.dim('export AI_GATEWAY_API_KEY="your-key-here"\n\n') +
+        chalk.cyan('Then run: ') +
+        chalk.white.bold('npm start'),
       {
         padding: 1,
         margin: 1,
@@ -322,20 +322,20 @@ class IntroductionModule {
     const suggestions = ideAwareFormatter.getSuggestions()
     if (suggestions.length > 0) {
       console.log(chalk.bold('💡 IDE-Specific Tips:'))
-      suggestions.forEach(suggestion => console.log('  ' + suggestion))
+      suggestions.forEach((suggestion) => console.log('  ' + suggestion))
       console.log()
     }
 
     // Enhanced TUI version with status indicators
     const startupBox = boxen(
       chalk.green.bold('🚀 Starting NikCLI...\n\n') +
-      chalk.white('Initializing autonomous AI assistant\n') +
-      chalk.gray('• Loading project context\n') +
-      chalk.gray('• Preparing planning system\n') +
-      chalk.gray('• Setting up tool integrations\n\n') +
-      chalk.cyan('Type ') +
-      chalk.white.bold('/help') +
-      chalk.cyan(' for available commands'),
+        chalk.white('Initializing autonomous AI assistant\n') +
+        chalk.gray('• Loading project context\n') +
+        chalk.gray('• Preparing planning system\n') +
+        chalk.gray('• Setting up tool integrations\n\n') +
+        chalk.cyan('Type ') +
+        chalk.white.bold('/help') +
+        chalk.cyan(' for available commands'),
       {
         padding: 1,
         margin: 1,
@@ -396,15 +396,15 @@ class OnboardingModule {
   private static async showBetaWarning(): Promise<void> {
     const warningBox = boxen(
       chalk.red.bold('🚨  BETA VERSION WARNING\n\n') +
-      chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
-      chalk.yellow.bold('Potential Risks:\n') +
-      chalk.white('• File system modifications\n') +
-      chalk.white('• Code generation may not always be optimal\n') +
-      chalk.white('• AI responses may be inaccurate\n') +
-      chalk.white('• System resource usage\n\n') +
-      chalk.cyan('For detailed security information, visit:\n') +
-      chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
-      chalk.white('By continuing, you acknowledge these risks.'),
+        chalk.white('NikCLI is currently in beta and may contain bugs or unexpected behavior.\n\n') +
+        chalk.yellow.bold('Potential Risks:\n') +
+        chalk.white('• File system modifications\n') +
+        chalk.white('• Code generation may not always be optimal\n') +
+        chalk.white('• AI responses may be inaccurate\n') +
+        chalk.white('• System resource usage\n\n') +
+        chalk.cyan('For detailed security information, visit:\n') +
+        chalk.blue.underline('https://github.com/nikomatt69/nikcli-main/blob/main/SECURITY.md\n\n') +
+        chalk.white('By continuing, you acknowledge these risks.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -460,21 +460,21 @@ class OnboardingModule {
 
     const setupBox = boxen(
       chalk.yellow.bold('⚠️  No API keys detected\n\n') +
-      chalk.white('To unlock the best experience, add at least one API key:\n\n') +
-      chalk.green('• ANTHROPIC_API_KEY') +
-      chalk.gray(' – Claude models (recommended)\n') +
-      chalk.blue('• OPENAI_API_KEY') +
-      chalk.gray(' – GPT models\n') +
-      chalk.yellow('• OPENROUTER_API_KEY') +
-      chalk.gray(' – Multi-provider routing\n') +
-      chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
-      chalk.gray(' – Gemini models\n') +
-      chalk.cyan('• AI_GATEWAY_API_KEY / V0_API_KEY') +
-      chalk.gray(' – Vercel integrations\n\n') +
-      chalk.white.bold('Example commands:\n') +
-      chalk.dim('export ANTHROPIC_API_KEY="your-key"\n') +
-      chalk.dim('export OPENROUTER_API_KEY="your-key"\n\n') +
-      chalk.cyan('Prefer local models? Configure Ollama below.'),
+        chalk.white('To unlock the best experience, add at least one API key:\n\n') +
+        chalk.green('• ANTHROPIC_API_KEY') +
+        chalk.gray(' – Claude models (recommended)\n') +
+        chalk.blue('• OPENAI_API_KEY') +
+        chalk.gray(' – GPT models\n') +
+        chalk.yellow('• OPENROUTER_API_KEY') +
+        chalk.gray(' – Multi-provider routing\n') +
+        chalk.magenta('• GOOGLE_GENERATIVE_AI_API_KEY') +
+        chalk.gray(' – Gemini models\n') +
+        chalk.cyan('• AI_GATEWAY_API_KEY / V0_API_KEY') +
+        chalk.gray(' – Vercel integrations\n\n') +
+        chalk.white.bold('Example commands:\n') +
+        chalk.dim('export ANTHROPIC_API_KEY="your-key"\n') +
+        chalk.dim('export OPENROUTER_API_KEY="your-key"\n\n') +
+        chalk.cyan('Prefer local models? Configure Ollama below.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -516,7 +516,6 @@ class OnboardingModule {
     let runtimeOk = true
 
     try {
-
       {
         const version = process.version
         const major = parseInt(version.slice(1).split('.')[0])
@@ -559,9 +558,9 @@ class OnboardingModule {
       // Show minimal success box
       const summaryBox = boxen(
         chalk.white('✓ Node.js v') +
-        chalk.white(process.version) +
-        '\n' +
-        chalk.white('✓ Cloud API provider configured'),
+          chalk.white(process.version) +
+          '\n' +
+          chalk.white('✓ Cloud API provider configured'),
         {
           padding: 1,
           borderStyle: 'round',
@@ -598,9 +597,9 @@ class OnboardingModule {
 
         const modelsBox = boxen(
           chalk.green.bold('✓ Local Ollama models detected\n\n') +
-          list +
-          '\n\n' +
-          chalk.white('Use a local model to run NikCLI without external API keys.'),
+            list +
+            '\n\n' +
+            chalk.white('Use a local model to run NikCLI without external API keys.'),
           {
             padding: 1,
             borderStyle: 'round',
@@ -658,8 +657,8 @@ class OnboardingModule {
 
       const promptBox = boxen(
         chalk.yellow.bold('No Ollama models configured yet.\n\n') +
-        chalk.white('Add the default `llama3.1:8b` model now?\n') +
-        chalk.dim('This enables fully local inference without API keys.'),
+          chalk.white('Add the default `llama3.1:8b` model now?\n') +
+          chalk.dim('This enables fully local inference without API keys.'),
         {
           padding: 1,
           borderStyle: 'round',
@@ -825,8 +824,7 @@ class OnboardingModule {
       const savedAuth = configManager.get('auth') as any
       if (savedAuth?.email && savedAuth?.token) {
         const alreadyLoggedBox = boxen(
-          chalk.green(`✓ Already logged in as ${savedAuth.email}\n`) +
-          chalk.gray('Using saved credentials.'),
+          chalk.green(`✓ Already logged in as ${savedAuth.email}\n`) + chalk.gray('Using saved credentials.'),
           {
             padding: 1,
             borderStyle: 'round',
@@ -845,7 +843,7 @@ class OnboardingModule {
 
     const introBox = boxen(
       chalk.white('Sign in to sync progress across devices and unlock collaborative features.\n') +
-      chalk.gray('You can always connect later with the /auth command.'),
+        chalk.gray('You can always connect later with the /auth command.'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -978,7 +976,8 @@ class OnboardingModule {
             }
             break
           default:
-            if (char.charCodeAt(0) >= 32) { // Printable characters
+            if (char.charCodeAt(0) >= 32) {
+              // Printable characters
               password += char
               stdout.write('\b \b*') // Cancella il carattere e mostra solo *
             }
@@ -1022,7 +1021,7 @@ class OnboardingModule {
           configManager.set('auth', {
             email: result.profile.email || email,
             token: result.session.accessToken,
-            lastLogin: new Date().toISOString()
+            lastLogin: new Date().toISOString(),
           })
         } catch (_e) {
           // Silent failure
@@ -1030,10 +1029,10 @@ class OnboardingModule {
 
         const successBox = boxen(
           chalk.green(`✓ Welcome back, ${result.profile.email || result.profile.username}!`) +
-          '\n' +
-          chalk.gray(`Subscription: ${result.profile.subscription_tier}`) +
-          '\n' +
-          chalk.dim('Credentials saved - you won\'t need to login again.'),
+            '\n' +
+            chalk.gray(`Subscription: ${result.profile.subscription_tier}`) +
+            '\n' +
+            chalk.dim("Credentials saved - you won't need to login again."),
           {
             padding: 1,
             borderStyle: 'round',
@@ -1122,7 +1121,7 @@ class OnboardingModule {
           configManager.set('auth', {
             email: result.profile.email || email,
             token: result.session.accessToken,
-            lastLogin: new Date().toISOString()
+            lastLogin: new Date().toISOString(),
           })
         } catch (_e) {
           // Silent failure
@@ -1130,12 +1129,12 @@ class OnboardingModule {
 
         const successBox = boxen(
           chalk.green('✓ Account created successfully!') +
-          '\n' +
-          chalk.gray(`Welcome, ${result.profile.email}!`) +
-          '\n' +
-          chalk.dim('Check your email for verification if required.') +
-          '\n' +
-          chalk.dim('Credentials saved - you won\'t need to login again.'),
+            '\n' +
+            chalk.gray(`Welcome, ${result.profile.email}!`) +
+            '\n' +
+            chalk.dim('Check your email for verification if required.') +
+            '\n' +
+            chalk.dim("Credentials saved - you won't need to login again."),
           {
             padding: 1,
             borderStyle: 'round',
@@ -1243,9 +1242,7 @@ class SystemModule {
   static checkNodeVersion(): boolean {
     // Prefer Bun if present
     try {
-      {
-        return true
-      }
+      return true
       // Bun exists at runtime when using Bun
     } catch (_) {
       // ignore and fall back to Node check
@@ -1440,12 +1437,12 @@ class ServiceModule {
         const { visionProvider } = await import('./providers/vision')
         const { imageGenerator } = await import('./providers/image')
 
-          // Providers initialize automatically in their constructors
+        // Providers initialize automatically in their constructors
 
-          // Make providers globally accessible for chat
-          ; (global as any).visionProvider = visionProvider
-          ; (global as any).imageGenerator = imageGenerator
-      } catch (_error: any) { }
+        // Make providers globally accessible for chat
+        ;(global as any).visionProvider = visionProvider
+        ;(global as any).imageGenerator = imageGenerator
+      } catch (_error: any) {}
 
       // Initialize CAD/GCode provider and services once at startup
       try {
@@ -1454,10 +1451,10 @@ class ServiceModule {
 
         await cadGcodeProvider.initialize()
 
-          // Expose globally for command handlers and autonomous flows
-          ; (global as any).cadGcodeProvider = cadGcodeProvider
-          ; (global as any).cadService = getCadService()
-          ; (global as any).gcodeService = getGcodeService()
+        // Expose globally for command handlers and autonomous flows
+        ;(global as any).cadGcodeProvider = cadGcodeProvider
+        ;(global as any).cadService = getCadService()
+        ;(global as any).gcodeService = getGcodeService()
       } catch (_error: any) {
         // Silent: CAD/GCode provider optional
       }
@@ -1544,9 +1541,9 @@ class StreamingModule extends EventEmitter {
     if (process.stdin.isTTY) {
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ; (process.stdin as any).setRawMode(true)
+        ;(process.stdin as any).setRawMode(true)
       }
-      ; (process.stdin as any).resume()
+      ;(process.stdin as any).resume()
     }
 
     // Keypress handlers
@@ -1640,7 +1637,7 @@ class StreamingModule extends EventEmitter {
     const idePrompt = ideAwareFormatter.createPrompt({
       workingDir: this.context.workingDirectory,
       mode: this.context.planMode ? 'plan' : undefined,
-      agentCount: agents > 0 ? agents : undefined
+      agentCount: agents > 0 ? agents : undefined,
     })
 
     const modes = []
@@ -1676,9 +1673,9 @@ class StreamingModule extends EventEmitter {
     const statusBadge = `asst:${statusDot}`
 
     // Use IDE-aware prompt if available, otherwise fallback to default
-    const prompt = ideDetector.hasGUI() ?
-      idePrompt + `${modeStr}─[${contextStr}]─[${statusBadge}]─[${modelBadge}]\n└─❯ ` :
-      `\n┌─[🎛️:${chalk.green(dir)}${modeStr}]─[${contextStr}]─[${statusBadge}]─[${modelBadge}]\n└─❯ `
+    const prompt = ideDetector.hasGUI()
+      ? idePrompt + `${modeStr}─[${contextStr}]─[${statusBadge}]─[${modelBadge}]\n└─❯ `
+      : `\n┌─[🎛️:${chalk.green(dir)}${modeStr}]─[${contextStr}]─[${statusBadge}]─[${modelBadge}]\n└─❯ `
 
     this.rl.setPrompt(prompt)
     this.rl.prompt()
@@ -1800,7 +1797,7 @@ class StreamingModule extends EventEmitter {
       // Reset raw mode
       try {
         if (process.stdin.isTTY && (process.stdin as any).isRaw) {
-          ; (process.stdin as any).setRawMode(false)
+          ;(process.stdin as any).setRawMode(false)
         }
       } catch (error) {
         // Ignore
@@ -1948,15 +1945,14 @@ class MainOrchestrator {
 async function main() {
   // Initialize RAG if configured (non-blocking)
   try {
-    const { initializeRAG } = await import('./context/rag-setup');
-    initializeRAG().catch(() => {});
+    const { initializeRAG } = await import('./context/rag-setup')
+    initializeRAG().catch(() => {})
   } catch {
     // Ignore if RAG setup fails
   }
 
   // Parse command line arguments
   const argv = process.argv.slice(2)
-
 
   // Minimal non-interactive report mode for CI/VS Code
   if (argv[0] === 'report' || argv.includes('--report')) {

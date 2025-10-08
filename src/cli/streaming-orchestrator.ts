@@ -11,12 +11,12 @@ import { agentService } from './services/agent-service'
 import { lspService } from './services/lsp-service'
 import { planningService } from './services/planning-service'
 import { toolService } from './services/tool-service'
+import { advancedUI } from './ui/advanced-cli-ui'
 import { diffManager } from './ui/diff-manager'
 import { OutputFormatter } from './ui/output-formatter'
+import { AsyncLock } from './utils/async-lock'
 import { CliUI } from './utils/cli-ui'
 import { PasteHandler } from './utils/paste-handler'
-import { advancedUI } from './ui/advanced-cli-ui'
-import { AsyncLock } from './utils/async-lock'
 
 interface StreamMessage {
   id: string
@@ -104,8 +104,8 @@ class StreamingOrchestratorImpl extends EventEmitter {
     // Initialize paste handler for long text processing
     this.pasteHandler = PasteHandler.getInstance()
 
-      // Expose streaming orchestrator globally for VM agent communications
-      ; (global as any).__streamingOrchestrator = this
+    // Expose streaming orchestrator globally for VM agent communications
+    ;(global as any).__streamingOrchestrator = this
 
     // Don't setup interface automatically - only when start() is called
   }
@@ -118,9 +118,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
       this.originalRawMode = (process.stdin as any).isRaw || false
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ; (process.stdin as any).setRawMode(true)
+        ;(process.stdin as any).setRawMode(true)
       }
-      ; (process.stdin as any).resume()
+      ;(process.stdin as any).resume()
     }
 
     // Keypress handlers
@@ -233,7 +233,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         this.keypressHandler = undefined
       }
       if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
-        ; (process.stdin as any).setRawMode(this.originalRawMode)
+        ;(process.stdin as any).setRawMode(this.originalRawMode)
       }
     } catch {
       // ignore
@@ -600,7 +600,10 @@ class StreamingOrchestratorImpl extends EventEmitter {
       })
 
       // Check if streaming method is available
-      advancedUI.logInfo('info', `🔍 Checking VM Agent streaming support: ${typeof this.activeVMAgent.processChatMessageStreaming}`)
+      advancedUI.logInfo(
+        'info',
+        `🔍 Checking VM Agent streaming support: ${typeof this.activeVMAgent.processChatMessageStreaming}`
+      )
 
       if (typeof this.activeVMAgent.processChatMessageStreaming === 'function') {
         advancedUI.logInfo('info', `🌊 Using streaming method for VM Agent chat`)
@@ -754,7 +757,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         // The plan is now ready and saved, no need for approval here
         advancedUI.logInfo('info', '💡 Use the plan mode interface to start tasks')
         // After execution ensure prompt is visible
-        import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => { })
+        import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => {})
         this.processingMessage = false
         this.showPrompt()
       } catch (error: any) {
@@ -1058,7 +1061,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       try {
         process.env.NIKCLI_COMPACT = '1'
         process.env.NIKCLI_SUPER_COMPACT = '1'
-      } catch { }
+      } catch {}
       console.log(chalk.green('\\n✓ plan mode on ') + chalk.dim('(shift+tab to cycle)'))
     } else if (this.context.planMode && !this.context.autoAcceptEdits && !this.context.vmMode) {
       // Plan → Auto-accept
@@ -1081,17 +1084,17 @@ class StreamingOrchestratorImpl extends EventEmitter {
       try {
         delete (process.env as any).NIKCLI_COMPACT
         delete (process.env as any).NIKCLI_SUPER_COMPACT
-      } catch { }
+      } catch {}
       // Reset processing and show prompt to accept new input
       this.processingMessage = false
       import('./core/input-queue')
         .then(({ inputQueue }) => inputQueue.disableBypass())
         .then(() => {
           try {
-            ; (global as any).__nikCLI?.resumePromptAndRender?.()
-          } catch { }
+            ;(global as any).__nikCLI?.resumePromptAndRender?.()
+          } catch {}
         })
-        .catch(() => { })
+        .catch(() => {})
       this.showPrompt()
 
       // Cleanup VM agent when exiting VM mode
@@ -1373,11 +1376,11 @@ class StreamingOrchestratorImpl extends EventEmitter {
       this.context.vmMode = false
       try {
         diffManager.setAutoAccept(false)
-      } catch { }
+      } catch {}
 
       // Cleanup VM agent if any
       if (this.activeVMAgent) {
-        this.cleanupVMAgent().catch(() => { })
+        this.cleanupVMAgent().catch(() => {})
       }
 
       // Show prompt after a small delay to ensure messages are processed
@@ -1410,7 +1413,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     // Cleanup VM agent if active
     if (this.activeVMAgent) {
-      this.cleanupVMAgent().catch(() => { })
+      this.cleanupVMAgent().catch(() => {})
     }
 
     console.log(chalk.green('✓ Goodbye!'))

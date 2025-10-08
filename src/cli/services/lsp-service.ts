@@ -81,7 +81,7 @@ export class LSPService {
         if (server.status !== 'running' && server.process) {
           try {
             server.process.kill()
-          } catch { }
+          } catch {}
           server.status = 'error'
           console.log(chalk.red(`⏱️  ${server.name} startup timed out`))
         }

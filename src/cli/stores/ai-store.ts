@@ -1,17 +1,17 @@
 import type { CoreMessage } from 'ai'
-import { create } from 'zustand'
 import chalk from 'chalk'
+import { create } from 'zustand'
 
 /**
  * Centralized AI Store using @ai-sdk-tools/store patterns
- * 
+ *
  * Provides unified state management for:
  * - Chat sessions and message history
  * - Agent orchestration state
  * - Tool execution tracking
  * - Context and RAG metrics
  * - UI panel state
- * 
+ *
  * Opt-in via AI_STORE=true env variable
  */
 
@@ -335,5 +335,3 @@ export const isStoreEnabled = (): boolean => {
 if (isStoreEnabled()) {
   console.log(chalk.green('✓ Centralized AI store enabled by default for state management'))
 }
-
-

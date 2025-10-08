@@ -2,253 +2,251 @@ import chalk from 'chalk'
 import hljs from 'highlight.js'
 
 export class VisualFormatter {
-    private bufferState: {
-        content: string
-        inCodeBlock: boolean
-        language: string | null
-        fenceMarker: string | null
+  private bufferState: {
+    content: string
+    inCodeBlock: boolean
+    language: string | null
+    fenceMarker: string | null
+  }
+
+  constructor() {
+    this.bufferState = {
+      content: '',
+      inCodeBlock: false,
+      language: null,
+      fenceMarker: null,
     }
+  }
 
-    constructor() {
-        this.bufferState = {
-            content: '',
-            inCodeBlock: false,
-            language: null,
-            fenceMarker: null,
-        }
-    }
+  processStreamChunk(chunk: string, isLast: boolean = false): string {
+    if (!chunk) return ''
+    const lines = chunk.split('\n')
+    const result: string[] = []
 
-    processStreamChunk(chunk: string, isLast: boolean = false): string {
-        if (!chunk) return ''
-        const lines = chunk.split('\n')
-        const result: string[] = []
-
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i]
-            const fenceMatch = line.match(/^```(\w+)?/)
-            if (fenceMatch) {
-                if (!this.bufferState.inCodeBlock) {
-                    this.bufferState.inCodeBlock = true
-                    this.bufferState.language = fenceMatch[1] || null
-                    this.bufferState.content = ''
-                    continue
-                } else {
-                    const highlighted = this.formatCodeBlock(
-                        this.bufferState.content,
-                        this.bufferState.language || undefined
-                    )
-                    result.push(highlighted)
-                    this.bufferState.inCodeBlock = false
-                    this.bufferState.language = null
-                    this.bufferState.content = ''
-                    continue
-                }
-            }
-
-            if (this.bufferState.inCodeBlock) {
-                this.bufferState.content += line + '\n'
-                continue
-            }
-
-            result.push(this.formatMarkdownLine(line))
-        }
-
-        // Add bottom padding on last chunk to prevent overlap with HUD/prompt
-        if (isLast) {
-            const bottomPadding = this.getBottomPadding()
-            for (let i = 0; i < bottomPadding; i++) {
-                result.push('')
-            }
-        }
-
-        return result.join('\n')
-    }
-
-    /**
-     * Calculate bottom padding based on terminal size to avoid overlap with HUD/prompt
-     */
-    private getBottomPadding(): number {
-        const terminalHeight = process.stdout.rows || 24
-
-        if (terminalHeight < 20) {
-            return 3
-        } else if (terminalHeight < 40) {
-            return 5
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const fenceMatch = line.match(/^```(\w+)?/)
+      if (fenceMatch) {
+        if (!this.bufferState.inCodeBlock) {
+          this.bufferState.inCodeBlock = true
+          this.bufferState.language = fenceMatch[1] || null
+          this.bufferState.content = ''
+          continue
         } else {
-            return 6
+          const highlighted = this.formatCodeBlock(this.bufferState.content, this.bufferState.language || undefined)
+          result.push(highlighted)
+          this.bufferState.inCodeBlock = false
+          this.bufferState.language = null
+          this.bufferState.content = ''
+          continue
         }
+      }
+
+      if (this.bufferState.inCodeBlock) {
+        this.bufferState.content += line + '\n'
+        continue
+      }
+
+      result.push(this.formatMarkdownLine(line))
     }
 
-    formatMarkdownLine(line: string): string {
-        let formatted = line
-
-        formatted = formatted.replace(/^(#{1,6})\s+(.+)$/, (_: string, hashes: string, text: string) => {
-            const level = hashes.length
-            const color = level === 1 ? chalk.blueBright.bold : level === 2 ? chalk.white.bold : chalk.gray.bold
-            return color(`${hashes} ${text}`)
-        })
-
-        formatted = formatted.replace(/\*\*([^*]+)\*\*/g, (_: string, text: string) => chalk.white.bold(text))
-        formatted = formatted.replace(/\*([^*]+)\*/g, (_: string, text: string) => chalk.gray.italic(text))
-        formatted = formatted.replace(/`([^`]+)`/g, (_: string, code: string) => chalk.bgHex('#2b2b2b').white(` ${code} `))
-
-        // Highlight file paths in bright blue bold
-        formatted = formatted.replace(/([a-zA-Z0-9_\-\.\/]+\.[a-z]{2,4})/gi, (match: string) => {
-            return chalk.blueBright.bold.underline(match)
-        })
-        // Paths without extensions (like /api/github/webhook)
-        formatted = formatted.replace(/(\/?(?:[a-zA-Z0-9_\-]+\/)+[a-zA-Z0-9_\-]+)/g, (match: string) => {
-            if (match.match(/\.[a-z]{2,4}$/i)) return match
-            return chalk.blueBright.bold(match)
-        })
-
-        formatted = formatted.replace(
-            /^(\s*)([-*+])\s+(.+)$/,
-            (_: string, indent: string, bullet: string, text: string) => `${indent}${chalk.cyanBright(bullet)} ${text}`
-        )
-
-        return formatted
+    // Add bottom padding on last chunk to prevent overlap with HUD/prompt
+    if (isLast) {
+      const bottomPadding = this.getBottomPadding()
+      for (let i = 0; i < bottomPadding; i++) {
+        result.push('')
+      }
     }
 
-    formatCodeBlock(code: string, language?: string): string {
-        if (!code.trim()) return ''
-        const lines: string[] = []
-        const width = (process.stdout.columns || 80) - 4
-        const lang = language || 'code'
-        const headerPadding = '─'.repeat(Math.max(0, width - lang.length - 4))
-        lines.push(chalk.cyanBright(`┌─ ${lang} ${headerPadding}┐`))
+    return result.join('\n')
+  }
 
-        let highlighted = code
-        if (language && hljs.getLanguage(language)) {
-            highlighted = this.highlightCode(code, language)
-        }
+  /**
+   * Calculate bottom padding based on terminal size to avoid overlap with HUD/prompt
+   */
+  private getBottomPadding(): number {
+    const terminalHeight = process.stdout.rows || 24
 
-        const codeLines = highlighted.split('\n')
-        const filteredLines = codeLines.filter((l, i) => l.trim() || i < codeLines.length - 1)
-        for (const ln of filteredLines) {
-            const truncated = ln.length > width ? ln.substring(0, width - 3) + '...' : ln
-            lines.push(chalk.white('│ ') + truncated)
-        }
-        lines.push(chalk.cyanBright(`└${'─'.repeat(width + 2)}┘`))
-        return lines.join('\n')
+    if (terminalHeight < 20) {
+      return 3
+    } else if (terminalHeight < 40) {
+      return 5
+    } else {
+      return 6
+    }
+  }
+
+  formatMarkdownLine(line: string): string {
+    let formatted = line
+
+    formatted = formatted.replace(/^(#{1,6})\s+(.+)$/, (_: string, hashes: string, text: string) => {
+      const level = hashes.length
+      const color = level === 1 ? chalk.blueBright.bold : level === 2 ? chalk.white.bold : chalk.gray.bold
+      return color(`${hashes} ${text}`)
+    })
+
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, (_: string, text: string) => chalk.white.bold(text))
+    formatted = formatted.replace(/\*([^*]+)\*/g, (_: string, text: string) => chalk.gray.italic(text))
+    formatted = formatted.replace(/`([^`]+)`/g, (_: string, code: string) => chalk.bgHex('#2b2b2b').white(` ${code} `))
+
+    // Highlight file paths in bright blue bold
+    formatted = formatted.replace(/([a-zA-Z0-9_\-./]+\.[a-z]{2,4})/gi, (match: string) => {
+      return chalk.blueBright.bold.underline(match)
+    })
+    // Paths without extensions (like /api/github/webhook)
+    formatted = formatted.replace(/(\/?(?:[a-zA-Z0-9_-]+\/)+[a-zA-Z0-9_-]+)/g, (match: string) => {
+      if (match.match(/\.[a-z]{2,4}$/i)) return match
+      return chalk.blueBright.bold(match)
+    })
+
+    formatted = formatted.replace(
+      /^(\s*)([-*+])\s+(.+)$/,
+      (_: string, indent: string, bullet: string, text: string) => `${indent}${chalk.cyanBright(bullet)} ${text}`
+    )
+
+    return formatted
+  }
+
+  formatCodeBlock(code: string, language?: string): string {
+    if (!code.trim()) return ''
+    const lines: string[] = []
+    const width = (process.stdout.columns || 80) - 4
+    const lang = language || 'code'
+    const headerPadding = '─'.repeat(Math.max(0, width - lang.length - 4))
+    lines.push(chalk.cyanBright(`┌─ ${lang} ${headerPadding}┐`))
+
+    let highlighted = code
+    if (language && hljs.getLanguage(language)) {
+      highlighted = this.highlightCode(code, language)
     }
 
-    private highlightCode(code: string, language: string): string {
-        try {
-            const highlighted = hljs.highlight(code, { language }).value
-            return highlighted
-                .replace(/<span class="hljs-keyword">/g, chalk.magenta(''))
-                .replace(/<span class="hljs-string">/g, chalk.green(''))
-                .replace(/<span class="hljs-comment">/g, chalk.gray(''))
-                .replace(/<span class="hljs-number">/g, chalk.cyan(''))
-                .replace(/<span class="hljs-function">/g, chalk.blue(''))
-                .replace(/<span class="hljs-variable">/g, chalk.yellow(''))
-                .replace(/<span class="hljs-type">/g, chalk.blue(''))
-                .replace(/<span class="hljs-title">/g, chalk.bold(''))
-                .replace(/<span class="hljs-attr">/g, chalk.cyan(''))
-                .replace(/<span class="hljs-built_in">/g, chalk.magenta(''))
-                .replace(/<span class="hljs-class">/g, chalk.blue.bold(''))
-                .replace(/<span class="hljs-name">/g, chalk.blue.bold(''))
-                .replace(/<span class="hljs-params">/g, chalk.white(''))
-                .replace(/<span class="hljs-literal">/g, chalk.cyan(''))
-                .replace(/<span class="hljs-property">/g, chalk.cyan(''))
-                .replace(/<\/span>/g, chalk.reset(''))
-                .replace(/<[^>]*>/g, '')
-        } catch {
-            return code
-        }
+    const codeLines = highlighted.split('\n')
+    const filteredLines = codeLines.filter((l, i) => l.trim() || i < codeLines.length - 1)
+    for (const ln of filteredLines) {
+      const truncated = ln.length > width ? ln.substring(0, width - 3) + '...' : ln
+      lines.push(chalk.white('│ ') + truncated)
     }
+    lines.push(chalk.cyanBright(`└${'─'.repeat(width + 2)}┘`))
+    return lines.join('\n')
+  }
 
-    formatInlineCode(text: string): string {
-        return text.replace(/`([^`]+)`/g, (_: string, code: string) => chalk.bgGray.white(` ${code} `))
+  private highlightCode(code: string, language: string): string {
+    try {
+      const highlighted = hljs.highlight(code, { language }).value
+      return highlighted
+        .replace(/<span class="hljs-keyword">/g, chalk.magenta(''))
+        .replace(/<span class="hljs-string">/g, chalk.green(''))
+        .replace(/<span class="hljs-comment">/g, chalk.gray(''))
+        .replace(/<span class="hljs-number">/g, chalk.cyan(''))
+        .replace(/<span class="hljs-function">/g, chalk.blue(''))
+        .replace(/<span class="hljs-variable">/g, chalk.yellow(''))
+        .replace(/<span class="hljs-type">/g, chalk.blue(''))
+        .replace(/<span class="hljs-title">/g, chalk.bold(''))
+        .replace(/<span class="hljs-attr">/g, chalk.cyan(''))
+        .replace(/<span class="hljs-built_in">/g, chalk.magenta(''))
+        .replace(/<span class="hljs-class">/g, chalk.blue.bold(''))
+        .replace(/<span class="hljs-name">/g, chalk.blue.bold(''))
+        .replace(/<span class="hljs-params">/g, chalk.white(''))
+        .replace(/<span class="hljs-literal">/g, chalk.cyan(''))
+        .replace(/<span class="hljs-property">/g, chalk.cyan(''))
+        .replace(/<\/span>/g, chalk.reset(''))
+        .replace(/<[^>]*>/g, '')
+    } catch {
+      return code
     }
+  }
 
-    createProgressBar(value: number, width: number = 40): string {
-        const chars = ['▏', '▎', '▍', '▌', '▋', '▊', '▉', '█']
-        const filled = (value / 100) * width
-        const fullBlocks = Math.floor(filled)
-        const partial = Math.floor((filled - fullBlocks) * 8)
-        const bar =
-            '█'.repeat(fullBlocks) + (partial > 0 ? chars[partial] : '') + '░'.repeat(width - fullBlocks - (partial ? 1 : 0))
-        const colorFn = value < 30 ? chalk.red : value < 70 ? chalk.yellow : chalk.green
-        return colorFn(`[${bar}] ${value}%`)
-    }
+  formatInlineCode(text: string): string {
+    return text.replace(/`([^`]+)`/g, (_: string, code: string) => chalk.bgGray.white(` ${code} `))
+  }
 
-    createMiniProgressBar(current: number, total: number, width: number = 20): string {
-        const filled = Math.round((current / total) * width)
-        return chalk.blue('▓'.repeat(filled) + '░'.repeat(width - filled))
-    }
+  createProgressBar(value: number, width: number = 40): string {
+    const chars = ['▏', '▎', '▍', '▌', '▋', '▊', '▉', '█']
+    const filled = (value / 100) * width
+    const fullBlocks = Math.floor(filled)
+    const partial = Math.floor((filled - fullBlocks) * 8)
+    const bar =
+      '█'.repeat(fullBlocks) + (partial > 0 ? chars[partial] : '') + '░'.repeat(width - fullBlocks - (partial ? 1 : 0))
+    const colorFn = value < 30 ? chalk.red : value < 70 ? chalk.yellow : chalk.green
+    return colorFn(`[${bar}] ${value}%`)
+  }
 
-    formatInitGroup(source: string, messages: string[]): string {
-        if (messages.length === 0) return ''
-        if (messages.length === 1) return `${chalk.dim(source)} ${messages[0]}`
-        const lines = [chalk.cyan(`┌─ 📋 ${source} ${'─'.repeat(Math.max(0, 40 - source.length))}┐`)]
-        for (const msg of messages) {
-            lines.push(chalk.gray(`│ ${msg}`))
-        }
-        lines.push(chalk.cyan(`└─ ✓ ${messages.length} operations complete ${'─'.repeat(Math.max(0, 15))}┘`))
-        return lines.join('\n')
-    }
+  createMiniProgressBar(current: number, total: number, width: number = 20): string {
+    const filled = Math.round((current / total) * width)
+    return chalk.blue('▓'.repeat(filled) + '░'.repeat(width - filled))
+  }
 
-    formatSearchResults(pattern: string, fileCount: number, expanded: boolean = false): string {
-        const icon = expanded ? chalk.cyan('▼') : chalk.cyan('▶')
-        const progressBar = this.createMiniProgressBar(fileCount, 100, 20)
-        return [
-            `${icon} ${chalk.blue('Search')}(pattern: "${chalk.yellow(pattern)}")`,
-            chalk.gray(`  ├─ ${progressBar}`),
-            chalk.gray(`  └─ Found ${chalk.cyan(fileCount.toString())} files ${chalk.dim('(ctrl+o to expand)')}`),
-        ].join('\n')
+  formatInitGroup(source: string, messages: string[]): string {
+    if (messages.length === 0) return ''
+    if (messages.length === 1) return `${chalk.dim(source)} ${messages[0]}`
+    const lines = [chalk.cyan(`┌─ 📋 ${source} ${'─'.repeat(Math.max(0, 40 - source.length))}┐`)]
+    for (const msg of messages) {
+      lines.push(chalk.gray(`│ ${msg}`))
     }
+    lines.push(chalk.cyan(`└─ ✓ ${messages.length} operations complete ${'─'.repeat(Math.max(0, 15))}┘`))
+    return lines.join('\n')
+  }
 
-    formatSearchResultsExpanded(pattern: string, matches: Array<{ file: string; lineNumber: number }>): string {
-        const lines: string[] = [chalk.cyan(`▼ Search(pattern: "${pattern}")`), chalk.gray(`  ├─ ${this.createMiniProgressBar(matches.length, 100)}`)]
-        const displayCount = Math.min(matches.length, 10)
-        for (let i = 0; i < displayCount; i++) {
-            const m = matches[i]
-            const prefix = i === displayCount - 1 && displayCount < matches.length ? '  └─' : '  ├─'
-            lines.push(chalk.gray(`${prefix} ${chalk.blue(m.file)}:${chalk.yellow(m.lineNumber.toString())}`))
-        }
-        if (matches.length > displayCount) {
-            lines.push(chalk.gray(`  └─ ... and ${matches.length - displayCount} more files`))
-        } else {
-            lines[lines.length - 1] = lines[lines.length - 1].replace('├─', '└─')
-        }
-        return lines.join('\n')
-    }
+  formatSearchResults(pattern: string, fileCount: number, expanded: boolean = false): string {
+    const icon = expanded ? chalk.cyan('▼') : chalk.cyan('▶')
+    const progressBar = this.createMiniProgressBar(fileCount, 100, 20)
+    return [
+      `${icon} ${chalk.blue('Search')}(pattern: "${chalk.yellow(pattern)}")`,
+      chalk.gray(`  ├─ ${progressBar}`),
+      chalk.gray(`  └─ Found ${chalk.cyan(fileCount.toString())} files ${chalk.dim('(ctrl+o to expand)')}`),
+    ].join('\n')
+  }
 
-    formatTable(headers: string[], rows: any[][]): string {
-        const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map((r) => String(r[i] || '').length)))
-        const lines = [
-            '┌' + colWidths.map((w) => '─'.repeat(w + 2)).join('┬') + '┐',
-            '│ ' + headers.map((h, i) => chalk.bold(h.padEnd(colWidths[i]))).join(' │ ') + ' │',
-            '├' + colWidths.map((w) => '─'.repeat(w + 2)).join('┼') + '┤',
-        ]
-        rows.forEach((row) => {
-            lines.push('│ ' + row.map((cell, i) => String(cell || '').padEnd(colWidths[i])).join(' │ ') + ' │')
-        })
-        lines.push('└' + colWidths.map((w) => '─'.repeat(w + 2)).join('┴') + '┘')
-        return chalk.cyan(lines.join('\n'))
+  formatSearchResultsExpanded(pattern: string, matches: Array<{ file: string; lineNumber: number }>): string {
+    const lines: string[] = [
+      chalk.cyan(`▼ Search(pattern: "${pattern}")`),
+      chalk.gray(`  ├─ ${this.createMiniProgressBar(matches.length, 100)}`),
+    ]
+    const displayCount = Math.min(matches.length, 10)
+    for (let i = 0; i < displayCount; i++) {
+      const m = matches[i]
+      const prefix = i === displayCount - 1 && displayCount < matches.length ? '  └─' : '  ├─'
+      lines.push(chalk.gray(`${prefix} ${chalk.blue(m.file)}:${chalk.yellow(m.lineNumber.toString())}`))
     }
+    if (matches.length > displayCount) {
+      lines.push(chalk.gray(`  └─ ... and ${matches.length - displayCount} more files`))
+    } else {
+      lines[lines.length - 1] = lines[lines.length - 1].replace('├─', '└─')
+    }
+    return lines.join('\n')
+  }
 
-    reset(): void {
-        this.bufferState = {
-            content: '',
-            inCodeBlock: false,
-            language: null,
-            fenceMarker: null,
-        }
-    }
+  formatTable(headers: string[], rows: any[][]): string {
+    const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map((r) => String(r[i] || '').length)))
+    const lines = [
+      '┌' + colWidths.map((w) => '─'.repeat(w + 2)).join('┬') + '┐',
+      '│ ' + headers.map((h, i) => chalk.bold(h.padEnd(colWidths[i]))).join(' │ ') + ' │',
+      '├' + colWidths.map((w) => '─'.repeat(w + 2)).join('┼') + '┤',
+    ]
+    rows.forEach((row) => {
+      lines.push('│ ' + row.map((cell, i) => String(cell || '').padEnd(colWidths[i])).join(' │ ') + ' │')
+    })
+    lines.push('└' + colWidths.map((w) => '─'.repeat(w + 2)).join('┴') + '┘')
+    return chalk.cyan(lines.join('\n'))
+  }
 
-    /**
-     * Add bottom padding to any output string to prevent TUI overlap
-     */
-    addBottomPadding(content: string): string {
-        const padding = this.getBottomPadding()
-        const lines = '\n'.repeat(padding)
-        return content + lines
+  reset(): void {
+    this.bufferState = {
+      content: '',
+      inCodeBlock: false,
+      language: null,
+      fenceMarker: null,
     }
+  }
+
+  /**
+   * Add bottom padding to any output string to prevent TUI overlap
+   */
+  addBottomPadding(content: string): string {
+    const padding = this.getBottomPadding()
+    const lines = '\n'.repeat(padding)
+    return content + lines
+  }
 }
 
 export const visualFormatter = new VisualFormatter()
-
-

@@ -5,13 +5,11 @@ import { z } from 'zod'
 
 // ⚡︎ Import Cognitive Types
 import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
-
+import { search } from '../context/rag-system'
 // 🔧 Import Unified Tool Registry
 import { ToolRegistry } from '../tools/tool-registry'
-
 // 🧠 Import Cognitive Route Analyzer
-import { createCognitiveRouteAnalyzer, type CognitiveAnalysisResult } from './cognitive-route-analyzer'
-import { search } from '../context/rag-system'
+import { type CognitiveAnalysisResult, createCognitiveRouteAnalyzer } from './cognitive-route-analyzer'
 
 // 🔧 Enhanced Tool Routing Schemas
 const ToolSecurityLevel = z.enum(['safe', 'moderate', 'risky', 'dangerous'])
@@ -138,7 +136,6 @@ export class ToolRouter extends EventEmitter {
       description: 'Search for updated information',
       examples: ['grep for TODO', 'find information about React', 'grep for information about Next.js'],
     },
-
 
     // IDE Context Tools
     {
@@ -608,7 +605,15 @@ export class ToolRouter extends EventEmitter {
 
     {
       tool: 'tree_tool',
-      keywords: ['tree', 'directory structure', 'folder tree', 'hierarchical view', 'file tree', 'structure', 'architecture'],
+      keywords: [
+        'tree',
+        'directory structure',
+        'folder tree',
+        'hierarchical view',
+        'file tree',
+        'structure',
+        'architecture',
+      ],
       priority: 5,
       description: 'Display directory structure as tree',
       examples: ['show directory tree', 'tree view of project', 'hierarchical structure'],
@@ -633,7 +638,26 @@ export class ToolRouter extends EventEmitter {
     // Todo and Task Management
     {
       tool: 'todo_management',
-      keywords: ['todo', 'task', 'checklist', 'reminder', 'action items', 'todos', 'tasks', 'plan', 'step', 'steps', 'planner', 'planner todo', 'planner task', 'planner checklist', 'planner reminder', 'planner action items', 'planner todos', 'planner tasks'],
+      keywords: [
+        'todo',
+        'task',
+        'checklist',
+        'reminder',
+        'action items',
+        'todos',
+        'tasks',
+        'plan',
+        'step',
+        'steps',
+        'planner',
+        'planner todo',
+        'planner task',
+        'planner checklist',
+        'planner reminder',
+        'planner action items',
+        'planner todos',
+        'planner tasks',
+      ],
       priority: 5,
       description: 'Manage todos and tasks',
       examples: ['add todo', 'list tasks', 'complete todo'],
@@ -944,7 +968,6 @@ export class ToolRouter extends EventEmitter {
         const confidenceColor = rec.confidence > 0.7 ? chalk.green : rec.confidence > 0.4 ? chalk.yellow : chalk.red
 
         if (rec.suggestedParams && Object.keys(rec.suggestedParams).length > 0) {
-
         }
       }
     })

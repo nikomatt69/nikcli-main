@@ -65,8 +65,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
   // Start batch approval process
   batchApprovalState.approvalInProgress = true
   try {
-    ; (global as any).__nikCLI?.suspendPrompt?.()
-  } catch { }
+    ;(global as any).__nikCLI?.suspendPrompt?.()
+  } catch {}
   inputQueue.enableBypass()
 
   try {
@@ -96,8 +96,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
     batchApprovalState.approvalInProgress = false
     // Ensure prompt resumes cleanly after batch approval
     try {
-      ; (global as any).__nikCLI?.resumePromptAndRender?.()
-    } catch { }
+      ;(global as any).__nikCLI?.resumePromptAndRender?.()
+    } catch {}
   }
 }
 
@@ -302,7 +302,10 @@ export class ListDirectoryTool {
 
       walkDir(safePath)
 
-      advancedUI.logFunctionUpdate('success', `⚡︎ Listed directory: ${directoryPath} (${files.length} files, ${directories.length} directories)`)
+      advancedUI.logFunctionUpdate(
+        'success',
+        `⚡︎ Listed directory: ${directoryPath} (${files.length} files, ${directories.length} directories)`
+      )
       advancedUI.logFunctionCall('list-directory-tool')
 
       return {

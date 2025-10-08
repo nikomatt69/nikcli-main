@@ -13,9 +13,9 @@ import {
   WriteFileResultSchema,
   type WriteMultipleResult,
 } from '../schemas/tool-schemas'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
 
@@ -597,7 +597,7 @@ export class ContentValidators {
         }
 
         // Clean up temp file
-        await unlink(tempFilePath).catch(() => { })
+        await unlink(tempFilePath).catch(() => {})
       } catch (lspError: any) {
         warnings.push(`LSP validation unavailable: ${lspError.message}`)
 

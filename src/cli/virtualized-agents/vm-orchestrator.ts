@@ -199,37 +199,37 @@ export class VMOrchestrator extends EventEmitter {
 
       const setupCommands = useLocalPath
         ? [
-          // Ensure mounted path exists inside container
-          'if [ ! -d /workspace/repo ]; then echo "Mounted repository not accessible" >&2; exit 1; fi',
+            // Ensure mounted path exists inside container
+            'if [ ! -d /workspace/repo ]; then echo "Mounted repository not accessible" >&2; exit 1; fi',
 
-          // Print git status when available, otherwise continue
-          'cd /workspace/repo && if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git status; else echo "Directory is not a git repository"; fi',
+            // Print git status when available, otherwise continue
+            'cd /workspace/repo && if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git status; else echo "Directory is not a git repository"; fi',
 
-          // Install dependencies if package.json exists (npm preferred)
-          'cd /workspace/repo && if [ -f package.json ]; then (npm install || npm ci || true); fi',
+            // Install dependencies if package.json exists (npm preferred)
+            'cd /workspace/repo && if [ -f package.json ]; then (npm install || npm ci || true); fi',
 
-          // Install Python dependencies if requirements.txt exists and pip3 is available
-          'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
-        ]
+            // Install Python dependencies if requirements.txt exists and pip3 is available
+            'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
+          ]
         : [
-          // Configure git to skip SSL verification for this clone (temporary workaround)
-          'git config --global http.sslverify false',
+            // Configure git to skip SSL verification for this clone (temporary workaround)
+            'git config --global http.sslverify false',
 
-          // Clone repository to workspace
-          `cd /workspace && git clone ${repositoryUrl} repo`,
+            // Clone repository to workspace
+            `cd /workspace && git clone ${repositoryUrl} repo`,
 
-          // Re-enable SSL verification
-          'git config --global http.sslverify true',
+            // Re-enable SSL verification
+            'git config --global http.sslverify true',
 
-          // Install dependencies if package.json exists (npm preferred)
-          'cd /workspace/repo && if [ -f package.json ]; then npm install; fi',
+            // Install dependencies if package.json exists (npm preferred)
+            'cd /workspace/repo && if [ -f package.json ]; then npm install; fi',
 
-          // Install Python dependencies if requirements.txt exists and pip3 is available
-          'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
+            // Install Python dependencies if requirements.txt exists and pip3 is available
+            'if command -v pip3 >/dev/null 2>&1; then cd /workspace/repo && if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi; else echo "pip3 not found, skipping python deps"; fi',
 
-          // Make directory accessible
-          'chmod -R 755 /workspace',
-        ]
+            // Make directory accessible
+            'chmod -R 755 /workspace',
+          ]
 
       for (const command of setupCommands) {
         await this.executeCommand(containerId, command)

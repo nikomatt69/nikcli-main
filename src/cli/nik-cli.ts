@@ -9,23 +9,25 @@ import ora, { type Ora } from 'ora'
 import * as readline from 'readline'
 import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { modelProvider } from './ai/model-provider'
-import { ModernAIProvider } from './ai/modern-ai-provider'
+import type { ModernAIProvider } from './ai/modern-ai-provider'
 import { ModernAgentOrchestrator } from './automation/agents/modern-agent-system'
 import { chatManager } from './chat/chat-manager'
 import { SlashCommandHandler } from './chat/nik-cli-commands'
 import { CADCommands } from './commands/cad-commands'
 import { TOKEN_LIMITS } from './config/token-limits'
 import { docsContextManager } from './context/docs-context-manager'
+import { initializeRAG } from './context/rag-setup'
 import { unifiedRAGSystem } from './context/rag-system'
 import { workspaceContext } from './context/workspace-context'
-import { initializeRAG } from './context/rag-setup'
 import { agentFactory } from './core/agent-factory'
 import { AgentManager } from './core/agent-manager'
 import { agentStream } from './core/agent-stream'
 import { agentTodoManager } from './core/agent-todo-manager'
+import { agentLearningSystem } from './core/agent-learning-system'
+import { intelligentFeedbackWrapper } from './core/intelligent-feedback-wrapper'
 
 import { createCloudDocsProvider, getCloudDocsProvider } from './core/cloud-docs-provider'
-import { completionCache } from './core/completion-protocol-cache'
+import { completionCache, CompletionProtocolCache } from './core/completion-protocol-cache'
 // Import existing modules
 import { configManager, type SimpleConfigManager, simpleConfigManager } from './core/config-manager'
 import { contextTokenManager } from './core/context-token-manager'
@@ -56,6 +58,8 @@ import { toolService } from './services/tool-service'
 import { StreamingOrchestrator } from './streaming-orchestrator'
 import { toolsManager } from './tools/tools-manager'
 import { advancedUI } from './ui/advanced-cli-ui'
+import { createCognitiveRouteAnalyzer, type CognitiveRouteAnalyzer } from './core/cognitive-route-analyzer'
+import { projectMemory, type ProjectMemoryManager } from './core/project-memory'
 import { approvalSystem } from './ui/approval-system'
 import { createStringPushStream, renderChatStreamToTerminal } from './ui/streamdown-renderer'
 import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
@@ -183,6 +187,10 @@ export class NikCLI {
   private configManager: SimpleConfigManager
   private agentManager: AgentManager
   private planningManager: PlanningManager
+  private cognitiveRouteAnalyzer?: CognitiveRouteAnalyzer
+  private agentLearningSystem: typeof agentLearningSystem
+  private intelligentFeedbackWrapper: typeof intelligentFeedbackWrapper
+  private projectMemory: ProjectMemoryManager
   private workingDirectory: string
   private currentMode: 'default' | 'plan' | 'vm' = 'default'
   private currentAgent?: string
@@ -293,17 +301,20 @@ export class NikCLI {
   private planHudVisible: boolean = true
 
   // Parallel toolchain display state
-  private parallelToolchainDisplay?: Map<string, {
-    agentName: string
-    toolName: string
-    status: 'executing' | 'completed' | 'failed'
-    display: string
-    timestamp: number
-  }>
+  private parallelToolchainDisplay?: Map<
+    string,
+    {
+      agentName: string
+      toolName: string
+      status: 'executing' | 'completed' | 'failed'
+      display: string
+      timestamp: number
+    }
+  >
 
   // When the Plan HUD is visible, suppress verbose Advanced UI functionCall/functionUpdate
   // console prints to avoid duplicated rows alongside the dedicated toolchain rows.
-  private suppressToolLogsWhilePlanHudVisible: boolean = true
+  private suppressToolLogsWhilePlanHudVisible: boolean = this.currentMode === 'plan' ? false : true
 
   // Enhanced services
   private enhancedSessionManager: EnhancedSessionManager
@@ -334,6 +345,14 @@ export class NikCLI {
     this.enhancedSessionManager = new EnhancedSessionManager()
     this.isEnhancedMode = this.configManager.getRedisConfig().enabled || this.configManager.getSupabaseConfig().enabled
     this.planningManager = new PlanningManager(this.workingDirectory)
+
+    // Initialize learning and feedback systems
+    this.agentLearningSystem = agentLearningSystem
+    this.intelligentFeedbackWrapper = intelligentFeedbackWrapper
+    // Initialize cognitive route analyzer
+    this.cognitiveRouteAnalyzer = createCognitiveRouteAnalyzer(this.workingDirectory)
+    // Initialize project memory
+    this.projectMemory = projectMemory
     // Initialize paste handler for long text processing
     this.pasteHandler = PasteHandler.getInstance()
 
@@ -2098,11 +2117,17 @@ export class NikCLI {
     this.structuredUIEnabled = shouldUseStructuredUI
 
     if (shouldUseStructuredUI) {
-      advancedUI.logFunctionUpdate('info', chalk.cyan('\n🎨 UI Selection: AdvancedCliUI selected (structuredUI = true)'))
+      advancedUI.logFunctionUpdate(
+        'info',
+        chalk.cyan('\n🎨 UI Selection: AdvancedCliUI selected (structuredUI = true)')
+      )
       advancedUI.startInteractiveMode()
       advancedUI.logInfo('AdvancedCliUI Ready', `Mode: ${this.currentMode} - 4 Panels configured`)
     } else {
-      advancedUI.logFunctionUpdate('info', chalk.dim('\n📺 UI Selection: Console stdout selected (structuredUI = false)'))
+      advancedUI.logFunctionUpdate(
+        'info',
+        chalk.dim('\n📺 UI Selection: Console stdout selected (structuredUI = false)')
+      )
     }
 
     if (options.plan) {
@@ -2178,7 +2203,10 @@ export class NikCLI {
           // Cancel background agent tasks (running and queued)
           const cancelled = agentService.cancelAllTasks?.() ?? 0
           if (cancelled > 0) {
-            advancedUI.logFunctionUpdate('info', chalk.yellow(`⏹️  Stopped ${cancelled} background agent task${cancelled > 1 ? 's' : ''}`))
+            advancedUI.logFunctionUpdate(
+              'info',
+              chalk.yellow(`⏹️  Stopped ${cancelled} background agent task${cancelled > 1 ? 's' : ''}`)
+            )
           }
 
           // Kill any running subprocesses started by tools
@@ -2197,7 +2225,10 @@ export class NikCLI {
                   })
                 )
                 if (killed > 0) {
-                  advancedUI.logFunctionUpdate('info', chalk.yellow(`  Terminated ${killed} running process${killed > 1 ? 'es' : ''}`))
+                  advancedUI.logFunctionUpdate(
+                    'info',
+                    chalk.yellow(`  Terminated ${killed} running process${killed > 1 ? 'es' : ''}`)
+                  )
                 }
               })()
           } catch {
@@ -2214,10 +2245,6 @@ export class NikCLI {
         }
 
         // @ key listener removed per user request (was causing issues)
-
-
-
-
 
         // Handle ? key to show a quick cheat-sheet overlay (only at start of line)
         if (chunk === '?' && !this.assistantProcessing) {
@@ -2377,7 +2404,10 @@ export class NikCLI {
       input.split(' ').length > 30 // Very long command
 
     if (shouldEnableCompact && process.env.NIKCLI_COMPACT !== '1') {
-      advancedUI.logFunctionUpdate('info', chalk.yellow('🛡️ Auto-enabling compact mode for complex request to prevent token overflow'))
+      advancedUI.logFunctionUpdate(
+        'info',
+        chalk.yellow('🛡️ Auto-enabling compact mode for complex request to prevent token overflow')
+      )
       process.env.NIKCLI_COMPACT = '1'
 
       // Also set super compact for very complex requests
@@ -2512,11 +2542,14 @@ export class NikCLI {
       }
 
       const _queueId = inputQueue.enqueue(actualInput, priority, 'user')
-      advancedUI.logFunctionUpdate('info', chalk.cyan(
+      advancedUI.logFunctionUpdate(
+        'info',
         chalk.cyan(
-          `📥 Input queued (${priority} priority): ${displayText.substring(0, 40)}${displayText.length > 40 ? '...' : ''}`
+          chalk.cyan(
+            `📥 Input queued (${priority} priority): ${displayText.substring(0, 40)}${displayText.length > 40 ? '...' : ''}`
+          )
         )
-      ))
+      )
       this.renderPromptAfterOutput()
       return
     }
@@ -2558,7 +2591,10 @@ export class NikCLI {
 
     // Processa il prossimo input dalla queue
     const result = await inputQueue.processNext(async (input: string) => {
-      advancedUI.logFunctionUpdate('info', chalk.blue(`⚡︎ Processing queued input: ${input.substring(0, 40)}${input.length > 40 ? '...' : ''}`))
+      advancedUI.logFunctionUpdate(
+        'info',
+        chalk.blue(`⚡︎ Processing queued input: ${input.substring(0, 40)}${input.length > 40 ? '...' : ''}`)
+      )
 
       // Simula il processing dell'input
       this.assistantProcessing = true
@@ -2580,11 +2616,14 @@ export class NikCLI {
     })
 
     if (result) {
-      advancedUI.logFunctionUpdate('info', chalk.green(
+      advancedUI.logFunctionUpdate(
+        'info',
         chalk.green(
-          `✓ Queued input processed: ${result.input.substring(0, 40)}${result.input.length > 40 ? '...' : ''}`
+          chalk.green(
+            `✓ Queued input processed: ${result.input.substring(0, 40)}${result.input.length > 40 ? '...' : ''}`
+          )
         )
-      ))
+      )
 
       this.renderPromptAfterOutput()
 
@@ -2685,8 +2724,14 @@ export class NikCLI {
           if (args.length === 0) {
             this.currentMode = 'plan'
             advancedUI.logFunctionUpdate('info', chalk.green('✓ Switched to plan mode'))
-            advancedUI.logFunctionUpdate('info', chalk.dim('   Plan mode: Creates detailed plans and asks for approval before execution'))
-            advancedUI.logFunctionUpdate('info', chalk.dim('   Default mode: Auto-generates todos for complex tasks and executes in background'))
+            advancedUI.logFunctionUpdate(
+              'info',
+              chalk.dim('   Plan mode: Creates detailed plans and asks for approval before execution')
+            )
+            advancedUI.logFunctionUpdate(
+              'info',
+              chalk.dim('   Default mode: Auto-generates todos for complex tasks and executes in background')
+            )
           } else {
             await this.generatePlan(args.join(' '), {})
           }
@@ -2695,13 +2740,19 @@ export class NikCLI {
         case 'default':
           this.currentMode = 'default'
           advancedUI.logFunctionUpdate('info', chalk.green('✓ Switched to default mode'))
-          advancedUI.logFunctionUpdate('info', chalk.dim('   Default mode: Auto-generates todos for complex tasks and executes in background'))
+          advancedUI.logFunctionUpdate(
+            'info',
+            chalk.dim('   Default mode: Auto-generates todos for complex tasks and executes in background')
+          )
           break
 
         case 'vm':
           this.currentMode = 'vm'
           advancedUI.logFunctionUpdate('info', chalk.green('✓ Switched to VM mode'))
-          advancedUI.logFunctionUpdate('info', chalk.dim('   VM mode: Creates detailed plans and asks for approval before execution'))
+          advancedUI.logFunctionUpdate(
+            'info',
+            chalk.dim('   VM mode: Creates detailed plans and asks for approval before execution')
+          )
           break
 
         // File Operations
@@ -3410,6 +3461,11 @@ export class NikCLI {
         advancedUI.logFunctionUpdate('error', `Token tracking failed for input: ${error}`)
       }
 
+      // Record usage in project memory
+      try {
+        this.projectMemory.recordUsage({ type: 'command', details: input })
+      } catch { }
+
       // Load relevant project context for enhanced chat responses
       const relevantContext = await this.getRelevantProjectContext(input)
       const enhancedInput = relevantContext ? `${input}\n\nContext: ${relevantContext}` : input
@@ -3491,7 +3547,10 @@ export class NikCLI {
       advancedUI.logFunctionUpdate('info', chalk.gray(` Container: ${selectedVM.containerId.slice(0, 12)}`))
 
       if (selectedVM.systemInfo) {
-        advancedUI.logFunctionUpdate('info', chalk.gray(` System: ${selectedVM.systemInfo.os} ${selectedVM.systemInfo.arch}`))
+        advancedUI.logFunctionUpdate(
+          'info',
+          chalk.gray(` System: ${selectedVM.systemInfo.os} ${selectedVM.systemInfo.arch}`)
+        )
         advancedUI.logFunctionUpdate('info', chalk.gray(`⚡︎ Working Dir: ${selectedVM.systemInfo.workingDirectory}`))
       }
 
@@ -3503,20 +3562,29 @@ export class NikCLI {
       const chatHistory = vmSelector.getChatHistory(selectedVM.id)
       advancedUI.logFunctionUpdate('info', chalk.gray(` Chat History: ${chatHistory.length} messages`))
 
-      advancedUI.logFunctionUpdate('info', chalk.gray(` Message: ${input.substring(0, 80)}${input.length > 80 ? '...' : ''}`))
+      advancedUI.logFunctionUpdate(
+        'info',
+        chalk.gray(` Message: ${input.substring(0, 80)}${input.length > 80 ? '...' : ''}`)
+      )
       advancedUI.logFunctionUpdate('info', chalk.white('─'.repeat(50)))
       console.log()
 
       try {
         // Send message to the selected VM agent through the communication bridge
-        advancedUI.logFunctionUpdate('info', chalk.blue(` Sending to VM Agent ${selectedVM.containerId.slice(0, 8)}...`))
+        advancedUI.logFunctionUpdate(
+          'info',
+          chalk.blue(` Sending to VM Agent ${selectedVM.containerId.slice(0, 8)}...`)
+        )
 
         // Use real communication through VMOrchestrator bridge
         if (vmOrchestrator.sendMessageToAgent) {
           const response = await vmOrchestrator.sendMessageToAgent(selectedVM.agentId, input)
 
           if (response.success) {
-            advancedUI.logFunctionUpdate('info', chalk.green(`✓ VM Response received (${response.metadata?.responseTime}ms)`))
+            advancedUI.logFunctionUpdate(
+              'info',
+              chalk.green(`✓ VM Response received (${response.metadata?.responseTime}ms)`)
+            )
             console.log()
             advancedUI.logFunctionUpdate('info', chalk.cyan(` ${selectedVM.name}:`))
             console.log(chalk.white(`┌${'─'.repeat(58)}┐`))
@@ -3582,9 +3650,11 @@ export class NikCLI {
         // Show bridge statistics
         if (vmOrchestrator.getBridgeStats) {
           const stats = vmOrchestrator.getBridgeStats()
-          advancedUI.logFunctionUpdate('info', chalk.gray(
-            ` Bridge Stats: ${stats.totalMessagesRouted} messages | ${Math.round(stats.averageResponseTime)}ms avg`
-          )
+          advancedUI.logFunctionUpdate(
+            'info',
+            chalk.gray(
+              ` Bridge Stats: ${stats.totalMessagesRouted} messages | ${Math.round(stats.averageResponseTime)}ms avg`
+            )
           )
         }
       } catch (error: any) {
@@ -4591,9 +4661,13 @@ ${todo.description ? `\n**Description:** ${todo.description}` : ''}
 
 **Agent Outputs:**
 
-${agentOutputs.map((ao) => `### ${ao.agentName} (${ao.specialization})
+${agentOutputs
+        .map(
+          (ao) => `### ${ao.agentName} (${ao.specialization})
 ${ao.output || '(No output)'}
-`).join('\n\n')}
+`
+        )
+        .join('\n\n')}
 
 **Your Job:**
 Synthesize these outputs into ONE coherent result with the following sections:
@@ -4640,7 +4714,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   /**
    * Pre-merge agent outputs: deduplicate common sections, align headings
    */
-  private preMergeAgentOutputs(agentOutputs: Array<{ agentName: string; specialization: string; output: string }>): string {
+  private preMergeAgentOutputs(
+    agentOutputs: Array<{ agentName: string; specialization: string; output: string }>
+  ): string {
     const sections: string[] = []
 
     sections.push(`### Combined Analysis from ${agentOutputs.length} Agents\n`)
@@ -4717,7 +4793,12 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Format exactly like plan mode tool display
     const icon = status === 'executing' ? chalk.yellow('▸') : status === 'completed' ? chalk.green('✓') : chalk.red('✖')
     const agent = chalk.bold(agentName)
-    const tool = status === 'executing' ? chalk.cyan(toolName) : status === 'completed' ? chalk.green(toolName) : chalk.red(toolName)
+    const tool =
+      status === 'executing'
+        ? chalk.cyan(toolName)
+        : status === 'completed'
+          ? chalk.green(toolName)
+          : chalk.red(toolName)
     const argsPreview = toolArgs ? chalk.dim(this.formatToolArgsPreview(toolArgs, 40)) : ''
 
     // Push to stream like plan mode does
@@ -4735,11 +4816,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     toolArgs: any,
     terminalWidth: number
   ): string {
-    const icon =
-      status === 'executing' ? chalk.yellow('▸') : status === 'completed' ? chalk.green('☑') : chalk.red('✖')
+    const icon = status === 'executing' ? chalk.yellow('▸') : status === 'completed' ? chalk.green('☑') : chalk.red('✖')
     const agent = chalk.bold(agentName)
     const tool =
-      status === 'executing' ? chalk.cyan(toolName) : status === 'completed' ? chalk.green(toolName) : chalk.red(toolName)
+      status === 'executing'
+        ? chalk.cyan(toolName)
+        : status === 'completed'
+          ? chalk.green(toolName)
+          : chalk.red(toolName)
 
     // Compute available width for args preview similar to HUD truncation
     const fixed = this._stripAnsi(`${icon} ${agent}: ${tool} `).length
@@ -4749,8 +4833,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     return `${icon} ${agent}: ${tool}${args ? ' ' + args : ''}`
   }
-
-
 
   /**
    * Calculate a dynamic cap for plan-related UI heights based on terminal size
@@ -4960,7 +5042,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Set up task timeout to prevent hanging
     const taskTimeout = this.safeTimeout(() => {
       throw new Error(`Task timeout: ${task.title} (exceeded 30 minutes)`)
-    }, 1800000) // 30 minutes = 30 * 60 * 1000 ms // 5 minute timeout 
+    }, 1800000) // 30 minutes = 30 * 60 * 1000 ms // 5 minute timeout
 
     try {
       // Execute task exactly like default mode using tool router
@@ -4971,9 +5053,12 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
       if (toolRecommendations.length > 0) {
         const topRecommendation = toolRecommendations[0]
-        advancedUI.logFunctionUpdate('info', chalk.blue(
-          ` Detected ${topRecommendation.tool} intent (${Math.round(topRecommendation.confidence * 100)}% confidence)`
-        ))
+        advancedUI.logFunctionUpdate(
+          'info',
+          chalk.blue(
+            ` Detected ${topRecommendation.tool} intent (${Math.round(topRecommendation.confidence * 100)}% confidence)`
+          )
+        )
 
         // Execute like default mode - start structured UI
 
@@ -5401,6 +5486,15 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Initialize as Unified Aggregator for all event sources
     this.subscribeToAllEventSources()
 
+    // Cognitive route analysis (for learning/routing)
+    try {
+      if (this.cognitiveRouteAnalyzer) {
+        await this.cognitiveRouteAnalyzer.analyzeCognitiveRoute(input, {
+          conversationHistory: chatManager.getCurrentSession()?.messages?.slice(-5) as any,
+        })
+      }
+    } catch { }
+
     // DISABLED: Auto-todo generation in default chat mode
     // Now only triggers when user explicitly mentions "todo"
     try {
@@ -5449,6 +5543,23 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               ` Detected ${topRecommendation.tool} intent (${Math.round(topRecommendation.confidence * 100)}% confidence)`
             )
           )
+
+          // Record success intent pattern to learning system
+          try {
+            this.agentLearningSystem.recordDecision(
+              {
+                task: 'default-chat-input',
+                availableTools: toolRouter.getAllTools().map((t) => t.tool),
+                userContext: input.slice(0, 80),
+                previousAttempts: [],
+                urgency: 'medium',
+              },
+              topRecommendation.tool,
+              topRecommendation.suggestedParams || {},
+              'success',
+              0
+            )
+          } catch { }
 
           // Auto-execute high-confidence tool recommendations in VM if available
           if (topRecommendation.confidence > 0.7 && this.activeVMContainer) {
@@ -6044,7 +6155,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           const key = `read:${path.resolve(filePath)}`
           const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
 
-          advancedUI.logFunctionCall(formatFileOp('File:', filePath, `${fileInfo.size} bytes, ${fileInfo.language || 'unknown'}`))
+          advancedUI.logFunctionCall(
+            formatFileOp('File:', filePath, `${fileInfo.size} bytes, ${fileInfo.language || 'unknown'}`)
+          )
           console.log(chalk.gray(`Lines: ${total}`))
           console.log(chalk.gray('─'.repeat(50)))
 
@@ -9162,6 +9275,22 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Ensure orchestrator services share our working directory
     planningService.setWorkingDirectory(this.workingDirectory)
 
+    // Initialize project memory for this workspace
+    try {
+      await this.projectMemory.initializeProject(this.workingDirectory)
+    } catch { }
+
+    // Warm up learning and feedback systems (non-blocking)
+    try {
+      const insights = this.agentLearningSystem.getAgentInsights()
+      advancedUI.logInfo('Learning System', `Patterns: ${insights.totalPatterns}, Confidence: ${insights.confidenceScore}`)
+    } catch { }
+
+    try {
+      const stats = this.intelligentFeedbackWrapper.getLearningStats()
+      advancedUI.logInfo('Feedback System', `Patterns: ${stats.totalPatterns}, Avg confidence: ${stats.avgConfidence.toFixed(2)}`)
+    } catch { }
+
     // Initialize memory and snapshot services
     await memoryService.initialize()
     await snapshotService.initialize()
@@ -11438,8 +11567,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const workingDir = chalk.blue(path.basename(this.workingDirectory))
 
     // Mode info
-    const modeIcon =
-      this.currentMode === 'plan' ? '⚡︎' : this.currentMode === 'vm' ? '🐳' : '💎'
+    const modeIcon = this.currentMode === 'plan' ? '⚡︎' : this.currentMode === 'vm' ? '🐳' : '💎'
     const _modeText = this.currentMode.toUpperCase()
 
     // VM info if in VM mode
@@ -11452,7 +11580,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         vmInfo = ` | ❓ No VM selected`
       }
     }
-
 
     // Status info
     const queueStatus = inputQueue.getStatus()
@@ -11946,8 +12073,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const planHudLines = this.planHudVisible ? this.buildPlanHudLines(terminalWidth) : []
 
     // Mode info
-    const _modeIcon =
-      this.currentMode === 'plan' ? '✅' : this.currentMode === 'vm' ? '🐳' : '💎'
+    const _modeIcon = this.currentMode === 'plan' ? '✅' : this.currentMode === 'vm' ? '🐳' : '💎'
     const modeText = this.currentMode.toUpperCase()
 
     // Status info
@@ -11973,7 +12099,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     }
 
     // Render slash menu if active
-
 
     // Model/provider
     const currentModel2 = this.configManager.getCurrentModel()
@@ -12012,7 +12137,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     }
 
     // Vim info if in vim mode
-
 
     const statusLeft = `${statusIndicator} ${readyText}${modeSegment}${vmInfo} | ${responsiveModelDisplay2} | ${contextInfo2}${tokenRate2}`
     const rightExtra = `${queueCount2 > 0 ? ` | 📥 ${queueCount2}` : ''}${runningAgents > 0 ? ` | 🔌 ${runningAgents}` : ''}`
@@ -13257,8 +13381,6 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     console.log(chalk.green('✓ Goodbye!'))
     process.exit(0)
   }
-
-
 
   private async runCommand(command: string): Promise<void> {
     // Avoid spinner during streaming to prevent prompt overlap/races
@@ -18433,7 +18555,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     const k = 1024
     const sizes = ['B', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
+    return `${(bytes / k ** i).toFixed(1)} ${sizes[i]}`
   }
 
   /**
@@ -20134,8 +20256,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   }
 
   /**
-     * Handle slash menu navigation with arrow keys and scrolling
-     */
+   * Handle slash menu navigation with arrow keys and scrolling
+   */
   private handleSlashMenuNavigation(key: any): boolean {
     if (!this.isSlashMenuActive) return false
 
@@ -20220,7 +20342,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     this.currentSlashInput = input
     this.slashMenuCommands = this.filterSlashCommands(input)
     this.slashMenuSelectedIndex = Math.min(this.slashMenuSelectedIndex, this.slashMenuCommands.length - 1)
-    this.slashMenuScrollOffset = Math.min(this.slashMenuScrollOffset, Math.max(0, this.slashMenuCommands.length - this.SLASH_MENU_MAX_VISIBLE))
+    this.slashMenuScrollOffset = Math.min(
+      this.slashMenuScrollOffset,
+      Math.max(0, this.slashMenuCommands.length - this.SLASH_MENU_MAX_VISIBLE)
+    )
 
     // Ensure selected item is visible
     if (this.slashMenuSelectedIndex < this.slashMenuScrollOffset) {
@@ -20232,7 +20357,6 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     this.renderPromptArea()
   }
 }
-
 
 // Global instance for access from other modules
 let globalNikCLI: NikCLI | null = null

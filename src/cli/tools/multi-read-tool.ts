@@ -234,7 +234,9 @@ export class MultiReadTool extends BaseTool {
         ...(search ? { search: { pattern: params.pattern!, totalMatches, filesWithMatches } } : {}),
       }
 
-      advancedUI.logSuccess(`📖 Read ${results.length}/${filtered.length} files${search ? `, ${totalMatches} matches` : ''}`)
+      advancedUI.logSuccess(
+        `📖 Read ${results.length}/${filtered.length} files${search ? `, ${totalMatches} matches` : ''}`
+      )
 
       return {
         success: true,

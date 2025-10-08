@@ -2,11 +2,11 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { PromptManager } from '../prompts/prompt-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Enhanced EditTool - Editor avanzato con diff, patch e validation
@@ -119,10 +119,12 @@ export class EditTool extends BaseTool {
       // Scrivi nuovo contenuto
       if (editResult.replacementsMade > 0) {
         await this.writeFileWithValidation(filePath, editResult.changes, params)
-        advancedUI.logFunctionUpdate('success', `✓ File edited successfully: ${editResult.replacementsMade} replacements made`)
+        advancedUI.logFunctionUpdate(
+          'success',
+          `✓ File edited successfully: ${editResult.replacementsMade} replacements made`
+        )
         advancedUI.logFunctionCall('edit-tool')
       } else {
-
         advancedUI.logFunctionUpdate('warning', '⚠️ No replacements made - pattern not found')
         advancedUI.logFunctionCall('edit-tool')
       }

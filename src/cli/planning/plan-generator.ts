@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import type {
   ExecutionPlan,
@@ -7,7 +8,6 @@ import type {
   PlanningToolCapability,
   PlanValidationResult,
 } from './types'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Production-ready Plan Generator

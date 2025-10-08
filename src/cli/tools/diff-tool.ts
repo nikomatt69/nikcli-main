@@ -1,6 +1,6 @@
-import { diffLines, diffWords, type Change } from 'diff'
 import { readFile } from 'node:fs/promises'
 import chalk from 'chalk'
+import { type Change, diffLines, diffWords } from 'diff'
 import { PromptManager } from '../prompts/prompt-manager'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
@@ -285,12 +285,7 @@ export class DiffTool extends BaseTool {
   /**
    * Format as unified diff
    */
-  private formatUnified(
-    changes: DiffChange[],
-    _context: number,
-    showLineNumbers: boolean,
-    colorize: boolean
-  ): string {
+  private formatUnified(changes: DiffChange[], _context: number, showLineNumbers: boolean, colorize: boolean): string {
     const lines: string[] = []
 
     for (const change of changes) {

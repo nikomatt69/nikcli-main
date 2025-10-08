@@ -1,5 +1,5 @@
-import { globby } from 'globby'
 import { stat } from 'node:fs/promises'
+import { globby } from 'globby'
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
@@ -173,9 +173,7 @@ export class GlobTool extends BaseTool {
         },
       }
 
-      CliUI.logSuccess(
-        `✓ Found ${result.totalMatches} matches (${filesCount} files, ${directoriesCount} dirs)`
-      )
+      CliUI.logSuccess(`✓ Found ${result.totalMatches} matches (${filesCount} files, ${directoriesCount} dirs)`)
 
       // Show glob results in structured UI
       if (result.matches.length > 0) {
