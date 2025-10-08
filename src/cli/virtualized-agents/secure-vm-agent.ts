@@ -403,9 +403,16 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       this.vmState = 'starting'
       this.startTime = new Date()
 
-      const { target: repositoryTarget, isLocal } = this.resolveRepositoryTarget(repoUrl)
+      // Support OS-only VMs: repository can be empty to just boot the OS image
+      let repositoryTarget = ''
+      let isLocal = false
+      if (repoUrl && repoUrl.trim()) {
+        const resolved = this.resolveRepositoryTarget(repoUrl)
+        repositoryTarget = resolved.target
+        isLocal = resolved.isLocal
+      }
 
-      advancedUI.logInfo(`🐳 Creating isolated VM container for ${repositoryTarget}`)
+      advancedUI.logInfo(`🐳 Creating isolated VM container${repositoryTarget ? ` for ${repositoryTarget}` : ''}`)
 
       // Create secure container
       this.containerId = await this.vmOrchestrator.createSecureContainer({
@@ -417,13 +424,15 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
         capabilities: this.capabilities,
       })
 
-      // Setup repository and environment
-      await this.vmOrchestrator.setupRepository(this.containerId, repositoryTarget, {
-        useLocalPath: isLocal,
-      })
-      this.repositoryPath = '/workspace/repo'
-      await this.vmOrchestrator.setupVSCodeServer(this.containerId)
-      await this.vmOrchestrator.setupDevelopmentEnvironment(this.containerId)
+      // Setup repository and environment only if a repository target was provided
+      if (repositoryTarget) {
+        await this.vmOrchestrator.setupRepository(this.containerId, repositoryTarget, {
+          useLocalPath: isLocal,
+        })
+        this.repositoryPath = '/workspace/repo'
+        await this.vmOrchestrator.setupVSCodeServer(this.containerId)
+        await this.vmOrchestrator.setupDevelopmentEnvironment(this.containerId)
+      }
 
       this.vmState = 'running'
       this.vscodeServerPort = await this.vmOrchestrator.getVSCodePort(this.containerId)

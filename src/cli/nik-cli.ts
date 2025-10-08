@@ -3468,7 +3468,7 @@ export class NikCLI {
       const containers = this.slashHandler.getActiveVMContainers?.() || []
       if (containers.length === 0) {
         advancedUI.logFunctionUpdate('info', chalk.yellow('⚠️ No active VM containers'))
-        advancedUI.logFunctionUpdate('info', chalk.gray('Use /vm-create <repo-url> to create one'))
+        advancedUI.logFunctionUpdate('info', chalk.gray('Use /vm-create <repo-url|os> to create one'))
         advancedUI.logFunctionUpdate('info', chalk.gray('Use /default to exit VM mode'))
         return
       }
@@ -10962,7 +10962,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       ['/bg-logs <jobId> [limit]', 'View job execution logs'],
 
       // 🐳 VM Container Operations
-      ['/vm-create <repo-url>', 'Create new VM container'],
+      ['/vm-create <repo-url|os>', 'Create new VM container (supports alpine|debian/ubuntu)'],
       ['/vm-list', 'List all active containers'],
       ['/vm-connect <id>', 'Connect to specific container'],
       ['/vm-stop <id>', 'Stop running container'],
