@@ -63,6 +63,7 @@ import { projectMemory, type ProjectMemoryManager } from './core/project-memory'
 import { approvalSystem } from './ui/approval-system'
 import { createStringPushStream, renderChatStreamToTerminal } from './ui/streamdown-renderer'
 import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
+import { terminalOutputManager, TerminalOutputManager } from './ui/terminal-output-manager'
 // Paste handling system
 import { PasteHandler } from './utils/paste-handler'
 
@@ -11201,31 +11202,31 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     }
 
     addGroup('🏠 Core System:', 0, 6)
-    addGroup('🎯 Mode Control:', 6, 10)
-    addGroup('📁 File Operations:', 10, 15)
-    addGroup('⚡ Terminal Operations:', 15, 22)
-    addGroup('🤖 AI Configuration:', 22, 28)
-    addGroup('🎨 Output Styles:', 28, 33)
-    addGroup('🔑 API Keys:', 33, 39)
-    addGroup('🚀 Performance:', 39, 44)
-    addGroup('🤖 Agent Factory:', 44, 53)
-    addGroup('💾 Memory & Context:', 53, 58)
-    addGroup('📋 Planning & Todos:', 58, 60)
-    addGroup('📝 Session Management:', 60, 64)
-    addGroup('💼 Work Session Management:', 64, 69)
-    addGroup('↩️ Edit History (Undo/Redo):', 69, 72)
-    addGroup('🔌 Background Agents:', 72, 76)
-    addGroup('🐳 VM Containers:', 76, 94)
-    addGroup('🌐 Web Browsing:', 94, 96)
-    addGroup('🎨 Figma Integration:', 96, 102)
-    addGroup('🔗 Blockchain/Web3:', 102, 106)
-    addGroup('🔍 Vision & Images:', 106, 108)
-    addGroup('🛠️ CAD Design:', 108, 114)
-    addGroup('⚙️ G-code/CNC:', 114, 119)
-    addGroup('📚 Documentation:', 119, 122)
-    addGroup('📸 Snapshots:', 122, 125)
-    addGroup('🔒 Security:', 125, 128)
-    addGroup(' IDE Integration:', 128, commands.length)
+    addGroup('🎯 Mode Control:', 6, 9)
+    addGroup('📁 File Operations:', 9, 14)
+    addGroup('⚡ Terminal Operations:', 14, 21)
+    addGroup('🤖 AI Configuration:', 21, 27)
+    addGroup('🎨 Output Styles:', 27, 32)
+    addGroup('🔑 API Keys:', 32, 38)
+    addGroup('🚀 Performance:', 38, 43)
+    addGroup('🤖 Agent Factory:', 43, 52)
+    addGroup('💾 Memory & Context:', 52, 57)
+    addGroup('📋 Planning & Todos:', 57, 59)
+    addGroup('📝 Session Management:', 59, 63)
+    addGroup('💼 Work Session Management:', 63, 68)
+    addGroup('↩️ Edit History (Undo/Redo):', 68, 71)
+    addGroup('🔌 Background Agents:', 71, 75)
+    addGroup('🐳 VM Containers:', 75, 93)
+    addGroup('🌐 Web Browsing:', 93, 95)
+    addGroup('🎨 Figma Integration:', 95, 101)
+    addGroup('🔗 Blockchain/Web3:', 101, 105)
+    addGroup('🔍 Vision & Images:', 105, 107)
+    addGroup('🛠️ CAD Design:', 107, 113)
+    addGroup('⚙️ G-code/CNC:', 113, 118)
+    addGroup('📚 Documentation:', 118, 121)
+    addGroup('📸 Snapshots:', 121, 124)
+    addGroup('🔒 Security:', 124, 127)
+    addGroup('💻 IDE Integration:', 127, 130)
 
     lines.push('💡 Quick Tips:')
     lines.push('   • Use Ctrl+C to exit any mode')
@@ -12092,10 +12093,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     process.stdout.write('\x1B[J') // Clear from cursor to end
 
     if (planHudLines.length > 0) {
+      // Track plan HUD output
+      const hudOutputId = terminalOutputManager.reserveSpace('PlanHUD', planHudLines.length + 1)
       for (const line of planHudLines) {
         process.stdout.write(`${line}\n`)
       }
       process.stdout.write('\n')
+      terminalOutputManager.confirmOutput(hudOutputId, 'PlanHUD', planHudLines.length + 1, { persistent: true })
     }
 
     // Render slash menu if active
@@ -12173,6 +12177,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     // Display status bar with frame using process.stdout.write to avoid extra lines
     if (!this.isPrintingPanel) {
+      // Track prompt frame output (3 lines: top border + status line + bottom border)
+      const frameOutputId = terminalOutputManager.reserveSpace('PromptFrame', 3)
+
       process.stdout.write(`${chalk.cyan(`╭${'─'.repeat(terminalWidth - 2)}╮`)}\n`)
 
       // Force exact width to prevent overflow
@@ -12227,6 +12234,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         process.stdout.write(`${statusLine}\n`)
       }
       process.stdout.write(`${chalk.cyan(`╰${'─'.repeat(terminalWidth - 2)}╯`)}\n`)
+
+      // Confirm prompt frame output
+      terminalOutputManager.confirmOutput(frameOutputId, 'PromptFrame', 3, { persistent: true })
     }
 
     if (this.rl) {

@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import * as readline from 'readline'
+import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
 
 /**
  * Stream renderer for the CLI that attempts to use Streamdown when available.
@@ -52,13 +53,18 @@ export async function renderChatStreamToTerminal(
 
   // Keep track of how many lines we've printed if we re-render.
   let printedLines = 0
+  let currentOutputId: string | null = null
 
   for await (const chunk of stream) {
     if (isCancelled()) break
     accumulated += chunk
 
     if (!useRerender) {
+      // Track non-rerender chunk output
+      const chunkLines = TerminalOutputManager.calculateLines(chunk)
+      const outputId = terminalOutputManager.reserveSpace('StreamChunk', chunkLines)
       process.stdout.write(chunk)
+      terminalOutputManager.confirmOutput(outputId, 'StreamChunk', chunkLines, { persistent: false, expiryMs: 30000 })
       continue
     }
 
@@ -71,15 +77,31 @@ export async function renderChatStreamToTerminal(
     if (printedLines > 0) {
       readline.moveCursor(process.stdout, 0, -printedLines)
       readline.clearScreenDown(process.stdout)
+
+      // Clear old output from manager
+      if (currentOutputId) {
+        terminalOutputManager.clearOutput(currentOutputId)
+        currentOutputId = null
+      }
     }
 
+    // Reserve space for new output
+    const newOutputLines = lines.length
+    currentOutputId = terminalOutputManager.reserveSpace('StreamRerender', newOutputLines)
+
     process.stdout.write(lines.join('\n'))
+
+    // Confirm the new output
+    terminalOutputManager.confirmOutput(currentOutputId, 'StreamRerender', newOutputLines, { persistent: false, expiryMs: 30000 })
+
     printedLines = lines.length
   }
 
   if (useRerender && printedLines > 0) {
     // Print a final newline to finish the block cleanly
+    const finalLineId = terminalOutputManager.reserveSpace('StreamFinalNewline', 1)
     process.stdout.write('\n')
+    terminalOutputManager.confirmOutput(finalLineId, 'StreamFinalNewline', 1, { persistent: false, expiryMs: 30000 })
   }
 
   return accumulated

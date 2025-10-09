@@ -6,6 +6,7 @@ import cliProgress from 'cli-progress'
 import { createPatch, diffLines } from 'diff'
 import ora, { type Ora } from 'ora'
 import * as readline from 'readline'
+import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
 
 export interface StatusIndicator {
   id: string
@@ -704,7 +705,10 @@ export class AdvancedCliUI {
     }
 
     // Rendering con tutto grigio scuro tranne il contenuto colorato
-    console.log(`${chalk.dim('  ⎿  ')}${chalk.dim(typeIcon)} ${content}`)
+    const outputText = `${chalk.dim('  ⎿  ')}${chalk.dim(typeIcon)} ${content}`
+    const outputId = terminalOutputManager.reserveSpace('LiveUpdate', 1)
+    console.log(outputText)
+    terminalOutputManager.confirmOutput(outputId, 'LiveUpdate', 1, { persistent: false, expiryMs: 30000 })
   }
 
   /**
@@ -771,7 +775,10 @@ export class AdvancedCliUI {
    */
   logFunctionCall(functionName: string, data?: Record<string, any>): void {
     const formattedName = functionName.toLowerCase()
-    console.log(chalk.cyan(`⏺ ${formattedName}()`))
+    const outputText = chalk.cyan(`⏺ ${formattedName}()`)
+    const outputId = terminalOutputManager.reserveSpace('FunctionCall', 1)
+    console.log(outputText)
+    terminalOutputManager.confirmOutput(outputId, 'FunctionCall', 1, { persistent: false, expiryMs: 30000 })
 
     if (data) {
       this.logFunctionUpdate('info', JSON.stringify(data))
@@ -806,7 +813,10 @@ export class AdvancedCliUI {
     }
 
     const displayIcon = icon || defaultIcon
-    console.log(`${chalk.dim('  ⎿  ')}${chalk.dim(displayIcon)} ${color(message)}`)
+    const outputText = `${chalk.dim('  ⎿  ')}${chalk.dim(displayIcon)} ${color(message)}`
+    const outputId = terminalOutputManager.reserveSpace('FunctionUpdate', 1)
+    console.log(outputText)
+    terminalOutputManager.confirmOutput(outputId, 'FunctionUpdate', 1, { persistent: false, expiryMs: 30000 })
   }
 
   /**
