@@ -1,133 +1,397 @@
-
-# NikCLI Universal Agent - Introduction
-
-Welcome to the **NikCLI Universal Agent**, an advanced AI-powered autonomous development environment designed for full-stack development, DevOps, analysis, optimization, and intelligent coding workflows. This project leverages the Express framework for its robust server-side architecture, enabling seamless API handling and middleware integration in a Node.js ecosystem.
-
-## Current Project Metrics (v0.2.3)
-As of version **0.3.0**, the project has evolved significantly:
-- **Dependencies**: 115 total packages managed via NPM, ensuring comprehensive support for TypeScript, AI integrations, and CLI tools.
-- **Framework**: Built on [Express](https://expressjs.com/) (v4.x), providing lightweight, flexible routing and middleware for handling development tasks efficiently.
-- **Git Changes**: 38 commits in the recent history, focusing on enhancements to CLI orchestration, agent coordination, and workspace intelligence.
-- **Recent Files & Modules**:
-  - `bin/cli.ts`: Core entry point for the command-line interface, handling task parsing and execution.
-  - Vim-related modules (e.g., `modules/vim-integration.ts`): Custom integrations for editor-aware operations, including syntax highlighting and plugin management for development workflows.
-
-This release emphasizes cognitive orchestration, adaptive execution strategies, and integration with specialized agents (e.g., React Agent, Backend Agent, DevOps Agent).
-
-## Key Features
-- **Autonomous Task Execution**: Powered by TaskMaster AI for intelligent planning and breakdown of complex development tasks.
-- **Specialized Agents**: Domain-specific AI agents for frontend, backend, DevOps, code review, and optimization.
-- **Tool Ecosystem**: Full access to file operations, Git integration, package management, build systems, and testing frameworks.
-- **Cognitive Framework**: NLP-based intent extraction, complexity assessment, and hybrid orchestration strategies.
-
-For a deeper dive, explore the [Task Execution Protocol](task-execution-protocol.md) and [Architecture Overview](architecture.md).
-
-## Getting Started
-To set up and run the NikCLI Universal Agent:
-
-1. Clone the repository and install dependencies:
-   ```bash
-   git clone <repo-url>
-   cd nikcli-universal-agent
-   npm install
-   ```
-
-2. Launch the CLI:
-   ```bash
-   npm run start
-   ```
-
-### Example: Express Server Setup with TypeScript
-The project uses Express for its API layer. Below is a production-ready example of the core server setup in `src/server.ts`, including proper TypeScript types and comments for clarity.
-
-```typescript
-import express, { Application, Request, Response, NextFunction } from 'express';
-import { TaskMasterAI } from './services/taskmaster-ai'; // Internal service for AI planning
-import { errorHandler } from './middleware/error-handler'; // Custom error middleware
-
-// Define types for request handling (production-ready: explicit typing for security and maintainability)
-interface TaskRequest extends Request {
-  body: {
-    task: string;
-    context?: Record<string, any>;
-  };
-}
-
-interface TaskResponse {
-  tasks: Array<{
-    id: string;
-    description: string;
-    priority: 'high' | 'medium' | 'low';
-    estimatedDuration: number; // In minutes
-  }>;
-  success: boolean;
-}
-
-// Initialize Express app
-const app: Application = express();
-const PORT: number = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-
-// Middleware setup (Express pattern: JSON parsing and CORS for API endpoints)
-app.use(express.json({ limit: '10mb' })); // Limit payload size for security
-app.use((req: Request, res: Response, next: NextFunction) => {
-  // CORS middleware (comment: Enables cross-origin requests in development)
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  next();
-});
-
-// Route for task generation (core endpoint: Integrates with TaskMaster AI)
-app.post('/generate-tasks', async (req: TaskRequest, res: Response<TaskResponse>) => {
-  try {
-    // Extract task intent (comment: Uses cognitive analysis for complexity assessment)
-    const { task, context } = req.body;
-    const taskMaster = new TaskMasterAI();
-    
-    // Generate 5-8 subtasks (production-ready: Error handling for AI failures with fallbacks)
-    const generatedTasks = await taskMaster.generateTasksWithAI(task, context);
-    
-    if (!generatedTasks || generatedTasks.length === 0) {
-      // Fallback: Create basic tasks if AI generation fails
-      const fallbackTasks = [
-        { id: '1', description: 'Parse task intent', priority: 'high', estimatedDuration: 2 },
-        { id: '2', description: 'Break down into subtasks', priority: 'medium', estimatedDuration: 5 },
-        // ... (up to 5-8 tasks)
-      ];
-      return res.json({ tasks: fallbackTasks, success: true });
-    }
-    
-    res.json({ tasks: generatedTasks, success: true });
-  } catch (error) {
-    // Complex logic: Propagate to global error handler (comment: Ensures consistent error responses)
-    next(error);
-  }
-});
-
-// Error handling middleware (Express pattern: Centralized error management)
-app.use(errorHandler);
-
-// Health check endpoint (production-ready: For monitoring and debugging)
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'healthy', version: '0.3.0', uptime: process.uptime() });
-});
-
-// Start server (comment: Graceful shutdown handling recommended in production)
-app.listen(PORT, () => {
-  console.log(`NikCLI Universal Agent server running on port ${PORT}`);
-});
-
-export default app;
-```
-
-This setup follows Express best practices: modular middleware, typed requests/responses, and comprehensive error handling. For full TypeScript configuration, refer to `tsconfig.json` with strict mode enabled.
-
-## Contributing
-Recent changes (38 Git commits) include optimizations to `bin/cli.ts` for better CLI parsing and Vim module enhancements for editor integrations. Contributions are welcome—fork the repo, create a feature branch, and submit a PR.
-
-For issues or feedback, open a ticket on GitHub.
-
+---
+title: "Introduction"
+description: "NikCLI - Advanced AI-Powered Development Assistant with Cognitive Orchestration"
+icon: "rocket"
 ---
 
-*Last Updated: v0.2.3*  
-*Dependencies Analyzed: 115*  
-*Framework: Express*
+# NikCLI - Advanced AI Development Assistant
+
+**Transform your development workflow with intelligent AI agents that understand your code, execute commands, and build applications autonomously through cognitive orchestration.**
+
+<CardGroup cols={2}>
+  <Card title="🤖 Universal Agent" icon="robot">
+    **35+ Capabilities** - Single comprehensive agent handling all development tasks through cognitive orchestration
+  </Card>
+  <Card title="🔒 VM Agent" icon="container">
+    **Secure Development** - Isolated virtualized agent with 20 specialized capabilities for safe development
+  </Card>
+  <Card title="⚡ Cognitive Orchestration" icon="brain">
+    **Intelligent Planning** - Advanced NLP-based task understanding and adaptive execution strategies
+  </Card>
+  <Card title="🛠️ 70+ Commands" icon="terminal">
+    **Complete Toolset** - File operations, terminal integration, project management, and more
+  </Card>
+</CardGroup>
+
+## What is NikCLI?
+
+NikCLI is a **next-generation AI-powered development assistant** that combines the power of artificial intelligence with practical development tools. Unlike traditional CLI tools, NikCLI features **cognitive orchestration** - an advanced system that understands natural language tasks, breaks them down intelligently, and executes them using the most appropriate strategies.
+
+### Core Philosophy
+
+<Steps>
+  <Step title="Cognitive Understanding">
+    NikCLI uses advanced NLP to understand your intent, extract entities, and assess task complexity
+  </Step>
+  <Step title="Intelligent Planning">
+    Creates orchestration plans with optimal strategies (sequential, parallel, hybrid, adaptive)
+  </Step>
+  <Step title="Adaptive Execution">
+    Executes tasks with real-time supervision and automatic fallback strategies
+  </Step>
+  <Step title="Continuous Learning">
+    Learns from each interaction to improve future task execution and planning
+  </Step>
+</Steps>
+
+## Key Features
+
+### 🧠 **Cognitive Orchestration System**
+
+NikCLI's Universal Agent features a sophisticated cognitive system that:
+
+- **Parses natural language** with 90%+ accuracy using advanced NLP
+- **Extracts entities** (files, components, APIs, databases) from task descriptions
+- **Assesses complexity** and selects optimal execution strategies
+- **Learns patterns** from previous tasks to improve future performance
+
+```typescript
+// Example: Cognitive Task Understanding
+const cognition = await agent.parseTaskWithCognition(
+  "Create a React authentication component with TypeScript and Jest tests"
+);
+
+// Result: {
+//   intent: { primary: 'create', confidence: 0.9, complexity: 'high' },
+//   entities: [
+//     { type: 'component', name: 'authentication', confidence: 0.9 },
+//     { type: 'file', name: 'component.tsx', confidence: 0.8 }
+//   ],
+//   requiredCapabilities: ['react', 'typescript', 'testing'],
+//   estimatedComplexity: 7
+// }
+```
+
+### 🤖 **Dual Agent Architecture**
+
+<AccordionGroup>
+  <Accordion title="Universal Agent - The Cognitive Powerhouse">
+    **35 Comprehensive Capabilities:**
+    
+    - **Core Development** (7): Code generation, analysis, review, optimization, debugging, refactoring, testing
+    - **Frontend Technologies** (11): React, Next.js, TypeScript, JavaScript, HTML, CSS, components, hooks, JSX, TSX
+    - **Backend Development** (8): Node.js, API development, databases, server architecture, REST, GraphQL, microservices
+    - **DevOps & Infrastructure** (8): CI/CD, Docker, Kubernetes, deployment, infrastructure, monitoring, security
+    - **Advanced Analysis** (5): Performance analysis, security analysis, quality assessment, architecture review, documentation generation
+
+    **Key Features:**
+    - Handles up to 3 concurrent tasks
+    - Cognitive orchestration for complex tasks
+    - Adaptive performance modes (fast, cognitive, adaptive)
+    - Learning database with pattern recognition
+  </Accordion>
+
+  <Accordion title="VM Agent - Secure Virtualized Development">
+    **20 Specialized Capabilities:**
+    
+    - **VM Operations** (7): vm-management, container-orchestration, isolated-execution, repository-cloning, vscode-server, autonomous-development, pull-request-automation
+    - **Repository Management** (5): repository-analysis, dependency-management, testing-automation, documentation-generation, code-quality-analysis
+    - **Security Features** (5): secure-api-communication, token-budget-management, audit-logging, resource-isolation, credential-management
+    - **Development Workflows** (3): full-stack-development, ci-cd-integration, git-operations, package-management, environment-setup
+
+    **Key Features:**
+    - Runs in isolated Docker containers
+    - 50,000 token budget per session
+    - Single concurrent task for security
+    - API key proxy for zero secret exposure
+  </Accordion>
+</AccordionGroup>
+
+### 🎯 **Intelligent Task Execution**
+
+NikCLI doesn't just execute commands - it **understands, plans, and adapts**:
+
+<Tabs>
+  <Tab title="Task Analysis">
+    ```bash
+    # NikCLI analyzes the task complexity and requirements
+    /agent universal-agent "Create a complete e-commerce platform"
+    
+    # Cognitive Analysis:
+    # - Intent: create (confidence: 0.9)
+    # - Complexity: extreme (score: 9/10)
+    # - Required: frontend, backend, database, payment, testing
+    # - Strategy: adaptive (multi-phase execution)
+    ```
+  </Tab>
+  
+  <Tab title="Orchestration Planning">
+    ```bash
+    # Creates detailed execution plan
+    # Phase 1: Project structure and setup
+    # Phase 2: Backend API development
+    # Phase 3: Frontend React application
+    # Phase 4: Database integration
+    # Phase 5: Testing and deployment
+    ```
+  </Tab>
+  
+  <Tab title="Adaptive Execution">
+    ```bash
+    # Executes with real-time monitoring
+    # - Monitors progress at each phase
+    # - Adapts strategy based on results
+    # - Falls back to alternative approaches if needed
+    # - Learns from execution patterns
+    ```
+  </Tab>
+</Tabs>
+
+### 🛠️ **Comprehensive Command System**
+
+**70+ Commands** organized into logical categories:
+
+<CardGroup cols={3}>
+  <Card title="File Operations" icon="folder">
+    `/read`, `/write`, `/ls`, `/search`, `/find-files`, `/grep`
+  </Card>
+  <Card title="Terminal Commands" icon="terminal">
+    `/run`, `/install`, `/npm`, `/git`, `/docker`, `/ps`, `/kill`
+  </Card>
+  <Card title="Project Management" icon="hammer">
+    `/init`, `/build`, `/test`, `/lint`, `/analyze-project`
+  </Card>
+  <Card title="AI Model Commands" icon="brain">
+    `/models`, `/model`, `/temp`, `/set-key`, `/tokens`
+  </Card>
+  <Card title="Agent Management" icon="users">
+    `/agents`, `/agent`, `/factory`, `/create-agent`, `/launch-agent`
+  </Card>
+  <Card title="Planning & Todos" icon="clipboard-list">
+    `/plan`, `/todo`, `/todos`, `/approval`
+  </Card>
+  <Card title="VM Operations" icon="server">
+    `/vm-create`, `/vm-list`, `/vm-connect`, `/vm-select`
+  </Card>
+  <Card title="Development Tools" icon="wrench">
+    `/snapshot`, `/commits`, `/diff`, `/monitor`, `/diagnostic`
+  </Card>
+  <Card title="Memory & Data" icon="database">
+    `/remember`, `/recall`, `/cache`, `/index`
+  </Card>
+</CardGroup>
+
+### 🔄 **Operating Modes**
+
+NikCLI supports three distinct operating modes accessible via `Shift+Tab`:
+
+<AccordionGroup>
+  <Accordion title="💬 Default Chat Mode">
+    **Interactive Conversation Mode**
+    
+    - Manual confirmation for operations
+    - Step-by-step guidance
+    - Best for learning and experimentation
+    - Full transparency in operations
+    
+    ```bash
+    # Example: Interactive file creation
+    /write src/components/Button.tsx
+    # → Shows preview and asks for confirmation
+    # → Explains what will be created
+    # → Waits for user approval
+    ```
+  </Accordion>
+
+  <Accordion title="📋 Planning Mode">
+    **Strategic Planning Mode**
+    
+    - Comprehensive execution plans
+    - Todo.md file generation
+    - Approval workflows
+    - Best for complex projects
+    
+    ```bash
+    # Example: Project planning
+    /plan "Build authentication system"
+    # → Creates detailed execution plan
+    # → Generates todo.md with phases
+    # → Sets up approval workflow
+    ```
+  </Accordion>
+
+  <Accordion title="🤖 Auto Mode">
+    **Autonomous Execution Mode**
+    
+    - Automatic task execution
+    - Minimal user intervention
+    - Streamlined workflows
+    - Best for rapid development
+    
+    ```bash
+    # Example: Autonomous development
+    /auto "Create React component with tests"
+    # → Analyzes requirements
+    # → Creates component automatically
+    # → Adds tests and documentation
+    # → Reports completion
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 🔒 **Security & Safety**
+
+<CardGroup cols={2}>
+  <Card title="Approval System" icon="shield">
+    Interactive confirmation for sensitive operations with diff previews
+  </Card>
+  <Card title="Sandbox Mode" icon="lock">
+    Restricted execution environment with configurable permissions
+  </Card>
+  <Card title="VM Isolation" icon="container">
+    Secure virtualized development with Docker containerization
+  </Card>
+  <Card title="API Key Security" icon="key">
+    Encrypted storage with AES-256-GCM and zero-exposure proxy
+  </Card>
+</CardGroup>
+
+### 📊 **Performance & Monitoring**
+
+- **Real-time Progress Tracking**: Live updates during task execution
+- **Performance Metrics**: Success rates, execution times, resource usage
+- **Learning Database**: Pattern recognition and optimization
+- **Memory Management**: Efficient context retention and cleanup
+- **Caching System**: Redis integration for optimal performance
+
+## Why Choose NikCLI?
+
+<CardGroup cols={2}>
+  <Card title="🚀 Productivity" icon="zap">
+    **10x faster development** with intelligent automation and cognitive orchestration
+  </Card>
+  <Card title="🎯 Accuracy" icon="target">
+    **90%+ task understanding** with advanced NLP and entity extraction
+  </Card>
+  <Card title="🔧 Flexibility" icon="settings">
+    **Adaptive execution** that learns and improves from each interaction
+  </Card>
+  <Card title="🛡️ Security" icon="shield-check">
+    **Enterprise-grade security** with approval systems and sandbox isolation
+  </Card>
+</CardGroup>
+
+## Real-World Examples
+
+### Complete Project Creation
+```bash
+# Create a full-stack application
+/agent universal-agent "Build a complete blog platform with React frontend, Node.js API, PostgreSQL database, authentication, and admin panel"
+
+# NikCLI will:
+# 1. Analyze requirements and create orchestration plan
+# 2. Set up project structure with best practices
+# 3. Implement backend API with authentication
+# 4. Create React frontend with responsive design
+# 5. Set up database with proper relationships
+# 6. Add comprehensive testing suite
+# 7. Configure deployment and CI/CD
+# 8. Generate complete documentation
+```
+
+### Code Analysis & Optimization
+```bash
+# Analyze and optimize existing codebase
+/agent universal-agent "Analyze this React codebase for performance issues and security vulnerabilities, then optimize and fix any problems found"
+
+# NikCLI will:
+# 1. Scan entire codebase for issues
+# 2. Identify performance bottlenecks
+# 3. Check for security vulnerabilities
+# 4. Apply optimizations automatically
+# 5. Fix security issues
+# 6. Generate detailed report
+# 7. Update documentation
+```
+
+### DevOps Automation
+```bash
+# Set up complete DevOps pipeline
+/agent universal-agent "Create a complete CI/CD pipeline with Docker, Kubernetes, monitoring, and automated testing for this Node.js application"
+
+# NikCLI will:
+# 1. Create Docker configuration
+# 2. Set up Kubernetes manifests
+# 3. Configure GitHub Actions/GitLab CI
+# 4. Add monitoring and logging
+# 5. Set up automated testing
+# 6. Configure deployment strategies
+# 7. Add security scanning
+```
+
+## Getting Started
+
+Ready to transform your development workflow? Here's how to get started:
+
+<Steps>
+  <Step title="Install NikCLI">
+    ```bash
+    # Universal installer (auto-detects package manager)
+    curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
+    
+    # Or install with your preferred package manager
+    npm install -g @nicomatt69/nikcli
+    ```
+  </Step>
+  
+  <Step title="Configure API Keys">
+    ```bash
+    nikcli
+    /set-key anthropic sk-ant-api03-...
+    /set-key openai sk-...
+    ```
+  </Step>
+  
+  <Step title="Start Your First Task">
+    ```bash
+    /agent universal-agent "Create a simple React component with TypeScript"
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick Start Guide"
+    icon="play"
+    href="/quickstart/installation"
+  >
+    Get up and running in minutes
+  </Card>
+  <Card
+    title="Command Reference"
+    icon="terminal"
+    href="/cli-reference/commands-overview"
+  >
+    Master all 70+ commands
+  </Card>
+  <Card
+    title="Agent System"
+    icon="robot"
+    href="/agent-system/architecture"
+  >
+    Deep dive into cognitive orchestration
+  </Card>
+  <Card
+    title="Examples & Tutorials"
+    icon="book"
+    href="/examples/basic-workflows"
+  >
+    Learn through practical examples
+  </Card>
+</CardGroup>
+
+<Tip>
+  NikCLI is designed to be your **intelligent development partner**. Start with simple tasks and gradually explore more complex workflows as you become familiar with its capabilities.
+</Tip>

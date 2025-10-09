@@ -1,482 +1,545 @@
 ---
-title: 'Configuration'
-description: 'Customize NikCLI settings and preferences'
-icon: 'gear'
+title: "Configuration"
+description: "Configure NikCLI for optimal performance with API keys, preferences, and advanced settings"
+icon: "settings"
 ---
 
-## Configuration Overview
+# Configuration Guide
 
-NikCLI stores configuration at `~/.nikcli/config.json` and supports environment variables. During a session, use slash commands for quick changes. The schema and defaults are enforced by a Zod schema in `src/cli/core/config-manager.ts`.
+Configure NikCLI to match your development workflow with comprehensive settings for API keys, agent behavior, security, and performance.
 
-## Configuration Methods
+## 🔑 API Keys Setup
 
-<CardGroup cols={3}>
-  <Card title="Environment Variables" icon="code">
-    Set API keys and global settings via environment variables
+### Supported AI Providers
+
+NikCLI supports multiple AI providers for maximum flexibility:
+
+<CardGroup cols={2}>
+  <Card title="Anthropic Claude" icon="brain">
+    **Recommended** - Best for complex reasoning and code generation
   </Card>
-  <Card title="Config Files" icon="file-text">
-    Persistent settings stored in JSON configuration files
+  <Card title="OpenAI GPT" icon="sparkles">
+    **Popular** - Excellent for general tasks and creativity
   </Card>
-  <Card title="Interactive Commands" icon="terminal">
-    Use built-in commands to modify settings on the fly
+  <Card title="Google Gemini" icon="zap">
+    **Efficient** - Great for analysis and optimization
+  </Card>
+  <Card title="Ollama Local" icon="server">
+    **Private** - Run models locally for complete privacy
   </Card>
 </CardGroup>
 
-## Environment Variables
-
-### AI Provider Configuration
-
-<Tabs>
-  <Tab title="Anthropic Claude">
-    ```bash
-    # Primary API key
-    export ANTHROPIC_API_KEY="sk-ant-api03-..."
-    
-    # Optional: Custom base URL
-    export ANTHROPIC_BASE_URL="https://api.anthropic.com"
-    
-    # Optional: Default model
-    export ANTHROPIC_MODEL="claude-3-sonnet-20240229"
-    ```
-  </Tab>
-  
-  <Tab title="OpenAI GPT">
-    ```bash
-    # API key
-    export OPENAI_API_KEY="sk-..."
-    
-    # Optional: Organization ID
-    export OPENAI_ORG_ID="org-..."
-    
-    # Optional: Custom base URL
-    export OPENAI_BASE_URL="https://api.openai.com/v1"
-    
-    # Optional: Default model
-    export OPENAI_MODEL="gpt-4"
-    ```
-  </Tab>
-  
-  <Tab title="Google Gemini">
-    ```bash
-    # API key
-    export GOOGLE_GENERATIVE_AI_API_KEY="..."
-    
-    # Optional: Default model
-    export GOOGLE_MODEL="gemini-pro"
-    ```
-  </Tab>
-  
-  <Tab title="Ollama">
-    ```bash
-    # Host (default daemon binds 127.0.0.1:11434)
-    export OLLAMA_HOST="127.0.0.1:11434"
-    ```
-  </Tab>
-</Tabs>
-
-### General Configuration (env)
+### Setting API Keys
 
 ```bash
-# Example toggles
-export LOG_LEVEL="info"
-export APPROVAL_POLICY="moderate"
+# Set Anthropic API key (recommended)
+/set-key anthropic sk-ant-api03-...
+
+# Set OpenAI API key
+/set-key openai sk-...
+
+# Set Google API key
+/set-key google AIza...
+
+# Set Ollama endpoint
+/set-key ollama http://localhost:11434
 ```
 
-## Configuration Files
+### Environment Variables
 
-NikCLI stores configuration in JSON files located in `~/.nikcli/`:
+You can also set API keys via environment variables:
 
-### Main Configuration (`config.json`)
+```bash
+# Set environment variables
+export ANTHROPIC_API_KEY="sk-ant-api03-..."
+export OPENAI_API_KEY="sk-..."
+export GOOGLE_API_KEY="AIza..."
+
+# Or in .env file
+echo "ANTHROPIC_API_KEY=sk-ant-api03-..." >> .env
+echo "OPENAI_API_KEY=sk-..." >> .env
+```
+
+### Verify Configuration
+
+```bash
+# Check current configuration
+/config
+
+# Test API connectivity
+/debug
+
+# List available models
+/models
+```
+
+## ⚙️ Agent Configuration
+
+### Universal Agent Settings
+
+Configure the Universal Agent for optimal performance:
+
+```bash
+# Set agent behavior style
+/agent-config universal-agent --style collaborative
+/agent-config universal-agent --style autonomous
+/agent-config universal-agent --style guided
+
+# Set verbosity level
+/agent-config universal-agent --verbosity detailed
+/agent-config universal-agent --verbosity concise
+/agent-config universal-agent --verbosity minimal
+
+# Configure permissions
+/agent-config universal-agent --permissions "read:src/,write:src/,execute:npm,git"
+
+# Set context paths
+/agent-config universal-agent --context "src/,tests/,docs/"
+```
+
+### VM Agent Settings
+
+Configure the VM Agent for secure development:
+
+```bash
+# Set isolation level
+/agent-config vm-agent --isolation-level strict
+/agent-config vm-agent --isolation-level moderate
+/agent-config vm-agent --isolation-level permissive
+
+# Configure container resources
+/agent-config vm-agent --container-resources "memory:4GB,cpu:2,storage:10GB"
+
+# Set token budget
+/agent-config vm-agent --token-budget 50000
+```
+
+## 🎛️ System Preferences
+
+### Model Selection
+
+```bash
+# Switch to specific model
+/model claude-3-5-sonnet
+/model gpt-4o
+/model gemini-1.5-pro
+/model ollama:llama3.1:8b
+
+# View current model
+/model
+
+# List all available models
+/models
+```
+
+### Creativity Settings
+
+```bash
+# Set temperature (creativity level)
+/temp 0.7    # Balanced creativity
+/temp 0.3    # More focused
+/temp 1.2    # More creative
+
+# View current temperature
+/temp
+```
+
+### Session Management
+
+```bash
+# Enable/disable chat history
+/history on
+/history off
+
+# Set system prompt
+/system "You are a senior React developer specializing in TypeScript and performance optimization"
+
+# Clear current session
+/clear
+
+# Start new session
+/new "React Authentication Project"
+```
+
+## 🔒 Security Configuration
+
+### Approval System
+
+Configure the approval system for sensitive operations:
+
+```bash
+# Set approval level
+/security --approval-level strict
+/security --approval-level moderate
+/security --approval-level permissive
+
+# Configure approval timeout
+/security --approval-timeout 300
+
+# Enable/disable specific approvals
+/security --enable-file-write-approval
+/security --enable-command-execution-approval
+/security --enable-network-access-approval
+```
+
+### Sandbox Settings
+
+```bash
+# Enable sandbox mode
+/sandbox --enable
+
+# Configure file system access
+/sandbox --allow-file-system
+/sandbox --restrict-paths "/home/user/projects"
+
+# Configure command execution
+/sandbox --allow-commands "npm,git,node"
+/sandbox --block-commands "rm,rmdir,sudo"
+
+# Configure network access
+/sandbox --allow-network
+/sandbox --restrict-domains "github.com,npmjs.com"
+```
+
+### Developer Mode
+
+```bash
+# Enable developer mode (reduces security restrictions)
+/dev-mode
+
+# Disable developer mode
+/dev-mode --disable
+
+# Check current mode
+/dev-mode --status
+```
+
+## 📊 Performance Settings
+
+### Caching Configuration
+
+```bash
+# Enable response caching
+/cache --enable
+
+# Set cache size
+/cache --size 100MB
+
+# Clear cache
+/cache --clear
+
+# Configure cache TTL
+/cache --ttl 3600
+```
+
+### Memory Management
+
+```bash
+# Set memory limits
+/memory --limit 2GB
+
+# Configure garbage collection
+/memory --gc-interval 300
+
+# Monitor memory usage
+/memory --stats
+```
+
+### Parallel Execution
+
+```bash
+# Configure parallel execution
+/parallel --max-concurrent 3
+/parallel --timeout 300
+
+# Enable parallel mode
+/parallel --enable
+
+# Disable parallel mode
+/parallel --disable
+```
+
+## 🎨 UI Customization
+
+### Display Settings
+
+```bash
+# Set compact mode
+/set compact true
+
+# Enable clean chat mode
+/set clean-chat true
+
+# Configure live updates
+/set live-updates ephemeral
+
+# Set minimal stream mode
+/set minimal-stream true
+```
+
+### Color Themes
+
+```bash
+# Set color theme
+/theme dark
+/theme light
+/theme auto
+
+# Customize colors
+/theme --primary "#4EC5F1"
+/theme --secondary "#1f39ff"
+```
+
+## 🔧 Advanced Configuration
+
+### LSP Integration
+
+```bash
+# Enable LSP integration
+/lsp --enable
+
+# Configure LSP servers
+/lsp --add typescript
+/lsp --add python
+/lsp --add rust
+
+# Set LSP timeout
+/lsp --timeout 5000
+```
+
+### Context Management
+
+```bash
+# Configure context retention
+/context --retention 7d
+/context --max-files 1000
+
+# Enable context indexing
+/context --indexing true
+
+# Set context paths
+/context --paths "src/,tests/,docs/"
+```
+
+### Logging Configuration
+
+```bash
+# Set log level
+/log --level debug
+/log --level info
+/log --level warn
+/log --level error
+
+# Enable structured logging
+/log --structured true
+
+# Set log file
+/log --file ~/.nikcli/logs/nikcli.log
+```
+
+## 📁 Configuration Files
+
+### Main Configuration
+
+NikCLI stores configuration in `~/.nikcli/config.json`:
 
 ```json
 {
   "defaultProvider": "anthropic",
-  "defaultModel": "claude-3-sonnet-20240229",
-  "autoApprove": false,
-  "logLevel": "info",
-  "tokenLimit": 100000,
-  "defaultMode": "chat",
-  "colorScheme": "auto",
-  "enableTelemetry": true,
-  "cacheEnabled": true,
-  "cacheTTL": 3600,
-  "mcpServers": []
-}
-```
-
-### Provider Configuration (`providers.json`)
-
-```json
-{
-  "anthropic": {
-    "apiKey": "encrypted:...",
-    "baseUrl": "https://api.anthropic.com",
-    "models": ["claude-3-opus-20240229", "claude-3-sonnet-20240229"],
-    "defaultModel": "claude-3-sonnet-20240229",
-    "tokenLimits": {
-      "claude-3-opus-20240229": 200000,
-      "claude-3-sonnet-20240229": 200000
-    }
-  },
-  "openai": {
-    "apiKey": "encrypted:...",
-    "baseUrl": "https://api.openai.com/v1",
-    "models": ["gpt-4", "gpt-3.5-turbo"],
-    "defaultModel": "gpt-4"
-  }
-}
-```
-
-### Agent Configuration (`agents.json`)
-
-```json
-{
-  "universal": {
+  "defaultModel": "claude-3-5-sonnet",
+  "temperature": 0.7,
+  "historyEnabled": true,
+  "approvalLevel": "moderate",
+  "sandbox": {
     "enabled": true,
-    "permissions": {
-      "fileRead": true,
-      "fileWrite": true,
-      "commandExecution": true,
-      "networkAccess": false
-    },
-    "securityPolicies": {
-      "allowedCommands": ["npm", "git", "node"],
-      "blockedCommands": ["rm -rf", "sudo"],
-      "allowedPaths": ["."],
-      "blockedPaths": ["/etc", "/usr"]
-    }
+    "allowFileSystem": true,
+    "allowCommands": true,
+    "allowNetwork": true
   },
-  "specialized": {
-    "react": { "enabled": true },
-    "backend": { "enabled": true },
-    "devops": { "enabled": false }
-  }
-}
-```
-
-## Interactive Configuration
-
-### Configuration Commands
-
-Use built-in commands to view and modify settings:
-
-<Tabs>
-  <Tab title="View Configuration">
-    ```bash
-    # View all configuration
-    nikcli config list
-    
-    # View specific setting
-    nikcli config get defaultProvider
-    
-    # View provider settings
-    nikcli config get providers.anthropic
-    ```
-  </Tab>
-  
-  <Tab title="Modify Configuration">
-    ```bash
-    # Set default provider
-    nikcli config set defaultProvider anthropic
-    
-    # Set API key
-    nikcli config set providers.anthropic.apiKey "your-key"
-    
-    # Enable auto-approval
-    nikcli config set autoApprove true
-    
-    # Set log level
-    nikcli config set logLevel debug
-    ```
-  </Tab>
-  
-  <Tab title="Reset Configuration">
-    ```bash
-    # Reset all settings
-    nikcli config reset
-    
-    # Reset specific provider
-    nikcli config reset providers.openai
-    
-    # Reset to defaults
-    nikcli config reset --defaults
-    ```
-  </Tab>
-</Tabs>
-
-### In-Chat Configuration
-
-You can also modify settings during a chat session:
-
-```
-> /config set defaultModel claude-3-opus-20240229
-> /config enable autoApprove
-> /config list providers
-```
-
-## Advanced Configuration
-
-### Security Policies
-
-Configure execution policies for safe autonomous operation:
-
-```json
-{
-  "executionPolicies": {
-    "allowedCommands": [
-      "npm",
-      "yarn",
-      "git",
-      "node",
-      "tsc",
-      "eslint",
-      "prettier"
-    ],
-    "blockedCommands": [
-      "rm -rf",
-      "sudo",
-      "chmod 777",
-      "curl | sh"
-    ],
-    "allowedPaths": [
-      ".",
-      "./src",
-      "./tests",
-      "./docs"
-    ],
-    "blockedPaths": [
-      "/etc",
-      "/usr",
-      "/var",
-      "~/.ssh"
-    ],
-    "requireApproval": [
-      "package.json",
-      "tsconfig.json",
-      ".gitignore"
-    ]
-  }
-}
-```
-
-### Token Management
-
-Configure context and token limits:
-
-```json
-{
-  "tokenManagement": {
-    "globalLimit": 100000,
-    "perProviderLimits": {
-      "anthropic": 200000,
-      "openai": 128000,
-      "google": 32000
+  "agents": {
+    "universal": {
+      "style": "collaborative",
+      "verbosity": "detailed",
+      "maxConcurrentTasks": 3
     },
-    "contextWindow": 32000,
-    "reserveTokens": 4000,
-    "compressionEnabled": true,
-    "cacheStrategy": "lru"
-  }
-}
-```
-
-### MCP (Model Context Protocol) Servers
-
-Configure external MCP servers for extended functionality:
-
-```json
-{
-  "mcpServers": [
-    {
-      "name": "filesystem",
-      "command": "node",
-      "args": ["./mcp-servers/filesystem.js"],
-      "env": {
-        "ALLOWED_PATHS": "./src,./docs"
-      }
-    },
-    {
-      "name": "git",
-      "command": "git-mcp-server",
-      "args": ["--repo", "."]
-    },
-    {
-      "name": "web-search",
-      "command": "web-search-mcp",
-      "env": {
-        "SEARCH_API_KEY": "your-key"
+    "vm": {
+      "isolationLevel": "moderate",
+      "tokenBudget": 50000,
+      "containerResources": {
+        "memory": "4GB",
+        "cpu": "2"
       }
     }
-  ]
-}
-```
-
-## Profile-Based Configuration
-
-Create different configuration profiles for various workflows:
-
-### Development Profile
-
-```bash
-# Create development profile
-nikcli profile create development
-
-# Configure for local development
-nikcli profile set development defaultProvider ollama
-nikcli profile set development defaultModel llama2
-nikcli profile set development autoApprove true
-nikcli profile set development logLevel debug
-
-# Switch to development profile
-nikcli profile use development
-```
-
-### Production Profile
-
-```bash
-# Create production profile
-nikcli profile create production
-
-# Configure for production use
-nikcli profile set production defaultProvider anthropic
-nikcli profile set production defaultModel claude-3-opus-20240229
-nikcli profile set production autoApprove false
-nikcli profile set production logLevel warn
-
-# Switch to production profile
-nikcli profile use production
-```
-
-## Project-Specific Configuration
-
-Create `.nikcli.json` in your project root for project-specific settings:
-
-```json
-{
-  "extends": "~/.nikcli/config.json",
-  "projectName": "my-awesome-app",
-  "defaultAgent": "react",
-  "preferences": {
-    "codeStyle": "typescript",
-    "testFramework": "vitest",
-    "uiLibrary": "tailwindcss"
-  },
-  "customPrompts": {
-    "component": "Create a React component following our design system patterns",
-    "api": "Implement API endpoint with proper error handling and validation"
-  },
-  "workflowTemplates": {
-    "feature": [
-      "Create component",
-      "Add tests",
-      "Update documentation",
-      "Run linting and formatting"
-    ]
   }
 }
 ```
 
-## Configuration Validation
+### Environment Variables
 
-NikCLI validates configuration on startup and provides helpful error messages:
+Set these environment variables for advanced configuration:
+
+```bash
+# API Keys
+export ANTHROPIC_API_KEY="sk-ant-api03-..."
+export OPENAI_API_KEY="sk-..."
+export GOOGLE_API_KEY="AIza..."
+
+# Performance
+export NIKCLI_COMPACT=1
+export NIKCLI_CLEAN_CHAT=1
+export NIKCLI_MINIMAL_STREAM=1
+
+# Embedding Optimization
+export EMBED_BATCH_SIZE=300
+export EMBED_MAX_CONCURRENCY=6
+export EMBED_INTER_BATCH_DELAY_MS=25
+export INDEXING_BATCH_SIZE=300
+export EMBED_ADAPTIVE_BATCHING=true
+```
+
+## 🔍 Configuration Validation
+
+### Check Configuration
 
 ```bash
 # Validate current configuration
-nikcli config validate
+/config --validate
 
-# Check specific provider configuration
-nikcli config validate providers.anthropic
+# Test all API connections
+/debug --full
 
-# Verbose validation with suggestions
-nikcli config validate --verbose
+# Check agent status
+/agents --status
+
+# Verify permissions
+/security --check
 ```
 
-## Configuration Backup and Restore
-
-### Backup Configuration
-
-```bash
-# Backup all configuration
-nikcli config backup ~/nikcli-backup.json
-
-# Backup specific profile
-nikcli config backup ~/dev-profile.json --profile development
-```
-
-### Restore Configuration
-
-```bash
-# Restore from backup
-nikcli config restore ~/nikcli-backup.json
-
-# Restore specific profile
-nikcli config restore ~/dev-profile.json --profile development
-```
-
-## Troubleshooting Configuration
+### Troubleshooting
 
 <AccordionGroup>
-  <Accordion title="API Key Not Working">
-    1. Verify the key is correctly set:
-    ```bash
-    nikcli config get providers.anthropic.apiKey
-    ```
+  <Accordion title="API Key Issues">
+    **Problem:** API keys not working
     
-    2. Test the connection:
+    **Solutions:**
     ```bash
-    nikcli test connection anthropic
-    ```
+    # Check API key format
+    /config
     
-    3. Check for environment variable conflicts:
-    ```bash
-    echo $ANTHROPIC_API_KEY
-    ```
-  </Accordion>
-  
-  <Accordion title="Configuration File Corrupted">
-    1. Reset to defaults:
-    ```bash
-    nikcli config reset --defaults
-    ```
+    # Test API connectivity
+    /debug
     
-    2. Or restore from backup:
-    ```bash
-    nikcli config restore ~/backup.json
+    # Re-set API key
+    /set-key anthropic sk-ant-api03-...
     ```
   </Accordion>
   
   <Accordion title="Permission Errors">
-    1. Check file permissions:
-    ```bash
-    ls -la ~/.nikcli/
-    ```
+    **Problem:** Permission denied errors
     
-    2. Fix permissions if needed:
+    **Solutions:**
     ```bash
-    chmod 600 ~/.nikcli/config.json
+    # Check current permissions
+    /security --check
+    
+    # Adjust sandbox settings
+    /sandbox --allow-file-system
+    
+    # Enable developer mode temporarily
+    /dev-mode
+    ```
+  </Accordion>
+  
+  <Accordion title="Performance Issues">
+    **Problem:** Slow performance
+    
+    **Solutions:**
+    ```bash
+    # Check memory usage
+    /memory --stats
+    
+    # Clear cache
+    /cache --clear
+    
+    # Adjust parallel execution
+    /parallel --max-concurrent 2
     ```
   </Accordion>
 </AccordionGroup>
 
-## Next Steps
+## 🎯 Best Practices
+
+### 1. Start with Defaults
+
+Begin with default configuration and adjust as needed:
+
+```bash
+# Use default configuration
+/config --reset
+
+# Gradually customize
+/temp 0.7
+/agent-config universal-agent --style collaborative
+```
+
+### 2. Use Environment Variables
+
+For team projects, use environment variables:
+
+```bash
+# Create .env file
+echo "ANTHROPIC_API_KEY=sk-ant-api03-..." > .env
+echo "NIKCLI_COMPACT=1" >> .env
+```
+
+### 3. Regular Configuration Review
+
+Periodically review and optimize configuration:
+
+```bash
+# Check current settings
+/config
+
+# Review performance metrics
+/stats
+
+# Optimize based on usage patterns
+/agent-config universal-agent --optimize
+```
+
+## 🚀 Next Steps
 
 <CardGroup cols={2}>
   <Card
-    title="User Guide"
-    icon="book-open"
-    href="/user-guide/overview"
+    title="Agent System"
+    icon="robot"
+    href="/agent-system/architecture"
   >
-    Learn how to use NikCLI effectively in your development workflow
+    Learn about cognitive orchestration
   </Card>
   <Card
-    title="CLI Reference"
+    title="Command Reference"
     icon="terminal"
     href="/cli-reference/commands-overview"
   >
-    Complete reference for all NikCLI commands and options
+    Master all commands
+  </Card>
+  <Card
+    title="Advanced Features"
+    icon="zap"
+    href="/features/vim-mode"
+  >
+    Explore advanced capabilities
+  </Card>
+  <Card
+    title="Troubleshooting"
+    icon="wrench"
+    href="/troubleshooting/common-issues"
+  >
+    Solve common problems
   </Card>
 </CardGroup>
 
 <Tip>
-  Configuration changes take effect immediately. You don't need to restart NikCLI for most settings to apply.
+  **Pro Tip:** Use `/config --export` to save your configuration and `/config --import` to restore it on other machines.
 </Tip>

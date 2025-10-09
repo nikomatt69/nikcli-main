@@ -62,6 +62,7 @@
       "pages": [
         "cli-reference/commands-overview",
         "cli-reference/mode-control",
+        "cli-reference/parallel-execution",
         "cli-reference/file-operations",
         "cli-reference/terminal-ops",
         "cli-reference/project-ops",
