@@ -1,256 +1,327 @@
 ---
 title: "Installation"
-description: "Install and set up NikCLI on your system"
+description: "Get NikCLI up and running in minutes with our universal installer"
 icon: "download"
 ---
 
-## System Requirements
+# Installation Guide
 
-Before installing NikCLI, ensure your system meets these requirements:
+NikCLI supports **universal installation** across all major package managers with intelligent auto-detection and fallback mechanisms.
 
-<CardGroup cols={2}>
-  <Card title="Node.js 18+" icon="node-js">
-    NikCLI requires Node.js version 18 or higher for modern JavaScript features
-    and optimal performance.
-  </Card>
-  <Card title="Git" icon="git-alt">
-    Git is required for autonomous development features and version control
-    operations.
-  </Card>
-  <Card title="Terminal" icon="terminal">
-    A modern terminal with color support and UTF-8 encoding for the best
-    experience.
-  </Card>
-  <Card title="API Keys" icon="key">
-    At least one AI provider API key (Anthropic, OpenAI, Google, or local
-    Ollama).
-  </Card>
-</CardGroup>
+## 🚀 Quick Install (Recommended)
 
-## Installation Methods
+### Universal Installer
 
-### NPM Global Installation (Recommended)
+The universal installer automatically detects your system and uses the best available package manager:
 
-The easiest way to install NikCLI is via npm:
+<Tabs>
+  <Tab title="Unix/macOS">
+    ```bash
+    # Universal installer with auto-detection
+    curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
+    ```
+  </Tab>
+  
+  <Tab title="Windows PowerShell">
+    ```powershell
+    # Windows PowerShell installer
+    iwr -useb https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.ps1 | iex
+    ```
+  </Tab>
+  
+  <Tab title="Windows CMD">
+    ```cmd
+    # Windows CMD installer
+    powershell -Command "iwr -useb https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.ps1 | iex"
+    ```
+  </Tab>
+</Tabs>
 
-```bash
-npm install -g @nicomatt69/nikcli
-```
+### Specify Package Manager
 
-<Note>
-  Global installation allows you to use the `nikcli` command from anywhere in
-  your terminal.
-</Note>
-
-### Yarn Global Installation (alternative)
-
-If you prefer Yarn:
+Force a specific package manager if needed:
 
 ```bash
-yarn global add @nicomatt69/nikcli
+# Force specific package manager
+curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s pnpm
+
+# Windows PowerShell with specific manager
+iwr -useb https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.ps1 | iex -PackageManager yarn
 ```
 
-### Curl Installer (beta)
+## 📦 Manual Installation
 
-You can install the npm package globally using the provided installer scripts:
+Choose your preferred package manager:
 
-```bash
-# Install latest beta
-curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash
+<AccordionGroup>
+  <Accordion title="npm">
+    ```bash
+    # Install globally
+    npm install -g @nicomatt69/nikcli
+    
+    # Verify installation
+    nikcli --version
+    ```
+    
+    **Requirements:**
+    - Node.js 18+ 
+    - npm 8+
+  </Accordion>
+  
+  <Accordion title="yarn">
+    ```bash
+    # Install globally
+    yarn global add @nicomatt69/nikcli
+    
+    # Verify installation
+    nikcli --version
+    ```
+    
+    **Requirements:**
+    - Node.js 18+
+    - Yarn 1.22+ or Yarn 3+
+  </Accordion>
+  
+  <Accordion title="pnpm">
+    ```bash
+    # Install globally
+    pnpm install -g @nicomatt69/nikcli
+    
+    # Verify installation
+    nikcli --version
+    ```
+    
+    **Requirements:**
+    - Node.js 18+
+    - pnpm 7+
+  </Accordion>
+  
+  <Accordion title="bun">
+    ```bash
+    # Install globally
+    bun install -g @nicomatt69/nikcli
+    
+    # Verify installation
+    nikcli --version
+    ```
+    
+    **Requirements:**
+    - Bun 1.0+
+  </Accordion>
+</AccordionGroup>
 
-# Or specify exact version
-curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s -- --version
-```
-
-### Development Installation
+## 🔧 Development Setup
 
 For contributing to NikCLI or running from source:
 
 ```bash
-# Clone the repository
-git clone https://github.com/nikomatt69/nikcli-main.git
+# Clone repository
+git clone https://github.com/nikomatt69/nikcli-main
 cd nikcli-main
 
-# Install dependencies
-npm install
+# Install dependencies (uses pnpm for optimal performance)
+pnpm install
 
-# Build the project
-npm run build
-
-# Link globally for development
-npm link
+# Build and start
+pnpm run build
+pnpm start
 ```
 
-## Verification
+**Development Scripts:**
 
-Verify your installation by running the CLI:
+<CardGroup cols={2}>
+  <Card title="Development" icon="code">
+    ```bash
+    pnpm start          # Start in development mode
+    pnpm run dev        # Development with watch mode
+    ```
+  </Card>
+  <Card title="Building" icon="hammer">
+    ```bash
+    pnpm run build      # Compile TypeScript
+    pnpm run build:binary # Create binary distribution
+    ```
+  </Card>
+  <Card title="Testing" icon="flask">
+    ```bash
+    pnpm test           # Run test suite
+    pnpm run test:watch # Watch mode testing
+    ```
+  </Card>
+  <Card title="Quality" icon="check">
+    ```bash
+    pnpm run lint       # Run linter
+    pnpm run format     # Format code
+    ```
+  </Card>
+</CardGroup>
+
+## ✅ Verification
+
+After installation, verify everything is working:
 
 ```bash
+# Check version
+nikcli --version
+
+# Start NikCLI
 nikcli
+
+# Check available commands
+/help
+
+# Test basic functionality
+/read package.json
 ```
 
-NikCLI will start, display onboarding and system checks, and show the prompt.
+<Note>
+  The first run will create configuration files in `~/.nikcli/` and guide you through initial setup.
+</Note>
 
-## API Key Configuration
+## 🔐 Security Features
 
-NikCLI requires at least one AI provider API key. Choose your preferred provider:
+Our installers include built-in security measures:
 
-<Tabs>
-  <Tab title="Anthropic Claude (Recommended)">
-    1. Get your API key from [Anthropic Console](https://console.anthropic.com)
-    2. Set the environment variable:
-    ```bash
-    export ANTHROPIC_API_KEY="your-api-key-here"
-    ```
-    <Tip>
-      Add this to your shell profile (`.bashrc`, `.zshrc`, etc.) to persist
-      across sessions.
-    </Tip>
-  </Tab>
+<CardGroup cols={2}>
+  <Card title="Verification" icon="shield-check">
+    - Automatic Node.js version validation
+    - Package manager detection and validation
+    - Source verification from official npm registry
+  </Card>
+  <Card title="Safety" icon="lock">
+    - No elevated privileges required
+    - Fallback mechanisms for failed installations
+    - No data collection or telemetry
+  </Card>
+</CardGroup>
 
-{" "}
+## 🐛 Troubleshooting
 
-<Tab title="OpenAI GPT">
-  1. Get your API key from [OpenAI
-  Platform](https://platform.openai.com/api-keys) 2. Set the environment
-  variable: ```bash export OPENAI_API_KEY="your-api-key-here" ```
-</Tab>
-
-{" "}
-
-<Tab title="Google Gemini">
-  1. Get your API key from [Google AI
-  Studio](https://aistudio.google.com/app/apikey) 2. Set the environment
-  variable: ```bash export GOOGLE_GENERATIVE_AI_API_KEY="your-api-key-here" ```
-</Tab>
-
-  <Tab title="Ollama (Local)">
-    1. Install Ollama from [ollama.ai](https://ollama.ai)
-    2. Start the daemon: `ollama serve`
-    3. Pull a model:
-    ```bash
-    ollama pull llama3.1:8b
-    ```
-    4. No API key required for local models!
-  </Tab>
-</Tabs>
-
-## Shell Profile Configuration
-
-For persistent environment variables, add your API key to your shell profile:
-
-<Tabs>
-  <Tab title="Bash">
-    ```bash
-    echo 'export ANTHROPIC_API_KEY="your-api-key-here"' >> ~/.bashrc
-    source ~/.bashrc
-    ```
-  </Tab>
-
-{" "}
-
-<Tab title="Zsh">
-  ```bash echo 'export ANTHROPIC_API_KEY="your-api-key-here"' >> ~/.zshrc source
-  ~/.zshrc ```
-</Tab>
-
-  <Tab title="Fish">
-    ```bash
-    echo 'set -gx ANTHROPIC_API_KEY "your-api-key-here"' >> ~/.config/fish/config.fish
-    source ~/.config/fish/config.fish
-    ```
-  </Tab>
-</Tabs>
-
-## First Run
-
-Start NikCLI for the first time:
-
-```bash
-nikcli
-```
-
-You should see onboarding, system checks, and the welcome prompt:
-
-```
-╭─────────────────────────────────────────────────────╮
-│                                                     │
-│                   🚀 NikCLI                         │
-│          Context-Aware AI Development Assistant     │
-│                                                     │
-╰─────────────────────────────────────────────────────╯
-
-✅ Node.js 18.17.0 (compatible)
-✅ Git 2.42.0 (detected)
-✅ AI Provider (configured)
-✅ Project context (auto-detected)
-
-Ready! Type /help for commands.
-
->
-```
-
-## Troubleshooting Installation
+### Common Issues
 
 <AccordionGroup>
-  <Accordion title="Permission Denied Errors">
-    If you encounter permission errors during installation:
-    ```bash
-    # For npm
-    sudo npm install -g @nicomatt69/nikcli
+  <Accordion title="Permission Errors">
+    **Problem:** Permission denied during global installation
     
-    # Or configure npm to use a different directory
-    mkdir ~/.npm-global
-    npm config set prefix '~/.npm-global'
-    echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
-    source ~/.bashrc
+    **Solutions:**
+    ```bash
+    # Option 1: Use npm with --unsafe-perm
+    npm install -g @nicomatt69/nikcli --unsafe-perm
+    
+    # Option 2: Use npx instead of global install
+    npx @nicomatt69/nikcli
+    
+    # Option 3: Use local installation
+    npm install @nicomatt69/nikcli
+    npx nikcli
     ```
   </Accordion>
-
-{" "}
-
-<Accordion title="Node.js Version Issues">
-  If you have an older Node.js version: ```bash # Using Node Version Manager
-  (nvm) curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh
-  | bash source ~/.bashrc nvm install 18 nvm use 18 ```
-</Accordion>
-
-{" "}
-
-<Accordion title="API Key Not Detected">
-  If NikCLI doesn't detect your API key: 1. Verify the environment variable is
-  set: ```bash echo $ANTHROPIC_API_KEY ``` 2. Restart your terminal or source
-  your profile: ```bash source ~/.bashrc # or ~/.zshrc ``` 3. Set via slash
-  command inside NikCLI: ```bash /set-key claude-sonnet-4-20250514 "your-key"
-  ```
-</Accordion>
-
-  <Accordion title="Binary Execution Issues">
-    If the binary doesn't execute:
-    1. Check if it's executable:
+  
+  <Accordion title="Node.js Version Issues">
+    **Problem:** Node.js version too old
+    
+    **Solutions:**
     ```bash
-    ls -la /usr/local/bin/nikcli
+    # Check Node.js version
+    node --version
+    
+    # Update Node.js (using nvm)
+    nvm install 18
+    nvm use 18
+    
+    # Or download from nodejs.org
+    # https://nodejs.org/
     ```
-    2. Make it executable if needed:
+  </Accordion>
+  
+  <Accordion title="Package Manager Conflicts">
+    **Problem:** Multiple package managers causing conflicts
+    
+    **Solutions:**
     ```bash
-    chmod +x /usr/local/bin/nikcli
+    # Clear npm cache
+    npm cache clean --force
+    
+    # Clear yarn cache
+    yarn cache clean
+    
+    # Clear pnpm cache
+    pnpm store prune
+    
+    # Try with specific package manager
+    curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s npm
+    ```
+  </Accordion>
+  
+  <Accordion title="Network Issues">
+    **Problem:** Installation fails due to network issues
+    
+    **Solutions:**
+    ```bash
+    # Use different registry
+    npm install -g @nicomatt69/nikcli --registry https://registry.npmjs.org/
+    
+    # Use proxy if needed
+    npm install -g @nicomatt69/nikcli --proxy http://proxy.company.com:8080
+    
+    # Try offline installation
+    npm pack @nicomatt69/nikcli
+    npm install -g nikcli-*.tgz
     ```
   </Accordion>
 </AccordionGroup>
 
-## Next Steps
+### Getting Help
+
+If you encounter issues not covered here:
 
 <CardGroup cols={2}>
-  <Card title="First Steps" icon="rocket" href="/quickstart/first-steps">
-    Learn the basics and try your first AI-assisted development task
+  <Card title="GitHub Issues" icon="github">
+    [Report bugs and request features](https://github.com/nikomatt69/nikcli-main/issues)
   </Card>
-  <Card title="Configuration" icon="gear" href="/quickstart/configuration">
-    Customize NikCLI settings for your development workflow
+  <Card title="Documentation" icon="book">
+    [Complete documentation](https://nikcli.mintlify.app)
+  </Card>
+  <Card title="Discord Community" icon="message-circle">
+    [Join our community](https://discord.gg/nikcli)
+  </Card>
+  <Card title="Email Support" icon="mail">
+    [support@nikcli.dev](mailto:support@nikcli.dev)
   </Card>
 </CardGroup>
 
-<Note>
-  Having trouble? Check our [troubleshooting
-  guide](/troubleshooting/common-issues) or [open an
-  issue](https://github.com/nikomatt69/nikcli-main/issues) on GitHub.
-</Note>
+## 🎯 Next Steps
+
+Once installation is complete:
+
+<Steps>
+  <Step title="Configure API Keys">
+    Set up your AI provider API keys for full functionality
+  </Step>
+  <Step title="Try Your First Command">
+    Start with simple file operations to get familiar
+  </Step>
+  <Step title="Explore Agent System">
+    Learn about the Universal Agent and VM Agent
+  </Step>
+  <Step title="Master Advanced Features">
+    Discover planning mode, parallel execution, and more
+  </Step>
+</Steps>
+
+<CardGroup cols={2}>
+  <Card
+    title="First Steps"
+    icon="play"
+    href="/quickstart/first-steps"
+  >
+    Learn basic commands and workflows
+  </Card>
+  <Card
+    title="Configuration"
+    icon="settings"
+    href="/quickstart/configuration"
+  >
+    Set up API keys and preferences
+  </Card>
+</CardGroup>
