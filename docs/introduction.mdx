@@ -46,144 +46,143 @@ NikCLI is a **next-generation AI-powered development assistant** that combines t
 
 ## Key Features
 
-### 🧠 **Cognitive Orchestration System**
+### 🧠 **AI-Powered Development**
 
-NikCLI's Universal Agent features a sophisticated cognitive system that:
+NikCLI's Universal Agent provides intelligent development assistance:
 
-- **Parses natural language** with 90%+ accuracy using advanced NLP
-- **Extracts entities** (files, components, APIs, databases) from task descriptions
-- **Assesses complexity** and selects optimal execution strategies
-- **Learns patterns** from previous tasks to improve future performance
+- **Natural language understanding** for task interpretation
+- **Context-aware responses** based on your project structure
+- **Multi-provider AI support** (Claude, GPT, Gemini, Ollama)
+- **Intelligent code generation** and analysis
 
-```typescript
-// Example: Cognitive Task Understanding
-const cognition = await agent.parseTaskWithCognition(
-  "Create a React authentication component with TypeScript and Jest tests"
-);
+```bash
+# Example: AI-powered development
+/agent universal-agent "Create a React authentication component with TypeScript and Jest tests"
 
-// Result: {
-//   intent: { primary: 'create', confidence: 0.9, complexity: 'high' },
-//   entities: [
-//     { type: 'component', name: 'authentication', confidence: 0.9 },
-//     { type: 'file', name: 'component.tsx', confidence: 0.8 }
-//   ],
-//   requiredCapabilities: ['react', 'typescript', 'testing'],
-//   estimatedComplexity: 7
-// }
+# NikCLI will:
+# - Analyze your project structure
+# - Generate appropriate code
+# - Provide context-aware suggestions
+# - Handle file operations safely
 ```
 
 ### 🤖 **Dual Agent Architecture**
 
 <AccordionGroup>
   <Accordion title="Universal Agent - The Cognitive Powerhouse">
-    **35 Comprehensive Capabilities:**
+    **35 Development Capabilities:**
     
     - **Core Development** (7): Code generation, analysis, review, optimization, debugging, refactoring, testing
     - **Frontend Technologies** (11): React, Next.js, TypeScript, JavaScript, HTML, CSS, components, hooks, JSX, TSX
     - **Backend Development** (8): Node.js, API development, databases, server architecture, REST, GraphQL, microservices
     - **DevOps & Infrastructure** (8): CI/CD, Docker, Kubernetes, deployment, infrastructure, monitoring, security
-    - **Advanced Analysis** (5): Performance analysis, security analysis, quality assessment, architecture review, documentation generation
+    - **Analysis & Documentation** (5): Performance analysis, security analysis, quality assessment, architecture review, documentation generation
 
     **Key Features:**
     - Handles up to 3 concurrent tasks
-    - Cognitive orchestration for complex tasks
-    - Adaptive performance modes (fast, cognitive, adaptive)
-    - Learning database with pattern recognition
+    - AI-powered task execution
+    - Context-aware development assistance
+    - Multi-provider AI support
   </Accordion>
 
-  <Accordion title="VM Agent - Secure Virtualized Development">
-    **20 Specialized Capabilities:**
+  <Accordion title="VM Agent - Virtualized Development">
+    **VM Management Capabilities:**
     
-    - **VM Operations** (7): vm-management, container-orchestration, isolated-execution, repository-cloning, vscode-server, autonomous-development, pull-request-automation
-    - **Repository Management** (5): repository-analysis, dependency-management, testing-automation, documentation-generation, code-quality-analysis
-    - **Security Features** (5): secure-api-communication, token-budget-management, audit-logging, resource-isolation, credential-management
-    - **Development Workflows** (3): full-stack-development, ci-cd-integration, git-operations, package-management, environment-setup
+    - **Container Operations**: Create, manage, and control Docker containers
+    - **Repository Management**: Clone, analyze, and work with Git repositories
+    - **Development Environment**: Set up isolated development environments
+    - **Pull Request Automation**: Create and manage pull requests from VM containers
 
     **Key Features:**
-    - Runs in isolated Docker containers
-    - 50,000 token budget per session
-    - Single concurrent task for security
-    - API key proxy for zero secret exposure
+    - Isolated development environments
+    - Docker container management
+    - Git repository integration
+    - Secure development workflows
   </Accordion>
 </AccordionGroup>
 
-### 🎯 **Intelligent Task Execution**
+### 🎯 **AI-Powered Task Execution**
 
-NikCLI doesn't just execute commands - it **understands, plans, and adapts**:
+NikCLI provides intelligent development assistance:
 
 <Tabs>
-  <Tab title="Task Analysis">
+  <Tab title="Task Understanding">
     ```bash
-    # NikCLI analyzes the task complexity and requirements
+    # NikCLI understands your development needs
     /agent universal-agent "Create a complete e-commerce platform"
     
-    # Cognitive Analysis:
-    # - Intent: create (confidence: 0.9)
-    # - Complexity: extreme (score: 9/10)
-    # - Required: frontend, backend, database, payment, testing
-    # - Strategy: adaptive (multi-phase execution)
+    # The agent will:
+    # - Analyze your project structure
+    # - Generate appropriate code
+    # - Provide step-by-step guidance
+    # - Handle file operations safely
     ```
   </Tab>
   
-  <Tab title="Orchestration Planning">
+  <Tab title="Code Generation">
     ```bash
-    # Creates detailed execution plan
-    # Phase 1: Project structure and setup
-    # Phase 2: Backend API development
-    # Phase 3: Frontend React application
-    # Phase 4: Database integration
-    # Phase 5: Testing and deployment
+    # Generate code with context awareness
+    /agent universal-agent "Create a React component with TypeScript"
+    
+    # NikCLI will:
+    # - Follow your project's patterns
+    # - Use appropriate dependencies
+    # - Generate production-ready code
+    # - Include proper error handling
     ```
   </Tab>
   
-  <Tab title="Adaptive Execution">
+  <Tab title="Project Management">
     ```bash
-    # Executes with real-time monitoring
-    # - Monitors progress at each phase
-    # - Adapts strategy based on results
-    # - Falls back to alternative approaches if needed
-    # - Learns from execution patterns
+    # Manage complex development tasks
+    /plan "Build authentication system"
+    
+    # Creates structured plan:
+    # - Breaks down into manageable tasks
+    # - Tracks progress
+    # - Provides guidance
+    # - Manages dependencies
     ```
   </Tab>
 </Tabs>
 
 ### 🛠️ **Comprehensive Command System**
 
-**70+ Commands** organized into logical categories:
+**80+ Commands** organized into logical categories:
 
 <CardGroup cols={3}>
   <Card title="File Operations" icon="folder">
-    `/read`, `/write`, `/ls`, `/search`, `/find-files`, `/grep`
+    `/read`, `/write`, `/edit`, `/ls`, `/search`, `/grep`
   </Card>
   <Card title="Terminal Commands" icon="terminal">
-    `/run`, `/install`, `/npm`, `/git`, `/docker`, `/ps`, `/kill`
+    `/run`, `/sh`, `/bash`, `/install`, `/npm`, `/yarn`, `/git`, `/docker`, `/ps`, `/kill`
   </Card>
   <Card title="Project Management" icon="hammer">
-    `/init`, `/build`, `/test`, `/lint`, `/analyze-project`
+    `/build`, `/test`, `/lint`, `/create`
   </Card>
   <Card title="AI Model Commands" icon="brain">
-    `/models`, `/model`, `/temp`, `/set-key`, `/tokens`
+    `/models`, `/model`, `/temp`, `/set-key`
   </Card>
   <Card title="Agent Management" icon="users">
-    `/agents`, `/agent`, `/factory`, `/create-agent`, `/launch-agent`
+    `/agents`, `/agent`, `/factory`, `/create-agent`, `/launch-agent`, `/blueprints`, `/context`, `/stream`
   </Card>
   <Card title="Planning & Todos" icon="clipboard-list">
-    `/plan`, `/todo`, `/todos`, `/approval`
+    `/plan`, `/todo`, `/todos`, `/approval`, `/plan-clean`, `/todo-hide`, `/todo-show`
   </Card>
   <Card title="VM Operations" icon="server">
-    `/vm-create`, `/vm-list`, `/vm-connect`, `/vm-select`
+    `/vm`, `/vm-create`, `/vm-list`, `/vm-connect`, `/vm-stop`, `/vm-remove`, `/vm-create-pr`, `/vm-logs`
   </Card>
-  <Card title="Development Tools" icon="wrench">
-    `/snapshot`, `/commits`, `/diff`, `/monitor`, `/diagnostic`
+  <Card title="AI Features" icon="magic">
+    `/analyze-image`, `/vision`, `/generate-image`, `/create-image`, `/images`
   </Card>
   <Card title="Memory & Data" icon="database">
-    `/remember`, `/recall`, `/cache`, `/index`
+    `/remember`, `/recall`, `/memory`, `/forget`, `/snapshot`, `/snap`, `/restore`, `/snapshots`
   </Card>
 </CardGroup>
 
 ### 🔄 **Operating Modes**
 
-NikCLI supports three distinct operating modes accessible via `Shift+Tab`:
+NikCLI supports different operating modes:
 
 <AccordionGroup>
   <Accordion title="💬 Default Chat Mode">

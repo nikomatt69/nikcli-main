@@ -27,9 +27,6 @@ NikCLI provides over **70 powerful commands** organized into logical categories.
   <Card title="Planning & Todo" icon="clipboard-list">
     **4 commands**: task planning and management
   </Card>
-  <Card title="Parallel Execution" icon="zap">
-    **8 commands**: concurrent task processing
-  </Card>
   <Card title="Security" icon="shield">
     **4 commands**: security and permissions
   </Card>
@@ -270,47 +267,6 @@ NikCLI provides over **70 powerful commands** organized into logical categories.
   </Accordion>
 </AccordionGroup>
 
-### ⚡ Parallel Execution Commands
-
-<AccordionGroup>
-  <Accordion title="/parallel - Parallel Task Execution">
-    Execute multiple tasks simultaneously with intelligent coordination. ```bash # Basic parallel execution /parallel "task1" "task2" "task3" # With strategy /parallel --strategy hybrid "Create frontend" "Build API" "Set up database" # With dependencies /parallel --dependencies {"task2": ["task1"]} "task1" "task2" "task3" ``` **Features:** - Intelligent dependency resolution - Resource management - Error handling and recovery
-  </Accordion>
-
-{" "}
-<Accordion title="/auto - Autonomous Parallel Mode">
-  Enable autonomous execution with parallel processing. ```bash /auto "Create complete application" ``` **Features:** - Automatic parallel execution - Minimal user intervention - Intelligent task coordination
-  </Accordion>
-
-{" "}
-<Accordion title="/parallel-config - Parallel Configuration">
-  Configure parallel execution settings. ```bash # Set concurrency limits /parallel-config --max-concurrent 4 # Configure resource limits /parallel-config --memory-limit 2GB --cpu-limit 4 # Set execution strategy /parallel-config --strategy adaptive ```
-  </Accordion>
-
-{" "}
-<Accordion title="/parallel-monitor - Monitor Parallel Execution">
-  Monitor and control parallel task execution. ```bash # Monitor execution /parallel-monitor # View progress /parallel-monitor --progress # Check resources /parallel-monitor --resources # Control execution /parallel-monitor --pause /parallel-monitor --resume ```
-  </Accordion>
-
-{" "}
-<Accordion title="/parallel-queue - Task Queue Management">
-  Manage task queues for parallel execution. ```bash # Create queue /parallel-queue create "frontend-tasks" # Add tasks to queue /parallel-queue add "frontend-tasks" "Create components" "Add styling" # Execute queue /parallel-queue execute "frontend-tasks" ```
-  </Accordion>
-
-{" "}
-<Accordion title="/parallel-priority - Task Priorities">
-  Set and manage task priorities for parallel execution. ```bash # Set priorities /parallel-priority set "critical-task" high "important-task" medium # View priorities /parallel-priority list # Adjust priorities /parallel-priority adjust "task-id" high ```
-  </Accordion>
-
-{" "}
-<Accordion title="/parallel-resources - Resource Management">
-  Configure and monitor resource allocation. ```bash # View resource usage /parallel-resources # Set resource limits /parallel-resources --memory 2GB --cpu 4 # Create resource pools /parallel-resources --create-pool "cpu-intensive" {"cpu": "4", "memory": "2GB"} ```
-  </Accordion>
-
-  <Accordion title="/parallel-recovery - Error Recovery">
-    Handle errors and recovery in parallel execution. ```bash # Configure error handling /parallel-recovery --strategy retry --max-attempts 3 # Recover failed tasks /parallel-recovery --recover task-id # Set fallback tasks /parallel-recovery --fallback "fallback-task:Alternative approach" ```
-  </Accordion>
-</AccordionGroup>
 
 ### 🛡️ Security Commands
 
