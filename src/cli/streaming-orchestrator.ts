@@ -14,6 +14,7 @@ import { toolService } from './services/tool-service'
 import { advancedUI } from './ui/advanced-cli-ui'
 import { diffManager } from './ui/diff-manager'
 import { OutputFormatter } from './ui/output-formatter'
+import { terminalOutputManager, TerminalOutputManager } from './ui/terminal-output-manager'
 import { AsyncLock } from './utils/async-lock'
 import { CliUI } from './utils/cli-ui'
 import { PasteHandler } from './utils/paste-handler'
@@ -873,18 +874,30 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     // For formatted outputs, don't apply color wrapper (already formatted)
     const displayContent = isFinalOutput ? content : color(content)
-    console.log(`${chalk.dim(timestamp)} ${prefix} ${displayContent} ${statusIndicator}`)
+
+    // Track message output
+    const messageText = `${chalk.dim(timestamp)} ${prefix} ${displayContent} ${statusIndicator}`
+    const messageLines = TerminalOutputManager.calculateLines(messageText)
+    const messageOutputId = terminalOutputManager.reserveSpace('StreamMessage', messageLines)
+    console.log(messageText)
+    terminalOutputManager.confirmOutput(messageOutputId, 'StreamMessage', messageLines, { persistent: false, expiryMs: 30000 })
 
     // Show progress bar for agent messages
     if (message.progress && message.progress > 0) {
       const progressBar = this.createProgressBar(message.progress)
-      console.log(`${' '.repeat(timestamp.length + 2)}${progressBar}`)
+      const progressText = `${' '.repeat(timestamp.length + 2)}${progressBar}`
+      const progressOutputId = terminalOutputManager.reserveSpace('ProgressBar', 1)
+      console.log(progressText)
+      terminalOutputManager.confirmOutput(progressOutputId, 'ProgressBar', 1, { persistent: false, expiryMs: 30000 })
     }
 
     // Show streaming indicators for VM messages
     if (message.type === 'vm' && message.metadata?.chunkLength) {
       const streamInfo = chalk.dim(`[${message.metadata.chunkLength} chars]`)
-      console.log(`${' '.repeat(timestamp.length + 4)}${streamInfo}`)
+      const streamInfoText = `${' '.repeat(timestamp.length + 4)}${streamInfo}`
+      const streamInfoOutputId = terminalOutputManager.reserveSpace('StreamInfo', 1)
+      console.log(streamInfoText)
+      terminalOutputManager.confirmOutput(streamInfoOutputId, 'StreamInfo', 1, { persistent: false, expiryMs: 30000 })
     }
   }
 
@@ -935,6 +948,17 @@ class StreamingOrchestratorImpl extends EventEmitter {
   public displayPanels(): void {
     if (this.panels.size === 0) return
 
+    // Calculate total lines for panel display
+    let totalPanelLines = 2 // Header and footer
+    for (const [_id, panel] of this.panels) {
+      totalPanelLines += 3 // Title + separator + blank line
+      const displayLines = panel.content.slice(-5)
+      totalPanelLines += displayLines.filter((line) => line).length
+    }
+
+    // Reserve space for entire panel display
+    const panelOutputId = terminalOutputManager.reserveSpace('Panels', totalPanelLines)
+
     console.log(chalk.cyan('\n═══ Panels ═══'))
     for (const [_id, panel] of this.panels) {
       const isCognitivePanel = panel.id === 'cognitive-analysis' || /cognitive/i.test(panel.title)
@@ -949,6 +973,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
       })
     }
     console.log(chalk.cyan('═══════════════\n'))
+
+    // Confirm panel output
+    terminalOutputManager.confirmOutput(panelOutputId, 'Panels', totalPanelLines, { persistent: false, expiryMs: 30000 })
   }
 
   public queueVMMessage(content: string): void {

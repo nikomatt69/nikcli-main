@@ -6,6 +6,7 @@ import cliProgress from 'cli-progress'
 import { createPatch, diffLines } from 'diff'
 import ora, { type Ora } from 'ora'
 import * as readline from 'readline'
+import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
 
 export interface StatusIndicator {
   id: string
@@ -99,6 +100,10 @@ export class AdvancedCliUI {
   private ephemeralLiveUpdates: boolean = false
   // Track last printed source to avoid duplicate ⏺ headers
   private lastPrintedSource: string | null = null
+
+  // Enterprise output orchestration
+  private orchestrator: any = null
+  private splitScreenEnabled: boolean = false
   constructor() {
     this.theme = {
       primary: chalk.blue,
@@ -425,11 +430,11 @@ export class AdvancedCliUI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\\n\\n` +
-        `${chalk.green('✓ Completed:')} ${completed}\\n` +
-        `${chalk.red('❌ Failed:')} ${failed}\\n` +
-        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
-        `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
-        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+      `${chalk.green('✓ Completed:')} ${completed}\\n` +
+      `${chalk.red('❌ Failed:')} ${failed}\\n` +
+      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
+      `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
+      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -704,7 +709,10 @@ export class AdvancedCliUI {
     }
 
     // Rendering con tutto grigio scuro tranne il contenuto colorato
-    console.log(`${chalk.dim('  ⎿  ')}${chalk.dim(typeIcon)} ${content}`)
+    const outputText = `${chalk.dim('  ⎿  ')}${chalk.dim(typeIcon)} ${content}`
+    const outputId = terminalOutputManager.reserveSpace('LiveUpdate', 1)
+    console.log(outputText)
+    terminalOutputManager.confirmOutput(outputId, 'LiveUpdate', 1, { persistent: false, expiryMs: 30000 })
   }
 
   /**
@@ -771,7 +779,10 @@ export class AdvancedCliUI {
    */
   logFunctionCall(functionName: string, data?: Record<string, any>): void {
     const formattedName = functionName.toLowerCase()
-    console.log(chalk.cyan(`⏺ ${formattedName}()`))
+    const outputText = chalk.cyan(`⏺ ${formattedName}()`)
+    const outputId = terminalOutputManager.reserveSpace('FunctionCall', 1)
+    console.log(outputText)
+    terminalOutputManager.confirmOutput(outputId, 'FunctionCall', 1, { persistent: false, expiryMs: 30000 })
 
     if (data) {
       this.logFunctionUpdate('info', JSON.stringify(data))
@@ -806,7 +817,10 @@ export class AdvancedCliUI {
     }
 
     const displayIcon = icon || defaultIcon
-    console.log(`${chalk.dim('  ⎿  ')}${chalk.dim(displayIcon)} ${color(message)}`)
+    const outputText = `${chalk.dim('  ⎿  ')}${chalk.dim(displayIcon)} ${color(message)}`
+    const outputId = terminalOutputManager.reserveSpace('FunctionUpdate', 1)
+    console.log(outputText)
+    terminalOutputManager.confirmOutput(outputId, 'FunctionUpdate', 1, { persistent: false, expiryMs: 30000 })
   }
 
   /**

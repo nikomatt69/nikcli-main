@@ -171,7 +171,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       const responseTime = Date.now() - startTime
       this.bridgeStats.failedRequests++
 
-      console.error(chalk.red(`❌ Failed to send message to agent ${agentId}: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Failed to send message to agent ${agentId}: ${error.message}`, '❌')
 
       return {
         success: false,
@@ -245,7 +245,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       this.bridgeStats.successfulRequests++
       this.updateAverageResponseTime(responseTime)
 
-      console.log(chalk.green(`🌊 Successfully streamed response from agent ${agentId} (${responseTime}ms)`))
+      advancedUI.logFunctionUpdate('success', `Successfully streamed response from agent ${agentId} (${responseTime}ms)`, '🌊')
 
       return {
         success: true,
@@ -260,7 +260,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       const responseTime = Date.now() - startTime
       this.bridgeStats.failedRequests++
 
-      console.error(chalk.red(`❌ Failed to stream message to agent ${agentId}: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Failed to stream message to agent ${agentId}: ${error.message}`, '❌')
 
       yield {
         type: 'error',
@@ -364,7 +364,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
         await vmSessionManager.clearMessageQueue(sessionId)
       }
     } catch (error: any) {
-      console.debug('Queue flush failed:', error.message)
+      advancedUI.logFunctionUpdate('error', `Queue flush failed: ${error.message}`, '❌')
     }
   }
 
@@ -389,7 +389,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
 
       return response
     } catch (error: any) {
-      console.error(chalk.red(`❌ Error processing message with agent ${agent.id}: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Error processing message with agent ${agent.id}: ${error.message}`, '❌')
       throw error
     }
   }
@@ -397,12 +397,12 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
   private setupEventHandlers(): void {
     // Handle WebSocket server events
     vmWebSocketServer.on('connected', (containerId: string) => {
-      console.log(chalk.cyan(`🔗 Container ${containerId.slice(0, 12)} connected to bridge`))
+      advancedUI.logFunctionUpdate('success', `Container ${containerId.slice(0, 12)} connected to bridge`, '🔗')
       this.emit('container_connected', containerId)
     })
 
     vmWebSocketServer.on('disconnected', (containerId: string) => {
-      console.log(chalk.yellow(`📵 Container ${containerId.slice(0, 12)} disconnected from bridge`))
+      advancedUI.logFunctionUpdate('warning', `Container ${containerId.slice(0, 12)} disconnected from bridge`, '📵')
       this.emit('container_disconnected', containerId)
     })
 
@@ -412,7 +412,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
 
     // Handle session manager events
     vmSessionManager.on('session_created', (sessionId: string) => {
-      console.log(chalk.green(`📝 Session ${sessionId} created in bridge`))
+      advancedUI.logFunctionUpdate('success', `Session ${sessionId} created in bridge`, '📝')
     })
 
     vmSessionManager.on('message_received', (sessionId: string, message: VMMessage) => {
@@ -431,7 +431,7 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
         this.emit('agent_error', message)
       }
     } catch (error: any) {
-      console.error(chalk.red(`❌ Error handling incoming message: ${error.message}`))
+      advancedUI.logFunctionUpdate('error', `Error handling incoming message: ${error.message}`, '❌')
     }
   }
 
@@ -439,7 +439,8 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
     // This handles messages coming FROM agents TO the bridge/VM mode
     const agent = this.getAgentByContainer(message.containerId)
     if (agent) {
-      console.log(
+      advancedUI.logFunctionUpdate(
+        'info',
         chalk.blue(`📨 Received chat message from agent ${agent.id}: ${message.payload.content.slice(0, 50)}...`)
       )
       this.emit('agent_message', agent.id, message.payload.content)
