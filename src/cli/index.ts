@@ -10,6 +10,7 @@ process.env.NIKCLI_QUIET_STARTUP = 'true'
 
 // Load environment variables first
 import dotenv from 'dotenv'
+import { NikCLIOptions } from './nik-cli'
 
 dotenv.config()
 
@@ -1842,8 +1843,10 @@ class StreamingModule extends EventEmitter {
 class MainOrchestrator {
   private streamingModule?: StreamingModule
   private initialized = false
+  private cliOptions: NikCLIOptions
 
-  constructor() {
+  constructor(options: NikCLIOptions = {}) {
+    this.cliOptions = options;
     this.setupGlobalHandlers()
   }
 
@@ -1927,11 +1930,10 @@ class MainOrchestrator {
 
       // Show quick start guide
 
-      const cli = new NikCLI()
-      await cli.startChat({
-        // Enable structured UI mode from the start
-        structuredUI: true,
-      })
+      const cli = new NikCLI(this.cliOptions)
+      await cli.start(this.cliOptions)
+
+
     } catch (error: any) {
       console.error(chalk.red('❌ Failed to start orchestrator:'), error)
       process.exit(1)
@@ -1953,6 +1955,7 @@ async function main() {
 
   // Parse command line arguments
   const argv = process.argv.slice(2)
+  const options: NikCLIOptions = {};
 
   // Minimal non-interactive report mode for CI/VS Code
   if (argv[0] === 'report' || argv.includes('--report')) {
@@ -1975,7 +1978,7 @@ async function main() {
     }
   }
 
-  const orchestrator = new MainOrchestrator()
+  const orchestrator = new MainOrchestrator(options)
   await orchestrator.start()
 }
 
