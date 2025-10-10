@@ -100,6 +100,10 @@ export class AdvancedCliUI {
   private ephemeralLiveUpdates: boolean = false
   // Track last printed source to avoid duplicate ⏺ headers
   private lastPrintedSource: string | null = null
+
+  // Enterprise output orchestration
+  private orchestrator: any = null
+  private splitScreenEnabled: boolean = false
   constructor() {
     this.theme = {
       primary: chalk.blue,
@@ -426,11 +430,11 @@ export class AdvancedCliUI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\\n\\n` +
-        `${chalk.green('✓ Completed:')} ${completed}\\n` +
-        `${chalk.red('❌ Failed:')} ${failed}\\n` +
-        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
-        `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
-        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+      `${chalk.green('✓ Completed:')} ${completed}\\n` +
+      `${chalk.red('❌ Failed:')} ${failed}\\n` +
+      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
+      `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
+      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },

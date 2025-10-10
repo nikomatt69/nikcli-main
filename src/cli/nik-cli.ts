@@ -63,8 +63,8 @@ import { projectMemory, type ProjectMemoryManager } from './core/project-memory'
 import { approvalSystem } from './ui/approval-system'
 import { createStringPushStream, renderChatStreamToTerminal } from './ui/streamdown-renderer'
 import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
-import { terminalOutputManager, TerminalOutputManager } from './ui/terminal-output-manager'
-// Paste handling system
+
+
 import { PasteHandler } from './utils/paste-handler'
 
 const formatCognitive = chalk.hex('#4a4a4a')
@@ -75,6 +75,7 @@ import { formatAgent, formatCommand, formatFileOp, formatSearch, formatStatus, w
 
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
+
 
 // CAD AI System imports
 
@@ -328,6 +329,8 @@ export class NikCLI {
   private chatAreaHeight: number = 0
   private isChatMode: boolean = false
   private isPrintingPanel: boolean = false
+
+
 
   constructor() {
     this.workingDirectory = process.cwd()
@@ -1346,7 +1349,8 @@ export class NikCLI {
             borderColor: 'green',
             width: Math.min(120, (process.stdout.columns || 100) - 4),
             height: Math.min(maxHeight + 4, (process.stdout.rows || 24) - 2),
-          })
+          }),
+          'taskmaster_plan'
         )
       })
     })
@@ -1366,7 +1370,8 @@ export class NikCLI {
             margin: 1,
             borderStyle: 'round',
             borderColor: 'red',
-          })
+          }),
+          'taskmaster_plan'
         )
       })
     })
@@ -2371,14 +2376,14 @@ export class NikCLI {
       lines.push('  /redis-status          Show Redis status')
       lines.push('  /queue status         Input queue status')
 
-      this.printPanel(
-        boxen(lines.join('\n'), {
-          title: '⌨️  Keyboard & Commands',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'cyan',
-        })
+      this.printPanel(boxen(lines.join('\n'), {
+        title: '⌨️  Keyboard & Commands',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+      }),
+        'general'
       )
     } finally {
       this.renderPromptAfterOutput()
@@ -2659,14 +2664,14 @@ export class NikCLI {
               lines.push(` ${i + 1}. ${q.input.substring(0, 60)}${q.input.length > 60 ? '…' : ''}`)
             })
           }
-          this.printPanel(
-            boxen(lines.join('\n'), {
-              title: '📥 Input Queue',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'magenta',
-            })
+          this.printPanel(boxen(lines.join('\n'), {
+            title: '📥 Input Queue',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'magenta',
+          }),
+            'general'
           )
         }
         break
@@ -3377,14 +3382,13 @@ export class NikCLI {
       content.push('⚛️ @react-expert - React and Next.js expert')
     }
 
-    this.printPanel(
-      boxen(content.join('\n'), {
-        title: 'Available Agents',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan',
-      })
+    this.printPanel(boxen(content.join('\n'), {
+      title: 'Available Agents',
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'cyan',
+    })
     )
 
     this.printPanel(
@@ -6231,14 +6235,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 this.sessionContext.set(key, { nextStart: t + 1, step: defaultStep })
                 if (t < total) {
                   console.log(chalk.gray('─'.repeat(50)))
-                  this.printPanel(
-                    boxen(`Tip: use "/read ${filePath} --more" to continue (next from line ${t + 1})`, {
-                      title: 'Read More Tip',
-                      padding: 1,
-                      margin: 1,
-                      borderStyle: 'round',
-                      borderColor: 'cyan',
-                    })
+                  this.printPanel(boxen(`Tip: use "/read ${filePath} --more" to continue (next from line ${t + 1}, 'general')`, {
+                    title: 'Read More Tip',
+                    padding: 1,
+                    margin: 1,
+                    borderStyle: 'round',
+                    borderColor: 'cyan',
+                  })
                   )
                 }
               } else {
@@ -6289,14 +6292,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           await toolsManager.writeFile(filePath, content)
 
           this.stopAdvancedSpinner(writeId, true, `File written: ${filePath}`)
-          this.printPanel(
-            boxen(chalk.green(`File written: ${filePath}\n\n${content.length} characters written`), {
-              title: 'Write Complete',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'green',
-            })
+          this.printPanel(boxen(chalk.green(`File written: ${filePath}\n\n${content.length} characters written`, 'general'), {
+            title: 'Write Complete',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          })
           )
           break
         }
@@ -6677,14 +6679,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               lines.push(`   ${messageCount} messages | ${session.updatedAt.toLocaleString()}`)
             })
           }
-          this.printPanel(
-            boxen(lines.join('\n'), {
-              title: 'Chat Sessions',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'cyan',
-            })
+          this.printPanel(boxen(lines.join('\n'), {
+            title: 'Chat Sessions',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          })
           )
           break
         }
@@ -6836,14 +6837,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           try {
             // Sync AdvancedAIProvider immediately so no restart is required
             advancedAIProvider.setModel(modelName)
-            this.printPanel(
-              boxen(`Switched to model: ${modelName}\nApplied immediately (no restart needed)`, {
-                title: 'Model Updated',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'green',
-              })
+            this.printPanel(boxen(`Switched to model: ${modelName}\nApplied immediately (no restart needed, 'general')`, {
+              title: 'Model Updated',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            })
             )
           } catch {
             console.log(chalk.green(`✓ Switched to model: ${modelName}`))
@@ -7001,14 +7001,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
           try {
             const taskId = await agentService.executeTask(agentName, task, {})
-            this.printPanel(
-              boxen(`Successfully launched ${agentName} (Task ID: ${taskId.slice(-6)})`, {
-                title: 'Agent Started',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'green',
-              })
+            this.printPanel(boxen(`Successfully launched ${agentName} (Task ID: ${taskId.slice(-6,)})`, {
+              title: 'Agent Started',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            })
             )
           } catch (error: any) {
             this.printPanel(
@@ -7417,14 +7416,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 borderColor = percentage >= 90 ? 'red' : percentage >= 80 ? 'yellow' : 'cyan'
               }
 
-              this.printPanel(
-                boxen(lines.join('\n'), {
-                  title: '📊 Context Statistics',
-                  padding: 1,
-                  margin: 1,
-                  borderStyle: 'round',
-                  borderColor: borderColor,
-                })
+              this.printPanel(boxen(lines.join('\n'), {
+                title: '📊 Context Statistics',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: borderColor,
+              })
               )
             } else {
               // Load paths with progress indication
@@ -7463,14 +7461,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 lines.push(`  Total Indexed: ${chalk.white(ctx.selectedPaths.length.toString())} paths`)
               }
 
-              this.printPanel(
-                boxen(lines.join('\n'), {
-                  title: '🌍 Context Updated',
-                  padding: 1,
-                  margin: 1,
-                  borderStyle: 'round',
-                  borderColor: 'green',
-                })
+              this.printPanel(boxen(lines.join('\n'), {
+                title: '🌍 Context Updated',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'green',
+              })
               )
             }
           } finally {
@@ -7883,14 +7880,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
     }
 
-    this.printPanel(
-      boxen(logLines.join('\n'), {
-        title: 'Parallel Execution Logs',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'cyan',
-      })
+    this.printPanel(boxen(logLines.join('\n'), {
+      title: 'Parallel Execution Logs',
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'cyan',
+    })
     )
   }
 
@@ -7945,14 +7941,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       )
       blueprintLines.push(`  /launch-agent ${blueprints[0]?.id || 'blueprint-id'} "specific task"`)
 
-      this.printPanel(
-        boxen(blueprintLines.join('\n'), {
-          title: '🏭 Available Factory Blueprints',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'cyan',
-        })
+      this.printPanel(boxen(blueprintLines.join('\n'), {
+        title: '🏭 Available Factory Blueprints',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+      })
       )
     } catch (error: any) {
       this.printPanel(
@@ -7962,7 +7957,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -8004,14 +8000,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       `📝 Total Log Entries: ${Array.from(context.logs.values()).reduce((total, logs) => total + logs.length, 0)}`
     )
 
-    this.printPanel(
-      boxen(statusLines.join('\n'), {
-        title: 'Parallel Execution Status',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'blue',
-      })
+    this.printPanel(boxen(statusLines.join('\n'), {
+      title: 'Parallel Execution Status',
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
     )
   }
 
@@ -8057,7 +8052,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
     console.log() // Extra newline for better separation
@@ -8136,7 +8132,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
       return
     }
@@ -8212,7 +8209,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
       return
     }
@@ -8239,7 +8237,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
       return
     }
@@ -8407,17 +8406,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             break
           }
 
-          this.printPanel(
-            boxen(
-              `🎨 Fetching Figma file info\n\n📋 File ID: ${fileId}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`,
-              {
-                title: 'Figma Info',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'yellow',
-              }
-            )
+          this.printPanel(boxen(
+            `🎨 Fetching Figma file info\n\n📋 File ID: ${fileId}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`,
+            {
+              title: 'Figma Info',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }
+          )
           )
           break
         }
@@ -8454,17 +8452,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           }
 
           const format = args[1] || 'svg'
-          this.printPanel(
-            boxen(
-              `🎨 Exporting Figma file\n\n📋 File ID: ${exportFileId}\n📐 Format: ${format}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`,
-              {
-                title: 'Figma Export',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'yellow',
-              }
-            )
+          this.printPanel(boxen(
+            `🎨 Exporting Figma file\n\n📋 File ID: ${exportFileId}\n📐 Format: ${format}\n📍 Source: ${args[0].includes('http') ? 'URL' : 'Direct ID'}\n\n⚠️  This feature requires Figma API implementation`,
+            {
+              title: 'Figma Export',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }
+          )
           )
           break
         }
@@ -8729,15 +8726,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         lines.push('/doc-unload [names|--all]  - Unload docs')
         lines.push('/doc-suggest <query>       - Suggest docs')
 
-        this.printPanel(
-          boxen(lines.join('\n'), {
-            title: 'Documentation System',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'magenta',
-            width: this.getOptimalPanelWidth(),
-          })
+        this.printPanel(boxen(lines.join('\n'), {
+          title: 'Documentation System',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'magenta',
+          width: this.getOptimalPanelWidth(),
+        })
         )
 
         return
@@ -9042,16 +9038,15 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         const lines = [`Downloaded: ${result.downloaded}`, `Uploaded: ${result.uploaded}`]
         if (result.downloaded > 0) lines.push('Use /doc-search to explore new content')
         const maxHeight = this.getAvailablePanelHeight()
-        this.printPanel(
-          boxen(lines.join('\n'), {
-            title: 'Docs Sync',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'green',
-            width: Math.min(120, (process.stdout.columns || 100) - 4),
-            height: Math.min(maxHeight + 4, (process.stdout.rows || 24) - 2),
-          })
+        this.printPanel(boxen(lines.join('\n'), {
+          title: 'Docs Sync',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+          width: Math.min(120, (process.stdout.columns || 100) - 4),
+          height: Math.min(maxHeight + 4, (process.stdout.rows || 24) - 2),
+        })
         )
       } catch (error: any) {
         spinner.fail('Sync failed')
@@ -9102,16 +9097,15 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
 
       const maxHeight = this.getAvailablePanelHeight()
-      this.printPanel(
-        boxen(`Loading ${args.length} document(s) into AI context…`, {
-          title: '⚡︎ Load Docs',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'cyan',
-          width: Math.min(120, (process.stdout.columns || 100) - 4),
-          height: Math.min(maxHeight + 4, (process.stdout.rows || 24) - 2),
-        })
+      this.printPanel(boxen(`Loading ${args.length} document(s, 'general') into AI context…`, {
+        title: '⚡︎ Load Docs',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+        width: Math.min(120, (process.stdout.columns || 100) - 4),
+        height: Math.min(maxHeight + 4, (process.stdout.rows || 24) - 2),
+      })
       )
 
       const loadedDocs = await docsContextManager.loadDocs(args)
@@ -9524,7 +9518,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general'
       )
 
       this.addLiveUpdate({
@@ -9540,7 +9535,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -9608,19 +9604,18 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const { calculateTokenCost, MODEL_COSTS } = await import('./config/token-limits')
       const currentModel = this.configManager.getCurrentModel()
 
-      this.printPanel(
-        boxen(
-          `${chalk.cyan('Session Tokens:')}\n` +
-          `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
-          `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
-          `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'cyan',
-          }
-        )
+      this.printPanel(boxen(
+        `${chalk.cyan('Session Tokens:', 'general')}\n` +
+        `Input (User): ${chalk.white(userTokens.toLocaleString())} tokens\n` +
+        `Output (Assistant): ${chalk.white(assistantTokens.toLocaleString())} tokens\n` +
+        `Total: ${chalk.white((userTokens + assistantTokens).toLocaleString())} tokens`,
+        {
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        }
+      )
       )
 
       console.log(chalk.cyan('\n🏆 All Models Comparison:'))
@@ -9689,23 +9684,22 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const currentModel = this.configManager.getCurrentModel()
       const pricing = getModelPricing(currentModel)
 
-      this.printPanel(
-        boxen(
-          `${chalk.cyan('Current Model:')}\n` +
-          `${chalk.white(pricing.displayName)}\n\n` +
-          `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
-          `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
-          `${chalk.yellow('Examples:')}\n` +
-          `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
-          `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
-          `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'blue',
-          }
-        )
+      this.printPanel(boxen(
+        `${chalk.cyan('Current Model:', 'general')}\n` +
+        `${chalk.white(pricing.displayName)}\n\n` +
+        `${chalk.green('Input Pricing:')} $${pricing.input.toFixed(2)} per 1M tokens\n` +
+        `${chalk.green('Output Pricing:')} $${pricing.output.toFixed(2)} per 1M tokens\n\n` +
+        `${chalk.yellow('Examples:')}\n` +
+        `• 1K input + 1K output = $${((pricing.input + pricing.output) / 1000).toFixed(4)}\n` +
+        `• 10K input + 10K output = $${((pricing.input + pricing.output) / 100).toFixed(4)}\n` +
+        `• 100K input + 100K output = $${((pricing.input + pricing.output) / 10).toFixed(3)}`,
+        {
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        }
+      )
       )
 
       // Show all available models
@@ -9738,19 +9732,18 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const inputTokens = Math.floor(targetTokens / 2)
       const outputTokens = Math.floor(targetTokens / 2)
 
-      this.printPanel(
-        boxen(
-          `${chalk.cyan('Estimation Parameters:')}\n` +
-          `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
-          `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
-          `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'cyan',
-          }
-        )
+      this.printPanel(boxen(
+        `${chalk.cyan('Estimation Parameters:', 'general')}\n` +
+        `Target Tokens: ${chalk.white(targetTokens.toLocaleString())}\n` +
+        `Input Tokens: ${chalk.white(inputTokens.toLocaleString())} (50%)\n` +
+        `Output Tokens: ${chalk.white(outputTokens.toLocaleString())} (50%)`,
+        {
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        }
+      )
       )
 
       console.log(chalk.cyan('\n💸 Cost Estimates by Model:'))
@@ -9866,28 +9859,27 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
         const totalTokensSaved = stats.totalTokensSaved + completionStats.totalHits * 50 // Estimate 50 tokens saved per completion hit
 
-        this.printPanel(
-          boxen(
-            `${chalk.cyan.bold('🔮 Advanced Cache System Statistics')}\n\n` +
-            redisStats +
-            `${chalk.magenta('📦 Full Response Cache:')}\n` +
-            `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
-            `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
-            `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
-            `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
-            `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
-            `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
-            `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
-            `${chalk.green.bold('💰 Total Savings:')}\n` +
-            `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
-            `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
-            {
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'magenta',
-            }
-          )
+        this.printPanel(boxen(
+          `${chalk.cyan.bold('🔮 Advanced Cache System Statistics', 'general')}\n\n` +
+          redisStats +
+          `${chalk.magenta('📦 Full Response Cache:')}\n` +
+          `  Entries: ${chalk.white(stats.totalEntries.toLocaleString())}\n` +
+          `  Hits: ${chalk.green(stats.totalHits.toLocaleString())}\n` +
+          `  Tokens Saved: ${chalk.yellow(stats.totalTokensSaved.toLocaleString())}\n\n` +
+          `${chalk.cyan('🔮 Completion Protocol Cache:')} ${chalk.red('NEW!')}\n` +
+          `  Patterns: ${chalk.white(completionStats.totalPatterns.toLocaleString())}\n` +
+          `  Hits: ${chalk.green(completionStats.totalHits.toLocaleString())}\n` +
+          `  Avg Confidence: ${chalk.blue(Math.round(completionStats.averageConfidence * 100))}%\n\n` +
+          `${chalk.green.bold('💰 Total Savings:')}\n` +
+          `Combined Tokens: ${chalk.yellow(totalTokensSaved.toLocaleString())}\n` +
+          `Estimated Cost: ~$${((totalTokensSaved * 0.003) / 1000).toFixed(2)}`,
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'magenta',
+          }
+        )
         )
 
         if (stats.totalEntries > 0) {
@@ -9922,49 +9914,47 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           const totalTokens = stats.session.totalInputTokens + stats.session.totalOutputTokens
           const usagePercent = (totalTokens / limits.context) * 100
 
-          this.printPanel(
-            boxen(
-              `${chalk.cyan('🎯 Precise Token Tracking Session')}\n\n` +
-              `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
-              `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
-              `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
-              `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
-              `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
-              `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-              `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-              `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
-              `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
-              `Total Session Cost: ${chalk.yellow.bold(`$${stats.session.totalCost.toFixed(6)}`)}\n` +
-              `Average per Message: ${chalk.green(`$${stats.costPerMessage.toFixed(6)}`)}\n` +
-              `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
-              `Session Duration: ${`${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000)} min`}`,
-              {
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
-                title: '🔢 Universal Tokenizer',
-              }
-            )
+          this.printPanel(boxen(
+            `${chalk.cyan('🎯 Precise Token Tracking Session', 'general')}\n\n` +
+            `Model: ${chalk.white(`${currentProvider}:${currentModel}`)}\n` +
+            `Messages: ${chalk.white(stats.session.messageCount.toLocaleString())}\n` +
+            `Input Tokens: ${chalk.white(stats.session.totalInputTokens.toLocaleString())}\n` +
+            `Output Tokens: ${chalk.white(stats.session.totalOutputTokens.toLocaleString())}\n` +
+            `Total Tokens: ${chalk.white(totalTokens.toLocaleString())}\n` +
+            `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+            `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+            `Remaining: ${chalk.gray((limits.context - totalTokens).toLocaleString())} tokens\n\n` +
+            `${chalk.yellow('💰 Precise Real-time Cost:')}\n` +
+            `Total Session Cost: ${chalk.yellow.bold(`$${stats.session.totalCost.toFixed(6)}`)}\n` +
+            `Average per Message: ${chalk.green(`$${stats.costPerMessage.toFixed(6)}`)}\n` +
+            `Tokens per Minute: ${chalk.blue(Math.round(stats.tokensPerMinute).toLocaleString())}\n` +
+            `Session Duration: ${`${chalk.gray(Math.round(stats.session.lastActivity.getTime() - stats.session.startTime.getTime()) / 60000)} min`}`,
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
+              title: '🔢 Universal Tokenizer',
+            }
+          )
           )
 
           // Context optimization recommendations
           const optimization = contextTokenManager.analyzeContextOptimization()
           if (optimization.shouldTrim || optimization.recommendation !== 'continue') {
-            this.printPanel(
-              boxen(
-                `${chalk.yellow('⚡ Optimization Recommendations:')}\n\n` +
-                `Status: ${optimization.recommendation === 'continue' ? chalk.green('✓ Good') : chalk.yellow('⚠️  Attention needed')}\n` +
-                `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
-                `Reason: ${chalk.gray(optimization.reason)}`,
-                {
-                  padding: 1,
-                  margin: 1,
-                  borderStyle: 'round',
-                  borderColor: 'yellow',
-                  title: 'Smart Optimization',
-                }
-              )
+            this.printPanel(boxen(
+              `${chalk.yellow('⚡ Optimization Recommendations:', 'general')}\n\n` +
+              `Status: ${optimization.recommendation === 'continue' ? chalk.green('✓ Good') : chalk.yellow('⚠️  Attention needed')}\n` +
+              `Action: ${chalk.white(optimization.recommendation.replace('_', ' ').toUpperCase())}\n` +
+              `Reason: ${chalk.gray(optimization.reason)}`,
+              {
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+                title: 'Smart Optimization',
+              }
+            )
             )
           }
         }
@@ -10002,29 +9992,28 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
         const currentCost = universalTokenizer.calculateCost(userTokens, assistantTokens, currentModel)
 
-        this.printPanel(
-          boxen(
-            `${chalk.cyan(`${isPrecise ? '🎯' : '📊'} Session Token Analysis`)}\n\n` +
-            `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
-            `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
-            `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
-            `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
-            `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
-            `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
-            `${chalk.yellow('💰 Cost Analysis:')}\n` +
-            `Model: ${chalk.white(currentCost.model)}\n` +
-            `Input Cost: ${chalk.green(`$${currentCost.inputCost.toFixed(6)}`)}\n` +
-            `Output Cost: ${chalk.green(`$${currentCost.outputCost.toFixed(6)}`)}\n` +
-            `Total Cost: ${chalk.yellow.bold(`$${currentCost.totalCost.toFixed(6)}`)}\n\n` +
-            `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✓') : chalk.yellow('Character estimation (fallback)')}`,
-            {
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
-              title: isPrecise ? 'Precise Analysis' : 'Estimated Analysis',
-            }
-          )
+        this.printPanel(boxen(
+          `${chalk.cyan(`${isPrecise ? '🎯' : '📊'} Session Token Analysis`, 'general')}\n\n` +
+          `Messages: ${chalk.white(chatSession.messages.length.toLocaleString())}\n` +
+          `Characters: ${chalk.white(totalChars.toLocaleString())}\n` +
+          `${isPrecise ? 'Precise' : 'Est.'} Tokens: ${chalk.white(preciseTokens.toLocaleString())}\n` +
+          `Context Limit: ${chalk.gray(limits.context.toLocaleString())}\n` +
+          `Usage: ${usagePercent > 90 ? chalk.red(`${usagePercent.toFixed(1)}%`) : usagePercent > 80 ? chalk.yellow(`${usagePercent.toFixed(1)}%`) : chalk.green(`${usagePercent.toFixed(1)}%`)}\n` +
+          `Remaining: ${chalk.gray((limits.context - preciseTokens).toLocaleString())} tokens\n\n` +
+          `${chalk.yellow('💰 Cost Analysis:')}\n` +
+          `Model: ${chalk.white(currentCost.model)}\n` +
+          `Input Cost: ${chalk.green(`$${currentCost.inputCost.toFixed(6)}`)}\n` +
+          `Output Cost: ${chalk.green(`$${currentCost.outputCost.toFixed(6)}`)}\n` +
+          `Total Cost: ${chalk.yellow.bold(`$${currentCost.totalCost.toFixed(6)}`)}\n\n` +
+          `${chalk.blue('💡 Tokenizer:')} ${isPrecise ? chalk.green('Universal Tokenizer ✓') : chalk.yellow('Character estimation (fallback)')}`,
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: usagePercent > 90 ? 'red' : usagePercent > 80 ? 'yellow' : 'green',
+            title: isPrecise ? 'Precise Analysis' : 'Estimated Analysis',
+          }
+        )
         )
 
         // Message breakdown
@@ -10033,35 +10022,33 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         const assistantMsgs = chatSession.messages.filter((m) => m.role === 'assistant')
         const sysTokens = Math.round(systemMsgs.reduce((sum, m) => sum + m.content.length, 0) / 4)
 
-        this.printPanel(
-          boxen(
-            `System: ${systemMsgs.length} messages (${sysTokens.toLocaleString()} tokens)\n` +
-            `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
-            `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
-            {
-              title: 'Message Breakdown',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'cyan',
-            }
-          )
+        this.printPanel(boxen(
+          `System: ${systemMsgs.length} messages (${sysTokens.toLocaleString()} tokens)\n` +
+          `User: ${userMsgs.length} messages (${userTokens.toLocaleString()} tokens)\n` +
+          `Assistant: ${assistantMsgs.length} messages (${assistantTokens.toLocaleString()} tokens)`,
+          {
+            title: 'Message Breakdown',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
+        )
         )
 
         // Upgrade suggestion
-        this.printPanel(
-          boxen(
-            `${chalk.yellow('💡 Tip:')} For more precise tracking, start a new session to enable\n` +
-            `real-time token monitoring with the Universal Tokenizer.\n\n` +
-            `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
-            {
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow',
-              title: 'Upgrade Available',
-            }
-          )
+        this.printPanel(boxen(
+          `${chalk.yellow('💡 Tip:', 'general')} For more precise tracking, start a new session to enable\n` +
+          `real-time token monitoring with the Universal Tokenizer.\n\n` +
+          `Current session uses ${isPrecise ? 'precise' : 'estimated'} counting.`,
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+            title: 'Upgrade Available',
+          }
+        )
         )
 
         // Model pricing comparison (panel)
@@ -10092,14 +10079,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             }
           })
           if (lines.length > 0) {
-            this.printPanel(
-              boxen(lines.join('\n'), {
-                title: '💸 Model Pricing Comparison',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'blue',
-              })
+            this.printPanel(boxen(lines.join('\n'), {
+              title: '💸 Model Pricing Comparison',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'blue',
+            })
             )
           }
         }
@@ -10121,14 +10107,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         if (preciseTokens > 10000) {
           const projectedDailyCost = (currentCost.totalCost / preciseTokens) * 50000 // Assuming 50k tokens/day
           const projectedMonthlyCost = projectedDailyCost * 30
-          this.printPanel(
-            boxen(
-              [
-                `Daily (50k tokens): $${projectedDailyCost.toFixed(4)}`,
-                `Monthly (~1.5M tokens): $${projectedMonthlyCost.toFixed(2)}`,
-              ].join('\n'),
-              { title: 'Cost Projections', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
-            )
+          this.printPanel(boxen(
+            [
+              `Daily (50k tokens, 'general'): $${projectedDailyCost.toFixed(4)}`,
+              `Monthly (~1.5M tokens): $${projectedMonthlyCost.toFixed(2)}`,
+            ].join('\n'),
+            { title: 'Cost Projections', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' }
+          )
           )
         }
 
@@ -10148,14 +10133,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             } catch { }
           })
           if (lines.length > 0) {
-            this.printPanel(
-              boxen(lines.join('\n'), {
-                title: '🔀 Router: Avg Spend per Model (per 1K)',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'magenta',
-              })
+            this.printPanel(boxen(lines.join('\n'), {
+              title: '🔀 Router: Avg Spend per Model (per 1K)',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'magenta',
+            })
             )
           }
         } catch { }
@@ -10346,17 +10330,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             const cfg = (this.configManager.get('autoTodo') as any) || { requireExplicitTrigger: false }
             if (subcommand === 'on' || subcommand === 'enable') {
               this.configManager.set('autoTodo', { ...cfg, requireExplicitTrigger: false } as any)
-              this.printPanel(
-                boxen(
-                  'Auto‑todos enabled (complex inputs can trigger background todos).\nUse "/todos off" to require explicit "todo".',
-                  {
-                    title: 'Todos: Auto Mode',
-                    padding: 1,
-                    margin: 1,
-                    borderStyle: 'round',
-                    borderColor: 'green',
-                  }
-                )
+              this.printPanel(boxen(
+                'Auto‑todos enabled (complex inputs can trigger background todos, ).\nUse "/todos off" to require explicit "todo".',
+                {
+                  title: 'Todos: Auto Mode',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'green',
+                }
+              )
               )
             } else if (subcommand === 'off' || subcommand === 'of' || subcommand === 'disable') {
               this.configManager.set('autoTodo', { ...cfg, requireExplicitTrigger: true } as any)
@@ -10375,17 +10358,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             } else if (subcommand === 'status') {
               const current = (this.configManager.get('autoTodo') as any)?.requireExplicitTrigger
               const status = current ? 'Explicit Only (off)' : 'Automatic (on)'
-              this.printPanel(
-                boxen(
-                  `Current: ${status}\n- on  = auto (complex inputs can trigger)\n- off = explicit only (requires "todo")`,
-                  {
-                    title: 'Todos: Status',
-                    padding: 1,
-                    margin: 1,
-                    borderStyle: 'round',
-                    borderColor: 'cyan',
-                  }
-                )
+              this.printPanel(boxen(
+                `Current: ${status}\n- on  = auto (complex inputs can trigger, 'general')\n- off = explicit only (requires "todo")`,
+                {
+                  title: 'Todos: Status',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'cyan',
+                }
+              )
               )
             }
           } else {
@@ -10409,7 +10391,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -10446,14 +10429,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       lines.push('/mcp add-remote myapi https://api.example.com/mcp')
       lines.push('/mcp generate filesystem     - Generate secure wrappers')
 
-      this.printPanel(
-        boxen(lines.join('\n'), {
-          title: '🔮 MCP Commands',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'magenta',
-        })
+      this.printPanel(boxen(lines.join('\n'), {
+        title: '🔮 MCP Commands',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'magenta',
+      })
       )
       return
     }
@@ -10598,7 +10580,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
       this.addLiveUpdate({
         type: 'error',
@@ -11336,14 +11319,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       lines.push('')
       lines.push(chalk.gray('Use /read NIKOCLI.md to view details'))
 
-      this.printPanel(
-        boxen(lines.join('\n'), {
-          title: '🧭 Project Initialized',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'cyan',
-        })
+      this.printPanel(boxen(lines.join('\n'), {
+        title: '🧭 Project Initialized',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+      })
       )
 
       // Show a preview panel of the generated NIKOCLI.md
@@ -11355,7 +11337,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general'
       )
     } catch (error: any) {
       this.printPanel(
@@ -11365,7 +11348,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -11808,7 +11792,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   }
 
   // Print a boxed panel - show full content but avoid status bar overlap
-  private printPanel(content: string): void {
+  private async printPanel(content: string, componentType?: string): Promise<void> {
     this.beginPanelOutput()
     try {
       // Show content and scroll down enough to avoid status bar overlap
@@ -12062,6 +12046,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
    */
   private renderPromptArea(): void {
     if (this.isPrintingPanel) return // do not draw status frame while a panel prints
+
+    // Lock prompt area during rendering (split-screen protection)
+
     // Calculate session info (copied from showLegacyPrompt)
     const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60)
     const totalTokens = this.sessionTokenUsage + this.contextTokens
@@ -12094,12 +12081,12 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     if (planHudLines.length > 0) {
       // Track plan HUD output
-      const hudOutputId = terminalOutputManager.reserveSpace('PlanHUD', planHudLines.length + 1)
+
       for (const line of planHudLines) {
         process.stdout.write(`${line}\n`)
       }
       process.stdout.write('\n')
-      terminalOutputManager.confirmOutput(hudOutputId, 'PlanHUD', planHudLines.length + 1, { persistent: true })
+
     }
 
     // Render slash menu if active
@@ -12178,7 +12165,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Display status bar with frame using process.stdout.write to avoid extra lines
     if (!this.isPrintingPanel) {
       // Track prompt frame output (3 lines: top border + status line + bottom border)
-      const frameOutputId = terminalOutputManager.reserveSpace('PromptFrame', 3)
+
 
       process.stdout.write(`${chalk.cyan(`╭${'─'.repeat(terminalWidth - 2)}╮`)}\n`)
 
@@ -12236,7 +12223,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       process.stdout.write(`${chalk.cyan(`╰${'─'.repeat(terminalWidth - 2)}╯`)}\n`)
 
       // Confirm prompt frame output
-      terminalOutputManager.confirmOutput(frameOutputId, 'PromptFrame', 3, { persistent: true })
+
     }
 
     if (this.rl) {
@@ -12279,6 +12266,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         }
       }
     }, 50)
+
+    // Unlock prompt area after rendering (split-screen protection)
+
   }
 
   /**
@@ -13701,7 +13691,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
     }
   }
@@ -13816,7 +13807,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         borderColor: 'magenta',
       })
 
-      this.printPanel(historyBox)
+      this.printPanel(historyBox, 'general')
     } catch (error: any) {
       if (error.message.includes('not a git repository')) {
         console.log(chalk.yellow('⚠️  This directory is not a git repository'))
@@ -13851,7 +13842,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'cyan',
-        })
+        }),
+        'general'
       )
     }
 
@@ -13882,14 +13874,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             Object.entries(stats.memoriesBySource).forEach(([src, count]) => lines.push(`  • ${src}: ${count}`))
           }
 
-          this.printPanel(
-            boxen(lines.join('\n'), {
-              title: 'Memory: Statistics',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'green',
-            })
+          this.printPanel(boxen(lines.join('\n'), {
+            title: 'Memory: Statistics',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          })
           )
           break
         }
@@ -13908,14 +13899,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           if (cfg.importance_decay_days !== undefined)
             lines.push(`${chalk.green('Importance Decay (days):')} ${cfg.importance_decay_days}`)
 
-          this.printPanel(
-            boxen(lines.join('\n'), {
-              title: 'Memory: Configuration',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow',
-            })
+          this.printPanel(boxen(lines.join('\n'), {
+            title: 'Memory: Configuration',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }),
+            'general'
           )
           break
         }
@@ -13953,14 +13944,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             })
           }
 
-          this.printPanel(
-            boxen(lines.join('\n'), {
-              title: '⚡︎ Memory: Context',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'cyan',
-            })
+          this.printPanel(boxen(lines.join('\n'), {
+            title: '⚡︎ Memory: Context',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          })
           )
           break
         }
@@ -14004,14 +13994,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           if (p.interaction_patterns.common_tasks?.length)
             lines.push(`${chalk.green('Common Tasks:')} ${p.interaction_patterns.common_tasks.slice(0, 5).join(', ')}`)
 
-          this.printPanel(
-            boxen(lines.join('\n'), {
-              title: '⚡︎ Memory: Personalization',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'magenta',
-            })
+          this.printPanel(boxen(lines.join('\n'), {
+            title: '⚡︎ Memory: Personalization',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'magenta',
+          })
           )
           break
         }
@@ -14050,7 +14039,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -14185,7 +14175,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'cyan',
-        })
+        }),
+        'general'
       )
       return
     }
@@ -14216,14 +14207,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           lines.push('• Use /diag-status to check monitoring status')
           lines.push('• Use /diagnostic stop to stop monitoring')
 
-          this.printPanel(
-            boxen(lines.join('\n'), {
-              title: '🔍 IDE Diagnostics: Monitoring',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'cyan',
-            })
+          this.printPanel(boxen(lines.join('\n'), {
+            title: '🔍 IDE Diagnostics: Monitoring',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          })
           )
           break
         }
@@ -14257,14 +14247,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           lines.push('')
           lines.push(`Current status: ${quick}`)
 
-          this.printPanel(
-            boxen(lines.join('\n'), {
-              title: '🔍 IDE Diagnostics: Status',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'cyan',
-            })
+          this.printPanel(boxen(lines.join('\n'), {
+            title: '🔍 IDE Diagnostics: Status',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          })
           )
           break
         }
@@ -14302,14 +14291,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             context.recommendations.forEach((rec: string) => lines.push(`• ${rec}`))
           }
 
-          this.printPanel(
-            boxen(lines.join('\n'), {
-              title: '📊 Diagnostic Results',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'magenta',
-            })
+          this.printPanel(boxen(lines.join('\n'), {
+            title: '📊 Diagnostic Results',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'magenta',
+          })
           )
 
           if (!wasActive) ideDiagnosticIntegration.setActive(false)
@@ -14337,7 +14325,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -14361,7 +14350,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -14394,7 +14384,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general',
+
       )
     } catch (error: any) {
       this.printPanel(
@@ -14404,8 +14396,11 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general',
+
       )
+
     }
   }
 
@@ -14424,7 +14419,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -14436,14 +14432,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         const tags = s.metadata?.tags?.length ? ` [${s.metadata.tags.join(', ')}]` : ''
         lines.push(`${s.id.substring(0, 8)}  ${s.name}  ${ts}${tags}`)
       })
-      this.printPanel(
-        boxen(lines.join('\n'), {
-          title: '📸 Snapshots',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'yellow',
-        })
+      this.printPanel(boxen(lines.join('\n'), {
+        title: '📸 Snapshots',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'yellow',
+      })
       )
     } catch (error: any) {
       this.printPanel(
@@ -14453,7 +14448,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -14471,7 +14467,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -14484,7 +14481,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general'
       )
     } catch (error: any) {
       this.printPanel(
@@ -14494,7 +14492,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -14535,14 +14534,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         })
         lines.push('\nUse /resume <session-id> to resume a session')
 
-        this.printPanel(
-          boxen(lines.join('\n'), {
-            title: '💼 Available Work Sessions',
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'cyan',
-          })
+        this.printPanel(boxen(lines.join('\n'), {
+          title: '💼 Available Work Sessions',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        }),
+          'general'
         )
         return
       }
@@ -14611,7 +14610,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -14632,7 +14632,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -14652,14 +14653,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         if (idx < sessions.length - 1) lines.push('')
       })
 
-      this.printPanel(
-        boxen(lines.join('\n'), {
-          title: '💼 All Work Sessions',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'cyan',
-        })
+      this.printPanel(boxen(lines.join('\n'), {
+        title: '💼 All Work Sessions',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+      })
       )
     } catch (error: any) {
       this.printPanel(
@@ -14669,7 +14669,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -14779,7 +14780,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -14797,7 +14799,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -14824,7 +14827,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
       }
     } catch (error: any) {
@@ -14835,7 +14839,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -14874,7 +14879,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general'
       )
     } catch (error: any) {
       this.printPanel(
@@ -14884,7 +14890,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -14905,7 +14912,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -14919,7 +14927,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -14934,7 +14943,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -14946,14 +14956,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         lines.push(`${opIcon} ${op.operation.toUpperCase()} - ${op.filePath}`)
       })
 
-      this.printPanel(
-        boxen(lines.join('\n'), {
-          title: '↶ Undo Complete',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'green',
-        })
+      this.printPanel(boxen(lines.join('\n'), {
+        title: '↶ Undo Complete',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'green',
+      })
       )
     } catch (error: any) {
       this.printPanel(
@@ -14963,7 +14972,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -14984,7 +14994,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -14998,7 +15009,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -15013,7 +15025,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -15025,14 +15038,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         lines.push(`${opIcon} ${op.operation.toUpperCase()} - ${op.filePath}`)
       })
 
-      this.printPanel(
-        boxen(lines.join('\n'), {
-          title: '↷ Redo Complete',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'green',
-        })
+      this.printPanel(boxen(lines.join('\n'), {
+        title: '↷ Redo Complete',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'green',
+      })
       )
     } catch (error: any) {
       this.printPanel(
@@ -15042,7 +15054,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -15063,7 +15076,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -15095,14 +15109,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         })
       }
 
-      this.printPanel(
-        boxen(lines.join('\n'), {
-          title: '📝 Edit History',
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'cyan',
-        })
+      this.printPanel(boxen(lines.join('\n'), {
+        title: '📝 Edit History',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+      })
       )
     } catch (error: any) {
       this.printPanel(
@@ -15112,7 +15125,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -15277,14 +15291,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           lines.push(`• System Commands: ${pol.systemCommands}`)
           lines.push(`• Network Requests: ${pol.networkRequests}`)
 
-          this.printPanel(
-            boxen(lines.join('\n'), {
-              title: '🔒 Security Status',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow',
-            })
+          this.printPanel(boxen(lines.join('\n'), {
+            title: '🔒 Security Status',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }),
+            'general'
           )
           break
         }
@@ -15370,7 +15384,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -15424,14 +15439,14 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             '',
             '⚠️ Developer mode reduces security restrictions',
           ]
-          this.printPanel(
-            boxen(lines.join('\n'), {
-              title: '� Developer Mode: Help',
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow',
-            })
+          this.printPanel(boxen(lines.join('\n'), {
+            title: '� Developer Mode: Help',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }),
+            'general'
           )
           break
         }
@@ -15455,7 +15470,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -15488,7 +15504,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -15506,7 +15523,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general'
       )
     } catch (error: any) {
       this.printPanel(
@@ -15516,7 +15534,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
   }
@@ -16438,7 +16457,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const limitedTodos = todos.slice(0, 6)
 
       // Display todos to user
-      this.displayGeneratedTodos(limitedTodos)
+
 
       // Start executing todos with background agents
       console.log(chalk.green('🚀 Starting background execution...'))
@@ -16506,20 +16525,6 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       this.syncTokensFromSession()
     }
   }
-  /**
-   * Display generated todos to user
-   */
-  private displayGeneratedTodos(todos: any[]): void {
-    console.log(chalk.cyan.bold('\n📋 Execution Plan:'))
-    todos.forEach((todo, index) => {
-      const priority = todo.priority === 'critical' ? '🔴' : todo.priority === 'high' ? '🟡' : '🟢'
-      console.log(`  ${index + 1}. ${priority} ${todo.title}`)
-      if (todo.description && todo.description !== todo.title) {
-        console.log(`     ${chalk.gray(todo.description)}`)
-      }
-    })
-    console.log('')
-  }
 
   /**
    * Execute todos in background using orchestrated agents
@@ -16560,14 +16565,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       agentsList += `  ${chalk.gray(agent.description)}\n\n`
     })
 
-    const agentsBox = this.printPanel(
-      boxen(agentsList.trim(), {
-        title: '🔌 Available Agents',
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'blue',
-      })
+    const agentsBox = this.printPanel(boxen(agentsList.trim(), {
+      title: '🔌 Available Agents',
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+    })
     )
     // printed via begin/end guards at call site
     console.log(agentsBox)
@@ -16972,7 +16976,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         borderStyle: 'round',
         borderColor: 'cyan',
       })
-      this.printPanel(configBox)
+      this.printPanel(configBox, 'general')
       this.printPanel(
         boxen('Tip: Use /config interactive to edit settings', {
           title: 'Config Tip',
@@ -16980,7 +16984,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'cyan',
-        })
+        }),
+        'general'
       )
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to show configuration: ${error.message}`))
@@ -18615,7 +18620,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         borderColor: 'blue',
       })
 
-      this.printPanel(modelsBox)
+      this.printPanel(modelsBox, 'general')
     } catch (error: any) {
       console.log(chalk.red(`❌ Failed to show models: ${error.message}`))
     }
@@ -18635,7 +18640,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
             margin: 1,
             borderStyle: 'round',
             borderColor: 'yellow',
-          })
+          }),
+          'general'
         )
         return
       }
@@ -18659,7 +18665,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'cyan',
-        })
+        }),
+        'general'
       )
 
       const inquirer = await import('inquirer')
@@ -18720,7 +18727,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'cyan',
-        })
+        }),
+        'general'
       )
 
       // Suspend again for next prompt
@@ -18806,7 +18814,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general'
       )
     } catch (error: any) {
       this.printPanel(
@@ -18816,7 +18825,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     } finally {
       try {
@@ -18908,7 +18918,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general'
       )
     } catch (error: any) {
       this.printPanel(
@@ -18918,7 +18929,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
     this.renderPromptAfterOutput()
@@ -18993,7 +19005,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general'
       )
     } catch (error: any) {
       this.printPanel(
@@ -19003,7 +19016,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
     this.renderPromptAfterOutput()
@@ -19079,7 +19093,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general'
       )
 
       // Show usage instructions
@@ -19101,7 +19116,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
     this.renderPromptAfterOutput()
@@ -19173,7 +19189,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general'
       )
 
       // Show usage instructions
@@ -19200,7 +19217,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
     this.renderPromptAfterOutput()
@@ -19267,7 +19285,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-        })
+        }),
+        'general'
       )
 
       // Show usage instructions
@@ -19286,7 +19305,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
     this.renderPromptAfterOutput()
@@ -19398,7 +19418,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
     this.renderPromptAfterOutput()
@@ -19416,7 +19437,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
       return
     }
@@ -19576,7 +19598,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'blue',
-        })
+        }),
+        'general'
       )
     } catch (error: any) {
       this.printPanel(
@@ -19586,7 +19609,8 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           margin: 1,
           borderStyle: 'round',
           borderColor: 'red',
-        })
+        }),
+        'general'
       )
     }
 
@@ -20254,14 +20278,13 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       }
     }
 
-    this.printPanel(
-      boxen(lines.join('\n'), {
-        title: config.title,
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: config.color,
-      })
+    this.printPanel(boxen(lines.join('\n'), {
+      title: config.title,
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: config.color,
+    })
     )
   }
 
