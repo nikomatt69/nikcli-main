@@ -8,6 +8,7 @@ import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 import { getRAGMiddleware } from '../context/rag-setup'
 import { configManager, type ModelConfig } from '../core/config-manager'
+import { streamttyService } from '../services/streamtty-service'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 import { ReasoningDetector } from './reasoning-detector'
 
@@ -317,22 +318,16 @@ export class ModelProvider {
     const reasoningEnabled = this.shouldEnableReasoning(validatedOptions, currentModelConfig)
     this.logReasoning(currentModelConfig.provider, currentModelConfig.model, reasoningEnabled)
 
-    // Show reasoning summary before streaming if enabled
+    // Show reasoning summary before streaming if enabled - format as markdown blockquote
     if (reasoningEnabled) {
-      const _capabilities = ReasoningDetector.detectReasoningSupport(
-        currentModelConfig.provider,
-        currentModelConfig.model
-      )
       const summary = ReasoningDetector.getModelReasoningSummary(currentModelConfig.provider, currentModelConfig.model)
 
       try {
-        const chalk = require('chalk')
-        // Pre-stream reasoning info in dark gray as requested
-        const reasoningInfo = chalk.gray(`⚡︎ ${summary}`)
-        console.log(reasoningInfo)
-        console.log('') // Add spacing
+        // Format as markdown blockquote for streamtty
+        const reasoningMarkdown = `> ⚡︎ *${summary}*\n\n`
+        await streamttyService.streamChunk(reasoningMarkdown, 'thinking')
       } catch {
-        // Fallback if chalk fails
+        // Fallback to direct console
         console.log(`⚡︎ ${summary}`)
         console.log('')
       }

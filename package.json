@@ -125,6 +125,7 @@
     "ollama-ai-provider": "^1.2.0",
     "ora": "^8.0.1",
     "readline": "^1.3.0",
+    "streamtty": "link:streamtty",
     "task-master-ai": "^0.26.0",
     "terminal-image": "^4.0.0",
     "uuid": "11.1.0",

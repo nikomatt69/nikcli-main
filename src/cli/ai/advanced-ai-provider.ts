@@ -20,6 +20,7 @@ import { ContextEnhancer } from '../core/context-enhancer'
 import { docLibrary } from '../core/documentation-library'
 import { documentationTools } from '../core/documentation-tool'
 import { IDEContextEnricher } from '../core/ide-context-enricher'
+import { streamttyService } from '../services/streamtty-service'
 import {
   PerformanceOptimizer,
   QuietCacheLogger,
@@ -1151,18 +1152,16 @@ Respond in a helpful, professional manner with clear explanations and actionable
         if (cacheDecision.should && !isAnalysisRequest) {
           const cachedResponse = await this.smartCache.getCachedResponse(userContent, systemContext)
 
-          if (cachedResponse) {
-            yield { type: 'start', content: `🎯 Using smart cache (${cacheDecision.strategy})...` }
+        if (cachedResponse) {
+          yield { type: 'start', content: `🎯 Using smart cache (${cacheDecision.strategy})...` }
 
-            // Stream the cached response properly formatted
-            const formattedResponse = this.formatCachedResponse(cachedResponse.response)
-            for (const chunk of this.chunkText(formattedResponse, 80)) {
-              yield { type: 'text_delta', content: chunk }
-            }
+          // Stream the cached response through streamtty - it handles chunking internally
+          const formattedResponse = this.formatCachedResponse(cachedResponse.response)
+          yield { type: 'text_delta', content: formattedResponse }
 
-            yield { type: 'complete', content: `Cache hit - ${cachedResponse.metadata.tokensSaved} tokens saved!` }
-            return
-          }
+          yield { type: 'complete', content: `Cache hit - ${cachedResponse.metadata.tokensSaved} tokens saved!` }
+          return
+        }
         } else if (isAnalysisRequest) {
           yield { type: 'start', content: 'Starting fresh analysis (bypassing cache)...' }
         }
@@ -1293,12 +1292,14 @@ Respond in a helpful, professional manner with clear explanations and actionable
             case 'text-delta':
               if (delta.textDelta) {
                 accumulatedText += delta.textDelta
+                // Yield raw markdown text - streamttyService will handle formatting
                 yield {
                   type: 'text_delta',
                   content: delta.textDelta,
                   metadata: {
                     accumulatedLength: accumulatedText.length,
                     provider: this.getCurrentModelInfo().config.provider,
+                    isMarkdown: true, // Flag for streamtty rendering
                   },
                 }
                 if (
@@ -1353,22 +1354,24 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
                 // Check if we've completed 2 rounds - if so, provide final summary and stop
                 if (this.completedRounds >= this.maxRounds) {
-                  const finalSummary = this.generateFinalSummary(originalQuery, this.toolCallHistory)
+                const finalSummary = this.generateFinalSummary(originalQuery, this.toolCallHistory)
 
-                  yield {
-                    type: 'thinking',
-                    content: `🏁 Completed ${this.completedRounds} rounds of analysis. Providing final summary.`,
-                  }
-                  yield {
-                    type: 'text_delta',
-                    content: `\n\n${finalSummary}\n\n`,
-                  }
-                  yield {
-                    type: 'complete',
-                    content: `Analysis completed after ${this.completedRounds} rounds. Please review the summary above.`,
-                    metadata: { finalStop: true, rounds: this.completedRounds },
-                  }
-                  return // Hard stop after 2 rounds
+                yield {
+                  type: 'thinking',
+                  content: `🏁 Completed ${this.completedRounds} rounds of analysis. Providing final summary.`,
+                }
+                // Yield as markdown - streamttyService will render it properly
+                yield {
+                  type: 'text_delta',
+                  content: `\n\n${finalSummary}\n\n`,
+                  metadata: { isMarkdown: true },
+                }
+                yield {
+                  type: 'complete',
+                  content: `Analysis completed after ${this.completedRounds} rounds. Please review the summary above.`,
+                  metadata: { finalStop: true, rounds: this.completedRounds },
+                }
+                return // Hard stop after 2 rounds
                 }
 
                 // If this is the first round, continue with intelligent question
@@ -1383,9 +1386,11 @@ Respond in a helpful, professional manner with clear explanations and actionable
                   type: 'thinking',
                   content: this.truncateForPrompt(`⚡︎ Round ${this.completedRounds} complete. ${gapAnalysis}`, 100),
                 }
+                // Format as markdown - streamttyService will render properly
                 yield {
                   type: 'text_delta',
                   content: `\n\n**Round ${this.completedRounds} Analysis:**\n${gapAnalysis}\n\n**Question to continue:**\n${clarifyingQuestion}\n\n`,
+                  metadata: { isMarkdown: true },
                 }
                 // Don't break - let the conversation continue naturally
                 break
@@ -2556,33 +2561,7 @@ Requirements:
     return formatted
   }
 
-  // Chunk text into smaller pieces for streaming
-  private chunkText(text: string, chunkSize: number = 80): string[] {
-    if (!text || text.length <= chunkSize) {
-      return [text]
-    }
-
-    const chunks: string[] = []
-    let currentChunk = ''
-    const words = text.split(/(\s+)/) // Split on whitespace but keep separators
-
-    for (const word of words) {
-      if ((currentChunk + word).length <= chunkSize) {
-        currentChunk += word
-      } else {
-        if (currentChunk.trim()) {
-          chunks.push(currentChunk)
-        }
-        currentChunk = word
-      }
-    }
-
-    if (currentChunk.trim()) {
-      chunks.push(currentChunk)
-    }
-
-    return chunks
-  }
+  // Note: Chunking is now handled by streamttyService - method removed
 
   // Analyze gaps when tool roundtrips are exhausted (token-optimized)
   private analyzeMissingInformation(

@@ -191,6 +191,9 @@ importers:
       readline:
         specifier: ^1.3.0
         version: 1.3.0
+      streamtty:
+        specifier: link:streamtty
+        version: link:streamtty
       task-master-ai:
         specifier: ^0.26.0
         version: 0.26.0(@modelcontextprotocol/sdk@1.18.1)(@types/node@22.18.6)(bufferutil@4.0.9)(react@19.2.0)(utf-8-validate@5.0.10)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))

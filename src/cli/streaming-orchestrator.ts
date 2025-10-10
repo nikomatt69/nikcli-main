@@ -10,6 +10,7 @@ import { ExecutionPolicyManager } from './policies/execution-policy'
 import { agentService } from './services/agent-service'
 import { lspService } from './services/lsp-service'
 import { planningService } from './services/planning-service'
+import { streamttyService } from './services/streamtty-service'
 import { toolService } from './services/tool-service'
 import { advancedUI } from './ui/advanced-cli-ui'
 import { diffManager } from './ui/diff-manager'
@@ -105,8 +106,8 @@ class StreamingOrchestratorImpl extends EventEmitter {
     // Initialize paste handler for long text processing
     this.pasteHandler = PasteHandler.getInstance()
 
-    // Expose streaming orchestrator globally for VM agent communications
-    ;(global as any).__streamingOrchestrator = this
+      // Expose streaming orchestrator globally for VM agent communications
+      ; (global as any).__streamingOrchestrator = this
 
     // Don't setup interface automatically - only when start() is called
   }
@@ -119,9 +120,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
       this.originalRawMode = (process.stdin as any).isRaw || false
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ;(process.stdin as any).setRawMode(true)
+        ; (process.stdin as any).setRawMode(true)
       }
-      ;(process.stdin as any).resume()
+      ; (process.stdin as any).resume()
     }
 
     // Keypress handlers
@@ -234,7 +235,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         this.keypressHandler = undefined
       }
       if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
-        ;(process.stdin as any).setRawMode(this.originalRawMode)
+        ; (process.stdin as any).setRawMode(this.originalRawMode)
       }
     } catch {
       // ignore
@@ -758,7 +759,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         // The plan is now ready and saved, no need for approval here
         advancedUI.logInfo('info', '💡 Use the plan mode interface to start tasks')
         // After execution ensure prompt is visible
-        import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => {})
+        import('./core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => { })
         this.processingMessage = false
         this.showPrompt()
       } catch (error: any) {
@@ -800,7 +801,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     return 'universal-agent'
   }
 
-  private displayMessage(message: StreamMessage): void {
+  private async displayMessage(message: StreamMessage): Promise<void> {
     const timestamp = message.timestamp.toLocaleTimeString('en-GB', {
       hour12: false,
       hour: '2-digit',
@@ -810,56 +811,61 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     let prefix = ''
     let content = message.content
-    let color = chalk.white
 
-    // Apply rich formatting for final outputs (non-streaming, completed messages)
+    // All content is already markdown or will be formatted as markdown
     const isFinalOutput =
       message.status === 'completed' &&
       (message.type === 'agent' || message.type === 'vm') &&
       !message.metadata?.isStreaming &&
       content.length > 200 // Only format substantial outputs
 
-    if (isFinalOutput) {
-      // Apply rich text highlighting to final outputs
-      content = OutputFormatter.formatFinalOutput(content)
-    }
+    // Format message content as markdown based on type
+    let markdownContent = ''
+    let chunkType: any = 'system'
 
     switch (message.type) {
       case 'user':
         prefix = '>'
-        color = chalk.green
+        markdownContent = `> 💬 **User** [${timestamp}]\n> ${content}\n`
+        chunkType = 'user'
         break
       case 'system':
         prefix = '•'
-        color = chalk.blue
+        markdownContent = `> ℹ️ ${content}\n`
+        chunkType = 'system'
         break
       case 'agent':
         prefix = '🔌'
-        color = chalk.cyan
+        markdownContent = `> 🔌 **Agent** ${content}\n`
+        chunkType = 'agent'
         break
       case 'tool':
         prefix = ''
-        color = chalk.magenta
+        markdownContent = `\`\`\`tool\n${content}\n\`\`\`\n`
+        chunkType = 'tool'
         break
       case 'error':
         prefix = '❌'
-        color = chalk.red
+        markdownContent = `> ❌ **Error**\n> ${content.replace(/\n/g, '\n> ')}\n`
+        chunkType = 'error'
         break
       case 'diff':
         prefix = '📝'
-        color = chalk.yellow
+        markdownContent = `> 📝 **Diff**\n> ${content.replace(/\n/g, '\n> ')}\n`
+        chunkType = 'system'
         break
       case 'vm':
         prefix = '🐳'
-        color = chalk.cyan
 
         // Special handling for streaming VM messages
         if (message.metadata?.isStreaming) {
-          // For streaming chunks, use a more compact display
-          const streamPrefix = chalk.dim('🌊')
-          advancedUI.logInfo('info', `${streamPrefix}${chalk.hex('#3a3a3a')(content)}`)
-          return // Skip normal display for streaming chunks
+          // Stream directly as AI content
+          await streamttyService.streamChunk(content, 'vm')
+          return
         }
+
+        markdownContent = `> 🐳 **VM**\n> ${content.replace(/\n/g, '\n> ')}\n`
+        chunkType = 'vm'
         break
     }
 
@@ -867,37 +873,31 @@ class StreamingOrchestratorImpl extends EventEmitter {
       message.status === 'completed'
         ? ''
         : message.status === 'processing'
-          ? chalk.yellow('⏳')
+          ? ' ⏳'
           : message.status === 'absorbed'
-            ? chalk.dim('📤')
+            ? ' 📤'
             : ''
 
-    // For formatted outputs, don't apply color wrapper (already formatted)
-    const displayContent = isFinalOutput ? content : color(content)
-
-    // Track message output
-    const messageText = `${chalk.dim(timestamp)} ${prefix} ${displayContent} ${statusIndicator}`
-    const messageLines = TerminalOutputManager.calculateLines(messageText)
-    const messageOutputId = terminalOutputManager.reserveSpace('StreamMessage', messageLines)
-    console.log(messageText)
-    terminalOutputManager.confirmOutput(messageOutputId, 'StreamMessage', messageLines, { persistent: false, expiryMs: 30000 })
-
-    // Show progress bar for agent messages
-    if (message.progress && message.progress > 0) {
-      const progressBar = this.createProgressBar(message.progress)
-      const progressText = `${' '.repeat(timestamp.length + 2)}${progressBar}`
-      const progressOutputId = terminalOutputManager.reserveSpace('ProgressBar', 1)
-      console.log(progressText)
-      terminalOutputManager.confirmOutput(progressOutputId, 'ProgressBar', 1, { persistent: false, expiryMs: 30000 })
+    if (statusIndicator) {
+      markdownContent += `*${statusIndicator.trim()}*\n`
     }
 
-    // Show streaming indicators for VM messages
+    // Stream through streamttyService
+    await streamttyService.streamChunk(markdownContent, chunkType)
+
+    // Show progress bar for agent messages as markdown
+    if (message.progress && message.progress > 0) {
+      const filled = Math.round((message.progress / 100) * 20)
+      const empty = 20 - filled
+      const progressBar = `[${'█'.repeat(filled)}${'░'.repeat(empty)}] ${message.progress}%`
+      const progressMarkdown = `  *Progress:* ${progressBar}\n`
+      await streamttyService.streamChunk(progressMarkdown, 'agent')
+    }
+
+    // Show streaming indicators for VM messages as markdown
     if (message.type === 'vm' && message.metadata?.chunkLength) {
-      const streamInfo = chalk.dim(`[${message.metadata.chunkLength} chars]`)
-      const streamInfoText = `${' '.repeat(timestamp.length + 4)}${streamInfo}`
-      const streamInfoOutputId = terminalOutputManager.reserveSpace('StreamInfo', 1)
-      console.log(streamInfoText)
-      terminalOutputManager.confirmOutput(streamInfoOutputId, 'StreamInfo', 1, { persistent: false, expiryMs: 30000 })
+      const streamInfo = `  *Chunk size: ${message.metadata.chunkLength} chars*\n`
+      await streamttyService.streamChunk(streamInfo, 'vm')
     }
   }
 
@@ -945,37 +945,31 @@ class StreamingOrchestratorImpl extends EventEmitter {
     }
   }
 
-  public displayPanels(): void {
+  public async displayPanels(): Promise<void> {
     if (this.panels.size === 0) return
 
-    // Calculate total lines for panel display
-    let totalPanelLines = 2 // Header and footer
-    for (const [_id, panel] of this.panels) {
-      totalPanelLines += 3 // Title + separator + blank line
-      const displayLines = panel.content.slice(-5)
-      totalPanelLines += displayLines.filter((line) => line).length
-    }
+    // Format panels as markdown cards
+    let panelsMarkdown = '\n---\n\n## Panels\n\n'
 
-    // Reserve space for entire panel display
-    const panelOutputId = terminalOutputManager.reserveSpace('Panels', totalPanelLines)
-
-    console.log(chalk.cyan('\n═══ Panels ═══'))
     for (const [_id, panel] of this.panels) {
       const isCognitivePanel = panel.id === 'cognitive-analysis' || /cognitive/i.test(panel.title)
-      const lineColor = isCognitivePanel ? chalk.hex('#4a4a4a') : chalk.dim
-      const titleColor = isCognitivePanel ? chalk.hex('#4a4a4a') : chalk.blue
 
-      console.log(titleColor(`\n▌ ${panel.title}`))
-      console.log((isCognitivePanel ? chalk.hex('#4a4a4a') : chalk.gray)('─'.repeat(40)))
+      panelsMarkdown += `### ${panel.title}\n\n`
+
       const displayLines = panel.content.slice(-5) // Show last 5 lines
       displayLines.forEach((line) => {
-        if (line) console.log(lineColor(`  ${line}`))
+        if (line) {
+          panelsMarkdown += `  ${line}\n`
+        }
       })
-    }
-    console.log(chalk.cyan('═══════════════\n'))
 
-    // Confirm panel output
-    terminalOutputManager.confirmOutput(panelOutputId, 'Panels', totalPanelLines, { persistent: false, expiryMs: 30000 })
+      panelsMarkdown += '\n'
+    }
+
+    panelsMarkdown += '---\n\n'
+
+    // Render through streamttyService
+    await streamttyService.renderBlock(panelsMarkdown, 'system')
   }
 
   public queueVMMessage(content: string): void {
@@ -1088,7 +1082,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       try {
         process.env.NIKCLI_COMPACT = '1'
         process.env.NIKCLI_SUPER_COMPACT = '1'
-      } catch {}
+      } catch { }
       console.log(chalk.green('\\n✓ plan mode on ') + chalk.dim('(shift+tab to cycle)'))
     } else if (this.context.planMode && !this.context.autoAcceptEdits && !this.context.vmMode) {
       // Plan → Auto-accept
@@ -1111,17 +1105,17 @@ class StreamingOrchestratorImpl extends EventEmitter {
       try {
         delete (process.env as any).NIKCLI_COMPACT
         delete (process.env as any).NIKCLI_SUPER_COMPACT
-      } catch {}
+      } catch { }
       // Reset processing and show prompt to accept new input
       this.processingMessage = false
       import('./core/input-queue')
         .then(({ inputQueue }) => inputQueue.disableBypass())
         .then(() => {
           try {
-            ;(global as any).__nikCLI?.resumePromptAndRender?.()
-          } catch {}
+            ; (global as any).__nikCLI?.resumePromptAndRender?.()
+          } catch { }
         })
-        .catch(() => {})
+        .catch(() => { })
       this.showPrompt()
 
       // Cleanup VM agent when exiting VM mode
@@ -1403,11 +1397,11 @@ class StreamingOrchestratorImpl extends EventEmitter {
       this.context.vmMode = false
       try {
         diffManager.setAutoAccept(false)
-      } catch {}
+      } catch { }
 
       // Cleanup VM agent if any
       if (this.activeVMAgent) {
-        this.cleanupVMAgent().catch(() => {})
+        this.cleanupVMAgent().catch(() => { })
       }
 
       // Show prompt after a small delay to ensure messages are processed
@@ -1440,7 +1434,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     // Cleanup VM agent if active
     if (this.activeVMAgent) {
-      this.cleanupVMAgent().catch(() => {})
+      this.cleanupVMAgent().catch(() => { })
     }
 
     console.log(chalk.green('✓ Goodbye!'))
@@ -1562,8 +1556,8 @@ export class StreamingOrchestrator extends StreamingOrchestratorImpl {
     return super.streamToPanel(panelId, content)
   }
 
-  public displayPanels(): void {
-    super.displayPanels()
+  public async displayPanels(): Promise<void> {
+    return super.displayPanels()
   }
 
   public queueVMMessage(content: string): void {

@@ -8,9 +8,9 @@ import { AGENT_CAPABILITIES, modernAgentOrchestrator } from '../automation/agent
 import { simpleConfigManager as configManager } from '../core/config-manager'
 import { contextManager } from '../core/context-manager'
 import { ExecutionPolicyManager } from '../policies/execution-policy'
+import { streamttyService } from '../services/streamtty-service'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
-import { createStringPushStream, renderChatStreamToTerminal } from '../ui/streamdown-renderer'
 import { configureSyntaxHighlighting } from '../utils/syntax-highlighter'
 
 // Configure syntax highlighting for terminal output
@@ -114,9 +114,9 @@ export class AutonomousClaudeInterface {
     if (process.stdin.isTTY) {
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ;(process.stdin as any).setRawMode(true)
+        ; (process.stdin as any).setRawMode(true)
       }
-      ;(process.stdin as any).resume()
+      ; (process.stdin as any).resume()
     }
 
     // Handle keypress events for interactive features
@@ -287,13 +287,13 @@ export class AutonomousClaudeInterface {
       this.cliInstance.printPanel(
         boxen(
           `${chalk.red('⚠️  No API Keys Found')}\n\n` +
-            `Please set at least one API key:\n\n` +
-            `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\n` +
-            `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\n` +
-            `${chalk.blue('• GOOGLE_GENERATIVE_AI_API_KEY')} - for Gemini models\n\n` +
-            `${chalk.yellow('Example:')}\n` +
-            `${chalk.dim('export ANTHROPIC_API_KEY="your-key-here"')}\n` +
-            `${chalk.dim('npm run chat')}`,
+          `Please set at least one API key:\n\n` +
+          `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\n` +
+          `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\n` +
+          `${chalk.blue('• GOOGLE_GENERATIVE_AI_API_KEY')} - for Gemini models\n\n` +
+          `${chalk.yellow('Example:')}\n` +
+          `${chalk.dim('export ANTHROPIC_API_KEY="your-key-here"')}\n` +
+          `${chalk.dim('npm run chat')}`,
           {
             padding: 1,
             margin: 1,
@@ -324,18 +324,18 @@ export class AutonomousClaudeInterface {
     this.cliInstance.printPanel(
       boxen(
         `${title}\n${subtitle}\n\n${version}\n\n` +
-          `${chalk.blue('🎯 Autonomous Mode:')} Enabled\n` +
-          `${chalk.blue('📁 Working Dir:')} ${chalk.cyan(this.session.workingDirectory)}\n` +
-          `${chalk.blue('⚡︎ Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n\n` +
-          `${chalk.gray('I operate with full autonomy:')}\n` +
-          `• ${chalk.green('Read & write files automatically')}\n` +
-          `• ${chalk.green('Execute commands when needed')}\n` +
-          `• ${chalk.green('Analyze project structure')}\n` +
-          `• ${chalk.green('Generate code and configurations')}\n` +
-          `• ${chalk.green('Manage dependencies autonomously')}\n\n` +
-          `${chalk.yellow('Just tell me what you want - I handle everything')}\n\n` +
-          `${chalk.yellow('💡 Press TAB or / for command suggestions')}\n` +
-          `${chalk.dim('Commands: /help /agents /auto /cd /model /exit')}`,
+        `${chalk.blue('🎯 Autonomous Mode:')} Enabled\n` +
+        `${chalk.blue('📁 Working Dir:')} ${chalk.cyan(this.session.workingDirectory)}\n` +
+        `${chalk.blue('⚡︎ Model:')} ${chalk.green(advancedAIProvider.getCurrentModelInfo().name)}\n\n` +
+        `${chalk.gray('I operate with full autonomy:')}\n` +
+        `• ${chalk.green('Read & write files automatically')}\n` +
+        `• ${chalk.green('Execute commands when needed')}\n` +
+        `• ${chalk.green('Analyze project structure')}\n` +
+        `• ${chalk.green('Generate code and configurations')}\n` +
+        `• ${chalk.green('Manage dependencies autonomously')}\n\n` +
+        `${chalk.yellow('Just tell me what you want - I handle everything')}\n\n` +
+        `${chalk.yellow('💡 Press TAB or / for command suggestions')}\n` +
+        `${chalk.dim('Commands: /help /agents /auto /cd /model /exit')}`,
         {
           padding: 1,
           margin: 1,
@@ -546,18 +546,17 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     this.cliInstance.printPanel(
       boxen(
         `${chalk.blue.bold('📊 Token Usage Metrics')}\n\n` +
-          `${chalk.green('Messages:')} ${metrics.totalMessages}\n` +
-          `${chalk.green('Estimated Tokens:')} ${metrics.estimatedTokens.toLocaleString()}\n` +
-          `${chalk.green('Token Limit:')} ${metrics.tokenLimit.toLocaleString()}\n` +
-          `${chalk.green('Usage:')} ${((metrics.estimatedTokens / metrics.tokenLimit) * 100).toFixed(1)}%\n\n` +
-          `${chalk.cyan('Status:')} ${
-            metrics.estimatedTokens > metrics.tokenLimit
-              ? chalk.red('⚠️  Over Limit - Auto-compression active')
-              : metrics.estimatedTokens > metrics.tokenLimit * 0.8
-                ? chalk.yellow('⚠️  High Usage - Monitor closely')
-                : chalk.green('✓ Within Limits')
-          }\n\n` +
-          `${chalk.dim('Compression Ratio:')} ${(metrics.compressionRatio * 100).toFixed(1)}%`,
+        `${chalk.green('Messages:')} ${metrics.totalMessages}\n` +
+        `${chalk.green('Estimated Tokens:')} ${metrics.estimatedTokens.toLocaleString()}\n` +
+        `${chalk.green('Token Limit:')} ${metrics.tokenLimit.toLocaleString()}\n` +
+        `${chalk.green('Usage:')} ${((metrics.estimatedTokens / metrics.tokenLimit) * 100).toFixed(1)}%\n\n` +
+        `${chalk.cyan('Status:')} ${metrics.estimatedTokens > metrics.tokenLimit
+          ? chalk.red('⚠️  Over Limit - Auto-compression active')
+          : metrics.estimatedTokens > metrics.tokenLimit * 0.8
+            ? chalk.yellow('⚠️  High Usage - Monitor closely')
+            : chalk.green('✓ Within Limits')
+        }\n\n` +
+        `${chalk.dim('Compression Ratio:')} ${(metrics.compressionRatio * 100).toFixed(1)}%`,
         {
           padding: 1,
           margin: 1,
@@ -917,46 +916,32 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     this.isProcessing = true
 
     try {
-      // Bridge event stream into a push-driven text stream for Streamdown adapter
-      const bridge = createStringPushStream()
-      const renderPromise = renderChatStreamToTerminal(bridge.generator, {
-        isCancelled: () => !this.isProcessing,
-        enableMinimalRerender: false,
-      })
+      // Stream directly through streamttyService
 
       for await (const event of modernAgentOrchestrator.executeTaskStreaming(agentName, task)) {
         this.session.executionHistory.push(event)
 
         switch (event.type) {
           case 'start':
-            console.log(chalk.cyan(`🚀 ${agentName} initialized and ready`))
+            await streamttyService.renderBlock(`🚀 ${agentName} initialized and ready`, 'system')
             break
           case 'text':
-            if (event.content) bridge.push(event.content)
+            if (event.content) await streamttyService.streamChunk(event.content, 'ai')
             break
           case 'tool':
-            bridge.push('\n')
-            console.log(chalk.blue(`\\n🔧 ${event.content}`))
+            await streamttyService.renderBlock(`\n🔧 ${event.content}`, 'tool')
             break
           case 'result':
-            bridge.push('\n')
-            console.log(chalk.green(`✓ ${event.content}`))
+            await streamttyService.renderBlock(`\n✓ ${event.content}`, 'tool')
             break
           case 'complete':
-            bridge.end()
-            await renderPromise
-            console.log(chalk.green(`\\n\\n🎉 ${agentName} completed autonomously!`))
+            await streamttyService.renderBlock(`\n\n🎉 ${agentName} completed autonomously!`, 'system')
             break
           case 'error':
-            bridge.end()
-            await renderPromise
-            console.log(chalk.red(`\\n❌ Agent error: ${event.content}`))
+            await streamttyService.renderBlock(`\n❌ Agent error: ${event.content}`, 'error')
             break
         }
       }
-      // Ensure renderer finishes if loop exits normally
-      bridge.end()
-      await renderPromise
     } catch (error: any) {
       console.log(chalk.red(`\\n❌ Agent execution failed: ${error.message}`))
     } finally {
@@ -978,49 +963,35 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     this.isProcessing = true
 
     try {
-      // Bridge event stream into a push-driven text stream for Streamdown adapter
-      const bridge = createStringPushStream()
-      const renderPromise = renderChatStreamToTerminal(bridge.generator, {
-        isCancelled: () => !this.isProcessing,
-        enableMinimalRerender: false,
-      })
+      // Stream directly through streamttyService
 
       for await (const event of advancedAIProvider.executeAutonomousTask(task)) {
         this.session.executionHistory.push(event)
 
         switch (event.type) {
           case 'start':
-            console.log(chalk.cyan(event.content))
+            await streamttyService.renderBlock(event.content || '🎯 Starting autonomous task...', 'system')
             break
           case 'thinking':
-            console.log(chalk.magenta(`💭 ${event.content}`))
+            await streamttyService.renderBlock(`💭 ${event.content}`, 'thinking')
             break
           case 'text_delta':
-            if (event.content) bridge.push(event.content)
+            if (event.content) await streamttyService.streamChunk(event.content, 'ai')
             break
           case 'tool_call':
-            bridge.push('\n')
-            this.handleToolCall(event)
+            await this.handleToolCall(event)
             break
           case 'tool_result':
-            bridge.push('\n')
-            this.handleToolResult(event)
+            await this.handleToolResult(event)
             break
           case 'complete':
-            bridge.end()
-            await renderPromise
-            console.log(chalk.green('\\n🎉 Autonomous execution completed!'))
+            await streamttyService.renderBlock('\n🎉 Autonomous execution completed!', 'system')
             break
           case 'error':
-            bridge.end()
-            await renderPromise
-            console.log(chalk.red(`\\n❌ Error: ${event.error}`))
+            await streamttyService.renderBlock(`\n❌ Error: ${event.error}`, 'error')
             break
         }
       }
-      // Ensure renderer finishes if loop exits normally
-      bridge.end()
-      await renderPromise
     } catch (error: any) {
       console.log(chalk.red(`\\n❌ Autonomous execution failed: ${error.message}`))
     } finally {
@@ -1455,14 +1426,14 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     this.cliInstance.printPanel(
       boxen(
         `${chalk.blue.bold('🔒 Security Policy Status')}\n\n` +
-          `${chalk.green('Current Policy:')} ${summary.currentPolicy.approval}\n` +
-          `${chalk.green('Sandbox Mode:')} ${summary.currentPolicy.sandbox}\n` +
-          `${chalk.green('Timeout:')} ${summary.currentPolicy.timeoutMs}ms\n\n` +
-          `${chalk.cyan('Commands:')}\n` +
-          `• ${chalk.green('Allowed:')} ${summary.allowedCommands}\n` +
-          `• ${chalk.red('Blocked:')} ${summary.deniedCommands}\n\n` +
-          `${chalk.cyan('Trusted Commands:')} ${summary.trustedCommands.slice(0, 5).join(', ')}...\n` +
-          `${chalk.red('Dangerous Commands:')} ${summary.dangerousCommands.slice(0, 3).join(', ')}...`,
+        `${chalk.green('Current Policy:')} ${summary.currentPolicy.approval}\n` +
+        `${chalk.green('Sandbox Mode:')} ${summary.currentPolicy.sandbox}\n` +
+        `${chalk.green('Timeout:')} ${summary.currentPolicy.timeoutMs}ms\n\n` +
+        `${chalk.cyan('Commands:')}\n` +
+        `• ${chalk.green('Allowed:')} ${summary.allowedCommands}\n` +
+        `• ${chalk.red('Blocked:')} ${summary.deniedCommands}\n\n` +
+        `${chalk.cyan('Trusted Commands:')} ${summary.trustedCommands.slice(0, 5).join(', ')}...\n` +
+        `${chalk.red('Dangerous Commands:')} ${summary.dangerousCommands.slice(0, 3).join(', ')}...`,
         {
           padding: 1,
           margin: 1,
@@ -1519,13 +1490,13 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     this.cliInstance.printPanel(
       boxen(
         `${chalk.cyanBright('🔌 Autonomous Claude Assistant')}\\n\\n` +
-          `${chalk.gray('Session completed!')}\\n\\n` +
-          `${chalk.dim('Autonomous Actions:')}\\n` +
-          `• ${chalk.blue('Messages:')} ${this.session.messages.length}\\n` +
-          `• ${chalk.green('Tools Used:')} ${toolsUsed}\\n` +
-          `• ${chalk.cyan('Total Events:')} ${executionCount}\\n` +
-          `• ${chalk.yellow('Duration:')} ${Math.round((Date.now() - this.session.createdAt.getTime()) / 1000)}s\\n\\n` +
-          `${chalk.blue('Thanks for using autonomous development! 🚀')}`,
+        `${chalk.gray('Session completed!')}\\n\\n` +
+        `${chalk.dim('Autonomous Actions:')}\\n` +
+        `• ${chalk.blue('Messages:')} ${this.session.messages.length}\\n` +
+        `• ${chalk.green('Tools Used:')} ${toolsUsed}\\n` +
+        `• ${chalk.cyan('Total Events:')} ${executionCount}\\n` +
+        `• ${chalk.yellow('Duration:')} ${Math.round((Date.now() - this.session.createdAt.getTime()) / 1000)}s\\n\\n` +
+        `${chalk.blue('Thanks for using autonomous development! 🚀')}`,
         {
           padding: 1,
           margin: 1,
@@ -1581,7 +1552,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
       // Reset raw mode
       try {
         if (process.stdin.isTTY && (process.stdin as any).isRaw) {
-          ;(process.stdin as any).setRawMode(false)
+          ; (process.stdin as any).setRawMode(false)
         }
       } catch (error) {
         // Ignore raw mode errors

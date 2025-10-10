@@ -1,6 +1,11 @@
 import boxen from 'boxen'
 import chalk from 'chalk'
 
+/**
+ * OutputFormatter - now returns markdown strings for streamttyService rendering
+ * No longer performs direct console.log/stdout.write - all rendering through streamttyService
+ */
+
 export interface StructuredReport {
   title: string
   summary?: string
@@ -13,86 +18,16 @@ export interface StructuredReport {
 }
 
 export class OutputFormatter {
+  /**
+   * @deprecated Content is now rendered as raw markdown through streamttyService
+   * This method now just returns the original markdown content with minimal processing
+   */
   static formatFinalOutput(content: string): string {
-    const lines = content.split('\n')
-    const formatted: string[] = []
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]
-      const trimmed = line.trim()
-
-      if (!trimmed) {
-        formatted.push('')
-        continue
-      }
-
-      if (trimmed.startsWith('##')) {
-        formatted.push(OutputFormatter.formatHeader(trimmed.replace(/^#+\s*/, '')))
-        continue
-      }
-
-      if (trimmed.match(/^\*\*(.+)\*\*$/)) {
-        const text = trimmed.replace(/\*\*/g, '')
-        formatted.push(chalk.cyan.bold(`\n${text}`))
-        continue
-      }
-
-      if (trimmed.match(/^[-*•]\s+/)) {
-        formatted.push(OutputFormatter.formatListItem(trimmed))
-        continue
-      }
-
-      if (trimmed.match(/^\d+\.\s+/)) {
-        formatted.push(OutputFormatter.formatNumberedItem(trimmed))
-        continue
-      }
-
-      if (trimmed.startsWith('```')) {
-        const codeLines: string[] = []
-        i++
-        while (i < lines.length && !lines[i].trim().startsWith('```')) {
-          codeLines.push(lines[i])
-          i++
-        }
-        formatted.push(OutputFormatter.formatCodeBlock(codeLines.join('\n')))
-        continue
-      }
-
-      if (trimmed.includes('`')) {
-        formatted.push(OutputFormatter.formatInlineCode(line))
-        continue
-      }
-
-      if (trimmed.match(/^(File|Path|Location|src\/|api\/|\.\/|\/)/i)) {
-        formatted.push(OutputFormatter.formatFilePath(trimmed))
-        continue
-      }
-
-      if (trimmed.match(/^[✓✅❌⚠️🔴🟡🟢]/)) {
-        formatted.push(OutputFormatter.formatStatusLine(trimmed))
-        continue
-      }
-
-      if (trimmed.match(/^(P\d+|Critical|High|Medium|Low):/i)) {
-        formatted.push(OutputFormatter.formatPriorityLine(trimmed))
-        continue
-      }
-
-      if (trimmed.match(/^[A-Z][^:]+:\s+/)) {
-        formatted.push(OutputFormatter.formatKeyValue(trimmed))
-        continue
-      }
-
-      formatted.push(OutputFormatter.formatPlainText(line))
-    }
-
-    // Add bottom padding to prevent overlap with HUD menu and prompt area
+    // Return content as-is - streamttyService handles all markdown rendering
+    // Just ensure proper spacing at the end for prompt area
     const bottomPadding = OutputFormatter.getBottomPadding()
-    for (let i = 0; i < bottomPadding; i++) {
-      formatted.push('')
-    }
-
-    return formatted.join('\n')
+    const paddingStr = '\n'.repeat(bottomPadding)
+    return content + paddingStr
   }
 
   /**

@@ -1,6 +1,7 @@
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { type AgentTask, agentService } from '../services/agent-service'
+import { streamttyService } from '../services/streamtty-service'
 import { secureTools } from '../tools/secure-tools-registry'
 import type { ToolRegistry } from '../tools/tool-registry'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -62,6 +63,8 @@ export class PlanExecutor {
    * Execute a plan with user approval and monitoring
    */
   async executePlan(plan: ExecutionPlan): Promise<PlanExecutionResult> {
+    // Stream plan execution start as markdown
+    await streamttyService.renderBlock(`## Executing Plan: ${plan.title}\n`, 'system')
     advancedUI.addLiveUpdate({ type: 'info', content: `Executing Plan: ${plan.title}`, source: 'plan_execution' })
 
     const startTime = new Date()
@@ -162,7 +165,7 @@ export class PlanExecutor {
       this.executionHistory.set(plan.id, result)
 
       // Log final results
-      this.logExecutionSummary(result)
+      await this.logExecutionSummary(result)
 
       // Cleanup/reset after successful run
       this.resetCliContext()
@@ -193,7 +196,7 @@ export class PlanExecutor {
     }
 
     // Display plan details
-    this.displayPlanForApproval(plan)
+    await this.displayPlanForApproval(plan)
 
     // Enable bypass for approval inputs and suspend main prompt
     try {
@@ -638,42 +641,38 @@ export class PlanExecutor {
   }
 
   /**
-   * Display plan details for user approval
+   * Display plan details for user approval - now using streamttyService for markdown rendering
    */
-  private displayPlanForApproval(plan: ExecutionPlan): void {
-    advancedUI.addLiveUpdate({ type: 'info', content: 'Plan Approval Required', source: 'plan_approval' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Plan Title: ${plan.title}`, source: 'plan_approval' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Description: ${plan.description}`, source: 'plan_approval' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Total Steps: ${plan.steps.length}`, source: 'plan_approval' })
-    advancedUI.addLiveUpdate({
-      type: 'info',
-      content: `Estimated Duration: ${Math.round(plan.estimatedTotalDuration / 1000)}s`,
-      source: 'plan_approval',
-    })
-    advancedUI.addLiveUpdate({
-      type: 'info',
-      content: `Risk Level: ${plan.riskAssessment.overallRisk}`,
-      source: 'plan_approval',
-    })
+  private async displayPlanForApproval(plan: ExecutionPlan): Promise<void> {
+    // Format plan details as markdown
+    let planMarkdown = `\n## Plan Approval Required\n\n`
+    planMarkdown += `**Plan Title:** ${plan.title}\n\n`
+    planMarkdown += `**Description:** ${plan.description}\n\n`
+
+    planMarkdown += `### Plan Details\n\n`
+    planMarkdown += `- Total Steps: **${plan.steps.length}**\n`
+    planMarkdown += `- Estimated Duration: **${Math.round(plan.estimatedTotalDuration / 1000)}s**\n`
+    planMarkdown += `- Risk Level: **${plan.riskAssessment.overallRisk}**\n`
 
     if (plan.riskAssessment.destructiveOperations > 0) {
-      advancedUI.addLiveUpdate({
-        type: 'warning',
-        content: `${plan.riskAssessment.destructiveOperations} potentially destructive operations`,
-        source: 'plan_approval',
-      })
+      planMarkdown += `- ⚠️ **Warning:** ${plan.riskAssessment.destructiveOperations} potentially destructive operations\n`
     }
 
-    advancedUI.addLiveUpdate({ type: 'info', content: 'Execution Steps:', source: 'plan_approval' })
+    planMarkdown += `\n### Execution Steps\n\n`
     plan.steps.forEach((step, index) => {
       const riskIcon = step.riskLevel === 'high' ? '🔴' : step.riskLevel === 'medium' ? '🟡' : '🟢'
-      advancedUI.addLiveUpdate({
-        type: 'info',
-        content: `${index + 1}. ${riskIcon} ${step.title}`,
-        source: 'plan_approval',
-      })
-      advancedUI.addLiveUpdate({ type: 'info', content: `   ${step.description}`, source: 'plan_approval' })
+      planMarkdown += `${index + 1}. ${riskIcon} **${step.title}**\n`
+      planMarkdown += `   ${step.description}\n`
     })
+
+    planMarkdown += '\n'
+
+    // Render through streamttyService
+    await streamttyService.renderBlock(planMarkdown, 'system')
+
+    // Still log to advancedUI for compatibility
+    advancedUI.addLiveUpdate({ type: 'info', content: 'Plan Approval Required', source: 'plan_approval' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Plan Title: ${plan.title}`, source: 'plan_approval' })
   }
 
   /**
@@ -702,11 +701,26 @@ export class PlanExecutor {
   }
 
   /**
-   * Log execution summary
+   * Log execution summary - now using streamttyService for markdown rendering
    */
-  private logExecutionSummary(result: PlanExecutionResult): void {
+  private async logExecutionSummary(result: PlanExecutionResult): Promise<void> {
     const duration = result.endTime ? result.endTime.getTime() - result.startTime.getTime() : 0
 
+    // Format as markdown summary
+    const statusIcon = result.status === 'completed' ? '✓' : result.status === 'partial' ? '⚠️' : '❌'
+
+    let summaryMarkdown = `\n## Execution Summary\n\n`
+    summaryMarkdown += `${statusIcon} **Status:** ${result.status.toUpperCase()}\n\n`
+    summaryMarkdown += `- Duration: **${Math.round(duration / 1000)}s**\n`
+    summaryMarkdown += `- Total Steps: **${result.summary.totalSteps}**\n`
+    summaryMarkdown += `- Successful: **${result.summary.successfulSteps}**\n`
+    summaryMarkdown += `- Failed: **${result.summary.failedSteps}**\n`
+    summaryMarkdown += `- Skipped: **${result.summary.skippedSteps}**\n\n`
+
+    // Render through streamttyService
+    await streamttyService.renderBlock(summaryMarkdown, 'system')
+
+    // Still log to advancedUI for compatibility
     advancedUI.addLiveUpdate({
       type: 'info',
       content: `Status: ${result.status.toUpperCase()}`,
@@ -720,30 +734,6 @@ export class PlanExecutor {
     advancedUI.addLiveUpdate({
       type: 'info',
       content: `Total Steps: ${result.summary.totalSteps}`,
-      source: 'execution_summary',
-    })
-    advancedUI.addLiveUpdate({
-      type: 'log',
-      content: `Successful: ${result.summary.successfulSteps}`,
-      source: 'execution_summary',
-    })
-    advancedUI.addLiveUpdate({
-      type: 'error',
-      content: `Failed: ${result.summary.failedSteps}`,
-      source: 'execution_summary',
-    })
-    advancedUI.addLiveUpdate({
-      type: 'info',
-      content: `Skipped: ${result.summary.skippedSteps}`,
-      source: 'execution_summary',
-    })
-
-    // Show status icon
-    const statusIcon = result.status === 'completed' ? '✓' : result.status === 'partial' ? '⚠️' : '❌'
-
-    advancedUI.addLiveUpdate({
-      type: 'info',
-      content: `${statusIcon} Plan execution ${result.status}`,
       source: 'execution_summary',
     })
   }

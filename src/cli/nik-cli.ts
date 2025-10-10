@@ -61,7 +61,6 @@ import { advancedUI } from './ui/advanced-cli-ui'
 import { createCognitiveRouteAnalyzer, type CognitiveRouteAnalyzer } from './core/cognitive-route-analyzer'
 import { projectMemory, type ProjectMemoryManager } from './core/project-memory'
 import { approvalSystem } from './ui/approval-system'
-import { createStringPushStream, renderChatStreamToTerminal } from './ui/streamdown-renderer'
 import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
 
 
@@ -3940,14 +3939,16 @@ export class NikCLI {
         }
         const container = this.activeVMContainer
         const chunks = vmOrchestrator.executeCommandStreaming(container, vmCommand)
+        const { streamttyService } = await import('./services/streamtty-service')
 
         for await (const chunk of chunks) {
           if (chunk.type === 'output' && chunk.output) {
-            process.stdout.write(chunk.output)
+            // Stream VM output through streamttyService
+            await streamttyService.streamChunk(chunk.output, 'vm')
           } else if (chunk.type === 'error') {
-            console.log(chalk.red(`❌ VM Error: ${chunk.error}`))
+            await streamttyService.renderBlock(`❌ VM Error: ${chunk.error}`, 'error')
           } else if (chunk.type === 'complete') {
-            console.log(chalk.green(`✓ VM execution completed`))
+            await streamttyService.renderBlock('✓ VM execution completed', 'system')
           }
         }
       })()
@@ -4132,14 +4133,16 @@ EOF`
         }
         const container = this.activeVMContainer
         const chunks = vmOrchestrator.executeCommandStreaming(container, command)
+        const { streamttyService } = await import('./services/streamtty-service')
 
         for await (const chunk of chunks) {
           if (chunk.type === 'output' && chunk.output) {
-            process.stdout.write(chunk.output)
+            // Stream VM output through streamttyService
+            await streamttyService.streamChunk(chunk.output, 'vm')
           } else if (chunk.type === 'error') {
-            console.log(chalk.red(`❌ VM Error: ${chunk.error}`))
+            await streamttyService.renderBlock(`❌ VM Error: ${chunk.error}`, 'error')
           } else if (chunk.type === 'complete') {
-            console.log(chalk.green(`✓ VM execution completed`))
+            await streamttyService.renderBlock('✓ VM execution completed', 'system')
           }
         }
       })()
@@ -4390,22 +4393,18 @@ EOF`
       const terminalWidth = process.stdout.columns || 80
       let lastToolName: string | undefined // Track last tool for result correlation
 
-      // Bridge stream to Streamdown renderer (same as default mode)
-      const bridge = createStringPushStream()
-      const renderPromise = renderChatStreamToTerminal(bridge.generator, {
-        isCancelled: () => false,
-        enableMinimalRerender: false,
-      })
+      // Stream directly through streamttyService (no bridge needed)
+      const { streamttyService } = await import('./services/streamtty-service')
 
       // Use the same streaming as plan mode
       for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
         // Handle all streaming events exactly like plan mode
         switch (ev.type) {
           case 'text_delta':
-            // Stream text in dark gray like default mode
+            // Stream text through streamttyService
             if (ev.content) {
               assistantText += ev.content
-              bridge.push(chalk.hex('#4a4a4a')(ev.content))
+              await streamttyService.streamChunk(ev.content, 'ai')
 
               // Track lines for clearing (same as default mode)
               const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
@@ -4417,25 +4416,27 @@ EOF`
             break
 
           case 'tool_call':
-            // Tool execution events - push to stream like plan mode
+            // Tool execution events - stream through streamttyService
             if (ev.toolName) {
               lastToolName = ev.toolName // Track for result correlation
 
-              // Push tool call to stream (like plan mode shows tool execution)
+              // Stream tool call info
               if ((agent as any).collaborationContext) {
-                this.displayParallelToolchain(bridge, agentName, ev.toolName, 'executing', ev.toolArgs)
+                const toolMarkdown = `\`\`\`tool\n${agentName} executing ${ev.toolName}\n\`\`\`\n`
+                await streamttyService.streamChunk(toolMarkdown, 'tool')
               }
             }
             break
 
           case 'tool_result':
-            // Tool results - push to stream
+            // Tool results - stream through streamttyService
             if (ev.toolResult) {
               const toolName = ev.toolName || lastToolName
 
-              // Push tool completion to stream
+              // Stream tool completion
               if ((agent as any).collaborationContext && toolName) {
-                this.displayParallelToolchain(bridge, agentName, toolName, 'completed')
+                const resultMarkdown = `> ✓ ${agentName}: ${toolName} completed\n`
+                await streamttyService.streamChunk(resultMarkdown, 'tool')
               }
 
               lastToolName = undefined // Reset after use
@@ -4457,19 +4458,10 @@ EOF`
         }
       }
 
-      bridge.end()
-      await renderPromise
-
       // Clear streamed output and show formatted version if needed (same as default mode)
+      // Content already streamed through streamttyService
       if (shouldFormatOutput) {
-        // Clear the streamed output
-        this.clearStreamedOutput(streamedLines)
-
-        const { OutputFormatter } = await import('./ui/output-formatter')
-        const formattedOutput = OutputFormatter.formatFinalOutput(assistantText)
-
-        // Show formatted version
-        console.log(formattedOutput)
+        // Just add spacing
         console.log('')
       } else {
         // No formatting needed - add spacing after stream
@@ -4772,12 +4764,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       source: 'final',
     })
 
-    // Use OutputFormatter for proper rendering (same as plan mode)
-    const { OutputFormatter } = await import('./ui/output-formatter')
-    const formattedOutput = OutputFormatter.formatFinalOutput(output)
-
-    console.log('\n')
-    console.log(formattedOutput)
+    // Render through streamttyService (already in markdown format)
+    const { streamttyService } = await import('./services/streamtty-service')
+    await streamttyService.renderBlock(output, 'ai')
     console.log('\n')
 
     // Render prompt after output (like plan mode)
@@ -5082,21 +5071,17 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           let streamedLines = 0
           const terminalWidth = process.stdout.columns || 80
 
-          // Bridge stream to Streamdown renderer (same as default mode)
-          const bridge = createStringPushStream()
-          const renderPromise = renderChatStreamToTerminal(bridge.generator, {
-            isCancelled: () => false,
-            enableMinimalRerender: false,
-          })
+          // Stream directly through streamttyService
+          const { streamttyService } = await import('./services/streamtty-service')
 
           for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
             // Handle all streaming events like default mode
             switch (ev.type) {
               case 'text_delta':
-                // Stream text in dark gray like default mode
+                // Stream text through streamttyService
                 if (ev.content) {
                   assistantText += ev.content
-                  bridge.push(chalk.hex('#4a4a4a')(ev.content))
+                  await streamttyService.streamChunk(ev.content, 'ai')
 
                   // Track lines for clearing (same as default mode)
                   const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
@@ -5147,19 +5132,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             }
           }
 
-          bridge.end()
-          await renderPromise
-
-          // Clear streamed output and show formatted version if needed (same as default mode)
+          // Content already streamed through streamttyService
           if (shouldFormatOutput) {
-            // Clear the streamed output
-            this.clearStreamedOutput(streamedLines)
-
-            const { OutputFormatter } = await import('./ui/output-formatter')
-            const formattedOutput = OutputFormatter.formatFinalOutput(assistantText)
-
-            // Show formatted version
-            console.log(formattedOutput)
+            // Just add spacing
             console.log('')
           } else {
             // No formatting needed - add spacing after stream
@@ -5174,7 +5149,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           // Add a small delay to ensure all output is flushed
           await new Promise((resolve) => setTimeout(resolve, 100))
 
-          advancedUI.logFunctionUpdate('success', `Task completed successfully: ${task.title}`)
+          await advancedUI.logFunctionUpdate('success', `Task completed successfully: ${task.title}`)
         } catch (error: any) {
           advancedUI.logFunctionUpdate('error', `Task execution failed: ${error.message}`)
           throw error
@@ -5655,17 +5630,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         let streamedLines = 1 // Start with 1 for "Assistant: " header
         const terminalWidth = process.stdout.columns || 80
 
-        // Bridge stream to Streamdown renderer
-        const bridge = createStringPushStream()
-        const renderPromise = renderChatStreamToTerminal(bridge.generator, {
-          isCancelled: () => false,
-          enableMinimalRerender: false,
-        })
+        // Stream directly through streamttyService
+        const { streamttyService } = await import('./services/streamtty-service')
 
         for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
           if (ev.type === 'text_delta' && ev.content) {
             assistantText += ev.content
-            bridge.push(chalk.hex('#4a4a4a')(ev.content))
+            await streamttyService.streamChunk(ev.content, 'ai')
 
             // Track lines for clearing - remove ANSI codes for accurate visual width
             const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
@@ -5683,12 +5654,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             // Continue with regular complete handling
           } else if (ev.type === 'tool_call') {
             hasToolCalls = true
-            bridge.push('\n')
 
-            // Format tool call with separated name and params for better visibility
+            // Format tool call as markdown
             const toolCall = this.formatToolCall(ev.toolName || '', ev.toolArgs)
-            const formattedToolCall = `⏺ ${chalk.hex('#4a4a4a')(toolCall.name)}:${chalk.cyan(toolCall.params)}()`
-            console.log(`\n${formattedToolCall}`)
+            const toolMarkdown = `\n**${toolCall.name}** \`${toolCall.params}\`\n`
+            await streamttyService.streamChunk(toolMarkdown, 'tool')
             streamedLines += 2 // Account for newline + tool message line
 
             // Log to structured UI with detailed tool information
@@ -5707,9 +5677,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               })
             }
           } else if (ev.type === 'tool_result') {
-            bridge.push('\n')
-            const resultMessage = `✓ Result: ${ev.content}`
-            console.log(`${chalk.green(resultMessage)}`)
+            // Format tool result as markdown
+            const resultMarkdown = `\n> ✓ Result: ${ev.content}\n`
+            await streamttyService.streamChunk(resultMarkdown, 'tool')
             streamedLines += 2 // Account for newline + result message line
 
             // Log to structured UI
@@ -5739,27 +5709,20 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             }
           } else if (ev.type === 'error') {
             const errorMessage = ev.content || ev.error || 'Unknown error'
-            console.log(`${chalk.red(errorMessage)}`)
+
+            // Format error as markdown
+            const errorMarkdown = `> ❌ **Error**: ${errorMessage}\n`
+            await streamttyService.streamChunk(errorMarkdown, 'error')
 
             // Log to structured UI
             advancedUI.logError('Error', errorMessage)
           }
         }
 
-        bridge.end()
-        await renderPromise
-
         // Clear streamed output and show formatted version if needed
+        // Content already streamed through streamttyService
         if (shouldFormatOutput) {
-          // Clear the streamed output
-          this.clearStreamedOutput(streamedLines)
-
-          const { OutputFormatter } = await import('./ui/output-formatter')
-          const formattedOutput = OutputFormatter.formatFinalOutput(assistantText)
-
-          // Show formatted version
-          console.log(chalk.cyan.bold('Assistant:\n'))
-          console.log(formattedOutput)
+          // Just add spacing
           console.log('')
         } else {
           // No formatting needed - add spacing after stream
@@ -16496,7 +16459,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
         if (ev.type === 'text_delta' && ev.content) {
           _assistantText += ev.content
-          process.stdout.write(ev.content)
+          // Stream through streamttyService for markdown rendering
+          const { streamttyService } = await import('./services/streamtty-service')
+          await streamttyService.streamChunk(ev.content, 'ai')
 
           // Track lines for clearing
           const linesInChunk = Math.ceil(ev.content.length / _terminalWidth) + (ev.content.match(/\n/g) || []).length
@@ -16509,15 +16474,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         }
       }
 
-      // Clear and show formatted output if needed
+      // Already rendered through streamttyService during streaming
+      // No need for additional formatting or clearing
       if (_shouldFormatOutput) {
-        this.clearStreamedOutput(_streamedLines + 2) // +2 for "Assistant:" header
-
-        const { OutputFormatter } = await import('./ui/output-formatter')
-        const formattedOutput = OutputFormatter.formatFinalOutput(_assistantText)
-
-        console.log(chalk.cyan.bold('Assistant:\n'))
-        console.log(formattedOutput)
+        // Just add a newline for spacing
         console.log('')
       }
 

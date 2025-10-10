@@ -5,6 +5,7 @@ import chalk from 'chalk'
 import { nanoid } from 'nanoid'
 import { type ChatMessage, modelProvider } from '../ai/model-provider'
 import { workspaceContext } from '../context/workspace-context'
+import { streamttyService } from '../services/streamtty-service'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { approvalSystem } from '../ui/approval-system'
 
@@ -799,6 +800,8 @@ Generate a comprehensive plan that is practical and executable.`,
       })
       return todos
     } catch (error: any) {
+      // Log errors through streamttyService as well
+      await streamttyService.renderBlock(`Failed to generate AI plan: ${error.message}`, 'error')
       advancedUI.addLiveUpdate({
         type: 'error',
         content: `Failed to generate AI plan: ${error.message}`,
@@ -1036,9 +1039,29 @@ Generate a comprehensive plan that is practical and executable.`,
   }
 
   /**
-   * Display enhanced completion summary
+   * Display enhanced completion summary - now using streamttyService for markdown rendering
    */
-  private displayEnhancedCompletionSummary(plan: TodoPlan, completedCount: number, failedCount: number): void {
+  private async displayEnhancedCompletionSummary(plan: TodoPlan, completedCount: number, failedCount: number): Promise<void> {
+    // Format as markdown summary
+    let summaryMarkdown = `\n## Plan Execution Summary: ${plan.title}\n\n`
+    summaryMarkdown += `- ✓ Completed: **${completedCount}/${plan.todos.length}** todos\n`
+    
+    if (failedCount > 0) {
+      summaryMarkdown += `- ❌ Failed: **${failedCount}** todos\n`
+    }
+
+    if (plan.actualTotalDuration) {
+      summaryMarkdown += `- ⏱️ Total execution time: **${plan.actualTotalDuration} minutes**\n`
+      const efficiency = Math.round((plan.estimatedTotalDuration / plan.actualTotalDuration) * 100)
+      summaryMarkdown += `- 📊 Efficiency: **${efficiency}%** (estimated vs actual)\n`
+    }
+
+    summaryMarkdown += '\n'
+    
+    // Render through streamttyService
+    await streamttyService.renderBlock(summaryMarkdown, 'system')
+    
+    // Still log to advancedUI for compatibility
     advancedUI.addLiveUpdate({ type: 'info', content: `Plan: ${plan.title}`, source: 'plan_execution_summary' })
     advancedUI.addLiveUpdate({
       type: 'log',
@@ -1046,36 +1069,30 @@ Generate a comprehensive plan that is practical and executable.`,
       source: 'plan_execution_summary',
     })
 
-    if (failedCount > 0) {
-      advancedUI.addLiveUpdate({
-        type: 'error',
-        content: `Failed: ${failedCount} todos`,
-        source: 'plan_execution_summary',
-      })
-    }
-
-    if (plan.actualTotalDuration) {
-      advancedUI.addLiveUpdate({
-        type: 'info',
-        content: `Total execution time: ${plan.actualTotalDuration} minutes`,
-        source: 'plan_execution_summary',
-      })
-      const efficiency = Math.round((plan.estimatedTotalDuration / plan.actualTotalDuration) * 100)
-      advancedUI.addLiveUpdate({
-        type: 'info',
-        content: `Efficiency: ${efficiency}% (estimated vs actual)`,
-        source: 'plan_execution_summary',
-      })
-    }
-
     // Show statistics
-    this.displayExecutionStatistics()
+    await this.displayExecutionStatistics()
   }
 
   /**
-   * Display execution statistics
+   * Display execution statistics - now using streamttyService for markdown rendering
    */
-  private displayExecutionStatistics(): void {
+  private async displayExecutionStatistics(): Promise<void> {
+    const successRate = this.executionStats.totalPlans > 0 
+      ? Math.round((this.executionStats.successfulPlans / this.executionStats.totalPlans) * 100) 
+      : 0
+    
+    // Format as markdown table
+    let statsMarkdown = '\n### Execution Statistics\n\n'
+    statsMarkdown += '| Metric | Value |\n'
+    statsMarkdown += '|--------|-------|\n'
+    statsMarkdown += `| Total Plans | ${this.executionStats.totalPlans} |\n`
+    statsMarkdown += `| Successful | ${this.executionStats.successfulPlans} |\n`
+    statsMarkdown += `| Failed | ${this.executionStats.failedPlans} |\n`
+    statsMarkdown += `| Success Rate | ${successRate}% |\n\n`
+    
+    await streamttyService.renderBlock(statsMarkdown, 'system')
+    
+    // Still log to advancedUI for compatibility
     advancedUI.addLiveUpdate({
       type: 'info',
       content: `Total Plans: ${this.executionStats.totalPlans}`,
@@ -1093,7 +1110,7 @@ Generate a comprehensive plan that is practical and executable.`,
     })
     advancedUI.addLiveUpdate({
       type: 'info',
-      content: `Success Rate: ${this.executionStats.totalPlans > 0 ? Math.round((this.executionStats.successfulPlans / this.executionStats.totalPlans) * 100) : 0}%`,
+      content: `Success Rate: ${successRate}%`,
       source: 'execution_statistics',
     })
   }

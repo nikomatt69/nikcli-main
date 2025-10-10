@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { getRAGMiddleware } from '../context/rag-setup'
 import { simpleConfigManager } from '../core/config-manager'
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
+import { streamttyService } from '../services/streamtty-service'
 import type { OutputStyle } from '../types/output-styles'
 import { ReasoningDetector } from './reasoning-detector'
 
@@ -519,11 +520,16 @@ export class ModernAIProvider {
     const tools = this.getFileOperationsTools()
     const reasoningEnabled = this.shouldEnableReasoning()
 
-    // Yield reasoning summary before streaming if enabled
+    // Yield reasoning summary before streaming if enabled - format as markdown
     if (reasoningEnabled) {
       const config = simpleConfigManager?.getCurrentModel() as any
       if (config) {
         const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+        
+        // Stream reasoning as markdown blockquote
+        const reasoningMarkdown = `> ⚡︎ *${summary}*\n\n`
+        await streamttyService.streamChunk(reasoningMarkdown, 'thinking')
+        
         yield {
           type: 'reasoning',
           reasoningSummary: summary,

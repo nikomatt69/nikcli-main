@@ -1,9 +1,17 @@
 import chalk from 'chalk'
 import * as readline from 'readline'
 import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
+import { renderMarkdownStream, renderMarkdownStatic, getStreamttyAdapter } from './streamtty-adapter'
 
 /**
+ * @deprecated This file is deprecated. Use streamttyService from services/streamtty-service.ts instead.
+ * 
  * Stream renderer for the CLI that attempts to use Streamdown when available.
+ * 
+ * MIGRATION GUIDE:
+ * - Replace `renderChatStreamToTerminal(stream)` with direct streaming through streamttyService
+ * - Replace `createStringPushStream()` with streamttyService.createStreamRenderer()
+ * - All AI streaming chunks should now go through streamttyService.streamChunk()
  *
  * Notes:
  * - The `streamdown` package is primarily a React component for web UIs.
@@ -12,6 +20,10 @@ import { terminalOutputManager, TerminalOutputManager } from './terminal-output-
  *   to a minimal terminal renderer that prints chunks progressively.
  * - This keeps the rest of the CLI untouched; only the streaming path calls
  *   through this adapter.
+ */
+/**
+ * @deprecated Use streamttyService directly instead
+ * Streams AI responses through streamttyService for native markdown rendering
  */
 export async function renderChatStreamToTerminal(
   stream: AsyncGenerator<string, void, unknown>,
@@ -108,6 +120,7 @@ export async function renderChatStreamToTerminal(
 }
 
 /**
+ * @deprecated Use streamttyService.createStreamRenderer() instead
  * Create a push-driven async text stream suitable for renderChatStreamToTerminal.
  * Allows event-based producers to push chunks as they arrive.
  */
