@@ -1,11 +1,8 @@
+import * as fsPromises from 'node:fs/promises'
+import chalk from 'chalk'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
-import * as fsPromises from 'node:fs/promises'
 import * as path from 'path'
-import { cached } from '@ai-sdk-tools/cache'
-import { tool } from 'ai'
-import chalk from 'chalk'
-import { z } from 'zod'
 import { toolsManager } from '../tools/tools-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 // Import new unified components
@@ -107,20 +104,6 @@ export class WorkspaceContextManager {
   private readonly MAX_CACHE_SIZE = 1000
   private lastCacheCleanup = Date.now()
   private enableRagCache: boolean = process.env.CACHE_RAG !== 'false' && process.env.CACHE_AI !== 'false'
-  private cachedSemanticSearchTool?: (query: string, limit: number, threshold: number) => Promise<ContextSearchResult[]>
-
-  // Paths that should always surface in auto-filtered context
-  private readonly autoFilterPriorityTargets: Array<{
-    kind: 'directory' | 'file'
-    path: string
-    max?: number
-  }> = [
-    { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
-    { kind: 'directory', path: 'src/cli/cloud', max: 6 },
-    { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
-    { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
-    { kind: 'file', path: 'src/cli/core/config-manager.ts' },
-  ]
 
   // Integrated components
   private fileFilter: FileFilterSystem
@@ -175,7 +158,7 @@ export class WorkspaceContextManager {
       try {
         // Cache the search function directly for better compatibility
         this.cachedSemanticSearchTool = (query: string, limit: number, threshold: number) => {
-          const cacheKey = `${query}-${limit}-${threshold}`
+          const _cacheKey = `${query}-${limit}-${threshold}`
           return this.performLocalSemanticSearch(query, limit, threshold)
         }
       } catch (_e) {
@@ -234,7 +217,9 @@ export class WorkspaceContextManager {
     const cacheKey = this.generateCacheKey(options)
     const cached = this.semanticSearchCache.get(cacheKey)
     if (cached) {
-      this.context.cacheStats!.hits++
+      if (this.context.cacheStats) {
+        this.context.cacheStats.hits++
+      }
       console.log(chalk.green('✓ Using cached search results'))
       return cached.slice(0, limit)
     }
@@ -277,7 +262,9 @@ export class WorkspaceContextManager {
 
     // Cache results
     this.cacheSearchResults(cacheKey, finalResults)
-    this.context.cacheStats!.misses++
+    if (this.context.cacheStats) {
+      this.context.cacheStats.misses++
+    }
 
     const _duration = Date.now() - startTime
     // console.log(chalk.green(`✓ Found ${finalResults.length} results in ${duration}ms`));
@@ -471,7 +458,9 @@ export class WorkspaceContextManager {
       keysToDelete.forEach((key) => this.semanticSearchCache.delete(key))
 
       this.lastCacheCleanup = now
-      this.context.cacheStats!.lastCleanup = new Date()
+      if (this.context.cacheStats) {
+        this.context.cacheStats.lastCleanup = new Date()
+      }
 
       console.log(chalk.yellow(`🧹 Cleaned ${keysToDelete.length} cache entries`))
     }
@@ -1249,14 +1238,18 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       if (cached && cached.mtime === mtime) {
         content = cached.content
         hash = cached.hash
-        this.context.cacheStats!.hits++
+        if (this.context.cacheStats) {
+          this.context.cacheStats.hits++
+        }
       } else {
         content = fs.readFileSync(filePath, 'utf8')
         hash = createHash('md5').update(content).digest('hex')
 
         // Cache content
         this.fileContentCache.set(relativePath, { content, mtime, hash })
-        this.context.cacheStats!.misses++
+        if (this.context.cacheStats) {
+          this.context.cacheStats.misses++
+        }
       }
 
       const extension = path.extname(filePath).slice(1)

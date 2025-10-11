@@ -1,8 +1,8 @@
-import * as fs from 'fs'
-import * as path from 'path'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import * as diff from 'diff'
+import * as fs from 'fs'
+import * as path from 'path'
 import { advancedUI } from './advanced-cli-ui'
 
 export interface FileDiff {

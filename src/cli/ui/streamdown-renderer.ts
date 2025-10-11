@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import * as readline from 'readline'
-import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
+import { TerminalOutputManager, terminalOutputManager } from './terminal-output-manager'
 
 /**
  * Stream renderer for the CLI that attempts to use Streamdown when available.
@@ -92,7 +92,10 @@ export async function renderChatStreamToTerminal(
     process.stdout.write(lines.join('\n'))
 
     // Confirm the new output
-    terminalOutputManager.confirmOutput(currentOutputId, 'StreamRerender', newOutputLines, { persistent: false, expiryMs: 30000 })
+    terminalOutputManager.confirmOutput(currentOutputId, 'StreamRerender', newOutputLines, {
+      persistent: false,
+      expiryMs: 30000,
+    })
 
     printedLines = lines.length
   }

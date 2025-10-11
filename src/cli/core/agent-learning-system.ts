@@ -171,7 +171,7 @@ export class AgentLearningSystem {
       if (!toolUsage.has(choice.tool)) {
         toolUsage.set(choice.tool, { success: 0, total: 0 })
       }
-      const usage = toolUsage.get(choice.tool)!
+      const usage = toolUsage.get(choice.tool) || {}
       usage.total++
       if (choice.outcome === 'success') {
         usage.success++

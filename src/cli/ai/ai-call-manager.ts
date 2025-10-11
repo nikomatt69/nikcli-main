@@ -1,5 +1,5 @@
-import { randomBytes } from 'crypto'
 import chalk from 'chalk'
+import { randomBytes } from 'crypto'
 import ora from 'ora'
 import { z } from 'zod'
 import * as ragSystem from '../context/rag-system'

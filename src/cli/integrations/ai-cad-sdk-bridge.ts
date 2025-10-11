@@ -36,7 +36,6 @@ export interface AICadSdkResponse {
 export class AICadSdkBridge {
   private config: Required<AICadSdkConfig>
   private available = false
-  private moduleRef: any = null
   private entryFn: ((opts: any) => Promise<any>) | null = null
 
   constructor(config: AICadSdkConfig = {}) {

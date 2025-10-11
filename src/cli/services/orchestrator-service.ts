@@ -1,6 +1,6 @@
-import { EventEmitter } from 'events'
 import boxen from 'boxen'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import * as readline from 'readline'
 import { simpleConfigManager as configManager } from '../core/config-manager'
 import { type ModuleContext, ModuleManager } from '../core/module-manager'
@@ -172,7 +172,7 @@ export class OrchestratorService extends EventEmitter {
       }
     })
 
-    agentService.on('task_progress', (task: AgentTask, update: any) => {
+    agentService.on('task_progress', (_task: AgentTask, update: any) => {
       // Avoid duplicate logging if NikCLI is active
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed
       if (!nikCliActive) {
@@ -180,7 +180,7 @@ export class OrchestratorService extends EventEmitter {
       }
     })
 
-    agentService.on('tool_use', (task: AgentTask, update: any) => {
+    agentService.on('tool_use', (_task: AgentTask, update: any) => {
       // Avoid duplicate logging if NikCLI is active
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed
       if (!nikCliActive) {
@@ -461,7 +461,7 @@ export class OrchestratorService extends EventEmitter {
 
     // Handle string results directly
     if (typeof result === 'string') {
-      return result.length > 200 ? result.substring(0, 200) + '...' : result
+      return result.length > 200 ? `${result.substring(0, 200)}...` : result
     }
 
     // Handle agent factory structure: { success, todosCompleted, todosFailed, results, agent, summary }
@@ -479,7 +479,7 @@ export class OrchestratorService extends EventEmitter {
 
       // Extract summary if available
       if (result.summary && typeof result.summary === 'string') {
-        const summary = result.summary.length > 150 ? result.summary.substring(0, 150) + '...' : result.summary
+        const summary = result.summary.length > 150 ? `${result.summary.substring(0, 150)}...` : result.summary
         parts.push(`📋 ${summary}`)
       }
 
@@ -493,23 +493,23 @@ export class OrchestratorService extends EventEmitter {
 
     // Handle simple success structure
     if (result.success && result.message) {
-      const message = result.message.length > 200 ? result.message.substring(0, 200) + '...' : result.message
+      const message = result.message.length > 200 ? `${result.message.substring(0, 200)}...` : result.message
       return message
     }
 
     // Handle object with content or message
     if (result.content) {
-      const content = result.content.length > 200 ? result.content.substring(0, 200) + '...' : result.content
+      const content = result.content.length > 200 ? `${result.content.substring(0, 200)}...` : result.content
       return content
     }
     if (result.message) {
-      const message = result.message.length > 200 ? result.message.substring(0, 200) + '...' : result.message
+      const message = result.message.length > 200 ? `${result.message.substring(0, 200)}...` : result.message
       return message
     }
 
     // Final fallback - try to extract meaningful text
     const text = JSON.stringify(result, null, 2)
-    return text.length > 200 ? text.substring(0, 200) + '...' : text
+    return text.length > 200 ? `${text.substring(0, 200)}...` : text
   }
 
   private displayAgentResult(task: AgentTask): void {

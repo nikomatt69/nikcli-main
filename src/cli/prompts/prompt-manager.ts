@@ -148,7 +148,7 @@ export class PromptManager {
 
     // Check cache first
     if (this.cacheEnabled && this.promptCache.has(relativePath)) {
-      const cached = this.promptCache.get(relativePath)!
+      const cached = this.promptCache.get(relativePath) || {}
 
       // Verify file hasn't changed
       try {

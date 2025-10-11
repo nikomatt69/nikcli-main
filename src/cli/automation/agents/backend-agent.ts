@@ -104,7 +104,7 @@ export class BackendAgent extends CognitiveAgentBase {
    * 🧠 Execute task with Backend-specific cognitive orchestration
    */
   protected async executeCognitiveTask(
-    task: AgentTask,
+    _task: AgentTask,
     cognition: TaskCognition,
     plan: OrchestrationPlan
   ): Promise<AgentTaskResult> {
@@ -280,7 +280,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   // Backend analysis methods
-  private async analyzeBackendEnvironment(cognition: TaskCognition): Promise<any> {
+  private async analyzeBackendEnvironment(_cognition: TaskCognition): Promise<any> {
     try {
       CliUI.logInfo('📊 Analyzing Backend environment...')
 
@@ -303,7 +303,7 @@ export class BackendAgent extends CognitiveAgentBase {
     }
   }
 
-  private async performAPIAnalysis(cognition: TaskCognition, context: any): Promise<any> {
+  private async performAPIAnalysis(_cognition: TaskCognition, _context: any): Promise<any> {
     if (!this.isAPIRelatedTask(cognition)) {
       return { analyzed: false }
     }
@@ -312,7 +312,7 @@ export class BackendAgent extends CognitiveAgentBase {
     return backendCognition.apiAnalysis || (await this.analyzeAPIRequirements(cognition))
   }
 
-  private async performSecurityAssessment(cognition: TaskCognition, context: any): Promise<any> {
+  private async performSecurityAssessment(_cognition: TaskCognition, _context: any): Promise<any> {
     const securityKeywords = ['auth', 'security', 'login', 'permission', 'access', 'token']
     const hasSecurityConcerns = securityKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
 
@@ -335,10 +335,10 @@ export class BackendAgent extends CognitiveAgentBase {
 
   private async executeIntelligentBackendImplementation(
     cognition: TaskCognition,
-    context: any,
+    _context: any,
     apiAnalysis: any,
-    securityAnalysis: any,
-    plan: OrchestrationPlan
+    _securityAnalysis: any,
+    _plan: OrchestrationPlan
   ): Promise<any> {
     try {
       advancedUI.logFunctionCall('executing')
@@ -347,7 +347,7 @@ export class BackendAgent extends CognitiveAgentBase {
       // Determine which specialized method to use based on task analysis
       const taskType = this.determineBackendTaskType(cognition, apiAnalysis)
 
-      let result
+      let result: any
       switch (taskType) {
         case 'api-design':
           result = await this.createAPI({
@@ -477,7 +477,7 @@ export class BackendAgent extends CognitiveAgentBase {
     return capabilities
   }
 
-  private determineBackendTaskType(cognition: TaskCognition, apiAnalysis: any): string {
+  private determineBackendTaskType(_cognition: TaskCognition, _apiAnalysis: any): string {
     if (this.isAPIRelatedTask(cognition)) return 'api-design'
     if (cognition.normalizedTask.includes('database')) return 'database-design'
     if (cognition.normalizedTask.includes('auth')) return 'authentication'
@@ -752,38 +752,6 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   /**
-   * Setup middleware
-   */
-  private async setupMiddleware(task: AgentTask): Promise<any> {
-    const { middlewareTypes, framework } = task.metadata || {}
-
-    CliUI.logInfo(`🔨 Setting up middleware: ${middlewareTypes?.join(', ')}`)
-
-    try {
-      const middlewareFiles = []
-
-      for (const middlewareType of middlewareTypes || []) {
-        const middlewareCode = await this.generateMiddleware(middlewareType, framework)
-        const middlewarePath = `src/middleware/${middlewareType}.ts`
-        await this.executeTool('write-file-tool', middlewarePath, middlewareCode)
-        middlewareFiles.push(middlewarePath)
-      }
-
-      // Update main app file to use middleware
-      await this.updateAppWithMiddleware(middlewareTypes, framework)
-
-      return {
-        success: true,
-        middlewareFiles,
-        framework,
-        message: `Middleware setup completed`,
-      }
-    } catch (error: any) {
-      throw new Error(`Failed to setup middleware: ${error.message}`)
-    }
-  }
-
-  /**
    * Optimize backend performance
    */
   private async optimizeBackendPerformance(task: AgentTask): Promise<any> {
@@ -825,79 +793,6 @@ export class BackendAgent extends CognitiveAgentBase {
       }
     } catch (error: any) {
       throw new Error(`Failed to optimize performance: ${error.message}`)
-    }
-  }
-
-  /**
-   * Setup monitoring
-   */
-  private async setupMonitoring(task: AgentTask): Promise<any> {
-    const { monitoringTools, metrics } = task.metadata || {}
-
-    CliUI.logInfo(`📊 Setting up monitoring with: ${monitoringTools?.join(', ')}`)
-
-    try {
-      const monitoringFiles = []
-
-      // Setup logging
-      const loggingCode = await this.generateLoggingSetup(monitoringTools)
-      const loggingPath = 'src/utils/logger.ts'
-      await this.executeTool('write-file-tool', loggingPath, loggingCode)
-      monitoringFiles.push(loggingPath)
-
-      // Setup metrics collection
-      const metricsCode = await this.generateMetricsSetup(metrics)
-      const metricsPath = 'src/utils/metrics.ts'
-      await this.executeTool('write-file-tool', metricsPath, metricsCode)
-      monitoringFiles.push(metricsPath)
-
-      // Setup health checks
-      const healthCode = await this.generateHealthChecks()
-      const healthPath = 'src/routes/health.ts'
-      await this.executeTool('write-file-tool', healthPath, healthCode)
-      monitoringFiles.push(healthPath)
-
-      return {
-        success: true,
-        monitoringTools,
-        monitoringFiles,
-        message: `Monitoring setup completed`,
-      }
-    } catch (error: any) {
-      throw new Error(`Failed to setup monitoring: ${error.message}`)
-    }
-  }
-
-  /**
-   * Containerize application
-   */
-  private async containerizeApplication(task: AgentTask): Promise<any> {
-    const { containerTool, environment } = task.metadata || {}
-
-    CliUI.logInfo(`🐳 Containerizing application with ${containerTool}`)
-
-    try {
-      // Generate Dockerfile
-      const dockerfileContent = await this.generateDockerfile(environment)
-      await this.executeTool('write-file-tool', 'Dockerfile', dockerfileContent)
-
-      // Generate docker-compose.yml
-      const composeContent = await this.generateDockerCompose(environment)
-      await this.executeTool('write-file-tool', 'docker-compose.yml', composeContent)
-
-      // Generate .dockerignore
-      const dockerignoreContent = await this.generateDockerignore()
-      await this.executeTool('write-file-tool', '.dockerignore', dockerignoreContent)
-
-      return {
-        success: true,
-        containerTool,
-        environment,
-        files: ['Dockerfile', 'docker-compose.yml', '.dockerignore'],
-        message: `Application containerized successfully`,
-      }
-    } catch (error: any) {
-      throw new Error(`Failed to containerize application: ${error.message}`)
     }
   }
 
@@ -984,26 +879,6 @@ export class BackendAgent extends CognitiveAgentBase {
     return `// Tests for ${authType} authentication\ndescribe('Auth', () => {});`
   }
 
-  private async generateMiddleware(type: string, framework: string): Promise<string> {
-    return `// ${type} middleware for ${framework}\nexport const ${type}Middleware = () => {};`
-  }
-
-  private async updateAppWithMiddleware(types: string[], framework: string): Promise<void> {
-    CliUI.logInfo(`Updating ${framework} app with middleware: ${types.join(', ')}`)
-  }
-
-  private async generateDockerfile(environment: string): Promise<string> {
-    return `FROM node:18-alpine\n# Dockerfile for ${environment}\nWORKDIR /app\nCOPY . .\nRUN npm install\nEXPOSE 3000\nCMD ["npm", "start"]`
-  }
-
-  private async generateDockerCompose(environment: string): Promise<string> {
-    return `version: '3.8'\nservices:\n  app:\n    build: .\n    ports:\n      - "3000:3000"\n    environment:\n      - NODE_ENV=${environment}`
-  }
-
-  private async generateDockerignore(): Promise<string> {
-    return `node_modules\n.git\n.env\n*.log\nDockerfile\n.dockerignore`
-  }
-
   // Path determination methods
   private async determineRoutePath(apiName: string, _framework: string): Promise<string> {
     return `src/routes/${apiName}.ts`
@@ -1044,23 +919,6 @@ export class BackendAgent extends CognitiveAgentBase {
 
   private async optimizeAPIResponses(files: string[]): Promise<any> {
     return { type: 'api-optimization', filesProcessed: files?.length || 0 }
-  }
-
-  // Monitoring setup methods
-  private async generateLoggingSetup(tools: string[]): Promise<string> {
-    return `// Logging setup with: ${tools?.join(', ')}\nexport const logger = {};`
-  }
-
-  private async generateMetricsSetup(metrics: string[]): Promise<string> {
-    return `// Metrics setup for: ${metrics?.join(', ')}\nexport const metrics = {};`
-  }
-
-  private async generateHealthChecks(): Promise<string> {
-    return `// Health check endpoints\nexport const healthRouter = {};`
-  }
-
-  private async setupBackendTesting(_task: AgentTask): Promise<any> {
-    return { success: true, message: 'Backend testing setup completed' }
   }
 
   private async generateTaskPlan(_task: AgentTask): Promise<any> {

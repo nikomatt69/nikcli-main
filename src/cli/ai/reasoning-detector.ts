@@ -153,105 +153,95 @@ export const PROVIDER_REASONING_CONFIG = {
   },
 } as const
 
-export class ReasoningDetector {
-  /**
-   * Detect if a model supports reasoning capabilities
-   */
-  static detectReasoningSupport(_provider: string, modelId: string): ReasoningCapabilities {
-    // Try exact model match first
-    const exactMatch = MODEL_REASONING_CAPABILITIES[modelId]
-    if (exactMatch) {
-      return exactMatch
-    }
-
-    // Try pattern matching for similar models
-    const patterns = [
-      { pattern: /claude-3-7/, capabilities: MODEL_REASONING_CAPABILITIES['claude-3-7-sonnet-latest'] },
-      { pattern: /o1(-mini|-preview)?$/, capabilities: MODEL_REASONING_CAPABILITIES['o1-mini'] },
-      { pattern: /gemini-2\.5/, capabilities: MODEL_REASONING_CAPABILITIES['gemini-2.5-pro'] },
-    ]
-
-    for (const { pattern, capabilities } of patterns) {
-      if (pattern.test(modelId)) {
-        return capabilities
-      }
-    }
-
-    // Return default if no match found
-    return MODEL_REASONING_CAPABILITIES.default || { supportsReasoning: false, reasoningTokenCost: 1.0 }
+export function detectReasoningSupport(provider: string, modelId: string) {
+  const key = `${provider}/${modelId}` as keyof typeof MODEL_REASONING_CAPABILITIES
+  if (MODEL_REASONING_CAPABILITIES[key]) {
+    return MODEL_REASONING_CAPABILITIES[key]
   }
 
-  /**
-   * Check if reasoning should be enabled for a specific model
-   */
-  static shouldEnableReasoning(provider: string, modelId: string, userPreference?: boolean): boolean {
-    const capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
+  // Try pattern matching for similar models
+  const patterns = [
+    { pattern: /claude-3-7/, capabilities: MODEL_REASONING_CAPABILITIES['claude-3-7-sonnet-latest'] },
+    { pattern: /o1(-mini|-preview)?$/, capabilities: MODEL_REASONING_CAPABILITIES['o1-mini'] },
+    { pattern: /gemini-2\.5/, capabilities: MODEL_REASONING_CAPABILITIES['gemini-2.5-pro'] },
+  ]
 
-    // Respect explicit user preference if provided
-    if (userPreference !== undefined) {
-      return userPreference && capabilities.supportsReasoning
-    }
-
-    // Use model's default setting
-    return capabilities.supportsReasoning && capabilities.defaultEnabled
-  }
-
-  /**
-   * Get provider-specific reasoning configuration
-   */
-  static getProviderReasoningConfig(provider: string) {
-    return (
-      PROVIDER_REASONING_CONFIG[provider as keyof typeof PROVIDER_REASONING_CONFIG] ||
-      PROVIDER_REASONING_CONFIG.anthropic
-    )
-  }
-
-  /**
-   * Extract reasoning content from model response
-   */
-  static extractReasoning(response: any, provider: string): { reasoning?: any; reasoningText?: string } {
-    const config = ReasoningDetector.getProviderReasoningConfig(provider)
-
-    const reasoning = response[config.reasoningField]
-    const reasoningText = response[config.reasoningTextField]
-
-    return {
-      reasoning: reasoning || undefined,
-      reasoningText: reasoningText || undefined,
+  for (const { pattern, capabilities } of patterns) {
+    if (pattern.test(modelId)) {
+      return capabilities
     }
   }
 
-  /**
-   * Check if a provider supports reasoning middleware
-   */
-  static supportsReasoningMiddleware(provider: string): boolean {
-    const config = ReasoningDetector.getProviderReasoningConfig(provider)
-    return config.supportsMiddleware
+  // Return default if no match found
+  return MODEL_REASONING_CAPABILITIES.default || { supportsReasoning: false, reasoningTokenCost: 1.0 }
+}
+
+export function shouldEnableReasoning(provider: string, modelId: string, userPreference?: boolean): boolean {
+  const capabilities = detectReasoningSupport(provider, modelId)
+
+  // Respect explicit user preference if provided
+  if (userPreference !== undefined) {
+    return userPreference && capabilities.supportsReasoning
   }
 
-  /**
-   * Get all models that support reasoning
-   */
-  static getReasoningEnabledModels(): string[] {
-    return Object.entries(MODEL_REASONING_CAPABILITIES)
-      .filter(([_, capabilities]) => capabilities.supportsReasoning)
-      .map(([modelId]) => modelId)
-      .filter((modelId) => modelId !== 'default')
+  // Use model's default setting
+  return capabilities.supportsReasoning && capabilities.defaultEnabled
+}
+
+/**
+ * Get provider-specific reasoning configuration
+ */
+export function getProviderReasoningConfig(provider: string) {
+  return (
+    PROVIDER_REASONING_CONFIG[provider as keyof typeof PROVIDER_REASONING_CONFIG] || PROVIDER_REASONING_CONFIG.anthropic
+  )
+}
+
+/**
+ * Extract reasoning content from model response
+ */
+export function extractReasoning(response: any, provider: string): { reasoning?: any; reasoningText?: string } {
+  const config = getProviderReasoningConfig(provider)
+
+  const reasoning = response[config.reasoningField]
+  const reasoningText = response[config.reasoningTextField]
+
+  return {
+    reasoning: reasoning || undefined,
+    reasoningText: reasoningText || undefined,
+  }
+}
+
+/**
+ * Check if a provider supports reasoning middleware
+ */
+export function supportsReasoningMiddleware(provider: string): boolean {
+  const config = getProviderReasoningConfig(provider)
+  return config.supportsMiddleware
+}
+
+/**
+ * Get all models that support reasoning
+ */
+export function getReasoningEnabledModels(): string[] {
+  return Object.entries(MODEL_REASONING_CAPABILITIES)
+    .filter(([_, capabilities]) => capabilities.supportsReasoning)
+    .map(([modelId]) => modelId)
+    .filter((modelId) => modelId !== 'default')
+}
+
+/**
+ * Get reasoning capabilities summary for a model
+ */
+export function getModelReasoningSummary(provider: string, modelId: string): string {
+  const capabilities = detectReasoningSupport(provider, modelId)
+
+  if (!capabilities.supportsReasoning) {
+    return 'No reasoning support'
   }
 
-  /**
-   * Get reasoning capabilities summary for a model
-   */
-  static getModelReasoningSummary(provider: string, modelId: string): string {
-    const capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
+  const type = capabilities.reasoningType
+  const enabled = capabilities.defaultEnabled ? 'enabled by default' : 'available on request'
 
-    if (!capabilities.supportsReasoning) {
-      return 'No reasoning support'
-    }
-
-    const type = capabilities.reasoningType
-    const enabled = capabilities.defaultEnabled ? 'enabled by default' : 'available on request'
-
-    return `Reasoning support: ${type} (${enabled})`
-  }
+  return `Reasoning support: ${type} (${enabled})`
 }

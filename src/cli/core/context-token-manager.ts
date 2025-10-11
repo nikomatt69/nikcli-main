@@ -1,6 +1,6 @@
-import { EventEmitter } from 'events'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { structuredLogger } from '../utils/structured-logger'
 import { type ModelLimits, type TokenUsage, universalTokenizer } from './universal-tokenizer-service'
 

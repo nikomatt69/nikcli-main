@@ -216,7 +216,7 @@ export class PasteHandler {
   private hasStructuredTextPattern(text: string): boolean {
     const structuredPatterns = [
       /^\d+\.\s+/m, // Numbered lists
-      /^-\s+/m, // Bullet points
+      /^-\s+/m, // Bullet points: any
       /^\*\s+/m, // Asterisk bullets
       /^#{1,6}\s+/m, // Markdown headers
       /^\|\s*.*\s*\|/m, // Table rows

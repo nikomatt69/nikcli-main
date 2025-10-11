@@ -1,7 +1,7 @@
-import { EventEmitter } from 'events'
 import { createServer, type Server } from 'node:http'
 import chalk from 'chalk'
 import cors from 'cors'
+import { EventEmitter } from 'events'
 import express, { type Express, type Request, type Response } from 'express'
 import rateLimit from 'express-rate-limit'
 import helmet from 'helmet'

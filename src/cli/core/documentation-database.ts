@@ -28,7 +28,7 @@ export class DocumentationDatabase {
       } else {
         console.log(chalk.yellow('⚠️ Documentation database using local storage only'))
       }
-    } catch (error) {
+    } catch (_error) {
       this.useSupabase = false
       this.initialized = true
       console.log(chalk.yellow('⚠️ Documentation database using local storage only'))

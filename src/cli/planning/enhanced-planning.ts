@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises'
-import * as path from 'path'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
+import * as path from 'path'
 import { type ChatMessage, modelProvider } from '../ai/model-provider'
 import { workspaceContext } from '../context/workspace-context'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -88,11 +88,11 @@ export class EnhancedPlanningSystem {
     failedPlans: number
     averageExecutionTime: number
   } = {
-      totalPlans: 0,
-      successfulPlans: 0,
-      failedPlans: 0,
-      averageExecutionTime: 0,
-    }
+    totalPlans: 0,
+    successfulPlans: 0,
+    failedPlans: 0,
+    averageExecutionTime: 0,
+  }
 
   constructor(workingDirectory: string = process.cwd()) {
     this.workingDirectory = workingDirectory
@@ -338,7 +338,7 @@ export class EnhancedPlanningSystem {
           if (typeof nik === 'object') {
             try {
               nik.assistantProcessing = false
-            } catch { }
+            } catch {}
           }
           if (typeof nik.renderPromptAfterOutput === 'function') {
             nik.renderPromptAfterOutput()
@@ -355,7 +355,7 @@ export class EnhancedPlanningSystem {
         try {
           const { inputQueue } = await import('../core/input-queue')
           inputQueue.disableBypass()
-        } catch { }
+        } catch {}
       } catch {
         /* ignore cleanup errors */
       }
@@ -386,7 +386,7 @@ export class EnhancedPlanningSystem {
           todo.status = 'skipped'
           try {
             await this.updateStoreForTodo(plan, todo.id, 'cancelled')
-          } catch { }
+          } catch {}
           continue
         }
 
@@ -394,7 +394,7 @@ export class EnhancedPlanningSystem {
         todo.startedAt = new Date()
         try {
           await this.updateStoreForTodo(plan, todo.id, 'in_progress')
-        } catch { }
+        } catch {}
 
         try {
           // 1) Execute explicit commands if provided
@@ -415,7 +415,7 @@ export class EnhancedPlanningSystem {
                 todo.status = 'skipped'
                 try {
                   await this.updateStoreForTodo(plan, todo.id, 'cancelled')
-                } catch { }
+                } catch {}
                 continue
               }
               await runCmd.execute(cmd)
@@ -463,7 +463,7 @@ export class EnhancedPlanningSystem {
               todo.status = 'skipped'
               try {
                 await this.updateStoreForTodo(plan, todo.id, 'cancelled')
-              } catch { }
+              } catch {}
               continue
             }
             await writeFile.execute(target, content, { showDiff: false, createBackup: true })
@@ -491,7 +491,7 @@ export class EnhancedPlanningSystem {
                   todo.status = 'skipped'
                   try {
                     await this.updateStoreForTodo(plan, todo.id, 'cancelled')
-                  } catch { }
+                  } catch {}
                   continue
                 }
                 await replaceTool.execute(f, search, replacement)
@@ -505,7 +505,7 @@ export class EnhancedPlanningSystem {
           todo.progress = 100
           try {
             await this.updateStoreForTodo(plan, todo.id, 'completed')
-          } catch { }
+          } catch {}
         } catch (err: any) {
           // On any failure, mark as cancelled to keep flow going
           if (!compact)
@@ -518,7 +518,7 @@ export class EnhancedPlanningSystem {
           todo.errorMessage = String(err?.message || err)
           try {
             await this.updateStoreForTodo(plan, todo.id, 'cancelled')
-          } catch { }
+          } catch {}
           // Continue with next todo
         }
       }
@@ -555,7 +555,7 @@ export class EnhancedPlanningSystem {
         if (risk === 'low' || (risk === 'medium' && autoAccept)) {
           return true
         }
-      } catch { }
+      } catch {}
 
       // Show an informative box
       const boxen = (await import('boxen')).default
@@ -563,10 +563,10 @@ export class EnhancedPlanningSystem {
       this.cliInstance.printPanel(
         boxen(
           `${chalk.yellow.bold('🤔 Approval Required')}\n\n` +
-          `${chalk.gray('Action:')} ${title}\n` +
-          `${chalk.gray('Description:')} ${description}\n` +
-          `${chalk.gray('Risk Level:')} ${risk.toUpperCase()}\n\n` +
-          `${chalk.yellow('Proceed with this operation?')}`,
+            `${chalk.gray('Action:')} ${title}\n` +
+            `${chalk.gray('Description:')} ${description}\n` +
+            `${chalk.gray('Risk Level:')} ${risk.toUpperCase()}\n\n` +
+            `${chalk.yellow('Proceed with this operation?')}`,
           {
             padding: 1,
             borderColor: risk === 'high' ? 'red' : risk === 'medium' ? 'yellow' : 'cyan',
@@ -580,12 +580,12 @@ export class EnhancedPlanningSystem {
       try {
         const { advancedUI } = await import('../ui/advanced-cli-ui')
         advancedUI.stopInteractiveMode?.()
-      } catch { }
+      } catch {}
 
       // Suspend main prompt and bypass input queue
       try {
-        ; (global as any).__nikCLI?.suspendPrompt?.()
-      } catch { }
+        ;(global as any).__nikCLI?.suspendPrompt?.()
+      } catch {}
       inputQueue.enableBypass()
 
       const answers = await inquirer.prompt([
@@ -610,15 +610,15 @@ export class EnhancedPlanningSystem {
       // Always disable bypass and redraw prompt
       try {
         inputQueue.disableBypass()
-      } catch { }
+      } catch {}
       try {
         const nik = (global as any).__nikCLI
         if (nik && typeof nik.resumePromptAndRender === 'function') nik.resumePromptAndRender()
-      } catch { }
+      } catch {}
       try {
         const { advancedUI } = await import('../ui/advanced-cli-ui')
         advancedUI.startInteractiveMode?.()
-      } catch { }
+      } catch {}
     }
   }
 
@@ -674,8 +674,8 @@ export class EnhancedPlanningSystem {
           priority: t.priority as any,
           progress: t.progress,
         }))
-          ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-      } catch { }
+        ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+      } catch {}
     } catch {
       /* ignore */
     }
@@ -1200,25 +1200,6 @@ Generate a comprehensive plan that is practical and executable.`,
     }
   }
 
-  private getCategoryColor(category: string): any {
-    switch (category) {
-      case 'planning':
-        return chalk.cyan
-      case 'setup':
-        return chalk.blue
-      case 'implementation':
-        return chalk.green
-      case 'testing':
-        return chalk.yellow
-      case 'documentation':
-        return chalk.magenta
-      case 'deployment':
-        return chalk.red
-      default:
-        return chalk.gray
-    }
-  }
-
   /**
    * Get all active plans
    */
@@ -1271,10 +1252,10 @@ Generate a comprehensive plan that is practical and executable.`,
     this.cliInstance.printPanel(
       boxen(
         `${chalk.blue.bold(plan.title)}\n\n` +
-        `${chalk.gray('Goal:')} ${plan.goal}\n` +
-        `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
-        `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
-        `${chalk.gray('Status:')} ${this.getStatusColor(plan.status)(plan.status.toUpperCase())}`,
+          `${chalk.gray('Goal:')} ${plan.goal}\n` +
+          `${chalk.gray('Todos:')} ${plan.todos.length}\n` +
+          `${chalk.gray('Estimated Duration:')} ${Math.round(plan.estimatedTotalDuration)} minutes\n` +
+          `${chalk.gray('Status:')} ${this.getStatusColor(plan.status)(plan.status.toUpperCase())}`,
         {
           padding: 1,
           margin: { top: 1, bottom: 1, left: 0, right: 0 },

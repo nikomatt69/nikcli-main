@@ -44,7 +44,6 @@ export interface SessionState {
 export class SSHSessionBridge {
   private sessionManager: EnhancedSessionManager
   private configPath: string
-  private statePath: string
   private config: SessionBridgeConfig
   private currentState: SessionState | null = null
   private backupTimer: Timer | null = null

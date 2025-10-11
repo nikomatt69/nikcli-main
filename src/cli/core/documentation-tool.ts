@@ -16,8 +16,7 @@ export const documentationSearchTool: CoreTool = tool({
     try {
       console.log(chalk.blue(`🔍 Searching documentation for: "${query}"`))
 
-      let results
-
+      let results: any
       if (includeWeb) {
         // Cerca con fallback web
         results = await docLibrary.searchWithWebFallback(query, category)
@@ -142,7 +141,7 @@ export const documentationStatsTool: CoreTool = tool({
         }
 
         // Aggiungi statistiche dettagliate se richiesto
-        const entries = Array.from(docLibrary['docs'].values())
+        const entries = Array.from(docLibrary.docs.values())
 
         // Per categoria
         for (const category of stats.categories) {

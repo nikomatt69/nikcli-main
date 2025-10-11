@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises'
-import * as path from 'path'
 import chalk from 'chalk'
+import * as path from 'path'
 import { structuredLogger } from '../utils/structured-logger'
 import { ContextSanitizer } from './middleware-context'
 import {

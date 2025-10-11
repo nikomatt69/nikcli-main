@@ -1,5 +1,3 @@
-import { AutonomousOrchestrator } from './automation/agents/autonomous-orchestrator'
-import { CognitiveAgentBase as CognitiveAgentBaseClass } from './automation/agents/cognitive-agent-base'
 import { UniversalAgent } from './automation/agents/universal-agent'
 import type { AgentManager } from './core/agent-manager'
 import { SecureVirtualizedAgent } from './virtualized-agents/secure-vm-agent'

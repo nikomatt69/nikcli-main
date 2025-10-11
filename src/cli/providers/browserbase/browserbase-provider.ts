@@ -1,12 +1,11 @@
-import { EventEmitter } from 'events'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { Readability } from '@mozilla/readability'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-
 import { type CoreMessage, generateObject } from 'ai'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { JSDOM } from 'jsdom'
 import { z } from 'zod'
 import { simpleConfigManager } from '../../core/config-manager'

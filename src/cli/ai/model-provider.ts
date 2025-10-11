@@ -6,10 +6,16 @@ import { createVercel } from '@ai-sdk/vercel'
 import { generateObject, generateText, streamText } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
+import {
+  detectReasoningSupport,
+  extractReasoning,
+  getModelReasoningSummary,
+  getReasoningEnabledModels,
+  shouldEnableReasoning,
+} from '../ai/reasoning-detector'
 import { getRAGMiddleware } from '../context/rag-setup'
 import { configManager, type ModelConfig } from '../core/config-manager'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
-import { ReasoningDetector } from './reasoning-detector'
 
 // ====================== ⚡︎ ZOD VALIDATION SCHEMAS ======================
 
@@ -83,7 +89,7 @@ export class ModelProvider {
 
     // If auto-detect is enabled, check model capabilities
     if (globalReasoningConfig.autoDetect) {
-      return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
+      return shouldEnableReasoning(config.provider, config.model)
     }
 
     return false
@@ -96,8 +102,8 @@ export class ModelProvider {
     const globalReasoningConfig = configManager.get('reasoning')
 
     if (globalReasoningConfig.logReasoning) {
-      const _capabilities = ReasoningDetector.detectReasoningSupport(provider, modelId)
-      const summary = ReasoningDetector.getModelReasoningSummary(provider, modelId)
+      const _capabilities = detectReasoningSupport(provider, modelId)
+      const summary = getModelReasoningSummary(provider, modelId)
 
       try {
         const nik = (global as any).__nikCLI
@@ -275,7 +281,7 @@ export class ModelProvider {
 
     // Extract reasoning if available and display if requested
     if (reasoningEnabled) {
-      const reasoningData = ReasoningDetector.extractReasoning(result, currentModelConfig.provider)
+      const reasoningData = extractReasoning(result, currentModelConfig.provider)
       const globalReasoningConfig = configManager.get('reasoning')
 
       if (
@@ -319,11 +325,8 @@ export class ModelProvider {
 
     // Show reasoning summary before streaming if enabled
     if (reasoningEnabled) {
-      const _capabilities = ReasoningDetector.detectReasoningSupport(
-        currentModelConfig.provider,
-        currentModelConfig.model
-      )
-      const summary = ReasoningDetector.getModelReasoningSummary(currentModelConfig.provider, currentModelConfig.model)
+      const _capabilities = detectReasoningSupport(currentModelConfig.provider, currentModelConfig.model)
+      const summary = getModelReasoningSummary(currentModelConfig.provider, currentModelConfig.model)
 
       try {
         const chalk = require('chalk')
@@ -479,9 +482,9 @@ export class ModelProvider {
     summary: string
     enabled: boolean
   } {
-    const { name, config } = this.getCurrentModelInfo()
-    const capabilities = ReasoningDetector.detectReasoningSupport(config.provider, config.model)
-    const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+    const { config } = this.getCurrentModelInfo()
+    const capabilities = detectReasoningSupport(config.provider, config.model)
+    const summary = getModelReasoningSummary(config.provider, config.model)
     const enabled = this.shouldEnableReasoning({ messages: [] }, config)
 
     return {
@@ -496,7 +499,7 @@ export class ModelProvider {
    * Get all models that support reasoning
    */
   getReasoningEnabledModels(): string[] {
-    return ReasoningDetector.getReasoningEnabledModels()
+    return getReasoningEnabledModels()
   }
 }
 

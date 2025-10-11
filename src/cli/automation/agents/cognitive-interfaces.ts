@@ -100,7 +100,7 @@ export interface CognitiveCapabilities {
   /**
    * Learn from task execution results
    */
-  updateCognitiveMemory(cognition: TaskCognition, result: any, success: boolean): void
+  updateCognitiveMemory(_cognition: TaskCognition, result: any, success: boolean): void
 
   /**
    * Get performance insights for specialization

@@ -1,6 +1,6 @@
-import { EventEmitter } from 'events'
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { type ConfigType, simpleConfigManager } from '../../core/config-manager'
 
 export interface SupabaseSession {

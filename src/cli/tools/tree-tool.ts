@@ -152,7 +152,7 @@ export class TreeTool extends BaseTool {
       advancedUI.logSuccess(`✓ Tree complete: ${this.totalDirectories} directories, ${this.totalFiles} files`)
 
       // Display tree
-      console.log('\n' + chalk.cyan.bold(relative(this.workingDirectory, sanitized) || '.'))
+      console.log(`\n${chalk.cyan.bold(relative(this.workingDirectory, sanitized) || '.')}`)
       console.log(result.formatted)
       console.log(
         chalk.gray(
@@ -264,7 +264,7 @@ export class TreeTool extends BaseTool {
 
     if (node.depth > 0) {
       const connector = isLast ? TREE_CHARS.LAST_BRANCH : TREE_CHARS.BRANCH
-      const icon = useIcons ? this.getIcon(node) + ' ' : ''
+      const icon = useIcons ? `${this.getIcon(node)} ` : ''
       const sizeInfo = showSize && node.isDirectory === false ? ` ${chalk.gray(this.formatSize(node.size))}` : ''
 
       const nameColor = node.isDirectory ? chalk.blue.bold : chalk.white
@@ -275,7 +275,7 @@ export class TreeTool extends BaseTool {
       const childPrefix = node.depth > 0 ? prefix + (isLast ? TREE_CHARS.SPACE : TREE_CHARS.PIPE) : ''
 
       node.children.forEach((child, index) => {
-        const childIsLast = index === node.children!.length - 1
+        const childIsLast = index === node.children?.length - 1
         lines.push(this.formatTree(child, childPrefix, childIsLast, useIcons, showSize))
       })
     }
@@ -324,7 +324,6 @@ export class TreeTool extends BaseTool {
           const extB = require('path').extname(b.name)
           return extA.localeCompare(extB)
         }
-        case 'name':
         default:
           return a.name.localeCompare(b.name)
       }

@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import {
   type SnapshotEntry,
   type SnapshotSearchOptions,

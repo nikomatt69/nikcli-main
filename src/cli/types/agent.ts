@@ -156,13 +156,13 @@ export interface AgentEventHandler<T = unknown> {
 
 // Agent Selector Interface
 export interface AgentSelector {
-  selectBestAgent(task: AgentTask, availableAgents: AgentConfig[]): Promise<AgentConfig | null>
+  selectBestAgent(_task: AgentTask, availableAgents: AgentConfig[]): Promise<AgentConfig | null>
   calculateScore(agent: AgentConfig, task: AgentTask): number
 }
 
 // Task Executor Interface
 export interface TaskExecutor<TInput = unknown, TOutput = unknown> {
-  execute(task: AgentTask, input: TInput): Promise<TOutput>
+  execute(_task: AgentTask, input: TInput): Promise<TOutput>
   canExecute(task: AgentTask): boolean
   getCapabilities(): AgentCapability[]
 }

@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import * as fs from 'fs'
 import chalk from 'chalk'
+import * as fs from 'fs'
 
 export interface LSPServerInfo {
   name: string
@@ -209,7 +209,7 @@ export class LSPService {
     this.startupTimers.clear()
 
     // Kill any running server processes
-    for (const [name, server] of this.servers.entries()) {
+    for (const [_name, server] of this.servers.entries()) {
       if (server.process) {
         try {
           server.process.kill()

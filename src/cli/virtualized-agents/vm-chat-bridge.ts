@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import type { SecureVirtualizedAgent } from './secure-vm-agent'
 import {
@@ -245,7 +245,11 @@ export class VMChatBridge extends EventEmitter implements VMEventEmitter {
       this.bridgeStats.successfulRequests++
       this.updateAverageResponseTime(responseTime)
 
-      advancedUI.logFunctionUpdate('success', `Successfully streamed response from agent ${agentId} (${responseTime}ms)`, '🌊')
+      advancedUI.logFunctionUpdate(
+        'success',
+        `Successfully streamed response from agent ${agentId} (${responseTime}ms)`,
+        '🌊'
+      )
 
       return {
         success: true,

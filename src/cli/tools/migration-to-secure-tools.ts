@@ -55,7 +55,7 @@ export class ToolsMigration {
     const result = await secureTools.listDirectory(directory, { pattern })
 
     // Convert to legacy format for backward compatibility
-    return [...result.data!.files, ...result.data!.directories]
+    return [...result.data?.files, ...result.data?.directories]
   }
 
   /**

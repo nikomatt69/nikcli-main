@@ -3,11 +3,11 @@
  * Connects NikCLI to the existing CADCamFun text-to-CAD AI system
  */
 
-import { exec } from 'child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { promisify } from 'util'
 import chalk from 'chalk'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 

@@ -1,6 +1,6 @@
+import chalk from 'chalk'
 import { randomBytes } from 'crypto'
 import { EventEmitter } from 'events'
-import chalk from 'chalk'
 import { MemoryManager } from '../utils/memory-manager'
 
 export interface StreamEvent {
@@ -400,7 +400,7 @@ export class AgentStreamManager extends EventEmitter {
 
     const averageActionDuration =
       completedActions.length > 0
-        ? completedActions.reduce((sum, action) => sum + (action.endTime!.getTime() - action.startTime.getTime()), 0) /
+        ? completedActions.reduce((sum, action) => sum + (action.endTime?.getTime() - action.startTime.getTime()), 0) /
           completedActions.length
         : 0
 

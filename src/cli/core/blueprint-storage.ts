@@ -129,7 +129,7 @@ export class BlueprintStorage {
     try {
       // Controlla prima nella cache
       if (this.blueprintsCache.has(blueprintId)) {
-        return this.blueprintsCache.get(blueprintId)!
+        return this.blueprintsCache.get(blueprintId) || {}
       }
 
       const filename = `${blueprintId}.json`

@@ -74,7 +74,7 @@ export class CloudIntegration {
         backgroundAgents: {
           available: bgTest.connected,
           latency: bgTest.latency,
-          url: this.bgClient['baseUrl'],
+          url: this.bgClient.baseUrl,
         },
         github: {
           available: githubAvailable,

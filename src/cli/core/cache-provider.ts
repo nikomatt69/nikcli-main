@@ -125,7 +125,7 @@ class GlobalCacheManager {
     if (!this.providers.has(namespace)) {
       this.providers.set(namespace, new CacheProvider(namespace, options))
     }
-    return this.providers.get(namespace)!
+    return this.providers.get(namespace) || {}
   }
 
   clearAll(): void {

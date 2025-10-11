@@ -186,8 +186,8 @@ export class AdaptiveModelRouter {
     const validMessages = input.messages
       .filter((m) => m.role && m.content)
       .map((m) => ({
-        role: m.role!,
-        content: m.content!,
+        role: m.role || 'user',
+        content: m.content || '',
       }))
 
     // Get precise token count
@@ -281,7 +281,7 @@ export class AdaptiveModelRouter {
     const validMessages = input.messages
       .filter((m) => m.role && m.content)
       .map((m) => ({
-        content: m.content!,
+        content: m.content || '',
       }))
 
     const tokens = estimateTokens(validMessages)
@@ -404,7 +404,7 @@ export class AdaptiveModelRouter {
         totalSuccesses: 0,
       })
     }
-    return this.performanceMetrics.get(modelKey)!
+    return this.performanceMetrics.get(modelKey) || { latency: 0, successRate: 1, cost: 0 }
   }
 
   /**

@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import * as readline from 'readline'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { VMStatusIndicator } from './vm-status-indicator'
@@ -20,13 +20,11 @@ export class VMKeyboardControls extends EventEmitter {
   private static instance: VMKeyboardControls
   private statusIndicator: VMStatusIndicator
   private isActive = false
-  private currentMode: ControlMode = 'normal'
   private selectedAgentIndex = 0
   private originalRawMode: boolean
 
   // Panel states
   private currentPanel: PanelType | null = null
-  private panelContent = ''
   private autoRefresh = true
   private refreshInterval: Timer | null = null
 
@@ -124,7 +122,7 @@ export class VMKeyboardControls extends EventEmitter {
   /**
    * Handle keypress events
    */
-  private handleKeypress(str: string, key: any): void {
+  private handleKeypress(str: string, key: any): void 
     try {
       // Handle special key combinations first
       if (key?.ctrl) {
@@ -151,12 +149,11 @@ export class VMKeyboardControls extends EventEmitter {
     } catch (error: any) {
       advancedUI.logError(`❌ Keyboard handler error: ${error.message}`)
     }
-  }
 
   /**
    * Handle Ctrl key combinations
    */
-  private handleCtrlKeys(key: any): void {
+  private handleCtrlKeys(key: any): void 
     switch (key.name) {
       case 'l':
         this.showLogsPanel()
@@ -185,12 +182,11 @@ export class VMKeyboardControls extends EventEmitter {
         }
         break
     }
-  }
 
   /**
    * Handle command execution
    */
-  private handleCommand(command: string): void {
+  private handleCommand(command: string): void 
     switch (command) {
       case 'show_logs':
         this.showLogsPanel()
@@ -234,7 +230,6 @@ export class VMKeyboardControls extends EventEmitter {
           this.selectAgentByFunction(fNum)
         }
     }
-  }
 
   /**
    * Show logs panel for current agent
@@ -260,27 +255,25 @@ export class VMKeyboardControls extends EventEmitter {
   /**
    * Return to main chat stream
    */
-  private returnToMainChat(): void {
+  private returnToMainChat(): void 
     this.closePanels()
     this.currentMode = 'normal'
 
     console.clear()
     console.log(chalk.green('✓ Returned to main chat stream'))
 
-    this.emit('mode:changed', { mode: 'normal' })
-  }
+    this.emit('mode:changed', mode: 'normal' )
 
   /**
    * Show security dashboard
    */
-  private showSecurityDashboard(): void {
+  private showSecurityDashboard(): void 
     this.currentPanel = 'security'
     this.panelContent = this.statusIndicator.getSecurityDashboard()
     this.displayPanel()
     this.startAutoRefresh()
 
-    this.emit('panel:opened', { type: 'security' })
-  }
+    this.emit('panel:opened', type: 'security' )
 
   /**
    * Emergency kill selected agent
@@ -307,7 +300,7 @@ export class VMKeyboardControls extends EventEmitter {
    */
   private toggleDisplayMode(): void {
     const modes = ['compact', 'detailed', 'minimal']
-    const currentMode = this.statusIndicator['displayMode'] || 'compact'
+    const currentMode = this.statusIndicator.displayMode || 'compact'
     const currentIndex = modes.indexOf(currentMode)
     const nextIndex = (currentIndex + 1) % modes.length
     const nextMode = modes[nextIndex]
@@ -391,28 +384,26 @@ export class VMKeyboardControls extends EventEmitter {
   /**
    * Display current panel
    */
-  private displayPanel(): void {
+  private displayPanel(): void 
     console.clear()
     console.log(this.panelContent)
     console.log('')
     console.log(chalk.dim('Controls: Q=quit, R=refresh, H=help, ↑↓=navigate, Esc=close'))
-  }
 
   /**
    * Close all panels
    */
-  private closePanels(): void {
+  private closePanels(): void 
     this.currentPanel = null
     this.panelContent = ''
     this.stopAutoRefresh()
 
     this.emit('panel:closed')
-  }
 
   /**
    * Refresh current panel
    */
-  private refreshCurrentPanel(): void {
+  private refreshCurrentPanel(): void 
     if (!this.currentPanel) return
 
     switch (this.currentPanel) {
@@ -426,55 +417,47 @@ export class VMKeyboardControls extends EventEmitter {
         this.showTokenUsage()
         break
     }
-  }
 
   /**
    * Start auto refresh for panels
    */
-  private startAutoRefresh(): void {
+  private startAutoRefresh(): void 
     if (!this.autoRefresh) return
 
     this.stopAutoRefresh()
     this.refreshInterval = setInterval(() => {
       this.refreshCurrentPanel()
     }, 5000) // Refresh every 5 seconds
-  }
 
   /**
    * Stop auto refresh
    */
-  private stopAutoRefresh(): void {
+  private stopAutoRefresh(): void 
     if (this.refreshInterval) {
       clearInterval(this.refreshInterval)
       this.refreshInterval = null
     }
-  }
 
   /**
    * Handle panel input
    */
-  private handlePanelInput(_str: string, _key: any): void {
-    // Panel-specific input handling can be added here
-    // For now, most commands are handled by the general command system
-  }
+  private handlePanelInput(_str: string, _key: any): void 
 
   /**
    * Show temporary message
    */
-  private showMessage(message: string): void {
-    console.log(chalk.blue(`📢 ${message}`))
-    setTimeout(() => {
+  private showMessage(message: string): void 
+    console.log(chalk.blue(`📢 $message`))
+    setTimeout(() => 
       if (this.currentPanel) {
         this.displayPanel()
-      }
-    }, 2000)
-  }
+      }, 2000)
 
   /**
    * Show confirmation dialog
    */
   private showConfirmation(message: string, onConfirm: () => void): void {
-    console.log(chalk.yellow(`❓ ${message} [y/N]`))
+    console.log(chalk.yellow(`❓ $message[y/N]`))
 
     const _originalHandler = process.stdin.listeners('keypress')[0]
 
@@ -533,20 +516,18 @@ export class VMKeyboardControls extends EventEmitter {
   /**
    * Enable raw mode for character input
    */
-  private enableRawMode(): void {
+  private enableRawMode(): void 
     if (process.stdin.isTTY && !process.stdin.isRaw) {
       process.stdin.setRawMode(true)
     }
-  }
 
   /**
    * Disable raw mode
    */
-  private disableRawMode(): void {
+  private disableRawMode(): void 
     if (process.stdin.isTTY && process.stdin.isRaw) {
       process.stdin.setRawMode(this.originalRawMode)
     }
-  }
 }
 
 // Type definitions

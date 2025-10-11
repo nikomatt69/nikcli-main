@@ -3,9 +3,9 @@
  * Automatically formats code based on language and project standards
  */
 
-import { exec } from 'child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join } from 'node:path'
+import { exec } from 'child_process'
 import { promisify } from 'util'
 import { advancedUI } from '../ui/advanced-cli-ui'
 

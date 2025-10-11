@@ -1,9 +1,9 @@
-import { createHash } from 'crypto'
 import { statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
+import { createHash } from 'crypto'
 import { TOKEN_LIMITS } from '../config/token-limits'
 import { type CacheProvider, globalCacheManager } from '../core/cache-provider'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -716,7 +716,7 @@ export class UnifiedRAGSystem {
 
         // ChromaDB free tier has quota limits (typically 300-1000 records)
         // Upstash free tier: 10,000 vectors
-        const MAX_CHROMADB_BATCH_SIZE = 100
+        const _MAX_CHROMADB_BATCH_SIZE = 100
         const MAX_UPSTASH_BATCH_SIZE = 1000
         const batchSize = Math.min(MAX_UPSTASH_BATCH_SIZE, Number(process.env.INDEXING_BATCH_SIZE || 300)) // Configurable indexing batch size
 

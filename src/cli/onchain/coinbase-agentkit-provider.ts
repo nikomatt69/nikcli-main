@@ -44,8 +44,8 @@ try {
   // Vercel SDK not installed
 }
 
-import * as fs from 'fs'
 import type { CoreTool } from 'ai'
+import * as fs from 'fs'
 import type { Address, Hex, LocalAccount } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
@@ -158,7 +158,7 @@ export class CoinbaseAgentKitProvider {
       ],
     })
 
-    // Save wallet data for persistence and track in wallet list
+    // Save wallet data for persistence and track in wallet list: any
     if (this.walletProvider && typeof this.walletProvider.exportWallet === 'function') {
       try {
         const exportedWallet = await this.walletProvider.exportWallet()
@@ -255,7 +255,7 @@ export class CoinbaseAgentKitProvider {
   }
 
   /**
-   * Get wallet provider for wallet operations
+   * Get wallet provider for wallet operations: any
    */
   getWalletProvider(): any {
     if (!this.walletProvider) {
@@ -265,7 +265,7 @@ export class CoinbaseAgentKitProvider {
   }
 
   /**
-   * Get wallet information
+   * Get wallet information: any
    */
   async getWalletInfo(): Promise<{
     address: string

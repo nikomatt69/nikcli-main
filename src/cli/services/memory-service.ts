@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 // Import RAG and semantic capabilities for enhanced memory
 import { semanticSearchEngine } from '../context/semantic-search-engine'
 import { unifiedEmbeddingInterface } from '../context/unified-embedding-interface'
@@ -292,7 +292,7 @@ export class MemoryService extends EventEmitter {
 
     // Check cache first
     if (this.userPersonalization.has(userId)) {
-      return this.userPersonalization.get(userId)!
+      return this.userPersonalization.get(userId) || {}
     }
 
     // Analyze user's memory patterns to build personalization

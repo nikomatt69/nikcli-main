@@ -92,7 +92,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
    * 🧠 Execute task with DevOps-specific cognitive orchestration
    */
   protected async executeCognitiveTask(
-    task: AgentTask,
+    _task: AgentTask,
     cognition: TaskCognition,
     plan: OrchestrationPlan
   ): Promise<AgentTaskResult> {
@@ -221,7 +221,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
     CliUI.logDebug(' DevOps cognitive state prepared for persistence')
   }
 
-  private async analyzeInfrastructureEnvironment(cognition: TaskCognition): Promise<any> {
+  private async analyzeInfrastructureEnvironment(_cognition: TaskCognition): Promise<any> {
     try {
       const environment = {
         hasDocker: await this.detectDocker(),
@@ -237,7 +237,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
     }
   }
 
-  private async performSecurityCompliance(cognition: TaskCognition, context: any): Promise<any> {
+  private async performSecurityCompliance(_cognition: TaskCognition, _context: any): Promise<any> {
     const securityKeywords = ['security', 'compliance', 'ssl', 'https', 'secrets']
     const hasSecurityConcerns = securityKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
 
@@ -247,7 +247,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
     }
   }
 
-  private async performCostOptimization(cognition: TaskCognition, context: any): Promise<any> {
+  private async performCostOptimization(_cognition: TaskCognition, _context: any): Promise<any> {
     const costKeywords = ['cost', 'optimize', 'scale', 'resource']
     const hasCostConcerns = costKeywords.some((keyword) => cognition.normalizedTask.includes(keyword))
 
@@ -262,9 +262,9 @@ export class DevOpsAgent extends CognitiveAgentBase {
   private async executeIntelligentDevOpsImplementation(
     cognition: TaskCognition,
     context: any,
-    securityAnalysis: any,
-    costAnalysis: any,
-    plan: OrchestrationPlan
+    _securityAnalysis: any,
+    _costAnalysis: any,
+    _plan: OrchestrationPlan
   ): Promise<any> {
     try {
       const systemPrompt = `You are an advanced DevOps expert with cognitive understanding.

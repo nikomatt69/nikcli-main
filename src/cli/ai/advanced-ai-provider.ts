@@ -1,14 +1,14 @@
-import { exec } from 'child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
-import { promisify } from 'util'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGateway } from '@ai-sdk/gateway'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { type CoreMessage, type CoreTool, generateText, streamText, type ToolCallPart, tool } from 'ai'
 import chalk from 'chalk'
+import { exec } from 'child_process'
 import { createOllama } from 'ollama-ai-provider'
+import { promisify } from 'util'
 import { z } from 'zod'
 // ⚡︎ Import Cognitive Orchestration Types
 import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
@@ -313,7 +313,6 @@ export class AdvancedAIProvider implements AutonomousProvider {
   private toolRouter: ToolRouter
   private promptManager: PromptManager
   private smartCache: typeof smartCache
-  private docLibrary: typeof docLibrary
   private progressiveTokenManager: ProgressiveTokenManager
 
   constructor(optimizationConfig?: TokenOptimizationConfig) {
@@ -3018,7 +3017,7 @@ Use this cognitive understanding to provide more targeted and effective response
     // Check cache first
     const cacheKey = `${query}_${context}`
     if (this.packageCache.has(cacheKey)) {
-      return this.packageCache.get(cacheKey)!
+      return this.packageCache.get(cacheKey) || {}
     }
 
     try {

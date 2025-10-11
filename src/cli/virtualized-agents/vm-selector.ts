@@ -186,11 +186,11 @@ export class VMSelector {
     console.log(chalk.green(`✓ Selected VM: ${this.selectedVM?.name}`))
 
     // Initialize chat history for this VM
-    if (!this.chatHistory.has(this.selectedVM!.id)) {
-      this.chatHistory.set(this.selectedVM!.id, [])
+    if (this.selectedVM && !this.chatHistory.has(this.selectedVM.id)) {
+      this.chatHistory.set(this.selectedVM.id, [])
       await this.addSystemMessage(
-        this.selectedVM!.id,
-        `Connected to VM ${this.selectedVM!.name} (${this.selectedVM!.systemInfo?.os} ${this.selectedVM!.systemInfo?.arch})`
+        this.selectedVM.id,
+        `Connected to VM ${this.selectedVM.name} (${this.selectedVM.systemInfo?.os} ${this.selectedVM.systemInfo?.arch})`
       )
     }
 
@@ -318,7 +318,7 @@ export class VMSelector {
     })
 
     // Keep only last 100 messages per VM
-    const history = this.chatHistory.get(vmId)!
+    const history = this.chatHistory.get(vmId) || {}
     if (history.length > 100) {
       history.splice(0, history.length - 100)
     }

@@ -1,9 +1,9 @@
-import { createHash } from 'crypto'
 import { existsSync, mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import chalk from 'chalk'
+import { createHash } from 'crypto'
 import { AiSdkEmbeddingProvider, aiSdkEmbeddingProvider } from './ai-sdk-embedding-provider'
 
 export interface EmbeddingConfig {
@@ -75,7 +75,6 @@ export class UnifiedEmbeddingInterface {
   private embeddingCache: Map<string, EmbeddingResult> = new Map()
   private persistentCacheDir: string
   private stats: UnifiedEmbeddingStats
-  private enableRagCache: boolean = process.env.CACHE_RAG !== 'false' && process.env.CACHE_AI !== 'false'
 
   // Performance monitoring
   private queryLatencies: number[] = []
@@ -85,11 +84,6 @@ export class UnifiedEmbeddingInterface {
   // Concurrency/throughput controls
   private maxConcurrentBatches = Number(process.env.EMBED_CONCURRENCY || 12)
   private retryDelays = [250, 500, 1000, 1500]
-
-  // Enhanced stats tracking
-  private batchLatencies: number[] = []
-  private successCount = 0
-  private failureCount = 0
 
   constructor(config?: Partial<EmbeddingConfig>) {
     this.provider = aiSdkEmbeddingProvider
@@ -144,18 +138,18 @@ export class UnifiedEmbeddingInterface {
         }
 
         const embeddings: number[][] = []
-        let inFlight = 0
+        let _inFlight = 0
         let idx = 0
         const runNext = async (): Promise<void> => {
           if (idx >= chunks.length) return
           const myIdx = idx++
           const chunk = chunks[myIdx]
-          inFlight++
+          _inFlight++
           try {
             const res = await this.callWithRetry(() => this.provider.generate(chunk))
             embeddings.push(...res)
           } finally {
-            inFlight--
+            _inFlight--
             if (idx < chunks.length) await runNext()
           }
         }

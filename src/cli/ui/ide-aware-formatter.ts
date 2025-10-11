@@ -11,7 +11,7 @@ export class IDEAwareFormatter {
    * Format message based on IDE capabilities
    */
   static formatMessage(message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info'): string {
-    const caps = ideDetector.detect()
+    const _caps = ideDetector.detect()
     const formatting = ideDetector.getFormattingPreferences()
 
     if (!formatting.supportsAnsiColors) {
@@ -25,7 +25,6 @@ export class IDEAwareFormatter {
         return chalk.yellow(message)
       case 'error':
         return chalk.red(message)
-      case 'info':
       default:
         return chalk.blue(message)
     }
@@ -78,7 +77,7 @@ export class IDEAwareFormatter {
       chalk.cyan(
         `  * Editor: ${
           caps.name === 'vscode' || caps.name === 'cursor'
-            ? caps.name.toUpperCase() + ' (GUI IDE detected)'
+            ? `${caps.name.toUpperCase()} (GUI IDE detected)`
             : caps.name === 'terminal'
               ? 'Terminal/CLI (no GUI IDE open)'
               : caps.name.toUpperCase()
@@ -142,7 +141,7 @@ export class IDEAwareFormatter {
    * Create interactive prompt based on IDE
    */
   static createPrompt(context: { workingDir?: string; mode?: string; agentCount?: number } = {}): string {
-    const caps = ideDetector.detect()
+    const _caps = ideDetector.detect()
     const formatting = ideDetector.getFormattingPreferences()
 
     if (!formatting.supportsAnsiColors) {

@@ -1,11 +1,11 @@
 // TODO: Consider refactoring for reduced complexity
 
-import { execFile } from 'child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { promisify } from 'util'
 import chalk from 'chalk'
+import { execFile } from 'child_process'
 import * as jsdiff from 'diff'
+import { promisify } from 'util'
 
 const execFileAsync = promisify(execFile as any) as (
   command: string,

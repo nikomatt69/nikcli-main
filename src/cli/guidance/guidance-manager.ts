@@ -1,9 +1,9 @@
-import * as fs from 'fs'
-import * as path from 'path'
 import chalk from 'chalk'
 import * as chokidar from 'chokidar'
+import * as fs from 'fs'
 import * as yaml from 'js-yaml'
 import { marked } from 'marked'
+import * as path from 'path'
 import { structuredLogger } from '../utils/structured-logger'
 
 export interface GuidanceFile {

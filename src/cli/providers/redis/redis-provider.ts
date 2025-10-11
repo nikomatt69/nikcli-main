@@ -1,6 +1,6 @@
-import { EventEmitter } from 'events'
 import { Redis } from '@upstash/redis'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { type ConfigType, simpleConfigManager } from '../../core/config-manager'
 
 export interface RedisProviderOptions {
@@ -269,7 +269,7 @@ export class RedisProvider extends EventEmitter {
       let entry: CacheEntry<T>
       try {
         entry = JSON.parse(serializedValue as string)
-      } catch (parseError) {
+      } catch (_parseError) {
         // Corrupted data detected - auto-clean and return null
         console.log(chalk.yellow(`⚠️ Corrupted cache data for key ${key}, auto-cleaning...`))
         await this.del(key).catch(() => {}) // Silent cleanup failure
@@ -518,7 +518,7 @@ export class RedisProvider extends EventEmitter {
       let vectorEntry: VectorCacheEntry
       try {
         vectorEntry = JSON.parse(serializedValue as string)
-      } catch (parseError) {
+      } catch (_parseError) {
         // Corrupted vector cache data - auto-clean and return null
         await this.del(cacheKey).catch(() => {})
         return null

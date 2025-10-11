@@ -1,7 +1,7 @@
-import { EventEmitter } from 'events'
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { nanoid } from 'nanoid'
 import { EditHistoryManager, type EditHistoryState, type EditOperation } from './edit-history-manager'
 
@@ -292,7 +292,7 @@ export class WorkSessionManager extends EventEmitter {
       if (existsSync(sessionPath)) {
         try {
           await fs.copyFile(sessionPath, backupPath)
-        } catch (error) {
+        } catch (_error) {
           console.log(chalk.gray('⚠️ Could not create backup'))
         }
       }

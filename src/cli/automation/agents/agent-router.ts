@@ -220,7 +220,7 @@ export class AgentRouter {
   /**
    * Select the best agent for a task
    */
-  private async selectAgent(task: AgentTask, analysis: TaskAnalysis): Promise<AgentSelection | null> {
+  private async selectAgent(_task: AgentTask, analysis: TaskAnalysis): Promise<AgentSelection | null> {
     const candidates: AgentCandidate[] = []
 
     // Evaluate each agent
@@ -719,7 +719,7 @@ export interface TaskAnalysis {
 export interface RoutingRule {
   name: string
   priority?: number
-  taskAnalyzer?: (task: AgentTask, analysis: TaskAnalysis) => Promise<Partial<TaskAnalysis>>
+  taskAnalyzer?: (_task: AgentTask, analysis: TaskAnalysis) => Promise<Partial<TaskAnalysis>>
   agentSelector?: (
     candidates: AgentCandidate[],
     task: AgentTask,

@@ -1,6 +1,6 @@
-import { promises as fs } from 'fs'
 import os from 'node:os'
 import path from 'node:path'
+import { promises as fs } from 'fs'
 
 /**
  * GuidanceManager collects instructions from AGENTS.md, CLAUDE.md, CODEX.md

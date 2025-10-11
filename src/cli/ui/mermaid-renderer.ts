@@ -48,7 +48,7 @@ export class MermaidRenderer {
     // Check cache first
     const cacheKey = MermaidRenderer.getCacheKey(mermaidCode, options)
     if (options.enableCache && MermaidRenderer.cache.has(cacheKey)) {
-      return MermaidRenderer.cache.get(cacheKey)!
+      return MermaidRenderer.cache.get(cacheKey) || {}
     }
 
     // Determine strategy
@@ -63,7 +63,6 @@ export class MermaidRenderer {
         case 'ascii-art':
           result = await MermaidRenderer.renderAsciiArt(mermaidCode, options)
           break
-        case 'fallback':
         default:
           result = MermaidRenderer.renderFallback(mermaidCode, options)
           break
@@ -157,7 +156,7 @@ export class MermaidRenderer {
         paddingFlags.push(`-p ${options.asciiBorderPadding}`)
       }
 
-      const paddingArg = paddingFlags.length > 0 ? ' ' + paddingFlags.join(' ') : ''
+      const paddingArg = paddingFlags.length > 0 ? ` ${paddingFlags.join(' ')}` : ''
       const command = `mermaid-ascii -f "${inputFile}"${paddingArg}`
 
       // Execute mermaid-ascii
@@ -201,7 +200,7 @@ export class MermaidRenderer {
     const header = chalk.cyanBright(`┌─ Mermaid Diagram ${'─'.repeat(Math.max(0, width - 20))}┐`)
     const codeLines = mermaidCode.trim().split('\n')
     const formattedCode = codeLines.map((line) => {
-      const truncated = line.length > width ? line.substring(0, width - 3) + '...' : line
+      const truncated = line.length > width ? `${line.substring(0, width - 3)}...` : line
       return chalk.gray(`│ ${truncated}`)
     })
 
@@ -242,7 +241,7 @@ export class MermaidRenderer {
       if (existsSync(filepath)) {
         unlinkSync(filepath)
       }
-    } catch (error) {
+    } catch (_error) {
       // Ignore cleanup errors
     }
   }

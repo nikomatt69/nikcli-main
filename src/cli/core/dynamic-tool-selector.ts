@@ -11,7 +11,6 @@ export class DynamicToolSelector {
   private toolUsageHistory: Map<string, number> = new Map()
   private toolSuccessRate: Map<string, { successes: number; failures: number }> = new Map()
   private lastUsedTools: string[] = []
-  private maxHistorySize = 50
   private toolRegistry: ToolRegistry
 
   constructor(workingDirectory: string) {
@@ -129,7 +128,7 @@ export class DynamicToolSelector {
    * Discover alternative tools based on task type
    */
   private discoverAlternativeTools(
-    userMessage: string,
+    _userMessage: string,
     taskType?: 'read' | 'write' | 'search' | 'analyze' | 'execute' | 'mixed'
   ): ToolRecommendation[] {
     const alternatives: ToolRecommendation[] = []

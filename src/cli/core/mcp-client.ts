@@ -1,8 +1,8 @@
 import { type ChildProcess, spawn } from 'node:child_process'
+import chalk from 'chalk'
 import { EventEmitter } from 'events'
 import http from 'http'
 import https from 'https'
-import chalk from 'chalk'
 import { IDEDiagnosticMcpServer } from '../mcp/ide-diagnostic-server'
 import { completionCache } from './completion-protocol-cache'
 import { simpleConfigManager } from './config-manager'
@@ -105,7 +105,6 @@ export class McpClient extends EventEmitter {
   private connections: Map<string, ChildProcess | any> = new Map()
   private connectionPools: Map<string, any[]> = new Map()
   private healthStatus: Map<string, boolean> = new Map()
-  private requestQueue: Map<string, McpRequest[]> = new Map()
   private retryAttempts: Map<string, number> = new Map()
   private lastHealthCheck: Map<string, number> = new Map()
   private defaultServers: Map<string, IDEDiagnosticMcpServer> = new Map()
@@ -113,7 +112,6 @@ export class McpClient extends EventEmitter {
   private readonly DEFAULT_TIMEOUT = 30000 // 30 seconds
   private readonly DEFAULT_RETRIES = 3
   private readonly HEALTH_CHECK_INTERVAL = 60000 // 1 minute
-  private readonly MAX_POOL_SIZE = 5
 
   constructor() {
     super()
@@ -334,8 +332,7 @@ export class McpClient extends EventEmitter {
    * Execute request on default built-in servers
    */
   private async executeDefaultServerRequest(server: McpServerConfig, request: McpRequest): Promise<McpResponse> {
-    let defaultServer
-
+    let defaultServer: any
     // Special handling for ide-diagnostic server - create on demand
     if (server.name === 'ide-diagnostic') {
       defaultServer = this.getOrCreateIdeDiagnosticServer()
@@ -595,8 +592,8 @@ export class McpClient extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       // Handle command format
-      const commandStr = typeof server.command === 'string' ? server.command : server.command![0]
-      const commandArgs = typeof server.command === 'string' ? server.args || [] : server.command!.slice(1)
+      const commandStr = typeof server.command === 'string' ? server.command : server.command?.[0]
+      const commandArgs = typeof server.command === 'string' ? server.args || [] : server.command?.slice(1)
 
       const process_spawn = spawn(commandStr, commandArgs, {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -728,11 +725,11 @@ export class McpClient extends EventEmitter {
         }
 
         // Special handling for ide-diagnostic server
-        let defaultServer
+        let defaultServer: any
         if (serverName === 'ide-diagnostic') {
           defaultServer = this.getOrCreateIdeDiagnosticServer()
         } else {
-          defaultServer = this.defaultServers.get(serverName)!
+          defaultServer = this.defaultServers.get(serverName) || {}
         }
 
         const response = await defaultServer.handleRequest(healthRequest)

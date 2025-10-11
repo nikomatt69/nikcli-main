@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { type ChatMessage, modelProvider } from '../ai/model-provider'
@@ -108,7 +108,6 @@ export class DynamicAgent extends BaseAgent {
 
   private blueprint: AgentBlueprint
   private isRunning: boolean = false
-  private currentTodos: string[] = []
 
   constructor(blueprint: AgentBlueprint, workingDirectory: string = process.cwd()) {
     super(workingDirectory)
@@ -224,7 +223,7 @@ export class DynamicAgent extends BaseAgent {
     agentStream.emitEvent(this.id, 'planning', 'Analyzing task and creating autonomous plan...')
 
     // Get workspace context
-    let context
+    let context: any
     try {
       context = workspaceContext.getContextForAgent(this.id)
     } catch (error: any) {
@@ -888,7 +887,7 @@ Context Scope: ${requirements.contextScope || 'project'}`,
       console.log(chalk.gray('Parsing AI response...'))
       const jsonText = extractJsonFromMarkdown(response)
 
-      let aiBlueprint
+      let aiBlueprint: any
       try {
         aiBlueprint = JSON.parse(jsonText)
       } catch (_parseError) {
@@ -1589,7 +1588,7 @@ Execute tasks step-by-step and verify results before proceeding.`
 
     // Step 2: Score each agent using cached capabilities (O(n) instead of O(n²))
     for (const agent of availableAgents) {
-      const cachedData = this.cachedScores.get(agent.id)
+      const _cachedData = this.cachedScores.get(agent.id)
       const blueprint = agent.getBlueprint()
 
       // Use cached capabilities for O(1) lookups

@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
+import chalk from 'chalk'
 import { randomBytes } from 'crypto'
 import { EventEmitter } from 'events'
-import chalk from 'chalk'
 import * as readline from 'readline'
 import { simpleConfigManager as configManager } from './core/config-manager'
 import { inputQueue } from './core/input-queue'
@@ -14,9 +14,8 @@ import { toolService } from './services/tool-service'
 import { advancedUI } from './ui/advanced-cli-ui'
 import { diffManager } from './ui/diff-manager'
 import { OutputFormatter } from './ui/output-formatter'
-import { terminalOutputManager, TerminalOutputManager } from './ui/terminal-output-manager'
+import { TerminalOutputManager, terminalOutputManager } from './ui/terminal-output-manager'
 import { AsyncLock } from './utils/async-lock'
-import { CliUI } from './utils/cli-ui'
 import { PasteHandler } from './utils/paste-handler'
 
 interface StreamMessage {
@@ -61,14 +60,12 @@ interface Panel {
 class StreamingOrchestratorImpl extends EventEmitter {
   private rl?: readline.Interface
   private context: StreamContext
-  private policyManager: ExecutionPolicyManager
 
   // Message streaming system
   private messageQueue: StreamMessage[] = []
   private processingMessage = false
   private activeAgents = new Map<string, any>()
   private activeVMAgent?: any // Store VM agent instance for chat mode
-  private streamBuffer = ''
 
   // TTY/raw-mode handling
   private originalRawMode?: boolean
@@ -76,7 +73,6 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
   // ⚡︎ Cognitive-AI Pipeline Integration
   private cognitiveEnabled: boolean = true
-  private lastUpdate = Date.now()
   private inputQueueEnabled = true // Abilita/disabilita input queue
   private adaptiveMetrics = new Map<string, number>()
 
@@ -395,7 +391,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         },
       }
     } catch (error) {
-      advancedUI.logError('info', 'Cognitive analysis error: ' + error)
+      advancedUI.logError('info', `Cognitive analysis error: ${error}`)
     }
   }
 
@@ -884,7 +880,10 @@ class StreamingOrchestratorImpl extends EventEmitter {
     const messageLines = TerminalOutputManager.calculateLines(messageText)
     const messageOutputId = terminalOutputManager.reserveSpace('StreamMessage', messageLines)
     console.log(messageText)
-    terminalOutputManager.confirmOutput(messageOutputId, 'StreamMessage', messageLines, { persistent: false, expiryMs: 30000 })
+    terminalOutputManager.confirmOutput(messageOutputId, 'StreamMessage', messageLines, {
+      persistent: false,
+      expiryMs: 30000,
+    })
 
     // Show progress bar for agent messages
     if (message.progress && message.progress > 0) {
@@ -979,7 +978,10 @@ class StreamingOrchestratorImpl extends EventEmitter {
     console.log(chalk.cyan('═══════════════\n'))
 
     // Confirm panel output
-    terminalOutputManager.confirmOutput(panelOutputId, 'Panels', totalPanelLines, { persistent: false, expiryMs: 30000 })
+    terminalOutputManager.confirmOutput(panelOutputId, 'Panels', totalPanelLines, {
+      persistent: false,
+      expiryMs: 30000,
+    })
   }
 
   public queueVMMessage(content: string): void {

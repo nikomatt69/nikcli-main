@@ -1,7 +1,7 @@
 // src/cli/github-bot/webhook-handler.ts
 
-import crypto from 'crypto'
 import { Octokit } from '@octokit/rest'
+import crypto from 'crypto'
 import { CommentProcessor } from './comment-processor'
 import { TaskExecutor } from './task-executor'
 import type { GitHubBotConfig, GitHubWebhookEvent, ProcessingJob } from './types'
@@ -34,7 +34,7 @@ export class GitHubWebhookHandler {
   private verifySignature(payload: string, signature: string, timestamp?: string): boolean {
     // Validate timestamp (reject requests older than 5 minutes to prevent replay attacks)
     if (timestamp) {
-      const requestTime = parseInt(timestamp)
+      const requestTime = parseInt(timestamp, 10)
       const now = Math.floor(Date.now() / 1000)
       if (Math.abs(now - requestTime) > 300) {
         console.error('❌ Webhook timestamp too old or from future')

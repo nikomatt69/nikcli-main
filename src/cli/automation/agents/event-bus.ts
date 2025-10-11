@@ -97,7 +97,7 @@ export class EventBus extends EventEmitter {
     this.subscribers.get(eventType)?.add(subscriber)
 
     // Sort subscribers by priority
-    const sortedSubscribers = Array.from(this.subscribers.get(eventType)!).sort(
+    const sortedSubscribers = Array.from(this.subscribers.get(eventType) || {}).sort(
       (a, b) => (b.priority || 0) - (a.priority || 0)
     )
 

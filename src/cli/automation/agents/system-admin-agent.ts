@@ -410,7 +410,7 @@ Generate a structured plan with commands to execute.`,
    * 🧠 Execute task with System Admin-specific cognitive orchestration
    */
   protected async executeCognitiveTask(
-    task: AgentTask,
+    _task: AgentTask,
     cognition: TaskCognition,
     plan: OrchestrationPlan
   ): Promise<AgentTaskResult> {
@@ -519,7 +519,7 @@ Generate a structured plan with commands to execute.`,
     CliUI.logDebug(' System Admin cognitive state prepared for persistence')
   }
 
-  private async analyzeSystemEnvironmentCognitive(cognition: TaskCognition): Promise<any> {
+  private async analyzeSystemEnvironmentCognitive(_cognition: TaskCognition): Promise<any> {
     try {
       const systemInfo = await toolsManager.getSystemInfo()
       return {
@@ -537,7 +537,7 @@ Generate a structured plan with commands to execute.`,
   private async executeIntelligentSystemAdministration(
     cognition: TaskCognition,
     context: any,
-    plan: OrchestrationPlan
+    _plan: OrchestrationPlan
   ): Promise<any> {
     try {
       advancedUI.logFunctionCall('executing')

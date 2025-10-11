@@ -1,7 +1,7 @@
+import chalk from 'chalk'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
-import chalk from 'chalk'
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace'
 

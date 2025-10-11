@@ -1,11 +1,10 @@
-import { EventEmitter } from 'events'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { z } from 'zod'
 
 // ⚡︎ Import Cognitive Types
 import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
-import { search } from '../context/rag-system'
 // 🔧 Import Unified Tool Registry
 import { ToolRegistry } from '../tools/tool-registry'
 // 🧠 Import Cognitive Route Analyzer
@@ -61,7 +60,6 @@ export interface ToolRecommendation {
 export class ToolRouter extends EventEmitter {
   private toolRegistry: ToolRegistry
   private cognitiveAnalyzer: ReturnType<typeof createCognitiveRouteAnalyzer>
-  private workingDirectory: string
   private cognitiveMode: boolean = true
   private analysisCache: Map<string, CognitiveAnalysisResult> = new Map()
 
@@ -963,9 +961,9 @@ export class ToolRouter extends EventEmitter {
       return
     }
 
-    recommendations.forEach((rec, index) => {
+    recommendations.forEach((rec, _index) => {
       if (!process.env.NIKCLI_CLEAN_CHAT && !process.env.NIKCLI_MINIMAL_STREAM) {
-        const confidenceColor = rec.confidence > 0.7 ? chalk.green : rec.confidence > 0.4 ? chalk.yellow : chalk.red
+        const _confidenceColor = rec.confidence > 0.7 ? chalk.green : rec.confidence > 0.4 ? chalk.yellow : chalk.red
 
         if (rec.suggestedParams && Object.keys(rec.suggestedParams).length > 0) {
         }

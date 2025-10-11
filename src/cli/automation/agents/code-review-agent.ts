@@ -84,7 +84,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
    * 🧠 Execute task with Code Review-specific cognitive orchestration
    */
   protected async executeCognitiveTask(
-    task: AgentTask,
+    _task: AgentTask,
     cognition: TaskCognition,
     plan: OrchestrationPlan
   ): Promise<AgentTaskResult> {
@@ -204,7 +204,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
 }`
   }
 
-  private generateReviewPrompt(cognition: TaskCognition, codeToReview: string): string {
+  private generateReviewPrompt(_cognition: TaskCognition, codeToReview: string): string {
     return `You are an expert code reviewer. Perform a comprehensive code review of the following code:
 
 Code to review:

@@ -31,7 +31,7 @@ async function startDaemon(options: NikdOptions) {
 
   try {
     // Parse Redis URL if provided
-    let redisConfig
+    let redisConfig: any
     if (options.redis) {
       const url = new URL(options.redis)
       redisConfig = {
@@ -110,7 +110,7 @@ async function main() {
     .option('--github-webhook-secret <secret>', 'GitHub webhook secret')
     .action(async (options) => {
       // Parse GitHub configuration
-      let githubConfig
+      let githubConfig: any
       if (options.githubAppId && options.githubPrivateKey && options.githubInstallationId) {
         const fs = await import('node:fs/promises')
         try {

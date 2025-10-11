@@ -51,7 +51,7 @@ export class SubscriptionService {
 
       // Fallback to direct Supabase query
       return await this.getSubscriptionStatusDirect()
-    } catch (error: any) {
+    } catch (_error: any) {
       console.log(chalk.yellow(`⚠️ API unavailable, using direct Supabase query`))
       return await this.getSubscriptionStatusDirect()
     }
@@ -149,7 +149,7 @@ export class SubscriptionService {
 
   getPaymentLink(userId: string): string {
     // Payment link con user_id nel custom_data per webhook
-    const paymentLink = process.env.LEMONSQUEEZY_PAYMENT_LINK!
+    const paymentLink = process.env.LEMONSQUEEZY_PAYMENT_LINK
     return `${paymentLink}?checkout[custom][user_id]=${userId}`
   }
 
@@ -193,7 +193,7 @@ export class SubscriptionService {
         event_type: eventType,
         event_data: eventData,
       })
-    } catch (error) {
+    } catch (_error) {
       // Silent fail for event logging
     }
   }

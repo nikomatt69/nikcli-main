@@ -461,8 +461,7 @@ export class TextToCADTool extends BaseTool {
   private extractDimensions(description: string): string[] {
     const dimensionRegex = /(\d+(?:\.\d+)?)\s*(mm|cm|m|inch|in)/gi
     const dimensions: string[] = []
-    let match
-
+    let match: any
     while ((match = dimensionRegex.exec(description)) !== null) {
       dimensions.push(`${match[1]}${match[2]}`)
     }
@@ -503,7 +502,7 @@ export class TextToCADTool extends BaseTool {
     // Extract dimensions
     const dimensionRegex = /(\d+(?:\.\d+)?)\s*(mm|cm|m|inch|in)/gi
     const dimensions = []
-    let match
+    let match: any
     while ((match = dimensionRegex.exec(description)) !== null) {
       dimensions.push({ value: parseFloat(match[1]), unit: match[2] })
     }

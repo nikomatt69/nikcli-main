@@ -1,12 +1,12 @@
-import * as path from 'path'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import { highlight } from 'cli-highlight'
 import cliProgress from 'cli-progress'
 import { createPatch, diffLines } from 'diff'
 import ora, { type Ora } from 'ora'
+import * as path from 'path'
 import * as readline from 'readline'
-import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
+import { terminalOutputManager } from './terminal-output-manager'
 
 export interface StatusIndicator {
   id: string
@@ -100,10 +100,6 @@ export class AdvancedCliUI {
   private ephemeralLiveUpdates: boolean = false
   // Track last printed source to avoid duplicate ⏺ headers
   private lastPrintedSource: string | null = null
-
-  // Enterprise output orchestration
-  private orchestrator: any = null
-  private splitScreenEnabled: boolean = false
   constructor() {
     this.theme = {
       primary: chalk.blue,
@@ -430,11 +426,11 @@ export class AdvancedCliUI {
 
     const summary = boxen(
       `${chalk.bold('Execution Summary')}\\n\\n` +
-      `${chalk.green('✓ Completed:')} ${completed}\\n` +
-      `${chalk.red('❌ Failed:')} ${failed}\\n` +
-      `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
-      `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
-      `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
+        `${chalk.green('✓ Completed:')} ${completed}\\n` +
+        `${chalk.red('❌ Failed:')} ${failed}\\n` +
+        `${chalk.yellow('⚠️ Warnings:')} ${warnings}\\n` +
+        `${chalk.blue('📊 Total:')} ${indicators.length}\\n\\n` +
+        `${chalk.gray('Overall Status:')} ${this.getOverallStatusText()}`,
       {
         padding: 1,
         margin: { top: 1, bottom: 1, left: 0, right: 0 },
@@ -754,7 +750,7 @@ export class AdvancedCliUI {
       if (!grouped.has(source)) {
         grouped.set(source, [])
       }
-      grouped.get(source)!.push(update)
+      grouped.get(source) || {}.push(update)
     }
 
     return grouped

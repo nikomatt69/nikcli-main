@@ -10,7 +10,7 @@ process.env.NIKCLI_QUIET_STARTUP = 'true'
 
 // Load environment variables first
 import dotenv from 'dotenv'
-import { NikCLIOptions } from './nik-cli'
+import type { NikCLIOptions } from './nik-cli'
 
 dotenv.config()
 
@@ -24,7 +24,7 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
   console.error(chalk.red('Promise:', promise))
 
   // Log stack trace if available
-  if (reason && reason.stack) {
+  if (reason?.stack) {
     console.error(chalk.gray('Stack:', reason.stack))
   }
 
@@ -54,12 +54,12 @@ process.on('warning', (warning: any) => {
   }
 })
 
+// Import TUI Bridge instead of boxen for enhanced terminal UI
+import boxen from 'boxen'
 import { spawn } from 'child_process'
 import { EventEmitter } from 'events'
 import * as fs from 'fs'
 import * as path from 'path'
-// Import TUI Bridge instead of boxen for enhanced terminal UI
-import boxen from 'boxen'
 import * as readline from 'readline'
 import { AgentManager } from './core/agent-manager'
 import { simpleConfigManager as configManager } from './core/config-manager'
@@ -68,12 +68,10 @@ import { Logger } from './core/logger'
 // Core imports
 import { NikCLI } from './nik-cli'
 import { ExecutionPolicyManager } from './policies/execution-policy'
-import { redisProvider } from './providers/redis/redis-provider'
 // Core cloud services - imported to initialize singletons (enabled by default)
 import { enhancedSupabaseProvider } from './providers/supabase/enhanced-supabase-provider'
 import { registerAgents } from './register-agents'
 import { agentService } from './services/agent-service'
-import { cacheService } from './services/cache-service'
 import { lspService } from './services/lsp-service'
 import { memoryService } from './services/memory-service'
 import { planningService } from './services/planning-service'
@@ -317,13 +315,13 @@ class IntroductionModule {
 
   static displayStartupInfo() {
     // Display IDE-aware environment context
-    console.log('\n' + ideAwareFormatter.formatEnvironmentContext() + '\n')
+    console.log(`\n${ideAwareFormatter.formatEnvironmentContext()}\n`)
 
     // Show IDE-specific suggestions
     const suggestions = ideAwareFormatter.getSuggestions()
     if (suggestions.length > 0) {
       console.log(chalk.bold('💡 IDE-Specific Tips:'))
-      suggestions.forEach((suggestion) => console.log('  ' + suggestion))
+      suggestions.forEach((suggestion) => console.log(`  ${suggestion}`))
       console.log()
     }
 
@@ -355,8 +353,6 @@ class IntroductionModule {
  * Onboarding Module
  */
 class OnboardingModule {
-  private static apiKeyStatus: 'unknown' | 'present' | 'skipped' | 'ollama' = 'unknown'
-
   private static renderSection(lines: string[]): void {
     console.clear()
     BannerAnimator.printStatic()
@@ -519,14 +515,14 @@ class OnboardingModule {
     try {
       {
         const version = process.version
-        const major = parseInt(version.slice(1).split('.')[0])
+        const major = parseInt(version.slice(1).split('.')[0], 10)
         if (major < 18) {
           runtimeOk = false
         }
       }
     } catch (_) {
       const version = process.version
-      const major = parseInt(version.slice(1).split('.')[0])
+      const major = parseInt(version.slice(1).split('.')[0], 10)
       if (major < 18) {
         runtimeOk = false
       }
@@ -558,10 +554,7 @@ class OnboardingModule {
     if (allPassed) {
       // Show minimal success box
       const summaryBox = boxen(
-        chalk.white('✓ Bun v') +
-          chalk.white(process.version) +
-          '\n' +
-          chalk.white('✓ Cloud API provider configured'),
+        `${chalk.white('✓ Bun v') + chalk.white(process.version)}\n${chalk.white('✓ Cloud API provider configured')}`,
         {
           padding: 1,
           borderStyle: 'round',
@@ -754,14 +747,14 @@ class OnboardingModule {
           connectionInfo = `${url.hostname}`
         } else {
           // Legacy Redis - show host:port
-          connectionInfo = `${redisConfig!.host}:${redisConfig!.port}`
+          connectionInfo = `${redisConfig?.host}:${redisConfig?.port}`
         }
 
         const redisLines = [
           chalk.cyan.bold('🔴 Redis Cache Service'),
           chalk.gray(`Host: ${connectionInfo}`),
-          redisCredentials.url ? chalk.gray('Provider: Upstash') : chalk.gray(`Database: ${redisConfig!.database}`),
-          chalk.gray(`Fallback: ${redisConfig!.fallback.enabled ? 'Enabled' : 'Disabled'}`),
+          redisCredentials.url ? chalk.gray('Provider: Upstash') : chalk.gray(`Database: ${redisConfig?.database}`),
+          chalk.gray(`Fallback: ${redisConfig?.fallback.enabled ? 'Enabled' : 'Disabled'}`),
           chalk.green('✓ Configuration loaded'),
         ]
         sections.push(redisLines.join('\n'))
@@ -777,7 +770,7 @@ class OnboardingModule {
         const supabaseConfig = config.supabase
 
         if (hasCredentials) {
-          const featureList = Object.entries(supabaseConfig!.features)
+          const featureList = Object.entries(supabaseConfig?.features)
             .filter(([_, enabled]) => enabled)
             .map(([feature]) => `• ${feature}`)
             .join('\n')
@@ -789,7 +782,7 @@ class OnboardingModule {
           ]
           sections.push(supabaseLines.join('\n'))
 
-          if (supabaseConfig!.features.auth) {
+          if (supabaseConfig?.features.auth) {
             await OnboardingModule.setupAuthentication()
           }
         } else {
@@ -866,7 +859,7 @@ class OnboardingModule {
         rl.question(chalk.yellow('Would you like to sign in? (y/N): '), resolve)
       )
 
-      if (authChoice && authChoice.toLowerCase().startsWith('y')) {
+      if (authChoice?.toLowerCase().startsWith('y')) {
         const optionsBox = boxen(
           chalk.white('1. Sign in with existing account\n2. Create new account\n3. Continue as guest'),
           {
@@ -890,7 +883,6 @@ class OnboardingModule {
           case '2':
             await OnboardingModule.handleSignUp(rl, header)
             break
-          case '3':
           default:
             OnboardingModule.renderSection([
               header,
@@ -1178,16 +1170,16 @@ class OnboardingModule {
       let versionContent = chalk.cyan.bold(`Current Version: `) + chalk.white(versionInfo.current)
 
       if (versionInfo.error) {
-        versionContent += '\n' + chalk.yellow(`⚠️  ${versionInfo.error}`)
+        versionContent += `\n${chalk.yellow(`⚠️  ${versionInfo.error}`)}`
       } else if (versionInfo.latest) {
-        versionContent += '\n' + chalk.cyan(`Latest Version: `) + chalk.white(versionInfo.latest)
+        versionContent += `\n${chalk.cyan(`Latest Version: `)}${chalk.white(versionInfo.latest)}`
 
         if (versionInfo.hasUpdate) {
-          versionContent += '\n\n' + chalk.green.bold('🚀 Update Available!')
-          versionContent += '\n' + chalk.white('Run the following command to update:')
-          versionContent += '\n' + chalk.yellow.bold('npm update -g @nicomatt69/nikcli')
+          versionContent += `\n\n${chalk.green.bold('🚀 Update Available!')}`
+          versionContent += `\n${chalk.white('Run the following command to update:')}`
+          versionContent += `\n${chalk.yellow.bold('npm update -g @nicomatt69/nikcli')}`
         } else {
-          versionContent += '\n\n' + chalk.green('✓ You are using the latest version!')
+          versionContent += `\n\n${chalk.green('✓ You are using the latest version!')}`
         }
       }
 
@@ -1367,11 +1359,11 @@ class ServiceModule {
       // If already created or creation failed silently, proceed
     }
 
-    const agents = ServiceModule.agentManager.listAgents()
+    const _agents = ServiceModule.agentManager.listAgents()
   }
 
   static async initializeTools(): Promise<void> {
-    const tools = toolService.getAvailableTools()
+    const _tools = toolService.getAvailableTools()
   }
 
   static async initializePlanning(): Promise<void> {
@@ -1474,7 +1466,7 @@ class ServiceModule {
     for (const step of steps) {
       try {
         await step.fn()
-      } catch (error: any) {
+      } catch (_error: any) {
         return false
       }
     }
@@ -1490,7 +1482,6 @@ class ServiceModule {
 class StreamingModule extends EventEmitter {
   private rl: readline.Interface
   private context: StreamContext
-  private policyManager: ExecutionPolicyManager
   private messageQueue: StreamMessage[] = []
   private processingMessage = false
   private activeAgents = new Map<string, any>()
@@ -1538,7 +1529,7 @@ class StreamingModule extends EventEmitter {
     }
 
     // Keypress handlers
-    this.keypressHandler = (str, key) => {
+    this.keypressHandler = (_str, key) => {
       if (key && key.name === 'slash' && !this.processingMessage) {
         setTimeout(() => this.showCommandMenu(), 50)
       }
@@ -1667,7 +1658,7 @@ class StreamingModule extends EventEmitter {
 
     // Use IDE-aware prompt if available, otherwise fallback to default
     const prompt = ideDetector.hasGUI()
-      ? idePrompt + `${modeStr}─[${contextStr}]─[${statusBadge}]─[${modelBadge}]\n└─❯ `
+      ? `${idePrompt}${modeStr}─[${contextStr}]─[${statusBadge}]─[${modelBadge}]\n└─❯ `
       : `\n┌─[🎛️:${chalk.green(dir)}${modeStr}]─[${contextStr}]─[${statusBadge}]─[${modelBadge}]\n└─❯ `
 
     this.rl.setPrompt(prompt)
@@ -1794,7 +1785,7 @@ class StreamingModule extends EventEmitter {
         if (process.stdin.isTTY && (process.stdin as any).isRaw) {
           ;(process.stdin as any).setRawMode(false)
         }
-      } catch (error) {
+      } catch (_error) {
         // Ignore
       }
 
@@ -1836,22 +1827,21 @@ class StreamingModule extends EventEmitter {
  */
 class MainOrchestrator {
   private streamingModule?: StreamingModule
-  private initialized = false
   private cliOptions: NikCLIOptions
 
   constructor(options: NikCLIOptions = {}) {
-    this.cliOptions = options;
+    this.cliOptions = options
     this.setupGlobalHandlers()
   }
 
   private setupGlobalHandlers(): void {
     // Global error handler
-    process.on('unhandledRejection', (reason, promise) => {
-      advancedUI.logError('❌ Unhandled Rejection: ' + reason)
+    process.on('unhandledRejection', (reason, _promise) => {
+      advancedUI.logError(`❌ Unhandled Rejection: ${reason}`)
     })
 
     process.on('uncaughtException', (error) => {
-      advancedUI.logError('❌ Uncaught Exception: ' + error)
+      advancedUI.logError(`❌ Uncaught Exception: ${error}`)
       this.gracefulShutdown()
     })
 
@@ -1874,7 +1864,7 @@ class MainOrchestrator {
 
       advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
-      advancedUI.logError('❌ Error during shutdown: ' + error)
+      advancedUI.logError(`❌ Error during shutdown: ${error}`)
     } finally {
       process.exit(0)
     }
@@ -1912,7 +1902,7 @@ class MainOrchestrator {
             advancedUI.logSuccess('✓ Pro API key loaded from subscription')
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Silent fail - API key will be loaded manually if needed
       }
 
@@ -1926,8 +1916,6 @@ class MainOrchestrator {
 
       const cli = new NikCLI(this.cliOptions)
       await cli.start(this.cliOptions)
-
-
     } catch (error: any) {
       console.error(chalk.red('❌ Failed to start orchestrator:'), error)
       process.exit(1)
@@ -1949,7 +1937,7 @@ async function main() {
 
   // Parse command line arguments
   const argv = process.argv.slice(2)
-  const options: NikCLIOptions = {};
+  const options: NikCLIOptions = {}
 
   // Minimal non-interactive report mode for CI/VS Code
   if (argv[0] === 'report' || argv.includes('--report')) {

@@ -1,5 +1,5 @@
-import { performance } from 'perf_hooks'
 import type { CoreMessage } from 'ai'
+import { performance } from 'perf_hooks'
 
 export interface PerformanceMetrics {
   tokenCount: number

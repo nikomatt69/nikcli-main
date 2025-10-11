@@ -1,7 +1,7 @@
-import { createHash } from 'crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
+import { createHash } from 'crypto'
 
 // Vector similarity and embeddings (simple implementation)
 interface EmbeddingVector {

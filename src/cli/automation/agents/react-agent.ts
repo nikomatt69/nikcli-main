@@ -76,7 +76,7 @@ export class ReactAgent extends CognitiveAgentBase {
    * 🧠 Execute task with React-specific cognitive orchestration
    */
   protected async executeCognitiveTask(
-    task: AgentTask,
+    _task: AgentTask,
     cognition: TaskCognition,
     plan: OrchestrationPlan
   ): Promise<AgentTaskResult> {
@@ -220,7 +220,7 @@ export class ReactAgent extends CognitiveAgentBase {
     }
   }
 
-  private async analyzeComponentRequirements(cognition: TaskCognition, context: any): Promise<any> {
+  private async analyzeComponentRequirements(_cognition: TaskCognition, _context: any): Promise<any> {
     if (!this.isComponentTask(cognition)) {
       return { analyzed: false }
     }
@@ -319,7 +319,7 @@ export class ReactAgent extends CognitiveAgentBase {
     }
   }
 
-  private createSystemPrompt(cognition: TaskCognition, context: any, componentAnalysis: any): string {
+  private createSystemPrompt(_cognition: TaskCognition, context: any, componentAnalysis: any): string {
     return `You are an advanced React/Next.js expert with cognitive understanding of modern frontend development.
 
 Task: ${cognition.intent.primary} (${cognition.intent.complexity})
@@ -339,7 +339,7 @@ Provide complete, working code that can be used immediately.`
 
   private async processResponse(
     response: string,
-    cognition: TaskCognition,
+    _cognition: TaskCognition,
     componentAnalysis: any,
     context: any
   ): Promise<any> {

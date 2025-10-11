@@ -40,13 +40,13 @@ export class AsyncLock {
     const timeoutHandle = setTimeout(() => {
       if (this.locks.has(key)) {
         console.warn(`[AsyncLock] Lock timeout for key: ${key}`)
-        release!()
+        release?.()
       }
     }, lockTimeout)
 
     this.timeouts.set(key, timeoutHandle)
 
-    return release!
+    return release
   }
 
   /**
@@ -68,7 +68,7 @@ export class AsyncLock {
     })
 
     this.locks.set(key, lockPromise)
-    return release!
+    return release
   }
 
   /**

@@ -1,10 +1,10 @@
+import chalk from 'chalk'
 import { exec } from 'child_process'
 import { randomBytes } from 'crypto'
 import { existsSync, mkdirSync } from 'fs'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { promisify } from 'util'
-import chalk from 'chalk'
 import { documentationDatabase } from './documentation-database'
 
 const execAsync = promisify(exec)
@@ -155,23 +155,6 @@ export class DocumentationLibrary {
   }
 
   /**
-   * Estrae contenuto da una pagina web
-   */
-  private async extractWebContent(url: string): Promise<string> {
-    try {
-      // Usa curl per estrarre contenuto HTML
-      const { stdout } = await execAsync(`curl -s -L "${url}" -H "User-Agent: Mozilla/5.0"`)
-
-      // Estrai testo dal HTML
-      const textContent = this.extractTextFromHTML(stdout)
-
-      return textContent
-    } catch (error) {
-      throw new Error(`Failed to extract content: ${error}`)
-    }
-  }
-
-  /**
    * Scarica HTML e testo in una singola chiamata
    */
   private async fetchPage(url: string): Promise<{ html: string; text: string }> {
@@ -310,7 +293,7 @@ export class DocumentationLibrary {
       }
     }
 
-    const basePath = base.pathname.endsWith('/') ? base.pathname : base.pathname + '/'
+    const basePath = base.pathname.endsWith('/') ? base.pathname : `${base.pathname}/`
     const allowed: string[] = []
     const seen = new Set<string>()
     for (const link of links) {

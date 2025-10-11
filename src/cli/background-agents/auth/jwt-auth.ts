@@ -192,7 +192,7 @@ export function generateCliToken(cliVersion: string): string {
  * Middleware to extract and validate CLI version
  */
 export function cliVersionMiddleware() {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, _res: Response, next: NextFunction) => {
     const cliVersion = req.headers['x-cli-version'] as string | undefined
 
     if (cliVersion) {

@@ -1,6 +1,6 @@
 import * as fs from 'fs'
-import * as path from 'path'
 import inquirer from 'inquirer'
+import * as path from 'path'
 import { inputQueue } from '../core/input-queue'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'

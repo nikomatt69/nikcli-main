@@ -1,7 +1,6 @@
 import * as fs from 'fs'
-import * as path from 'path'
-import chalk from 'chalk'
 import inquirer from 'inquirer'
+import * as path from 'path'
 import { inputQueue } from '../core/input-queue'
 import { advancedUI } from '../ui/advanced-cli-ui'
 
@@ -70,7 +69,7 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
   inputQueue.enableBypass()
 
   try {
-    const operations = batchApprovalState.pendingFiles.get(operationKey)!
+    const operations = batchApprovalState.pendingFiles.get(operationKey) || {}
     const fileCount = operations.length
 
     // Show batch approval prompt

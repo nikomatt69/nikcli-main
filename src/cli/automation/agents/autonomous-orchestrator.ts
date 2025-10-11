@@ -436,7 +436,7 @@ Consider parallel execution where possible.`,
     const ordered = new Map<string, any[]>()
     ;['critical', 'high', 'normal', 'low'].forEach((priority) => {
       if (groups.has(priority)) {
-        ordered.set(priority, groups.get(priority)!)
+        ordered.set(priority, groups.get(priority) || {})
       }
     })
 

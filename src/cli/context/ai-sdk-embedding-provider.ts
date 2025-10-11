@@ -308,35 +308,6 @@ export class AiSdkEmbeddingProvider {
   }
 
   /**
-   * Calculate optimal batch size based on text characteristics and success rate
-   */
-  private calculateOptimalBatchSize(texts: string[], recentSuccessRate: number = 1.0): number {
-    const base = Number(process.env.EMBED_BATCH_SIZE || 300)
-    const adaptiveEnabled = process.env.EMBED_ADAPTIVE_BATCHING !== 'false'
-
-    if (!adaptiveEnabled) return base
-
-    const avgLength = texts.reduce((sum, text) => sum + text.length, 0) / texts.length
-
-    // Adjust based on text length
-    let multiplier = 1.0
-    if (avgLength < 100)
-      multiplier = 1.5 // Short texts - can handle larger batches
-    else if (avgLength < 500)
-      multiplier = 1.2 // Medium texts
-    else if (avgLength < 1000)
-      multiplier = 1.0 // Long texts
-    else multiplier = 0.8 // Very long texts - smaller batches
-
-    // Adjust based on recent success rate
-    if (recentSuccessRate < 0.9)
-      multiplier *= 0.8 // Reduce batch size if failing
-    else if (recentSuccessRate > 0.95) multiplier *= 1.1 // Increase if very successful
-
-    return Math.max(50, Math.min(500, Math.round(base * multiplier)))
-  }
-
-  /**
    * Generate embeddings for a batch of texts
    */
   private async generateBatch(texts: string[], providerName: string): Promise<EmbeddingResult> {

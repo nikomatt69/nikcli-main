@@ -1,5 +1,5 @@
-import { createHash } from 'crypto'
 import chalk from 'chalk'
+import { createHash } from 'crypto'
 import { unifiedEmbeddingInterface } from './unified-embedding-interface'
 
 export interface QueryAnalysis {

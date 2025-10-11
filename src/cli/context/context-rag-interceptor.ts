@@ -6,7 +6,6 @@ import { UnifiedRAGSystem } from './rag-system'
 class ContextRAGInterceptor {
   private installed = false
   private rag?: UnifiedRAGSystem
-  private warmupInterval?: Timer
   private readonly CONTEXT_SENTINEL = '[[nikcli_context]]'
 
   async install(): Promise<void> {
@@ -93,7 +92,7 @@ class ContextRAGInterceptor {
 
     this.withSilencedConsole(async () => {
       try {
-        await this.rag!.analyzeProject(process.cwd())
+        await this.rag?.analyzeProject(process.cwd())
       } catch {}
     })
 
@@ -101,7 +100,7 @@ class ContextRAGInterceptor {
       () => {
         this.withSilencedConsole(async () => {
           try {
-            await this.rag!.analyzeProject(process.cwd())
+            await this.rag?.analyzeProject(process.cwd())
           } catch {}
         })
       },

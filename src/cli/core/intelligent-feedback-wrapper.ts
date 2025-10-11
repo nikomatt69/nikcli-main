@@ -1,9 +1,9 @@
-import chalk from 'chalk'
-import { feedbackSystem } from './feedback-system'
-import * as fs from 'node:fs/promises'
 import * as fsSync from 'node:fs'
-import * as path from 'path'
+import * as fs from 'node:fs/promises'
+import chalk from 'chalk'
 import * as os from 'os'
+import * as path from 'path'
+import { feedbackSystem } from './feedback-system'
 
 export interface ToolExecutionResult {
   success: boolean
@@ -31,7 +31,7 @@ export class IntelligentFeedbackWrapper {
   private readonly maxHistorySize = 1000
   private learningFile: string
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(_workingDirectory: string = process.cwd()) {
     this.learningFile = path.join(os.homedir(), '.nikcli', 'learning', 'learning-patterns.json')
     // Load patterns asynchronously - don't await in constructor
     this.loadLearningPatterns().catch((error) => {

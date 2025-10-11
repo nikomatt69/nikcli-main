@@ -22,7 +22,6 @@ export interface MobileCommandResult {
  * Provides short, easy-to-type aliases for mobile keyboards
  */
 export class MobileCommandHandler {
-  private sessionManager: EnhancedSessionManager
   private aliases: Map<string, MobileCommandAlias> = new Map()
   private isEnabled = false
 
@@ -127,7 +126,7 @@ export class MobileCommandHandler {
 
     // Check for exact alias match
     if (this.aliases.has(trimmed)) {
-      const alias = this.aliases.get(trimmed)!
+      const alias = this.aliases.get(trimmed) || {}
       return {
         success: true,
         originalCommand: alias.command,
@@ -138,7 +137,7 @@ export class MobileCommandHandler {
     // Check for alias with arguments
     const parts = trimmed.split(' ')
     if (parts.length > 1 && this.aliases.has(parts[0])) {
-      const alias = this.aliases.get(parts[0])!
+      const alias = this.aliases.get(parts[0]) || {}
       const args = parts.slice(1).join(' ')
 
       return {
@@ -336,7 +335,7 @@ export class MobileCommandHandler {
     const cmd = parts[0]
 
     if (this.aliases.has(cmd)) {
-      const alias = this.aliases.get(cmd)!
+      const alias = this.aliases.get(cmd) || {}
 
       if (alias.requiresArgs && parts.length === 1) {
         return {

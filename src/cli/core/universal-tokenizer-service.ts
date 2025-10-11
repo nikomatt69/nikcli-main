@@ -1,6 +1,6 @@
-import { EventEmitter } from 'events'
 import { countTokens as anthropicCountTokens } from '@anthropic-ai/tokenizer'
 import type { CoreMessage } from 'ai'
+import { EventEmitter } from 'events'
 import { encode } from 'gpt-tokenizer'
 import { encodingForModel } from 'js-tiktoken'
 import { MODEL_COSTS } from '../config/token-limits'
@@ -440,7 +440,7 @@ export class UniversalTokenizerService extends EventEmitter {
 
     // Check cache first
     if (this.options.enableCache && this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)!
+      return this.cache.get(cacheKey) || {}
     }
 
     try {
@@ -587,7 +587,7 @@ export class UniversalTokenizerService extends EventEmitter {
           provider,
         })
       )
-      return this.adapters.get('openai')! // Fallback to OpenAI
+      return this.adapters.get('openai') || {} // Fallback to OpenAI
     }
     return adapter
   }

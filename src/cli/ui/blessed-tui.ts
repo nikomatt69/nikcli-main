@@ -1,21 +1,19 @@
-import * as blessed from 'blessed';
+import * as blessed from 'blessed'
 
 export class BlessedTUI {
-  private screen: blessed.Widgets.Screen;
-  private streamBox: blessed.Widgets.BoxElement;
-  private toolchainsBox: blessed.Widgets.BoxElement;
-  private mainContentBox: blessed.Widgets.BoxElement;
-  private promptInput: blessed.Widgets.TextboxElement;
+  private screen: blessed.Widgets.Screen
+  private streamBox: blessed.Widgets.BoxElement
+  private toolchainsBox: blessed.Widgets.BoxElement
+  private mainContentBox: blessed.Widgets.BoxElement
+  private promptInput: blessed.Widgets.TextboxElement
 
   constructor() {
     this.screen = blessed.screen({
       smartCSR: true,
       title: 'NikCLI TUI',
-    });
+    })
 
-    this.screen.key(['escape', 'q', 'C-c'], function(ch, key) {
-      return process.exit(0);
-    });
+    this.screen.key(['escape', 'q', 'C-c'], (_ch, _key) => process.exit(0))
 
     // Stream Box (top-left)
     this.streamBox = blessed.box({
@@ -32,8 +30,8 @@ export class BlessedTUI {
         border: { fg: '#ff0000' }, // Red border for stream
         hover: { bg: 'green' },
       },
-    });
-    this.screen.append(this.streamBox);
+    })
+    this.screen.append(this.streamBox)
 
     // Toolchains Box (top-right)
     this.toolchainsBox = blessed.box({
@@ -50,8 +48,8 @@ export class BlessedTUI {
         border: { fg: '#0000ff' }, // Blue border for toolchains
         hover: { bg: 'green' },
       },
-    });
-    this.screen.append(this.toolchainsBox);
+    })
+    this.screen.append(this.toolchainsBox)
 
     // Main Content Box (middle)
     this.mainContentBox = blessed.box({
@@ -71,8 +69,8 @@ export class BlessedTUI {
         border: { fg: '#00ff00' }, // Green border for main content
         hover: { bg: 'green' },
       },
-    });
-    this.screen.append(this.mainContentBox);
+    })
+    this.screen.append(this.mainContentBox)
 
     // Prompt Area (bottom)
     this.promptInput = blessed.textbox({
@@ -93,47 +91,46 @@ export class BlessedTUI {
         focus: { border: { fg: 'blue' } },
       },
       value: 'Add a follow-up',
-    });
-    this.screen.append(this.promptInput);
+    })
+    this.screen.append(this.promptInput)
 
     this.promptInput.on('submit', (text: string) => {
-      this.mainContentBox.insertBottom('User: ' + text);
-      this.promptInput.clearValue();
-      this.screen.render();
+      this.mainContentBox.insertBottom(`User: ${text}`)
+      this.promptInput.clearValue()
+      this.screen.render()
       // Here you would typically send the text to your CLI logic
-    });
+    })
 
-    this.promptInput.focus();
-    this.screen.render();
+    this.promptInput.focus()
+    this.screen.render()
   }
 
   public updateStream(content: string) {
-    this.streamBox.setContent(content);
-    this.screen.render();
+    this.streamBox.setContent(content)
+    this.screen.render()
   }
 
   public updateToolchains(content: string) {
-    this.toolchainsBox.setContent(content);
-    this.screen.render();
+    this.toolchainsBox.setContent(content)
+    this.screen.render()
   }
 
   public appendMainContent(content: string) {
-    this.mainContentBox.insertBottom(content);
-    this.screen.render();
+    this.mainContentBox.insertBottom(content)
+    this.screen.render()
   }
 
   public setPrompt(text: string) {
-    this.promptInput.setValue(text);
-    this.screen.render();
+    this.promptInput.setValue(text)
+    this.screen.render()
   }
 
   public focusPrompt() {
-    this.promptInput.focus();
-    this.screen.render();
+    this.promptInput.focus()
+    this.screen.render()
   }
 
   public render() {
-    this.screen.render();
+    this.screen.render()
   }
 }
-

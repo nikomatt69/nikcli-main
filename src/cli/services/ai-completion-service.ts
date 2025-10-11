@@ -1,5 +1,5 @@
-import { createHash } from 'crypto'
 import chalk from 'chalk'
+import { createHash } from 'crypto'
 import { z } from 'zod'
 import { type ChatMessage, modelProvider } from '../ai/model-provider'
 import { workspaceContext } from '../context/workspace-context'
@@ -96,7 +96,7 @@ export class AICompletionService {
         model: `${config.provider}:${config.model}`,
       })
 
-      if (protocolHit && protocolHit.completion) {
+      if (protocolHit?.completion) {
         const result: CompletionResult = {
           completions: [
             {

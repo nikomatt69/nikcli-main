@@ -228,7 +228,7 @@ export class LSPClient {
 
       // Smart file opening - check if file is already open with same content
       if (this.openFiles.has(absolutePath)) {
-        const currentVersion = this.openFiles.get(absolutePath)!
+        const currentVersion = this.openFiles.get(absolutePath) || {}
         // File already open, just update version if needed
         this.openFiles.set(absolutePath, currentVersion + 1)
         return

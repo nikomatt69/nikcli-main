@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import {
   createVMChatMessage,

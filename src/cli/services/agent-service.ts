@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { simpleConfigManager } from '../core/config-manager'
 import { inputQueue } from '../core/input-queue'
 import { planningService } from './planning-service'
@@ -356,7 +356,7 @@ export class AgentService extends EventEmitter {
           if (anyAgent) {
             console.log(chalk.yellow(`⚠️ Agent '${resolvedAgentType}' not found. Using '${anyAgent.name}'.`))
             resolvedAgentType = anyAgent.name
-            agent = this.agents.get(anyAgent.name)!
+            agent = this.agents.get(anyAgent.name) || {}
           } else {
             throw new Error(`Agent '${resolvedAgentType}' not found and no fallback available`)
           }

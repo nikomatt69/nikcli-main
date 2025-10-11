@@ -1,10 +1,10 @@
 // src/cli/github-bot/task-executor.ts
 
-import { execSync } from 'child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Octokit } from '@octokit/rest'
+import { execSync } from 'child_process'
 import { backgroundAgentService } from '../background-agents/background-agent-service'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CommentProcessor } from './comment-processor'
@@ -28,7 +28,6 @@ export type ExecutionMode = 'background-agent' | 'local-execution' | 'auto'
  */
 export class TaskExecutor {
   private octokit: Octokit
-  private config: GitHubBotConfig
   private commentProcessor: CommentProcessor
   private workingDir: string
   private executionMode: ExecutionMode
@@ -462,7 +461,7 @@ export class TaskExecutor {
       // Run tests if requested
       if (command.options?.createTests) {
         await this.runTests(context)
-        result.details!.testsRun = true
+        result.details?.testsRun = true
       }
     } catch (error) {
       result.success = false

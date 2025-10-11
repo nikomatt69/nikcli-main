@@ -576,7 +576,7 @@ export class BackgroundAgentsAPIServer {
 
       // Verify webhook signature
       const rawBody = JSON.stringify(payload)
-      const isValid = GitHubIntegration.verifyWebhookSignature(rawBody, signature, this.config.github!.webhookSecret)
+      const isValid = GitHubIntegration.verifyWebhookSignature(rawBody, signature, this.config.github?.webhookSecret)
 
       if (!isValid) {
         res.status(401).json({

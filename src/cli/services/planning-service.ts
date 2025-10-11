@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { nanoid } from 'nanoid'
 import { createTaskMasterAdapter, type TaskMasterAdapter } from '../adapters/taskmaster-adapter'
 import { AutonomousPlanner, type PlanningEvent } from '../planning/autonomous-planner'
@@ -259,7 +259,6 @@ export class PlanningService {
     // Show dashboard for TaskMaster plans or when showProgress is enabled
     const isTaskMasterPlan = shouldUseTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable()
     if (options.showProgress || isTaskMasterPlan) {
-
       await this.showDashboard(plan)
     }
 
@@ -333,8 +332,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'pending' })
             break
           case 'plan_created':
@@ -351,8 +350,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'in_progress' })
             break
           case 'todo_progress':
@@ -365,8 +364,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'todo_complete':
             if (!superCompact) advancedUI.logFunctionUpdate('success', 'Todo completed', '✓')
@@ -382,8 +381,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: event.error ? 'failed' : 'completed' })
             break
           case 'plan_failed':
@@ -398,8 +397,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'plan_complete':
             this.updatePlanStatus(plan.id, 'completed')
@@ -416,10 +415,10 @@ export class PlanningService {
         if (nik) {
           try {
             nik.assistantProcessing = false
-          } catch { }
+          } catch {}
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
-      } catch { }
+      } catch {}
     } finally {
       // Always render prompt after execution cycle
       try {
@@ -427,19 +426,17 @@ export class PlanningService {
         if (nik) {
           try {
             nik.assistantProcessing = false
-          } catch { }
+          } catch {}
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
         // Disable possible bypass and resume prompt
         try {
           const { inputQueue } = await import('../core/input-queue')
           inputQueue.disableBypass()
-        } catch { }
-      } catch { }
+        } catch {}
+      } catch {}
     }
   }
-
-
 
   /**
    * Get all active plans
@@ -485,7 +482,7 @@ export class PlanningService {
           progress: typeof t.progress === 'number' ? t.progress : 0,
         }))
         todoStore.setTodos(String(sessionId), list)
-      } catch { }
+      } catch {}
     }
   }
 
@@ -514,7 +511,7 @@ export class PlanningService {
             progress: typeof t.progress === 'number' ? t.progress : 0,
           }))
           todoStore.setTodos(String(sessionId), list)
-        } catch { }
+        } catch {}
       }
     }
   }
@@ -596,7 +593,7 @@ export class PlanningService {
         priority: (t as any).priority,
         progress: (t as any).progress,
       }))
-        ; (advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
+      ;(advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
     } catch (error: any) {
       console.log(chalk.gray(`ℹ️ Could not show dashboard: ${error.message}`))
     }

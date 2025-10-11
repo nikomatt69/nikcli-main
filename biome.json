@@ -29,7 +29,7 @@
         "noExplicitAny": "off"
       },
       "style": {
-        "useNodejsImportProtocol": "on",
+        "useNodejsImportProtocol": "off",
         "useImportType": "on"
       }
     }

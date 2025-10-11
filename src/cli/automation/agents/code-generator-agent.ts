@@ -87,7 +87,7 @@ export class CodeGeneratorAgent extends CognitiveAgentBase {
    * 🧠 Execute task with Code Generator-specific cognitive orchestration
    */
   protected async executeCognitiveTask(
-    task: AgentTask,
+    _task: AgentTask,
     cognition: TaskCognition,
     plan: OrchestrationPlan
   ): Promise<AgentTaskResult> {

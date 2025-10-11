@@ -6,8 +6,8 @@
  * and integration with other system components.
  */
 
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import {
   type DesignTokens,
   type FigmaExportResult,
@@ -109,7 +109,7 @@ export class FigmaService extends EventEmitter {
     const cached = this.cache.get(key)
     if (!cached) return null
 
-    const isExpired = Date.now() - cached.timestamp.getTime() > this.config.cacheTimeout!
+    const isExpired = Date.now() - cached.timestamp.getTime() > this.config.cacheTimeout
     if (isExpired) {
       this.cache.delete(key)
       return null

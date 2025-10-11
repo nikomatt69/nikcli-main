@@ -84,7 +84,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
    * 🧠 Execute task with Optimization-specific cognitive orchestration
    */
   protected async executeCognitiveTask(
-    task: AgentTask,
+    _task: AgentTask,
     cognition: TaskCognition,
     plan: OrchestrationPlan
   ): Promise<AgentTaskResult> {
@@ -212,7 +212,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
 }`
   }
 
-  private generateOptimizationPrompt(cognition: TaskCognition, originalCode: string): string {
+  private generateOptimizationPrompt(_cognition: TaskCognition, originalCode: string): string {
     return `You are an expert code optimization specialist. Optimize the following code for better performance, readability, and maintainability:
 
 Code to optimize:
@@ -246,7 +246,7 @@ Provide the optimized version with explanations of improvements made.`
     return explanations
   }
 
-  private calculatePerformanceImprovements(originalCode: string, optimizedResponse: string): any {
+  private calculatePerformanceImprovements(_originalCode: string, _optimizedResponse: string): any {
     return {
       percentage: 25,
       metrics: {

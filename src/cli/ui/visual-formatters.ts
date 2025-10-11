@@ -43,7 +43,7 @@ export class VisualFormatter {
       }
 
       if (this.bufferState.inCodeBlock) {
-        this.bufferState.content += line + '\n'
+        this.bufferState.content += `${line}\n`
         continue
       }
 
@@ -123,7 +123,7 @@ export class VisualFormatter {
     const codeLines = highlighted.split('\n')
     const filteredLines = codeLines.filter((l, i) => l.trim() || i < codeLines.length - 1)
     for (const ln of filteredLines) {
-      const truncated = ln.length > width ? ln.substring(0, width - 3) + '...' : ln
+      const truncated = ln.length > width ? `${ln.substring(0, width - 3)}...` : ln
       lines.push(chalk.white('│ ') + truncated)
     }
     lines.push(chalk.cyanBright(`└${'─'.repeat(width + 2)}┘`))
@@ -219,14 +219,14 @@ export class VisualFormatter {
   formatTable(headers: string[], rows: any[][]): string {
     const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map((r) => String(r[i] || '').length)))
     const lines = [
-      '┌' + colWidths.map((w) => '─'.repeat(w + 2)).join('┬') + '┐',
-      '│ ' + headers.map((h, i) => chalk.bold(h.padEnd(colWidths[i]))).join(' │ ') + ' │',
-      '├' + colWidths.map((w) => '─'.repeat(w + 2)).join('┼') + '┤',
+      `┌${colWidths.map((w) => '─'.repeat(w + 2)).join('┬')}┐`,
+      `│ ${headers.map((h, i) => chalk.bold(h.padEnd(colWidths[i]))).join(' │ ')} │`,
+      `├${colWidths.map((w) => '─'.repeat(w + 2)).join('┼')}┤`,
     ]
     rows.forEach((row) => {
-      lines.push('│ ' + row.map((cell, i) => String(cell || '').padEnd(colWidths[i])).join(' │ ') + ' │')
+      lines.push(`│ ${row.map((cell, i) => String(cell || '').padEnd(colWidths[i])).join(' │ ')} │`)
     })
-    lines.push('└' + colWidths.map((w) => '─'.repeat(w + 2)).join('┴') + '┘')
+    lines.push(`└${colWidths.map((w) => '─'.repeat(w + 2)).join('┴')}┘`)
     return chalk.cyan(lines.join('\n'))
   }
 

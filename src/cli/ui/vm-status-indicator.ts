@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import type { SecureVirtualizedAgent, VMState } from '../virtualized-agents/secure-vm-agent'
 import { advancedUI } from './advanced-cli-ui'
 
@@ -17,7 +17,6 @@ import { advancedUI } from './advanced-cli-ui'
 export class VMStatusIndicator extends EventEmitter {
   private static instance: VMStatusIndicator
   private activeAgents: Map<string, VMAgentStatus> = new Map()
-  private displayMode: StatusDisplayMode = 'compact'
   private updateInterval: Timer | null = null
 
   // UI Configuration

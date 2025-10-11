@@ -292,7 +292,7 @@ export class ListTool extends BaseTool {
           nodeMap.set(partialPath, newNode)
         }
 
-        currentNode = nodeMap.get(partialPath)!
+        currentNode = nodeMap.get(partialPath) || {}
       }
 
       // Aggiungi il file/directory finale

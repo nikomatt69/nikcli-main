@@ -1,7 +1,7 @@
-import crypto from 'crypto'
 import * as fs from 'node:fs/promises'
-import * as path from 'path'
 import chalk from 'chalk'
+import crypto from 'crypto'
+import * as path from 'path'
 import { QuietCacheLogger } from './performance-optimizer'
 
 export interface CompletionPattern {
@@ -382,7 +382,7 @@ export class CompletionProtocolCache {
       // Clean up indexes
       const prefixKey = this.generatePrefixKey(pattern.prefix)
       if (this.prefixIndex.has(prefixKey)) {
-        const ids = this.prefixIndex.get(prefixKey)!
+        const ids = this.prefixIndex.get(prefixKey) || {}
         const filtered = ids.filter((id) => id !== pattern.id)
         if (filtered.length === 0) {
           this.prefixIndex.delete(prefixKey)

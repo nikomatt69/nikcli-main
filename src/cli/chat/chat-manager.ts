@@ -70,8 +70,10 @@ export class ChatManager {
       timestamp: new Date(),
     }
 
-    this.currentSession?.messages.push(message)
-    this.currentSession!.updatedAt = new Date()
+    if (this.currentSession) {
+      this.currentSession.messages.push(message)
+      this.currentSession.updatedAt = new Date()
+    }
 
     // Trim history if needed
     this.trimHistory()

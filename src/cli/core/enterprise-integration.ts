@@ -12,7 +12,6 @@ import { validatorManager } from './validator-manager'
  */
 export class EnterpriseIntegration {
   private static instance: EnterpriseIntegration
-  private workingDirectory: string
   private isInitialized = false
 
   constructor(workingDirectory: string) {

@@ -1,5 +1,5 @@
-import { randomBytes } from 'crypto'
 import chalk from 'chalk'
+import { randomBytes } from 'crypto'
 import { QuietCacheLogger } from './performance-optimizer'
 
 export interface CacheStrategy {

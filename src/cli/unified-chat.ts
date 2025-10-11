@@ -5,9 +5,9 @@
  * Lifecycle: Banner → Chat → Prompt → Plan → Confirm → Execute → Queue Management
  */
 
-import { EventEmitter } from 'events'
 import boxen from 'boxen'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import * as readline from 'readline'
 
 // Core imports
@@ -16,7 +16,6 @@ import { WorkflowOrchestrator } from './automation/workflow-orchestrator'
 import { ChatOrchestrator } from './chat/chat-orchestrator'
 import { agentTodoManager } from './core/agent-todo-manager'
 import { simpleConfigManager as configManager } from './core/config-manager'
-import { EnhancedSessionManager } from './persistence/enhanced-session-manager'
 import { workSessionManager } from './persistence/work-session-manager'
 import { agentService } from './services/agent-service'
 import { planningService } from './services/planning-service'
@@ -82,10 +81,7 @@ export class UnifiedChatInterface extends EventEmitter {
     promptQueue: QueuedPrompt[]
     activeAgents: Map<string, any>
   }
-
-  private workflowOrchestrator: WorkflowOrchestrator
   private chatOrchestrator: ChatOrchestrator
-  private initialized = false
   private activeTimers: Set<Timer> = new Set()
   private eventHandlers: Map<string, (...args: any[]) => void> = new Map()
   private cleanupCompleted = false
@@ -294,16 +290,16 @@ export class UnifiedChatInterface extends EventEmitter {
   private displayPlan(plan: ExecutionPlan): void {
     const planBox = boxen(
       chalk.white.bold(`📋 ${plan.title}\n\n`) +
-      chalk.gray(`${plan.description}\n\n`) +
-      chalk.blue(`🕒 Estimated Duration: ${plan.estimatedDuration} minutes\n`) +
-      chalk.yellow(`⚠️  Risk Level: ${plan.riskLevel.toUpperCase()}\n\n`) +
-      chalk.white.bold('📝 Execution Steps:\n') +
-      plan.steps
-        .map(
-          (step, i) =>
-            `${i + 1}. ${chalk.cyan(step.title)}\n   ${chalk.dim(step.description)}\n   ${step.requiresPermission ? chalk.red('🔒 Requires permission') : chalk.green('✓ Auto-approved')}`
-        )
-        .join('\n\n'),
+        chalk.gray(`${plan.description}\n\n`) +
+        chalk.blue(`🕒 Estimated Duration: ${plan.estimatedDuration} minutes\n`) +
+        chalk.yellow(`⚠️  Risk Level: ${plan.riskLevel.toUpperCase()}\n\n`) +
+        chalk.white.bold('📝 Execution Steps:\n') +
+        plan.steps
+          .map(
+            (step, i) =>
+              `${i + 1}. ${chalk.cyan(step.title)}\n   ${chalk.dim(step.description)}\n   ${step.requiresPermission ? chalk.red('🔒 Requires permission') : chalk.green('✓ Auto-approved')}`
+          )
+          .join('\n\n'),
       {
         padding: 1,
         margin: 1,
@@ -386,10 +382,10 @@ export class UnifiedChatInterface extends EventEmitter {
   private async requestStepPermission(step: PlanStep): Promise<boolean> {
     const permissionBox = boxen(
       chalk.yellow.bold('🔒 Permission Required\n\n') +
-      chalk.white(`Step: ${step.title}\n`) +
-      chalk.gray(`Description: ${step.description}\n`) +
-      chalk.cyan(`Tool: ${step.toolName}\n`) +
-      chalk.dim(`Parameters: ${JSON.stringify(step.parameters, null, 2)}`),
+        chalk.white(`Step: ${step.title}\n`) +
+        chalk.gray(`Description: ${step.description}\n`) +
+        chalk.cyan(`Tool: ${step.toolName}\n`) +
+        chalk.dim(`Parameters: ${JSON.stringify(step.parameters, null, 2)}`),
       {
         padding: 1,
         borderStyle: 'round',
@@ -529,7 +525,6 @@ export class UnifiedChatInterface extends EventEmitter {
 
       // Display todos to user
 
-
       // Start executing todos with background agents
       console.log(chalk.green('🚀 Starting background execution...'))
       this.addAssistantMessage(
@@ -664,24 +659,24 @@ export class UnifiedChatInterface extends EventEmitter {
   private showHelp(): void {
     const helpBox = boxen(
       chalk.white.bold('🔌 NikCLI Commands\n\n') +
-      chalk.green('/help') +
-      chalk.gray('     - Show this help\n') +
-      chalk.green('/plan') +
-      chalk.gray('     - Toggle plan mode (currently: ') +
-      (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
-      chalk.gray(') - Ask approval before execution\n') +
-      chalk.green('/status') +
-      chalk.gray('   - Show current status\n') +
-      chalk.green('/queue') +
-      chalk.gray('    - Show prompt queue\n') +
-      chalk.green('/stop') +
-      chalk.gray('     - Stop current execution\n') +
-      chalk.green('/clear') +
-      chalk.gray('    - Clear screen\n') +
-      chalk.green('/exit') +
-      chalk.gray('     - Exit NikCLI\n\n') +
-      chalk.yellow('💡 Default mode: Auto-generates todos for complex tasks and executes in background\n') +
-      chalk.yellow('💡 Plan mode: Creates detailed plans and asks for approval first'),
+        chalk.green('/help') +
+        chalk.gray('     - Show this help\n') +
+        chalk.green('/plan') +
+        chalk.gray('     - Toggle plan mode (currently: ') +
+        (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
+        chalk.gray(') - Ask approval before execution\n') +
+        chalk.green('/status') +
+        chalk.gray('   - Show current status\n') +
+        chalk.green('/queue') +
+        chalk.gray('    - Show prompt queue\n') +
+        chalk.green('/stop') +
+        chalk.gray('     - Stop current execution\n') +
+        chalk.green('/clear') +
+        chalk.gray('    - Clear screen\n') +
+        chalk.green('/exit') +
+        chalk.gray('     - Exit NikCLI\n\n') +
+        chalk.yellow('💡 Default mode: Auto-generates todos for complex tasks and executes in background\n') +
+        chalk.yellow('💡 Plan mode: Creates detailed plans and asks for approval first'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -698,23 +693,23 @@ export class UnifiedChatInterface extends EventEmitter {
   private showStatus(): void {
     const statusBox = boxen(
       chalk.white.bold('📊 NikCLI Status\n\n') +
-      chalk.blue('Working Directory: ') +
-      chalk.cyan(this.session.workingDirectory) +
-      '\n' +
-      chalk.blue('Plan Mode: ') +
-      (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
-      '\n' +
-      chalk.blue('Executing: ') +
-      (this.session.isExecuting ? chalk.yellow('YES') : chalk.green('NO')) +
-      '\n' +
-      chalk.blue('Current Plan: ') +
-      (this.session.currentPlan ? chalk.cyan(this.session.currentPlan.title) : chalk.gray('None')) +
-      '\n' +
-      chalk.blue('Queued Prompts: ') +
-      chalk.yellow(this.session.promptQueue.length.toString()) +
-      '\n' +
-      chalk.blue('Messages: ') +
-      chalk.cyan(this.session.messages.length.toString()),
+        chalk.blue('Working Directory: ') +
+        chalk.cyan(this.session.workingDirectory) +
+        '\n' +
+        chalk.blue('Plan Mode: ') +
+        (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
+        '\n' +
+        chalk.blue('Executing: ') +
+        (this.session.isExecuting ? chalk.yellow('YES') : chalk.green('NO')) +
+        '\n' +
+        chalk.blue('Current Plan: ') +
+        (this.session.currentPlan ? chalk.cyan(this.session.currentPlan.title) : chalk.gray('None')) +
+        '\n' +
+        chalk.blue('Queued Prompts: ') +
+        chalk.yellow(this.session.promptQueue.length.toString()) +
+        '\n' +
+        chalk.blue('Messages: ') +
+        chalk.cyan(this.session.messages.length.toString()),
       {
         padding: 1,
         borderStyle: 'round',
@@ -736,12 +731,12 @@ export class UnifiedChatInterface extends EventEmitter {
 
     const queueBox = boxen(
       chalk.white.bold(`📥 Prompt Queue (${this.session.promptQueue.length})\n\n`) +
-      this.session.promptQueue
-        .map(
-          (prompt, i) =>
-            `${i + 1}. ${chalk.cyan(prompt.content.slice(0, 50))}${prompt.content.length > 50 ? '...' : ''}\n   ${chalk.dim(prompt.timestamp.toLocaleTimeString())}`
-        )
-        .join('\n\n'),
+        this.session.promptQueue
+          .map(
+            (prompt, i) =>
+              `${i + 1}. ${chalk.cyan(prompt.content.slice(0, 50))}${prompt.content.length > 50 ? '...' : ''}\n   ${chalk.dim(prompt.timestamp.toLocaleTimeString())}`
+          )
+          .join('\n\n'),
       {
         padding: 1,
         borderStyle: 'round',
@@ -781,11 +776,11 @@ export class UnifiedChatInterface extends EventEmitter {
 
     const welcomeBox = boxen(
       chalk.white.bold('🔌 Autonomous AI Development Assistant\n\n') +
-      chalk.gray('• Intelligent planning and execution\n') +
-      chalk.gray('• Real-time prompt queue management\n') +
-      chalk.gray('• Interactive permission system\n') +
-      chalk.gray('• Multi-agent orchestration\n\n') +
-      chalk.cyan('Ready to help with your development tasks!'),
+        chalk.gray('• Intelligent planning and execution\n') +
+        chalk.gray('• Real-time prompt queue management\n') +
+        chalk.gray('• Interactive permission system\n') +
+        chalk.gray('• Multi-agent orchestration\n\n') +
+        chalk.cyan('Ready to help with your development tasks!'),
       {
         padding: 1,
         margin: 1,
@@ -821,10 +816,10 @@ export class UnifiedChatInterface extends EventEmitter {
   private showGoodbye(): void {
     const goodbyeBox = boxen(
       chalk.white.bold('🔌 NikCLI Session Complete\n\n') +
-      chalk.gray('Thank you for using NikCLI!\n') +
-      chalk.blue(`Messages processed: ${this.session.messages.length}\n`) +
-      chalk.green(`Session duration: ${Math.round((Date.now() - parseInt(this.session.id, 10)) / 1000)}s\n\n`) +
-      chalk.cyan('Happy coding! 🚀'),
+        chalk.gray('Thank you for using NikCLI!\n') +
+        chalk.blue(`Messages processed: ${this.session.messages.length}\n`) +
+        chalk.green(`Session duration: ${Math.round((Date.now() - parseInt(this.session.id, 10)) / 1000)}s\n\n`) +
+        chalk.cyan('Happy coding! 🚀'),
       {
         padding: 1,
         margin: 1,
@@ -912,7 +907,7 @@ export class UnifiedChatInterface extends EventEmitter {
     if (this.rl && !(this.rl as any).closed) {
       try {
         this.rl.close()
-      } catch (error) {
+      } catch (_error) {
         // Ignore close errors
       }
     }

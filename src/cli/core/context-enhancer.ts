@@ -63,7 +63,7 @@ export class ContextEnhancer {
 
     // Check cache first
     if (context.cachingEnabled !== false && this.smartContextCache.has(cacheKey)) {
-      const cached = this.smartContextCache.get(cacheKey)!
+      const cached = this.smartContextCache.get(cacheKey) || {}
       cached.cacheHits++
       return cached
     }
@@ -167,7 +167,7 @@ export class ContextEnhancer {
         const compressedSource = this.compressContextSource(source, maxTokens - currentTokens)
         if (compressedSource && compressedSource.tokens! > 100) {
           optimizedSources.push(compressedSource)
-          currentTokens += compressedSource.tokens!
+          currentTokens += compressedSource.tokens
         }
       }
     }

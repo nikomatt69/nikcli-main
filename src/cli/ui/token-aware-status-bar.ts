@@ -1,7 +1,8 @@
 // TODO: Consider refactoring for reduced complexity
-import { EventEmitter } from 'events'
+
 import blessed from 'blessed'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { type ModelLimits, type TokenUsage, universalTokenizer } from '../core/universal-tokenizer-service'
 
 export interface TokenDisplayOptions {

@@ -201,7 +201,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
 
       this.isInitialized = true
 
-      // Get wallet info
+      // Get wallet info: any
       const walletInfo = await this.agentKitProvider.getWalletInfo()
 
       console.log(chalk.green('✓ Coinbase AgentKit initialized successfully'))
@@ -344,7 +344,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
   }
 
   /**
-   * Get wallet information
+   * Get wallet information: any
    */
   private async getWalletInfo(params: any = {}): Promise<ToolExecutionResult> {
     const startTime = Date.now()

@@ -1,7 +1,7 @@
-import crypto from 'crypto'
 import * as fs from 'node:fs/promises'
-import * as path from 'path'
 import chalk from 'chalk'
+import crypto from 'crypto'
+import * as path from 'path'
 import { QuietCacheLogger } from './performance-optimizer'
 import { tokenTelemetry } from './token-telemetry'
 
@@ -133,7 +133,7 @@ export class TokenCacheManager {
     // First try exact match
     const exactKey = this.generateExactKey(prompt, context)
     if (this.cache.has(exactKey)) {
-      const entry = this.cache.get(exactKey)!
+      const entry = this.cache.get(exactKey) || {}
       entry.hitCount++
       entry.similarity = 1.0
       QuietCacheLogger.logCacheSave(entry.tokensSaved)

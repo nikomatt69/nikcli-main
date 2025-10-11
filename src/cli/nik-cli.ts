@@ -1,83 +1,38 @@
-import * as fs from 'node:fs/promises'
-import * as path from 'path'
 import boxen from 'boxen'
 import chalk from 'chalk'
-import cliProgress from 'cli-progress'
+import type cliProgress from 'cli-progress'
 import inquirer from 'inquirer'
-import { nanoid } from 'nanoid'
-import ora, { type Ora } from 'ora'
+import type { Ora } from 'ora'
+import * as path from 'path'
 import * as readline from 'readline'
 import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { modelProvider } from './ai/model-provider'
 import type { ModernAIProvider } from './ai/modern-ai-provider'
-import { ModernAgentOrchestrator } from './automation/agents/modern-agent-system'
-import { chatManager } from './chat/chat-manager'
 import { SlashCommandHandler } from './chat/nik-cli-commands'
-import { CADCommands } from './commands/cad-commands'
 import { TOKEN_LIMITS } from './config/token-limits'
-import { docsContextManager } from './context/docs-context-manager'
-import { initializeRAG } from './context/rag-setup'
-import { unifiedRAGSystem } from './context/rag-system'
-import { workspaceContext } from './context/workspace-context'
-import { agentFactory } from './core/agent-factory'
-import { AgentManager } from './core/agent-manager'
-import { agentStream } from './core/agent-stream'
-import { agentTodoManager } from './core/agent-todo-manager'
 import { agentLearningSystem } from './core/agent-learning-system'
-import { intelligentFeedbackWrapper } from './core/intelligent-feedback-wrapper'
-
-import { createCloudDocsProvider, getCloudDocsProvider } from './core/cloud-docs-provider'
-import { completionCache, CompletionProtocolCache } from './core/completion-protocol-cache'
+import { AgentManager } from './core/agent-manager'
+import { type CognitiveRouteAnalyzer, createCognitiveRouteAnalyzer } from './core/cognitive-route-analyzer'
 // Import existing modules
-import { configManager, type SimpleConfigManager, simpleConfigManager } from './core/config-manager'
-import { contextTokenManager } from './core/context-token-manager'
-import { type DocumentationEntry, docLibrary } from './core/documentation-library'
-import { enhancedTokenCache } from './core/enhanced-token-cache'
-import { inputQueue } from './core/input-queue'
-import { type McpServerConfig, mcpClient } from './core/mcp-client'
-import { QuietCacheLogger, TokenOptimizer } from './core/performance-optimizer'
-import { tokenCache } from './core/token-cache'
-import { toolRouter } from './core/tool-router'
-import { universalTokenizer } from './core/universal-tokenizer-service'
-import { validatorManager } from './core/validator-manager'
-import { ideDiagnosticIntegration } from './integrations/ide-diagnostic-integration'
+import { type SimpleConfigManager, simpleConfigManager } from './core/config-manager'
+import { intelligentFeedbackWrapper } from './core/intelligent-feedback-wrapper'
+import { TokenOptimizer } from './core/performance-optimizer'
+import { type ProjectMemoryManager, projectMemory } from './core/project-memory'
 import { EnhancedSessionManager } from './persistence/enhanced-session-manager'
-import { enhancedPlanning } from './planning/enhanced-planning'
 import { PlanningManager } from './planning/planning-manager'
 import type { ExecutionPlan } from './planning/types'
-import { authProvider } from './providers/supabase/auth-provider'
-import { enhancedSupabaseProvider } from './providers/supabase/enhanced-supabase-provider'
 import { registerAgents } from './register-agents'
-import { agentService } from './services/agent-service'
-// New enhanced services
-import { cacheService } from './services/cache-service'
-import { memoryService } from './services/memory-service'
-import { planningService } from './services/planning-service'
-import { snapshotService } from './services/snapshot-service'
-import { toolService } from './services/tool-service'
-import { StreamingOrchestrator } from './streaming-orchestrator'
-import { toolsManager } from './tools/tools-manager'
+import type { StreamingOrchestrator } from './streaming-orchestrator'
 import { advancedUI } from './ui/advanced-cli-ui'
-import { createCognitiveRouteAnalyzer, type CognitiveRouteAnalyzer } from './core/cognitive-route-analyzer'
-import { projectMemory, type ProjectMemoryManager } from './core/project-memory'
-import { approvalSystem } from './ui/approval-system'
-import { createStringPushStream, renderChatStreamToTerminal } from './ui/streamdown-renderer'
-import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
-
 // Import BlessedTUI
 import { BlessedTUI } from './ui/blessed-tui'
+import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
 
 import { PasteHandler } from './utils/paste-handler'
 
-const formatCognitive = chalk.hex('#4a4a4a')
+const _formatCognitive = chalk.hex('#4a4a4a')
 
-import { structuredLogger } from './utils/structured-logger'
 import { configureSyntaxHighlighting } from './utils/syntax-highlighter'
-import { formatAgent, formatCommand, formatFileOp, formatSearch, formatStatus, wrapBlue } from './utils/text-wrapper'
-
-// VM System imports
-import { vmSelector } from './virtualized-agents/vm-selector'
-
 
 // CAD AI System imports
 
@@ -219,9 +174,6 @@ export class NikCLI {
   private slashMenuScrollOffset: number = 0
   private currentSlashInput: string = ''
   private readonly SLASH_MENU_MAX_VISIBLE: number = 5
-
-  // Enhanced features
-  private enhancedFeaturesEnabled: boolean = true
   private tokenDisplay = createConsoleTokenDisplay() // Real-time token display
 
   // Execution state management
@@ -258,8 +210,6 @@ export class NikCLI {
   private structuredUIEnabled: boolean = false
   private selectedFiles?: Map<string, { files: string[]; timestamp: Date; pattern: string }>
   private sessionTokenUsage: number = 0
-  private sessionStartTime: Date = new Date()
-  private contextTokens: number = 0
   private realTimeCost: number = 0
   private toolchainTokenLimit: number = 150000 // Limite per toolchain
   private toolchainContext: Map<string, number> = new Map()
@@ -321,7 +271,7 @@ export class NikCLI {
 
   // When the Plan HUD is visible, suppress verbose Advanced UI functionCall/functionUpdate
   // console prints to avoid duplicated rows alongside the dedicated toolchain rows.
-  private suppressToolLogsWhilePlanHudVisible: boolean = this.currentMode === 'plan' ? false : true
+  private suppressToolLogsWhilePlanHudVisible: boolean = this.currentMode !== 'plan'
 
   // Enhanced services
   private enhancedSessionManager: EnhancedSessionManager
@@ -335,8 +285,6 @@ export class NikCLI {
   private isChatMode: boolean = false
   private isPrintingPanel: boolean = false
 
-
-
   constructor(options: NikCLIOptions = {}) {
     this.workingDirectory = process.cwd()
     this.projectContextFile = path.join(this.workingDirectory, 'NIKOCLI.md')
@@ -349,7 +297,7 @@ export class NikCLI {
       // Redirect console.log to TUI main content area
       const originalConsoleLog = console.log
       console.log = (...args: any[]) => {
-        const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ')
+        const message = args.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg))).join(' ')
         if (this.tui) {
           this.tui.appendMainContent(message)
         } else {
@@ -361,7 +309,7 @@ export class NikCLI {
     // Compact mode by default (cleaner output unless explicitly disabled)
     try {
       if (!process.env.NIKCLI_COMPACT) process.env.NIKCLI_COMPACT = '1'
-    } catch { }
+    } catch {}
 
     // Initialize core managers
     this.configManager = simpleConfigManager
@@ -395,8 +343,8 @@ export class NikCLI {
     // Initialize token tracking system
     this.initializeTokenTrackingSystem()
 
-      // Expose this instance globally for command handlers
-      ; (global as any).__nikCLI = this
+    // Expose this instance globally for command handlers
+    ;(global as any).__nikCLI = this
 
     this.setupEventHandlers()
     // Bridge orchestrator events into NikCLI output
@@ -428,15 +376,14 @@ export class NikCLI {
     } else {
       this.tui?.focusPrompt()
     }
-
-      // Expose NikCLI globally for token management
-      ; (global as any).__nikcli = this
+    // Expose NikCLI globally for token management
+    ;(global as any).__nikcli = this
 
     // Patch inquirer to avoid status bar redraw during interactive prompts
     try {
       const originalPrompt = (inquirer as any).prompt?.bind(inquirer)
       if (originalPrompt) {
-        ; (inquirer as any).prompt = async (...args: any[]) => {
+        ;(inquirer as any).prompt = async (...args: any[]) => {
           this.isInquirerActive = true
           if (!this.useTUI) {
             this.stopStatusBar()
@@ -618,7 +565,7 @@ export class NikCLI {
    * Process a command from the user.
    * This method would contain the core logic for handling commands.
    */
-  public async processCommand(command: string, options: NikCLIOptions = {}): Promise<CommandResult> {
+  public async processCommand(command: string, _options: NikCLIOptions = {}): Promise<CommandResult> {
     // Existing command processing logic would go here.
     // For the TUI, we'll need to ensure output is directed to the TUI's main content area.
     if (this.useTUI && this.tui) {
@@ -652,7 +599,9 @@ export class NikCLI {
     if (newTotal > this.toolchainTokenLimit) {
       if (this.useTUI && this.tui) {
         this.tui.appendMainContent(chalk.yellow(`⚠️ Toolchain token limit reached for ${toolName}`))
-        this.tui.appendMainContent(chalk.dim(`   Current: ${currentUsage}, Adding: ${estimatedTokens}, Limit: ${this.toolchainTokenLimit}`))
+        this.tui.appendMainContent(
+          chalk.dim(`   Current: ${currentUsage}, Adding: ${estimatedTokens}, Limit: ${this.toolchainTokenLimit}`)
+        )
       } else {
         console.log(chalk.yellow(`⚠️ Toolchain token limit reached for ${toolName}`))
         console.log(
@@ -729,7 +678,6 @@ export class NikCLI {
       const currentProvider = 'unknown-provider'
       const maxTokens = TOKEN_LIMITS.CHAT?.MAX_CONTEXT_TOKENS || 18000
       this.tokenDisplay.update(this.sessionTokenUsage, maxTokens, currentProvider, currentModel, this.realTimeCost)
-
     }
   }
 
@@ -1694,23 +1642,25 @@ export class NikCLI {
         prompt: '> ',
       })
 
-      this.rl.on('line', async (line) => {
-        const input = line.trim()
-        if (input) {
-          const result = await this.processCommand(input, options)
-          if (result.shouldExit) {
-            this.rl?.close()
-            process.exit(0)
-          } else if (result.shouldUpdatePrompt) {
+      this.rl
+        .on('line', async (line) => {
+          const input = line.trim()
+          if (input) {
+            const result = await this.processCommand(input, options)
+            if (result.shouldExit) {
+              this.rl?.close()
+              process.exit(0)
+            } else if (result.shouldUpdatePrompt) {
+              this.rl?.prompt()
+            }
+          } else {
             this.rl?.prompt()
           }
-        } else {
-          this.rl?.prompt()
-        }
-      }).on('close', () => {
-        console.log('Exiting NikCLI.')
-        process.exit(0)
-      })
+        })
+        .on('close', () => {
+          console.log('Exiting NikCLI.')
+          process.exit(0)
+        })
 
       this.rl.prompt()
     }
@@ -1747,4 +1697,3 @@ if (args.includes('--tui')) {
 }
 
 NikCLI.run(options)
-

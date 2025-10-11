@@ -53,7 +53,6 @@ export class PerformanceMiddleware extends BaseMiddleware {
   private benchmarks: Map<string, PerformanceBenchmark> = new Map()
   private metricsHistory: PerformanceMetrics[] = []
   private alerts: PerformanceAlert[] = []
-  private baselineMemory: number = 0
 
   constructor(config: Partial<PerformanceMiddlewareConfig> = {}) {
     const defaultConfig: PerformanceMiddlewareConfig = {

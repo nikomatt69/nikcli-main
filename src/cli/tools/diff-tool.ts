@@ -111,7 +111,6 @@ export class DiffTool extends BaseTool {
         case 'chars':
           changes = this.diffChars(processedSource, processedTarget)
           break
-        case 'lines':
         default:
           changes = diffLines(processedSource, processedTarget)
           break
@@ -153,7 +152,7 @@ export class DiffTool extends BaseTool {
       CliUI.logSuccess(`✓ Diff complete: +${additions} -${deletions} (${unchanged} unchanged)`)
 
       // Display formatted diff
-      console.log('\n' + result.formatted + '\n')
+      console.log(`\n${result.formatted}\n`)
 
       return {
         success: true,
@@ -276,7 +275,6 @@ export class DiffTool extends BaseTool {
         return this.formatSideBySide(changes, showLineNumbers, colorize)
       case 'inline':
         return this.formatInline(changes, showLineNumbers, colorize)
-      case 'unified':
       default:
         return this.formatUnified(changes, context, showLineNumbers, colorize)
     }

@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { simpleConfigManager } from '../core/config-manager'
 import { type SmartCacheManager, smartCache } from '../core/smart-cache-manager'
 import { type RedisProvider, redisProvider } from '../providers/redis/redis-provider'
@@ -243,7 +243,7 @@ export class CacheService extends EventEmitter {
       preferLocal?: boolean
     }
   ): Promise<T | null> {
-    const isOpaque = this.isOpaqueKey(key)
+    const _isOpaque = this.isOpaqueKey(key)
     const strategyResolved: 'redis' | 'smart' | 'both' = options?.strategy as any
     const { preferLocal = false } = options || {}
 

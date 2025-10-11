@@ -10,7 +10,6 @@ import {
   ReadFileResultSchema,
 } from '../schemas/tool-schemas'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
 
@@ -242,7 +241,7 @@ export class ReadFileTool extends BaseTool {
       case '.html':
       case '.xml': {
         // Remove HTML/XML comments with complete sanitization
-        let previousContent
+        let previousContent: any
         do {
           previousContent = content
           content = content.replace(/<!--[\s\S]*?-->/g, '')

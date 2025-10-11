@@ -1,8 +1,8 @@
-import { execSync } from 'child_process'
-import { createHash } from 'crypto'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
+import { execSync } from 'child_process'
+import { createHash } from 'crypto'
 
 export interface FileEmbedding {
   path: string

@@ -1,9 +1,9 @@
 import { type ChildProcess, exec, spawn } from 'node:child_process'
+import chalk from 'chalk'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import { promisify } from 'util'
-import chalk from 'chalk'
 import { createFileFilter } from '../context/file-filter-system'
 import { advancedUI } from '../ui/advanced-cli-ui'
 
@@ -615,8 +615,7 @@ export class ToolsManager {
     }
 
     try {
-      let result
-
+      let result: any
       switch (language) {
         case 'bash':
           result = await this.runCommand('bash', [tempFile])
@@ -794,8 +793,8 @@ export class ToolsManager {
     const files = await this.listFiles('.')
     const structure = this.buildDirectoryStructure(files)
 
-    let packageInfo
-    let framework
+    let packageInfo: any
+    let framework: any
     const technologies: string[] = []
 
     try {

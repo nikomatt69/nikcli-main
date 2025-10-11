@@ -1,6 +1,6 @@
-import { EventEmitter } from 'events'
 import { existsSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { EventEmitter } from 'events'
 import type {
   Agent,
   AgentConfig,
@@ -61,7 +61,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
   // Monitoring
   private vmMetrics: VMMetrics
 
-  constructor(workingDirectory: string, config: VMAgentConfig = {}) {
+  constructor(_workingDirectory: string, config: VMAgentConfig = {}) {
     super()
 
     this.id = config.agentId || `vm-agent-${Date.now()}`
@@ -406,7 +406,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
       // Support OS-only VMs: repository can be empty to just boot the OS image
       let repositoryTarget = ''
       let isLocal = false
-      if (repoUrl && repoUrl.trim()) {
+      if (repoUrl?.trim()) {
         const resolved = this.resolveRepositoryTarget(repoUrl)
         repositoryTarget = resolved.target
         isLocal = resolved.isLocal

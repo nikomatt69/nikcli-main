@@ -1,8 +1,8 @@
-import crypto from 'crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
+import crypto from 'crypto'
 import { TOKEN_LIMITS } from '../config/token-limits'
 
 // Type definitions
@@ -321,7 +321,7 @@ export class ProgressiveTokenManager {
     const cacheKey = `summary_${chunk.id}`
 
     if (this.summaryCache.has(cacheKey)) {
-      return this.summaryCache.get(cacheKey)!
+      return this.summaryCache.get(cacheKey) || {}
     }
 
     // Extract key information from messages
@@ -428,7 +428,7 @@ export class ProgressiveTokenManager {
   async resumeFromCheckpoint(checkpointId: string): Promise<ProcessingCheckpoint | null> {
     // Try memory first
     if (this.checkpoints.has(checkpointId)) {
-      return this.checkpoints.get(checkpointId)!
+      return this.checkpoints.get(checkpointId) || {}
     }
 
     // Try disk

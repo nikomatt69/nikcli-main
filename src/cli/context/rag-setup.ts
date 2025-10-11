@@ -37,7 +37,7 @@ export async function initializeRAG() {
       maxSizeBytes: 500_000,
       rootDir: process.cwd(),
     })
-  } catch (error) {
+  } catch (_error) {
     // Ignore indexing errors
   }
 

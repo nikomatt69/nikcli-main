@@ -8,12 +8,12 @@
  * - Design token extraction and component library access
  */
 
-import { spawn } from 'child_process'
-import { EventEmitter } from 'events'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import axios, { type AxiosInstance } from 'axios'
 import chalk from 'chalk'
+import { spawn } from 'child_process'
+import { EventEmitter } from 'events'
 import { imageGenerator } from '../providers/image'
 import { approvalSystem } from '../ui/approval-system'
 
@@ -908,7 +908,7 @@ export default FigmaComponent`
       setTimeout(() => reject(new Error('Approval request timed out after 10 seconds')), 10000)
     })
 
-    let response
+    let response: any
     try {
       response = (await Promise.race([approvalPromise, timeoutPromise])) as any
     } catch (error: any) {
@@ -1183,8 +1183,7 @@ export default FigmaComponent`
   private extractUIElements(jsxContent: string): string[] {
     const elementPattern = /<(\w+)/g
     const elements = new Set<string>()
-    let match
-
+    let match: any
     while ((match = elementPattern.exec(jsxContent)) !== null) {
       const element = match[1].toLowerCase()
       if (!['div', 'span'].includes(element)) {
@@ -1198,8 +1197,7 @@ export default FigmaComponent`
   private extractStyleClasses(componentCode: string): string[] {
     const classPattern = /className\s*=\s*["'`]([^"'`]+)["'`]/g
     const classes = new Set<string>()
-    let match
-
+    let match: any
     while ((match = classPattern.exec(componentCode)) !== null) {
       const classNames = match[1].split(/\s+/)
       classNames.forEach((cls) => classes.add(cls))

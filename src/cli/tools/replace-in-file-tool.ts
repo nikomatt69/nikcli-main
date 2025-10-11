@@ -2,7 +2,6 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
-import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
 

@@ -111,7 +111,7 @@ export class MainOrchestrator {
 
       advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
-      advancedUI.logError('❌ Error during shutdown: ' + error)
+      advancedUI.logError(`❌ Error during shutdown: ${error}`)
     } finally {
       process.exit(0)
     }
@@ -152,7 +152,7 @@ export class MainOrchestrator {
 
       advancedUI.logSuccess('✓ Error recovery completed')
     } catch (recoveryError) {
-      advancedUI.logError('❌ Recovery failed: ' + recoveryError)
+      advancedUI.logError(`❌ Recovery failed: ${recoveryError}`)
     }
   }
 
@@ -344,7 +344,7 @@ export class MainOrchestrator {
           await service.fn()
 
           // Mark as initialized
-          const state = this.serviceStates.get(service.name)!
+          const state = this.serviceStates.get(service.name) || {}
           state.initialized = true
 
           advancedUI.logSuccess(` ${service.name} initialized`)
@@ -352,7 +352,7 @@ export class MainOrchestrator {
           advancedUI.logError(` ${service.name} failed: ${error.message}`)
 
           // Mark error
-          const state = this.serviceStates.get(service.name)!
+          const state = this.serviceStates.get(service.name) || {}
           state.error = error
 
           // Rollback initialized services
@@ -410,7 +410,7 @@ export class MainOrchestrator {
   /**
    * Rollback initialization on failure
    */
-  private async rollbackInitialization(failedPhase: 'core' | 'dependent' | 'all'): Promise<void> {
+  private async rollbackInitialization(_failedPhase: 'core' | 'dependent' | 'all'): Promise<void> {
     advancedUI.logFunctionUpdate('info', `\n Rolling back initialization...`)
 
     // Get list of initialized services
@@ -426,7 +426,7 @@ export class MainOrchestrator {
       try {
         advancedUI.logFunctionUpdate('info', `   Cleaning up ${serviceName}...`)
         // Services should implement their own cleanup if needed
-        const state = this.serviceStates.get(serviceName)!
+        const state = this.serviceStates.get(serviceName) || {}
         state.initialized = false
       } catch (error: any) {
         advancedUI.logWarning(` Cleanup warning for ${serviceName}: ${error.message}`)

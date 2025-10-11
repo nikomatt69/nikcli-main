@@ -1,6 +1,6 @@
 import * as fs from 'fs'
-import * as path from 'path'
 import { globby } from 'globby'
+import * as path from 'path'
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'

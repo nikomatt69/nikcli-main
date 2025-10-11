@@ -452,7 +452,7 @@ export class BackgroundAgentService extends EventEmitter {
       if (!retryResult.success) {
         throw new Error(`Failed to setup environment: ${retryResult.errors?.join(', ')}`)
       }
-      return retryResult.environment!
+      return retryResult.environment
     }
 
     if (envResult.warnings && envResult.warnings.length > 0) {
@@ -461,7 +461,7 @@ export class BackgroundAgentService extends EventEmitter {
       })
     }
 
-    return envResult.environment!
+    return envResult.environment
   }
 
   /**
@@ -527,7 +527,7 @@ export class BackgroundAgentService extends EventEmitter {
       throw new Error(`Playbook parse error: ${playbookResult.errors?.join(', ')}`)
     }
 
-    const playbook = playbookResult.playbook!
+    const playbook = playbookResult.playbook
     await this.logJob(job, 'info', `Executing playbook: ${playbook.name}`)
 
     // Execute each step
@@ -581,7 +581,7 @@ export class BackgroundAgentService extends EventEmitter {
    * Execute shell command and return output
    */
   private async executeShellCommandWithOutput(
-    job: BackgroundJob,
+    _job: BackgroundJob,
     workingDir: string,
     command: string
   ): Promise<string> {

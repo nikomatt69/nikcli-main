@@ -1,4 +1,3 @@
-import { execSync } from 'child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { createAnthropic } from '@ai-sdk/anthropic'
@@ -7,12 +6,19 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createVercel } from '@ai-sdk/vercel'
 import { type CoreMessage, type CoreTool, generateText, streamText, tool } from 'ai'
+import { execSync } from 'child_process'
 import { z } from 'zod'
+import {
+  detectReasoningSupport,
+  extractReasoning,
+  getModelReasoningSummary,
+  getReasoningEnabledModels,
+  shouldEnableReasoning,
+} from '../ai/reasoning-detector'
 import { getRAGMiddleware } from '../context/rag-setup'
 import { simpleConfigManager } from '../core/config-manager'
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import type { OutputStyle } from '../types/output-styles'
-import { ReasoningDetector } from './reasoning-detector'
 
 export interface ModelConfig {
   provider: 'openai' | 'anthropic' | 'google' | 'vercel' | 'gateway' | 'openrouter'
@@ -54,7 +60,7 @@ export class ModernAIProvider {
     }
 
     // Auto-detect based on model capabilities
-    return ReasoningDetector.shouldEnableReasoning(config.provider, config.model)
+    return shouldEnableReasoning(config.provider, config.model)
   }
 
   /**
@@ -65,7 +71,7 @@ export class ModernAIProvider {
     if (!config) return
 
     try {
-      const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+      const summary = getModelReasoningSummary(config.provider, config.model)
       const msg = `[Reasoning] ${config.model}: ${summary} - ${enabled ? 'ENABLED' : 'DISABLED'}`
       console.log(require('chalk').dim(msg))
     } catch {
@@ -427,7 +433,8 @@ export class ModernAIProvider {
 
     if (structure?.directories) {
       structure.directories.forEach((dir: any) => {
-        this.extractFileExtensions(dir).forEach((ext) => extensions.add(ext))
+        const dirExtensions = this.extractFileExtensions(dir)
+        dirExtensions.forEach((ext) => extensions.add(ext))
       })
     }
 
@@ -523,7 +530,7 @@ export class ModernAIProvider {
     if (reasoningEnabled) {
       const config = simpleConfigManager?.getCurrentModel() as any
       if (config) {
-        const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+        const summary = getModelReasoningSummary(config.provider, config.model)
         yield {
           type: 'reasoning',
           reasoningSummary: summary,
@@ -613,7 +620,7 @@ export class ModernAIProvider {
       if (reasoningEnabled) {
         const config = simpleConfigManager?.getCurrentModel() as any
         if (config) {
-          reasoningData = ReasoningDetector.extractReasoning(result, config.provider)
+          reasoningData = extractReasoning(result, config.provider)
         }
       }
 
@@ -679,8 +686,8 @@ export class ModernAIProvider {
       }
     }
 
-    const capabilities = ReasoningDetector.detectReasoningSupport(config.provider, config.model)
-    const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
+    const capabilities = detectReasoningSupport(config.provider, config.model)
+    const summary = getModelReasoningSummary(config.provider, config.model)
     const enabled = this.shouldEnableReasoning()
 
     return {
@@ -693,7 +700,7 @@ export class ModernAIProvider {
 
   // Get list of all reasoning-enabled models
   getReasoningEnabledModels(): string[] {
-    return ReasoningDetector.getReasoningEnabledModels()
+    return getReasoningEnabledModels()
   }
 
   /**

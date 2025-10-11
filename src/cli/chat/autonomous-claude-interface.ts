@@ -1587,7 +1587,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
         if (process.stdin.isTTY && (process.stdin as any).isRaw) {
           ;(process.stdin as any).setRawMode(false)
         }
-      } catch (error) {
+      } catch (_error) {
         // Ignore raw mode errors
       }
 
@@ -1606,7 +1606,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     if (this.rl && !(this.rl as any).closed) {
       try {
         this.rl.close()
-      } catch (error) {
+      } catch (_error) {
         // Ignore close errors
       }
     }

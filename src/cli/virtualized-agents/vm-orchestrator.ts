@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import { CliUI } from '../utils/cli-ui'
 import type { ContainerManager } from './container-manager'
 import type { VMMetrics } from './secure-vm-agent'
 import { vmChatBridge } from './vm-chat-bridge'

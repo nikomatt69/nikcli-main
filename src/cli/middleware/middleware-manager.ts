@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import type { ModuleContext } from '../core/module-manager'
 import { logger } from '../utils/logger'
 import { MiddlewareContextBuilder } from './middleware-context'

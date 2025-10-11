@@ -11,7 +11,6 @@ import { type ToolRecommendation, toolRouter } from './tool-router'
 export class CognitiveRouteAnalyzer {
   private workingDirectory: string
   private analysisHistory: Map<string, CognitiveAnalysisResult> = new Map()
-  private routePerformance: Map<string, RoutePerformanceMetrics> = new Map()
   private dynamicSelector: ReturnType<typeof createDynamicToolSelector>
 
   constructor(workingDirectory: string) {
@@ -205,7 +204,7 @@ export class CognitiveRouteAnalyzer {
     intentAnalysis: IntentAnalysis
   ): Promise<ToolRecommendation[]> {
     // Usa il tool router con cognitive context
-    const routingContext = {
+    const _routingContext = {
       userIntent: message,
       projectType: this.detectProjectType(),
       currentWorkspace: this.workingDirectory,
@@ -280,7 +279,7 @@ export class CognitiveRouteAnalyzer {
    * Genera piano di routing dettagliato
    */
   private generateRoutePlan(
-    cognition: TaskCognition,
+    _cognition: TaskCognition,
     tools: ToolRecommendation[],
     strategy: ExecutionStrategy
   ): RoutePlan {
@@ -350,7 +349,7 @@ export class CognitiveRouteAnalyzer {
   /**
    * Valuta i rischi del routing
    */
-  private assessRouteRisks(cognition: TaskCognition, plan: RoutePlan): RiskAssessment {
+  private assessRouteRisks(_cognition: TaskCognition, plan: RoutePlan): RiskAssessment {
     const risks: Risk[] = []
 
     // Rischio complessità
@@ -408,7 +407,7 @@ export class CognitiveRouteAnalyzer {
   /**
    * Genera route di fallback
    */
-  private generateFallbackRoutes(cognition: TaskCognition, tools: ToolRecommendation[]): FallbackRoute[] {
+  private generateFallbackRoutes(_cognition: TaskCognition, tools: ToolRecommendation[]): FallbackRoute[] {
     const fallbacks: FallbackRoute[] = []
 
     // Fallback 1: Tool alternativi
@@ -563,7 +562,7 @@ export class CognitiveRouteAnalyzer {
 
     // File patterns
     const filePattern = /([a-zA-Z0-9_-]+\.(ts|js|tsx|jsx|json|md|css|html|py))/g
-    let match
+    let match: any
     while ((match = filePattern.exec(message)) !== null) {
       entities.push({
         type: 'file',
@@ -594,7 +593,7 @@ export class CognitiveRouteAnalyzer {
     return entities
   }
 
-  private determineUrgency(message: string, context?: any): 'low' | 'normal' | 'high' | 'critical' {
+  private determineUrgency(message: string, _context?: any): 'low' | 'normal' | 'high' | 'critical' {
     if (/\b(urgent|asap|immediately|critical|emergency)\b/i.test(message)) return 'critical'
     if (/\b(soon|quickly|priority|important)\b/i.test(message)) return 'high'
     if (/\b(later|eventually|when possible)\b/i.test(message)) return 'low'
@@ -611,7 +610,7 @@ export class CognitiveRouteAnalyzer {
     return deps
   }
 
-  private extractContexts(message: string, history?: any[]): string[] {
+  private extractContexts(message: string, _history?: any[]): string[] {
     const contexts: string[] = []
 
     if (/\breact|frontend|ui|component\b/i.test(message)) contexts.push('frontend')
@@ -622,7 +621,7 @@ export class CognitiveRouteAnalyzer {
     return contexts
   }
 
-  private estimateTaskComplexity(intent: string, entities: any[], dependencies: string[], complexity: string): number {
+  private estimateTaskComplexity(_intent: string, entities: any[], dependencies: string[], complexity: string): number {
     let score = 0
 
     // Base complexity
@@ -723,14 +722,14 @@ export class CognitiveRouteAnalyzer {
     return Math.min(score, 1.0)
   }
 
-  private calculateAnalyticalScore(message: string, cognition: TaskCognition): number {
+  private calculateAnalyticalScore(_message: string, cognition: TaskCognition): number {
     let score = 0
     if (cognition.intent.primary === 'analyze') score += 0.6
     if (cognition.requiredCapabilities.includes('code-analysis')) score += 0.4
     return Math.min(score, 1.0)
   }
 
-  private calculateOperationalScore(message: string, cognition: TaskCognition): number {
+  private calculateOperationalScore(_message: string, cognition: TaskCognition): number {
     let score = 0
     if (['deploy', 'test'].includes(cognition.intent.primary)) score += 0.5
     if (cognition.contexts.includes('devops')) score += 0.5
@@ -836,12 +835,12 @@ export class CognitiveRouteAnalyzer {
     return merged.sort((a, b) => b.confidence - a.confidence).slice(0, 10)
   }
 
-  private isTaskParallelizable(cognition: TaskCognition, tools: ToolRecommendation[]): boolean {
+  private isTaskParallelizable(_cognition: TaskCognition, tools: ToolRecommendation[]): boolean {
     // Se ci sono poche dipendenze e i tool sono indipendenti
     return cognition.dependencies.length <= 2 && tools.length > 2
   }
 
-  private estimateDuration(cognition: TaskCognition, tools: ToolRecommendation[], strategy: string): number {
+  private estimateDuration(_cognition: TaskCognition, tools: ToolRecommendation[], strategy: string): number {
     const baseTime = cognition.estimatedComplexity * 1000 // ms per complexity point
     const toolTime = tools.length * 2000 // 2s per tool
 
@@ -901,7 +900,7 @@ export class CognitiveRouteAnalyzer {
     return tools.filter((t) => t.confidence >= 0.4 && t.confidence <= 0.7)
   }
 
-  private calculateOverallConfidence(cognition: TaskCognition, tools: ToolRecommendation[]): number {
+  private calculateOverallConfidence(_cognition: TaskCognition, tools: ToolRecommendation[]): number {
     const intentConfidence = cognition.intent.confidence
     const avgToolConfidence = tools.reduce((sum, t) => sum + t.confidence, 0) / tools.length
     const complexityFactor = 1 - (cognition.estimatedComplexity / 10) * 0.3

@@ -1,10 +1,10 @@
 // API Key Manager - Hierarchical key resolution
 // Priority: User local env > User config > Cloud service (with user's keys)
 
+import chalk from 'chalk'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
-import chalk from 'chalk'
 
 export type AIProvider =
   | 'anthropic'
@@ -61,7 +61,7 @@ export class APIKeyManager {
         const config = JSON.parse(content)
         this.userConfig = config.apiKeys || {}
       }
-    } catch (error) {
+    } catch (_error) {
       console.warn(chalk.yellow('⚠️  Could not load user config, using defaults'))
     }
   }
@@ -287,7 +287,7 @@ export class APIKeyManager {
       const content = fs.readFileSync(this.userConfigPath, 'utf-8')
       const config = JSON.parse(content)
 
-      if (config.apiKeys && config.apiKeys[provider]) {
+      if (config.apiKeys?.[provider]) {
         delete config.apiKeys[provider]
         delete this.userConfig[provider]
 

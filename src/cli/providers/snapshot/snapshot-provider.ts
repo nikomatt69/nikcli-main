@@ -1,7 +1,7 @@
-import { EventEmitter } from 'events'
 import * as fs from 'node:fs/promises'
-import * as path from 'path'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
+import * as path from 'path'
 import { simpleConfigManager } from '../../core/config-manager'
 import { structuredLogger } from '../../utils/structured-logger'
 
@@ -114,7 +114,7 @@ export class SnapshotProvider extends EventEmitter {
   }
 
   private async initializeLocal(): Promise<void> {
-    const snapshotDir = this.config.localPath!
+    const snapshotDir = this.config.localPath
 
     try {
       await fs.access(snapshotDir)
@@ -309,7 +309,7 @@ export class SnapshotProvider extends EventEmitter {
 
     // Apply filters
     if (options.name) {
-      results = results.filter((s) => s.name.toLowerCase().includes(options.name!.toLowerCase()))
+      results = results.filter((s) => s.name.toLowerCase().includes(options.name?.toLowerCase()))
     }
 
     if (options.tags && options.tags.length > 0) {
@@ -317,7 +317,7 @@ export class SnapshotProvider extends EventEmitter {
     }
 
     if (options.dateRange) {
-      results = results.filter((s) => s.timestamp >= options.dateRange!.start && s.timestamp <= options.dateRange!.end)
+      results = results.filter((s) => s.timestamp >= options.dateRange?.start && s.timestamp <= options.dateRange?.end)
     }
 
     if (options.author) {

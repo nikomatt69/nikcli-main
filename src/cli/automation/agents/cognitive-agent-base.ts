@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
-import { type AgentMetrics, type AgentTaskResult, BaseAgent } from './base-agent'
+import { type AgentTaskResult, BaseAgent } from './base-agent'
 import type {
   AgentPerformanceMetrics,
   CognitiveCapabilities,
@@ -193,7 +193,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
   /**
    * 📊 Update cognitive memory with task execution results
    */
-  updateCognitiveMemory(cognition: TaskCognition, result: any, success: boolean): void {
+  updateCognitiveMemory(_cognition: TaskCognition, result: any, success: boolean): void {
     try {
       const duration = Date.now() // Simplified - should be actual duration
 
@@ -581,7 +581,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
   }
 
   private determineTaskComplexity(normalizedTask: string): TaskCognition['intent']['complexity'] {
-    const score = 0
+    const _score = 0
 
     const complexityIndicators = {
       low: ['simple', 'basic', 'quick', 'small'],
@@ -634,7 +634,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
 
   private async createOrchestrationPhases(
     cognition: TaskCognition,
-    strategy: OrchestrationPlan['strategy']
+    _strategy: OrchestrationPlan['strategy']
   ): Promise<OrchestrationPhase[]> {
     const phases: OrchestrationPhase[] = []
 
@@ -745,7 +745,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
     }
   }
 
-  private generateFallbackStrategies(cognition: TaskCognition, strategy: OrchestrationPlan['strategy']): string[] {
+  private generateFallbackStrategies(_cognition: TaskCognition, strategy: OrchestrationPlan['strategy']): string[] {
     const fallbacks = ['simplify-task-scope', 'request-human-assistance', 'use-alternative-approach']
 
     if (cognition.riskLevel === 'high') {
@@ -778,7 +778,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
       this.cognitiveMemory.taskPatterns.set(intentType, [])
     }
 
-    const patterns = this.cognitiveMemory.taskPatterns.get(intentType)!
+    const patterns = this.cognitiveMemory.taskPatterns.get(intentType) || {}
     patterns.push(cognition)
 
     // Keep only recent patterns
@@ -792,7 +792,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
       this.cognitiveMemory.successfulStrategies.set(intentType, [])
     }
 
-    const strategies = this.cognitiveMemory.successfulStrategies.get(intentType)!
+    const strategies = this.cognitiveMemory.successfulStrategies.get(intentType) || {}
     strategies.push(plan)
 
     // Keep only recent successful strategies
@@ -801,7 +801,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
     }
   }
 
-  private updateCognitiveMetrics(cognition: TaskCognition, success: boolean, duration: number): void {
+  private updateCognitiveMetrics(_cognition: TaskCognition, success: boolean, duration: number): void {
     // Update efficiency based on complexity vs duration
     const expectedDuration = cognition.estimatedComplexity * 60 // seconds
     const efficiency = expectedDuration / Math.max(duration, 1)
@@ -823,14 +823,14 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
     }
 
     // Clean old learning patterns
-    for (const [key, patterns] of this.cognitiveMemory.taskPatterns) {
+    for (const [_key, patterns] of this.cognitiveMemory.taskPatterns) {
       if (patterns.length > 50) {
         patterns.splice(0, patterns.length - 50)
       }
     }
   }
 
-  private analyzeFailurePatterns(taskHistory: TaskCognition[]): string[] {
+  private analyzeFailurePatterns(_taskHistory: TaskCognition[]): string[] {
     const optimizations: string[] = []
 
     // Analyze recent failures from memory

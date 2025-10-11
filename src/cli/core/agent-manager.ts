@@ -30,7 +30,6 @@ export class AgentManager extends EventEmitter {
   private guidanceManager: GuidanceManager
   private configManager: SimpleConfigManager
   private config: CliConfig
-  private activeTaskCount = 0
   private taskHistory = new Map<string, AgentTaskResult>()
   private queueLocks = new AsyncLock()
 
@@ -239,7 +238,7 @@ export class AgentManager extends EventEmitter {
   /**
    * Schedule a task for execution
    */
-  async scheduleTask(task: AgentTask, preferredAgentId?: string): Promise<string> {
+  async scheduleTask(_task: AgentTask, preferredAgentId?: string): Promise<string> {
     await structuredLogger.info(
       'Scheduling task',
       JSON.stringify({

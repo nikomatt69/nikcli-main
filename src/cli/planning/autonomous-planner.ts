@@ -1,6 +1,5 @@
-import { EventEmitter } from 'events'
 import type { CoreMessage } from 'ai'
-import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { nanoid } from 'nanoid'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
 import { WorkspaceRAG } from '../context/workspace-rag'
@@ -202,7 +201,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
     }
 
     // Parse AI response into execution plan
-    let planData
+    let planData: any
     try {
       // Extract JSON from AI response
       const jsonMatch = fullResponse.match(/\{[\s\S]*\}/)

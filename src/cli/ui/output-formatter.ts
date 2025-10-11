@@ -137,7 +137,7 @@ export class OutputFormatter {
     if (!match) return text
     const num = match[1]
     const content = match[2]
-    return `  ${chalk.yellow(num + '.')} ${chalk.white(content)}`
+    return `  ${chalk.yellow(`${num}.`)} ${chalk.white(content)}`
   }
 
   static formatCodeBlock(code: string): string {
@@ -208,7 +208,7 @@ export class OutputFormatter {
     if (!match) return text
     const key = match[1]
     const value = match[2]
-    return `${chalk.blue.bold(key + ':')} ${chalk.white(value)}`
+    return `${chalk.blue.bold(`${key}:`)} ${chalk.white(value)}`
   }
 
   static formatPlainText(text: string): string {
@@ -314,7 +314,7 @@ export class OutputFormatter {
     const empty = width - filled
     const bar = '█'.repeat(filled) + '░'.repeat(empty)
     const color = percentage < 30 ? chalk.red : percentage < 70 ? chalk.yellow : chalk.green
-    return `[${color(bar)}] ${chalk.white(percentage + '%')}`
+    return `[${color(bar)}] ${chalk.white(`${percentage}%`)}`
   }
 
   static formatStructuredReport(report: StructuredReport): string {

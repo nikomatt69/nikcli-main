@@ -1,9 +1,9 @@
 import { type ChildProcess, execSync, spawn } from 'node:child_process'
-import { EventEmitter } from 'events'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { createFileFilter } from '../context/file-filter-system'
 
 // ============================================================================
@@ -586,7 +586,7 @@ export class IDEDiagnosticServer extends EventEmitter {
     const allDiagnostics: Diagnostic[] = []
 
     // Collect from cache
-    for (const [_key, diagnostics] of this.cache['cache'].entries()) {
+    for (const [_key, diagnostics] of this.cache.cache.entries()) {
       allDiagnostics.push(...diagnostics)
     }
 
@@ -944,8 +944,8 @@ export class IDEDiagnosticServer extends EventEmitter {
 
     // Basic project graph - in a real implementation this would be more sophisticated
     try {
-      if (this.detector['packageJson']) {
-        const pkg = this.detector['packageJson']
+      if (this.detector.packageJson) {
+        const pkg = this.detector.packageJson
 
         nodes.push({
           id: pkg.name || 'root',
@@ -1321,7 +1321,7 @@ export class IDEDiagnosticServer extends EventEmitter {
       buildTool: buildTool.available ? buildTool.name : 'none',
       lintTool: lintTool.available ? lintTool.name : 'none',
       testTool: testTool.available ? testTool.name : 'none',
-      cacheSize: this.cache['cache'].size,
+      cacheSize: this.cache.cache.size,
       runningProcesses: this.runningProcesses.size,
     }
 

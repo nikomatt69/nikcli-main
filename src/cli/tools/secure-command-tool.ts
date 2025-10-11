@@ -1,9 +1,9 @@
+import chalk from 'chalk'
 import { exec } from 'child_process'
 import { randomBytes } from 'crypto'
+import inquirer from 'inquirer'
 import * as path from 'path'
 import { promisify } from 'util'
-import chalk from 'chalk'
-import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 
 const execAsync = promisify(exec)

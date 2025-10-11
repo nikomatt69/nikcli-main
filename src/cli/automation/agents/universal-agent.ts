@@ -1,9 +1,9 @@
 import { exec } from 'child_process'
 import { EventEmitter } from 'events'
 import * as fs from 'fs'
+import { nanoid } from 'nanoid'
 import * as path from 'path'
 import { promisify } from 'util'
-import { nanoid } from 'nanoid'
 import { ContextAwareRAGSystem } from '../../context/context-aware-rag'
 import { lspManager } from '../../lsp/lsp-manager'
 import type {
@@ -163,7 +163,6 @@ export class UniversalAgent extends EventEmitter implements Agent {
   public readonly maxConcurrentTasks: number = 3
 
   private workingDirectory: string
-  private context?: AgentContext
   private config: AgentConfig
   private guidance: string = ''
   private currentTaskType?: string
@@ -1655,7 +1654,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
     return phases.reduce((total, phase) => total + phase.estimatedDuration, 0)
   }
 
-  private createFallbackStrategies(cognition: TaskCognition, strategy: OrchestrationPlan['strategy']): string[] {
+  private createFallbackStrategies(_cognition: TaskCognition, strategy: OrchestrationPlan['strategy']): string[] {
     const strategies = ['retry_with_simplified_approach', 'break_into_smaller_tasks']
 
     if (strategy === 'parallel') {

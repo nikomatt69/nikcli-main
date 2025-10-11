@@ -1,7 +1,7 @@
+import chalk from 'chalk'
 import { execSync } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
-import chalk from 'chalk'
 // Import RAG and semantic search capabilities
 import { unifiedRAGSystem } from '../context/rag-system'
 import { semanticSearchEngine } from '../context/semantic-search-engine'
@@ -816,7 +816,7 @@ export class ToolService {
   }
 
   // New tool handlers for documentation
-  private async searchDocumentation(args: { query: string; category?: string; limit?: number }): Promise<any> {
+  private async searchDocumentation(_args: { query: string; category?: string; limit?: number }): Promise<any> {
     try {
       return { success: true, message: 'Documentation search - implement with docLibrary.search()' }
     } catch (error: any) {
@@ -824,7 +824,7 @@ export class ToolService {
     }
   }
 
-  private async smartDocsSearch(args: {
+  private async smartDocsSearch(_args: {
     query: string
     autoLoad?: boolean
     maxResults?: number
@@ -837,7 +837,7 @@ export class ToolService {
     }
   }
 
-  private async docsRequest(args: { concept: string; context: string; urgency?: string }): Promise<any> {
+  private async docsRequest(_args: { concept: string; context: string; urgency?: string }): Promise<any> {
     try {
       return { success: true, message: 'Docs request - implement with docsRequestTool' }
     } catch (error: any) {
@@ -845,7 +845,7 @@ export class ToolService {
     }
   }
 
-  private async webSearch(args: { query: string; type?: string }): Promise<any> {
+  private async webSearch(_args: { query: string; type?: string }): Promise<any> {
     try {
       return { success: true, message: 'Web search - implement with web search provider' }
     } catch (error: any) {
@@ -853,7 +853,7 @@ export class ToolService {
     }
   }
 
-  private async browseWeb(args: { url: string; action?: string }): Promise<any> {
+  private async browseWeb(_args: { url: string; action?: string }): Promise<any> {
     try {
       return { success: true, message: 'Browse web - implement with browserbase tool' }
     } catch (error: any) {
@@ -861,7 +861,7 @@ export class ToolService {
     }
   }
 
-  private async visionAnalysis(args: { imagePath: string; prompt?: string }): Promise<any> {
+  private async visionAnalysis(_args: { imagePath: string; prompt?: string }): Promise<any> {
     try {
       return { success: true, message: 'Vision analysis - implement with vision analysis tool' }
     } catch (error: any) {
@@ -869,7 +869,7 @@ export class ToolService {
     }
   }
 
-  private async imageGeneration(args: { prompt: string; model?: string }): Promise<any> {
+  private async imageGeneration(_args: { prompt: string; model?: string }): Promise<any> {
     try {
       return { success: true, message: 'Image generation - implement with image generation tool' }
     } catch (error: any) {
@@ -877,7 +877,7 @@ export class ToolService {
     }
   }
 
-  private async blockchainOps(args: { action: string; params?: any }): Promise<any> {
+  private async blockchainOps(_args: { action: string; params?: any }): Promise<any> {
     try {
       return { success: true, message: 'Blockchain ops - implement with coinbase agentkit' }
     } catch (error: any) {
@@ -885,7 +885,7 @@ export class ToolService {
     }
   }
 
-  private async figmaOps(args: { action: string; params?: any }): Promise<any> {
+  private async figmaOps(_args: { action: string; params?: any }): Promise<any> {
     try {
       return { success: true, message: 'Figma ops - implement with figma tool' }
     } catch (error: any) {
@@ -923,7 +923,7 @@ export class ToolService {
     return {
       mode: config.securityMode,
       devModeActive: this.isDevModeActive(),
-      sessionApprovals: this.policyManager['sessionApprovals'].size,
+      sessionApprovals: this.policyManager.sessionApprovals.size,
       toolPolicies: toolsWithSecurity.map((tool) => ({
         name: tool.name,
         risk: tool.riskLevel || 'unknown',
