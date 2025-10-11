@@ -44,7 +44,7 @@ try {
   // Vercel SDK not installed
 }
 
-import * as fs from 'node:fs'
+import * as fs from 'fs'
 import type { CoreTool } from 'ai'
 import type { Address, Hex, LocalAccount } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'

@@ -1,7 +1,7 @@
 // src/cli/background-agents/core/environment-parser.ts
 
 import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
+import * as path from 'path'
 import { z } from 'zod'
 import type { NikEnvironment } from '../types'
 

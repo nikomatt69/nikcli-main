@@ -1,11 +1,11 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Test Coherence Verification Script
  * Verifies that all tests are consistent and coherent
  */
 
-const fs = require('node:fs').promises
-const _path = require('node:path')
+const fs = require('fs').promises
+const _path = require('path')
 
 console.log('🔍 Verifying Test Coherence...\n')
 

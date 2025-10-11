@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import {
   type SnapshotEntry,
@@ -27,7 +27,7 @@ export interface SnapshotTemplate {
 export class SnapshotService extends EventEmitter {
   private templates: Map<string, SnapshotTemplate> = new Map()
   private isInitialized = false
-  private scheduleTimers: Map<string, NodeJS.Timeout> = new Map()
+  private scheduleTimers: Map<string, Timer> = new Map()
 
   constructor() {
     super()
@@ -460,7 +460,7 @@ export class SnapshotService extends EventEmitter {
     const exportPath = `./snapshot_${snapshotId.substring(0, 8)}.${format}`
 
     if (format === 'json') {
-      const fs = require('node:fs/promises')
+      const fs = require('fs/promises')
       await fs.writeFile(exportPath, JSON.stringify(snapshot, null, 2))
     } else if (format === 'zip') {
       // Would implement ZIP creation here

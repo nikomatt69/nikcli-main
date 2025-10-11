@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
 import { cacheService } from '../../services/cache-service'
@@ -54,7 +54,7 @@ export class AuthProvider extends EventEmitter {
   private currentSession: AuthSession | null = null
   private currentProfile: UserProfile | null = null
   private config: AuthConfig
-  private refreshTimer?: NodeJS.Timeout
+  private refreshTimer?: Timer
 
   constructor() {
     super()

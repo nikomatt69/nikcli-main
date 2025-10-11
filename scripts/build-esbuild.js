@@ -1,5 +1,5 @@
 const esbuild = require('esbuild')
-const { readFileSync } = require('node:fs')
+const { readFileSync } = require('fs')
 
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
 

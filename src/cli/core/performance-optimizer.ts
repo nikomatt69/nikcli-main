@@ -1,4 +1,4 @@
-import { performance } from 'node:perf_hooks'
+import { performance } from 'perf_hooks'
 import type { CoreMessage } from 'ai'
 
 export interface PerformanceMetrics {

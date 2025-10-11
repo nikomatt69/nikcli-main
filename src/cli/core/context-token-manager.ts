@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
 import { structuredLogger } from '../utils/structured-logger'

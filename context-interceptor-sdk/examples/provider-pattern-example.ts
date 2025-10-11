@@ -126,7 +126,7 @@ async function demonstrateProviderPattern() {
 }
 
 // Run the demo
-if (require.main === module) {
+if (import.meta.main) {
     demonstrateProviderPattern().catch(console.error);
 }
 

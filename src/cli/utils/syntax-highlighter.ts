@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import hljs from 'highlight.js'
-import marked from 'marked'
+import { marked } from 'marked'
 import TerminalRenderer from 'marked-terminal'
 
 /**

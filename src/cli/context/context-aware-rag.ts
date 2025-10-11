@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash } from 'crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'

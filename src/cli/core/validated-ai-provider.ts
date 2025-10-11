@@ -130,7 +130,7 @@ export class ValidatedAIProvider {
 
           // WRITE FILE
           writeFileSync(fullPath, processedContent, 'utf-8')
-          const stats = require('node:fs').statSync(fullPath)
+          const stats = require('fs').statSync(fullPath)
 
           const result: ValidatedWriteResult = {
             success: true,

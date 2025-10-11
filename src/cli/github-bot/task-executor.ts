@@ -1,6 +1,6 @@
 // src/cli/github-bot/task-executor.ts
 
-import { execSync } from 'node:child_process'
+import { execSync } from 'child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -215,8 +215,8 @@ export class TaskExecutor {
     console.log(`⏳ Monitoring background job ${jobId}`)
 
     return new Promise((resolve, reject) => {
-      let checkInterval: NodeJS.Timeout | null = null
-      let timeoutHandle: NodeJS.Timeout | null = null
+      let checkInterval: Timer | null = null
+      let timeoutHandle: Timer | null = null
 
       const cleanup = () => {
         if (checkInterval) clearInterval(checkInterval)

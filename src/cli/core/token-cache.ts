@@ -1,6 +1,6 @@
-import crypto from 'node:crypto'
+import crypto from 'crypto'
 import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
+import * as path from 'path'
 import chalk from 'chalk'
 import { QuietCacheLogger } from './performance-optimizer'
 import { tokenTelemetry } from './token-telemetry'

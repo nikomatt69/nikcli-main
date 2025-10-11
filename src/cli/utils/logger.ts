@@ -1,6 +1,6 @@
-import * as fs from 'node:fs'
-import * as os from 'node:os'
-import * as path from 'node:path'
+import * as fs from 'fs'
+import * as os from 'os'
+import * as path from 'path'
 import chalk from 'chalk'
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace'
@@ -40,7 +40,7 @@ export class Logger {
   private currentAuditFile?: string
   private logBuffer: LogEntry[] = []
   private auditBuffer: LogEntry[] = []
-  private flushTimer?: NodeJS.Timeout
+  private flushTimer?: Timer
 
   private readonly levelOrder = {
     error: 0,

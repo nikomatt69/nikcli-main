@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
-const { execSync } = require('node:child_process')
-const fs = require('node:fs')
-const path = require('node:path')
+const { execSync } = require('child_process')
+const fs = require('fs')
+const path = require('path')
 
 console.log('🚀 Starting NikCLI distribution export...')
 

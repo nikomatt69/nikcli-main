@@ -4,7 +4,7 @@
  */
 export class AsyncLock {
   private locks = new Map<string, Promise<void>>()
-  private timeouts = new Map<string, NodeJS.Timeout>()
+  private timeouts = new Map<string, Timer>()
   private readonly defaultTimeout = 30000 // 30 seconds
 
   /**

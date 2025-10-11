@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import type { SecureVirtualizedAgent, VMState } from '../virtualized-agents/secure-vm-agent'
 import { advancedUI } from './advanced-cli-ui'
@@ -18,7 +18,7 @@ export class VMStatusIndicator extends EventEmitter {
   private static instance: VMStatusIndicator
   private activeAgents: Map<string, VMAgentStatus> = new Map()
   private displayMode: StatusDisplayMode = 'compact'
-  private updateInterval: NodeJS.Timeout | null = null
+  private updateInterval: Timer | null = null
 
   // UI Configuration
   private readonly UPDATE_INTERVAL = 2000 // 2 seconds

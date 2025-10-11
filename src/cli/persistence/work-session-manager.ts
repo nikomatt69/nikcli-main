@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import chalk from 'chalk'
@@ -80,7 +80,7 @@ export class WorkSessionManager extends EventEmitter {
   private maxSessions: number
   private compressionThreshold: number
   private currentSession: WorkSession | null = null
-  private autoSaveTimer: NodeJS.Timeout | null = null
+  private autoSaveTimer: Timer | null = null
   private operationsSinceLastSave = 0
   private autoSaveThreshold = 10
   private isSaving = false

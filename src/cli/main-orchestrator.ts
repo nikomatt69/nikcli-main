@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Main AI Development Orchestrator
@@ -217,7 +217,7 @@ export class MainOrchestrator {
 
   private checkWorkingDirectory(): boolean {
     const cwd = process.cwd()
-    const fs = require('node:fs')
+    const fs = require('fs')
 
     if (!fs.existsSync(cwd)) {
       advancedUI.logError(` Working directory does not exist: ${cwd}`)
@@ -639,7 +639,7 @@ export class MainOrchestrator {
     }
 
     // Start if run directly
-    if (require.main === module) {
+    if (import.meta.main) {
       const orchestrator = new MainOrchestrator()
       orchestrator.start().catch((error) => {
         advancedUI.logError(' Startup failed:', error)

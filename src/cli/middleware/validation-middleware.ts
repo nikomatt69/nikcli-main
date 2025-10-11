@@ -216,7 +216,7 @@ export class ValidationMiddleware extends BaseMiddleware {
     })
 
     if (request.context.workingDirectory && typeof request.context.workingDirectory === 'string') {
-      if (!require('node:path').isAbsolute(request.context.workingDirectory)) {
+      if (!require('path').isAbsolute(request.context.workingDirectory)) {
         warnings.push({
           field: 'context.workingDirectory',
           value: request.context.workingDirectory,

@@ -1,6 +1,6 @@
-import { exec } from 'node:child_process'
-import { EventEmitter } from 'node:events'
-import { promisify } from 'node:util'
+import { exec } from 'child_process'
+import { EventEmitter } from 'events'
+import { promisify } from 'util'
 import { advancedUI } from '../ui/advanced-cli-ui'
 
 const execAsync = promisify(exec)

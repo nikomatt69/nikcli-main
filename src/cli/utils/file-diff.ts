@@ -1,9 +1,9 @@
 // TODO: Consider refactoring for reduced complexity
 
-import { execFile } from 'node:child_process'
+import { execFile } from 'child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { promisify } from 'node:util'
+import { promisify } from 'util'
 import chalk from 'chalk'
 import * as jsdiff from 'diff'
 

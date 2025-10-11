@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { createServer, type Server } from 'node:http'
 import chalk from 'chalk'
 import cors from 'cors'

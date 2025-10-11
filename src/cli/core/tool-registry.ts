@@ -143,8 +143,8 @@ export class ToolRegistry {
 
   // Resource cleanup tracking
   private sessions: Map<string, any> = new Map()
-  private timers: Set<NodeJS.Timeout> = new Set()
-  private intervals: Set<NodeJS.Timeout> = new Set()
+  private timers: Set<Timer> = new Set()
+  private intervals: Set<Timer> = new Set()
 
   constructor(workingDirectory: string, config: Partial<ToolRegistryConfig> = {}) {
     this.workingDirectory = workingDirectory
@@ -740,14 +740,14 @@ export class ToolRegistry {
   /**
    * Register a timer for cleanup tracking
    */
-  registerTimer(timer: NodeJS.Timeout): void {
+  registerTimer(timer: Timer): void {
     this.timers.add(timer)
   }
 
   /**
    * Register an interval for cleanup tracking
    */
-  registerInterval(interval: NodeJS.Timeout): void {
+  registerInterval(interval: Timer): void {
     this.intervals.add(interval)
   }
 

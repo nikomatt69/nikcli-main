@@ -1,5 +1,5 @@
-import { execSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { execSync } from 'child_process'
+import { createHash } from 'crypto'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, relative, resolve } from 'node:path'
 import chalk from 'chalk'
@@ -105,7 +105,7 @@ export class WorkspaceRAG {
         return pkg.name || 'unnamed-project'
       } catch {}
     }
-    return require('node:path').basename(path)
+    return require('path').basename(path)
   }
 
   // Analisi completa del workspace con RAG

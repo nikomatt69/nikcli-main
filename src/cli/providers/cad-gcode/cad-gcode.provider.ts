@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createAnthropic } from '@ai-sdk/anthropic'

@@ -1,5 +1,5 @@
 import { type ChildProcess, execSync, spawn } from 'node:child_process'
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, join, relative, resolve } from 'node:path'
@@ -119,7 +119,7 @@ class ProjectDetector {
     try {
       const packagePath = join(this.workingDir, 'package.json')
       if (existsSync(packagePath)) {
-        this.packageJson = JSON.parse(require('node:fs').readFileSync(packagePath, 'utf-8'))
+        this.packageJson = JSON.parse(require('fs').readFileSync(packagePath, 'utf-8'))
       }
     } catch (_error) {
       // Package.json not found or invalid - not an error for detection
@@ -558,7 +558,7 @@ export class IDEDiagnosticServer extends EventEmitter {
   private initializeStats(): void {
     // Check system file descriptor limits to prevent EMFILE errors
     try {
-      const { execSync } = require('node:child_process')
+      const { execSync } = require('child_process')
       const limits = execSync('ulimit -n', { encoding: 'utf8' }).trim()
       const maxFd = parseInt(limits, 10)
 
@@ -1131,7 +1131,7 @@ export class IDEDiagnosticServer extends EventEmitter {
       })
 
       // Throttle change events to prevent spam
-      let changeTimeout: NodeJS.Timeout | null = null
+      let changeTimeout: Timer | null = null
       const pendingChanges = new Set<string>()
 
       watcher.on('change', (path: string) => {

@@ -152,7 +152,7 @@ export class PromptManager {
 
       // Verify file hasn't changed
       try {
-        const stats = require('node:fs').statSync(fullPath)
+        const stats = require('fs').statSync(fullPath)
         if (stats.mtime <= cached.lastModified) {
           return cached
         }
@@ -164,7 +164,7 @@ export class PromptManager {
 
     // Load from filesystem
     const content = readFileSync(fullPath, 'utf-8')
-    const stats = require('node:fs').statSync(fullPath)
+    const stats = require('fs').statSync(fullPath)
 
     const prompt: LoadedPrompt = {
       content,
@@ -425,7 +425,7 @@ RESPONSE GUIDELINES:
     }
 
     try {
-      const fs = require('node:fs')
+      const fs = require('fs')
       const files = fs.readdirSync(outputStylesDir)
 
       return files

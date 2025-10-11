@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 // Import RAG and semantic capabilities for enhanced memory
 import { semanticSearchEngine } from '../context/semantic-search-engine'

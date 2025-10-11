@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 // Minimal binary that delegates to the unified entrypoint
 // Keep behavior centralized in src/cli/index.ts

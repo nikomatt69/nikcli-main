@@ -1,6 +1,6 @@
-import { execSync } from 'node:child_process'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
+import { execSync } from 'child_process'
+import * as fs from 'fs'
+import * as path from 'path'
 import chalk from 'chalk'
 // Import RAG and semantic search capabilities
 import { unifiedRAGSystem } from '../context/rag-system'
@@ -438,7 +438,7 @@ export class ToolService {
 
     // Per-execution timeout guard
     const timeoutMs = typeof args?.timeout === 'number' && args.timeout > 0 ? args.timeout : 30000
-    let timeoutHandle: NodeJS.Timeout | undefined
+    let timeoutHandle: Timer | undefined
 
     try {
       if (!compact) console.log(chalk.blue(`🔧 Executing ${toolName}...`))

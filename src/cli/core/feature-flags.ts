@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -59,7 +59,7 @@ export class FeatureFlagManager extends EventEmitter {
   private flags: Map<string, FeatureFlag> = new Map()
   private config: FeatureFlagConfig
   private isInitialized = false
-  private refreshTimer?: NodeJS.Timeout
+  private refreshTimer?: Timer
   private configFilePath: string
 
   constructor(workingDirectory: string, config: Partial<FeatureFlagConfig> = {}) {

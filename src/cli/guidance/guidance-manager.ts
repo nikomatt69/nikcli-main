@@ -1,9 +1,9 @@
-import * as fs from 'node:fs'
-import * as path from 'node:path'
+import * as fs from 'fs'
+import * as path from 'path'
 import chalk from 'chalk'
 import * as chokidar from 'chokidar'
 import * as yaml from 'js-yaml'
-import marked from 'marked'
+import { marked } from 'marked'
 import { structuredLogger } from '../utils/structured-logger'
 
 export interface GuidanceFile {
@@ -42,7 +42,7 @@ export class GuidanceManager {
 
   constructor(workingDirectory: string, globalGuidanceDir?: string) {
     this.workingDirectory = workingDirectory
-    this.globalGuidanceDir = globalGuidanceDir || path.join(require('node:os').homedir(), '.nikcli')
+    this.globalGuidanceDir = globalGuidanceDir || path.join(require('os').homedir(), '.nikcli')
     this.ensureGlobalGuidanceDir()
   }
 

@@ -1,6 +1,6 @@
 import * as fsSync from 'node:fs'
 import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
+import * as path from 'path'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import chalk from 'chalk'
 import { structuredLogger } from '../utils/structured-logger'

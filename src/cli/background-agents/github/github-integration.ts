@@ -558,7 +558,7 @@ export class GitHubIntegration {
    * Verify webhook signature
    */
   static verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
-    const crypto = require('node:crypto')
+    const crypto = require('crypto')
     const expectedSignature = crypto.createHmac('sha256', secret).update(payload, 'utf8').digest('hex')
 
     return crypto.timingSafeEqual(Buffer.from(`sha256=${expectedSignature}`, 'utf8'), Buffer.from(signature, 'utf8'))

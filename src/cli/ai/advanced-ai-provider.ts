@@ -1,7 +1,7 @@
-import { exec } from 'node:child_process'
+import { exec } from 'child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
-import { promisify } from 'node:util'
+import { promisify } from 'util'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGateway } from '@ai-sdk/gateway'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
@@ -430,7 +430,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
     const content = messages
       .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
       .join('|')
-    return require('node:crypto').createHash('md5').update(content).digest('hex').substring(0, 16)
+    return require('crypto').createHash('md5').update(content).digest('hex').substring(0, 16)
   }
 
   // Enhanced system prompt with advanced capabilities (using PromptManager)

@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process'
+import { execSync } from 'child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { createAnthropic } from '@ai-sdk/anthropic'

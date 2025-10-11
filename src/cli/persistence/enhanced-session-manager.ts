@@ -1,5 +1,5 @@
-import { EventEmitter } from 'node:events'
-import { promises as fs } from 'node:fs'
+import { EventEmitter } from 'events'
+import { promises as fs } from 'fs'
 import path from 'node:path'
 import chalk from 'chalk'
 import { v4 as uuidv4 } from 'uuid'

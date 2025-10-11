@@ -1,6 +1,6 @@
 import boxen from 'boxen'
 import chalk from 'chalk'
-import marked from 'marked'
+import { marked } from 'marked'
 import TerminalRenderer from 'marked-terminal'
 import * as readline from 'readline'
 import { modelProvider } from '../ai/model-provider'

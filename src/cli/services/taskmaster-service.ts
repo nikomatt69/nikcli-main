@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'

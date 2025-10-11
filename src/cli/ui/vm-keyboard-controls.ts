@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import * as readline from 'readline'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -28,7 +28,7 @@ export class VMKeyboardControls extends EventEmitter {
   private currentPanel: PanelType | null = null
   private panelContent = ''
   private autoRefresh = true
-  private refreshInterval: NodeJS.Timeout | null = null
+  private refreshInterval: Timer | null = null
 
   // Key mapping
   private readonly keyMappings: KeyMappings = {
@@ -112,7 +112,8 @@ export class VMKeyboardControls extends EventEmitter {
     if (process.stdin.isTTY) {
       readline.emitKeypressEvents(process.stdin)
 
-      process.stdin.on('keypress', (str, key) => {
+      if (typeof process !== 'undefined' && process.stdin && process.stdin.on) {
+        process.stdin.on('keypress', (str, key) => {
         if (!this.isActive) return
 
         this.handleKeypress(str, key)
@@ -482,14 +483,18 @@ export class VMKeyboardControls extends EventEmitter {
         onConfirm()
       }
 
-      process.stdin.removeListener('keypress', confirmHandler)
+      if (typeof process !== 'undefined' && process.stdin && process.stdin.removeListener) {
+        process.stdin.removeListener('keypress', confirmHandler)
+      }
 
       if (this.currentPanel) {
         this.displayPanel()
       }
     }
 
-    process.stdin.on('keypress', confirmHandler)
+    if (typeof process !== 'undefined' && process.stdin && process.stdin.on) {
+      process.stdin.on('keypress', confirmHandler)
+    }
   }
 
   /**

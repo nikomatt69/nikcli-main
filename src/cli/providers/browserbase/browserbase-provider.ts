@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
@@ -591,7 +591,7 @@ export class BrowserbaseProvider extends EventEmitter {
    * Generate cache key
    */
   private generateCacheKey(input: string): string {
-    const crypto = require('node:crypto')
+    const crypto = require('crypto')
     return crypto.createHash('sha256').update(input).digest('hex').substring(0, 16)
   }
 

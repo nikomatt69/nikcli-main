@@ -203,8 +203,8 @@ export class SmartCompletionManager {
     }
 
     try {
-      const fs = require('node:fs')
-      const path = require('node:path')
+      const fs = require('fs')
+      const path = require('path')
 
       let basePath = process.cwd()
       let searchTerm = partialInput

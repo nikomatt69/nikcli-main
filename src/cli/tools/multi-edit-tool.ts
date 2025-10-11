@@ -172,7 +172,7 @@ export class MultiEditTool extends BaseTool {
     for (const backupPath of backupPaths) {
       try {
         const originalPath = this.getOriginalPathFromBackup(backupPath)
-        const fs = require('node:fs')
+        const fs = require('fs')
 
         if (fs.existsSync(backupPath)) {
           fs.copyFileSync(backupPath, originalPath)

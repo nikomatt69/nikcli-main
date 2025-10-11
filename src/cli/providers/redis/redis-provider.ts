@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { Redis } from '@upstash/redis'
 import chalk from 'chalk'
 import { type ConfigType, simpleConfigManager } from '../../core/config-manager'
@@ -56,7 +56,7 @@ export class RedisProvider extends EventEmitter {
   private config: ConfigType['redis'] & { url?: string; token?: string }
   private isConnected = false
   private connectionAttempts = 0
-  private healthCheckInterval?: NodeJS.Timeout
+  private healthCheckInterval?: Timer
   private lastHealthCheck?: RedisHealth
 
   constructor(options?: RedisProviderOptions) {
@@ -452,7 +452,7 @@ export class RedisProvider extends EventEmitter {
    * Generate cache key for vector embedding
    */
   private generateVectorCacheKey(text: string, provider: string, model: string): string {
-    const crypto = require('node:crypto')
+    const crypto = require('crypto')
     const textHash = crypto.createHash('sha256').update(text).digest('hex').substring(0, 16)
     return `vector:${provider}:${model}:${textHash}`
   }
@@ -473,7 +473,7 @@ export class RedisProvider extends EventEmitter {
     }
 
     try {
-      const crypto = require('node:crypto')
+      const crypto = require('crypto')
       const textHash = crypto.createHash('sha256').update(text).digest('hex')
       const cacheKey = this.generateVectorCacheKey(text, provider, model)
 
@@ -525,7 +525,7 @@ export class RedisProvider extends EventEmitter {
       }
 
       // Verify text matches (additional security)
-      const crypto = require('node:crypto')
+      const crypto = require('crypto')
       const textHash = crypto.createHash('sha256').update(text).digest('hex')
       if (vectorEntry.textHash !== textHash) {
         console.log(chalk.yellow('⚠️ Vector cache hash mismatch, invalidating entry'))

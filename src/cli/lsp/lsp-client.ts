@@ -62,7 +62,7 @@ export class LSPClient {
   private readonly CACHE_TTL = 30000 // 30 seconds
 
   // Debouncing
-  private pendingRequests: Map<string, NodeJS.Timeout> = new Map()
+  private pendingRequests: Map<string, Timer> = new Map()
   private readonly DEBOUNCE_DELAY = 300 // 300ms
 
   constructor(server: LSPServerHandle, serverInfo: LSPServerInfo, workspaceRoot: string) {

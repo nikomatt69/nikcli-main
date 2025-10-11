@@ -1,5 +1,5 @@
 import { exec, spawn } from 'node:child_process'
-import { promisify } from 'node:util'
+import { promisify } from 'util'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
@@ -314,7 +314,7 @@ export class RunCommandTool extends BaseTool {
         // This looks like a file path, validate it
         try {
           const _fs = await import('node:fs/promises')
-          const resolvedPath = require('node:path').resolve(workingDir, arg)
+          const resolvedPath = require('path').resolve(workingDir, arg)
 
           // Check if path is within allowed directories
           const isAllowed = Array.from(this.allowedPaths).some((allowedPath) => resolvedPath.startsWith(allowedPath))

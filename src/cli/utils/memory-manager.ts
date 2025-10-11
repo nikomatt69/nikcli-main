@@ -18,7 +18,7 @@ export class MemoryManager<T = any> {
   private objects = new Map<string, ManagedObject<T>>()
   private readonly maxAge: number
   private readonly maxSize: number
-  private cleanupTimer: NodeJS.Timeout | null = null
+  private cleanupTimer: Timer | null = null
 
   constructor(options: MemoryManagerOptions = {}) {
     this.maxAge = options.maxAge ?? 24 * 60 * 60 * 1000 // 24 hours

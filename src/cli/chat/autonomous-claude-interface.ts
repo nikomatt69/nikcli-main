@@ -49,8 +49,8 @@ export class AutonomousClaudeInterface {
   private shouldInterrupt = false
   private currentStreamController?: AbortController
   private cliInstance: any
-  private streamOptimizationInterval?: NodeJS.Timeout
-  private tokenOptimizationInterval?: NodeJS.Timeout
+  private streamOptimizationInterval?: Timer
+  private tokenOptimizationInterval?: Timer
   private keypressHandler?: (str: any, key: any) => void
   private eventHandlers: Map<string, (...args: any[]) => void> = new Map()
   private cleanupCompleted = false
@@ -141,7 +141,9 @@ export class AutonomousClaudeInterface {
         this.interruptProcessing()
       }
     }
-    process.stdin.on('keypress', this.keypressHandler)
+    if (typeof process !== 'undefined' && process.stdin && process.stdin.on) {
+      process.stdin.on('keypress', this.keypressHandler)
+    }
 
     // Handle line input
     const lineHandler = async (input: string) => {
@@ -1131,9 +1133,9 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
   // [Rest of utility methods remain similar to previous version]
   private async changeDirectory(newDir: string): Promise<void> {
     try {
-      const resolvedPath = require('node:path').resolve(this.session.workingDirectory, newDir)
+      const resolvedPath = require('path').resolve(this.session.workingDirectory, newDir)
 
-      if (!require('node:fs').existsSync(resolvedPath)) {
+      if (!require('fs').existsSync(resolvedPath)) {
         console.log(chalk.red(`Directory not found: ${newDir}`))
         return
       }
@@ -1149,7 +1151,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
 
   private async quickDirectoryList(): Promise<void> {
     try {
-      const files = require('node:fs').readdirSync(this.session.workingDirectory, { withFileTypes: true })
+      const files = require('fs').readdirSync(this.session.workingDirectory, { withFileTypes: true })
 
       console.log(chalk.blue(`\\n📁 ${this.session.workingDirectory}:`))
       console.log(chalk.gray('─'.repeat(50)))
@@ -1218,7 +1220,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
   private showPrompt(): void {
     if (!this.rl || this.isProcessing) return
 
-    const workingDir = require('node:path').basename(this.session.workingDirectory)
+    const workingDir = require('path').basename(this.session.workingDirectory)
     const modeIcon = this.session.autonomous
       ? '🔌'
       : this.session.planMode
@@ -1566,7 +1568,9 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
 
       // Remove keypress handler
       if (this.keypressHandler) {
-        process.stdin.removeListener('keypress', this.keypressHandler)
+        if (typeof process !== 'undefined' && process.stdin && process.stdin.removeListener) {
+          process.stdin.removeListener('keypress', this.keypressHandler)
+        }
         this.keypressHandler = undefined
       }
 

@@ -256,7 +256,7 @@ export class SecurityPolicy {
     // Check file size limits for writes
     if (operation === 'write' && policies.maxFileSize) {
       try {
-        const fs = require('node:fs')
+        const fs = require('fs')
         const stats = fs.statSync(filePath)
         if (stats.size > policies.maxFileSize) {
           violations.push({

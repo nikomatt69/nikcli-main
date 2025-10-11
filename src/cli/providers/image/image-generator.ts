@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { createOpenAI } from '@ai-sdk/openai'
@@ -468,7 +468,7 @@ export class ImageGenerator extends EventEmitter {
    * Generate cache key for image generation
    */
   private generateCacheKey(options: ImageGenerationOptions): string {
-    const crypto = require('node:crypto')
+    const crypto = require('crypto')
     const hash = crypto.createHash('sha256')
     hash.update(options.prompt)
     hash.update(options.size || this.config.default_size)

@@ -39,7 +39,7 @@ function findWorkspaceRoot(startPath: string, patterns: string[]): string | unde
 // Check if command exists in PATH
 function commandExists(command: string): boolean {
   try {
-    const { execSync } = require('node:child_process')
+    const { execSync } = require('child_process')
     execSync(`which ${command}`, { stdio: 'ignore' })
     return true
   } catch {

@@ -373,8 +373,8 @@ export class ModuleManager {
   private async handleChangeDirectory(args: string[], context: ModuleContext): Promise<void> {
     const newDir = args[0] || process.cwd()
     try {
-      const path = require('node:path')
-      const fs = require('node:fs')
+      const path = require('path')
+      const fs = require('fs')
       const resolvedPath = path.resolve(context.workingDirectory, newDir)
 
       if (!fs.existsSync(resolvedPath)) {
@@ -396,7 +396,7 @@ export class ModuleManager {
 
   private async handleListFiles(_args: string[], context: ModuleContext): Promise<void> {
     try {
-      const fs = require('node:fs')
+      const fs = require('fs')
       const files = fs.readdirSync(context.workingDirectory, { withFileTypes: true })
 
       console.log(chalk.blue(`\\n📁 ${context.workingDirectory}:`))

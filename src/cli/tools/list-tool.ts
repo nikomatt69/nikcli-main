@@ -156,7 +156,7 @@ export class ListTool extends BaseTool {
         return
       }
 
-      const realPath = require('node:fs').realpathSync(currentPath)
+      const realPath = require('fs').realpathSync(currentPath)
       if (visited.has(realPath)) {
         return // Evita loop infiniti con symlink
       }

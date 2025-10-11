@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 
 export type TodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
 export type TodoPriority = 'high' | 'medium' | 'low'

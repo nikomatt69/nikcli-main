@@ -972,7 +972,7 @@ export class VectorStoreManager {
   private stores: VectorStore[] = []
   private activeStore: VectorStore | null = null
   private fallbackStore: LocalVectorStore | null = null
-  private healthCheckInterval: NodeJS.Timeout | null = null
+  private healthCheckInterval: Timer | null = null
   private config: VectorStoreConfig
 
   constructor(configs: VectorStoreConfig[]) {

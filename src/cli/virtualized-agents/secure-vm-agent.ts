@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { existsSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type {

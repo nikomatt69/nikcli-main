@@ -889,8 +889,8 @@ export class ContextManager {
 
   private async getGitInfo(cwd: string): Promise<ContextSummary['gitInfo']> {
     try {
-      const { exec } = require('node:child_process')
-      const { promisify } = require('node:util')
+      const { exec } = require('child_process')
+      const { promisify } = require('util')
       const execAsync = promisify(exec)
 
       const [branchResult, statusResult] = await Promise.all([

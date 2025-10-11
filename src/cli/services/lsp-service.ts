@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import * as fs from 'node:fs'
+import * as fs from 'fs'
 import chalk from 'chalk'
 
 export interface LSPServerInfo {
@@ -14,7 +14,7 @@ export interface LSPServerInfo {
 export class LSPService {
   private servers: Map<string, LSPServerInfo> = new Map()
   private workingDirectory: string = process.cwd()
-  private startupTimers: Map<string, NodeJS.Timeout> = new Map()
+  private startupTimers: Map<string, Timer> = new Map()
 
   constructor() {
     this.initializeDefaultServers()

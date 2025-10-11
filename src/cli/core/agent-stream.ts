@@ -1,5 +1,5 @@
-import { randomBytes } from 'node:crypto'
-import { EventEmitter } from 'node:events'
+import { randomBytes } from 'crypto'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import { MemoryManager } from '../utils/memory-manager'
 
@@ -369,7 +369,7 @@ export class AgentStreamManager extends EventEmitter {
     }
 
     const fileName = filename || `agent-${agentId}-stream-${Date.now()}.json`
-    require('node:fs').writeFileSync(fileName, JSON.stringify(exportData, null, 2))
+    require('fs').writeFileSync(fileName, JSON.stringify(exportData, null, 2))
 
     console.log(chalk.green(`📄 Stream exported to ${fileName}`))
     return fileName

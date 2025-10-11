@@ -2,10 +2,10 @@
  * System integration tests for CLI components working together
  */
 
-import { exec } from 'node:child_process'
+import { exec } from 'child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { promisify } from 'node:util'
+import { promisify } from 'util'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, mockConsole } from '../helpers/test-utils'
 

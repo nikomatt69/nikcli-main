@@ -1,5 +1,5 @@
 import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
+import * as path from 'path'
 import chalk from 'chalk'
 import { structuredLogger } from '../utils/structured-logger'
 import { ContextSanitizer } from './middleware-context'
@@ -42,7 +42,7 @@ export class LoggingMiddleware extends BaseMiddleware {
   private loggingConfig: LoggingMiddlewareConfig
   private logBuffer: LogEntry[] = []
   private readonly bufferFlushInterval = 5000 // 5 seconds
-  private flushTimer?: NodeJS.Timeout
+  private flushTimer?: Timer
 
   constructor(config: Partial<LoggingMiddlewareConfig> = {}) {
     const defaultConfig: LoggingMiddlewareConfig = {

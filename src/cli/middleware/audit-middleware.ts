@@ -1,6 +1,6 @@
 import * as crypto from 'node:crypto'
 import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
+import * as path from 'path'
 import chalk from 'chalk'
 import { logger } from '../utils/logger'
 import { ContextSanitizer } from './middleware-context'
@@ -89,7 +89,7 @@ export class AuditMiddleware extends BaseMiddleware {
   private securityAlerts: SecurityAlert[] = []
   private suspiciousPatterns: Map<string, number> = new Map()
   private readonly bufferFlushInterval = 10000 // 10 seconds
-  private flushTimer?: NodeJS.Timeout
+  private flushTimer?: Timer
 
   constructor(config: Partial<AuditMiddlewareConfig> = {}) {
     const defaultConfig: AuditMiddlewareConfig = {

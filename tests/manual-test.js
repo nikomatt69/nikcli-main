@@ -1,11 +1,11 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Manual System Test - Quick verification of core functionality
  * Run this to manually test the system without complex dependencies
  */
 
-const fs = require('node:fs').promises
-const path = require('node:path')
+const fs = require('fs').promises
+const path = require('path')
 
 console.log('🚀 Manual System Test Starting...\n')
 

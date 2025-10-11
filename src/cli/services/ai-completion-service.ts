@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash } from 'crypto'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { type ChatMessage, modelProvider } from '../ai/model-provider'

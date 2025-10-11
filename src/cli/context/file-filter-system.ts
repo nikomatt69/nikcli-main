@@ -385,7 +385,7 @@ export class FileFilterSystem {
       }
 
       try {
-        const items = require('node:fs').readdirSync(dirPath, { withFileTypes: true })
+        const items = require('fs').readdirSync(dirPath, { withFileTypes: true })
 
         for (const item of items) {
           if (filesToIndex.length >= this.config.maxTotalFiles) {

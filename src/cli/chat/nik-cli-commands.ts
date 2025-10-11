@@ -1409,7 +1409,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const markdown = chatManager.exportSession(sessionId)
 
       const filename = `chat-export-${Date.now()}.md`
-      require('node:fs').writeFileSync(filename, markdown)
+      require('fs').writeFileSync(filename, markdown)
 
       console.log(chalk.green(`✓ Session exported to ${filename}`))
     } catch (error: any) {
@@ -3720,9 +3720,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     // Show selected paths
     console.log(chalk.cyan('\n🎯 Selected Paths:'))
     context.selectedPaths.forEach((path: string) => {
-      const isDir = require('node:fs').statSync(path).isDirectory()
+      const isDir = require('fs').statSync(path).isDirectory()
       const icon = isDir ? '⚡︎' : '📄'
-      const relativePath = require('node:path').relative(context.rootPath, path)
+      const relativePath = require('path').relative(context.rootPath, path)
       console.log(`  ${icon} ${relativePath || '.'}`)
     })
 
@@ -3733,7 +3733,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         .sort(([a]: [string, any], [b]: [string, any]) => a.localeCompare(b))
         .slice(0, 20) // Limit display
         .forEach(([path, dir]: [string, any]) => {
-          const relativePath = require('node:path').relative(context.rootPath, path)
+          const relativePath = require('path').relative(context.rootPath, path)
           const fileCount = dir.totalFiles || 0
           const languagesInfo = dir.mainLanguages?.slice(0, 3).join(', ') || 'mixed'
           console.log(`  ⚡︎ ${relativePath || '.'} (${fileCount} files, ${languagesInfo})`)
@@ -3751,7 +3751,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         .sort(([a]: [string, any], [b]: [string, any]) => a.localeCompare(b))
         .slice(0, 30) // Show more files since they're the main issue
         .forEach(([path, file]: [string, any]) => {
-          const relativePath = require('node:path').relative(context.rootPath, path)
+          const relativePath = require('path').relative(context.rootPath, path)
           const sizeKB = Math.round(file.size / 1024)
           const langIcon = this.getLanguageIcon(file.language)
           const importance = file.importance ? `⭐${Math.round(file.importance)}%` : ''
@@ -3975,7 +3975,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     for (const selectedPath of context.selectedPaths) {
       try {
-        const stats = require('node:fs').statSync(selectedPath)
+        const stats = require('fs').statSync(selectedPath)
 
         if (stats.isFile()) {
           const file = context.files.get(selectedPath)
@@ -4001,7 +4001,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     console.log('')
     pathList.forEach((path) => {
-      const relativePath = require('node:path').relative(context.rootPath, path)
+      const relativePath = require('path').relative(context.rootPath, path)
       console.log(`  📁 ${chalk.cyan(relativePath || '.')}`)
     })
     console.log('')

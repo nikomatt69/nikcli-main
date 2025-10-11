@@ -1,5 +1,5 @@
-import crypto from 'node:crypto'
-import { EventEmitter } from 'node:events'
+import crypto from 'crypto'
+import { EventEmitter } from 'events'
 import jwt from 'jsonwebtoken'
 import { advancedUI } from '../../ui/advanced-cli-ui'
 

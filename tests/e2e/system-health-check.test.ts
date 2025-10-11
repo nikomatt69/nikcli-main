@@ -3,10 +3,10 @@
  * Verifies that the entire CLI system is working correctly
  */
 
-import { exec } from 'node:child_process'
+import { exec } from 'child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { promisify } from 'node:util'
+import { promisify } from 'util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const execAsync = promisify(exec)

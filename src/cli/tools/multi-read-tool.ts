@@ -1,5 +1,5 @@
-import * as fs from 'node:fs'
-import * as path from 'node:path'
+import * as fs from 'fs'
+import * as path from 'path'
 import { globby } from 'globby'
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'

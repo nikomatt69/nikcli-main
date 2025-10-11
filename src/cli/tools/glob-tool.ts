@@ -122,7 +122,7 @@ export class GlobTool extends BaseTool {
 
       for (const file of files) {
         try {
-          const fullPath = require('node:path').join(sanitizedPath, file)
+          const fullPath = require('path').join(sanitizedPath, file)
           const stats = await stat(fullPath)
 
           // Apply filters

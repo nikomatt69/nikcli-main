@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash } from 'crypto'
 import { statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -1690,7 +1690,7 @@ export class UnifiedRAGSystem {
   private createMinimalWorkspaceContext(projectPath: string): WorkspaceContext {
     return {
       rootPath: resolve(projectPath),
-      projectName: require('node:path').basename(projectPath),
+      projectName: require('path').basename(projectPath),
       framework: 'unknown',
       languages: [],
       files: new Map(),

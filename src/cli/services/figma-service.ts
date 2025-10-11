@@ -6,7 +6,7 @@
  * and integration with other system components.
  */
 
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import {
   type DesignTokens,

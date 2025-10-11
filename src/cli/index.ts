@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * NikCLI - Unified Autonomous AI Development Assistant
@@ -54,10 +54,10 @@ process.on('warning', (warning: any) => {
   }
 })
 
-import { spawn } from 'node:child_process'
-import { EventEmitter } from 'node:events'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
+import { spawn } from 'child_process'
+import { EventEmitter } from 'events'
+import * as fs from 'fs'
+import * as path from 'path'
 // Import TUI Bridge instead of boxen for enhanced terminal UI
 import boxen from 'boxen'
 import * as readline from 'readline'
@@ -175,7 +175,7 @@ class BannerAnimator {
 
     await new Promise<void>((resolve) => {
       let index = 0
-      let timer: NodeJS.Timeout
+      let timer: Timer
 
       const renderFrame = () => {
         console.clear()
@@ -558,7 +558,7 @@ class OnboardingModule {
     if (allPassed) {
       // Show minimal success box
       const summaryBox = boxen(
-        chalk.white('✓ Node.js v') +
+        chalk.white('✓ Bun v') +
           chalk.white(process.version) +
           '\n' +
           chalk.white('✓ Cloud API provider configured'),
@@ -1240,23 +1240,13 @@ class SystemModule {
     return !!(anthropicKey || openaiKey || openrouterKey || googleKey || vercelKey || gatewayKey)
   }
 
-  static checkNodeVersion(): boolean {
-    // Prefer Bun if present
+  static checkBunVersion(): boolean {
+    // Bun is always available when running with Bun
     try {
       return true
-      // Bun exists at runtime when using Bun
     } catch (_) {
-      // ignore and fall back to Node check
-    }
-
-    const version = process.version
-    const major = parseInt(version.slice(1).split('.')[0])
-
-    if (major < 18) {
       return false
     }
-
-    return true
   }
 
   static async checkOllamaAvailability(): Promise<boolean> {
@@ -1330,7 +1320,7 @@ class SystemModule {
 
   static async checkSystemRequirements(): Promise<boolean> {
     const checks = [
-      SystemModule.checkNodeVersion(),
+      SystemModule.checkBunVersion(),
       await SystemModule.checkApiKeys(),
       await SystemModule.checkOllamaAvailability(),
     ]
@@ -1504,7 +1494,7 @@ class StreamingModule extends EventEmitter {
   private messageQueue: StreamMessage[] = []
   private processingMessage = false
   private activeAgents = new Map<string, any>()
-  private messageProcessorInterval?: NodeJS.Timeout
+  private messageProcessorInterval?: Timer
   private keypressHandler?: (str: any, key: any) => void
   private eventHandlers: Map<string, (...args: any[]) => void> = new Map()
   private cleanupCompleted = false
@@ -1565,7 +1555,9 @@ class StreamingModule extends EventEmitter {
         }
       }
     }
-    process.stdin.on('keypress', this.keypressHandler)
+    if (typeof process !== 'undefined' && process.stdin && process.stdin.on) {
+      process.stdin.on('keypress', this.keypressHandler)
+    }
 
     // Input handler
     const lineHandler = async (input: string) => {
@@ -1631,7 +1623,7 @@ class StreamingModule extends EventEmitter {
   }
 
   private showPrompt(): void {
-    const dir = require('node:path').basename(this.context.workingDirectory)
+    const dir = path.basename(this.context.workingDirectory)
     const agents = this.activeAgents.size
 
     // Use IDE-aware formatter for prompt
@@ -1783,7 +1775,9 @@ class StreamingModule extends EventEmitter {
 
       // Remove keypress handler
       if (this.keypressHandler) {
-        process.stdin.removeListener('keypress', this.keypressHandler)
+        if (typeof process !== 'undefined' && process.stdin && process.stdin.removeListener) {
+          process.stdin.removeListener('keypress', this.keypressHandler)
+        }
         this.keypressHandler = undefined
       }
 
@@ -1983,7 +1977,7 @@ async function main() {
 }
 
 // Start the application
-if (require.main === module) {
+if (import.meta.main) {
   main().catch((error) => {
     console.error(chalk.red('❌ Startup failed:'), error)
     process.exit(1)

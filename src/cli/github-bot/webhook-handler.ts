@@ -1,6 +1,6 @@
 // src/cli/github-bot/webhook-handler.ts
 
-import crypto from 'node:crypto'
+import crypto from 'crypto'
 import { Octokit } from '@octokit/rest'
 import { CommentProcessor } from './comment-processor'
 import { TaskExecutor } from './task-executor'

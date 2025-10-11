@@ -504,7 +504,7 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
       project: context?.projectType,
       branch: context?.gitBranch,
     }
-    const hash = require('node:crypto').createHash('md5').update(JSON.stringify(keyData)).digest('hex')
+    const hash = require('crypto').createHash('md5').update(JSON.stringify(keyData)).digest('hex')
     return hash.substring(0, 12)
   }
 
@@ -682,7 +682,7 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
     try {
       const dir = this.historyFile.substring(0, this.historyFile.lastIndexOf('/'))
       if (!existsSync(dir)) {
-        require('node:fs').mkdirSync(dir, { recursive: true })
+        require('fs').mkdirSync(dir, { recursive: true })
       }
       writeFileSync(this.historyFile, JSON.stringify(this.commandHistory, null, 2))
     } catch (error) {
@@ -707,7 +707,7 @@ Provide 2-4 most relevant predictions, ranked by confidence.`
     try {
       const dir = this.patternsFile.substring(0, this.patternsFile.lastIndexOf('/'))
       if (!existsSync(dir)) {
-        require('node:fs').mkdirSync(dir, { recursive: true })
+        require('fs').mkdirSync(dir, { recursive: true })
       }
       writeFileSync(this.patternsFile, JSON.stringify(this.commandPatterns, null, 2))
     } catch (error) {

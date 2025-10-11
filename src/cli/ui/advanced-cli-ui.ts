@@ -1,4 +1,4 @@
-import * as path from 'node:path'
+import * as path from 'path'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import { highlight } from 'cli-highlight'
@@ -92,7 +92,7 @@ export class AdvancedCliUI {
   private isInteractiveMode: boolean = false
   private panels: Map<string, StructuredPanel> = new Map()
   private layoutMode: 'single' | 'dual' | 'triple' = 'dual'
-  private renderTimer: NodeJS.Timeout | null = null
+  private renderTimer: Timer | null = null
   private vscodeStreamEnabled: boolean = false
   // Clean chat mode: hide ephemeral tool logs from the persistent transcript
   private cleanChatMode: boolean = false

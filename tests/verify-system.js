@@ -1,13 +1,13 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Complete System Verification Script
  * Run this to verify the entire CLI system is working correctly
  */
 
-const fs = require('node:fs').promises
-const path = require('node:path')
-const { spawn, exec } = require('node:child_process')
-const { promisify } = require('node:util')
+const fs = require('fs').promises
+const path = require('path')
+const { spawn, exec } = require('child_process')
+const { promisify } = require('util')
 
 const execAsync = promisify(exec)
 

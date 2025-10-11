@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
 import { advancedUI } from '../../ui/advanced-cli-ui'

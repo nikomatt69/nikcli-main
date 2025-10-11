@@ -1,4 +1,4 @@
-import crypto from 'node:crypto'
+import crypto from 'crypto'
 import chalk from 'chalk'
 import { type CacheService, cacheService } from '../services/cache-service'
 import { QuietCacheLogger } from './performance-optimizer'

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Standalone entry point for Background Agents API Server
 // Designed for cloud deployment (Railway, Render, etc.)
 

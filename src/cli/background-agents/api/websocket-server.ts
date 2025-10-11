@@ -21,7 +21,7 @@ export interface WebSocketMessage {
 export class BackgroundAgentsWebSocketServer {
   private wss: WebSocketServer
   private clients: Map<string, WebSocket> = new Map()
-  private heartbeatInterval?: NodeJS.Timeout
+  private heartbeatInterval?: Timer
 
   constructor(server: HTTPServer) {
     this.wss = new WebSocketServer({

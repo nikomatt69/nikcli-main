@@ -204,7 +204,7 @@ export class GrepTool extends BaseTool {
     const scanRecursive = async (currentPath: string, depth: number): Promise<void> => {
       if (depth > 10 || files.length > 1000) return // Limiti di sicurezza
 
-      const realPath = require('node:fs').realpathSync(currentPath)
+      const realPath = require('fs').realpathSync(currentPath)
       if (visited.has(realPath)) return
       visited.add(realPath)
 

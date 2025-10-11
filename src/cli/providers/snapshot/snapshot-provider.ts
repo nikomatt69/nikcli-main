@@ -1,6 +1,6 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
+import * as path from 'path'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
 import { structuredLogger } from '../../utils/structured-logger'
@@ -618,7 +618,7 @@ export class SnapshotProvider extends EventEmitter {
 
   private async getCurrentBranch(): Promise<string | undefined> {
     try {
-      const { execSync } = require('node:child_process')
+      const { execSync } = require('child_process')
       return execSync('git branch --show-current', { encoding: 'utf8' }).trim()
     } catch {
       return undefined
@@ -627,7 +627,7 @@ export class SnapshotProvider extends EventEmitter {
 
   private async getCurrentCommit(): Promise<string | undefined> {
     try {
-      const { execSync } = require('node:child_process')
+      const { execSync } = require('child_process')
       return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
     } catch {
       return undefined

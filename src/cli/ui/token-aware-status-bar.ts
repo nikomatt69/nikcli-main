@@ -1,5 +1,5 @@
 // TODO: Consider refactoring for reduced complexity
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import blessed from 'blessed'
 import chalk from 'chalk'
 import { type ModelLimits, type TokenUsage, universalTokenizer } from '../core/universal-tokenizer-service'
@@ -36,7 +36,7 @@ export class TokenAwareStatusBar extends EventEmitter {
 
   private tokenContext: TokenContext | null = null
   private options: TokenDisplayOptions
-  private refreshTimer: NodeJS.Timeout | null = null
+  private refreshTimer: Timer | null = null
   private isVisible: boolean = true
   private planMode: boolean = false
 

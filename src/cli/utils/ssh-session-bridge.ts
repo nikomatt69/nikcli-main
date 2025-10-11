@@ -47,7 +47,7 @@ export class SSHSessionBridge {
   private statePath: string
   private config: SessionBridgeConfig
   private currentState: SessionState | null = null
-  private backupTimer: NodeJS.Timeout | null = null
+  private backupTimer: Timer | null = null
   private sshInfo: SSHSessionInfo | null = null
 
   constructor(sessionManager: EnhancedSessionManager) {

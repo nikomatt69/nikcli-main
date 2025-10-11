@@ -42,7 +42,7 @@ export class LSPManager {
   private fileAnalysisCache: Map<string, CodeContext> = new Map()
   private clientLastUsed: Map<string, number> = new Map() // Track last usage for cleanup
   private readonly CLIENT_IDLE_TIMEOUT = 5 * 60 * 1000 // 5 minutes
-  private cleanupInterval?: NodeJS.Timeout
+  private cleanupInterval?: Timer
 
   constructor() {
     // Cleanup on process exit

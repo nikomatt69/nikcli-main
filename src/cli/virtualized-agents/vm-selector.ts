@@ -396,8 +396,8 @@ export class VMSelector {
   private async getVMResourceUsage(containerId: string): Promise<any> {
     try {
       // Get container stats via Docker API
-      const { exec } = require('node:child_process')
-      const { promisify } = require('node:util')
+      const { exec } = require('child_process')
+      const { promisify } = require('util')
       const execAsync = promisify(exec)
 
       const { stdout } = await execAsync(

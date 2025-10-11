@@ -1,9 +1,9 @@
 // API Key Manager - Hierarchical key resolution
 // Priority: User local env > User config > Cloud service (with user's keys)
 
-import * as fs from 'node:fs'
-import * as os from 'node:os'
-import * as path from 'node:path'
+import * as fs from 'fs'
+import * as os from 'os'
+import * as path from 'path'
 import chalk from 'chalk'
 
 export type AIProvider =

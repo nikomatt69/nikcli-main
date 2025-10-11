@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { nanoid } from 'nanoid'
 import type { SimpleConfigManager } from '../core/config-manager'
 import { GuidanceManager } from '../guidance/guidance-manager'

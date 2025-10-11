@@ -1,6 +1,6 @@
 // src/cli/background-agents/background-agent-service.ts
 
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { v4 as uuidv4 } from 'uuid'
 import { agentService } from '../services/agent-service'
 import { VMStatusIndicator } from '../ui/vm-status-indicator'

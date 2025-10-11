@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash } from 'crypto'
 import chalk from 'chalk'
 import { unifiedEmbeddingInterface } from './unified-embedding-interface'
 

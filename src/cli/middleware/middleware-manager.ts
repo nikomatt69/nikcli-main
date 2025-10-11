@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import type { ModuleContext } from '../core/module-manager'
 import { logger } from '../utils/logger'

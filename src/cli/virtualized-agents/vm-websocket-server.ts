@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import { WebSocket, WebSocketServer } from 'ws'
 import {
@@ -22,7 +22,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
   private config: VMWebSocketConfig
   private connections: Map<string, VMConnection> = new Map()
   private isRunning: boolean = false
-  private heartbeatInterval?: NodeJS.Timeout
+  private heartbeatInterval?: Timer
 
   constructor(config?: Partial<VMWebSocketConfig>) {
     super()

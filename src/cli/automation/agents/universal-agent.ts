@@ -1,8 +1,8 @@
-import { exec } from 'node:child_process'
-import { EventEmitter } from 'node:events'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
-import { promisify } from 'node:util'
+import { exec } from 'child_process'
+import { EventEmitter } from 'events'
+import * as fs from 'fs'
+import * as path from 'path'
+import { promisify } from 'util'
 import { nanoid } from 'nanoid'
 import { ContextAwareRAGSystem } from '../../context/context-aware-rag'
 import { lspManager } from '../../lsp/lsp-manager'
@@ -200,7 +200,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
   // 🎯 PERFORMANCE OPTIMIZATION PROPERTIES
   private performanceMode: 'fast' | 'cognitive' | 'adaptive' = 'adaptive'
   private baseAgentRouter?: any // Dynamic import to avoid circular deps
-  private cacheCleaner: NodeJS.Timeout | null = null
+  private cacheCleaner: Timer | null = null
 
   constructor(workingDirectory: string = process.cwd()) {
     super() // Call EventEmitter constructor

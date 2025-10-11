@@ -1,6 +1,6 @@
 // src/cli/background-agents/queue/job-queue.ts
 
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import IORedis from 'ioredis'
 import type { QueueStats } from '../types'
 

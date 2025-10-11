@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import * as readline from 'readline'
@@ -120,7 +120,9 @@ export class OrchestratorService extends EventEmitter {
       }
     }
     this.keypressHandler = onKeypress
-    process.stdin.on('keypress', onKeypress)
+    if (typeof process !== 'undefined' && process.stdin && process.stdin.on) {
+      process.stdin.on('keypress', onKeypress)
+    }
 
     // Handle input
     this.rl.on('line', async (input: string) => {
@@ -145,7 +147,9 @@ export class OrchestratorService extends EventEmitter {
   private teardownInterface(): void {
     try {
       if (this.keypressHandler) {
-        process.stdin.removeListener('keypress', this.keypressHandler)
+        if (typeof process !== 'undefined' && process.stdin && process.stdin.removeListener) {
+          process.stdin.removeListener('keypress', this.keypressHandler)
+        }
         this.keypressHandler = undefined
       }
       if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
@@ -906,7 +910,7 @@ export class OrchestratorService extends EventEmitter {
 
   private showPrompt(): void {
     if (!this.context.isProcessing) {
-      const workingDir = require('node:path').basename(this.context.workingDirectory)
+      const workingDir = require('path').basename(this.context.workingDirectory)
       const indicators = this.getPromptIndicators()
       const modeIndicator = indicators.length > 0 ? ` ${indicators.join(' ')} ` : ''
 

@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../core/config-manager'
 import { inputQueue } from '../core/input-queue'
@@ -1806,8 +1806,8 @@ ${errors.map((error: any) => `- **${error.step}:** ${error.error}`).join('\n')}
 `
 
     // Write markdown file to root directory
-    const fs = require('node:fs')
-    const path = require('node:path')
+    const fs = require('fs')
+    const path = require('path')
     const rootPath = process.cwd()
     const filePath = path.join(rootPath, filename)
 

@@ -189,7 +189,7 @@ export class TreeTool extends BaseTool {
    */
   private async buildTree(path: string, depth: number, maxDepth: number, params: TreeToolParams): Promise<TreeNode> {
     const stats = await stat(path)
-    const name = require('node:path').basename(path)
+    const name = require('path').basename(path)
 
     this.currentMaxDepth = Math.max(this.currentMaxDepth, depth)
 
@@ -291,7 +291,7 @@ export class TreeTool extends BaseTool {
       return FILE_ICONS.directory
     }
 
-    const ext = require('node:path').extname(node.name).toLowerCase()
+    const ext = require('path').extname(node.name).toLowerCase()
     return FILE_ICONS[ext] || FILE_ICONS[node.name] || ''
   }
 
@@ -320,8 +320,8 @@ export class TreeTool extends BaseTool {
         case 'size':
           return b.size - a.size
         case 'type': {
-          const extA = require('node:path').extname(a.name)
-          const extB = require('node:path').extname(b.name)
+          const extA = require('path').extname(a.name)
+          const extB = require('path').extname(b.name)
           return extA.localeCompare(extB)
         }
         case 'name':

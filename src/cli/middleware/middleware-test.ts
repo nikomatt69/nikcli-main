@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Simple test script to verify middleware system functionality
@@ -66,7 +66,7 @@ async function testMiddlewareSystem() {
   console.log('\n🎉 Middleware system test completed successfully!')
 }
 
-if (require.main === module) {
+if (import.meta.main) {
   testMiddlewareSystem().catch(console.error)
 }
 

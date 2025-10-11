@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 
 export type AnalysisEvent =
   | { type: 'start'; payload?: any }

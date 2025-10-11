@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
-const { execSync } = require('node:child_process')
-const fs = require('node:fs')
-const path = require('node:path')
+const { execSync } = require('child_process')
+const fs = require('fs')
+const path = require('path')
 
 console.log('🚀 Building NikCLI release binaries...\n')
 
@@ -188,7 +188,7 @@ const checksums = {}
 allFiles.forEach((file) => {
   const filePath = path.join(releasesDir, file)
   const content = fs.readFileSync(filePath)
-  const hash = require('node:crypto').createHash('sha256').update(content).digest('hex')
+  const hash = require('crypto').createHash('sha256').update(content).digest('hex')
   checksums[file] = hash
 })
 

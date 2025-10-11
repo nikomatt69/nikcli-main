@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { countTokens as anthropicCountTokens } from '@anthropic-ai/tokenizer'
 import type { CoreMessage } from 'ai'
 import { encode } from 'gpt-tokenizer'

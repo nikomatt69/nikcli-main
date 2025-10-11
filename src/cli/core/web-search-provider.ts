@@ -1,5 +1,5 @@
-import { exec } from 'node:child_process'
-import { promisify } from 'node:util'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import { tool } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'

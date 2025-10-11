@@ -8,8 +8,8 @@
  * - Design token extraction and component library access
  */
 
-import { spawn } from 'node:child_process'
-import { EventEmitter } from 'node:events'
+import { spawn } from 'child_process'
+import { EventEmitter } from 'events'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import axios, { type AxiosInstance } from 'axios'

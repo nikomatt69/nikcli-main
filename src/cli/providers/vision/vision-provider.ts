@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createAnthropic } from '@ai-sdk/anthropic'
@@ -357,7 +357,7 @@ Deliver detailed, structured insights for complete image understanding.`
   private prepareImage(filePath: string): { imageData: string; metadata: any } {
     try {
       const imageBuffer = readFileSync(filePath)
-      const stats = require('node:fs').statSync(filePath)
+      const stats = require('fs').statSync(filePath)
 
       // Check file size
       const fileSizeMB = stats.size / (1024 * 1024)
@@ -406,7 +406,7 @@ Deliver detailed, structured insights for complete image understanding.`
    * Generate cache key for analysis
    */
   private generateCacheKey(imageData: string, prompt?: string): string {
-    const crypto = require('node:crypto')
+    const crypto = require('crypto')
     const hash = crypto.createHash('sha256')
     hash.update(imageData)
     if (prompt) hash.update(prompt)

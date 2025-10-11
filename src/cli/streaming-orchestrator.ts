@@ -1,7 +1,7 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
-import { randomBytes } from 'node:crypto'
-import { EventEmitter } from 'node:events'
+import { randomBytes } from 'crypto'
+import { EventEmitter } from 'events'
 import chalk from 'chalk'
 import * as readline from 'readline'
 import { simpleConfigManager as configManager } from './core/config-manager'
@@ -148,7 +148,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
       }
     }
     this.keypressHandler = onKeypress
-    process.stdin.on('keypress', onKeypress)
+    if (typeof process !== 'undefined' && process.stdin && process.stdin.on) {
+      process.stdin.on('keypress', onKeypress)
+    }
 
     // Input handler
     this.rl.on('line', async (input: string) => {
@@ -230,7 +232,9 @@ class StreamingOrchestratorImpl extends EventEmitter {
   private teardownInterface(): void {
     try {
       if (this.keypressHandler) {
-        process.stdin.removeListener('keypress', this.keypressHandler)
+        if (typeof process !== 'undefined' && process.stdin && process.stdin.removeListener) {
+          process.stdin.removeListener('keypress', this.keypressHandler)
+        }
         this.keypressHandler = undefined
       }
       if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
@@ -1341,7 +1345,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       return // Let NikCLI handle the prompt display
     }
 
-    const dir = require('node:path').basename(this.context.workingDirectory)
+    const dir = require('path').basename(this.context.workingDirectory)
     const agents = this.activeAgents.size
     const agentIndicator = agents > 0 ? chalk.blue(`${agents}🔌`) : '🎛️'
 
@@ -1572,7 +1576,7 @@ export class StreamingOrchestrator extends StreamingOrchestratorImpl {
 }
 
 // Start the orchestrator if this file is run directly
-if (require.main === module) {
+if (import.meta.main) {
   const orchestrator = new StreamingOrchestrator()
   orchestrator.start().catch(console.error)
 }

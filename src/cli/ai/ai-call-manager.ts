@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes } from 'crypto'
 import chalk from 'chalk'
 import ora from 'ora'
 import { z } from 'zod'

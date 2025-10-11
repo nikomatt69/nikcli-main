@@ -364,7 +364,7 @@ export class EditTool extends BaseTool {
     await writeFile(tempPath, newContent, 'utf-8')
 
     // Rename atomico
-    require('node:fs').renameSync(tempPath, filePath)
+    require('fs').renameSync(tempPath, filePath)
   }
 
   /**
@@ -374,7 +374,7 @@ export class EditTool extends BaseTool {
     // Per semplicità, rileggiamo il file e applichiamo le modifiche
     // In una implementazione più sofisticata, potremmo ricostruire dal diff
     if (existsSync(filePath)) {
-      return require('node:fs').readFileSync(filePath, 'utf-8')
+      return require('fs').readFileSync(filePath, 'utf-8')
     }
 
     // Se è un nuovo file, usa il contenuto dalla prima modifica
@@ -419,7 +419,7 @@ export class EditTool extends BaseTool {
    * Risolve percorso file (assoluto o relativo)
    */
   private resolveFilePath(filePath: string): string {
-    if (require('node:path').isAbsolute(filePath)) {
+    if (require('path').isAbsolute(filePath)) {
       return filePath
     }
     return join(this.workingDirectory, filePath)

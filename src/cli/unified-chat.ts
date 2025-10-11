@@ -1,11 +1,11 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * NikCLI - Unified Chat Interface
  * Lifecycle: Banner → Chat → Prompt → Plan → Confirm → Execute → Queue Management
  */
 
-import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'events'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import * as readline from 'readline'
@@ -86,7 +86,7 @@ export class UnifiedChatInterface extends EventEmitter {
   private workflowOrchestrator: WorkflowOrchestrator
   private chatOrchestrator: ChatOrchestrator
   private initialized = false
-  private activeTimers: Set<NodeJS.Timeout> = new Set()
+  private activeTimers: Set<Timer> = new Set()
   private eventHandlers: Map<string, (...args: any[]) => void> = new Map()
   private cleanupCompleted = false
 
@@ -801,7 +801,7 @@ export class UnifiedChatInterface extends EventEmitter {
    * Show prompt
    */
   private showPrompt(): void {
-    const workingDir = require('node:path').basename(this.session.workingDirectory)
+    const workingDir = require('path').basename(this.session.workingDirectory)
     const indicators = []
 
     if (this.session.planMode) indicators.push(chalk.green('plan'))
@@ -928,7 +928,7 @@ async function main() {
 }
 
 // Start if run directly
-if (require.main === module) {
+if (import.meta.main) {
   main().catch((error) => {
     console.error(chalk.red('❌ Startup failed:'), error)
     process.exit(1)

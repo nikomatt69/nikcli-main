@@ -25,7 +25,7 @@ export class ContextEventSystem extends EventEmitter {
   private eventBuffer: ContextEvent[] = [];
   private patternCandidates = new Map<string, PatternCandidate>();
   private isProcessing = false;
-  private processingInterval: NodeJS.Timeout | null = null;
+  private processingInterval: Timer | null = null;
 
   private readonly BUFFER_SIZE = 20; // Process after 20 events
   private readonly PROCESSING_INTERVAL = 5000; // Process every 5 seconds

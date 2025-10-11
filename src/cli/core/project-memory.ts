@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash } from 'crypto'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -507,7 +507,7 @@ export class ProjectMemoryManager {
 
       // Analyze git repository
       try {
-        const { execSync } = require('node:child_process')
+        const { execSync } = require('child_process')
         const gitRemote = execSync('git remote get-url origin', {
           cwd: projectPath,
           encoding: 'utf8',
@@ -527,7 +527,7 @@ export class ProjectMemoryManager {
       }
 
       // Determine primary language
-      const files = require('node:fs').readdirSync(projectPath)
+      const files = require('fs').readdirSync(projectPath)
       if (files.some((f: string) => f.endsWith('.ts') || f.endsWith('.tsx'))) {
         context.language = 'typescript'
       } else if (files.some((f: string) => f.endsWith('.js') || f.endsWith('.jsx'))) {
@@ -551,10 +551,10 @@ export class ProjectMemoryManager {
   private ensureMemoryDirectory(): void {
     const baseDir = dirname(this.memoryDir)
     if (!existsSync(baseDir)) {
-      require('node:fs').mkdirSync(baseDir, { recursive: true })
+      require('fs').mkdirSync(baseDir, { recursive: true })
     }
     if (!existsSync(this.memoryDir)) {
-      require('node:fs').mkdirSync(this.memoryDir, { recursive: true })
+      require('fs').mkdirSync(this.memoryDir, { recursive: true })
     }
   }
 
@@ -673,7 +673,7 @@ export class ProjectMemoryManager {
    */
   public cleanupOldMemories(maxAge: number = 90 * 24 * 60 * 60 * 1000): void {
     try {
-      const files = require('node:fs').readdirSync(this.memoryDir)
+      const files = require('fs').readdirSync(this.memoryDir)
       const now = Date.now()
 
       files.forEach((file: string) => {
@@ -682,7 +682,7 @@ export class ProjectMemoryManager {
           const stat = statSync(filePath)
 
           if (now - stat.mtime.getTime() > maxAge) {
-            require('node:fs').unlinkSync(filePath)
+            require('fs').unlinkSync(filePath)
             console.log(chalk.dim(`Cleaned up old project memory: ${file}`))
           }
         }

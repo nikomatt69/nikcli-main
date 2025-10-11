@@ -31,9 +31,11 @@ export class TerminalOutputManager {
   constructor() {
     this.updateTerminalDimensions()
     // Aggiorna dimensioni quando il terminale viene ridimensionato
-    process.stdout.on('resize', () => {
-      this.updateTerminalDimensions()
-    })
+    if (typeof process !== 'undefined' && process.stdout && process.stdout.on) {
+      process.stdout.on('resize', () => {
+        this.updateTerminalDimensions()
+      })
+    }
   }
 
   /**

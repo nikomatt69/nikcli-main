@@ -1,5 +1,5 @@
 import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
+import * as path from 'path'
 
 export interface TelemetryEvent {
   type: string

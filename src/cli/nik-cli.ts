@@ -1,5 +1,5 @@
 import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
+import * as path from 'path'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import cliProgress from 'cli-progress'
@@ -240,7 +240,7 @@ export class NikCLI {
   private recursionDepth: number = 0
   private readonly MAX_RECURSION_DEPTH: number = 3
   private cleanupInProgress: boolean = false
-  private activeTimers: Set<NodeJS.Timeout> = new Set()
+  private activeTimers: Set<Timer> = new Set()
   private inquirerInstances: Set<any> = new Set()
 
   // Parallel agent collaboration system
@@ -273,9 +273,9 @@ export class NikCLI {
   private _pendingPasteContent?: string
   private orchestrationLevel: number = 8
   // Timer used to re-render the prompt after console output in chat mode
-  private promptRenderTimer: NodeJS.Timeout | null = null
+  private promptRenderTimer: Timer | null = null
   // Status bar loading animation
-  private statusBarTimer: NodeJS.Timeout | null = null
+  private statusBarTimer: Timer | null = null
   private statusBarStep: number = 0
   private isInquirerActive: boolean = false
   private lastBarSegments: number = -1
@@ -1079,28 +1079,28 @@ export class NikCLI {
   /**
    * Get the prompt render timer.
    */
-  public getPromptRenderTimer(): NodeJS.Timeout | null {
+  public getPromptRenderTimer(): Timer | null {
     return this.promptRenderTimer
   }
 
   /**
    * Set the prompt render timer.
    */
-  public setPromptRenderTimer(timer: NodeJS.Timeout | null): void {
+  public setPromptRenderTimer(timer: Timer | null): void {
     this.promptRenderTimer = timer
   }
 
   /**
    * Get the status bar timer.
    */
-  public getStatusBarTimer(): NodeJS.Timeout | null {
+  public getStatusBarTimer(): Timer | null {
     return this.statusBarTimer
   }
 
   /**
    * Set the status bar timer.
    */
-  public setStatusBarTimer(timer: NodeJS.Timeout | null): void {
+  public setStatusBarTimer(timer: Timer | null): void {
     this.statusBarTimer = timer
   }
 
@@ -1379,7 +1379,7 @@ export class NikCLI {
   /**
    * Get active timers.
    */
-  public getActiveTimers(): Set<NodeJS.Timeout> {
+  public getActiveTimers(): Set<Timer> {
     return this.activeTimers
   }
 

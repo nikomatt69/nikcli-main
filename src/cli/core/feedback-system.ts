@@ -1,8 +1,8 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes } from 'crypto'
 import * as fsSync from 'node:fs'
 import * as fs from 'node:fs/promises'
-import * as os from 'node:os'
-import * as path from 'node:path'
+import * as os from 'os'
+import * as path from 'path'
 import chalk from 'chalk'
 import { getCloudDocsProvider } from './cloud-docs-provider'
 

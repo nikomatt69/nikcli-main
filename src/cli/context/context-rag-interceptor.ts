@@ -6,7 +6,7 @@ import { UnifiedRAGSystem } from './rag-system'
 class ContextRAGInterceptor {
   private installed = false
   private rag?: UnifiedRAGSystem
-  private warmupInterval?: NodeJS.Timeout
+  private warmupInterval?: Timer
   private readonly CONTEXT_SENTINEL = '[[nikcli_context]]'
 
   async install(): Promise<void> {

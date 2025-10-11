@@ -25,8 +25,8 @@ export abstract class BaseTool {
    * Verifica se un percorso è sicuro (dentro working directory)
    */
   protected isPathSafe(path: string): boolean {
-    const _fs = require('node:fs')
-    const pathModule = require('node:path')
+    const _fs = require('fs')
+    const pathModule = require('path')
 
     try {
       const resolvedPath = pathModule.resolve(path)
