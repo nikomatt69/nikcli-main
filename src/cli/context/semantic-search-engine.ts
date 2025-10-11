@@ -130,7 +130,7 @@ export class SemanticSearchEngine {
       return cached
     }
 
-    console.log(chalk.blue(`⚡︎ Analyzing query: "${query}"`))
+
 
     // 1. Preprocess query (cleaning, normalization)
     const processedQuery = this.preprocessQuery(query)

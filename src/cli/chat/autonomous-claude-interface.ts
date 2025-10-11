@@ -4,11 +4,13 @@ import chalk from 'chalk'
 import ora, { type Ora } from 'ora'
 import * as readline from 'readline'
 import { advancedAIProvider, type StreamEvent } from '../ai/advanced-ai-provider'
+import { StreamProtocol, type StreamEvent as StreamttyStreamEvent } from '../services/streamtty-service'
 import { AGENT_CAPABILITIES, modernAgentOrchestrator } from '../automation/agents/modern-agent-system'
 import { simpleConfigManager as configManager } from '../core/config-manager'
 import { contextManager } from '../core/context-manager'
 import { ExecutionPolicyManager } from '../policies/execution-policy'
 import { streamttyService } from '../services/streamtty-service'
+import { getUnifiedToolRenderer, initializeUnifiedToolRenderer } from '../services/unified-tool-renderer'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { configureSyntaxHighlighting } from '../utils/syntax-highlighter'
@@ -88,6 +90,13 @@ export class AutonomousClaudeInterface {
     // Initialize structured UI
     advancedUI.startInteractiveMode()
     this.initializeStructuredPanels()
+
+    // Initialize unified tool renderer
+    try {
+      initializeUnifiedToolRenderer(advancedUI, streamttyService)
+    } catch {
+      // Already initialized
+    }
 
     this.setupEventHandlers()
     this.setupStreamOptimization()
@@ -618,6 +627,10 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     this.shouldInterrupt = false
     this.currentStreamController = new AbortController()
 
+    // Start execution mode - pauses ephemeral cleanup and makes tool logs persistent
+    const unifiedRenderer = getUnifiedToolRenderer()
+    unifiedRenderer.startExecution('vm')
+
     try {
       console.log() // Add spacing
       console.log(chalk.blue('🔌 ') + chalk.dim('Autonomous assistant thinking...'))
@@ -656,15 +669,25 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
 
         switch (event.type) {
           case 'start':
-            console.log(chalk.cyan(`🚀 ${event.content}`))
+            // Convert to streamtty AI SDK event
+            await streamttyService.streamAISDKEvent(
+              StreamProtocol.createStatus(event.content || 'Starting...', 'running')
+            )
             break
 
           case 'thinking':
-            console.log(chalk.magenta(`💭 ${event.content}`))
+            // Convert to streamtty AI SDK thinking event
+            await streamttyService.streamAISDKEvent(
+              StreamProtocol.createThinking(event.content || 'Thinking...')
+            )
             break
 
           case 'text_delta':
             if (event.content) {
+              // Stream as AI SDK text delta event
+              await streamttyService.streamAISDKEvent(
+                StreamProtocol.createTextDelta(event.content)
+              )
               // Buffer for smooth streaming
               this.streamBuffer += event.content
               this.lastStreamTime = Date.now()
@@ -684,19 +707,26 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
           case 'complete': {
             // Flush any remaining buffer
             if (this.streamBuffer) {
-              process.stdout.write(this.streamBuffer)
               this.streamBuffer = ''
             }
 
             const duration = Date.now() - startTime
-            console.log()
-            console.log() // Add extra spacing before completion message
-            console.log(chalk.green(`✨ Completed in ${duration}ms • ${toolsExecuted} tools used`))
+            // Use AI SDK complete event
+            await streamttyService.streamAISDKEvent(
+              StreamProtocol.createStatus(
+                `Completed in ${duration}ms • ${toolsExecuted} tools used`,
+                'completed',
+                { duration, toolsExecuted }
+              )
+            )
             break
           }
 
           case 'error':
-            console.log(chalk.red(`\\n❌ Error: ${event.error}`))
+            // Convert to AI SDK error event
+            await streamttyService.streamAISDKEvent(
+              StreamProtocol.createError(event.error || 'An error occurred')
+            )
             break
         }
       }
@@ -718,6 +748,9 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
         console.log(chalk.red(`\\n❌ Autonomous execution failed: ${error.message}`))
       }
     } finally {
+      // End execution mode - resume ephemeral cleanup
+      unifiedRenderer.endExecution()
+
       this.stopAllActiveOperations()
       this.isProcessing = false
       this.shouldInterrupt = false
@@ -731,56 +764,72 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     }
   }
 
-  private handleToolCall(event: StreamEvent): void {
+  private async handleToolCall(event: StreamEvent): Promise<void> {
     const { toolName, toolArgs, metadata } = event
     if (!toolName) return
 
-    // Create visual indicator for tool execution
-    const toolEmoji = this.getToolEmoji(toolName)
-    const toolLabel = this.getToolLabel(toolName)
+    const unifiedRenderer = getUnifiedToolRenderer()
+    const toolCallId = metadata?.toolCallId || `vm-${toolName}-${Date.now()}`
 
-    console.log(`\\n${toolEmoji} ${chalk.cyan(toolLabel)}`, chalk.dim(this.formatToolArgs(toolArgs)))
-
-    // Create spinner for long-running operations
+    // Track tool start time for later completion
     const tracker: ToolExecutionTracker = {
       name: toolName,
       startTime: new Date(),
-      spinner: ora({
-        text: chalk.dim(`Executing ${toolName}...`),
-        spinner: 'dots2',
-        color: 'cyan',
-      }).start(),
     }
+    this.activeTools.set(toolCallId, tracker)
 
-    if (metadata?.toolCallId) {
-      this.activeTools.set(metadata.toolCallId, tracker)
-    }
+    // Use unified renderer for consistent logging
+    await unifiedRenderer.logToolCall(
+      toolName,
+      toolArgs,
+      {
+        mode: 'vm',
+        toolCallId,
+        agentName: 'VM'
+      },
+      {
+        showInRecentUpdates: true,
+        streamToTerminal: true,
+        persistent: true
+      }
+    )
   }
 
-  private handleToolResult(event: StreamEvent): void {
+  private async handleToolResult(event: StreamEvent): Promise<void> {
     const { toolName, toolResult, metadata } = event
     if (!toolName) return
 
-    // Stop spinner if exists
-    if (metadata?.toolCallId) {
-      const tracker = this.activeTools.get(metadata.toolCallId)
-      if (tracker?.spinner) {
-        const duration = Date.now() - tracker.startTime.getTime()
-        const success = metadata?.success !== false
+    const unifiedRenderer = getUnifiedToolRenderer()
+    const toolCallId = metadata?.toolCallId || `vm-${toolName}-${Date.now()}`
 
-        if (success) {
-          tracker.spinner.succeed(chalk.green(`${toolName} completed (${duration}ms)`))
-        } else {
-          tracker.spinner.fail(chalk.red(`${toolName} failed (${duration}ms)`))
-        }
-
-        this.activeTools.delete(metadata.toolCallId)
-      }
+    // Get tracker to calculate duration
+    const tracker = this.activeTools.get(toolCallId)
+    if (tracker) {
+      tracker.endTime = new Date()
+      tracker.success = metadata?.success !== false
+      tracker.output = toolResult
     }
 
-    // Show tool result summary and update structured panels
+    // Use unified renderer for result logging
+    await unifiedRenderer.logToolResult(
+      toolCallId,
+      toolResult,
+      {
+        mode: 'vm',
+        agentName: 'VM'
+      },
+      {
+        showInRecentUpdates: true,
+        streamToTerminal: true,
+        persistent: true
+      }
+    )
+
+    // Clean up tracker
+    this.activeTools.delete(toolCallId)
+
+    // Update structured panels (keep existing behavior)
     if (toolResult && !toolResult.error) {
-      this.showToolResultSummary(toolName, toolResult)
       this.updateStructuredPanelsFromTool(toolName, toolResult)
     }
   }

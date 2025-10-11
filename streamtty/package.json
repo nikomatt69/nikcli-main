@@ -11,7 +11,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "example:basic": "tsx examples/basic.ts",
-    "example:streaming": "tsx examples/streaming.ts",
+    "example:streaming": "bunx tsx examples/streaming.ts",
     "example:chat": "tsx examples/chat.ts",
     "clean": "rm -rf dist"
   },

@@ -126,7 +126,7 @@ export class AdvancedTools {
         available: !!openaiKey,
         model: 'text-embedding-3-small',
       })
-    } catch {}
+    } catch { }
 
     try {
       const googleKey = configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY
@@ -135,7 +135,7 @@ export class AdvancedTools {
         available: !!googleKey,
         model: 'text-embedding-004',
       })
-    } catch {}
+    } catch { }
 
     try {
       const openrouterKey = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
@@ -144,7 +144,7 @@ export class AdvancedTools {
         available: !!openrouterKey,
         model: 'text-embedding-3-small',
       })
-    } catch {}
+    } catch { }
 
     return providers
   }
@@ -286,7 +286,7 @@ export class AdvancedTools {
       }),
       execute: async ({ filePath, analysisType }) => {
         try {
-          advancedUI.logInfo(`🔍 Analyzing code: ${filePath} (${analysisType})`)
+          advancedUI.addLiveUpdate({ type: 'log', content: `🔍 Analyzing code: ${filePath} (${analysisType})` })
 
           if (!existsSync(filePath)) {
             return { error: `File not found: ${filePath}` }
@@ -359,7 +359,7 @@ Provide detailed analysis including:
       }),
       execute: async ({ includeDevDeps, checkSecurity, suggestOptimizations }) => {
         try {
-          advancedUI.logInfo('📦 Analyzing project dependencies...')
+          advancedUI.addLiveUpdate({ type: 'log', content: '📦 Analyzing project dependencies...' })
 
           if (!existsSync('package.json')) {
             return { error: 'No package.json found in current directory' }
@@ -438,7 +438,7 @@ Provide:
       }),
       execute: async ({ analyzeCommits, checkBranching, suggestWorkflow }) => {
         try {
-          advancedUI.logInfo('📊 Analyzing Git workflow...')
+          advancedUI.addLiveUpdate({ type: 'log', content: '📊 Analyzing Git workflow...' })
 
           // Get Git information
           const { stdout: branch } = await execAsync('git branch --show-current')

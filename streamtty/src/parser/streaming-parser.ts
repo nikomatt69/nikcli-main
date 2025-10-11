@@ -30,17 +30,15 @@ export class StreamingMarkdownParser {
   }
 
   /**
-   * Preprocess text to handle HTML entities, ANSI codes, and custom tags
+   * Preprocess text to handle HTML entities and custom tags
+   * NOTE: ANSI codes are preserved for terminal color rendering
    */
   private preprocessText(text: string): string {
     let processed = text;
 
-    // Strip ANSI color codes first (comprehensive removal)
-    processed = processed.replace(/\x1b\[[0-9;]*m/g, '');           // Standard color codes
-    processed = processed.replace(/\x1b\[[\d;]*[A-Za-z]/g, '');     // All ANSI CSI sequences
-    processed = processed.replace(/\x1b[A-Z]/g, '');                // Single char sequences
-    processed = processed.replace(/\x1b\([AB0-9]/g, '');            // Character set sequences
-    processed = processed.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F]/g, ''); // Other control chars
+    // DO NOT strip ANSI codes - they're needed for terminal colors!
+    // Blessed and terminal renderers handle ANSI codes natively.
+    // Removing them causes color codes to appear as raw text patterns.
 
     // Decode common HTML entities
     processed = processed.replace(/&#39;/g, "'");

@@ -82,9 +82,6 @@ export class UnifiedEmbeddingInterface {
   private lastOptimization = Date.now()
   private readonly CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours
   private readonly MAX_MEMORY_CACHE = 10000
-  // Concurrency/throughput controls
-  private maxConcurrentBatches = Number(process.env.EMBED_CONCURRENCY || 12)
-  private retryDelays = [250, 500, 1000, 1500]
 
   // Enhanced stats tracking
   private batchLatencies: number[] = []
@@ -98,10 +95,9 @@ export class UnifiedEmbeddingInterface {
       model: 'text-embedding-3-small',
       dimensions: 1536,
       maxTokens: 8191,
+      batchSize: Number(process.env.EMBED_BATCH_SIZE || 300), // Configurable via env
       cacheEnabled: true,
       persistenceEnabled: true,
-      batchSize: Number(process.env.EMBED_BATCH_SIZE || 100), // Configurable via env (default 100)
-
       ...config,
     }
 
@@ -137,33 +133,8 @@ export class UnifiedEmbeddingInterface {
       const texts = uncachedQueries.map((q) => q.text)
 
       try {
-        // Split into chunks and limit concurrency
-        const chunks: string[][] = []
-        for (let i = 0; i < texts.length; i += this.config.batchSize) {
-          chunks.push(texts.slice(i, i + this.config.batchSize))
-        }
-
-        const embeddings: number[][] = []
-        let inFlight = 0
-        let idx = 0
-        const runNext = async (): Promise<void> => {
-          if (idx >= chunks.length) return
-          const myIdx = idx++
-          const chunk = chunks[myIdx]
-          inFlight++
-          try {
-            const res = await this.callWithRetry(() => this.provider.generate(chunk))
-            embeddings.push(...res)
-          } finally {
-            inFlight--
-            if (idx < chunks.length) await runNext()
-          }
-        }
-
-        const starters = Math.min(this.maxConcurrentBatches, chunks.length)
-        const tasks: Promise<void>[] = []
-        for (let i = 0; i < starters; i++) tasks.push(runNext())
-        await Promise.all(tasks)
+        // Already cached via embeddingCache Map + persistent cache - AI SDK Tools cache would be redundant
+        const embeddings = await this.provider.generate(texts)
         const currentProvider = this.provider.getCurrentProvider() || 'unknown'
 
         for (let i = 0; i < uncachedQueries.length; i++) {
@@ -214,21 +185,6 @@ export class UnifiedEmbeddingInterface {
     }
 
     return results
-  }
-
-  private async callWithRetry<T>(fn: () => Promise<T>): Promise<T> {
-    let lastErr: any
-    for (let i = 0; i <= this.retryDelays.length; i++) {
-      try {
-        return await fn()
-      } catch (e) {
-        lastErr = e
-        if (i === this.retryDelays.length) break
-        const delay = this.retryDelays[i] + Math.floor(Math.random() * 100)
-        await new Promise((r) => setTimeout(r, delay))
-      }
-    }
-    throw lastErr
   }
 
   /**
@@ -350,7 +306,7 @@ export class UnifiedEmbeddingInterface {
     this.stats.cacheHitRate =
       this.stats.totalQueries > 0
         ? (this.stats.totalQueries - Object.values(this.stats.byProvider).reduce((sum, p) => sum + p.count, 0)) /
-          this.stats.totalQueries
+        this.stats.totalQueries
         : 0
 
     return { ...this.stats }

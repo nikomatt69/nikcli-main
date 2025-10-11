@@ -48,7 +48,7 @@ export class AiSdkEmbeddingProvider {
     openai: {
       provider: 'openai',
       model: 'text-embedding-3-small',
-      batchSize: Number(process.env.EMBED_BATCH_SIZE || 300), // Configurable via env
+      batchSize: 100, // Configurable via env
       maxTokens: 8191,
       costPer1KTokens: 0.00002,
     },
@@ -105,13 +105,13 @@ export class AiSdkEmbeddingProvider {
     }
 
     // Check OpenRouter (config manager or environment)
-    if (configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY) {
-      this.availableProviders.push('openrouter')
+    if (configManager.getApiKey('openai') || process.env.OPENAI_API_KEY) {
+      this.availableProviders.push('openai')
     }
 
     // Set default provider (prefer OpenRouter if available, then OpenAI for cost efficiency)
-    if (this.availableProviders.includes('openrouter')) {
-      this.currentProvider = 'openrouter'
+    if (this.availableProviders.includes('openai')) {
+      this.currentProvider = 'openai'
     } else {
       this.currentProvider = this.availableProviders[0] || null
     }
@@ -119,10 +119,7 @@ export class AiSdkEmbeddingProvider {
     if (this.availableProviders.length === 0) {
       console.log(chalk.blue('⚡︎ RAG using local workspace analysis (no API keys configured)'))
     } else {
-      if (!process.env.NIKCLI_QUIET_STARTUP) {
-        console.log(chalk.green(`✓ Embedding providers available: ${this.availableProviders.join(', ')}`))
-        console.log(chalk.gray(`   Default: ${this.currentProvider}`))
-      }
+
     }
   }
 

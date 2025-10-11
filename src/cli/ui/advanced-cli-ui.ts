@@ -100,6 +100,10 @@ export class AdvancedCliUI {
   private ephemeralLiveUpdates: boolean = false
   // Track last printed source to avoid duplicate ⏺ headers
   private lastPrintedSource: string | null = null
+  // Pause ephemeral cleanup during execution
+  private ephemeralCleanupPaused: boolean = false
+  // Flag to prioritize tool calls during plan mode execution
+  private isPlanExecutionActive: boolean = false
   constructor() {
     this.theme = {
       primary: chalk.blue,
@@ -121,7 +125,7 @@ export class AdvancedCliUI {
     this.cleanChatMode = truthy(cleanEnv || (process.stdout.isTTY ? '' : '1'))
     const ephemeralEnv = process.env.NIKCLI_LIVE_UPDATES_EPHEMERAL
     // Default ephemeral behavior to cleanChatMode unless explicitly overridden
-    this.ephemeralLiveUpdates = truthy(ephemeralEnv ?? (this.cleanChatMode ? '1' : ''))
+    this.ephemeralLiveUpdates = truthy(ephemeralEnv ?? (this.cleanChatMode ? '1' : '0'))
   }
 
   /** Emit a structured event consumable by VS Code webview */
@@ -211,10 +215,10 @@ export class AdvancedCliUI {
       this.logStatusUpdate(indicator)
     }
 
-    // Auto-clear ephemeral logs when the system becomes idle
-    if (this.ephemeralLiveUpdates && this.isIdle()) {
+    // Auto-clear ephemeral logs when the system becomes idle (unless paused)
+    if (this.ephemeralLiveUpdates && !this.ephemeralCleanupPaused && this.isIdle()) {
       setTimeout(() => {
-        if (this.isIdle()) {
+        if (this.isIdle() && !this.ephemeralCleanupPaused) {
           this.clearLiveUpdates()
           if (this.isInteractiveMode) this.refreshDisplay()
         }
@@ -361,10 +365,10 @@ export class AdvancedCliUI {
       timestamp: liveUpdate.timestamp,
     })
 
-    // If logs are ephemeral and system is idle, clear them shortly after
-    if (this.ephemeralLiveUpdates && this.isIdle()) {
+    // If logs are ephemeral and system is idle, clear them shortly after (unless paused)
+    if (this.ephemeralLiveUpdates && !this.ephemeralCleanupPaused && this.isIdle()) {
       setTimeout(() => {
-        if (this.isIdle()) {
+        if (this.isIdle() && !this.ephemeralCleanupPaused) {
           this.clearLiveUpdates()
           if (this.isInteractiveMode) this.refreshDisplay()
         }
@@ -2210,6 +2214,41 @@ export class AdvancedCliUI {
 
     if (currentLine) lines.push(currentLine)
     return lines.join('\n  ')
+  }
+
+  /**
+   * Pause ephemeral cleanup during execution
+   */
+  pauseEphemeralCleanup(): void {
+    this.ephemeralCleanupPaused = true
+  }
+
+  /**
+   * Resume ephemeral cleanup after execution
+   */
+  resumeEphemeralCleanup(): void {
+    this.ephemeralCleanupPaused = false
+  }
+
+  /**
+   * Start plan execution mode - prioritize tool calls in recent updates
+   */
+  startPlanExecution(): void {
+    this.isPlanExecutionActive = true
+  }
+
+  /**
+   * End plan execution mode
+   */
+  endPlanExecution(): void {
+    this.isPlanExecutionActive = false
+  }
+
+  /**
+   * Check if plan execution is active
+   */
+  isPlanExecutionMode(): boolean {
+    return this.isPlanExecutionActive
   }
 }
 

@@ -54,6 +54,7 @@ import { memoryService } from './services/memory-service'
 import { planningService } from './services/planning-service'
 import { snapshotService } from './services/snapshot-service'
 import { toolService } from './services/tool-service'
+import { getUnifiedToolRenderer, initializeUnifiedToolRenderer } from './services/unified-tool-renderer'
 import { StreamingOrchestrator } from './streaming-orchestrator'
 import { toolsManager } from './tools/tools-manager'
 import { advancedUI } from './ui/advanced-cli-ui'
@@ -73,6 +74,8 @@ import { formatAgent, formatCommand, formatFileOp, formatSearch, formatStatus, w
 
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
+import { createStreamRenderer } from 'streamtty/dist'
+import { renderChatStreamToTerminal } from './ui/streamdown-renderer'
 
 
 // CAD AI System imports
@@ -313,7 +316,7 @@ export class NikCLI {
 
   // When the Plan HUD is visible, suppress verbose Advanced UI functionCall/functionUpdate
   // console prints to avoid duplicated rows alongside the dedicated toolchain rows.
-  private suppressToolLogsWhilePlanHudVisible: boolean = this.currentMode === 'plan' ? false : true
+  private suppressToolLogsWhilePlanHudVisible: boolean = this.currentMode === 'plan' ? true : true
 
   // Enhanced services
   private enhancedSessionManager: EnhancedSessionManager
@@ -361,6 +364,9 @@ export class NikCLI {
     // No automatic initialization to avoid unwanted file watchers
     this.slashHandler = new SlashCommandHandler(this)
     this.advancedUI = advancedUI
+
+    // Initialize unified tool renderer for consistent tool call rendering
+
 
     // Token optimizer will be initialized lazily when needed
 
@@ -429,7 +435,7 @@ export class NikCLI {
       // Default to clean mode in non-TTY environments unless explicitly disabled
       this.cleanChatMode = truthy(cleanEnv || (process.stdout.isTTY ? '' : '1'))
       const ephemeralEnv = process.env.NIKCLI_LIVE_UPDATES_EPHEMERAL
-      this.ephemeralLiveUpdates = truthy(ephemeralEnv ?? (this.cleanChatMode ? '1' : ''))
+      this.ephemeralLiveUpdates = truthy(ephemeralEnv ?? (this.cleanChatMode ? '' : ''))
     } catch {
       /* ignore env parsing errors */
     }
@@ -4259,9 +4265,11 @@ EOF`
    * Start executing tasks one by one, asking for approval before each task
    */
   private async startFirstTask(plan: any): Promise<void> {
+    advancedUI.logFunctionCall('task_execution_step_by_step')
+
     const todos = Array.isArray(plan?.todos) ? plan.todos : []
     if (todos.length === 0) {
-      advancedUI.addLiveUpdate({ type: 'warning', content: 'No tasks found in the plan', source: 'task_execution' })
+      advancedUI.logFunctionUpdate('warning', 'No tasks found in the plan')
       return
     }
 
@@ -4276,19 +4284,15 @@ EOF`
     }
 
     if (!currentTask) {
-      advancedUI.addLiveUpdate({ type: 'warning', content: 'No tasks to execute', source: 'task_execution' })
+      advancedUI.logFunctionUpdate('warning', 'No tasks to execute')
       return
     }
 
     // Execute tasks one by one
     while (currentTask) {
-      advancedUI.addLiveUpdate({
-        type: 'info',
-        content: `Task ${currentTaskIndex + 1}/${todos.length}: ${currentTask.title}`,
-        source: 'task_execution',
-      })
+      advancedUI.logFunctionUpdate('info', `Task ${currentTaskIndex + 1}/${todos.length}: ${currentTask.title}`)
       if (currentTask.description) {
-        advancedUI.addLiveUpdate({ type: 'info', content: currentTask.description, source: 'task_execution' })
+        advancedUI.logFunctionUpdate('info', `${currentTask.description}`)
       }
 
       try {
@@ -4306,11 +4310,7 @@ EOF`
         currentTask.completedAt = new Date()
         this.updatePlanHudTodoStatus(currentTask.id, 'completed')
 
-        advancedUI.addLiveUpdate({
-          type: 'log',
-          content: `Task ${currentTaskIndex + 1} completed: ${currentTask.title}`,
-          source: 'task_execution',
-        })
+        advancedUI.logFunctionUpdate('success', `Task ${currentTaskIndex + 1} completed: ${currentTask.title}`)
 
         // Find next pending task
         currentTaskIndex++
@@ -4329,22 +4329,14 @@ EOF`
             currentTask = nextTask
             currentTaskIndex = todos.indexOf(nextTask)
           } else {
-            advancedUI.addLiveUpdate({
-              type: 'warning',
-              content: 'Task execution stopped by user',
-              source: 'task_execution',
-            })
+            console.log(chalk.yellow('⏸️ Task execution stopped by user'))
             break
           }
         } else {
           currentTask = null // No more tasks
         }
       } catch (error: any) {
-        advancedUI.addLiveUpdate({
-          type: 'error',
-          content: `Task execution error: ${error.message}`,
-          source: 'task_execution',
-        })
+        advancedUI.logFunctionUpdate('error', `Task execution error: ${error.message}`)
 
         // Mark task as failed
         currentTask.status = 'failed'
@@ -4375,16 +4367,12 @@ EOF`
     const failed = todos.filter((t: { status: string }) => t.status === 'failed').length
     const pending = todos.filter((t: { status: string }) => t.status === 'pending').length
 
-    advancedUI.addLiveUpdate({ type: 'log', content: `Completed: ${completed}`, source: 'execution_summary' })
-    if (failed > 0)
-      advancedUI.addLiveUpdate({ type: 'error', content: `Failed: ${failed}`, source: 'execution_summary' })
-    if (pending > 0)
-      advancedUI.addLiveUpdate({ type: 'warning', content: `Remaining: ${pending}`, source: 'execution_summary' })
+    advancedUI.logFunctionCall('task_execution_summary')
+    advancedUI.logFunctionUpdate('success', `Completed: ${completed}`)
+    if (failed > 0) advancedUI.logFunctionUpdate('error', `Failed: ${failed}`)
+    if (pending > 0) advancedUI.logFunctionUpdate('warning', `Remaining: ${pending}`)
   }
 
-  /**
-   * Execute agent with plan-mode style streaming (like executeTaskWithToolchains)
-   */
   /**
    * Execute agent with plan-mode style streaming (like executeTaskWithToolchains)
    */
@@ -4396,17 +4384,22 @@ EOF`
   ): Promise<void> {
     advancedUI.logInfo(`⚡︎ Executing: ${agentName} - ${task}`, 'plan-exec')
 
+    // Get unified tool renderer
+    const unifiedRenderer = getUnifiedToolRenderer()
     try {
+      // Start parallel execution mode - pauses ephemeral cleanup and makes tool logs persistent
+      unifiedRenderer.startExecution('parallel')
+
       // Create messages like plan mode
       const messages = [{ role: 'user' as const, content: task }]
       let streamCompleted = false
-
       // Track streaming output for formatting (same as default mode)
       let assistantText = ''
       let shouldFormatOutput = false
       let streamedLines = 0
       const terminalWidth = process.stdout.columns || 80
       let lastToolName: string | undefined // Track last tool for result correlation
+      let activeToolCallId: string | undefined // Track active tool call ID
 
       // Stream directly through streamttyService (no bridge needed)
       const { streamttyService } = await import('./services/streamtty-service')
@@ -4430,33 +4423,34 @@ EOF`
             }
             break
 
-          case 'tool_call':
-            // Tool execution events - push to stream like plan mode
-            if (ev.toolName) {
-              lastToolName = ev.toolName // Track for result correlation
-
-              // Push tool call to stream (like plan mode shows tool execution)
-              if ((agent as any).collaborationContext) {
-
-                await streamttyService.streamChunk(ev.toolName, ev.toolArgs)
-              }
-            }
+          case 'tool_call': {
+            // Use unified renderer for tool call logging (same as default mode)
+            const toolName = ev.toolName || 'unknown_tool'
+            const toolCallId = `plan-${toolName}-${Date.now()}`
+            await unifiedRenderer.logToolCall(
+              toolName,
+              ev.toolArgs,
+              { mode: 'plan', toolCallId, agentName },
+              { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+            )
+            activeToolCallId = toolCallId
+            lastToolName = toolName
             break
+          }
 
-          case 'tool_result':
-            // Tool results - push to stream
-            if (ev.toolResult) {
-              const toolName = ev.toolName || lastToolName
-
-              // Push tool completion to stream
-              if ((agent as any).collaborationContext && toolName) {
-                const resultMarkdown = `> ✓ ${agentName}: ${toolName} completed\n`
-                await streamttyService.streamChunk(resultMarkdown, 'tool')
-              }
-
-              lastToolName = undefined // Reset after use
+          case 'tool_result': {
+            // Use unified renderer for tool result logging (same as default mode)
+            if (activeToolCallId) {
+              await unifiedRenderer.logToolResult(
+                activeToolCallId,
+                ev.toolResult,
+                { mode: 'plan', agentName },
+                { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+              )
             }
+            activeToolCallId = undefined
             break
+          }
 
           case 'complete':
             // Mark that we should format output after stream ends (like default mode)
@@ -4468,7 +4462,7 @@ EOF`
 
           case 'error':
             // Stream error
-            advancedUI.logError(`❌ ${agentName} error: ${ev.error}`, 'plan-exec')
+            this.addLiveUpdate({ type: 'error', content: `❌ ${agentName} error: ${ev.error}`, source: 'plan-exec' })
             throw new Error(ev.error)
         }
       }
@@ -4500,6 +4494,10 @@ EOF`
         source: 'plan-exec',
       })
       throw error
+    } finally {
+      unifiedRenderer.endExecution()
+      // End parallel execution mode - resume ephemeral cleanup
+
     }
   }
 
@@ -5111,7 +5109,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               case 'tool_call': {
                 // Tool execution events with parameter info
                 const toolInfo = this.formatToolCallInfo(ev)
-                if (!this.planHudVisible || !this.suppressToolLogsWhilePlanHudVisible) {
+                {
                   advancedUI.logFunctionCall(toolInfo.functionName)
                   if (toolInfo.details) {
                     advancedUI.logFunctionUpdate('info', toolInfo.details, 'ℹ')
@@ -5123,7 +5121,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               case 'tool_result':
                 // Tool results
                 if (ev.toolResult) {
-                  if (!this.planHudVisible || !this.suppressToolLogsWhilePlanHudVisible) {
+                  {
                     advancedUI.logFunctionUpdate('success', 'Tool completed', '✓')
                   }
                 }
@@ -5504,9 +5502,15 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         await this.planningManager.executePlan(this.lastGeneratedPlan.id)
         console.log(chalk.green('✓ Plan execution completed!'))
         this.lastGeneratedPlan = undefined // Clear the stored plan
+
+        // Restore prompt after plan execution (debounced)
+        setTimeout(() => this.renderPromptAfterOutput(), 50)
         return
       } catch (error: any) {
         console.log(chalk.red(`Plan execution failed: ${error?.message || error}`))
+
+        // Restore prompt after error (debounced)
+        setTimeout(() => this.renderPromptAfterOutput(), 50)
         return
       }
     }

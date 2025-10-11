@@ -6,7 +6,7 @@ import { createVercel } from '@ai-sdk/vercel'
 import { generateObject, generateText, streamText } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
-import { getRAGMiddleware } from '../context/rag-setup'
+
 import { configManager, type ModelConfig } from '../core/config-manager'
 import { streamttyService } from '../services/streamtty-service'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
@@ -229,7 +229,7 @@ export class ModelProvider {
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
         }
-      } catch {}
+      } catch { }
     }
     const effectiveConfig: ModelConfig = { ...currentModelConfig, model: effectiveModelId } as ModelConfig
     // Enforce light quota check for OpenRouter usage if authenticated
@@ -243,14 +243,14 @@ export class ModelProvider {
           }
         }
       }
-    } catch (_) {}
+    } catch (_) { }
 
     const model = this.getModel(effectiveConfig)
 
     const baseOptions: Parameters<typeof generateText>[0] = {
       model: model as any,
       messages: validatedOptions.messages.map((msg) => ({ role: msg.role, content: msg.content })),
-      ...(getRAGMiddleware() || {}), // Add RAG middleware if available
+
     }
     // Always honor explicit user settings for all providers
     if (validatedOptions.maxTokens != null) {
@@ -272,7 +272,7 @@ export class ModelProvider {
           await authProvider.recordUsage('apiCalls', 1)
         }
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // Extract reasoning if available and display if requested
     if (reasoningEnabled) {
@@ -351,7 +351,7 @@ export class ModelProvider {
           const msg = `[Router] ${currentModelName} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch {}
+        } catch { }
       }
     }
     const effectiveConfig2: ModelConfig = { ...currentModelConfig, model: effectiveModelId2 } as ModelConfig
@@ -360,10 +360,10 @@ export class ModelProvider {
     const streamOptions: any = {
       model: model as any,
       messages: validatedOptions.messages.map((msg) => ({ role: msg.role, content: msg.content })),
-      ...(getRAGMiddleware() || {}), // Add RAG middleware if available
+
     }
     if (currentModelConfig.provider !== 'openai') {
-      streamOptions.maxTokens = validatedOptions.maxTokens ?? 1000
+      streamOptions.maxTokens = validatedOptions.maxTokens ?? 1500
       streamOptions.temperature = validatedOptions.temperature ?? configManager.get('temperature')
     }
     const result = await streamText(streamOptions)
@@ -415,7 +415,7 @@ export class ModelProvider {
           const msg = `[Router] ${configManager.getCurrentModel()} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
           if (nik?.advancedUI) nik.advancedUI.logInfo('Model Router', msg)
           else console.log(require('chalk').dim(msg))
-        } catch {}
+        } catch { }
       }
     }
     const model = this.getModel({ ...currentModelConfig, model: effId3 } as ModelConfig)
@@ -430,7 +430,7 @@ export class ModelProvider {
       schemaName: options.schemaName,
       schemaDescription: options.schemaDescription,
       temperature: options.temperature ?? configManager.get('temperature'),
-      ...(getRAGMiddleware() || {}), // Add RAG middleware if available
+
     }
 
     // Add AI SDK steps and finalStep support

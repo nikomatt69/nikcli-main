@@ -96,7 +96,26 @@ function estimateCost(input: string[] | number, provider: string = 'openai'): nu
 function createVectorStoreConfigs() {
   const configs = []
 
-  // 🚀 PRIMARY: Upstash Vector/Redis (10,000 vectors free, no limits)
+  // Check if local-first mode is enabled (default: true for fast startup)
+  const useLocalFirst = process.env.RAG_LOCAL_FIRST !== 'false'
+
+  if (useLocalFirst) {
+    // 🚀 PRIMARY: Local filesystem (instant startup, no network latency)
+    configs.push({
+      provider: 'local' as const,
+      connectionConfig: {
+        baseDir: join(homedir(), '.nikcli', 'vector-store'),
+      },
+      collectionName: 'local_vectors',
+      embeddingDimensions: 1536,
+      indexingBatchSize: 100,
+      maxRetries: 1,
+      healthCheckInterval: 600000,
+      autoFallback: true,
+    })
+  }
+
+  // 🔄 SECONDARY: Upstash Vector/Redis (optional, only if explicitly configured)
   const upstashVectorUrl = process.env.UPSTASH_VECTOR_REST_URL
   const upstashVectorToken = process.env.UPSTASH_VECTOR_REST_TOKEN
   const upstashRedisUrl = process.env.UPSTASH_REDIS_REST_URL
@@ -121,7 +140,7 @@ function createVectorStoreConfigs() {
     })
   }
 
-  // 🔄 SECONDARY: ChromaDB (fallback if Upstash unavailable)
+  // 🔄 TERTIARY: ChromaDB (fallback if Upstash unavailable)
   const chromaUrl = process.env.CHROMA_URL || 'http://localhost:8005'
   const chromaApiKey = process.env.CHROMA_API_KEY || process.env.CHROMA_CLOUD_API_KEY
   const chromaTenant = process.env.CHROMA_TENANT
@@ -164,19 +183,21 @@ function createVectorStoreConfigs() {
     })
   }
 
-  // 💾 TERTIARY: Local filesystem (always available as final fallback)
-  configs.push({
-    provider: 'local' as const,
-    connectionConfig: {
-      baseDir: join(homedir(), '.nikcli', 'vector-store'),
-    },
-    collectionName: 'local_fallback',
-    embeddingDimensions: 1536,
-    indexingBatchSize: 50,
-    maxRetries: 1,
-    healthCheckInterval: 600000,
-    autoFallback: true,
-  })
+  // 💾 FALLBACK: Local filesystem (if not already primary)
+  if (!useLocalFirst) {
+    configs.push({
+      provider: 'local' as const,
+      connectionConfig: {
+        baseDir: join(homedir(), '.nikcli', 'vector-store'),
+      },
+      collectionName: 'local_fallback',
+      embeddingDimensions: 1536,
+      indexingBatchSize: 50,
+      maxRetries: 1,
+      healthCheckInterval: 600000,
+      autoFallback: true,
+    })
+  }
 
   return configs
 }
@@ -246,6 +267,7 @@ export class UnifiedRAGSystem {
   }
 
   private initialized = false
+  private initializationStarted = false
 
   constructor(config?: Partial<UnifiedRAGConfig>) {
     this.config = {
@@ -278,11 +300,44 @@ export class UnifiedRAGSystem {
       maxMemorySize: 10 * 1024 * 1024, // 10MB for hashes
     })
 
-    // Inizializza in modo sincrono (non-blocking)
-    this.initializeClients().catch((err) => {
-      advancedUI.logFunctionCall('unifiedraganalysis')
-      advancedUI.logFunctionUpdate('warning', 'RAG initialization warning:', `${err.message}`)
+    // DON'T initialize automatically - wait for explicit call after onboarding
+    // this.initializeClientsBackground()
+  }
+
+  /**
+   * Start background initialization (chiamato SOLO dopo onboarding)
+   * Public method to explicitly start RAG initialization after onboarding completes
+   */
+  public startBackgroundInitialization(): void {
+    if (this.initializationStarted) return
+    this.initializationStarted = true
+
+    // Run in next tick to avoid blocking
+    setImmediate(() => {
+      this.initializeClients()
+        .then(() => {
+          // Show completion log ONLY if chat is already open (NIKCLI_QUIET_STARTUP cleared)
+          if (!process.env.NIKCLI_QUIET_STARTUP) {
+            advancedUI.logFunctionCall('unifiedraganalysis')
+            advancedUI.logFunctionUpdate('success', '✓ RAG system initialized in background')
+          }
+        })
+        .catch((err) => {
+          // Silent failure - RAG will work in fallback mode
+          if (!process.env.NIKCLI_QUIET_STARTUP) {
+            advancedUI.logFunctionCall('unifiedraganalysis')
+            advancedUI.logFunctionUpdate('warning', `RAG initialization warning: ${err.message}`)
+          }
+        })
     })
+  }
+
+  /**
+   * Background initialization - runs silently without blocking CLI startup
+   * @deprecated Use startBackgroundInitialization() instead
+   */
+  private initializeClientsBackground(): void {
+    this.startBackgroundInitialization()
   }
 
   private async initializeClients(): Promise<void> {
@@ -312,6 +367,7 @@ export class UnifiedRAGSystem {
         ],
       })
 
+      // Silent background initialization - no UI updates during startup
       if (!process.env.NIKCLI_QUIET_STARTUP) {
         advancedUI.logFunctionCall('unifiedraganalysis')
         advancedUI.logFunctionUpdate('info', 'File filter system initialized')
@@ -330,38 +386,52 @@ export class UnifiedRAGSystem {
 
           const initialized = await this.vectorStoreManager.initialize()
           if (initialized) {
-            advancedUI.logFunctionCall('unifiedraganalysis')
-            advancedUI.logFunctionUpdate('success', 'Vector Store Manager initialized with fallback support')
+            if (!process.env.NIKCLI_QUIET_STARTUP) {
+              advancedUI.logFunctionCall('unifiedraganalysis')
+              advancedUI.logFunctionUpdate('success', 'Vector Store Manager initialized with fallback support')
+            }
           } else {
-            advancedUI.logFunctionCall('unifiedraganalysis')
-            advancedUI.logFunctionUpdate(
-              'warning',
-              'Vector Store Manager failed to initialize, using workspace analysis only'
-            )
+            if (!process.env.NIKCLI_QUIET_STARTUP) {
+              advancedUI.logFunctionCall('unifiedraganalysis')
+              advancedUI.logFunctionUpdate(
+                'warning',
+                'Vector Store Manager failed to initialize, using workspace analysis only'
+              )
+            }
             this.config.useVectorDB = false
           }
         } catch (error: any) {
-          advancedUI.logFunctionCall('unifiedraganalysis')
-          advancedUI.logFunctionUpdate(
-            'warning',
-            `Vector DB unavailable: ${error.message}, using workspace analysis only`
-          )
+          if (!process.env.NIKCLI_QUIET_STARTUP) {
+            advancedUI.logFunctionCall('unifiedraganalysis')
+            advancedUI.logFunctionUpdate(
+              'warning',
+              `Vector DB unavailable: ${error.message}, using workspace analysis only`
+            )
+          }
           this.config.useVectorDB = false
         }
       }
 
       this.initialized = true
     } catch (error: any) {
-      advancedUI.logFunctionCall('unifiedraganalysis')
-      advancedUI.logFunctionUpdate('warning', 'RAG initialization warning:', `${error}`)
+      if (!process.env.NIKCLI_QUIET_STARTUP) {
+        advancedUI.logFunctionCall('unifiedraganalysis')
+        advancedUI.logFunctionUpdate('warning', 'RAG initialization warning:', `${error}`)
+      }
       this.initialized = true // Set true even on error to prevent blocking
     }
   }
 
   /**
    * Wait for initialization to complete
+   * If init hasn't started yet, start it now as fallback (for backward compatibility)
    */
   private async ensureInitialized(): Promise<void> {
+    // If initialization hasn't started, start it now (fallback for safety)
+    if (!this.initializationStarted) {
+      this.startBackgroundInitialization()
+    }
+
     const maxWait = 10000 // 10 secondi max
     const startTime = Date.now()
 
@@ -370,7 +440,8 @@ export class UnifiedRAGSystem {
     }
 
     if (!this.initialized) {
-      throw new Error('RAG system initialization timeout')
+      console.warn('RAG system initialization timeout - continuing with fallback mode')
+      this.initialized = true // Set true to avoid infinite wait, RAG will work in fallback mode
     }
   }
 
@@ -1938,16 +2009,16 @@ export class UnifiedRAGSystem {
     advancedUI.logFunctionUpdate(
       'info',
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
     advancedUI.logFunctionUpdate(
       'info',
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
     chalk.blue(
       `🎯 Optimized results: ${results.length} → ${truncatedResults.length} contexts, ` +
-        `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
+      `~${estimateTokensFromChars(truncatedResults.reduce((sum, r) => sum + r.content.length, 0))} tokens`
     )
 
     return truncatedResults

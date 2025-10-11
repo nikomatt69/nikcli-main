@@ -2,6 +2,8 @@ import blessed, { Widgets } from 'blessed';
 import { StreamingMarkdownParser } from './parser/streaming-parser';
 import { BlessedRenderer } from './renderer/blessed-renderer';
 import { StreamttyOptions, RenderContext, StreamBuffer } from './types';
+import { AISDKStreamAdapter, AISDKStreamAdapterOptions } from './ai-sdk-adapter';
+import { StreamEvent } from './types/stream-events';
 
 export class Streamtty {
   private parser: StreamingMarkdownParser;
@@ -9,11 +11,12 @@ export class Streamtty {
   private context: RenderContext;
   private updateInterval: NodeJS.Timeout | null = null;
   private pendingUpdate: boolean = false;
+  private aiAdapter: AISDKStreamAdapter;
 
   constructor(options: StreamttyOptions = {}) {
     const screen = options.screen || this.createDefaultScreen();
     const container = this.createContainer(screen);
-    
+
     const defaultOptions: Required<StreamttyOptions> = {
       parseIncompleteMarkdown: options.parseIncompleteMarkdown ?? true,
       styles: options.styles || {},
@@ -40,6 +43,16 @@ export class Streamtty {
 
     this.parser = new StreamingMarkdownParser(defaultOptions.parseIncompleteMarkdown);
     this.renderer = new BlessedRenderer(this.context);
+
+    // Initialize AI SDK adapter
+    this.aiAdapter = new AISDKStreamAdapter(this, {
+      parseIncompleteMarkdown: defaultOptions.parseIncompleteMarkdown,
+      syntaxHighlight: defaultOptions.syntaxHighlight,
+      formatToolCalls: true,
+      showThinking: true,
+      maxToolResultLength: 200,
+      renderTimestamps: false
+    });
 
     this.setupKeyBindings();
   }
@@ -132,11 +145,11 @@ export class Streamtty {
   public stream(chunk: string): void {
     this.context.buffer.content += chunk;
     this.context.buffer.lastUpdate = Date.now();
-    
+
     // Parse the new content
     const tokens = this.parser.addChunk(chunk);
     this.context.buffer.tokens = tokens;
-    
+
     // Debounced render
     this.scheduleRender();
   }
@@ -155,9 +168,9 @@ export class Streamtty {
    */
   private scheduleRender(): void {
     if (this.pendingUpdate) return;
-    
+
     this.pendingUpdate = true;
-    
+
     // Use setImmediate for next tick rendering
     setImmediate(() => {
       this.render();
@@ -230,6 +243,49 @@ export class Streamtty {
   }
 
   /**
+   * Stream a structured AI SDK event
+   */
+  public async streamEvent(event: StreamEvent): Promise<void> {
+    await this.aiAdapter.processEvent(event);
+  }
+
+  /**
+   * Stream multiple AI SDK events
+   */
+  public async streamEvents(
+    events: AsyncGenerator<StreamEvent>
+  ): Promise<void> {
+    for await (const event of events) {
+      await this.streamEvent(event);
+    }
+  }
+
+  /**
+   * Handle AI SDK stream with adapter
+   */
+  public async *handleAISDKStream(
+    stream: AsyncGenerator<StreamEvent>
+  ): AsyncGenerator<void> {
+    for await (const _ of this.aiAdapter.handleAISDKStream(stream)) {
+      yield;
+    }
+  }
+
+  /**
+   * Update AI SDK adapter options
+   */
+  public updateAIOptions(options: Partial<AISDKStreamAdapterOptions>): void {
+    this.aiAdapter.updateOptions(options);
+  }
+
+  /**
+   * Get AI SDK adapter options
+   */
+  public getAIOptions(): AISDKStreamAdapterOptions {
+    return this.aiAdapter.getOptions();
+  }
+
+  /**
    * Destroy and cleanup
    */
   public destroy(): void {
@@ -241,8 +297,15 @@ export class Streamtty {
 
 // Export everything
 export * from './types';
+export * from './types/stream-events';
 export { StreamingMarkdownParser } from './parser/streaming-parser';
 export { BlessedRenderer } from './renderer/blessed-renderer';
+export { AISDKStreamAdapter } from './ai-sdk-adapter';
+export { StreamProtocol } from './stream-protocol';
+export * from './streamdown-compat';
+export * from './errors';
+export * from './events';
+export * from './performance';
 export * from './utils/syntax-highlighter';
 export * from './utils/blessed-syntax-highlighter';
 export * from './utils/formatting';

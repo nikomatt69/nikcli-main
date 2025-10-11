@@ -1,5 +1,13 @@
 import chalk from 'chalk'
-import { Streamtty, applySyntaxHighlight, colorizeBlock, syntaxColors } from 'streamtty'
+import {
+  Streamtty,
+  applySyntaxHighlight,
+  colorizeBlock,
+  syntaxColors,
+  StreamEvent,
+  StreamEventType,
+  StreamProtocol
+} from 'streamtty'
 import { terminalOutputManager, TerminalOutputManager } from '../ui/terminal-output-manager'
 
 export type ChunkType = 'ai' | 'tool' | 'thinking' | 'system' | 'error' | 'user' | 'vm' | 'agent'
@@ -21,6 +29,9 @@ export interface RenderStats {
   errorChunks: number
   fallbackUsed: boolean
   lastRenderTime: number
+  aiSdkEvents: number
+  toolCallEvents: number
+  toolResultEvents: number
 }
 
 /**
@@ -39,6 +50,9 @@ export class StreamttyService {
     errorChunks: 0,
     fallbackUsed: false,
     lastRenderTime: 0,
+    aiSdkEvents: 0,
+    toolCallEvents: 0,
+    toolResultEvents: 0,
   }
   private streamBuffer = ''
   private currentOutputId: string | null = null
@@ -273,6 +287,9 @@ export class StreamttyService {
       errorChunks: 0,
       fallbackUsed: this.stats.fallbackUsed,
       lastRenderTime: 0,
+      aiSdkEvents: 0,
+      toolCallEvents: 0,
+      toolResultEvents: 0,
     }
   }
 
@@ -295,6 +312,162 @@ export class StreamttyService {
    */
   getStreamttyInstance(): Streamtty | null {
     return this.streamtty
+  }
+
+  /**
+   * Stream a structured AI SDK event
+   */
+  async streamAISDKEvent(event: StreamEvent): Promise<void> {
+    if (!event) return
+
+    this.stats.aiSdkEvents++
+    this.stats.lastRenderTime = Date.now()
+
+    // Track event-specific stats
+    if (event.type === 'tool_call') {
+      this.stats.toolCallEvents++
+    } else if (event.type === 'tool_result') {
+      this.stats.toolResultEvents++
+    }
+
+    // If blessed mode is active with streamtty, use AI SDK adapter
+    if (this.streamtty && this.isInitialized && !this.stats.fallbackUsed) {
+      try {
+        await this.streamtty.streamEvent(event)
+        return
+      } catch (error) {
+        console.warn('Streamtty AI SDK event failed, falling back:', error)
+        this.stats.fallbackUsed = true
+      }
+    }
+
+    // Fallback: format and output to stdout
+    const formattedEvent = this.formatAISDKEventFallback(event)
+    if (formattedEvent) {
+      const lines = TerminalOutputManager.calculateLines(formattedEvent)
+      const outputId = terminalOutputManager.reserveSpace('AISDKEvent', lines)
+      process.stdout.write(formattedEvent)
+      terminalOutputManager.confirmOutput(outputId, 'AISDKEvent', lines, {
+        persistent: false,
+        expiryMs: 30000,
+      })
+    }
+  }
+
+  /**
+   * Format AI SDK event for fallback stdout rendering
+   */
+  private formatAISDKEventFallback(event: StreamEvent): string {
+    switch (event.type) {
+      case 'text_delta':
+        return event.content || ''
+
+      case 'tool_call':
+        const toolArgs = JSON.stringify(event.toolArgs, null, 2)
+        return `\n🔧 ${chalk.bold(event.toolName)}\n${chalk.gray('```json')}\n${toolArgs}\n${chalk.gray('```')}\n\n`
+
+      case 'tool_result':
+        const resultPreview = typeof event.toolResult === 'string'
+          ? event.toolResult
+          : JSON.stringify(event.toolResult, null, 2)
+        const truncated = resultPreview.length > 200
+          ? resultPreview.slice(0, 200) + '...'
+          : resultPreview
+        return `\n✓ ${chalk.bold('Result')}: ${truncated}\n\n`
+
+      case 'thinking':
+        return `\n${chalk.gray('> 💭')} ${chalk.italic(event.content)}\n\n`
+
+      case 'reasoning':
+        return `\n${chalk.gray('> ⚡')} ${chalk.italic(event.content)}\n\n`
+
+      case 'status':
+      case 'step':
+        const statusIcon = this.getStatusIcon(event.metadata?.status)
+        return `\n${statusIcon} ${chalk.bold(event.content)}\n\n`
+
+      case 'error':
+        return `\n❌ ${chalk.red.bold('Error')}: ${event.content}\n\n`
+
+      case 'start':
+        return `\n🚀 ${chalk.bold('Starting')}...\n\n`
+
+      case 'complete':
+        return `\n✅ ${chalk.bold('Complete')}\n\n`
+
+      default:
+        return ''
+    }
+  }
+
+  /**
+   * Get status icon for event metadata
+   */
+  private getStatusIcon(status?: string): string {
+    const iconMap: Record<string, string> = {
+      'pending': '⏳',
+      'running': '🔄',
+      'completed': '✅',
+      'failed': '❌',
+      'info': 'ℹ️',
+    }
+    return iconMap[status || 'info'] || 'ℹ️'
+  }
+
+  /**
+   * Handle an AI SDK stream with full event processing
+   */
+  async *handleAIStream(
+    stream: AsyncGenerator<StreamEvent>
+  ): AsyncGenerator<string> {
+    let accumulated = ''
+
+    for await (const event of stream) {
+      await this.streamAISDKEvent(event)
+
+      // Accumulate text content for return value
+      if (event.type === 'text_delta' && event.content) {
+        accumulated += event.content
+        yield event.content
+      }
+    }
+
+    return accumulated
+  }
+
+  /**
+   * Convert legacy chunk type to AI SDK event
+   */
+  async streamChunkAsAIEvent(chunk: string, type: ChunkType = 'ai'): Promise<void> {
+    const event = this.chunkTypeToAISDKEvent(chunk, type)
+    if (event) {
+      await this.streamAISDKEvent(event)
+    } else {
+      // Fallback to legacy streaming
+      await this.streamChunk(chunk, type)
+    }
+  }
+
+  /**
+   * Convert chunk type to AI SDK event
+   */
+  private chunkTypeToAISDKEvent(chunk: string, type: ChunkType): StreamEvent | null {
+    switch (type) {
+      case 'ai':
+        return StreamProtocol.createTextDelta(chunk)
+
+      case 'thinking':
+        return StreamProtocol.createThinking(chunk)
+
+      case 'error':
+        return StreamProtocol.createError(chunk)
+
+      case 'system':
+        return StreamProtocol.createStatus(chunk, 'info')
+
+      default:
+        return null
+    }
   }
 
   /**
@@ -322,4 +495,8 @@ export const streamttyService = new StreamttyService({
   gfm: true,
   useBlessedMode: false, // Default to stdout mode for broader compatibility
 })
+
+// Re-export AI SDK types for convenience
+export type { StreamEvent, StreamEventType } from 'streamtty'
+export { StreamProtocol } from 'streamtty'
 

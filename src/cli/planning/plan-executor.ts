@@ -2,6 +2,7 @@ import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { type AgentTask, agentService } from '../services/agent-service'
 import { streamttyService } from '../services/streamtty-service'
+import { getUnifiedToolRenderer, initializeUnifiedToolRenderer } from '../services/unified-tool-renderer'
 import { secureTools } from '../tools/secure-tools-registry'
 import type { ToolRegistry } from '../tools/tool-registry'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -35,6 +36,13 @@ export class PlanExecutor {
       autoApproveReadonly: true, // Auto-approve readonly operations
       ...config,
     }
+
+    // Initialize unified tool renderer
+    try {
+      initializeUnifiedToolRenderer(advancedUI, streamttyService)
+    } catch {
+      // Already initialized
+    }
   }
 
   /**
@@ -63,9 +71,24 @@ export class PlanExecutor {
    * Execute a plan with user approval and monitoring
    */
   async executePlan(plan: ExecutionPlan): Promise<PlanExecutionResult> {
-    // Stream plan execution start as markdown
+    const unifiedRenderer = getUnifiedToolRenderer()
+
+    // Start execution mode - pauses ephemeral cleanup and makes logs persistent
+    unifiedRenderer.startExecution('plan')
+
+    // Start plan execution mode in UI - prioritize tool calls
+    advancedUI.startPlanExecution()
+
+    // Log plan execution start with direct console.log (like default mode)
+    // This ensures it appears prominently in the terminal, separate from AI streaming
+    await unifiedRenderer.logToolCall('plan_execution', { title: plan.title }, { mode: 'plan' }, {
+      showInRecentUpdates: true,
+      streamToTerminal: true,  // Changed from false to true for visibility
+      persistent: true
+    })
+
+    // Stream plan markdown AFTER tool call is visible
     await streamttyService.renderBlock(`## Executing Plan: ${plan.title}\n`, 'system')
-    advancedUI.addLiveUpdate({ type: 'info', content: `Executing Plan: ${plan.title}`, source: 'planexecution' })
 
     const startTime = new Date()
     const result: PlanExecutionResult = {
@@ -167,6 +190,12 @@ export class PlanExecutor {
       // Log final results
       await this.logExecutionSummary(result)
 
+      // End execution mode - resume ephemeral cleanup
+      unifiedRenderer.endExecution()
+
+      // End plan execution mode in UI
+      advancedUI.endPlanExecution()
+
       // Cleanup/reset after successful run
       this.resetCliContext()
 
@@ -175,6 +204,13 @@ export class PlanExecutor {
       result.status = 'failed'
       result.endTime = new Date()
       advancedUI.logError(`Plan execution failed: ${error.message}`)
+
+      // End execution mode even on error
+      unifiedRenderer.endExecution()
+
+      // End plan execution mode in UI even on error
+      advancedUI.endPlanExecution()
+
       // Cleanup/reset after failure
       this.resetCliContext()
       return result
@@ -317,12 +353,18 @@ export class PlanExecutor {
    * Execute a step by delegating to the AgentService and waiting for completion
    */
   private async executeAgentStep(step: ExecutionStep, plan: ExecutionPlan): Promise<any> {
-    // Log agent execution start with structured format (for consistency with default mode)
+    const unifiedRenderer = getUnifiedToolRenderer()
+
+    // Log agent execution start with unified renderer
     const agentType = (step.metadata?.agent as string) || (step.metadata?.agentType as string) || 'agent'
-    await advancedUI.logFunctionCall(`${agentType}_execute`, {
-      step: step.title,
-      description: step.description
-    })
+    const toolCallId = `agent-${step.id}`
+
+    await unifiedRenderer.logToolCall(
+      `${agentType}_execute`,
+      { step: step.title, description: step.description },
+      { mode: 'plan', toolCallId },
+      { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+    )
 
     // Compose task text
     const taskText = (step.metadata?.task as string) || `${step.title}: ${step.description}`
@@ -338,7 +380,11 @@ export class PlanExecutor {
 
     // Start agent task
     const taskId = await agentService.executeTask(finalAgentType, taskText, { planId: plan.id, stepId: step.id })
-    await advancedUI.logFunctionUpdate('info', `Starting ${finalAgentType} agent task`)
+    await unifiedRenderer.logToolUpdate(toolCallId, 'info', `Starting ${finalAgentType} agent task`, {
+      showInRecentUpdates: true,
+      streamToTerminal: true,
+      persistent: true
+    })
 
     // Live progress hookup
     const onProgress = (t: AgentTask, update: any) => {
@@ -356,10 +402,18 @@ export class PlanExecutor {
         const toolName = update?.tool || 'unknown_tool'
         const description = update?.description || ''
 
-        // Use structured logging format instead of logInfo (for consistency with default mode)
-        await advancedUI.logFunctionCall(toolName)
+        // Use unified renderer for tool use logging
+        await unifiedRenderer.logToolCall(toolName, {}, { mode: 'plan' }, {
+          showInRecentUpdates: true,
+          streamToTerminal: true,
+          persistent: true
+        })
         if (description) {
-          await advancedUI.logFunctionUpdate('info', description)
+          await unifiedRenderer.logToolUpdate(toolName, 'info', description, {
+            showInRecentUpdates: true,
+            streamToTerminal: true,
+            persistent: true
+          })
         }
       } catch {
         /* noop */
@@ -395,11 +449,24 @@ export class PlanExecutor {
     } catch {
       /* ignore */
     }
+
+    // Log result with unified renderer
     if (task.status === 'completed') {
-      await advancedUI.logFunctionUpdate('success', 'Agent task completed successfully')
+      await unifiedRenderer.logToolResult(
+        toolCallId,
+        task.result || { completed: true, agentType: finalAgentType },
+        { mode: 'plan' },
+        { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+      )
       return task.result || { completed: true, agentType: finalAgentType }
     }
-    await advancedUI.logFunctionUpdate('error', task.error || 'Agent task failed')
+
+    await unifiedRenderer.logToolResult(
+      toolCallId,
+      { error: task.error || 'Agent task failed' },
+      { mode: 'plan' },
+      { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+    )
     throw new Error(task.error || 'Agent task failed')
   }
 
@@ -411,13 +478,26 @@ export class PlanExecutor {
       throw new Error('Tool step missing toolName')
     }
 
-    // Log function call with structured format (for consistency with default mode)
-    await advancedUI.logFunctionCall(step.toolName, step.toolArgs)
+    const unifiedRenderer = getUnifiedToolRenderer()
+    const toolCallId = `tool-${step.id}`
+
+    // Log function call with unified renderer
+    await unifiedRenderer.logToolCall(
+      step.toolName,
+      step.toolArgs,
+      { mode: 'plan', toolCallId },
+      { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+    )
 
     // Best practice: route sensitive tools via SecureToolsRegistry wrappers
     const routed = await this.trySecureRoute(step)
     if (routed.routed) {
-      await advancedUI.logFunctionUpdate('success', 'Tool executed successfully')
+      await unifiedRenderer.logToolResult(
+        toolCallId,
+        routed.result,
+        { mode: 'plan' },
+        { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+      )
       return routed.result
     }
 
@@ -434,7 +514,15 @@ export class PlanExecutor {
     const executionPromise = tool.execute(...(step.toolArgs ? Object.values(step.toolArgs) : []))
 
     const result = await Promise.race([executionPromise, timeoutPromise])
-    await advancedUI.logFunctionUpdate('success', 'Tool completed')
+
+    // Log result with unified renderer
+    await unifiedRenderer.logToolResult(
+      toolCallId,
+      result,
+      { mode: 'plan' },
+      { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+    )
+
     return result
   }
 

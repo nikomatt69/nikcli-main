@@ -8,7 +8,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createVercel } from '@ai-sdk/vercel'
 import { type CoreMessage, type CoreTool, generateText, streamText, tool } from 'ai'
 import { z } from 'zod'
-import { getRAGMiddleware } from '../context/rag-setup'
+
 import { simpleConfigManager } from '../core/config-manager'
 import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import { streamttyService } from '../services/streamtty-service'
@@ -306,10 +306,10 @@ export class ModernAIProvider {
       rootPath: relative(process.cwd(), rootPath),
       packageInfo: packageInfo
         ? {
-            name: packageInfo.name,
-            version: packageInfo.version,
-            description: packageInfo.description,
-          }
+          name: packageInfo.name,
+          version: packageInfo.version,
+          description: packageInfo.description,
+        }
         : null,
       framework,
       technologies,
@@ -525,11 +525,11 @@ export class ModernAIProvider {
       const config = simpleConfigManager?.getCurrentModel() as any
       if (config) {
         const summary = ReasoningDetector.getModelReasoningSummary(config.provider, config.model)
-        
+
         // Stream reasoning as markdown blockquote
         const reasoningMarkdown = `> ⚡︎ *${summary}*\n\n`
         await streamttyService.streamChunk(reasoningMarkdown, 'thinking')
-        
+
         yield {
           type: 'reasoning',
           reasoningSummary: summary,
@@ -550,15 +550,15 @@ export class ModernAIProvider {
             }
           }
         }
-      } catch (_) {}
-      const ragMw = getRAGMiddleware()
+      } catch (_) { }
+
       const result = await streamText({
         model,
         messages,
         tools,
         maxTokens: 8000,
         temperature: 1,
-        ...(ragMw || {}), // Spread middleware if available
+        // Spread middleware if available
       })
 
       for await (const delta of result.textStream) {
@@ -578,7 +578,7 @@ export class ModernAIProvider {
             await authProvider.recordUsage('apiCalls', 1)
           }
         }
-      } catch (_) {}
+      } catch (_) { }
       yield {
         type: 'finish',
         finishReason: finishResult,
@@ -603,7 +603,7 @@ export class ModernAIProvider {
     this.logReasoningStatus(reasoningEnabled)
 
     try {
-      const ragMw = getRAGMiddleware()
+
       const result = await generateText({
         model,
         messages,
@@ -611,7 +611,7 @@ export class ModernAIProvider {
         maxSteps: 25,
         maxTokens: 8000,
         temperature: 0.7,
-        ...(ragMw || {}), // Spread middleware if available
+        // Spread middleware if available
       })
 
       // Extract reasoning if available
