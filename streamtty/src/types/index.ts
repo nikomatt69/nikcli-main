@@ -61,6 +61,7 @@ export interface MarkdownStyles {
   table: BlessedStyle;
   tableHeader: BlessedStyle;
   hr: BlessedStyle;
+  thinking?: BlessedStyle; // Optional: dark gray for thinking/cognitive blocks
 }
 
 export interface BlessedStyle {

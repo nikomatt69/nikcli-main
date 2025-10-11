@@ -12,6 +12,8 @@ export const colors = {
   cyan: '\x1b[36m',
   white: '\x1b[37m',
   gray: '\x1b[90m',
+  darkGray: '\x1b[90m',  // Alias for gray (thinking/cognitive blocks)
+  lightGray: '\x1b[37m', // Alias for white (system messages)
 
   // Bright colors
   brightRed: '\x1b[91m',
@@ -63,9 +65,19 @@ export function style(
 
 /**
  * Strip ANSI codes from text
+ * Handles multiple ANSI escape sequence formats
  */
 export function stripAnsi(text: string): string {
-  return text.replace(/\x1b\[[0-9;]*m/g, '');
+  // More comprehensive ANSI removal:
+  // \x1b\[[0-9;]*m - standard ANSI sequences
+  // \x1b\[[\d;]*[A-Za-z] - all ANSI control sequences
+  // \x1b[A-Z] - single char ANSI codes
+  return text
+    .replace(/\x1b\[[0-9;]*m/g, '')           // Standard color codes
+    .replace(/\x1b\[[\d;]*[A-Za-z]/g, '')     // All ANSI CSI sequences
+    .replace(/\x1b[A-Z]/g, '')                // Single char sequences
+    .replace(/\x1b\([AB0-9]/g, '')            // Character set sequences
+    .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F]/g, '') // Other control chars
 }
 
 /**
@@ -109,7 +121,7 @@ export function truncate(
   ellipsis: string = '...'
 ): string {
   const length = visualLength(text);
-  
+
   if (length <= width) {
     return text;
   }
@@ -186,7 +198,7 @@ export function box(
   const topBorder = title
     ? `┌─ ${title} ${'─'.repeat(Math.max(0, boxWidth - title.length - 5))}┐`
     : `┌${'─'.repeat(boxWidth - 2)}┐`;
-  
+
   const bottomBorder = `└${'─'.repeat(boxWidth - 2)}┘`;
 
   const boxLines = [
@@ -241,7 +253,7 @@ export function progressBar(
   const incompleteWidth = width - completeWidth;
 
   let bar = completeChar.repeat(completeWidth) + incompleteChar.repeat(incompleteWidth);
-  
+
   if (color) {
     bar = colorize(bar, color);
   }

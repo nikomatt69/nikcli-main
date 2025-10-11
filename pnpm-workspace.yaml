@@ -1,6 +1,0 @@
-packages:
-  - "."
-  - "packages/*"
-
-# pnpm workspace configuration for NikCLI
-# This allows for monorepo structure if needed in the future

@@ -6,7 +6,6 @@ import cliProgress from 'cli-progress'
 import { createPatch, diffLines } from 'diff'
 import ora, { type Ora } from 'ora'
 import * as readline from 'readline'
-import { streamttyService } from '../services/streamtty-service'
 import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
 
 export interface StatusIndicator {
@@ -101,10 +100,6 @@ export class AdvancedCliUI {
   private ephemeralLiveUpdates: boolean = false
   // Track last printed source to avoid duplicate ⏺ headers
   private lastPrintedSource: string | null = null
-
-  // Enterprise output orchestration
-  private orchestrator: any = null
-  private splitScreenEnabled: boolean = false
   constructor() {
     this.theme = {
       primary: chalk.blue,
@@ -378,7 +373,7 @@ export class AdvancedCliUI {
   }
 
   /**
-   * Log different types of messages - now using streamttyService for rendering
+   * Log different types of messages
    */
   logInfo(message: string, details?: string): void {
     this.addLiveUpdate({
@@ -672,53 +667,48 @@ export class AdvancedCliUI {
   }
 
   /**
-   * Print live update - with source grouping, now using streamttyService
+   * Print live update - with source grouping
    */
-  private async printLiveUpdate(update: LiveUpdate): Promise<void> {
+  private printLiveUpdate(update: LiveUpdate): void {
     const currentSource = update.source || 'System'
 
-    // Print ⏺ header only if source changed - format as markdown
+    // Print ⏺ header only if source changed
     if (this.lastPrintedSource !== currentSource) {
       const functionName = this.formatSourceAsFunctionName(currentSource).toLowerCase()
-      const headerMarkdown = `**${functionName}()**\n`
-      await streamttyService.streamChunk(headerMarkdown, 'system')
+      console.log(chalk.cyan(`⏺ ${functionName}()`))
       this.lastPrintedSource = currentSource
     }
 
-    // Print ⎿ sub-item - format as markdown list
-    await this.printLiveUpdateStructured(update)
+    // Print ⎿ sub-item
+    this.printLiveUpdateStructured(update)
   }
 
   /**
-   * Print live update in structured format (⏺ style) - now using streamttyService with markdown
+   * Print live update in structured format (⏺ style)
    */
-  private async printLiveUpdateStructured(update: LiveUpdate): Promise<void> {
+  private printLiveUpdateStructured(update: LiveUpdate): void {
     const typeIcon = this.getStatusIconForUpdate(update.type)
-    
-    // Format as markdown list item with appropriate icon
-    let markdownContent = `  - ${typeIcon} ${update.content}`
+    const color = this.getUpdateTypeColor(update.type)
 
-    // Add progress bar if available
+    let content = color(update.content)
+
+    // Se update ha metadata.progress, aggiungi progress bar
     if (update.metadata?.progress !== undefined) {
       const progress = update.metadata.progress
-      const filled = Math.round((progress / 100) * 20)
-      const empty = 20 - filled
-      const progressBar = `[${'█'.repeat(filled)}${'░'.repeat(empty)}] ${progress}%`
-      markdownContent += ` ${progressBar}`
+      const progressBar = this.createProgressBarString(progress, 20)
+      content += ` ${progressBar}`
     }
 
-    // Add duration if available
+    // Se update ha metadata.duration, aggiungi durata
     if (update.metadata?.duration) {
-      markdownContent += ` *(${update.metadata.duration})*`
+      content += ` ${chalk.gray(`(${update.metadata.duration})`)}`
     }
 
-    markdownContent += '\n'
-
-    // Stream through streamttyService with appropriate type
-    const chunkType = update.type === 'error' ? 'error' : 
-                      update.type === 'cognitive' ? 'thinking' : 
-                      'system'
-    await streamttyService.streamChunk(markdownContent, chunkType)
+    // Rendering con tutto grigio scuro tranne il contenuto colorato
+    const outputText = `${chalk.dim('  ⎿  ')}${chalk.dim(typeIcon)} ${content}`
+    const outputId = terminalOutputManager.reserveSpace('LiveUpdate', 1)
+    console.log(outputText)
+    terminalOutputManager.confirmOutput(outputId, 'LiveUpdate', 1, { persistent: false, expiryMs: 30000 })
   }
 
   /**
@@ -781,50 +771,52 @@ export class AdvancedCliUI {
 
   /**
    * Log function call header - Public API for structured logging
-   * Used for ⏺ functionname() format - now using streamttyService with markdown
+   * Used for ⏺ functionname() format
    */
-  async logFunctionCall(functionName: string, data?: Record<string, any>): Promise<void> {
+  logFunctionCall(functionName: string, data?: Record<string, any>): void {
     const formattedName = functionName.toLowerCase()
-    const markdownHeader = `\n**${formattedName}()**\n`
-    await streamttyService.streamChunk(markdownHeader, 'tool')
+    const outputText = chalk.cyan(`⏺ ${formattedName}()`)
+    const outputId = terminalOutputManager.reserveSpace('FunctionCall', 1)
+    console.log(outputText)
+    terminalOutputManager.confirmOutput(outputId, 'FunctionCall', 1, { persistent: false, expiryMs: 30000 })
 
     if (data) {
-      await this.logFunctionUpdate('info', JSON.stringify(data))
+      this.logFunctionUpdate('info', JSON.stringify(data))
     }
   }
 
   /**
    * Log function update/sub-item - Public API for structured logging
-   * Used for ⎿ prefix format under function calls - now using streamttyService with markdown
+   * Used for ⎿ prefix format under function calls
    */
-  async logFunctionUpdate(level: 'info' | 'success' | 'warning' | 'error', message: string, icon?: string): Promise<void> {
+  logFunctionUpdate(level: 'info' | 'success' | 'warning' | 'error', message: string, icon?: string): void {
     let defaultIcon = '✓'
+    let color = chalk.white
 
     switch (level) {
       case 'success':
         defaultIcon = '✓'
+        color = chalk.green
         break
       case 'info':
         defaultIcon = 'ℹ'
+        color = chalk.white
         break
       case 'warning':
         defaultIcon = '⚠︎'
+        color = chalk.yellow
         break
       case 'error':
         defaultIcon = '❌'
+        color = chalk.red
         break
     }
 
     const displayIcon = icon || defaultIcon
-    // Format as markdown list item
-    const markdownContent = `  - ${displayIcon} ${message}\n`
-    
-    // Choose chunk type based on level
-    const chunkType = level === 'error' ? 'error' : 
-                      level === 'warning' ? 'system' : 
-                      'tool'
-    
-    await streamttyService.streamChunk(markdownContent, chunkType)
+    const outputText = `${chalk.dim('  ⎿  ')}${chalk.dim(displayIcon)} ${color(message)}`
+    const outputId = terminalOutputManager.reserveSpace('FunctionUpdate', 1)
+    console.log(outputText)
+    terminalOutputManager.confirmOutput(outputId, 'FunctionUpdate', 1, { persistent: false, expiryMs: 30000 })
   }
 
   /**

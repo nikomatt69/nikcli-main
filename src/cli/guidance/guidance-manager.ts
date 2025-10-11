@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import chalk from 'chalk'
 import * as chokidar from 'chokidar'
 import * as yaml from 'js-yaml'
-import marked from 'marked'
+import { marked } from 'marked'
 import { structuredLogger } from '../utils/structured-logger'
 
 export interface GuidanceFile {

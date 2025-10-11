@@ -1,5 +1,8 @@
-import { marked, Token, Tokens } from 'marked';
+import marked from 'marked';
 import { ParsedToken, TokenType } from '../types';
+
+// Use any for Token types to avoid version-specific issues with marked library
+type Token = any;
 
 export class StreamingMarkdownParser {
   private buffer: string = '';
@@ -8,7 +11,7 @@ export class StreamingMarkdownParser {
 
   constructor(parseIncomplete: boolean = true) {
     this.parseIncomplete = parseIncomplete;
-    
+
     // Configure marked for GFM
     marked.setOptions({
       gfm: true,
@@ -27,11 +30,18 @@ export class StreamingMarkdownParser {
   }
 
   /**
-   * Preprocess text to handle HTML entities and custom tags
+   * Preprocess text to handle HTML entities, ANSI codes, and custom tags
    */
   private preprocessText(text: string): string {
     let processed = text;
-    
+
+    // Strip ANSI color codes first (comprehensive removal)
+    processed = processed.replace(/\x1b\[[0-9;]*m/g, '');           // Standard color codes
+    processed = processed.replace(/\x1b\[[\d;]*[A-Za-z]/g, '');     // All ANSI CSI sequences
+    processed = processed.replace(/\x1b[A-Z]/g, '');                // Single char sequences
+    processed = processed.replace(/\x1b\([AB0-9]/g, '');            // Character set sequences
+    processed = processed.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F]/g, ''); // Other control chars
+
     // Decode common HTML entities
     processed = processed.replace(/&#39;/g, "'");
     processed = processed.replace(/&quot;/g, '"');
@@ -39,10 +49,10 @@ export class StreamingMarkdownParser {
     processed = processed.replace(/&lt;/g, '<');
     processed = processed.replace(/&gt;/g, '>');
     processed = processed.replace(/&nbsp;/g, ' ');
-    
+
     // Convert custom {italic} tags to standard markdown
     processed = processed.replace(/\{italic\}(.*?)\{\/italic\}/g, '*$1*');
-    
+
     return processed;
   }
 
@@ -88,7 +98,7 @@ export class StreamingMarkdownParser {
 
     // Find all matches and their positions
     const matches: Array<{ type: string; content: string; start: number; end: number }> = [];
-    
+
     for (const pattern of patterns) {
       let match;
       while ((match = pattern.regex.exec(text)) !== null) {
@@ -149,10 +159,10 @@ export class StreamingMarkdownParser {
    */
   private processInlineTokens(tokens: Token[]): Token[] {
     const processedTokens: Token[] = [];
-    
+
     for (const token of tokens) {
       if (token.type === 'paragraph') {
-        const paragraph = token as Tokens.Paragraph;
+        const paragraph = token as any;
         if (paragraph.tokens && paragraph.tokens.length > 0) {
           // Flatten paragraph tokens to get inline elements
           const flattenedTokens = this.flattenInlineTokens(paragraph.tokens);
@@ -167,7 +177,7 @@ export class StreamingMarkdownParser {
           }
         }
       } else if (token.type === 'blockquote') {
-        const blockquote = token as Tokens.Blockquote;
+        const blockquote = token as any;
         if (blockquote.tokens && blockquote.tokens.length > 0) {
           // Process blockquote tokens
           const processedBlockquoteTokens = this.processInlineTokens(blockquote.tokens);
@@ -179,7 +189,7 @@ export class StreamingMarkdownParser {
         processedTokens.push(token);
       }
     }
-    
+
     return processedTokens;
   }
 
@@ -188,7 +198,7 @@ export class StreamingMarkdownParser {
    */
   private flattenInlineTokens(tokens: Token[]): Token[] {
     const flattened: Token[] = [];
-    
+
     for (const token of tokens) {
       if (token.type === 'em' || token.type === 'strong' || token.type === 'codespan' || token.type === 'link' || token.type === 'del' || token.type === 'text') {
         flattened.push(token);
@@ -199,7 +209,7 @@ export class StreamingMarkdownParser {
         flattened.push(token);
       }
     }
-    
+
     return flattened;
   }
 
@@ -209,15 +219,15 @@ export class StreamingMarkdownParser {
   private parsePartial(): ParsedToken[] {
     const tokens: ParsedToken[] = [];
     const lines = this.buffer.split('\n');
-    
+
     for (const line of lines) {
       if (!line.trim()) continue;
-      
+
       // Try to identify incomplete patterns
       const token = this.parseIncompleteLine(line);
       tokens.push(token);
     }
-    
+
     return tokens;
   }
 
@@ -235,7 +245,7 @@ export class StreamingMarkdownParser {
         incomplete: !line.includes('\n'),
       };
     }
-    
+
     // Code block (incomplete)
     if (line.startsWith('```')) {
       const lang = line.replace('```', '').trim();
@@ -246,7 +256,7 @@ export class StreamingMarkdownParser {
         incomplete: true,
       };
     }
-    
+
     // Blockquote
     if (line.startsWith('>')) {
       return {
@@ -255,7 +265,7 @@ export class StreamingMarkdownParser {
         incomplete: !line.includes('\n'),
       };
     }
-    
+
     // List item
     if (/^[-*+]\s/.test(line) || /^\d+\.\s/.test(line)) {
       const ordered = /^\d+\./.test(line);
@@ -266,7 +276,7 @@ export class StreamingMarkdownParser {
         incomplete: !line.includes('\n'),
       };
     }
-    
+
     // Default to text with inline formatting
     return this.parseInlineFormatting(line);
   }
@@ -277,7 +287,7 @@ export class StreamingMarkdownParser {
   private handleIncompleteMarkdown(): void {
     const lastToken = this.tokens[this.tokens.length - 1];
     if (!lastToken) return;
-    
+
     // Check if buffer ends with incomplete patterns
     const patterns = [
       { regex: /\*\*[^*]+$/, type: 'strong' },
@@ -286,7 +296,7 @@ export class StreamingMarkdownParser {
       { regex: /\[[^\]]+$/, type: 'link' },
       { regex: /^#{1,6}\s[^\n]+$/, type: 'heading' },
     ];
-    
+
     for (const pattern of patterns) {
       if (pattern.regex.test(this.buffer)) {
         // Mark as incomplete
@@ -304,12 +314,12 @@ export class StreamingMarkdownParser {
     // This is a simplified version - in production you'd want more robust parsing
     let content = text;
     let incomplete = false;
-    
+
     // Check for incomplete patterns
     if (/\*\*[^*]+$/.test(text) || /\*[^*]+$/.test(text) || /`[^`]+$/.test(text)) {
       incomplete = true;
     }
-    
+
     return {
       type: 'text',
       content,
@@ -322,7 +332,7 @@ export class StreamingMarkdownParser {
    */
   private convertTokens(markedTokens: Token[]): ParsedToken[] {
     const tokens: ParsedToken[] = [];
-    
+
     for (const token of markedTokens) {
       const converted = this.convertToken(token);
       if (converted) {
@@ -333,7 +343,7 @@ export class StreamingMarkdownParser {
         }
       }
     }
-    
+
     return tokens;
   }
 
@@ -349,7 +359,7 @@ export class StreamingMarkdownParser {
           depth: token.depth,
           raw: token.raw,
         };
-      
+
       case 'paragraph':
         // Paragraph tokens are now processed separately, so this should not happen
         return {
@@ -357,50 +367,50 @@ export class StreamingMarkdownParser {
           content: token.text,
           raw: token.raw,
         };
-      
+
       case 'strong':
         return {
           type: 'strong',
           content: token.text,
           raw: token.raw,
         };
-      
+
       case 'em':
         return {
           type: 'em',
           content: token.text,
           raw: token.raw,
         };
-      
+
       case 'codespan':
         return {
           type: 'code',
           content: token.text,
           raw: token.raw,
         };
-      
+
       case 'link':
-        const link = token as Tokens.Link;
+        const link = token as any;
         return {
           type: 'link',
           content: link.text,
           raw: token.raw,
         };
-      
+
       case 'del':
         return {
           type: 'del',
           content: token.text,
           raw: token.raw,
         };
-      
+
       case 'text':
         return {
           type: 'text',
           content: token.text,
           raw: token.raw,
         };
-      
+
       case 'code':
         return {
           type: 'codeblock',
@@ -408,38 +418,38 @@ export class StreamingMarkdownParser {
           lang: token.lang || 'text',
           raw: token.raw,
         };
-      
+
       case 'blockquote':
-        const blockquote = token as Tokens.Blockquote;
-        return blockquote.tokens.map(t => this.convertToken(t)).flat().filter(Boolean) as ParsedToken[];
-      
+        const blockquote = token as any;
+        return blockquote.tokens.map((t: Token) => this.convertToken(t)).flat().filter(Boolean) as ParsedToken[];
+
       case 'list':
-        const list = token as Tokens.List;
-        return list.items.map((item, index) => ({
+        const list = token as any;
+        return list.items.map((item: any, index: number) => ({
           type: 'listitem' as TokenType,
           content: item.text,
           ordered: list.ordered,
           depth: 0,
           raw: item.raw,
         }));
-      
+
       case 'hr':
         return {
           type: 'hr',
           content: '',
           raw: token.raw,
         };
-      
+
       case 'table':
         return {
           type: 'table',
           content: JSON.stringify(token),
           raw: token.raw,
         };
-      
+
       case 'space':
         return null;
-      
+
       default:
         return {
           type: 'text',

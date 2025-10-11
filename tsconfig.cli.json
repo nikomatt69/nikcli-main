@@ -9,7 +9,7 @@
       "es2022"
     ],
     "module": "commonjs",
-    "moduleResolution": "node",
+    "moduleResolution": "bun",
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,

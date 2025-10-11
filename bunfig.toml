@@ -1,0 +1,32 @@
+# Bun Configuration - Optimized for SSD
+[install]
+# Use cache on external SSD
+cache = "/Volumes/SSD/.bun-cache"
+
+# Faster resolution
+registry = "https://registry.npmjs.org"
+auto = "auto"
+
+# Performance optimizations
+frozenLockfile = false
+dryRun = false
+production = false
+optional = true
+dev = true
+peer = true
+
+# Concurrency for faster installs
+concurrency = 10
+
+# Use hardlinks when possible for faster installs
+linkNativeModules = true
+
+[install.scopes]
+"@nicomatt69" = "https://registry.npmjs.org"
+
+# Global directory on SSD
+[install.global]
+dir = "/Volumes/SSD/.bun-global"
+
+# Telemetry
+telemetry = false

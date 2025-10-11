@@ -5,7 +5,6 @@ import chalk from 'chalk'
 import { nanoid } from 'nanoid'
 import { type ChatMessage, modelProvider } from '../ai/model-provider'
 import { workspaceContext } from '../context/workspace-context'
-import { streamttyService } from '../services/streamtty-service'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { approvalSystem } from '../ui/approval-system'
 
@@ -158,26 +157,19 @@ export class EnhancedPlanningSystem {
       todoFilePath = 'todo.md',
     } = options
 
-    advancedUI.addLiveUpdate({ type: 'info', content: `Goal: ${goal}`, source: 'enhanced_planning_mode' })
+    advancedUI.logFunctionCall('enhancedplanningmode', { goal })
+    advancedUI.logInfo(`Goal: ${goal}`)
 
     // Get enhanced project context
     let projectContext = ''
     if (includeContext) {
-      advancedUI.addLiveUpdate({
-        type: 'info',
-        content: 'Analyzing project context...',
-        source: 'enhanced_planning_mode',
-      })
+      advancedUI.logInfo('Analyzing project context...', '📁')
       const context = workspaceContext.getContextForAgent('planner', 15)
       projectContext = context.projectSummary
     }
 
     // Generate AI-powered plan with enhanced analysis
-    advancedUI.addLiveUpdate({
-      type: 'info',
-      content: 'Generating comprehensive AI plan...',
-      source: 'enhanced_planning_mode',
-    })
+    advancedUI.logInfo('Generating comprehensive AI plan...', '⚡︎')
     let todos = await this.generateTodosWithAI(goal, projectContext, maxTodos)
 
     // Enforce read-only constraints if requested by the goal (no commands, no file writes)
@@ -297,8 +289,9 @@ export class EnhancedPlanningSystem {
 
     const compact = process.env.NIKCLI_COMPACT === '1'
     const superCompact = process.env.NIKCLI_SUPER_COMPACT === '1'
-    if (!superCompact && !compact) {
-      advancedUI.addLiveUpdate({ type: 'info', content: `Executing: ${plan.title}`, source: 'enhanced_plan_execution' })
+    if (!superCompact) {
+      advancedUI.logFunctionCall('enhancedplanexecution', { plan: plan.title })
+      if (!compact) advancedUI.logInfo(`Executing: ${plan.title}`)
     }
 
     plan.status = 'executing'
@@ -324,11 +317,7 @@ export class EnhancedPlanningSystem {
       await this.syncPlanTodosToStore(plan)
     } catch (error: any) {
       plan.status = 'failed'
-      advancedUI.addLiveUpdate({
-        type: 'error',
-        content: `Enhanced plan execution failed: ${error.message}`,
-        source: 'enhanced_plan_execution',
-      })
+      advancedUI.logError(`Enhanced plan execution failed: ${error.message}`, '❌')
     } finally {
       // Always return to default mode after plan execution
       try {
@@ -510,11 +499,7 @@ export class EnhancedPlanningSystem {
         } catch (err: any) {
           // On any failure, mark as cancelled to keep flow going
           if (!compact)
-            advancedUI.addLiveUpdate({
-              type: 'error',
-              content: `Toolchain failed for todo '${todo.title}': ${err?.message || err}`,
-              source: 'toolchain_execution',
-            })
+            advancedUI.logError(`   ❌ Toolchain failed for todo '${todo.title}': ${err?.message || err}`)
           todo.status = 'failed'
           todo.errorMessage = String(err?.message || err)
           try {
@@ -526,11 +511,7 @@ export class EnhancedPlanningSystem {
     } catch (error) {
       // If tool registry fails, fall back to original behavior silently (already removed above)
       if (!compact)
-        advancedUI.addLiveUpdate({
-          type: 'error',
-          content: `Toolchain execution setup failed: ${String((error as any)?.message || error)}`,
-          source: 'toolchain_setup',
-        })
+        advancedUI.logError(`Toolchain execution setup failed: ${String((error as any)?.message || error)}`)
     }
   }
 
@@ -793,27 +774,17 @@ Generate a comprehensive plan that is practical and executable.`,
         createdAt: new Date(),
       }))
 
-      advancedUI.addLiveUpdate({
-        type: 'log',
-        content: `Generated ${todos.length} todos`,
-        source: 'ai_plan_generation',
-      })
+      advancedUI.logSuccess(`Generated ${todos.length} todos`, '✓')
       return todos
     } catch (error: any) {
-      // Log errors through streamttyService as well
-      await streamttyService.renderBlock(`Failed to generate AI plan: ${error.message}`, 'error')
-      advancedUI.addLiveUpdate({
-        type: 'error',
-        content: `Failed to generate AI plan: ${error.message}`,
-        source: 'ai_plan_generation',
-      })
+      advancedUI.logError(`Failed to generate AI plan: ${error.message}`, '❌')
       if (lastModelOutput) {
         const preview = lastModelOutput.replace(/```/g, '```').slice(0, 400)
-        advancedUI.addLiveUpdate({
-          type: 'info',
-          content: `Raw AI output (truncated):\n${preview}${lastModelOutput.length > 400 ? '…' : ''}`,
-          source: 'ai_plan_generation',
-        })
+        advancedUI.logInfo(
+
+          `Raw AI output (truncated):\n${preview}${lastModelOutput.length > 400 ? '…' : ''}`,
+          '↪',
+        )
       }
 
       // Fallback: create a simple todo
@@ -918,7 +889,7 @@ Generate a comprehensive plan that is practical and executable.`,
     content += `\n---\n*Generated by NikCLI on ${new Date().toISOString()}*\n`
 
     await fs.writeFile(todoPath, content, 'utf8')
-    advancedUI.addLiveUpdate({ type: 'log', content: `Todo file saved: ${todoPath}`, source: 'todo_file_save' })
+    advancedUI.logSuccess(`Todo file saved: ${todoPath}`, '📄')
   }
 
   /**
@@ -940,11 +911,7 @@ Generate a comprehensive plan that is practical and executable.`,
       // Check for interruption to prevent infinite loops
       const shouldInterrupt = (global as any).__shouldInterrupt
       if (shouldInterrupt?.()) {
-        advancedUI.addLiveUpdate({
-          type: 'warning',
-          content: 'Dependency resolution interrupted by user',
-          source: 'dependency_resolution',
-        })
+        advancedUI.logWarning('Dependency resolution interrupted by user')
         break
       }
 
@@ -1039,80 +1006,39 @@ Generate a comprehensive plan that is practical and executable.`,
   }
 
   /**
-   * Display enhanced completion summary - now using streamttyService for markdown rendering
+   * Display enhanced completion summary
    */
-  private async displayEnhancedCompletionSummary(plan: TodoPlan, completedCount: number, failedCount: number): Promise<void> {
-    // Format as markdown summary
-    let summaryMarkdown = `\n## Plan Execution Summary: ${plan.title}\n\n`
-    summaryMarkdown += `- ✓ Completed: **${completedCount}/${plan.todos.length}** todos\n`
-    
+  private displayEnhancedCompletionSummary(plan: TodoPlan, completedCount: number, failedCount: number): void {
+    advancedUI.logFunctionCall('enhancedplanexecutionsummary')
+    advancedUI.logInfo(`Plan: ${plan.title}`, '📋')
+    advancedUI.logSuccess(`Completed: ${completedCount}/${plan.todos.length} todos`)
+
     if (failedCount > 0) {
-      summaryMarkdown += `- ❌ Failed: **${failedCount}** todos\n`
+      advancedUI.logError(`Failed: ${failedCount} todos`)
     }
 
     if (plan.actualTotalDuration) {
-      summaryMarkdown += `- ⏱️ Total execution time: **${plan.actualTotalDuration} minutes**\n`
+      advancedUI.logInfo(`Total execution time: ${plan.actualTotalDuration} minutes`, '⏱️')
       const efficiency = Math.round((plan.estimatedTotalDuration / plan.actualTotalDuration) * 100)
-      summaryMarkdown += `- 📊 Efficiency: **${efficiency}%** (estimated vs actual)\n`
+      advancedUI.logInfo(`Efficiency: ${efficiency}% (estimated vs actual)`, '📈')
     }
 
-    summaryMarkdown += '\n'
-    
-    // Render through streamttyService
-    await streamttyService.renderBlock(summaryMarkdown, 'system')
-    
-    // Still log to advancedUI for compatibility
-    advancedUI.addLiveUpdate({ type: 'info', content: `Plan: ${plan.title}`, source: 'plan_execution_summary' })
-    advancedUI.addLiveUpdate({
-      type: 'log',
-      content: `Completed: ${completedCount}/${plan.todos.length} todos`,
-      source: 'plan_execution_summary',
-    })
-
     // Show statistics
-    await this.displayExecutionStatistics()
+    this.displayExecutionStatistics()
   }
 
   /**
-   * Display execution statistics - now using streamttyService for markdown rendering
+   * Display execution statistics
    */
-  private async displayExecutionStatistics(): Promise<void> {
-    const successRate = this.executionStats.totalPlans > 0 
-      ? Math.round((this.executionStats.successfulPlans / this.executionStats.totalPlans) * 100) 
-      : 0
-    
-    // Format as markdown table
-    let statsMarkdown = '\n### Execution Statistics\n\n'
-    statsMarkdown += '| Metric | Value |\n'
-    statsMarkdown += '|--------|-------|\n'
-    statsMarkdown += `| Total Plans | ${this.executionStats.totalPlans} |\n`
-    statsMarkdown += `| Successful | ${this.executionStats.successfulPlans} |\n`
-    statsMarkdown += `| Failed | ${this.executionStats.failedPlans} |\n`
-    statsMarkdown += `| Success Rate | ${successRate}% |\n\n`
-    
-    await streamttyService.renderBlock(statsMarkdown, 'system')
-    
-    // Still log to advancedUI for compatibility
-    advancedUI.addLiveUpdate({
-      type: 'info',
-      content: `Total Plans: ${this.executionStats.totalPlans}`,
-      source: 'execution_statistics',
-    })
-    advancedUI.addLiveUpdate({
-      type: 'log',
-      content: `Successful: ${this.executionStats.successfulPlans}`,
-      source: 'execution_statistics',
-    })
-    advancedUI.addLiveUpdate({
-      type: 'error',
-      content: `Failed: ${this.executionStats.failedPlans}`,
-      source: 'execution_statistics',
-    })
-    advancedUI.addLiveUpdate({
-      type: 'info',
-      content: `Success Rate: ${successRate}%`,
-      source: 'execution_statistics',
-    })
+  private displayExecutionStatistics(): void {
+    advancedUI.logFunctionCall('executionstatistics')
+    advancedUI.logInfo(`Total Plans: ${this.executionStats.totalPlans}`)
+    advancedUI.logSuccess(`Successful: ${this.executionStats.successfulPlans}`)
+    advancedUI.logError(`Failed: ${this.executionStats.failedPlans}`)
+    advancedUI.logInfo(
+      'info',
+      `Success Rate: ${this.executionStats.totalPlans > 0 ? Math.round((this.executionStats.successfulPlans / this.executionStats.totalPlans) * 100) : 0}%`
+    )
   }
 
   /**
@@ -1304,38 +1230,33 @@ Generate a comprehensive plan that is practical and executable.`,
     plan.todos.forEach((todo, index) => {
       const priorityIcon = this.getPriorityIcon(todo.priority)
       const statusIcon = this.getStatusIcon(todo.status)
+      const categoryColor = this.getCategoryColor(todo.category)
 
       advancedUI.addLiveUpdate({
         type: 'info',
         content: `${index + 1}. ${statusIcon} ${priorityIcon} ${todo.title}`,
-        source: 'todo_items',
+        source: 'todoitems',
       })
       advancedUI.addLiveUpdate({
         type: 'info',
         content: `   ${todo.description}`,
-        source: 'todo_items',
+        source: 'todoitems',
       })
       advancedUI.addLiveUpdate({
         type: 'info',
         content: `   ${todo.category} | ${todo.estimatedDuration}min | ${todo.tags.join(', ')}`,
-        source: 'todo_items',
+        source: 'todoitems',
       })
 
       if (todo.dependencies.length > 0) {
-        advancedUI.addLiveUpdate({
-          type: 'info',
-          content: `   Dependencies: ${todo.dependencies.join(', ')}`,
-          source: 'todo_items',
-        })
+        advancedUI.logInfo(`   ${chalk.yellow('Dependencies:')} ${todo.dependencies.join(', ')}`)
       }
 
       if (todo.files && todo.files.length > 0) {
-        advancedUI.addLiveUpdate({
-          type: 'info',
-          content: `   Files: ${todo.files.join(', ')}`,
-          source: 'todo_items',
-        })
+        advancedUI.logInfo(`   ${chalk.blue('Files:')} ${todo.files.join(', ')}`, '📋')
       }
+
+      advancedUI.logInfo('', '📋')
     })
   }
 
@@ -1358,7 +1279,7 @@ Generate a comprehensive plan that is practical and executable.`,
       const code = (e as any)?.code
       const isModuleNotFound = code === 'ERR_MODULE_NOT_FOUND' || /Cannot find module/.test(msg)
       if (!isModuleNotFound) {
-        console.debug(chalk.gray(`Enhanced UI not shown: ${msg}`))
+        advancedUI.logWarning(`Enhanced UI not shown: ${msg}`)
       }
     }
   }
@@ -1379,19 +1300,17 @@ Generate a comprehensive plan that is practical and executable.`,
       if (plan) {
         this.displayEnhancedPlan(plan)
       } else {
-        advancedUI.addLiveUpdate({ type: 'error', content: `Plan ${planId} not found`, source: 'plan_status' })
+        advancedUI.logError(`Plan ${planId} not found`, '❌')
       }
     } else {
       const plans = this.getActivePlans()
       if (plans.length === 0) {
-        advancedUI.addLiveUpdate({ type: 'info', content: 'No active plans', source: 'plan_status' })
+        advancedUI.logInfo('No active plans', '📋')
       } else {
+        advancedUI.logInfo('Active Plans:', '📋')
         plans.forEach((plan) => {
-          advancedUI.addLiveUpdate({
-            type: 'info',
-            content: `${plan.status.toUpperCase()} ${plan.title} (${plan.todos.length} todos)`,
-            source: 'active_plans',
-          })
+          const statusColor = this.getStatusColor(plan.status)
+          advancedUI.logInfo(`  ${statusColor(plan.status.toUpperCase())} ${plan.title} (${plan.todos.length} todos)`, '📋')
         })
       }
     }

@@ -65,7 +65,7 @@ export class PlanExecutor {
   async executePlan(plan: ExecutionPlan): Promise<PlanExecutionResult> {
     // Stream plan execution start as markdown
     await streamttyService.renderBlock(`## Executing Plan: ${plan.title}\n`, 'system')
-    advancedUI.addLiveUpdate({ type: 'info', content: `Executing Plan: ${plan.title}`, source: 'plan_execution' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Executing Plan: ${plan.title}`, source: 'planexecution' })
 
     const startTime = new Date()
     const result: PlanExecutionResult = {
@@ -116,7 +116,7 @@ export class PlanExecutor {
         const step = executionOrder[i]
         if (!step) continue
 
-        advancedUI.addLiveUpdate({ type: 'info', content: `Executing: ${step.title}`, source: 'step_execution' })
+        advancedUI.addLiveUpdate({ type: 'info', content: `Executing: ${step.title}`, source: 'stepexecution' })
 
         const stepResult = await this.executeStep(step, plan)
         result.stepResults.push(stepResult)
@@ -317,20 +317,28 @@ export class PlanExecutor {
    * Execute a step by delegating to the AgentService and waiting for completion
    */
   private async executeAgentStep(step: ExecutionStep, plan: ExecutionPlan): Promise<any> {
+    // Log agent execution start with structured format (for consistency with default mode)
+    const agentType = (step.metadata?.agent as string) || (step.metadata?.agentType as string) || 'agent'
+    await advancedUI.logFunctionCall(`${agentType}_execute`, {
+      step: step.title,
+      description: step.description
+    })
+
     // Compose task text
     const taskText = (step.metadata?.task as string) || `${step.title}: ${step.description}`
     // Choose agent
-    let agentType = (step.metadata?.agent as string) || (step.metadata?.agentType as string) || ''
+    let finalAgentType = agentType
     try {
-      if (!agentType || !(agentService as any).agents?.has?.(agentType)) {
-        agentType = agentService.suggestAgentTypeForTask(taskText)
+      if (!finalAgentType || !(agentService as any).agents?.has?.(finalAgentType)) {
+        finalAgentType = agentService.suggestAgentTypeForTask(taskText)
       }
     } catch {
       /* fallback below */
     }
 
     // Start agent task
-    const taskId = await agentService.executeTask(agentType, taskText, { planId: plan.id, stepId: step.id })
+    const taskId = await agentService.executeTask(finalAgentType, taskText, { planId: plan.id, stepId: step.id })
+    await advancedUI.logFunctionUpdate('info', `Starting ${finalAgentType} agent task`)
 
     // Live progress hookup
     const onProgress = (t: AgentTask, update: any) => {
@@ -343,9 +351,16 @@ export class PlanExecutor {
         /* noop */
       }
     }
-    const onToolUse = (_t: AgentTask, update: any) => {
+    const onToolUse = async (_t: AgentTask, update: any) => {
       try {
-        advancedUI.logInfo(`🔧 ${update?.tool}: ${update?.description || ''}`)
+        const toolName = update?.tool || 'unknown_tool'
+        const description = update?.description || ''
+
+        // Use structured logging format instead of logInfo (for consistency with default mode)
+        await advancedUI.logFunctionCall(toolName)
+        if (description) {
+          await advancedUI.logFunctionUpdate('info', description)
+        }
       } catch {
         /* noop */
       }
@@ -381,8 +396,10 @@ export class PlanExecutor {
       /* ignore */
     }
     if (task.status === 'completed') {
-      return task.result || { completed: true, agentType }
+      await advancedUI.logFunctionUpdate('success', 'Agent task completed successfully')
+      return task.result || { completed: true, agentType: finalAgentType }
     }
+    await advancedUI.logFunctionUpdate('error', task.error || 'Agent task failed')
     throw new Error(task.error || 'Agent task failed')
   }
 
@@ -394,9 +411,15 @@ export class PlanExecutor {
       throw new Error('Tool step missing toolName')
     }
 
+    // Log function call with structured format (for consistency with default mode)
+    await advancedUI.logFunctionCall(step.toolName, step.toolArgs)
+
     // Best practice: route sensitive tools via SecureToolsRegistry wrappers
     const routed = await this.trySecureRoute(step)
-    if (routed.routed) return routed.result
+    if (routed.routed) {
+      await advancedUI.logFunctionUpdate('success', 'Tool executed successfully')
+      return routed.result
+    }
 
     const tool = this.toolRegistry.getTool(step.toolName)
     if (!tool) {
@@ -410,7 +433,9 @@ export class PlanExecutor {
 
     const executionPromise = tool.execute(...(step.toolArgs ? Object.values(step.toolArgs) : []))
 
-    return Promise.race([executionPromise, timeoutPromise])
+    const result = await Promise.race([executionPromise, timeoutPromise])
+    await advancedUI.logFunctionUpdate('success', 'Tool completed')
+    return result
   }
 
   /**
@@ -671,8 +696,8 @@ export class PlanExecutor {
     await streamttyService.renderBlock(planMarkdown, 'system')
 
     // Still log to advancedUI for compatibility
-    advancedUI.addLiveUpdate({ type: 'info', content: 'Plan Approval Required', source: 'plan_approval' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Plan Title: ${plan.title}`, source: 'plan_approval' })
+    advancedUI.addLiveUpdate({ type: 'info', content: 'Plan Approval Required', source: 'planapproval' })
+    advancedUI.addLiveUpdate({ type: 'info', content: `Plan Title: ${plan.title}`, source: 'planapproval' })
   }
 
   /**
@@ -724,17 +749,17 @@ export class PlanExecutor {
     advancedUI.addLiveUpdate({
       type: 'info',
       content: `Status: ${result.status.toUpperCase()}`,
-      source: 'execution_summary',
+      source: 'executionsummary',
     })
     advancedUI.addLiveUpdate({
       type: 'info',
       content: `Duration: ${Math.round(duration / 1000)}s`,
-      source: 'execution_summary',
+      source: 'executionsummary',
     })
     advancedUI.addLiveUpdate({
       type: 'info',
       content: `Total Steps: ${result.summary.totalSteps}`,
-      source: 'execution_summary',
+      source: 'executionsummary',
     })
   }
 

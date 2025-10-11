@@ -45,7 +45,7 @@ export class PlanningService {
   private async initializeTaskMaster(): Promise<void> {
     try {
       await taskMasterService.initialize()
-      advancedUI.logFunctionUpdate('success', 'TaskMaster planning integration enabled', '✓')
+      advancedUI.logSuccess('TaskMaster planning integration enabled', '✓')
 
       // Listen for TaskMaster events
       this.taskMasterAdapter.on('initialized', () => {
@@ -53,11 +53,11 @@ export class PlanningService {
       })
 
       this.taskMasterAdapter.on('fallback', () => {
-        advancedUI.logFunctionUpdate('warning', 'TaskMaster unavailable, using legacy planning', '⚠︎')
+        advancedUI.logWarning('TaskMaster unavailable, using legacy planning', '⚠︎')
         this.useTaskMasterByDefault = false
       })
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('warning', `TaskMaster initialization failed: ${error.message}`, '⚠︎')
+      advancedUI.logWarning(`TaskMaster initialization failed: ${error.message}`, '⚠︎')
       this.useTaskMasterByDefault = false
     }
   }
@@ -231,9 +231,9 @@ export class PlanningService {
           projectType: await this.detectProjectType(),
         })
 
-        advancedUI.logFunctionUpdate('success', 'TaskMaster plan generated', '✓')
+        advancedUI.logSuccess('TaskMaster plan generated', '✓')
       } catch (error: any) {
-        advancedUI.logFunctionUpdate('warning', `TaskMaster planning failed: ${error.message}`, '⚠︎')
+        advancedUI.logWarning(`TaskMaster planning failed: ${error.message}`, '⚠︎')
 
         if (!options.fallbackToLegacy) {
           throw error
@@ -245,7 +245,7 @@ export class PlanningService {
     } else {
       // Use legacy planning
       if (shouldUseTaskMaster) {
-        advancedUI.logFunctionUpdate('warning', 'TaskMaster not available, using legacy planning', '⚠︎')
+        advancedUI.logWarning('TaskMaster not available, using legacy planning', '⚠︎')
       }
       plan = await this.createLegacyPlan(userRequest, options)
     }
@@ -316,7 +316,7 @@ export class PlanningService {
     const superCompact = process.env.NIKCLI_COMPACT === '1'
     if (!superCompact) {
       advancedUI.logFunctionCall('executing')
-      advancedUI.logFunctionUpdate('info', plan.title, '●')
+      advancedUI.logInfo(plan.title, '●')
     }
 
     try {
@@ -341,7 +341,7 @@ export class PlanningService {
             if (!superCompact) console.log(chalk.blue(`⚡︎ ${event.result}`))
             break
           case 'todo_start':
-            if (!superCompact) advancedUI.logFunctionUpdate('success', event.todoId || 'Todo started', '✓')
+            if (!superCompact) advancedUI.logSuccess(event.todoId || 'Todo started', '✓')
             if (event.todoId) this.updateTodoStatus(plan.id, event.todoId, 'in_progress')
             try {
               const { advancedUI } = await import('../ui/advanced-cli-ui')
@@ -356,7 +356,7 @@ export class PlanningService {
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'in_progress' })
             break
           case 'todo_progress':
-            if (!superCompact) console.log(chalk.red(`⚡︎ ${event.progress}`))
+            if (!superCompact) advancedUI.logWarning(`⚡︎ ${event.progress}`)
             try {
               const { advancedUI } = await import('../ui/advanced-cli-ui')
               const items = (plan.todos || []).map((t) => ({
@@ -369,7 +369,7 @@ export class PlanningService {
             } catch { }
             break
           case 'todo_complete':
-            if (!superCompact) advancedUI.logFunctionUpdate('success', 'Todo completed', '✓')
+            if (!superCompact) advancedUI.logSuccess('Todo completed', '✓')
             if (event.todoId) {
               const status = event.error ? 'failed' : 'completed'
               this.updateTodoStatus(plan.id, event.todoId, status)
@@ -387,7 +387,7 @@ export class PlanningService {
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: event.error ? 'failed' : 'completed' })
             break
           case 'plan_failed':
-            if (!superCompact) advancedUI.logFunctionUpdate('error', `Plan execution failed: ${event.error}`, '❌')
+            if (!superCompact) advancedUI.logError(`Plan execution failed: ${event.error}`, '❌')
             this.updatePlanStatus(plan.id, 'failed')
             this.emitPlanEvent({ ...event, planId: plan.id })
             try {
@@ -408,7 +408,7 @@ export class PlanningService {
         }
       }
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Plan execution error: ${error.message}`, '❌')
+      advancedUI.logError(`Plan execution error: ${error.message}`, '❌')
       plan.status = 'failed'
       // Ensure prompt is restored on error
       try {
@@ -580,7 +580,7 @@ export class PlanningService {
         todoStore.setTodos(String(sessionId), list)
       }
     } catch (error: any) {
-      console.log(chalk.gray(`ℹ️ Could not sync with todo store: ${error.message}`))
+      advancedUI.logWarning(`Could not sync with todo store: ${error.message}`)
     }
   }
 
@@ -598,7 +598,7 @@ export class PlanningService {
       }))
         ; (advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
     } catch (error: any) {
-      console.log(chalk.gray(`ℹ️ Could not show dashboard: ${error.message}`))
+      advancedUI.logWarning(`Could not show dashboard: ${error.message}`)
     }
   }
 
@@ -678,7 +678,7 @@ export class PlanningService {
    */
   setTaskMasterEnabled(enabled: boolean): void {
     this.useTaskMasterByDefault = enabled
-    console.log(chalk.cyan(`🔌 TaskMaster planning ${enabled ? 'enabled' : 'disabled'}`))
+    advancedUI.logInfo(`TaskMaster planning ${enabled ? 'enabled' : 'disabled'}`)
   }
 
   /**

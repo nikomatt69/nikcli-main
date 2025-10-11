@@ -5,7 +5,7 @@ import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
-import { BrowserbaseTool, ImageGenerationTool, VisionAnalysisTool } from '../tools'
+import { ImageGenerationTool, VisionAnalysisTool } from '../tools'
 import type { ToolExecutionResult } from '../tools/base-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { structuredLogger } from '../utils/structured-logger'
@@ -535,26 +535,7 @@ export class ToolRegistry {
         },
       })
 
-      await this.registerTool(BrowserbaseTool, {
-        name: 'browse-web',
-        description: 'Web browsing automation and AI-powered content analysis with Browserbase',
-        category: 'web-browsing',
-        capabilities: ['web-browsing', 'content-extraction', 'ai-analysis', 'web-automation'],
-        permissions: {
-          canReadFiles: false,
-          canWriteFiles: false,
-          canDeleteFiles: false,
-          canExecuteCommands: false,
-          allowedPaths: [],
-          forbiddenPaths: [],
-          allowedCommands: [],
-          forbiddenCommands: [],
-          canAccessNetwork: true,
-          maxExecutionTime: 60000, // 1 minute for web operations
-          maxMemoryUsage: 512 * 1024 * 1024,
-          requiresApproval: true,
-        },
-      })
+
     } catch (error: any) {
       advancedUI.logWarning(`⚠️  Some built-in tools failed to load: ${error.message}`)
     }
@@ -801,10 +782,12 @@ export class ToolRegistry {
     // Cleanup subsystems
     try {
       if (this.contextSystem && typeof this.contextSystem.clearMemory === 'function') {
-        await this.contextSystem.clearMemory()
+        async () => this.contextSystem.clearMemory()
+        return
       }
       if (this.analyticsManager && typeof this.analyticsManager.getSummary === 'function') {
-        await this.analyticsManager.getSummary()
+        async () => this.analyticsManager.getSummary()
+        return
       }
     } catch (error: any) {
       advancedUI.logError(`⚠️ Error cleaning up subsystems: ${error.message}`)

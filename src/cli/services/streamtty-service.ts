@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { Streamtty } from '../../../streamtty/src'
+import { Streamtty, applySyntaxHighlight, colorizeBlock, syntaxColors } from 'streamtty'
 import { terminalOutputManager, TerminalOutputManager } from '../ui/terminal-output-manager'
 
 export type ChunkType = 'ai' | 'tool' | 'thinking' | 'system' | 'error' | 'user' | 'vm' | 'agent'
@@ -94,12 +94,26 @@ export class StreamttyService {
         break
     }
 
-    this.streamBuffer += chunk
+    // Apply syntax highlighting based on chunk type (except tools which stay raw)
+    let processedChunk = chunk
+    if (type !== 'tool') {
+      // Apply ANSI syntax highlighting for stdout mode
+      processedChunk = applySyntaxHighlight(chunk)
+
+      // Apply type-specific coloring
+      if (type === 'thinking') {
+        processedChunk = colorizeBlock(processedChunk, syntaxColors.comment)
+      } else if (type === 'error') {
+        processedChunk = colorizeBlock(processedChunk, syntaxColors.error)
+      }
+    }
+
+    this.streamBuffer += processedChunk
 
     // If blessed mode is active, use streamtty
     if (this.streamtty && this.isInitialized && !this.stats.fallbackUsed) {
       try {
-        this.streamtty.stream(chunk)
+        this.streamtty.stream(processedChunk)
         return
       } catch (error) {
         console.warn('Streamtty stream failed, falling back:', error)
@@ -108,9 +122,9 @@ export class StreamttyService {
     }
 
     // Fallback: direct stdout with terminal output tracking
-    const chunkLines = TerminalOutputManager.calculateLines(chunk)
+    const chunkLines = TerminalOutputManager.calculateLines(processedChunk)
     const outputId = terminalOutputManager.reserveSpace('StreamttyChunk', chunkLines)
-    process.stdout.write(chunk)
+    process.stdout.write(processedChunk)
     terminalOutputManager.confirmOutput(outputId, 'StreamttyChunk', chunkLines, {
       persistent: false,
       expiryMs: 30000,
@@ -152,34 +166,56 @@ export class StreamttyService {
 
   /**
    * Format content as markdown based on chunk type
+   * Uses ANSI colors and syntax highlighting (no emoji)
    */
   private formatContentByType(content: string, type: ChunkType): string {
     switch (type) {
       case 'error':
-        return `> ❌ **Error**\n> \n> ${content.replace(/\n/g, '\n> ')}`
+        // Red for errors with unicode symbol
+        const highlighted = applySyntaxHighlight(content)
+        const errorPrefix = `${syntaxColors.error}▸ ERROR${syntaxColors.reset}\n`
+        return errorPrefix + colorizeBlock(highlighted, syntaxColors.error)
 
       case 'thinking':
-        return `> 💭 ${content.replace(/\n/g, '\n> ')}`
+        // Dark gray for thinking/cognitive blocks with unicode symbol
+        const highlightedThinking = applySyntaxHighlight(content)
+        const thinkingPrefix = `${syntaxColors.comment}▸ ${syntaxColors.reset}`
+        return thinkingPrefix + colorizeBlock(highlightedThinking, syntaxColors.comment)
 
       case 'tool':
-        return `\`\`\`tool\n${content}\n\`\`\``
+        // Tool output without formatting (raw content)
+        const toolPrefix = `${syntaxColors.path}▸ TOOL${syntaxColors.reset}\n`
+        return toolPrefix + content
 
       case 'system':
-        return `> ℹ️ ${content.replace(/\n/g, '\n> ')}`
+        // Light gray for system messages with unicode symbol
+        const highlightedSystem = applySyntaxHighlight(content)
+        const systemPrefix = `${syntaxColors.reset}▸ ${syntaxColors.reset}`
+        return systemPrefix + highlightedSystem
 
       case 'user':
-        return `> 💬 ${content.replace(/\n/g, '\n> ')}`
+        // Bright cyan for user messages with unicode symbol
+        const highlightedUser = applySyntaxHighlight(content)
+        const userPrefix = `${syntaxColors.title}▸ USER${syntaxColors.reset}\n`
+        return userPrefix + colorizeBlock(highlightedUser, syntaxColors.title)
 
       case 'vm':
-        return `> 🐳 ${content.replace(/\n/g, '\n> ')}`
+        // Bright blue for VM messages with unicode symbol
+        const highlightedVm = applySyntaxHighlight(content)
+        const vmPrefix = `${syntaxColors.title}▸ VM${syntaxColors.reset}\n`
+        return vmPrefix + highlightedVm
 
       case 'agent':
-        return `> 🔌 ${content.replace(/\n/g, '\n> ')}`
+        // Magenta for agent messages with unicode symbol
+        const highlightedAgent = applySyntaxHighlight(content)
+        const agentPrefix = `${syntaxColors.keyword}▸ AGENT${syntaxColors.reset}\n`
+        return agentPrefix + colorizeBlock(highlightedAgent, syntaxColors.keyword)
 
       case 'ai':
       default:
-        // AI content is already markdown, pass through
-        return content
+        // AI content with syntax highlighting applied
+        const highlightedAi = applySyntaxHighlight(content)
+        return highlightedAi
     }
   }
 

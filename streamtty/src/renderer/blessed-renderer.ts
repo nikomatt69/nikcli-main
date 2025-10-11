@@ -1,5 +1,6 @@
 import blessed, { Widgets } from 'blessed';
 import { ParsedToken, RenderContext, BlessedStyle, MarkdownStyles } from '../types';
+import { applySyntaxHighlightBlessed, blessedSyntaxColors } from '../utils/blessed-syntax-highlighter';
 
 export class BlessedRenderer {
   private context: RenderContext;
@@ -170,7 +171,9 @@ export class BlessedRenderer {
    */
   private renderText(token: ParsedToken, yOffset: number): Widgets.BoxElement {
     const style = this.defaultStyles.paragraph;
-    let content = this.formatInlineStyles(token.content);
+    // Apply syntax highlighting first, then format inline styles
+    let content = applySyntaxHighlightBlessed(token.content);
+    content = this.formatInlineStyles(content);
 
     if (token.incomplete) {
       content += '{yellow-fg}...{/yellow-fg}';
@@ -329,7 +332,20 @@ export class BlessedRenderer {
    * Render blockquote
    */
   private renderBlockquote(token: ParsedToken, yOffset: number): Widgets.BoxElement {
-    const style = this.defaultStyles.blockquote;
+    // Check if this is a thinking/cognitive block
+    const isThinkingBlock = /^(thinking|cognitive|analyzing|processing)/i.test(token.content);
+    const style = isThinkingBlock
+      ? { fg: 'gray', italic: true }
+      : this.defaultStyles.blockquote;
+
+    // Apply syntax highlighting
+    let content = applySyntaxHighlightBlessed(token.content);
+    content = this.formatInlineStyles(content);
+
+    // For thinking blocks, use dark gray color
+    if (isThinkingBlock) {
+      content = `{${blessedSyntaxColors.darkGray}}${content}{/${blessedSyntaxColors.darkGray}}`;
+    }
 
     return blessed.box({
       parent: this.context.container,
@@ -337,15 +353,14 @@ export class BlessedRenderer {
       left: 2,
       width: '100%-4',
       height: 'shrink',
-      content: this.formatInlineStyles(token.content),
+      content,
       tags: true,
       border: {
         type: 'line',
-
       },
       style: {
         border: {
-          fg: style.fg || 'gray',
+          fg: isThinkingBlock ? 'gray' : (style.fg || 'gray'),
           left: false,
           right: false,
           top: false,
@@ -453,31 +468,15 @@ export class BlessedRenderer {
   }
 
   /**
-   * Highlight code (basic implementation)
+   * Highlight code with enhanced syntax highlighting
    */
   private highlightCode(code: string, lang: string): string {
-    // Basic syntax highlighting - in production you'd use a proper highlighter
     if (!this.context.options.syntaxHighlight) {
       return code;
     }
 
-    // Simple keyword highlighting
-    const keywords = ['function', 'const', 'let', 'var', 'if', 'else', 'return', 'for', 'while', 'class', 'import', 'export'];
-    let highlighted = code;
-
-    for (const keyword of keywords) {
-      const regex = new RegExp(`\\b(${keyword})\\b`, 'g');
-      highlighted = highlighted.replace(regex, '{magenta-fg}$1{/magenta-fg}');
-    }
-
-    // Strings
-    highlighted = highlighted.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, '{green-fg}$&{/green-fg}');
-
-    // Comments
-    highlighted = highlighted.replace(/(\/\/.*)$/gm, '{gray-fg}$1{/gray-fg}');
-    highlighted = highlighted.replace(/(\/\*[\s\S]*?\*\/)/g, '{gray-fg}$1{/gray-fg}');
-
-    return highlighted;
+    // Use blessed syntax highlighter for comprehensive highlighting
+    return applySyntaxHighlightBlessed(code);
   }
 
   /**
@@ -544,6 +543,7 @@ export class BlessedRenderer {
       table: { fg: 'cyan' },
       tableHeader: { fg: 'cyan', bold: true },
       hr: { fg: 'gray' },
+      thinking: { fg: 'gray', italic: true }, // Dark gray for thinking/cognitive blocks
     };
   }
 }

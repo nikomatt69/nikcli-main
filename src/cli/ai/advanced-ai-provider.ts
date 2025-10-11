@@ -13,7 +13,6 @@ import { z } from 'zod'
 // ⚡︎ Import Cognitive Orchestration Types
 import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
 import { docsContextManager } from '../context/docs-context-manager'
-import { getRAGMiddleware } from '../context/rag-setup'
 import { AdvancedTools } from '../core/advanced-tools'
 import { simpleConfigManager as configManager } from '../core/config-manager'
 import { ContextEnhancer } from '../core/context-enhancer'
@@ -790,10 +789,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                    isValid: validationResult.isValid,
-                    errors: validationResult.errors,
-                    warnings: validationResult.warnings,
-                  }
+                  isValid: validationResult.isValid,
+                  errors: validationResult.errors,
+                  warnings: validationResult.warnings,
+                }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -1126,8 +1125,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                  .join('')
+                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -1152,16 +1151,16 @@ Respond in a helpful, professional manner with clear explanations and actionable
         if (cacheDecision.should && !isAnalysisRequest) {
           const cachedResponse = await this.smartCache.getCachedResponse(userContent, systemContext)
 
-        if (cachedResponse) {
-          yield { type: 'start', content: `🎯 Using smart cache (${cacheDecision.strategy})...` }
+          if (cachedResponse) {
+            yield { type: 'start', content: `🎯 Using smart cache (${cacheDecision.strategy})...` }
 
-          // Stream the cached response through streamtty - it handles chunking internally
-          const formattedResponse = this.formatCachedResponse(cachedResponse.response)
-          yield { type: 'text_delta', content: formattedResponse }
+            // Stream the cached response through streamtty - it handles chunking internally
+            const formattedResponse = this.formatCachedResponse(cachedResponse.response)
+            yield { type: 'text_delta', content: formattedResponse }
 
-          yield { type: 'complete', content: `Cache hit - ${cachedResponse.metadata.tokensSaved} tokens saved!` }
-          return
-        }
+            yield { type: 'complete', content: `Cache hit - ${cachedResponse.metadata.tokensSaved} tokens saved!` }
+            return
+          }
         } else if (isAnalysisRequest) {
           yield { type: 'start', content: 'Starting fresh analysis (bypassing cache)...' }
         }
@@ -1252,14 +1251,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
         maxToolRoundtrips: isAnalysisRequest ? 40 : 60, // Increased for deeper analysis and toolchains
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => {},
+        onStepFinish: (_evt: any) => { },
       }
 
-      // Apply RAG middleware if available
-      const ragMw = getRAGMiddleware()
-      if (ragMw) {
-        streamOpts.experimental_providerMetadata = ragMw
-      }
+
 
       if (provider !== 'openai' && provider !== 'openrouter') {
         streamOpts.maxTokens = params.maxTokens
@@ -1354,24 +1349,24 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
                 // Check if we've completed 2 rounds - if so, provide final summary and stop
                 if (this.completedRounds >= this.maxRounds) {
-                const finalSummary = this.generateFinalSummary(originalQuery, this.toolCallHistory)
+                  const finalSummary = this.generateFinalSummary(originalQuery, this.toolCallHistory)
 
-                yield {
-                  type: 'thinking',
-                  content: `🏁 Completed ${this.completedRounds} rounds of analysis. Providing final summary.`,
-                }
-                // Yield as markdown - streamttyService will render it properly
-                yield {
-                  type: 'text_delta',
-                  content: `\n\n${finalSummary}\n\n`,
-                  metadata: { isMarkdown: true },
-                }
-                yield {
-                  type: 'complete',
-                  content: `Analysis completed after ${this.completedRounds} rounds. Please review the summary above.`,
-                  metadata: { finalStop: true, rounds: this.completedRounds },
-                }
-                return // Hard stop after 2 rounds
+                  yield {
+                    type: 'thinking',
+                    content: `🏁 Completed ${this.completedRounds} rounds of analysis. Providing final summary.`,
+                  }
+                  // Yield as markdown - streamttyService will render it properly
+                  yield {
+                    type: 'text_delta',
+                    content: `\n\n${finalSummary}\n\n`,
+                    metadata: { isMarkdown: true },
+                  }
+                  yield {
+                    type: 'complete',
+                    content: `Analysis completed after ${this.completedRounds} rounds. Please review the summary above.`,
+                    metadata: { finalStop: true, rounds: this.completedRounds },
+                  }
+                  return // Hard stop after 2 rounds
                 }
 
                 // If this is the first round, continue with intelligent question
@@ -1472,10 +1467,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                          .map((part) =>
-                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                          )
-                          .join('')
+                        .map((part) =>
+                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                        )
+                        .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -2155,8 +2150,8 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-            { role: 'user', content: `${type}: ${description} (${language})` } as any,
-          ])
+          { role: 'user', content: `${type}: ${description} (${language})` } as any,
+        ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -2213,7 +2208,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('model router', msg)
         else console.log(chalk.dim(msg))
-      } catch {}
+      } catch { }
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.

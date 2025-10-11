@@ -16,7 +16,6 @@ import { SlashCommandHandler } from './chat/nik-cli-commands'
 import { CADCommands } from './commands/cad-commands'
 import { TOKEN_LIMITS } from './config/token-limits'
 import { docsContextManager } from './context/docs-context-manager'
-import { initializeRAG } from './context/rag-setup'
 import { unifiedRAGSystem } from './context/rag-system'
 import { workspaceContext } from './context/workspace-context'
 import { agentFactory } from './core/agent-factory'
@@ -58,7 +57,7 @@ import { toolService } from './services/tool-service'
 import { StreamingOrchestrator } from './streaming-orchestrator'
 import { toolsManager } from './tools/tools-manager'
 import { advancedUI } from './ui/advanced-cli-ui'
-import { createCognitiveRouteAnalyzer, type CognitiveRouteAnalyzer } from './core/cognitive-route-analyzer'
+
 import { projectMemory, type ProjectMemoryManager } from './core/project-memory'
 import { approvalSystem } from './ui/approval-system'
 import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
@@ -188,7 +187,6 @@ export class NikCLI {
   private configManager: SimpleConfigManager
   private agentManager: AgentManager
   private planningManager: PlanningManager
-  private cognitiveRouteAnalyzer?: CognitiveRouteAnalyzer
   private agentLearningSystem: typeof agentLearningSystem
   private intelligentFeedbackWrapper: typeof intelligentFeedbackWrapper
   private projectMemory: ProjectMemoryManager
@@ -353,7 +351,7 @@ export class NikCLI {
     this.agentLearningSystem = agentLearningSystem
     this.intelligentFeedbackWrapper = intelligentFeedbackWrapper
     // Initialize cognitive route analyzer
-    this.cognitiveRouteAnalyzer = createCognitiveRouteAnalyzer(this.workingDirectory)
+
     // Initialize project memory
     this.projectMemory = projectMemory
     // Initialize paste handler for long text processing
@@ -928,12 +926,10 @@ export class NikCLI {
     agentService.on('task_start', (task) => {
       const indicator = this.createStatusIndicator(`task-${task.id}`, `Agent ${task.agentType}`, task.task)
       this.updateStatusIndicator(indicator.id, { status: 'running' })
-      console.log(formatAgent(task.agentType, 'started', task.task))
 
-      // Always show in default chat mode and structured UI
+      // Always show in default chat mode and structured UI via addLiveUpdate
       if (this.currentMode === 'default') {
-        console.log(chalk.blue(`🔌 ${task.agentType}: `) + chalk.dim(task.task))
-        advancedUI.logInfo(`Agent ${task.agentType}`, task.task)
+        this.addLiveUpdate({ type: 'info', content: task.task, source: `agent_${task.agentType}` })
       }
 
       // Render prompt after output
@@ -943,16 +939,14 @@ export class NikCLI {
     agentService.on('task_progress', (_task, update) => {
       const progress = typeof update.progress === 'number' ? `${update.progress}% ` : ''
       const desc = update.description ? `- ${update.description}` : ''
-      this.addLiveUpdate({ type: 'progress', content: `${progress}${desc}`, source: 'agent' })
-      console.log(chalk.cyan(`📊 ${progress}${desc}`))
+      this.addLiveUpdate({ type: 'progress', content: `${progress}${desc}`, source: 'agentprogress' })
 
       // Render prompt after output
       this.renderPromptAfterOutput()
     })
 
     agentService.on('tool_use', (_task, update) => {
-      this.addLiveUpdate({ type: 'info', content: ` ${update.tool}: ${update.description}`, source: 'tool' })
-      console.log(chalk.magenta(` ${update.tool}: ${update.description}`))
+      this.addLiveUpdate({ type: 'info', content: `${update.tool}: ${update.description}`, source: 'tooluse' })
 
       // Render prompt after output
       this.renderPromptAfterOutput()
@@ -962,15 +956,14 @@ export class NikCLI {
       const indicatorId = `task-${task.id}`
       if (task.status === 'completed') {
         this.updateStatusIndicator(indicatorId, { status: 'completed', details: 'Task completed successfully' })
-        console.log(chalk.green(`✓ ${task.agentType} completed`))
 
         // Show in default mode and structured UI
         if (this.currentMode === 'default') {
-          advancedUI.logSuccess(`Agent ${task.agentType}`, 'Task completed successfully')
+          this.addLiveUpdate({ type: 'log', content: 'Task completed successfully', source: `agent_${task.agentType}` })
         }
       } else {
         this.updateStatusIndicator(indicatorId, { status: 'failed', details: task.error || 'Unknown error' })
-        console.log(chalk.red(`❌ ${task.agentType} failed: ${task.error}`))
+        this.addLiveUpdate({ type: 'error', content: `Failed: ${task.error}`, source: `agent_${task.agentType}` })
 
         // Show in default mode and structured UI
         if (this.currentMode === 'default') {
@@ -1222,56 +1215,56 @@ export class NikCLI {
   private routeToConsole(eventType: string, eventData: any): void {
     switch (eventType) {
       case 'planning_step_start':
-        console.log(chalk.blue(`📋 Planning: ${eventData.description}`))
+        this.addLiveUpdate({ type: 'info', content: eventData.description, source: 'planning' })
         break
       case 'planning_step_progress':
-        console.log(chalk.cyan(`⏳ Progress: ${eventData.step} - ${eventData.progress}%`))
+        this.addLiveUpdate({ type: 'progress', content: `${eventData.step} - ${eventData.progress}%`, source: 'planning' })
         break
       case 'planning_step_complete':
-        console.log(chalk.green(`✓ Complete: ${eventData.step}`))
+        this.addLiveUpdate({ type: 'log', content: `Complete: ${eventData.step}`, source: 'planning' })
         break
       case 'agent_file_read':
-        console.log(chalk.blue(`📖 File read: ${eventData.path}`))
+        this.addLiveUpdate({ type: 'info', content: `File read: ${eventData.path}`, source: 'fileoperations' })
         break
       case 'agent_file_written':
-        console.log(chalk.green(`✏️ File written: ${eventData.path}`))
+        this.addLiveUpdate({ type: 'log', content: `File written: ${eventData.path}`, source: 'fileoperations' })
         break
       case 'agent_file_list':
-        console.log(chalk.cyan(`📁 Files listed: ${eventData.files?.length} items`))
+        this.addLiveUpdate({ type: 'info', content: `Files listed: ${eventData.files?.length} items`, source: 'fileoperations' })
         break
       case 'agent_grep_results':
-        console.log(chalk.magenta(`🔍 Search: ${eventData.pattern} - ${eventData.matches?.length} matches`))
+        this.addLiveUpdate({ type: 'info', content: `Search: ${eventData.pattern} - ${eventData.matches?.length} matches`, source: 'search' })
         break
 
-      // Background agent events for console
+      // Background agent events for addLiveUpdate
       case 'bg_agent_task_start':
-        console.log(chalk.dim(`  🔌 Background: ${eventData.agentName} working on "${eventData.taskDescription}"`))
+        this.addLiveUpdate({ type: 'info', content: `${eventData.agentName} working on "${eventData.taskDescription}"`, source: 'backgroundagent' })
         break
 
       case 'bg_agent_task_progress': {
-        // Progress bar inline
-        const progressBar =
-          '█'.repeat(Math.floor(eventData.progress / 5)) + '░'.repeat(20 - Math.floor(eventData.progress / 5))
-        console.log(
-          chalk.dim(`  ⚡︎ ${eventData.agentId}: [${progressBar}] ${eventData.progress}% - ${eventData.currentStep}`)
-        )
+        // Progress with metadata
+        const progressContent = `${eventData.progress}% - ${eventData.currentStep}`
+        this.addLiveUpdate({
+          type: 'progress',
+          content: progressContent,
+          source: 'backgroundagent',
+          metadata: { progress: eventData.progress }
+        })
         break
       }
 
       case 'bg_agent_task_complete':
-        console.log(
-          chalk.green(`  ✓ Background: ${eventData.agentId} completed successfully (${eventData.duration}ms)`)
-        )
+        this.addLiveUpdate({ type: 'log', content: `${eventData.agentId} completed successfully (${eventData.duration}ms)`, source: 'backgroundagent' })
         break
 
       case 'bg_agent_tool_call': {
         const bgToolDetails = this.formatToolDetails(eventData.toolName, eventData.parameters)
-        console.log(chalk.dim(`  � Background Tool: ${eventData.agentId} → ${bgToolDetails}`))
+        this.addLiveUpdate({ type: 'info', content: `${eventData.agentId} → ${bgToolDetails}`, source: 'backgroundtool' })
         break
       }
 
       case 'bg_agent_orchestrated':
-        console.log(chalk.dim(`  🎭 Orchestrating: ${eventData.agentName} for "${eventData.task}"`))
+        this.addLiveUpdate({ type: 'info', content: `Orchestrating: ${eventData.agentName} for "${eventData.task}"`, source: 'orchestration' })
         break
     }
   }
@@ -1637,7 +1630,7 @@ export class NikCLI {
 
     if (this.isInteractiveMode) {
       this.refreshDisplay()
-    } else if (!this.cleanChatMode) {
+    } else {
       this.printLiveUpdate(liveUpdate)
     }
 
@@ -3921,6 +3914,10 @@ export class NikCLI {
       throw new Error('No active VM container or orchestrator')
     }
 
+    // Log with structured format (consistent with default mode)
+    await this.advancedUI.logFunctionCall(`vm_${toolName}`, params)
+    await this.advancedUI.logFunctionUpdate('info', `Executing in container ${this.activeVMContainer.slice(0, 12)}`)
+
     console.log(chalk.cyan(`🐳 Executing ${toolName} in VM container...`))
 
     try {
@@ -3955,7 +3952,12 @@ export class NikCLI {
 
       // Race between execution and timeout
       await Promise.race([executionPromise, timeoutPromise])
+
+      // Log completion to recentUpdates (consistent with default mode)
+      await this.advancedUI.logFunctionUpdate('success', 'VM tool execution completed')
     } catch (error: any) {
+      // Log error to recentUpdates (consistent with default mode)
+      await this.advancedUI.logFunctionUpdate('error', `VM tool execution failed: ${error.message}`)
       console.log(chalk.red(`❌ VM tool execution failed: ${error.message}`))
 
       // Provide helpful error context
@@ -4118,6 +4120,11 @@ EOF`
       throw new Error('No active VM container or orchestrator')
     }
 
+    // Log with structured format (consistent with default mode)
+    await this.advancedUI.logFunctionCall(`vm_command`)
+    await this.advancedUI.logFunctionUpdate('info', `Executing: ${command.substring(0, 60)}${command.length > 60 ? '...' : ''}`)
+    await this.advancedUI.logFunctionUpdate('info', `Container: ${this.activeVMContainer.slice(0, 12)}`)
+
     console.log(chalk.cyan(`🐳 Executing command in VM: ${command}`))
 
     try {
@@ -4149,7 +4156,12 @@ EOF`
 
       // Race between execution and timeout
       await Promise.race([executionPromise, timeoutPromise])
+
+      // Log completion to recentUpdates (consistent with default mode)
+      await this.advancedUI.logFunctionUpdate('success', 'VM command execution completed')
     } catch (error: any) {
+      // Log error to recentUpdates (consistent with default mode)
+      await this.advancedUI.logFunctionUpdate('error', `VM command execution failed: ${error.message}`)
       console.log(chalk.red(`❌ VM command execution failed: ${error.message}`))
 
       // Provide helpful error context
@@ -4373,13 +4385,16 @@ EOF`
   /**
    * Execute agent with plan-mode style streaming (like executeTaskWithToolchains)
    */
+  /**
+   * Execute agent with plan-mode style streaming (like executeTaskWithToolchains)
+   */
   private async executeAgentWithPlanModeStreaming(
     agent: any,
     task: string,
     agentName: string,
     tools: any[]
   ): Promise<void> {
-    this.addLiveUpdate({ type: 'info', content: `⚡︎ Executing: ${agentName} - ${task}`, source: 'plan-exec' })
+    advancedUI.logInfo(`⚡︎ Executing: ${agentName} - ${task}`, 'plan-exec')
 
     try {
       // Create messages like plan mode
@@ -4401,7 +4416,7 @@ EOF`
         // Handle all streaming events exactly like plan mode
         switch (ev.type) {
           case 'text_delta':
-            // Stream text through streamttyService
+            // Stream text in dark gray like default mode
             if (ev.content) {
               assistantText += ev.content
               await streamttyService.streamChunk(ev.content, 'ai')
@@ -4416,24 +4431,24 @@ EOF`
             break
 
           case 'tool_call':
-            // Tool execution events - stream through streamttyService
+            // Tool execution events - push to stream like plan mode
             if (ev.toolName) {
               lastToolName = ev.toolName // Track for result correlation
 
-              // Stream tool call info
+              // Push tool call to stream (like plan mode shows tool execution)
               if ((agent as any).collaborationContext) {
-                const toolMarkdown = `\`\`\`tool\n${agentName} executing ${ev.toolName}\n\`\`\`\n`
-                await streamttyService.streamChunk(toolMarkdown, 'tool')
+
+                await streamttyService.streamChunk(ev.toolName, ev.toolArgs)
               }
             }
             break
 
           case 'tool_result':
-            // Tool results - stream through streamttyService
+            // Tool results - push to stream
             if (ev.toolResult) {
               const toolName = ev.toolName || lastToolName
 
-              // Stream tool completion
+              // Push tool completion to stream
               if ((agent as any).collaborationContext && toolName) {
                 const resultMarkdown = `> ✓ ${agentName}: ${toolName} completed\n`
                 await streamttyService.streamChunk(resultMarkdown, 'tool')
@@ -4453,13 +4468,14 @@ EOF`
 
           case 'error':
             // Stream error
-            this.addLiveUpdate({ type: 'error', content: `❌ ${agentName} error: ${ev.error}`, source: 'plan-exec' })
+            advancedUI.logError(`❌ ${agentName} error: ${ev.error}`, 'plan-exec')
             throw new Error(ev.error)
         }
       }
 
+
+
       // Clear streamed output and show formatted version if needed (same as default mode)
-      // Content already streamed through streamttyService
       if (shouldFormatOutput) {
         // Just add spacing
         console.log('')
@@ -5466,14 +5482,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Initialize as Unified Aggregator for all event sources
     this.subscribeToAllEventSources()
 
-    // Cognitive route analysis (for learning/routing)
-    try {
-      if (this.cognitiveRouteAnalyzer) {
-        await this.cognitiveRouteAnalyzer.analyzeCognitiveRoute(input, {
-          conversationHistory: chatManager.getCurrentSession()?.messages?.slice(-5) as any,
-        })
-      }
-    } catch { }
 
     // DISABLED: Auto-todo generation in default chat mode
     // Now only triggers when user explicitly mentions "todo"
@@ -7560,13 +7568,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         }
       }
 
-      const toolUseHandler = (agentTask: any, update: any) => {
+      const toolUseHandler = async (agentTask: any, update: any) => {
         if (agentTask.id === agentId) {
-          advancedUI.addLiveUpdate({
-            type: 'info',
-            content: `[${agentName}] 🔧 ${update.tool}: ${update.description}`,
-            source: `parallel-${agentName}`,
-          })
+          // Use structured logging format (consistent with default mode)
+          const toolName = update.tool || 'unknown_tool'
+          const description = update.description || ''
+
+          advancedUI.logFunctionCall(`${agentName}_${toolName}`)
+          if (description) {
+            advancedUI.logFunctionUpdate('info', description)
+          }
         }
       }
 

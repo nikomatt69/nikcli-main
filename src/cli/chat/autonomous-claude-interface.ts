@@ -929,10 +929,12 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
             if (event.content) await streamttyService.streamChunk(event.content, 'ai')
             break
           case 'tool':
-            await streamttyService.renderBlock(`\n🔧 ${event.content}`, 'tool')
+            streamttyService.streamChunk('\n')
+            advancedUI.logFunctionUpdate('info', chalk.blue(`\\n ${event.content}`))
             break
           case 'result':
-            await streamttyService.renderBlock(`\n✓ ${event.content}`, 'tool')
+            streamttyService.streamChunk('\n')
+            advancedUI.logFunctionUpdate('info', chalk.green(`✓ ${event.content}`))
             break
           case 'complete':
             await streamttyService.renderBlock(`\n\n🎉 ${agentName} completed autonomously!`, 'system')

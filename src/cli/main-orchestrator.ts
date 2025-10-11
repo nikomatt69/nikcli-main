@@ -89,25 +89,25 @@ export class MainOrchestrator {
       // Dispose subsystems (best-effort)
       try {
         await lspManager.dispose()
-      } catch {}
+      } catch { }
       try {
         await (lspService as any)?.dispose?.()
-      } catch {}
+      } catch { }
       try {
         await (agentService as any)?.dispose?.()
-      } catch {}
+      } catch { }
       try {
         await (toolService as any)?.dispose?.()
-      } catch {}
+      } catch { }
       try {
-        ;(advancedUI as any)?.dispose?.()
-      } catch {}
+        ; (advancedUI as any)?.dispose?.()
+      } catch { }
       try {
         await mcpClient.dispose()
-      } catch {}
+      } catch { }
       try {
         await (this.vmOrchestrator as any)?.dispose?.()
-      } catch {}
+      } catch { }
 
       advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
@@ -550,9 +550,15 @@ export class MainOrchestrator {
 
     this.vmOrchestrator.on('container:log', async (data: any) => {
       const timestamp = new Date().toLocaleTimeString()
+      const containerId = data.containerId?.slice(0, 8) || 'unknown'
+
+      // Log to recentUpdates with structured format (consistent with default mode)
+      await advancedUI.logFunctionCall(`vm_${containerId}`)
+      await advancedUI.logFunctionUpdate('info', data.log || '')
+
       await this.streamOrchestrator.streamToPanel(
         'vm-logs',
-        `[${timestamp}] [${data.containerId?.slice(0, 8)}] ${data.log}\n`
+        `[${timestamp}] [${containerId}] ${data.log}\n`
       )
     })
 
@@ -560,18 +566,28 @@ export class MainOrchestrator {
       await this.streamOrchestrator.streamToPanel(
         'vm-metrics',
         `📊 ${data.containerId?.slice(0, 8)}:\n` +
-          `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
-          `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
-          `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
+        `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
+        `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
+        `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
       )
     })
 
     this.vmOrchestrator.on('agent:message', async (data: any) => {
-      await this.streamOrchestrator.streamToPanel('vm-logs', `[AGENT] ${data.agentId}: ${data.message}\n`)
+      // Log to recentUpdates with structured format (consistent with default mode)
+      const agentId = data.agentId || 'unknown_agent'
+      await advancedUI.logFunctionCall(`vm_agent_${agentId}`)
+      await advancedUI.logFunctionUpdate('info', data.message || '')
+
+      await this.streamOrchestrator.streamToPanel('vm-logs', `[AGENT] ${agentId}: ${data.message}\n`)
     })
 
     this.vmOrchestrator.on('agent:error', async (data: any) => {
-      await this.streamOrchestrator.streamToPanel('vm-logs', `[ERROR] ${data.agentId}: ${data.error}\n`)
+      // Log to recentUpdates with structured format (consistent with default mode)
+      const agentId = data.agentId || 'unknown_agent'
+      await advancedUI.logFunctionCall(`vm_agent_${agentId}`)
+      await advancedUI.logFunctionUpdate('error', data.error || 'Unknown error')
+
+      await this.streamOrchestrator.streamToPanel('vm-logs', `[ERROR] ${agentId}: ${data.error}\n`)
     })
   }
 

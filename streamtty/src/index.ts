@@ -243,3 +243,6 @@ export class Streamtty {
 export * from './types';
 export { StreamingMarkdownParser } from './parser/streaming-parser';
 export { BlessedRenderer } from './renderer/blessed-renderer';
+export * from './utils/syntax-highlighter';
+export * from './utils/blessed-syntax-highlighter';
+export * from './utils/formatting';
