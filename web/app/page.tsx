@@ -7,6 +7,11 @@ import JobFlow from './components/JobFlow'
 import NewAgentModal from './components/NewAgentModal'
 import UpgradeModal from './components/UpgradeModal'
 import AuthModal from './components/AuthModal'
+import ThemeToggle from './components/ThemeToggle'
+import LoadingSpinner from './components/LoadingSpinner'
+import Card from './components/Card'
+import Button from './components/Button'
+import ResponsiveLayout from './components/ResponsiveLayout'
 import { useJobList } from './hooks/useJobList'
 import { useAuth } from './contexts/AuthContext'
 
@@ -42,11 +47,8 @@ export default function Home() {
 
   if (authLoading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800">
+        <LoadingSpinner size="lg" text="Loading application..." />
       </div>
     )
   }
@@ -62,12 +64,13 @@ export default function Home() {
             </p>
           </div>
 
-          <button
+          <Button
             onClick={() => setIsAuthModalOpen(true)}
-            className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl"
+            size="lg"
+            className="w-full"
           >
             Sign In / Sign Up
-          </button>
+          </Button>
 
           <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
             Use the same credentials as your NikCLI installation
@@ -81,99 +84,123 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading jobs...</p>
-        </div>
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800">
+        <LoadingSpinner size="lg" text="Loading jobs..." />
       </div>
     )
   }
 
-  return (
-    <div className="h-screen flex overflow-hidden">
-      {/* Left Panel - Job Dashboard */}
-      <div className="w-96 border-r border-gray-200 dark:border-gray-700">
-        <JobDashboard
-          jobs={jobs}
-          selectedJobId={selectedJobId}
-          onSelectJob={setSelectedJobId}
-          onCreateNew={() => setIsModalOpen(true)}
-          userId={user?.id}
-          onUpgradeClick={() => setIsUpgradeModalOpen(true)}
-        />
-      </div>
+  const leftPanel = (
+    <JobDashboard
+      jobs={jobs}
+      selectedJobId={selectedJobId}
+      onSelectJob={setSelectedJobId}
+      onCreateNew={() => setIsModalOpen(true)}
+      userId={user?.id}
+      onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+    />
+  )
 
-      {/* Center Panel - Main Content (Diff Viewer placeholder) */}
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-8">
-          {selectedJob ? (
-            <div className="text-center max-w-2xl">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">{selectedJob.repo}</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">{selectedJob.task}</p>
+  const centerPanel = (
+    <div className="flex-1 flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="flex-1 flex items-center justify-center p-8">
+        {selectedJob ? (
+          <Card className="max-w-2xl w-full" hover>
+            <div className="text-center space-y-6">
+              <div>
+                <h2 className="text-3xl font-bold gradient-text mb-2">{selectedJob.repo}</h2>
+                <p className="text-gray-600 dark:text-gray-400 text-lg">{selectedJob.task}</p>
+              </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">Status:</span>
-                    <span
-                      className={`font-semibold ${
-                        selectedJob.status === 'succeeded'
-                          ? 'text-green-600'
-                          : selectedJob.status === 'running'
-                            ? 'text-blue-600'
-                            : selectedJob.status === 'failed'
-                              ? 'text-red-600'
-                              : 'text-gray-600'
-                      }`}
-                    >
-                      {selectedJob.status.toUpperCase()}
-                    </span>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <span className="text-gray-600 dark:text-gray-400 font-medium">Status:</span>
+                  <span
+                    className={`font-semibold px-3 py-1 rounded-full text-sm ${
+                      selectedJob.status === 'succeeded'
+                        ? 'text-green-600 bg-green-100 dark:bg-green-900 dark:text-green-300'
+                        : selectedJob.status === 'running'
+                          ? 'text-blue-600 bg-blue-100 dark:bg-blue-900 dark:text-blue-300'
+                          : selectedJob.status === 'failed'
+                            ? 'text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-300'
+                            : 'text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    {selectedJob.status.toUpperCase()}
+                  </span>
+                </div>
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">Branch:</span>
-                    <span className="font-mono text-sm">{selectedJob.workBranch}</span>
-                  </div>
-
-                  {selectedJob.prUrl && (
-                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <a
-                        href={selectedJob.prUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        View Pull Request →
-                      </a>
-                    </div>
-                  )}
+                <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <span className="text-gray-600 dark:text-gray-400 font-medium">Branch:</span>
+                  <span className="font-mono text-sm bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
+                    {selectedJob.workBranch}
+                  </span>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="text-center">
-              <div className="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Select a Job</h3>
-              <p className="text-gray-600 dark:text-gray-400">Choose a job from the left panel to view details</p>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Right Panel - Job Flow */}
-      <div className="w-96 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <JobFlow job={selectedJob} />
+              {selectedJob.metrics && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-2xl font-bold text-primary-600">{selectedJob.metrics.toolCalls}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Tool Calls</div>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-2xl font-bold text-primary-600">{selectedJob.metrics.tokenUsage}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Tokens</div>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-2xl font-bold text-primary-600">{Math.round(selectedJob.metrics.executionTime / 1000)}s</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Duration</div>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-2xl font-bold text-primary-600">{Math.round(selectedJob.metrics.memoryUsage / 1024 / 1024)}MB</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Memory</div>
+                  </div>
+                </div>
+              )}
+
+              {selectedJob.prUrl && (
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Button
+                    onClick={() => window.open(selectedJob.prUrl, '_blank')}
+                    className="w-full"
+                    size="lg"
+                  >
+                    View Pull Request →
+                  </Button>
+                </div>
+              )}
+            </div>
+          </Card>
+        ) : (
+          <Card className="text-center max-w-md">
+            <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-purple-100 dark:from-primary-900 dark:to-purple-900 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Select a Job</h3>
+            <p className="text-gray-600 dark:text-gray-400">Choose a job from the left panel to view details and monitor progress</p>
+          </Card>
+        )}
       </div>
+    </div>
+  )
+
+  const rightPanel = <JobFlow job={selectedJob} />
+
+  return (
+    <>
+      <ResponsiveLayout
+        leftPanel={leftPanel}
+        centerPanel={centerPanel}
+        rightPanel={rightPanel}
+      />
 
       {/* Floating Chat */}
       {selectedJobId && <FloatingChat jobId={selectedJobId} />}
@@ -184,17 +211,19 @@ export default function Home() {
       {/* Upgrade Modal */}
       <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} userId={user?.id} />
 
-      {/* User Menu (optional - for sign out) */}
+      {/* Top Right Controls */}
       {user && (
-        <div className="fixed top-4 right-4 z-40">
-          <button
+        <div className="fixed top-4 right-4 z-40 flex items-center gap-3">
+          <ThemeToggle />
+          <Button
             onClick={signOut}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-sm transition-colors"
+            variant="ghost"
+            size="sm"
           >
             Sign Out
-          </button>
+          </Button>
         </div>
       )}
-    </div>
+    </>
   )
 }
