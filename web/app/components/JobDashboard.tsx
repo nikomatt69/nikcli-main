@@ -1,9 +1,11 @@
 'use client'
 
-import { AlertTriangle, CheckCircle, Clock, Loader, Play, XCircle } from 'lucide-react'
-import { useState } from 'react'
+import { Play, Search } from 'lucide-react'
+import { useState, useMemo } from 'react'
 import type { BackgroundJob } from '../hooks/useJobList'
 import SubscriptionBadge from './SubscriptionBadge'
+import JobItem from './JobItem'
+import { cn } from '../lib/utils'
 
 interface JobDashboardProps {
   jobs: BackgroundJob[]
@@ -16,42 +18,22 @@ interface JobDashboardProps {
 
 export default function JobDashboard({ jobs, selectedJobId, onSelectJob, onCreateNew, userId, onUpgradeClick }: JobDashboardProps) {
   const [filter, setFilter] = useState<'all' | 'queued' | 'running' | 'succeeded' | 'failed'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const filteredJobs = filter === 'all' ? jobs : jobs.filter((job) => job.status === filter)
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'queued':
-        return <Clock className="w-4 h-4 text-gray-500" />
-      case 'running':
-        return <Loader className="w-4 h-4 text-blue-500 animate-spin" />
-      case 'succeeded':
-        return <CheckCircle className="w-4 h-4 text-green-500" />
-      case 'failed':
-        return <XCircle className="w-4 h-4 text-red-500" />
-      case 'timeout':
-        return <AlertTriangle className="w-4 h-4 text-orange-500" />
-      default:
-        return null
+  const filteredJobs = useMemo(() => {
+    let filtered = filter === 'all' ? jobs : jobs.filter((job) => job.status === filter)
+    
+    if (searchQuery) {
+      filtered = filtered.filter((job) => 
+        job.repo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.workBranch.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     }
-  }
+    
+    return filtered
+  }, [jobs, filter, searchQuery])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'queued':
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-      case 'running':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-      case 'succeeded':
-        return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-      case 'failed':
-        return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-      case 'timeout':
-        return 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
-      default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-    }
-  }
 
   const stats = {
     total: jobs.length,
@@ -100,21 +82,37 @@ export default function JobDashboard({ jobs, selectedJobId, onSelectJob, onCreat
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex gap-2 overflow-x-auto">
-        {(['all', 'queued', 'running', 'succeeded', 'failed'] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-              filter === f
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-            }`}
-          >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
-        ))}
+      {/* Search and Filters */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-4">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search jobs..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input pl-10 pr-4"
+          />
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+          {(['all', 'queued', 'running', 'succeeded', 'failed'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                'px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all',
+                filter === f
+                  ? 'bg-primary-600 text-white shadow-sm'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              )}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Jobs List */}
@@ -130,26 +128,12 @@ export default function JobDashboard({ jobs, selectedJobId, onSelectJob, onCreat
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {filteredJobs.map((job) => (
-              <button
+              <JobItem
                 key={job.id}
-                onClick={() => onSelectJob(job.id)}
-                className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                  selectedJobId === job.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                }`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(job.status)}
-                    <span className="font-medium text-gray-900 dark:text-white">{job.repo}</span>
-                  </div>
-                  <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(job.status)}`}>{job.status}</span>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">{job.task}</p>
-                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                  <span>{new Date(job.createdAt).toLocaleString()}</span>
-                  {job.metrics && <span>{job.metrics.toolCalls} calls</span>}
-                </div>
-              </button>
+                job={job}
+                isSelected={selectedJobId === job.id}
+                onSelect={onSelectJob}
+              />
             ))}
           </div>
         )}
