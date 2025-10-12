@@ -1,26 +1,41 @@
 // WebSocket server for real-time updates in Background Agents web interface
+// Bun native WebSocket support with 'ws' library fallback
 import type { Server as HTTPServer } from 'node:http'
-import { WebSocket, WebSocketServer } from 'ws'
+import type { WebSocket as WSWebSocket, WebSocketServer as WSWebSocketServer } from 'ws'
 import { backgroundAgentService } from '../background-agent-service'
 import type { BackgroundJob } from '../types'
 
+const isBun = typeof Bun !== 'undefined'
+
+// Import 'ws' library only for Node.js fallback
+let WebSocket: typeof WSWebSocket
+let WebSocketServer: typeof WSWebSocketServer
+
+  ; (async () => {
+    if (!isBun) {
+      const ws = await import('ws')
+      WebSocket = ws.WebSocket
+      WebSocketServer = ws.WebSocketServer
+    }
+  })()
+
 export interface WebSocketMessage {
   type:
-    | 'job:created'
-    | 'job:started'
-    | 'job:completed'
-    | 'job:failed'
-    | 'job:log'
-    | 'heartbeat'
-    | 'connection:established'
+  | 'job:created'
+  | 'job:started'
+  | 'job:completed'
+  | 'job:failed'
+  | 'job:log'
+  | 'heartbeat'
+  | 'connection:established'
   data: any
   timestamp: Date
   clientId?: string
 }
 
 export class BackgroundAgentsWebSocketServer {
-  private wss: WebSocketServer
-  private clients: Map<string, WebSocket> = new Map()
+  private wss: any
+  private clients: Map<string, any> = new Map()
   private heartbeatInterval?: NodeJS.Timeout
 
   constructor(server: HTTPServer) {
@@ -35,7 +50,7 @@ export class BackgroundAgentsWebSocketServer {
   }
 
   private setupWebSocketServer(): void {
-    this.wss.on('connection', (ws: WebSocket, _request) => {
+    this.wss.on('connection', (ws: any, _request: any) => {
       const clientId = this.generateClientId()
       this.clients.set(clientId, ws)
 
@@ -49,7 +64,7 @@ export class BackgroundAgentsWebSocketServer {
       })
 
       // Handle client messages
-      ws.on('message', (data) => {
+      ws.on('message', (data: any) => {
         try {
           const message = JSON.parse(data.toString())
           this.handleClientMessage(clientId, message)
@@ -74,7 +89,7 @@ export class BackgroundAgentsWebSocketServer {
       })
 
       // Handle errors
-      ws.on('error', (error) => {
+      ws.on('error', (error: any) => {
         console.error(`📡 WebSocket error for client ${clientId}:`, error)
         this.clients.delete(clientId)
       })

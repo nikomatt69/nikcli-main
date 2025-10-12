@@ -3836,7 +3836,7 @@ export class NikCLI {
         try {
           advancedUI.stopInteractiveMode?.()
         } catch { }
-        this.resumePromptAndRender()
+
       } else {
         this.addLiveUpdate({ type: 'info', content: '📝 Plan saved to todo.md', source: 'planning' })
 
@@ -4424,6 +4424,7 @@ EOF`
             break
 
           case 'tool_call': {
+
             // Use unified renderer for tool call logging (same as default mode)
             const toolName = ev.toolName || 'unknown_tool'
             const toolCallId = `plan-${toolName}-${Date.now()}`
@@ -4433,6 +4434,7 @@ EOF`
               { mode: 'plan', toolCallId, agentName },
               { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
             )
+            console.log()
             activeToolCallId = toolCallId
             lastToolName = toolName
             break
@@ -4447,6 +4449,7 @@ EOF`
                 { mode: 'plan', agentName },
                 { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
               )
+              console.log()
             }
             activeToolCallId = undefined
             break
@@ -5108,20 +5111,40 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
               case 'tool_call': {
                 // Tool execution events with parameter info
-                const toolInfo = this.formatToolCallInfo(ev)
-                {
-                  advancedUI.logFunctionCall(toolInfo.functionName)
-                  if (toolInfo.details) {
-                    advancedUI.logFunctionUpdate('info', toolInfo.details, 'ℹ')
-                  }
+
+
+
+                // Format tool call as markdown
+                const toolCall = this.formatToolCall(ev.toolName || '', ev.toolArgs)
+                const toolMarkdown = `\n**${toolCall.name}** \`${toolCall.params}\`\n`
+                await streamttyService.streamChunk(toolMarkdown, 'tool')
+                streamedLines += 2 // Account for newline + tool message line
+
+                // Log to structured UI with detailed tool information
+                const toolDetails = this.formatToolDetails(ev.toolName || '', ev.toolArgs)
+                advancedUI.logInfo('tool call', toolDetails)
+
+                // Check if tool call involves background agents
+                if (ev.metadata?.backgroundAgents) {
+                  ev.metadata.backgroundAgents.forEach((agentInfo: any) => {
+                    this.routeEventToUI('bg_agent_orchestrated', {
+                      parentTool: ev.content,
+                      agentId: agentInfo.id,
+                      agentName: agentInfo.name,
+                      task: agentInfo.task,
+                    })
+                  })
                 }
                 break
               }
 
               case 'tool_result':
                 // Tool results
+                const toolInfo = this.formatToolCallInfo(ev)
                 if (ev.toolResult) {
-                  {
+                  console.log() // Aggiungi riga vuota prima del tool result
+                  advancedUI.logFunctionCall(toolInfo.functionName)
+                  if (toolInfo.details) {
                     advancedUI.logFunctionUpdate('success', 'Tool completed', '✓')
                   }
                 }

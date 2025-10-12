@@ -1,4 +1,4 @@
-import { Streamtty } from '../../streamtty/src'
+import { Streamtty } from '../../../streamtty/src'
 import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
 
 export interface StreamttyOptions {

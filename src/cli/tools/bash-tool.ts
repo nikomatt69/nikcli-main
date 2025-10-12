@@ -1,7 +1,19 @@
-import { type ChildProcess, spawn } from 'node:child_process'
 import { PromptManager } from '../prompts/prompt-manager'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
+
+// Bun native process spawning with Node.js fallback
+const isBun = typeof Bun !== 'undefined'
+
+// Import child_process only for Node.js fallback
+let spawn: any, ChildProcess: any
+  ; (async () => {
+    if (!isBun) {
+      const cp = await import('node:child_process')
+      spawn = cp.spawn
+      ChildProcess = cp.ChildProcess
+    }
+  })()
 
 /**
  * Enhanced BashTool - Esecuzione sicura comandi con whitelist e timeout
@@ -230,7 +242,7 @@ export class BashTool extends BaseTool {
   }
 
   /**
-   * Esegue il comando con timeout e monitoring
+   * Esegue il comando con timeout e monitoring (Bun.spawn() o Node.js spawn)
    */
   private async executeCommand(
     command: string,
@@ -242,6 +254,168 @@ export class BashTool extends BaseTool {
   ): Promise<BashResult> {
     const startTime = Date.now()
 
+    if (isBun) {
+      // Bun native: ultra-fast process spawning
+      return this.executeBunCommand(command, options, startTime)
+    } else {
+      // Node.js fallback
+      return this.executeNodeCommand(command, options, startTime)
+    }
+  }
+
+  /**
+   * Bun native process execution
+   */
+  private async executeBunCommand(
+    command: string,
+    options: {
+      timeout: number
+      workingDirectory: string
+      environment?: Record<string, string>
+    },
+    startTime: number
+  ): Promise<BashResult> {
+    let stdout = ''
+    let stderr = ''
+    let timedOut = false
+    let killed = false
+
+    // Prepara environment
+    const bunEnv = (typeof Bun !== 'undefined' && 'env' in Bun) ? (Bun as any).env : process.env
+    const env = {
+      ...bunEnv,
+      ...options.environment,
+      PWD: options.workingDirectory,
+    }
+
+    try {
+      // Spawn processo con Bun.spawn()
+      const bunSpawn = (typeof Bun !== 'undefined' && 'spawn' in Bun) ? (Bun as any).spawn : null
+      if (!bunSpawn) {
+        throw new Error('Bun.spawn is not available')
+      }
+      const proc = bunSpawn(['bash', '-c', command], {
+        cwd: options.workingDirectory,
+        env,
+        stdout: 'pipe',
+        stderr: 'pipe',
+      })
+
+      CliUI.logDebug(`Started Bun process PID: ${proc.pid}`)
+
+      // Setup timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          timedOut = true
+          killed = true
+          proc.kill()
+          reject(new Error(`Command timed out after ${options.timeout}ms`))
+        }, options.timeout)
+      })
+
+      // Read stdout
+      const stdoutPromise = (async () => {
+        const reader = proc.stdout.getReader()
+        const decoder = new TextDecoder()
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            stdout += decoder.decode(value, { stream: true })
+
+            // Limita output
+            if (stdout.length > MAX_OUTPUT_LENGTH) {
+              stdout = `${stdout.substring(0, MAX_OUTPUT_LENGTH)}\n... [output truncated]`
+              proc.kill()
+              break
+            }
+          }
+        } finally {
+          reader.releaseLock()
+        }
+      })()
+
+      // Read stderr
+      const stderrPromise = (async () => {
+        const reader = proc.stderr.getReader()
+        const decoder = new TextDecoder()
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            stderr += decoder.decode(value, { stream: true })
+
+            if (stderr.length > MAX_OUTPUT_LENGTH) {
+              stderr = `${stderr.substring(0, MAX_OUTPUT_LENGTH)}\n... [error output truncated]`
+              break
+            }
+          }
+        } finally {
+          reader.releaseLock()
+        }
+      })()
+
+      // Wait for process completion or timeout
+      const exitCode = await Promise.race([
+        proc.exited,
+        timeoutPromise
+      ])
+
+      // Ensure all streams are read
+      await Promise.all([stdoutPromise, stderrPromise])
+
+      const executionTime = Date.now() - startTime
+
+      const result: BashResult = {
+        command,
+        exitCode: typeof exitCode === 'number' ? exitCode : 0,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        executionTime,
+        workingDirectory: options.workingDirectory,
+        timedOut,
+        killed,
+      }
+
+      if (timedOut) {
+        result.stderr += `\nCommand timed out after ${options.timeout}ms`
+      }
+
+      return result
+    } catch (error: any) {
+      const executionTime = Date.now() - startTime
+
+      if (timedOut) {
+        return {
+          command,
+          exitCode: 1,
+          stdout: stdout.trim(),
+          stderr: stderr.trim() + `\nCommand timed out after ${options.timeout}ms`,
+          executionTime,
+          workingDirectory: options.workingDirectory,
+          timedOut: true,
+          killed: true,
+        }
+      }
+
+      throw new Error(`Failed to execute command: ${error.message}`)
+    }
+  }
+
+  /**
+   * Node.js fallback process execution
+   */
+  private executeNodeCommand(
+    command: string,
+    options: {
+      timeout: number
+      workingDirectory: string
+      environment?: Record<string, string>
+    },
+    startTime: number
+  ): Promise<BashResult> {
     return new Promise((resolve, reject) => {
       let stdout = ''
       let stderr = ''
@@ -256,7 +430,7 @@ export class BashTool extends BaseTool {
       }
 
       // Spawn processo
-      const child: ChildProcess = spawn('bash', ['-c', command], {
+      const child = spawn('bash', ['-c', command], {
         cwd: options.workingDirectory,
         env,
         stdio: ['ignore', 'pipe', 'pipe'],

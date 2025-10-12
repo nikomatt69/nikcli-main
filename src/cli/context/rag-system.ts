@@ -576,7 +576,7 @@ export class UnifiedRAGSystem {
     this.searchMetrics.totalSearches++
     const searchTypes: string[] = []
 
-    console.log(chalk.blue(`🔍 Searching: "${query}"`))
+
 
     try {
       // Apply query optimization pipeline
@@ -584,7 +584,7 @@ export class UnifiedRAGSystem {
       if (optimizedQuery !== query) {
         this.searchMetrics.queryOptimizations++
         advancedUI.logFunctionCall('unifiedraganalysis')
-        advancedUI.logFunctionUpdate('info', `Query optimized: "${query}" → "${optimizedQuery}"`)
+
       }
 
       // Run hybrid searches concurrently (vector, workspace, and BM25)

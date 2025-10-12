@@ -395,18 +395,21 @@ const ConfigSchema = z.object({
         'hub.docker.com',
       ],
     }),
-  // Redis Cache System (Upstash Redis - Cloud Native)
+  // Redis Cache System (Bun-optimized with multi-backend support)
   redis: z
     .object({
       enabled: z.boolean().default(true),
-      // Upstash Redis configuration (preferred)
+      // Backend preference for Bun optimization
+      preferredBackend: z.enum(['ioredis', 'upstash', 'auto']).default('auto').describe('Preferred Redis backend'),
+      // Upstash Redis configuration (HTTP-based, cloud)
       url: z.string().optional(),
       token: z.string().optional(),
-      // Legacy configuration (for backward compatibility)
+      // ioredis configuration (TCP-based, local/self-hosted, optimal for Bun)
       host: z.string().default('localhost'),
       port: z.number().min(1).max(65535).default(6379),
       password: z.string().optional(),
       database: z.number().min(0).max(15).default(0),
+      tls: z.boolean().default(false).describe('Enable TLS/SSL for Redis connection'),
       keyPrefix: z.string().default('nikcli:'),
       ttl: z.number().min(60).max(86400).default(3600), // 1 hour default
       maxRetries: z.number().min(1).max(10).default(3),
@@ -441,26 +444,45 @@ const ConfigSchema = z.object({
           sessions: z.boolean().default(true),
           agents: z.boolean().default(true),
           documentation: z.boolean().default(true),
+          vectors: z.boolean().default(true).describe('Cache vector embeddings'),
         })
         .default({
           tokens: true,
           sessions: true,
           agents: true,
           documentation: true,
+          vectors: true,
+        }),
+      // Bun-specific optimizations
+      bunOptimizations: z
+        .object({
+          enabled: z.boolean().default(true).describe('Enable Bun-specific optimizations'),
+          useBunRedisProvider: z.boolean().default(true).describe('Use BunRedisProvider instead of legacy provider'),
+          batchOperations: z.boolean().default(true).describe('Enable batch MGET/MSET operations'),
+          pipeline: z.boolean().default(true).describe('Enable Redis pipeline for bulk operations'),
+        })
+        .default({
+          enabled: true,
+          useBunRedisProvider: true,
+          batchOperations: true,
+          pipeline: true,
         }),
     })
     .default({
-      enabled: true, // ✅ Enabled by default in schema
+      enabled: true,
+      preferredBackend: 'auto',
       host: 'localhost',
       port: 6379,
       database: 0,
+      tls: false,
       keyPrefix: 'nikcli:',
       ttl: 3600,
       maxRetries: 3,
       retryDelayMs: 1000,
       cluster: { enabled: false },
       fallback: { enabled: true, strategy: 'memory' },
-      strategies: { tokens: true, sessions: true, agents: true, documentation: true },
+      strategies: { tokens: true, sessions: true, agents: true, documentation: true, vectors: true },
+      bunOptimizations: { enabled: true, useBunRedisProvider: true, batchOperations: true, pipeline: true },
     }),
   // Supabase Integration Extensions
   supabase: z
@@ -1110,17 +1132,20 @@ export class SimpleConfigManager {
       ],
     },
     redis: {
-      enabled: true, // ✅ Enabled by default - Upstash Redis cache
+      enabled: true, // ✅ Enabled by default - Bun-optimized Redis cache
+      preferredBackend: 'auto' as const, // Auto-detect best backend (ioredis → Upstash → memory)
       host: 'localhost',
       port: 6379,
       database: 0,
+      tls: false,
       keyPrefix: 'nikcli:',
       ttl: 3600, // 1 hour default TTL
       maxRetries: 3,
       retryDelayMs: 1000,
       cluster: { enabled: false },
       fallback: { enabled: true, strategy: 'memory' as const }, // Fallback to memory if Redis unavailable
-      strategies: { tokens: true, sessions: true, agents: true, documentation: true }, // All strategies enabled
+      strategies: { tokens: true, sessions: true, agents: true, documentation: true, vectors: true }, // All strategies enabled
+      bunOptimizations: { enabled: true, useBunRedisProvider: true, batchOperations: true, pipeline: true },
     },
     supabase: {
       enabled: true, // ✅ Enabled by default - Supabase database integration

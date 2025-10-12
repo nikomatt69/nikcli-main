@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
@@ -13,6 +12,9 @@ import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
+
+// Bun native file reading with Node.js fallback
+const isBun = typeof Bun !== 'undefined'
 
 /**
  * Production-ready Read File Tool
@@ -67,17 +69,34 @@ export class ReadFileTool extends BaseTool {
       // Sanitize and validate file path
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
 
-      // Check file size if maxSize is specified
+      // Check file size if maxSize is specified using Bun.file() or fallback
       if (validatedOptions.maxSize) {
-        const stats = await import('node:fs/promises').then((fs) => fs.stat(sanitizedPath))
-        if (stats.size > validatedOptions.maxSize) {
-          throw new Error(`File too large: ${stats.size} bytes (max: ${validatedOptions.maxSize})`)
+        if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
+          const file = (Bun as any).file(sanitizedPath)
+          if (file.size > validatedOptions.maxSize) {
+            throw new Error(`File too large: ${file.size} bytes (max: ${validatedOptions.maxSize})`)
+          }
+        } else {
+          const stats = await import('node:fs/promises').then((fs) => fs.stat(sanitizedPath))
+          if (stats.size > validatedOptions.maxSize) {
+            throw new Error(`File too large: ${stats.size} bytes (max: ${validatedOptions.maxSize})`)
+          }
         }
       }
 
-      // Read file with specified encoding
+      // Read file using Bun.file() or Node.js fallback
       const encoding = validatedOptions.encoding || 'utf8'
-      const content = await readFile(sanitizedPath, encoding as BufferEncoding)
+      let content: string
+
+      if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
+        // Bun native: ultra-fast file reading
+        const file = (Bun as any).file(sanitizedPath)
+        content = await file.text()
+      } else {
+        // Node.js fallback
+        const { readFile } = await import('node:fs/promises')
+        content = await readFile(sanitizedPath, encoding as BufferEncoding)
+      }
 
       // Check if this is an image file and perform vision analysis
       const imageAnalysis = await this.performImageAnalysis(sanitizedPath)
@@ -158,58 +177,114 @@ export class ReadFileTool extends BaseTool {
   }
 
   /**
-   * Read file with streaming for large files
+   * Read file with streaming for large files (Bun.file().stream() or Node.js streams)
    */
   async readStream(filePath: string, chunkSize: number = 1024 * 64): Promise<AsyncIterable<string>> {
     const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
-    const fs = await import('node:fs')
-    const stream = fs.createReadStream(sanitizedPath, {
-      encoding: 'utf8',
-      highWaterMark: chunkSize,
-    })
 
-    return {
-      async *[Symbol.asyncIterator]() {
-        for await (const chunk of stream) {
-          yield chunk
-        }
-      },
+    if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
+      // Bun native streaming using Bun.file().stream()
+      const file = (Bun as any).file(sanitizedPath)
+      const stream = file.stream()
+      const decoder = new TextDecoder()
+
+      return {
+        async *[Symbol.asyncIterator]() {
+          const reader = stream.getReader()
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              yield decoder.decode(value, { stream: true })
+            }
+          } finally {
+            reader.releaseLock()
+          }
+        },
+      }
+    } else {
+      // Node.js fallback
+      const fs = await import('node:fs')
+      const stream = fs.createReadStream(sanitizedPath, {
+        encoding: 'utf8',
+        highWaterMark: chunkSize,
+      })
+
+      return {
+        async *[Symbol.asyncIterator]() {
+          for await (const chunk of stream) {
+            yield chunk
+          }
+        },
+      }
     }
   }
 
   /**
-   * Check if file exists and is readable
+   * Check if file exists and is readable (Bun.file().exists() or Node.js fs.access)
    */
   async canRead(filePath: string): Promise<boolean> {
     try {
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
-      const fs = await import('node:fs/promises')
-      await fs.access(sanitizedPath, fs.constants.R_OK)
-      return true
+
+      if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
+        // Bun native: ultra-fast existence check
+        const file = (Bun as any).file(sanitizedPath)
+        return await file.exists()
+      } else {
+        // Node.js fallback
+        const fs = await import('node:fs/promises')
+        await fs.access(sanitizedPath, fs.constants.R_OK)
+        return true
+      }
     } catch {
       return false
     }
   }
 
   /**
-   * Get file information without reading content
+   * Get file information without reading content (Bun.file() or Node.js fs.stat)
    */
   async getFileInfo(filePath: string): Promise<FileInfo> {
     try {
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
-      const fs = await import('node:fs/promises')
-      const stats = await fs.stat(sanitizedPath)
 
-      return {
-        path: sanitizedPath,
-        size: stats.size,
-        isFile: stats.isFile(),
-        isDirectory: stats.isDirectory(),
-        created: stats.birthtime,
-        modified: stats.mtime,
-        accessed: stats.atime,
-        extension: this.getFileExtension(filePath),
-        isReadable: await this.canRead(filePath),
+      if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
+        // Bun native: instant file metadata
+        const file = (Bun as any).file(sanitizedPath)
+        const exists = await file.exists()
+
+        if (!exists) {
+          throw new Error(`File not found: ${filePath}`)
+        }
+
+        return {
+          path: sanitizedPath,
+          size: file.size,
+          isFile: file.type !== '',
+          isDirectory: file.type === '',
+          created: new Date(0), // Bun.file doesn't expose birthtime
+          modified: new Date(file.lastModified),
+          accessed: new Date(file.lastModified),
+          extension: this.getFileExtension(filePath),
+          isReadable: exists,
+        }
+      } else {
+        // Node.js fallback
+        const fs = await import('node:fs/promises')
+        const stats = await fs.stat(sanitizedPath)
+
+        return {
+          path: sanitizedPath,
+          size: stats.size,
+          isFile: stats.isFile(),
+          isDirectory: stats.isDirectory(),
+          created: stats.birthtime,
+          modified: stats.mtime,
+          accessed: stats.atime,
+          extension: this.getFileExtension(filePath),
+          isReadable: await this.canRead(filePath),
+        }
       }
     } catch (error: any) {
       throw new Error(`Failed to get file info: ${error.message}`)

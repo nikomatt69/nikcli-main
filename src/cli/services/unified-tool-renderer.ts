@@ -97,8 +97,11 @@ export class UnifiedToolRenderer {
     const outputText = chalk.cyan(`⏺ ${formattedName}()`)
     console.log(outputText)
 
+    // Add blank line after tool call (like default mode)
+    console.log('')
+
     // Track terminal output for management
-    const lines = TerminalOutputManager.calculateLines(outputText)
+    const lines = TerminalOutputManager.calculateLines(outputText) + 1 // +1 for blank line
     const outputId = terminalOutputManager.reserveSpace('UnifiedToolCall', lines)
     terminalOutputManager.confirmOutput(outputId, 'UnifiedToolCall', lines, {
       persistent,

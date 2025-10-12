@@ -1,16 +1,36 @@
 // src/cli/background-agents/api/server.ts
+// Bun native server with Express fallback
 
-import cors from 'cors'
-import express from 'express'
-import { rateLimit } from 'express-rate-limit'
-import helmet from 'helmet'
+import type { Application, Request, Response, NextFunction } from 'express'
 import { backgroundAgentService } from '../background-agent-service'
 import { GitHubIntegration } from '../github/github-integration'
 import { JobQueue } from '../queue/job-queue'
 import { securityPolicy } from '../security/security-policy'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from '../types'
 import { setupWebRoutes } from './web-routes'
-import { BackgroundAgentsWebSocketServer } from './websocket-server'
+
+const isBun = typeof Bun !== 'undefined'
+
+// Import Express and related modules only for Node.js fallback
+let express: any, cors: any, rateLimit: any, helmet: any
+let BackgroundAgentsWebSocketServerClass: any
+
+  ; (async () => {
+    if (!isBun) {
+      const [expressModule, corsModule, rateLimitModule, helmetModule, wsModule] = await Promise.all([
+        import('express'),
+        import('cors'),
+        import('express-rate-limit'),
+        import('helmet'),
+        import('./websocket-server'),
+      ])
+      express = expressModule.default
+      cors = corsModule.default
+      rateLimit = rateLimitModule.rateLimit
+      helmet = helmetModule.default
+      BackgroundAgentsWebSocketServerClass = wsModule.BackgroundAgentsWebSocketServer
+    }
+  })()
 
 export interface APIServerConfig {
   port: number
@@ -40,13 +60,13 @@ export interface APIServerConfig {
 }
 
 export class BackgroundAgentsAPIServer {
-  private app: express.Application
+  private app: Application
   private server?: any
   private config: APIServerConfig
   private jobQueue: JobQueue
   private githubIntegration?: GitHubIntegration
-  private clients: Map<string, express.Response> = new Map()
-  private wsServer?: BackgroundAgentsWebSocketServer
+  private clients: Map<string, Response> = new Map()
+  private wsServer?: any
 
   constructor(config: APIServerConfig) {
     this.config = config
@@ -101,7 +121,7 @@ export class BackgroundAgentsAPIServer {
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
     // Request logging
-    this.app.use((req, _res, next) => {
+    this.app.use((req: Request, _res: Response, next: NextFunction) => {
       console.log(`${new Date().toISOString()} ${req.method} ${req.path}`)
       next()
     })
@@ -112,7 +132,7 @@ export class BackgroundAgentsAPIServer {
    */
   private setupRoutes(): void {
     // Health check
-    this.app.get('/health', (_req, res) => {
+    this.app.get('/health', (_req: Request, res: Response) => {
       res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
@@ -159,7 +179,7 @@ export class BackgroundAgentsAPIServer {
     }
 
     // 404 handler
-    this.app.use('*', (req, res) => {
+    this.app.use('*', (req: Request, res: Response) => {
       res.status(404).json({
         error: 'Not Found',
         message: `Route ${req.method} ${req.path} not found`,
@@ -167,7 +187,7 @@ export class BackgroundAgentsAPIServer {
     })
 
     // Error handler
-    this.app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    this.app.use((error: any, _req: Request, res: Response, _next: NextFunction) => {
       console.error('API Error:', error)
       res.status(500).json({
         error: 'Internal Server Error',
@@ -218,7 +238,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * Create a new background job
    */
-  private async createJob(req: express.Request, res: express.Response): Promise<void> {
+  private async createJob(req: Request, res: Response): Promise<void> {
     try {
       const request: CreateBackgroundJobRequest = req.body
 
@@ -274,7 +294,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * List jobs with filtering
    */
-  private async listJobs(req: express.Request, res: express.Response): Promise<void> {
+  private async listJobs(req: Request, res: Response): Promise<void> {
     try {
       const { status, limit = '50', offset = '0', repo } = req.query
 
@@ -307,7 +327,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * Get job by ID
    */
-  private async getJob(req: express.Request, res: express.Response): Promise<void> {
+  private async getJob(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params
       const job = backgroundAgentService.getJob(id)
@@ -332,7 +352,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * Cancel job
    */
-  private async cancelJob(req: express.Request, res: express.Response): Promise<void> {
+  private async cancelJob(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params
       const success = await backgroundAgentService.cancelJob(id)
@@ -359,7 +379,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * Stream job logs using Server-Sent Events
    */
-  private streamJobLogs(req: express.Request, res: express.Response): void {
+  private streamJobLogs(req: Request, res: Response): void {
     const { id } = req.params
     const job = backgroundAgentService.getJob(id)
 
@@ -431,7 +451,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * Send follow-up message to job
    */
-  private async sendFollowUpMessage(req: express.Request, res: express.Response): Promise<void> {
+  private async sendFollowUpMessage(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params
       const { message, priority = 'normal' } = req.body
@@ -461,7 +481,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * Get background agent statistics
    */
-  private async getStats(_req: express.Request, res: express.Response): Promise<void> {
+  private async getStats(_req: Request, res: Response): Promise<void> {
     try {
       const stats = backgroundAgentService.getStats()
       const queueStats = await this.jobQueue.getStats()
@@ -482,7 +502,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * Get queue statistics
    */
-  private async getQueueStats(_req: express.Request, res: express.Response): Promise<void> {
+  private async getQueueStats(_req: Request, res: Response): Promise<void> {
     try {
       const stats = await this.jobQueue.getStats()
 
@@ -501,7 +521,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * Clear job queue
    */
-  private async clearQueue(_req: express.Request, res: express.Response): Promise<void> {
+  private async clearQueue(_req: Request, res: Response): Promise<void> {
     try {
       await this.jobQueue.clear()
 
@@ -519,7 +539,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * Get security violations
    */
-  private getSecurityViolations(_req: express.Request, res: express.Response): void {
+  private getSecurityViolations(_req: Request, res: Response): void {
     try {
       const violations = securityPolicy.getViolations()
 
@@ -539,7 +559,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * Get security report for specific job
    */
-  private getJobSecurityReport(req: express.Request, res: express.Response): void {
+  private getJobSecurityReport(req: Request, res: Response): void {
     try {
       const { jobId } = req.params
       const report = securityPolicy.generateSecurityReport(jobId)
@@ -560,7 +580,7 @@ export class BackgroundAgentsAPIServer {
   /**
    * Handle GitHub webhook events
    */
-  private async handleGitHubWebhook(req: express.Request, res: express.Response): Promise<void> {
+  private async handleGitHubWebhook(req: Request, res: Response): Promise<void> {
     try {
       if (!this.githubIntegration) {
         res.status(501).json({
@@ -628,8 +648,10 @@ export class BackgroundAgentsAPIServer {
           console.log(`📋 API docs: http://localhost:${this.config.port}/v1`)
 
           // Initialize WebSocket server
-          this.wsServer = new BackgroundAgentsWebSocketServer(this.server)
-          console.log(`📡 WebSocket server ready on ws://localhost:${this.config.port}/ws`)
+          this.wsServer = BackgroundAgentsWebSocketServerClass ? new BackgroundAgentsWebSocketServerClass(this.server) : null
+          if (this.wsServer) {
+            console.log(`📡 WebSocket server ready on ws://localhost:${this.config.port}/ws`)
+          }
 
           resolve()
         })
