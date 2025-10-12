@@ -14,6 +14,7 @@ import { type PromptContext, PromptManager } from '../prompts/prompt-manager'
 import { streamttyService } from '../services/streamtty-service'
 import type { OutputStyle } from '../types/output-styles'
 import { ReasoningDetector } from './reasoning-detector'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 export interface ModelConfig {
   provider: 'openai' | 'anthropic' | 'google' | 'vercel' | 'gateway' | 'openrouter'
@@ -34,7 +35,7 @@ export interface AIProviderOptions {
 
 export class ModernAIProvider {
   private currentModel: string
-  private workingDirectory: string = process.cwd()
+  private workingDirectory: string = getWorkingDirectory()
   private promptManager: PromptManager
 
   constructor() {
@@ -603,7 +604,6 @@ export class ModernAIProvider {
     this.logReasoningStatus(reasoningEnabled)
 
     try {
-
       const result = await generateText({
         model,
         messages,

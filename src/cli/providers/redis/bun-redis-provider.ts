@@ -1,7 +1,7 @@
 // src/cli/providers/redis/bun-redis-provider.ts
 import { EventEmitter } from 'node:events'
-import type Redis from 'ioredis'
 import chalk from 'chalk'
+import type Redis from 'ioredis'
 import type { ConfigType } from '../../core/config-manager'
 
 export interface BunRedisConfig {

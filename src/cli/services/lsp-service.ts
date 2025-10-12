@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import chalk from 'chalk'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 export interface LSPServerInfo {
   name: string
@@ -13,7 +14,7 @@ export interface LSPServerInfo {
 
 export class LSPService {
   private servers: Map<string, LSPServerInfo> = new Map()
-  private workingDirectory: string = process.cwd()
+  private workingDirectory: string = getWorkingDirectory()
   private startupTimers: Map<string, NodeJS.Timeout> = new Map()
 
   constructor() {
@@ -81,7 +82,7 @@ export class LSPService {
         if (server.status !== 'running' && server.process) {
           try {
             server.process.kill()
-          } catch {}
+          } catch { }
           server.status = 'error'
           console.log(chalk.red(`⏱️  ${server.name} startup timed out`))
         }

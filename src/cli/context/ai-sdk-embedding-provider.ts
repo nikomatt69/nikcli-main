@@ -119,7 +119,6 @@ export class AiSdkEmbeddingProvider {
     if (this.availableProviders.length === 0) {
       console.log(chalk.blue('⚡︎ RAG using local workspace analysis (no API keys configured)'))
     } else {
-
     }
   }
 

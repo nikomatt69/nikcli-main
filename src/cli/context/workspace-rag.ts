@@ -77,6 +77,7 @@ export interface PlanTodo {
 export class WorkspaceRAG {
   private context: WorkspaceContext
   private embeddings: Map<string, number[]> = new Map()
+  private contextCache: Map<string, any> = new Map()
 
   constructor(workspacePath: string) {
     this.context = this.initializeWorkspace(workspacePath)
@@ -103,7 +104,7 @@ export class WorkspaceRAG {
       try {
         const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
         return pkg.name || 'unnamed-project'
-      } catch {}
+      } catch { }
     }
     return require('node:path').basename(path)
   }
@@ -199,12 +200,11 @@ export class WorkspaceRAG {
 
     switch (language) {
       case 'typescript':
-      case 'javascript': {
+      case 'javascript':
         const imports = (content.match(/import .* from/g) || []).length
         const exports = (content.match(/export/g) || []).length
         const functions = (content.match(/function \w+|const \w+ = |=>/g) || []).length
         return `${language} file with ${lines} lines, ${imports} imports, ${exports} exports, ${functions} functions`
-      }
 
       case 'json':
         try {
@@ -438,7 +438,7 @@ export class WorkspaceRAG {
 
     structure.importantFiles = importantFiles
     structure.directories = importantDirs.filter((dir) =>
-      Array.from(this.context.files.keys()).some((path) => path.startsWith(`${dir}/`))
+      Array.from(this.context.files.keys()).some((path) => path.startsWith(dir + '/'))
     )
 
     return structure

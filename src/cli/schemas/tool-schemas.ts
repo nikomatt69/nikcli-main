@@ -94,6 +94,7 @@ export const ReadFileResultSchema = z.object({
     isEmpty: z.boolean(),
     isBinary: z.boolean(),
     extension: z.string(),
+
   }),
 })
 

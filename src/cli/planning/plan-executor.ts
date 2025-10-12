@@ -81,11 +81,16 @@ export class PlanExecutor {
 
     // Log plan execution start with direct console.log (like default mode)
     // This ensures it appears prominently in the terminal, separate from AI streaming
-    await unifiedRenderer.logToolCall('plan_execution', { title: plan.title }, { mode: 'plan' }, {
-      showInRecentUpdates: true,
-      streamToTerminal: true,  // Changed from false to true for visibility
-      persistent: true
-    })
+    await unifiedRenderer.logToolCall(
+      'plan_execution',
+      { title: plan.title },
+      { mode: 'plan' },
+      {
+        showInRecentUpdates: true,
+        streamToTerminal: true, // Changed from false to true for visibility
+        persistent: true,
+      }
+    )
 
     // Stream plan markdown AFTER tool call is visible
     await streamttyService.renderBlock(`## Executing Plan: ${plan.title}\n`, 'system')
@@ -236,8 +241,8 @@ export class PlanExecutor {
 
     // Enable bypass for approval inputs and suspend main prompt
     try {
-      ; (global as any).__nikCLI?.suspendPrompt?.()
-    } catch { }
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
 
     try {
@@ -282,8 +287,8 @@ export class PlanExecutor {
       // Always disable bypass after approval and resume prompt cleanly
       inputQueue.disableBypass()
       try {
-        ; (global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch { }
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 
@@ -383,7 +388,7 @@ export class PlanExecutor {
     await unifiedRenderer.logToolUpdate(toolCallId, 'info', `Starting ${finalAgentType} agent task`, {
       showInRecentUpdates: true,
       streamToTerminal: true,
-      persistent: true
+      persistent: true,
     })
 
     // Live progress hookup
@@ -403,16 +408,21 @@ export class PlanExecutor {
         const description = update?.description || ''
 
         // Use unified renderer for tool use logging
-        await unifiedRenderer.logToolCall(toolName, {}, { mode: 'plan' }, {
-          showInRecentUpdates: true,
-          streamToTerminal: true,
-          persistent: true
-        })
+        await unifiedRenderer.logToolCall(
+          toolName,
+          {},
+          { mode: 'plan' },
+          {
+            showInRecentUpdates: true,
+            streamToTerminal: true,
+            persistent: true,
+          }
+        )
         if (description) {
           await unifiedRenderer.logToolUpdate(toolName, 'info', description, {
             showInRecentUpdates: true,
             streamToTerminal: true,
-            persistent: true
+            persistent: true,
           })
         }
         console.log()
@@ -608,8 +618,8 @@ export class PlanExecutor {
     CliUI.stopSpinner()
 
     try {
-      ; (global as any).__nikCLI?.suspendPrompt?.()
-    } catch { }
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       const answers = await inquirer.prompt([
@@ -629,8 +639,8 @@ export class PlanExecutor {
     } finally {
       inputQueue.disableBypass()
       try {
-        ; (global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch { }
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 
@@ -658,8 +668,8 @@ export class PlanExecutor {
     advancedUI.logError(`Step "${step.title}" failed: ${result.error?.message}`)
 
     try {
-      ; (global as any).__nikCLI?.suspendPrompt?.()
-    } catch { }
+      ;(global as any).__nikCLI?.suspendPrompt?.()
+    } catch {}
     inputQueue.enableBypass()
     try {
       // For non-critical steps, offer to continue
@@ -711,8 +721,8 @@ export class PlanExecutor {
     } finally {
       inputQueue.disableBypass()
       try {
-        ; (global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch { }
+        ;(global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
     }
   }
 

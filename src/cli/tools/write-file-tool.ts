@@ -1,10 +1,7 @@
+import { copyFile, mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { unlink } from 'node:fs/promises'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
 import { lspManager } from '../lsp/lsp-manager'
-
-// Bun native file writing with Node.js fallback
-const isBun = typeof Bun !== 'undefined'
 import {
   type AppendOptions,
   type ContentValidator,
@@ -21,6 +18,7 @@ import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
+import { getToolchainLearningSystem } from '../core/toolchain-learning'
 
 /**
  * Production-ready Write File Tool
@@ -71,23 +69,11 @@ export class WriteFileTool extends BaseTool {
       // Read existing content for diff display
       let existingContent = ''
       let isNewFile = false
-
-      if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
-        // Bun native: fast file check
-        const file = (Bun as any).file(sanitizedPath)
-        if (await file.exists()) {
-          existingContent = await file.text()
-        } else {
-          isNewFile = true
-        }
-      } else {
-        // Node.js fallback
-        try {
-          const { readFile } = await import('node:fs/promises')
-          existingContent = await readFile(sanitizedPath, 'utf8')
-        } catch (_error) {
-          isNewFile = true
-        }
+      try {
+        existingContent = await readFile(sanitizedPath, 'utf8')
+      } catch (_error) {
+        // File doesn't exist, it's a new file
+        isNewFile = true
       }
 
       // Create backup if file exists and backup is enabled
@@ -97,12 +83,7 @@ export class WriteFileTool extends BaseTool {
 
       // Ensure directory exists
       const dir = dirname(sanitizedPath)
-      if (isBun) {
-        // Bun native: no mkdir needed, Bun.write creates directories automatically
-      } else {
-        const { mkdir } = await import('node:fs/promises')
-        await mkdir(dir, { recursive: true })
-      }
+      await mkdir(dir, { recursive: true })
 
       // Apply content transformations
       let processedContent = content
@@ -140,20 +121,12 @@ export class WriteFileTool extends BaseTool {
         DiffViewer.showFileDiff(fileDiff, { compact: true })
       }
 
-      // Write file using Bun.write() or Node.js fallback
+      // Write file with specified encoding
       const encoding = options.encoding || 'utf8'
-
-      if (isBun && typeof Bun !== 'undefined' && 'write' in Bun) {
-        // Bun native: ultra-fast file writing with automatic directory creation
-        await (Bun as any).write(sanitizedPath, processedContent)
-      } else {
-        // Node.js fallback
-        const { writeFile } = await import('node:fs/promises')
-        await writeFile(sanitizedPath, processedContent, {
-          encoding: encoding as BufferEncoding,
-          mode: options.mode || 0o644,
-        })
-      }
+      await writeFile(sanitizedPath, processedContent, {
+        encoding: encoding as BufferEncoding,
+        mode: options.mode || 0o644,
+      })
 
       // Verify write if requested
       if (options.verifyWrite) {
@@ -304,7 +277,7 @@ export class WriteFileTool extends BaseTool {
   }
 
   /**
-   * Append content to an existing file (Bun.write append mode or Node.js fallback)
+   * Append content to an existing file
    */
   async append(filePath: string, content: string, options: AppendOptions = {}): Promise<WriteFileResult> {
     try {
@@ -312,21 +285,11 @@ export class WriteFileTool extends BaseTool {
 
       // Read existing content if file exists
       let existingContent = ''
-
-      if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
-        // Bun native
-        const file = (Bun as any).file(sanitizedPath)
-        if (await file.exists()) {
-          existingContent = await file.text()
-        }
-      } else {
-        // Node.js fallback
-        try {
-          const fs = await import('node:fs/promises')
-          existingContent = await fs.readFile(sanitizedPath, 'utf8')
-        } catch {
-          // File doesn't exist, will be created
-        }
+      try {
+        const fs = await import('node:fs/promises')
+        existingContent = await fs.readFile(sanitizedPath, 'utf8')
+      } catch {
+        // File doesn't exist, will be created
       }
 
       // Prepare new content
@@ -345,48 +308,29 @@ export class WriteFileTool extends BaseTool {
   }
 
   /**
-   * Create a backup of an existing file (Bun.file() + Bun.write() or Node.js fs)
+   * Create a backup of an existing file
    */
   private async createBackup(filePath: string): Promise<string | undefined> {
     try {
-      if (isBun && typeof Bun !== 'undefined' && 'file' in Bun && 'write' in Bun) {
-        // Bun native: fast file copy
-        const file = (Bun as any).file(filePath)
-        if (!(await file.exists())) return undefined
+      const fs = await import('node:fs/promises')
+      await fs.access(filePath) // Check if file exists
 
-        // Generate backup filename with timestamp
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-        const fileName = filePath.replace(this.workingDirectory, '').replace(/^\//, '')
-        const backupPath = join(this.backupDirectory, `${fileName}.${timestamp}.backup`)
+      // Ensure backup directory exists
+      await mkdir(this.backupDirectory, { recursive: true })
 
-        // Bun.write automatically creates parent directories
-        const content = await file.arrayBuffer()
-        await (Bun as any).write(backupPath, content)
+      // Generate backup filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const fileName = filePath.replace(this.workingDirectory, '').replace(/^\//, '')
+      const backupPath = join(this.backupDirectory, `${fileName}.${timestamp}.backup`)
 
-        advancedUI.logInfo(`Backup created: ${backupPath}`)
-        return backupPath
-      } else {
-        // Node.js fallback
-        const { access, mkdir, copyFile } = await import('node:fs/promises')
-        await access(filePath) // Check if file exists
+      // Ensure backup subdirectories exist
+      await mkdir(dirname(backupPath), { recursive: true })
 
-        // Ensure backup directory exists
-        await mkdir(this.backupDirectory, { recursive: true })
+      // Copy file to backup location
+      await copyFile(filePath, backupPath)
 
-        // Generate backup filename with timestamp
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-        const fileName = filePath.replace(this.workingDirectory, '').replace(/^\//, '')
-        const backupPath = join(this.backupDirectory, `${fileName}.${timestamp}.backup`)
-
-        // Ensure backup subdirectories exist
-        await mkdir(dirname(backupPath), { recursive: true })
-
-        // Copy file to backup location
-        await copyFile(filePath, backupPath)
-
-        advancedUI.logInfo(`Backup created: ${backupPath}`)
-        return backupPath
-      }
+      advancedUI.logInfo(`Backup created: ${backupPath}`)
+      return backupPath
     } catch {
       // File doesn't exist or can't be backed up
       return undefined
@@ -394,26 +338,13 @@ export class WriteFileTool extends BaseTool {
   }
 
   /**
-   * Rollback a file from backup (Bun or Node.js)
+   * Rollback a file from backup
    */
   private async rollback(filePath: string, backupPath: string): Promise<void> {
     try {
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
-
-      if (isBun && typeof Bun !== 'undefined' && 'file' in Bun && 'write' in Bun) {
-        // Bun native: fast file copy and delete
-        const backupFile = (Bun as any).file(backupPath)
-        const content = await backupFile.arrayBuffer()
-        await (Bun as any).write(sanitizedPath, content)
-
-        // Delete backup using Node.js unlink (Bun doesn't have native file delete yet)
-        await unlink(backupPath)
-      } else {
-        // Node.js fallback
-        const { copyFile, unlink } = await import('node:fs/promises')
-        await copyFile(backupPath, sanitizedPath)
-        await unlink(backupPath)
-      }
+      await copyFile(backupPath, sanitizedPath)
+      await unlink(backupPath) // Clean up backup
     } catch (error: any) {
       throw new Error(`Rollback failed: ${error.message}`)
     }
@@ -438,21 +369,12 @@ export class WriteFileTool extends BaseTool {
   }
 
   /**
-   * Verify that file was written correctly (Bun or Node.js)
+   * Verify that file was written correctly
    */
   private async verifyWrite(filePath: string, expectedContent: string, encoding: string): Promise<VerificationResult> {
     try {
-      let actualContent: string
-
-      if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
-        // Bun native: ultra-fast file read
-        const file = (Bun as any).file(filePath)
-        actualContent = await file.text()
-      } else {
-        // Node.js fallback
-        const fs = await import('node:fs/promises')
-        actualContent = await fs.readFile(filePath, encoding as BufferEncoding)
-      }
+      const fs = await import('node:fs/promises')
+      const actualContent = await fs.readFile(filePath, encoding as BufferEncoding)
 
       if (actualContent === expectedContent) {
         return { success: true }
@@ -676,7 +598,7 @@ export class ContentValidators {
         }
 
         // Clean up temp file
-        await unlink(tempFilePath).catch(() => { })
+        await unlink(tempFilePath).catch(() => {})
       } catch (lspError: any) {
         warnings.push(`LSP validation unavailable: ${lspError.message}`)
 

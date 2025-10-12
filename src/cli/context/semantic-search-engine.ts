@@ -130,8 +130,6 @@ export class SemanticSearchEngine {
       return cached
     }
 
-
-
     // 1. Preprocess query (cleaning, normalization)
     const processedQuery = this.preprocessQuery(query)
 

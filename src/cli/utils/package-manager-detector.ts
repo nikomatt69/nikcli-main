@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { getWorkingDirectory } from './working-dir'
 
 export interface PackageManagerInfo {
   name: 'pnpm' | 'yarn' | 'bun' | 'npm'
@@ -54,7 +55,7 @@ export class PackageManagerDetector {
   private cachedDetection: PackageManagerInfo | null
   private workingDirectory: string
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = getWorkingDirectory()) {
     this.cachedDetection = null
     this.workingDirectory = workingDirectory
   }

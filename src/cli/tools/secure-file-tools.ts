@@ -4,6 +4,8 @@ import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { getToolchainLearningSystem } from '../core/toolchain-learning'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 // Global batch approval state
 const batchApprovalState = {
@@ -13,22 +15,58 @@ const batchApprovalState = {
 
 /**
  * Utility to sanitize and validate file paths to prevent directory traversal attacks
+ * Now includes intelligent learning and auto-correction
  */
-export function sanitizePath(filePath: string, workingDir: string = process.cwd()): string {
-  // Normalize the path to resolve any '..' or '.' segments
-  const normalizedPath = path.normalize(filePath)
+export function sanitizePath(filePath: string, workingDir: string = getWorkingDirectory()): string {
+  try {
+    // Normalize the path to resolve any '..' or '.' segments
+    const normalizedPath = path.normalize(filePath)
 
-  // Resolve to absolute path
-  const absolutePath = path.resolve(workingDir, normalizedPath)
+    // Resolve to absolute path
+    const absolutePath = path.resolve(workingDir, normalizedPath)
 
-  // Ensure the resolved path is within the working directory
-  const workingDirAbsolute = path.resolve(workingDir)
+    // Ensure the resolved path is within the working directory using a robust relative check
+    const workingDirAbsolute = path.resolve(workingDir)
+    const relativeToWD = path.relative(workingDirAbsolute, absolutePath)
+    if (relativeToWD.startsWith('..') || path.isAbsolute(relativeToWD)) {
+      throw new Error(`Path traversal detected: ${filePath} resolves outside working directory`)
+    }
 
-  if (!absolutePath.startsWith(workingDirAbsolute)) {
-    throw new Error(`Path traversal detected: ${filePath} resolves outside working directory`)
+    return absolutePath
+  } catch (error: any) {
+    // Try to learn from the error and suggest corrections
+    const learningSystem = getToolchainLearningSystem(workingDir)
+    
+    if (learningSystem) {
+      // Record the error for learning
+      const correctedPath = learningSystem.recordPathError(
+        filePath,
+        'invalid_path',
+        error.message,
+        'sanitizePath'
+      )
+
+      if (correctedPath) {
+        // Try the corrected path
+        try {
+          const normalizedCorrected = path.normalize(correctedPath)
+          const absoluteCorrected = path.resolve(workingDir, normalizedCorrected)
+          const workingDirAbsolute = path.resolve(workingDir)
+
+          if (absoluteCorrected.startsWith(workingDirAbsolute)) {
+            // Record success for learning
+            learningSystem.recordSuccess(filePath, correctedPath)
+            return absoluteCorrected
+          }
+        } catch {
+          // If correction also fails, continue with original error
+        }
+      }
+    }
+
+    // Re-throw the original error if no correction was found
+    throw error
   }
-
-  return absolutePath
 }
 
 /**
@@ -132,7 +170,7 @@ export class ReadFileTool {
   private workingDirectory: string
 
   constructor(workingDir?: string) {
-    this.workingDirectory = workingDir || process.cwd()
+    this.workingDirectory = workingDir || getWorkingDirectory()
   }
 
   async execute(filePath: string): Promise<{
@@ -183,7 +221,7 @@ export class WriteFileTool {
   private workingDirectory: string
 
   constructor(workingDir?: string) {
-    this.workingDirectory = workingDir || process.cwd()
+    this.workingDirectory = workingDir || getWorkingDirectory()
   }
 
   async execute(
@@ -236,7 +274,7 @@ export class ListDirectoryTool {
   private workingDirectory: string
 
   constructor(workingDir?: string) {
-    this.workingDirectory = workingDir || process.cwd()
+    this.workingDirectory = workingDir || getWorkingDirectory()
   }
 
   async execute(
@@ -327,7 +365,7 @@ export class ReplaceInFileTool {
   private workingDirectory: string
 
   constructor(workingDir?: string) {
-    this.workingDirectory = workingDir || process.cwd()
+    this.workingDirectory = workingDir || getWorkingDirectory()
   }
 
   async execute(

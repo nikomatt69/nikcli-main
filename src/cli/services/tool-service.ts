@@ -11,6 +11,8 @@ import { ExecutionPolicyManager, type ToolApprovalRequest } from '../policies/ex
 import { ContentValidators } from '../tools/write-file-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { type ApprovalRequest, type ApprovalResponse, ApprovalSystem } from '../ui/approval-system'
+import { sanitizePath } from '../tools/secure-file-tools'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 export interface ToolExecution {
   id: string
@@ -33,7 +35,7 @@ export interface ToolCapability {
 export class ToolService {
   private tools: Map<string, ToolCapability> = new Map()
   private executions: Map<string, ToolExecution> = new Map()
-  private workingDirectory: string = process.cwd()
+  private workingDirectory: string = getWorkingDirectory()
   private policyManager: ExecutionPolicyManager
   private approvalSystem: ApprovalSystem
 
@@ -485,12 +487,16 @@ export class ToolService {
 
   // Tool implementations
   private async readFile(args: { filePath: string }): Promise<{ content: string; size: number }> {
-    const fullPath = path.resolve(this.workingDirectory, args.filePath)
+    const fullPath = sanitizePath(args.filePath, this.workingDirectory)
 
     if (!fs.existsSync(fullPath)) {
       throw new Error(`File not found: ${args.filePath}`)
     }
 
+    const stats = fs.statSync(fullPath)
+    if (!stats.isFile()) {
+      throw new Error(`Path is not a file: ${args.filePath}`)
+    }
     const content = fs.readFileSync(fullPath, 'utf8')
     return {
       content,
@@ -499,7 +505,7 @@ export class ToolService {
   }
 
   private async writeFile(args: { filePath: string; content: string }): Promise<{ written: boolean; size: number }> {
-    const fullPath = path.resolve(this.workingDirectory, args.filePath)
+    const fullPath = sanitizePath(args.filePath, this.workingDirectory)
     const dir = path.dirname(fullPath)
 
     // Validate content using Claude Code best practices
@@ -521,8 +527,8 @@ export class ToolService {
     fs.writeFileSync(fullPath, args.content, 'utf8')
 
     // Show relative path in logs
-    const relativePath = args.filePath.startsWith(this.workingDirectory)
-      ? args.filePath.replace(this.workingDirectory, '').replace(/^\//, '')
+    const relativePath = fullPath.startsWith(this.workingDirectory)
+      ? fullPath.replace(this.workingDirectory, '').replace(/^\//, '')
       : args.filePath
 
     advancedUI.logFunctionUpdate('success', `✓ File written: ${relativePath} (${args.content.length} bytes)`)
@@ -537,12 +543,16 @@ export class ToolService {
   private async listFiles(args: {
     path?: string
   }): Promise<{ files: Array<{ name: string; type: 'file' | 'directory'; size?: number }> }> {
-    const targetPath = path.resolve(this.workingDirectory, args.path || '.')
+    const targetPath = sanitizePath(args.path || '.', this.workingDirectory)
 
     if (!fs.existsSync(targetPath)) {
       throw new Error(`Directory not found: ${args.path || '.'}`)
     }
 
+    const stats = fs.statSync(targetPath)
+    if (!stats.isDirectory()) {
+      throw new Error(`Path is not a directory: ${args.path || '.'}`)
+    }
     const items = fs.readdirSync(targetPath, { withFileTypes: true })
     const files = items.map((item) => {
       const result: any = {
@@ -566,7 +576,7 @@ export class ToolService {
   }
 
   private async findFiles(args: { pattern: string; path?: string }): Promise<{ matches: string[] }> {
-    const searchPath = path.resolve(this.workingDirectory, args.path || '.')
+    const searchPath = sanitizePath(args.path || '.', this.workingDirectory)
     const matches: string[] = []
 
     // Convert glob-like pattern (e.g., **/*.{ts,tsx}) to RegExp

@@ -1,5 +1,5 @@
-import { Streamtty } from '../../../streamtty/src'
-import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
+import { Streamtty } from 'streamtty'
+import { TerminalOutputManager, terminalOutputManager } from './terminal-output-manager'
 
 export interface StreamttyOptions {
   parseIncompleteMarkdown?: boolean
@@ -117,7 +117,7 @@ export class StreamttyAdapter {
   ): Promise<string> {
     let accumulated = ''
     let printedLines = 0
-    let currentOutputId: string | null = null
+    const currentOutputId: string | null = null
 
     for await (const chunk of stream) {
       if (isCancelled()) break
@@ -130,7 +130,7 @@ export class StreamttyAdapter {
       process.stdout.write(chunk)
       terminalOutputManager.confirmOutput(outputId, 'StreamChunk', chunkLines, {
         persistent: false,
-        expiryMs: 30000
+        expiryMs: 30000,
       })
 
       printedLines += chunkLines

@@ -534,8 +534,6 @@ export class ToolRegistry {
           requiresApproval: false,
         },
       })
-
-
     } catch (error: any) {
       advancedUI.logWarning(`⚠️  Some built-in tools failed to load: ${error.message}`)
     }
@@ -782,11 +780,11 @@ export class ToolRegistry {
     // Cleanup subsystems
     try {
       if (this.contextSystem && typeof this.contextSystem.clearMemory === 'function') {
-        async () => this.contextSystem.clearMemory()
+        ;async () => this.contextSystem.clearMemory()
         return
       }
       if (this.analyticsManager && typeof this.analyticsManager.getSummary === 'function') {
-        async () => this.analyticsManager.getSummary()
+        ;async () => this.analyticsManager.getSummary()
         return
       }
     } catch (error: any) {

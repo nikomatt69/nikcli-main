@@ -89,25 +89,25 @@ export class MainOrchestrator {
       // Dispose subsystems (best-effort)
       try {
         await lspManager.dispose()
-      } catch { }
+      } catch {}
       try {
         await (lspService as any)?.dispose?.()
-      } catch { }
+      } catch {}
       try {
         await (agentService as any)?.dispose?.()
-      } catch { }
+      } catch {}
       try {
         await (toolService as any)?.dispose?.()
-      } catch { }
+      } catch {}
       try {
-        ; (advancedUI as any)?.dispose?.()
-      } catch { }
+        ;(advancedUI as any)?.dispose?.()
+      } catch {}
       try {
         await mcpClient.dispose()
-      } catch { }
+      } catch {}
       try {
         await (this.vmOrchestrator as any)?.dispose?.()
-      } catch { }
+      } catch {}
 
       advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
@@ -556,19 +556,16 @@ export class MainOrchestrator {
       await advancedUI.logFunctionCall(`vm_${containerId}`)
       await advancedUI.logFunctionUpdate('info', data.log || '')
 
-      await this.streamOrchestrator.streamToPanel(
-        'vm-logs',
-        `[${timestamp}] [${containerId}] ${data.log}\n`
-      )
+      await this.streamOrchestrator.streamToPanel('vm-logs', `[${timestamp}] [${containerId}] ${data.log}\n`)
     })
 
     this.vmOrchestrator.on('container:metrics', async (data: any) => {
       await this.streamOrchestrator.streamToPanel(
         'vm-metrics',
         `📊 ${data.containerId?.slice(0, 8)}:\n` +
-        `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
-        `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
-        `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
+          `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
+          `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
+          `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
       )
     })
 

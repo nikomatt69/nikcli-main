@@ -1,21 +1,9 @@
+import { exec, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
-// Bun native process spawning with Node.js fallback
-const isBun = typeof Bun !== 'undefined'
-
-// Import child_process only for Node.js fallback
-let exec: any, spawn: any, _execAsync: any = null
-
-  ; (async () => {
-    if (!isBun) {
-      const cp = await import('node:child_process')
-      exec = cp.exec
-      spawn = cp.spawn
-      _execAsync = promisify(exec)
-    }
-  })()
+const _execAsync = promisify(exec)
 
 /**
  * Production-ready Run Command Tool
@@ -234,7 +222,7 @@ export class RunCommandTool extends BaseTool {
           })
 
           // Handle process completion
-          child.on('close', (exitCode: number | null, signal: NodeJS.Signals | null) => {
+          child.on('close', (exitCode, signal) => {
             clearTimeout(timeout)
 
             const result: CommandResult = {
@@ -256,7 +244,7 @@ export class RunCommandTool extends BaseTool {
             resolve(result)
           })
 
-          child.on('error', (error: Error) => {
+          child.on('error', (error) => {
             clearTimeout(timeout)
             reject(error)
           })
@@ -397,7 +385,7 @@ export class RunCommandTool extends BaseTool {
         stderr += chunk
       })
 
-      child.on('close', (exitCode: number | null, signal: NodeJS.Signals | null) => {
+      child.on('close', (exitCode, signal) => {
         clearTimeout(timeout)
 
         resolve({
@@ -411,7 +399,7 @@ export class RunCommandTool extends BaseTool {
         })
       })
 
-      child.on('error', (error: Error) => {
+      child.on('error', (error) => {
         clearTimeout(timeout)
         reject(error)
       })

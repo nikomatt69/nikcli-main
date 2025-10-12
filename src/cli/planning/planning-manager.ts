@@ -1,10 +1,10 @@
 import { EventEmitter } from 'node:events'
 import { ToolRegistry } from '../tools/tool-registry'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { PlanExecutor } from './plan-executor'
 import { PlanGenerator } from './plan-generator'
 import type { ExecutionPlan, PlanExecutionResult, PlannerConfig, PlannerContext, PlanValidationResult } from './types'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Production-ready Planning Manager
@@ -37,7 +37,11 @@ export class PlanningManager extends EventEmitter {
    * Main entry point: Plan and execute a user request
    */
   async planAndExecute(userRequest: string, projectPath: string): Promise<PlanExecutionResult> {
-    advancedUI.addLiveUpdate({ type: 'info', content: `Processing request: ${userRequest}`, source: 'ai_planning_system' })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Processing request: ${userRequest}`,
+      source: 'ai_planning_system',
+    })
 
     try {
       // Step 1: Analyze project context
@@ -290,9 +294,9 @@ export class PlanningManager extends EventEmitter {
       averageExecutionTime:
         executions.length > 0
           ? executions.reduce((sum, e) => {
-            const duration = e.endTime ? e.endTime.getTime() - e.startTime.getTime() : 0
-            return sum + duration
-          }, 0) / executions.length
+              const duration = e.endTime ? e.endTime.getTime() - e.startTime.getTime() : 0
+              return sum + duration
+            }, 0) / executions.length
           : 0,
       riskDistribution: this.calculateRiskDistribution(plans),
       toolUsageStats: this.calculateToolUsage(plans),
@@ -433,8 +437,16 @@ export class PlanningManager extends EventEmitter {
     advancedUI.addLiveUpdate({ type: 'info', content: `Plan ID: ${plan.id}`, source: 'plan_details' })
     advancedUI.addLiveUpdate({ type: 'info', content: `Description: ${plan.description}`, source: 'plan_details' })
     advancedUI.addLiveUpdate({ type: 'info', content: `Total Steps: ${plan.steps.length}`, source: 'plan_details' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Estimated Duration: ${Math.round(plan.estimatedTotalDuration / 1000)}s`, source: 'plan_details' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Risk Level: ${plan.riskAssessment.overallRisk}`, source: 'plan_details' })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Estimated Duration: ${Math.round(plan.estimatedTotalDuration / 1000)}s`,
+      source: 'plan_details',
+    })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Risk Level: ${plan.riskAssessment.overallRisk}`,
+      source: 'plan_details',
+    })
 
     advancedUI.addLiveUpdate({ type: 'info', content: 'Execution Steps:', source: 'plan_details' })
     plan.steps.forEach((step, index) => {
@@ -442,11 +454,19 @@ export class PlanningManager extends EventEmitter {
       const typeIcon =
         step.type === 'tool' ? '🔧' : step.type === 'validation' ? '✓' : step.type === 'user_input' ? '👤' : '🤔'
 
-      advancedUI.addLiveUpdate({ type: 'info', content: `${index + 1}. ${riskIcon} ${typeIcon} ${step.title}`, source: 'plan_details' })
+      advancedUI.addLiveUpdate({
+        type: 'info',
+        content: `${index + 1}. ${riskIcon} ${typeIcon} ${step.title}`,
+        source: 'plan_details',
+      })
       advancedUI.addLiveUpdate({ type: 'info', content: `   ${step.description}`, source: 'plan_details' })
 
       if (step.dependencies && step.dependencies.length > 0) {
-        advancedUI.addLiveUpdate({ type: 'info', content: `   Dependencies: ${step.dependencies.length} step(s)`, source: 'plan_details' })
+        advancedUI.addLiveUpdate({
+          type: 'info',
+          content: `   Dependencies: ${step.dependencies.length} step(s)`,
+          source: 'plan_details',
+        })
       }
     })
   }
@@ -463,7 +483,7 @@ export class PlanningManager extends EventEmitter {
         priority: (t as any).priority,
         progress: (t as any).progress,
       }))
-        ; (advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
+      ;(advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
     } catch (error: any) {
       if (this.config.logLevel === 'debug') {
         advancedUI.logError(`Failed to render todos UI: ${error?.message || error}`)
@@ -477,17 +497,23 @@ export class PlanningManager extends EventEmitter {
   private displayValidationResults(validation: PlanValidationResult): void {
     if (validation.errors.length > 0) {
       advancedUI.addLiveUpdate({ type: 'error', content: 'Validation Errors:', source: 'validation_results' })
-      validation.errors.forEach((error) => advancedUI.addLiveUpdate({ type: 'error', content: error, source: 'validation_results' }))
+      validation.errors.forEach((error) =>
+        advancedUI.addLiveUpdate({ type: 'error', content: error, source: 'validation_results' })
+      )
     }
 
     if (validation.warnings.length > 0) {
       advancedUI.addLiveUpdate({ type: 'warning', content: 'Validation Warnings:', source: 'validation_results' })
-      validation.warnings.forEach((warning) => advancedUI.addLiveUpdate({ type: 'warning', content: warning, source: 'validation_results' }))
+      validation.warnings.forEach((warning) =>
+        advancedUI.addLiveUpdate({ type: 'warning', content: warning, source: 'validation_results' })
+      )
     }
 
     if (validation.suggestions.length > 0) {
       advancedUI.addLiveUpdate({ type: 'info', content: 'Suggestions:', source: 'validation_results' })
-      validation.suggestions.forEach((suggestion) => advancedUI.addLiveUpdate({ type: 'info', content: suggestion, source: 'validation_results' }))
+      validation.suggestions.forEach((suggestion) =>
+        advancedUI.addLiveUpdate({ type: 'info', content: suggestion, source: 'validation_results' })
+      )
     }
   }
 
@@ -498,9 +524,21 @@ export class PlanningManager extends EventEmitter {
     const duration = result.endTime ? result.endTime.getTime() - result.startTime.getTime() : 0
 
     advancedUI.addLiveUpdate({ type: 'info', content: `Plan ID: ${plan.id}`, source: 'planning_session_complete' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Execution Status: ${result.status.toUpperCase()}`, source: 'planning_session_complete' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Total Duration: ${Math.round(duration / 1000)}s`, source: 'planning_session_complete' })
-    advancedUI.addLiveUpdate({ type: 'info', content: `Steps Executed: ${result.summary.successfulSteps}/${result.summary.totalSteps}`, source: 'planning_session_complete' })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Execution Status: ${result.status.toUpperCase()}`,
+      source: 'planning_session_complete',
+    })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Total Duration: ${Math.round(duration / 1000)}s`,
+      source: 'planning_session_complete',
+    })
+    advancedUI.addLiveUpdate({
+      type: 'info',
+      content: `Steps Executed: ${result.summary.successfulSteps}/${result.summary.totalSteps}`,
+      source: 'planning_session_complete',
+    })
 
     if (result.summary.failedSteps > 0) {
       advancedUI.logWarning(`${result.summary.failedSteps} steps failed`)

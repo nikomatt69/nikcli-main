@@ -892,7 +892,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             console.log(chalk.red('Usage: /router mode <conservative|balanced|aggressive>'))
             break
           }
-          ; (cfg.modelRouting as any).mode = mode as any
+          ;(cfg.modelRouting as any).mode = mode as any
           configManager.setAll(cfg as any)
           this.cliInstance.printPanel(
             boxen(`Routing mode set to ${mode}`, {
@@ -1261,9 +1261,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.cliInstance.printPanel(
         boxen(
           `${chalk.green('Environment variables imported successfully')}` +
-          `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
-          `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
-          `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
+            `\n${chalk.gray('File:')} ${chalk.cyan(resolvedPath)}` +
+            `\n${chalk.gray('Total:')} ${total}  ${chalk.gray('Added:')} ${added}  ${chalk.gray('Updated:')} ${updated}  ${chalk.gray('Skipped:')} ${skipped}` +
+            `\n${chalk.gray('Available immediately and persisted to ~/.nikcli/config.json')}`,
           {
             title: '✓ Env Saved',
             padding: 1,
@@ -2108,9 +2108,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           console.log(chalk.gray('─'.repeat(60)))
           console.log(result.answer.trim())
           console.log(chalk.gray('\nSources:'))
-            ; (result.sources || []).forEach((s: any, idx: number) => {
-              console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
-            })
+          ;(result.sources || []).forEach((s: any, idx: number) => {
+            console.log(` [#${idx + 1}] ${chalk.cyan(s.title)} - ${chalk.gray(s.url)}`)
+          })
           console.log(chalk.gray('─'.repeat(60)))
         } else {
           const items = result?.results || []
@@ -2541,7 +2541,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray('─'.repeat(40)))
       console.log(`${chalk.cyan('/vm-create <repo-url|os>')} - Create VM (alpine|debian|ubuntu)`)
       console.log(`${chalk.gray('  Flags: --os <alpine|debian|ubuntu>  --mount-desktop  --no-repo')}`)
-      console.log(`${chalk.gray('  Examples: /vm-create alpine --mount-desktop  |  /vm-create https://github.com/user/repo.git --os ubuntu')}`)
+      console.log(
+        `${chalk.gray('  Examples: /vm-create alpine --mount-desktop  |  /vm-create https://github.com/user/repo.git --os ubuntu')}`
+      )
       console.log(`${chalk.cyan('/vm-list')}              - List active containers`)
       console.log(`${chalk.cyan('/vm-stop <id>')}          - Stop container`)
       console.log(`${chalk.cyan('/vm-remove <id>')}        - Remove container`)
@@ -3042,7 +3044,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ; (global as any).__nikCLI.currentMode = 'vm'
+      ;(global as any).__nikCLI.currentMode = 'vm'
     }
 
     console.log(chalk.blue.bold('🐳 Entering VM Chat Mode'))
@@ -4288,10 +4290,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority as any,
                     progress: t.progress,
                   }))
-                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                   return { shouldExit: false, shouldUpdatePrompt: false }
                 }
-              } catch { }
+              } catch {}
               console.log(chalk.yellow('No active plans found. Create one with /plan create <goal>'))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
@@ -4398,10 +4400,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: t.priority,
                   progress: t.progress,
                 }))
-                  ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 return { shouldExit: false, shouldUpdatePrompt: false }
               }
-            } catch { }
+            } catch {}
             console.log(chalk.gray('No todo lists found'))
             return { shouldExit: false, shouldUpdatePrompt: false }
           }
@@ -4436,8 +4438,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                  ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
-              } catch { }
+                ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+              } catch {}
               enhancedPlanning.showPlanStatus(latestPlan.id)
             } else {
               // Fallback to session todos
@@ -4453,7 +4455,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                     priority: t.priority,
                     progress: t.progress,
                   }))
-                    ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+                  ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
                 } else {
                   console.log(chalk.yellow('No todo lists found'))
                 }
@@ -4473,8 +4475,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
                   priority: (t as any).priority,
                   progress: (t as any).progress,
                 }))
-                  ; (advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
-              } catch { }
+                ;(advancedUI as any).showTodoDashboard?.(todoItems, target.title || 'Plan Todos')
+              } catch {}
             }
             enhancedPlanning.showPlanStatus(planId)
           }
@@ -4517,7 +4519,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       // Hide the Todos HUD panel (structured UI)
       advancedUI.hidePanel('todos')
-    } catch { }
+    } catch {}
 
     try {
       // Clear session todos from the TodoStore for current session
@@ -4530,19 +4532,19 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         globalAny.__nikCLI?.context?.session?.id ||
         `${Date.now()}`
       todoStore.setTodos(String(sessionId), [])
-    } catch { }
+    } catch {}
 
     // Clear inline HUD in renderPromptArea
     try {
       const nik: any = this.cliInstance
       if (nik?.clearPlanHud) nik.clearPlanHud()
-    } catch { }
+    } catch {}
 
     console.log(chalk.green('🧹 HUD Todos cleared'))
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -4559,7 +4561,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -4569,7 +4571,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Toggle visibility on for inline HUD
       const nik: any = this.cliInstance
       if (nik?.showPlanHud) nik.showPlanHud()
-    } catch { }
+    } catch {}
     try {
       // Prefer latest active plan todos if available
       const plans = enhancedPlanning.getActivePlans?.() || []
@@ -4581,10 +4583,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           priority: (t as any).priority,
           progress: (t as any).progress,
         }))
-          ; (advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
+        ;(advancedUI as any).showTodoDashboard?.(todoItems, latestPlan.title || 'Plan Todos')
         shown = true
       }
-    } catch { }
+    } catch {}
 
     if (!shown) {
       try {
@@ -4606,10 +4608,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             priority: t.priority,
             progress: t.progress,
           }))
-            ; (advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
+          ;(advancedUI as any).showTodoDashboard?.(items, 'Plan Todos')
           shown = true
         }
-      } catch { }
+      } catch {}
     }
 
     if (!shown) {
@@ -4621,7 +4623,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -4640,7 +4642,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -4659,7 +4661,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     try {
       const nik = (global as any).__nikCLI
       nik?.renderPromptAfterOutput?.()
-    } catch { }
+    } catch {}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
@@ -4760,7 +4762,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     // Also set the global currentMode for NikCLI prompt
     if ((global as any).__nikCLI) {
-      ; (global as any).__nikCLI.currentMode = 'default'
+      ;(global as any).__nikCLI.currentMode = 'default'
     }
 
     console.log(chalk.green('💬 Switched to Default Chat Mode'))
@@ -5852,7 +5854,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } catch (error: any) {
       const panel = boxen(
         `Failed to execute web3 command: ${error.message}` +
-        '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
+          '\n\nTips:\n- Ensure CDP_API_KEY_ID and CDP_API_KEY_SECRET are set\n- Run /web3 init first',
         { title: 'Web3 Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
       )
       this.cliInstance.printPanel(panel)

@@ -1,14 +1,14 @@
 import chalk from 'chalk'
 import {
-  Streamtty,
   applySyntaxHighlight,
   colorizeBlock,
-  syntaxColors,
-  StreamEvent,
+  type StreamEvent,
   StreamEventType,
-  StreamProtocol
+  StreamProtocol,
+  Streamtty,
+  syntaxColors,
 } from 'streamtty'
-import { terminalOutputManager, TerminalOutputManager } from '../ui/terminal-output-manager'
+import { TerminalOutputManager, terminalOutputManager } from '../ui/terminal-output-manager'
 
 export type ChunkType = 'ai' | 'tool' | 'thinking' | 'system' | 'error' | 'user' | 'vm' | 'agent'
 
@@ -64,6 +64,14 @@ export class StreamttyService {
 
   private initialize(): void {
     try {
+      // Allow complete disable via env for troubleshooting
+      const disable = (process.env.NIKCLI_NO_STREAMTTY || '').toLowerCase()
+      if (disable && !['0', 'false', ''].includes(disable)) {
+        this.isInitialized = true
+        this.stats.fallbackUsed = true
+        return
+      }
+
       // Only use blessed mode if explicitly requested AND TTY is available
       if (this.useBlessedMode && process.stdout.isTTY) {
         this.streamtty = new Streamtty({
@@ -184,52 +192,60 @@ export class StreamttyService {
    */
   private formatContentByType(content: string, type: ChunkType): string {
     switch (type) {
-      case 'error':
+      case 'error': {
         // Red for errors with unicode symbol
         const highlighted = applySyntaxHighlight(content)
         const errorPrefix = `${syntaxColors.error}▸ ERROR${syntaxColors.reset}\n`
         return errorPrefix + colorizeBlock(highlighted, syntaxColors.error)
+      }
 
-      case 'thinking':
+      case 'thinking': {
         // Dark gray for thinking/cognitive blocks with unicode symbol
         const highlightedThinking = applySyntaxHighlight(content)
         const thinkingPrefix = `${syntaxColors.comment}▸ ${syntaxColors.reset}`
         return thinkingPrefix + colorizeBlock(highlightedThinking, syntaxColors.comment)
+      }
 
-      case 'tool':
+      case 'tool': {
         // Tool output without formatting (raw content)
         const toolPrefix = `${syntaxColors.path}▸ TOOL${syntaxColors.reset}\n`
         return toolPrefix + content
+      }
 
-      case 'system':
+      case 'system': {
         // Light gray for system messages with unicode symbol
         const highlightedSystem = applySyntaxHighlight(content)
         const systemPrefix = `${syntaxColors.reset}▸ ${syntaxColors.reset}`
         return systemPrefix + highlightedSystem
+      }
 
-      case 'user':
+      case 'user': {
         // Bright cyan for user messages with unicode symbol
         const highlightedUser = applySyntaxHighlight(content)
         const userPrefix = `${syntaxColors.title}▸ USER${syntaxColors.reset}\n`
         return userPrefix + colorizeBlock(highlightedUser, syntaxColors.title)
+      }
 
-      case 'vm':
+      case 'vm': {
         // Bright blue for VM messages with unicode symbol
         const highlightedVm = applySyntaxHighlight(content)
         const vmPrefix = `${syntaxColors.title}▸ VM${syntaxColors.reset}\n`
         return vmPrefix + highlightedVm
+      }
 
-      case 'agent':
+      case 'agent': {
         // Magenta for agent messages with unicode symbol
         const highlightedAgent = applySyntaxHighlight(content)
         const agentPrefix = `${syntaxColors.keyword}▸ AGENT${syntaxColors.reset}\n`
         return agentPrefix + colorizeBlock(highlightedAgent, syntaxColors.keyword)
+      }
 
       case 'ai':
-      default:
+      default: {
         // AI content with syntax highlighting applied
         const highlightedAi = applySyntaxHighlight(content)
         return highlightedAi
+      }
     }
   }
 
@@ -362,18 +378,17 @@ export class StreamttyService {
       case 'text_delta':
         return event.content || ''
 
-      case 'tool_call':
+      case 'tool_call': {
         const toolArgs = JSON.stringify(event.toolArgs, null, 2)
         return `\n🔧 ${chalk.bold(event.toolName)}\n${chalk.gray('```json')}\n${toolArgs}\n${chalk.gray('```')}\n\n`
+      }
 
-      case 'tool_result':
-        const resultPreview = typeof event.toolResult === 'string'
-          ? event.toolResult
-          : JSON.stringify(event.toolResult, null, 2)
-        const truncated = resultPreview.length > 200
-          ? resultPreview.slice(0, 200) + '...'
-          : resultPreview
+      case 'tool_result': {
+        const resultPreview =
+          typeof event.toolResult === 'string' ? event.toolResult : JSON.stringify(event.toolResult, null, 2)
+        const truncated = resultPreview.length > 200 ? resultPreview.slice(0, 200) + '...' : resultPreview
         return `\n✓ ${chalk.bold('Result')}: ${truncated}\n\n`
+      }
 
       case 'thinking':
         return `\n${chalk.gray('> 💭')} ${chalk.italic(event.content)}\n\n`
@@ -382,9 +397,10 @@ export class StreamttyService {
         return `\n${chalk.gray('> ⚡')} ${chalk.italic(event.content)}\n\n`
 
       case 'status':
-      case 'step':
+      case 'step': {
         const statusIcon = this.getStatusIcon(event.metadata?.status)
         return `\n${statusIcon} ${chalk.bold(event.content)}\n\n`
+      }
 
       case 'error':
         return `\n❌ ${chalk.red.bold('Error')}: ${event.content}\n\n`
@@ -405,11 +421,11 @@ export class StreamttyService {
    */
   private getStatusIcon(status?: string): string {
     const iconMap: Record<string, string> = {
-      'pending': '⏳',
-      'running': '🔄',
-      'completed': '✅',
-      'failed': '❌',
-      'info': 'ℹ️',
+      pending: '⏳',
+      running: '🔄',
+      completed: '✅',
+      failed: '❌',
+      info: 'ℹ️',
     }
     return iconMap[status || 'info'] || 'ℹ️'
   }
@@ -417,9 +433,7 @@ export class StreamttyService {
   /**
    * Handle an AI SDK stream with full event processing
    */
-  async *handleAIStream(
-    stream: AsyncGenerator<StreamEvent>
-  ): AsyncGenerator<string> {
+  async *handleAIStream(stream: AsyncGenerator<StreamEvent>): AsyncGenerator<string> {
     let accumulated = ''
 
     for await (const event of stream) {
@@ -499,4 +513,3 @@ export const streamttyService = new StreamttyService({
 // Re-export AI SDK types for convenience
 export type { StreamEvent, StreamEventType } from 'streamtty'
 export { StreamProtocol } from 'streamtty'
-

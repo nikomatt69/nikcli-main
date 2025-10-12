@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BlessedRenderer = void 0;
 const blessed_1 = __importDefault(require("blessed"));
+const blessed_syntax_highlighter_1 = require("../utils/blessed-syntax-highlighter");
 class BlessedRenderer {
     constructor(context) {
         this.context = context;
@@ -123,7 +124,8 @@ class BlessedRenderer {
     }
     renderText(token, yOffset) {
         const style = this.defaultStyles.paragraph;
-        let content = this.formatInlineStyles(token.content);
+        let content = (0, blessed_syntax_highlighter_1.applySyntaxHighlightBlessed)(token.content);
+        content = this.formatInlineStyles(content);
         if (token.incomplete) {
             content += '{yellow-fg}...{/yellow-fg}';
         }
@@ -245,21 +247,29 @@ class BlessedRenderer {
         });
     }
     renderBlockquote(token, yOffset) {
-        const style = this.defaultStyles.blockquote;
+        const isThinkingBlock = /^(thinking|cognitive|analyzing|processing)/i.test(token.content);
+        const style = isThinkingBlock
+            ? { fg: 'gray', italic: true }
+            : this.defaultStyles.blockquote;
+        let content = (0, blessed_syntax_highlighter_1.applySyntaxHighlightBlessed)(token.content);
+        content = this.formatInlineStyles(content);
+        if (isThinkingBlock) {
+            content = `{${blessed_syntax_highlighter_1.blessedSyntaxColors.darkGray}}${content}{/${blessed_syntax_highlighter_1.blessedSyntaxColors.darkGray}}`;
+        }
         return blessed_1.default.box({
             parent: this.context.container,
             top: yOffset,
             left: 2,
             width: '100%-4',
             height: 'shrink',
-            content: this.formatInlineStyles(token.content),
+            content,
             tags: true,
             border: {
                 type: 'line',
             },
             style: {
                 border: {
-                    fg: style.fg || 'gray',
+                    fg: isThinkingBlock ? 'gray' : (style.fg || 'gray'),
                     left: false,
                     right: false,
                     top: false,
@@ -337,16 +347,7 @@ class BlessedRenderer {
         if (!this.context.options.syntaxHighlight) {
             return code;
         }
-        const keywords = ['function', 'const', 'let', 'var', 'if', 'else', 'return', 'for', 'while', 'class', 'import', 'export'];
-        let highlighted = code;
-        for (const keyword of keywords) {
-            const regex = new RegExp(`\\b(${keyword})\\b`, 'g');
-            highlighted = highlighted.replace(regex, '{magenta-fg}$1{/magenta-fg}');
-        }
-        highlighted = highlighted.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, '{green-fg}$&{/green-fg}');
-        highlighted = highlighted.replace(/(\/\/.*)$/gm, '{gray-fg}$1{/gray-fg}');
-        highlighted = highlighted.replace(/(\/\*[\s\S]*?\*\/)/g, '{gray-fg}$1{/gray-fg}');
-        return highlighted;
+        return (0, blessed_syntax_highlighter_1.applySyntaxHighlightBlessed)(code);
     }
     getHeadingStyle(depth) {
         const styles = [
@@ -399,6 +400,7 @@ class BlessedRenderer {
             table: { fg: 'cyan' },
             tableHeader: { fg: 'cyan', bold: true },
             hr: { fg: 'gray' },
+            thinking: { fg: 'gray', italic: true },
         };
     }
 }

@@ -17,10 +17,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BlessedRenderer = exports.StreamingMarkdownParser = exports.Streamtty = void 0;
+exports.StreamProtocol = exports.AISDKStreamAdapter = exports.BlessedRenderer = exports.StreamingMarkdownParser = exports.Streamtty = void 0;
 const blessed_1 = __importDefault(require("blessed"));
 const streaming_parser_1 = require("./parser/streaming-parser");
 const blessed_renderer_1 = require("./renderer/blessed-renderer");
+const ai_sdk_adapter_1 = require("./ai-sdk-adapter");
 class Streamtty {
     constructor(options = {}) {
         this.updateInterval = null;
@@ -50,6 +51,14 @@ class Streamtty {
         };
         this.parser = new streaming_parser_1.StreamingMarkdownParser(defaultOptions.parseIncompleteMarkdown);
         this.renderer = new blessed_renderer_1.BlessedRenderer(this.context);
+        this.aiAdapter = new ai_sdk_adapter_1.AISDKStreamAdapter(this, {
+            parseIncompleteMarkdown: defaultOptions.parseIncompleteMarkdown,
+            syntaxHighlight: defaultOptions.syntaxHighlight,
+            formatToolCalls: true,
+            showThinking: true,
+            maxToolResultLength: 200,
+            renderTimestamps: false
+        });
         this.setupKeyBindings();
     }
     createDefaultScreen() {
@@ -168,6 +177,25 @@ class Streamtty {
     getContent() {
         return this.context.buffer.content;
     }
+    async streamEvent(event) {
+        await this.aiAdapter.processEvent(event);
+    }
+    async streamEvents(events) {
+        for await (const event of events) {
+            await this.streamEvent(event);
+        }
+    }
+    async *handleAISDKStream(stream) {
+        for await (const _ of this.aiAdapter.handleAISDKStream(stream)) {
+            yield;
+        }
+    }
+    updateAIOptions(options) {
+        this.aiAdapter.updateOptions(options);
+    }
+    getAIOptions() {
+        return this.aiAdapter.getOptions();
+    }
     destroy() {
         this.stopAutoRender();
         this.clear();
@@ -176,7 +204,19 @@ class Streamtty {
 }
 exports.Streamtty = Streamtty;
 __exportStar(require("./types"), exports);
+__exportStar(require("./types/stream-events"), exports);
 var streaming_parser_2 = require("./parser/streaming-parser");
 Object.defineProperty(exports, "StreamingMarkdownParser", { enumerable: true, get: function () { return streaming_parser_2.StreamingMarkdownParser; } });
 var blessed_renderer_2 = require("./renderer/blessed-renderer");
 Object.defineProperty(exports, "BlessedRenderer", { enumerable: true, get: function () { return blessed_renderer_2.BlessedRenderer; } });
+var ai_sdk_adapter_2 = require("./ai-sdk-adapter");
+Object.defineProperty(exports, "AISDKStreamAdapter", { enumerable: true, get: function () { return ai_sdk_adapter_2.AISDKStreamAdapter; } });
+var stream_protocol_1 = require("./stream-protocol");
+Object.defineProperty(exports, "StreamProtocol", { enumerable: true, get: function () { return stream_protocol_1.StreamProtocol; } });
+__exportStar(require("./streamdown-compat"), exports);
+__exportStar(require("./errors"), exports);
+__exportStar(require("./events"), exports);
+__exportStar(require("./performance"), exports);
+__exportStar(require("./utils/syntax-highlighter"), exports);
+__exportStar(require("./utils/blessed-syntax-highlighter"), exports);
+__exportStar(require("./utils/formatting"), exports);

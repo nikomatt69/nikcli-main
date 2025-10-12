@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 export interface AnalyticsEvent {
   timestamp: Date
@@ -25,7 +26,7 @@ export class AnalyticsManager {
   private analyticsFile: string
   private maxEvents: number = 10000
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = getWorkingDirectory()) {
     this.analyticsFile = join(workingDirectory, '.nikcli-analytics.json')
     this.loadAnalytics()
   }

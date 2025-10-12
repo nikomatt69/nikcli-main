@@ -1,6 +1,7 @@
 import type { CoreMessage } from 'ai'
 import { contextEnhancer } from '../core/context-enhancer'
 import { UnifiedRAGSystem } from './rag-system'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 // Silent RAG/context interceptor for AI calls
 class ContextRAGInterceptor {
@@ -57,7 +58,7 @@ class ContextRAGInterceptor {
     if (first?.role === 'system' && firstText.includes(this.CONTEXT_SENTINEL)) return messages
 
     const smart = await contextEnhancer.getSmartContextForMessages(messages, {
-      workingDirectory: process.cwd(),
+      workingDirectory: getWorkingDirectory(),
       enableRAGIntegration: true,
       enableDocsContext: true,
       enableWorkspaceContext: true,
@@ -93,7 +94,7 @@ class ContextRAGInterceptor {
 
     this.withSilencedConsole(async () => {
       try {
-        await this.rag!.analyzeProject(process.cwd())
+        await this.rag!.analyzeProject(getWorkingDirectory())
       } catch {}
     })
 
@@ -101,7 +102,7 @@ class ContextRAGInterceptor {
       () => {
         this.withSilencedConsole(async () => {
           try {
-            await this.rag!.analyzeProject(process.cwd())
+            await this.rag!.analyzeProject(getWorkingDirectory())
           } catch {}
         })
       },

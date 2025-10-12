@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { ContextAwareRAGSystem } from '../context/context-aware-rag'
@@ -12,9 +13,7 @@ import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
-
-// Bun native file reading with Node.js fallback
-const isBun = typeof Bun !== 'undefined'
+import { getToolchainLearningSystem } from '../core/toolchain-learning'
 
 /**
  * Production-ready Read File Tool
@@ -69,34 +68,24 @@ export class ReadFileTool extends BaseTool {
       // Sanitize and validate file path
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
 
-      // Check file size if maxSize is specified using Bun.file() or fallback
+      // Ensure the path points to a regular file, not a directory
+      const fsPromises = await import('node:fs/promises')
+      const stats = await fsPromises.stat(sanitizedPath)
+      if (stats.isDirectory()) {
+        throw new Error(`Path is a directory, not a file: ${filePath}`)
+      }
+
+      // Check file size if maxSize is specified
       if (validatedOptions.maxSize) {
-        if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
-          const file = (Bun as any).file(sanitizedPath)
-          if (file.size > validatedOptions.maxSize) {
-            throw new Error(`File too large: ${file.size} bytes (max: ${validatedOptions.maxSize})`)
-          }
-        } else {
-          const stats = await import('node:fs/promises').then((fs) => fs.stat(sanitizedPath))
-          if (stats.size > validatedOptions.maxSize) {
-            throw new Error(`File too large: ${stats.size} bytes (max: ${validatedOptions.maxSize})`)
-          }
+        const sizeStats = await import('node:fs/promises').then((fs) => fs.stat(sanitizedPath))
+        if (sizeStats.size > validatedOptions.maxSize) {
+          throw new Error(`File too large: ${sizeStats.size} bytes (max: ${validatedOptions.maxSize})`)
         }
       }
 
-      // Read file using Bun.file() or Node.js fallback
+      // Read file with specified encoding
       const encoding = validatedOptions.encoding || 'utf8'
-      let content: string
-
-      if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
-        // Bun native: ultra-fast file reading
-        const file = (Bun as any).file(sanitizedPath)
-        content = await file.text()
-      } else {
-        // Node.js fallback
-        const { readFile } = await import('node:fs/promises')
-        content = await readFile(sanitizedPath, encoding as BufferEncoding)
-      }
+      const content = await readFile(sanitizedPath, encoding as BufferEncoding)
 
       // Check if this is an image file and perform vision analysis
       const imageAnalysis = await this.performImageAnalysis(sanitizedPath)
@@ -147,6 +136,84 @@ export class ReadFileTool extends BaseTool {
 
       return validatedResult
     } catch (error: any) {
+      // Try to learn from the error and suggest corrections
+      const learningSystem = getToolchainLearningSystem(this.workingDirectory)
+      let correctedPath: string | null = null
+
+      if (learningSystem) {
+        // Determine error type
+        let errorType: 'not_found' | 'is_directory' | 'permission_denied' | 'invalid_path' = 'invalid_path'
+
+        if (error.message.includes('ENOENT') || error.message.includes('not found')) {
+          errorType = 'not_found'
+        } else if (error.message.includes('EISDIR') || error.message.includes('is a directory')) {
+          errorType = 'is_directory'
+        } else if (error.message.includes('EACCES') || error.message.includes('permission denied')) {
+          errorType = 'permission_denied'
+        }
+
+        // Do not attempt auto-correction for directories to keep tool behavior coherent
+        if (errorType === 'is_directory') {
+          const errorResult: ReadFileResult = {
+            success: false,
+            filePath,
+            content: '',
+            size: 0,
+            encoding: options.encoding || 'utf8',
+            error: 'Path is a directory. Use list tools to inspect directories.',
+            metadata: {
+              isEmpty: true,
+              isBinary: false,
+              extension: this.getFileExtension(filePath),
+            },
+          }
+          return errorResult
+        }
+
+        // Record the error and try to get a correction
+        correctedPath = learningSystem.recordPathError(
+          filePath,
+          errorType,
+          error.message,
+          'ReadFileTool'
+        )
+
+        // If we got a correction, try to read the corrected file
+        if (correctedPath) {
+          try {
+            const correctedSanitizedPath = sanitizePath(correctedPath, this.workingDirectory)
+            const correctedContent = await readFile(correctedSanitizedPath, (options.encoding || 'utf8') as BufferEncoding)
+
+            // Record success for learning
+            learningSystem.recordSuccess(filePath, correctedPath)
+
+            // Return successful result with corrected path
+            const result: ReadFileResult = {
+              success: true,
+              filePath: correctedSanitizedPath,
+              content: correctedContent,
+              size: Buffer.byteLength(correctedContent, (options.encoding || 'utf8') as BufferEncoding),
+              encoding: options.encoding || 'utf8',
+              metadata: {
+                lines: correctedContent.split('\n').length,
+                isEmpty: correctedContent.length === 0,
+                isBinary: (options.encoding || 'utf8') !== 'utf8' && (options.encoding || 'utf8') !== 'utf-8',
+                extension: this.getFileExtension(correctedPath),
+                // Indicate this was corrected
+              },
+            }
+
+            // Show correction in UI
+            advancedUI.logInfo(`🔧 Auto-corrected path: ${filePath} → ${correctedPath}`)
+
+            return result
+          } catch (correctedError: any) {
+            // If correction also fails, continue with original error
+            advancedUI.logWarning(`⚠️ Correction attempt failed: ${correctedError.message}`)
+          }
+        }
+      }
+
       const errorResult: ReadFileResult = {
         success: false,
         filePath,
@@ -177,114 +244,58 @@ export class ReadFileTool extends BaseTool {
   }
 
   /**
-   * Read file with streaming for large files (Bun.file().stream() or Node.js streams)
+   * Read file with streaming for large files
    */
   async readStream(filePath: string, chunkSize: number = 1024 * 64): Promise<AsyncIterable<string>> {
     const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
+    const fs = await import('node:fs')
+    const stream = fs.createReadStream(sanitizedPath, {
+      encoding: 'utf8',
+      highWaterMark: chunkSize,
+    })
 
-    if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
-      // Bun native streaming using Bun.file().stream()
-      const file = (Bun as any).file(sanitizedPath)
-      const stream = file.stream()
-      const decoder = new TextDecoder()
-
-      return {
-        async *[Symbol.asyncIterator]() {
-          const reader = stream.getReader()
-          try {
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) break
-              yield decoder.decode(value, { stream: true })
-            }
-          } finally {
-            reader.releaseLock()
-          }
-        },
-      }
-    } else {
-      // Node.js fallback
-      const fs = await import('node:fs')
-      const stream = fs.createReadStream(sanitizedPath, {
-        encoding: 'utf8',
-        highWaterMark: chunkSize,
-      })
-
-      return {
-        async *[Symbol.asyncIterator]() {
-          for await (const chunk of stream) {
-            yield chunk
-          }
-        },
-      }
+    return {
+      async *[Symbol.asyncIterator]() {
+        for await (const chunk of stream) {
+          yield chunk
+        }
+      },
     }
   }
 
   /**
-   * Check if file exists and is readable (Bun.file().exists() or Node.js fs.access)
+   * Check if file exists and is readable
    */
   async canRead(filePath: string): Promise<boolean> {
     try {
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
-
-      if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
-        // Bun native: ultra-fast existence check
-        const file = (Bun as any).file(sanitizedPath)
-        return await file.exists()
-      } else {
-        // Node.js fallback
-        const fs = await import('node:fs/promises')
-        await fs.access(sanitizedPath, fs.constants.R_OK)
-        return true
-      }
+      const fs = await import('node:fs/promises')
+      await fs.access(sanitizedPath, fs.constants.R_OK)
+      return true
     } catch {
       return false
     }
   }
 
   /**
-   * Get file information without reading content (Bun.file() or Node.js fs.stat)
+   * Get file information without reading content
    */
   async getFileInfo(filePath: string): Promise<FileInfo> {
     try {
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
+      const fs = await import('node:fs/promises')
+      const stats = await fs.stat(sanitizedPath)
 
-      if (isBun && typeof Bun !== 'undefined' && 'file' in Bun) {
-        // Bun native: instant file metadata
-        const file = (Bun as any).file(sanitizedPath)
-        const exists = await file.exists()
-
-        if (!exists) {
-          throw new Error(`File not found: ${filePath}`)
-        }
-
-        return {
-          path: sanitizedPath,
-          size: file.size,
-          isFile: file.type !== '',
-          isDirectory: file.type === '',
-          created: new Date(0), // Bun.file doesn't expose birthtime
-          modified: new Date(file.lastModified),
-          accessed: new Date(file.lastModified),
-          extension: this.getFileExtension(filePath),
-          isReadable: exists,
-        }
-      } else {
-        // Node.js fallback
-        const fs = await import('node:fs/promises')
-        const stats = await fs.stat(sanitizedPath)
-
-        return {
-          path: sanitizedPath,
-          size: stats.size,
-          isFile: stats.isFile(),
-          isDirectory: stats.isDirectory(),
-          created: stats.birthtime,
-          modified: stats.mtime,
-          accessed: stats.atime,
-          extension: this.getFileExtension(filePath),
-          isReadable: await this.canRead(filePath),
-        }
+      return {
+        path: sanitizedPath,
+        size: stats.size,
+        isFile: stats.isFile(),
+        isDirectory: stats.isDirectory(),
+        created: stats.birthtime,
+        modified: stats.mtime,
+        accessed: stats.atime,
+        extension: this.getFileExtension(filePath),
+        isReadable: await this.canRead(filePath),
       }
     } catch (error: any) {
       throw new Error(`Failed to get file info: ${error.message}`)

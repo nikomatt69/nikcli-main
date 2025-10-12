@@ -19,7 +19,6 @@ import { ContextEnhancer } from '../core/context-enhancer'
 import { docLibrary } from '../core/documentation-library'
 import { documentationTools } from '../core/documentation-tool'
 import { IDEContextEnricher } from '../core/ide-context-enricher'
-import { streamttyService } from '../services/streamtty-service'
 import {
   PerformanceOptimizer,
   QuietCacheLogger,
@@ -32,6 +31,7 @@ import { ToolRouter } from '../core/tool-router'
 import { type ValidationContext, validatorManager } from '../core/validator-manager'
 import { WebSearchProvider } from '../core/web-search-provider'
 import { PromptManager } from '../prompts/prompt-manager'
+import { streamttyService } from '../services/streamtty-service'
 import { aiDocsTools } from '../tools/docs-request-tool'
 import { smartDocsTools } from '../tools/smart-docs-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -39,6 +39,7 @@ import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { compactAnalysis, safeStringifyContext } from '../utils/analysis-utils'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 const cognitiveColor = chalk.hex('#3a3a3a')
 
@@ -248,6 +249,8 @@ export class AdvancedAIProvider implements AutonomousProvider {
     // Add recent messages in reverse order until we hit the limit
     for (let i = recentMessages.length - 1; i >= 0; i--) {
       const msg = recentMessages[i]
+      if (!msg) continue
+      if (!msg) continue
       const msgTokens = this.estimateTokens(typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content))
 
       if (accumulatedTokens + msgTokens > maxTokens) {
@@ -300,7 +303,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
   }
 
   private currentModel: string
-  private workingDirectory: string = process.cwd()
+  private workingDirectory: string = getWorkingDirectory()
   private executionContext: Map<string, any> = new Map()
   private enhancedContext: Map<string, any> = new Map()
   private conversationMemory: CoreMessage[] = []
@@ -789,10 +792,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
               formatter: validationResult?.formatter,
               validation: validationResult
                 ? {
-                  isValid: validationResult.isValid,
-                  errors: validationResult.errors,
-                  warnings: validationResult.warnings,
-                }
+                    isValid: validationResult.isValid,
+                    errors: validationResult.errors,
+                    warnings: validationResult.warnings,
+                  }
                 : null,
               reasoning: reasoning || `File ${backedUp ? 'updated' : 'created'} by agent`,
             }
@@ -1125,8 +1128,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
             ? lastUserMessage.content
             : Array.isArray(lastUserMessage.content)
               ? lastUserMessage.content
-                .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
-                .join('')
+                  .map((part) => (typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''))
+                  .join('')
               : String(lastUserMessage.content)
 
         // Use ToolRouter for intelligent tool analysis
@@ -1251,10 +1254,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
         maxToolRoundtrips: isAnalysisRequest ? 40 : 60, // Increased for deeper analysis and toolchains
         temperature: params.temperature,
         abortSignal,
-        onStepFinish: (_evt: any) => { },
+        onStepFinish: (_evt: any) => {},
       }
-
-
 
       if (provider !== 'openai' && provider !== 'openrouter') {
         streamOpts.maxTokens = params.maxTokens
@@ -1467,10 +1468,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     ? lastUserMessage.content
                     : Array.isArray(lastUserMessage.content)
                       ? lastUserMessage.content
-                        .map((part) =>
-                          typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
-                        )
-                        .join('')
+                          .map((part) =>
+                            typeof part === 'string' ? part : part.experimental_providerMetadata?.content || ''
+                          )
+                          .join('')
                       : String(lastUserMessage.content)
 
                 // Salva nella cache intelligente
@@ -2150,8 +2151,8 @@ Requirements:
       const routingCfg = configManager.get('modelRouting')
       const resolved = routingCfg?.enabled
         ? await this.resolveAdaptiveModel('code_gen', [
-          { role: 'user', content: `${type}: ${description} (${language})` } as any,
-        ])
+            { role: 'user', content: `${type}: ${description} (${language})` } as any,
+          ])
         : undefined
       const model = this.getModel(resolved) as any
       const params = this.getProviderParams()
@@ -2208,7 +2209,7 @@ Requirements:
         const msg = `[Router] ${info.name} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
         if (nik?.advancedUI) nik.advancedUI.logInfo('model router', msg)
         else console.log(chalk.dim(msg))
-      } catch { }
+      } catch {}
 
       // The router returns a provider model id. Our config keys match these ids in default models.
       // If key is missing, fallback to current model name in config.
@@ -3521,6 +3522,7 @@ Use this cognitive understanding to provide more targeted and effective response
     const commandCounts = new Map<string, number>()
     this.commandHistory.forEach((cmd) => {
       const key = cmd.command.command.split(' ')[0]
+
       commandCounts.set(key, (commandCounts.get(key) || 0) + 1)
     })
 

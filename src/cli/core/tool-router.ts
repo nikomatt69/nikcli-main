@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 // ⚡︎ Import Cognitive Types
 import type { OrchestrationPlan, TaskCognition } from '../automation/agents/universal-agent'
@@ -59,7 +60,7 @@ export interface ToolRecommendation {
 export class ToolRouter extends EventEmitter {
   private toolRegistry: ToolRegistry
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = getWorkingDirectory()) {
     super()
     // 🔧 Initialize unified tool registry
     this.toolRegistry = new ToolRegistry(workingDirectory)
@@ -728,7 +729,6 @@ export class ToolRouter extends EventEmitter {
         const confidenceColor = rec.confidence > 0.7 ? chalk.green : rec.confidence > 0.4 ? chalk.yellow : chalk.red
 
         if (rec.suggestedParams && Object.keys(rec.suggestedParams).length > 0) {
-
         }
       }
     })

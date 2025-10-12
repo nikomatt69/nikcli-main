@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import { ListDirectoryTool, ReadFileTool, ReplaceInFileTool, sanitizePath, WriteFileTool } from './secure-file-tools'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 export type { BatchSession } from './secure-command-tool'
 
@@ -62,7 +63,7 @@ export class SecureToolsRegistry {
   private executionHistory: ToolResult[] = []
 
   constructor(workingDir?: string) {
-    this.workingDirectory = workingDir || process.cwd()
+    this.workingDirectory = workingDir || getWorkingDirectory()
 
     // Initialize secure tools
     this.readFileTool = new ReadFileTool(this.workingDirectory)

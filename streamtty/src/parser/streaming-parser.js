@@ -1,13 +1,16 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StreamingMarkdownParser = void 0;
-const marked_1 = require("marked");
+const marked_1 = __importDefault(require("marked"));
 class StreamingMarkdownParser {
     constructor(parseIncomplete = true) {
         this.buffer = '';
         this.tokens = [];
         this.parseIncomplete = parseIncomplete;
-        marked_1.marked.setOptions({
+        marked_1.default.setOptions({
             gfm: true,
             breaks: true,
         });
@@ -30,7 +33,7 @@ class StreamingMarkdownParser {
     }
     parse() {
         try {
-            const markedTokens = marked_1.marked.lexer(this.buffer);
+            const markedTokens = marked_1.default.lexer(this.buffer);
             const processedTokens = this.processInlineTokens(markedTokens);
             this.tokens = this.convertTokens(processedTokens);
             if (this.parseIncomplete) {
@@ -302,7 +305,7 @@ class StreamingMarkdownParser {
                 };
             case 'blockquote':
                 const blockquote = token;
-                return blockquote.tokens.map(t => this.convertToken(t)).flat().filter(Boolean);
+                return blockquote.tokens.map((t) => this.convertToken(t)).flat().filter(Boolean);
             case 'list':
                 const list = token;
                 return list.items.map((item, index) => ({

@@ -13,6 +13,7 @@ import { createFileFilter, type FileFilterSystem } from './file-filter-system'
 import { unifiedRAGSystem } from './rag-system'
 import { semanticSearchEngine } from './semantic-search-engine'
 import { unifiedEmbeddingInterface } from './unified-embedding-interface'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 export interface FileContext {
   path: string
@@ -130,7 +131,7 @@ export class WorkspaceContextManager {
   private ragAnalysisPromise: Promise<any> | null = null
   private ragInitialized = false
 
-  constructor(rootPath: string = process.cwd()) {
+  constructor(rootPath: string = getWorkingDirectory()) {
     this.context = {
       rootPath,
       selectedPaths: [rootPath],

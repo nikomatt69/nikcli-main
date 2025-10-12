@@ -6,6 +6,7 @@ import { AutonomousPlanner, type PlanningEvent } from '../planning/autonomous-pl
 import { PlanGenerator } from '../planning/plan-generator'
 import type { ExecutionPlan, PlannerContext, PlanningToolCapability, PlanTodo } from '../planning/types'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { getWorkingDirectory } from '../utils/working-dir'
 import { taskMasterService } from './taskmaster-service'
 import { type ToolCapability, toolService } from './tool-service'
 
@@ -25,7 +26,7 @@ export class PlanningService {
   private planGenerator: PlanGenerator
   private autonomousPlanner: AutonomousPlanner
   private activePlans: Map<string, ExecutionPlan> = new Map()
-  private workingDirectory: string = process.cwd()
+  private workingDirectory: string = getWorkingDirectory()
   private availableTools: ToolCapability[] = []
   private taskMasterAdapter: TaskMasterAdapter
   private useTaskMasterByDefault: boolean = true
@@ -198,6 +199,12 @@ export class PlanningService {
 
   setWorkingDirectory(dir: string): void {
     this.workingDirectory = dir
+    try {
+      // Recreate planner with the new workspace
+      this.autonomousPlanner = new AutonomousPlanner(this.workingDirectory)
+      // Refresh available tools bound to working directory
+      this.initializeTools()
+    } catch {}
   }
 
   /**
@@ -259,7 +266,6 @@ export class PlanningService {
     // Show dashboard for TaskMaster plans or when showProgress is enabled
     const isTaskMasterPlan = shouldUseTaskMaster && this.taskMasterAdapter.isTaskMasterAvailable()
     if (options.showProgress || isTaskMasterPlan) {
-
       await this.showDashboard(plan)
     }
 
@@ -333,8 +339,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'pending' })
             break
           case 'plan_created':
@@ -351,8 +357,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: 'in_progress' })
             break
           case 'todo_progress':
@@ -365,8 +371,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'todo_complete':
             if (!superCompact) advancedUI.logSuccess('Todo completed', '✓')
@@ -382,8 +388,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             this.emitPlanEvent({ ...event, planId: plan.id, todoStatus: event.error ? 'failed' : 'completed' })
             break
           case 'plan_failed':
@@ -398,8 +404,8 @@ export class PlanningService {
                 priority: (t as any).priority,
                 progress: (t as any).progress,
               }))
-                ; (advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
-            } catch { }
+              ;(advancedUI as any).showTodoDashboard?.(items, plan.title || 'Plan Todos')
+            } catch {}
             break
           case 'plan_complete':
             this.updatePlanStatus(plan.id, 'completed')
@@ -416,10 +422,10 @@ export class PlanningService {
         if (nik) {
           try {
             nik.assistantProcessing = false
-          } catch { }
+          } catch {}
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
-      } catch { }
+      } catch {}
     } finally {
       // Always render prompt after execution cycle
       try {
@@ -427,19 +433,17 @@ export class PlanningService {
         if (nik) {
           try {
             nik.assistantProcessing = false
-          } catch { }
+          } catch {}
           if (typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
         }
         // Disable possible bypass and resume prompt
         try {
           const { inputQueue } = await import('../core/input-queue')
           inputQueue.disableBypass()
-        } catch { }
-      } catch { }
+        } catch {}
+      } catch {}
     }
   }
-
-
 
   /**
    * Get all active plans
@@ -485,7 +489,7 @@ export class PlanningService {
           progress: typeof t.progress === 'number' ? t.progress : 0,
         }))
         todoStore.setTodos(String(sessionId), list)
-      } catch { }
+      } catch {}
     }
   }
 
@@ -514,7 +518,7 @@ export class PlanningService {
             progress: typeof t.progress === 'number' ? t.progress : 0,
           }))
           todoStore.setTodos(String(sessionId), list)
-        } catch { }
+        } catch {}
       }
     }
   }
@@ -596,7 +600,7 @@ export class PlanningService {
         priority: (t as any).priority,
         progress: (t as any).progress,
       }))
-        ; (advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
+      ;(advancedUI as any).showTodoDashboard?.(todoItems, plan.title || 'Plan Todos')
     } catch (error: any) {
       advancedUI.logWarning(`Could not show dashboard: ${error.message}`)
     }

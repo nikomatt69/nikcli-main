@@ -6,6 +6,8 @@ import { promisify } from 'node:util'
 import chalk from 'chalk'
 import { createFileFilter } from '../context/file-filter-system'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { sanitizePath } from './secure-file-tools'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 const execAsync = promisify(exec)
 
@@ -63,18 +65,21 @@ export class ToolsManager {
   private commandHistory: Array<{ command: string; timestamp: Date; success: boolean; output: string }> = []
 
   constructor(workingDir?: string) {
-    this.workingDirectory = workingDir || process.cwd()
+    this.workingDirectory = workingDir || getWorkingDirectory()
   }
 
   // File Operations
   async readFile(filePath: string): Promise<FileInfo> {
-    const fullPath = path.resolve(this.workingDirectory, filePath)
+    const fullPath = sanitizePath(filePath, this.workingDirectory)
 
     if (!fs.existsSync(fullPath)) {
       throw new Error(`File not found: ${filePath}`)
     }
 
     const stats = fs.statSync(fullPath)
+    if (!stats.isFile()) {
+      throw new Error(`Path is not a file: ${filePath}`)
+    }
     const content = fs.readFileSync(fullPath, 'utf8')
     const extension = path.extname(fullPath).slice(1)
 
@@ -89,7 +94,7 @@ export class ToolsManager {
   }
 
   async writeFile(filePath: string, content: string): Promise<void> {
-    const fullPath = path.resolve(this.workingDirectory, filePath)
+    const fullPath = sanitizePath(filePath, this.workingDirectory)
     const dir = path.dirname(fullPath)
 
     // Create directory if it doesn't exist
@@ -128,7 +133,7 @@ export class ToolsManager {
   }
 
   async listFiles(directory: string = '.', pattern?: RegExp): Promise<string[]> {
-    const fullPath = path.resolve(this.workingDirectory, directory)
+    const fullPath = sanitizePath(directory, this.workingDirectory)
 
     if (!fs.existsSync(fullPath)) {
       throw new Error(`Directory not found: ${directory}`)

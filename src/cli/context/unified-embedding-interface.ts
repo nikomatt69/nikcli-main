@@ -306,7 +306,7 @@ export class UnifiedEmbeddingInterface {
     this.stats.cacheHitRate =
       this.stats.totalQueries > 0
         ? (this.stats.totalQueries - Object.values(this.stats.byProvider).reduce((sum, p) => sum + p.count, 0)) /
-        this.stats.totalQueries
+          this.stats.totalQueries
         : 0
 
     return { ...this.stats }

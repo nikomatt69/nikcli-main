@@ -1,6 +1,6 @@
 {
   "name": "streamtty",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A drop-in replacement for markdown rendering in TTY, designed for AI-powered streaming with blessed",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
