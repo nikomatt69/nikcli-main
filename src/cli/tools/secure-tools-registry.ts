@@ -82,6 +82,16 @@ export class SecureToolsRegistry {
 
     console.log(chalk.green('🔒 Secure Tools Registry initialized'))
     console.log(chalk.gray(`📁 Working directory: ${this.workingDirectory}`))
+    try {
+      const distNotice = this.workingDirectory.includes(`${require('node:path').sep}dist${require('node:path').sep}`)
+      if (distNotice) {
+        console.log(
+          chalk.yellow(
+            '⚠️ Working directory appears inside a dist build. Consider setting NIKCLI_WORKSPACE to project root.'
+          )
+        )
+      }
+    } catch {}
   }
 
   /**

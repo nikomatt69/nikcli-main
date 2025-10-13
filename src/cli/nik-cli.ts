@@ -326,7 +326,7 @@ export class NikCLI {
   private isPrintingPanel: boolean = false
 
   constructor() {
-    this.workingDirectory = process.cwd()
+    this.workingDirectory = getWorkingDirectory()
     this.projectContextFile = path.join(this.workingDirectory, 'NIKOCLI.md')
 
     // Compact mode by default (cleaner output unless explicitly disabled)

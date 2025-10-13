@@ -171,7 +171,10 @@ export class ToolsManager {
             // Check if file should be included using FileFilterSystem
             const filterResult = fileFilter.shouldIncludeFile(itemPath, this.workingDirectory)
             if (filterResult.allowed && (!pattern || pattern.test(relativePath))) {
-              files.push(path.relative(directory, relativePath))
+              // Return path relative to the requested search root (fullPath)
+              // Avoid computing relative to the original input string (e.g. 'src')
+              // which could produce incorrect paths like '../file' when directory is not absolute
+              files.push(relativePath)
             }
           }
         }
@@ -229,47 +232,84 @@ export class ToolsManager {
       sudo?: boolean
     } = {}
   ): Promise<{ stdout: string; stderr: string; code: number; pid?: number }> {
-    const fullCommand = options.sudo ? `sudo ${command} ${args.join(' ')}` : `${command} ${args.join(' ')}`
     const cwd = options.cwd ? path.resolve(this.workingDirectory, options.cwd) : this.workingDirectory
     const env = { ...process.env, ...options.env }
 
-    advancedUI.logFunctionUpdate('info', `⚡ Executing: ${fullCommand}`)
+    // Build arg array safely; prepend sudo as a separate executable when requested
+    const executable = options.sudo ? 'sudo' : command
+    const execArgs = options.sudo ? [command, ...args] : [...args]
+
+    const printable = `${executable} ${execArgs.map((a) => (a.includes(' ') ? `'${a}'` : a)).join(' ')}`
+    advancedUI.logFunctionUpdate('info', `⚡ Executing: ${printable}`)
     advancedUI.logFunctionUpdate('info', `📁 Working directory: ${cwd}`)
 
     try {
       const startTime = Date.now()
 
       if (options.stream || options.interactive) {
-        return await this.runCommandStream(fullCommand, { cwd, env, interactive: options.interactive })
+        // Use spawn directly for streaming/interactive to avoid shell parsing issues
+        return await this.runCommandSpawn(executable, execArgs, { cwd, env, interactive: options.interactive })
       } else {
-        const { stdout, stderr } = await execAsync(fullCommand, {
-          cwd,
-          timeout: options.timeout || 60000,
-          env,
-          maxBuffer: 1024 * 1024 * 10, // 10MB buffer
-        })
-
+        // Use spawn and collect buffers to avoid shell interpolation bugs
+        const result = await this.runSpawnCollect(executable, execArgs, { cwd, env, timeout: options.timeout || 60000 })
         const duration = Date.now() - startTime
-        this.addToHistory(fullCommand, true, stdout + stderr)
-
-        advancedUI.logFunctionUpdate('success', `✓ Command completed in ${duration}ms`)
-        return { stdout, stderr, code: 0 }
+        this.addToHistory(printable, result.code === 0, result.stdout + result.stderr)
+        if (result.code === 0) {
+          advancedUI.logFunctionUpdate('success', `✓ Command completed in ${duration}ms`)
+        }
+        return result
       }
     } catch (error: any) {
-      const _duration = Date.now() - Date.now()
-      this.addToHistory(fullCommand, false, error.message)
-
-      advancedUI.logFunctionUpdate('error', `❌ Command failed: ${fullCommand}`)
+      this.addToHistory(printable, false, error.message)
+      advancedUI.logFunctionUpdate('error', `❌ Command failed: ${printable}`)
       advancedUI.logFunctionCall('tools-manager')
       advancedUI.logFunctionUpdate('info', `Error: ${error.message}`)
       advancedUI.logFunctionCall('tools-manager')
-
       return {
-        stdout: error.stdout || '',
-        stderr: error.stderr || error.message,
-        code: error.code || 1,
+        stdout: '',
+        stderr: error.message,
+        code: 1,
       }
     }
+  }
+
+  private runSpawnCollect(
+    executable: string,
+    args: string[],
+    opts: { cwd: string; env: any; timeout: number }
+  ): Promise<{ stdout: string; stderr: string; code: number; pid?: number }> {
+    return new Promise((resolve) => {
+      let stdout = ''
+      let stderr = ''
+      const child = spawn(executable, args, { cwd: opts.cwd, env: opts.env })
+
+      const killTimer = setTimeout(() => {
+        try {
+          child.kill('SIGTERM')
+        } catch {}
+      }, opts.timeout)
+
+      child.stdout?.on('data', (d) => (stdout += d.toString()))
+      child.stderr?.on('data', (d) => (stderr += d.toString()))
+      child.on('close', (code) => {
+        clearTimeout(killTimer)
+        resolve({ stdout, stderr, code: code ?? 0, pid: child.pid || undefined })
+      })
+      child.on('error', (err) => {
+        clearTimeout(killTimer)
+        resolve({ stdout, stderr: err.message, code: 1, pid: child.pid || undefined })
+      })
+    })
+  }
+
+  private async runCommandSpawn(
+    executable: string,
+    args: string[],
+    options: { cwd: string; env: any; interactive?: boolean }
+  ): Promise<{ stdout: string; stderr: string; code: number; pid: number }> {
+    // Delegate to stream variant but without shell, keeping previous behavior otherwise
+    const command = [executable, ...args].join(' ')
+    return this.runCommandStream(command, { cwd: options.cwd, env: options.env, interactive: options.interactive })
   }
 
   private async runCommandStream(

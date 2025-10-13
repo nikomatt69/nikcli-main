@@ -128,7 +128,7 @@ export const restoreSnapshotTool = tool({
       return {
         success: true,
         snapshotId,
-        targetPath: targetPath || process.cwd(),
+        targetPath: targetPath || require('../utils/working-dir').getWorkingDirectory(),
         overwrite,
         backup,
         message: `Snapshot restored successfully`,

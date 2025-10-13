@@ -791,7 +791,7 @@ export class VMOrchestrator extends EventEmitter {
       const { SecureVirtualizedAgent } = await import('./secure-vm-agent')
 
       // Create agent instance
-      const agent = new SecureVirtualizedAgent(process.cwd(), {
+      const agent = new SecureVirtualizedAgent(require('../utils/working-dir').getWorkingDirectory(), {
         agentId: config.agentId,
         name: `VM Agent ${config.agentId}`,
         description: `Autonomous VM agent for ${config.repositoryUrl}`,

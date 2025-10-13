@@ -1,13 +1,35 @@
 import chalk from 'chalk'
-import {
-  applySyntaxHighlight,
-  colorizeBlock,
-  type StreamEvent,
-  StreamEventType,
-  StreamProtocol,
-  Streamtty,
-  syntaxColors,
-} from 'streamtty'
+// Optional import of streamtty with graceful fallback if not installed
+let applySyntaxHighlight: any
+let colorizeBlock: any
+let StreamProtocol: any
+let Streamtty: any
+let syntaxColors: any
+type StreamEvent = any
+let StreamEventType: any
+try {
+  ;({
+    applySyntaxHighlight,
+    colorizeBlock,
+    StreamProtocol,
+    Streamtty,
+    syntaxColors,
+    StreamEventType,
+  } = require('streamtty'))
+} catch {
+  // Minimal fallbacks for build environments without streamtty
+  applySyntaxHighlight = (s: string) => s
+  colorizeBlock = (s: string) => s
+  StreamProtocol = {
+    createTextDelta: (s: string) => ({ type: 'text_delta', content: s }),
+    createThinking: (s: string) => ({ type: 'thinking', content: s }),
+    createError: (s: string) => ({ type: 'error', content: s }),
+    createStatus: (s: string) => ({ type: 'status', content: s }),
+  }
+  Streamtty = null
+  syntaxColors = { comment: '', error: '', reset: '', path: '', title: '', keyword: '' }
+  StreamEventType = {}
+}
 import { TerminalOutputManager, terminalOutputManager } from '../ui/terminal-output-manager'
 
 export type ChunkType = 'ai' | 'tool' | 'thinking' | 'system' | 'error' | 'user' | 'vm' | 'agent'
@@ -39,7 +61,7 @@ export interface RenderStats {
  * Routes all AI chunks, UI messages, and system output through streamtty for consistent formatting
  */
 export class StreamttyService {
-  private streamtty: Streamtty | null = null
+  private streamtty: any | null = null
   private isInitialized = false
   private useBlessedMode = false
   private stats: RenderStats = {
@@ -326,7 +348,7 @@ export class StreamttyService {
   /**
    * Get streamtty instance for advanced usage
    */
-  getStreamttyInstance(): Streamtty | null {
+  getStreamttyInstance(): any | null {
     return this.streamtty
   }
 
@@ -511,5 +533,5 @@ export const streamttyService = new StreamttyService({
 })
 
 // Re-export AI SDK types for convenience
-export type { StreamEvent, StreamEventType } from 'streamtty'
-export { StreamProtocol } from 'streamtty'
+export type { StreamEvent }
+export { StreamProtocol }
