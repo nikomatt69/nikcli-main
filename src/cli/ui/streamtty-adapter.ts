@@ -1,4 +1,10 @@
-import { Streamtty } from 'streamtty'
+// Optional import of streamtty; fallback to null if unavailable
+let Streamtty: any
+try {
+  ;({ Streamtty } = require('streamtty'))
+} catch {
+  Streamtty = null
+}
 import { TerminalOutputManager, terminalOutputManager } from './terminal-output-manager'
 
 export interface StreamttyOptions {
@@ -15,7 +21,7 @@ export interface StreamttyOptions {
  * Handles low-level streamtty instance management and fallback logic
  */
 export class StreamttyAdapter {
-  private streamtty: Streamtty | null = null
+  private streamtty: any | null = null
   private isInitialized = false
   private useBlessedMode = false
 
@@ -156,7 +162,7 @@ export class StreamttyAdapter {
   /**
    * Get Streamtty instance (for advanced usage)
    */
-  getStreamttyInstance(): Streamtty | null {
+  getStreamttyInstance(): any | null {
     return this.streamtty
   }
 

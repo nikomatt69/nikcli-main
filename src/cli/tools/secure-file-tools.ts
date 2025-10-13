@@ -28,7 +28,7 @@ export function sanitizePath(filePath: string, workingDir: string = getWorkingDi
     // Ensure the resolved path is within the working directory using a robust relative check
     const workingDirAbsolute = path.resolve(workingDir)
     const relativeToWD = path.relative(workingDirAbsolute, absolutePath)
-    if (relativeToWD.startsWith('..') || path.isAbsolute(relativeToWD)) {
+    if (relativeToWD.startsWith('..')) {
       throw new Error(`Path traversal detected: ${filePath} resolves outside working directory`)
     }
 
@@ -36,7 +36,7 @@ export function sanitizePath(filePath: string, workingDir: string = getWorkingDi
   } catch (error: any) {
     // Try to learn from the error and suggest corrections
     const learningSystem = getToolchainLearningSystem(workingDir)
-    
+
     if (learningSystem) {
       // Record the error for learning
       const correctedPath = learningSystem.recordPathError(
@@ -103,8 +103,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
   // Start batch approval process
   batchApprovalState.approvalInProgress = true
   try {
-    ;(global as any).__nikCLI?.suspendPrompt?.()
-  } catch {}
+    ; (global as any).__nikCLI?.suspendPrompt?.()
+  } catch { }
   inputQueue.enableBypass()
 
   try {
@@ -134,8 +134,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
     batchApprovalState.approvalInProgress = false
     // Ensure prompt resumes cleanly after batch approval
     try {
-      ;(global as any).__nikCLI?.resumePromptAndRender?.()
-    } catch {}
+      ; (global as any).__nikCLI?.resumePromptAndRender?.()
+    } catch { }
   }
 }
 

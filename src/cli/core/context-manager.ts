@@ -433,7 +433,7 @@ export class ContextManager {
   ): Promise<{ enhancedMessages: CoreMessage[]; smartContext?: SmartContext }> {
     try {
       const contextOptions = {
-        workingDirectory: process.cwd(),
+        workingDirectory: require('../utils/working-dir').getWorkingDirectory(),
         executionContext: new Map(),
         conversationMemory: messages.slice(-10), // Last 10 for memory
         analysisCache: new Map(),
@@ -768,7 +768,7 @@ export class ContextManager {
     advancedUI.logFunctionUpdate('info', 'Analyzing workspace...', 'ℹ')
 
     try {
-      const cwd = process.cwd()
+      const cwd = require('../utils/working-dir').getWorkingDirectory()
       const summary: ContextSummary = {
         totalFiles: 0,
         totalDirs: 0,

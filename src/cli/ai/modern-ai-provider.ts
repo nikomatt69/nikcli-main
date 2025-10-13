@@ -40,7 +40,7 @@ export class ModernAIProvider {
 
   constructor() {
     this.currentModel = simpleConfigManager.get('currentModel')
-    this.promptManager = PromptManager.getInstance(process.cwd())
+    this.promptManager = PromptManager.getInstance(this.workingDirectory)
   }
 
   /**
@@ -304,7 +304,7 @@ export class ModernAIProvider {
     const technologies = this.detectTechnologies(packageInfo, structure)
 
     return {
-      rootPath: relative(process.cwd(), rootPath),
+      rootPath: relative(this.workingDirectory, rootPath),
       packageInfo: packageInfo
         ? {
           name: packageInfo.name,

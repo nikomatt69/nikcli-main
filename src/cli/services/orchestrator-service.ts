@@ -6,7 +6,6 @@ import { simpleConfigManager as configManager } from '../core/config-manager'
 import { type ModuleContext, ModuleManager } from '../core/module-manager'
 import { MiddlewareBootstrap, middlewareManager } from '../middleware'
 import { ExecutionPolicyManager } from '../policies/execution-policy'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { type AgentTask, agentService } from './agent-service'
 import { lspService } from './lsp-service'
@@ -100,9 +99,9 @@ export class OrchestratorService extends EventEmitter {
       this.originalRawMode = (process.stdin as any).isRaw || false
       require('readline').emitKeypressEvents(process.stdin)
       if (!(process.stdin as any).isRaw) {
-        ;(process.stdin as any).setRawMode(true)
+        ; (process.stdin as any).setRawMode(true)
       }
-      ;(process.stdin as any).resume()
+      ; (process.stdin as any).resume()
     }
 
     // Handle keypress events
@@ -149,7 +148,7 @@ export class OrchestratorService extends EventEmitter {
         this.keypressHandler = undefined
       }
       if (process.stdin.isTTY && typeof this.originalRawMode === 'boolean') {
-        ;(process.stdin as any).setRawMode(this.originalRawMode)
+        ; (process.stdin as any).setRawMode(this.originalRawMode)
       }
     } catch {
       // ignore
@@ -180,19 +179,19 @@ export class OrchestratorService extends EventEmitter {
       // Avoid duplicate logging if NikCLI is active
       const nikCliActive = (global as any).__nikCLI?.eventsSubscribed
       if (!nikCliActive) {
-        console.log(chalk.magenta(`   ${task.agentType} using ${update.tool}: ${update.description}`))
+        console.log(chalk.magenta(`  🔧 ${task.agentType} using ${update.tool}: ${update.description}`))
       }
     })
 
     agentService.on('task_complete', (task: AgentTask) => {
       this.activeAgentTasks.delete(task.id)
       if (task.status === 'completed') {
-        advancedUI.logFunctionUpdate('success', `Agent ${task.agentType} completed successfully`, '✓')
+        console.log(chalk.green(`✓ Agent ${task.agentType} completed successfully`))
         if (task.result) {
           this.displayAgentResult(task)
         }
       } else {
-        advancedUI.logFunctionUpdate('error', `Agent ${task.agentType} failed: ${task.error}`, '❌')
+        console.log(chalk.red(`❌ Agent ${task.agentType} failed: ${task.error}`))
       }
 
       // Check if all background tasks are complete and return to default mode
@@ -237,7 +236,7 @@ export class OrchestratorService extends EventEmitter {
     await lspService.autoStartServers(this.context.workingDirectory)
 
     this.initialized = true
-    advancedUI.logFunctionUpdate('success', 'All services initialized', '✓')
+    console.log(chalk.dim('🚀 All services initialized'))
   }
 
   private async handleInput(input: string): Promise<void> {
@@ -258,11 +257,7 @@ export class OrchestratorService extends EventEmitter {
       )
 
       if (!middlewareResult.success) {
-        advancedUI.logFunctionUpdate(
-          'error',
-          `Operation blocked: ${middlewareResult.error?.message || 'Unknown error'}`,
-          '❌'
-        )
+        console.log(chalk.red(`❌ Operation blocked: ${middlewareResult.error?.message || 'Unknown error'}`))
         return
       }
 
@@ -284,7 +279,7 @@ export class OrchestratorService extends EventEmitter {
       // Handle natural language requests
       await this.handleNaturalLanguageRequest(input)
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `Error processing input: ${error.message}`, '❌')
+      console.log(chalk.red(`❌ Error processing input: ${error.message}`))
     } finally {
       this.context.isProcessing = false
     }
@@ -350,7 +345,7 @@ export class OrchestratorService extends EventEmitter {
       // Enable compact stream to reduce noisy logs in plan mode
       try {
         process.env.NIKCLI_COMPACT = '1'
-      } catch {}
+      } catch { }
       try {
         // Create execution plan first
         console.log(chalk.cyan('🎯 Plan Mode: Creating execution plan...'))
@@ -509,22 +504,15 @@ export class OrchestratorService extends EventEmitter {
   }
 
   private displayAgentResult(task: AgentTask): void {
-    const { OutputFormatter } = require('../ui/output-formatter')
     const cleanResult = this.formatTaskResult(task.result)
-    const duration =
-      task.endTime && task.startTime ? Math.round((task.endTime.getTime() - task.startTime.getTime()) / 1000) : 0
-
-    // Apply rich formatting to the result content
-    // Content is already markdown - streamttyService will handle rendering
-    const formattedResult = cleanResult
-
     this.cliInstance.printPanel(
       boxen(
         `${chalk.green.bold('🎉 Agent Result')}\\n\\n` +
-          `${chalk.blue('Agent:')} ${task.agentType}\\n` +
-          `${chalk.blue('Task:')} ${task.task.slice(0, 60)}...\\n` +
-          `${chalk.blue('Duration:')} ${duration}s\\n\\n` +
-          `${chalk.cyan('Result:')}\\n${formattedResult}`,
+        `${chalk.blue('Agent:')} ${task.agentType}\\n` +
+        `${chalk.blue('Task:')} ${task.task.slice(0, 60)}...\\n` +
+        `${chalk.blue('Duration:')} ${task.endTime && task.startTime ? Math.round((task.endTime.getTime() - task.startTime.getTime()) / 1000) : 0
+        }s\\n\\n` +
+        `${chalk.cyan('Result:')} ${cleanResult}`,
         {
           padding: 1,
           margin: 1,
@@ -571,14 +559,14 @@ export class OrchestratorService extends EventEmitter {
     this.cliInstance.printPanel(
       boxen(
         `${chalk.blue.bold('🎛️  Orchestrator Status')}\\n\\n` +
-          `${chalk.green('Working Directory:')} ${this.context.workingDirectory}\\n` +
-          `${chalk.green('Mode:')} ${this.context.autonomous ? 'Autonomous' : 'Manual'}\\n` +
-          `${chalk.green('Plan Mode:')} ${this.context.planMode ? 'On' : 'Off'}\\n` +
-          `${chalk.green('Auto-Accept:')} ${this.context.autoAcceptEdits ? 'On' : 'Off'}\\n\\n` +
-          `${chalk.cyan('Active Agents:')} ${activeAgents.length}/3\\n` +
-          `${chalk.cyan('Queued Tasks:')} ${queuedTasks.length}\\n` +
-          `${chalk.cyan('Pending Diffs:')} ${pendingDiffs}\\n` +
-          `${chalk.cyan('Session Messages:')} ${this.context.session.messages.length}`,
+        `${chalk.green('Working Directory:')} ${this.context.workingDirectory}\\n` +
+        `${chalk.green('Mode:')} ${this.context.autonomous ? 'Autonomous' : 'Manual'}\\n` +
+        `${chalk.green('Plan Mode:')} ${this.context.planMode ? 'On' : 'Off'}\\n` +
+        `${chalk.green('Auto-Accept:')} ${this.context.autoAcceptEdits ? 'On' : 'Off'}\\n\\n` +
+        `${chalk.cyan('Active Agents:')} ${activeAgents.length}/3\\n` +
+        `${chalk.cyan('Queued Tasks:')} ${queuedTasks.length}\\n` +
+        `${chalk.cyan('Pending Diffs:')} ${pendingDiffs}\\n` +
+        `${chalk.cyan('Session Messages:')} ${this.context.session.messages.length}`,
         {
           padding: 1,
           margin: 1,
@@ -594,7 +582,7 @@ export class OrchestratorService extends EventEmitter {
     const toolHistory = toolService.getExecutionHistory().slice(-5)
     const planStats = planningService.getStatistics()
 
-    console.log(chalk.cyan.bold('\\n Services Status'))
+    console.log(chalk.cyan.bold('\\n🔧 Services Status'))
     console.log(chalk.gray('─'.repeat(50)))
 
     console.log(chalk.white.bold('\\nLSP Servers:'))
@@ -654,7 +642,7 @@ export class OrchestratorService extends EventEmitter {
     console.log(`${chalk.green('/services')}       Show detailed service information`)
     console.log(`${chalk.green('/agents')}         Show active agents and queue`)
 
-    console.log(chalk.white.bold('\\n Module Commands:'))
+    console.log(chalk.white.bold('\\n🔧 Module Commands:'))
     const commands = this.moduleManager.getCommands()
     const categories = ['system', 'file', 'analysis', 'diff', 'security']
 
@@ -687,11 +675,11 @@ export class OrchestratorService extends EventEmitter {
       this.cliInstance.printPanel(
         boxen(
           `${chalk.red('⚠️  No API Keys Found')}\\n\\n` +
-            `Please set at least one API key:\\n\\n` +
-            `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\\n` +
-            `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\\n` +
-            `${chalk.blue('• OPENROUTER_API_KEY')} - for OpenRouter models\\n` +
-            `${chalk.blue('• GOOGLE_GENERATIVE_AI_API_KEY')} - for Gemini models`,
+          `Please set at least one API key:\\n\\n` +
+          `${chalk.blue('• ANTHROPIC_API_KEY')} - for Claude models\\n` +
+          `${chalk.blue('• OPENAI_API_KEY')} - for GPT models\\n` +
+          `${chalk.blue('• OPENROUTER_API_KEY')} - for OpenRouter models\\n` +
+          `${chalk.blue('• GOOGLE_GENERATIVE_AI_API_KEY')} - for Gemini models`,
           {
             padding: 1,
             margin: 1,
@@ -721,16 +709,16 @@ export class OrchestratorService extends EventEmitter {
     this.cliInstance.printPanel(
       boxen(
         `${title}\n${subtitle}\n\n` +
-          `${chalk.blue('🎯 Mode:')} ${this.context.autonomous ? 'Autonomous' : 'Manual'}\n` +
-          `${chalk.blue('📁 Directory:')} ${chalk.cyan(this.context.workingDirectory)}\n` +
-          `${chalk.blue('🔌 Max Agents:')} 3 parallel\n\n` +
-          `${chalk.gray('I orchestrate specialized AI agents to handle your development tasks:')}\n` +
-          `• ${chalk.green('Natural language processing')} - Just describe what you want\n` +
-          `• ${chalk.green('Intelligent agent selection')} - Best agent for each task\n` +
-          `• ${chalk.green('Parallel execution')} - Up to 3 agents working simultaneously\n` +
-          `• ${chalk.green('Real-time monitoring')} - See everything happening live\n` +
-          `• ${chalk.green('Autonomous operation')} - Minimal interruptions\n\n` +
-          `${chalk.yellow('💡 Press / for commands, @ for agents, or just tell me what to do')}`,
+        `${chalk.blue('🎯 Mode:')} ${this.context.autonomous ? 'Autonomous' : 'Manual'}\n` +
+        `${chalk.blue('📁 Directory:')} ${chalk.cyan(this.context.workingDirectory)}\n` +
+        `${chalk.blue('🔌 Max Agents:')} 3 parallel\n\n` +
+        `${chalk.gray('I orchestrate specialized AI agents to handle your development tasks:')}\n` +
+        `• ${chalk.green('Natural language processing')} - Just describe what you want\n` +
+        `• ${chalk.green('Intelligent agent selection')} - Best agent for each task\n` +
+        `• ${chalk.green('Parallel execution')} - Up to 3 agents working simultaneously\n` +
+        `• ${chalk.green('Real-time monitoring')} - See everything happening live\n` +
+        `• ${chalk.green('Autonomous operation')} - Minimal interruptions\n\n` +
+        `${chalk.yellow('💡 Press / for commands, @ for agents, or just tell me what to do')}`,
         {
           padding: 1,
           margin: 1,
@@ -748,7 +736,7 @@ export class OrchestratorService extends EventEmitter {
       try {
         process.env.NIKCLI_COMPACT = '1'
         process.env.NIKCLI_SUPER_COMPACT = '1'
-      } catch {}
+      } catch { }
       console.log(chalk.green('\n🎯 Enhanced Plan Mode Enabled'))
       console.log(chalk.cyan('   • Comprehensive plan generation with risk analysis'))
       console.log(chalk.cyan('   • Step-by-step execution with progress tracking'))
@@ -778,7 +766,7 @@ export class OrchestratorService extends EventEmitter {
                 progress: t.progress,
               }))
             }
-          } catch {}
+          } catch { }
 
           // 2) If store empty, prefer enhancedPlanning
           if (todos.length === 0) {
@@ -795,7 +783,7 @@ export class OrchestratorService extends EventEmitter {
                   progress: t.progress,
                 }))
               }
-            } catch {}
+            } catch { }
           }
 
           // 3) If still empty, fallback: planningService active plans
@@ -813,10 +801,10 @@ export class OrchestratorService extends EventEmitter {
                   progress: t.progress,
                 }))
               }
-            } catch {}
+            } catch { }
           }
 
-          ;(advancedUI as any).showTodoDashboard?.(todos, title)
+          ; (advancedUI as any).showTodoDashboard?.(todos, title)
 
           // Attach live updates: refresh dashboard when session todos change
           try {
@@ -830,13 +818,13 @@ export class OrchestratorService extends EventEmitter {
                   priority: t.priority,
                   progress: t.progress,
                 }))
-                ;(advancedUI as any).showTodoDashboard?.(items, title)
-              } catch {}
+                  ; (advancedUI as any).showTodoDashboard?.(items, title)
+              } catch { }
             }
             todoStore.on('update', handler)
             this.todoStoreUnsubscribe = () => todoStore.off('update', handler)
-          } catch {}
-        } catch {}
+          } catch { }
+        } catch { }
       }, 0)
     } else {
       console.log(chalk.yellow('\n⚠️  Plan Mode Disabled'))
@@ -844,22 +832,22 @@ export class OrchestratorService extends EventEmitter {
       try {
         delete (process.env as any).NIKCLI_COMPACT
         delete (process.env as any).NIKCLI_SUPER_COMPACT
-      } catch {}
+      } catch { }
       // Ensure input bypass is disabled and prompt resumed
-      import('../core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => {})
+      import('../core/input-queue').then(({ inputQueue }) => inputQueue.disableBypass()).catch(() => { })
       try {
         const nik = (global as any).__nikCLI
         if (nik && typeof nik.renderPromptAfterOutput === 'function') nik.renderPromptAfterOutput()
-      } catch {}
+      } catch { }
       // Disable compact stream
       try {
         delete (process.env as any).NIKCLI_COMPACT
-      } catch {}
+      } catch { }
       // Remove live updates listener if present
       if (this.todoStoreUnsubscribe) {
         try {
           this.todoStoreUnsubscribe()
-        } catch {}
+        } catch { }
         this.todoStoreUnsubscribe = undefined
       }
     }
@@ -960,7 +948,7 @@ export class OrchestratorService extends EventEmitter {
   }
 
   private async showMiddlewareStatus(): Promise<void> {
-    console.log(chalk.cyan.bold('\n Middleware System Status'))
+    console.log(chalk.cyan.bold('\n🔧 Middleware System Status'))
     console.log(chalk.gray('─'.repeat(60)))
 
     // Show middleware manager status
@@ -998,12 +986,12 @@ export class OrchestratorService extends EventEmitter {
     this.cliInstance.printPanel(
       boxen(
         `${chalk.cyanBright('🎛️  AI Development Orchestrator')}\n\n` +
-          `${chalk.gray('Session completed!')}\n\n` +
-          `${chalk.blue('Messages processed:')} ${this.context.session.messages.length}\n` +
-          `${chalk.green('Tools executed:')} ${toolsUsed}\n` +
-          `${chalk.cyan('Agents launched:')} ${this.context.session.executionHistory.length}\n` +
-          `${chalk.yellow('Duration:')} ${Math.round((Date.now() - parseInt(this.context.session.id, 10)) / 1000)}s\n\n` +
-          `${chalk.blue('Thanks for using the AI orchestrator! 🚀')}`,
+        `${chalk.gray('Session completed!')}\n\n` +
+        `${chalk.blue('Messages processed:')} ${this.context.session.messages.length}\n` +
+        `${chalk.green('Tools executed:')} ${toolsUsed}\n` +
+        `${chalk.cyan('Agents launched:')} ${this.context.session.executionHistory.length}\n` +
+        `${chalk.yellow('Duration:')} ${Math.round((Date.now() - parseInt(this.context.session.id, 10)) / 1000)}s\n\n` +
+        `${chalk.blue('Thanks for using the AI orchestrator! 🚀')}`,
         {
           padding: 1,
           margin: 1,

@@ -598,7 +598,7 @@ export class ContentValidators {
         }
 
         // Clean up temp file
-        await unlink(tempFilePath).catch(() => {})
+        await unlink(tempFilePath).catch(() => { })
       } catch (lspError: any) {
         warnings.push(`LSP validation unavailable: ${lspError.message}`)
 

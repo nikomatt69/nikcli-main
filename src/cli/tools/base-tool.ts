@@ -29,7 +29,7 @@ export abstract class BaseTool {
     const pathModule = require('node:path')
 
     try {
-      const resolvedPath = pathModule.resolve(path)
+      const resolvedPath = pathModule.resolve(this.workingDirectory, path)
       const resolvedWorkingDir = pathModule.resolve(this.workingDirectory)
 
       return resolvedPath.startsWith(resolvedWorkingDir)

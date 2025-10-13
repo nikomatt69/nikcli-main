@@ -92,7 +92,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     super()
 
     this.context = {
-      workingDirectory: process.cwd(),
+      workingDirectory: require('./utils/working-dir').getWorkingDirectory(),
       autonomous: true,
       planMode: false,
       autoAcceptEdits: true, // Default from image
@@ -571,7 +571,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       if (!this.activeVMAgent) {
         // Import and create VM agent
         const { SecureVirtualizedAgent } = await import('./virtualized-agents/secure-vm-agent')
-        this.activeVMAgent = new SecureVirtualizedAgent(process.cwd())
+        this.activeVMAgent = new SecureVirtualizedAgent(require('./utils/working-dir').getWorkingDirectory())
 
         // Initialize the VM agent
         await this.activeVMAgent.initialize()

@@ -329,7 +329,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
     this.ideContextEnricher = new IDEContextEnricher()
     this.advancedTools = new AdvancedTools()
     this.toolRouter = new ToolRouter()
-    this.promptManager = PromptManager.getInstance(process.cwd(), optimizationConfig)
+    this.promptManager = PromptManager.getInstance(this.workingDirectory, optimizationConfig)
     this.smartCache = smartCache
     this.docLibrary = docLibrary
   }
@@ -3128,7 +3128,7 @@ Use this cognitive understanding to provide more targeted and effective response
 
       const { stdout, stderr } = await Promise.race([
         execAsync(fullCommand, {
-          cwd: command.workingDir || process.cwd(),
+          cwd: command.workingDir || this.workingDirectory,
           timeout,
         }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Command timeout')), timeout)),

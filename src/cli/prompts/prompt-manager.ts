@@ -48,7 +48,11 @@ export class PromptManager {
   }
 
   static getInstance(projectRoot?: string, optimizationConfig?: TokenOptimizationConfig): PromptManager {
-    if (!PromptManager.instance && projectRoot) {
+    if (!PromptManager.instance) {
+      if (!projectRoot) {
+        // Fallback al working directory corrente se non specificato
+        projectRoot = process.cwd()
+      }
       PromptManager.instance = new PromptManager(projectRoot, optimizationConfig)
     }
     return PromptManager.instance
@@ -160,6 +164,11 @@ export class PromptManager {
         // File might have been deleted, remove from cache
         this.promptCache.delete(relativePath)
       }
+    }
+
+    // Verify file exists before trying to read it
+    if (!existsSync(fullPath)) {
+      throw new Error(`Prompt file not found: ${fullPath}`)
     }
 
     // Load from filesystem
@@ -345,7 +354,7 @@ export class PromptManager {
   /**
    * Intelligently combine base prompt with output style prompt
    */
-  private combinePrompts(basePrompt: string, outputStylePrompt: string, _context: PromptContext): string {
+  private combinePrompts(basePrompt: string, outputStylePrompt: string, context: PromptContext): string {
     // If base prompt is minimal (like default prompts), let output style take precedence
     if (basePrompt.length < 200) {
       return `${outputStylePrompt}\n\n${basePrompt}`

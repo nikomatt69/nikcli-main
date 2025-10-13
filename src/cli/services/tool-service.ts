@@ -9,10 +9,7 @@ import { workspaceContext } from '../context/workspace-context'
 import { simpleConfigManager } from '../core/config-manager'
 import { ExecutionPolicyManager, type ToolApprovalRequest } from '../policies/execution-policy'
 import { ContentValidators } from '../tools/write-file-tool'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { type ApprovalRequest, type ApprovalResponse, ApprovalSystem } from '../ui/approval-system'
-import { sanitizePath } from '../tools/secure-file-tools'
-import { getWorkingDirectory } from '../utils/working-dir'
 
 export interface ToolExecution {
   id: string
@@ -35,7 +32,7 @@ export interface ToolCapability {
 export class ToolService {
   private tools: Map<string, ToolCapability> = new Map()
   private executions: Map<string, ToolExecution> = new Map()
-  private workingDirectory: string = getWorkingDirectory()
+  private workingDirectory: string = process.cwd()
   private policyManager: ExecutionPolicyManager
   private approvalSystem: ApprovalSystem
 
@@ -232,7 +229,7 @@ export class ToolService {
   registerTool(tool: ToolCapability): void {
     this.tools.set(tool.name, tool)
     if (!process.env.NIKCLI_SUPPRESS_TOOL_REGISTER_LOGS && !process.env.NIKCLI_QUIET_STARTUP) {
-      advancedUI.logFunctionUpdate('info', `🔧 Registered tool: ${tool.name}`)
+      console.log(chalk.dim(`🔧 Registered tool: ${tool.name}`))
     }
   }
 
@@ -467,7 +464,7 @@ export class ToolService {
       execution.status = 'failed'
       execution.error = error.message
 
-      if (!compact) advancedUI.logFunctionUpdate('error', `❌ ${toolName} failed: ${error.message}`)
+      if (!compact) console.log(chalk.red(`❌ ${toolName} failed: ${error.message}`))
       throw error
     } finally {
       if (timeoutHandle) clearTimeout(timeoutHandle)
@@ -487,16 +484,12 @@ export class ToolService {
 
   // Tool implementations
   private async readFile(args: { filePath: string }): Promise<{ content: string; size: number }> {
-    const fullPath = sanitizePath(args.filePath, this.workingDirectory)
+    const fullPath = path.resolve(this.workingDirectory, args.filePath)
 
     if (!fs.existsSync(fullPath)) {
       throw new Error(`File not found: ${args.filePath}`)
     }
 
-    const stats = fs.statSync(fullPath)
-    if (!stats.isFile()) {
-      throw new Error(`Path is not a file: ${args.filePath}`)
-    }
     const content = fs.readFileSync(fullPath, 'utf8')
     return {
       content,
@@ -505,7 +498,7 @@ export class ToolService {
   }
 
   private async writeFile(args: { filePath: string; content: string }): Promise<{ written: boolean; size: number }> {
-    const fullPath = sanitizePath(args.filePath, this.workingDirectory)
+    const fullPath = path.resolve(this.workingDirectory, args.filePath)
     const dir = path.dirname(fullPath)
 
     // Validate content using Claude Code best practices
@@ -516,7 +509,7 @@ export class ToolService {
 
     const versionValidation = await ContentValidators.noLatestVersions(args.content, args.filePath)
     if (versionValidation.warnings && versionValidation.warnings.length > 0) {
-      advancedUI.logFunctionUpdate('warning', `⚠️  ${versionValidation.warnings.join(', ')}`)
+      console.log(`⚠️  ${versionValidation.warnings.join(', ')}`)
     }
 
     // Ensure directory exists
@@ -527,12 +520,11 @@ export class ToolService {
     fs.writeFileSync(fullPath, args.content, 'utf8')
 
     // Show relative path in logs
-    const relativePath = fullPath.startsWith(this.workingDirectory)
-      ? fullPath.replace(this.workingDirectory, '').replace(/^\//, '')
+    const relativePath = args.filePath.startsWith(this.workingDirectory)
+      ? args.filePath.replace(this.workingDirectory, '').replace(/^\//, '')
       : args.filePath
 
-    advancedUI.logFunctionUpdate('success', `✓ File written: ${relativePath} (${args.content.length} bytes)`)
-    advancedUI.logFunctionCall('write-file-tool')
+    console.log(chalk.green(`✓ File written: ${relativePath} (${args.content.length} bytes)`))
 
     return {
       written: true,
@@ -543,16 +535,12 @@ export class ToolService {
   private async listFiles(args: {
     path?: string
   }): Promise<{ files: Array<{ name: string; type: 'file' | 'directory'; size?: number }> }> {
-    const targetPath = sanitizePath(args.path || '.', this.workingDirectory)
+    const targetPath = path.resolve(this.workingDirectory, args.path || '.')
 
     if (!fs.existsSync(targetPath)) {
       throw new Error(`Directory not found: ${args.path || '.'}`)
     }
 
-    const stats = fs.statSync(targetPath)
-    if (!stats.isDirectory()) {
-      throw new Error(`Path is not a directory: ${args.path || '.'}`)
-    }
     const items = fs.readdirSync(targetPath, { withFileTypes: true })
     const files = items.map((item) => {
       const result: any = {
@@ -576,7 +564,7 @@ export class ToolService {
   }
 
   private async findFiles(args: { pattern: string; path?: string }): Promise<{ matches: string[] }> {
-    const searchPath = sanitizePath(args.path || '.', this.workingDirectory)
+    const searchPath = path.resolve(this.workingDirectory, args.path || '.')
     const matches: string[] = []
 
     // Convert glob-like pattern (e.g., **/*.{ts,tsx}) to RegExp
@@ -980,19 +968,6 @@ export class ToolService {
         allowedInSafeMode: policy?.allowedInSafeMode,
       }
     })
-  }
-
-  /** Clear internal state and timers if any (alias for cleanup responsibilities) */
-  async dispose(): Promise<void> {
-    try {
-      // Attempt to clear any internal executions tracking
-      this.executions.clear()
-      // Delegate to policy/approval systems if they expose cleanup
-      if ((this.policyManager as any)?.dispose) await (this.policyManager as any).dispose()
-      if ((this.approvalSystem as any)?.dispose) await (this.approvalSystem as any).dispose()
-    } catch {
-      // ignore
-    }
   }
 }
 

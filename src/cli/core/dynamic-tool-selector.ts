@@ -16,6 +16,7 @@ export class DynamicToolSelector {
 
   constructor(workingDirectory: string) {
     this.toolRegistry = new ToolRegistry(workingDirectory)
+    
   }
 
   /**
