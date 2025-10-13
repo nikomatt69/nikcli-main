@@ -7,7 +7,7 @@ import chalk from 'chalk'
 import { createFileFilter } from '../context/file-filter-system'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { sanitizePath } from './secure-file-tools'
-import { getWorkingDirectory } from '../utils/working-dir'
+import { getWorkingDirectory, resolveWorkspacePath, toWorkspaceRelative } from '../utils/working-dir'
 
 const execAsync = promisify(exec)
 
@@ -213,7 +213,7 @@ export class ToolsManager {
             })
           }
         })
-      } catch (_error) {}
+      } catch (_error) { }
     }
 
     return results
@@ -232,7 +232,7 @@ export class ToolsManager {
       sudo?: boolean
     } = {}
   ): Promise<{ stdout: string; stderr: string; code: number; pid?: number }> {
-    const cwd = options.cwd ? path.resolve(this.workingDirectory, options.cwd) : this.workingDirectory
+    const cwd = options.cwd ? resolveWorkspacePath(options.cwd) : this.workingDirectory
     const env = { ...process.env, ...options.env }
 
     // Build arg array safely; prepend sudo as a separate executable when requested
@@ -241,7 +241,7 @@ export class ToolsManager {
 
     const printable = `${executable} ${execArgs.map((a) => (a.includes(' ') ? `'${a}'` : a)).join(' ')}`
     advancedUI.logFunctionUpdate('info', `⚡ Executing: ${printable}`)
-    advancedUI.logFunctionUpdate('info', `📁 Working directory: ${cwd}`)
+    advancedUI.logFunctionUpdate('info', `📁 Working directory: ${toWorkspaceRelative(cwd)}`)
 
     try {
       const startTime = Date.now()
@@ -286,7 +286,7 @@ export class ToolsManager {
       const killTimer = setTimeout(() => {
         try {
           child.kill('SIGTERM')
-        } catch {}
+        } catch { }
       }, opts.timeout)
 
       child.stdout?.on('data', (d) => (stdout += d.toString()))
@@ -610,17 +610,17 @@ export class ToolsManager {
     try {
       const npmResult = await this.runCommand('npm', ['--version'])
       npmVersion = npmResult.stdout.trim()
-    } catch {}
+    } catch { }
 
     try {
       const gitResult = await this.runCommand('git', ['--version'])
       gitVersion = gitResult.stdout.match(/git version ([\d.]+)/)?.[1]
-    } catch {}
+    } catch { }
 
     try {
       const dockerResult = await this.runCommand('docker', ['--version'])
       dockerVersion = dockerResult.stdout.match(/Docker version ([\d.]+)/)?.[1]
-    } catch {}
+    } catch { }
 
     return {
       platform,
@@ -680,7 +680,7 @@ export class ToolsManager {
       if (!options.file) {
         try {
           fs.unlinkSync(tempFile)
-        } catch {}
+        } catch { }
       }
 
       return {
@@ -726,7 +726,7 @@ export class ToolsManager {
   ): Promise<{ success: boolean; path: string; commands: string[] }> {
     const commands: string[] = []
     let success = false
-    const projectPath = path.join(this.workingDirectory, projectName)
+    const projectPath = resolveWorkspacePath(projectName)
 
     advancedUI.logFunctionUpdate('info', `🚀 Setting up ${projectType} project: ${projectName}`)
 

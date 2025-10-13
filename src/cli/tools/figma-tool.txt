@@ -1,0 +1,13 @@
+# Figma Tool Documentation
+
+## Purpose
+Integrate with Figma API and desktop for exports, codegen, and tokens.
+
+## Best Practices
+- Respect API rate limits
+- Use exports/codegen on selected nodes
+
+## Enterprise Guidance (Network/Read/Write Operations)
+- Exports/codegen: network read; low/medium risk.
+- Desktop automation and token extraction: read; approval not required.
+- Any write-like or upload operations should request approval per policy; session approval optional.

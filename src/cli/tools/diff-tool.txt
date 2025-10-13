@@ -1,14 +1,11 @@
+# Diff Tool Documentation
+
+## Purpose
 File and content comparison with multiple diff algorithms.
 
-Features:
-- Line-by-line, word-by-word, or character diff
-- Unified, side-by-side, or inline format
-- Context lines support
-- Ignore whitespace/case options
-- Syntax highlighting
-- Statistics (additions, deletions, changes)
+## Best Practices
+- Use unified or inline format for CLI readability
+- Combine with write tools for safe review-before-apply flows
 
-Examples:
-diff({ source: "file1.ts", target: "file2.ts" })
-diff({ source: "old.txt", target: "new.txt", mode: "words", ignoreWhitespace: true })
-diff({ source: content1, target: content2, format: "unified", context: 5 })
+## Enterprise Guidance (Read Operations)
+- Preflight annotates operationType=read and paths; approval not required.

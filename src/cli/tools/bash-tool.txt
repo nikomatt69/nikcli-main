@@ -24,3 +24,17 @@ const res = await bashTool.execute({
 - Keep commands short and explicit; avoid wildcards
 - Use `skipConfirmation` only for safe, read-only commands
 
+
+## Enterprise Guidance (Exec Operations)
+- Purpose & boundaries: execute shell commands under enterprise guard with cognitive preflight and approval.
+- Inputs & assumptions: `command` string; optional `interactive`, `stream`, `loginShell`, `safeMode`; session approvals can suppress prompts at or below allowed risk.
+- Safety checklist:
+  - Cognitive preflight classifies risk (low/medium/high/critical) and lists reasons.
+  - Deny patterns: rm -rf, sudo, chmod 777, dd, mkfs, path traversal.
+  - Working directory must be inside the workspace; output length is bounded; timeouts enforced.
+- Risk rubric:
+  - low: list, read, basic diagnostics
+  - medium: package installs, network fetches, docker run
+  - high/critical: destructive/system-level changes → explicit approval required
+- Approval messaging:
+  - Show command, risk, and reasons; ask Approve? Optionally “Approve for session (tool+opType)”.

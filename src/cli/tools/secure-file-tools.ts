@@ -5,7 +5,7 @@ import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { getToolchainLearningSystem } from '../core/toolchain-learning'
-import { getWorkingDirectory } from '../utils/working-dir'
+import { getWorkingDirectory, resolveWorkspacePath } from '../utils/working-dir'
 
 // Global batch approval state
 const batchApprovalState = {
@@ -19,19 +19,8 @@ const batchApprovalState = {
  */
 export function sanitizePath(filePath: string, workingDir: string = getWorkingDirectory()): string {
   try {
-    // Normalize the path to resolve any '..' or '.' segments
-    const normalizedPath = path.normalize(filePath)
-
-    // Resolve to absolute path
-    const absolutePath = path.resolve(workingDir, normalizedPath)
-
-    // Ensure the resolved path is within the working directory using a robust relative check
-    const workingDirAbsolute = path.resolve(workingDir)
-    const relativeToWD = path.relative(workingDirAbsolute, absolutePath)
-    if (relativeToWD.startsWith('..')) {
-      throw new Error(`Path traversal detected: ${filePath} resolves outside working directory`)
-    }
-
+    // Use centralized resolver; it throws if outside workspace
+    const absolutePath = resolveWorkspacePath(path.isAbsolute(filePath) ? filePath : path.join(workingDir, filePath))
     return absolutePath
   } catch (error: any) {
     // Try to learn from the error and suggest corrections
@@ -47,19 +36,14 @@ export function sanitizePath(filePath: string, workingDir: string = getWorkingDi
       )
 
       if (correctedPath) {
-        // Try the corrected path
         try {
-          const normalizedCorrected = path.normalize(correctedPath)
-          const absoluteCorrected = path.resolve(workingDir, normalizedCorrected)
-          const workingDirAbsolute = path.resolve(workingDir)
-
-          if (absoluteCorrected.startsWith(workingDirAbsolute)) {
-            // Record success for learning
-            learningSystem.recordSuccess(filePath, correctedPath)
-            return absoluteCorrected
-          }
+          const absoluteCorrected = resolveWorkspacePath(
+            path.isAbsolute(correctedPath) ? correctedPath : path.join(workingDir, correctedPath)
+          )
+          learningSystem.recordSuccess(filePath, correctedPath)
+          return absoluteCorrected
         } catch {
-          // If correction also fails, continue with original error
+          // continue
         }
       }
     }

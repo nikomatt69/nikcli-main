@@ -1,22 +1,13 @@
 # Git Tools Documentation
 
 ## Purpose
-Safe wrappers around common Git operations: status, diff, commit, apply patch.
-
-## Capabilities
-- Status (porcelain v2, branch/ahead/behind)
-- Diff (staged/paths)
-- Commit with confirmation
-- Apply unified diff with --check
-
-## Usage
-```ts
-await gitTools.execute({ action: 'status' })
-await gitTools.execute({ action: 'diff', args: { staged: true } })
-await gitTools.execute({ action: 'commit', args: { message: 'Add feature', add: ['src/index.ts'] } })
-```
+Safe Git operations: status, diff, commit, applyPatch (no push).
 
 ## Best Practices
-- Prefer `secureTools.git*` wrappers for audit and confirmations
-- Evita push/reset/clean non sicuri in automazione
+- Review diffs before commit/apply
+- Avoid destructive commands (push/reset) in this tool scope
+
+## Enterprise Guidance (Mixed Operations)
+- status/diff: operationType=read; no approval.
+- commit/applyPatch: operationType=write; preflight and approval for medium+ risk; session approval optional.
 

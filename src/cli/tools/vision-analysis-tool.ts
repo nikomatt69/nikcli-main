@@ -58,6 +58,10 @@ export class VisionAnalysisTool extends BaseTool {
     const startTime = Date.now()
 
     try {
+      // Preflight for network + read (image file read + provider call)
+      const { SafetyAnalyzer } = require('./safety-analyzer')
+      const preflight = SafetyAnalyzer.preflightFiles({ toolName: this.name, operationType: 'read', paths: [imagePath] })
+
       const result = await this.executeInternal(imagePath, options)
 
       return {
@@ -67,6 +71,8 @@ export class VisionAnalysisTool extends BaseTool {
           executionTime: Date.now() - startTime,
           toolName: this.name,
           parameters: { imagePath, options },
+          operationType: 'read',
+          riskLevel: preflight.riskLevel,
         },
       }
     } catch (error: any) {
@@ -78,6 +84,7 @@ export class VisionAnalysisTool extends BaseTool {
           executionTime: Date.now() - startTime,
           toolName: this.name,
           parameters: { imagePath, options },
+          operationType: 'read',
         },
       }
     }

@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import boxen from 'boxen'
@@ -71,7 +72,7 @@ import { formatAgent, formatCommand, formatFileOp, formatSearch, formatStatus, w
 
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
-import { getWorkingDirectory } from './utils/working-dir'
+import { getWorkingDirectory, toWorkspaceRelative, resolveWorkspacePath } from './utils/working-dir'
 
 // CAD AI System imports
 
@@ -7390,7 +7391,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
                 // RAG Context
                 lines.push(chalk.cyan('🗂️  RAG Context:'))
-                lines.push(`  Root: ${chalk.white(path.relative(process.cwd(), this.workingDirectory) || '.')}`)
+                lines.push(`  Root: ${chalk.white(toWorkspaceRelative(this.workingDirectory))}`)
                 lines.push(`  Indexed Paths: ${chalk.white(ctx.selectedPaths.length.toString())}`)
 
                 if (ctx.selectedPaths.length > 0) {
@@ -17594,7 +17595,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           console.log()
         }
 
-        console.log(chalk.cyan(`  📁 Root: `) + chalk.white(path.relative(process.cwd(), this.workingDirectory) || '.'))
+        console.log(chalk.cyan(`  📁 Root: `) + chalk.white(toWorkspaceRelative(this.workingDirectory)))
         console.log(chalk.cyan(`  📂 Indexed Paths: `) + chalk.white(ctx.selectedPaths.length.toString()))
         console.log(
           chalk.cyan(`  🗂️  RAG Status: `) + (ctx.ragAvailable ? chalk.green('✓ Available') : chalk.yellow('⚠ Fallback'))
@@ -17954,9 +17955,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
           // Add to workspace context
           const currentPaths = workspaceContext.getContext().selectedPaths
-          const newPaths = [...currentPaths, ...pathList.map((p: string) => path.resolve(this.workingDirectory, p))]
+          const newPaths = [...currentPaths, ...pathList.map((p: string) => resolveWorkspacePath(p))]
           const uniquePaths = [...new Set(newPaths)] // Remove duplicates
-          await workspaceContext.selectPaths(uniquePaths.map((p: string) => path.relative(this.workingDirectory, p)))
+          await workspaceContext.selectPaths(uniquePaths.map((p: string) => toWorkspaceRelative(p)))
 
           // Re-analyze with RAG
           await unifiedRAGSystem.analyzeProject(this.workingDirectory)
@@ -19410,10 +19411,10 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           if (stats.redis.health) {
             statusContent += `  Latency: ${chalk.blue(stats.redis.health.latency)}ms\n`
             statusContent += `  Status: ${stats.redis.health.status === 'healthy'
-                ? chalk.green('Healthy')
-                : stats.redis.health.status === 'degraded'
-                  ? chalk.yellow('Degraded')
-                  : chalk.red('Unhealthy')
+              ? chalk.green('Healthy')
+              : stats.redis.health.status === 'degraded'
+                ? chalk.yellow('Degraded')
+                : chalk.red('Unhealthy')
               }\n`
           }
 

@@ -20,6 +20,7 @@ import { toolService } from './services/tool-service'
 import { StreamingOrchestrator } from './streaming-orchestrator'
 import { advancedUI } from './ui/advanced-cli-ui'
 import { diffManager } from './ui/diff-manager'
+import { getWorkingDirectory } from './utils/working-dir'
 import { ContainerManager } from './virtualized-agents/container-manager'
 import { VMOrchestrator } from './virtualized-agents/vm-orchestrator'
 
@@ -89,25 +90,25 @@ export class MainOrchestrator {
       // Dispose subsystems (best-effort)
       try {
         await lspManager.dispose()
-      } catch {}
+      } catch { }
       try {
         await (lspService as any)?.dispose?.()
-      } catch {}
+      } catch { }
       try {
         await (agentService as any)?.dispose?.()
-      } catch {}
+      } catch { }
       try {
         await (toolService as any)?.dispose?.()
-      } catch {}
+      } catch { }
       try {
-        ;(advancedUI as any)?.dispose?.()
-      } catch {}
+        ; (advancedUI as any)?.dispose?.()
+      } catch { }
       try {
         await mcpClient.dispose()
-      } catch {}
+      } catch { }
       try {
         await (this.vmOrchestrator as any)?.dispose?.()
-      } catch {}
+      } catch { }
 
       advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
@@ -216,7 +217,7 @@ export class MainOrchestrator {
   }
 
   private checkWorkingDirectory(): boolean {
-    const cwd = process.cwd()
+    const cwd = getWorkingDirectory()
     const fs = require('node:fs')
 
     if (!fs.existsSync(cwd)) {
@@ -438,7 +439,7 @@ export class MainOrchestrator {
 
   private async initializeServices(): Promise<void> {
     // Set working directory for all services
-    const workingDir = process.cwd()
+    const workingDir = getWorkingDirectory()
 
     toolService.setWorkingDirectory(workingDir)
     planningService.setWorkingDirectory(workingDir)
@@ -563,9 +564,9 @@ export class MainOrchestrator {
       await this.streamOrchestrator.streamToPanel(
         'vm-metrics',
         `📊 ${data.containerId?.slice(0, 8)}:\n` +
-          `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
-          `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
-          `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
+        `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
+        `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
+        `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
       )
     })
 

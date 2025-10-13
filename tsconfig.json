@@ -3,8 +3,8 @@
     "isolatedModules": true,
     "target": "es2020",
     "lib": [
-      "es2022",
-      "ES2015"
+      "es2020",
+      "ES2015",
     ],
     "module": "commonjs",
     "moduleResolution": "node",
@@ -25,55 +25,48 @@
     "resolveJsonModule": true,
     "downlevelIteration": true,
     "outDir": "./dist",
-    "baseUrl": ".",
+    "rootDir": "./src",
+    "baseUrl": "./src",
     "declaration": false,
     "sourceMap": false,
     "removeComments": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "paths": {
       "@/*": [
-        "src/*"
+        "*"
       ],
       "@cli/*": [
-        "src/cli/*"
+        "cli/*"
       ],
       "@agents/*": [
-        "src/cli/automation/agents/*"
+        "cli/automation/agents/*"
       ],
       "@core/*": [
-        "src/cli/core/*"
+        "cli/core/*"
       ],
       "@utils/*": [
-        "src/cli/utils/*"
+        "cli/utils/*"
       ],
       "@tools/*": [
-        "src/cli/tools/*"
+        "cli/tools/*"
       ],
       "@ai/*": [
-        "src/cli/ai/*"
+        "cli/ai/*"
       ]
-    },
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
+    }
   },
   "include": [
     "src/cli/**/*.ts",
-    "src/cli/**/*.tsx",
-    "api/**/*.ts",
-    ".next/types/**/*.ts"
+    "src/cli/**/*.tsx"
   ],
   "exclude": [
     "node_modules",
     "dist",
     ".next",
     "tests",
-    "src/cli/background-agents/web/**/*",
     "api/openrouter/**/*",
     "api/subscription/**/*",
+    "web/**/*",
     "scripts/**/*",
     "**/*.spec.ts",
     "**/*.test.ts"

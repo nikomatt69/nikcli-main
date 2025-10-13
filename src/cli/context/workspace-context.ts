@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as fsPromises from 'node:fs/promises'
 import * as path from 'node:path'
-import { cached } from '@ai-sdk-tools/cache'
 import { tool } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
@@ -107,7 +106,6 @@ export class WorkspaceContextManager {
   private readonly CACHE_TTL = 300000 // 5 minutes
   private readonly MAX_CACHE_SIZE = 1000
   private lastCacheCleanup = Date.now()
-  private enableRagCache: boolean = process.env.CACHE_RAG !== 'false' && process.env.CACHE_AI !== 'false'
   private cachedSemanticSearchTool?: (query: string, limit: number, threshold: number) => Promise<ContextSearchResult[]>
 
   // Paths that should always surface in auto-filtered context
@@ -116,12 +114,12 @@ export class WorkspaceContextManager {
     path: string
     max?: number
   }> = [
-    { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
-    { kind: 'directory', path: 'src/cli/cloud', max: 6 },
-    { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
-    { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
-    { kind: 'file', path: 'src/cli/core/config-manager.ts' },
-  ]
+      { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
+      { kind: 'directory', path: 'src/cli/cloud', max: 6 },
+      { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
+      { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
+      { kind: 'file', path: 'src/cli/core/config-manager.ts' },
+    ]
 
   // Integrated components
   private fileFilter: FileFilterSystem
@@ -170,19 +168,6 @@ export class WorkspaceContextManager {
     this.initializeRAGIntegration()
     this.initializeIntegratedComponents()
 
-    // Optional cached semantic search to speed up repeated queries
-    // Note: Direct caching via cached() wrapper - execution is memoized
-    if (this.enableRagCache) {
-      try {
-        // Cache the search function directly for better compatibility
-        this.cachedSemanticSearchTool = (query: string, limit: number, threshold: number) => {
-          const cacheKey = `${query}-${limit}-${threshold}`
-          return this.performLocalSemanticSearch(query, limit, threshold)
-        }
-      } catch (_e) {
-        // fail open
-      }
-    }
   }
 
   // Initialize RAG system integration

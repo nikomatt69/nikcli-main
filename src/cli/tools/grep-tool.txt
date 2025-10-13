@@ -25,3 +25,7 @@ const result = await grepTool.execute({
 - Narrow by include patterns to improve performance
 - Use context lines for code review-friendly results
 
+## Enterprise Guidance (Read Operations)
+- Preflight annotates operationType=read and lists paths scanned; generally no approval.
+- Escalate only if policies flag scope (e.g., outside workspace roots).
+

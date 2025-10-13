@@ -1,5 +1,41 @@
 import { z } from 'zod'
 
+export const CognitiveInfoSchema = z.object({
+  intent: z.string().optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  risks: z.array(z.string()).optional(),
+  suggestions: z.array(z.string()).optional(),
+  notes: z.string().optional(),
+})
+
+// Enterprise risk and operation metadata
+export const RiskLevelSchema = z.enum(['none', 'low', 'medium', 'high', 'critical'])
+export const OperationTypeSchema = z.enum(['read', 'write', 'delete', 'exec', 'network', 'other'])
+
+export const PreflightReportSchema = z.object({
+  riskLevel: RiskLevelSchema,
+  operationType: OperationTypeSchema,
+  reasons: z.array(z.string()),
+  affectedPaths: z.array(z.string()).optional(),
+  previewDiff: z.string().optional(),
+  summary: z.string().optional(),
+  cognitive: CognitiveInfoSchema.optional(),
+})
+
+export const EnterpriseOptionsSchema = z.object({
+  safeMode: z.boolean().optional(),
+  allowDangerous: z.boolean().optional(),
+  requireApproval: z.boolean().optional(),
+  interactive: z.boolean().optional(),
+  cognitiveContext: z.union([z.string(), z.record(z.any())]).optional(),
+  skipConfirmation: z.boolean().optional(),
+  // Session-level approvals
+  approveForSession: z.boolean().optional(),
+  sessionId: z.string().optional(),
+  approvalScope: z.enum(['tool', 'tool+opType']).optional(),
+  riskMax: RiskLevelSchema.optional(),
+})
+
 export const ValidationResultSchema = z.object({
   isValid: z.boolean(),
   errors: z.array(z.string()),
@@ -15,6 +51,17 @@ export const ToolExecutionResultSchema = z.object({
       executionTime: z.number().min(0),
       toolName: z.string(),
       parameters: z.record(z.any()).optional(),
+      // Enterprise metadata
+      riskLevel: RiskLevelSchema.optional(),
+      operationType: OperationTypeSchema.optional(),
+      approved: z.boolean().optional(),
+      approver: z.string().optional(),
+      approvalPolicy: z.string().optional(),
+      preflightDuration: z.number().min(0).optional(),
+      sessionApproved: z.boolean().optional(),
+      sessionId: z.string().optional(),
+      approvalScope: z.string().optional(),
+      riskMax: RiskLevelSchema.optional(),
     })
     .optional(),
 })
@@ -104,6 +151,22 @@ export const CommandOptionsSchema = z.object({
   skipConfirmation: z.boolean().optional(),
   env: z.record(z.string()).optional(),
   shell: z.string().optional(),
+  // Enterprise bash options
+  interactive: z.boolean().optional(),
+  stream: z.boolean().optional(),
+  loginShell: z.boolean().optional(),
+  envInherit: z.boolean().optional(),
+  retries: z.number().int().min(0).max(10).optional(),
+  backoffMs: z.number().int().min(0).optional(),
+  safeMode: z.boolean().optional(),
+  // Cognitive pipeline flags
+  cognitive: z.boolean().optional(),
+  cognitiveContext: z.union([z.string(), z.record(z.any())]).optional(),
+  // Session approval options (optional for command tools)
+  approveForSession: z.boolean().optional(),
+  sessionId: z.string().optional(),
+  approvalScope: z.enum(['tool', 'tool+opType']).optional(),
+  riskMax: RiskLevelSchema.optional(),
 })
 
 export const CommandResultSchema = z.object({
@@ -114,6 +177,21 @@ export const CommandResultSchema = z.object({
   command: z.string(),
   duration: z.number().min(0),
   workingDirectory: z.string(),
+  shell: z.string().optional(),
+  pid: z.number().int().optional(),
+  startTime: z.date().optional(),
+  endTime: z.date().optional(),
+  streamed: z.boolean().optional(),
+  workingDirectoryNormalized: z.boolean().optional(),
+  safeModeApplied: z.boolean().optional(),
+  audit: z
+    .object({
+      approved: z.boolean().optional(),
+      policy: z.string().optional(),
+      approver: z.string().optional(),
+    })
+    .optional(),
+  cognitive: CognitiveInfoSchema.optional(),
 })
 
 export const EditOperationSchema = z.object({
@@ -190,6 +268,10 @@ export const CodeContextSchema = z.object({
 })
 
 export type ToolExecutionResult = z.infer<typeof ToolExecutionResultSchema>
+export type RiskLevel = z.infer<typeof RiskLevelSchema>
+export type OperationType = z.infer<typeof OperationTypeSchema>
+export type PreflightReport = z.infer<typeof PreflightReportSchema>
+export type EnterpriseOptions = z.infer<typeof EnterpriseOptionsSchema>
 export type WriteFileOptions = z.infer<typeof WriteFileOptionsSchema>
 export type WriteFileResult = z.infer<typeof WriteFileResultSchema>
 export type AppendOptions = z.infer<typeof AppendOptionsSchema>

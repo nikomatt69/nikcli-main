@@ -53,119 +53,144 @@ export class WriteFileTool extends BaseTool {
       // Sanitize and validate file path
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
 
-      // Validate content if validators are provided
-      if (options.validators) {
-        for (const validator of options.validators) {
-          const validation = await validator(content, sanitizedPath)
-          if (!validation.isValid) {
-            throw new Error(`Content validation failed: ${validation.errors.join(', ')}`)
+      // Enterprise guard wrapper for file writes
+      const result = await this.runWithEnterpriseGuard({
+        operationType: 'write',
+        parameters: { filePath: sanitizedPath, contentLength: content.length, options },
+        preflight: () => {
+          const { SafetyAnalyzer } = require('./safety-analyzer')
+          const report = SafetyAnalyzer.preflightFiles({
+            toolName: this.name,
+            operationType: 'write',
+            paths: [sanitizedPath],
+          })
+          return report
+        },
+        action: async () => {
+
+          // Validate content if validators are provided
+          if (options.validators) {
+            for (const validator of options.validators) {
+              const validation = await validator(content, sanitizedPath)
+              if (!validation.isValid) {
+                throw new Error(`Content validation failed: ${validation.errors.join(', ')}`)
+              }
+            }
           }
-        }
-      }
 
-      // LSP + Context Analysis
-      await this.performLSPContextAnalysis(sanitizedPath, content)
+          // LSP + Context Analysis
+          await this.performLSPContextAnalysis(sanitizedPath, content)
 
-      // Read existing content for diff display
-      let existingContent = ''
-      let isNewFile = false
-      try {
-        existingContent = await readFile(sanitizedPath, 'utf8')
-      } catch (_error) {
-        // File doesn't exist, it's a new file
-        isNewFile = true
-      }
+          // Read existing content for diff display
+          let existingContent = ''
+          let isNewFile = false
+          try {
+            existingContent = await readFile(sanitizedPath, 'utf8')
+          } catch (_error) {
+            // File doesn't exist, it's a new file
+            isNewFile = true
+          }
 
-      // Create backup if file exists and backup is enabled
-      if (options.createBackup !== false) {
-        backupPath = await this.createBackup(sanitizedPath)
-      }
+          // Create backup if file exists and backup is enabled
+          if (options.createBackup !== false) {
+            backupPath = await this.createBackup(sanitizedPath)
+          }
 
-      // Ensure directory exists
-      const dir = dirname(sanitizedPath)
-      await mkdir(dir, { recursive: true })
+          // Ensure directory exists
+          const dir = dirname(sanitizedPath)
+          await mkdir(dir, { recursive: true })
 
-      // Apply content transformations
-      let processedContent = content
-      if (options.transformers) {
-        for (const transformer of options.transformers) {
-          processedContent = await transformer(processedContent, sanitizedPath)
-        }
-      }
+          // Apply content transformations
+          let processedContent = content
+          if (options.transformers) {
+            for (const transformer of options.transformers) {
+              processedContent = await transformer(processedContent, sanitizedPath)
+            }
+          }
 
-      // Show diff before writing (unless disabled)
-      if (options.showDiff !== false && !isNewFile && existingContent !== processedContent) {
-        const fileDiff: FileDiff = {
-          filePath: sanitizedPath,
-          originalContent: existingContent,
-          newContent: processedContent,
-          isNew: false,
-          isDeleted: false,
-        }
+          // Show diff before writing (unless disabled)
+          if (options.showDiff !== false && !isNewFile && existingContent !== processedContent) {
+            const fileDiff: FileDiff = {
+              filePath: sanitizedPath,
+              originalContent: existingContent,
+              newContent: processedContent,
+              isNew: false,
+              isDeleted: false,
+            }
 
-        console.log('\n')
-        DiffViewer.showFileDiff(fileDiff, { compact: true })
+            console.log('\n')
+            DiffViewer.showFileDiff(fileDiff, { compact: true })
 
-        // Also add to diff manager for approval system
-        diffManager.addFileDiff(sanitizedPath, existingContent, processedContent)
-      } else if (isNewFile) {
-        const fileDiff: FileDiff = {
-          filePath: sanitizedPath,
-          originalContent: '',
-          newContent: processedContent,
-          isNew: true,
-          isDeleted: false,
-        }
+            // Also add to diff manager for approval system
+            diffManager.addFileDiff(sanitizedPath, existingContent, processedContent)
+          } else if (isNewFile) {
+            const fileDiff: FileDiff = {
+              filePath: sanitizedPath,
+              originalContent: '',
+              newContent: processedContent,
+              isNew: true,
+              isDeleted: false,
+            }
 
-        console.log('\n')
-        DiffViewer.showFileDiff(fileDiff, { compact: true })
-      }
+            console.log('\n')
+            DiffViewer.showFileDiff(fileDiff, { compact: true })
+          }
 
-      // Write file with specified encoding
-      const encoding = options.encoding || 'utf8'
-      await writeFile(sanitizedPath, processedContent, {
-        encoding: encoding as BufferEncoding,
-        mode: options.mode || 0o644,
+          // Write file with specified encoding
+          const encoding = options.encoding || 'utf8'
+          await writeFile(sanitizedPath, processedContent, {
+            encoding: encoding as BufferEncoding,
+            mode: options.mode || 0o644,
+          })
+
+          // Verify write if requested
+          if (options.verifyWrite) {
+            const verification = await this.verifyWrite(sanitizedPath, processedContent, encoding)
+            if (!verification.success) {
+              throw new Error(`Write verification failed: ${verification.error}`)
+            }
+          }
+
+          const duration = Date.now() - startTime
+          const writeFileResult: WriteFileResult = {
+            success: true,
+            filePath: sanitizedPath,
+            bytesWritten: Buffer.byteLength(processedContent, encoding as BufferEncoding),
+            backupPath,
+            duration,
+            metadata: {
+              encoding,
+              lines: processedContent.split('\n').length,
+              created: !backupPath, // New file if no backup was created
+              mode: validatedOptions.mode || 0o644,
+            },
+          }
+
+          // Zod validation for result
+          const validatedResult = WriteFileResultSchema.parse(writeFileResult)
+
+          // Show relative path in logs for cleaner output
+          const relativePath = sanitizedPath.replace(this.workingDirectory, '').replace(/^\//, '') || sanitizedPath
+          advancedUI.logSuccess(`File written: ${relativePath} (${writeFileResult.bytesWritten} bytes)`)
+          return {
+            success: true,
+            data: validatedResult,
+            metadata: {
+              executionTime: duration,
+              toolName: this.name,
+              parameters: { filePath, contentLength: content.length, options },
+            },
+          }
+        },
+        enterpriseOptions: {
+          requireApproval: true,
+          approveForSession: true,
+          approvalScope: 'tool+opType',
+          riskMax: 'high',
+        },
       })
 
-      // Verify write if requested
-      if (options.verifyWrite) {
-        const verification = await this.verifyWrite(sanitizedPath, processedContent, encoding)
-        if (!verification.success) {
-          throw new Error(`Write verification failed: ${verification.error}`)
-        }
-      }
-
-      const duration = Date.now() - startTime
-      const writeFileResult: WriteFileResult = {
-        success: true,
-        filePath: sanitizedPath,
-        bytesWritten: Buffer.byteLength(processedContent, encoding as BufferEncoding),
-        backupPath,
-        duration,
-        metadata: {
-          encoding,
-          lines: processedContent.split('\n').length,
-          created: !backupPath, // New file if no backup was created
-          mode: validatedOptions.mode || 0o644,
-        },
-      }
-
-      // Zod validation for result
-      const validatedResult = WriteFileResultSchema.parse(writeFileResult)
-
-      // Show relative path in logs for cleaner output
-      const relativePath = sanitizedPath.replace(this.workingDirectory, '').replace(/^\//, '') || sanitizedPath
-      advancedUI.logSuccess(`File written: ${relativePath} (${writeFileResult.bytesWritten} bytes)`)
-      return {
-        success: true,
-        data: validatedResult,
-        metadata: {
-          executionTime: duration,
-          toolName: this.name,
-          parameters: { filePath, contentLength: content.length, options },
-        },
-      }
+      return result
     } catch (error: any) {
       // Rollback if backup exists
       if (backupPath && options.autoRollback !== false) {

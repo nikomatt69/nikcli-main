@@ -2,6 +2,7 @@ import * as fsSync from 'node:fs'
 import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import { getWorkingDirectory } from '../utils/working-dir'
 import chalk from 'chalk'
 import { feedbackSystem } from './feedback-system'
 
@@ -31,7 +32,7 @@ export class IntelligentFeedbackWrapper {
   private readonly maxHistorySize = 1000
   private learningFile: string
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = getWorkingDirectory()) {
     this.learningFile = path.join(os.homedir(), '.nikcli', 'learning', 'learning-patterns.json')
     // Load patterns asynchronously - don't await in constructor
     this.loadLearningPatterns().catch((error) => {

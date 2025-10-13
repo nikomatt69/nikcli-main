@@ -342,7 +342,7 @@ export class UnifiedRAGSystem {
 
   private async initializeClients(): Promise<void> {
     try {
-      const projectRoot = process.cwd()
+      const projectRoot = require('../utils/working-dir').getWorkingDirectory()
 
       // Initialize intelligent file filter system
       this.fileFilter = createFileFilter(projectRoot, {

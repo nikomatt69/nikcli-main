@@ -1,7 +1,7 @@
 # Image Generation Tool Documentation
 
 ## Purpose
-Generate images from text prompts using supported models.
+Generate images from text using AI models (DALL-E, GPT-Image).
 
 ## Capabilities
 - Prompt-based generation
@@ -19,4 +19,10 @@ const res = await imageGenerationTool.execute({
 ## Best Practices
 - Keep prompts explicit and concise
 - Version outputs in git when used for docs
+- Choose model/size per need; consider cost
+- Save outputs under project-controlled paths
+
+## Enterprise Guidance (Network Operations)
+- Preflight annotates operationType=network; approval for medium+ risk as configured; session approval optional.
+- Display provider and estimated cost in approval summary where available.
 

@@ -63,6 +63,37 @@ export class GitTools extends BaseTool {
   async execute(params: GitToolParams): Promise<ToolExecutionResult> {
     const start = Date.now()
     try {
+      // Enterprise preflight: git ops often modify repo; classify by action
+      const { SafetyAnalyzer } = require('./safety-analyzer')
+      const op: 'read' | 'write' | 'delete' | 'exec' | 'network' | 'other' =
+        params.action === 'status' || params.action === 'diff' ? 'read' : 'write'
+      const preflight = SafetyAnalyzer.preflightFiles({ toolName: this.getName(), operationType: op, paths: ['.git'] })
+
+      if (op !== 'read') {
+        const { SessionApprovalManager } = require('./session-approval')
+        const { approvalSystem } = require('../ui/approval-system')
+        const session = new SessionApprovalManager()
+        const sessionId = 'default'
+        const scope = 'tool+opType'
+        const risk = preflight.riskLevel
+        const needsApproval = ['medium', 'high', 'critical'].includes(risk)
+        if (needsApproval && !session.isApproved({ sessionId, toolName: this.getName(), scope, operationType: op, riskLevel: risk })) {
+          const ok = await approvalSystem.confirm(
+            `Approve git-tools ${params.action} operation?`,
+            preflight.summary || (preflight.reasons && preflight.reasons.join('; ')) || undefined,
+            false
+          )
+          if (!ok) {
+            return { success: false, error: 'Operation not approved', data: null, metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: params, operationType: op, riskLevel: risk } }
+          }
+          const also = await approvalSystem.confirm(
+            `Also approve git-tools (tool+opType) for this session?`,
+            'Skip future prompts while risk remains within allowed level.',
+            false
+          )
+          if (also) session.approve({ sessionId, toolName: this.getName(), scope, operationType: op, riskMax: 'high' })
+        }
+      }
       switch (params.action) {
         case 'status':
           return await this.status()
@@ -159,8 +190,8 @@ export class GitTools extends BaseTool {
     }
 
     try {
-      ;(global as any).__nikCLI?.suspendPrompt?.()
-    } catch {}
+      ; (global as any).__nikCLI?.suspendPrompt?.()
+    } catch { }
     inputQueue.enableBypass()
     try {
       console.log(chalk.blue(`\n📝 Commit message:`))
@@ -187,8 +218,8 @@ export class GitTools extends BaseTool {
     } finally {
       inputQueue.disableBypass()
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
 
     // Optionally add files
@@ -230,8 +261,8 @@ export class GitTools extends BaseTool {
 
       // Confirm application
       try {
-        ;(global as any).__nikCLI?.suspendPrompt?.()
-      } catch {}
+        ; (global as any).__nikCLI?.suspendPrompt?.()
+      } catch { }
       inputQueue.enableBypass()
       try {
         const { confirmed } = await inquirer.prompt([
@@ -260,8 +291,8 @@ export class GitTools extends BaseTool {
       } finally {
         inputQueue.disableBypass()
         try {
-          ;(global as any).__nikCLI?.resumePromptAndRender?.()
-        } catch {}
+          ; (global as any).__nikCLI?.resumePromptAndRender?.()
+        } catch { }
       }
 
       const res = await this.runner.execute(`git apply ${JSON.stringify(tmp)}`, { skipConfirmation: true })
@@ -273,7 +304,7 @@ export class GitTools extends BaseTool {
     } finally {
       try {
         fs.unlinkSync(tmp)
-      } catch {}
+      } catch { }
     }
   }
 

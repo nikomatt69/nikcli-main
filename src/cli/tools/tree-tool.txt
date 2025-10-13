@@ -1,6 +1,9 @@
+# Tree Tool Documentation
+
+## Purpose
 Beautiful directory structure visualization.
 
-Features:
+## Features
 - Tree-style output with ASCII art
 - File/directory icons
 - Size information
@@ -9,7 +12,13 @@ Features:
 - Sort by name, size, or type
 - File/directory statistics
 
-Examples:
+## Examples
+```ts
 tree({ path: "./src" })
 tree({ maxDepth: 3, showSize: true, onlyDirectories: true })
 tree({ path: ".", useIcons: true, sortBy: "size" })
+```
+
+## Enterprise Guidance (Read Operations)
+- Preflight annotates operationType=read and scanned root; approval not required.
+- Avoid scanning outside workspace; keep maxDepth conservative to respect policies.

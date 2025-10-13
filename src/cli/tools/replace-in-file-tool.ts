@@ -25,6 +25,43 @@ export class ReplaceInFileTool extends BaseTool {
     let backupContent: string | undefined
 
     try {
+      // Preflight + approval for file modification
+      const { SafetyAnalyzer } = require('./safety-analyzer')
+      const sanitizedTestPath = sanitizePath(filePath, this.workingDirectory)
+      const preflight = SafetyAnalyzer.preflightFiles({
+        toolName: this.name,
+        operationType: 'write',
+        paths: [sanitizedTestPath],
+      })
+      const risk = preflight.riskLevel
+      const needsApproval = ['medium', 'high', 'critical'].includes(risk)
+      const { SessionApprovalManager } = require('./session-approval')
+      const { approvalSystem } = require('../ui/approval-system')
+      const session = new SessionApprovalManager()
+      const sessionId = 'default'
+      const scope = 'tool+opType'
+      if (needsApproval && !session.isApproved({ sessionId, toolName: this.name, scope, operationType: 'write', riskLevel: risk })) {
+        const ok = await approvalSystem.confirm(
+          `Approve ${this.name} write operation?`,
+          preflight.summary || (preflight.reasons && preflight.reasons.join('; ')) || undefined,
+          false
+        )
+        if (!ok) {
+          return {
+            success: false,
+            data: null,
+            error: 'Operation not approved',
+            metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: { filePath, searchPattern, replacement, options }, riskLevel: risk, operationType: 'write' },
+          }
+        }
+        const approveForSession = await approvalSystem.confirm(
+          `Also approve ${this.name} (tool+opType) for this session?`,
+          'Skip future prompts while risk remains within allowed level.',
+          false
+        )
+        if (approveForSession) session.approve({ sessionId, toolName: this.name, scope, operationType: 'write', riskMax: 'high' })
+      }
+
       // Sanitize and validate file path
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
 
@@ -99,6 +136,11 @@ export class ReplaceInFileTool extends BaseTool {
           executionTime: duration,
           toolName: this.name,
           parameters: { filePath, searchPattern: searchPattern.toString(), replacement, options },
+          riskLevel: preflight.riskLevel,
+          operationType: 'write',
+          sessionApproved: session.isApproved({ sessionId, toolName: this.name, scope, operationType: 'write', riskLevel: risk }),
+          sessionId,
+          approvalScope: scope,
         },
       }
     } catch (error: any) {

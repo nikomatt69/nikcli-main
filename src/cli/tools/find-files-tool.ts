@@ -15,7 +15,7 @@ export class FindFilesTool extends BaseTool {
     const startTime = Date.now()
 
     try {
-      const sanitizedCwd = sanitizePath(options.cwd || '.', this.workingDirectory)
+      const sanitizedCwd = sanitizePath(options.cwd || this.workingDirectory)
       const files = await globby(pattern, { cwd: sanitizedCwd, onlyFiles: true })
 
       // Show file list in structured UI (optional; safe in headless envs)

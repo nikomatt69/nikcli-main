@@ -5,8 +5,6 @@
     "lib": [
       "es2020",
       "ES2015",
-      "ESNext",
-      "es2022"
     ],
     "module": "commonjs",
     "moduleResolution": "node",

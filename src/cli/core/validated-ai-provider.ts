@@ -5,6 +5,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import { getWorkingDirectory } from '../utils/working-dir'
 import type { CoreMessage } from 'ai'
 import chalk from 'chalk'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
@@ -45,7 +46,7 @@ export interface ValidatedWriteResult {
 export class ValidatedAIProvider {
   private workingDirectory: string
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = getWorkingDirectory()) {
     this.workingDirectory = workingDirectory
   }
 

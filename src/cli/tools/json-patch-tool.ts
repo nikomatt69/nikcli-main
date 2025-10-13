@@ -66,6 +66,44 @@ export class JsonPatchTool extends BaseTool {
   async execute(params: JsonPatchParams): Promise<ToolExecutionResult> {
     const start = Date.now()
     try {
+      // Enterprise preflight (file write) and optional approval
+      const { SafetyAnalyzer } = require('./safety-analyzer')
+      const preflight = SafetyAnalyzer.preflightFiles({
+        toolName: this.getName(),
+        operationType: 'write',
+        paths: [params.filePath].filter(Boolean),
+      })
+
+      const { SessionApprovalManager } = require('./session-approval')
+      const { approvalSystem } = require('../ui/approval-system')
+      const session = new SessionApprovalManager()
+      const sessionId = 'default'
+      const scope: 'tool' | 'tool+opType' = 'tool+opType'
+      const risk = preflight.riskLevel
+      const needsApproval = ['medium', 'high', 'critical'].includes(risk)
+
+      if (needsApproval && !session.isApproved({ sessionId, toolName: this.getName(), scope, operationType: 'write', riskLevel: risk })) {
+        const ok = await approvalSystem.confirm(
+          `Approve ${this.getName()} write operation?`,
+          preflight.summary || (preflight.reasons && preflight.reasons.join('; ')) || undefined,
+          false
+        )
+        if (!ok) {
+          return {
+            success: false,
+            error: 'Operation not approved',
+            data: null,
+            metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: params, riskLevel: risk, operationType: 'write' },
+          }
+        }
+        const approveForSession = await approvalSystem.confirm(
+          `Also approve ${this.getName()} (tool+opType) for this session?`,
+          'Skip future prompts while risk remains within allowed level.',
+          false
+        )
+        if (approveForSession) session.approve({ sessionId, toolName: this.getName(), scope, operationType: 'write', riskMax: 'high' })
+      }
+
       if (!params.filePath) throw new Error('filePath is required')
       if (!Array.isArray(params.operations) || params.operations.length === 0) {
         throw new Error('operations must be a non-empty array')
@@ -128,8 +166,8 @@ export class JsonPatchTool extends BaseTool {
       // Confirmation unless previewOnly
       if (!params.previewOnly && !params.skipConfirmation) {
         try {
-          ;(global as any).__nikCLI?.suspendPrompt?.()
-        } catch {}
+          ; (global as any).__nikCLI?.suspendPrompt?.()
+        } catch { }
         inputQueue.enableBypass()
         try {
           const { confirmed } = await inquirer.prompt([
@@ -155,8 +193,8 @@ export class JsonPatchTool extends BaseTool {
         } finally {
           inputQueue.disableBypass()
           try {
-            ;(global as any).__nikCLI?.resumePromptAndRender?.()
-          } catch {}
+            ; (global as any).__nikCLI?.resumePromptAndRender?.()
+          } catch { }
         }
       }
 
@@ -179,7 +217,7 @@ export class JsonPatchTool extends BaseTool {
       return {
         success: true,
         data: { changes: 1, backupPath },
-        metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: params },
+        metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: params, riskLevel: preflight.riskLevel, operationType: 'write', sessionApproved: session.isApproved({ sessionId, toolName: this.getName(), scope, operationType: 'write', riskLevel: risk }), sessionId, approvalScope: scope },
       }
     } catch (error: any) {
       CliUI.logError(`JSON patch tool failed: ${error.message}`)
@@ -187,7 +225,7 @@ export class JsonPatchTool extends BaseTool {
         success: false,
         error: error.message,
         data: null,
-        metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: params },
+        metadata: { executionTime: Date.now() - start, toolName: this.getName(), parameters: params, operationType: 'write' },
       }
     }
   }
@@ -266,7 +304,7 @@ export class JsonPatchTool extends BaseTool {
       cur[idx] = value
       return
     }
-    ;(cur as any)[last] = value
+    ; (cur as any)[last] = value
   }
 
   private removeByPointer(obj: any, pointer: string, allowMissing: boolean): void {

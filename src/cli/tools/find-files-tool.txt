@@ -17,3 +17,7 @@ const files = await findFilesTool.execute('src/**/*.test.ts', { cwd: process.cwd
 - Combine with grep or multi-read for analysis pipelines
 - Keep globs specific to reduce overhead
 
+## Enterprise Guidance (Read Operations)
+- Preflight annotates operationType=read; no approval by default.
+- Avoid globbing outside workspace; escalate only on policy triggers.
+

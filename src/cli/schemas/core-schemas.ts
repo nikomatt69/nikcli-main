@@ -63,6 +63,13 @@ export const AgentContextSchema = z.object({
   environment: z.record(z.string()).optional(),
   tools: z.array(z.string()).optional(),
   capabilities: z.array(z.string()).optional(),
+  cognitive: z
+    .object({
+      enabled: z.boolean().optional(),
+      policy: z.string().optional(),
+      defaultConfidenceThreshold: z.number().min(0).max(1).optional(),
+    })
+    .optional(),
 })
 
 export const AgentTaskSchema = z.object({

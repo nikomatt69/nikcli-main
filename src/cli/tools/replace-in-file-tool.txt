@@ -19,3 +19,7 @@ const res = await replaceInFileTool.execute('config.ts', [
 - Prefer regex with care; test on preview or backups
 - Combine with git-tools for reviewing diffs
 
+## Enterprise Guidance (Write Operations)
+- Cognitive preflight highlights risky scopes (env files, .git). Approval for medium+ risk; session approval optional.
+- Always show diff; keep backups; validate content with validators when available.
+

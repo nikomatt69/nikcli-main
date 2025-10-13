@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import { ListDirectoryTool, ReadFileTool, ReplaceInFileTool, sanitizePath, WriteFileTool } from './secure-file-tools'
-import { getWorkingDirectory } from '../utils/working-dir'
+import { getWorkingDirectory, resolveWorkspacePath, toWorkspaceRelative } from '../utils/working-dir'
 
 export type { BatchSession } from './secure-command-tool'
 
@@ -91,7 +91,7 @@ export class SecureToolsRegistry {
           )
         )
       }
-    } catch {}
+    } catch { }
   }
 
   /**

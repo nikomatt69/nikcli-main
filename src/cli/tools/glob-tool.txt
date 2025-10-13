@@ -1,6 +1,9 @@
+# Glob Tool Documentation
+
+## Purpose
 Fast file pattern matching with glob support. Use this instead of bash find or ls commands.
 
-Features:
+## Features
 - Fast glob patterns: **.ts, src/**/*.{js,tsx}, **/migrations/*.sql
 - Files sorted by modification time (or name, size)
 - Multiple pattern support
@@ -8,7 +11,13 @@ Features:
 - Size and date filtering
 - Returns relative paths
 
-Examples:
+## Examples
+```ts
 glob({ pattern: "**/*.ts" })
 glob({ pattern: ["src/**/*.tsx", "**/*.test.ts"], sortBy: "mtime" })
 glob({ pattern: "**/config.{js,json}", maxDepth: 3 })
+```
+
+## Enterprise Guidance (Read Operations)
+- Preflight annotates operationType=read; no approval needed.
+- Respect workspace boundaries and ignore lists to avoid escalation.

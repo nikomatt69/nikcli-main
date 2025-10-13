@@ -6,6 +6,9 @@ import chalk from 'chalk'
 import { unifiedRAGSystem } from '../context/rag-system'
 import { semanticSearchEngine } from '../context/semantic-search-engine'
 import { workspaceContext } from '../context/workspace-context'
+import { getWorkingDirectory } from '../utils/working-dir'
+import { sanitizePath } from '../tools/secure-file-tools'
+import { toWorkspaceRelative, resolveWorkspacePath } from '../utils/working-dir'
 import { simpleConfigManager } from '../core/config-manager'
 import { ExecutionPolicyManager, type ToolApprovalRequest } from '../policies/execution-policy'
 import { ContentValidators } from '../tools/write-file-tool'
@@ -32,7 +35,7 @@ export interface ToolCapability {
 export class ToolService {
   private tools: Map<string, ToolCapability> = new Map()
   private executions: Map<string, ToolExecution> = new Map()
-  private workingDirectory: string = process.cwd()
+  private workingDirectory: string = getWorkingDirectory()
   private policyManager: ExecutionPolicyManager
   private approvalSystem: ApprovalSystem
 
@@ -484,21 +487,16 @@ export class ToolService {
 
   // Tool implementations
   private async readFile(args: { filePath: string }): Promise<{ content: string; size: number }> {
-    const fullPath = path.resolve(this.workingDirectory, args.filePath)
-
+    const fullPath = sanitizePath(args.filePath, this.workingDirectory)
     if (!fs.existsSync(fullPath)) {
       throw new Error(`File not found: ${args.filePath}`)
     }
-
     const content = fs.readFileSync(fullPath, 'utf8')
-    return {
-      content,
-      size: content.length,
-    }
+    return { content, size: content.length }
   }
 
   private async writeFile(args: { filePath: string; content: string }): Promise<{ written: boolean; size: number }> {
-    const fullPath = path.resolve(this.workingDirectory, args.filePath)
+    const fullPath = sanitizePath(args.filePath, this.workingDirectory)
     const dir = path.dirname(fullPath)
 
     // Validate content using Claude Code best practices
@@ -518,12 +516,7 @@ export class ToolService {
     }
 
     fs.writeFileSync(fullPath, args.content, 'utf8')
-
-    // Show relative path in logs
-    const relativePath = args.filePath.startsWith(this.workingDirectory)
-      ? args.filePath.replace(this.workingDirectory, '').replace(/^\//, '')
-      : args.filePath
-
+    const relativePath = toWorkspaceRelative(fullPath)
     console.log(chalk.green(`✓ File written: ${relativePath} (${args.content.length} bytes)`))
 
     return {
@@ -535,8 +528,7 @@ export class ToolService {
   private async listFiles(args: {
     path?: string
   }): Promise<{ files: Array<{ name: string; type: 'file' | 'directory'; size?: number }> }> {
-    const targetPath = path.resolve(this.workingDirectory, args.path || '.')
-
+    const targetPath = resolveWorkspacePath(args.path || '.')
     if (!fs.existsSync(targetPath)) {
       throw new Error(`Directory not found: ${args.path || '.'}`)
     }
@@ -564,7 +556,7 @@ export class ToolService {
   }
 
   private async findFiles(args: { pattern: string; path?: string }): Promise<{ matches: string[] }> {
-    const searchPath = path.resolve(this.workingDirectory, args.path || '.')
+    const searchPath = resolveWorkspacePath(args.path || '.')
     const matches: string[] = []
 
     // Convert glob-like pattern (e.g., **/*.{ts,tsx}) to RegExp
@@ -617,7 +609,7 @@ export class ToolService {
 
         for (const item of items) {
           const fullPath = path.join(dir, item.name)
-          const relativePath = path.relative(this.workingDirectory, fullPath)
+          const relativePath = toWorkspaceRelative(fullPath)
 
           if (item.isDirectory()) {
             if (!ignoreDirs.has(item.name)) searchRecursive(fullPath)

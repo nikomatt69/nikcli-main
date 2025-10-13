@@ -52,6 +52,42 @@ export class EditTool extends BaseTool {
 
   async execute(params: EditToolParams): Promise<ToolExecutionResult> {
     try {
+      // Enterprise preflight for file modification
+      const { SafetyAnalyzer } = require('./safety-analyzer')
+      const abs = this.resolveFilePath(params.filePath)
+      const preflight = SafetyAnalyzer.preflightFiles({
+        toolName: this.name,
+        operationType: 'write',
+        paths: [abs],
+      })
+      const risk = preflight.riskLevel
+      const { SessionApprovalManager } = require('./session-approval')
+      const { approvalSystem } = require('../ui/approval-system')
+      const session = new SessionApprovalManager()
+      const sessionId = 'default'
+      const scope = 'tool+opType'
+      const needsApproval = ['medium', 'high', 'critical'].includes(risk)
+      if (needsApproval && !session.isApproved({ sessionId, toolName: this.name, scope, operationType: 'write', riskLevel: risk })) {
+        const ok = await approvalSystem.confirm(
+          `Approve ${this.name} write operation?`,
+          preflight.summary || (preflight.reasons && preflight.reasons.join('; ')) || undefined,
+          false
+        )
+        if (!ok) {
+          return {
+            success: false,
+            data: null,
+            error: 'Operation not approved',
+            metadata: { executionTime: 0, toolName: this.name, parameters: params, riskLevel: risk, operationType: 'write' },
+          }
+        }
+        const approveForSession = await approvalSystem.confirm(
+          `Also approve ${this.name} (tool+opType) for this session?`,
+          'Skip future prompts while risk remains within allowed level.',
+          false
+        )
+        if (approveForSession) session.approve({ sessionId, toolName: this.name, scope, operationType: 'write', riskMax: 'high' })
+      }
       // Carica prompt specifico per questo tool
       const promptManager = PromptManager.getInstance()
       const systemPrompt = await promptManager.loadPromptForContext({
@@ -422,6 +458,6 @@ export class EditTool extends BaseTool {
     if (require('node:path').isAbsolute(filePath)) {
       return filePath
     }
-    return join(this.workingDirectory, filePath)
+    return require('./secure-file-tools').sanitizePath(filePath, this.workingDirectory)
   }
 }

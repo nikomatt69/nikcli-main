@@ -10,11 +10,23 @@ SRC_ENTRY="${ROOT_DIR}/src/cli/index.ts"
 TSCONFIG="${ROOT_DIR}/tsconfig.cli.json"
 
 if [[ -f "$DIST_ENTRY" ]]; then
-  exec node "$DIST_ENTRY" "$@"
+  # Prefer built output with source maps for better stack traces
+  exec node --enable-source-maps "$DIST_ENTRY" "$@"
 fi
 
+# Try tsx (fast TS runner)
+if command -v tsx >/dev/null 2>&1; then
+  exec tsx --tsconfig "$TSCONFIG" "$SRC_ENTRY" "$@"
+fi
+
+# Fallback to npx ts-node if available
 if command -v npx >/dev/null 2>&1; then
   exec npx ts-node --project "$TSCONFIG" "$SRC_ENTRY" "$@"
+fi
+
+# Fallback to bun if installed
+if command -v bun >/dev/null 2>&1; then
+  exec bun "$SRC_ENTRY" "$@"
 fi
 
 echo "NikCLI: build output not found."

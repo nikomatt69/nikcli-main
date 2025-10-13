@@ -25,3 +25,8 @@ const res = await editTool.execute({
 - Enable backups for important files
 - Validate syntax for code/config files
 
+## Enterprise Guidance (Write Operations)
+- Cognitive preflight classifies risk for write and shows reasons (e.g., touching env files, .git, large batches).
+- Approval is required for medium+ risk; offer "Approve for session (tool+opType)".
+- Always present a diff preview when possible; never write without path sanitization and validation.
+

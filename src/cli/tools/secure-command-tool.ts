@@ -5,7 +5,7 @@ import { promisify } from 'node:util'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
-import { getWorkingDirectory } from '../utils/working-dir'
+import { getWorkingDirectory, resolveWorkspacePath, toWorkspaceRelative } from '../utils/working-dir'
 
 const execAsync = promisify(exec)
 
@@ -262,8 +262,8 @@ export class SecureCommandTool {
 
     // Suspend main prompt and enable bypass for interactive approval
     try {
-      ;(global as any).__nikCLI?.suspendPrompt?.()
-    } catch {}
+      ; (global as any).__nikCLI?.suspendPrompt?.()
+    } catch { }
     inputQueue.enableBypass()
     try {
       const { approved } = await inquirer.prompt([
@@ -305,8 +305,8 @@ export class SecureCommandTool {
       inputQueue.disableBypass()
       // Proactively resume CLI prompt after approval interaction
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
   }
 
@@ -458,8 +458,8 @@ export class SecureCommandTool {
       console.log(chalk.yellow(`\n⚠️  Command requires confirmation: ${command}`))
 
       try {
-        ;(global as any).__nikCLI?.suspendPrompt?.()
-      } catch {}
+        ; (global as any).__nikCLI?.suspendPrompt?.()
+      } catch { }
       inputQueue.enableBypass()
       try {
         const { confirmed } = await inquirer.prompt([
@@ -482,18 +482,18 @@ export class SecureCommandTool {
       } finally {
         inputQueue.disableBypass()
         try {
-          ;(global as any).__nikCLI?.resumePromptAndRender?.()
-        } catch {}
+          ; (global as any).__nikCLI?.resumePromptAndRender?.()
+        } catch { }
       }
     }
 
     try {
-      const cwd = options.cwd ? path.resolve(this.workingDirectory, options.cwd) : this.workingDirectory
+      const cwd = options.cwd ? resolveWorkspacePath(options.cwd) : this.workingDirectory
       const env = { ...process.env, ...options.env }
       const timeout = options.timeout || 30000 // 30 second default timeout
 
       console.log(chalk.blue(`⚡ Executing: ${command}`))
-      console.log(chalk.gray(`📁 Working directory: ${cwd}`))
+      console.log(chalk.gray(`📁 Working directory: ${toWorkspaceRelative(cwd)}`))
 
       const { stdout, stderr } = await execAsync(command, {
         cwd,
@@ -572,8 +572,8 @@ export class SecureCommandTool {
 
     if (!options.skipConfirmation) {
       try {
-        ;(global as any).__nikCLI?.suspendPrompt?.()
-      } catch {}
+        ; (global as any).__nikCLI?.suspendPrompt?.()
+      } catch { }
       inputQueue.enableBypass()
       try {
         const { confirmed } = await inquirer.prompt([
@@ -596,8 +596,8 @@ export class SecureCommandTool {
       } finally {
         inputQueue.disableBypass()
         try {
-          ;(global as any).__nikCLI?.resumePromptAndRender?.()
-        } catch {}
+          ; (global as any).__nikCLI?.resumePromptAndRender?.()
+        } catch { }
       }
     }
 

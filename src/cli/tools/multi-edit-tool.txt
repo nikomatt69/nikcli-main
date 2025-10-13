@@ -25,3 +25,7 @@ const res = await multiEditTool.execute({
 - Keep operations small and atomic
 - Use rollback in CI-unsafe sequences
 
+## Enterprise Guidance (Write Operations)
+- Cognitive preflight aggregates scope; approval recommended for medium+ risk (many files, .git, env).
+- Session approval can reduce repeated prompts during batch runs.
+

@@ -62,6 +62,12 @@ export class DiffTool extends BaseTool {
 
   async execute(params: DiffToolParams): Promise<ToolExecutionResult> {
     try {
+      // Enterprise preflight (read-only)
+      const { SafetyAnalyzer } = require('./safety-analyzer')
+      const possiblePaths: string[] = []
+      try { possiblePaths.push(sanitizePath(params.source, this.workingDirectory)) } catch { }
+      try { possiblePaths.push(sanitizePath(params.target, this.workingDirectory)) } catch { }
+      const preflight = SafetyAnalyzer.preflightFiles({ toolName: this.name, operationType: 'read', paths: possiblePaths })
       // Load tool-specific prompt
       const promptManager = PromptManager.getInstance()
       const systemPrompt = await promptManager.loadPromptForContext({
@@ -162,6 +168,8 @@ export class DiffTool extends BaseTool {
           executionTime,
           toolName: this.name,
           parameters: params,
+          operationType: 'read',
+          riskLevel: preflight.riskLevel,
         },
       }
     } catch (error: any) {
@@ -174,6 +182,7 @@ export class DiffTool extends BaseTool {
           executionTime: Date.now(),
           toolName: this.name,
           parameters: params,
+          operationType: 'read',
         },
       }
     }

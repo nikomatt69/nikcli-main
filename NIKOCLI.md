@@ -1,84 +1,193 @@
-// TODO: Consider refactoring for reduced complexity
-# NikCLI Commands Reference
+# NikCLI Project Overview
 
-## Overview
+Generated: 2025-10-13T21:19:29.428Z
 
-NikCLI is an advanced AI-powered CLI tool for software dev. Use slash commands (starting with `/`) in chat mode to interact. Commands are case-insensitive. For full usage, type `/help` in the CLI.
+## Project
+- Name: @nicomatt69/nikcli
+- Version: 0.3.0
+- Description: NikCLI - Context-Aware AI Development Assistant
+- Git Branch: new-logs
+- Last Commit: 711246e 2025-10-13 feat: add new prompts and tools for enhanced AI agent functionality
 
-This file is auto-generated from codebase analysis and manually updated to reflect recent implementations.
+## Scripts
+- start: ts-node --project tsconfig.cli.json src/cli/index.ts
+- dev: pnpm start
+- build: tsc --project tsconfig.cli.json
+- bun:dev: bun run src/cli/index.ts
+- bun:dev:nikd: bun run src/cli/nikd.ts
+- bun:dev:nikctl: bun run src/cli/nikctl.ts
+- bun:build: bun build src/cli/index.ts --outdir dist/cli --target node --sourcemap
+- bun:build:nikd: bun build src/cli/nikd.ts --outdir dist/cli --target node --sourcemap
+- bun:build:nikctl: bun build src/cli/nikctl.ts --outdir dist/cli --target node --sourcemap
+- build:vercel: echo 'Vercel build completed - using serverless functions'
+- prepublishOnly: pnpm run build
+- build:start: pnpm run build && node dist/cli/index.js
+- build:binary: node scripts/build-all.js
+- build:pkg: pnpm run build && mkdir -p public/bin && pkg dist/cli/index.js --target node18-macos-arm64 --output public/bin/nikcli-macos-arm64
+- build:pkg:all: pnpm run build && mkdir -p public/bin && pnpm run pkg:macos:arm64 && pnpm run pkg:macos:x64 && pnpm run pkg:linux:x64 && pnpm run pkg:win:x64
+- pkg:macos:arm64: pkg dist/cli/index.js --target node18-macos-arm64 --output public/bin/nikcli-aarch64-apple-darwin
+- pkg:macos:x64: pkg dist/cli/index.js --target node18-macos-x64 --output public/bin/nikcli-x86_64-apple-darwin
+- pkg:linux:x64: pkg dist/cli/index.js --target node18-linux-x64 --output public/bin/nikcli-x86_64-linux
+- pkg:win:x64: pkg dist/cli/index.js --target node18-win-x64 --output public/bin/nikcli-x86_64-windows.exe
+- build:release: node scripts/build-release.js
+- test: vitest
+- test:run: vitest run
+- test:watch: vitest --watch
+- test:coherence: node tests/verify-coherence.js
+- test:system: node tests/verify-system.js
+- lint: biome lint src/
+- format: biome format --write src/
+- check: biome check --write src/
+- nikctl: ts-node --project tsconfig.cli.json src/cli/nikctl.ts
+- nikd: ts-node --project tsconfig.cli.json src/cli/nikd.ts
+- daemon:start: npm run nikd start
+- daemon:status: npm run nikd status
+- bg:start: npm run nikctl bg start
+- bg:list: npm run nikctl bg list
+- bg:stats: npm run nikctl bg stats
+- web:dev: cd web && npm run dev
+- web:build: cd web && npm run build
+- web:start: cd web && npm start
+- docker:build: docker build -t nikcli-bg .
+- docker:up: docker-compose up -d
+- docker:down: docker-compose down
+- docker:logs: docker-compose logs -f
+- config:check: node -e "console.log('Config check:', process.env.NODE_ENV || 'not set')"
+- db:init: mkdir -p database && echo 'Database directory created'
+- system:diagnose: node -e "console.log('Node:', process.version, 'Platform:', process.platform, 'Arch:', process.arch)"
 
-## Commands (Alphabetical)
+## Dependencies
+- Dependencies (71)
+  - @ai-sdk-tools/artifacts
+  - @ai-sdk-tools/cache
+  - @ai-sdk-tools/store
+  - @ai-sdk/anthropic
+  - @ai-sdk/gateway
+  - @ai-sdk/google
+  - @ai-sdk/openai
+  - @ai-sdk/vercel
+  - @anthropic-ai/tokenizer
+  - @coinbase/agentkit
+  - @coinbase/agentkit-vercel-ai-sdk
+  - @mozilla/readability
+  - @octokit/rest
+  - @openrouter/ai-sdk-provider
+  - @supabase/supabase-js
+  - @types/blessed
+  - @types/cli-progress
+  - @types/cors
+  - @types/diff
+  - @types/express
+  - @types/inquirer
+  - @types/js-yaml
+  - @types/jsonwebtoken
+  - @types/marked-terminal
+  - @types/uuid
+  - @upstash/redis
+  - @vercel/kv
+  - @vercel/node
+  - ai
+  - axios
+  - blessed
+  - boxen
+  - chalk
+  - chokidar
+  - chromadb
+  - cli-highlight
+  - cli-progress
+  - commander
+  - context-interceptor-sdk
+  - cors
+  - diff
+  - dotenv
+  - express
+  - express-rate-limit
+  - globby
+  - gpt-tokenizer
+  - gradient-string
+  - helmet
+  - highlight.js
+  - inquirer
+  - ...
+- DevDependencies (15)
+  - @biomejs/biome
+  - @types/glob
+  - @types/gradient-string
+  - @types/jsdom
+  - @types/node
+  - @types/ws
+  - @typescript-eslint/eslint-plugin
+  - @typescript-eslint/parser
+  - @vitest/ui
+  - esbuild
+  - eslint-plugin-unused-imports
+  - pkg
+  - ts-node
+  - typescript
+  - vitest
 
-### /agent <agent-name> [options]
+## Top-level Structure
+- .checkpoints/
+- .claude/
+- .cursor/
+- .git/
+- .github/
+- .nikcli/
+- .vercel/
+- .vscode/
+- api/
+- bin/
+- database/
+- dist/
+- docs/
+- generated_images/
+- installer/
+- node_modules/
+- prompts/
+- public/
+- scripts/
+- src/
+- streamtty/
+- tests/
+- web/
+- .DS_Store
+- .editorconfig
+- .env
+- .env.production
+- .eslintrc.js
+- .gitattributes
+- .gitignore
+- .vercelignore
+- CHANGELOG.md
+- CLAUDE.md
+- Dockerfile
+- LICENSE
+- NIKOCLI.md
+- README.md
+- README_EN.md
+- README_IT.md
+- RELEASE.md
+- SECURITY.md
+- biome.json
+- docker-compose.yml
+- nikcli.2025-09-25.private-key.pem
+- package.json
+- pkg-config.json
+- pnpm-lock.yaml
+- tsconfig.base.json
+- tsconfig.cli.json
+- tsconfig.json
+- tsconfig.vercel.json
+- vercel.json
+- vitest.config.ts
 
-- **Description**: Activates a specific AI agent for task execution (e.g., `/agent universal-agent "analyze code"`). Options: `--auto` for autonomous mode, `--plan` for planning first.
-- **Example**: `/agent ai-analysis "review my code"`
-- **Provider**: All (adapts to current provider, including OpenRouter for routed models).
+## Code Stats
+- Files: 140076
+- Directories: 21944
+- Test Files: 1105
+- TypeScript Files: 37958
+- JavaScript Files: 44682
 
-### /analyze [path] [options]
-
-- **Description**: Performs comprehensive project/code analysis. Options: `--metrics` for code metrics, `--dependencies` for deps scan, `--security` for basic security check.
-- **Example**: `/analyze src/ --metrics --security`
-- **Provider**: All.
-
-### /build [options]
-
-- **Description**: Builds the project using npm/yarn. Options: `--prod` for production build, `--watch` for dev.
-- **Example**: `/build --prod`
-- **Provider**: All (uses execute_command tool).
-
-### /complete "partial command"
-
-- **Description**: Generates AI completions for partial input (e.g., code, commands). Uses current model for suggestions.
-- **Example**: `/complete "npm run "`
-- **Provider**: All.
-
-### /config [subcommand]
-
-- **Description**: Manages config. Subcommands: `show` to display current config, `model <name>` to set model, `key <provider> <key>` to set API key.
-- **Example**: `/config show` or `/config model openrouter-gpt-4o`
-- **Provider**: All.
-
-### /deploy [options]
-
-- **Description**: Deploys the project (uses npm run deploy or custom). Options: `--env production`.
-- **Example**: `/deploy --env staging`
-- **Provider**: All (uses execute_command).
-
-### /grep <pattern> [path]
-
-- **Description**: Searches files for pattern (uses grep tool). Options: `--files "*.ts"` for filtering.
-- **Example**: `/grep "function" src/`
-- **Provider**: All.
-
-### /vim [subcommand] [options]
-
-- **New in v0.2.3**: Enables NikCLI's integrated Vim mode for enhanced editing within the CLI environment. Leverages system Vim with auto-configured .vimrc, plugins, and session management.
-
-- **Subcommands**:
-  - `setup`: Generates and installs NikCLI-optimized .vimrc with plugins (NERDTree, ALE, Gruvbox theme, etc.) and vim-plug. Run `:PlugInstall` in Vim after.
-    - **Example**: `/vim setup`
-  - `open <file>`: Opens file in Vim session with tracking. Supports `--readonly`, `--line <num>`, `--diff <other-file>`.
-    - **Example**: `/vim open src/index.ts --line 42`
-  - `quick-edit <file> [content]`: Writes content (if provided) and opens in Vim for quick edits.
-    - **Example**: `/vim quick-edit notes.md "Add new task"`
-  - `diff <file1> <file2>`: Opens side-by-side diff in Vim.
-    - **Example**: `/vim diff old.js new.js`
-  - `config [get|set|add-plugin|remove-plugin]`: Manages Vim config (themes, plugins, mappings).
-    - **Examples**: `/vim config get`, `/vim config add-plugin 'vim-easymotion'`
-  - `sessions`: Lists active Vim sessions managed by NikCLI.
-    - **Example**: `/vim sessions`
-
-- **Features Reflected**:
-  - Auto-generates .vimrc with 10+ plugins, custom mappings (e.g., jj to Esc, leader keys).
-  - Session saving/loading in ~/.vim/sessions.
-  - Integration with NikCLI for AI-assisted editing (e.g., combine with /agent for code suggestions in Vim).
-  - Requires system Vim installed; checks availability.
-
-- **Provider**: All (uses child_process spawning for Vim).
-
-### Additional Commands (from base)
-
-... (other commands remain as previously documented)
-
-**Note**: This reference now includes recent Vim integration from commits 0afbf9c and 1e64398. For full list, use `/help` in NikCLI.
+## Notes
+- This file is used by NikCLI to provide project context.
+- Update sections as needed, or regenerate with /init --force.

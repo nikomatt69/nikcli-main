@@ -55,7 +55,7 @@ export class OrchestratorService extends EventEmitter {
     })
 
     this.context = {
-      workingDirectory: process.cwd(),
+      workingDirectory: require('../utils/working-dir').getWorkingDirectory(),
       autonomous: true,
       planMode: false,
       autoAcceptEdits: false,

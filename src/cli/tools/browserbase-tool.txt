@@ -1,0 +1,12 @@
+# Browserbase Tool Documentation
+
+## Purpose
+Web browsing automation and AI-powered content analysis.
+
+## Best Practices
+- Close sessions when done
+- Limit analysis content size
+
+## Enterprise Guidance (Network Operations)
+- Preflight annotates operationType=network; approval for medium+ risk as configured; session approval optional.
+- Show target URL and provider in approval context.

@@ -25,3 +25,7 @@ const res = await listTool.execute({
 - Keep depth conservative to avoid noise
 - Extend ignore list for project specifics
 
+## Enterprise Guidance (Read Operations)
+- Preflight annotates operationType=read and scanned root; approval not required.
+- Escalate only on policy triggers (outside workspace, extreme scope).
+

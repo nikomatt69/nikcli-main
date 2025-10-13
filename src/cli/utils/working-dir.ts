@@ -1,41 +1,64 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
-/**
- * Resolve the effective working directory for tools and services.
- * Priority:
- * 1) Explicit input (if provided)
- * 2) NIKCLI_WORKSPACE env var
- * 3) Process CWD, adjusted when pointing at build output (dist)
- */
-export function getWorkingDirectory(explicit?: string): string {
-  const fromEnv = process.env.NIKCLI_WORKSPACE
-
-  let base = explicit || fromEnv || process.cwd()
-  base = path.resolve(base)
-
-  // If CWD is inside a build folder (dist/*), try to snap to project root
-  // This helps when running compiled output or via different toolchains (node/bun)
-  const parts = base.split(path.sep)
-  const distIdx = parts.lastIndexOf('dist')
-  if (distIdx >= 0) {
-    const candidate = path.resolve(parts.slice(0, distIdx).join(path.sep) || path.sep)
-    // Prefer a parent that looks like a project root (has package.json or .git)
-    if (looksLikeProjectRoot(candidate)) {
-      return candidate
+// Cache the workspace root as the launch directory, resolved to a real path
+let workspaceRoot: string = (() => {
+    try {
+        const launch = process.cwd()
+        return fs.existsSync(launch) ? fs.realpathSync(launch) : launch
+    } catch {
+        return process.cwd()
     }
-  }
+})()
 
-  return base
+export function getWorkingDirectory(): string {
+    return workspaceRoot
 }
 
-function looksLikeProjectRoot(dir: string): boolean {
-  try {
-    const pkg = path.join(dir, 'package.json')
-    const git = path.join(dir, '.git')
-    if (fs.existsSync(pkg)) return true
-    if (fs.existsSync(git) && fs.statSync(git).isDirectory()) return true
-  } catch {}
-  return false
+export function setWorkingDirectory(dir: string): void {
+    const real = fs.realpathSync(dir)
+    workspaceRoot = real
 }
+
+export function isInsideWorkspace(absolutePath: string): boolean {
+    const candidate = path.resolve(absolutePath)
+    const rel = path.relative(workspaceRoot, candidate)
+    return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
+}
+
+export function resolveWorkspacePath(inputPath: string | undefined): string {
+    const target = !inputPath || inputPath === '.' ? workspaceRoot : path.isAbsolute(inputPath) ? inputPath : path.resolve(workspaceRoot, inputPath)
+
+    // Prefer realpath when possible (existing files/dirs), otherwise rely on normalized path
+    try {
+        const real = fs.realpathSync(target)
+        ensureInside(real)
+        return real
+    } catch {
+        const normalized = path.normalize(target)
+        ensureInside(normalized)
+        return normalized
+    }
+}
+
+export function toWorkspaceRelative(absolutePath: string): string {
+    try {
+        const real = fs.existsSync(absolutePath) ? fs.realpathSync(absolutePath) : absolutePath
+        const rel = path.relative(workspaceRoot, real)
+        if (rel === '') return '.'
+        return rel.startsWith('..') || path.isAbsolute(rel) ? absolutePath : rel
+    } catch {
+        const rel = path.relative(workspaceRoot, absolutePath)
+        if (rel === '') return '.'
+        return rel.startsWith('..') || path.isAbsolute(rel) ? absolutePath : rel
+    }
+}
+
+function ensureInside(absolutePath: string): void {
+    const rel = path.relative(workspaceRoot, absolutePath)
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+        throw new Error(`Path escapes workspace root: ${absolutePath}`)
+    }
+}
+
 

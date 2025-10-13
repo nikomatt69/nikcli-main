@@ -12,9 +12,19 @@ export interface BashToolParams {
   command: string
   timeout?: number
   description?: string
-  workingDirectory?: string
+  // Enterprise/bash options
+  interactive?: boolean
+  stream?: boolean
+  loginShell?: boolean
+  envInherit?: boolean
+  retries?: number
+  backoffMs?: number
+  safeMode?: boolean
   environment?: Record<string, string>
   allowDangerous?: boolean
+  // Cognitive pipeline
+  cognitive?: boolean
+  cognitiveContext?: any
 }
 
 export interface BashResult {
@@ -26,6 +36,18 @@ export interface BashResult {
   workingDirectory: string
   timedOut: boolean
   killed: boolean
+  shell?: string
+  pid?: number
+  streamed?: boolean
+  startTime?: number
+  endTime?: number
+  cognitive?: {
+    intent?: string
+    confidence?: number
+    risks?: string[]
+    suggestions?: string[]
+    notes?: string
+  }
 }
 
 // Whitelist comandi sicuri
@@ -132,43 +154,119 @@ export class BashTool extends BaseTool {
         throw new Error('Command is required')
       }
 
-      // Validazione sicurezza comando
-      await this.validateCommandSafety(params.command, params.allowDangerous || false)
+      // Enterprise preflight + approval wrapper
+      const result = await this.runWithEnterpriseGuard({
+        operationType: 'exec',
+        parameters: params,
+        preflight: () => {
+          const { SafetyAnalyzer } = require('./safety-analyzer')
+          const report = SafetyAnalyzer.preflightCommand({
+            toolName: this.name,
+            operationType: 'exec',
+            command: params.command,
+            workingDirectory: this.workingDirectory,
+          })
+          return report
+        },
+        action: async () => {
+          // Validazione sicurezza comando (legacy local checks)
+          const allowDangerous = params.safeMode ? false : (params.allowDangerous || false)
+          await this.validateCommandSafety(params.command, allowDangerous)
 
-      const timeout = Math.min(params.timeout || DEFAULT_TIMEOUT, MAX_TIMEOUT)
-      const workingDir = params.workingDirectory || this.workingDirectory
+          const timeout = Math.min(params.timeout || DEFAULT_TIMEOUT, MAX_TIMEOUT)
+          const workingDir = this.workingDirectory
+          const interactive = !!params.interactive
+          const stream = !!params.stream
+          const loginShell = !!params.loginShell
+          const envInherit = params.envInherit !== false
+          const retries = Math.max(0, Math.min(params.retries ?? 0, 10))
+          const baseBackoff = Math.max(0, params.backoffMs ?? 500)
 
-      // Validazione working directory
-      if (!this.isPathSafe(workingDir)) {
-        throw new Error(`Working directory not safe: ${workingDir}`)
-      }
+          // Validazione working directory
+          if (!this.isPathSafe(workingDir)) {
+            throw new Error(`Working directory not safe: ${workingDir}`)
+          }
 
-      CliUI.logInfo(`🔧 Executing command: ${CliUI.highlight(params.command)}`)
-      if (params.description) {
-        CliUI.logInfo(`📝 Description: ${params.description}`)
-      }
+          CliUI.logInfo(`🔧 Executing command: ${CliUI.highlight(params.command)}`)
+          if (params.description) {
+            CliUI.logInfo(`📝 Description: ${params.description}`)
+          }
 
-      const result = await this.executeCommand(params.command, {
-        timeout,
-        workingDirectory: workingDir,
-        environment: params.environment,
+          const startOverall = Date.now()
+          let attempt = 0
+          let lastResult: BashResult | null = null
+          let lastError: any = null
+
+          while (attempt <= retries) {
+            if (attempt > 0) {
+              const delay = baseBackoff * Math.pow(2, attempt - 1)
+              CliUI.logInfo(`⏳ Retry ${attempt}/${retries} in ${delay}ms`)
+              await new Promise((r) => setTimeout(r, delay))
+            }
+
+            try {
+              const result = await this.executeCommand(params.command, {
+                timeout,
+                workingDirectory: workingDir,
+                environment: envInherit ? { ...params.environment } : { ...params.environment },
+                interactive,
+                stream,
+                loginShell,
+                safeMode: !!params.safeMode,
+              })
+              lastResult = result
+              lastError = null
+              break
+            } catch (err: any) {
+              lastError = err
+              attempt += 1
+              if (attempt > retries) break
+            }
+          }
+
+          const result = lastResult
+          if (!result && lastError) throw lastError
+          if (!result) throw new Error('Unknown bash execution failure')
+
+          if (result.exitCode === 0) {
+            CliUI.logSuccess(`✓ Command completed successfully (${result.executionTime}ms)`)
+          } else {
+            CliUI.logWarning(`⚠️ Command exited with code ${result.exitCode}`)
+          }
+
+          // Cognitive (lightweight) analysis summary
+          if (params.cognitive !== false) {
+            const risks: string[] = []
+            for (const p of DANGEROUS_PATTERNS) if (p.test(params.command)) risks.push(p.toString())
+            const intent = params.command.trim().split(/\s+/)[0]
+            result.cognitive = {
+              intent,
+              confidence: 0.7,
+              risks,
+              suggestions: risks.length ? ['Review risky patterns or run in safeMode'] : [],
+              notes: typeof params.cognitiveContext === 'string' ? params.cognitiveContext : undefined,
+            }
+          }
+
+          return {
+            success: result.exitCode === 0,
+            data: result,
+            metadata: {
+              executionTime: Date.now() - startOverall,
+              toolName: this.name,
+              parameters: params,
+            },
+          }
+        },
+        enterpriseOptions: {
+          requireApproval: true,
+          approveForSession: params.safeMode ? false : true,
+          approvalScope: 'tool+opType',
+          riskMax: 'high',
+        },
       })
 
-      if (result.exitCode === 0) {
-        CliUI.logSuccess(`✓ Command completed successfully (${result.executionTime}ms)`)
-      } else {
-        CliUI.logWarning(`⚠️ Command exited with code ${result.exitCode}`)
-      }
-
-      return {
-        success: result.exitCode === 0,
-        data: result,
-        metadata: {
-          executionTime: result.executionTime,
-          toolName: this.name,
-          parameters: params,
-        },
-      }
+      return result
     } catch (error: any) {
       CliUI.logError(`Bash tool failed: ${error.message}`)
       return {
@@ -176,7 +274,7 @@ export class BashTool extends BaseTool {
         error: error.message,
         data: null,
         metadata: {
-          executionTime: Date.now(),
+          executionTime: 0,
           toolName: this.name,
           parameters: params,
         },
@@ -238,6 +336,10 @@ export class BashTool extends BaseTool {
       timeout: number
       workingDirectory: string
       environment?: Record<string, string>
+      interactive?: boolean
+      stream?: boolean
+      loginShell?: boolean
+      safeMode?: boolean
     }
   ): Promise<BashResult> {
     const startTime = Date.now()
@@ -255,11 +357,13 @@ export class BashTool extends BaseTool {
         PWD: options.workingDirectory,
       }
 
-      // Spawn processo
-      const child: ChildProcess = spawn('bash', ['-c', command], {
+      // Spawn processo (login shell if requested)
+      const bashArgs = options.loginShell ? ['-lc', command] : ['-c', command]
+      const stdio = options.interactive ? 'inherit' : ['ignore', 'pipe', 'pipe']
+      const child: ChildProcess = spawn('bash', bashArgs, {
         cwd: options.workingDirectory,
         env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: stdio as any,
       })
 
       // Setup timeout
@@ -279,8 +383,11 @@ export class BashTool extends BaseTool {
       // Gestione output
       if (child.stdout) {
         child.stdout.on('data', (data: Buffer) => {
-          stdout += data.toString()
-
+          const chunk = data.toString()
+          stdout += chunk
+          if (options.stream) {
+            CliUI.logInfo(chunk)
+          }
           // Limita output per evitare memory overflow
           if (stdout.length > MAX_OUTPUT_LENGTH) {
             stdout = `${stdout.substring(0, MAX_OUTPUT_LENGTH)}\n... [output truncated]`
@@ -314,6 +421,11 @@ export class BashTool extends BaseTool {
           workingDirectory: options.workingDirectory,
           timedOut,
           killed,
+          shell: options.loginShell ? 'bash -l -c' : 'bash -c',
+          pid: child.pid || undefined,
+          streamed: !!options.stream,
+          startTime: startTime,
+          endTime: Date.now(),
         }
 
         if (timedOut) {

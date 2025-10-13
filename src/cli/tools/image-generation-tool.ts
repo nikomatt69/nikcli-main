@@ -56,6 +56,34 @@ export class ImageGenerationTool extends BaseTool {
     const startTime = Date.now()
 
     try {
+      // Preflight for network write (generation)
+      const { SafetyAnalyzer } = require('./safety-analyzer')
+      const preflight = SafetyAnalyzer.preflightFiles({ toolName: this.name, operationType: 'network', paths: [] })
+
+      const { SessionApprovalManager } = require('./session-approval')
+      const { approvalSystem } = require('../ui/approval-system')
+      const session = new SessionApprovalManager()
+      const sessionId = 'default'
+      const scope = 'tool+opType'
+      const risk = preflight.riskLevel
+      const needsApproval = ['medium', 'high', 'critical'].includes(risk)
+      if (needsApproval && !session.isApproved({ sessionId, toolName: this.name, scope, operationType: 'network', riskLevel: risk })) {
+        const ok = await approvalSystem.confirm(
+          `Approve image-generation-tool network operation?`,
+          preflight.summary || (preflight.reasons && preflight.reasons.join('; ')) || undefined,
+          false
+        )
+        if (!ok) {
+          return { success: false, data: null, error: 'Operation not approved', metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: { options }, operationType: 'network', riskLevel: risk } }
+        }
+        const also = await approvalSystem.confirm(
+          `Also approve image-generation-tool (tool+opType) for this session?`,
+          'Skip future prompts while risk remains within allowed level.',
+          false
+        )
+        if (also) session.approve({ sessionId, toolName: this.name, scope, operationType: 'network', riskMax: 'high' })
+      }
+
       const result = await this.executeInternal(options)
 
       return {
@@ -65,6 +93,11 @@ export class ImageGenerationTool extends BaseTool {
           executionTime: Date.now() - startTime,
           toolName: this.name,
           parameters: { options },
+          operationType: 'network',
+          riskLevel: preflight.riskLevel,
+          sessionApproved: session.isApproved({ sessionId, toolName: this.name, scope, operationType: 'network', riskLevel: risk }),
+          sessionId,
+          approvalScope: scope,
         },
       }
     } catch (error: any) {
@@ -76,6 +109,7 @@ export class ImageGenerationTool extends BaseTool {
           executionTime: Date.now() - startTime,
           toolName: this.name,
           parameters: { options },
+          operationType: 'network',
         },
       }
     }

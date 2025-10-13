@@ -27,6 +27,53 @@ export class RunCommandTool extends BaseTool {
     const startTime = Date.now()
 
     try {
+      // Enterprise preflight + optional approval
+      const { SafetyAnalyzer } = require('./safety-analyzer')
+      const preflight = SafetyAnalyzer.preflightCommand({
+        toolName: this.name,
+        operationType: 'exec',
+        command,
+        workingDirectory: options.cwd || this.workingDirectory,
+      })
+
+      const { SessionApprovalManager } = require('./session-approval')
+      const { approvalSystem } = require('../ui/approval-system')
+      const session = new SessionApprovalManager()
+
+      const sessionId = 'default'
+      const scope = 'tool+opType'
+      const risk = preflight.riskLevel
+      const needsApproval = ['medium', 'high', 'critical'].includes(risk)
+
+      if (needsApproval &&
+        !session.isApproved({ sessionId, toolName: this.name, scope, operationType: 'exec', riskLevel: risk })) {
+        const ok = await approvalSystem.confirm(
+          `Approve ${this.name} exec operation?`,
+          preflight.summary || (preflight.reasons && preflight.reasons.join('; ')) || undefined,
+          false
+        )
+        if (!ok) {
+          return {
+            success: false,
+            data: null,
+            error: 'Operation not approved',
+            metadata: {
+              executionTime: Date.now() - startTime,
+              toolName: this.name,
+              parameters: { command, options },
+              riskLevel: risk,
+              operationType: 'exec',
+            },
+          }
+        }
+
+        const approveForSession = await approvalSystem.confirm(
+          `Also approve ${this.name} (tool+opType) for this session?`,
+          'Skip future prompts while risk remains within allowed level.',
+          false
+        )
+        if (approveForSession) session.approve({ sessionId, toolName: this.name, scope, operationType: 'exec', riskMax: 'high' })
+      }
       // Parse and validate command
       const parsedCommand = this.parseCommand(command)
       await this.validateCommand(parsedCommand, options)
@@ -57,15 +104,21 @@ export class RunCommandTool extends BaseTool {
         advancedUI.logWarning(`Command failed with exit code ${result.exitCode}: ${command}`)
       }
 
-      return {
+      const toolResult: ToolExecutionResult = {
         success: result.exitCode === 0,
         data: commandResult,
         metadata: {
           executionTime: duration,
           toolName: this.name,
           parameters: { command, options },
+          riskLevel: preflight.riskLevel,
+          operationType: 'exec',
+          sessionApproved: session.isApproved({ sessionId, toolName: this.name, scope, operationType: 'exec', riskLevel: risk }),
+          sessionId,
+          approvalScope: scope,
         },
       }
+      return toolResult
     } catch (error: any) {
       const duration = Date.now() - startTime
       const errorResult: CommandResult = {
@@ -92,6 +145,7 @@ export class RunCommandTool extends BaseTool {
           executionTime: duration,
           toolName: this.name,
           parameters: { command, options },
+          operationType: 'exec',
         },
       }
     }
