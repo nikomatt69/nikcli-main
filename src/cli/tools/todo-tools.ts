@@ -124,7 +124,7 @@ export function registerTodoTools(): void {
           if (!currentPlan) {
             // Create a new plan for the session
             currentPlan = await taskMasterService.createPlan('Session Todo Management', {
-              projectPath: process.cwd(),
+              projectPath: require('../utils/working-dir').getWorkingDirectory(),
               relevantFiles: [],
               projectType: 'session',
             })

@@ -72,7 +72,7 @@ export class GrepTool extends BaseTool {
         throw new Error('Pattern is required for grep search')
       }
 
-      const searchPath = params.path || this.workingDirectory
+      const searchPath = params.path ? require('node:path').resolve(this.workingDirectory, params.path) : this.workingDirectory
       const maxResults = params.maxResults || DEFAULT_MAX_RESULTS
       const contextLines = params.contextLines || 0
 

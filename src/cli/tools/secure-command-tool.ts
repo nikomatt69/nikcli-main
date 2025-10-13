@@ -5,6 +5,7 @@ import { promisify } from 'node:util'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 const execAsync = promisify(exec)
 
@@ -130,7 +131,8 @@ export class SecureCommandTool {
   private batchSessions: Map<string, BatchSession> = new Map()
 
   constructor(workingDir?: string) {
-    this.workingDirectory = workingDir || process.cwd()
+    // Align with centralized working directory resolver
+    this.workingDirectory = workingDir || getWorkingDirectory()
   }
 
   /**
