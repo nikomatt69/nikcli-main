@@ -1225,7 +1225,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     const providedPath = args[0]
-    const resolvedPath = resolve(process.cwd(), providedPath)
+    const resolvedPath = resolve(require('../utils/working-dir').getWorkingDirectory(), providedPath)
 
     if (!existsSync(resolvedPath)) {
       console.log(chalk.red(`❌ Env file not found: ${providedPath}`))
@@ -2145,7 +2145,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         semanticResults = await unifiedRAGSystem.search(query, {
           limit: 10,
           semanticOnly: false,
-          workingDirectory: directory === '.' ? process.cwd() : directory,
+          workingDirectory: directory === '.' ? require('../utils/working-dir').getWorkingDirectory() : directory,
         })
       } catch (_error) {
         console.log(chalk.yellow('⚠️ Semantic search unavailable, using traditional search'))
@@ -2213,7 +2213,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const fullCommand = `${command} ${commandArgs.join(' ')}`
 
       // Request approval for command execution
-      const approved = await approvalSystem.requestCommandApproval(command, commandArgs, process.cwd())
+      const approved = await approvalSystem.requestCommandApproval(command, commandArgs, require('../utils/working-dir').getWorkingDirectory())
 
       if (!approved) {
         console.log(chalk.yellow('❌ Command execution cancelled'))
@@ -5381,7 +5381,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
    */
   private async imagesCommand(_args: string[]): Promise<CommandResult> {
     try {
-      const cwd = process.cwd()
+      const cwd = require('../utils/working-dir').getWorkingDirectory()
       const { readdirSync, statSync } = await import('node:fs')
       const { join, relative } = await import('node:path')
       const inquirer = (await import('inquirer')).default
@@ -6978,7 +6978,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       // Resolve full path
-      const workingDir = process.cwd()
+      const workingDir = require('../utils/working-dir').getWorkingDirectory()
       const fullPath = resolve(workingDir, targetPath)
 
       // Validate path exists

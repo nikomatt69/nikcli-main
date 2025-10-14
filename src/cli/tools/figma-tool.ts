@@ -150,7 +150,7 @@ export class FigmaTool extends EventEmitter {
       baseApiUrl: 'https://api.figma.com/v1',
       rateLimitDelay: 100,
       maxRetries: 3,
-      defaultOutputPath: resolve(process.cwd(), 'figma-exports'),
+      defaultOutputPath: resolve(require('../utils/working-dir').getWorkingDirectory(), 'figma-exports'),
       enableDesktopAutomation: process.platform === 'darwin',
       v0Integration: {
         enabled: !!process.env.V0_API_KEY,
@@ -1077,7 +1077,7 @@ export default FigmaComponent`
       size: '1792x1024',
       quality: 'hd',
       style: 'natural',
-      outputPath: resolve(process.cwd(), 'figma-previews'),
+      outputPath: resolve(require('../utils/working-dir').getWorkingDirectory(), 'figma-previews'),
     })
 
     console.log(chalk.green(`✓ Preview image generated: ${imageResult.localPath}`))

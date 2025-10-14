@@ -202,7 +202,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
   private baseAgentRouter?: any // Dynamic import to avoid circular deps
   private cacheCleaner: NodeJS.Timeout | null = null
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = require('../../utils/working-dir').getWorkingDirectory()) {
     super() // Call EventEmitter constructor
     this.id = nanoid()
     this.workingDirectory = workingDirectory

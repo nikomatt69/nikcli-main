@@ -147,12 +147,12 @@ export class AICadSdkBridge {
   }
 
   private async saveSCAD(scad: string, outputPath?: string): Promise<string> {
-    const base = outputPath || path.join(process.cwd(), '.nikcli', 'cad')
+    const base = outputPath || path.join(require('../utils/working-dir').getWorkingDirectory(), '.nikcli', 'cad')
     const dir = path.extname(base) ? path.dirname(base) : base
     await fs.mkdir(dir, { recursive: true })
     const finalPath = path.extname(base) ? base : path.join(dir, `ai_cad_${Date.now()}.scad`)
     await fs.writeFile(finalPath, scad, 'utf8')
-    return finalPath.replace(process.cwd() + path.sep, '')
+    return finalPath.replace(require('../utils/working-dir').getWorkingDirectory() + path.sep, '')
   }
 }
 

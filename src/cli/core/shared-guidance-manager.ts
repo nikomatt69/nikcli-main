@@ -12,7 +12,7 @@ export class SharedGuidanceManager {
   private workingDirectory: string
 
   private constructor() {
-    this.workingDirectory = process.cwd()
+    this.workingDirectory = require('../utils/working-dir').getWorkingDirectory()
   }
 
   static getInstance(): SharedGuidanceManager {

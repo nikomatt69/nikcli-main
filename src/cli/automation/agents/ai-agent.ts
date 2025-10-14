@@ -9,7 +9,7 @@ export class AIAnalysisAgent extends BaseAgent {
   override name = 'ai-analysis'
   override description = 'AI-powered code analysis agent using Gemini'
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = require('../../utils/working-dir').getWorkingDirectory()) {
     super(workingDirectory)
   }
 

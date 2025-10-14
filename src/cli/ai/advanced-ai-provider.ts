@@ -447,20 +447,37 @@ export class AdvancedAIProvider implements AutonomousProvider {
       const pmDetector = new PackageManagerDetector(this.workingDirectory)
       const packageManagerContext = pmDetector.getContextString()
 
-      // Try to load base agent prompt first
-      const basePrompt = await this.promptManager.loadPromptForContext({
-        agentId: 'base-agent',
-        parameters: {
-          workingDirectory: this.workingDirectory,
-          availableTools: this.toolRouter
-            .getAllTools()
-            .map((tool) => `${tool.tool}: ${tool.description}`)
-            .join(', '),
-          documentationContext: docsContext,
-          packageManager: packageManagerContext,
-          ...context,
-        },
-      })
+      // Prefer specialized prompt for universal agent, fallback to base-agent
+      let basePrompt: string
+      try {
+        basePrompt = await this.promptManager.loadPromptForContext({
+          agentId: 'universal-agent',
+          parameters: {
+            workingDirectory: this.workingDirectory,
+            availableTools: this.toolRouter
+              .getAllTools()
+              .map((tool) => `${tool.tool}: ${tool.description}`)
+              .join(', '),
+            documentationContext: docsContext,
+            packageManager: packageManagerContext,
+            ...context,
+          },
+        })
+      } catch {
+        basePrompt = await this.promptManager.loadPromptForContext({
+          agentId: 'base-agent',
+          parameters: {
+            workingDirectory: this.workingDirectory,
+            availableTools: this.toolRouter
+              .getAllTools()
+              .map((tool) => `${tool.tool}: ${tool.description}`)
+              .join(', '),
+            documentationContext: docsContext,
+            packageManager: packageManagerContext,
+            ...context,
+          },
+        })
+      }
 
       // If docs are loaded, append them to the base prompt
       if (docsContext) {

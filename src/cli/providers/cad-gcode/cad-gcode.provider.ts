@@ -51,7 +51,7 @@ export class CadGcodeProvider extends EventEmitter {
 
   private constructor(config: CadGcodeConfig = {}) {
     super()
-    this.workingDirectory = config.workingDirectory || process.cwd()
+    this.workingDirectory = config.workingDirectory || require('../../utils/working-dir').getWorkingDirectory()
     this.bridge = createCADCamFunBridge()
     this.gcodeTool = new TextToGCodeTool(this.workingDirectory)
   }

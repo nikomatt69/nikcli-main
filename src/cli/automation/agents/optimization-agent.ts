@@ -56,7 +56,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
     'Network performance optimization',
   ]
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = require('../../utils/working-dir').getWorkingDirectory()) {
     super(workingDirectory)
   }
 

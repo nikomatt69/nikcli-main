@@ -59,7 +59,7 @@ export class ToolService {
   }
 
   setWorkingDirectory(dir: string): void {
-    this.workingDirectory = dir
+    this.workingDirectory = dir || getWorkingDirectory()
   }
 
   private registerDefaultTools(): void {

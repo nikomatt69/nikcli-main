@@ -50,7 +50,7 @@ export class LoggingMiddleware extends BaseMiddleware {
       priority: 900,
       logLevel: 'info',
       logToFile: true,
-      logFile: path.join(process.cwd(), '.nikcli', 'middleware.log'),
+      logFile: path.join(require('node:path').resolve(require('../utils/working-dir').getWorkingDirectory()), '.nikcli', 'middleware.log'),
       maxFileSize: 50 * 1024 * 1024, // 50MB
       rotateFiles: true,
       includeArgs: true,

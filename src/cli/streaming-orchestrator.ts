@@ -1458,6 +1458,14 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
     this.showWelcome()
     this.initializeServices()
+    try {
+      const { workspaceContext } = await import('./context/workspace-context')
+      await workspaceContext.refreshWorkspaceIndex()
+      workspaceContext.startWatching()
+      advancedUI.logFunctionUpdate('success', 'Context warmed and watching', '✓')
+    } catch (error: any) {
+      advancedUI.logFunctionUpdate('warning', `Context warmup failed: ${error.message}`, '⚠')
+    }
 
     // Setup interface and start message processor
     this.setupInterface()

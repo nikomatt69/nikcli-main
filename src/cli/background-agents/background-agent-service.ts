@@ -405,7 +405,7 @@ export class BackgroundAgentService extends EventEmitter {
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
 
-    const workspaceDir = path.join(process.cwd(), 'workspace', job.id)
+    const workspaceDir = path.join(require('../utils/working-dir').getWorkingDirectory(), 'workspace', job.id)
     await fs.mkdir(workspaceDir, { recursive: true })
 
     return workspaceDir

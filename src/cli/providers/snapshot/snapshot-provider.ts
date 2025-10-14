@@ -251,7 +251,7 @@ export class SnapshotProvider extends EventEmitter {
       throw new Error(`Snapshot not found: ${snapshotId}`)
     }
 
-    const targetPath = options.targetPath || process.cwd()
+    const targetPath = options.targetPath || require('../../utils/working-dir').getWorkingDirectory()
     const filesToRestore = options.selectedFiles
       ? snapshot.files.filter((f) => options.selectedFiles?.includes(f.path))
       : snapshot.files
@@ -364,7 +364,7 @@ export class SnapshotProvider extends EventEmitter {
 
   private async collectFiles(includePaths?: string[], excludePaths?: string[]): Promise<SnapshotFile[]> {
     const files: SnapshotFile[] = []
-    const basePath = process.cwd()
+    const basePath = require('../../utils/working-dir').getWorkingDirectory()
 
     // Use includePaths or scan current directory
     const scanPaths = includePaths || ['.']

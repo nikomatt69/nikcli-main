@@ -44,7 +44,7 @@ export class ChatOrchestrator {
     this.todoManager = todoManager
     this.sessionManager = sessionManager
     this.configManager = configManager
-    this.guidanceManager = guidanceManager || new GuidanceManager(process.cwd())
+    this.guidanceManager = guidanceManager || new GuidanceManager(require('../utils/working-dir').getWorkingDirectory())
   }
 
   async initialize(): Promise<void> {
@@ -94,7 +94,7 @@ export class ChatOrchestrator {
       const agentName = `agent-${agentId.slice(0, 5)}`
 
       // Get guidance context for this agent
-      const guidanceContext = this.guidanceManager.getContextForAgent('general', process.cwd())
+      const guidanceContext = this.guidanceManager.getContextForAgent('general', require('../utils/working-dir').getWorkingDirectory())
 
       const agent: Agent = {
         id: agentId,
@@ -230,7 +230,7 @@ export class ChatOrchestrator {
       const planningContext = {
         userInput: input,
         guidance: guidanceContext,
-        workingDirectory: process.cwd(),
+        workingDirectory: require('../utils/working-dir').getWorkingDirectory(),
       }
 
       const todos = await this.todoManager.planTodos(agentId, input, planningContext)

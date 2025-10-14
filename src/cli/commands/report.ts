@@ -12,7 +12,7 @@ export interface ReportCmdOptions {
 }
 
 export async function generateReports(opts: ReportCmdOptions): Promise<AnalysisResult> {
-  const outDir = path.resolve(opts.out || path.join(process.cwd(), '.nikcli', 'reports', String(Date.now())))
+  const outDir = path.resolve(opts.out || path.join(require('../utils/working-dir').getWorkingDirectory(), '.nikcli', 'reports', String(Date.now())))
   const reportKinds = (opts.report || 'json').split(',').map((s) => s.trim().toLowerCase())
 
   const reporters: Reporter[] = []
@@ -21,7 +21,7 @@ export async function generateReports(opts: ReportCmdOptions): Promise<AnalysisR
 
   for (const r of reporters) await r.init({ outDir })
 
-  const { result } = await runAnalysisWithEvents({ path: process.cwd(), depth: opts.depth, model: opts.model }, (e) => {
+  const { result } = await runAnalysisWithEvents({ path: require('../utils/working-dir').getWorkingDirectory(), depth: opts.depth, model: opts.model }, (e) => {
     // stream hook in case we want to attach live UI later
     reporters.forEach((r) => r.onEvent?.(e))
   })
@@ -30,7 +30,7 @@ export async function generateReports(opts: ReportCmdOptions): Promise<AnalysisR
 
   // Also persist a small latest symlink/copy for VS Code extension to pick up
   try {
-    const latest = path.resolve(path.join(process.cwd(), '.nikcli', 'reports', 'latest'))
+    const latest = path.resolve(path.join(require('../utils/working-dir').getWorkingDirectory(), '.nikcli', 'reports', 'latest'))
     fs.mkdirSync(path.dirname(latest), { recursive: true })
     try {
       fs.rmSync(latest, { recursive: true, force: true })

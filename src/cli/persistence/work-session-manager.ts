@@ -89,7 +89,7 @@ export class WorkSessionManager extends EventEmitter {
 
   constructor(options: WorkSessionManagerOptions = {}) {
     super()
-    this.baseDir = options.baseDir || path.join(process.cwd(), '.nikcli', 'work-sessions')
+    this.baseDir = options.baseDir || path.join(require('../utils/working-dir').getWorkingDirectory(), '.nikcli', 'work-sessions')
     this.autoSaveInterval = options.autoSaveInterval || 60_000
     this.maxSessions = options.maxSessions || 100
     this.compressionThreshold = options.compressionThreshold || 1024 * 1024
@@ -125,7 +125,7 @@ export class WorkSessionManager extends EventEmitter {
         maxStackSize: 50,
       },
       context: {
-        workingDirectory: process.cwd(),
+        workingDirectory: require('../utils/working-dir').getWorkingDirectory(),
         activePlans: [],
         activeAgents: [],
         openFiles: [],

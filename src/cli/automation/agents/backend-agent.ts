@@ -61,7 +61,7 @@ export class BackendAgent extends CognitiveAgentBase {
     'Real-time graphics processing',
   ]
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = require('../../utils/working-dir').getWorkingDirectory()) {
     super(workingDirectory)
     this.maxConcurrentTasks = 3 // Backend can handle multiple concurrent tasks
   }

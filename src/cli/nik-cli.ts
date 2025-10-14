@@ -6442,7 +6442,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
           const approved = await this.askAdvancedConfirmation(
             `Execute command: ${fullCommand}`,
-            `Run command in ${process.cwd()}`,
+            `Run command in ${require('./utils/working-dir').getWorkingDirectory()}`,
             true
           )
 
@@ -6563,7 +6563,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
               const duration = Date.now() - proc.startTime.getTime()
               lines.push(`${chalk.cyan('PID')} ${proc.pid}: ${chalk.bold(proc.command)} ${proc.args.join(' ')}`)
               lines.push(`  Status: ${proc.status} | Duration: ${Math.round(duration / 1000)}s`)
-              lines.push(`  CWD: ${proc.cwd}`)
+              lines.push(`  CWD: ${require('./utils/working-dir').getWorkingDirectory()}`)
             })
             const maxHeight = this.getAvailablePanelHeight()
             let content = lines.join('\n')

@@ -255,7 +255,7 @@ export class SSHSessionBridge {
       metadata: {
         deviceType: this.sessionManager.isMobile() ? 'mobile' : 'desktop',
         clientInfo: this.sshInfo,
-        workspaceDir: process.cwd(),
+        workspaceDir: require('../utils/working-dir').getWorkingDirectory(),
         gitBranch,
       },
     }
@@ -300,7 +300,7 @@ export class SSHSessionBridge {
       const sessionName = `nikcli-ssh-${Date.now()}`
       tmuxSessionName = await tmuxIntegration.createSession({
         name: sessionName,
-        workingDir: process.cwd(),
+        workingDir: require('../utils/working-dir').getWorkingDirectory(),
       })
 
       if (tmuxSessionName && this.currentState) {
