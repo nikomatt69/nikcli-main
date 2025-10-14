@@ -4,8 +4,6 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { promisify } from 'node:util'
 import chalk from 'chalk'
-import { createFileFilter } from '../context/file-filter-system'
-import { advancedUI } from '../ui/advanced-cli-ui'
 
 const execAsync = promisify(exec)
 
@@ -98,8 +96,7 @@ export class ToolsManager {
     }
 
     fs.writeFileSync(fullPath, content, 'utf8')
-    advancedUI.logFunctionUpdate('success', `✓ File written: ${filePath}`)
-    advancedUI.logFunctionCall('write-file-tool')
+    console.log(chalk.green(`✅ File written: ${filePath}`))
   }
 
   async editFile(
@@ -134,49 +131,24 @@ export class ToolsManager {
       throw new Error(`Directory not found: ${directory}`)
     }
 
-    // Use FileFilterSystem for intelligent filtering
-    const fileFilter = createFileFilter(this.workingDirectory, {
-      respectGitignore: true,
-      maxFileSize: 1024 * 1024, // 1MB
-      maxTotalFiles: 5000,
-      includeExtensions: [], // Include all by default, filter with pattern if provided
-      excludeExtensions: [],
-      excludeDirectories: [],
-      excludePatterns: [],
-      customRules: [],
-    })
-
     const files: string[] = []
 
-    const walkDir = (dir: string): void => {
-      try {
-        const items = fs.readdirSync(dir)
+    function walkDir(dir: string) {
+      const items = fs.readdirSync(dir)
 
-        for (const item of items) {
-          const itemPath = path.join(dir, item)
-          const relativePath = path.relative(fullPath, itemPath)
+      for (const item of items) {
+        const itemPath = path.join(dir, item)
+        const relativePath = path.relative(fullPath, itemPath)
 
-          if (fs.statSync(itemPath).isDirectory()) {
-            // Check if directory should be included using FileFilterSystem
-            const filterResult = fileFilter.shouldIncludeFile(itemPath, this.workingDirectory)
-            if (filterResult.allowed) {
-              walkDir(itemPath)
-            }
-          } else {
-            // Check if file should be included using FileFilterSystem
-            const filterResult = fileFilter.shouldIncludeFile(itemPath, this.workingDirectory)
-            if (filterResult.allowed && (!pattern || pattern.test(relativePath))) {
-              files.push(path.relative(directory, relativePath))
-            }
+        if (fs.statSync(itemPath).isDirectory()) {
+          if (!item.startsWith('.') && item !== 'node_modules') {
+            walkDir(itemPath)
+          }
+        } else {
+          if (!pattern || pattern.test(relativePath)) {
+            files.push(path.relative(directory, relativePath))
           }
         }
-      } catch (error) {
-        // Skip directories that can't be read (permissions, etc.)
-        advancedUI.logFunctionUpdate(
-          'info',
-          `Skipped directory: ${dir} (${error instanceof Error ? error.message : 'Unknown error'}`
-        )
-        advancedUI.logFunctionCall('tools-manager')
       }
     }
 
@@ -205,7 +177,10 @@ export class ToolsManager {
             })
           }
         })
-      } catch (_error) {}
+      } catch (_error) {
+        // Skip files that can't be read
+        continue
+      }
     }
 
     return results
@@ -228,8 +203,8 @@ export class ToolsManager {
     const cwd = options.cwd ? path.resolve(this.workingDirectory, options.cwd) : this.workingDirectory
     const env = { ...process.env, ...options.env }
 
-    advancedUI.logFunctionUpdate('info', `⚡ Executing: ${fullCommand}`)
-    advancedUI.logFunctionUpdate('info', `📁 Working directory: ${cwd}`)
+    console.log(chalk.blue(`⚡ Executing: ${fullCommand}`))
+    console.log(chalk.gray(`📁 Working directory: ${cwd}`))
 
     try {
       const startTime = Date.now()
@@ -247,17 +222,15 @@ export class ToolsManager {
         const duration = Date.now() - startTime
         this.addToHistory(fullCommand, true, stdout + stderr)
 
-        advancedUI.logFunctionUpdate('success', `✓ Command completed in ${duration}ms`)
+        console.log(chalk.green(`✅ Command completed in ${duration}ms`))
         return { stdout, stderr, code: 0 }
       }
     } catch (error: any) {
       const _duration = Date.now() - Date.now()
       this.addToHistory(fullCommand, false, error.message)
 
-      advancedUI.logFunctionUpdate('error', `❌ Command failed: ${fullCommand}`)
-      advancedUI.logFunctionCall('tools-manager')
-      advancedUI.logFunctionUpdate('info', `Error: ${error.message}`)
-      advancedUI.logFunctionCall('tools-manager')
+      console.log(chalk.red(`❌ Command failed: ${fullCommand}`))
+      console.log(chalk.gray(`Error: ${error.message}`))
 
       return {
         stdout: error.stdout || '',
@@ -314,16 +287,16 @@ export class ToolsManager {
         this.addToHistory(command, code === 0, stdout + stderr)
 
         if (code === 0) {
-          advancedUI.logFunctionUpdate('success', `✓ Process completed (PID: ${child.pid})`)
+          console.log(chalk.green(`✅ Process completed (PID: ${child.pid})`))
         } else {
-          advancedUI.logFunctionUpdate('error', `❌ Process failed with code ${code} (PID: ${child.pid})`)
+          console.log(chalk.red(`❌ Process failed with code ${code} (PID: ${child.pid})`))
         }
 
         resolve({ stdout, stderr, code: code || 0, pid: child.pid! })
       })
 
       child.on('error', (error) => {
-        advancedUI.logFunctionUpdate('error', `❌ Process error: ${error.message}`)
+        console.log(chalk.red(`❌ Process error: ${error.message}`))
         processInfo.status = 'failed'
         this.runningProcesses.delete(child.pid!)
         resolve({ stdout, stderr: error.message, code: 1, pid: child.pid! })
@@ -336,7 +309,7 @@ export class ToolsManager {
     options: { global?: boolean; dev?: boolean; manager?: 'npm' | 'yarn' | 'pnpm' } = {}
   ): Promise<boolean> {
     const manager = options.manager || 'npm'
-    const command = manager
+    let command = manager
     let args: string[] = []
 
     switch (manager) {
@@ -360,14 +333,14 @@ export class ToolsManager {
         break
     }
 
-    advancedUI.logFunctionUpdate('info', `📦 Installing ${packageName} with ${manager}...`)
+    console.log(chalk.blue(`📦 Installing ${packageName} with ${manager}...`))
     const result = await this.runCommand(command, args)
 
     if (result.code === 0) {
-      advancedUI.logFunctionUpdate('success', `✓ Successfully installed ${packageName}`)
+      console.log(chalk.green(`✅ Successfully installed ${packageName}`))
       return true
     } else {
-      advancedUI.logFunctionUpdate('error', `❌ Failed to install ${packageName}`)
+      console.log(chalk.red(`❌ Failed to install ${packageName}`))
       return false
     }
   }
@@ -382,10 +355,10 @@ export class ToolsManager {
         this.runningProcesses.delete(pid)
       }
 
-      advancedUI.logFunctionUpdate('warning', `⚠️ Process ${pid} terminated`)
+      console.log(chalk.yellow(`⚠️ Process ${pid} terminated`))
       return true
     } catch (_error) {
-      advancedUI.logFunctionUpdate('error', `❌ Could not kill process ${pid}`)
+      console.log(chalk.red(`❌ Could not kill process ${pid}`))
       return false
     }
   }
@@ -502,8 +475,8 @@ export class ToolsManager {
           severity: severity as 'error' | 'warning',
           message: `TS${code}: ${message}`,
           file: path.relative(this.workingDirectory, file),
-          line: parseInt(line, 10),
-          column: parseInt(column, 10),
+          line: parseInt(line),
+          column: parseInt(column),
         })
       }
     }
@@ -543,12 +516,12 @@ export class ToolsManager {
 
   async gitAdd(files: string[]): Promise<void> {
     await this.runCommand('git', ['add', ...files])
-    advancedUI.logFunctionUpdate('success', `✓ Added files to git: ${files.join(', ')}`)
+    console.log(chalk.green(`✅ Added files to git: ${files.join(', ')}`))
   }
 
   async gitCommit(message: string): Promise<void> {
     await this.runCommand('git', ['commit', '-m', message])
-    advancedUI.logFunctionUpdate('success', `✓ Committed with message: ${message}`)
+    console.log(chalk.green(`✅ Committed with message: ${message}`))
   }
 
   // System Information and Advanced Operations
@@ -565,17 +538,17 @@ export class ToolsManager {
     try {
       const npmResult = await this.runCommand('npm', ['--version'])
       npmVersion = npmResult.stdout.trim()
-    } catch {}
+    } catch { }
 
     try {
       const gitResult = await this.runCommand('git', ['--version'])
       gitVersion = gitResult.stdout.match(/git version ([\d.]+)/)?.[1]
-    } catch {}
+    } catch { }
 
     try {
       const dockerResult = await this.runCommand('docker', ['--version'])
       dockerVersion = dockerResult.stdout.match(/Docker version ([\d.]+)/)?.[1]
-    } catch {}
+    } catch { }
 
     return {
       platform,
@@ -635,7 +608,7 @@ export class ToolsManager {
       if (!options.file) {
         try {
           fs.unlinkSync(tempFile)
-        } catch {}
+        } catch { }
       }
 
       return {
@@ -683,7 +656,7 @@ export class ToolsManager {
     let success = false
     const projectPath = path.join(this.workingDirectory, projectName)
 
-    advancedUI.logFunctionUpdate('info', `🚀 Setting up ${projectType} project: ${projectName}`)
+    console.log(chalk.blue(`🚀 Setting up ${projectType} project: ${projectName}`))
 
     try {
       switch (projectType) {
@@ -708,7 +681,7 @@ export class ToolsManager {
         case 'node':
           commands.push(
             `mkdir ${projectName}`,
-            `cd ${projectName}`,
+            'cd ' + projectName,
             'npm init -y',
             'npm install -D typescript @types/node ts-node'
           )
@@ -718,7 +691,7 @@ export class ToolsManager {
           break
 
         case 'express':
-          commands.push(`mkdir ${projectName}`, `cd ${projectName}`, 'npm init -y')
+          commands.push(`mkdir ${projectName}`, 'cd ' + projectName, 'npm init -y')
           commands.push('npm install express', 'npm install -D typescript @types/node @types/express ts-node')
           fs.mkdirSync(projectPath, { recursive: true })
           await this.runCommand('npm', ['init', '-y'], { cwd: projectPath })
@@ -730,17 +703,17 @@ export class ToolsManager {
       }
 
       success = true
-      advancedUI.logFunctionUpdate('success', `✓ Project ${projectName} created successfully!`)
-      advancedUI.logFunctionUpdate('info', `📁 Location: ${projectPath}`)
+      console.log(chalk.green(`✅ Project ${projectName} created successfully!`))
+      console.log(chalk.gray(`📁 Location: ${projectPath}`))
     } catch (error: any) {
-      advancedUI.logFunctionUpdate('error', `❌ Failed to create project: ${error.message}`)
+      console.log(chalk.red(`❌ Failed to create project: ${error.message}`))
     }
 
     return { success, path: projectPath, commands }
   }
 
   async monitorLogs(logFile: string, callback?: (line: string) => void): Promise<ChildProcess> {
-    advancedUI.logFunctionUpdate('info', `⚡︎ Monitoring logs: ${logFile}`)
+    console.log(chalk.blue(`👀 Monitoring logs: ${logFile}`))
 
     const child = spawn('tail', ['-f', logFile], {
       cwd: this.workingDirectory,
@@ -749,13 +722,13 @@ export class ToolsManager {
     child.stdout?.on('data', (data) => {
       const lines = data.toString().split('\n').filter(Boolean)
       lines.forEach((line: string) => {
-        advancedUI.logFunctionUpdate('info', `📝 ${line}`)
+        console.log(chalk.cyan(`📝 ${line}`))
         callback?.(line)
       })
     })
 
     child.stderr?.on('data', (data) => {
-      advancedUI.logFunctionUpdate('error', `❌ Log monitor error: ${data}`)
+      console.log(chalk.red(`❌ Log monitor error: ${data}`))
     })
 
     return child
@@ -796,7 +769,7 @@ export class ToolsManager {
 
     let packageInfo
     let framework
-    const technologies: string[] = []
+    let technologies: string[] = []
 
     try {
       const pkg = await this.readFile('package.json')

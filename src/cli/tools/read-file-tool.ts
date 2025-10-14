@@ -143,7 +143,7 @@ export class ReadFileTool extends BaseTool {
       }
 
       // Log error for debugging
-      advancedUI.logError(`Failed to read file ${filePath}: ${error.message}`)
+      CliUI.logError(`Failed to read file ${filePath}: ${error.message}`)
 
       return errorResult
     }
@@ -240,7 +240,7 @@ export class ReadFileTool extends BaseTool {
         content = content.replace(/\/\*[\s\S]*?\*\//g, '')
         break
       case '.html':
-      case '.xml': {
+      case '.xml':
         // Remove HTML/XML comments with complete sanitization
         let previousContent
         do {
@@ -248,7 +248,6 @@ export class ReadFileTool extends BaseTool {
           content = content.replace(/<!--[\s\S]*?-->/g, '')
         } while (content !== previousContent)
         break
-      }
     }
 
     // Clean up extra whitespace
@@ -333,7 +332,7 @@ export class ReadFileTool extends BaseTool {
         return { error: 'Vision provider not available' }
       }
 
-      console.log(chalk.blue(`🎞️Analyzing image: ${filePath}`))
+      console.log(chalk.blue(`👁️ Analyzing image: ${filePath}`))
 
       const analysis = await (global as any).visionProvider.analyzeImage(filePath, {
         prompt:
@@ -344,7 +343,7 @@ export class ReadFileTool extends BaseTool {
       console.log(chalk.green('✓ Image analysis completed'))
 
       // Display image analysis in UI
-      if (analysis?.description) {
+      if (analysis && analysis.description) {
         advancedUI.showFileContent(filePath, analysis.description)
       }
 
@@ -384,11 +383,11 @@ export class ReadFileTool extends BaseTool {
           const warnings = lspContext.diagnostics.filter((d) => d.severity === 2)
 
           if (errors.length > 0) {
-            advancedUI.logInfo(`LSP analysis: ${errors.length} errors in ${filePath}`)
+            CliUI.logInfo(`LSP analysis: ${errors.length} errors in ${filePath}`)
           }
 
           if (warnings.length > 0) {
-            advancedUI.logInfo(`LSP analysis: ${warnings.length} warnings in ${filePath}`)
+            CliUI.logInfo(`LSP analysis: ${warnings.length} warnings in ${filePath}`)
           }
         }
       }
@@ -420,7 +419,7 @@ export class ReadFileTool extends BaseTool {
       // Update workspace context
       await this.contextSystem.analyzeFile(filePath)
     } catch (error: any) {
-      advancedUI.logWarning(`LSP/Context analysis failed for ${filePath}: ${error.message}`)
+      CliUI.logWarning(`LSP/Context analysis failed for ${filePath}: ${error.message}`)
     }
   }
 }

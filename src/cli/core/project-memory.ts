@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import chalk from 'chalk'
 import { z } from 'zod'
@@ -143,11 +142,12 @@ export class ProjectMemoryManager {
   private globalPreferences: ProjectPreferences | null = null
   private currentProjectId: string | null = null
   private sessionStartTime: number = Date.now()
-
+  private workingDirectory: string = process.cwd()
   constructor() {
-    this.memoryDir = join(homedir(), '.nikcli', 'projects')
+    this.memoryDir = join(this.workingDirectory, '.nikcli', 'projects')
     this.ensureMemoryDirectory()
     this.loadGlobalPreferences()
+
   }
 
   /**

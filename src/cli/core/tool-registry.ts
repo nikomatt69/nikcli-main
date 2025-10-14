@@ -146,7 +146,7 @@ export class ToolRegistry {
   private timers: Set<NodeJS.Timeout> = new Set()
   private intervals: Set<NodeJS.Timeout> = new Set()
 
-  constructor(workingDirectory: string, config: Partial<ToolRegistryConfig> = {}) {
+  constructor(workingDirectory: string = process.cwd(), config: Partial<ToolRegistryConfig> = {}) {
     this.workingDirectory = workingDirectory
     this.config = ToolRegistryConfigSchema.parse(config)
     this.contextSystem = new ContextAwareRAGSystem(workingDirectory)

@@ -1,8 +1,7 @@
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, statSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { PromptManager } from '../prompts/prompt-manager'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
@@ -85,6 +84,11 @@ export class EditTool extends BaseTool {
       let fileExists = false
 
       if (existsSync(filePath)) {
+        // Validate that it's a file (not a directory)
+        const stats = statSync(filePath)
+        if (!stats.isFile()) {
+          throw new Error(`Cannot edit: path is a directory: ${params.filePath}`)
+        }
         originalContent = await readFile(filePath, 'utf-8')
         fileExists = true
       } else if (params.oldString !== '') {
@@ -119,14 +123,9 @@ export class EditTool extends BaseTool {
       // Scrivi nuovo contenuto
       if (editResult.replacementsMade > 0) {
         await this.writeFileWithValidation(filePath, editResult.changes, params)
-        advancedUI.logFunctionUpdate(
-          'success',
-          `✓ File edited successfully: ${editResult.replacementsMade} replacements made`
-        )
-        advancedUI.logFunctionCall('edit-tool')
+        CliUI.logSuccess(`✓ File edited successfully: ${editResult.replacementsMade} replacements made`)
       } else {
-        advancedUI.logFunctionUpdate('warning', '⚠️ No replacements made - pattern not found')
-        advancedUI.logFunctionCall('edit-tool')
+        CliUI.logWarning('⚠️ No replacements made - pattern not found')
       }
 
       return {
@@ -409,8 +408,7 @@ export class EditTool extends BaseTool {
           return true
       }
     } catch (error) {
-      advancedUI.logFunctionUpdate('warning', `Syntax validation failed: ${error}`)
-      advancedUI.logFunctionCall('edit-tool')
+      CliUI.logWarning(`Syntax validation failed: ${error}`)
       return false
     }
   }

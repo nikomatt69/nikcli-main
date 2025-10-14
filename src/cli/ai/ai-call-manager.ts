@@ -131,23 +131,21 @@ Security Guidelines:
 - Use batch sessions for multiple related commands
 - Prefer safe, read-only operations when possible
 
-${
-  ragContextText
-    ? `RELEVANT CODE CONTEXT:
+${ragContextText
+          ? `RELEVANT CODE CONTEXT:
 ${ragContextText}
 
 `
-    : ''
-}Context:
-${
-  context
-    ? `
+          : ''
+        }Context:
+${context
+          ? `
 Working Directory: ${context.workingDirectory || 'current directory'}
 Available Files: ${context.availableFiles?.slice(0, 10).join(', ') || 'none listed'}${context.availableFiles && context.availableFiles.length > 10 ? ` (and ${context.availableFiles.length - 10} more)` : ''}
 Project Info: ${context.projectInfo ? JSON.stringify(context.projectInfo, null, 2) : 'none'}
 `
-    : 'No additional context provided'
-}
+          : 'No additional context provided'
+        }
 
 User Request: ${userRequest}
 

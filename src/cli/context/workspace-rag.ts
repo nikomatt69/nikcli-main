@@ -1,7 +1,8 @@
 import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import path, { join } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { extname, join, relative, resolve } from 'node:path'
+import { extname, relative, resolve } from 'node:path'
 import chalk from 'chalk'
 
 export interface FileEmbedding {
@@ -78,7 +79,7 @@ export class WorkspaceRAG {
   private context: WorkspaceContext
   private embeddings: Map<string, number[]> = new Map()
 
-  constructor(workspacePath: string) {
+  constructor(workspacePath: string = process.cwd()) {
     this.context = this.initializeWorkspace(workspacePath)
     this.analyzeWorkspace()
   }
@@ -103,7 +104,7 @@ export class WorkspaceRAG {
       try {
         const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
         return pkg.name || 'unnamed-project'
-      } catch {}
+      } catch { }
     }
     return require('node:path').basename(path)
   }
@@ -143,7 +144,7 @@ export class WorkspaceRAG {
       for (const item of items) {
         if (skipDirs.includes(item.name)) continue
 
-        const fullPath = join(dirPath, item.name)
+        const fullPath = path.join(dirPath, item.name)
         const relativePath = relative(this.context.rootPath, fullPath)
 
         if (item.isDirectory()) {
@@ -399,7 +400,7 @@ export class WorkspaceRAG {
 
   private async analyzeProjectStructure(): Promise<void> {
     // Detect framework
-    const packageJsonPath = join(this.context.rootPath, 'package.json')
+    const packageJsonPath = path.join(this.context.rootPath, 'package.json')
     if (existsSync(packageJsonPath)) {
       const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
       this.context.framework = this.detectFramework(pkg)
@@ -446,7 +447,7 @@ export class WorkspaceRAG {
 
   private async analyzeGitContext(): Promise<void> {
     try {
-      const gitDir = join(this.context.rootPath, '.git')
+      const gitDir = path.join(this.context.rootPath, '.git')
       if (existsSync(gitDir)) {
         const branch = execSync('git rev-parse --abbrev-ref HEAD', {
           cwd: this.context.rootPath,

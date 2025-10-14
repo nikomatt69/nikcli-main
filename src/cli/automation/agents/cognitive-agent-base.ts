@@ -33,7 +33,7 @@ export abstract class CognitiveAgentBase extends BaseAgent implements CognitiveC
   protected abstract cognitiveStrengths: string[]
   protected abstract cognitiveWeaknesses: string[]
 
-  constructor(workingDirectory: string) {
+  constructor(workingDirectory: string = process.cwd()) {
     super(workingDirectory)
 
     this.initializeCognitiveMemory()

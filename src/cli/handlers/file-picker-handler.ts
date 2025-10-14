@@ -23,7 +23,7 @@ export class FilePickerHandler {
   private selections: Map<string, FileSelection> = new Map()
   private findTool: FindFilesTool
 
-  constructor(workingDirectory: string) {
+  constructor(workingDirectory: string = process.cwd()) {
     this.workingDirectory = workingDirectory
     this.findTool = new FindFilesTool(workingDirectory)
   }

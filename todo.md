@@ -1,45 +1,31 @@
-# TaskMaster AI Plan: TaskMaster Plan: analyze workspace
+# TaskMaster AI Plan: TaskMaster Plan: ora voglio che fai una code review di tutto cio che riguarda la cartella src/cli e volgio che trovi e analizzi ogni flusso e funzionamento e orchestramento e mi crei un report dove mi mostri i punti dove ci possono essere bottlenecks , memleaks , ecc ma in modo certo non approssimativo devi essere certo dei problemi
 
-**Generated:** 2025-10-11T14:41:46.365Z
+**Generated:** 2025-10-14T17:31:59.575Z
 **Planning Engine:** TaskMaster AI
-**Request:** analyze workspace
+**Request:** ora voglio che fai una code review di tutto cio che riguarda la cartella src/cli e volgio che trovi e analizzi ogni flusso e funzionamento e orchestramento e mi crei un report dove mi mostri i punti dove ci possono essere bottlenecks , memleaks , ecc ma in modo certo non approssimativo devi essere certo dei problemi
 **Risk Level:** medium
 **Estimated Duration:** 0 minutes
 
 ## Description
 
-analyze workspace
+ora voglio che fai una code review di tutto cio che riguarda la cartella src/cli e volgio che trovi e analizzi ogni flusso e funzionamento e orchestramento e mi crei un report dove mi mostri i punti dove ci possono essere bottlenecks , memleaks , ecc ma in modo certo non approssimativo devi essere certo dei problemi
 
 ## Risk Assessment
 
 - **Overall Risk:** medium
-- **Destructive Operations:** 0
-- **File Modifications:** 3
+- **Destructive Operations:** 1
+- **File Modifications:** 4
 - **External Calls:** 0
 
 ## Tasks
 
-### 1. ✓ Explore workspace structure 🔴
+### 1. ⚡︎ Map complete src/cli directory structure and dependencies 🔴
 
-**Description:** Use explore_directory to scan the current workspace and identify project structure, file types, and organization patterns. Focus on detecting key directories like src, test, config, and documentation folders.
+**Description:** Perform comprehensive exploration of src/cli folder to identify all files, modules, and their interdependencies. Create a dependency graph to understand the orchestration flow and identify circular dependencies or unused imports that could cause memory leaks.
 
-**Tools:** explore_directory
+**Tools:** explore_directory, read_file
 
-**Reasoning:** Understanding the workspace layout is essential for targeted analysis and prevents assumptions about project structure
-
-**Status:** completed
-**Priority:** high
-**Progress:** 100%
-
----
-
-### 2. ⚡︎ Analyze project configuration 🔴
-
-**Description:** Read package.json, tsconfig.json, or similar config files to understand project type, dependencies, build setup, and technology stack. Identify frameworks, testing tools, and development scripts.
-
-**Tools:** read_file
-
-**Reasoning:** Project configuration reveals the technology stack and helps tailor the analysis approach for maximum relevance
+**Reasoning:** Understanding the complete structure is essential before analyzing bottlenecks and memory leaks. This provides the foundation for identifying architectural issues.
 
 **Status:** in_progress
 **Priority:** high
@@ -47,13 +33,13 @@ analyze workspace
 
 ---
 
-### 3. ⏳ Run comprehensive project analysis 🔴
+### 2. ⏳ Analyze CLI orchestration and service initialization flows 🔴
 
-**Description:** Execute analyze_project to get dependency analysis, security scan, code metrics, and overall project health assessment. This provides quantitative insights about code quality and potential issues.
+**Description:** Deep-dive into orchestrator service, planning service, and main CLI entry points. Trace execution paths from command invocation through service initialization to task completion. Identify synchronous blocking operations, promise chains without proper cleanup, and event listener accumulation.
 
-**Tools:** analyze_project
+**Tools:** read_file, analyze_project
 
-**Reasoning:** Comprehensive analysis reveals hidden issues, security vulnerabilities, and optimization opportunities that manual inspection might miss
+**Reasoning:** Orchestration flows are critical bottleneck points. Improper async handling, missing cleanup, or blocking operations directly cause performance issues and memory leaks.
 
 **Status:** pending
 **Priority:** high
@@ -61,13 +47,55 @@ analyze workspace
 
 ---
 
-### 4. ⏳ Examine dependency health 🟡
+### 3. ⏳ Audit resource management and cleanup patterns 🔴
 
-**Description:** Use dependency_analysis to check for outdated packages, security vulnerabilities, and optimization opportunities. Focus on identifying high-risk dependencies and version conflicts.
+**Description:** Examine all file handles, stream operations, child processes, event listeners, and timer usage. Verify proper cleanup in finally blocks, error handlers, and process exit handlers. Check for missing .close(), .destroy(), or .removeListener() calls that cause memory leaks.
 
-**Tools:** dependency_analysis
+**Tools:** read_file, doc_search
 
-**Reasoning:** Dependencies are a common source of security vulnerabilities and performance issues, making this analysis critical for project health
+**Reasoning:** Unclosed resources are the primary cause of memory leaks in Node.js applications. This systematic audit will identify concrete leak sources.
+
+**Status:** pending
+**Priority:** high
+**Progress:** 0%
+
+---
+
+### 4. ⏳ Profile TaskMaster AI and context system memory usage 🔴
+
+**Description:** Analyze TaskMaster service, AI provider, and context system for large object retention, unbounded caches, and context accumulation. Check if contexts are properly cleared after task completion and if there are memory limits on cached data structures.
+
+**Tools:** read_file, analyze_project
+
+**Reasoning:** AI context and task management systems often accumulate large amounts of data. Without proper limits and cleanup, these become major memory leak sources.
+
+**Status:** pending
+**Priority:** high
+**Progress:** 0%
+
+---
+
+### 5. ⏳ Identify synchronous bottlenecks and I/O blocking operations 🔴
+
+**Description:** Search for synchronous file operations (readFileSync, writeFileSync), CPU-intensive computations in main thread, and sequential operations that could be parallelized. Measure potential impact on CLI responsiveness and throughput.
+
+**Tools:** read_file, execute_command
+
+**Reasoning:** Synchronous operations block the event loop causing severe performance bottlenecks. Identifying these provides concrete optimization opportunities.
+
+**Status:** pending
+**Priority:** high
+**Progress:** 0%
+
+---
+
+### 6. ⏳ Analyze error handling and exception propagation paths 🟡
+
+**Description:** Trace error handling throughout the CLI codebase. Identify unhandled promise rejections, missing try-catch blocks, and error swallowing that could hide issues or leave resources in inconsistent states causing memory retention.
+
+**Tools:** read_file, analyze_project
+
+**Reasoning:** Poor error handling leads to resource leaks and undefined behavior. Proper error paths ensure cleanup code executes even during failures.
 
 **Status:** pending
 **Priority:** medium
@@ -75,26 +103,40 @@ analyze workspace
 
 ---
 
-### 5. ⏳ Document analysis findings 🟡
+### 7. ⏳ Review agent coordination and inter-process communication 🟡
 
-**Description:** Create a comprehensive summary document outlining workspace structure, project configuration, analysis results, dependency health, and any identified issues or recommendations for improvement.
+**Description:** Examine how specialized agents communicate, share context, and coordinate execution. Check for message queue buildup, unbounded buffers, or missing backpressure mechanisms that cause memory growth under load.
 
-**Tools:** write_file
+**Tools:** read_file, doc_search
 
-**Reasoning:** Documenting findings ensures the analysis provides actionable insights and creates a reference for future development decisions
+**Reasoning:** Agent orchestration involves complex communication patterns. Without proper flow control, message queues and shared state can grow unbounded.
 
 **Status:** pending
 **Priority:** medium
+**Progress:** 0%
+
+---
+
+### 8. ⏳ Generate comprehensive code review report with evidence 🔴
+
+**Description:** Compile all findings into a detailed report categorizing issues by severity (confirmed bottlenecks, confirmed memory leaks, potential issues). Include specific file locations, line numbers, code snippets, and concrete remediation recommendations with priority rankings.
+
+**Tools:** write_file, generate_code
+
+**Reasoning:** A structured report with evidence-based findings provides actionable insights. Concrete examples and line numbers ensure findings are verifiable and not approximations.
+
+**Status:** pending
+**Priority:** high
 **Progress:** 0%
 
 ---
 
 ## Summary
 
-- **Total Tasks:** 5
-- **Pending:** 3
+- **Total Tasks:** 8
+- **Pending:** 7
 - **In Progress:** 1
-- **Completed:** 1
+- **Completed:** 0
 - **Failed:** 0
 
 *Generated by TaskMaster AI integrated with NikCLI*

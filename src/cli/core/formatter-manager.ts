@@ -44,7 +44,7 @@ export class FormatterManager {
   private workingDirectory: string
   private formatters: Map<string, FormatterDefinition> = new Map()
 
-  constructor(workingDirectory: string, config: Partial<FormatterConfig> = {}) {
+  constructor(workingDirectory: string = process.cwd(), config: Partial<FormatterConfig> = {}) {
     this.workingDirectory = workingDirectory
     this.config = {
       enabled: true,

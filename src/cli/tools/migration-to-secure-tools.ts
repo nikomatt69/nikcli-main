@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { secureTools } from './secure-tools-registry'
 import { ToolsManager } from './tools-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Migration script to safely transition from unsafe ToolsManager to SecureToolsRegistry
@@ -21,8 +22,8 @@ export class ToolsMigration {
     const warning = `⚠️  DEPRECATED: ${operation} - Use ${secureAlternative} instead`
 
     if (!this.migrationWarnings.includes(warning)) {
-      console.log(chalk.yellow(warning))
-      console.log(chalk.gray('   This operation lacks security controls and will be removed in future versions.'))
+      advancedUI.logFunctionUpdate('info', chalk.yellow(warning))
+      advancedUI.logFunctionUpdate('info', chalk.gray('   This operation lacks security controls and will be removed in future versions.'))
       this.migrationWarnings.push(warning)
     }
   }
@@ -31,7 +32,7 @@ export class ToolsMigration {
    * Secure wrapper for file reading
    */
   async readFile(filePath: string) {
-    console.log(chalk.blue('⚡︎ Migrating to secure file reading...'))
+    advancedUI.logFunctionUpdate('info', chalk.blue('⚡︎ Migrating to secure file reading...'))
     return await secureTools.readFile(filePath)
   }
 
@@ -43,7 +44,7 @@ export class ToolsMigration {
       this.showMigrationWarning('writeFile without confirmation', 'secureTools.writeFile() with user confirmation')
     }
 
-    console.log(chalk.blue('⚡︎ Migrating to secure file writing...'))
+    advancedUI.logFunctionUpdate('info', chalk.blue('⚡︎ Migrating to secure file writing...'))
     return await secureTools.writeFile(filePath, content, { skipConfirmation })
   }
 
@@ -51,7 +52,7 @@ export class ToolsMigration {
    * Secure wrapper for directory listing
    */
   async listFiles(directory: string = '.', pattern?: RegExp) {
-    console.log(chalk.blue('⚡︎ Migrating to secure directory listing...'))
+    advancedUI.logFunctionUpdate('info', chalk.blue('⚡︎ Migrating to secure directory listing...'))
     const result = await secureTools.listDirectory(directory, { pattern })
 
     // Convert to legacy format for backward compatibility
@@ -62,9 +63,9 @@ export class ToolsMigration {
    * BLOCKED: Unsafe command execution
    */
   async runCommand(command: string, args: string[] = [], _options: any = {}) {
-    console.log(chalk.red('🚫 BLOCKED: Direct command execution is not allowed'))
-    console.log(chalk.yellow('Use secureTools.executeCommand() instead for safe command execution'))
-    console.log(chalk.gray(`Attempted command: ${command} ${args.join(' ')}`))
+    advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct command execution is not allowed'))
+    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() instead for safe command execution'))
+    advancedUI.logFunctionUpdate('info', chalk.gray(`Attempted command: ${command} ${args.join(' ')}`))
 
     throw new Error(
       'Direct command execution blocked for security. Use secureTools.executeCommand() with proper confirmation.'
@@ -75,8 +76,8 @@ export class ToolsMigration {
    * BLOCKED: Unsafe command streaming
    */
   async runCommandStream(_command: string, _options: any = {}) {
-    console.log(chalk.red('🚫 BLOCKED: Direct command streaming is not allowed'))
-    console.log(chalk.yellow('Use secureTools.executeCommand() instead for safe command execution'))
+    advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct command streaming is not allowed'))
+    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() instead for safe command execution'))
 
     throw new Error(
       'Direct command streaming blocked for security. Use secureTools.executeCommand() with proper confirmation.'
@@ -87,9 +88,9 @@ export class ToolsMigration {
    * BLOCKED: Package installation without confirmation
    */
   async installPackage(packageName: string, _options: any = {}) {
-    console.log(chalk.red('🚫 BLOCKED: Automatic package installation is not allowed'))
-    console.log(chalk.yellow('Use secureTools.executeCommand() with npm/yarn commands and user confirmation'))
-    console.log(chalk.gray(`Attempted package: ${packageName}`))
+    advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Automatic package installation is not allowed'))
+    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() with npm/yarn commands and user confirmation'))
+    advancedUI.logFunctionUpdate('info', chalk.gray(`Attempted package: ${packageName}`))
 
     throw new Error(
       'Automatic package installation blocked for security. Use secureTools.executeCommand() with proper confirmation.'
@@ -100,7 +101,7 @@ export class ToolsMigration {
    * Safe wrapper for search operations
    */
   async searchInFiles(query: string | RegExp, directory: string = '.', filePattern?: RegExp) {
-    console.log(chalk.blue('⚡︎ Using legacy search (consider implementing secure search)...'))
+    advancedUI.logFunctionUpdate('info', chalk.blue('⚡︎ Using legacy search (consider implementing secure search)...'))
     this.showMigrationWarning('searchInFiles', 'secureTools with grep command execution')
 
     return await this.legacyToolsManager.searchInFiles(query, directory, filePattern)
@@ -110,7 +111,7 @@ export class ToolsMigration {
    * Safe wrapper for project analysis
    */
   async analyzeProject() {
-    console.log(chalk.blue('⚡︎ Using legacy project analysis...'))
+    advancedUI.logFunctionUpdate('info', chalk.blue('⚡︎ Using legacy project analysis...'))
     this.showMigrationWarning('analyzeProject', 'secureTools.listDirectory() with analysis logic')
 
     return await this.legacyToolsManager.analyzeProject()
@@ -120,9 +121,9 @@ export class ToolsMigration {
    * BLOCKED: Build operations without confirmation
    */
   async build(framework?: string): Promise<{ success: boolean; output: string; errors?: any[] }> {
-    console.log(chalk.red('🚫 BLOCKED: Direct build operations are not allowed'))
-    console.log(chalk.yellow('Use secureTools.executeCommand() with build commands and user confirmation'))
-    console.log(chalk.gray(`Attempted framework: ${framework || 'auto-detect'}`))
+    advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct build operations are not allowed'))
+    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() with build commands and user confirmation'))
+    advancedUI.logFunctionUpdate('info', chalk.gray(`Attempted framework: ${framework || 'auto-detect'}`))
 
     return {
       success: false,
@@ -142,9 +143,9 @@ export class ToolsMigration {
    * BLOCKED: Test execution without confirmation
    */
   async runTests(testPattern?: string): Promise<{ success: boolean; output: string; errors?: any[] }> {
-    console.log(chalk.red('🚫 BLOCKED: Direct test execution is not allowed'))
-    console.log(chalk.yellow('Use secureTools.executeCommand() with test commands and user confirmation'))
-    console.log(chalk.gray(`Attempted pattern: ${testPattern || 'all tests'}`))
+    advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct test execution is not allowed'))
+    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() with test commands and user confirmation'))
+    advancedUI.logFunctionUpdate('info', chalk.gray(`Attempted pattern: ${testPattern || 'all tests'}`))
 
     return {
       success: false,
@@ -163,9 +164,9 @@ export class ToolsMigration {
    * BLOCKED: Lint operations without confirmation
    */
   async lint(filePath?: string): Promise<{ success: boolean; output: string; errors?: any[] }> {
-    console.log(chalk.red('🚫 BLOCKED: Direct lint operations are not allowed'))
-    console.log(chalk.yellow('Use secureTools.executeCommand() with lint commands and user confirmation'))
-    console.log(chalk.gray(`Attempted file: ${filePath || 'all files'}`))
+    advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct lint operations are not allowed'))
+    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() with lint commands and user confirmation'))
+    advancedUI.logFunctionUpdate('info', chalk.gray(`Attempted file: ${filePath || 'all files'}`))
 
     return {
       success: false,
@@ -184,8 +185,8 @@ export class ToolsMigration {
    * BLOCKED: Type checking without confirmation
    */
   async typeCheck(): Promise<{ success: boolean; output: string; errors?: any[] }> {
-    console.log(chalk.red('🚫 BLOCKED: Direct type checking is not allowed'))
-    console.log(chalk.yellow('Use secureTools.executeCommand() with TypeScript commands and user confirmation'))
+    advancedUI.logFunctionUpdate('info', chalk.red('🚫 BLOCKED: Direct type checking is not allowed'))
+    advancedUI.logFunctionUpdate('info', chalk.yellow('Use secureTools.executeCommand() with TypeScript commands and user confirmation'))
 
     return {
       success: false,
@@ -204,23 +205,23 @@ export class ToolsMigration {
    * Show migration summary
    */
   showMigrationSummary(): void {
-    console.log(chalk.blue.bold('\n⚡︎ Migration Summary'))
-    console.log(chalk.gray('─'.repeat(50)))
+    advancedUI.logFunctionUpdate('info', chalk.blue.bold('\n⚡︎ Migration Summary'))
+    advancedUI.logFunctionUpdate('info', chalk.gray('─'.repeat(50)))
 
     if (this.migrationWarnings.length === 0) {
-      console.log(chalk.green('✓ No deprecated operations used'))
+      advancedUI.logFunctionUpdate('info', chalk.green('✓ No deprecated operations used'))
     } else {
-      console.log(chalk.yellow(`⚠️  ${this.migrationWarnings.length} deprecated operations detected:`))
+      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️  ${this.migrationWarnings.length} deprecated operations detected:`))
       this.migrationWarnings.forEach((warning) => {
-        console.log(chalk.gray(`  • ${warning.replace('⚠️  DEPRECATED: ', '')}`))
+        advancedUI.logFunctionUpdate('info', chalk.gray(`  • ${warning.replace('⚠️  DEPRECATED: ', '')}`))
       })
     }
 
-    console.log(chalk.blue('\n💡 Migration Recommendations:'))
-    console.log(chalk.gray('  • Replace ToolsManager with SecureToolsRegistry'))
-    console.log(chalk.gray('  • Use secureTools.* methods for all operations'))
-    console.log(chalk.gray('  • Enable user confirmation for write operations'))
-    console.log(chalk.gray('  • Use command allow-listing for shell operations'))
+    advancedUI.logFunctionUpdate('info', chalk.blue('\n💡 Migration Recommendations:'))
+    advancedUI.logFunctionUpdate('info', chalk.gray('  • Replace ToolsManager with SecureToolsRegistry'))
+    advancedUI.logFunctionUpdate('info', chalk.gray('  • Use secureTools.* methods for all operations'))
+    advancedUI.logFunctionUpdate('info', chalk.gray('  • Enable user confirmation for write operations'))
+    advancedUI.logFunctionUpdate('info', chalk.gray('  • Use command allow-listing for shell operations'))
   }
 
   /**
@@ -236,8 +237,8 @@ export class ToolsMigration {
  * This provides a transition path from ToolsManager to SecureToolsRegistry
  */
 export function createSecureToolsManager(workingDir?: string): ToolsMigration {
-  console.log(chalk.blue('🔒 Creating secure tools manager...'))
-  console.log(chalk.yellow('⚠️  Legacy ToolsManager operations will show deprecation warnings'))
+  advancedUI.logFunctionUpdate('info', chalk.blue('🔒 Creating secure tools manager...'))
+  advancedUI.logFunctionUpdate('info', chalk.yellow('⚠️  Legacy ToolsManager operations will show deprecation warnings'))
 
   return new ToolsMigration(workingDir)
 }

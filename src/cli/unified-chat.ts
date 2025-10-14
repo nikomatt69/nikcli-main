@@ -8,7 +8,7 @@
 import { EventEmitter } from 'node:events'
 import boxen from 'boxen'
 import chalk from 'chalk'
-import * as readline from 'readline'
+import readline from 'readline'
 
 // Core imports
 import { advancedAIProvider } from './ai/advanced-ai-provider'

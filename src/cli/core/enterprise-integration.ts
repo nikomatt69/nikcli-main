@@ -15,7 +15,7 @@ export class EnterpriseIntegration {
   private workingDirectory: string
   private isInitialized = false
 
-  constructor(workingDirectory: string) {
+  constructor(workingDirectory: string = process.cwd()) {
     this.workingDirectory = workingDirectory
   }
 

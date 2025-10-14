@@ -1,10 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-import { sanitizePath } from './secure-file-tools'
+import { sanitizePath, validateIsFile } from './secure-file-tools'
 
 /**
  * Production-ready Replace In File Tool
@@ -27,6 +26,9 @@ export class ReplaceInFileTool extends BaseTool {
     try {
       // Sanitize and validate file path
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
+
+      // Validate that it's a file (not a directory)
+      validateIsFile(sanitizedPath)
 
       // Read original content
       const originalContent = await readFile(sanitizedPath, 'utf8')
@@ -87,9 +89,9 @@ export class ReplaceInFileTool extends BaseTool {
       }
 
       if (replaceResult.matchCount > 0) {
-        advancedUI.logSuccess(`Replaced ${replaceResult.matchCount} occurrence(s) in ${filePath}`)
+        CliUI.logSuccess(`Replaced ${replaceResult.matchCount} occurrence(s) in ${filePath}`)
       } else {
-        advancedUI.logInfo(`No matches found in ${filePath}`)
+        CliUI.logInfo(`No matches found in ${filePath}`)
       }
 
       return {
@@ -120,7 +122,7 @@ export class ReplaceInFileTool extends BaseTool {
         },
       }
 
-      advancedUI.logError(`Failed to replace in file ${filePath}: ${error.message}`)
+      CliUI.logError(`Failed to replace in file ${filePath}: ${error.message}`)
       return {
         success: false,
         data: errorResult,
@@ -279,7 +281,7 @@ export class ReplaceInFileTool extends BaseTool {
       // String replacement
       const regex = new RegExp(this.escapeRegex(searchPattern), options.caseSensitive === false ? 'gi' : 'g')
 
-      newContent = content.replace(regex, (match, ..._args) => {
+      newContent = content.replace(regex, (match, ...args) => {
         matchCount++
         matches.push(match as any)
 
@@ -294,10 +296,10 @@ export class ReplaceInFileTool extends BaseTool {
       // RegExp replacement
       const globalRegex = new RegExp(
         searchPattern.source,
-        searchPattern.flags.includes('g') ? searchPattern.flags : `${searchPattern.flags}g`
+        searchPattern.flags.includes('g') ? searchPattern.flags : searchPattern.flags + 'g'
       )
 
-      newContent = content.replace(globalRegex, (match, ..._args) => {
+      newContent = content.replace(globalRegex, (match, ...args) => {
         matchCount++
         matches.push(match as any)
 

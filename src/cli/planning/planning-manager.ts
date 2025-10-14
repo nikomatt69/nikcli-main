@@ -17,7 +17,7 @@ export class PlanningManager extends EventEmitter {
   private config: PlannerConfig
   private planHistory: Map<string, ExecutionPlan> = new Map()
 
-  constructor(workingDirectory: string, config?: Partial<PlannerConfig>) {
+  constructor(workingDirectory: string = process.cwd(), config?: Partial<PlannerConfig>) {
     super() // Call EventEmitter constructor
     this.config = {
       maxStepsPerPlan: 50,

@@ -3,7 +3,7 @@
 import { randomBytes } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
-import * as readline from 'readline'
+import readline from 'readline'
 import { simpleConfigManager as configManager } from './core/config-manager'
 import { inputQueue } from './core/input-queue'
 import { ExecutionPolicyManager } from './policies/execution-policy'

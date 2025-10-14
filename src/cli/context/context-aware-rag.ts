@@ -70,7 +70,7 @@ export class ContextAwareRAGSystem {
   private memoryPath: string
   private workingDir: string
 
-  constructor(workingDirectory: string) {
+  constructor(workingDirectory: string = process.cwd()) {
     this.workingDir = resolve(workingDirectory)
     this.memoryPath = join(this.workingDir, '.nikcli')
     this.ensureMemoryDir()

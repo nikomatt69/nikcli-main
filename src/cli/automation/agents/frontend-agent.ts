@@ -23,7 +23,7 @@ export class FrontendAgent extends BaseAgent {
   ]
   public readonly specialization = 'frontend'
 
-  constructor(workingDirectory: string) {
+  constructor(workingDirectory: string = process.cwd()) {
     super(workingDirectory)
     this.maxConcurrentTasks = 2 // Frontend tasks often require focus
   }

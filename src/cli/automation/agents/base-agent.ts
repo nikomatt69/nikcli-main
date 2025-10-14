@@ -31,7 +31,7 @@ export abstract class BaseAgent implements AgentInstance {
   protected performanceOptimized: boolean = true
   protected batchSize: number = 5 // Process tasks in batches for better performance
 
-  constructor(workingDirectory: string) {
+  constructor(workingDirectory: string = process.cwd()) {
     this.eventBus = EventBus.getInstance()
     this.toolRegistry = new ToolRegistry(workingDirectory)
     this.agentMetrics = {

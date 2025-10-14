@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { type VisionAnalysisResult, visionProvider } from '../providers/vision'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-import { sanitizePath } from './secure-file-tools'
+import { sanitizePath, validateIsFile } from './secure-file-tools'
 
 // Zod schemas for type validation
 export const VisionAnalysisOptionsSchema = z.object({
@@ -97,6 +97,9 @@ export class VisionAnalysisTool extends BaseTool {
 
       // Sanitize and validate image path
       const sanitizedPath = sanitizePath(imagePath, this.workingDirectory)
+
+      // Validate that it's a file (not a directory)
+      validateIsFile(sanitizedPath, `Image path must be a file, not a directory: ${imagePath}`)
 
       // Check if the tool is enabled and providers are available
       const availableProviders = visionProvider.getAvailableProviders()

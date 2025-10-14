@@ -71,17 +71,18 @@ export class DocumentationDatabase {
         const { error } = await client.from('documentation').upsert(supabaseDoc)
 
         if (error) {
-          console.log(chalk.yellow(`⚠️ Failed to save to database: ${error.message}`))
+          // If table doesn't exist, disable Supabase saves to prevent spam
+          if (error.message.includes('Could not find the table')) {
+            this.useSupabase = false
+          }
           return false
         }
 
-        console.log(chalk.green(`✓ Saved documentation to database: ${entry.title}`))
         return true
       }
 
       return false
     } catch (error: any) {
-      console.log(chalk.red(`❌ Database save error: ${error.message}`))
       return false
     }
   }
@@ -119,18 +120,19 @@ export class DocumentationDatabase {
         const { data, error } = await client.from('documentation').upsert(supabaseDocs)
 
         if (error) {
-          console.log(chalk.yellow(`⚠️ Batch save failed: ${error.message}`))
+          // If table doesn't exist, disable Supabase saves to prevent spam
+          if (error.message.includes('Could not find the table')) {
+            this.useSupabase = false
+          }
           return 0
         }
 
         const count = Array.isArray(data) ? data.length : entries.length
-        console.log(chalk.green(`✓ Saved ${count} documents to database`))
         return count
       }
 
       return 0
     } catch (error: any) {
-      console.log(chalk.red(`❌ Batch save error: ${error.message}`))
       return 0
     }
   }

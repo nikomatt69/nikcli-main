@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
 import { basename, join, relative } from 'node:path'
 import { PromptManager } from '../prompts/prompt-manager'
@@ -82,6 +82,12 @@ export class ListTool extends BaseTool {
 
       if (!existsSync(searchPath)) {
         throw new Error(`Directory does not exist: ${searchPath}`)
+      }
+
+      // Validate that it's a directory (not a file)
+      const stats = statSync(searchPath)
+      if (!stats.isDirectory()) {
+        throw new Error(`Path is not a directory (is a file): ${searchPath}`)
       }
 
       CliUI.logInfo(`📁 Listing directory: ${relative(this.workingDirectory, searchPath)}`)
@@ -246,6 +252,7 @@ export class ListTool extends BaseTool {
           return b.size - a.size
         case 'modified':
           return b.modified.getTime() - a.modified.getTime()
+        case 'name':
         default:
           // Directory prima, poi file, entrambi alfabetici
           if (a.type !== b.type) {

@@ -260,8 +260,8 @@ export class SecureCommandTool {
 
     // Suspend main prompt and enable bypass for interactive approval
     try {
-      ;(global as any).__nikCLI?.suspendPrompt?.()
-    } catch {}
+      ; (global as any).__nikCLI?.suspendPrompt?.()
+    } catch { }
     inputQueue.enableBypass()
     try {
       const { approved } = await inquirer.prompt([
@@ -303,8 +303,8 @@ export class SecureCommandTool {
       inputQueue.disableBypass()
       // Proactively resume CLI prompt after approval interaction
       try {
-        ;(global as any).__nikCLI?.resumePromptAndRender?.()
-      } catch {}
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch { }
     }
   }
 
@@ -456,8 +456,8 @@ export class SecureCommandTool {
       console.log(chalk.yellow(`\n⚠️  Command requires confirmation: ${command}`))
 
       try {
-        ;(global as any).__nikCLI?.suspendPrompt?.()
-      } catch {}
+        ; (global as any).__nikCLI?.suspendPrompt?.()
+      } catch { }
       inputQueue.enableBypass()
       try {
         const { confirmed } = await inquirer.prompt([
@@ -480,8 +480,8 @@ export class SecureCommandTool {
       } finally {
         inputQueue.disableBypass()
         try {
-          ;(global as any).__nikCLI?.resumePromptAndRender?.()
-        } catch {}
+          ; (global as any).__nikCLI?.resumePromptAndRender?.()
+        } catch { }
       }
     }
 
@@ -570,8 +570,8 @@ export class SecureCommandTool {
 
     if (!options.skipConfirmation) {
       try {
-        ;(global as any).__nikCLI?.suspendPrompt?.()
-      } catch {}
+        ; (global as any).__nikCLI?.suspendPrompt?.()
+      } catch { }
       inputQueue.enableBypass()
       try {
         const { confirmed } = await inquirer.prompt([
@@ -594,8 +594,8 @@ export class SecureCommandTool {
       } finally {
         inputQueue.disableBypass()
         try {
-          ;(global as any).__nikCLI?.resumePromptAndRender?.()
-        } catch {}
+          ; (global as any).__nikCLI?.resumePromptAndRender?.()
+        } catch { }
       }
     }
 

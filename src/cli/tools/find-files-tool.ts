@@ -1,7 +1,7 @@
 import { globby } from 'globby'
-import { structuredLogger } from '../utils/structured-logger'
+import { logger as cliLogger } from '../utils/logger'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-import { sanitizePath } from './secure-file-tools'
+import { sanitizePath, validateIsDirectory } from './secure-file-tools'
 
 export class FindFilesTool extends BaseTool {
   constructor(workingDirectory: string) {
@@ -16,6 +16,10 @@ export class FindFilesTool extends BaseTool {
 
     try {
       const sanitizedCwd = sanitizePath(options.cwd || '.', this.workingDirectory)
+
+      // Validate that cwd is a directory
+      validateIsDirectory(sanitizedCwd, `Search path must be a directory: ${options.cwd || '.'}`)
+
       const files = await globby(pattern, { cwd: sanitizedCwd, onlyFiles: true })
 
       // Show file list in structured UI (optional; safe in headless envs)
@@ -27,18 +31,15 @@ export class FindFilesTool extends BaseTool {
         } catch (error: any) {
           // Non-fatal: swallow UI errors but log for diagnostics
           try {
-            structuredLogger.info(
-              'Optional advanced UI display failed; continuing without UI',
-              JSON.stringify({
-                tool: 'find-files-tool',
-                pattern,
-                fileCount: files.length,
-                error:
-                  error && typeof error === 'object'
-                    ? { message: error.message, name: error.name, stack: error.stack }
-                    : String(error),
-              })
-            )
+            cliLogger.debug('Optional advanced UI display failed; continuing without UI', {
+              tool: 'find-files-tool',
+              pattern,
+              fileCount: files.length,
+              error:
+                error && typeof error === 'object'
+                  ? { message: error.message, name: error.name, stack: error.stack }
+                  : String(error),
+            })
           } catch {
             // Best-effort logging; never throw from here
           }

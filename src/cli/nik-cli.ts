@@ -1,12 +1,12 @@
-import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import boxen from 'boxen'
 import chalk from 'chalk'
 import cliProgress from 'cli-progress'
 import inquirer from 'inquirer'
 import { nanoid } from 'nanoid'
 import ora, { type Ora } from 'ora'
-import * as readline from 'readline'
+import readline from 'readline'
 import { advancedAIProvider } from './ai/advanced-ai-provider'
 import { modelProvider } from './ai/model-provider'
 import type { ModernAIProvider } from './ai/modern-ai-provider'
@@ -74,8 +74,8 @@ import { formatAgent, formatCommand, formatFileOp, formatSearch, formatStatus, w
 
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
-import { createStreamRenderer } from 'streamtty/dist'
-import { renderChatStreamToTerminal } from './ui/streamdown-renderer'
+
+
 
 
 // CAD AI System imports
@@ -203,7 +203,7 @@ export class NikCLI {
 
   // Vim Mode properties
 
-  private modernAIProvider?: ModernAIProvider
+  private modernAIProvider!: ModernAIProvider
   private vimKeyHandler?: (data: Buffer) => Promise<void>
   private keypressListener?: (chunk: any, key: any) => void
 
@@ -256,7 +256,7 @@ export class NikCLI {
   private sessionStartTime: Date = new Date()
   private contextTokens: number = 0
   private realTimeCost: number = 0
-  private toolchainTokenLimit: number = 150000 // Limite per toolchain
+  private toolchainTokenLimit: number = 100000 // Limite per toolchain
   private toolchainContext: Map<string, number> = new Map()
   private activeSpinner: any = null
   private aiOperationStart: Date | null = null
@@ -320,7 +320,7 @@ export class NikCLI {
 
   // Enhanced services
   private enhancedSessionManager: EnhancedSessionManager
-  private isEnhancedMode: boolean = false
+  private isEnhancedMode: boolean = true
 
   // NEW: Chat UI System
   private chatBuffer: string[] = []
@@ -334,7 +334,7 @@ export class NikCLI {
 
   constructor() {
     this.workingDirectory = process.cwd()
-    this.projectContextFile = path.join(this.workingDirectory, 'NIKOCLI.md')
+    this.projectContextFile = path.join(this.workingDirectory, 'NIKOCLI.md', 'CLAUDE.md')
 
     // Compact mode by default (cleaner output unless explicitly disabled)
     try {

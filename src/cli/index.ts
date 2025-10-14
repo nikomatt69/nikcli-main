@@ -55,11 +55,11 @@ process.on('warning', (warning: any) => {
 
 import { spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
+import fs from 'node:fs'
+import path from 'node:path'
 // Import TUI Bridge instead of boxen for enhanced terminal UI
 import boxen from 'boxen'
-import * as readline from 'readline'
+import readline from 'readline'
 import { AgentManager } from './core/agent-manager'
 import { simpleConfigManager as configManager } from './core/config-manager'
 import { ideDetector } from './core/ide-detector'

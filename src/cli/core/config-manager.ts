@@ -1516,8 +1516,8 @@ export class SimpleConfigManager {
     const redisConfig = this.config.redis
 
     return {
-      url: redisConfig.url || process.env.UPSTASH_REDIS_REST_URL,
-      token: redisConfig.token || process.env.UPSTASH_REDIS_REST_TOKEN,
+      url: redisConfig.url || process.env.REDIS_URL,
+      token: redisConfig.token || process.env.REDIS_TOKEN,
       host: redisConfig.host,
       port: redisConfig.port,
     }

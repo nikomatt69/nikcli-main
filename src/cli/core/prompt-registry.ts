@@ -90,7 +90,7 @@ export class PromptRegistry {
   private workingDirectory: string
   private isInitialized = false
 
-  constructor(workingDirectory: string, config: Partial<PromptRegistryConfig> = {}) {
+  constructor(workingDirectory: string = process.cwd(), config: Partial<PromptRegistryConfig> = {}) {
     this.workingDirectory = workingDirectory
     this.config = PromptRegistryConfigSchema.parse(config)
   }
@@ -456,7 +456,7 @@ Error Context:
             const [key, ...valueParts] = line.split(':')
             if (key && valueParts.length > 0) {
               const value = valueParts.join(':').trim()
-              ;(metadata as Record<string, any>)[key.trim()] = value.replace(/^["']|["']$/g, '')
+                ; (metadata as Record<string, any>)[key.trim()] = value.replace(/^["']|["']$/g, '')
             }
           }
           template = metadataMatch[2]

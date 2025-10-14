@@ -1,6 +1,6 @@
 import { exec, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
-import { advancedUI } from '../ui/advanced-cli-ui'
+import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 const _execAsync = promisify(exec)
@@ -52,9 +52,9 @@ export class RunCommandTool extends BaseTool {
       }
 
       if (result.exitCode === 0) {
-        advancedUI.logInfo(`Command executed successfully: ${command}`)
+        CliUI.logSuccess(`Command executed successfully: ${command}`)
       } else {
-        advancedUI.logWarning(`Command failed with exit code ${result.exitCode}: ${command}`)
+        CliUI.logWarning(`Command failed with exit code ${result.exitCode}: ${command}`)
       }
 
       return {
@@ -83,7 +83,7 @@ export class RunCommandTool extends BaseTool {
         },
       }
 
-      advancedUI.logError(`Command execution failed: ${command} - ${error.message}`)
+      CliUI.logError(`Command execution failed: ${command} - ${error.message}`)
       return {
         success: false,
         data: errorResult,
@@ -115,7 +115,7 @@ export class RunCommandTool extends BaseTool {
         if (result.success) {
           successCount++
         } else if (options.stopOnFirstError) {
-          advancedUI.logWarning(`Stopping sequence at command ${i + 1} due to failure`)
+          CliUI.logWarning(`Stopping sequence at command ${i + 1} due to failure`)
           break
         }
       } catch (error: any) {
@@ -325,7 +325,7 @@ export class RunCommandTool extends BaseTool {
         } catch {
           // If path validation fails, it might not be a file path
           // Continue with execution but log warning
-          advancedUI.logWarning(`Could not validate path argument: ${arg}`)
+          CliUI.logWarning(`Could not validate path argument: ${arg}`)
         }
       }
     }
@@ -429,7 +429,7 @@ export class RunCommandTool extends BaseTool {
    */
   addAllowedCommand(command: string): void {
     this.allowedCommands.add(command)
-    advancedUI.logInfo(`Added command to whitelist: ${command}`)
+    CliUI.logInfo(`Added command to whitelist: ${command}`)
   }
 
   /**
@@ -437,7 +437,7 @@ export class RunCommandTool extends BaseTool {
    */
   removeAllowedCommand(command: string): void {
     this.allowedCommands.delete(command)
-    advancedUI.logInfo(`Removed command from whitelist: ${command}`)
+    CliUI.logInfo(`Removed command from whitelist: ${command}`)
   }
 
   /**
@@ -452,7 +452,7 @@ export class RunCommandTool extends BaseTool {
    */
   addAllowedPath(path: string): void {
     this.allowedPaths.add(path)
-    advancedUI.logInfo(`Added path to whitelist: ${path}`)
+    CliUI.logInfo(`Added path to whitelist: ${path}`)
   }
 }
 

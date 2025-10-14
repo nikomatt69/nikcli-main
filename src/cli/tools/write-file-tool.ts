@@ -13,11 +13,11 @@ import {
   WriteFileResultSchema,
   type WriteMultipleResult,
 } from '../schemas/tool-schemas'
-import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
+import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-import { sanitizePath } from './secure-file-tools'
+import { sanitizePath, isDirectory } from './secure-file-tools'
 
 /**
  * Production-ready Write File Tool
@@ -51,6 +51,11 @@ export class WriteFileTool extends BaseTool {
 
       // Sanitize and validate file path
       const sanitizedPath = sanitizePath(filePath, this.workingDirectory)
+
+      // Validate that the path is not an existing directory
+      if (isDirectory(sanitizedPath)) {
+        throw new Error(`Cannot write file: path is a directory: ${filePath}`)
+      }
 
       // Validate content if validators are provided
       if (options.validators) {
@@ -155,7 +160,7 @@ export class WriteFileTool extends BaseTool {
 
       // Show relative path in logs for cleaner output
       const relativePath = sanitizedPath.replace(this.workingDirectory, '').replace(/^\//, '') || sanitizedPath
-      advancedUI.logSuccess(`File written: ${relativePath} (${writeFileResult.bytesWritten} bytes)`)
+      CliUI.logSuccess(`File written: ${relativePath} (${writeFileResult.bytesWritten} bytes)`)
       return {
         success: true,
         data: validatedResult,
@@ -170,9 +175,9 @@ export class WriteFileTool extends BaseTool {
       if (backupPath && options.autoRollback !== false) {
         try {
           await this.rollback(filePath, backupPath)
-          advancedUI.logInfo('Rolled back to backup due to error')
+          CliUI.logInfo('Rolled back to backup due to error')
         } catch (rollbackError: any) {
-          advancedUI.logWarning(`Rollback failed: ${rollbackError.message}`)
+          CliUI.logWarning(`Rollback failed: ${rollbackError.message}`)
         }
       }
 
@@ -193,7 +198,7 @@ export class WriteFileTool extends BaseTool {
       }
 
       const relativePath = filePath.replace(this.workingDirectory, '').replace(/^\//, '') || filePath
-      advancedUI.logError(`Failed to write file ${relativePath}: ${error.message}`)
+      CliUI.logError(`Failed to write file ${relativePath}: ${error.message}`)
       return {
         success: false,
         data: errorResult,
@@ -248,7 +253,7 @@ export class WriteFileTool extends BaseTool {
       // Phase 3: Handle partial failures
       if (successCount < files.length && options.rollbackOnPartialFailure) {
         await this.rollbackMultiple(backups)
-        advancedUI.logWarning('Rolled back all changes due to partial failure')
+        CliUI.logWarning('Rolled back all changes due to partial failure')
       }
 
       return {
@@ -328,7 +333,7 @@ export class WriteFileTool extends BaseTool {
       // Copy file to backup location
       await copyFile(filePath, backupPath)
 
-      advancedUI.logInfo(`Backup created: ${backupPath}`)
+      CliUI.logInfo(`Backup created: ${backupPath}`)
       return backupPath
     } catch {
       // File doesn't exist or can't be backed up
@@ -362,7 +367,7 @@ export class WriteFileTool extends BaseTool {
 
         await this.rollback(originalPath, backupPath)
       } catch (error: any) {
-        advancedUI.logWarning(`Failed to rollback ${backupPath}: ${error.message}`)
+        CliUI.logWarning(`Failed to rollback ${backupPath}: ${error.message}`)
       }
     }
   }
@@ -413,10 +418,10 @@ export class WriteFileTool extends BaseTool {
         }
       }
 
-      advancedUI.logInfo(`Cleaned ${deletedCount} old backup files`)
+      CliUI.logInfo(`Cleaned ${deletedCount} old backup files`)
       return deletedCount
     } catch (error: any) {
-      advancedUI.logWarning(`Failed to clean backups: ${error.message}`)
+      CliUI.logWarning(`Failed to clean backups: ${error.message}`)
       return 0
     }
   }
@@ -431,14 +436,14 @@ export class WriteFileTool extends BaseTool {
         const warnings = lspContext.diagnostics.filter((d) => d.severity === 2)
 
         if (errors.length > 0) {
-          advancedUI.logWarning(`LSP found ${errors.length} errors in ${filePath}`)
+          CliUI.logWarning(`LSP found ${errors.length} errors in ${filePath}`)
           errors.slice(0, 3).forEach((error) => {
-            advancedUI.logError(`  Line ${error.range.start.line + 1}: ${error.message}`)
+            CliUI.logError(`  Line ${error.range.start.line + 1}: ${error.message}`)
           })
         }
 
         if (warnings.length > 0) {
-          advancedUI.logInfo(`LSP found ${warnings.length} warnings in ${filePath}`)
+          CliUI.logInfo(`LSP found ${warnings.length} warnings in ${filePath}`)
         }
       }
 
@@ -456,7 +461,7 @@ export class WriteFileTool extends BaseTool {
       // Update workspace context with new file
       await this.contextSystem.analyzeFile(filePath)
     } catch (error: any) {
-      advancedUI.logWarning(`LSP/Context analysis failed: ${error.message}`)
+      CliUI.logWarning(`LSP/Context analysis failed: ${error.message}`)
     }
   }
 }
@@ -597,7 +602,7 @@ export class ContentValidators {
         }
 
         // Clean up temp file
-        await unlink(tempFilePath).catch(() => {})
+        await unlink(tempFilePath).catch(() => { })
       } catch (lspError: any) {
         warnings.push(`LSP validation unavailable: ${lspError.message}`)
 

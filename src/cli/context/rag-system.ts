@@ -97,7 +97,7 @@ function createVectorStoreConfigs() {
   const configs = []
 
   // Check if local-first mode is enabled (default: true for fast startup)
-  const useLocalFirst = process.env.RAG_LOCAL_FIRST !== 'false'
+  const useLocalFirst = 'false'
 
   if (useLocalFirst) {
     // 🚀 PRIMARY: Local filesystem (instant startup, no network latency)

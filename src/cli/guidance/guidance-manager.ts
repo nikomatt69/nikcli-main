@@ -40,7 +40,7 @@ export class GuidanceManager {
   private onContextUpdate?: (context: GuidanceContext) => void
   private lastContextLogAt: number = 0
 
-  constructor(workingDirectory: string, globalGuidanceDir?: string) {
+  constructor(workingDirectory: string = process.cwd(), globalGuidanceDir?: string) {
     this.workingDirectory = workingDirectory
     this.globalGuidanceDir = globalGuidanceDir || path.join(require('node:os').homedir(), '.nikcli')
     this.ensureGlobalGuidanceDir()

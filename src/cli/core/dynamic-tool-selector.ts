@@ -14,7 +14,7 @@ export class DynamicToolSelector {
   private maxHistorySize = 50
   private toolRegistry: ToolRegistry
 
-  constructor(workingDirectory: string) {
+  constructor(workingDirectory: string = process.cwd()) {
     this.toolRegistry = new ToolRegistry(workingDirectory)
   }
 

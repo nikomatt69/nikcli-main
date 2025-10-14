@@ -62,7 +62,7 @@ export class FeatureFlagManager extends EventEmitter {
   private refreshTimer?: NodeJS.Timeout
   private configFilePath: string
 
-  constructor(workingDirectory: string, config: Partial<FeatureFlagConfig> = {}) {
+  constructor(workingDirectory: string = process.cwd(), config: Partial<FeatureFlagConfig> = {}) {
     super()
     this.config = FeatureFlagConfigSchema.parse(config)
     this.configFilePath = join(workingDirectory, this.config.configFile)

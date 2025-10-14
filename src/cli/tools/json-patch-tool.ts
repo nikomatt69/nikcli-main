@@ -1,11 +1,12 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
-import { sanitizePath } from './secure-file-tools'
+import { sanitizePath, validateIsFile } from './secure-file-tools'
 
 export type JsonPatchOp =
   | { op: 'add'; path: string; value: any }
@@ -74,6 +75,9 @@ export class JsonPatchTool extends BaseTool {
       const absolute = sanitizePath(params.filePath, this.getWorkingDirectory())
       if (!fs.existsSync(absolute)) throw new Error(`File not found: ${params.filePath}`)
 
+      // Validate that it's a file (not a directory)
+      validateIsFile(absolute, `Cannot patch: path is a directory: ${params.filePath}`)
+
       const ext = path.extname(absolute).toLowerCase()
 
       const originalContent = fs.readFileSync(absolute, 'utf8')
@@ -86,7 +90,7 @@ export class JsonPatchTool extends BaseTool {
         } catch (e: any) {
           throw new Error(`Invalid JSON: ${e.message}`)
         }
-        serializer = (obj) => `${JSON.stringify(obj, null, 2)}\n`
+        serializer = (obj) => JSON.stringify(obj, null, 2) + '\n'
       } else if (ext === '.yaml' || ext === '.yml') {
         try {
           const yaml = await import('yaml')
@@ -128,8 +132,8 @@ export class JsonPatchTool extends BaseTool {
       // Confirmation unless previewOnly
       if (!params.previewOnly && !params.skipConfirmation) {
         try {
-          ;(global as any).__nikCLI?.suspendPrompt?.()
-        } catch {}
+          ; (global as any).__nikCLI?.suspendPrompt?.()
+        } catch { }
         inputQueue.enableBypass()
         try {
           const { confirmed } = await inquirer.prompt([
@@ -155,8 +159,8 @@ export class JsonPatchTool extends BaseTool {
         } finally {
           inputQueue.disableBypass()
           try {
-            ;(global as any).__nikCLI?.resumePromptAndRender?.()
-          } catch {}
+            ; (global as any).__nikCLI?.resumePromptAndRender?.()
+          } catch { }
         }
       }
 
@@ -171,7 +175,7 @@ export class JsonPatchTool extends BaseTool {
 
       if (!params.previewOnly) {
         fs.writeFileSync(absolute, newContent, 'utf8')
-        CliUI.logSuccess('✓ JSON patch applied')
+        CliUI.logSuccess('✅ JSON patch applied')
       } else {
         CliUI.logInfo('📋 Preview only, no changes written')
       }
@@ -266,7 +270,7 @@ export class JsonPatchTool extends BaseTool {
       cur[idx] = value
       return
     }
-    ;(cur as any)[last] = value
+    ; (cur as any)[last] = value
   }
 
   private removeByPointer(obj: any, pointer: string, allowMissing: boolean): void {

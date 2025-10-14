@@ -70,7 +70,7 @@ export class WorkflowOrchestrator {
   private activeChains: Map<string, WorkflowContext> = new Map()
   private chainDefinitions: Map<string, WorkflowChain> = new Map()
 
-  constructor(workingDirectory: string) {
+  constructor(workingDirectory: string = process.cwd()) {
     this.eventBus = EventBus.getInstance()
     this.toolRegistry = new ToolRegistry(workingDirectory)
     this.initializeDefaultChains()

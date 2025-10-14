@@ -463,7 +463,7 @@ export class StreamttyService {
         return StreamProtocol.createError(chunk)
 
       case 'system':
-        return StreamProtocol.createStatus(chunk, 'info')
+        return StreamProtocol.createStatus(chunk, 'pending')
 
       default:
         return null

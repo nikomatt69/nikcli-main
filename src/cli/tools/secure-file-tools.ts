@@ -1,5 +1,5 @@
-import * as fs from 'node:fs'
-import * as path from 'node:path'
+import fs from 'node:fs'
+import path from 'node:path'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
@@ -14,21 +14,75 @@ const batchApprovalState = {
 /**
  * Utility to sanitize and validate file paths to prevent directory traversal attacks
  */
-export function sanitizePath(filePath: string, workingDir: string = process.cwd()): string {
+export function sanitizePath(filePath: string, workingDirectory: string = process.cwd()): string {
   // Normalize the path to resolve any '..' or '.' segments
   const normalizedPath = path.normalize(filePath)
 
   // Resolve to absolute path
-  const absolutePath = path.resolve(workingDir, normalizedPath)
+  const absolutePath = path.resolve(workingDirectory, normalizedPath)
 
   // Ensure the resolved path is within the working directory
-  const workingDirAbsolute = path.resolve(workingDir)
+  const workingDirAbsolute = path.resolve(workingDirectory)
 
   if (!absolutePath.startsWith(workingDirAbsolute)) {
     throw new Error(`Path traversal detected: ${filePath} resolves outside working directory`)
   }
 
   return absolutePath
+}
+
+/**
+ * Validate that a path exists and is a file (not a directory)
+ * @throws Error if path doesn't exist, is a directory, or other file system error
+ */
+export function validateIsFile(filePath: string, customErrorMsg?: string): void {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File not found: ${filePath}`)
+  }
+
+  const stats = fs.statSync(filePath)
+  if (!stats.isFile()) {
+    throw new Error(customErrorMsg || `Path is not a file (is a directory): ${filePath}`)
+  }
+}
+
+/**
+ * Validate that a path exists and is a directory (not a file)
+ * @throws Error if path doesn't exist, is a file, or other file system error
+ */
+export function validateIsDirectory(dirPath: string, customErrorMsg?: string): void {
+  if (!fs.existsSync(dirPath)) {
+    throw new Error(`Directory not found: ${dirPath}`)
+  }
+
+  const stats = fs.statSync(dirPath)
+  if (!stats.isDirectory()) {
+    throw new Error(customErrorMsg || `Path is not a directory (is a file): ${dirPath}`)
+  }
+}
+
+/**
+ * Check if a path exists and is a directory (does not throw)
+ */
+export function isDirectory(dirPath: string): boolean {
+  try {
+    if (!fs.existsSync(dirPath)) return false
+    return fs.statSync(dirPath).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Check if a path exists and is a file (does not throw)
+ */
+export function isFile(filePath: string): boolean {
+  try {
+    if (!fs.existsSync(filePath)) return false
+    return fs.statSync(filePath).isFile()
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -65,8 +119,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
   // Start batch approval process
   batchApprovalState.approvalInProgress = true
   try {
-    ;(global as any).__nikCLI?.suspendPrompt?.()
-  } catch {}
+    ; (global as any).__nikCLI?.suspendPrompt?.()
+  } catch { }
   inputQueue.enableBypass()
 
   try {
@@ -96,8 +150,8 @@ async function requestBatchApproval(action: string, filePath: string, content?: 
     batchApprovalState.approvalInProgress = false
     // Ensure prompt resumes cleanly after batch approval
     try {
-      ;(global as any).__nikCLI?.resumePromptAndRender?.()
-    } catch {}
+      ; (global as any).__nikCLI?.resumePromptAndRender?.()
+    } catch { }
   }
 }
 
@@ -197,6 +251,14 @@ export class WriteFileTool {
     try {
       const safePath = sanitizePath(filePath, this.workingDirectory)
       const fileExists = fs.existsSync(safePath)
+
+      // Validate that if the path exists, it's not a directory
+      if (fileExists) {
+        const stats = fs.statSync(safePath)
+        if (stats.isDirectory()) {
+          throw new Error(`Cannot write file: path is a directory: ${filePath}`)
+        }
+      }
 
       // Show confirmation prompt unless explicitly skipped
       if (!options.skipConfirmation) {
