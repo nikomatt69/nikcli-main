@@ -43,7 +43,7 @@ export class AutonomousOrchestrator extends BaseAgent {
   private orchestrationCache: Map<string, any> = new Map()
   private performanceThreshold: number = 0.8
 
-  constructor(agentManager: AgentManager, workingDirectory: string = process.cwd()) {
+  constructor(agentManager: AgentManager, workingDirectory: string = require('../../utils/working-dir').getWorkingDirectory()) {
     super(workingDirectory)
     this.agentManager = agentManager
   }

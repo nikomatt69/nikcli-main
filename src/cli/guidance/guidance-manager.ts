@@ -587,4 +587,4 @@ You are a backend specialist focusing on:
   }
 }
 
-export const guidanceManager = new GuidanceManager(process.cwd())
+export const guidanceManager = new GuidanceManager(require('node:path').resolve(require('..//utils/working-dir').getWorkingDirectory()))

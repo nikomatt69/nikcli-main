@@ -7,7 +7,7 @@ export class AgentManager {
   private agents: Map<string, ConcreteAgentClass> = new Map()
   private workingDirectory: string
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = require('../../utils/working-dir').getWorkingDirectory()) {
     this.workingDirectory = workingDirectory
   }
 

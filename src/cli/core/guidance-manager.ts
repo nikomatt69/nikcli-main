@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { getWorkingDirectory } from '../utils/working-dir'
 
 /**
  * GuidanceManager collects instructions from AGENTS.md, CLAUDE.md, CODEX.md
@@ -10,7 +11,7 @@ export class GuidanceManager {
   private files = [
     path.join(os.homedir(), '.nikcli', 'AGENTS.md', 'CLAUDE.md', 'NIKOCLI.md', 'CODEX.md'),
     'AGENTS.md',
-    path.join(process.cwd(), 'AGENTS.md'),
+    path.join(getWorkingDirectory(), 'AGENTS.md'),
   ]
 
   /** Read and merge guidance content from files. */

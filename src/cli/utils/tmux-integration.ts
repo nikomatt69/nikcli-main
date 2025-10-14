@@ -495,7 +495,7 @@ set -g renumber-windows on
     // Create new session if none exist
     return await this.createSession({
       name: `${this.config.sessionPrefix}-${Date.now()}`,
-      workingDir: process.cwd(),
+      workingDir: require('../utils/working-dir').getWorkingDirectory(),
     })
   }
 }

@@ -75,7 +75,7 @@ export class AutonomousClaudeInterface {
     this.session = {
       id: Date.now().toString(),
       messages: [],
-      workingDirectory: process.cwd(),
+      workingDirectory: require('../utils/working-dir').getWorkingDirectory(),
       createdAt: new Date(),
       autonomous: true,
       executionHistory: [],
@@ -478,7 +478,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
         break
       }
       case 'cd':
-        await this.changeDirectory(args[0] || process.cwd())
+        await this.changeDirectory(args[0] || require('../utils/working-dir').getWorkingDirectory())
         break
       case 'pwd':
         console.log(chalk.blue(`📁 Current directory: ${this.session.workingDirectory}`))
@@ -1266,7 +1266,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
       const { smartCompletionManager } = await import('../core/smart-completion-manager')
 
       const completions = await smartCompletionManager.getCompletions(line, {
-        currentDirectory: process.cwd(),
+        currentDirectory: require('../utils/working-dir').getWorkingDirectory(),
         interface: 'autonomous',
       })
 

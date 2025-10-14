@@ -154,7 +154,7 @@ export class ProjectMemoryManager {
    * 🎯 Initialize project memory for current directory
    */
   public async initializeProject(projectPath?: string): Promise<string> {
-    const resolvedPath = resolve(projectPath || process.cwd())
+    const resolvedPath = resolve(projectPath || require('../utils/working-dir').getWorkingDirectory())
     const projectId = this.generateProjectId(resolvedPath)
 
     this.currentProjectId = projectId

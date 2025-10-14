@@ -480,8 +480,28 @@ export class MainOrchestrator {
   }
 
   private async initializeContext(): Promise<void> {
-    // Context management is handled in the streaming orchestrator
-    advancedUI.logFunctionUpdate('info', '   Context management ready')
+    // Ensure workspace context is hot and watching and caches are clean
+    try {
+      const { workspaceContext } = await import('./context/workspace-context')
+      const { contextManager } = await import('./core/context-manager')
+      const { docsContextManager } = await import('./context/docs-context-manager')
+      const { unifiedEmbeddingInterface } = await import('./context/unified-embedding-interface')
+      const { unifiedRAGSystem } = await import('./context/rag-system')
+      const { PromptManager } = await import('./prompts/prompt-manager')
+
+      // Clear caches to avoid stale state
+      try { contextManager.clearCaches() } catch {}
+      try { docsContextManager.clearCaches() } catch {}
+      try { unifiedEmbeddingInterface.clearCache() } catch {}
+      try { await unifiedRAGSystem.clearCaches() } catch {}
+      try { PromptManager.getInstance()?.clearCache() } catch {}
+
+      await workspaceContext.refreshWorkspaceIndex()
+      workspaceContext.startWatching()
+      advancedUI.logFunctionUpdate('success', '   Workspace context active (watching)', '✓')
+    } catch (error: any) {
+      advancedUI.logFunctionUpdate('warning', `   Workspace context initialization failed: ${error.message}`, '⚠')
+    }
   }
 
   private async initializeVMOrchestration(): Promise<void> {

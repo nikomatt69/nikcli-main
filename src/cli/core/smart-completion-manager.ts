@@ -206,7 +206,7 @@ export class SmartCompletionManager {
       const fs = require('node:fs')
       const path = require('node:path')
 
-      let basePath = process.cwd()
+      let basePath = require('../utils/working-dir').getWorkingDirectory()
       let searchTerm = partialInput
 
       if (partialInput.includes('/')) {

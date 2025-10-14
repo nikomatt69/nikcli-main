@@ -244,7 +244,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
       createdBy: 'autonomous-planner',
       context: {
         userRequest: goal,
-        projectPath: workspaceContext.projectPath || process.cwd(),
+        projectPath: workspaceContext.projectPath || require('../utils/working-dir').getWorkingDirectory(),
         reasoning: planData.reasoning,
       },
     }
@@ -478,7 +478,7 @@ Execute the task now using the available tools.`,
       createdBy: 'autonomous-planner',
       context: {
         userRequest: goal,
-        projectPath: process.cwd(),
+        projectPath: require('../utils/working-dir').getWorkingDirectory(),
         simple: true,
       },
     }

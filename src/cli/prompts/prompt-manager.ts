@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { getWorkingDirectory } from '../utils/working-dir'
 import { type TokenOptimizationConfig, TokenOptimizer } from '../core/performance-optimizer'
 import type { OutputStyle } from '../types/output-styles'
 import { CliUI } from '../utils/cli-ui'
@@ -50,8 +51,8 @@ export class PromptManager {
   static getInstance(projectRoot?: string, optimizationConfig?: TokenOptimizationConfig): PromptManager {
     if (!PromptManager.instance) {
       if (!projectRoot) {
-        // Fallback al working directory corrente se non specificato
-        projectRoot = process.cwd()
+        // Use centralized working directory resolver
+        projectRoot = getWorkingDirectory()
       }
       PromptManager.instance = new PromptManager(projectRoot, optimizationConfig)
     }

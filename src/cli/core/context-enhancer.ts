@@ -539,7 +539,7 @@ Use this rich context to provide accurate, contextually-aware responses. Always 
     options?: Partial<EnhancementContext>
   ): Promise<SmartContext> {
     const context: EnhancementContext = {
-      workingDirectory: process.cwd(),
+      workingDirectory: require('../utils/working-dir').getWorkingDirectory(),
       executionContext: new Map(),
       conversationMemory: [],
       analysisCache: new Map(),

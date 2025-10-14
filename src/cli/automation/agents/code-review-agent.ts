@@ -56,7 +56,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
     'Architecture design review',
   ]
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = require('../../utils/working-dir').getWorkingDirectory()) {
     super(workingDirectory)
   }
 

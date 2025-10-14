@@ -58,7 +58,7 @@ export async function generateUnifiedDiff(
     try {
       const args = ['--no-pager', 'diff', '--no-index', `-U${context}`, '--', oldDisplay, newPath]
       const { stdout } = await execFileAsync('git', args, {
-        cwd: process.cwd(),
+        cwd: require('../utils/working-dir').getWorkingDirectory(),
         timeout: 10000,
       })
       return stdout || ''

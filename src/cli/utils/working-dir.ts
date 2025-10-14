@@ -45,12 +45,13 @@ export function toWorkspaceRelative(absolutePath: string): string {
     try {
         const real = fs.existsSync(absolutePath) ? fs.realpathSync(absolutePath) : absolutePath
         const rel = path.relative(workspaceRoot, real)
-        if (rel === '') return '.'
-        return rel.startsWith('..') || path.isAbsolute(rel) ? absolutePath : rel
+    // Never return '.' – prefer explicit cwd to avoid ambiguity in tooling/logs
+    if (rel === '') return workspaceRoot
+    return rel.startsWith('..') || path.isAbsolute(rel) ? absolutePath : rel
     } catch {
         const rel = path.relative(workspaceRoot, absolutePath)
-        if (rel === '') return '.'
-        return rel.startsWith('..') || path.isAbsolute(rel) ? absolutePath : rel
+    if (rel === '') return workspaceRoot
+    return rel.startsWith('..') || path.isAbsolute(rel) ? absolutePath : rel
     }
 }
 

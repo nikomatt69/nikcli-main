@@ -110,7 +110,7 @@ export class DynamicAgent extends BaseAgent {
   private isRunning: boolean = false
   private currentTodos: string[] = []
 
-  constructor(blueprint: AgentBlueprint, workingDirectory: string = process.cwd()) {
+  constructor(blueprint: AgentBlueprint, workingDirectory: string = require('../utils/working-dir').getWorkingDirectory()) {
     super(workingDirectory)
     this.id = blueprint.name
     this.capabilities = blueprint.capabilities

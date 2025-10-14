@@ -300,7 +300,7 @@ export class AICompletionService {
 
 CONTEXT:
 - Project Type: ${context.projectType || 'Unknown'}
-- Current Directory: ${context.currentDirectory || process.cwd()}
+- Current Directory: ${context.currentDirectory || require('../utils/working-dir').getWorkingDirectory()}
 - Active Agents: ${context.activeAgents?.join(', ') || 'None'}
 - Available Tools: ${context.availableTools?.slice(0, 10).join(', ') || 'Standard tools'}
 

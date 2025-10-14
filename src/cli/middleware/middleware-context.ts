@@ -13,7 +13,7 @@ export class MiddlewareContextBuilder {
         nodeVersion: process.version,
         platform: process.platform,
         pid: process.pid,
-        cwd: process.cwd(),
+        cwd: require('../utils/working-dir').getWorkingDirectory(),
         ...metadata,
       },
     }

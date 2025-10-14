@@ -37,7 +37,7 @@ export class IDEContextEnricher {
 
           const context: IDEContext = {
             editor: await this.detectEditor(),
-            workspace: process.cwd(),
+            workspace: require('../utils/working-dir').getWorkingDirectory(),
             projectType: await this.detectProjectType(),
             dependencies: includeDependencies ? await this.analyzeDependencies() : null,
             gitInfo: includeGitInfo ? await this.getGitInfo() : null,
@@ -55,7 +55,7 @@ export class IDEContextEnricher {
             error: `IDE context analysis failed: ${error.message}`,
             partialContext: {
               editor: 'unknown',
-              workspace: process.cwd(),
+              workspace: require('../utils/working-dir').getWorkingDirectory(),
               projectType: 'unknown',
             },
           }
@@ -99,7 +99,7 @@ export class IDEContextEnricher {
 
   // Detect project type based on files
   private async detectProjectType(): Promise<string> {
-    const files = readdirSync(process.cwd())
+    const files = readdirSync(require('../utils/working-dir').getWorkingDirectory())
 
     if (files.includes('package.json')) {
       try {
@@ -185,7 +185,7 @@ export class IDEContextEnricher {
       return stdout
         .split('\n')
         .filter((file) => file.trim())
-        .map((file) => relative(process.cwd(), file))
+        .map((file) => relative(require('../utils/working-dir').getWorkingDirectory(), file))
     } catch (_error) {
       return []
     }

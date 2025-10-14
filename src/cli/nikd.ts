@@ -103,7 +103,7 @@ async function main() {
     .option('-p, --port <port>', 'API server port', '3000')
     .option('--redis <url>', 'Redis connection URL (redis://localhost:6379)')
     .option('--max-concurrent <count>', 'Maximum concurrent jobs', '3')
-    .option('--workspace <path>', 'Workspace directory', process.cwd())
+    .option('--workspace <path>', 'Workspace directory', require('./utils/working-dir').getWorkingDirectory())
     .option('--github-app-id <id>', 'GitHub App ID')
     .option('--github-private-key <path>', 'Path to GitHub App private key')
     .option('--github-installation-id <id>', 'GitHub App installation ID')

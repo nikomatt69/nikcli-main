@@ -23,7 +23,7 @@ export class SessionManager {
   private baseDir: string
 
   constructor(dir?: string) {
-    this.baseDir = dir || path.join(process.cwd(), 'sessions')
+    this.baseDir = dir || path.join(require('../utils/working-dir').getWorkingDirectory(), 'sessions')
   }
 
   private getSessionPath(id: string): string {

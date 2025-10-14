@@ -371,11 +371,11 @@ export class ModuleManager {
   }
 
   private async handleChangeDirectory(args: string[], context: ModuleContext): Promise<void> {
-    const newDir = args[0] || process.cwd()
+    const newDir = args[0] || require('../utils/working-dir').getWorkingDirectory()
     try {
       const path = require('node:path')
       const fs = require('node:fs')
-      const resolvedPath = path.resolve(context.workingDirectory, newDir)
+    const resolvedPath = path.resolve(context.workingDirectory, newDir)
 
       if (!fs.existsSync(resolvedPath)) {
         console.log(chalk.red(`Directory not found: ${newDir}`))

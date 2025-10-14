@@ -73,7 +73,7 @@ export class TaskMasterAdapter extends EventEmitter {
       createdBy: 'taskmaster-adapter',
       context: {
         userRequest: taskMasterPlan.userRequest,
-        projectPath: process.cwd(),
+        projectPath: require('../utils/working-dir').getWorkingDirectory(),
         reasoning: 'Generated via TaskMaster AI',
       },
     }

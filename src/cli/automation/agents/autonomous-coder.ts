@@ -38,7 +38,7 @@ export class AutonomousCoder extends BaseAgent {
   override name = 'autonomous-coder'
   override description = 'Autonomous coding agent that can read, write, and modify files independently'
 
-  constructor(workingDirectory: string = process.cwd()) {
+  constructor(workingDirectory: string = require('../../utils/working-dir').getWorkingDirectory()) {
     super(workingDirectory)
   }
 

@@ -427,7 +427,7 @@ export class AgentService extends EventEmitter {
 
       const context = {
         taskId: agentTask.id,
-        workingDirectory: process.cwd(),
+        workingDirectory: require('../utils/working-dir').getWorkingDirectory(),
         tools: secureTools,
         planning: planningService,
       }
@@ -1808,7 +1808,7 @@ ${errors.map((error: any) => `- **${error.step}:** ${error.error}`).join('\n')}
     // Write markdown file to root directory
     const fs = require('node:fs')
     const path = require('node:path')
-    const rootPath = process.cwd()
+    const rootPath = require('../utils/working-dir').getWorkingDirectory()
     const filePath = path.join(rootPath, filename)
 
     await fs.promises.writeFile(filePath, markdown, 'utf8')

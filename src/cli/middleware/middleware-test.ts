@@ -25,7 +25,7 @@ async function testMiddlewareSystem() {
   console.log('2. Testing middleware pipeline execution...')
 
   const moduleContext = {
-    workingDirectory: process.cwd(),
+    workingDirectory: require('../utils/working-dir').getWorkingDirectory(),
     session: { id: 'test-session' },
     policyManager,
     isProcessing: false,

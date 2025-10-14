@@ -96,7 +96,7 @@ export class AuditMiddleware extends BaseMiddleware {
       enabled: true,
       priority: 600,
       auditLevel: 'standard',
-      auditFile: path.join(process.cwd(), '.nikcli', 'audit.log'),
+      auditFile: path.join(require('node:path').resolve(require('../utils/working-dir').getWorkingDirectory()), '.nikcli', 'audit.log'),
       rotateAuditLogs: true,
       maxAuditFileSize: 100 * 1024 * 1024, // 100MB
       dataRetentionDays: 90,

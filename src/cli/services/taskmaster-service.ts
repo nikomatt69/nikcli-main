@@ -38,7 +38,7 @@ export class TaskMasterService extends EventEmitter {
     this.config = {
       aiProvider: 'openrouter',
       model: 'openai/gpt-5',
-      workspacePath: process.cwd(),
+      workspacePath: require('../utils/working-dir').getWorkingDirectory(),
       persistStorage: true,
       enableAdvancedPlanning: true,
       maxConcurrentTasks: 5,

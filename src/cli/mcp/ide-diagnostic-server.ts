@@ -110,7 +110,7 @@ class ProjectDetector {
   private workingDir: string
   private packageJson: any = null
 
-  constructor(workingDir: string = process.cwd()) {
+  constructor(workingDir: string = require('../utils/working-dir').getWorkingDirectory()) {
     this.workingDir = workingDir
     this.loadPackageJson()
   }
@@ -323,7 +323,7 @@ class DiagnosticParser {
 
         diagnostics.push({
           kind: 'build',
-          file: relative(process.cwd(), file),
+          file: relative(this.workingDir, file),
           range: {
             startLine: parseInt(startLine, 10),
             startCol: parseInt(startCol, 10),
@@ -352,7 +352,7 @@ class DiagnosticParser {
         for (const message of result.messages || []) {
           diagnostics.push({
             kind: 'lint',
-            file: relative(process.cwd(), result.filePath),
+            file: relative(this.workingDir, result.filePath),
             range: {
               startLine: message.line || 1,
               startCol: message.column || 1,
@@ -403,7 +403,7 @@ class DiagnosticParser {
             if (test.status === 'failed') {
               diagnostics.push({
                 kind: 'test',
-                file: relative(process.cwd(), testFile.name),
+                file: relative(this.workingDir, testFile.name),
                 message: test.title + (test.failureMessages ? `: ${test.failureMessages.join(', ')}` : ''),
                 source: 'vitest',
                 severity: 'error',
@@ -435,7 +435,7 @@ class DiagnosticParser {
         const [, file, startLine, startCol, severityStr, message] = match
         diagnostics.push({
           kind: 'build',
-          file: relative(process.cwd(), file),
+          file: relative(this.workingDir, file),
           range: startCol
             ? {
                 startLine: parseInt(startLine, 10),
@@ -544,7 +544,7 @@ export class IDEDiagnosticServer extends EventEmitter {
     'docker-compose',
   ])
 
-  constructor(workingDir: string = process.cwd()) {
+  constructor(workingDir: string = require('../utils/working-dir').getWorkingDirectory()) {
     super()
     this.workingDir = workingDir
     this.detector = new ProjectDetector(workingDir)

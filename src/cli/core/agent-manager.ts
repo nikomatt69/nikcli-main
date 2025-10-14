@@ -37,7 +37,7 @@ export class AgentManager extends EventEmitter {
   constructor(configManager: SimpleConfigManager, guidanceManager?: GuidanceManager) {
     super()
     this.configManager = configManager
-    this.guidanceManager = guidanceManager || new GuidanceManager(process.cwd())
+    this.guidanceManager = guidanceManager || new GuidanceManager(require('../utils/working-dir').getWorkingDirectory())
     this.config = this.configManager.getConfig() as CliConfig
 
     this.setupEventHandlers()
@@ -132,7 +132,7 @@ export class AgentManager extends EventEmitter {
     }
 
     // Create agent instance
-    const agent = new registryEntry.agentClass(process.cwd())
+    const agent = new registryEntry.agentClass(require('../utils/working-dir').getWorkingDirectory())
 
     // Configure agent
     if (config) {
@@ -489,12 +489,12 @@ export class AgentManager extends EventEmitter {
    */
   private async buildAgentContext(agent: Agent): Promise<AgentContext> {
     const guidance = this.config.enableGuidanceSystem
-      ? this.guidanceManager.getContextForAgent(agent.specialization, process.cwd())
+      ? this.guidanceManager.getContextForAgent(agent.specialization, require('../utils/working-dir').getWorkingDirectory())
       : ''
 
     return {
-      workingDirectory: process.cwd(),
-      projectPath: process.cwd(),
+      workingDirectory: require('../utils/working-dir').getWorkingDirectory(),
+      projectPath: require('../utils/working-dir').getWorkingDirectory(),
       guidance,
       configuration: {
         autonomyLevel: 'semi-autonomous',
@@ -513,7 +513,7 @@ export class AgentManager extends EventEmitter {
           canReadFiles: true,
           canWriteFiles: this.config.sandbox.allowFileSystem,
           canDeleteFiles: this.config.sandbox.allowFileSystem,
-          allowedPaths: [process.cwd()],
+          allowedPaths: [require('../utils/working-dir').getWorkingDirectory()],
           forbiddenPaths: ['/etc', '/usr', '/var'],
           canExecuteCommands: this.config.sandbox.allowCommands,
           allowedCommands: ['npm', 'git', 'ls', 'cat'],
@@ -584,7 +584,7 @@ export class AgentManager extends EventEmitter {
   private onGuidanceUpdated(_context: any): void {
     // Update all agents with new guidance
     for (const agent of this.agents.values()) {
-      const guidance = this.guidanceManager.getContextForAgent(agent.specialization, process.cwd())
+      const guidance = this.guidanceManager.getContextForAgent(agent.specialization, require('../utils/working-dir').getWorkingDirectory())
       agent.updateGuidance(guidance)
     }
   }
