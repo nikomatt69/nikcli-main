@@ -91,7 +91,7 @@ interface ContextOptimizationResult {
 
 /** Intelligent Context Manager with RAG integration and advanced optimization */
 export class ContextManager {
-  private readonly MAX_TOKENS = TOKEN_LIMITS.CHAT?.MAX_CONTEXT_TOKENS ?? 18000 // Leave buffer for response
+  private readonly MAX_TOKENS = TOKEN_LIMITS.CHAT?.MAX_CONTEXT_TOKENS ?? 80000 // Leave buffer for response
   private readonly MIN_MESSAGES = 4 // Always keep recent messages
   private readonly MAX_METRICS_SIZE = 1000 // Maximum cached metrics
   private sessionMaxTokens: number | null = null // adaptive per-session cap
@@ -1070,12 +1070,12 @@ export class ContextManager {
       const sentences = content.split(/[.!?]+/)
       questions.push(...sentences.filter((s) => s.includes('?')))
 
-      // Track actions
-      ;['create', 'modify', 'delete', 'fix', 'implement', 'test'].forEach((action) => {
-        if (content.toLowerCase().includes(action)) {
-          actions.add(action)
-        }
-      })
+        // Track actions
+        ;['create', 'modify', 'delete', 'fix', 'implement', 'test'].forEach((action) => {
+          if (content.toLowerCase().includes(action)) {
+            actions.add(action)
+          }
+        })
     })
 
     if (actions.size > 0) summary.push(`Actions: ${Array.from(actions).join(', ')}`)

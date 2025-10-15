@@ -608,7 +608,7 @@ export class ModernAIProvider {
         model,
         messages,
         tools,
-        maxSteps: 25,
+        maxSteps: 10,
         maxTokens: 8000,
         temperature: 0.7,
         // Spread middleware if available

@@ -817,6 +817,11 @@ export class SimpleConfigManager {
     'anthropic/claude-sonnet-4.5': {
       provider: 'openrouter',
       model: 'anthropic/claude-sonnet-4.5',
+      maxContextTokens: 1000000,
+    },
+    'anthropic/claude-haiku-4.5': {
+      provider: 'openrouter',
+      model: 'anthropic/claude-haiku-4.5',
       maxContextTokens: 200000,
     },
     'anthropic/claude-sonnet-4': {
@@ -864,6 +869,12 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'openai/gpt-5-mini',
       maxContextTokens: 128000,
+    },
+    'openai/o4-mini-deep-research': {
+      provider: 'openrouter',
+      model: 'openai/o4-mini-deep-research',
+      maxContextTokens: 200000,
+
     },
     'openai/gpt-5-nano': {
       provider: 'openrouter',

@@ -24,7 +24,7 @@ export interface StreamttyServiceOptions {
   maxWidth?: number
   gfm?: boolean
   useBlessedMode?: boolean
-  
+
   // Enhanced features (native integration)
   enhancedFeatures?: EnhancedFeaturesConfig
   theme?: 'light' | 'dark' | 'auto'
@@ -72,7 +72,7 @@ export class StreamttyService {
   private currentOutputId: string | null = null
 
   constructor(private options: StreamttyServiceOptions = {}) {
-    this.useBlessedMode = options.useBlessedMode ?? false
+    this.useBlessedMode = options.useBlessedMode ?? true
     this.initialize()
   }
 
@@ -110,7 +110,7 @@ export class StreamttyService {
             allowedImagePrefixes: ['http://', 'https://'],
           },
           shikiLanguages: this.options.shikiLanguages ?? [
-            'typescript', 'javascript', 'python', 'bash', 'json', 
+            'typescript', 'javascript', 'python', 'bash', 'json',
             'markdown', 'yaml', 'sql', 'html', 'css'
           ],
         })
@@ -150,9 +150,18 @@ export class StreamttyService {
     }
 
     // Apply syntax highlighting based on chunk type (except tools which stay raw)
+    // Only apply ANSI highlighting in fallback mode (stdout direct) 
+    // In blessed mode, streamtty handles highlighting internally to avoid double-processing
     let processedChunk = chunk
-    if (type !== 'tool') {
-      // Apply ANSI syntax highlighting for stdout mode
+
+    // Check if chunk already contains ANSI codes (to avoid double-processing)
+    const hasAnsiCodes = /\x1b\[[\d;]*m/.test(chunk)
+    const shouldHighlight = type !== 'tool' &&
+      (!this.streamtty || this.stats.fallbackUsed) &&
+      !hasAnsiCodes // Don't highlight if already has ANSI codes
+
+    if (shouldHighlight) {
+      // Apply ANSI syntax highlighting for stdout mode only
       processedChunk = applySyntaxHighlight(chunk)
 
       // Apply type-specific coloring
@@ -165,10 +174,11 @@ export class StreamttyService {
 
     this.streamBuffer += processedChunk
 
-    // If blessed mode is active, use streamtty
+    // If blessed mode is active, use streamtty (pass raw chunk to let streamtty handle highlighting)
     if (this.streamtty && this.isInitialized && !this.stats.fallbackUsed) {
       try {
-        this.streamtty.stream(processedChunk)
+        // Pass original chunk in blessed mode, streamtty will handle the formatting
+        this.streamtty.stream(chunk)
         return
       } catch (error) {
         console.warn('Streamtty stream failed, falling back:', error)
@@ -176,7 +186,7 @@ export class StreamttyService {
       }
     }
 
-    // Fallback: direct stdout with terminal output tracking
+    // Fallback: direct stdout with terminal output tracking (use highlighted version)
     const chunkLines = TerminalOutputManager.calculateLines(processedChunk)
     const outputId = terminalOutputManager.reserveSpace('StreamttyChunk', chunkLines)
     process.stdout.write(processedChunk)
@@ -195,12 +205,11 @@ export class StreamttyService {
     this.stats.totalBlocks++
     this.stats.lastRenderTime = Date.now()
 
-    const formattedContent = this.formatContentByType(content, type)
-
-    // If blessed mode is active, use streamtty
+    // If blessed mode is active, use streamtty with raw content
     if (this.streamtty && this.isInitialized && !this.stats.fallbackUsed) {
       try {
-        this.streamtty.stream(formattedContent)
+        // Let streamtty handle formatting internally
+        this.streamtty.stream(content)
         this.streamtty.render()
         return
       } catch (error) {
@@ -209,7 +218,8 @@ export class StreamttyService {
       }
     }
 
-    // Fallback: direct output with tracking
+    // Fallback: format for stdout and output with tracking
+    const formattedContent = this.formatContentByType(content, type)
     const lines = TerminalOutputManager.calculateLines(formattedContent)
     const outputId = terminalOutputManager.reserveSpace('StreamttyBlock', lines)
     console.log(formattedContent)
@@ -224,16 +234,19 @@ export class StreamttyService {
    * Uses ANSI colors and syntax highlighting (no emoji)
    */
   private formatContentByType(content: string, type: ChunkType): string {
+    // Check if content already has ANSI codes to avoid double-processing
+    const hasAnsiCodes = /\x1b\[[\d;]*m/.test(content)
+
     switch (type) {
       case 'error':
         // Red for errors with unicode symbol
-        const highlighted = applySyntaxHighlight(content)
+        const highlighted = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const errorPrefix = `${syntaxColors.error}▸ ERROR${syntaxColors.reset}\n`
         return errorPrefix + colorizeBlock(highlighted, syntaxColors.error)
 
       case 'thinking':
         // Dark gray for thinking/cognitive blocks with unicode symbol
-        const highlightedThinking = applySyntaxHighlight(content)
+        const highlightedThinking = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const thinkingPrefix = `${syntaxColors.comment}▸ ${syntaxColors.reset}`
         return thinkingPrefix + colorizeBlock(highlightedThinking, syntaxColors.comment)
 
@@ -244,32 +257,32 @@ export class StreamttyService {
 
       case 'system':
         // Light gray for system messages with unicode symbol
-        const highlightedSystem = applySyntaxHighlight(content)
+        const highlightedSystem = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const systemPrefix = `${syntaxColors.reset}▸ ${syntaxColors.reset}`
         return systemPrefix + highlightedSystem
 
       case 'user':
         // Bright cyan for user messages with unicode symbol
-        const highlightedUser = applySyntaxHighlight(content)
+        const highlightedUser = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const userPrefix = `${syntaxColors.title}▸ USER${syntaxColors.reset}\n`
         return userPrefix + colorizeBlock(highlightedUser, syntaxColors.title)
 
       case 'vm':
         // Bright blue for VM messages with unicode symbol
-        const highlightedVm = applySyntaxHighlight(content)
+        const highlightedVm = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const vmPrefix = `${syntaxColors.title}▸ VM${syntaxColors.reset}\n`
         return vmPrefix + highlightedVm
 
       case 'agent':
         // Magenta for agent messages with unicode symbol
-        const highlightedAgent = applySyntaxHighlight(content)
+        const highlightedAgent = hasAnsiCodes ? content : applySyntaxHighlight(content)
         const agentPrefix = `${syntaxColors.keyword}▸ AGENT${syntaxColors.reset}\n`
         return agentPrefix + colorizeBlock(highlightedAgent, syntaxColors.keyword)
 
       case 'ai':
       default:
         // AI content with syntax highlighting applied
-        const highlightedAi = applySyntaxHighlight(content)
+        const highlightedAi = hasAnsiCodes ? content : applySyntaxHighlight(content)
         return highlightedAi
     }
   }
@@ -519,7 +532,7 @@ export class StreamttyService {
       this.options.enhancedFeatures = {}
     }
     this.options.enhancedFeatures[feature] = true
-    
+
     // Re-initialize if using blessed mode
     if (this.useBlessedMode && process.stdout.isTTY) {
       this.destroy()
@@ -535,7 +548,7 @@ export class StreamttyService {
       return
     }
     this.options.enhancedFeatures[feature] = false
-    
+
     // Re-initialize if using blessed mode
     if (this.useBlessedMode && process.stdout.isTTY) {
       this.destroy()
@@ -548,7 +561,7 @@ export class StreamttyService {
    */
   setTheme(theme: 'light' | 'dark' | 'auto'): void {
     this.options.theme = theme
-    
+
     // Re-initialize if using blessed mode
     if (this.useBlessedMode && process.stdout.isTTY) {
       this.destroy()
@@ -561,7 +574,7 @@ export class StreamttyService {
    */
   setControls(controls: boolean | TTYControlsConfig): void {
     this.options.controls = controls
-    
+
     // Re-initialize if using blessed mode
     if (this.useBlessedMode && process.stdout.isTTY) {
       this.destroy()
@@ -577,7 +590,7 @@ export class StreamttyService {
       ...this.options.security,
       ...security
     }
-    
+
     // Re-initialize if using blessed mode
     if (this.useBlessedMode && process.stdout.isTTY) {
       this.destroy()
@@ -589,8 +602,8 @@ export class StreamttyService {
    * Check if enhanced features are enabled
    */
   areEnhancedFeaturesEnabled(): boolean {
-    return this.isBlessedModeActive() && 
-           Object.values(this.options.enhancedFeatures || {}).some(v => v === true)
+    return this.isBlessedModeActive() &&
+      Object.values(this.options.enhancedFeatures || {}).some(v => v === true)
   }
 
   /**

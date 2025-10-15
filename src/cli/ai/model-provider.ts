@@ -255,6 +255,8 @@ export class ModelProvider {
     // Always honor explicit user settings for all providers
     if (validatedOptions.maxTokens != null) {
       baseOptions.maxTokens = validatedOptions.maxTokens
+    } else if (currentModelConfig.provider === 'openrouter' && (currentModelName.includes('anthropic') || currentModelName.includes('claude'))) {
+      baseOptions.maxTokens = 6000 // REQUIRED for Anthropic models on OpenRouter
     } else if (currentModelConfig.provider !== 'openai') {
       baseOptions.maxTokens = 6000 // provider-specific default when not supplied
     }
@@ -362,7 +364,11 @@ export class ModelProvider {
       messages: validatedOptions.messages.map((msg) => ({ role: msg.role, content: msg.content })),
 
     }
-    if (currentModelConfig.provider !== 'openai') {
+    if (currentModelConfig.provider === 'openrouter' && (currentModelName.includes('anthropic') || currentModelName.includes('claude'))) {
+      // REQUIRED for Anthropic models on OpenRouter
+      streamOptions.maxTokens = validatedOptions.maxTokens ?? 1500
+      streamOptions.temperature = validatedOptions.temperature ?? configManager.get('temperature')
+    } else if (currentModelConfig.provider !== 'openai') {
       streamOptions.maxTokens = validatedOptions.maxTokens ?? 1500
       streamOptions.temperature = validatedOptions.temperature ?? configManager.get('temperature')
     }

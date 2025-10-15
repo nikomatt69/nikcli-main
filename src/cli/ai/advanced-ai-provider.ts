@@ -1248,7 +1248,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         model,
         messages: finalMessages,
         tools,
-        maxToolRoundtrips: isAnalysisRequest ? 40 : 60, // Increased for deeper analysis and toolchains
+        maxToolRoundtrips: isAnalysisRequest ? 20 : 30, // Reduced to prevent token overflow
         temperature: params.temperature,
         abortSignal,
         onStepFinish: (_evt: any) => { },
@@ -1256,15 +1256,20 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
 
 
-      if (provider !== 'openai' && provider !== 'openrouter') {
-        streamOpts.maxTokens = params.maxTokens
+      // OpenRouter Anthropic models REQUIRE maxTokens, other providers handle it differently
+      if (provider !== 'openai') {
+        if (provider === 'openrouter' && (configManager.getModelConfig(model)?.maxTokens)) {
+          streamOpts.maxTokens = params.maxTokens
+        } else if (provider !== 'openrouter') {
+          streamOpts.maxTokens = params.maxTokens
+        }
       }
       const result = streamText(streamOpts)
 
       const currentToolCalls: ToolCallPart[] = []
       let accumulatedText = ''
       let toolCallCount = 0
-      const maxToolCallsForAnalysis = 20 // REDUCED: Aggressive limit to prevent token overflow
+      const maxToolCallsForAnalysis = 10 // REDUCED: Aggressive limit to prevent token overflow
 
       const approxCharLimit =
         provider === 'openai' && this.getCurrentModelInfo().config.provider === 'openai'
@@ -2160,11 +2165,13 @@ Requirements:
         model,
         prompt: this.progressiveTokenManager.emergencyTruncate(codeGenPrompt, 120000),
       }
-      if (
-        this.getCurrentModelInfo().config.provider !== 'openai' &&
-        this.getCurrentModelInfo().config.provider !== 'openrouter'
-      ) {
-        genOpts.maxTokens = Math.min(params.maxTokens, 2000)
+      const provider = this.getCurrentModelInfo().config.provider
+      if (provider !== 'openai') {
+        if (provider === 'openrouter' && (this.currentModel?.includes('anthropic') || this.currentModel?.includes('claude'))) {
+          genOpts.maxTokens = Math.min(params.maxTokens, 2000)
+        } else if (provider !== 'openrouter') {
+          genOpts.maxTokens = Math.min(params.maxTokens, 2000)
+        }
       }
       const result = await generateText(genOpts)
 
