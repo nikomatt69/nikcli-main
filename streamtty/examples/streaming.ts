@@ -52,32 +52,4 @@ Streamtty is optimized for streaming with:
 ---
 
 *Streaming complete! Press 'q' to quit.*
-`;
-
-// Create Streamtty instance
-const streamtty = new Streamtty({
-  parseIncompleteMarkdown: true,
-  syntaxHighlight: true,
-  autoScroll: true,
-});
-
-// Simulate streaming by sending characters one at a time
-let index = 0;
-const streamInterval = setInterval(() => {
-  if (index < fullMarkdown.length) {
-    // Stream in chunks (more realistic than char-by-char)
-    const chunkSize = Math.floor(Math.random() * 10) + 1;
-    const chunk = fullMarkdown.slice(index, index + chunkSize);
-    streamtty.stream(chunk);
-    index += chunkSize;
-  } else {
-    clearInterval(streamInterval);
-  }
-}, 50); // Stream at ~20 chunks per second
-
-// Handle exit
-process.on('SIGINT', () => {
-  clearInterval(streamInterval);
-  streamtty.destroy();
-  process.exit(0);
-});
+`

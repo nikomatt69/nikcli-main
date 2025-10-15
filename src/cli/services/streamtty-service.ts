@@ -6,7 +6,12 @@ import {
   syntaxColors,
   StreamEvent,
   StreamEventType,
-  StreamProtocol
+  StreamProtocol,
+  type EnhancedFeaturesConfig,
+  type TTYControlsConfig,
+  type MermaidTTYConfig,
+  type MathRenderConfig,
+  type SecurityConfig
 } from 'streamtty'
 import { terminalOutputManager, TerminalOutputManager } from '../ui/terminal-output-manager'
 
@@ -19,6 +24,15 @@ export interface StreamttyServiceOptions {
   maxWidth?: number
   gfm?: boolean
   useBlessedMode?: boolean
+  
+  // Enhanced features (native integration)
+  enhancedFeatures?: EnhancedFeaturesConfig
+  theme?: 'light' | 'dark' | 'auto'
+  controls?: boolean | TTYControlsConfig
+  mermaidConfig?: MermaidTTYConfig
+  mathConfig?: MathRenderConfig
+  security?: SecurityConfig
+  shikiLanguages?: string[]
 }
 
 export interface RenderStats {
@@ -66,12 +80,39 @@ export class StreamttyService {
     try {
       // Only use blessed mode if explicitly requested AND TTY is available
       if (this.useBlessedMode && process.stdout.isTTY) {
+        // Auto-enable enhanced features for blessed mode if not explicitly disabled
+        const enhancedFeatures: EnhancedFeaturesConfig = {
+          math: true,
+          mermaid: true,
+          shiki: true,
+          security: true,
+          interactiveControls: false, // Disabled by default to not interfere with existing workflows
+          advancedTables: true,
+          ...this.options.enhancedFeatures
+        }
+
         this.streamtty = new Streamtty({
           parseIncompleteMarkdown: this.options.parseIncompleteMarkdown ?? true,
           syntaxHighlight: this.options.syntaxHighlight ?? true,
           autoScroll: this.options.autoScroll ?? true,
           maxWidth: this.options.maxWidth ?? 120,
           gfm: this.options.gfm ?? true,
+          // Enhanced features integration
+          enhancedFeatures,
+          theme: this.options.theme ?? 'dark',
+          controls: this.options.controls,
+          mermaidConfig: this.options.mermaidConfig,
+          mathConfig: this.options.mathConfig,
+          security: this.options.security ?? {
+            enabled: true,
+            stripDangerousAnsi: true,
+            allowedLinkPrefixes: ['http://', 'https://'],
+            allowedImagePrefixes: ['http://', 'https://'],
+          },
+          shikiLanguages: this.options.shikiLanguages ?? [
+            'typescript', 'javascript', 'python', 'bash', 'json', 
+            'markdown', 'yaml', 'sql', 'html', 'css'
+          ],
         })
         this.isInitialized = true
       } else {
@@ -471,6 +512,95 @@ export class StreamttyService {
   }
 
   /**
+   * Enable specific enhanced feature
+   */
+  enableEnhancedFeature(feature: keyof EnhancedFeaturesConfig): void {
+    if (!this.options.enhancedFeatures) {
+      this.options.enhancedFeatures = {}
+    }
+    this.options.enhancedFeatures[feature] = true
+    
+    // Re-initialize if using blessed mode
+    if (this.useBlessedMode && process.stdout.isTTY) {
+      this.destroy()
+      this.initialize()
+    }
+  }
+
+  /**
+   * Disable specific enhanced feature
+   */
+  disableEnhancedFeature(feature: keyof EnhancedFeaturesConfig): void {
+    if (!this.options.enhancedFeatures) {
+      return
+    }
+    this.options.enhancedFeatures[feature] = false
+    
+    // Re-initialize if using blessed mode
+    if (this.useBlessedMode && process.stdout.isTTY) {
+      this.destroy()
+      this.initialize()
+    }
+  }
+
+  /**
+   * Set theme
+   */
+  setTheme(theme: 'light' | 'dark' | 'auto'): void {
+    this.options.theme = theme
+    
+    // Re-initialize if using blessed mode
+    if (this.useBlessedMode && process.stdout.isTTY) {
+      this.destroy()
+      this.initialize()
+    }
+  }
+
+  /**
+   * Configure interactive controls
+   */
+  setControls(controls: boolean | TTYControlsConfig): void {
+    this.options.controls = controls
+    
+    // Re-initialize if using blessed mode
+    if (this.useBlessedMode && process.stdout.isTTY) {
+      this.destroy()
+      this.initialize()
+    }
+  }
+
+  /**
+   * Update security configuration
+   */
+  setSecurityConfig(security: Partial<SecurityConfig>): void {
+    this.options.security = {
+      ...this.options.security,
+      ...security
+    }
+    
+    // Re-initialize if using blessed mode
+    if (this.useBlessedMode && process.stdout.isTTY) {
+      this.destroy()
+      this.initialize()
+    }
+  }
+
+  /**
+   * Check if enhanced features are enabled
+   */
+  areEnhancedFeaturesEnabled(): boolean {
+    return this.isBlessedModeActive() && 
+           Object.values(this.options.enhancedFeatures || {}).some(v => v === true)
+  }
+
+  /**
+   * Get current enhanced features configuration
+   */
+  getEnhancedFeaturesConfig(): EnhancedFeaturesConfig | undefined {
+    return this.options.enhancedFeatures
+  }
+
+  /**
    * Destroy and cleanup
    */
   destroy(): void {
@@ -486,7 +616,7 @@ export class StreamttyService {
   }
 }
 
-// Singleton instance - centralized rendering service
+// Singleton instance - centralized rendering service with enhanced features enabled
 export const streamttyService = new StreamttyService({
   parseIncompleteMarkdown: true,
   syntaxHighlight: true,
@@ -494,6 +624,26 @@ export const streamttyService = new StreamttyService({
   maxWidth: 120,
   gfm: true,
   useBlessedMode: false, // Default to stdout mode for broader compatibility
+  // Enhanced features are auto-enabled when blessed mode is used
+  enhancedFeatures: {
+    math: true,
+    mermaid: true,
+    shiki: true,
+    security: true,
+    interactiveControls: false,
+    advancedTables: true,
+  },
+  theme: 'dark',
+  security: {
+    enabled: true,
+    stripDangerousAnsi: true,
+    allowedLinkPrefixes: ['http://', 'https://'],
+    allowedImagePrefixes: ['http://', 'https://'],
+  },
+  shikiLanguages: [
+    'typescript', 'javascript', 'python', 'bash', 'json',
+    'markdown', 'yaml', 'sql', 'html', 'css', 'go', 'rust'
+  ],
 })
 
 // Re-export AI SDK types for convenience

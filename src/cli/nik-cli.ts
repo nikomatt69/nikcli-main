@@ -7091,9 +7091,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 boxen(
                   [
                     `✓ Launched: ${blueprint.name || agentIdentifier}`,
-                    `Specialization: ${blueprint.specialization}`,
+                    `Specialization: ${blueprint.specialization || 'N/A'}`,
                     `Agent ID: ${agent.id.slice(-8)}`,
-                    `Blueprint ID: ${blueprint.id.slice(-8)}`,
+                    `Blueprint ID: ${blueprint.id ? blueprint.id.slice(-8) : 'N/A'}`,
                   ].join('\n'),
                   {
                     title: `Agent Started: ${agentIdentifier}`,
@@ -7900,9 +7900,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const blueprintLines: string[] = [`Found ${blueprints.length} blueprint(s) in factory:`, '']
 
       blueprints.forEach((blueprint, index) => {
+        if (!blueprint || !blueprint.id) return
         blueprintLines.push(`${index + 1}. ${blueprint.name || blueprint.id.slice(-8)}`)
         blueprintLines.push(`   ID: ${blueprint.id}`)
-        blueprintLines.push(`   Specialization: ${blueprint.specialization}`)
+        blueprintLines.push(`   Specialization: ${blueprint.specialization || 'N/A'}`)
         if (blueprint.description) {
           blueprintLines.push(`   Description: ${blueprint.description}`)
         }
@@ -7992,7 +7993,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   private async handleStyleCommands(command: string, args: string[]): Promise<void> {
     try {
       if (command === 'styles') {
-        this.showAllStyles()
+        await this.showAllStyles()
         return
       }
 
@@ -8049,9 +8050,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       '  /style show                   Show current configuration',
       '  /style model <style-name>     Set style for current model',
       '  /style context <ctx> <style>  Set style for specific context',
-      '  /styles                       List all available styles',
+      '  /style list-custom            List custom output styles',
+      '  /style delete-custom <id>     Delete custom output style',
+      '  /style export <id> <path>     Export custom style to file',
+      '  /style import <path>          Import custom style from file',
+      '  /styles                       List all available output styles',
+      '  /create-style [name]          Create new custom output style',
       '',
-      'Available Styles:',
+      'Built-in Styles:',
       '  production-focused   Output optimized for production environment, concise and results-oriented',
       '  creative-concise     Creative but compact approach, with innovative solutions',
       '  detailed-analytical  In-depth analysis with detailed explanations and technical considerations',
@@ -8060,8 +8066,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       '  educational-verbose  Detailed educational explanations, perfect for learning new concepts',
       '  minimal-efficient    Minimalist output with only essential information',
       '',
+      'Custom Styles:',
+      '  Create your own styles with /create-style',
+      '  Manage them with /style list-custom, delete-custom, export, import',
+      '',
       'Examples:',
-      '  /style set production-focused  # Set concise, results-oriented style',
+      '  /style set production-focused           # Use built-in style',
+      '  /create-style team-code-review          # Create custom style',
+      '  /style set team-code-review             # Use custom style',
     ].join('\n')
 
     this.printPanel(
@@ -8075,10 +8087,18 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     )
   }
 
-  private showAllStyles(): void {
+  private async showAllStyles(): Promise<void> {
+    // Load custom styles
+    const { OutputStyleUtils } = await import('./types/output-styles')
+    await OutputStyleUtils.loadCustomStyles()
+
+    const allStyles = OutputStyleUtils.getAllStyles()
+    const customStyles = OutputStyleUtils.getCustomStyles()
+
     const content = [
       '🎨 Available Output Styles:',
       '',
+      'Built-in Styles:',
       '• production-focused   - Concise, results-oriented output',
       '• creative-concise     - Creative but compact solutions',
       '• detailed-analytical  - In-depth technical explanations',
@@ -8087,7 +8107,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       '• educational-verbose  - Detailed learning explanations',
       '• minimal-efficient    - Essential information only',
       '',
+      customStyles.length > 0 ? 'Custom Styles:' : 'Custom Styles: (none)',
+      ...customStyles.map(s => `• ${s.id.padEnd(20)} - ${s.description}`),
+      '',
       'Use /style set <style-name> to apply a style',
+      'Use /create-style to create a custom style',
     ].join('\n')
 
     this.printPanel(
@@ -10987,7 +11011,12 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       ['/style show', 'Display current style configuration'],
       ['/style model <style>', 'Set style for current model'],
       ['/style context <ctx> <style>', 'Set style for specific context'],
+      ['/style list-custom', 'List custom output styles'],
+      ['/style delete-custom <id>', 'Delete custom output style'],
+      ['/style export <id> <path>', 'Export custom style to file'],
+      ['/style import <path>', 'Import custom style from file'],
       ['/styles', 'List all available output styles'],
+      ['/create-style [name]', 'Create new custom output style'],
 
       // 🔑 API Keys & Authentication
       ['/set-key <model> <key>', 'Set API key for AI models'],
@@ -11167,27 +11196,27 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     addGroup('📁 File Operations:', 9, 14)
     addGroup('⚡ Terminal Operations:', 14, 21)
     addGroup('🤖 AI Configuration:', 21, 27)
-    addGroup('🎨 Output Styles:', 27, 32)
-    addGroup('🔑 API Keys:', 32, 38)
-    addGroup('🚀 Performance:', 38, 43)
-    addGroup('🤖 Agent Factory:', 43, 52)
-    addGroup('💾 Memory & Context:', 52, 57)
-    addGroup('📋 Planning & Todos:', 57, 59)
-    addGroup('📝 Session Management:', 59, 63)
-    addGroup('💼 Work Session Management:', 63, 68)
-    addGroup('↩️ Edit History (Undo/Redo):', 68, 71)
-    addGroup('🔌 Background Agents:', 71, 75)
-    addGroup('🐳 VM Containers:', 75, 93)
-    addGroup('🌐 Web Browsing:', 93, 95)
-    addGroup('🎨 Figma Integration:', 95, 101)
-    addGroup('🔗 Blockchain/Web3:', 101, 105)
-    addGroup('🔍 Vision & Images:', 105, 107)
-    addGroup('🛠️ CAD Design:', 107, 113)
-    addGroup('⚙️ G-code/CNC:', 113, 118)
-    addGroup('📚 Documentation:', 118, 121)
-    addGroup('📸 Snapshots:', 121, 124)
-    addGroup('🔒 Security:', 124, 127)
-    addGroup('💻 IDE Integration:', 127, 130)
+    addGroup('🎨 Output Styles:', 27, 37)
+    addGroup('🔑 API Keys:', 37, 43)
+    addGroup('🚀 Performance:', 43, 48)
+    addGroup('🤖 Agent Factory:', 48, 57)
+    addGroup('💾 Memory & Context:', 57, 62)
+    addGroup('📋 Planning & Todos:', 62, 64)
+    addGroup('📝 Session Management:', 64, 68)
+    addGroup('💼 Work Session Management:', 68, 73)
+    addGroup('↩️ Edit History (Undo/Redo):', 73, 76)
+    addGroup('🔌 Background Agents:', 76, 80)
+    addGroup('🐳 VM Containers:', 80, 98)
+    addGroup('🌐 Web Browsing:', 98, 100)
+    addGroup('🎨 Figma Integration:', 100, 106)
+    addGroup('🔗 Blockchain/Web3:', 106, 110)
+    addGroup('🔍 Vision & Images:', 110, 112)
+    addGroup('🛠️ CAD Design:', 112, 118)
+    addGroup('⚙️ G-code/CNC:', 118, 123)
+    addGroup('📚 Documentation:', 123, 126)
+    addGroup('📸 Snapshots:', 126, 129)
+    addGroup('🔒 Security:', 129, 132)
+    addGroup('💻 IDE Integration:', 132, 135)
 
     lines.push('💡 Quick Tips:')
     lines.push('   • Use Ctrl+C to exit any mode')
@@ -12823,34 +12852,34 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   }
 
   private formatToolDetails(toolName: string, toolArgs: any): string {
-    if (!toolName || !toolArgs) return toolName || 'unknown'
+    if (!toolName || !toolArgs) return toolName
 
     switch (toolName) {
       case 'explore_directory': {
-        const path = toolArgs.path || '.'
+        const path = toolArgs.path
         const depth = toolArgs.depth ? ` (depth: ${toolArgs.depth})` : ''
         return `explore_directory: ${path}${depth}`
       }
 
       case 'execute_command': {
-        const command = toolArgs.command || toolArgs.cmd || 'unknown command'
+        const command = toolArgs.command || toolArgs.cmd || toolArgs.command
         // Truncate very long commands
         const truncatedCommand = command.length > 50 ? `${command.substring(0, 50)}...` : command
         return `execute_command: ${truncatedCommand}`
       }
 
       case 'read_file': {
-        const filePath = toolArgs.path || toolArgs.file_path || 'unknown file'
+        const filePath = toolArgs.path || toolArgs.file_path
         return `read_file: ${filePath}`
       }
 
       case 'write_file': {
-        const writeFilePath = toolArgs.path || toolArgs.file_path || 'unknown file'
+        const writeFilePath = toolArgs.path || toolArgs.file_path
         return `write_file: ${writeFilePath}`
       }
 
       case 'web_search': {
-        const query = toolArgs.query || toolArgs.q || 'unknown query'
+        const query = toolArgs.query || toolArgs.q
         const truncatedQuery = query.length > 40 ? `${query.substring(0, 40)}...` : query
         return `web_search: "${truncatedQuery}"`
       }
@@ -12871,8 +12900,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
 
       case 'manage_packages': {
-        const packageAction = toolArgs.action || 'unknown action'
-        const packageName = toolArgs.package || toolArgs.name || ''
+        const packageAction = toolArgs.action || toolArgs.operation
+        const packageName = toolArgs.package || toolArgs.name
         return `manage_packages: ${packageAction}${packageName ? ` ${packageName}` : ''}`
       }
 
@@ -12901,13 +12930,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
 
       case 'edit_file': {
-        const editPath = toolArgs.path || toolArgs.file_path || 'unknown file'
+        const editPath = toolArgs.path || toolArgs.file_path
         return `edit_file: ${editPath}`
       }
 
       case 'multi_edit': {
-        const multiEditPath = toolArgs.path || toolArgs.file_path || 'unknown file'
-        const editCount = toolArgs.edits ? ` (${toolArgs.edits.length} edits)` : ''
+        const multiEditPath = toolArgs.path || toolArgs.file_path
+        const editCount = toolArgs.edits || ` (${toolArgs.edits.length} edits)`
         return `multi_edit: ${multiEditPath}${editCount}`
       }
 

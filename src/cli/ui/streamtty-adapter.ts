@@ -1,5 +1,7 @@
-import { Streamtty } from '../../streamtty/src'
+import { Streamtty } from 'streamtty'
 import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
+
+import type { EnhancedFeaturesConfig, TTYControlsConfig, MermaidTTYConfig, MathRenderConfig, SecurityConfig } from 'streamtty'
 
 export interface StreamttyOptions {
   parseIncompleteMarkdown?: boolean
@@ -8,11 +10,21 @@ export interface StreamttyOptions {
   maxWidth?: number
   gfm?: boolean
   useBlessedMode?: boolean
+
+  // Enhanced features (Streamdown parity)
+  enhancedFeatures?: EnhancedFeaturesConfig
+  theme?: 'light' | 'dark' | 'auto'
+  controls?: boolean | TTYControlsConfig
+  mermaidConfig?: MermaidTTYConfig
+  mathConfig?: MathRenderConfig
+  security?: SecurityConfig
+  shikiLanguages?: string[]
 }
 
 /**
  * Internal adapter for StreamttyService
  * Handles low-level streamtty instance management and fallback logic
+ * Natively integrates all enhanced features (Streamdown parity)
  */
 export class StreamttyAdapter {
   private streamtty: Streamtty | null = null
@@ -21,6 +33,37 @@ export class StreamttyAdapter {
 
   constructor(private options: StreamttyOptions = {}) {
     this.useBlessedMode = options.useBlessedMode ?? false
+    
+    // Auto-enable enhanced features if not explicitly configured
+    if (!this.options.enhancedFeatures && this.useBlessedMode) {
+      this.options.enhancedFeatures = {
+        math: true,
+        mermaid: true,
+        shiki: true,
+        security: true,
+        interactiveControls: false, // Keep disabled to avoid interfering with existing workflows
+        advancedTables: true,
+      }
+    }
+    
+    // Auto-configure security if not set
+    if (!this.options.security && this.useBlessedMode) {
+      this.options.security = {
+        enabled: true,
+        stripDangerousAnsi: true,
+        allowedLinkPrefixes: ['http://', 'https://'],
+        allowedImagePrefixes: ['http://', 'https://'],
+      }
+    }
+    
+    // Auto-configure default languages for Shiki if not set
+    if (!this.options.shikiLanguages && this.useBlessedMode && this.options.enhancedFeatures?.shiki !== false) {
+      this.options.shikiLanguages = [
+        'typescript', 'javascript', 'python', 'bash', 'json',
+        'markdown', 'yaml', 'sql', 'html', 'css'
+      ]
+    }
+    
     this.initialize()
   }
 
@@ -34,6 +77,14 @@ export class StreamttyAdapter {
           autoScroll: this.options.autoScroll ?? true,
           maxWidth: this.options.maxWidth ?? 120,
           gfm: this.options.gfm ?? true,
+          // Pass through enhanced features
+          enhancedFeatures: this.options.enhancedFeatures,
+          theme: this.options.theme,
+          controls: this.options.controls,
+          mermaidConfig: this.options.mermaidConfig,
+          mathConfig: this.options.mathConfig,
+          security: this.options.security,
+          shikiLanguages: this.options.shikiLanguages,
         })
         this.isInitialized = true
       } else {
@@ -158,6 +209,59 @@ export class StreamttyAdapter {
    */
   getStreamttyInstance(): Streamtty | null {
     return this.streamtty
+  }
+
+  /**
+   * Check if enhanced features are enabled
+   */
+  areEnhancedFeaturesEnabled(): boolean {
+    return this.isAvailable() && 
+           this.useBlessedMode && 
+           Object.values(this.options.enhancedFeatures || {}).some(v => v === true)
+  }
+
+  /**
+   * Get current enhanced features configuration
+   */
+  getEnhancedFeaturesConfig(): EnhancedFeaturesConfig | undefined {
+    return this.options.enhancedFeatures
+  }
+
+  /**
+   * Enable specific enhanced feature
+   */
+  enableEnhancedFeature(feature: keyof EnhancedFeaturesConfig): void {
+    if (!this.options.enhancedFeatures) {
+      this.options.enhancedFeatures = {}
+    }
+    this.options.enhancedFeatures[feature] = true
+  }
+
+  /**
+   * Disable specific enhanced feature
+   */
+  disableEnhancedFeature(feature: keyof EnhancedFeaturesConfig): void {
+    if (!this.options.enhancedFeatures) {
+      return
+    }
+    this.options.enhancedFeatures[feature] = false
+  }
+
+  /**
+   * Set theme (light/dark/auto)
+   */
+  setTheme(theme: 'light' | 'dark' | 'auto'): void {
+    this.options.theme = theme
+  }
+
+  /**
+   * Update security configuration
+   */
+  updateSecurityConfig(security: Partial<SecurityConfig>): void {
+    this.options.security = {
+      ...this.options.security,
+      ...security
+    }
   }
 
   /**

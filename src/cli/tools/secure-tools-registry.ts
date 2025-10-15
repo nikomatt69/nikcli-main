@@ -1,9 +1,13 @@
 import chalk from 'chalk'
 import { ListDirectoryTool, ReadFileTool, ReplaceInFileTool, sanitizePath, WriteFileTool } from './secure-file-tools'
+import {
+  type BatchSession,
+  type CommandOptions,
+  type CommandResult,
+  SecureCommandTool,
+} from './secure-command-tool'
 
 export type { BatchSession } from './secure-command-tool'
-
-import { type BatchSession, type CommandResult, SecureCommandTool } from '.'
 
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
 import { FigmaTool, type FigmaToolResult } from './figma-tool'
@@ -364,16 +368,7 @@ export class SecureToolsRegistry {
   /**
    * Secure command execution with allow-listing and confirmation
    */
-  async executeCommand(
-    command: string,
-    options: {
-      cwd?: string
-      timeout?: number
-      env?: Record<string, string>
-      skipConfirmation?: boolean
-      allowDangerous?: boolean
-    } = {}
-  ): Promise<ToolResult<CommandResult>> {
+  async executeCommand(command: string, options: CommandOptions = {}): Promise<ToolResult<CommandResult>> {
     const context = this.createContext(
       options.allowDangerous ? 'dangerous' : options.skipConfirmation ? 'safe' : 'confirmed'
     )
@@ -388,16 +383,7 @@ export class SecureToolsRegistry {
   /**
    * Execute multiple commands in sequence with confirmation
    */
-  async executeCommandSequence(
-    commands: string[],
-    options: {
-      cwd?: string
-      timeout?: number
-      env?: Record<string, string>
-      skipConfirmation?: boolean
-      allowDangerous?: boolean
-    } = {}
-  ): Promise<ToolResult<CommandResult[]>> {
+  async executeCommandSequence(commands: string[], options: CommandOptions = {}): Promise<ToolResult<CommandResult[]>> {
     const context = this.createContext(
       options.allowDangerous ? 'dangerous' : options.skipConfirmation ? 'safe' : 'confirmed'
     )

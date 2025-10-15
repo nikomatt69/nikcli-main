@@ -1,14 +1,39 @@
 import blessed, { Widgets } from 'blessed';
 import { ParsedToken, RenderContext, BlessedStyle, MarkdownStyles } from '../types';
-import { applySyntaxHighlightBlessed, blessedSyntaxColors } from '../utils/blessed-syntax-highlighter';
+import { mathRenderer } from '../renderers/math-renderer';
+import { mermaidRenderer } from '../renderers/mermaid-renderer';
+import { shikiRenderer } from '../renderers/shiki-ansi';
+import { tableRenderer } from '../renderers/table-renderer';
 
 export class BlessedRenderer {
   private context: RenderContext;
   private defaultStyles: MarkdownStyles;
+  private shikiInitialized: boolean = false;
 
   constructor(context: RenderContext) {
     this.context = context;
     this.defaultStyles = this.getDefaultStyles();
+    this.initializeEnhancedFeatures();
+  }
+
+  /**
+   * Initialize enhanced features if enabled
+   */
+  private async initializeEnhancedFeatures(): Promise<void> {
+    const options = this.context.options;
+
+    // Initialize Shiki if enabled
+    if (options.enhancedFeatures?.shiki && options.shikiLanguages) {
+      try {
+        await shikiRenderer.initialize(
+          options.shikiLanguages as any,
+          options.theme as any
+        );
+        this.shikiInitialized = true;
+      } catch (error) {
+        console.warn('Failed to initialize Shiki:', error);
+      }
+    }
   }
 
   /**
@@ -23,7 +48,7 @@ export class BlessedRenderer {
 
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i];
-      
+
       // If it's an inline token, add to current line
       if (['strong', 'em', 'code', 'link', 'del', 'text'].includes(token.type)) {
         currentLineTokens.push(token);
@@ -34,7 +59,7 @@ export class BlessedRenderer {
           yOffset += 1;
           currentLineTokens = [];
         }
-        
+
         // Render the block token
         const element = this.renderToken(token, yOffset);
         if (element) {
@@ -61,7 +86,7 @@ export class BlessedRenderer {
    */
   private renderInlineLine(tokens: ParsedToken[], yOffset: number): void {
     let content = '';
-    
+
     for (const token of tokens) {
       switch (token.type) {
         case 'strong':
@@ -101,10 +126,13 @@ export class BlessedRenderer {
    * Render a single token
    */
   private renderToken(token: ParsedToken, yOffset: number): Widgets.BoxElement | null {
-    switch (token.type) {
-      case 'heading':
-        return this.renderHeading(token, yOffset);
+    // Check for custom component overrides
+    const customComponent = this.context.options.components?.[token.type as keyof typeof this.context.options.components];
+    if (customComponent) {
+      return customComponent(token, yOffset);
+    }
 
+    switch (token.type) {
       case 'paragraph':
       case 'text':
         return this.renderText(token, yOffset);
@@ -139,41 +167,28 @@ export class BlessedRenderer {
       case 'table':
         return this.renderTable(token, yOffset);
 
+      // Enhanced token types
+      case 'math-inline':
+        return this.renderMathInline(token, yOffset);
+
+      case 'math-block':
+        return this.renderMathBlock(token, yOffset);
+
+      case 'mermaid':
+        return this.renderMermaid(token, yOffset);
+
       default:
         return this.renderText(token, yOffset);
     }
   }
 
-  /**
-   * Render heading
-   */
-  private renderHeading(token: ParsedToken, yOffset: number): Widgets.BoxElement {
-    const depth = token.depth || 1;
-    const style = this.getHeadingStyle(depth);
-
-    const prefix = token.incomplete ? '# ' : '';
-    const content = prefix + token.content;
-
-    return blessed.box({
-      parent: this.context.container,
-      top: yOffset,
-      left: 0,
-      width: '100%',
-      height: 'shrink',
-      content,
-      tags: true,
-      style: style,
-    });
-  }
 
   /**
    * Render text/paragraph
    */
   private renderText(token: ParsedToken, yOffset: number): Widgets.BoxElement {
     const style = this.defaultStyles.paragraph;
-    // Apply syntax highlighting first, then format inline styles
-    let content = applySyntaxHighlightBlessed(token.content);
-    content = this.formatInlineStyles(content);
+    let content = this.formatInlineStyles(token.content);
 
     if (token.incomplete) {
       content += '{yellow-fg}...{/yellow-fg}';
@@ -299,18 +314,26 @@ export class BlessedRenderer {
     const style = this.defaultStyles.codeBlock;
     const lang = token.lang || 'text';
 
+    // Check for special language types
+    if (lang === 'mermaid' && this.context.options.enhancedFeatures?.mermaid) {
+      return this.renderMermaid(token, yOffset);
+    }
+    if (lang === 'math-block' && this.context.options.enhancedFeatures?.math) {
+      return this.renderMathBlock(token, yOffset);
+    }
+
     let content = token.content;
     if (token.incomplete) {
       content = `{yellow-fg}[Code block (${lang})...]{/yellow-fg}`;
     }
 
-    return blessed.box({
+    const box = blessed.box({
       parent: this.context.container,
       top: yOffset,
       left: 2,
       width: '100%-4',
       height: 'shrink',
-      content: this.highlightCode(content, lang),
+      content: '',
       tags: true,
       border: {
         type: 'line',
@@ -326,26 +349,21 @@ export class BlessedRenderer {
         right: 1,
       },
     });
+
+    // Highlight asynchronously
+    this.highlightCode(content, lang).then(highlighted => {
+      box.setContent(highlighted);
+      this.context.screen.render();
+    });
+
+    return box;
   }
 
   /**
    * Render blockquote
    */
   private renderBlockquote(token: ParsedToken, yOffset: number): Widgets.BoxElement {
-    // Check if this is a thinking/cognitive block
-    const isThinkingBlock = /^(thinking|cognitive|analyzing|processing)/i.test(token.content);
-    const style = isThinkingBlock
-      ? { fg: 'gray', italic: true }
-      : this.defaultStyles.blockquote;
-
-    // Apply syntax highlighting
-    let content = applySyntaxHighlightBlessed(token.content);
-    content = this.formatInlineStyles(content);
-
-    // For thinking blocks, use dark gray color
-    if (isThinkingBlock) {
-      content = `{${blessedSyntaxColors.darkGray}}${content}{/${blessedSyntaxColors.darkGray}}`;
-    }
+    const style = this.defaultStyles.blockquote;
 
     return blessed.box({
       parent: this.context.container,
@@ -353,14 +371,15 @@ export class BlessedRenderer {
       left: 2,
       width: '100%-4',
       height: 'shrink',
-      content,
+      content: this.formatInlineStyles(token.content),
       tags: true,
       border: {
         type: 'line',
+
       },
       style: {
         border: {
-          fg: isThinkingBlock ? 'gray' : (style.fg || 'gray'),
+          fg: style.fg || 'gray',
           left: false,
           right: false,
           top: false,
@@ -413,10 +432,19 @@ export class BlessedRenderer {
   }
 
   /**
-   * Render table (simplified)
+   * Render table (with advanced support)
    */
   private renderTable(token: ParsedToken, yOffset: number): Widgets.BoxElement {
-    // Simplified table rendering
+    // Use advanced table renderer if enabled
+    if (this.context.options.enhancedFeatures?.advancedTables) {
+      const interactive = typeof this.context.options.controls === 'object'
+        ? this.context.options.controls.table ?? false
+        : false;
+
+      return tableRenderer.render(token, yOffset, this.context.container, interactive);
+    }
+
+    // Fallback to simple table rendering
     return blessed.box({
       parent: this.context.container,
       top: yOffset,
@@ -468,31 +496,126 @@ export class BlessedRenderer {
   }
 
   /**
-   * Highlight code with enhanced syntax highlighting
+   * Highlight code (with Shiki support)
    */
-  private highlightCode(code: string, lang: string): string {
+  private async highlightCode(code: string, lang: string): Promise<string> {
     if (!this.context.options.syntaxHighlight) {
       return code;
     }
 
-    // Use blessed syntax highlighter for comprehensive highlighting
-    return applySyntaxHighlightBlessed(code);
+    // Use Shiki if available and enabled
+    if (this.shikiInitialized && this.context.options.enhancedFeatures?.shiki) {
+      try {
+        return await shikiRenderer.highlight(code, lang);
+      } catch (error) {
+        console.warn('Shiki highlighting failed, using fallback:', error);
+      }
+    }
+
+    // Fallback to basic highlighting
+    return this.highlightCodeFallback(code);
   }
 
   /**
-   * Get heading style based on depth
+   * Fallback code highlighting
    */
-  private getHeadingStyle(depth: number): BlessedStyle {
-    const styles = [
-      this.defaultStyles.h1,
-      this.defaultStyles.h2,
-      this.defaultStyles.h3,
-      this.defaultStyles.h4,
-      this.defaultStyles.h5,
-      this.defaultStyles.h6,
-    ];
+  private highlightCodeFallback(code: string): string {
+    const keywords = ['function', 'const', 'let', 'var', 'if', 'else', 'return', 'for', 'while', 'class', 'import', 'export'];
+    let highlighted = code;
 
-    return styles[depth - 1] || styles[0];
+    for (const keyword of keywords) {
+      const regex = new RegExp(`\\b(${keyword})\\b`, 'g');
+      highlighted = highlighted.replace(regex, '{magenta-fg}$1{/magenta-fg}');
+    }
+
+    // Strings
+    highlighted = highlighted.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, '{green-fg}$&{/green-fg}');
+
+    // Comments
+    highlighted = highlighted.replace(/(\/\/.*)$/gm, '{gray-fg}$1{/gray-fg}');
+    highlighted = highlighted.replace(/(\/\*[\s\S]*?\*\/)/g, '{gray-fg}$1{/gray-fg}');
+
+    return highlighted;
+  }
+
+
+  /**
+   * Render inline math
+   */
+  private renderMathInline(token: ParsedToken, yOffset: number): Widgets.BoxElement {
+    const rendered = mathRenderer.renderInline(token.content);
+
+    return blessed.box({
+      parent: this.context.container,
+      top: yOffset,
+      left: 0,
+      width: '100%',
+      height: 'shrink',
+      content: `{cyan-fg}${rendered}{/cyan-fg}`,
+      tags: true,
+      wrap: true,
+    });
+  }
+
+  /**
+   * Render block math
+   */
+  private renderMathBlock(token: ParsedToken, yOffset: number): Widgets.BoxElement {
+    const rendered = mathRenderer.renderBlock(token.content);
+
+    return blessed.box({
+      parent: this.context.container,
+      top: yOffset,
+      left: 2,
+      width: '100%-4',
+      height: 'shrink',
+      content: `{cyan-fg}${rendered}{/cyan-fg}`,
+      tags: true,
+      border: {
+        type: 'line',
+      },
+      style: {
+        border: {
+          fg: 'cyan',
+        },
+      },
+      padding: {
+        left: 1,
+        right: 1,
+      },
+    });
+  }
+
+  /**
+   * Render Mermaid diagram
+   */
+  private renderMermaid(token: ParsedToken, yOffset: number): Widgets.BoxElement {
+    const rendered = mermaidRenderer.render(token.content);
+
+    return blessed.box({
+      parent: this.context.container,
+      top: yOffset,
+      left: 2,
+      width: '100%-4',
+      height: 'shrink',
+      content: `{magenta-fg}${rendered}{/magenta-fg}`,
+      tags: true,
+      border: {
+        type: 'line',
+      },
+      style: {
+        border: {
+          fg: 'magenta',
+        },
+      },
+      padding: {
+        left: 1,
+        right: 1,
+      },
+      scrollable: true,
+      keys: true,
+      vi: true,
+    });
   }
 
   /**
@@ -508,11 +631,16 @@ export class BlessedRenderer {
         return 2;
       case 'table':
         return 5;
+      case 'math-block':
+        return token.content.split('\n').length + 6;
+      case 'mermaid':
+        return Math.min(token.content.split('\n').length + 4, 30);
       case 'strong':
       case 'em':
       case 'code':
       case 'link':
       case 'del':
+      case 'math-inline':
         // Inline tokens should be rendered on the same line
         return 0;
       default:
@@ -525,12 +653,8 @@ export class BlessedRenderer {
    */
   private getDefaultStyles(): MarkdownStyles {
     return {
-      h1: { fg: 'cyan', bold: true },
-      h2: { fg: 'blue', bold: true },
-      h3: { fg: 'green', bold: true },
-      h4: { fg: 'yellow', bold: true },
-      h5: { fg: 'magenta', bold: true },
-      h6: { fg: 'white', bold: true },
+
+
       paragraph: { fg: 'white' },
       strong: { bold: true },
       em: { italic: true },
@@ -543,7 +667,6 @@ export class BlessedRenderer {
       table: { fg: 'cyan' },
       tableHeader: { fg: 'cyan', bold: true },
       hr: { fg: 'gray' },
-      thinking: { fg: 'gray', italic: true }, // Dark gray for thinking/cognitive blocks
     };
   }
 }

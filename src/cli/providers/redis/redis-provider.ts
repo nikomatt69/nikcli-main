@@ -81,15 +81,17 @@ export class RedisProvider extends EventEmitter {
           token: this.config.token,
         })
         console.log(chalk.blue(`🔗 Connecting to Upstash Redis...`))
-      } else if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-        // Use environment variables
-        this.client = Redis.fromEnv()
-        console.log(chalk.blue(`🔗 Connecting to Upstash Redis via environment...`))
-        console.log(chalk.gray(`   URL: ${process.env.UPSTASH_REDIS_REST_URL}`))
-        console.log(chalk.gray(`   Token: ${process.env.UPSTASH_REDIS_REST_TOKEN?.substring(0, 10)}...`))
-      } else {
+      }
+      if (this.config.host && this.config.port && this.config.password) {
+        this.client = new Redis({
+          url: `redis://${this.config.host}${this.config.port ? `:${this.config.port}` : ''}${this.config.password ? `:${this.config.password}` : ''}`,
+          token: this.config.password,
+        })
+        console.log(chalk.blue(`🔗 Connecting to Redis...`))
+      }
+      if (!this.config.url && !this.config.host && !this.config.port && !this.config.password) {
         throw new Error(
-          'Upstash Redis configuration missing. Please provide url and token or set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.'
+          'Redis configuration missing. Please provide url and token or set host, port, and password.'
         )
       }
 
@@ -272,7 +274,7 @@ export class RedisProvider extends EventEmitter {
       } catch (parseError) {
         // Corrupted data detected - auto-clean and return null
         console.log(chalk.yellow(`⚠️ Corrupted cache data for key ${key}, auto-cleaning...`))
-        await this.del(key).catch(() => {}) // Silent cleanup failure
+        await this.del(key).catch(() => { }) // Silent cleanup failure
         return null
       }
 
@@ -520,7 +522,7 @@ export class RedisProvider extends EventEmitter {
         vectorEntry = JSON.parse(serializedValue as string)
       } catch (parseError) {
         // Corrupted vector cache data - auto-clean and return null
-        await this.del(cacheKey).catch(() => {})
+        await this.del(cacheKey).catch(() => { })
         return null
       }
 

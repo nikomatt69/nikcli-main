@@ -84,14 +84,15 @@ export class StreamingMarkdownParser {
     const tokens: Token[] = [];
 
     // Regular expressions for different inline elements
+    // Using more reliable patterns to avoid catastrophic backtracking
     const patterns = [
-      { regex: /\*\*(.*?)\*\*/g, type: 'strong' },
-      { regex: /__(.*?)__/g, type: 'strong' },
-      { regex: /\*(.*?)\*/g, type: 'em' },
-      { regex: /_(.*?)_/g, type: 'em' },
-      { regex: /`(.*?)`/g, type: 'codespan' },
+      { regex: /\*\*([^*]+)\*\*/g, type: 'strong' },
+      { regex: /__([^_]+)__/g, type: 'strong' },
+      { regex: /\*([^*]+)\*/g, type: 'em' },
+      { regex: /_([^_]+)_/g, type: 'em' },
+      { regex: /`([^`]+)`/g, type: 'codespan' },
       { regex: /\[([^\]]+)\]\(([^)]+)\)/g, type: 'link' },
-      { regex: /~~(.*?)~~/g, type: 'del' },
+      { regex: /~~([^~]+)~~/g, type: 'del' },
     ];
 
     // Find all matches and their positions
@@ -287,12 +288,13 @@ export class StreamingMarkdownParser {
     if (!lastToken) return;
 
     // Check if buffer ends with incomplete patterns
+    // Using more efficient regex patterns to avoid backtracking
     const patterns = [
-      { regex: /\*\*[^*]+$/, type: 'strong' },
-      { regex: /\*[^*]+$/, type: 'em' },
-      { regex: /`[^`]+$/, type: 'code' },
-      { regex: /\[[^\]]+$/, type: 'link' },
-      { regex: /^#{1,6}\s[^\n]+$/, type: 'heading' },
+      { regex: /\*\*[^*\n]{1,100}$/, type: 'strong' },
+      { regex: /\*[^*\n]{1,100}$/, type: 'em' },
+      { regex: /`[^`\n]{1,500}$/, type: 'code' },
+      { regex: /\[[^\]\n]{1,200}$/, type: 'link' },
+      { regex: /^#{1,6}\s[^\n]{1,200}$/, type: 'heading' },
     ];
 
     for (const pattern of patterns) {
@@ -313,8 +315,8 @@ export class StreamingMarkdownParser {
     let content = text;
     let incomplete = false;
 
-    // Check for incomplete patterns
-    if (/\*\*[^*]+$/.test(text) || /\*[^*]+$/.test(text) || /`[^`]+$/.test(text)) {
+    // Check for incomplete patterns with bounded quantifiers
+    if (/\*\*[^*\n]{1,100}$/.test(text) || /\*[^*\n]{1,100}$/.test(text) || /`[^`\n]{1,500}$/.test(text)) {
       incomplete = true;
     }
 

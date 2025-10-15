@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SUPPORTED_SHELL_NAMES } from '../tools/shell-support'
 
 export const ValidationResultSchema = z.object({
   isValid: z.boolean(),
@@ -102,7 +103,7 @@ export const CommandOptionsSchema = z.object({
   timeout: z.number().int().min(100).optional(),
   skipConfirmation: z.boolean().optional(),
   env: z.record(z.string()).optional(),
-  shell: z.string().optional(),
+  shell: z.enum(SUPPORTED_SHELL_NAMES).optional(),
 })
 
 export const CommandResultSchema = z.object({
@@ -113,6 +114,7 @@ export const CommandResultSchema = z.object({
   command: z.string(),
   duration: z.number().min(0),
   workingDirectory: z.string(),
+  shell: z.enum(SUPPORTED_SHELL_NAMES).optional(),
 })
 
 export const EditOperationSchema = z.object({

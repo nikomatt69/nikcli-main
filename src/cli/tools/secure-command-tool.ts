@@ -5,6 +5,12 @@ import { promisify } from 'node:util'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { inputQueue } from '../core/input-queue'
+import {
+  DEFAULT_SHELL_NAME,
+  resolveShellConfig,
+  type ShellConfiguration,
+  type SupportedShellName,
+} from './shell-support'
 
 const execAsync = promisify(exec)
 
@@ -87,6 +93,7 @@ export interface CommandResult {
   command: string
   duration: number
   safe: boolean
+  shell: SupportedShellName
 }
 
 /**
@@ -98,6 +105,7 @@ export interface CommandOptions {
   env?: Record<string, string>
   skipConfirmation?: boolean
   allowDangerous?: boolean
+  shell?: SupportedShellName
 }
 
 /**
@@ -426,6 +434,8 @@ export class SecureCommandTool {
   async execute(command: string, options: CommandOptions = {}): Promise<CommandResult> {
     const startTime = Date.now()
     const analysis = this.analyzeCommand(command)
+    let shellConfig: ShellConfiguration | null = null
+    let shellName: SupportedShellName = DEFAULT_SHELL_NAME
 
     console.log(chalk.blue(`🔍 Analyzing command: ${command}`))
 
@@ -486,18 +496,23 @@ export class SecureCommandTool {
     }
 
     try {
+      shellConfig = resolveShellConfig(options.shell)
+      shellName = shellConfig.name
       const cwd = options.cwd ? path.resolve(this.workingDirectory, options.cwd) : this.workingDirectory
       const env = { ...process.env, ...options.env }
       const timeout = options.timeout || 30000 // 30 second default timeout
 
       console.log(chalk.blue(`⚡ Executing: ${command}`))
       console.log(chalk.gray(`📁 Working directory: ${cwd}`))
+      console.log(chalk.gray(`🐚 Shell: ${shellConfig.displayName}`))
+      env.SHELL = shellConfig.executable
 
       const { stdout, stderr } = await execAsync(command, {
         cwd,
         env,
         timeout,
         encoding: 'utf8',
+        shell: shellConfig.executable,
       })
 
       const duration = Date.now() - startTime
@@ -530,6 +545,7 @@ export class SecureCommandTool {
         command,
         duration,
         safe: analysis.safe,
+        shell: shellName,
       }
     } catch (error: any) {
       const duration = Date.now() - startTime
@@ -552,6 +568,7 @@ export class SecureCommandTool {
         command,
         duration,
         safe: analysis.safe,
+        shell: shellName,
       }
     }
   }

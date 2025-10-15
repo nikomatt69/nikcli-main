@@ -1,21 +1,36 @@
 import { type ChildProcess, spawn } from 'node:child_process'
+import { z } from 'zod'
 import { PromptManager } from '../prompts/prompt-manager'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
+import {
+  resolveShellConfig,
+  SUPPORTED_SHELL_NAMES,
+  type ShellConfiguration,
+  type SupportedShellName,
+} from './shell-support'
+
+
+const MAX_OUTPUT_LENGTH = 30000
+const DEFAULT_TIMEOUT = 60000 // 1 minuto
+const MAX_TIMEOUT = 600000 // 10 minuti
 
 /**
  * Enhanced BashTool - Esecuzione sicura comandi con whitelist e timeout
  * Basato su esempi con parsing AST e permission system
  */
 
-export interface BashToolParams {
-  command: string
-  timeout?: number
-  description?: string
-  workingDirectory?: string
-  environment?: Record<string, string>
-  allowDangerous?: boolean
-}
+const bashToolParamsSchema = z.object({
+  command: z.string().trim().min(1, 'Command is required').max(1000),
+  timeout: z.number().int().positive().max(MAX_TIMEOUT).optional(),
+  description: z.string().trim().max(500).optional(),
+  workingDirectory: z.string().trim().min(1).optional(),
+  environment: z.record(z.string()).optional(),
+  allowDangerous: z.boolean().optional(),
+  shell: z.enum(SUPPORTED_SHELL_NAMES).optional(),
+})
+
+export type BashToolParams = z.infer<typeof bashToolParamsSchema>
 
 export interface BashResult {
   command: string
@@ -26,6 +41,7 @@ export interface BashResult {
   workingDirectory: string
   timedOut: boolean
   killed: boolean
+  shell: SupportedShellName
 }
 
 // Whitelist comandi sicuri
@@ -108,9 +124,6 @@ const DANGEROUS_PATTERNS = [
   /\/etc\/shadow/i,
 ]
 
-const MAX_OUTPUT_LENGTH = 30000
-const DEFAULT_TIMEOUT = 60000 // 1 minuto
-const MAX_TIMEOUT = 600000 // 10 minuti
 
 export class BashTool extends BaseTool {
   constructor(workingDirectory: string = process.cwd()) {
@@ -118,40 +131,58 @@ export class BashTool extends BaseTool {
   }
 
   async execute(params: BashToolParams): Promise<ToolExecutionResult> {
+    let parsedParams: BashToolParams
+
+    try {
+      parsedParams = bashToolParamsSchema.parse(params)
+    } catch (error: any) {
+      const message = error instanceof Error ? error.message : 'Invalid parameters for bash tool'
+      CliUI.logError(`Bash tool parameter validation failed: ${message}`)
+      return {
+        success: false,
+        error: message,
+        data: null,
+        metadata: {
+          executionTime: Date.now(),
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
     try {
       // Carica prompt specifico per questo tool
       const promptManager = PromptManager.getInstance()
       const systemPrompt = await promptManager.loadPromptForContext({
         toolName: 'bash-tool',
-        parameters: params,
+        parameters: parsedParams,
       })
 
       CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
 
-      if (!params.command) {
-        throw new Error('Command is required')
-      }
-
       // Validazione sicurezza comando
-      await this.validateCommandSafety(params.command, params.allowDangerous || false)
+      await this.validateCommandSafety(parsedParams.command, parsedParams.allowDangerous || false)
 
-      const timeout = Math.min(params.timeout || DEFAULT_TIMEOUT, MAX_TIMEOUT)
-      const workingDir = params.workingDirectory || this.workingDirectory
+      const timeout = Math.min(parsedParams.timeout ?? DEFAULT_TIMEOUT, MAX_TIMEOUT)
+      const workingDir = parsedParams.workingDirectory || this.workingDirectory
+      const shellConfig = resolveShellConfig(parsedParams.shell)
 
       // Validazione working directory
       if (!this.isPathSafe(workingDir)) {
         throw new Error(`Working directory not safe: ${workingDir}`)
       }
 
-      CliUI.logInfo(`🔧 Executing command: ${CliUI.highlight(params.command)}`)
-      if (params.description) {
-        CliUI.logInfo(`📝 Description: ${params.description}`)
+      CliUI.logInfo(`🔧 Executing command: ${CliUI.highlight(parsedParams.command)}`)
+      if (parsedParams.description) {
+        CliUI.logInfo(`📝 Description: ${parsedParams.description}`)
       }
+      CliUI.logDebug(`Shell selected for execution: ${shellConfig.displayName} (${shellConfig.executable})`)
 
-      const result = await this.executeCommand(params.command, {
+      const result = await this.executeCommand(parsedParams.command, {
         timeout,
         workingDirectory: workingDir,
-        environment: params.environment,
+        environment: parsedParams.environment,
+        shell: shellConfig,
       })
 
       if (result.exitCode === 0) {
@@ -166,7 +197,11 @@ export class BashTool extends BaseTool {
         metadata: {
           executionTime: result.executionTime,
           toolName: this.name,
-          parameters: params,
+          parameters: {
+            ...parsedParams,
+            workingDirectory: workingDir,
+            shell: shellConfig.name,
+          },
         },
       }
     } catch (error: any) {
@@ -178,7 +213,7 @@ export class BashTool extends BaseTool {
         metadata: {
           executionTime: Date.now(),
           toolName: this.name,
-          parameters: params,
+          parameters: parsedParams ?? params,
         },
       }
     }
@@ -220,7 +255,8 @@ export class BashTool extends BaseTool {
     }
 
     // Validazioni aggiuntive
-    if (command.includes('..')) {
+    const traversalPattern = /(^|[\s'"`])\.\.(\/|\\|\s|$)/
+    if (traversalPattern.test(command)) {
       throw new Error('Directory traversal not allowed in commands')
     }
 
@@ -238,6 +274,7 @@ export class BashTool extends BaseTool {
       timeout: number
       workingDirectory: string
       environment?: Record<string, string>
+      shell: ShellConfiguration
     }
   ): Promise<BashResult> {
     const startTime = Date.now()
@@ -256,7 +293,7 @@ export class BashTool extends BaseTool {
       }
 
       // Spawn processo
-      const child: ChildProcess = spawn('bash', ['-c', command], {
+      const child: ChildProcess = spawn(options.shell.executable, [...options.shell.args, command], {
         cwd: options.workingDirectory,
         env,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -314,6 +351,7 @@ export class BashTool extends BaseTool {
           workingDirectory: options.workingDirectory,
           timedOut,
           killed,
+          shell: options.shell.name,
         }
 
         if (timedOut) {

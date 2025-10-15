@@ -8,14 +8,24 @@ Streamtty is inspired by [Streamdown](https://github.com/vercel/streamdown) but 
 
 ## ✨ Features
 
+### Core Features
 - 🚀 **Streaming-optimized** - Handles incomplete Markdown gracefully during real-time generation
 - 🎨 **Unterminated block parsing** - Styles incomplete bold, italic, code, links, and headings
 - 📊 **GitHub Flavored Markdown** - Tables, task lists, and strikethrough support
-- 🎯 **Code syntax highlighting** - Beautiful code blocks with customizable themes
 - 📝 **Rich formatting** - Headers, lists, blockquotes, links, and more
 - ⚡ **Performance optimized** - Debounced rendering for efficient updates
 - 🎮 **Interactive** - Built-in keyboard navigation and scrolling
-- 🛡️ **Security-first** - Safe rendering of user-generated content
+
+### Enhanced Features (Streamdown Parity) ✨ NEW
+- 📐 **Math Rendering** - LaTeX math expressions converted to Unicode (inline and block)
+- 📊 **Mermaid Diagrams** - Flowcharts, sequence diagrams, and more rendered as ASCII art
+- 🎨 **Shiki Syntax Highlighting** - Advanced code highlighting with multiple themes
+- 📋 **Advanced Tables** - Full table support with alignment, borders, and navigation
+- 🛡️ **Security Layer** - ANSI sanitization, input validation, and injection prevention
+- ⌨️ **Interactive Controls** - Copy code, export diagrams, navigate with keyboard shortcuts
+- 🔌 **Plugin System** - Remark/Rehype compatible plugin architecture
+- 🎭 **Theme Support** - Light/dark themes with auto-detection
+- 🧩 **Component Overrides** - Customize rendering for any token type
 
 ## 📦 Installation
 
@@ -89,6 +99,108 @@ function streamResponse(response: string) {
 }
 
 streamResponse('# AI Response\n\nHere is some **formatted** text!');
+```
+
+### Enhanced Features Usage
+
+```typescript
+import { Streamtty } from 'streamtty';
+
+// Enable all enhanced features
+const streamtty = new Streamtty({
+  syntaxHighlight: true,
+  theme: 'dark',
+  shikiLanguages: ['typescript', 'python', 'bash'],
+  enhancedFeatures: {
+    math: true,              // LaTeX math rendering
+    mermaid: true,           // Mermaid diagrams
+    shiki: true,             // Advanced syntax highlighting
+    security: true,          // ANSI sanitization & validation
+    interactiveControls: true, // Keyboard shortcuts
+    advancedTables: true,    // Enhanced table rendering
+  },
+  controls: {
+    code: true,    // Press 'c' to copy code blocks
+    table: true,   // Arrow keys to navigate tables
+    mermaid: true, // Press 'e' to export diagrams
+    math: true,    // Copy math expressions
+  },
+  security: {
+    enabled: true,
+    stripDangerousAnsi: true,
+    allowedLinkPrefixes: ['https://'],
+  },
+});
+
+// Math rendering
+const mathContent = `
+Inline math: $E = mc^2$
+
+Block math:
+$$
+\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}
+$$
+`;
+streamtty.setContent(mathContent);
+
+// Mermaid diagrams
+const diagramContent = `
+\`\`\`mermaid
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Success]
+    B -->|No| D[Retry]
+\`\`\`
+`;
+streamtty.stream(diagramContent);
+
+// Advanced tables
+const tableContent = `
+| Feature | Status | Priority |
+|---------|:------:|----------|
+| Math    | ✅     | High     |
+| Mermaid | ✅     | High     |
+| Tables  | ✅     | Medium   |
+`;
+streamtty.stream(tableContent);
+```
+
+### Plugin System
+
+```typescript
+import { Streamtty, RemarkPlugin, RehypePlugin } from 'streamtty';
+
+// Custom remark plugin (pre-parse)
+const customRemarkPlugin: RemarkPlugin = {
+  name: 'custom-remark',
+  type: 'remark',
+  priority: 50,
+  async process(markdown, context) {
+    // Transform markdown before parsing
+    return markdown.replace(/TODO:/g, '📝 TODO:');
+  },
+};
+
+// Custom rehype plugin (post-parse)
+const customRehypePlugin: RehypePlugin = {
+  name: 'custom-rehype',
+  type: 'rehype',
+  priority: 50,
+  async process(tokens, context) {
+    // Transform tokens after parsing
+    return tokens.map(token => {
+      if (token.type === 'text' && token.content.includes('IMPORTANT')) {
+        token.style = { fg: 'red', bold: true };
+      }
+      return token;
+    });
+  },
+};
+
+const streamtty = new Streamtty({
+  remarkPlugins: [customRemarkPlugin],
+  rehypePlugins: [customRehypePlugin],
+});
 ```
 
 ## 📖 API Reference

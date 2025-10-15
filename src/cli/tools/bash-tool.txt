@@ -9,18 +9,27 @@ Secure shell command execution with analysis, confirmation, streaming output, an
 - Streaming stdout, bounded output buffering
 - `set -euo pipefail` support for robust pipelines
 - Working directory and environment control
+- Configurable shell selection (bash, zsh, sh, dash, ksh, fish) with validation and auto-detection
 
 ## Usage
 ```ts
 const res = await bashTool.execute({
   command: 'npm run build',
-  streamOutput: true,
-  usePipefail: true,
+  workingDirectory: process.cwd(),
+  shell: 'zsh',
+  timeout: 120000,
 })
 ```
+
+## Parameters
+- `command`: shell command to execute (required)
+- `workingDirectory`: directory sandbox for the process (defaults to tool root)
+- `timeout`: maximum execution time in ms (default 60s, capped at 10m)
+- `shell`: optional shell to run under (`bash`, `zsh`, `sh`, `dash`, `ksh`, `fish`); defaults to auto-detected or bash
+- `environment`: key/value pairs extending process environment
+- `allowDangerous`: bypass denylist validations (use cautiously)
 
 ## Best Practices
 - Prefer SecureToolsRegistry: `secureTools.executeCommand('...')`
 - Keep commands short and explicit; avoid wildcards
 - Use `skipConfirmation` only for safe, read-only commands
-

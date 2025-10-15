@@ -1524,12 +1524,13 @@ Execute tasks step-by-step and verify results before proceeding.`
     if (blueprints.length > 0) {
       console.log(chalk.blue.bold('\n📋 Available Blueprints:'))
       blueprints.forEach((blueprint) => {
+        if (!blueprint || !blueprint.id || !blueprint.name) return
         const isActive = this.instances.has(blueprint.name)
         const status = isActive ? chalk.green('🟢 Active') : chalk.gray('⚪ Inactive')
 
         console.log(`  ${status} ${chalk.bold(blueprint.name)} ${chalk.gray(`(${blueprint.id.slice(0, 8)}...)`)}`)
-        console.log(`    Specialization: ${blueprint.specialization}`)
-        console.log(`    Autonomy: ${blueprint.autonomyLevel}`)
+        console.log(`    Specialization: ${blueprint.specialization || 'N/A'}`)
+        console.log(`    Autonomy: ${blueprint.autonomyLevel || 'N/A'}`)
         console.log(`    Created: ${blueprint.createdAt}`)
       })
     }

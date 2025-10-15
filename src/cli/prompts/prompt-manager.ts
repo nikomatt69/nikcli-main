@@ -303,10 +303,19 @@ export class PromptManager {
   }
 
   /**
-   * Load output style prompt for enhanced AI responses
+   * Load output style prompt for enhanced AI responses (supports custom styles)
    */
-  async loadOutputStylePrompt(outputStyle: OutputStyle): Promise<string> {
+  async loadOutputStylePrompt(outputStyle: string): Promise<string> {
     try {
+      // Check custom styles first
+      const { blueprintStorage } = await import('../core/blueprint-storage')
+      const customStyle = await blueprintStorage.loadStyle(outputStyle)
+
+      if (customStyle) {
+        return customStyle.promptTemplate
+      }
+
+      // Fallback to built-in styles
       const stylePath = `output-styles/${outputStyle}.txt`
       const prompt = await this.loadPrompt(stylePath)
       return prompt.content

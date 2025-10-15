@@ -51,8 +51,11 @@ const SHELL_COMMANDS = [
  * Matches: /path/to/file.ts, ./relative/path.js, ~/home/path
  */
 export function highlightPathsBlessed(text: string): string {
-  const pathRegex = /(?:^|\s)((?:\/|\.\/|\.\.\/|~\/)[^\s:]+)/g
+  // Avoid matching inside blessed tags
+  const pathRegex = /(?:^|[^{])((?:\/|\.\/|\.\.\/|~\/)[^\s:{]+)/g
   return text.replace(pathRegex, (match, path) => {
+    // Don't highlight if we're inside a blessed tag
+    if (match.startsWith('{')) return match
     return match.replace(path, `{${blessedSyntaxColors.path}}${path}{/${blessedSyntaxColors.path}}`)
   })
 }
@@ -62,7 +65,8 @@ export function highlightPathsBlessed(text: string): string {
  * Matches: file.ts:123, /path/to/file.js:45:10
  */
 export function highlightFileRefsBlessed(text: string): string {
-  const fileRefRegex = /((?:\/|\.\/|\.\.\/)?[^\s:]+\.\w+)(:\d+(?::\d+)?)/g
+  // Avoid matching inside blessed tags
+  const fileRefRegex = /(?<!{[\w-]+})((?:\/|\.\/|\.\.\/)?[^\s:{]+\.\w+)(:\d+(?::\d+)?)/g
   return text.replace(fileRefRegex, (match, file, location) => {
     return `{${blessedSyntaxColors.path}}${file}{/${blessedSyntaxColors.path}}{${blessedSyntaxColors.lineNumber}}${location}{/${blessedSyntaxColors.lineNumber}}`
   })
@@ -150,7 +154,8 @@ export function highlightJsonBlessed(text: string): string {
  * Highlight string literals in quotes using blessed tags
  */
 export function highlightStringsBlessed(text: string): string {
-  const stringRegex = /(["'])(?:(?=(\\?))\2.)*?\1/g
+  // Use more reliable regex without nested lookahead
+  const stringRegex = /(["'])((?:\\.|(?!\1)[^\\])*)\1/g
   return text.replace(stringRegex, (match) => {
     return `{${blessedSyntaxColors.string}}${match}{/${blessedSyntaxColors.string}}`
   })
@@ -171,14 +176,10 @@ export function highlightNumbersBlessed(text: string): string {
 export function highlightCommentsBlessed(text: string): string {
   let highlighted = text
 
-  // Bash comments (# comment)
+  // Multi-line comments first (to avoid conflicts with // in comments)
   highlighted = highlighted.replace(
-    /(#.*)$/gm,
-    (match) => {
-      // Avoid highlighting markdown headers
-      if (/^#{1,6}\s/.test(match)) return match
-      return `{${blessedSyntaxColors.comment}}${match}{/${blessedSyntaxColors.comment}}`
-    }
+    /(\/\*[\s\S]*?\*\/)/g,
+    `{${blessedSyntaxColors.comment}}$1{/${blessedSyntaxColors.comment}}`
   )
 
   // Single-line comments
@@ -187,10 +188,12 @@ export function highlightCommentsBlessed(text: string): string {
     `{${blessedSyntaxColors.comment}}$1{/${blessedSyntaxColors.comment}}`
   )
 
-  // Multi-line comments
+  // Bash comments (# comment) - process last to avoid markdown headers
   highlighted = highlighted.replace(
-    /(\/\*[\s\S]*?\*\/)/g,
-    `{${blessedSyntaxColors.comment}}$1{/${blessedSyntaxColors.comment}}`
+    /(?:^|\s)(#(?!#{0,5}\s)[^\n]*)$/gm,
+    (match, comment) => {
+      return match.replace(comment, `{${blessedSyntaxColors.comment}}${comment}{/${blessedSyntaxColors.comment}}`)
+    }
   )
 
   return highlighted
@@ -221,10 +224,10 @@ export function highlightLogLevelsBlessed(text: string): string {
     const level = (lvl as string).toUpperCase()
     const color =
       level === 'ERROR' || level === 'FATAL' ? blessedSyntaxColors.error :
-      level === 'WARN' || level === 'WARNING' ? blessedSyntaxColors.warning :
-      level === 'SUCCESS' || level === 'OK' ? blessedSyntaxColors.success :
-      level === 'DEBUG' || level === 'TRACE' ? blessedSyntaxColors.debug :
-      blessedSyntaxColors.info
+        level === 'WARN' || level === 'WARNING' ? blessedSyntaxColors.warning :
+          level === 'SUCCESS' || level === 'OK' ? blessedSyntaxColors.success :
+            level === 'DEBUG' || level === 'TRACE' ? blessedSyntaxColors.debug :
+              blessedSyntaxColors.info
     return `{${color}}[${level}]{/${color}}`
   })
 
@@ -233,10 +236,10 @@ export function highlightLogLevelsBlessed(text: string): string {
     const level = (lvl as string).toUpperCase()
     const color =
       level === 'ERROR' || level === 'FATAL' ? blessedSyntaxColors.error :
-      level === 'WARN' || level === 'WARNING' ? blessedSyntaxColors.warning :
-      level === 'SUCCESS' || level === 'OK' ? blessedSyntaxColors.success :
-      level === 'DEBUG' || level === 'TRACE' ? blessedSyntaxColors.debug :
-      blessedSyntaxColors.info
+        level === 'WARN' || level === 'WARNING' ? blessedSyntaxColors.warning :
+          level === 'SUCCESS' || level === 'OK' ? blessedSyntaxColors.success :
+            level === 'DEBUG' || level === 'TRACE' ? blessedSyntaxColors.debug :
+              blessedSyntaxColors.info
     return `{${color}}${level}{/${color}}`
   })
 
@@ -336,8 +339,8 @@ export function highlightPackagesBlessed(text: string): string {
  * Highlight markdown code blocks with syntax highlighting (blessed tags)
  */
 export function highlightCodeBlocksBlessed(text: string): string {
-  // Match ```lang\ncode\n``` blocks
-  const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g
+  // Match ```lang\ncode\n``` blocks (non-greedy, handles incomplete blocks)
+  const codeBlockRegex = /```(\w+)?\n([\s\S]*?)(?:```|$)/g
 
   return text.replace(codeBlockRegex, (match, lang, code) => {
     // Highlight the opening fence
@@ -347,8 +350,10 @@ export function highlightCodeBlocksBlessed(text: string): string {
     const highlightedCode = highlightCodeBlockContentBlessed(code, lang)
     result += highlightedCode
 
-    // Highlight the closing fence
-    result += `{${blessedSyntaxColors.path}}\`\`\`{/${blessedSyntaxColors.path}}`
+    // Highlight the closing fence if present
+    if (match.endsWith('```')) {
+      result += `{${blessedSyntaxColors.path}}\`\`\`{/${blessedSyntaxColors.path}}`
+    }
 
     return result
   })
@@ -396,9 +401,22 @@ export function applySyntaxHighlightBlessed(text: string): string {
   let highlighted = text
 
   // Order matters: highlight specific patterns first, then broader patterns
+  // Process code blocks separately to avoid interference
 
-  // 0. Code blocks (must be first to avoid interfering with content inside)
-  highlighted = highlightCodeBlocksBlessed(highlighted)
+  // 0. Extract code blocks to process them separately
+  const codeBlocks: Array<{ placeholder: string; content: string }> = []
+  let blockIndex = 0
+
+  highlighted = highlighted.replace(/```(\w+)?\n([\s\S]*?)(?:```|$)/g, (match, lang, code) => {
+    const placeholder = `__CODEBLOCK_${blockIndex}__`
+    const processedBlock = highlightCodeBlockContentBlessed(code, lang)
+    codeBlocks.push({
+      placeholder,
+      content: `{${blessedSyntaxColors.path}}\`\`\`${lang || ''}{/${blessedSyntaxColors.path}}\n${processedBlock}${match.endsWith('```') ? `{${blessedSyntaxColors.path}}\`\`\`{/${blessedSyntaxColors.path}}` : ''}`
+    })
+    blockIndex++
+    return placeholder
+  })
 
   // 1. File references (must be before paths to handle file.ts:123)
   highlighted = highlightFileRefsBlessed(highlighted)
@@ -446,6 +464,11 @@ export function applySyntaxHighlightBlessed(text: string): string {
 
   // 9. Numbers
   highlighted = highlightNumbersBlessed(highlighted)
+
+  // Restore code blocks
+  for (const block of codeBlocks) {
+    highlighted = highlighted.replace(block.placeholder, block.content)
+  }
 
   return highlighted
 }

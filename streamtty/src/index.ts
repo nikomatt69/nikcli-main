@@ -4,6 +4,13 @@ import { BlessedRenderer } from './renderer/blessed-renderer';
 import { StreamttyOptions, RenderContext, StreamBuffer } from './types';
 import { AISDKStreamAdapter, AISDKStreamAdapterOptions } from './ai-sdk-adapter';
 import { StreamEvent } from './types/stream-events';
+import { pluginSystem } from './plugins/plugin-system';
+import { inputValidator } from './security/input-validator';
+import { KeyHandler } from './controls/key-handler';
+import { remarkMath } from './plugins/remark/math';
+import { remarkMermaid } from './plugins/remark/mermaid';
+import { rehypeHarden } from './plugins/rehype/harden';
+import { getTheme } from './themes';
 
 export class Streamtty {
   private parser: StreamingMarkdownParser;
@@ -12,21 +19,38 @@ export class Streamtty {
   private updateInterval: NodeJS.Timeout | null = null;
   private pendingUpdate: boolean = false;
   private aiAdapter: AISDKStreamAdapter;
+  private keyHandler: KeyHandler | null = null;
 
   constructor(options: StreamttyOptions = {}) {
     const screen = options.screen || this.createDefaultScreen();
     const container = this.createContainer(screen);
 
+    // Apply theme if specified
+    const theme = options.theme ? getTheme(options.theme) : null;
+    const styles = theme ? { ...theme.markdown, ...options.styles } : options.styles;
+
     const defaultOptions: Required<StreamttyOptions> = {
       parseIncompleteMarkdown: options.parseIncompleteMarkdown ?? true,
-      styles: options.styles || {},
+      styles: styles || {},
       syntaxHighlight: options.syntaxHighlight ?? true,
       showLineNumbers: options.showLineNumbers ?? false,
       maxWidth: options.maxWidth ?? 120,
       gfm: options.gfm ?? true,
       screen,
       autoScroll: options.autoScroll ?? true,
-    };
+      // Enhanced features (opt-in, backward compatible)
+      remarkPlugins: options.remarkPlugins,
+      rehypePlugins: options.rehypePlugins,
+      theme: options.theme,
+      shikiLanguages: options.shikiLanguages,
+      controls: options.controls,
+      mermaidConfig: options.mermaidConfig,
+      mathConfig: options.mathConfig,
+      security: options.security,
+      enhancedFeatures: options.enhancedFeatures || {},
+      isStreaming: options.isStreaming,
+      components: options.components,
+    } as Required<StreamttyOptions>;
 
     const buffer: StreamBuffer = {
       content: '',
@@ -54,7 +78,37 @@ export class Streamtty {
       renderTimestamps: false
     });
 
+    // Initialize enhanced features
+    this.initializeEnhancedFeatures();
+
     this.setupKeyBindings();
+  }
+
+  /**
+   * Initialize enhanced features if enabled
+   */
+  private initializeEnhancedFeatures(): void {
+    const options = this.context.options;
+
+    // Register built-in plugins
+    if (options.enhancedFeatures?.math) {
+      pluginSystem.registerBuiltIn(remarkMath);
+    }
+    if (options.enhancedFeatures?.mermaid) {
+      pluginSystem.registerBuiltIn(remarkMermaid);
+    }
+    if (options.enhancedFeatures?.security) {
+      pluginSystem.registerBuiltIn(rehypeHarden);
+    }
+
+    // Load user plugins
+    pluginSystem.loadPlugins(options.remarkPlugins, options.rehypePlugins);
+
+    // Initialize interactive controls
+    if (options.controls && options.enhancedFeatures?.interactiveControls) {
+      const controlsConfig = typeof options.controls === 'object' ? options.controls : {};
+      this.keyHandler = new KeyHandler(this.context.screen, this.context.container, controlsConfig);
+    }
   }
 
   /**
@@ -142,12 +196,43 @@ export class Streamtty {
   /**
    * Stream a chunk of markdown
    */
-  public stream(chunk: string): void {
-    this.context.buffer.content += chunk;
+  public async stream(chunk: string): Promise<void> {
+    let processedChunk = chunk;
+
+    // Apply security validation if enabled
+    if (this.context.options.enhancedFeatures?.security) {
+      const validationResult = inputValidator.validate(chunk);
+      if (!validationResult.valid) {
+        console.warn('Security validation failed:', validationResult.errors);
+        return;
+      }
+      processedChunk = validationResult.sanitized;
+    }
+
+    // Apply remark plugins (pre-parse)
+    if (this.context.options.remarkPlugins || this.context.options.enhancedFeatures?.math || this.context.options.enhancedFeatures?.mermaid) {
+      const remarkResult = await pluginSystem.processRemark(processedChunk, this.context);
+      processedChunk = remarkResult.data;
+      if (remarkResult.warnings && remarkResult.warnings.length > 0) {
+        console.warn('Remark plugin warnings:', remarkResult.warnings);
+      }
+    }
+
+    this.context.buffer.content += processedChunk;
     this.context.buffer.lastUpdate = Date.now();
 
     // Parse the new content
-    const tokens = this.parser.addChunk(chunk);
+    let tokens = this.parser.addChunk(processedChunk);
+
+    // Apply rehype plugins (post-parse)
+    if (this.context.options.rehypePlugins || this.context.options.enhancedFeatures?.security) {
+      const rehypeResult = await pluginSystem.processRehype(tokens, this.context);
+      tokens = rehypeResult.data;
+      if (rehypeResult.warnings && rehypeResult.warnings.length > 0) {
+        console.warn('Rehype plugin warnings:', rehypeResult.warnings);
+      }
+    }
+
     this.context.buffer.tokens = tokens;
 
     // Debounced render
@@ -309,3 +394,21 @@ export * from './performance';
 export * from './utils/syntax-highlighter';
 export * from './utils/blessed-syntax-highlighter';
 export * from './utils/formatting';
+
+// Export enhanced features
+export * from './plugins';
+export * from './renderers';
+export * from './security';
+export * from './controls';
+export * from './themes';
+
+// Explicitly re-export key types for external consumption
+export type {
+  EnhancedFeaturesConfig,
+  TTYControlsConfig,
+  MermaidTTYConfig,
+  MathRenderConfig,
+  SecurityConfig,
+  KeyBindings,
+  ComponentOverrides
+} from './types';

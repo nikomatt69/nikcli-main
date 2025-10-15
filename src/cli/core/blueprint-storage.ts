@@ -3,6 +3,8 @@ import os from 'node:os'
 import path from 'node:path'
 import chalk from 'chalk'
 import type { AgentBlueprint } from './agent-factory'
+import { advancedUI } from '../ui/advanced-cli-ui'
+import type { CustomOutputStyle } from '../types/output-styles'
 
 export interface BlueprintStorageConfig {
   storageDir: string
@@ -33,6 +35,7 @@ export class BlueprintStorage {
   private initialized: boolean = false
   private initPromise?: Promise<void>
   private blueprintsCache: Map<string, AgentBlueprint> = new Map()
+  private stylesCache: Map<string, CustomOutputStyle> = new Map()
 
   constructor(config?: Partial<BlueprintStorageConfig>) {
     this.config = {
@@ -41,6 +44,20 @@ export class BlueprintStorage {
       autoBackup: true,
       ...config,
     }
+  }
+
+  /**
+   * Get styles directory path
+   */
+  private getStylesDir(): string {
+    return path.join(this.config.storageDir, 'styles')
+  }
+
+  /**
+   * Get styles backup directory path
+   */
+  private getStylesBackupDir(): string {
+    return path.join(this.config.storageDir, 'backups', 'styles')
   }
 
   /**
@@ -71,11 +88,22 @@ export class BlueprintStorage {
       const backupDir = path.join(this.config.storageDir, 'backups')
       await fs.mkdir(backupDir, { recursive: true })
 
+      // Crea directory per styles
+      const stylesDir = this.getStylesDir()
+      await fs.mkdir(stylesDir, { recursive: true })
+
+      // Crea backup directory per styles
+      const stylesBackupDir = this.getStylesBackupDir()
+      await fs.mkdir(stylesBackupDir, { recursive: true })
+
       // Carica tutti i blueprints esistenti
       await this.loadAllBlueprints()
 
+      // Carica tutti gli styles esistenti
+      await this.loadAllStyles()
+
       this.initialized = true
-      console.log(chalk.gray(`📁 Blueprint storage initialized: ${this.config.storageDir}`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`📁 Blueprint storage initialized: ${this.config.storageDir}`))
     } catch (error: any) {
       console.error(chalk.red(`❌ Failed to initialize blueprint storage: ${error.message}`))
       throw error
@@ -111,7 +139,7 @@ export class BlueprintStorage {
         await this.createBackup(blueprint.id)
       }
 
-      console.log(chalk.gray(`💾 Blueprint saved: ${blueprint.name} (${blueprint.id})`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(` Blueprint saved: ${blueprint.name} (${blueprint.id})`))
     } catch (error: any) {
       console.error(chalk.red(`❌ Failed to save blueprint: ${error.message}`))
       throw error
@@ -173,7 +201,7 @@ export class BlueprintStorage {
         }
       }
 
-      console.log(chalk.gray(`📋 Loaded ${this.blueprintsCache.size} blueprints from storage`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`📋 Loaded ${this.blueprintsCache.size} blueprints from storage`))
     } catch (error: any) {
       if (error.code !== 'ENOENT') {
         console.error(chalk.red(`❌ Failed to load blueprints: ${error.message}`))
@@ -223,7 +251,7 @@ export class BlueprintStorage {
       await fs.unlink(filepath)
       this.blueprintsCache.delete(blueprintId)
 
-      console.log(chalk.gray(`🗑️ Blueprint deleted: ${blueprintId}`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`🗑️ Blueprint deleted: ${blueprintId}`))
       return true
     } catch (error: any) {
       if (error.code === 'ENOENT') {
@@ -245,7 +273,7 @@ export class BlueprintStorage {
       }
 
       await fs.writeFile(exportPath, JSON.stringify(blueprint, null, 2))
-      console.log(chalk.green(`📤 Blueprint exported: ${exportPath}`))
+      advancedUI.logFunctionUpdate('info', chalk.green(`📤 Blueprint exported: ${exportPath}`))
       return true
     } catch (error: any) {
       console.error(chalk.red(`❌ Failed to export blueprint: ${error.message}`))
@@ -266,7 +294,7 @@ export class BlueprintStorage {
       blueprint.createdAt = new Date()
 
       await this.saveBlueprint(blueprint)
-      console.log(chalk.green(`📥 Blueprint imported: ${blueprint.name}`))
+      advancedUI.logFunctionUpdate('info', chalk.green(`📥 Blueprint imported: ${blueprint.name}`))
       return blueprint
     } catch (error: any) {
       console.error(chalk.red(`❌ Failed to import blueprint: ${error.message}`))
@@ -372,7 +400,7 @@ export class BlueprintStorage {
       await fs.writeFile(backupPath, content)
     } catch (error: any) {
       // Backup fallimento non è critico, log solamente
-      console.log(chalk.yellow(`⚠️ Backup failed for ${blueprintId}: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ Backup failed for ${blueprintId}: ${error.message}`))
     }
   }
 
@@ -399,14 +427,14 @@ export class BlueprintStorage {
         const toRemove = sorted.slice(0, blueprints.length - this.config.maxBlueprints)
         for (const blueprint of toRemove) {
           await this.deleteBlueprint(blueprint.id)
-          console.log(chalk.yellow(`🧹 Removed old blueprint: ${blueprint.name}`))
+          advancedUI.logFunctionUpdate('info', chalk.yellow(`🧹 Removed old blueprint: ${blueprint.name}`))
         }
       }
 
       // Pulizia backups vecchi (mantieni solo gli ultimi 10 per blueprint)
       await this.cleanupOldBackups()
 
-      console.log(chalk.gray(`🧹 Storage cleanup completed`))
+      advancedUI.logFunctionUpdate('info', chalk.gray(`🧹 Storage cleanup completed`))
     } catch (error: any) {
       console.error(chalk.red(`❌ Storage cleanup failed: ${error.message}`))
     }
@@ -443,8 +471,247 @@ export class BlueprintStorage {
       }
     } catch (error: any) {
       // Cleanup backups non è critico
-      console.log(chalk.yellow(`⚠️ Backup cleanup failed: ${error.message}`))
+      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ Backup cleanup failed: ${error.message}`))
     }
+  }
+
+  // ==================== OUTPUT STYLES METHODS ====================
+
+  /**
+   * Load all custom output styles from storage
+   */
+  private async loadAllStyles(): Promise<void> {
+    try {
+      const stylesDir = this.getStylesDir()
+      const files = await fs.readdir(stylesDir)
+
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const styleId = file.replace('.json', '')
+          const style = await this.loadStyle(styleId)
+          if (style) {
+            this.stylesCache.set(styleId, style)
+          }
+        }
+      }
+    } catch (error: any) {
+      // Non è critico se non ci sono styles
+      if (error.code !== 'ENOENT') {
+        console.warn(chalk.yellow(`⚠️ Failed to load styles: ${error.message}`))
+      }
+    }
+  }
+
+  /**
+   * Save custom output style to filesystem
+   */
+  async saveStyle(style: CustomOutputStyle): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize()
+    }
+
+    try {
+      const stylesDir = this.getStylesDir()
+      const filename = `${style.id}.json`
+      const filepath = path.join(stylesDir, filename)
+
+      // Add metadata
+      const styleWithMetadata = {
+        ...style,
+        updatedAt: new Date(),
+        version: '1.0',
+      }
+
+      await fs.writeFile(filepath, JSON.stringify(styleWithMetadata, null, 2))
+
+      // Update cache
+      this.stylesCache.set(style.id, style)
+
+      // Auto-backup if enabled
+      if (this.config.autoBackup) {
+        await this.createStyleBackup(style.id)
+      }
+
+      advancedUI.logFunctionUpdate('info', chalk.gray(`💅 Style saved: ${style.name} (${style.id})`))
+    } catch (error: any) {
+      console.error(chalk.red(`❌ Failed to save style: ${error.message}`))
+      throw error
+    }
+  }
+
+  /**
+   * Load specific custom output style
+   */
+  async loadStyle(styleId: string): Promise<CustomOutputStyle | null> {
+    if (!this.initialized) {
+      await this.initialize()
+    }
+
+    try {
+      // Check cache first
+      if (this.stylesCache.has(styleId)) {
+        return this.stylesCache.get(styleId)!
+      }
+
+      const stylesDir = this.getStylesDir()
+      const filename = `${styleId}.json`
+      const filepath = path.join(stylesDir, filename)
+
+      const content = await fs.readFile(filepath, 'utf-8')
+      const style = JSON.parse(content) as CustomOutputStyle
+
+      // Update cache
+      this.stylesCache.set(styleId, style)
+
+      return style
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        return null
+      }
+      console.error(chalk.red(`❌ Failed to load style ${styleId}: ${error.message}`))
+      return null
+    }
+  }
+
+  /**
+   * List all custom output styles
+   */
+  async listStyles(): Promise<CustomOutputStyle[]> {
+    if (!this.initialized) {
+      await this.initialize()
+    }
+
+    try {
+      const stylesDir = this.getStylesDir()
+      const files = await fs.readdir(stylesDir)
+      const styles: CustomOutputStyle[] = []
+
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const styleId = file.replace('.json', '')
+          const style = await this.loadStyle(styleId)
+          if (style) {
+            styles.push(style)
+          }
+        }
+      }
+
+      return styles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    } catch (error: any) {
+      console.error(chalk.red(`❌ Failed to list styles: ${error.message}`))
+      return []
+    }
+  }
+
+  /**
+   * Delete custom output style
+   */
+  async deleteStyle(styleId: string): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize()
+    }
+
+    try {
+      const stylesDir = this.getStylesDir()
+      const filename = `${styleId}.json`
+      const filepath = path.join(stylesDir, filename)
+
+      await fs.unlink(filepath)
+
+      // Remove from cache
+      this.stylesCache.delete(styleId)
+
+      advancedUI.logFunctionUpdate('info', chalk.gray(`🗑️ Style deleted: ${styleId}`))
+    } catch (error: any) {
+      console.error(chalk.red(`❌ Failed to delete style: ${error.message}`))
+      throw error
+    }
+  }
+
+  /**
+   * Export custom output style to file
+   */
+  async exportStyle(styleId: string, destPath: string): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize()
+    }
+
+    try {
+      const style = await this.loadStyle(styleId)
+      if (!style) {
+        throw new Error(`Style ${styleId} not found`)
+      }
+
+      await fs.writeFile(destPath, JSON.stringify(style, null, 2))
+
+      advancedUI.logFunctionUpdate('info', chalk.gray(`📤 Style exported: ${destPath}`))
+    } catch (error: any) {
+      console.error(chalk.red(`❌ Failed to export style: ${error.message}`))
+      throw error
+    }
+  }
+
+  /**
+   * Import custom output style from file
+   */
+  async importStyle(sourcePath: string): Promise<CustomOutputStyle> {
+    if (!this.initialized) {
+      await this.initialize()
+    }
+
+    try {
+      const content = await fs.readFile(sourcePath, 'utf-8')
+      const style = JSON.parse(content) as CustomOutputStyle
+
+      // Generate new ID if already exists
+      let styleId = style.id
+      let counter = 1
+      while (this.stylesCache.has(styleId)) {
+        styleId = `${style.id}-${counter}`
+        counter++
+      }
+
+      const importedStyle: CustomOutputStyle = {
+        ...style,
+        id: styleId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      await this.saveStyle(importedStyle)
+
+      advancedUI.logFunctionUpdate('info', chalk.gray(`📥 Style imported: ${importedStyle.name} (${styleId})`))
+
+      return importedStyle
+    } catch (error: any) {
+      console.error(chalk.red(`❌ Failed to import style: ${error.message}`))
+      throw error
+    }
+  }
+
+  /**
+   * Create backup for custom output style
+   */
+  private async createStyleBackup(styleId: string): Promise<void> {
+    try {
+      const stylesDir = this.getStylesDir()
+      const backupDir = this.getStylesBackupDir()
+
+      const sourceFile = path.join(stylesDir, `${styleId}.json`)
+      const backupFile = path.join(backupDir, `${styleId}-backup-${Date.now()}.json`)
+
+      await fs.copyFile(sourceFile, backupFile)
+    } catch (error: any) {
+      // Backup non è critico
+      advancedUI.logFunctionUpdate('info', chalk.yellow(`⚠️ Style backup failed: ${error.message}`))
+    }
+  }
+
+  /**
+   * Get custom styles cache
+   */
+  getStylesCache(): Map<string, CustomOutputStyle> {
+    return new Map(this.stylesCache)
   }
 }
 

@@ -349,6 +349,7 @@ Estimate realistic durations and assess risk levels accurately.`
                   env: toolCall.arguments.env,
                   skipConfirmation: options.skipApproval,
                   allowDangerous: toolCall.arguments.allowDangerous,
+                  shell: toolCall.arguments.shell,
                 })
                 result = commandResult.data
               }
