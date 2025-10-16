@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@nicomatt69/nikcli-sdk",
+  "version": "1.0.0",
+  "description": "Official NikCLI SDK for building TTY applications and CLI agents",
+  "author": "nikomatt69",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=6.0.0",
+    "yarn": ">=1.0.0",
+    "pnpm": ">=8.0.0",
+    "bun": ">=1.3.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "lint": "biome lint src/",
+    "format": "biome format --write src/",
+    "check": "biome check --write src/"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^1.0.0",
+    "@ai-sdk/gateway": "^1.0.10",
+    "@ai-sdk/google": "^1.0.0",
+    "@ai-sdk/openai": "^1.0.66",
+    "@ai-sdk/vercel": "^1.0.10",
+    "@openrouter/ai-sdk-provider": "^1.2.0",
+    "ai": "^3.4.33",
+    "chalk": "^5.3.0",
+    "nanoid": "^5.0.4",
+    "zod": "^3.22.4",
+    "zustand": "^4.4.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
+    "@types/node": "^22.13.14",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "keywords": [
+    "cli",
+    "tty",
+    "ai",
+    "agents",
+    "sdk",
+    "typescript",
+    "react",
+    "terminal",
+    "automation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nikomatt69/nikcli-main.git",
+    "directory": "src/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/nikomatt69/nikcli-main/issues"
+  },
+  "homepage": "https://github.com/nikomatt69/nikcli-main#readme"
+}
