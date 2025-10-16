@@ -214,9 +214,10 @@ export class AgentManager extends EventEmitter {
       // Calculate score based on capabilities match
       let score = 0
 
+      // FIXED: Replaced 'any' with proper type (ERR-039)
       // Check required capabilities
       if (task.requiredCapabilities) {
-        const matchingCapabilities = task.requiredCapabilities.filter((cap: any) => agent.capabilities.includes(cap))
+        const matchingCapabilities = task.requiredCapabilities.filter((cap: string) => agent.capabilities.includes(cap))
         score += matchingCapabilities.length * 10
       }
 
@@ -279,9 +280,17 @@ export class AgentManager extends EventEmitter {
       })
     )
 
+    // FIXED: Added error handling to async setImmediate (ERR-034)
     // Start execution if agent is available
     if (agent.currentTasks < agent.maxConcurrentTasks) {
-      setImmediate(() => this.processAgentQueue(agent.id))
+      setImmediate(() => {
+        this.processAgentQueue(agent.id).catch((error) => {
+          structuredLogger.error(
+            'Queue processing failed in setImmediate',
+            JSON.stringify({ agentId: agent.id, error: error.message })
+          )
+        })
+      })
     }
 
     return agent.id
@@ -290,7 +299,7 @@ export class AgentManager extends EventEmitter {
   /**
    * Execute a task on a specific agent
    */
-  async executeTask(agentId: string, task: AgentTask): Promise<AgentTaskResult> {
+  async executeTask(agentId: string, task: AgentTask, timeoutMs: number = 300000): Promise<AgentTaskResult> {
     const agent = this.getAgent(agentId)
     if (!agent) {
       throw new Error(`Agent not found: ${agentId}`)
@@ -305,15 +314,30 @@ export class AgentManager extends EventEmitter {
       JSON.stringify({
         taskId: task.id,
         agentId: agentId,
+        timeout: timeoutMs,
       })
     )
+
+    // Setup timeout controller
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
     try {
       this.activeTaskCount++
       task.status = 'in_progress'
       task.startedAt = new Date()
 
-      const result = await agent.executeTask(task)
+      // Race between task execution and timeout
+      const result = await Promise.race([
+        agent.executeTask(task),
+        new Promise<never>((_, reject) => {
+          controller.signal.addEventListener('abort', () =>
+            reject(new Error(`Task ${task.id} timed out after ${timeoutMs}ms`))
+          )
+        }),
+      ])
+
+      clearTimeout(timeoutId)
 
       // Store result
       this.taskHistory.set(task.id, result)
@@ -330,24 +354,30 @@ export class AgentManager extends EventEmitter {
 
       return result
     } catch (error: any) {
+      clearTimeout(timeoutId)
+
+      // Check if error is timeout-related
+      const isTimeout = error.name === 'AbortError' || error.message?.includes('timed out')
+
       const result: AgentTaskResult = {
         taskId: task.id,
         agentId,
         status: 'failed',
         startTime: task.startedAt!,
         endTime: new Date(),
-        error: error.message,
+        error: isTimeout ? `Task timeout (${timeoutMs}ms)` : error.message,
         errorDetails: error,
       }
 
       this.taskHistory.set(task.id, result)
 
       await structuredLogger.error(
-        'Task failed',
+        isTimeout ? 'Task timed out' : 'Task failed',
         JSON.stringify({
           taskId: task.id,
           agentId: agentId,
-          error: error.message,
+          error: result.error,
+          timeout: isTimeout,
         })
       )
 
@@ -416,6 +446,7 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Run tasks in parallel with concurrency limit
+   * FIXED: Replaced Promise.race() with Promise.allSettled() to prevent task loss
    */
   async runParallel(concurrency?: number): Promise<void> {
     const maxConcurrency = concurrency || this.config.maxConcurrentAgents
@@ -431,14 +462,17 @@ export class AgentManager extends EventEmitter {
     const promises: Promise<void>[] = []
 
     for (const agentId of this.taskQueues.keys()) {
-      if (promises.length >= (maxConcurrency || 5)) {
-        await Promise.race(promises)
+      // Wait for all promises to settle when at capacity, then clear the array
+      while (promises.length >= maxConcurrency) {
+        await Promise.allSettled(promises)
+        promises.length = 0 // Clear completed promises
       }
 
       promises.push(this.processAgentQueue(agentId))
     }
 
-    await Promise.all(promises)
+    // Ensure all remaining promises complete
+    await Promise.allSettled(promises)
 
     await structuredLogger.info('Parallel task execution completed', 'AgentManager')
   }

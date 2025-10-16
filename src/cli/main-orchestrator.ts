@@ -86,28 +86,43 @@ export class MainOrchestrator {
       // Clear resources
       await this.cleanup()
 
+      // FIXED: Added error logging to all dispose operations (ERR-031, ERR-032)
       // Dispose subsystems (best-effort)
       try {
         await lspManager.dispose()
-      } catch { }
+      } catch (error: any) {
+        advancedUI.logWarning(`⚠️ LSP Manager disposal failed: ${error.message}`)
+      }
       try {
         await (lspService as any)?.dispose?.()
-      } catch { }
+      } catch (error: any) {
+        advancedUI.logWarning(`⚠️ LSP Service disposal failed: ${error.message}`)
+      }
       try {
         await (agentService as any)?.dispose?.()
-      } catch { }
+      } catch (error: any) {
+        advancedUI.logWarning(`⚠️ Agent Service disposal failed: ${error.message}`)
+      }
       try {
         await (toolService as any)?.dispose?.()
-      } catch { }
+      } catch (error: any) {
+        advancedUI.logWarning(`⚠️ Tool Service disposal failed: ${error.message}`)
+      }
       try {
         ; (advancedUI as any)?.dispose?.()
-      } catch { }
+      } catch (error: any) {
+        console.warn(`Advanced UI disposal failed: ${error.message}`)
+      }
       try {
         await mcpClient.dispose()
-      } catch { }
+      } catch (error: any) {
+        advancedUI.logWarning(`⚠️ MCP Client disposal failed: ${error.message}`)
+      }
       try {
         await (this.vmOrchestrator as any)?.dispose?.()
-      } catch { }
+      } catch (error: any) {
+        advancedUI.logWarning(`⚠️ VM Orchestrator disposal failed: ${error.message}`)
+      }
 
       advancedUI.logSuccess('✓ Orchestrator shut down cleanly')
     } catch (error) {
@@ -550,44 +565,58 @@ export class MainOrchestrator {
 
     this.vmOrchestrator.on('container:log', async (data: any) => {
       const timestamp = new Date().toLocaleTimeString()
-      const containerId = data.containerId?.slice(0, 8) || 'unknown'
+      const containerId = data?.containerId?.slice(0, 8) || 'unknown'
+      const logMessage = data?.log || '[empty log]'
 
+      // FIXED: Added proper null checks with optional chaining
       // Log to recentUpdates with structured format (consistent with default mode)
       await advancedUI.logFunctionCall(`vm_${containerId}`)
-      await advancedUI.logFunctionUpdate('info', data.log || '')
+      await advancedUI.logFunctionUpdate('info', logMessage)
 
       await this.streamOrchestrator.streamToPanel(
         'vm-logs',
-        `[${timestamp}] [${containerId}] ${data.log}\n`
+        `[${timestamp}] [${containerId}] ${logMessage}\n`
       )
     })
 
     this.vmOrchestrator.on('container:metrics', async (data: any) => {
+      // FIXED: Added proper null checks for metrics data
+      const containerId = data?.containerId?.slice(0, 8) || 'unknown'
+      const memoryUsage = data?.metrics?.memoryUsage ? (data.metrics.memoryUsage / 1024 / 1024).toFixed(2) : '0.00'
+      const cpuUsage = data?.metrics?.cpuUsage?.toFixed(2) || '0.00'
+      const networkActivity = data?.metrics?.networkActivity ? (data.metrics.networkActivity / 1024).toFixed(2) : '0.00'
+
       await this.streamOrchestrator.streamToPanel(
         'vm-metrics',
-        `📊 ${data.containerId?.slice(0, 8)}:\n` +
-        `   Memory: ${(data.metrics?.memoryUsage / 1024 / 1024).toFixed(2)} MB\n` +
-        `   CPU: ${data.metrics?.cpuUsage?.toFixed(2)}%\n` +
-        `   Network: ${(data.metrics?.networkActivity / 1024).toFixed(2)} KB\n\n`
+        `📊 ${containerId}:\n` +
+        `   Memory: ${memoryUsage} MB\n` +
+        `   CPU: ${cpuUsage}%\n` +
+        `   Network: ${networkActivity} KB\n\n`
       )
     })
 
     this.vmOrchestrator.on('agent:message', async (data: any) => {
+      // FIXED: Added proper null checks
       // Log to recentUpdates with structured format (consistent with default mode)
-      const agentId = data.agentId || 'unknown_agent'
-      await advancedUI.logFunctionCall(`vm_agent_${agentId}`)
-      await advancedUI.logFunctionUpdate('info', data.message || '')
+      const agentId = data?.agentId || 'unknown_agent'
+      const message = data?.message || '[empty message]'
 
-      await this.streamOrchestrator.streamToPanel('vm-logs', `[AGENT] ${agentId}: ${data.message}\n`)
+      await advancedUI.logFunctionCall(`vm_agent_${agentId}`)
+      await advancedUI.logFunctionUpdate('info', message)
+
+      await this.streamOrchestrator.streamToPanel('vm-logs', `[AGENT] ${agentId}: ${message}\n`)
     })
 
     this.vmOrchestrator.on('agent:error', async (data: any) => {
+      // FIXED: Added proper null checks
       // Log to recentUpdates with structured format (consistent with default mode)
-      const agentId = data.agentId || 'unknown_agent'
-      await advancedUI.logFunctionCall(`vm_agent_${agentId}`)
-      await advancedUI.logFunctionUpdate('error', data.error || 'Unknown error')
+      const agentId = data?.agentId || 'unknown_agent'
+      const error = data?.error || 'Unknown error'
 
-      await this.streamOrchestrator.streamToPanel('vm-logs', `[ERROR] ${agentId}: ${data.error}\n`)
+      await advancedUI.logFunctionCall(`vm_agent_${agentId}`)
+      await advancedUI.logFunctionUpdate('error', error)
+
+      await this.streamOrchestrator.streamToPanel('vm-logs', `[ERROR] ${agentId}: ${error}\n`)
     })
   }
 

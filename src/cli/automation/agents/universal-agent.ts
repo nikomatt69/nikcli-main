@@ -283,33 +283,57 @@ export class UniversalAgent extends EventEmitter implements Agent {
    * Converts natural language task into structured cognitive understanding
    */
   async parseTaskWithCognition(taskDescription: string): Promise<TaskCognition> {
+    // FIXED: Added input validation (ERR-036) + Standardized error format (ERR-040)
+    if (!taskDescription || typeof taskDescription !== 'string') {
+      throw new Error('[UniversalAgent] Invalid task description: must be a non-empty string')
+    }
+
+    const trimmedDescription = taskDescription.trim()
+    if (trimmedDescription.length === 0) {
+      throw new Error('[UniversalAgent] Invalid task description: cannot be empty or whitespace')
+    }
+
+    if (trimmedDescription.length > 10000) {
+      throw new Error('[UniversalAgent] Invalid task description: exceeds maximum length of 10000 characters')
+    }
+
     this.emit('cognitive_parsing_started', { task: taskDescription })
 
     try {
+      // FIXED: Added intermediate logging for debugging (ERR-027)
+
       // Step 1: Normalize and preprocess
-      const normalizedTask = this.normalizeTask(taskDescription)
+      const normalizedTask = this.normalizeTask(trimmedDescription)
+      await structuredLogger.info('Cognitive parsing: normalized task', JSON.stringify({ length: normalizedTask.length }))
 
       // Step 2: Extract intent with confidence scoring
       const intent = this.identifyIntent(normalizedTask)
+      await structuredLogger.info('Cognitive parsing: identified intent', JSON.stringify({ primary: intent.primary, confidence: intent.confidence }))
 
       // Step 3: Extract entities with NER
       const entities = this.extractEntities(normalizedTask, intent)
+      await structuredLogger.info('Cognitive parsing: extracted entities', JSON.stringify({ count: entities.length }))
 
       // Step 4: Analyze dependencies
       const dependencies = this.analyzeDependencies(normalizedTask, entities)
+      await structuredLogger.info('Cognitive parsing: analyzed dependencies', JSON.stringify({ count: dependencies.length }))
 
       // Step 5: Determine contexts
       const contexts = this.determineContexts(normalizedTask, entities, intent)
+      await structuredLogger.info('Cognitive parsing: determined contexts', JSON.stringify({ count: contexts.length }))
 
       // Step 6: Estimate complexity
       const estimatedComplexity = this.estimateComplexity(intent, entities, dependencies)
+      await structuredLogger.info('Cognitive parsing: estimated complexity', JSON.stringify({ complexity: estimatedComplexity }))
 
       // Step 7: Suggest capabilities and agents
       const requiredCapabilities = this.inferRequiredCapabilities(intent, entities)
       const suggestedAgents = this.suggestOptimalAgents(intent, entities, requiredCapabilities)
+      await structuredLogger.info('Cognitive parsing: inferred requirements', JSON.stringify({ capabilities: requiredCapabilities.length, agents: suggestedAgents.length }))
 
       // Step 8: Assess risk level
       const riskLevel = this.assessRiskLevel(intent, entities, dependencies)
+      await structuredLogger.info('Cognitive parsing: assessed risk', JSON.stringify({ riskLevel }))
 
       const cognition: TaskCognition = {
         id: `cognition_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -332,8 +356,9 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
       return cognition
     } catch (error: any) {
+      // FIXED: Standardized error message format (ERR-040)
       this.emit('cognitive_parsing_error', { task: taskDescription, error: error.message })
-      throw new Error(`Cognitive parsing failed: ${error.message}`)
+      throw new Error(`[UniversalAgent] Cognitive parsing failed: ${error.message}`)
     }
   }
 
@@ -342,6 +367,23 @@ export class UniversalAgent extends EventEmitter implements Agent {
    * Creates optimal orchestration plan based on task cognition
    */
   async createOrchestrationPlan(cognition: TaskCognition): Promise<OrchestrationPlan> {
+    // FIXED: Added cognition validation (ERR-037) + Standardized error format (ERR-040)
+    if (!cognition) {
+      throw new Error('[UniversalAgent] Invalid cognition: cannot be null or undefined')
+    }
+
+    if (!cognition.intent || !cognition.intent.primary) {
+      throw new Error('[UniversalAgent] Invalid cognition: missing or incomplete intent')
+    }
+
+    if (typeof cognition.estimatedComplexity !== 'number' || cognition.estimatedComplexity < 0) {
+      throw new Error('[UniversalAgent] Invalid cognition: estimatedComplexity must be a non-negative number')
+    }
+
+    if (!Array.isArray(cognition.entities) || !Array.isArray(cognition.dependencies)) {
+      throw new Error('[UniversalAgent] Invalid cognition: entities and dependencies must be arrays')
+    }
+
     this.emit('orchestration_planning_started', { cognition })
 
     try {
@@ -380,8 +422,9 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
       return plan
     } catch (error: any) {
+      // FIXED: Standardized error message format (ERR-040)
       this.emit('orchestration_planning_error', { cognition, error: error.message })
-      throw new Error(`Orchestration planning failed: ${error.message}`)
+      throw new Error(`[UniversalAgent] Orchestration planning failed: ${error.message}`)
     }
   }
 
@@ -397,7 +440,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
     this.emit('task_execution_started', { task })
 
     try {
-      // Step 1: ⚡︎ Cognitive Understanding
+      // Step 1: ⚡︎ Cognitive Understanding with validation
       await structuredLogger.info(
         '⚡︎ Starting cognitive analysis...',
         JSON.stringify({
@@ -407,15 +450,26 @@ export class UniversalAgent extends EventEmitter implements Agent {
       )
       const cognition = await this.parseTaskWithCognition(task.description || task.title)
 
-      // Step 2: 🎯 Strategic Planning
+      // FIXED: Validate cognition result + Standardized error format (ERR-040)
+      if (!cognition || !cognition.intent) {
+        throw new Error('[UniversalAgent] Failed to parse task cognition: invalid or missing intent')
+      }
+
+      // Step 2: 🎯 Strategic Planning with validation
       await structuredLogger.info(
         '🎯 Creating orchestration plan...',
         JSON.stringify({
           taskId: task.id,
           agentId: this.id,
+          complexity: cognition.estimatedComplexity,
         })
       )
       const plan = await this.createOrchestrationPlan(cognition)
+
+      // FIXED: Validate plan result + Standardized error format (ERR-040)
+      if (!plan || !plan.strategy) {
+        throw new Error('[UniversalAgent] Failed to create orchestration plan: invalid or missing strategy')
+      }
 
       // Step 3: 🚀 Adaptive Execution
       await structuredLogger.info(
@@ -423,6 +477,7 @@ export class UniversalAgent extends EventEmitter implements Agent {
         JSON.stringify({
           taskId: task.id,
           agentId: this.id,
+          strategy: plan.strategy,
         })
       )
       const result = await this.executeWithAdaptiveSupervision(task, cognition, plan)
@@ -434,6 +489,16 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
       return result
     } catch (error: any) {
+      // FIXED: Enhanced error context and logging
+      const errorContext = {
+        taskId: task.id,
+        taskTitle: task.title,
+        agentId: this.id,
+        errorMessage: error.message,
+        errorStack: error.stack,
+        duration: Date.now() - startTime,
+      }
+
       const errorResult: AgentTaskResult = {
         taskId: task.id,
         agentId: this.id,
@@ -441,18 +506,14 @@ export class UniversalAgent extends EventEmitter implements Agent {
         startTime: new Date(startTime),
         endTime: new Date(),
         error: error.message,
-        errorDetails: error,
+        errorDetails: { ...error, failureContext: errorContext },
       }
 
       this.emit('task_execution_error', { task, error: error.message })
 
-      await structuredLogger.info(
-        'Task execution failed',
-        JSON.stringify({
-          taskId: task.id,
-          agentId: this.id,
-          error: error.message,
-        })
+      await structuredLogger.error(
+        'Task execution failed with context',
+        JSON.stringify(errorContext)
       )
 
       return errorResult
@@ -734,353 +795,370 @@ export class UniversalAgent extends EventEmitter implements Agent {
       }
     }
 
+    // FIXED: Added missing task categories (ERR-020)
+    if (combined.includes('test') || combined.includes('spec') || combined.includes('jest') || combined.includes('vitest')) {
+      return { category: 'testing', confidence: 0.85, reasoning: 'Contains testing-related keywords' }
+    }
+
+    if (
+      combined.includes('document') ||
+      combined.includes('readme') ||
+      combined.includes('doc') ||
+      combined.includes('comment')
+    ) {
+      return { category: 'documentation', confidence: 0.8, reasoning: 'Contains documentation-related keywords' }
+    }
+
+    if (
+      combined.includes('schema') ||
+      combined.includes('migration') ||
+      combined.includes('database design') ||
+      combined.includes('table')
+    ) {
+      return { category: 'database-design', confidence: 0.85, reasoning: 'Contains database design keywords' }
+    }
+
+    if (
+      combined.includes('security') ||
+      combined.includes('vulnerability') ||
+      combined.includes('audit') ||
+      combined.includes('penetration')
+    ) {
+      return { category: 'security-audit', confidence: 0.9, reasoning: 'Contains security-related keywords' }
+    }
+
+    if (
+      combined.includes('profile') ||
+      combined.includes('benchmark') ||
+      combined.includes('bottleneck') ||
+      combined.includes('performance analysis')
+    ) {
+      return { category: 'performance-profiling', confidence: 0.85, reasoning: 'Contains profiling keywords' }
+    }
+
     return { category: 'general', confidence: 0.5, reasoning: 'No specific category detected' }
   }
 
   private async performCodeAnalysis(task: AgentTask): Promise<any> {
-    const output = `# Code Analysis Results
+    // FIXED: Delegate to real CodingAgent instead of mock (ERR-010)
+    try {
+      const { CodingAgent } = await import('./coding-agent')
+      const codingAgent = new CodingAgent(this.workingDirectory)
 
-## Task: ${task.title}
+      await structuredLogger.info('Delegating code analysis to CodingAgent', JSON.stringify({ taskId: task.id }))
 
-### Analysis Summary
-- **Target**: ${task.description}
-- **Working Directory**: ${this.workingDirectory}
-- **Agent**: Universal Agent (Analysis Mode)
+      // Create complete task object with all properties
+      const fullTask = {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        type: task.type || 'analysis',
+        requiredCapabilities: task.requiredCapabilities,
+        dependencies: task.dependencies,
+        createdAt: task.createdAt,
+        startedAt: task.startedAt,
+        completedAt: task.completedAt,
+      }
 
-### Findings
-1. **Structure Analysis**: Analyzing project structure and architecture
-2. **Code Quality**: Reviewing code quality and adherence to best practices
-3. **Performance**: Identifying potential performance bottlenecks
-4. **Security**: Checking for common security vulnerabilities
-5. **Maintainability**: Assessing code maintainability and readability
+      const result = await codingAgent.executeTask(fullTask as any) as any
 
-### Recommendations
-- Follow established coding conventions
-- Implement proper error handling
-- Add comprehensive documentation
-- Consider performance implications
-- Ensure security best practices
+      return {
+        output: result?.output || 'Code analysis completed',
+        data: {
+          analysisType: 'real-analysis',
+          ...(result?.result || {}),
+        },
+        toolsUsed: result?.toolsUsed || ['coding-agent'],
+        filesModified: result?.filesModified || [],
+      }
+    } catch (error: any) {
+      await structuredLogger.error(`[UniversalAgent] Code analysis delegation failed: ${error.message}`, 'UniversalAgent')
 
-### Next Steps
-- Apply recommended improvements
-- Run automated tests
-- Conduct peer review
-- Update documentation
-`
-
-    return {
-      output,
-      data: {
-        analysisType: 'comprehensive',
-        findings: 5,
-        recommendations: 5,
-      },
-      toolsUsed: ['static-analysis', 'pattern-matching'],
-      filesModified: [],
+      // Return failure result instead of mock data
+      return {
+        output: `Code analysis failed: ${error.message}`,
+        data: { error: error.message, analysisType: 'failed' },
+        toolsUsed: [],
+        filesModified: [],
+      }
     }
   }
 
   private async performCodeGeneration(task: AgentTask): Promise<any> {
-    const output = `# Code Generation Results
+    // FIXED: Delegate to real CodeGeneratorAgent instead of mock (ERR-011)
+    try {
+      const { CodeGeneratorAgent } = await import('./code-generator-agent')
+      const generatorAgent = new CodeGeneratorAgent(this.workingDirectory)
 
-## Task: ${task.title}
+      await structuredLogger.info('Delegating code generation to CodeGeneratorAgent', JSON.stringify({ taskId: task.id }))
 
-### Generated Code Structure
-- **Request**: ${task.description}
-- **Language**: Auto-detected based on context
-- **Pattern**: Following best practices and conventions
+      // Create complete task object with all properties
+      const fullTask = {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        type: task.type || 'generation',
+        requiredCapabilities: task.requiredCapabilities,
+        dependencies: task.dependencies,
+        createdAt: task.createdAt,
+        startedAt: task.startedAt,
+        completedAt: task.completedAt,
+      }
 
-### Implementation Notes
-1. **Architecture**: Following established patterns
-2. **Testing**: Includes unit test considerations
-3. **Documentation**: Comprehensive inline documentation
-4. **Error Handling**: Robust error handling implementation
-5. **Performance**: Optimized for performance
+      const result = await generatorAgent.executeTask(fullTask as any) as any
 
-### Generated Files
-- Implementation files created
-- Test files prepared
-- Documentation updated
-- Configuration files adjusted
+      return {
+        output: result?.output || 'Code generation completed',
+        data: {
+          generationType: 'real-generation',
+          ...(result?.result || {}),
+        },
+        toolsUsed: result?.toolsUsed || ['code-generator-agent'],
+        filesModified: result?.filesModified || [],
+      }
+    } catch (error: any) {
+      await structuredLogger.error(`[UniversalAgent] Code generation delegation failed: ${error.message}`, 'UniversalAgent')
 
-### Usage Instructions
-1. Review generated code
-2. Run tests to verify functionality
-3. Integrate with existing codebase
-4. Update documentation as needed
-`
-
-    return {
-      output,
-      data: {
-        generationType: 'full-implementation',
-        filesGenerated: 3,
-        testsIncluded: true,
-      },
-      toolsUsed: ['code-generation', 'template-engine'],
-      filesModified: ['implementation.ts', 'test.spec.ts', 'README.md'],
+      return {
+        output: `Code generation failed: ${error.message}`,
+        data: { error: error.message, generationType: 'failed' },
+        toolsUsed: [],
+        filesModified: [],
+      }
     }
   }
 
   private async performCodeReview(task: AgentTask): Promise<any> {
-    const output = `# Code Review Results
+    // FIXED: Delegate to real CodeReviewAgent instead of mock (ERR-012)
+    try {
+      const { CodeReviewAgent } = await import('./code-review-agent')
+      const reviewAgent = new CodeReviewAgent(this.workingDirectory)
 
-## Task: ${task.title}
+      await structuredLogger.info('Delegating code review to CodeReviewAgent', JSON.stringify({ taskId: task.id }))
 
-### Review Summary
-- **Scope**: ${task.description}
-- **Reviewer**: Universal Agent (Review Mode)
-- **Standards**: Industry best practices
+      // Create complete task object with all properties
+      const fullTask = {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        type: task.type || 'review',
+        requiredCapabilities: task.requiredCapabilities,
+        dependencies: task.dependencies,
+        createdAt: task.createdAt,
+        startedAt: task.startedAt,
+        completedAt: task.completedAt,
+      }
 
-### Review Criteria
-1. **Functionality**: ✓ Code works as intended
-2. **Readability**: ✓ Code is clear and well-documented
-3. **Performance**: ⚠️  Minor optimization opportunities
-4. **Security**: ✓ No security vulnerabilities detected
-5. **Maintainability**: ✓ Code is maintainable and extensible
+      const result = await reviewAgent.executeTask(fullTask as any) as any
 
-### Detailed Findings
-- **Strengths**: Well-structured, follows conventions
-- **Areas for Improvement**: Performance optimization, additional tests
-- **Critical Issues**: None identified
-- **Suggestions**: Consider adding more comprehensive error handling
+      return {
+        output: result?.output || 'Code review completed',
+        data: {
+          reviewType: 'real-review',
+          ...(result?.result || {}),
+        },
+        toolsUsed: result?.toolsUsed || ['code-review-agent'],
+        filesModified: result?.filesModified || [],
+      }
+    } catch (error: any) {
+      await structuredLogger.error(`[UniversalAgent] Code review delegation failed: ${error.message}`, 'UniversalAgent')
 
-### Approval Status
-✓ **APPROVED** with minor suggestions
-
-### Action Items
-1. Address performance optimization opportunities
-2. Add additional unit tests
-3. Update documentation
-4. Consider refactoring complex functions
-`
-
-    return {
-      output,
-      data: {
-        reviewType: 'comprehensive',
-        issuesFound: 2,
-        criticalIssues: 0,
-        approved: true,
-      },
-      toolsUsed: ['static-analysis', 'security-scan', 'performance-analysis'],
-      filesModified: [],
+      return {
+        output: `Code review failed: ${error.message}`,
+        data: { error: error.message, reviewType: 'failed' },
+        toolsUsed: [],
+        filesModified: [],
+      }
     }
   }
 
   private async performOptimization(task: AgentTask): Promise<any> {
-    const output = `# Optimization Results
+    // FIXED: Delegate to real OptimizationAgent instead of mock (ERR-013)
+    try {
+      const { OptimizationAgent } = await import('./optimization-agent')
+      const optimizationAgent = new OptimizationAgent(this.workingDirectory)
 
-## Task: ${task.title}
+      await structuredLogger.info('Delegating optimization to OptimizationAgent', JSON.stringify({ taskId: task.id }))
 
-### Optimization Summary
-- **Target**: ${task.description}
-- **Focus Areas**: Performance, memory usage, code efficiency
-- **Agent**: Universal Agent (Optimization Mode)
+      // Create complete task object with all properties
+      const fullTask = {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        type: task.type || 'optimization',
+        requiredCapabilities: task.requiredCapabilities,
+        dependencies: task.dependencies,
+        createdAt: task.createdAt,
+        startedAt: task.startedAt,
+        completedAt: task.completedAt,
+      }
 
-### Optimizations Applied
-1. **Performance Improvements**
-   - Reduced algorithm complexity
-   - Optimized database queries
-   - Improved caching strategies
+      const result = await optimizationAgent.executeTask(fullTask as any) as any
 
-2. **Memory Optimization**
-   - Reduced memory footprint
-   - Fixed memory leaks
-   - Optimized object allocation
+      return {
+        output: result?.output || 'Optimization completed',
+        data: {
+          optimizationType: 'real-optimization',
+          ...(result?.result || {}),
+        },
+        toolsUsed: result?.toolsUsed || ['optimization-agent'],
+        filesModified: result?.filesModified || [],
+      }
+    } catch (error: any) {
+      await structuredLogger.error(`[UniversalAgent] Optimization delegation failed: ${error.message}`, 'UniversalAgent')
 
-3. **Code Efficiency**
-   - Removed redundant code
-   - Improved function efficiency
-   - Enhanced error handling
-
-### Performance Metrics
-- **Before**: Baseline measurements
-- **After**: Improved performance metrics
-- **Improvement**: Estimated 30-50% performance gain
-
-### Implementation Details
-- Refactored critical paths
-- Added performance monitoring
-- Updated configuration for optimal settings
-- Implemented best practices
-
-### Verification
-- Performance tests passed
-- Memory usage within acceptable limits
-- No functionality regressions detected
-`
-
-    return {
-      output,
-      data: {
-        optimizationType: 'comprehensive',
-        performanceGain: 40,
-        memoryReduction: 25,
-      },
-      toolsUsed: ['profiler', 'performance-analyzer', 'memory-tracker'],
-      filesModified: ['optimized-modules.ts', 'config.json'],
+      return {
+        output: `Optimization failed: ${error.message}`,
+        data: { error: error.message, optimizationType: 'failed' },
+        toolsUsed: [],
+        filesModified: [],
+      }
     }
   }
 
   private async performReactDevelopment(task: AgentTask): Promise<any> {
-    const output = `# React Development Results
+    // FIXED: Delegate to real ReactAgent instead of mock (ERR-014)
+    try {
+      const { ReactAgent } = await import('./react-agent')
+      const reactAgent = new ReactAgent(this.workingDirectory)
 
-## Task: ${task.title}
+      await structuredLogger.info('Delegating React development to ReactAgent', JSON.stringify({ taskId: task.id }))
 
-### Development Summary
-- **Project**: ${task.description}
-- **Framework**: React with TypeScript
-- **Agent**: Universal Agent (React Mode)
+      // Create complete task object with all properties
+      const fullTask = {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        type: task.type || 'react-development',
+        requiredCapabilities: task.requiredCapabilities,
+        dependencies: task.dependencies,
+        createdAt: task.createdAt,
+        startedAt: task.startedAt,
+        completedAt: task.completedAt,
+      }
 
-### Components Created
-1. **UI Components**
-   - Reusable component library
-   - TypeScript interfaces
-   - Styled components
+      const result = await reactAgent.executeTask(fullTask as any) as any
 
-2. **Hooks Implementation**
-   - Custom React hooks
-   - State management
-   - Side effect handling
+      return {
+        output: result?.output || 'React development completed',
+        data: {
+          developmentType: 'real-react-dev',
+          ...(result?.result || {}),
+        },
+        toolsUsed: result?.toolsUsed || ['react-agent'],
+        filesModified: result?.filesModified || [],
+      }
+    } catch (error: any) {
+      await structuredLogger.error(`[UniversalAgent] React development delegation failed: ${error.message}`, 'UniversalAgent')
 
-3. **Testing Setup**
-   - Jest configuration
-   - React Testing Library
-   - Component tests
-
-### Technical Implementation
-- **State Management**: Context API / Redux Toolkit
-- **Styling**: CSS Modules / Styled Components
-- **Type Safety**: Full TypeScript implementation
-- **Performance**: Optimized with React.memo and useMemo
-
-### Features Implemented
-- Component architecture
-- Props validation
-- Error boundaries
-- Accessibility features
-- Responsive design
-`
-
-    return {
-      output,
-      data: {
-        developmentType: 'react-frontend',
-        componentsCreated: 5,
-        hooksImplemented: 3,
-        testsWritten: 8,
-      },
-      toolsUsed: ['react-dev-tools', 'typescript-compiler', 'jest'],
-      filesModified: ['components/', 'hooks/', 'tests/'],
+      return {
+        output: `React development failed: ${error.message}`,
+        data: { error: error.message, developmentType: 'failed' },
+        toolsUsed: [],
+        filesModified: [],
+      }
     }
   }
 
   private async performBackendDevelopment(task: AgentTask): Promise<any> {
-    const output = `# Backend Development Results
+    // FIXED: Delegate to real BackendAgent instead of mock (ERR-015)
+    try {
+      const { BackendAgent } = await import('./backend-agent')
+      const backendAgent = new BackendAgent(this.workingDirectory)
 
-## Task: ${task.title}
+      await structuredLogger.info('Delegating backend development to BackendAgent', JSON.stringify({ taskId: task.id }))
 
-### Development Summary
-- **Project**: ${task.description}
-- **Platform**: Node.js with TypeScript
-- **Agent**: Universal Agent (Backend Mode)
+      // Create complete task object with all properties
+      const fullTask = {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        type: task.type || 'backend-development',
+        requiredCapabilities: task.requiredCapabilities,
+        dependencies: task.dependencies,
+        createdAt: task.createdAt,
+        startedAt: task.startedAt,
+        completedAt: task.completedAt,
+      }
 
-### API Implementation
-1. **REST Endpoints**
-   - CRUD operations
-   - Authentication middleware
-   - Input validation
+      const result = await backendAgent.executeTask(fullTask as any) as any
 
-2. **Database Integration**
-   - Schema design
-   - Query optimization
-   - Migration scripts
+      return {
+        output: result?.output || 'Backend development completed',
+        data: {
+          developmentType: 'real-backend-dev',
+          ...(result?.result || {}),
+        },
+        toolsUsed: result?.toolsUsed || ['backend-agent'],
+        filesModified: result?.filesModified || [],
+      }
+    } catch (error: any) {
+      await structuredLogger.error(`[UniversalAgent] Backend development delegation failed: ${error.message}`, 'UniversalAgent')
 
-3. **Security Features**
-   - JWT authentication
-   - Rate limiting
-   - Input sanitization
-
-### Technical Stack
-- **Framework**: Express.js / Fastify
-- **Database**: PostgreSQL / MongoDB
-- **Authentication**: JWT + bcrypt
-- **Validation**: Joi / Zod
-- **Testing**: Jest + Supertest
-
-### Features Implemented
-- RESTful API design
-- Database models and relationships
-- Error handling middleware
-- Logging and monitoring
-- Documentation (OpenAPI/Swagger)
-`
-
-    return {
-      output,
-      data: {
-        developmentType: 'backend-api',
-        endpointsCreated: 12,
-        databaseTables: 5,
-        testsWritten: 15,
-      },
-      toolsUsed: ['nodejs', 'express', 'database-client', 'api-tester'],
-      filesModified: ['routes/', 'models/', 'middleware/', 'tests/'],
+      return {
+        output: `Backend development failed: ${error.message}`,
+        data: { error: error.message, developmentType: 'failed' },
+        toolsUsed: [],
+        filesModified: [],
+      }
     }
   }
 
   private async performDevOpsOperations(task: AgentTask): Promise<any> {
-    const output = `# DevOps Operations Results
+    // FIXED: Delegate to real DevOpsAgent instead of mock (ERR-016)
+    try {
+      const { DevOpsAgent } = await import('./devops-agent')
+      const devopsAgent = new DevOpsAgent(this.workingDirectory)
 
-## Task: ${task.title}
+      await structuredLogger.info('Delegating DevOps operations to DevOpsAgent', JSON.stringify({ taskId: task.id }))
 
-### Operations Summary
-- **Scope**: ${task.description}
-- **Platform**: Cloud-native deployment
-- **Agent**: Universal Agent (DevOps Mode)
+      // Create complete task object with all properties
+      const fullTask = {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        type: task.type || 'devops-operations',
+        requiredCapabilities: task.requiredCapabilities,
+        dependencies: task.dependencies,
+        createdAt: task.createdAt,
+        startedAt: task.startedAt,
+        completedAt: task.completedAt,
+      }
 
-### Infrastructure Setup
-1. **Containerization**
-   - Docker configuration
-   - Multi-stage builds
-   - Optimized images
+      const result = await devopsAgent.executeTask(fullTask as any) as any
 
-2. **CI/CD Pipeline**
-   - GitHub Actions / GitLab CI
-   - Automated testing
-   - Deployment automation
+      return {
+        output: result?.output || 'DevOps operations completed',
+        data: {
+          operationType: 'real-devops',
+          ...(result?.result || {}),
+        },
+        toolsUsed: result?.toolsUsed || ['devops-agent'],
+        filesModified: result?.filesModified || [],
+      }
+    } catch (error: any) {
+      await structuredLogger.error(`[UniversalAgent] DevOps operations delegation failed: ${error.message}`, 'UniversalAgent')
 
-3. **Monitoring & Logging**
-   - Application metrics
-   - Error tracking
-   - Performance monitoring
-
-### Deployment Configuration
-- **Orchestration**: Kubernetes / Docker Compose
-- **Load Balancing**: Nginx / AWS ALB
-- **Database**: Managed database services
-- **Caching**: Redis implementation
-- **Security**: SSL/TLS, secrets management
-
-### Operational Features
-- Automated deployments
-- Health checks and monitoring
-- Backup and recovery procedures
-- Scaling configurations
-- Security best practices
-`
-
-    return {
-      output,
-      data: {
-        operationType: 'full-devops-setup',
-        containersConfigured: 3,
-        pipelinesCreated: 2,
-        monitoringSetup: true,
-      },
-      toolsUsed: ['docker', 'kubernetes', 'ci-cd-tools', 'monitoring'],
-      filesModified: ['Dockerfile', '.github/workflows/', 'k8s/', 'docker-compose.yml'],
+      return {
+        output: `DevOps operations failed: ${error.message}`,
+        data: { error: error.message, operationType: 'failed' },
+        toolsUsed: [],
+        filesModified: [],
+      }
     }
   }
 
@@ -1243,10 +1321,20 @@ export class UniversalAgent extends EventEmitter implements Agent {
   }
 
   private async loadGuidanceFiles(): Promise<void> {
-    // Use shared context manager instead of loading individually
-    const { sharedGuidanceManager } = await import('../../core/shared-guidance-manager')
-    const sharedContext = await sharedGuidanceManager.getGuidanceForTask(this.currentTaskType)
-    this.guidance = sharedContext
+    // FIXED: Added error handling for import failure (ERR-035)
+    try {
+      // Use shared context manager instead of loading individually
+      const { sharedGuidanceManager } = await import('../../core/shared-guidance-manager')
+      const sharedContext = await sharedGuidanceManager.getGuidanceForTask(this.currentTaskType)
+      this.guidance = sharedContext
+    } catch (error: any) {
+      await structuredLogger.warning(
+        `Failed to load guidance files: ${error.message}`,
+        'Universal Agent'
+      )
+      // Set empty guidance as fallback
+      this.guidance = ''
+    }
   }
 
   private async detectEnvironment(): Promise<void> {
@@ -1570,14 +1658,25 @@ export class UniversalAgent extends EventEmitter implements Agent {
   private updateCognitiveMemory(cognition: TaskCognition): void {
     this.cognitiveMemory.push(cognition)
 
+    // FIXED: Use shift() instead of slice() for O(1) amortized removal
     // Keep only last 100 cognitions for memory efficiency
     if (this.cognitiveMemory.length > 100) {
-      this.cognitiveMemory = this.cognitiveMemory.slice(-100)
+      this.cognitiveMemory.shift() // Remove oldest, O(1) amortized
     }
 
-    // Update learning database
+    // Update learning database with size cap
     const key = `${cognition.intent.primary}_${cognition.entities.length}_${cognition.dependencies.length}`
     this.learningDatabase.set(key, (this.learningDatabase.get(key) || 0) + 1)
+
+    // FIXED: Prevent learningDatabase unbounded growth
+    if (this.learningDatabase.size > 1000) {
+      // Keep top 500 most frequent patterns
+      const sorted = [...this.learningDatabase.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 500)
+      this.learningDatabase.clear()
+      sorted.forEach(([k, v]) => this.learningDatabase.set(k, v))
+    }
   }
 
   // ====================== 🎯 ORCHESTRATION HELPER METHODS ======================
@@ -1710,9 +1809,10 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
     this.orchestrationHistory.push(outcome)
 
+    // FIXED: Use shift() instead of slice() for O(1) amortized removal
     // Keep only last 50 orchestrations
     if (this.orchestrationHistory.length > 50) {
-      this.orchestrationHistory = this.orchestrationHistory.slice(-50)
+      this.orchestrationHistory.shift() // Remove oldest, O(1) amortized
     }
 
     // Remove from active orchestrations
@@ -1849,8 +1949,11 @@ export class UniversalAgent extends EventEmitter implements Agent {
 
   /**
    * 🚀 Try to delegate simple tasks to specialized BaseAgents
+   * FIXED: Proper fallback strategy instead of throwing errors (ERR-042)
    */
   private async tryBaseAgentDelegation(task: AgentTask): Promise<AgentTaskResult> {
+    const startTime = new Date()
+
     try {
       // Lazy load BaseAgent router to avoid circular dependencies
       if (!this.baseAgentRouter) {
@@ -1865,24 +1968,55 @@ export class UniversalAgent extends EventEmitter implements Agent {
       const routingResult = await this.baseAgentRouter.routeTask(task)
 
       if (routingResult.success) {
+        await structuredLogger.info(
+          `Task delegated successfully to ${routingResult.assignedAgent}`,
+          'Universal Agent'
+        )
+
         return {
           taskId: task.id,
           agentId: this.id,
           status: 'completed',
-          startTime: new Date(),
+          startTime,
           endTime: new Date(),
           result: routingResult.result,
           output: `Task delegated to ${routingResult.assignedAgent}`,
         }
       }
-    } catch (error) {
-      // Fallback to standard execution on delegation failure
-      console.log(`Delegation failed, using standard execution: ${error}`)
-      throw error // Let the caller handle fallback
-    }
 
-    // If we get here, delegation was attempted but not successful
-    throw new Error('No suitable agent found for delegation')
+      // Delegation was attempted but no suitable agent found
+      await structuredLogger.info(
+        'No suitable specialized agent found, will use standard execution',
+        'Universal Agent'
+      )
+
+      return {
+        taskId: task.id,
+        agentId: this.id,
+        status: 'failed',
+        startTime,
+        endTime: new Date(),
+        error: 'No suitable agent found for delegation',
+        output: 'Delegation failed - no matching specialized agent',
+      }
+    } catch (error: any) {
+      // Proper fallback on delegation failure
+      await structuredLogger.warning(
+        `Delegation failed: ${error.message}, will use standard execution`,
+        'Universal Agent'
+      )
+
+      return {
+        taskId: task.id,
+        agentId: this.id,
+        status: 'failed',
+        startTime,
+        endTime: new Date(),
+        error: `Delegation error: ${error.message}`,
+        errorDetails: error,
+        output: 'Delegation failed - will attempt standard execution',
+      }
+    }
   }
 
   /**

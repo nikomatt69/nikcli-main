@@ -125,22 +125,35 @@ export class ChatManager {
   }
 
   private getCompressedContext(messages: ChatMessage[]): ChatMessage[] {
+    // FIXED: Added edge case handling for empty messages array (ERR-038)
+    if (!messages || messages.length === 0) {
+      return []
+    }
+
     const maxTokens = TOKEN_LIMITS.CHAT.MAX_CONTEXT_TOKENS
     let currentTokens = 0
     const result: ChatMessage[] = []
 
+    // FIXED: Added null check for systemMessage.content (ERR-017)
     // Always include system message
     const systemMessage = messages.find((m) => m.role === 'system')
-    if (systemMessage) {
+    if (systemMessage && systemMessage.content) {
       result.push(systemMessage)
       currentTokens += this.estimateTokens(systemMessage.content)
     }
 
+    // FIXED: Added null check for msg.content (ERR-018)
     // Include recent messages first (last 4 messages)
     const recentMessages = messages.filter((m) => m.role !== 'system').slice(-4)
+
+    // Handle edge case: no non-system messages
+    if (recentMessages.length === 0) {
+      return result // Return just system message or empty array
+    }
+
     for (let i = recentMessages.length - 1; i >= 0; i--) {
       const msg = recentMessages[i]
-      if (!msg) continue
+      if (!msg || !msg.content) continue
       const tokens = this.estimateTokens(msg.content)
 
       if (currentTokens + tokens > maxTokens) break
@@ -182,10 +195,10 @@ export class ChatManager {
     const notice: ChatMessage | null =
       trimmedCount > 0
         ? {
-            role: 'system',
-            content: `[Conversation trimmed] ${trimmedCount} older messages were removed to fit history limits. Recent context preserved.`,
-            timestamp: new Date(),
-          }
+          role: 'system',
+          content: `[Conversation trimmed] ${trimmedCount} older messages were removed to fit history limits. Recent context preserved.`,
+          timestamp: new Date(),
+        }
         : null
 
     this.currentSession.messages = [
@@ -228,12 +241,14 @@ export class ChatManager {
       throw new Error('No session found')
     }
 
+    // FIXED: Added null check for message content (ERR-018)
     const messages = session.messages
       .filter((m) => m.role !== 'system')
-      .map((m) => `**${m.role.toUpperCase()}**: ${m.content}`)
+      .map((m) => `**${m.role.toUpperCase()}**: ${m.content || '[empty]'}`)
       .join('\n\n---\n\n')
 
-    return `# ${session.title}\n\nCreated: ${(session.createdAt, true)}\nUpdated: ${(session.updatedAt, true)}\n\n---\n\n${messages}`
+    // FIXED: Corrected date formatting - was using comma operator (ERR-019)
+    return `# ${session.title}\n\nCreated: ${session.createdAt.toLocaleString()}\nUpdated: ${session.updatedAt.toLocaleString()}\n\n---\n\n${messages}`
   }
 
   getSessionStats(): { totalSessions: number; totalMessages: number; currentSessionMessages: number } {

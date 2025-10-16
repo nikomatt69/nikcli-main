@@ -72,7 +72,7 @@ export class StreamttyService {
   private currentOutputId: string | null = null
 
   constructor(private options: StreamttyServiceOptions = {}) {
-    this.useBlessedMode = options.useBlessedMode ?? true
+    this.useBlessedMode = options.useBlessedMode ?? false
     this.initialize()
   }
 
@@ -86,7 +86,7 @@ export class StreamttyService {
           mermaid: true,
           shiki: true,
           security: true,
-          interactiveControls: false, // Disabled by default to not interfere with existing workflows
+          interactiveControls: true, // Disabled by default to not interfere with existing workflows
           advancedTables: true,
           ...this.options.enhancedFeatures
         }
