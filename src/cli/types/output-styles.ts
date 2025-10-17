@@ -81,22 +81,6 @@ export interface OutputStyleMetadata {
   targetAudience: 'beginner' | 'intermediate' | 'expert' | 'mixed'
 }
 
-// Custom output style (user-defined)
-export interface CustomOutputStyle {
-  id: string
-  name: string
-  description: string
-  characteristics: string[]
-  useCase: string
-  verbosityLevel: number
-  technicalDepth: 'low' | 'medium' | 'high'
-  targetAudience: string
-  promptTemplate: string  // The actual prompt defining the style
-  createdAt: Date
-  updatedAt: Date
-  tags?: string[]
-}
-
 // Complete registry of output styles
 export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = {
   'production-focused': {
@@ -214,80 +198,18 @@ export const OUTPUT_STYLES_REGISTRY: Record<OutputStyle, OutputStyleMetadata> = 
 
 // Utility functions for output style management
 export class OutputStyleUtils {
-  private static customStyles: Map<string, CustomOutputStyle> = new Map()
-  private static initialized: boolean = false
-
   /**
-   * Load custom styles from storage
+   * Gets metadata for an output style
    */
-  static async loadCustomStyles(): Promise<void> {
-    if (this.initialized) return
-
-    try {
-      const { blueprintStorage } = await import('../core/blueprint-storage')
-      await blueprintStorage.initialize()
-
-      const styles = await blueprintStorage.listStyles()
-      for (const style of styles) {
-        this.customStyles.set(style.id, style)
-      }
-
-      this.initialized = true
-    } catch (error: any) {
-      console.warn(`Failed to load custom styles: ${error.message}`)
-    }
+  static getStyleMetadata(style: OutputStyle): OutputStyleMetadata {
+    return OUTPUT_STYLES_REGISTRY[style]
   }
 
   /**
-   * Check if a style is custom
+   * Lists all available output styles
    */
-  static isCustomStyle(style: string): boolean {
-    return this.customStyles.has(style)
-  }
-
-  /**
-   * Get custom style
-   */
-  static getCustomStyle(styleId: string): CustomOutputStyle | undefined {
-    return this.customStyles.get(styleId)
-  }
-
-  /**
-   * Gets metadata for an output style (built-in or custom)
-   */
-  static getStyleMetadata(style: string): OutputStyleMetadata {
-    // Check custom first
-    const customStyle = this.customStyles.get(style)
-    if (customStyle) {
-      return {
-        name: customStyle.name,
-        description: customStyle.description,
-        characteristics: customStyle.characteristics,
-        useCase: customStyle.useCase,
-        verbosityLevel: customStyle.verbosityLevel,
-        technicalDepth: customStyle.technicalDepth,
-        targetAudience: customStyle.targetAudience as any,
-      }
-    }
-
-    // Fallback to built-in
-    return OUTPUT_STYLES_REGISTRY[style as OutputStyle]
-  }
-
-  /**
-   * Lists all available output styles (built-in + custom)
-   */
-  static getAllStyles(): string[] {
-    const builtIn = Object.keys(OUTPUT_STYLES_REGISTRY)
-    const custom = Array.from(this.customStyles.keys())
-    return [...builtIn, ...custom]
-  }
-
-  /**
-   * Lists only custom styles
-   */
-  static getCustomStyles(): CustomOutputStyle[] {
-    return Array.from(this.customStyles.values())
+  static getAllStyles(): OutputStyle[] {
+    return Object.keys(OUTPUT_STYLES_REGISTRY) as OutputStyle[]
   }
 
   /**
@@ -348,10 +270,10 @@ export class OutputStyleUtils {
   }
 
   /**
-   * Validates that an output style is supported (built-in or custom)
+   * Validates that an output style is supported
    */
-  static isValidStyle(style: string): boolean {
-    return style in OUTPUT_STYLES_REGISTRY || this.customStyles.has(style)
+  static isValidStyle(style: string): style is OutputStyle {
+    return style in OUTPUT_STYLES_REGISTRY
   }
 
   /**

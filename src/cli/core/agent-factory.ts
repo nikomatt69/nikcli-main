@@ -738,6 +738,39 @@ export class AgentFactory extends EventEmitter {
     }
   }
 
+  // Normalize capabilities to ensure it's always an array
+  private normalizeCapabilities(capabilities: any): string[] | null {
+    if (!capabilities) return null
+
+    // If it's already an array, return it
+    if (Array.isArray(capabilities)) {
+      return capabilities.filter(cap => typeof cap === 'string' && cap.trim().length > 0)
+    }
+
+    // If it's an object, try to extract values or keys
+    if (typeof capabilities === 'object') {
+      // If it has array-like properties, extract them
+      const values = Object.values(capabilities)
+      if (values.every(val => typeof val === 'string')) {
+        return values as string[]
+      }
+
+      // Otherwise use keys as capabilities
+      const keys = Object.keys(capabilities)
+      return keys.filter(key => key.trim().length > 0)
+    }
+
+    // If it's a string, split by common separators
+    if (typeof capabilities === 'string') {
+      return capabilities
+        .split(/[,;|\n]/)
+        .map(cap => cap.trim())
+        .filter(cap => cap.length > 0)
+    }
+
+    return null
+  }
+
   // Create fallback blueprint when AI generation fails
   private createFallbackBlueprint(specialization: string): any {
     const lowerSpec = specialization.toLowerCase()
@@ -909,7 +942,7 @@ Context Scope: ${requirements.contextScope || 'project'}`,
         specialization: requirements.specialization,
         systemPrompt:
           aiBlueprint.systemPrompt || `You are a specialized AI agent focused on ${requirements.specialization}.`,
-        capabilities: aiBlueprint.capabilities || ['analysis', 'planning', 'execution'],
+        capabilities: this.normalizeCapabilities(aiBlueprint.capabilities) || ['analysis', 'planning', 'execution'],
         requiredTools: aiBlueprint.requiredTools || ['Read', 'Write', 'Bash'],
         personality: {
           proactive: Math.min(

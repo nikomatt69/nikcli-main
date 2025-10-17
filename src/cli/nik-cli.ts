@@ -8090,10 +8090,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   private async showAllStyles(): Promise<void> {
     // Load custom styles
     const { OutputStyleUtils } = await import('./types/output-styles')
-    await OutputStyleUtils.loadCustomStyles()
-
     const allStyles = OutputStyleUtils.getAllStyles()
-    const customStyles = OutputStyleUtils.getCustomStyles()
 
     const content = [
       '🎨 Available Output Styles:',
@@ -8106,9 +8103,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       '• technical-precise    - Precise technical documentation',
       '• educational-verbose  - Detailed learning explanations',
       '• minimal-efficient    - Essential information only',
-      '',
-      customStyles.length > 0 ? 'Custom Styles:' : 'Custom Styles: (none)',
-      ...customStyles.map(s => `• ${s.id.padEnd(20)} - ${s.description}`),
       '',
       'Use /style set <style-name> to apply a style',
       'Use /create-style to create a custom style',
@@ -19281,6 +19275,17 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           console.log(chalk.gray(`⏭️  Skipped ${label}`))
         }
       }
+
+      // Save the vector credentials using the helper function
+      _setIfProvided('UPSTASH_VECTOR_REST_URL', _answers.vectorUrl, (v) => {
+        simpleConfigManager.setApiKey('upstash_vector_url', v)
+        process.env.UPSTASH_VECTOR_REST_URL = v
+      })
+
+      _setIfProvided('UPSTASH_VECTOR_REST_TOKEN', _answers.vectorToken, (v) => {
+        simpleConfigManager.setApiKey('upstash_vector_token', v)
+        process.env.UPSTASH_VECTOR_REST_TOKEN = v
+      })
 
       this.printPanel(
         boxen('Vector keys updated. Unified vector database with Upstash Vector is now available!', {

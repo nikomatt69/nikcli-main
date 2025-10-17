@@ -148,7 +148,7 @@ export class AiSdkEmbeddingProvider {
 
       if (cached) {
         cachedResults[i] = cached.embedding
-        console.log(chalk.gray(`💾 Cache hit for ${this.currentProvider}:${config.model}`))
+
       } else {
         cachedResults[i] = null
         uncachedTexts.push(text)

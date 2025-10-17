@@ -1354,7 +1354,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
                 // Check if we've completed 2 rounds - if so, provide final summary and stop
                 if (this.completedRounds >= this.maxRounds) {
-                  const finalSummary = this.generateFinalSummary(originalQuery, this.toolCallHistory)
+                  const finalSummary = this.analyzeMissingInformation(originalQuery, this.toolCallHistory)
 
                   yield {
                     type: 'thinking',
@@ -2626,78 +2626,6 @@ Requirements:
     return this.truncateForPrompt(`${question}\n💡 Tell me how to continue.`, 150)
   }
 
-  // Generate final summary after 2 rounds of roundtrips
-  private generateFinalSummary(
-    originalQuery: string,
-    toolHistory: Array<{ toolName: string; args: any; result: any; success: boolean }>
-  ): string {
-    const tools = [...new Set(toolHistory.map((t) => t.toolName))]
-    const successful = toolHistory.filter((t) => t.success).length
-    const failed = toolHistory.filter((t) => !t.success).length
-    const totalOperations = toolHistory.length
-
-    let summary = `**Final Analysis Summary:**\n\n`
-
-    // What was done
-    summary += `📊 **Operations Completed:** ${totalOperations} total operations across ${this.completedRounds} rounds\n`
-    summary += `✓ **Successful:** ${successful} operations\n`
-    summary += `❌ **Failed:** ${failed} operations\n`
-    summary += `🔨 **Tools Used:** ${tools.join(', ')}\n\n`
-
-    // Key findings
-    summary += `🔍 **Key Findings:**\n`
-    if (successful > 0) {
-      summary += `- Successfully executed ${successful} operations\n`
-    }
-    if (failed > 0) {
-      summary += `- ${failed} operations encountered issues\n`
-    }
-
-    // Analysis of query fulfillment
-    const queryLower = originalQuery.toLowerCase()
-    summary += `\n📝 **Query Analysis:**\n`
-    summary += `- Original request: "${this.truncateForPrompt(originalQuery, 80)}"\n`
-
-    // Recommend next steps based on analysis
-    summary += `\n🎯 **Recommended Next Steps:**\n`
-
-    // Strategy based on what was tried
-    if (failed > successful && failed > 3) {
-      summary += `- Review and refine search criteria (many operations failed)\n`
-      summary += `- Try different search patterns or keywords\n`
-    }
-
-    if (queryLower.includes('search') || queryLower.includes('find')) {
-      if (!tools.includes('web_search')) {
-        summary += `- Try web search for external documentation\n`
-      }
-      if (!tools.includes('semantic_search')) {
-        summary += `- Use semantic search for similar patterns\n`
-      }
-      summary += `- Manually specify directories or file patterns\n`
-      summary += `- Consider searching in hidden/config directories\n`
-    }
-
-    if (queryLower.includes('analyze') || queryLower.includes('analisi')) {
-      if (!tools.includes('dependency_analysis')) {
-        summary += `- Run dependency analysis for comprehensive view\n`
-      }
-      if (!tools.includes('code_analysis')) {
-        summary += `- Perform detailed code quality analysis\n`
-      }
-      summary += `- Focus on specific modules or components\n`
-    }
-
-    // General strategies
-    summary += `- Provide more specific context or constraints\n`
-    summary += `- Break down the request into smaller, targeted tasks\n`
-    summary += `- Try alternative approaches or tools not yet used\n`
-
-    // Final guidance
-    summary += `\n💡 **How to Continue:** Please provide more specific guidance, narrow the scope, or try a different approach based on the recommendations above. Consider breaking your request into smaller, more focused tasks.`
-
-    return this.truncateForPrompt(summary, 800)
-  }
 
   // ====================== ⚡︎ COGNITIVE ENHANCEMENT METHODS ======================
 

@@ -216,7 +216,6 @@ export class SlashCommandHandler {
     // Output Style Commands
     this.commands.set('style', this.styleCommand.bind(this))
     this.commands.set('styles', this.stylesCommand.bind(this))
-    this.commands.set('create-style', this.createStyleCommand.bind(this))
     this.commands.set('new', this.newSessionCommand.bind(this))
     this.commands.set('sessions', this.sessionsCommand.bind(this))
     this.commands.set('export', this.exportCommand.bind(this))
@@ -4995,15 +4994,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (blueprints.length > 0) {
         console.log(chalk.blue.bold('\n📋 Available Blueprints:'))
         blueprints.forEach((blueprint, index) => {
-          if (!blueprint || !blueprint.id || !blueprint.name) return
           console.log(`\n${index + 1}. ${chalk.bold(blueprint.name)} ${chalk.gray(`(${blueprint.id.slice(0, 8)}...)`)}`)
-          console.log(`   Specialization: ${blueprint.specialization || 'N/A'}`)
-          console.log(`   Autonomy: ${blueprint.autonomyLevel || 'N/A'} | Context: ${blueprint.contextScope || 'N/A'}`)
-          if (blueprint.capabilities && blueprint.capabilities.length > 0) {
-            this.printPanel(
-              `   Capabilities: ${blueprint.capabilities.slice(0, 3).join(', ')}${blueprint.capabilities.length > 3 ? '...' : ''}`
-            )
-          }
+          console.log(`   Specialization: ${blueprint.specialization}`)
+          console.log(`   Autonomy: ${blueprint.autonomyLevel} | Context: ${blueprint.contextScope}`)
+          this.printPanel(
+            `   Capabilities: ${blueprint.capabilities.slice(0, 3).join(', ')}${blueprint.capabilities.length > 3 ? '...' : ''}`
+          )
           console.log(`   Created: ${blueprint.createdAt}`)
         })
       }
@@ -5195,14 +5191,11 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         console.log(`Found ${results.length} matching blueprint${results.length === 1 ? '' : 's'}:\n`)
 
         results.forEach((blueprint, index) => {
-          if (!blueprint || !blueprint.id || !blueprint.name) return
           console.log(`${index + 1}. ${chalk.bold(blueprint.name)} ${chalk.gray(`(${blueprint.id.slice(0, 8)}...)`)}`)
-          console.log(`   Specialization: ${blueprint.specialization || 'N/A'}`)
-          if (blueprint.capabilities && blueprint.capabilities.length > 0) {
-            this.printPanel(
-              `   Capabilities: ${blueprint.capabilities.slice(0, 3).join(', ')}${blueprint.capabilities.length > 3 ? '...' : ''}`
-            )
-          }
+          console.log(`   Specialization: ${blueprint.specialization}`)
+          this.printPanel(
+            `   Capabilities: ${blueprint.capabilities.slice(0, 3).join(', ')}${blueprint.capabilities.length > 3 ? '...' : ''}`
+          )
           console.log(`   Match: ${this.getMatchReason(query, blueprint)}`)
           console.log('')
         })
@@ -5218,21 +5211,19 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   }
 
   private getMatchReason(query: string, blueprint: any): string {
-    if (!blueprint) return 'No match'
-
     const searchTerm = query.toLowerCase()
 
-    if (blueprint.name?.toLowerCase().includes(searchTerm)) {
+    if (blueprint.name.toLowerCase().includes(searchTerm)) {
       return `Name contains "${query}"`
     }
-    if (blueprint.specialization?.toLowerCase().includes(searchTerm)) {
+    if (blueprint.specialization.toLowerCase().includes(searchTerm)) {
       return `Specialization contains "${query}"`
     }
-    if (blueprint.description?.toLowerCase().includes(searchTerm)) {
+    if (blueprint.description.toLowerCase().includes(searchTerm)) {
       return `Description contains "${query}"`
     }
 
-    const matchingCaps = blueprint.capabilities?.filter((cap: string) => cap.toLowerCase().includes(searchTerm)) || []
+    const matchingCaps = blueprint.capabilities.filter((cap: string) => cap.toLowerCase().includes(searchTerm))
     if (matchingCaps.length > 0) {
       return `Capabilities: ${matchingCaps.join(', ')}`
     }
@@ -7750,22 +7741,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         case 'c':
           return this.handleStyleContext(args.slice(1))
 
-        case 'list-custom':
-        case 'lc':
-          return this.handleStyleListCustom()
-
-        case 'delete-custom':
-        case 'dc':
-          return this.handleStyleDeleteCustom(args.slice(1))
-
-        case 'export':
-        case 'ex':
-          return this.handleStyleExport(args.slice(1))
-
-        case 'import':
-        case 'im':
-          return this.handleStyleImport(args.slice(1))
-
         case 'help':
         case 'h':
         case undefined:
@@ -7793,9 +7768,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async stylesCommand(_args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
     console.log(chalk.blue.bold('\n🎨 Available Output Styles\n'))
 
-    // Load custom styles
-    await OutputStyleUtils.loadCustomStyles()
-
     const currentConfig = modernAIProvider.getCurrentOutputStyleConfig()
     const defaultStyle = currentConfig.defaultStyle
     const modelStyle = currentConfig.modelStyle
@@ -7813,12 +7785,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const metadata = OutputStyleUtils.getStyleMetadata(style)
       const isDefault = style === defaultStyle
       const isModelCurrent = style === modelStyle
-      const isCustom = OutputStyleUtils.isCustomStyle(style)
 
       const indicators = []
       if (isDefault) indicators.push(chalk.green('default'))
       if (isModelCurrent) indicators.push(chalk.blue('model'))
-      if (isCustom) indicators.push(chalk.magenta('custom'))
 
       const prefix = indicators.length > 0 ? ` [${indicators.join(', ')}]` : ''
 
@@ -7831,7 +7801,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     console.log(chalk.gray('Use /style set <style-name> to change the default style'))
     console.log(chalk.gray('Use /style model <style-name> to set style for current model'))
-    console.log(chalk.gray('Use /create-style to create a custom style'))
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
@@ -7984,19 +7953,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     console.log(chalk.gray('  /style show                   Show current configuration'))
     console.log(chalk.gray('  /style model <style-name>     Set style for current model'))
     console.log(chalk.gray('  /style context <ctx> <style>  Set style for specific context'))
-    console.log(chalk.gray('  /style list-custom            List custom styles'))
-    console.log(chalk.gray('  /style delete-custom <id>     Delete custom style'))
-    console.log(chalk.gray('  /style export <id> <path>     Export custom style'))
-    console.log(chalk.gray('  /style import <path>          Import custom style'))
     console.log(chalk.gray('  /styles                       List all available styles'))
-    console.log(chalk.gray('  /create-style [name]          Create new custom style'))
     console.log()
 
     console.log(chalk.yellow('Available Styles:'))
     OutputStyleUtils.getAllStyles().forEach((style) => {
       const metadata = OutputStyleUtils.getStyleMetadata(style)
-      const isCustom = OutputStyleUtils.isCustomStyle(style) ? chalk.magenta(' [custom]') : ''
-      console.log(chalk.gray(`  ${style.padEnd(20)} ${metadata.description}${isCustom}`))
+      console.log(chalk.gray(`  ${style.padEnd(20)} ${metadata.description}`))
     })
 
     console.log()
@@ -8004,246 +7967,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     console.log(chalk.gray('  /style set production-focused  # Set concise, results-oriented style'))
     console.log(chalk.gray('  /style model friendly-casual   # Use friendly style for current model'))
     console.log(chalk.gray('  /style context chat minimal-efficient  # Minimal style for chat'))
-    console.log(chalk.gray('  /create-style team-code-review # Create custom style interactively'))
 
     return { shouldExit: false, shouldUpdatePrompt: false }
-  }
-
-  /**
-   * Handle style list-custom command
-   */
-  private async handleStyleListCustom(): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
-    try {
-      // Load custom styles
-      await OutputStyleUtils.loadCustomStyles()
-      const customStyles = OutputStyleUtils.getCustomStyles()
-
-      if (customStyles.length === 0) {
-        console.log(chalk.yellow('\n📝 No custom styles found'))
-        console.log(chalk.gray('Create one with: /create-style'))
-        return { shouldExit: false, shouldUpdatePrompt: false }
-      }
-
-      console.log(chalk.blue.bold('\n💅 Custom Output Styles\n'))
-
-      for (const style of customStyles) {
-        console.log(chalk.cyan(`${style.id}`))
-        console.log(chalk.gray(`  Name: ${style.name}`))
-        console.log(chalk.gray(`  Description: ${style.description}`))
-        console.log(chalk.gray(`  Verbosity: ${style.verbosityLevel}/10`))
-        console.log(chalk.gray(`  Technical Depth: ${style.technicalDepth}`))
-        console.log(chalk.gray(`  Use Case: ${style.useCase}`))
-        console.log()
-      }
-
-      console.log(chalk.gray('Use /style set <id> to activate a custom style'))
-    } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to list custom styles: ${error.message}`))
-    }
-
-    return { shouldExit: false, shouldUpdatePrompt: false }
-  }
-
-  /**
-   * Handle style delete-custom command
-   */
-  private async handleStyleDeleteCustom(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
-    if (args.length === 0) {
-      console.log(chalk.red('❌ Please specify style ID'))
-      console.log(chalk.gray('Usage: /style delete-custom <style-id>'))
-      return { shouldExit: false, shouldUpdatePrompt: false }
-    }
-
-    const styleId = args[0]
-
-    try {
-      const { blueprintStorage } = await import('../core/blueprint-storage')
-      await blueprintStorage.deleteStyle(styleId)
-
-      console.log(chalk.green(`✓ Custom style deleted: ${styleId}`))
-    } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to delete style: ${error.message}`))
-    }
-
-    return { shouldExit: false, shouldUpdatePrompt: false }
-  }
-
-  /**
-   * Handle style export command
-   */
-  private async handleStyleExport(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
-    if (args.length < 2) {
-      console.log(chalk.red('❌ Please specify style ID and destination path'))
-      console.log(chalk.gray('Usage: /style export <style-id> <path>'))
-      return { shouldExit: false, shouldUpdatePrompt: false }
-    }
-
-    const [styleId, destPath] = args
-
-    try {
-      const { blueprintStorage } = await import('../core/blueprint-storage')
-      await blueprintStorage.exportStyle(styleId, destPath)
-
-      console.log(chalk.green(`✓ Style exported to: ${destPath}`))
-    } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to export style: ${error.message}`))
-    }
-
-    return { shouldExit: false, shouldUpdatePrompt: false }
-  }
-
-  /**
-   * Handle style import command
-   */
-  private async handleStyleImport(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
-    if (args.length === 0) {
-      console.log(chalk.red('❌ Please specify source file path'))
-      console.log(chalk.gray('Usage: /style import <path>'))
-      return { shouldExit: false, shouldUpdatePrompt: false }
-    }
-
-    const sourcePath = args[0]
-
-    try {
-      const { blueprintStorage } = await import('../core/blueprint-storage')
-      const imported = await blueprintStorage.importStyle(sourcePath)
-
-      console.log(chalk.green(`✓ Style imported: ${imported.name} (${imported.id})`))
-      console.log(chalk.gray(`Use /style set ${imported.id} to activate it`))
-    } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to import style: ${error.message}`))
-    }
-
-    return { shouldExit: false, shouldUpdatePrompt: false }
-  }
-
-  /**
-   * Create custom output style command
-   * Usage: /create-style <name> "<description>"
-   */
-  private async createStyleCommand(args: string[]): Promise<{ shouldExit: boolean; shouldUpdatePrompt: boolean }> {
-    if (args.length < 2) {
-      console.log(chalk.red('Usage: /create-style <name> "<description>"'))
-      console.log(chalk.gray('Examples:'))
-      console.log(chalk.gray('  /create-style team-code-review "Detailed code review style for team collaboration"'))
-      console.log(chalk.gray('  /create-style minimal-terse "Ultra-concise output with zero fluff"'))
-      console.log(chalk.gray('  /create-style beginner-friendly "Patient explanations for junior developers"'))
-      return { shouldExit: false, shouldUpdatePrompt: false }
-    }
-
-    try {
-      // Parse name and description
-      const name = args[0]
-      const description = args.slice(1).join(' ').replace(/^["']|["']$/g, '')
-
-      if (!name || !description) {
-        console.log(chalk.red('Error: Both name and description are required'))
-        console.log(chalk.gray('Usage: /create-style <name> "<description>"'))
-        return { shouldExit: false, shouldUpdatePrompt: false }
-      }
-
-      // Generate style ID
-      const styleId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-
-      console.log(chalk.blue(`\n🤖 Generating custom output style: ${name}`))
-      console.log(chalk.gray(`Description: ${description}`))
-
-      // Generate AI prompt template
-      const promptTemplate = await this.generateStylePromptTemplate({
-        name,
-        description,
-        // Default values
-        characteristics: ['Clear and structured', 'Context-appropriate tone'],
-        useCase: description,
-        verbosityLevel: 5,
-        technicalDepth: 'medium',
-        targetAudience: 'intermediate',
-      })
-
-      // Create style object
-      const customStyle = {
-        id: styleId,
-        name,
-        description,
-        characteristics: ['AI-generated based on description'],
-        useCase: description,
-        verbosityLevel: 5,
-        technicalDepth: 'medium' as const,
-        targetAudience: 'intermediate',
-        promptTemplate,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-
-      // Save
-      const { blueprintStorage } = await import('../core/blueprint-storage')
-      await blueprintStorage.saveStyle(customStyle)
-
-      console.log(chalk.green(`✓ Custom style created: ${styleId}`))
-      console.log(chalk.gray(`💅 Style ID: ${customStyle.id}`))
-      console.log(chalk.gray(`Use /style set ${styleId} to activate it`))
-      console.log(chalk.gray(`Use /style list-custom to see all custom styles`))
-    } catch (error: any) {
-      console.log(chalk.red(`❌ Error creating custom style: ${error.message}`))
-    }
-
-    return { shouldExit: false, shouldUpdatePrompt: false }
-  }
-
-  /**
-   * Generate AI prompt template for custom style
-   */
-  private async generateStylePromptTemplate(styleConfig: any): Promise<string> {
-    const { modernAIProvider } = await import('../ai/modern-ai-provider')
-
-    const generationPrompt = `Create a concise AI output style prompt template based on these requirements:
-
-Name: ${styleConfig.name}
-Description: ${styleConfig.description}
-Characteristics: ${styleConfig.characteristics.join(', ')}
-Use Case: ${styleConfig.useCase}
-Verbosity Level: ${styleConfig.verbosityLevel}/10
-Technical Depth: ${styleConfig.technicalDepth}
-Target Audience: ${styleConfig.targetAudience}
-
-Generate a prompt template that will guide the AI to respond in this style. The template should:
-- Be clear and direct
-- Define the tone and approach
-- Specify formatting preferences
-- Include output structure guidelines
-- Be 200-300 words
-
-Output only the prompt template, no additional commentary.`
-
-    try {
-      const response = await modernAIProvider.generateText(generationPrompt, {
-        maxTokens: 500,
-        temperature: 0.7,
-      })
-
-      return response || this.getDefaultStyleTemplate(styleConfig)
-    } catch (error: any) {
-      console.warn(chalk.yellow(`⚠️ AI generation failed, using template: ${error.message}`))
-      return this.getDefaultStyleTemplate(styleConfig)
-    }
-  }
-
-  /**
-   * Get default style template
-   */
-  private getDefaultStyleTemplate(styleConfig: any): string {
-    return `You should respond in a ${styleConfig.description.toLowerCase()} style.
-
-Key characteristics:
-${styleConfig.characteristics.map((c: string) => `- ${c}`).join('\n')}
-
-Verbosity level: ${styleConfig.verbosityLevel}/10 (${styleConfig.verbosityLevel <= 3 ? 'concise' : styleConfig.verbosityLevel <= 7 ? 'balanced' : 'detailed'})
-Technical depth: ${styleConfig.technicalDepth}
-Target audience: ${styleConfig.targetAudience}
-
-Use case: ${styleConfig.useCase}
-
-Adapt your responses to match these requirements while maintaining accuracy and helpfulness.`
   }
 
   // ====================== WORK SESSION MANAGEMENT COMMANDS ======================
