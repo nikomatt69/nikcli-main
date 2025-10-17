@@ -6,7 +6,6 @@ import { AISDKStreamAdapter, AISDKStreamAdapterOptions } from './ai-sdk-adapter'
 import { StreamEvent } from './types/stream-events';
 import { pluginSystem } from './plugins/plugin-system';
 import { inputValidator } from './security/input-validator';
-import { KeyHandler } from './controls/key-handler';
 import { remarkMath } from './plugins/remark/math';
 import { remarkMermaid } from './plugins/remark/mermaid';
 import { rehypeHarden } from './plugins/rehype/harden';
@@ -19,7 +18,6 @@ export class Streamtty {
   private updateInterval: NodeJS.Timeout | null = null;
   private pendingUpdate: boolean = false;
   private aiAdapter: AISDKStreamAdapter;
-  private keyHandler: KeyHandler | null = null;
 
   constructor(options: StreamttyOptions = {}) {
     const screen = options.screen || this.createDefaultScreen();
@@ -37,7 +35,7 @@ export class Streamtty {
       maxWidth: options.maxWidth ?? 120,
       gfm: options.gfm ?? true,
       screen,
-      autoScroll: options.autoScroll ?? true,
+      autoScroll: options.autoScroll ?? false, // User controls scroll
       // Enhanced features (opt-in, backward compatible)
       remarkPlugins: options.remarkPlugins,
       rehypePlugins: options.rehypePlugins,
@@ -78,10 +76,8 @@ export class Streamtty {
       renderTimestamps: false
     });
 
-    // Initialize enhanced features
+    // Initialize enhanced features (visual + basic scroll only)
     this.initializeEnhancedFeatures();
-
-    this.setupKeyBindings();
   }
 
   /**
@@ -104,11 +100,7 @@ export class Streamtty {
     // Load user plugins
     pluginSystem.loadPlugins(options.remarkPlugins, options.rehypePlugins);
 
-    // Initialize interactive controls
-    if (options.controls && options.enhancedFeatures?.interactiveControls) {
-      const controlsConfig = typeof options.controls === 'object' ? options.controls : {};
-      this.keyHandler = new KeyHandler(this.context.screen, this.context.container, controlsConfig);
-    }
+    // Note: Only basic scroll controls enabled - focus on visual rendering
   }
 
   /**
@@ -121,7 +113,8 @@ export class Streamtty {
       fullUnicode: true,
     });
 
-    screen.key(['escape', 'q', 'C-c'], () => {
+    // Essential keys - exit only (scroll handled by container)
+    screen.key(['C-c', 'q', 'escape'], () => {
       return process.exit(0);
     });
 
@@ -132,34 +125,27 @@ export class Streamtty {
    * Create scrollable container
    */
   private createContainer(screen: Widgets.Screen): Widgets.BoxElement {
-    return blessed.box({
+    const container = blessed.box({
       parent: screen,
       top: 0,
       left: 0,
       width: '100%',
       height: '100%',
       scrollable: true,
-      alwaysScroll: true,
+      alwaysScroll: false, // Let user control scroll position
       scrollbar: {
         ch: '█',
         style: {
           fg: 'blue',
         },
       },
-      keys: true,
-      vi: true,
-      mouse: true,
+      keys: true,   // Enable keys for scroll
+      vi: false,    // No vi mode
+      mouse: false, // No mouse
       tags: true,
     });
-  }
 
-  /**
-   * Setup key bindings
-   */
-  private setupKeyBindings(): void {
-    const { screen, container } = this.context;
-
-    // Scroll controls
+    // Basic scroll controls only
     container.key(['up', 'k'], () => {
       container.scroll(-1);
       screen.render();
@@ -190,8 +176,16 @@ export class Streamtty {
       screen.render();
     });
 
+    // Toggle auto-scroll to bottom (useful for streaming)
+    container.key(['space'], () => {
+      container.setScrollPerc(100);
+      screen.render();
+    });
+
     container.focus();
+    return container;
   }
+
 
   /**
    * Stream a chunk of markdown
@@ -257,17 +251,21 @@ export class Streamtty {
     this.pendingUpdate = true;
 
     // Use setImmediate for next tick rendering
-    setImmediate(() => {
-      this.render();
+    setImmediate(async () => {
+      await this.render();
       this.pendingUpdate = false;
     });
   }
 
   /**
-   * Render current tokens
+   * Render current tokens (user controls scroll position)
    */
-  public render(): void {
-    this.renderer.render(this.context.buffer.tokens);
+  public async render(): Promise<void> {
+    await this.renderer.render(this.context.buffer.tokens);
+
+    // Only auto-scroll to bottom on initial render or if explicitly enabled
+    // Let user control scroll position during content viewing
+    this.context.screen.render();
   }
 
   /**
@@ -399,7 +397,6 @@ export * from './utils/formatting';
 export * from './plugins';
 export * from './renderers';
 export * from './security';
-export * from './controls';
 export * from './themes';
 
 // Explicitly re-export key types for external consumption

@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { createOpenAI } from '@ai-sdk/openai'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../../core/config-manager'
 import { advancedUI } from '../../ui/advanced-cli-ui'
@@ -9,7 +10,8 @@ import { redisProvider } from '../redis/redis-provider'
 
 export interface ImageGenerationOptions {
   prompt: string
-  model?: 'gpt-image-1' | 'dall-e-2' | 'dall-e-3'
+  model?: 'gpt-image-1' | 'dall-e-2' | 'dall-e-3' | 'google/gemini-2.5-flash-image' | 'openai/gpt-5-image-mini' | 'openai/gpt-5-image'
+  provider?: 'openai' | 'google' | 'openrouter'
   size?: '1024x1024' | '1536x1024' | '1024x1536' | '1792x1024' | '1024x1792' | '512x512' | '256x256'
   quality?: 'low' | 'medium' | 'high' | 'auto' | 'standard' | 'hd'
   style?: 'vivid' | 'natural'
@@ -36,7 +38,9 @@ export interface ImageGenerationResult {
 
 export interface ImageGeneratorConfig {
   enabled: boolean
-  default_model: 'gpt-image-1' | 'dall-e-2' | 'dall-e-3'
+  default_model: 'gpt-image-1' | 'dall-e-2' | 'dall-e-3' | 'google/gemini-2.5-flash-image' | 'openai/gpt-5-image-mini' | 'openai/gpt-5-image'
+  default_provider: 'openai' | 'google' | 'openrouter'
+  fallback_providers: ('openai' | 'google' | 'openrouter')[]
   default_size: '1024x1024' | '1536x1024' | '1024x1536' | '1792x1024' | '1024x1792'
   default_quality: 'low' | 'medium' | 'high' | 'auto' | 'standard' | 'hd'
   default_style: 'vivid' | 'natural'
@@ -58,7 +62,9 @@ export class ImageGenerator extends EventEmitter {
 
     this.config = {
       enabled: true,
-      default_model: 'gpt-image-1',
+      default_model: 'google/gemini-2.5-flash-image',
+      default_provider: 'openrouter',
+      fallback_providers: ['openrouter', 'openai', 'google'],
       default_size: '1024x1024',
       default_quality: 'auto',
       default_style: 'vivid',
@@ -102,20 +108,53 @@ export class ImageGenerator extends EventEmitter {
         }
       }
 
-      // Generate image
-      let result: ImageGenerationResult
-      switch (model) {
-        case 'dall-e-3':
-          result = await this.generateWithDALLE3(options)
+      // Generate image with fallback support
+      let result: ImageGenerationResult | undefined
+      const providersToTry = this.getProvidersToTry(options)
+
+      let lastError: Error | null = null
+      for (const currentProvider of providersToTry) {
+        try {
+          switch (model) {
+            case 'dall-e-3':
+              result = await this.generateWithDALLE3(options)
+              break
+            case 'dall-e-2':
+              result = await this.generateWithDALLE2(options)
+              break
+            case 'gpt-image-1':
+              result = await this.generateWithGPTImage1(options)
+              break
+            case 'google/gemini-2.5-flash-image':
+              result = await this.generateWithOpenRouter(options, 'google/gemini-2.5-flash-image')
+              break
+            case 'openai/gpt-5-image-mini':
+              result = await this.generateWithOpenRouter(options, 'openai/gpt-5-image-mini')
+              break
+            case 'openai/gpt-5-image':
+              result = await this.generateWithOpenRouter(options, 'openai/gpt-5-image')
+              break
+            default:
+              throw new Error(`Unsupported image generation model: ${model}`)
+          }
+
+          if (currentProvider !== (options.provider || this.config.default_provider)) {
+            console.log(chalk.yellow(`⚠️ Used fallback provider: ${currentProvider.toUpperCase()}`))
+          }
           break
-        case 'dall-e-2':
-          result = await this.generateWithDALLE2(options)
-          break
-        case 'gpt-image-1':
-          result = await this.generateWithGPTImage1(options)
-          break
-        default:
-          throw new Error(`Unsupported image generation model: ${model}`)
+        } catch (error: any) {
+          lastError = error
+          console.log(chalk.yellow(`⚠️ ${currentProvider.toUpperCase()} failed: ${error.message}`))
+          if (currentProvider === providersToTry[providersToTry.length - 1]) {
+            throw lastError || error
+          }
+          continue
+        }
+      }
+
+      // Ensure result was assigned
+      if (!result) {
+        throw new Error('Failed to generate image with any provider')
       }
 
       // Add processing metadata
@@ -269,6 +308,128 @@ export class ImageGenerator extends EventEmitter {
         quality: 'standard',
         processing_time_ms: 0,
         cost_estimate_usd: costEstimate * n,
+      },
+    }
+  }
+
+  /**
+   * Get providers to try based on options and configuration
+   */
+  private getProvidersToTry(options: ImageGenerationOptions): ('openai' | 'google' | 'openrouter')[] {
+    const primary = options.provider || this.config.default_provider
+    return [primary, ...this.config.fallback_providers].filter((p, idx, arr) => arr.indexOf(p) === idx)
+  }
+
+  /**
+   * Determine provider from current model
+   */
+  getProviderFromCurrentModel(): 'openai' | 'google' | 'openrouter' | null {
+    const currentModel = simpleConfigManager.get('currentModel')
+
+    if (!currentModel) return null
+
+    // Map model names to providers
+    if (currentModel.includes('claude') || currentModel.includes('anthropic')) {
+      return 'openrouter' // Claude doesn't have image generation, fallback to OpenRouter
+    }
+    if (currentModel.includes('gpt') || currentModel.includes('dall-e') || currentModel.includes('openai')) {
+      return 'openai'
+    }
+    if (currentModel.includes('gemini') || currentModel.includes('google')) {
+      return 'google'
+    }
+    if (currentModel.includes('openrouter') || currentModel.includes('/')) {
+      return 'openrouter'
+    }
+    // NikCLI presets use OpenRouter
+    if (currentModel.includes('@preset/nikcli')) {
+      return 'openrouter'
+    }
+
+    return null
+  }
+
+  /**
+   * Get the default model based on current model
+   */
+  getModelFromCurrentModel(): string | null {
+    const currentModel = simpleConfigManager.get('currentModel')
+
+    if (!currentModel) return null
+
+    // Map NikCLI presets to specific image models
+    if (currentModel === '@preset/nikcli') {
+      return 'openai/gpt-5-image-mini'
+    }
+    if (currentModel === '@preset/nikcli-pro') {
+      return 'openai/gpt-5-image'
+    }
+
+    return null
+  }
+
+  /**
+   * Generate image with OpenRouter models
+   */
+  private async generateWithOpenRouter(options: ImageGenerationOptions, model: string): Promise<ImageGenerationResult> {
+    const apiKey = simpleConfigManager.getApiKey('openrouter') || simpleConfigManager.getApiKey(model) || process.env.OPENROUTER_API_KEY
+
+    if (!apiKey) {
+      throw new Error('OpenRouter API key not configured. Use /set-key openrouter <key>')
+    }
+
+    const size = options.size || this.config.default_size
+    const quality = options.quality || this.config.default_quality
+
+    const response = await fetch('https://openrouter.ai/api/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://nikcli.ai',
+        'X-Title': 'NikCLI',
+      },
+      body: JSON.stringify({
+        model: model,
+        prompt: options.prompt,
+        size: size,
+        quality: quality === 'auto' ? 'standard' : quality,
+        n: 1,
+        response_format: 'url',
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData: any = await response.json()
+      throw new Error(`OpenRouter ${model} API error: ${errorData.error?.message || 'Unknown error'}`)
+    }
+
+    const data: any = await response.json()
+
+    let imageUrl: string
+    let revisedPrompt: string | undefined
+
+    if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+      const imageData = data.data[0]
+      imageUrl = imageData.url || imageData.b64_json
+      revisedPrompt = imageData.revised_prompt
+    } else {
+      throw new Error(`No image data returned from OpenRouter ${model}`)
+    }
+
+    const costEstimate = this.calculateOpenRouterCost(model, size, quality)
+
+    return {
+      imageUrl,
+      revisedPrompt,
+      metadata: {
+        model_used: model,
+        prompt_original: options.prompt,
+        prompt_revised: revisedPrompt,
+        size,
+        quality: quality || 'auto',
+        processing_time_ms: 0,
+        cost_estimate_usd: costEstimate,
       },
     }
   }
@@ -433,6 +594,38 @@ export class ImageGenerator extends EventEmitter {
   }
 
   /**
+   * Calculate cost estimate for OpenRouter models
+   */
+  private calculateOpenRouterCost(model: string, size: string, quality: string): number {
+    // OpenRouter pricing estimates (approximate)
+    const costs = {
+      'google/gemini-2.5-flash-image': {
+        '1024x1024': { low: 0.01, medium: 0.02, high: 0.04, auto: 0.02, standard: 0.02 },
+        '1536x1024': { low: 0.015, medium: 0.03, high: 0.06, auto: 0.03, standard: 0.03 },
+        '1024x1536': { low: 0.015, medium: 0.03, high: 0.06, auto: 0.03, standard: 0.03 },
+      },
+      'openai/gpt-5-image-mini': {
+        '1024x1024': { low: 0.015, medium: 0.03, high: 0.06, auto: 0.03, standard: 0.03 },
+        '1536x1024': { low: 0.02, medium: 0.045, high: 0.09, auto: 0.045, standard: 0.045 },
+        '1024x1536': { low: 0.02, medium: 0.045, high: 0.09, auto: 0.045, standard: 0.045 },
+      },
+      'openai/gpt-5-image': {
+        '1024x1024': { low: 0.03, medium: 0.06, high: 0.12, auto: 0.06, standard: 0.06 },
+        '1536x1024': { low: 0.045, medium: 0.09, high: 0.18, auto: 0.09, standard: 0.09 },
+        '1024x1536': { low: 0.045, medium: 0.09, high: 0.18, auto: 0.09, standard: 0.09 },
+      },
+    }
+
+    const modelCosts = costs[model as keyof typeof costs]
+    if (!modelCosts) return 0.05 // Default estimate
+
+    const sizeCosts = modelCosts[size as keyof typeof modelCosts]
+    if (!sizeCosts) return 0.05
+
+    return (sizeCosts as any)[quality] || 0.05
+  }
+
+  /**
    * Calculate cost estimate based on model and parameters
    */
   private calculateCostEstimate(model: string, size: string, quality: string): number {
@@ -527,9 +720,25 @@ export class ImageGenerator extends EventEmitter {
       if (openaiKey) {
         models.push('gpt-image-1', 'dall-e-2', 'dall-e-3')
       }
-    } catch {}
+    } catch { }
 
-    return models
+    // Check Google API key
+    try {
+      const googleKey = simpleConfigManager.getApiKey('google') || simpleConfigManager.getApiKey('gemini-2.5-flash-image')
+      if (googleKey) {
+        models.push('google/gemini-2.5-flash-image')
+      }
+    } catch { }
+
+    // Check OpenRouter API key
+    try {
+      const openrouterKey = simpleConfigManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
+      if (openrouterKey) {
+        models.push('google/gemini-2.5-flash-image', 'openai/gpt-5-image-mini', 'openai/gpt-5-image')
+      }
+    } catch { }
+
+    return [...new Set(models)] // Remove duplicates
   }
 
   /**

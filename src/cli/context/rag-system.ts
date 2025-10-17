@@ -835,7 +835,14 @@ export class UnifiedRAGSystem {
 
             // Attach embeddings to documents
             for (let j = 0; j < embeddingBatch.length; j++) {
-              embeddingBatch[j].embedding = embeddings[j].vector
+              if (embeddings[j] && embeddings[j].vector) {
+                embeddingBatch[j].embedding = embeddings[j].vector
+              } else {
+                advancedUI.logFunctionUpdate(
+                  'warning',
+                  chalk.yellow(`⚠️ No valid embedding for document ${embeddingBatch[j].id}`)
+                )
+              }
             }
           } catch (error) {
             advancedUI.logFunctionUpdate(

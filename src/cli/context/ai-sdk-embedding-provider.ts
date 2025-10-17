@@ -356,24 +356,34 @@ export class AiSdkEmbeddingProvider {
             const openaiProvider = createOpenAI({ apiKey })
             const model = openaiProvider.embedding(config.model)
 
-            // For multiple texts, use embedMany
-            if (texts.length > 1) {
-              const results = await Promise.all(
-                texts.map(async (text) => {
+            // Helper function for embedding with retry and timeout
+            const embedWithRetry = async (text: string, retries = 3): Promise<number[]> => {
+              for (let attempt = 1; attempt <= retries; attempt++) {
+                try {
                   const result = await embed({
                     model,
                     value: text,
                   })
                   return result.embedding
-                })
+                } catch (error) {
+                  if (attempt === retries) throw error
+
+                  // Wait before retry (exponential backoff)
+                  const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
+                  await new Promise(resolve => setTimeout(resolve, delay))
+                }
+              }
+              throw new Error('Max retries exceeded')
+            }
+
+            // For multiple texts, use embedMany with retry
+            if (texts.length > 1) {
+              const results = await Promise.all(
+                texts.map(async (text) => embedWithRetry(text))
               )
               embeddings = results
             } else {
-              const result = await embed({
-                model,
-                value: texts[0],
-              })
-              embeddings = [result.embedding]
+              embeddings = [await embedWithRetry(texts[0])]
             }
             usage = { tokens: this.estimateTokens(texts.join(' ')) }
           }
@@ -424,24 +434,34 @@ export class AiSdkEmbeddingProvider {
             const openaiProvider = createOpenAI({ apiKey: openaiKey })
             const model = openaiProvider.embedding('text-embedding-3-small')
 
-            // For multiple texts, use embedMany
-            if (texts.length > 1) {
-              const results = await Promise.all(
-                texts.map(async (text) => {
+            // Helper function for embedding with retry (same as OpenAI case)
+            const embedWithRetry = async (text: string, retries = 3): Promise<number[]> => {
+              for (let attempt = 1; attempt <= retries; attempt++) {
+                try {
                   const result = await embed({
                     model,
                     value: text,
                   })
                   return result.embedding
-                })
+                } catch (error) {
+                  if (attempt === retries) throw error
+
+                  // Wait before retry (exponential backoff)
+                  const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
+                  await new Promise(resolve => setTimeout(resolve, delay))
+                }
+              }
+              throw new Error('Max retries exceeded')
+            }
+
+            // For multiple texts, use embedMany with retry
+            if (texts.length > 1) {
+              const results = await Promise.all(
+                texts.map(async (text) => embedWithRetry(text))
               )
               embeddings = results
             } else {
-              const result = await embed({
-                model,
-                value: texts[0],
-              })
-              embeddings = [result.embedding]
+              embeddings = [await embedWithRetry(texts[0])]
             }
             usage = { tokens: this.estimateTokens(texts.join(' ')) }
           }

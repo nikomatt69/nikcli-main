@@ -472,7 +472,7 @@ ${chalk.blue.bold('Vision & Image Analysis:')}
 ${chalk.cyan('/analyze-image <path>')} - Analyze image with AI vision models
 ${chalk.cyan('/vision <path>')} - Alias for analyze-image
 ${chalk.cyan('/images')} - Discover images and pick one to analyze
-${chalk.cyan('/analyze-image --provider <claude|openai|google|vercel>')} - Choose specific provider
+${chalk.cyan('/analyze-image --provider <claude|openai|google|openrouter>')} - Choose specific provider
 ${chalk.cyan('/analyze-image --prompt "custom prompt"')} - Custom analysis prompt
 
 ${chalk.blue.bold('Image Generation:')}
@@ -5240,7 +5240,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log('')
       console.log(`${chalk.cyan('/analyze-image <path>')} - Analyze an image file`)
       this.printPanel(
-        `${chalk.cyan('/analyze-image <path> --provider <claude|openai|google|vercel>')} - Use specific provider`
+        `${chalk.cyan('/analyze-image <path> --provider <claude|openai|google|openrouter>')} - Use specific provider`
       )
       console.log(`${chalk.cyan('/analyze-image <path> --prompt "custom prompt"')} - Custom analysis prompt`)
       console.log(`${chalk.cyan('/analyze-image <path> --no-cache')} - Skip cache`)
@@ -5263,6 +5263,15 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const imagePath = args[0]
       const options: any = {}
 
+      // Auto-select provider based on current model if not specified
+      if (!options.provider) {
+        const autoProvider = visionProvider.getProviderFromCurrentModel()
+        if (autoProvider) {
+          options.provider = autoProvider
+          console.log(chalk.gray(`ℹ️ Auto-selected provider: ${autoProvider.toUpperCase()} (based on current model)`))
+        }
+      }
+
       // Parse command options
       for (let i = 1; i < args.length; i += 2) {
         const flag = args[i]
@@ -5270,10 +5279,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
         switch (flag) {
           case '--provider':
-            if (['claude', 'openai', 'google', 'vercel'].includes(value)) {
+            if (['claude', 'openai', 'google', 'openrouter'].includes(value)) {
               options.provider = value
             } else {
-              console.log(chalk.red(`❌ Invalid provider: ${value}. Use: claude, openai, google, vercel `))
+              console.log(chalk.red(`❌ Invalid provider: ${value}. Use: claude, openai, google, openrouter`))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
@@ -5345,11 +5354,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
         this.cliInstance.printPanel(
           boxen(lines.join('\n'), {
-            title: '🎞️Image Analysis',
+            title: '📷 Image  Analysis',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
             borderColor: 'blue',
+
           })
         )
         console.log(chalk.green(`✓ Image analysis completed in ${Date.now() - _startTime}ms`))
@@ -5499,7 +5509,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log('')
       console.log(`${chalk.cyan('/generate-image "prompt"')} - Generate an image from text prompt`)
       this.printPanel(
-        `${chalk.cyan('/generate-image "prompt" --model <dall-e-3|dall-e-2|gpt-image-1>')} - Use specific model`
+        `${chalk.cyan('/generate-image "prompt" --model <dall-e-3|dall-e-2|gpt-image-1|google/gemini-2.5-flash-image|openai/gpt-5-image-mini|openai/gpt-5-image>')} - Use specific model`
       )
       console.log(`${chalk.cyan('/generate-image "prompt" --size <1024x1024|1792x1024|1024x1792>')} - Set image size`)
       console.log(`${chalk.cyan('/generate-image "prompt" --quality <standard|hd>')} - Set quality (DALL-E 3 only)`)
@@ -5549,6 +5559,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const options: any = { prompt: prompt.trim() }
 
+      // Auto-select provider based on current model if not specified
+      const autoProvider = imageGenerator.getProviderFromCurrentModel()
+      if (autoProvider) {
+        options.provider = autoProvider
+        console.log(chalk.gray(`ℹ️ Auto-selected provider: ${autoProvider.toUpperCase()} (based on current model)`))
+      }
+
       // Parse command options
       for (let i = argIndex; i < args.length; i += 2) {
         const flag = args[i]
@@ -5556,10 +5573,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
         switch (flag) {
           case '--model':
-            if (['dall-e-3', 'dall-e-2', 'gpt-image-1'].includes(value)) {
+            if (['dall-e-3', 'dall-e-2', 'gpt-image-1', 'google/gemini-2.5-flash-image', 'openai/gpt-5-image-mini', 'openai/gpt-5-image'].includes(value)) {
               options.model = value
             } else {
-              console.log(chalk.red(`❌ Invalid model: ${value}. Use: dall-e-3, dall-e-2, gpt-image-1`))
+              console.log(chalk.red(`❌ Invalid model: ${value}. Use: dall-e-3, dall-e-2, gpt-image-1, google/gemini-2.5-flash-image, openai/gpt-5-image-mini, openai/gpt-5-image`))
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
@@ -8321,7 +8338,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (!currentSession) {
         this.printPanel(
           boxen('No active work session.\n\nStart one with: /save-session [name]\nor resume: /resume [session-id]', {
-            title: '↩️ Edit History',
+            title: '⟺ Edit History',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -8369,7 +8386,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       this.printPanel(
         boxen(lines.join('\n'), {
-          title: '↩️ Edit History',
+          title: '⟺ Edit History',
           padding: 1,
           margin: 1,
           borderStyle: 'round',

@@ -1,11 +1,13 @@
 import { MermaidTTYConfig } from '../types';
+import { mermaidASCII, MermaidASCIIWrapper } from '../utils/mermaid-ascii';
 
 /**
  * Mermaid diagram renderer for TTY
- * Converts Mermaid diagrams to ASCII art
+ * Converts Mermaid diagrams to ASCII art using mermaid-ascii when available
  */
 export class MermaidRenderer {
     private config: MermaidTTYConfig;
+    private useExternalTool: boolean = true;
 
     constructor(config: MermaidTTYConfig = {}) {
         this.config = {
@@ -17,9 +19,39 @@ export class MermaidRenderer {
     }
 
     /**
-     * Render mermaid diagram to ASCII
+     * Render mermaid diagram to ASCII (async to support external tool)
      */
-    render(mermaidCode: string): string {
+    async render(mermaidCode: string): Promise<string> {
+        const trimmed = mermaidCode.trim();
+
+        // Try external mermaid-ascii tool first if enabled
+        if (this.useExternalTool) {
+            try {
+                const result = await mermaidASCII.convertToASCII(trimmed, {
+                    paddingX: 2,
+                    paddingY: 1,
+                    borderPadding: 1,
+                    ascii: true
+                });
+
+                // If external tool succeeded, return result
+                if (result && !result.includes('mermaid-ascii not found')) {
+                    return result;
+                }
+            } catch (error) {
+                // Fall back to internal renderer
+                this.useExternalTool = false;
+            }
+        }
+
+        // Fallback to internal renderer
+        return this.renderInternal(trimmed);
+    }
+
+    /**
+     * Internal mermaid rendering (existing logic)
+     */
+    private renderInternal(mermaidCode: string): string {
         const trimmed = mermaidCode.trim();
 
         // Detect diagram type
@@ -302,4 +334,18 @@ interface SequenceMessage {
  * Singleton instance
  */
 export const mermaidRenderer = new MermaidRenderer();
+
+/**
+ * Convenience function for rendering mermaid diagrams
+ */
+export async function renderMermaidDiagram(
+    mermaidCode: string,
+    config?: MermaidTTYConfig
+): Promise<string> {
+    if (config) {
+        const renderer = new MermaidRenderer(config);
+        return renderer.render(mermaidCode);
+    }
+    return mermaidRenderer.render(mermaidCode);
+}
 

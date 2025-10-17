@@ -1,7 +1,7 @@
 import { Streamtty } from 'streamtty'
 import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
 
-import type { EnhancedFeaturesConfig, TTYControlsConfig, MermaidTTYConfig, MathRenderConfig, SecurityConfig } from 'streamtty'
+import type { EnhancedFeaturesConfig, MermaidTTYConfig, MathRenderConfig, SecurityConfig } from 'streamtty'
 
 export interface StreamttyOptions {
   parseIncompleteMarkdown?: boolean
@@ -11,10 +11,9 @@ export interface StreamttyOptions {
   gfm?: boolean
   useBlessedMode?: boolean
 
-  // Enhanced features (Streamdown parity)
+  // Enhanced features (visual-only, no interactive controls)
   enhancedFeatures?: EnhancedFeaturesConfig
   theme?: 'light' | 'dark' | 'auto'
-  controls?: boolean | TTYControlsConfig
   mermaidConfig?: MermaidTTYConfig
   mathConfig?: MathRenderConfig
   security?: SecurityConfig
@@ -24,7 +23,7 @@ export interface StreamttyOptions {
 /**
  * Internal adapter for StreamttyService
  * Handles low-level streamtty instance management and fallback logic
- * Natively integrates all enhanced features (Streamdown parity)
+ * Simplified visual-only rendering without interactive controls
  */
 export class StreamttyAdapter {
   private streamtty: Streamtty | null = null
@@ -34,15 +33,15 @@ export class StreamttyAdapter {
   constructor(private options: StreamttyOptions = {}) {
     this.useBlessedMode = options.useBlessedMode ?? false
     
-    // Auto-enable enhanced features if not explicitly configured
+    // Auto-enable enhanced visual features if not explicitly configured
     if (!this.options.enhancedFeatures && this.useBlessedMode) {
       this.options.enhancedFeatures = {
         math: true,
-        mermaid: true,
+        mermaid: true, // With mermaid-ascii integration
         shiki: true,
         security: true,
-        interactiveControls: false, // Keep disabled to avoid interfering with existing workflows
-        advancedTables: true,
+        interactiveControls: false, // Always disabled - visual-only rendering
+        advancedTables: true, // With tty-table and asciichart integration
       }
     }
     
@@ -77,10 +76,9 @@ export class StreamttyAdapter {
           autoScroll: this.options.autoScroll ?? true,
           maxWidth: this.options.maxWidth ?? 120,
           gfm: this.options.gfm ?? true,
-          // Pass through enhanced features
+          // Pass through enhanced visual features (no interactive controls)
           enhancedFeatures: this.options.enhancedFeatures,
           theme: this.options.theme,
-          controls: this.options.controls,
           mermaidConfig: this.options.mermaidConfig,
           mathConfig: this.options.mathConfig,
           security: this.options.security,
@@ -98,8 +96,8 @@ export class StreamttyAdapter {
   }
 
   /**
-   * Render a streaming markdown content using Streamtty
-   * Supports both blessed and non-blessed modes
+   * Render streaming markdown content using simplified Streamtty
+   * Visual-only rendering without interactive controls
    */
   async renderStream(
     stream: AsyncGenerator<string, void, unknown>,
@@ -281,7 +279,7 @@ export class StreamttyAdapter {
 
 /**
  * @deprecated Use streamttyService from services/streamtty-service.ts instead
- * Convenience function to render streaming markdown - kept for backward compatibility
+ * Legacy function - use the simplified streamttyService for better performance
  */
 export async function renderMarkdownStream(
   stream: AsyncGenerator<string, void, unknown>,

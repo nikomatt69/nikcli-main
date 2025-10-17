@@ -105,30 +105,25 @@ function getCharTokenRatio(provider: string): number {
   return ratios[provider] || 4.0 // Default fallback
 }
 
-function pickOpenAI(baseModel: string, tier: 'light' | 'medium' | 'heavy', needsVision?: boolean): string {
-  // Prefer GPT-5 family when base is gpt-5; otherwise fallback to 4o family
-  const isGpt5 = /gpt-5/i.test(baseModel)
-  if (needsVision) {
-    // 4o family supports vision well; prefer 4o for vision tasks
-    return 'gpt-4o'
-  }
-  if (isGpt5) {
-    if (tier === 'heavy') return 'gpt-5'
-    if (tier === 'medium') return 'gpt-5-mini-2025-08-07'
-    return 'gpt-5-nano-2025-08-07'
-  } else {
-    if (tier === 'heavy') return 'gpt-4o'
-    if (tier === 'medium') return 'gpt-4o-mini'
-    // Light fallback — prefer mini; if not available, still use mini
-    return 'gpt-4o-mini'
-  }
-}
+
 
 function pickAnthropic(_baseModel: string, tier: 'light' | 'medium' | 'heavy', _needsVision?: boolean): string {
   // Claude-4 Opus/Sonnet-4/3.5 Sonnet present in defaults; Haiku may not be configured
   if (tier === 'heavy') return 'claude-sonnet-4-20250514'
   if (tier === 'medium') return 'claude-3-7-sonnet-20250219'
   return 'claude-3-5-sonnet-latest' // light fallback
+}
+
+function pickOpenAI(baseModel: string, tier: 'light' | 'medium' | 'heavy', _needsVision?: boolean): string {
+  // Use the configured OpenAI model as base, or intelligent tier-based selection
+  if (baseModel.startsWith('gpt-')) {
+    return baseModel // Use configured model directly
+  }
+
+  // Fallback tier-based selection for OpenAI
+  if (tier === 'heavy') return 'gpt-5'
+  if (tier === 'medium') return 'gpt-4o'
+  return 'gpt-4o-mini' // light fallback
 }
 
 function pickGoogle(_baseModel: string, tier: 'light' | 'medium' | 'heavy'): string {

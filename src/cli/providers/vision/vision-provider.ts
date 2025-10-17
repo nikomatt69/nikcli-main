@@ -4,7 +4,8 @@ import { resolve } from 'node:path'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
-import { type CoreMessage, generateObject } from 'ai'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import { type CoreMessage, generateObject, LanguageModelV1 } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
 import { simpleConfigManager } from '../../core/config-manager'
@@ -33,7 +34,8 @@ export interface VisionAnalysisResult {
 
 export interface VisionConfig {
   enabled: boolean
-  default_provider: 'claude' | 'openai' | 'google'
+  default_provider: 'claude' | 'openai' | 'google' | 'openrouter'
+  fallback_providers: ('claude' | 'openai' | 'google' | 'openrouter')[]
   cache_enabled: boolean
   cache_ttl: number // seconds
   max_file_size_mb: number
@@ -54,6 +56,7 @@ export class VisionProvider extends EventEmitter {
     this.config = {
       enabled: true,
       default_provider: 'claude',
+      fallback_providers: ['openrouter', 'openai', 'google'],
       cache_enabled: true,
       cache_ttl: 3600, // 1 hour
       max_file_size_mb: 20,
@@ -71,7 +74,7 @@ export class VisionProvider extends EventEmitter {
   async analyzeImage(
     imagePath: string,
     options: {
-      provider?: 'claude' | 'openai' | 'google'
+      provider?: 'claude' | 'openai' | 'google' | 'openrouter'
       prompt?: string
       cache?: boolean
     } = {}
@@ -104,40 +107,48 @@ export class VisionProvider extends EventEmitter {
         }
       }
 
-      // Perform analysis
-      let result: VisionAnalysisResult
-      switch (provider) {
-        case 'claude':
-          result = await this.analyzeWithClaude(imageData, options.prompt, metadata)
-          break
-        case 'openai':
-          result = await this.analyzeWithOpenAI(imageData, options.prompt, metadata)
-          break
-        case 'google':
-          result = await this.analyzeWithGoogle(imageData, options.prompt, metadata)
-          break
-        default:
-          throw new Error(`Unsupported vision provider: ${provider}`)
-      }
+      // Perform analysis with fallback support
+      let result: VisionAnalysisResult | undefined
+      const providersToTry = [provider, ...this.config.fallback_providers].filter((p, idx, arr) => arr.indexOf(p) === idx)
 
-      // Add processing metadata
+      let lastError: Error | null = null
+      for (const currentProvider of providersToTry) {
+        try {
+          switch (currentProvider) {
+            case 'claude':
+              result = await this.analyzeWithClaude(imageData, options.prompt, metadata)
+              break
+            case 'openai':
+              result = await this.analyzeWithOpenAI(imageData, options.prompt, metadata)
+              break
+            case 'google':
+              result = await this.analyzeWithGoogle(imageData, options.prompt, metadata)
+              break
+            case 'openrouter':
+              result = await this.analyzeWithOpenRouter(imageData, options.prompt, metadata)
+              break
+            default:
+              throw new Error(`Unsupported vision provider: ${currentProvider}`)
+          }
+
+          if (currentProvider !== provider) {
+            console.log(chalk.yellow(`⚠️ Used fallback provider: ${currentProvider.toUpperCase()}`))
+          }
+          break
+        } catch (error: any) {
+          lastError = error
+          console.log(chalk.yellow(`⚠️ ${currentProvider.toUpperCase()} failed: ${error.message}`))
+          if (currentProvider === providersToTry[providersToTry.length - 1]) {
+            throw lastError || error
+          }
+          continue
+        }
+      }
+      if (!result || !result?.metadata) {
+        throw new Error('No result returned from vision provider')
+      }
       result.metadata.processing_time_ms = Date.now() - startTime
       result.metadata.model_used = provider
-
-      // Cache result
-      if (options.cache !== false && this.config.cache_enabled) {
-        await this.cacheResult(cacheKey, result)
-      }
-
-      console.log(chalk.green(`✓ Image analysis completed in ${result.metadata.processing_time_ms}ms`))
-
-      this.emit('analysis_completed', {
-        provider,
-        result,
-        imagePath,
-        processingTime: result.metadata.processing_time_ms,
-      })
-
       return result
     } catch (error: any) {
       console.log(chalk.red(`❌ Vision analysis failed: ${error.message}`))
@@ -179,7 +190,7 @@ export class VisionProvider extends EventEmitter {
 Provide structured, detailed insights that would be useful for understanding the image content and context.`
 
     const result = await generateObject({
-      model,
+      model: model as any as LanguageModelV1,
       messages: [
         {
           role: 'user',
@@ -247,7 +258,7 @@ Provide structured, detailed insights that would be useful for understanding the
 Provide thorough, useful insights for understanding the image content and context.`
 
     const result = await generateObject({
-      model,
+      model: model as any,
       messages: [
         {
           role: 'user',
@@ -284,6 +295,161 @@ Provide thorough, useful insights for understanding the image content and contex
   }
 
   /**
+   * Analyze image with OpenRouter vision models
+   */
+  private async analyzeWithOpenRouter(
+    imageData: string,
+    customPrompt?: string,
+    metadata?: any,
+    model?: string
+  ): Promise<VisionAnalysisResult> {
+    const apiKey = simpleConfigManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
+
+    if (!apiKey) {
+      throw new Error('OpenRouter API key not configured. Use /set-key openrouter <key>')
+    }
+
+    // Available OpenRouter vision models
+    const availableVisionModels = [
+      'openai/gpt-4o',
+      'openai/gpt-4o-mini',
+      'openai/gpt-5',
+      'anthropic/claude-3-5-sonnet-20241022',
+      'anthropic/claude-3-opus-20240229',
+      'anthropic/claude-3-haiku-20240307',
+      'anthropic/claude-haiku-4.5',
+      'google/gemini-pro-vision',
+      'google/gemini-1.5-pro',
+      'google/gemini-1.5-flash',
+      '@preset/nikcli',
+      '@preset/nikcli-pro'
+    ]
+
+    // Use the current model if it supports vision, otherwise default to gpt-4o
+    const currentModel = simpleConfigManager.get('currentModel')
+    const selectedModel = model ||
+      (availableVisionModels.includes(currentModel) ? currentModel : 'openai/gpt-4o')
+
+    const systemPrompt =
+      customPrompt ||
+      `Analyze this image comprehensively and provide structured insights covering:
+1. Detailed visual description
+2. Objects and subjects identification
+3. Text extraction (if any)
+4. Emotional/mood assessment
+5. Color analysis
+6. Composition evaluation
+7. Technical quality review
+8. Analysis confidence level
+
+Provide thorough, useful insights for understanding the image content and context.`
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://nikcli.ai',
+        'X-Title': 'NikCLI',
+      },
+      body: JSON.stringify({
+        model: selectedModel,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: systemPrompt },
+              {
+                type: 'image_url',
+                image_url: { url: imageData }
+              }
+            ]
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 1500,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData: any = await response.json()
+      throw new Error(`OpenRouter vision API error: ${errorData.error?.message || 'Unknown error'}`)
+    }
+
+    const data: any = await response.json()
+    const analysisText = data.choices?.[0]?.message?.content
+
+    if (!analysisText) {
+      throw new Error('No analysis returned from OpenRouter vision API')
+    }
+
+    // Parse the analysis text into structured format
+    // This is a simplified parser - in production you'd want more robust parsing
+    const result = this.parseAnalysisText(analysisText)
+
+    return {
+      ...result,
+      metadata: {
+        model_used: `openrouter-${selectedModel}`,
+        processing_time_ms: 0,
+        file_size_bytes: metadata?.size || 0,
+        image_dimensions: metadata?.dimensions,
+      },
+    }
+  }
+
+  /**
+   * Parse unstructured analysis text into structured format
+   */
+  private parseAnalysisText(text: string): Omit<VisionAnalysisResult, 'metadata'> {
+    // This is a basic parser - could be improved with better regex/NLP
+    const lines = text.split('\n').filter(line => line.trim())
+
+    return {
+      description: text.substring(0, 300) + (text.length > 300 ? '...' : ''),
+      objects: this.extractListFromText(text, ['object', 'subject', 'item', 'element']),
+      text: this.extractTextContent(text),
+      emotions: this.extractListFromText(text, ['emotion', 'mood', 'feeling', 'atmosphere']),
+      colors: this.extractListFromText(text, ['color', 'colours', 'hue', 'shade']),
+      composition: this.extractComposition(text),
+      technical_quality: this.extractTechnicalQuality(text),
+      confidence: 0.85, // Default confidence for text parsing
+    }
+  }
+
+  private extractListFromText(text: string, keywords: string[]): string[] {
+    const items: string[] = []
+    const lines = text.toLowerCase().split('\n')
+
+    for (const line of lines) {
+      if (keywords.some(keyword => line.includes(keyword))) {
+        // Extract items from bullet points or comma-separated lists
+        const matches = line.match(/[•\-*]\s*([^•\-*\n]+)|([a-zA-Z\s]+)(?:,|$)/g)
+        if (matches) {
+          items.push(...matches.map(m => m.replace(/[•\-*,]/g, '').trim()).filter(Boolean))
+        }
+      }
+    }
+
+    return [...new Set(items)].slice(0, 10) // Remove duplicates, limit to 10
+  }
+
+  private extractTextContent(text: string): string {
+    const textMatch = text.match(/text[^:]*:([^\.]+)/i)
+    return textMatch ? textMatch[1].trim() : ''
+  }
+
+  private extractComposition(text: string): string {
+    const compMatch = text.match(/composition[^:]*:([^\.]+)/i)
+    return compMatch ? compMatch[1].trim() : 'Standard composition analysis'
+  }
+
+  private extractTechnicalQuality(text: string): string {
+    const qualityMatch = text.match(/quality[^:]*:([^\.]+)/i)
+    return qualityMatch ? qualityMatch[1].trim() : 'Good technical quality'
+  }
+
+  /**
    * Analyze image with Google Gemini Pro Vision
    */
   private async analyzeWithGoogle(
@@ -315,19 +481,11 @@ Provide thorough, useful insights for understanding the image content and contex
 Deliver detailed, structured insights for complete image understanding.`
 
     const result = await generateObject({
-      model,
+      model: model as any,
       messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: systemPrompt },
-            {
-              type: 'image',
-              image: imageData,
-            },
-          ],
-        },
-      ] as CoreMessage[],
+        { role: 'user', content: systemPrompt },
+        { role: 'user', content: imageData },
+      ],
       schema: z.object({
         description: z.string().describe('Complete image description'),
         objects: z.array(z.string()).describe('Identified objects and subjects'),
@@ -442,6 +600,31 @@ Deliver detailed, structured insights for complete image understanding.`
   }
 
   /**
+   * Determine the best provider based on current model
+   */
+  getProviderFromCurrentModel(): 'claude' | 'openai' | 'google' | 'openrouter' | null {
+    const currentModel = simpleConfigManager.get('currentModel')
+
+    if (!currentModel) return null
+
+    // Map model names to providers
+    if (currentModel.includes('claude') || currentModel.includes('anthropic')) {
+      return 'claude'
+    }
+    if (currentModel.includes('gpt') || currentModel.includes('dall-e') || currentModel.includes('openai')) {
+      return 'openai'
+    }
+    if (currentModel.includes('gemini') || currentModel.includes('google')) {
+      return 'google'
+    }
+    if (currentModel.includes('openrouter') || currentModel.includes('/')) {
+      return 'openrouter'
+    }
+
+    return null
+  }
+
+  /**
    * Get available vision providers
    */
   getAvailableProviders(): string[] {
@@ -452,25 +635,25 @@ Deliver detailed, structured insights for complete image understanding.`
       const anthropicKey =
         simpleConfigManager.getApiKey('claude-3-5-sonnet-20241022') || simpleConfigManager.getApiKey('anthropic')
       if (anthropicKey) providers.push('claude')
-    } catch {}
+    } catch { }
 
     // Check OpenAI
     try {
       const openaiKey = simpleConfigManager.getApiKey('gpt-4o') || simpleConfigManager.getApiKey('openai')
       if (openaiKey) providers.push('openai')
-    } catch {}
+    } catch { }
 
     // Check Google
     try {
       const googleKey = simpleConfigManager.getApiKey('gemini-1.5-pro') || simpleConfigManager.getApiKey('google')
       if (googleKey) providers.push('google')
-    } catch {}
+    } catch { }
 
     // Check Vercel
     try {
       const vercelKey = simpleConfigManager.getApiKey('v0-1.0-md') || simpleConfigManager.getApiKey('vercel')
       if (vercelKey) providers.push('vercel')
-    } catch {}
+    } catch { }
 
     return providers
   }
@@ -487,7 +670,7 @@ Deliver detailed, structured insights for complete image understanding.`
    */
   updateConfig(newConfig: Partial<VisionConfig>): void {
     this.config = { ...this.config, ...newConfig }
-    console.log(chalk.blue('🎞️Vision Provider configuration updated'))
+    console.log(chalk.blue('📷 Vision Provider configuration updated'))
     this.emit('config_updated', this.config)
   }
 }

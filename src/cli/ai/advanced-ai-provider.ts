@@ -592,7 +592,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         description: 'Read and analyze file contents with metadata',
         parameters: z.object({
           path: z.string().describe('File path to read'),
-          analyze: z.boolean().default(true).describe('Whether to analyze file structure'),
+          analyze: z.boolean().optional().default(true).describe('Whether to analyze file structure'),
         }),
         execute: async ({ path, analyze }) => {
           try {
@@ -969,7 +969,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         }),
         execute: async ({ action, packages, dev, global }) => {
           try {
-            const command = 'yarn'
+            const command = 'npm'
             let args: string[] = []
 
             switch (action) {
@@ -980,6 +980,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 args = ['add', ...packages]
                 if (dev) args.push('--dev')
                 if (global) args.push('--global')
+                if (dev) args.push('--save-dev')
+                if (!dev && existsSync(resolve(this.workingDirectory, 'package.json'))) {
+                  args.push('--save')
+                }
                 break
               case 'remove':
                 args = ['remove', ...packages]
@@ -1256,12 +1260,25 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
 
 
-      // OpenRouter Anthropic models REQUIRE maxTokens, other providers handle it differently
+      // OpenRouter Anthropic models REQUIRE maxTokens, OpenAI-compatible models should NOT use it
       if (provider !== 'openai') {
-        if (provider === 'openrouter' && (configManager.getModelConfig(model)?.maxTokens)) {
-          streamOpts.maxTokens = params.maxTokens
-        } else if (provider !== 'openrouter') {
-          streamOpts.maxTokens = params.maxTokens
+        if (provider === 'openrouter') {
+          // Only set maxTokens for Anthropic-based models on OpenRouter, NOT for OpenAI models
+          const modelName = effectiveModelName || this.currentModel || ''
+          const isOpenAIModel = modelName.includes('openai') ||
+            modelName.includes('gpt-') ||
+            modelName.includes('o1-') ||
+            modelName.includes('chatgpt')
+          const isAnthropicModel = (modelName.includes('claude') ||
+            modelName.includes('anthropic') ||
+            modelName.includes('@preset/nikcli')) && !isOpenAIModel
+          if (isAnthropicModel && this.getCurrentModelInfo().config.maxTokens) {
+            streamOpts.maxTokens = params.maxTokens
+          }
+        } else if (provider === 'anthropic') {
+          if (this.getCurrentModelInfo().config.maxTokens) {
+            streamOpts.maxTokens = params.maxTokens
+          }
         }
       }
       const result = streamText(streamOpts)
@@ -2167,9 +2184,19 @@ Requirements:
       }
       const provider = this.getCurrentModelInfo().config.provider
       if (provider !== 'openai') {
-        if (provider === 'openrouter' && (this.currentModel?.includes('anthropic') || this.currentModel?.includes('claude'))) {
-          genOpts.maxTokens = Math.min(params.maxTokens, 2000)
-        } else if (provider !== 'openrouter') {
+        if (provider === 'openrouter') {
+          const modelName = this.currentModel || ''
+          const isOpenAIModel = modelName.includes('openai') ||
+            modelName.includes('gpt-') ||
+            modelName.includes('o1-') ||
+            modelName.includes('chatgpt')
+          const isAnthropicModel = (modelName.includes('claude') ||
+            modelName.includes('anthropic') ||
+            modelName.includes('@preset/nikcli')) && !isOpenAIModel
+          if (isAnthropicModel) {
+            genOpts.maxTokens = Math.min(params.maxTokens, 2000)
+          }
+        } else if (provider === 'anthropic') {
           genOpts.maxTokens = Math.min(params.maxTokens, 2000)
         }
       }
@@ -2248,7 +2275,7 @@ Requirements:
           if (current && current !== model) apiKey = configManager.getApiKey(current)
         }
         if (!apiKey) throw new Error(`No API key found for provider OpenAI (model ${model})`)
-        const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
+        const openaiProvider = createOpenAI({ apiKey })
         return openaiProvider(configData.model)
       }
       case 'anthropic': {
@@ -2319,7 +2346,7 @@ Requirements:
     const configData = allModels[model]
 
     if (!configData) {
-      return { maxTokens: 4000, temperature: 0.7 } // REDUCED default
+      return { maxTokens: 4000, temperature: 1 } // REDUCED default
     }
 
     // Provider-specific token limits and settings
@@ -2364,7 +2391,7 @@ Requirements:
         return { maxTokens: 4000, temperature: 0.7 }
 
       default:
-        return { maxTokens: 4096, temperature: 0.7 } // RIDOTTO per compatibilità universale
+        return { maxTokens: 4096, temperature: 1 } // RIDOTTO per compatibilità universale
     }
   }
 

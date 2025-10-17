@@ -1,45 +1,21 @@
 import blessed, { Widgets } from 'blessed';
 import { ParsedToken, RenderContext, BlessedStyle, MarkdownStyles } from '../types';
-import { mathRenderer } from '../renderers/math-renderer';
-import { mermaidRenderer } from '../renderers/mermaid-renderer';
-import { shikiRenderer } from '../renderers/shiki-ansi';
-import { tableRenderer } from '../renderers/table-renderer';
+import { renderMermaidDiagram } from '../renderers/mermaid-renderer';
+import { EnhancedTableRenderer, parseMarkdownTable, parseCSVToChart } from '../utils/enhanced-table-renderer';
 
 export class BlessedRenderer {
   private context: RenderContext;
   private defaultStyles: MarkdownStyles;
-  private shikiInitialized: boolean = false;
 
   constructor(context: RenderContext) {
     this.context = context;
     this.defaultStyles = this.getDefaultStyles();
-    this.initializeEnhancedFeatures();
-  }
-
-  /**
-   * Initialize enhanced features if enabled
-   */
-  private async initializeEnhancedFeatures(): Promise<void> {
-    const options = this.context.options;
-
-    // Initialize Shiki if enabled
-    if (options.enhancedFeatures?.shiki && options.shikiLanguages) {
-      try {
-        await shikiRenderer.initialize(
-          options.shikiLanguages as any,
-          options.theme as any
-        );
-        this.shikiInitialized = true;
-      } catch (error) {
-        console.warn('Failed to initialize Shiki:', error);
-      }
-    }
   }
 
   /**
    * Render tokens to blessed components
    */
-  public render(tokens: ParsedToken[]): void {
+  public async render(tokens: ParsedToken[]): Promise<void> {
     // Clear existing content
     this.context.container.children.forEach(child => child.destroy());
 
@@ -61,7 +37,7 @@ export class BlessedRenderer {
         }
 
         // Render the block token
-        const element = this.renderToken(token, yOffset);
+        const element = await this.renderToken(token, yOffset);
         if (element) {
           yOffset += this.getTokenHeight(token);
         }
@@ -96,13 +72,14 @@ export class BlessedRenderer {
           content += `{italic}${token.content}{/italic}`;
           break;
         case 'code':
-          content += `{cyan-fg}{bold}${token.content}{/bold}{/cyan-fg}`;
+          content += `{cyan-fg}${token.content}{/cyan-fg}`;
           break;
         case 'link':
           content += `{blue-fg}{underline}${token.content}{/underline}{/blue-fg}`;
           break;
         case 'del':
-          content += `{strike}${token.content}{/strike}`;
+          // Blessed doesn't support strikethrough, use a visual alternative
+          content += `{gray-fg}~~${token.content}~~{/gray-fg}`;
           break;
         default:
           content += token.content;
@@ -125,14 +102,11 @@ export class BlessedRenderer {
   /**
    * Render a single token
    */
-  private renderToken(token: ParsedToken, yOffset: number): Widgets.BoxElement | null {
-    // Check for custom component overrides
-    const customComponent = this.context.options.components?.[token.type as keyof typeof this.context.options.components];
-    if (customComponent) {
-      return customComponent(token, yOffset);
-    }
-
+  private async renderToken(token: ParsedToken, yOffset: number): Promise<Widgets.BoxElement | null> {
     switch (token.type) {
+      case 'heading':
+        return this.renderHeading(token, yOffset);
+
       case 'paragraph':
       case 'text':
         return this.renderText(token, yOffset);
@@ -167,21 +141,35 @@ export class BlessedRenderer {
       case 'table':
         return this.renderTable(token, yOffset);
 
-      // Enhanced token types
-      case 'math-inline':
-        return this.renderMathInline(token, yOffset);
-
-      case 'math-block':
-        return this.renderMathBlock(token, yOffset);
-
       case 'mermaid':
-        return this.renderMermaid(token, yOffset);
+        return await this.renderMermaid(token, yOffset);
 
       default:
         return this.renderText(token, yOffset);
     }
   }
 
+  /**
+   * Render heading
+   */
+  private renderHeading(token: ParsedToken, yOffset: number): Widgets.BoxElement {
+    const depth = token.depth || 1;
+    const style = this.getHeadingStyle(depth);
+
+    const prefix = token.incomplete ? '# ' : '';
+    const content = prefix + token.content;
+
+    return blessed.box({
+      parent: this.context.container,
+      top: yOffset,
+      left: 0,
+      width: '100%',
+      height: 'shrink',
+      content,
+      tags: true,
+      style: style,
+    });
+  }
 
   /**
    * Render text/paragraph
@@ -292,7 +280,8 @@ export class BlessedRenderer {
    */
   private renderDel(token: ParsedToken, yOffset: number): Widgets.BoxElement {
     const style = this.defaultStyles.paragraph;
-    const content = `{strike}${token.content}{/strike}`;
+    // Blessed doesn't support strikethrough, use visual alternative
+    const content = `{gray-fg}~~${token.content}~~{/gray-fg}`;
 
     return blessed.box({
       parent: this.context.container,
@@ -314,26 +303,18 @@ export class BlessedRenderer {
     const style = this.defaultStyles.codeBlock;
     const lang = token.lang || 'text';
 
-    // Check for special language types
-    if (lang === 'mermaid' && this.context.options.enhancedFeatures?.mermaid) {
-      return this.renderMermaid(token, yOffset);
-    }
-    if (lang === 'math-block' && this.context.options.enhancedFeatures?.math) {
-      return this.renderMathBlock(token, yOffset);
-    }
-
     let content = token.content;
     if (token.incomplete) {
       content = `{yellow-fg}[Code block (${lang})...]{/yellow-fg}`;
     }
 
-    const box = blessed.box({
+    return blessed.box({
       parent: this.context.container,
       top: yOffset,
       left: 2,
       width: '100%-4',
       height: 'shrink',
-      content: '',
+      content: this.highlightCode(content, lang),
       tags: true,
       border: {
         type: 'line',
@@ -349,14 +330,6 @@ export class BlessedRenderer {
         right: 1,
       },
     });
-
-    // Highlight asynchronously
-    this.highlightCode(content, lang).then(highlighted => {
-      box.setContent(highlighted);
-      this.context.screen.render();
-    });
-
-    return box;
   }
 
   /**
@@ -398,16 +371,34 @@ export class BlessedRenderer {
    */
   private renderListItem(token: ParsedToken, yOffset: number): Widgets.BoxElement {
     const style = this.defaultStyles.listItem;
-    const bullet = token.ordered ? '1.' : '•';
-    const content = `${bullet} ${this.formatInlineStyles(token.content)}`;
+
+    // Detect task list items
+    let bullet = token.ordered ? '1.' : '•';
+    let content = token.content;
+
+    // Handle task list formatting: - [ ] or - [x]
+    const taskMatch = content.match(/^(\[ \]|\[x\]|\[X\])\s*(.*)/);
+    if (taskMatch) {
+      const isCompleted = taskMatch[1] !== '[ ]';
+      bullet = isCompleted ? '✅' : '☐';
+      content = taskMatch[2];
+    }
+
+    const formattedContent = `${bullet} ${this.formatInlineStyles(content)}`;
+
+    // Calculate proper height for wrapping
+    const maxWidth = this.context.options.maxWidth || 120;
+    const lineWidth = maxWidth - 6; // Account for indentation and padding
+    const estimatedLines = Math.ceil(formattedContent.length / lineWidth);
+    const height = Math.max(estimatedLines, 1);
 
     return blessed.box({
       parent: this.context.container,
       top: yOffset,
       left: 2,
       width: '100%-4',
-      height: 'shrink',
-      content,
+      height,
+      content: formattedContent,
       tags: true,
       style: style,
       wrap: true,
@@ -432,35 +423,62 @@ export class BlessedRenderer {
   }
 
   /**
-   * Render table (with advanced support)
+   * Render table using enhanced table renderer
    */
   private renderTable(token: ParsedToken, yOffset: number): Widgets.BoxElement {
-    // Use advanced table renderer if enabled
-    if (this.context.options.enhancedFeatures?.advancedTables) {
-      const interactive = typeof this.context.options.controls === 'object'
-        ? this.context.options.controls.table ?? false
-        : false;
+    let content: string;
 
-      return tableRenderer.render(token, yOffset, this.context.container, interactive);
+    try {
+      // Try to parse as markdown table first
+      const tableData = parseMarkdownTable(token.content);
+
+      if (tableData && tableData.headers.length > 0) {
+        content = EnhancedTableRenderer.renderTable(tableData, {
+          borderStyle: 'solid',
+          compact: false,
+          width: this.context.options.maxWidth || 80
+        });
+      } else if (EnhancedTableRenderer.isChartData(token.content)) {
+        // If it looks like chart data, render as chart
+        const chartData = parseCSVToChart(token.content);
+        if (chartData) {
+          content = EnhancedTableRenderer.renderChart(chartData);
+        } else {
+          content = '[Chart Data]\n' + token.content;
+        }
+      } else {
+        // Fallback: render the raw content
+        content = token.content;
+      }
+    } catch (error) {
+      console.warn('Table render error:', error);
+      content = '[Table Render Error]\n' + token.content;
     }
 
-    // Fallback to simple table rendering
     return blessed.box({
       parent: this.context.container,
       top: yOffset,
       left: 0,
       width: '100%',
       height: 'shrink',
-      content: '{cyan-fg}[Table]{/cyan-fg}',
-      tags: true,
+      content,
+      tags: false, // Disable tags for table content to preserve formatting
       border: {
-        type: 'line',
+        type: 'line'
       },
       style: {
+        fg: 'cyan',
+        bg: 'black',
         border: {
-          fg: 'cyan',
-        },
+          fg: 'cyan'
+        }
       },
+      padding: {
+        top: 1,
+        bottom: 1,
+        left: 2,
+        right: 2
+      }
     });
   }
 
@@ -488,38 +506,23 @@ export class BlessedRenderer {
       // Links: [text](url)
       formatted = formatted.replace(/\[(.+?)\]\((.+?)\)/g, '{blue-fg}{underline}$1{/underline}{/blue-fg}');
 
-      // Strikethrough: ~~text~~
-      formatted = formatted.replace(/~~(.+?)~~/g, '{strike}$1{/strike}');
+      // Strikethrough: ~~text~~ (blessed doesn't support strike, use gray)
+      formatted = formatted.replace(/~~(.+?)~~/g, '{gray-fg}~~$1~~{/gray-fg}');
     }
 
     return formatted;
   }
 
   /**
-   * Highlight code (with Shiki support)
+   * Highlight code (basic implementation)
    */
-  private async highlightCode(code: string, lang: string): Promise<string> {
+  private highlightCode(code: string, lang: string): string {
+    // Basic syntax highlighting - in production you'd use a proper highlighter
     if (!this.context.options.syntaxHighlight) {
       return code;
     }
 
-    // Use Shiki if available and enabled
-    if (this.shikiInitialized && this.context.options.enhancedFeatures?.shiki) {
-      try {
-        return await shikiRenderer.highlight(code, lang);
-      } catch (error) {
-        console.warn('Shiki highlighting failed, using fallback:', error);
-      }
-    }
-
-    // Fallback to basic highlighting
-    return this.highlightCodeFallback(code);
-  }
-
-  /**
-   * Fallback code highlighting
-   */
-  private highlightCodeFallback(code: string): string {
+    // Simple keyword highlighting
     const keywords = ['function', 'const', 'let', 'var', 'if', 'else', 'return', 'for', 'while', 'class', 'import', 'export'];
     let highlighted = code;
 
@@ -538,113 +541,72 @@ export class BlessedRenderer {
     return highlighted;
   }
 
-
   /**
-   * Render inline math
+   * Get heading style based on depth
    */
-  private renderMathInline(token: ParsedToken, yOffset: number): Widgets.BoxElement {
-    const rendered = mathRenderer.renderInline(token.content);
+  private getHeadingStyle(depth: number): BlessedStyle {
+    const styles = [
+      this.defaultStyles.h1,
+      this.defaultStyles.h2,
+      this.defaultStyles.h3,
+      this.defaultStyles.h4,
+      this.defaultStyles.h5,
+      this.defaultStyles.h6,
+    ];
 
-    return blessed.box({
-      parent: this.context.container,
-      top: yOffset,
-      left: 0,
-      width: '100%',
-      height: 'shrink',
-      content: `{cyan-fg}${rendered}{/cyan-fg}`,
-      tags: true,
-      wrap: true,
-    });
-  }
-
-  /**
-   * Render block math
-   */
-  private renderMathBlock(token: ParsedToken, yOffset: number): Widgets.BoxElement {
-    const rendered = mathRenderer.renderBlock(token.content);
-
-    return blessed.box({
-      parent: this.context.container,
-      top: yOffset,
-      left: 2,
-      width: '100%-4',
-      height: 'shrink',
-      content: `{cyan-fg}${rendered}{/cyan-fg}`,
-      tags: true,
-      border: {
-        type: 'line',
-      },
-      style: {
-        border: {
-          fg: 'cyan',
-        },
-      },
-      padding: {
-        left: 1,
-        right: 1,
-      },
-    });
-  }
-
-  /**
-   * Render Mermaid diagram
-   */
-  private renderMermaid(token: ParsedToken, yOffset: number): Widgets.BoxElement {
-    const rendered = mermaidRenderer.render(token.content);
-
-    return blessed.box({
-      parent: this.context.container,
-      top: yOffset,
-      left: 2,
-      width: '100%-4',
-      height: 'shrink',
-      content: `{magenta-fg}${rendered}{/magenta-fg}`,
-      tags: true,
-      border: {
-        type: 'line',
-      },
-      style: {
-        border: {
-          fg: 'magenta',
-        },
-      },
-      padding: {
-        left: 1,
-        right: 1,
-      },
-      scrollable: true,
-      keys: true,
-      vi: true,
-    });
+    return styles[depth - 1] || styles[0];
   }
 
   /**
    * Get token height for layout calculation
    */
   private getTokenHeight(token: ParsedToken): number {
+    const maxWidth = this.context.options.maxWidth || 120;
+
     switch (token.type) {
       case 'heading':
-        return 2;
+        return 2; // Heading + spacing
+
       case 'codeblock':
-        return token.content.split('\n').length + 4;
+        const codeLines = token.content.split('\n').length;
+        return codeLines + 4; // Content + border + padding
+
       case 'hr':
-        return 2;
+        return 2; // Line + spacing
+
       case 'table':
-        return 5;
-      case 'math-block':
-        return token.content.split('\n').length + 6;
+        // Better table height calculation
+        const lines = token.content.split('\n').filter(line => line.trim());
+        return Math.max(lines.length + 4, 6); // Table rows + borders + padding
+
       case 'mermaid':
-        return Math.min(token.content.split('\n').length + 4, 30);
+        // Estimate mermaid diagram height
+        const diagramLines = token.content.split('\n').length;
+        return Math.max(diagramLines + 6, 10); // Diagram + border + padding
+
+      case 'blockquote':
+        const quoteLines = Math.ceil(token.content.length / (maxWidth - 6));
+        return quoteLines + 2; // Content + border
+
+      case 'listitem':
+        const itemLines = Math.ceil(token.content.length / (maxWidth - 4));
+        return Math.max(itemLines, 1);
+
       case 'strong':
       case 'em':
       case 'code':
       case 'link':
       case 'del':
-      case 'math-inline':
         // Inline tokens should be rendered on the same line
         return 0;
+
+      case 'paragraph':
+      case 'text':
       default:
-        return Math.max(1, Math.ceil(token.content.length / 80));
+        // Better text wrapping calculation
+        if (!token.content) return 1;
+        const textLines = Math.ceil(token.content.length / maxWidth);
+        return Math.max(textLines, 1);
     }
   }
 
@@ -653,8 +615,12 @@ export class BlessedRenderer {
    */
   private getDefaultStyles(): MarkdownStyles {
     return {
-
-
+      h1: { fg: 'cyan', bold: true },
+      h2: { fg: 'blue', bold: true },
+      h3: { fg: 'green', bold: true },
+      h4: { fg: 'yellow', bold: true },
+      h5: { fg: 'magenta', bold: true },
+      h6: { fg: 'white', bold: true },
       paragraph: { fg: 'white' },
       strong: { bold: true },
       em: { italic: true },
@@ -668,5 +634,47 @@ export class BlessedRenderer {
       tableHeader: { fg: 'cyan', bold: true },
       hr: { fg: 'gray' },
     };
+  }
+
+  /**
+   * Render mermaid diagram
+   */
+  private async renderMermaid(token: ParsedToken, yOffset: number): Promise<Widgets.BoxElement> {
+    let content: string;
+
+    try {
+      // Use mermaid-ascii to convert to ASCII art
+      const asciiDiagram = await renderMermaidDiagram(token.content);
+      content = asciiDiagram;
+    } catch (error) {
+      // Fallback if mermaid rendering fails
+      content = `[Mermaid Diagram]\n${token.content}`;
+    }
+
+    return blessed.box({
+      parent: this.context.container,
+      top: yOffset,
+      left: 0,
+      width: '100%',
+      height: 'shrink',
+      content,
+      tags: false, // Disable tags for ASCII art to preserve formatting
+      border: {
+        type: 'line'
+      },
+      style: {
+        fg: 'cyan',
+        bg: 'black',
+        border: {
+          fg: 'blue'
+        }
+      },
+      padding: {
+        top: 1,
+        bottom: 1,
+        left: 2,
+        right: 2
+      }
+    });
   }
 }

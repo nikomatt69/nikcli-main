@@ -8907,7 +8907,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.log(chalk.green(`📝 Total Words: ${stats.totalWords.toLocaleString()}`))
       console.log(chalk.green(`⚡︎ Categories: ${stats.categories.length}`))
       console.log(chalk.green(`🌍 Languages: ${stats.languages.length}`))
-      console.log(chalk.green(`🎞️Average Access Count: ${stats.avgAccessCount.toFixed(1)}`))
+      console.log(chalk.green(`📷 Average Access Count: ${stats.avgAccessCount.toFixed(1)}`))
 
       if (detailed && stats.categories.length > 0) {
         console.log(chalk.blue('\n📂 By Category:'))
@@ -11064,7 +11064,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       ['/delete-session <id>', 'Delete a work session'],
       ['/export-session <id> <path>', 'Export work session to file'],
 
-      // ↩️ Edit History (Undo/Redo)
+      // ⟺ Edit History (Undo/Redo)
       ['/undo [count]', 'Undo last N file edits (default: 1)'],
       ['/redo [count]', 'Redo last N undone edits (default: 1)'],
       ['/edit-history', 'Show edit history and statistics'],
@@ -11198,7 +11198,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     addGroup('📋 Planning & Todos:', 62, 64)
     addGroup('📝 Session Management:', 64, 68)
     addGroup('💼 Work Session Management:', 68, 73)
-    addGroup('↩️ Edit History (Undo/Redo):', 73, 76)
+    addGroup('⟺ Edit History (Undo/Redo):', 73, 76)
     addGroup('🔌 Background Agents:', 76, 80)
     addGroup('🐳 VM Containers:', 80, 98)
     addGroup('🌐 Web Browsing:', 98, 100)
