@@ -466,8 +466,10 @@ export class VMOrchestrator extends EventEmitter {
           // Configure git user if not set
           'git config user.email || git config user.email "nikcli-agent@localhost"; ' +
           'git config user.name || git config user.name "NikCLI Agent"; ' +
-          // Commit changes
-          `git commit -m "${prConfig.title || 'Automated changes from NikCLI'}"; ` +
+          // Write commit message to file to avoid quote issues
+          `echo "${(prConfig.title || 'Automated changes from NikCLI').replace(/"/g, '\\"')}" > .git/COMMIT_EDITMSG; ` +
+          // Commit changes using file
+          'git commit -F .git/COMMIT_EDITMSG; ' +
           // Create new branch
           `git checkout -b ${branchName}; ` +
           // Set up remote if not exists
