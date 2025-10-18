@@ -6,7 +6,7 @@ import { BaseTool, type ToolExecutionResult } from './base-tool'
 // Zod schemas for type validation
 export const ImageGenerationOptionsSchema = z.object({
   prompt: z.string().min(1, 'Prompt must not be empty'),
-  model: z.enum(['dall-e-3', 'dall-e-2', 'gpt-image-1']).optional(),
+  model: z.enum(['dall-e-3', 'dall-e-2', 'gpt-image-1', 'google/gemini-2.5-flash-image', 'openai/gpt-5-image-mini', 'openai/gpt-5-image']).optional(),
   size: z.enum(['1024x1024', '1792x1024', '1024x1792', '512x512', '256x256']).optional(),
   quality: z.enum(['standard', 'hd']).optional(),
   style: z.enum(['vivid', 'natural']).optional(),
@@ -136,7 +136,12 @@ export class ImageGenerationTool extends BaseTool {
     const compatibilityMap: Record<string, string[]> = {
       'dall-e-3': ['1024x1024', '1792x1024', '1024x1792'],
       'dall-e-2': ['1024x1024', '512x512', '256x256'],
-      'gpt-image-1': ['1024x1024', '1792x1024', '1024x1792'], // Similar to DALL-E 3
+      'gpt-image-1': ['1024x1024', '1792x1024', '1024x1792'],
+      'google/gemini-2.5-flash-image': ['1024x1024', '1792x1024', '1024x1792'],
+      'openai/gpt-5-image-mini': ['1024x1024', '1792x1024', '1024x1792'],
+      'openai/gpt-5-image': ['1024x1024', '1792x1024', '1024x1792'],
+      '@preset/nikcli': ['1024x1024', '1792x1024', '1024x1792'],
+      '@preset/nikcli-pro': ['1024x1024', '1792x1024', '1024x1792'],
     }
 
     const supportedSizes = compatibilityMap[model]
@@ -180,6 +185,31 @@ export class ImageGenerationTool extends BaseTool {
         '1792x1024': { standard: 0.09, hd: 0.135 },
         '1024x1792': { standard: 0.09, hd: 0.135 },
       },
+      'google/gemini-2.5-flash-image': {
+        '1024x1024': { standard: 0.045, hd: 0.09 },
+        '1792x1024': { standard: 0.09, hd: 0.135 },
+        '1024x1792': { standard: 0.09, hd: 0.135 },
+      },
+      'openai/gpt-5-image-mini': {
+        '1024x1024': { standard: 0.045, hd: 0.09 },
+        '1792x1024': { standard: 0.09, hd: 0.135 },
+        '1024x1792': { standard: 0.09, hd: 0.135 },
+      },
+      'openai/gpt-5-image': {
+        '1024x1024': { standard: 0.045, hd: 0.09 },
+        '1792x1024': { standard: 0.09, hd: 0.135 },
+        '1024x1792': { standard: 0.09, hd: 0.135 },
+      },
+      '@preset/nikcli': {
+        '1024x1024': { standard: 0.045, hd: 0.09 },
+        '1792x1024': { standard: 0.09, hd: 0.135 },
+        '1024x1792': { standard: 0.09, hd: 0.135 },
+      },
+      '@preset/nikcli-pro': {
+        '1024x1024': { standard: 0.045, hd: 0.09 },
+        '1792x1024': { standard: 0.09, hd: 0.135 },
+        '1024x1792': { standard: 0.09, hd: 0.135 },
+      },
     }
 
     const modelCosts = costs[model as keyof typeof costs]
@@ -197,43 +227,30 @@ export class ImageGenerationTool extends BaseTool {
   async generateVariations(
     prompt: string,
     count: number = 2,
-    model: 'dall-e-2' | 'dall-e-3' | 'gpt-image-1' = 'dall-e-2'
+    model: 'dall-e-2' | 'dall-e-3' | 'gpt-image-1' | 'google/gemini-2.5-flash-image' | 'openai/gpt-5-image-mini' | 'openai/gpt-5-image' = 'dall-e-2'
   ): Promise<ToolExecutionResult> {
-    if (model !== 'dall-e-2' && count > 1) {
-      throw new Error('Multiple images (n>1) only supported by DALL-E 2')
-    }
-
-    if (model === 'dall-e-2') {
-      return await this.execute({
+    // For DALL-E 3 and GPT-Image-1, generate multiple single images
+    const results: ToolExecutionResult[] = []
+    for (let i = 0; i < count; i++) {
+      const result = await this.execute({
         prompt,
         model,
-        n: Math.min(count, 10), // DALL-E 2 max is 10
+        outputPath: `variation_${i + 1}.png`,
         cache: true,
       })
-    } else {
-      // For DALL-E 3 and GPT-Image-1, generate multiple single images
-      const results = []
-      for (let i = 0; i < count; i++) {
-        const result = await this.execute({
-          prompt,
-          model,
-          outputPath: `variation_${i + 1}.png`,
-          cache: true,
-        })
-        results.push(result)
-      }
-      return {
+      results.push(result)
+    }
+    return {
+      success: results.every((r) => r.success),
+      data: {
         success: results.every((r) => r.success),
-        data: {
-          success: results.every((r) => r.success),
-          variations: results.map((r) => r.data),
-        },
-        metadata: {
-          executionTime: results.reduce((sum, r) => sum + r.metadata.executionTime, 0),
-          toolName: this.name,
-          parameters: { prompt, count, model },
-        },
-      }
+        variations: results.map((r) => r.data as ImageGenerationResult),
+      },
+      metadata: {
+        executionTime: results.reduce((sum, r) => sum + r.metadata.executionTime, 0),
+        toolName: this.name,
+        parameters: { prompt, count, model },
+      },
     }
   }
 
@@ -245,7 +262,7 @@ export class ImageGenerationTool extends BaseTool {
 Image Generation Tool
 ====================
 
-Generates images from text prompts using AI models (DALL-E 3, DALL-E 2, GPT-Image-1).
+Generates images from text prompts using AI models (DALL-E 3, DALL-E 2, GPT-Image-1, Gemini 2.5 Flash Image, GPT-5 Image Mini, GPT-5 Image, NikCLI, NikCLI Pro).
 
 Usage:
   execute(options: ImageGenerationToolOptions)
@@ -254,11 +271,11 @@ Required Options:
   - prompt: Text description of the image to generate
 
 Optional Options:
-  - model: 'dall-e-3' | 'dall-e-2' | 'gpt-image-1' (auto-select if not specified)
+  - model: 'dall-e-3' | 'dall-e-2' | 'gpt-image-1' | 'google/gemini-2.5-flash-image' | 'openai/gpt-5-image-mini' | 'openai/gpt-5-image' | '@preset/nikcli' | '@preset/nikcli-pro' (auto-select if not specified)
   - size: Image dimensions (model-dependent)
-  - quality: 'standard' | 'hd' (DALL-E 3 and GPT-Image-1 only)
-  - style: 'vivid' | 'natural' (DALL-E 3 only)
-  - n: Number of images (DALL-E 2 only, max 10)
+  - quality: 'standard' | 'hd' (DALL-E 3, GPT-Image-1, Gemini 2.5 Flash Image, GPT-5 Image Mini, GPT-5 Image only)
+  - style: 'vivid' | 'natural' (DALL-E 3, GPT-Image-1, Gemini 2.5 Flash Image, GPT-5 Image Mini, GPT-5 Image only)
+  - n: Number of images (max 10)
   - outputPath: Local save path (relative to working directory)
   - cache: Enable/disable caching (default: true)
 
@@ -274,7 +291,26 @@ Model Capabilities:
   - DALL-E 2: Faster, more economical
     Sizes: 1024x1024, 512x512, 256x256
     Cost: ~$0.016-0.020 per image
-    Multiple images supported (n=1-10)
+
+  - Gemini 2.5 Flash Image: High quality, HD option, style control
+    Sizes: 1024x1024, 1792x1024, 1024x1792
+    Cost: ~$0.045-0.09 per image
+
+  - GPT-5 Image Mini: 2025 model with enhanced capabilities
+    Sizes: 1024x1024, 1792x1024, 1024x1792
+    Cost: ~$0.045-0.09 per image
+
+  - GPT-5 Image: 2025 model with enhanced capabilities
+    Sizes: 1024x1024, 1792x1024, 1024x1792
+    Cost: ~$0.045-0.09 per image
+
+  - NikCLI: 2025 model with enhanced capabilities
+    Sizes: 1024x1024, 1792x1024, 1024x1792
+    Cost: ~$0.045-0.09 per image
+
+  - NikCLI Pro: 2025 model with enhanced capabilities
+    Sizes: 1024x1024, 1792x1024, 1024x1792
+    Cost: ~$0.045-0.09 per image
 
 Returns:
   - success: boolean
@@ -290,7 +326,7 @@ Generation result includes:
 Example:
   const result = await imageTool.execute({
     prompt: 'A futuristic city skyline at sunset, cyberpunk style',
-    model: 'dall-e-3',
+    model: 'google/gemini-2.5-flash-image',
     size: '1792x1024',
     quality: 'hd',
     style: 'vivid',

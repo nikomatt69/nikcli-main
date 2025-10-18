@@ -1,4 +1,4 @@
-import marked from 'marked';
+import { marked } from 'marked';
 import { ParsedToken, TokenType } from '../types';
 
 // Use any for Token types to avoid version-specific issues with marked library
@@ -40,13 +40,26 @@ export class StreamingMarkdownParser {
     // Blessed and terminal renderers handle ANSI codes natively.
     // Removing them causes color codes to appear as raw text patterns.
 
-    // Decode common HTML entities
+    // Decode HTML entities - more comprehensive list
     processed = processed.replace(/&#39;/g, "'");
     processed = processed.replace(/&quot;/g, '"');
     processed = processed.replace(/&amp;/g, '&');
     processed = processed.replace(/&lt;/g, '<');
     processed = processed.replace(/&gt;/g, '>');
     processed = processed.replace(/&nbsp;/g, ' ');
+    processed = processed.replace(/&#x27;/g, "'");
+    processed = processed.replace(/&#x2F;/g, '/');
+    processed = processed.replace(/&#x60;/g, '`');
+
+    // Decode numeric HTML entities
+    processed = processed.replace(/&#(\d+);/g, (match, num) => {
+      return String.fromCharCode(parseInt(num, 10));
+    });
+
+    // Decode hex HTML entities
+    processed = processed.replace(/&#x([a-fA-F0-9]+);/g, (match, hex) => {
+      return String.fromCharCode(parseInt(hex, 16));
+    });
 
     // Convert custom {italic} tags to standard markdown
     processed = processed.replace(/\{italic\}(.*?)\{\/italic\}/g, '*$1*');
@@ -55,14 +68,14 @@ export class StreamingMarkdownParser {
   }
 
   /**
-   * Parse current buffer
+   * Parse current buffer for blessed rendering
    */
   public parse(): ParsedToken[] {
     try {
       const markedTokens = marked.lexer(this.buffer);
 
-      // Process tokens to handle inline formatting
-      const processedTokens = this.processInlineTokens(markedTokens);
+      // Process tokens with mermaid detection
+      const processedTokens = this.processTokensWithDiagramDetection(markedTokens);
       this.tokens = this.convertTokens(processedTokens);
 
       // Handle incomplete markdown if enabled
@@ -74,6 +87,93 @@ export class StreamingMarkdownParser {
     } catch (error) {
       // If parsing fails (incomplete markdown), try to parse what we can
       return this.parsePartial();
+    }
+  }
+
+  /**
+   * Process tokens with enhanced diagram detection
+   */
+  private processTokensWithDiagramDetection(tokens: Token[]): Token[] {
+    const processedTokens: Token[] = [];
+
+    for (const token of tokens) {
+      // Check for mermaid code blocks
+      if (token.type === 'code' && token.lang === 'mermaid') {
+        // Convert to mermaid token type
+        processedTokens.push({
+          ...token,
+          type: 'mermaid',
+          text: token.text || token.raw
+        });
+      } else if (token.type === 'code' && this.looksLikeMermaidCode(token.text || token.raw)) {
+        // Auto-detect mermaid in unlabeled code blocks
+        processedTokens.push({
+          ...token,
+          type: 'mermaid',
+          text: token.text || token.raw
+        });
+      } else {
+        processedTokens.push(token);
+      }
+    }
+
+    return this.processInlineTokens(processedTokens);
+  }
+
+  /**
+   * Check if code looks like mermaid syntax
+   */
+  private looksLikeMermaidCode(code: string): boolean {
+    if (!code) return false;
+
+    const mermaidKeywords = [
+      'graph', 'flowchart', 'sequenceDiagram', 'classDiagram',
+      'stateDiagram', 'journey', 'gantt', 'pie', 'gitgraph'
+    ];
+
+    const trimmed = code.trim().toLowerCase();
+    return mermaidKeywords.some(keyword =>
+      trimmed.startsWith(keyword.toLowerCase())
+    );
+  }
+
+  /**
+   * Convert table token to markdown format
+   */
+  private convertTableTokenToMarkdown(token: any): string {
+    try {
+      if (!token.header || !token.rows) {
+        return token.raw || '[Invalid Table]';
+      }
+
+      const lines: string[] = [];
+
+      // Build header
+      const headerCells = token.header.map((cell: any) =>
+        cell.text || cell.content || String(cell)
+      );
+      lines.push('| ' + headerCells.join(' | ') + ' |');
+
+      // Build separator
+      const separatorCells = headerCells.map(() => '---');
+      lines.push('| ' + separatorCells.join(' | ') + ' |');
+
+      // Build rows
+      if (token.rows && Array.isArray(token.rows)) {
+        for (const row of token.rows) {
+          if (Array.isArray(row)) {
+            const rowCells = row.map((cell: any) =>
+              cell.text || cell.content || String(cell)
+            );
+            lines.push('| ' + rowCells.join(' | ') + ' |');
+          }
+        }
+      }
+
+      return lines.join('\n');
+    } catch (error) {
+      console.warn('Error converting table token:', error);
+      return token.raw || '[Table Conversion Error]';
     }
   }
 
@@ -419,6 +519,13 @@ export class StreamingMarkdownParser {
           raw: token.raw,
         };
 
+      case 'mermaid':
+        return {
+          type: 'mermaid',
+          content: token.text || token.raw,
+          raw: token.raw,
+        };
+
       case 'blockquote':
         const blockquote = token as any;
         return blockquote.tokens.map((t: Token) => this.convertToken(t)).flat().filter(Boolean) as ParsedToken[];
@@ -441,9 +548,10 @@ export class StreamingMarkdownParser {
         };
 
       case 'table':
+        // Convert table token to markdown format for enhanced renderer
         return {
           type: 'table',
-          content: JSON.stringify(token),
+          content: this.convertTableTokenToMarkdown(token),
           raw: token.raw,
         };
 

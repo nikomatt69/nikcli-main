@@ -8090,10 +8090,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   private async showAllStyles(): Promise<void> {
     // Load custom styles
     const { OutputStyleUtils } = await import('./types/output-styles')
-    await OutputStyleUtils.loadCustomStyles()
-
     const allStyles = OutputStyleUtils.getAllStyles()
-    const customStyles = OutputStyleUtils.getCustomStyles()
 
     const content = [
       '🎨 Available Output Styles:',
@@ -8106,9 +8103,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       '• technical-precise    - Precise technical documentation',
       '• educational-verbose  - Detailed learning explanations',
       '• minimal-efficient    - Essential information only',
-      '',
-      customStyles.length > 0 ? 'Custom Styles:' : 'Custom Styles: (none)',
-      ...customStyles.map(s => `• ${s.id.padEnd(20)} - ${s.description}`),
       '',
       'Use /style set <style-name> to apply a style',
       'Use /create-style to create a custom style',
@@ -8913,7 +8907,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.log(chalk.green(`📝 Total Words: ${stats.totalWords.toLocaleString()}`))
       console.log(chalk.green(`⚡︎ Categories: ${stats.categories.length}`))
       console.log(chalk.green(`🌍 Languages: ${stats.languages.length}`))
-      console.log(chalk.green(`🎞️Average Access Count: ${stats.avgAccessCount.toFixed(1)}`))
+      console.log(chalk.green(`📷 Average Access Count: ${stats.avgAccessCount.toFixed(1)}`))
 
       if (detailed && stats.categories.length > 0) {
         console.log(chalk.blue('\n📂 By Category:'))
@@ -11070,7 +11064,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       ['/delete-session <id>', 'Delete a work session'],
       ['/export-session <id> <path>', 'Export work session to file'],
 
-      // ↩️ Edit History (Undo/Redo)
+      // ⟺ Edit History (Undo/Redo)
       ['/undo [count]', 'Undo last N file edits (default: 1)'],
       ['/redo [count]', 'Redo last N undone edits (default: 1)'],
       ['/edit-history', 'Show edit history and statistics'],
@@ -11204,7 +11198,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     addGroup('📋 Planning & Todos:', 62, 64)
     addGroup('📝 Session Management:', 64, 68)
     addGroup('💼 Work Session Management:', 68, 73)
-    addGroup('↩️ Edit History (Undo/Redo):', 73, 76)
+    addGroup('⟺ Edit History (Undo/Redo):', 73, 76)
     addGroup('🔌 Background Agents:', 76, 80)
     addGroup('🐳 VM Containers:', 80, 98)
     addGroup('🌐 Web Browsing:', 98, 100)
@@ -19281,6 +19275,17 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           console.log(chalk.gray(`⏭️  Skipped ${label}`))
         }
       }
+
+      // Save the vector credentials using the helper function
+      _setIfProvided('UPSTASH_VECTOR_REST_URL', _answers.vectorUrl, (v) => {
+        simpleConfigManager.setApiKey('upstash_vector_url', v)
+        process.env.UPSTASH_VECTOR_REST_URL = v
+      })
+
+      _setIfProvided('UPSTASH_VECTOR_REST_TOKEN', _answers.vectorToken, (v) => {
+        simpleConfigManager.setApiKey('upstash_vector_token', v)
+        process.env.UPSTASH_VECTOR_REST_TOKEN = v
+      })
 
       this.printPanel(
         boxen('Vector keys updated. Unified vector database with Upstash Vector is now available!', {

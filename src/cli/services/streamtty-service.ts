@@ -1,14 +1,11 @@
 import chalk from 'chalk'
 import {
-  Streamtty,
   applySyntaxHighlight,
   colorizeBlock,
   syntaxColors,
   StreamEvent,
-  StreamEventType,
   StreamProtocol,
   type EnhancedFeaturesConfig,
-  type TTYControlsConfig,
   type MermaidTTYConfig,
   type MathRenderConfig,
   type SecurityConfig
@@ -25,10 +22,9 @@ export interface StreamttyServiceOptions {
   gfm?: boolean
   useBlessedMode?: boolean
 
-  // Enhanced features (native integration)
+  // Enhanced features (visual-only, no interactive controls)
   enhancedFeatures?: EnhancedFeaturesConfig
   theme?: 'light' | 'dark' | 'auto'
-  controls?: boolean | TTYControlsConfig
   mermaidConfig?: MermaidTTYConfig
   mathConfig?: MathRenderConfig
   security?: SecurityConfig
@@ -53,9 +49,7 @@ export interface RenderStats {
  * Routes all AI chunks, UI messages, and system output through streamtty for consistent formatting
  */
 export class StreamttyService {
-  private streamtty: Streamtty | null = null
   private isInitialized = false
-  private useBlessedMode = false
   private stats: RenderStats = {
     totalChunks: 0,
     totalBlocks: 0,
@@ -69,59 +63,18 @@ export class StreamttyService {
     toolResultEvents: 0,
   }
   private streamBuffer = ''
-  private currentOutputId: string | null = null
 
   constructor(private options: StreamttyServiceOptions = {}) {
-    this.useBlessedMode = options.useBlessedMode ?? false
     this.initialize()
   }
 
   private initialize(): void {
     try {
-      // Only use blessed mode if explicitly requested AND TTY is available
-      if (this.useBlessedMode && process.stdout.isTTY) {
-        // Auto-enable enhanced features for blessed mode if not explicitly disabled
-        const enhancedFeatures: EnhancedFeaturesConfig = {
-          math: true,
-          mermaid: true,
-          shiki: true,
-          security: true,
-          interactiveControls: true, // Disabled by default to not interfere with existing workflows
-          advancedTables: true,
-          ...this.options.enhancedFeatures
-        }
-
-        this.streamtty = new Streamtty({
-          parseIncompleteMarkdown: this.options.parseIncompleteMarkdown ?? true,
-          syntaxHighlight: this.options.syntaxHighlight ?? true,
-          autoScroll: this.options.autoScroll ?? true,
-          maxWidth: this.options.maxWidth ?? 120,
-          gfm: this.options.gfm ?? true,
-          // Enhanced features integration
-          enhancedFeatures,
-          theme: this.options.theme ?? 'dark',
-          controls: this.options.controls,
-          mermaidConfig: this.options.mermaidConfig,
-          mathConfig: this.options.mathConfig,
-          security: this.options.security ?? {
-            enabled: true,
-            stripDangerousAnsi: true,
-            allowedLinkPrefixes: ['http://', 'https://'],
-            allowedImagePrefixes: ['http://', 'https://'],
-          },
-          shikiLanguages: this.options.shikiLanguages ?? [
-            'typescript', 'javascript', 'python', 'bash', 'json',
-            'markdown', 'yaml', 'sql', 'html', 'css'
-          ],
-        })
-        this.isInitialized = true
-      } else {
-        // Use stdout mode (non-blessed)
-        this.isInitialized = true
-        this.stats.fallbackUsed = true
-      }
+      // Always use inline mode with enhanced features - no blessed mode
+      this.isInitialized = true
+      this.stats.fallbackUsed = false // Enhanced inline mode is not fallback
     } catch (error) {
-      console.warn('Failed to initialize Streamtty, using fallback mode:', error)
+      console.warn('Failed to initialize enhanced inline mode:', error)
       this.isInitialized = true
       this.stats.fallbackUsed = true
     }
@@ -157,7 +110,7 @@ export class StreamttyService {
     // Check if chunk already contains ANSI codes (to avoid double-processing)
     const hasAnsiCodes = /\x1b\[[\d;]*m/.test(chunk)
     const shouldHighlight = type !== 'tool' &&
-      (!this.streamtty || this.stats.fallbackUsed) &&
+      !this.stats.fallbackUsed &&
       !hasAnsiCodes // Don't highlight if already has ANSI codes
 
     if (shouldHighlight) {
@@ -172,28 +125,99 @@ export class StreamttyService {
       }
     }
 
-    this.streamBuffer += processedChunk
+    // Apply enhanced features inline processing
+    const enhancedChunk = await this.applyEnhancedFeaturesInline(processedChunk)
+    this.streamBuffer += enhancedChunk
 
-    // If blessed mode is active, use streamtty (pass raw chunk to let streamtty handle highlighting)
-    if (this.streamtty && this.isInitialized && !this.stats.fallbackUsed) {
-      try {
-        // Pass original chunk in blessed mode, streamtty will handle the formatting
-        this.streamtty.stream(chunk)
-        return
-      } catch (error) {
-        console.warn('Streamtty stream failed, falling back:', error)
-        this.stats.fallbackUsed = true
-      }
-    }
-
-    // Fallback: direct stdout with terminal output tracking (use highlighted version)
-    const chunkLines = TerminalOutputManager.calculateLines(processedChunk)
+    // Always use enhanced inline mode - direct stdout with enhanced formatting
+    const chunkLines = TerminalOutputManager.calculateLines(enhancedChunk)
     const outputId = terminalOutputManager.reserveSpace('StreamttyChunk', chunkLines)
-    process.stdout.write(processedChunk)
+    process.stdout.write(enhancedChunk)
     terminalOutputManager.confirmOutput(outputId, 'StreamttyChunk', chunkLines, {
       persistent: false,
       expiryMs: 30000,
     })
+  }
+
+  /**
+   * Apply enhanced features inline processing for tables, mermaid, etc.
+   */
+  private async applyEnhancedFeaturesInline(content: string): Promise<string> {
+    if (!content || !this.options.enhancedFeatures) return content
+
+    let processedContent = content
+
+    // Process tables if advanced tables are enabled
+    if (this.options.enhancedFeatures.advancedTables) {
+      processedContent = await this.processTablesInline(processedContent)
+    }
+
+    // Process mermaid diagrams if mermaid is enabled
+    if (this.options.enhancedFeatures.mermaid) {
+      processedContent = await this.processMermaidInline(processedContent)
+    }
+
+    return processedContent
+  }
+
+  /**
+   * Process markdown tables and render them with enhanced table renderer
+   */
+  private async processTablesInline(content: string): Promise<string> {
+    // Import the enhanced table renderer
+    const { parseMarkdownTable, EnhancedTableRenderer } = await import('../../../streamtty/src/utils/enhanced-table-renderer')
+
+    // Look for markdown table patterns
+    const tableRegex = /(\|[^|\n]+\|(?:\n\|[^|\n]*\|)*)/g
+
+    return content.replace(tableRegex, (match) => {
+      try {
+        const tableData = parseMarkdownTable(match)
+        if (tableData && tableData.headers.length > 0) {
+          const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
+            borderStyle: 'solid',
+            compact: false,
+            width: this.options.maxWidth || 80
+          })
+          return '\n' + renderedTable + '\n'
+        }
+      } catch (error) {
+        console.warn('Inline table processing failed:', error)
+      }
+      return match
+    })
+  }
+
+  /**
+   * Process mermaid diagrams and render them with mermaid-ascii
+   */
+  private async processMermaidInline(content: string): Promise<string> {
+    // Import mermaid-ascii wrapper
+    const { convertMermaidToASCII } = await import('../../../streamtty/src/utils/mermaid-ascii')
+
+    // Look for mermaid code blocks
+    const mermaidRegex = /```mermaid\s*\n([\s\S]*?)\n```/gi
+
+    let processedContent = content
+    const matches = Array.from(content.matchAll(mermaidRegex))
+
+    for (const match of matches) {
+      try {
+        const mermaidCode = match[1].trim()
+        if (mermaidCode) {
+          const asciiDiagram = await convertMermaidToASCII(mermaidCode, {
+            paddingX: 3,
+            paddingY: 2,
+            borderPadding: 1
+          })
+          processedContent = processedContent.replace(match[0], '\n' + asciiDiagram + '\n')
+        }
+      } catch (error) {
+        console.warn('Inline mermaid processing failed:', error)
+      }
+    }
+
+    return processedContent
   }
 
   /**
@@ -205,21 +229,9 @@ export class StreamttyService {
     this.stats.totalBlocks++
     this.stats.lastRenderTime = Date.now()
 
-    // If blessed mode is active, use streamtty with raw content
-    if (this.streamtty && this.isInitialized && !this.stats.fallbackUsed) {
-      try {
-        // Let streamtty handle formatting internally
-        this.streamtty.stream(content)
-        this.streamtty.render()
-        return
-      } catch (error) {
-        console.warn('Streamtty block render failed, falling back:', error)
-        this.stats.fallbackUsed = true
-      }
-    }
-
-    // Fallback: format for stdout and output with tracking
-    const formattedContent = this.formatContentByType(content, type)
+    // Apply enhanced features inline and format for stdout
+    const enhancedContent = await this.applyEnhancedFeaturesInline(content)
+    const formattedContent = this.formatContentByType(enhancedContent, type)
     const lines = TerminalOutputManager.calculateLines(formattedContent)
     const outputId = terminalOutputManager.reserveSpace('StreamttyBlock', lines)
     console.log(formattedContent)
@@ -312,14 +324,7 @@ export class StreamttyService {
    */
   clear(): void {
     this.streamBuffer = ''
-    if (this.streamtty) {
-      try {
-        this.streamtty.clear()
-      } catch (error) {
-        // Fallback clear
-        console.clear()
-      }
-    }
+    console.clear() // Simple clear for inline mode
   }
 
   /**
@@ -355,17 +360,24 @@ export class StreamttyService {
   }
 
   /**
-   * Check if blessed mode is active
+   * Check if enhanced inline mode is active
    */
-  isBlessedModeActive(): boolean {
-    return this.isInitialized && this.streamtty !== null && !this.stats.fallbackUsed
+  isEnhancedInlineModeActive(): boolean {
+    return this.isInitialized && !this.stats.fallbackUsed
   }
 
   /**
-   * Get streamtty instance for advanced usage
+   * Check if blessed mode is active (always false in new architecture)
    */
-  getStreamttyInstance(): Streamtty | null {
-    return this.streamtty
+  isBlessedModeActive(): boolean {
+    return false // Always false - we use enhanced inline mode now
+  }
+
+  /**
+   * Get streamtty instance for advanced usage (always null in new architecture)
+   */
+  getStreamttyInstance(): null {
+    return null // Always null - we use enhanced inline mode now
   }
 
   /**
@@ -384,23 +396,12 @@ export class StreamttyService {
       this.stats.toolResultEvents++
     }
 
-    // If blessed mode is active with streamtty, use AI SDK adapter
-    if (this.streamtty && this.isInitialized && !this.stats.fallbackUsed) {
-      try {
-        await this.streamtty.streamEvent(event)
-        return
-      } catch (error) {
-        console.warn('Streamtty AI SDK event failed, falling back:', error)
-        this.stats.fallbackUsed = true
-      }
-    }
-
-    // Fallback: format and output to stdout
-    const formattedEvent = this.formatAISDKEventFallback(event)
-    if (formattedEvent) {
-      const lines = TerminalOutputManager.calculateLines(formattedEvent)
+    // Enhanced inline mode: format and output to stdout with enhanced features
+    const enhancedEvent = await this.applyEnhancedFeaturesInline(this.formatAISDKEventFallback(event))
+    if (enhancedEvent) {
+      const lines = TerminalOutputManager.calculateLines(enhancedEvent)
       const outputId = terminalOutputManager.reserveSpace('AISDKEvent', lines)
-      process.stdout.write(formattedEvent)
+      process.stdout.write(enhancedEvent)
       terminalOutputManager.confirmOutput(outputId, 'AISDKEvent', lines, {
         persistent: false,
         expiryMs: 30000,
@@ -532,12 +533,7 @@ export class StreamttyService {
       this.options.enhancedFeatures = {}
     }
     this.options.enhancedFeatures[feature] = true
-
-    // Re-initialize if using blessed mode
-    if (this.useBlessedMode && process.stdout.isTTY) {
-      this.destroy()
-      this.initialize()
-    }
+    // Enhanced inline mode - features are applied dynamically
   }
 
   /**
@@ -548,12 +544,7 @@ export class StreamttyService {
       return
     }
     this.options.enhancedFeatures[feature] = false
-
-    // Re-initialize if using blessed mode
-    if (this.useBlessedMode && process.stdout.isTTY) {
-      this.destroy()
-      this.initialize()
-    }
+    // Enhanced inline mode - features are applied dynamically
   }
 
   /**
@@ -561,25 +552,7 @@ export class StreamttyService {
    */
   setTheme(theme: 'light' | 'dark' | 'auto'): void {
     this.options.theme = theme
-
-    // Re-initialize if using blessed mode
-    if (this.useBlessedMode && process.stdout.isTTY) {
-      this.destroy()
-      this.initialize()
-    }
-  }
-
-  /**
-   * Configure interactive controls
-   */
-  setControls(controls: boolean | TTYControlsConfig): void {
-    this.options.controls = controls
-
-    // Re-initialize if using blessed mode
-    if (this.useBlessedMode && process.stdout.isTTY) {
-      this.destroy()
-      this.initialize()
-    }
+    // Enhanced inline mode - theme changes are applied dynamically
   }
 
   /**
@@ -590,19 +563,14 @@ export class StreamttyService {
       ...this.options.security,
       ...security
     }
-
-    // Re-initialize if using blessed mode
-    if (this.useBlessedMode && process.stdout.isTTY) {
-      this.destroy()
-      this.initialize()
-    }
+    // Enhanced inline mode - security changes are applied dynamically
   }
 
   /**
    * Check if enhanced features are enabled
    */
   areEnhancedFeaturesEnabled(): boolean {
-    return this.isBlessedModeActive() &&
+    return this.isEnhancedInlineModeActive() &&
       Object.values(this.options.enhancedFeatures || {}).some(v => v === true)
   }
 
@@ -617,34 +585,29 @@ export class StreamttyService {
    * Destroy and cleanup
    */
   destroy(): void {
-    if (this.streamtty) {
-      try {
-        this.streamtty.destroy()
-      } catch (error) {
-        // Ignore cleanup errors
-      }
-      this.streamtty = null
-    }
+    // Cleanup for inline mode
+    this.streamBuffer = ''
     this.isInitialized = false
   }
 }
 
-// Singleton instance - centralized rendering service with enhanced features enabled
+// Singleton instance - simplified visual-only rendering service
 export const streamttyService = new StreamttyService({
   parseIncompleteMarkdown: true,
   syntaxHighlight: true,
   autoScroll: true,
-  maxWidth: 120,
+  maxWidth: 80,
   gfm: true,
-  useBlessedMode: false, // Default to stdout mode for broader compatibility
-  // Enhanced features are auto-enabled when blessed mode is used
+
+  useBlessedMode: false, // Enable blessed mode for enhanced features (tables, mermaid, etc.)
+  // Enhanced visual features (no interactive controls)
   enhancedFeatures: {
     math: true,
-    mermaid: true,
+    mermaid: true, // With mermaid-ascii integration
     shiki: true,
     security: true,
-    interactiveControls: false,
-    advancedTables: true,
+    interactiveControls: false, // Pure visual rendering only
+    advancedTables: true, // With tty-table and asciichart integration
   },
   theme: 'dark',
   security: {

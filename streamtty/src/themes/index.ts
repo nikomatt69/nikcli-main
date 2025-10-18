@@ -43,6 +43,12 @@ export interface UITheme {
 export const lightTheme: TTYTheme = {
     name: 'light',
     markdown: {
+        h1: { fg: 'black', bold: true },
+        h2: { fg: 'black', bold: true },
+        h3: { fg: 'black', bold: true },
+        h4: { fg: 'black', bold: true },
+        h5: { fg: 'black', bold: true },
+        h6: { fg: 'black', bold: true },
         paragraph: { fg: 'black' },
         strong: { fg: 'black', bold: true },
         em: { fg: 'black', italic: true },
@@ -83,6 +89,12 @@ export const lightTheme: TTYTheme = {
 export const darkTheme: TTYTheme = {
     name: 'dark',
     markdown: {
+        h1: { fg: 'white', bold: true },
+        h2: { fg: 'white', bold: true },
+        h3: { fg: 'white', bold: true },
+        h4: { fg: 'white', bold: true },
+        h5: { fg: 'white', bold: true },
+        h6: { fg: 'white', bold: true },
         paragraph: { fg: 'white' },
         strong: { fg: 'white', bold: true },
         em: { fg: 'white', italic: true },

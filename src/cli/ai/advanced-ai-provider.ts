@@ -592,7 +592,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         description: 'Read and analyze file contents with metadata',
         parameters: z.object({
           path: z.string().describe('File path to read'),
-          analyze: z.boolean().default(true).describe('Whether to analyze file structure'),
+          analyze: z.boolean().optional().default(true).describe('Whether to analyze file structure'),
         }),
         execute: async ({ path, analyze }) => {
           try {
@@ -969,7 +969,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
         }),
         execute: async ({ action, packages, dev, global }) => {
           try {
-            const command = 'yarn'
+            const command = 'npm'
             let args: string[] = []
 
             switch (action) {
@@ -980,6 +980,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 args = ['add', ...packages]
                 if (dev) args.push('--dev')
                 if (global) args.push('--global')
+                if (dev) args.push('--save-dev')
+                if (!dev && existsSync(resolve(this.workingDirectory, 'package.json'))) {
+                  args.push('--save')
+                }
                 break
               case 'remove':
                 args = ['remove', ...packages]
@@ -1256,12 +1260,25 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
 
 
-      // OpenRouter Anthropic models REQUIRE maxTokens, other providers handle it differently
+      // OpenRouter Anthropic models REQUIRE maxTokens, OpenAI-compatible models should NOT use it
       if (provider !== 'openai') {
-        if (provider === 'openrouter' && (configManager.getModelConfig(model)?.maxTokens)) {
-          streamOpts.maxTokens = params.maxTokens
-        } else if (provider !== 'openrouter') {
-          streamOpts.maxTokens = params.maxTokens
+        if (provider === 'openrouter') {
+          // Only set maxTokens for Anthropic-based models on OpenRouter, NOT for OpenAI models
+          const modelName = effectiveModelName || this.currentModel || ''
+          const isOpenAIModel = modelName.includes('openai') ||
+            modelName.includes('gpt-') ||
+            modelName.includes('o1-') ||
+            modelName.includes('chatgpt')
+          const isAnthropicModel = (modelName.includes('claude') ||
+            modelName.includes('anthropic') ||
+            modelName.includes('@preset/nikcli')) && !isOpenAIModel
+          if (isAnthropicModel && this.getCurrentModelInfo().config.maxTokens) {
+            streamOpts.maxTokens = params.maxTokens
+          }
+        } else if (provider === 'anthropic') {
+          if (this.getCurrentModelInfo().config.maxTokens) {
+            streamOpts.maxTokens = params.maxTokens
+          }
         }
       }
       const result = streamText(streamOpts)
@@ -1354,7 +1371,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
                 // Check if we've completed 2 rounds - if so, provide final summary and stop
                 if (this.completedRounds >= this.maxRounds) {
-                  const finalSummary = this.generateFinalSummary(originalQuery, this.toolCallHistory)
+                  const finalSummary = this.analyzeMissingInformation(originalQuery, this.toolCallHistory)
 
                   yield {
                     type: 'thinking',
@@ -2167,9 +2184,19 @@ Requirements:
       }
       const provider = this.getCurrentModelInfo().config.provider
       if (provider !== 'openai') {
-        if (provider === 'openrouter' && (this.currentModel?.includes('anthropic') || this.currentModel?.includes('claude'))) {
-          genOpts.maxTokens = Math.min(params.maxTokens, 2000)
-        } else if (provider !== 'openrouter') {
+        if (provider === 'openrouter') {
+          const modelName = this.currentModel || ''
+          const isOpenAIModel = modelName.includes('openai') ||
+            modelName.includes('gpt-') ||
+            modelName.includes('o1-') ||
+            modelName.includes('chatgpt')
+          const isAnthropicModel = (modelName.includes('claude') ||
+            modelName.includes('anthropic') ||
+            modelName.includes('@preset/nikcli')) && !isOpenAIModel
+          if (isAnthropicModel) {
+            genOpts.maxTokens = Math.min(params.maxTokens, 2000)
+          }
+        } else if (provider === 'anthropic') {
           genOpts.maxTokens = Math.min(params.maxTokens, 2000)
         }
       }
@@ -2248,7 +2275,7 @@ Requirements:
           if (current && current !== model) apiKey = configManager.getApiKey(current)
         }
         if (!apiKey) throw new Error(`No API key found for provider OpenAI (model ${model})`)
-        const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
+        const openaiProvider = createOpenAI({ apiKey })
         return openaiProvider(configData.model)
       }
       case 'anthropic': {
@@ -2319,7 +2346,7 @@ Requirements:
     const configData = allModels[model]
 
     if (!configData) {
-      return { maxTokens: 4000, temperature: 0.7 } // REDUCED default
+      return { maxTokens: 4000, temperature: 1 } // REDUCED default
     }
 
     // Provider-specific token limits and settings
@@ -2364,7 +2391,7 @@ Requirements:
         return { maxTokens: 4000, temperature: 0.7 }
 
       default:
-        return { maxTokens: 4096, temperature: 0.7 } // RIDOTTO per compatibilità universale
+        return { maxTokens: 4096, temperature: 1 } // RIDOTTO per compatibilità universale
     }
   }
 
@@ -2626,78 +2653,6 @@ Requirements:
     return this.truncateForPrompt(`${question}\n💡 Tell me how to continue.`, 150)
   }
 
-  // Generate final summary after 2 rounds of roundtrips
-  private generateFinalSummary(
-    originalQuery: string,
-    toolHistory: Array<{ toolName: string; args: any; result: any; success: boolean }>
-  ): string {
-    const tools = [...new Set(toolHistory.map((t) => t.toolName))]
-    const successful = toolHistory.filter((t) => t.success).length
-    const failed = toolHistory.filter((t) => !t.success).length
-    const totalOperations = toolHistory.length
-
-    let summary = `**Final Analysis Summary:**\n\n`
-
-    // What was done
-    summary += `📊 **Operations Completed:** ${totalOperations} total operations across ${this.completedRounds} rounds\n`
-    summary += `✓ **Successful:** ${successful} operations\n`
-    summary += `❌ **Failed:** ${failed} operations\n`
-    summary += `🔨 **Tools Used:** ${tools.join(', ')}\n\n`
-
-    // Key findings
-    summary += `🔍 **Key Findings:**\n`
-    if (successful > 0) {
-      summary += `- Successfully executed ${successful} operations\n`
-    }
-    if (failed > 0) {
-      summary += `- ${failed} operations encountered issues\n`
-    }
-
-    // Analysis of query fulfillment
-    const queryLower = originalQuery.toLowerCase()
-    summary += `\n📝 **Query Analysis:**\n`
-    summary += `- Original request: "${this.truncateForPrompt(originalQuery, 80)}"\n`
-
-    // Recommend next steps based on analysis
-    summary += `\n🎯 **Recommended Next Steps:**\n`
-
-    // Strategy based on what was tried
-    if (failed > successful && failed > 3) {
-      summary += `- Review and refine search criteria (many operations failed)\n`
-      summary += `- Try different search patterns or keywords\n`
-    }
-
-    if (queryLower.includes('search') || queryLower.includes('find')) {
-      if (!tools.includes('web_search')) {
-        summary += `- Try web search for external documentation\n`
-      }
-      if (!tools.includes('semantic_search')) {
-        summary += `- Use semantic search for similar patterns\n`
-      }
-      summary += `- Manually specify directories or file patterns\n`
-      summary += `- Consider searching in hidden/config directories\n`
-    }
-
-    if (queryLower.includes('analyze') || queryLower.includes('analisi')) {
-      if (!tools.includes('dependency_analysis')) {
-        summary += `- Run dependency analysis for comprehensive view\n`
-      }
-      if (!tools.includes('code_analysis')) {
-        summary += `- Perform detailed code quality analysis\n`
-      }
-      summary += `- Focus on specific modules or components\n`
-    }
-
-    // General strategies
-    summary += `- Provide more specific context or constraints\n`
-    summary += `- Break down the request into smaller, targeted tasks\n`
-    summary += `- Try alternative approaches or tools not yet used\n`
-
-    // Final guidance
-    summary += `\n💡 **How to Continue:** Please provide more specific guidance, narrow the scope, or try a different approach based on the recommendations above. Consider breaking your request into smaller, more focused tasks.`
-
-    return this.truncateForPrompt(summary, 800)
-  }
 
   // ====================== ⚡︎ COGNITIVE ENHANCEMENT METHODS ======================
 

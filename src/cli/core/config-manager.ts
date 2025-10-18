@@ -135,13 +135,13 @@ const ConfigSchema = z.object({
       default: z.enum(['openai', 'google', 'anthropic', 'openrouter']).default('openai'),
       fallbackChain: z
         .array(z.enum(['openai', 'google', 'anthropic', 'openrouter']))
-        .default(['openai', 'openrouter', 'google']),
+        .default(['openai', 'openrouter']),
       costOptimization: z.boolean().default(true),
       autoSwitchOnFailure: z.boolean().default(true),
     })
     .default({
       default: 'openai',
-      fallbackChain: ['openai', 'openrouter', 'google'],
+      fallbackChain: ['openai', 'openrouter'],
       costOptimization: true,
       autoSwitchOnFailure: true,
     }),
@@ -812,7 +812,6 @@ export class SimpleConfigManager {
       model: 'gemma3n-large',
       maxContextTokens: 8192,
     },
-
     // OpenRouter models
     'anthropic/claude-sonnet-4.5': {
       provider: 'openrouter',
@@ -881,11 +880,7 @@ export class SimpleConfigManager {
       model: 'openai/gpt-5-nano',
       maxContextTokens: 128000,
     },
-    'openai/gpt-5-mini-2025-08-07': {
-      provider: 'openrouter',
-      model: 'openai/gpt-5-mini-2025-08-07',
-      maxContextTokens: 128000,
-    },
+
     'meta-llama/llama-3.1-405b-instruct': {
       provider: 'openrouter',
       model: 'meta-llama/llama-3.1-405b-instruct',
@@ -1032,6 +1027,11 @@ export class SimpleConfigManager {
       model: '@preset/nikcli-pro',
       maxContextTokens: 200000,
     },
+    '@preset/nikcli-research': {
+      provider: 'openrouter',
+      model: '@preset/nikcli-research',
+      maxContextTokens: 200000,
+    }
   }
 
   private defaultConfig: ConfigType = {
@@ -1068,7 +1068,7 @@ export class SimpleConfigManager {
     approvalPolicy: 'moderate' as const,
     embeddingProvider: {
       default: 'openai',
-      fallbackChain: ['openai', 'openrouter', 'google'],
+      fallbackChain: ['openai', 'openrouter'],
       costOptimization: true,
       autoSwitchOnFailure: true,
     },

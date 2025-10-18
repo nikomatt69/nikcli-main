@@ -26,7 +26,7 @@ export function parseMarkdownTable(markdown: string): {
   rows: TableRow[];
 } {
   const lines = markdown.trim().split('\n').filter(l => l.trim());
-  
+
   if (lines.length < 2) {
     return { columns: [], rows: [] };
   }
@@ -203,7 +203,7 @@ function getBorderChars(style: 'single' | 'double' | 'rounded' | 'none') {
         horizontal: '═',
         vertical: '║',
       };
-    
+
     case 'rounded':
       return {
         topLeft: '╭',
@@ -218,7 +218,7 @@ function getBorderChars(style: 'single' | 'double' | 'rounded' | 'none') {
         horizontal: '─',
         vertical: '│',
       };
-    
+
     case 'none':
       return {
         topLeft: ' ',
@@ -233,7 +233,7 @@ function getBorderChars(style: 'single' | 'double' | 'rounded' | 'none') {
         horizontal: ' ',
         vertical: ' ',
       };
-    
+
     case 'single':
     default:
       return {

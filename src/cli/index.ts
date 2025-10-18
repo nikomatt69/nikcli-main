@@ -746,21 +746,29 @@ class OnboardingModule {
         const redisCredentials = configManager.getRedisCredentials()
         const redisConfig = config.redis
 
-        // Determine display based on Upstash vs legacy configuration
+        // Determine display based on local vs Upstash configuration
+        // Priority: Local Redis (host/port) > Upstash (url/token)
         let connectionInfo: string
-        if (redisCredentials.url) {
+        let providerInfo: string
+
+        if (redisConfig!.host && redisConfig!.port) {
+          // Local Redis - show host:port
+          connectionInfo = `${redisConfig!.host}:${redisConfig!.port}`
+          providerInfo = chalk.gray(`Provider: Local Redis | Database: ${redisConfig!.database}`)
+        } else if (redisCredentials.url) {
           // Upstash Redis - show URL (masked for security)
           const url = new URL(redisCredentials.url)
           connectionInfo = `${url.hostname}`
+          providerInfo = chalk.gray('Provider: Upstash Redis (Cloud)')
         } else {
-          // Legacy Redis - show host:port
-          connectionInfo = `${redisConfig!.host}:${redisConfig!.port}`
+          connectionInfo = 'Not configured'
+          providerInfo = chalk.gray('Provider: None')
         }
 
         const redisLines = [
           chalk.cyan.bold('🔴 Redis Cache Service'),
           chalk.gray(`Host: ${connectionInfo}`),
-          redisCredentials.url ? chalk.gray('Provider: Upstash') : chalk.gray(`Database: ${redisConfig!.database}`),
+          providerInfo,
           chalk.gray(`Fallback: ${redisConfig!.fallback.enabled ? 'Enabled' : 'Disabled'}`),
           chalk.green('✓ Configuration loaded'),
         ]
@@ -768,6 +776,30 @@ class OnboardingModule {
       } catch (_error: any) {
         sections.push(chalk.yellow('🔴 Redis Cache Service\n⚠️  Configuration issue detected'))
       }
+    }
+
+    // Check Upstash Vector configuration
+    const upstashVectorUrl = process.env.UPSTASH_VECTOR_REST_URL || configManager.getApiKey('upstash_vector_url')
+    const upstashVectorToken = process.env.UPSTASH_VECTOR_REST_TOKEN || configManager.getApiKey('upstash_vector_token')
+    
+    if (upstashVectorUrl && upstashVectorToken) {
+      try {
+        const vectorLines = [
+          chalk.magenta.bold('🔮 Upstash Vector Store'),
+          chalk.green('✓ Credentials detected'),
+          chalk.gray(`URL: ${new URL(upstashVectorUrl).hostname}`),
+          chalk.gray('Status: Ready for embeddings'),
+        ]
+        sections.push(vectorLines.join('\n'))
+      } catch (_error: any) {
+        sections.push(chalk.yellow('🔮 Upstash Vector Store\n⚠️  Configuration issue detected'))
+      }
+    } else {
+      sections.push(
+        chalk.yellow(
+          '🔮 Upstash Vector Store\n⚠️  UPSTASH_VECTOR_REST_URL or TOKEN missing.\n   Use /set-vector-key to configure embeddings support.'
+        )
+      )
     }
 
     if (supabaseEnabled) {

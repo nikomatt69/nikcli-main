@@ -65,9 +65,9 @@ export interface StreamttyOptions {
   shikiLanguages?: string[];
 
   /**
-   * Interactive controls configuration
+   * Interactive controls (disabled in simplified version)
    */
-  controls?: boolean | TTYControlsConfig;
+  controls?: false;
 
   /**
    * Mermaid diagram configuration
@@ -101,6 +101,12 @@ export interface StreamttyOptions {
 }
 
 export interface MarkdownStyles {
+  h1: BlessedStyle;
+  h2: BlessedStyle;
+  h3: BlessedStyle;
+  h4: BlessedStyle;
+  h5: BlessedStyle;
+  h6: BlessedStyle;
 
   paragraph: BlessedStyle;
   strong: BlessedStyle;
@@ -190,28 +196,19 @@ export interface EnhancedFeaturesConfig {
 }
 
 /**
- * Interactive controls configuration
+ * Interactive controls configuration (deprecated - visual-only rendering)
+ * @deprecated Interactive controls have been removed for simplified visual-only rendering
  */
 export interface TTYControlsConfig {
-  table?: boolean;       // Navigate tables with arrow keys
-  code?: boolean;        // Copy code blocks
-  mermaid?: boolean;     // Export diagrams
-  math?: boolean;        // Copy math expressions
-  keys?: KeyBindings;    // Custom key bindings
+  // All interactive features disabled
 }
 
 /**
- * Key bindings configuration
+ * Key bindings configuration (deprecated)
+ * @deprecated Key bindings removed for visual-only rendering
  */
 export interface KeyBindings {
-  copy?: string;         // Default: 'c'
-  export?: string;       // Default: 'e'
-  navigate?: {
-    up?: string;
-    down?: string;
-    left?: string;
-    right?: string;
-  };
+  // All key bindings disabled
 }
 
 /**

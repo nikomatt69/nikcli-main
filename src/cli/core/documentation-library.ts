@@ -412,7 +412,7 @@ export class DocumentationLibrary {
     // Persisti stato finale
     try {
       await this.saveLibrary()
-    } catch {}
+    } catch { }
 
     return addedCount
   }
@@ -691,7 +691,7 @@ export class DocumentationLibrary {
     console.log(`📖 Total Docs: ${stats.totalDocs}`)
     console.log(`⚡︎ Categories: ${stats.categories.join(', ')}`)
     console.log(`📝 Total Words: ${stats.totalWords.toLocaleString()}`)
-    console.log(`🎞️Avg Access Count: ${stats.avgAccessCount.toFixed(1)}`)
+    console.log(`📷 Avg Access Count: ${stats.avgAccessCount.toFixed(1)}`)
     console.log(`🌍 Languages: ${stats.languages.join(', ')}`)
   }
 }
