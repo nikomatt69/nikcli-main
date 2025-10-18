@@ -4,6 +4,7 @@ import { embed } from 'ai'
 import chalk from 'chalk'
 import { configManager } from '../core/config-manager'
 import { redisProvider } from '../providers/redis/redis-provider'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface EmbeddingConfig {
   provider: 'openai' | 'google' | 'anthropic' | 'openrouter'
@@ -117,9 +118,7 @@ export class AiSdkEmbeddingProvider {
     }
 
     if (this.availableProviders.length === 0) {
-      console.log(chalk.blue('⚡︎ RAG using local workspace analysis (no API keys configured)'))
-    } else {
-
+      advancedUI.logInfo('⚡︎ RAG using local workspace analysis (no API keys configured)')
     }
   }
 
@@ -158,7 +157,7 @@ export class AiSdkEmbeddingProvider {
 
     // If all results are cached, return immediately
     if (uncachedTexts.length === 0) {
-      console.log(chalk.green(`✓ All ${texts.length} embeddings served from cache`))
+      advancedUI.logSuccess(`✓ All ${texts.length} embeddings served from cache`)
       return cachedResults as number[][]
     }
 
@@ -203,13 +202,13 @@ export class AiSdkEmbeddingProvider {
 
       return finalResults
     } catch (error: any) {
-      console.log(chalk.yellow(`⚠️ Embedding failed with ${this.currentProvider}: ${error.message}`))
+      advancedUI.logWarning(`⚠️ Embedding failed with ${this.currentProvider}: ${error.message}`)
 
       // Try fallback providers for uncached texts only
       for (const provider of this.availableProviders) {
         if (provider !== this.currentProvider) {
           try {
-            console.log(chalk.blue(`⚡︎ Trying fallback provider: ${provider}`))
+            advancedUI.logInfo(`⚡︎ Trying fallback provider: ${provider}`)
             const result = await this.generateWithProvider(uncachedTexts, provider)
 
             // Update current provider to working one
@@ -231,7 +230,7 @@ export class AiSdkEmbeddingProvider {
 
             return finalResults
           } catch (fallbackError: any) {
-            console.log(chalk.yellow(`⚠️ Fallback ${provider} also failed: ${fallbackError.message}`))
+            advancedUI.logWarning(`⚠️ Fallback ${provider} also failed: ${fallbackError.message}`)
           }
         }
       }
@@ -273,7 +272,7 @@ export class AiSdkEmbeddingProvider {
           const batchResult = await this.generateBatch(batch, providerName)
           return { index: i + batchIndex, result: batchResult }
         } catch (error) {
-          console.log(chalk.yellow(`⚠️ Batch ${i + batchIndex} failed: ${(error as Error).message}`))
+          advancedUI.logWarning(`⚠️ Batch ${i + batchIndex} failed: ${(error as Error).message}`)
           throw error
         }
       })
@@ -484,7 +483,7 @@ export class AiSdkEmbeddingProvider {
     } catch (error: any) {
       // Enhanced error handling
       if (error.message?.includes('rate limit')) {
-        console.log(chalk.yellow(`⚠️ Rate limit reached for ${providerName}, waiting...`))
+        advancedUI.logWarning(`⚠️ Rate limit reached for ${providerName}, waiting...`)
         await new Promise((resolve) => setTimeout(resolve, 2000))
         // Retry once
         return this.generateBatch(texts, providerName)
@@ -561,11 +560,11 @@ export class AiSdkEmbeddingProvider {
   setProvider(provider: string): boolean {
     if (this.availableProviders.includes(provider)) {
       this.currentProvider = provider
-      console.log(chalk.blue(`🔧 Switched to embedding provider: ${provider}`))
+      advancedUI.logInfo(`🔧 Switched to embedding provider: ${provider}`)
       return true
     }
 
-    console.log(chalk.red(`❌ Provider ${provider} not available. Available: ${this.availableProviders.join(', ')}`))
+    advancedUI.logError(`❌ Provider ${provider} not available. Available: ${this.availableProviders.join(', ')}`)
     return false
   }
 

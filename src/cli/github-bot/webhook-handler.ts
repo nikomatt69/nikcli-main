@@ -21,7 +21,7 @@ export class GitHubWebhookHandler {
     this.config = config
     this.octokit = new Octokit({
       auth: config.githubToken,
-      userAgent: 'nikCLI-bot/0.3.0',
+      userAgent: 'nikCLI-bot/0.4.0',
     })
 
     this.commentProcessor = new CommentProcessor()
@@ -463,11 +463,10 @@ ${error instanceof Error ? error.message : 'Unknown error'}
 Please check your request and try again. If the issue persists, please create an issue in the [NikCLI repository](https://github.com/nikomatt69/nikcli-main).
 
 ---
-*Processing time: ${
-        job.startedAt && job.completedAt
+*Processing time: ${job.startedAt && job.completedAt
           ? `${((job.completedAt.getTime() - job.startedAt.getTime()) / 1000).toFixed(2)}s`
           : 'N/A'
-      }*`
+        }*`
 
       await this.octokit.rest.issues.createComment({
         owner,
