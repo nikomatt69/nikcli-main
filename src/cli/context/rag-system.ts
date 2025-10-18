@@ -87,7 +87,6 @@ function estimateCost(input: string[] | number, provider: string = 'openai'): nu
   const estimatedTokens = Math.ceil(totalChars / 4)
 
   // Use provider-specific pricing from unified embedding interface
-  const _config = unifiedEmbeddingInterface.getConfig()
   const costPer1K = provider === 'openai' ? 0.00002 : provider === 'google' ? 0.000025 : 0.00003
   return (estimatedTokens / 1000) * costPer1K
 }
@@ -107,7 +106,7 @@ function createVectorStoreConfigs() {
         baseDir: join(homedir(), '.nikcli', 'vector-store'),
       },
       collectionName: 'local_vectors',
-      embeddingDimensions: 1536,
+      embeddingDimensions: unifiedEmbeddingInterface.getCurrentDimensions(),
       indexingBatchSize: 100,
       maxRetries: 1,
       healthCheckInterval: 600000,
@@ -132,7 +131,7 @@ function createVectorStoreConfigs() {
         redisToken: upstashRedisToken,
       },
       collectionName: upstashCollection,
-      embeddingDimensions: 1536,
+      embeddingDimensions: unifiedEmbeddingInterface.getCurrentDimensions(),
       indexingBatchSize: 100,
       maxRetries: 3,
       healthCheckInterval: 300000,
@@ -157,7 +156,7 @@ function createVectorStoreConfigs() {
         database: chromaDatabase,
       },
       collectionName: 'nikcli-vectors',
-      embeddingDimensions: 1536,
+      embeddingDimensions: unifiedEmbeddingInterface.getCurrentDimensions(),
       indexingBatchSize: 100,
       maxRetries: 3,
       healthCheckInterval: 300000,
@@ -175,7 +174,7 @@ function createVectorStoreConfigs() {
         ssl: chromaUrl.startsWith('https'),
       },
       collectionName: 'nikcli-vectors',
-      embeddingDimensions: 1536,
+      embeddingDimensions: unifiedEmbeddingInterface.getCurrentDimensions(),
       indexingBatchSize: 100,
       maxRetries: 3,
       healthCheckInterval: 300000,
@@ -191,7 +190,7 @@ function createVectorStoreConfigs() {
         baseDir: join(homedir(), '.nikcli', 'vector-store'),
       },
       collectionName: 'local_fallback',
-      embeddingDimensions: 1536,
+      embeddingDimensions: unifiedEmbeddingInterface.getCurrentDimensions(),
       indexingBatchSize: 50,
       maxRetries: 1,
       healthCheckInterval: 600000,
@@ -203,7 +202,7 @@ function createVectorStoreConfigs() {
 }
 
 // Utility functions
-async function _estimateIndexingCost(files: string[], projectPath: string): Promise<number> {
+async function estimateIndexingCost(files: string[], projectPath: string): Promise<number> {
   let totalChars = 0
   let processedFiles = 0
 
@@ -336,7 +335,7 @@ export class UnifiedRAGSystem {
    * Background initialization - runs silently without blocking CLI startup
    * @deprecated Use startBackgroundInitialization() instead
    */
-  private initializeClientsBackground(): void {
+  private _initializeClientsBackground(): void {
     this.startBackgroundInitialization()
   }
 
@@ -530,7 +529,7 @@ export class UnifiedRAGSystem {
   ): Promise<RAGSearchResult[]> {
     await this.ensureInitialized()
 
-    const { limit = 10, threshold = 0.3, includeAnalysis = true } = options || {}
+    const { limit = 10 } = options || {}
 
     try {
       // Use semantic search engine for query analysis
@@ -569,7 +568,7 @@ export class UnifiedRAGSystem {
   ): Promise<RAGSearchResult[]> {
     await this.ensureInitialized()
 
-    const { limit = 10, includeContent = true, semanticOnly = false } = options || {}
+    const { limit = 10, semanticOnly = false } = options || {}
     const startTime = Date.now()
 
     // Initialize monitoring
@@ -787,7 +786,6 @@ export class UnifiedRAGSystem {
 
         // ChromaDB free tier has quota limits (typically 300-1000 records)
         // Upstash free tier: 10,000 vectors
-        const MAX_CHROMADB_BATCH_SIZE = 100
         const MAX_UPSTASH_BATCH_SIZE = 1000
         const batchSize = Math.min(MAX_UPSTASH_BATCH_SIZE, Number(process.env.INDEXING_BATCH_SIZE || 300)) // Configurable indexing batch size
 
@@ -1301,7 +1299,6 @@ export class UnifiedRAGSystem {
 
     if (queryAnalysis) {
       // Use the expanded query for better results
-      const _expandedQuery = queryAnalysis.expandedQuery || query
       return await this.searchVectorStoreWithSemantics(queryAnalysis, limit)
     } else {
       // Fall back to regular search

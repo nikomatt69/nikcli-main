@@ -32,7 +32,7 @@ export class StreamttyAdapter {
 
   constructor(private options: StreamttyOptions = {}) {
     this.useBlessedMode = options.useBlessedMode ?? false
-    
+
     // Auto-enable enhanced visual features if not explicitly configured
     if (!this.options.enhancedFeatures && this.useBlessedMode) {
       this.options.enhancedFeatures = {
@@ -44,7 +44,7 @@ export class StreamttyAdapter {
         advancedTables: true, // With tty-table and asciichart integration
       }
     }
-    
+
     // Auto-configure security if not set
     if (!this.options.security && this.useBlessedMode) {
       this.options.security = {
@@ -54,7 +54,7 @@ export class StreamttyAdapter {
         allowedImagePrefixes: ['http://', 'https://'],
       }
     }
-    
+
     // Auto-configure default languages for Shiki if not set
     if (!this.options.shikiLanguages && this.useBlessedMode && this.options.enhancedFeatures?.shiki !== false) {
       this.options.shikiLanguages = [
@@ -62,7 +62,7 @@ export class StreamttyAdapter {
         'markdown', 'yaml', 'sql', 'html', 'css'
       ]
     }
-    
+
     this.initialize()
   }
 
@@ -133,18 +133,22 @@ export class StreamttyAdapter {
 
   /**
    * Render static markdown content using Streamtty
+   * Now includes table processing with rounded corners
    */
   async renderStatic(content: string): Promise<void> {
+    // Always process tables with rounded corners
+    const processedContent = await this.processTablesWithRoundedCorners(content)
+
     if (!this.isInitialized || !this.streamtty) {
-      console.log(content)
+      console.log(processedContent)
       return
     }
 
     try {
-      this.streamtty.setContent(content)
+      this.streamtty.setContent(processedContent)
     } catch (error) {
       console.warn('Streamtty static rendering failed, falling back to basic output:', error)
-      console.log(content)
+      console.log(processedContent)
     }
   }
 
@@ -159,6 +163,7 @@ export class StreamttyAdapter {
 
   /**
    * Fallback rendering when Streamtty is not available
+   * Now includes table processing with rounded corners
    */
   private async fallbackRender(
     stream: AsyncGenerator<string, void, unknown>,
@@ -166,17 +171,19 @@ export class StreamttyAdapter {
   ): Promise<string> {
     let accumulated = ''
     let printedLines = 0
-    let currentOutputId: string | null = null
 
     for await (const chunk of stream) {
       if (isCancelled()) break
 
       accumulated += chunk
 
+      // Process tables with rounded corners
+      const processedChunk = await this.processTablesWithRoundedCorners(chunk)
+
       // Track chunk output
-      const chunkLines = TerminalOutputManager.calculateLines(chunk)
+      const chunkLines = TerminalOutputManager.calculateLines(processedChunk)
       const outputId = terminalOutputManager.reserveSpace('StreamChunk', chunkLines)
-      process.stdout.write(chunk)
+      process.stdout.write(processedChunk)
       terminalOutputManager.confirmOutput(outputId, 'StreamChunk', chunkLines, {
         persistent: false,
         expiryMs: 30000
@@ -186,6 +193,82 @@ export class StreamttyAdapter {
     }
 
     return accumulated
+  }
+
+  /**
+   * Process tables with rounded corners
+   */
+  private async processTablesWithRoundedCorners(content: string): Promise<string> {
+    if (!content.includes('|')) {
+      return content; // No tables to process
+    }
+
+    try {
+      // Import the enhanced table renderer
+      const { parseMarkdownTable, EnhancedTableRenderer } = await import('streamtty/src/utils/enhanced-table-renderer')
+
+      // Find complete markdown tables
+      const lines = content.split('\n')
+      const tableLines: string[] = []
+      let inTable = false
+      let tableStart = -1
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        const isTableLine = line.trim().startsWith('|') && line.trim().endsWith('|')
+
+        if (isTableLine) {
+          if (!inTable) {
+            inTable = true
+            tableStart = i
+          }
+          tableLines.push(line)
+        } else if (inTable) {
+          // End of table - process it
+          if (tableLines.length >= 2) {
+            const tableText = tableLines.join('\n')
+            const tableData = parseMarkdownTable(tableText)
+            if (tableData && tableData.headers.length > 0) {
+              const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
+                borderStyle: 'solid',
+                compact: false,
+                width: this.options.maxWidth || 80
+              })
+
+              // Replace the table in the original content
+              const originalTable = lines.slice(tableStart, i).join('\n')
+              content = content.replace(originalTable, '\n' + renderedTable + '\n')
+            }
+          }
+
+          // Reset for next table
+          tableLines.length = 0
+          inTable = false
+          tableStart = -1
+        }
+      }
+
+      // Handle table at end of content
+      if (inTable && tableLines.length >= 2) {
+        const tableText = tableLines.join('\n')
+        const tableData = parseMarkdownTable(tableText)
+        if (tableData && tableData.headers.length > 0) {
+          const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
+            borderStyle: 'solid',
+            compact: false,
+            width: this.options.maxWidth || 80
+          })
+
+          const originalTable = lines.slice(tableStart).join('\n')
+          content = content.replace(originalTable, '\n' + renderedTable + '\n')
+        }
+      }
+
+      return content
+    } catch (error) {
+      console.warn('Table processing failed:', error)
+      return content
+    }
   }
 
   /**
@@ -213,9 +296,9 @@ export class StreamttyAdapter {
    * Check if enhanced features are enabled
    */
   areEnhancedFeaturesEnabled(): boolean {
-    return this.isAvailable() && 
-           this.useBlessedMode && 
-           Object.values(this.options.enhancedFeatures || {}).some(v => v === true)
+    return this.isAvailable() &&
+      this.useBlessedMode &&
+      Object.values(this.options.enhancedFeatures || {}).some(v => v === true)
   }
 
   /**
@@ -278,6 +361,82 @@ export class StreamttyAdapter {
 }
 
 /**
+ * Helper function to process tables with rounded corners
+ */
+async function processTablesWithRoundedCorners(content: string): Promise<string> {
+  if (!content.includes('|')) {
+    return content; // No tables to process
+  }
+
+  try {
+    // Import the enhanced table renderer
+    const { parseMarkdownTable, EnhancedTableRenderer } = await import('streamtty/src/utils/enhanced-table-renderer')
+
+    // Find complete markdown tables
+    const lines = content.split('\n')
+    const tableLines: string[] = []
+    let inTable = false
+    let tableStart = -1
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const isTableLine = line.trim().startsWith('|') && line.trim().endsWith('|')
+
+      if (isTableLine) {
+        if (!inTable) {
+          inTable = true
+          tableStart = i
+        }
+        tableLines.push(line)
+      } else if (inTable) {
+        // End of table - process it
+        if (tableLines.length >= 2) {
+          const tableText = tableLines.join('\n')
+          const tableData = parseMarkdownTable(tableText)
+          if (tableData && tableData.headers.length > 0) {
+            const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
+              borderStyle: 'solid',
+              compact: false,
+              width: 80
+            })
+
+            // Replace the table in the original content
+            const originalTable = lines.slice(tableStart, i).join('\n')
+            content = content.replace(originalTable, '\n' + renderedTable + '\n')
+          }
+        }
+
+        // Reset for next table
+        tableLines.length = 0
+        inTable = false
+        tableStart = -1
+      }
+    }
+
+    // Handle table at end of content
+    if (inTable && tableLines.length >= 2) {
+      const tableText = tableLines.join('\n')
+      const tableData = parseMarkdownTable(tableText)
+      if (tableData && tableData.headers.length > 0) {
+        const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
+          borderStyle: 'solid',
+          compact: false,
+          width: 80
+        })
+
+        const originalTable = lines.slice(tableStart).join('\n')
+        content = content.replace(originalTable, '\n' + renderedTable + '\n')
+      }
+    }
+
+    return content
+  } catch (error) {
+    console.warn('Table processing failed:', error)
+    return content
+  }
+}
+
+/**
  * @deprecated Use streamttyService from services/streamtty-service.ts instead
  * Legacy function - use the simplified streamttyService for better performance
  */
@@ -295,7 +454,9 @@ export async function renderMarkdownStream(
   for await (const chunk of stream) {
     if (options.isCancelled?.()) break
     accumulated += chunk
-    await streamttyService.streamChunk(chunk, 'ai')
+    // Process tables with rounded corners before streaming
+    const processedChunk = await processTablesWithRoundedCorners(chunk)
+    await streamttyService.streamChunk(processedChunk, 'ai')
   }
 
   return accumulated
@@ -307,12 +468,14 @@ export async function renderMarkdownStream(
  */
 export async function renderMarkdownStatic(
   content: string,
-  options: {
+  _options: {
     streamttyOptions?: StreamttyOptions
   } = {}
 ): Promise<void> {
   const { streamttyService } = await import('../services/streamtty-service')
-  await streamttyService.renderBlock(content, 'ai')
+  // Process tables with rounded corners before rendering
+  const processedContent = await processTablesWithRoundedCorners(content)
+  await streamttyService.renderBlock(processedContent, 'ai')
 }
 
 /**

@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { simpleConfigManager } from '../core/config-manager'
+import { SemanticCache, type SemanticCacheConfig } from '../core/semantic-cache'
 import { type SmartCacheManager, smartCache } from '../core/smart-cache-manager'
 import { type RedisProvider, redisProvider } from '../providers/redis/redis-provider'
 import { AsyncLock } from '../utils/async-lock'
@@ -9,6 +10,7 @@ import { structuredLogger } from '../utils/structured-logger'
 export interface CacheServiceOptions {
   redisEnabled?: boolean
   fallbackEnabled?: boolean
+  semanticCacheEnabled?: boolean
   strategies?: {
     tokens?: boolean
     sessions?: boolean
@@ -29,6 +31,10 @@ export interface CacheStats {
     type: 'smart' | 'memory'
     stats?: any
   }
+  semantic: {
+    enabled: boolean
+    stats?: any
+  }
   totalHits: number
   totalMisses: number
   hitRate: number
@@ -40,12 +46,14 @@ export interface CacheStats {
 export class CacheService extends EventEmitter {
   private redis: RedisProvider
   private smartCache: SmartCacheManager
+  private semanticCache: SemanticCache | null = null
   private config: CacheServiceOptions
   private stats = {
     hits: 0,
     misses: 0,
     redisHits: 0,
     fallbackHits: 0,
+    semanticHits: 0,
     errors: 0,
   }
   // 🔒 FIXED: Lock for coordinating writes to prevent cache inconsistency
@@ -69,6 +77,7 @@ export class CacheService extends EventEmitter {
     this.config = {
       redisEnabled: redisConfig.enabled,
       fallbackEnabled: redisConfig.fallback.enabled,
+      semanticCacheEnabled: false, // Disabled by default
       strategies: redisConfig.strategies,
       ...options,
     }
@@ -76,11 +85,46 @@ export class CacheService extends EventEmitter {
     this.redis = redisProvider
     this.smartCache = smartCache
 
+    // Initialize semantic cache if enabled
+    if (this.config.semanticCacheEnabled) {
+      this.initializeSemanticCache()
+    }
+
     this.setupEventHandlers()
     // Persist stats periodically (best-effort)
     setInterval(() => {
-      void this.persistStats().catch(() => {})
+      void this.persistStats().catch(() => { })
     }, 60000)
+  }
+
+  /**
+   * Initialize semantic cache with configuration
+   */
+  private async initializeSemanticCache(): Promise<void> {
+    try {
+      const semanticConfig: SemanticCacheConfig = {
+        redis: {
+          host: process.env.REDIS_HOST || 'localhost',
+          port: parseInt(process.env.REDIS_PORT || '6379'),
+        },
+        chromadb: {
+          host: process.env.CHROMADB_HOST || 'localhost',
+          port: parseInt(process.env.CHROMADB_PORT || '8000'),
+        },
+      }
+
+      this.semanticCache = new SemanticCache(semanticConfig)
+      await this.semanticCache.initialize()
+
+      structuredLogger.info('Semantic Cache initialized successfully', JSON.stringify({}))
+      this.emit('semantic_cache_ready')
+    } catch (error: any) {
+      structuredLogger.error(
+        'Failed to initialize Semantic Cache',
+        JSON.stringify({ error: error.message })
+      )
+      this.semanticCache = null
+    }
   }
 
   /**
@@ -150,10 +194,10 @@ export class CacheService extends EventEmitter {
               : Promise.resolve(false),
             this.shouldUseFallback(chosenStrategy, false)
               ? this.smartCache.setCachedResponse(key, JSON.stringify(value), context, {
-                  tokensSaved: this.estimateTokensSaved(value),
-                  responseTime: metadata?.responseTime || 0,
-                  ...metadata,
-                })
+                tokensSaved: this.estimateTokensSaved(value),
+                responseTime: metadata?.responseTime || 0,
+                ...metadata,
+              })
               : Promise.resolve(false),
           ])
 
@@ -243,7 +287,6 @@ export class CacheService extends EventEmitter {
       preferLocal?: boolean
     }
   ): Promise<T | null> {
-    const isOpaque = this.isOpaqueKey(key)
     const strategyResolved: 'redis' | 'smart' | 'both' = options?.strategy as any
     const { preferLocal = false } = options || {}
 
@@ -338,7 +381,6 @@ export class CacheService extends EventEmitter {
    */
   async delete(key: string): Promise<boolean> {
     let redisDeleted = false
-    const _smartDeleted = false
 
     // Delete from Redis
     if (this.config.redisEnabled && this.redis.isHealthy()) {
@@ -398,6 +440,7 @@ export class CacheService extends EventEmitter {
   async getStats(): Promise<CacheStats> {
     const redisHealth = this.redis.isHealthy() ? this.redis.getLastHealthCheck() : null
     const smartStats = this.smartCache.getCacheStats()
+    const semanticStats = this.semanticCache ? this.semanticCache.getStatistics() : null
 
     const hitRate =
       this.stats.hits + this.stats.misses > 0 ? (this.stats.hits / (this.stats.hits + this.stats.misses)) * 100 : 0
@@ -413,6 +456,10 @@ export class CacheService extends EventEmitter {
         enabled: this.config.fallbackEnabled || false,
         type: 'smart',
         stats: smartStats,
+      },
+      semantic: {
+        enabled: this.config.semanticCacheEnabled || false,
+        stats: semanticStats,
       },
       totalHits: this.stats.hits,
       totalMisses: this.stats.misses,
@@ -441,6 +488,15 @@ export class CacheService extends EventEmitter {
       this.smartCache.cleanup()
     }
 
+    // Clear Semantic Cache
+    if (this.config.semanticCacheEnabled && this.semanticCache) {
+      promises.push(
+        this.semanticCache.clear().catch((error: any) => {
+          structuredLogger.warning('Failed to clear Semantic Cache', JSON.stringify({ error: error.message }))
+        })
+      )
+    }
+
     await Promise.all(promises)
 
     // Reset stats
@@ -449,6 +505,7 @@ export class CacheService extends EventEmitter {
       misses: 0,
       redisHits: 0,
       fallbackHits: 0,
+      semanticHits: 0,
       errors: 0,
     }
 
@@ -522,7 +579,7 @@ export class CacheService extends EventEmitter {
         errors: this.stats.errors,
       }
       await this.redis.set('stats:cache', payload, 3600, { type: 'stats' })
-    } catch (_e) {}
+    } catch (_e) { }
   }
 
   /**

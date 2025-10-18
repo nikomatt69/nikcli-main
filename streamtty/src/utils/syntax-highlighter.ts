@@ -46,25 +46,21 @@ const SHELL_COMMANDS = [
 /**
  * Highlight file paths in text
  * Matches: /path/to/file.ts, ./relative/path.js, ~/home/path
+ * NOTE: Disabled to avoid ANSI code injection issues
  */
 export function highlightPaths(text: string): string {
-  // Match absolute paths, relative paths, and home paths
-  const pathRegex = /(?:^|\s)((?:\/|\.\/|\.\.\/|~\/)[^\s:]+)/g
-  return text.replace(pathRegex, (match, path) => {
-    return match.replace(path, `${syntaxColors.path}${path}${syntaxColors.reset}`)
-  })
+  // Path highlighting disabled to prevent ANSI code leakage
+  return text
 }
 
 /**
  * Highlight file references with line numbers
  * Matches: file.ts:123, /path/to/file.js:45:10
+ * NOTE: Disabled to avoid ANSI code injection issues
  */
 export function highlightFileRefs(text: string): string {
-  // Match file paths followed by :line or :line:column
-  const fileRefRegex = /((?:\/|\.\/|\.\.\/)?[^\s:]+\.\w+)(:\d+(?::\d+)?)/g
-  return text.replace(fileRefRegex, (match, file, location) => {
-    return `${syntaxColors.path}${file}${syntaxColors.lineNumber}${location}${syntaxColors.reset}`
-  })
+  // File reference highlighting disabled to prevent ANSI code leakage
+  return text
 }
 
 /**

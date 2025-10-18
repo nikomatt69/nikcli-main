@@ -45,13 +45,14 @@ export class AiSdkEmbeddingProvider {
     successRate: 0,
   }
 
-  private readonly providerConfigs: Record<string, EmbeddingConfig> = {
+  private readonly providerConfigs: Record<string, EmbeddingConfig & { dimensions: number }> = {
     openai: {
       provider: 'openai',
       model: 'text-embedding-3-small',
       batchSize: 100, // Configurable via env
-      maxTokens: 8191,
+      maxTokens: 8000, // Set to 8000 instead of 8191 for safety margin (model limit is 8192)
       costPer1KTokens: 0.00002,
+      dimensions: 1536,
     },
     google: {
       provider: 'google',
@@ -59,21 +60,7 @@ export class AiSdkEmbeddingProvider {
       batchSize: 50,
       maxTokens: 2048,
       costPer1KTokens: 0.000025,
-    },
-    anthropic: {
-      provider: 'openai',
-      model: 'text-embedding-3-small', // Fallback to text generation if no embedding
-      batchSize: 100,
-      maxTokens: 1000,
-      costPer1KTokens: 0.0001,
-    },
-
-    openrouter: {
-      provider: 'openai',
-      model: 'text-embedding-3-small', // OpenRouter doesn't support embeddings, fallback to OpenAI
-      batchSize: 100,
-      maxTokens: 8191,
-      costPer1KTokens: 0.00002, // OpenAI direct pricing (no OpenRouter markup)
+      dimensions: 768,
     },
   }
 
@@ -86,40 +73,39 @@ export class AiSdkEmbeddingProvider {
 
   /**
    * Initialize available providers based on configured API keys
+   * ALWAYS use OpenAI for embeddings (even via OpenRouter)
    */
   private initializeProviders(): void {
     this.availableProviders = []
 
-    // Check OpenAI (config manager or environment)
-    if (configManager.getApiKey('openai') || process.env.OPENAI_API_KEY) {
+    // Primary: Check OpenAI API key (direct or via OpenRouter)
+    const hasOpenAI = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
+    const hasOpenRouter = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
+
+    if (hasOpenAI || hasOpenRouter) {
       this.availableProviders.push('openai')
-    }
+      this.currentProvider = 'openai' // ALWAYS use OpenAI for embeddings
 
-    // Check Google (config manager or environment)
-    if (configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-      this.availableProviders.push('google')
-    }
-
-    // Check Anthropic (config manager or environment)
-    if (configManager.getApiKey('anthropic') || process.env.ANTHROPIC_API_KEY) {
-      this.availableProviders.push('anthropic')
-    }
-
-    // Check OpenRouter (config manager or environment)
-    if (configManager.getApiKey('openai') || process.env.OPENAI_API_KEY) {
-      this.availableProviders.push('openai')
-    }
-
-    // Set default provider (prefer OpenRouter if available, then OpenAI for cost efficiency)
-    if (this.availableProviders.includes('openai')) {
-      this.currentProvider = 'openai'
     } else {
-      this.currentProvider = this.availableProviders[0] || null
+      // Fallback: Check Google only if no OpenAI key available
+      if (configManager.getApiKey('google') || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+        this.availableProviders.push('google')
+        this.currentProvider = 'google'
+
+      }
     }
 
     if (this.availableProviders.length === 0) {
       advancedUI.logInfo('⚡︎ RAG using local workspace analysis (no API keys configured)')
     }
+  }
+
+  /**
+   * Get the dimensions for the current provider
+   */
+  getCurrentDimensions(): number {
+    if (!this.currentProvider) return 1536 // Default
+    return this.providerConfigs[this.currentProvider]?.dimensions || 1536
   }
 
   /**
@@ -250,7 +236,19 @@ export class AiSdkEmbeddingProvider {
    */
   private async generateWithProvider(texts: string[], providerName: string): Promise<EmbeddingResult> {
     const config = this.providerConfigs[providerName]
-    const processedTexts = texts.map((text) => this.truncateText(text, config.maxTokens))
+
+    // Truncate texts to fit within token limits with safety margin
+    const processedTexts = texts.map((text) => {
+      const truncated = this.truncateText(text, config.maxTokens)
+      // Double-check the truncation worked
+      const estimatedTokens = Math.ceil(truncated.length / 3.5)
+      if (estimatedTokens > config.maxTokens) {
+        // Emergency truncation if still too long
+        const safeMaxChars = Math.floor(config.maxTokens * 0.7 * 3.5)
+        return truncated.substring(0, safeMaxChars) + '\n[truncated]'
+      }
+      return truncated
+    })
 
     // Create batches
     const batches: string[][] = []
@@ -281,7 +279,7 @@ export class AiSdkEmbeddingProvider {
       const batchResults = await Promise.all(batchPromises)
 
       // Collect results in order
-      for (const { index, result } of batchResults.sort((a, b) => a.index - b.index)) {
+      for (const { result } of batchResults.sort((a, b) => a.index - b.index)) {
         results.push(...result.embeddings)
         totalTokens += result.tokensUsed
       }
@@ -306,7 +304,7 @@ export class AiSdkEmbeddingProvider {
   /**
    * Calculate optimal batch size based on text characteristics and success rate
    */
-  private calculateOptimalBatchSize(texts: string[], recentSuccessRate: number = 1.0): number {
+  private _calculateOptimalBatchSize(texts: string[], recentSuccessRate: number = 1.0): number {
     const base = Number(process.env.EMBED_BATCH_SIZE || 300)
     const adaptiveEnabled = process.env.EMBED_ADAPTIVE_BATCHING !== 'false'
 
@@ -347,9 +345,14 @@ export class AiSdkEmbeddingProvider {
         case 'openai':
           {
             // Configure OpenAI with API key from config or environment
-            const apiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
+            // Also accepts OpenRouter key as fallback for OpenAI embeddings
+            const apiKey = configManager.getApiKey('openai') ||
+              process.env.OPENAI_API_KEY ||
+              configManager.getApiKey('openrouter') ||
+              process.env.OPENROUTER_API_KEY
+
             if (!apiKey) {
-              throw new Error('OpenAI API key not found')
+              throw new Error('OpenAI or OpenRouter API key not found')
             }
 
             const openaiProvider = createOpenAI({ apiKey })
@@ -420,51 +423,6 @@ export class AiSdkEmbeddingProvider {
             usage = { tokens: this.estimateTokens(texts.join(' ')) }
           }
           break
-        case 'openrouter':
-          {
-            // OpenRouter doesn't support embedding endpoints, fallback to OpenAI
-
-            const openaiKey = configManager.getApiKey('openai') || process.env.OPENAI_API_KEY
-            if (!openaiKey) {
-              throw new Error('OpenAI API key required for embeddings when using OpenRouter provider')
-            }
-
-            // Use OpenAI for embeddings with text-embedding-3-small model
-            const openaiProvider = createOpenAI({ apiKey: openaiKey })
-            const model = openaiProvider.embedding('text-embedding-3-small')
-
-            // Helper function for embedding with retry (same as OpenAI case)
-            const embedWithRetry = async (text: string, retries = 3): Promise<number[]> => {
-              for (let attempt = 1; attempt <= retries; attempt++) {
-                try {
-                  const result = await embed({
-                    model,
-                    value: text,
-                  })
-                  return result.embedding
-                } catch (error) {
-                  if (attempt === retries) throw error
-
-                  // Wait before retry (exponential backoff)
-                  const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
-                  await new Promise(resolve => setTimeout(resolve, delay))
-                }
-              }
-              throw new Error('Max retries exceeded')
-            }
-
-            // For multiple texts, use embedMany with retry
-            if (texts.length > 1) {
-              const results = await Promise.all(
-                texts.map(async (text) => embedWithRetry(text))
-              )
-              embeddings = results
-            } else {
-              embeddings = [await embedWithRetry(texts[0])]
-            }
-            usage = { tokens: this.estimateTokens(texts.join(' ')) }
-          }
-          break
         case 'anthropic':
           // Anthropic doesn't have direct embedding model via AI SDK yet
           // Fallback to simpler approach
@@ -494,13 +452,19 @@ export class AiSdkEmbeddingProvider {
   }
 
   /**
-   * Truncate text to fit within token limits
+   * Truncate text to fit within token limits (with safety margin)
    */
   private truncateText(text: string, maxTokens: number): string {
-    const maxChars = maxTokens * 4 // Rough estimation: 1 token ≈ 4 characters
+    // Use conservative token estimation: 1 token ≈ 3.5 characters (safer than 4)
+    // Add 20% safety margin to avoid edge cases
+    const safeMaxTokens = Math.floor(maxTokens * 0.8) // 80% of limit for safety
+    const maxChars = safeMaxTokens * 3.5
+
     if (text.length <= maxChars) return text
 
-    return `${text.substring(0, maxChars - 50)}\n[... content truncated ...]`
+    // Truncate with clear marker
+    const truncated = text.substring(0, Math.floor(maxChars))
+    return `${truncated}\n[... truncated for embedding ...]`
   }
 
   /**

@@ -1,14 +1,24 @@
 /**
- * Renderer exports
+ * Renderers index - export all inline renderers
  */
-export * from './math-renderer';
-export * from './mermaid-renderer';
-export * from './shiki-ansi';
-export * from './table-renderer';
 
-// Re-export singletons
-export { mathRenderer } from './math-renderer';
-export { mermaidRenderer } from './mermaid-renderer';
-export { shikiRenderer } from './shiki-ansi';
-export { tableRenderer } from './table-renderer';
+export { 
+  renderMathToUnicode,
+  renderMathBlock,
+  renderMathInline,
+  processMathInText,
+  containsMath
+} from './unicode-math'
 
+export {
+  renderMermaidToASCII,
+  containsMermaid
+} from './mermaid-ascii'
+
+export {
+  renderTableToASCII,
+  renderMarkdownTableToASCII,
+  isMarkdownTable,
+  extractTable,
+  type TableRenderOptions
+} from './table-ascii'

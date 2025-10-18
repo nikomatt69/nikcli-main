@@ -1,10 +1,6 @@
 /**
- * Security exports
+ * Security - Clean Exports
+ * Only exports the new ANSI sanitizer
  */
+
 export * from './ansi-sanitizer';
-export * from './input-validator';
-
-// Re-export singletons and utilities
-export { sanitizeANSI, isSafeANSI, stripANSI } from './ansi-sanitizer';
-export { inputValidator, validateInput } from './input-validator';
-

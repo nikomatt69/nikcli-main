@@ -4,11 +4,8 @@ import { BlessedRenderer } from './renderer/blessed-renderer';
 import { StreamttyOptions, RenderContext, StreamBuffer } from './types';
 import { AISDKStreamAdapter, AISDKStreamAdapterOptions } from './ai-sdk-adapter';
 import { StreamEvent } from './types/stream-events';
-import { pluginSystem } from './plugins/plugin-system';
-import { inputValidator } from './security/input-validator';
-import { remarkMath } from './plugins/remark/math';
-import { remarkMermaid } from './plugins/remark/mermaid';
-import { rehypeHarden } from './plugins/rehype/harden';
+import { PluginRegistry, createDefaultRegistry } from './plugins/plugin-system-inline';
+import { sanitizeForTerminal, validateInput } from './security/ansi-sanitizer';
 import { getTheme } from './themes';
 
 export class Streamtty {
@@ -18,6 +15,7 @@ export class Streamtty {
   private updateInterval: NodeJS.Timeout | null = null;
   private pendingUpdate: boolean = false;
   private aiAdapter: AISDKStreamAdapter;
+  private pluginRegistry: PluginRegistry | null = null;
 
   constructor(options: StreamttyOptions = {}) {
     const screen = options.screen || this.createDefaultScreen();
@@ -35,8 +33,7 @@ export class Streamtty {
       maxWidth: options.maxWidth ?? 120,
       gfm: options.gfm ?? true,
       screen,
-      autoScroll: options.autoScroll ?? false, // User controls scroll
-      // Enhanced features (opt-in, backward compatible)
+      autoScroll: options.autoScroll ?? false,
       remarkPlugins: options.remarkPlugins,
       rehypePlugins: options.rehypePlugins,
       theme: options.theme,
@@ -76,31 +73,24 @@ export class Streamtty {
       renderTimestamps: false
     });
 
-    // Initialize enhanced features (visual + basic scroll only)
+    // Initialize enhanced features with new plugin system
     this.initializeEnhancedFeatures();
   }
 
   /**
-   * Initialize enhanced features if enabled
+   * Initialize enhanced features with new plugin system
    */
-  private initializeEnhancedFeatures(): void {
+  private async initializeEnhancedFeatures(): Promise<void> {
     const options = this.context.options;
 
-    // Register built-in plugins
-    if (options.enhancedFeatures?.math) {
-      pluginSystem.registerBuiltIn(remarkMath);
-    }
-    if (options.enhancedFeatures?.mermaid) {
-      pluginSystem.registerBuiltIn(remarkMermaid);
-    }
-    if (options.enhancedFeatures?.security) {
-      pluginSystem.registerBuiltIn(rehypeHarden);
+    // Skip if no features enabled
+    if (!options.enhancedFeatures || Object.values(options.enhancedFeatures).every(v => !v)) {
+      return;
     }
 
-    // Load user plugins
-    pluginSystem.loadPlugins(options.remarkPlugins, options.rehypePlugins);
-
-    // Note: Only basic scroll controls enabled - focus on visual rendering
+    // Create plugin registry
+    this.pluginRegistry = createDefaultRegistry();
+    await this.pluginRegistry.init();
   }
 
   /**
@@ -113,7 +103,6 @@ export class Streamtty {
       fullUnicode: true,
     });
 
-    // Essential keys - exit only (scroll handled by container)
     screen.key(['C-c', 'q', 'escape'], () => {
       return process.exit(0);
     });
@@ -132,20 +121,20 @@ export class Streamtty {
       width: '100%',
       height: '100%',
       scrollable: true,
-      alwaysScroll: false, // Let user control scroll position
+      alwaysScroll: false,
       scrollbar: {
         ch: '█',
         style: {
           fg: 'blue',
         },
       },
-      keys: true,   // Enable keys for scroll
-      vi: false,    // No vi mode
-      mouse: false, // No mouse
+      keys: true,
+      vi: false,
+      mouse: false,
       tags: true,
     });
 
-    // Basic scroll controls only
+    // Scroll controls
     container.key(['up', 'k'], () => {
       container.scroll(-1);
       screen.render();
@@ -157,7 +146,7 @@ export class Streamtty {
     });
 
     container.key(['pageup'], () => {
-      container.scroll(-container.height as number);
+      container.scroll(-(container.height as number));
       screen.render();
     });
 
@@ -176,7 +165,6 @@ export class Streamtty {
       screen.render();
     });
 
-    // Toggle auto-scroll to bottom (useful for streaming)
     container.key(['space'], () => {
       container.setScrollPerc(100);
       screen.render();
@@ -186,50 +174,41 @@ export class Streamtty {
     return container;
   }
 
-
   /**
    * Stream a chunk of markdown
    */
   public async stream(chunk: string): Promise<void> {
     let processedChunk = chunk;
 
-    // Apply security validation if enabled
+    // Apply security sanitization if enabled
     if (this.context.options.enhancedFeatures?.security) {
-      const validationResult = inputValidator.validate(chunk);
-      if (!validationResult.valid) {
-        console.warn('Security validation failed:', validationResult.errors);
+      const validation = validateInput(processedChunk);
+      if (!validation.valid) {
+        console.warn('Security validation failed:', validation.errors);
         return;
       }
-      processedChunk = validationResult.sanitized;
+      processedChunk = validation.sanitized;
     }
 
-    // Apply remark plugins (pre-parse)
-    if (this.context.options.remarkPlugins || this.context.options.enhancedFeatures?.math || this.context.options.enhancedFeatures?.mermaid) {
-      const remarkResult = await pluginSystem.processRemark(processedChunk, this.context);
-      processedChunk = remarkResult.data;
-      if (remarkResult.warnings && remarkResult.warnings.length > 0) {
-        console.warn('Remark plugin warnings:', remarkResult.warnings);
-      }
+    // Apply plugins if registry exists
+    if (this.pluginRegistry) {
+      processedChunk = await this.pluginRegistry.executeChunk(processedChunk);
     }
 
     this.context.buffer.content += processedChunk;
     this.context.buffer.lastUpdate = Date.now();
 
-    // Parse the new content
+    // Parse tokens
     let tokens = this.parser.addChunk(processedChunk);
 
-    // Apply rehype plugins (post-parse)
-    if (this.context.options.rehypePlugins || this.context.options.enhancedFeatures?.security) {
-      const rehypeResult = await pluginSystem.processRehype(tokens, this.context);
-      tokens = rehypeResult.data;
-      if (rehypeResult.warnings && rehypeResult.warnings.length > 0) {
-        console.warn('Rehype plugin warnings:', rehypeResult.warnings);
-      }
+    // Apply plugin token processing
+    if (this.pluginRegistry) {
+      tokens = await this.pluginRegistry.executeTokens(tokens);
     }
 
     this.context.buffer.tokens = tokens;
 
-    // Debounced render
+    // Schedule render
     this.scheduleRender();
   }
 
@@ -243,14 +222,13 @@ export class Streamtty {
   }
 
   /**
-   * Schedule a render (debounced for performance)
+   * Schedule a render (debounced)
    */
   private scheduleRender(): void {
     if (this.pendingUpdate) return;
 
     this.pendingUpdate = true;
 
-    // Use setImmediate for next tick rendering
     setImmediate(async () => {
       await this.render();
       this.pendingUpdate = false;
@@ -258,13 +236,10 @@ export class Streamtty {
   }
 
   /**
-   * Render current tokens (user controls scroll position)
+   * Render current tokens
    */
   public async render(): Promise<void> {
     await this.renderer.render(this.context.buffer.tokens);
-
-    // Only auto-scroll to bottom on initial render or if explicitly enabled
-    // Let user control scroll position during content viewing
     this.context.screen.render();
   }
 
@@ -280,7 +255,7 @@ export class Streamtty {
   }
 
   /**
-   * Start auto-rendering at interval
+   * Start auto-rendering
    */
   public startAutoRender(intervalMs: number = 50): void {
     if (this.updateInterval) {
@@ -305,14 +280,14 @@ export class Streamtty {
   }
 
   /**
-   * Get the blessed screen instance
+   * Get blessed screen instance
    */
   public getScreen(): Widgets.Screen {
     return this.context.screen;
   }
 
   /**
-   * Get the container box
+   * Get container box
    */
   public getContainer(): Widgets.BoxElement {
     return this.context.container;
@@ -326,6 +301,13 @@ export class Streamtty {
   }
 
   /**
+   * Get plugin registry for advanced usage
+   */
+  public getPluginRegistry(): PluginRegistry | null {
+    return this.pluginRegistry;
+  }
+
+  /**
    * Stream a structured AI SDK event
    */
   public async streamEvent(event: StreamEvent): Promise<void> {
@@ -335,9 +317,7 @@ export class Streamtty {
   /**
    * Stream multiple AI SDK events
    */
-  public async streamEvents(
-    events: AsyncGenerator<StreamEvent>
-  ): Promise<void> {
+  public async streamEvents(events: AsyncGenerator<StreamEvent>): Promise<void> {
     for await (const event of events) {
       await this.streamEvent(event);
     }
@@ -346,9 +326,7 @@ export class Streamtty {
   /**
    * Handle AI SDK stream with adapter
    */
-  public async *handleAISDKStream(
-    stream: AsyncGenerator<StreamEvent>
-  ): AsyncGenerator<void> {
+  public async *handleAISDKStream(stream: AsyncGenerator<StreamEvent>): AsyncGenerator<void> {
     for await (const _ of this.aiAdapter.handleAISDKStream(stream)) {
       yield;
     }
@@ -371,14 +349,23 @@ export class Streamtty {
   /**
    * Destroy and cleanup
    */
-  public destroy(): void {
+  public async destroy(): Promise<void> {
     this.stopAutoRender();
     this.clear();
+
+    if (this.pluginRegistry) {
+      await this.pluginRegistry.destroy();
+    }
+
     this.context.screen.destroy();
   }
 }
 
-// Export everything
+// ============================================================================
+// EXPORTS - CORE & NEW FEATURES ONLY
+// ============================================================================
+
+// Core types and classes
 export * from './types';
 export * from './types/stream-events';
 export { StreamingMarkdownParser } from './parser/streaming-parser';
@@ -389,18 +376,22 @@ export * from './streamdown-compat';
 export * from './errors';
 export * from './events';
 export * from './performance';
-export * from './utils/syntax-highlighter';
-export * from './utils/blessed-syntax-highlighter';
-export * from './utils/formatting';
-
-// Export enhanced features
-export * from './plugins';
-export * from './renderers';
-export * from './security';
 export * from './themes';
 
-// Explicitly re-export key types for external consumption
+// NEW: Streamdown Parity Features
+export * from './utils/shiki-ansi-renderer';
+export * from './utils/math-unicode-renderer';
+export * from './utils/mermaid-ascii-renderer';
+export * from './utils/table-formatter-inline';
+export * from './utils/syntax-highlighter';
+export * from './streaming/stream-stats';
+export * from './widgets/stream-indicator';
+export * from './plugins/plugin-system-inline';
+export * from './security/ansi-sanitizer';
+
+// Type exports
 export type {
+
   EnhancedFeaturesConfig,
   TTYControlsConfig,
   MermaidTTYConfig,

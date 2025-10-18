@@ -90,10 +90,11 @@ export class UnifiedEmbeddingInterface {
 
   constructor(config?: Partial<EmbeddingConfig>) {
     this.provider = aiSdkEmbeddingProvider
+
     this.config = {
       provider: 'openai',
       model: 'text-embedding-3-small',
-      dimensions: 1536,
+      dimensions: 1536, // OpenAI default (Google would be 768)
       maxTokens: 8191,
       batchSize: Number(process.env.EMBED_BATCH_SIZE || 300), // Configurable via env
       cacheEnabled: true,
@@ -137,12 +138,16 @@ export class UnifiedEmbeddingInterface {
         const embeddings = await this.provider.generate(texts)
         const currentProvider = this.provider.getCurrentProvider() || 'unknown'
 
+        // Get actual dimensions from current provider (may differ from initial config)
+        const actualDimensions = this.provider.getCurrentDimensions()
+
         for (let i = 0; i < uncachedQueries.length; i++) {
           const query = uncachedQueries[i]
           const vector = embeddings[i]
           const hash = this.generateCacheKey(query.text)
 
-          if (vector && vector.length === this.config.dimensions) {
+          if (vector) {
+            // Accept the embedding regardless of dimensions - use what the provider gives us
             const result: EmbeddingResult = {
               id: query.id || hash,
               vector,
@@ -163,10 +168,19 @@ export class UnifiedEmbeddingInterface {
             }
 
             this.updateStats(result, Date.now() - startTime)
+
+            // Log warning if dimensions don't match expected, but still use it
+            if (vector.length !== actualDimensions) {
+              console.warn(
+                chalk.yellow(
+                  `⚠️ Embedding dimensions mismatch: expected ${actualDimensions}, got ${vector.length} from ${currentProvider}. Using actual dimensions.`
+                )
+              )
+            }
           } else {
             console.warn(
               chalk.yellow(
-                `⚠️ Invalid embedding dimensions: expected ${this.config.dimensions}, got ${vector?.length || 0}`
+                `⚠️ No embedding vector generated for query index ${i}`
               )
             )
           }
@@ -192,6 +206,9 @@ export class UnifiedEmbeddingInterface {
    */
   async generateEmbedding(text: string, id?: string, metadata?: Record<string, any>): Promise<EmbeddingResult> {
     const results = await this.generateEmbeddings([{ text, id, metadata }])
+    if (!results || results.length === 0) {
+      throw new Error(`Failed to generate embedding for text: ${text.substring(0, 100)}...`)
+    }
     return results[0]
   }
 
@@ -255,9 +272,12 @@ export class UnifiedEmbeddingInterface {
       return false
     }
 
-    if (embedding.length !== this.config.dimensions) {
+    // Get actual dimensions from current provider
+    const actualDimensions = this.provider.getCurrentDimensions()
+
+    if (embedding.length !== actualDimensions) {
       console.warn(
-        chalk.yellow(`⚠️ Dimension mismatch from ${source}: expected ${this.config.dimensions}, got ${embedding.length}`)
+        chalk.yellow(`⚠️ Dimension mismatch from ${source}: expected ${actualDimensions}, got ${embedding.length}`)
       )
       return false
     }
@@ -275,6 +295,13 @@ export class UnifiedEmbeddingInterface {
    */
   getConfig(): EmbeddingConfig {
     return { ...this.config }
+  }
+
+  /**
+   * Get current embedding dimensions from the active provider
+   */
+  getCurrentDimensions(): number {
+    return this.provider.getCurrentDimensions()
   }
 
   /**

@@ -1377,7 +1377,8 @@ Respond in a helpful, professional manner with clear explanations and actionable
                     type: 'thinking',
                     content: `🏁 Completed ${this.completedRounds} rounds of analysis. Providing final summary.`,
                   }
-                  // Yield as markdown - streamttyService will render it properly
+
+                  // Format as natural conversational response
                   yield {
                     type: 'text_delta',
                     content: `\n\n${finalSummary}\n\n`,
@@ -1403,10 +1404,17 @@ Respond in a helpful, professional manner with clear explanations and actionable
                   type: 'thinking',
                   content: this.truncateForPrompt(`⚡︎ Round ${this.completedRounds} complete. ${gapAnalysis}`, 100),
                 }
-                // Format as markdown - streamttyService will render properly
+
+                // Format as natural conversational markdown
                 yield {
                   type: 'text_delta',
-                  content: `\n\n**Round ${this.completedRounds} Analysis:**\n${gapAnalysis}\n\n**Question to continue:**\n${clarifyingQuestion}\n\n`,
+                  content: `\n\n${gapAnalysis}\n\n`,
+                  metadata: { isMarkdown: true },
+                }
+
+                yield {
+                  type: 'text_delta',
+                  content: `${clarifyingQuestion}\n\n`,
                   metadata: { isMarkdown: true },
                 }
                 // Don't break - let the conversation continue naturally
