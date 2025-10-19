@@ -66,7 +66,10 @@ export class EnhancedTableRenderer {
 
       // Create and render table
       const table = Table(header as any, rows as any, tableOptions as any);
-      return table.render();
+      const rendered = table.render();
+
+      // Convert to rounded corners
+      return this.convertToRoundedCorners(rendered);
 
     } catch (error) {
       console.warn('tty-table rendering failed:', error);
@@ -311,34 +314,63 @@ export class EnhancedTableRenderer {
   }
 
   /**
+   * Convert table corners to rounded Unicode characters
+   */
+  private static convertToRoundedCorners(table: string): string {
+    return table
+      .replace(/┌/g, '╭')  // Top-left corner
+      .replace(/┐/g, '╮')  // Top-right corner
+      .replace(/└/g, '╰')  // Bottom-left corner
+      .replace(/┘/g, '╯')  // Bottom-right corner
+      .replace(/├/g, '├')  // Left T-junction (keep)
+      .replace(/┤/g, '┤')  // Right T-junction (keep)
+      .replace(/┬/g, '┬')  // Top T-junction (keep)
+      .replace(/┴/g, '┴')  // Bottom T-junction (keep)
+      .replace(/┼/g, '┼'); // Cross junction (keep)
+  }
+
+  /**
    * Fallback table renderer
    */
   private static renderFallbackTable(data: TableData): string {
     const lines: string[] = [];
 
-    // Simple ASCII table
+    // Calculate column widths
     const colWidths = data.headers.map((header, index) => {
       const maxDataWidth = Math.max(...data.rows.map(row => (row[index] || '').length));
       return Math.max(header.length, maxDataWidth, 5);
     });
 
-    // Header
-    const headerLine = data.headers.map((header, index) =>
+    const totalWidth = colWidths.reduce((sum, width) => sum + width, 0) + (colWidths.length - 1) * 3 + 4;
+
+    // Top border with rounded corners
+    const topBorder = '╭' + '─'.repeat(totalWidth - 2) + '╮';
+    lines.push(topBorder);
+
+    // Header row
+    const headerCells = data.headers.map((header, index) =>
       header.padEnd(colWidths[index])
-    ).join(' | ');
-
-    const separatorLine = colWidths.map(width => '-'.repeat(width)).join('-|-');
-
+    );
+    const headerLine = '│ ' + headerCells.join(' │ ') + ' │';
     lines.push(headerLine);
+
+    // Header separator
+    const separatorCells = colWidths.map(width => '─'.repeat(width));
+    const separatorLine = '├─' + separatorCells.join('─┼─') + '─┤';
     lines.push(separatorLine);
 
-    // Rows
+    // Data rows
     for (const row of data.rows) {
-      const rowLine = row.map((cell, index) =>
+      const rowCells = row.map((cell, index) =>
         (cell || '').padEnd(colWidths[index])
-      ).join(' | ');
+      );
+      const rowLine = '│ ' + rowCells.join(' │ ') + ' │';
       lines.push(rowLine);
     }
+
+    // Bottom border with rounded corners
+    const bottomBorder = '╰' + '─'.repeat(totalWidth - 2) + '╯';
+    lines.push(bottomBorder);
 
     return lines.join('\n');
   }

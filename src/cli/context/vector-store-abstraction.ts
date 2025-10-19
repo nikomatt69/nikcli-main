@@ -457,7 +457,7 @@ class UpstashVectorStore extends VectorStore {
         console.log(chalk.gray('🔗 Connecting to Upstash Redis (vector store)'))
         try {
           await this.redis.ping()
-        } catch (_e) {}
+        } catch (_e) { }
         console.log(chalk.green('✓ Upstash Redis connected'))
         return true
       }
@@ -532,8 +532,18 @@ class UpstashVectorStore extends VectorStore {
     try {
       for (const doc of documents) {
         if (!doc.embedding || doc.embedding.length === 0) {
-          const result = await unifiedEmbeddingInterface.generateEmbedding(doc.content, doc.id)
-          doc.embedding = result.vector
+          try {
+            const result = await unifiedEmbeddingInterface.generateEmbedding(doc.content, doc.id)
+            if (result && result.vector) {
+              doc.embedding = result.vector
+            } else {
+              console.warn(chalk.yellow(`⚠️ No embedding generated for document ${doc.id}`))
+              continue // Skip this document
+            }
+          } catch (error) {
+            console.error(chalk.red(`❌ Failed to generate embedding for document ${doc.id}: ${(error as Error).message}`))
+            continue // Skip this document
+          }
         }
 
         if (this.mode === 'vector' && this.vectorBaseUrl && this.vectorToken) {
@@ -583,7 +593,7 @@ class UpstashVectorStore extends VectorStore {
             { id },
             { headers: { Authorization: `Bearer ${this.vectorToken}` } }
           )
-        } catch (_e) {}
+        } catch (_e) { }
         return true
       }
 
@@ -811,8 +821,18 @@ class LocalVectorStore extends VectorStore {
       for (const doc of documents) {
         // Generate embedding if not provided
         if (!doc.embedding) {
-          const result = await unifiedEmbeddingInterface.generateEmbedding(doc.content, doc.id)
-          doc.embedding = result.vector
+          try {
+            const result = await unifiedEmbeddingInterface.generateEmbedding(doc.content, doc.id)
+            if (result && result.vector) {
+              doc.embedding = result.vector
+            } else {
+              console.warn(chalk.yellow(`⚠️ No embedding generated for document ${doc.id}, skipping`))
+              continue // Skip this document
+            }
+          } catch (error) {
+            console.error(chalk.red(`❌ Failed to generate embedding for document ${doc.id}: ${(error as Error).message}`))
+            continue // Skip this document
+          }
         }
 
         this.documents.set(doc.id, doc)
@@ -981,7 +1001,7 @@ export class VectorStoreManager {
       provider: 'local',
       connectionConfig: {},
       collectionName: 'fallback',
-      embeddingDimensions: 1536,
+      embeddingDimensions: unifiedEmbeddingInterface.getCurrentDimensions(),
       indexingBatchSize: 100,
       maxRetries: 3,
       healthCheckInterval: 300000, // 5 minutes

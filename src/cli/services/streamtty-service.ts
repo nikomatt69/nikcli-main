@@ -21,6 +21,7 @@ export interface StreamttyServiceOptions {
   maxWidth?: number
   gfm?: boolean
   useBlessedMode?: boolean
+  stripEmoji?: boolean // Remove emoji from output
 
   // Enhanced features (visual-only, no interactive controls)
   enhancedFeatures?: EnhancedFeaturesConfig
@@ -63,8 +64,14 @@ export class StreamttyService {
     toolResultEvents: 0,
   }
   private streamBuffer = ''
+  private tableAccumulator = ''
+  private inTableMode = false
 
   constructor(private options: StreamttyServiceOptions = {}) {
+    // Check environment variable for emoji preference
+    if (process.env.DISABLE_EMOJI === 'true' || process.env.NO_EMOJI === 'true') {
+      this.options.stripEmoji = true
+    }
     this.initialize()
   }
 
@@ -81,6 +88,135 @@ export class StreamttyService {
   }
 
   /**
+   * Convert emoji to simple Unicode symbols if stripEmoji option is enabled
+   */
+  private stripEmojiFromText(text: string): string {
+    if (!this.options.stripEmoji) return text
+
+    // Replace common emoji with simple Unicode symbols
+    return text
+      // Status indicators
+      .replace(/✅/g, '✓')
+      .replace(/❌/g, '✗')
+      .replace(/⚠️|⚠/g, '⚡')
+      .replace(/⏺/g, '●')
+      .replace(/⎿/g, '└─')
+
+      // Arrows and symbols
+      .replace(/🚀/g, '»')
+      .replace(/⚡/g, '⚡')
+      .replace(/💡/g, '○')
+      .replace(/🔍/g, '◎')
+      .replace(/📝/g, '∙')
+      .replace(/🎯/g, '◉')
+      .replace(/🔧/g, '⚙')
+      .replace(/📊/g, '▤')
+      .replace(/🌐/g, '◈')
+
+      // Development symbols
+      .replace(/[\u{1F4BB}\u{1F5A5}]/gu, '⌨')  // Computer/keyboard
+      .replace(/[\u{1F527}\u{1F528}]/gu, '⚒')  // Tools
+      .replace(/[\u{1F4C4}\u{1F4C3}\u{1F4CB}]/gu, '≡') // Documents
+      .replace(/[\u{1F4E6}]/gu, '▣')           // Package
+      .replace(/[\u{1F680}]/gu, '»')           // Rocket
+
+      // Remove other complex emoji (keep simple Unicode)
+      .replace(/[\u{1F600}-\u{1F64F}]/gu, '')  // Emoticons
+      .replace(/[\u{1F300}-\u{1F5FF}]/gu, '')  // Symbols & pictographs (not covered above)
+      .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')  // Transport & map (not covered above)
+      .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')  // Supplemental symbols
+      .replace(/[\u{FE00}-\u{FE0F}]/gu, '')    // Variation selectors
+      .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '')  // Flags
+
+      // Clean up extra whitespace
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  /**
+   * Check if content looks like it's starting a table (has header + separator)
+   */
+  private isStartingTable(content: string): boolean {
+    const lines = content.split('\n')
+    let headerFound = false
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+
+      if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) {
+        return false // Non-table line found, not a table
+      }
+
+      // Check for separator line
+      if (/^\|[\s\-:|]+\|$/.test(trimmed)) {
+        return headerFound // Found separator after header = valid table start
+      }
+
+      // First table line is header
+      if (!headerFound) {
+        headerFound = true
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * Check if accumulated content contains a complete table
+   * A table is complete when we have:
+   * 1. Header row
+   * 2. Separator row
+   * 3. At least one data row
+   * 4. A non-table line or end of content with newline
+   */
+  private hasCompleteTable(content: string): boolean {
+    const lines = content.split('\n')
+    let headerFound = false
+    let separatorFound = false
+    let dataRowCount = 0
+    let lastLineWasTable = false
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim()
+
+      // Empty line or non-table line
+      if (!trimmed || !trimmed.startsWith('|') || !trimmed.endsWith('|')) {
+        // If we were in a table and hit a non-table line, the table is complete
+        if (lastLineWasTable && headerFound && separatorFound && dataRowCount > 0) {
+          return true
+        }
+        lastLineWasTable = false
+        continue
+      }
+
+      lastLineWasTable = true
+
+      // Check for separator line (contains only |, -, :, and spaces)
+      if (/^\|[\s\-:|]+\|$/.test(trimmed)) {
+        if (headerFound) {
+          separatorFound = true
+        }
+        continue
+      }
+
+      // It's a data line
+      if (!headerFound) {
+        headerFound = true
+      } else if (separatorFound) {
+        dataRowCount++
+      }
+    }
+
+    // Also check if content ends with double newline (indicates complete table)
+    if (content.endsWith('\n\n') && headerFound && separatorFound && dataRowCount > 0) {
+      return true
+    }
+
+    return false
+  }
+
+  /**
    * Stream a single chunk with type metadata for appropriate formatting
    */
   async streamChunk(chunk: string, type: ChunkType = 'ai'): Promise<void> {
@@ -88,6 +224,9 @@ export class StreamttyService {
 
     this.stats.totalChunks++
     this.stats.lastRenderTime = Date.now()
+
+    // Strip emoji if option is enabled
+    chunk = this.stripEmojiFromText(chunk)
 
     // Track chunk type stats
     switch (type) {
@@ -102,9 +241,57 @@ export class StreamttyService {
         break
     }
 
+    // Check if chunk contains table markers
+    const hasTableMarker = chunk.includes('|')
+
+    if (hasTableMarker || this.inTableMode) {
+      // Accumulate table content
+      this.tableAccumulator += chunk
+
+      // Check if this is actually a table (not just a pipe character)
+      if (!this.inTableMode && this.isStartingTable(this.tableAccumulator)) {
+        // Start table mode - silently accumulate, no output
+        this.inTableMode = true
+      }
+
+      // If we're in table mode, check if table is complete
+      if (this.inTableMode) {
+        if (this.hasCompleteTable(this.tableAccumulator)) {
+          // Process the complete table
+          const processedTable = await this.processTablesInline(this.tableAccumulator)
+
+          // Write the processed table
+          const tableLines = TerminalOutputManager.calculateLines(processedTable)
+          const outputId = terminalOutputManager.reserveSpace('StreamttyTable', tableLines)
+          process.stdout.write(processedTable)
+          terminalOutputManager.confirmOutput(outputId, 'StreamttyTable', tableLines, {
+            persistent: false,
+            expiryMs: 30000,
+          })
+
+          // Reset table mode
+          this.tableAccumulator = ''
+          this.inTableMode = false
+        }
+
+        return // Don't process table chunks further while in table mode
+      } else {
+        // Not a real table, just a pipe character - flush and continue normal processing
+        this.tableAccumulator = ''
+      }
+    }
+
+    // If we were in table mode but now received non-table content
+    if (this.inTableMode && !hasTableMarker) {
+      // Flush any incomplete table as-is
+      if (this.tableAccumulator) {
+        process.stdout.write(this.tableAccumulator)
+      }
+      this.tableAccumulator = ''
+      this.inTableMode = false
+    }
+
     // Apply syntax highlighting based on chunk type (except tools which stay raw)
-    // Only apply ANSI highlighting in fallback mode (stdout direct) 
-    // In blessed mode, streamtty handles highlighting internally to avoid double-processing
     let processedChunk = chunk
 
     // Check if chunk already contains ANSI codes (to avoid double-processing)
@@ -125,14 +312,12 @@ export class StreamttyService {
       }
     }
 
-    // Apply enhanced features inline processing
-    const enhancedChunk = await this.applyEnhancedFeaturesInline(processedChunk)
-    this.streamBuffer += enhancedChunk
+    this.streamBuffer += processedChunk
 
     // Always use enhanced inline mode - direct stdout with enhanced formatting
-    const chunkLines = TerminalOutputManager.calculateLines(enhancedChunk)
+    const chunkLines = TerminalOutputManager.calculateLines(processedChunk)
     const outputId = terminalOutputManager.reserveSpace('StreamttyChunk', chunkLines)
-    process.stdout.write(enhancedChunk)
+    process.stdout.write(processedChunk)
     terminalOutputManager.confirmOutput(outputId, 'StreamttyChunk', chunkLines, {
       persistent: false,
       expiryMs: 30000,
@@ -143,17 +328,12 @@ export class StreamttyService {
    * Apply enhanced features inline processing for tables, mermaid, etc.
    */
   private async applyEnhancedFeaturesInline(content: string): Promise<string> {
-    if (!content || !this.options.enhancedFeatures) return content
+    if (!content) return content
 
     let processedContent = content
 
-    // Process tables if advanced tables are enabled
-    if (this.options.enhancedFeatures.advancedTables) {
-      processedContent = await this.processTablesInline(processedContent)
-    }
-
     // Process mermaid diagrams if mermaid is enabled
-    if (this.options.enhancedFeatures.mermaid) {
+    if (this.options.enhancedFeatures?.mermaid) {
       processedContent = await this.processMermaidInline(processedContent)
     }
 
@@ -167,25 +347,77 @@ export class StreamttyService {
     // Import the enhanced table renderer
     const { parseMarkdownTable, EnhancedTableRenderer } = await import('../../../streamtty/src/utils/enhanced-table-renderer')
 
-    // Look for markdown table patterns
-    const tableRegex = /(\|[^|\n]+\|(?:\n\|[^|\n]*\|)*)/g
+    // Check if content contains tables
+    if (!content.includes('|')) {
+      return content; // No tables to process
+    }
 
-    return content.replace(tableRegex, (match) => {
+    // Find complete markdown tables (header + separator + rows)
+    const lines = content.split('\n')
+    const tableLines: string[] = []
+    let inTable = false
+    let tableStart = -1
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const isTableLine = line.trim().startsWith('|') && line.trim().endsWith('|')
+
+      if (isTableLine) {
+        if (!inTable) {
+          inTable = true
+          tableStart = i
+        }
+        tableLines.push(line)
+      } else if (inTable) {
+        // End of table - process it
+        if (tableLines.length >= 2) { // At least header + separator
+          const tableText = tableLines.join('\n')
+          try {
+            const tableData = parseMarkdownTable(tableText)
+            if (tableData && tableData.headers.length > 0) {
+              const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
+                borderStyle: 'solid',
+                compact: false,
+                width: this.options.maxWidth || 80
+              })
+
+              // Replace the table in the original content
+              const originalTable = lines.slice(tableStart, i).join('\n')
+              content = content.replace(originalTable, '\n' + renderedTable + '\n')
+            }
+          } catch (error) {
+            console.warn('Inline table processing failed:', error)
+          }
+        }
+
+        // Reset for next table
+        tableLines.length = 0
+        inTable = false
+        tableStart = -1
+      }
+    }
+
+    // Handle table at end of content
+    if (inTable && tableLines.length >= 2) {
+      const tableText = tableLines.join('\n')
       try {
-        const tableData = parseMarkdownTable(match)
+        const tableData = parseMarkdownTable(tableText)
         if (tableData && tableData.headers.length > 0) {
           const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
             borderStyle: 'solid',
             compact: false,
             width: this.options.maxWidth || 80
           })
-          return '\n' + renderedTable + '\n'
+
+          const originalTable = lines.slice(tableStart).join('\n')
+          content = content.replace(originalTable, '\n' + renderedTable + '\n')
         }
       } catch (error) {
         console.warn('Inline table processing failed:', error)
       }
-      return match
-    })
+    }
+
+    return content
   }
 
   /**
@@ -625,4 +857,3 @@ export const streamttyService = new StreamttyService({
 // Re-export AI SDK types for convenience
 export type { StreamEvent, StreamEventType } from 'streamtty'
 export { StreamProtocol } from 'streamtty'
-

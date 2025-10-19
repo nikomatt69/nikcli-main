@@ -1,5 +1,5 @@
 import { SecurityConfig } from '../types';
-import { sanitizeANSI } from './ansi-sanitizer';
+import { sanitizeForTerminal } from './ansi-sanitizer';
 
 /**
  * Input validator for markdown content
@@ -42,7 +42,7 @@ export class InputValidator {
         // Sanitize ANSI codes if enabled
         if (this.config.stripDangerousAnsi) {
             const originalLength = sanitized.length;
-            sanitized = sanitizeANSI(sanitized);
+            sanitized = sanitizeForTerminal(sanitized);
             if (sanitized.length !== originalLength) {
                 warnings.push('Dangerous ANSI escape sequences were removed');
             }

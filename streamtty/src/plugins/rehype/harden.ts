@@ -1,6 +1,6 @@
 import { RehypePlugin, PluginContext } from '../types';
 import { ParsedToken } from '../../types';
-import { sanitizeANSI } from '../../security/ansi-sanitizer';
+import { sanitizeForTerminal } from '../../security/ansi-sanitizer';
 
 /**
  * Harden individual token
@@ -10,7 +10,7 @@ function hardenToken(token: ParsedToken, config: HardenTokenConfig): ParsedToken
 
     // Sanitize content for ANSI if enabled
     if (config.stripDangerousAnsi && hardened.content) {
-        hardened.content = sanitizeANSI(hardened.content);
+        hardened.content = sanitizeForTerminal(hardened.content);
     }
 
     // Validate links

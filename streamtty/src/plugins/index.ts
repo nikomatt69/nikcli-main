@@ -1,9 +1,6 @@
 /**
- * Plugin system exports
+ * Plugin System - Clean Exports
+ * Only exports the new inline plugin system
  */
-export * from './types';
-export * from './plugin-system';
 
-// Re-export for convenience
-export { pluginSystem } from './plugin-system';
-
+export * from './plugin-system-inline';
