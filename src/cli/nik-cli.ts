@@ -12,7 +12,7 @@ import { modelProvider } from './ai/model-provider'
 import type { ModernAIProvider } from './ai/modern-ai-provider'
 import { ModernAgentOrchestrator } from './automation/agents/modern-agent-system'
 import { chatManager } from './chat/chat-manager'
-import { SlashCommandHandler } from './chat/nik-cli-commands'
+import { SlashCommandHandler, handleBrowserCommand, handleBrowserStatus, handleBrowserExit, handleBrowserScreenshot, handleBrowserInfo } from './chat/nik-cli-commands'
 import { CADCommands } from './commands/cad-commands'
 import { TOKEN_LIMITS } from './config/token-limits'
 import { docsContextManager } from './context/docs-context-manager'
@@ -24,6 +24,7 @@ import { agentStream } from './core/agent-stream'
 import { agentTodoManager } from './core/agent-todo-manager'
 import { agentLearningSystem } from './core/agent-learning-system'
 import { intelligentFeedbackWrapper } from './core/intelligent-feedback-wrapper'
+import { AnalyticsManager } from './core/analytics-manager'
 
 import { createCloudDocsProvider, getCloudDocsProvider } from './core/cloud-docs-provider'
 import { completionCache, CompletionProtocolCache } from './core/completion-protocol-cache'
@@ -48,6 +49,7 @@ import { authProvider } from './providers/supabase/auth-provider'
 import { enhancedSupabaseProvider } from './providers/supabase/enhanced-supabase-provider'
 import { registerAgents } from './register-agents'
 import { agentService } from './services/agent-service'
+import { DashboardService } from './services/dashboard-service'
 // New enhanced services
 import { cacheService } from './services/cache-service'
 import { memoryService } from './services/memory-service'
@@ -193,6 +195,8 @@ export class NikCLI {
   private agentLearningSystem: typeof agentLearningSystem
   private intelligentFeedbackWrapper: typeof intelligentFeedbackWrapper
   private projectMemory: ProjectMemoryManager
+  private dashboardService: DashboardService
+  private analyticsManager: AnalyticsManager
   private workingDirectory: string
   private currentMode: 'default' | 'plan' | 'vm' = 'default'
   private currentAgent?: string
@@ -334,7 +338,7 @@ export class NikCLI {
 
   constructor() {
     this.workingDirectory = process.cwd()
-    this.projectContextFile = path.join(this.workingDirectory, 'NIKOCLI.md', 'CLAUDE.md')
+    this.projectContextFile = path.join(this.workingDirectory, 'NIKOCLI.md')
 
     // Compact mode by default (cleaner output unless explicitly disabled)
     try {
@@ -357,6 +361,14 @@ export class NikCLI {
 
     // Initialize project memory
     this.projectMemory = projectMemory
+
+    // Initialize analytics manager and dashboard service
+    this.analyticsManager = new AnalyticsManager(this.workingDirectory)
+    this.dashboardService = new DashboardService(
+      this.agentManager,
+      this.analyticsManager,
+      advancedAIProvider
+    )
     // Initialize paste handler for long text processing
     this.pasteHandler = PasteHandler.getInstance()
 
@@ -3228,6 +3240,23 @@ export class NikCLI {
         case 'vm-backup':
         case 'vm-stats':
           await this.handleVMContainerCommands(cmd, args)
+          break
+
+        // Browser Mode Commands
+        case 'browser':
+          await handleBrowserCommand(args)
+          break
+        case 'browser-status':
+          await handleBrowserStatus()
+          break
+        case 'browser-exit':
+          await handleBrowserExit()
+          break
+        case 'browser-screenshot':
+          await handleBrowserScreenshot()
+          break
+        case 'browser-info':
+          await handleBrowserInfo()
           break
 
         // Vision & Image Commands
@@ -10970,6 +10999,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       ['/status', 'Show comprehensive system status and health'],
       ['/debug', 'Show detailed debug information'],
       ['/init [--force]', 'Initialize project context and workspace'],
+      ['/dashboard [start|stop|expand|collapse]', 'Toggle analytics dashboard (compact/expanded/off)'],
 
       // 🎯 Mode Control & Navigation
       ['/default', 'Switch to default conversational mode'],
@@ -11095,9 +11125,23 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       ['/vm-backup <id>', 'Create container backup'],
       ['/vm-stats <id>', 'Show container resource stats'],
 
-      // 🌐 Web Browsing & Analysis
-      ['/browse <url>', 'Browse web page and extract content'],
-      ['/web-analyze <url>', 'Browse and analyze web page with AI'],
+      // 🌐 Browser Mode (Interactive Browser Automation)
+      ['/browser [url]', 'Start interactive browser mode with optional URL'],
+      ['/browser-status', 'Show current browser session status'],
+      ['/browser-screenshot', 'Take screenshot of current page'],
+      ['/browser-exit', 'Exit browser mode and cleanup'],
+      ['/browser-info', 'Show browser mode capabilities and info'],
+
+      // 🌐 Web Browsing & Analysis (BrowseGPT)
+      ['/browse-session [id]', 'Create new browsing session'],
+      ['/browse-search <sessionId> <query>', 'Search the web'],
+      ['/browse-visit <sessionId> <url> [prompt]', 'Visit page and extract content'],
+      ['/browse-chat <sessionId> <message>', 'Chat with AI about web content'],
+      ['/browse-sessions', 'List all active browsing sessions'],
+      ['/browse-info <sessionId>', 'Get session information'],
+      ['/browse-close <sessionId>', 'Close browsing session'],
+      ['/browse-cleanup', 'Clean up inactive sessions'],
+      ['/browse-quick <query> [prompt]', 'Quick search, visit, and analyze'],
 
       // 🎨 Figma Design Integration
       ['/figma-config', 'Show Figma API configuration status'],
@@ -11185,32 +11229,33 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       lines.push('')
     }
 
-    addGroup('🏠 Core System:', 0, 6)
-    addGroup('🎯 Mode Control:', 6, 9)
-    addGroup('📁 File Operations:', 9, 14)
-    addGroup('⚡ Terminal Operations:', 14, 21)
-    addGroup('🤖 AI Configuration:', 21, 27)
-    addGroup('🎨 Output Styles:', 27, 37)
-    addGroup('🔑 API Keys:', 37, 43)
-    addGroup('🚀 Performance:', 43, 48)
-    addGroup('🤖 Agent Factory:', 48, 57)
-    addGroup('💾 Memory & Context:', 57, 62)
-    addGroup('📋 Planning & Todos:', 62, 64)
-    addGroup('📝 Session Management:', 64, 68)
-    addGroup('💼 Work Session Management:', 68, 73)
-    addGroup('⟺ Edit History (Undo/Redo):', 73, 76)
-    addGroup('🔌 Background Agents:', 76, 80)
-    addGroup('🐳 VM Containers:', 80, 98)
-    addGroup('🌐 Web Browsing:', 98, 100)
-    addGroup('🎨 Figma Integration:', 100, 106)
-    addGroup('🔗 Blockchain/Web3:', 106, 110)
-    addGroup('🔍 Vision & Images:', 110, 112)
-    addGroup('🛠️ CAD Design:', 112, 118)
-    addGroup('⚙️ G-code/CNC:', 118, 123)
-    addGroup('📚 Documentation:', 123, 126)
-    addGroup('📸 Snapshots:', 126, 129)
-    addGroup('🔒 Security:', 129, 132)
-    addGroup('💻 IDE Integration:', 132, 135)
+    addGroup('🏠 Core System:', 0, 7)
+    addGroup('🎯 Mode Control:', 7, 10)
+    addGroup('📁 File Operations:', 10, 15)
+    addGroup('⚡ Terminal Operations:', 15, 22)
+    addGroup('🤖 AI Configuration:', 22, 28)
+    addGroup('🎨 Output Styles:', 28, 38)
+    addGroup('🔑 API Keys:', 38, 44)
+    addGroup('🚀 Performance:', 44, 49)
+    addGroup('🤖 Agent Factory:', 49, 58)
+    addGroup('💾 Memory & Context:', 58, 63)
+    addGroup('📋 Planning & Todos:', 63, 65)
+    addGroup('📝 Session Management:', 65, 69)
+    addGroup('💼 Work Session Management:', 69, 74)
+    addGroup('⟺ Edit History (Undo/Redo):', 74, 77)
+    addGroup('🔌 Background Agents:', 77, 81)
+    addGroup('🐳 VM Containers:', 81, 99)
+    addGroup('🌐 Browser Mode:', 99, 104)
+    addGroup('🌐 Web Browsing (BrowseGPT):', 104, 113)
+    addGroup('🎨 Figma Integration:', 113, 119)
+    addGroup('🔗 Blockchain/Web3:', 119, 123)
+    addGroup('🔍 Vision & Images:', 123, 125)
+    addGroup('🛠️ CAD Design:', 125, 131)
+    addGroup('⚙️ G-code/CNC:', 131, 136)
+    addGroup('📚 Documentation:', 136, 139)
+    addGroup('📸 Snapshots:', 139, 142)
+    addGroup('🔒 Security:', 142, 145)
+    addGroup('💻 IDE Integration:', 145, 148)
 
     lines.push('💡 Quick Tips:')
     lines.push('   • Use Ctrl+C to exit any mode')
@@ -11352,6 +11397,69 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         }),
         'general'
       )
+    }
+  }
+
+  /**
+   * Restore terminal state after dashboard expanded mode
+   */
+  private restoreTerminalState(): void {
+    try {
+      // Reset any terminal state that might have been modified
+      this.isInteractiveMode = false
+      this.isPrintingPanel = false
+
+      // Piccola pausa per assicurarsi che il terminale sia pulito
+      setTimeout(() => {
+        if (this.rl) {
+          this.rl.prompt()
+        }
+      }, 100)
+    } catch (error) {
+      // Ignore restoration errors
+    }
+  }
+
+  /**
+   * Handle dashboard command
+   */
+  private async handleDashboard(action?: string): Promise<void> {
+    const { dashboardService } = this
+
+    try {
+      switch (action) {
+        case 'stop':
+          dashboardService.stop()
+          console.log(chalk.green('✓ Dashboard stopped'))
+          break
+
+        case 'start':
+          if (!dashboardService.isActive()) {
+            await dashboardService.start()
+            console.log(chalk.green('✓ Interactive dashboard started'))
+            // Blocks until user exits expanded view - now with proper cleanup
+            this.restoreTerminalState()
+            this.renderPromptAfterOutput()
+          } else {
+            console.log(chalk.yellow('Dashboard already active'))
+          }
+          break
+
+        default:
+          // Toggle behavior: off -> expanded -> off
+          if (!dashboardService.isActive()) {
+            await dashboardService.start()
+            console.log(chalk.green('✓ Interactive dashboard started'))
+            this.restoreTerminalState()
+            this.renderPromptAfterOutput()
+          } else {
+            dashboardService.stop()
+            console.log(chalk.green('✓ Dashboard stopped'))
+            this.renderPromptAfterOutput()
+          }
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`Dashboard error: ${error.message}`))
     }
   }
 

@@ -240,13 +240,13 @@ export class ToolRouter extends EventEmitter {
       examples: ['read package.json', 'show file content', 'view configuration'],
     },
 
-    // Multi-read (batch)
+    // Multi-read (batch) - ENHANCED PRIORITY
     {
       tool: 'multi_read',
-      keywords: ['multi read', 'batch read', 'analyze files', 'collect contents', 'inspect many files'],
-      priority: 6,
-      description: 'Read multiple files with search and context',
-      examples: ['read multiple files', 'batch analyze src/**/*.ts'],
+      keywords: ['multi read', 'batch read', 'analyze files', 'collect contents', 'inspect many files', 'read several', 'read multiple', 'analyze all', 'check all files'],
+      priority: 8, // Increased from 6 to 8
+      description: 'Read multiple files with search and context - preferred for batch operations',
+      examples: ['read multiple files', 'batch analyze src/**/*.ts', 'check all config files'],
     },
 
     {
@@ -274,10 +274,10 @@ export class ToolRouter extends EventEmitter {
     },
     {
       tool: 'multi_edit',
-      keywords: ['multi', 'batch', 'atomic', 'transaction', 'multiple files'],
-      priority: 5,
-      description: 'Apply multiple edits atomically',
-      examples: ['batch replace across files', 'atomic patch multiple files'],
+      keywords: ['multi', 'batch', 'atomic', 'transaction', 'multiple files', 'batch edit', 'edit several', 'change multiple', 'update all', 'modify multiple'],
+      priority: 8, // Increased from 5 to 8
+      description: 'Apply multiple edits atomically - preferred for batch modifications',
+      examples: ['batch replace across files', 'atomic patch multiple files', 'update multiple components'],
     },
 
     {
@@ -295,6 +295,15 @@ export class ToolRouter extends EventEmitter {
       priority: 5,
       description: 'Find files matching glob patterns',
       examples: ['find *.ts in src', 'glob **/*.spec.ts'],
+    },
+
+    // Grep/Search - ENHANCED FOR TEXT SEARCH
+    {
+      tool: 'grep',
+      keywords: ['grep', 'search', 'find text', 'search in files', 'search code', 'find pattern', 'search content', 'look for', 'find string', 'search term'],
+      priority: 9, // High priority for text search
+      description: 'Search text patterns in files - preferred for content search',
+      examples: ['search for "function"', 'grep "export" in src/', 'find all TODO comments'],
     },
 
     // Command Execution
@@ -461,7 +470,7 @@ export class ToolRouter extends EventEmitter {
       }
     }
 
-    // Sort by confidence and priority
+    // Sort by priority first, then confidence - ENHANCED SORTING
     return recommendations
       .sort((a, b) => {
         const toolA = this.toolKeywords.find((t) => t.tool === a.tool)
@@ -469,13 +478,23 @@ export class ToolRouter extends EventEmitter {
         const priorityA = toolA?.priority || 0
         const priorityB = toolB?.priority || 0
 
-        // Higher confidence and priority first
-        if (a.confidence !== b.confidence) {
+        // Prioritize high-priority tools (8+) even with lower confidence
+        if (priorityA >= 8 && priorityB < 8) return -1
+        if (priorityB >= 8 && priorityA < 8) return 1
+
+        // For high-priority tools, prefer by priority first
+        if (priorityA >= 8 && priorityB >= 8) {
+          if (priorityA !== priorityB) return priorityB - priorityA
           return b.confidence - a.confidence
         }
-        return priorityB - priorityA
+
+        // For normal tools, balance confidence and priority
+        const scoreA = a.confidence * 0.7 + (priorityA / 10) * 0.3
+        const scoreB = b.confidence * 0.7 + (priorityB / 10) * 0.3
+
+        return scoreB - scoreA
       })
-      .slice(0, 3) // Return top 3 recommendations
+      .slice(0, 5) // Increased from 3 to 5 recommendations
   }
 
   /** Resolve router alias to actual ToolRegistry name */
@@ -1537,15 +1556,29 @@ export class ToolRouter extends EventEmitter {
   getOptimizedToolRecommendations(cognition: TaskCognition): AdvancedToolRecommendation[] {
     const recommendations: AdvancedToolRecommendation[] = []
 
-    // Use complexity to determine tool selection strategy
-    if (cognition.estimatedComplexity <= 3) {
-      // Simple tasks - use basic tools
-      const basicTools = this.getToolsByRiskLevel('low')
-      basicTools.slice(0, 3).forEach((tool) => {
+    // ENHANCED complexity-based tool selection strategy
+    if (cognition.estimatedComplexity <= 2) {
+      // Very simple tasks - prefer efficient single tools
+      const efficientTools = ['read_file', 'write_file', 'edit_file']
+      efficientTools.slice(0, 2).forEach((tool) => {
         recommendations.push({
           tool,
           confidence: 0.85,
-          reason: 'Low complexity task - basic tool recommended',
+          reason: 'Simple task - efficient single tool recommended',
+          securityLevel: 'safe',
+          category: 'file',
+          requiresApproval: false,
+          workspaceRestricted: true,
+        })
+      })
+    } else if (cognition.estimatedComplexity <= 5) {
+      // Medium complexity - prefer batch/multi tools for efficiency
+      const batchTools = ['multi_read', 'multi_edit', 'grep', 'find_files']
+      batchTools.slice(0, 3).forEach((tool) => {
+        recommendations.push({
+          tool,
+          confidence: 0.9,
+          reason: 'Medium complexity - batch tool recommended for efficiency',
           securityLevel: 'safe',
           category: 'file',
           requiresApproval: false,
@@ -1553,7 +1586,21 @@ export class ToolRouter extends EventEmitter {
         })
       })
     } else {
-      // Complex tasks - use advanced tools
+      // Complex tasks - use advanced capabilities AND batch tools
+      const advancedTools = ['multi_read', 'multi_edit', 'grep', 'semantic_search', 'analyze_project']
+      advancedTools.slice(0, 4).forEach((tool) => {
+        recommendations.push({
+          tool,
+          confidence: 0.95,
+          reason: 'Complex task - advanced batch tool recommended',
+          securityLevel: 'moderate',
+          category: 'analysis',
+          requiresApproval: false,
+          workspaceRestricted: true,
+        })
+      })
+
+      // Also include required capabilities
       cognition.requiredCapabilities.forEach((capability) => {
         const tools = this.getToolsByCapability(capability)
         tools.slice(0, 2).forEach((tool) => {

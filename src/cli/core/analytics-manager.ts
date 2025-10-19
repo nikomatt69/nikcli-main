@@ -208,6 +208,11 @@ export class AnalyticsManager {
     }
   }
 
+  // Get recent events for dashboard
+  getRecentEvents(limit: number = 100): AnalyticsEvent[] {
+    return this.events.slice(-limit)
+  }
+
   // Export analytics report
   exportReport(): string {
     const summary = this.getSummary()
