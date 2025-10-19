@@ -742,4 +742,21 @@ export class AgentManager extends EventEmitter {
       specialization: entry.metadata.specialization,
     }))
   }
+
+  /**
+   * Get metrics for dashboard
+   */
+  getMetrics(): {
+    activeAgents: Agent[]
+    activeTaskCount: number
+    queueSizes: Map<string, AgentTask[]>
+    taskHistory: Map<string, AgentTaskResult>
+  } {
+    return {
+      activeAgents: Array.from(this.agents.values()),
+      activeTaskCount: this.activeTaskCount,
+      queueSizes: new Map(this.taskQueues),
+      taskHistory: new Map(this.taskHistory)
+    }
+  }
 }

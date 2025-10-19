@@ -31,7 +31,7 @@ export class GitHubIntegration {
     this.config = config
     this.octokit = new Octokit({
       auth: this.generateJWT(),
-      userAgent: 'nikCLI-background-agents/0.4.0',
+      userAgent: 'nikCLI-background-agents/0.5.0',
     })
 
     // Initialize webhook handler if bot config is available
@@ -93,7 +93,7 @@ export class GitHubIntegration {
     const token = await this.getInstallationToken()
     return new Octokit({
       auth: token,
-      userAgent: 'nikCLI-background-agents/0.4.0',
+      userAgent: 'nikCLI-background-agents/0.5.0',
     })
   }
 

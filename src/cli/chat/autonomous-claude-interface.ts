@@ -684,14 +684,20 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
 
           case 'text_delta':
             if (event.content) {
+              // Process markdown with tables if metadata indicates markdown content
+              let processedContent = event.content
+              if (event.metadata?.isMarkdown && event.content.includes('|')) {
+                processedContent = await streamttyService.processMarkdownWithTables(event.content)
+              }
+
               // Stream as AI SDK text delta event
               await streamttyService.streamAISDKEvent(
-                StreamProtocol.createTextDelta(event.content)
+                StreamProtocol.createTextDelta(processedContent)
               )
               // Buffer for smooth streaming
-              this.streamBuffer += event.content
+              this.streamBuffer += processedContent
               this.lastStreamTime = Date.now()
-              assistantMessage += event.content
+              assistantMessage += processedContent
             }
             break
 
@@ -1027,7 +1033,14 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
             await streamttyService.renderBlock(`💭 ${event.content}`, 'thinking')
             break
           case 'text_delta':
-            if (event.content) await streamttyService.streamChunk(event.content, 'ai')
+            if (event.content) {
+              // Process markdown with tables if metadata indicates markdown content
+              let processedContent = event.content
+              if (event.metadata?.isMarkdown && event.content.includes('|')) {
+                processedContent = await streamttyService.processMarkdownWithTables(event.content)
+              }
+              await streamttyService.streamChunk(processedContent, 'ai')
+            }
             break
           case 'tool_call':
             await this.handleToolCall(event)

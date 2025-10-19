@@ -145,6 +145,12 @@ export class AdvancedAIProvider implements AutonomousProvider {
   private commandTemplates: Map<string, Command> = new Map()
   private streamSilentMode: boolean = false
 
+  // Usage Statistics
+  private totalTokensUsed: number = 0
+  private estimatedCost: number = 0
+  private requestCount: number = 0
+  private cacheHits: number = 0
+
   generateWithTools(_planningMessages: CoreMessage[]): Promise<{
     text: string
     toolCalls: any[]
@@ -3541,6 +3547,39 @@ Use this cognitive understanding to provide more targeted and effective response
     if (config.adaptivePlanning) {
       console.log(cognitiveColor('📋 Adaptive planning enabled'))
     }
+  }
+
+  /**
+   * Get usage statistics for dashboard
+   */
+  getUsageStats(): {
+    totalTokens: number
+    totalCost: number
+    requestCount: number
+    cacheHits: number
+  } {
+    return {
+      totalTokens: this.totalTokensUsed,
+      totalCost: this.estimatedCost,
+      requestCount: this.requestCount,
+      cacheHits: this.cacheHits
+    }
+  }
+
+  /**
+   * Track token usage for dashboard
+   */
+  private trackTokenUsage(tokens: number, cost: number): void {
+    this.totalTokensUsed += tokens
+    this.estimatedCost += cost
+    this.requestCount += 1
+  }
+
+  /**
+   * Track cache hit for dashboard
+   */
+  private trackCacheHit(): void {
+    this.cacheHits += 1
   }
 }
 

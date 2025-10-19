@@ -217,6 +217,22 @@ export class StreamttyService {
   }
 
   /**
+   * Process markdown content with tables
+   */
+  async processMarkdownWithTables(content: string): Promise<string> {
+    if (!content || !content.includes('|')) {
+      return content
+    }
+
+    // Check if content contains complete tables
+    if (this.isStartingTable(content) && this.hasCompleteTable(content)) {
+      return await this.processTablesInline(content)
+    }
+
+    return content
+  }
+
+  /**
    * Stream a single chunk with type metadata for appropriate formatting
    */
   async streamChunk(chunk: string, type: ChunkType = 'ai'): Promise<void> {
@@ -241,68 +257,22 @@ export class StreamttyService {
         break
     }
 
-    // Check if chunk contains table markers
-    const hasTableMarker = chunk.includes('|')
+    // Simplify table handling - let applyEnhancedFeaturesInline handle it
+    // Remove complex table accumulation logic for now
 
-    if (hasTableMarker || this.inTableMode) {
-      // Accumulate table content
-      this.tableAccumulator += chunk
-
-      // Check if this is actually a table (not just a pipe character)
-      if (!this.inTableMode && this.isStartingTable(this.tableAccumulator)) {
-        // Start table mode - silently accumulate, no output
-        this.inTableMode = true
-      }
-
-      // If we're in table mode, check if table is complete
-      if (this.inTableMode) {
-        if (this.hasCompleteTable(this.tableAccumulator)) {
-          // Process the complete table
-          const processedTable = await this.processTablesInline(this.tableAccumulator)
-
-          // Write the processed table
-          const tableLines = TerminalOutputManager.calculateLines(processedTable)
-          const outputId = terminalOutputManager.reserveSpace('StreamttyTable', tableLines)
-          process.stdout.write(processedTable)
-          terminalOutputManager.confirmOutput(outputId, 'StreamttyTable', tableLines, {
-            persistent: false,
-            expiryMs: 30000,
-          })
-
-          // Reset table mode
-          this.tableAccumulator = ''
-          this.inTableMode = false
-        }
-
-        return // Don't process table chunks further while in table mode
-      } else {
-        // Not a real table, just a pipe character - flush and continue normal processing
-        this.tableAccumulator = ''
-      }
-    }
-
-    // If we were in table mode but now received non-table content
-    if (this.inTableMode && !hasTableMarker) {
-      // Flush any incomplete table as-is
-      if (this.tableAccumulator) {
-        process.stdout.write(this.tableAccumulator)
-      }
-      this.tableAccumulator = ''
-      this.inTableMode = false
-    }
+    // Apply enhanced features first (including table formatting)
+    let processedChunk = await this.applyEnhancedFeaturesInline(chunk)
 
     // Apply syntax highlighting based on chunk type (except tools which stay raw)
-    let processedChunk = chunk
-
     // Check if chunk already contains ANSI codes (to avoid double-processing)
-    const hasAnsiCodes = /\x1b\[[\d;]*m/.test(chunk)
+    const hasAnsiCodes = /\x1b\[[\d;]*m/.test(processedChunk)
     const shouldHighlight = type !== 'tool' &&
       !this.stats.fallbackUsed &&
       !hasAnsiCodes // Don't highlight if already has ANSI codes
 
     if (shouldHighlight) {
       // Apply ANSI syntax highlighting for stdout mode only
-      processedChunk = applySyntaxHighlight(chunk)
+      processedChunk = applySyntaxHighlight(processedChunk)
 
       // Apply type-specific coloring
       if (type === 'thinking') {
@@ -332,6 +302,17 @@ export class StreamttyService {
 
     let processedContent = content
 
+    // Process markdown tables to ASCII format - add debug logging
+    if (content.includes('|')) {
+      console.error('[DEBUG] Table marker found in chunk:', content.slice(0, 50) + '...')
+      processedContent = this.convertMarkdownTablesToAscii(processedContent)
+      if (processedContent !== content) {
+        console.error('[DEBUG] Table converted successfully')
+      } else {
+        console.error('[DEBUG] Table conversion had no effect')
+      }
+    }
+
     // Process mermaid diagrams if mermaid is enabled
     if (this.options.enhancedFeatures?.mermaid) {
       processedContent = await this.processMermaidInline(processedContent)
@@ -341,11 +322,108 @@ export class StreamttyService {
   }
 
   /**
+   * Convert markdown tables to ASCII format for better terminal display
+   */
+  private convertMarkdownTablesToAscii(content: string): string {
+    if (!content.includes('|')) return content
+
+    console.error('[DEBUG] Converting tables in content:', content.slice(0, 100))
+
+    // Simple approach: look for any line that looks like a table row
+    const lines = content.split('\n')
+    const result: string[] = []
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+
+      // Check if this looks like a table row (starts and ends with |, has at least 2 | chars)
+      if (trimmed.startsWith('|') && trimmed.endsWith('|') && (trimmed.match(/\|/g) || []).length >= 3) {
+        console.error('[DEBUG] Found table row:', trimmed)
+
+        // Convert this single row to a simple format
+        const cells = trimmed.slice(1, -1).split('|').map(cell => cell.trim())
+
+        // Check if it's a separator row
+        if (trimmed.match(/^[\|\s\-:]+$/)) {
+          result.push('├' + '─'.repeat(Math.max(20, trimmed.length - 2)) + '┤')
+        } else {
+          // Regular data row - just clean it up
+          const cleanRow = '│ ' + cells.join(' │ ') + ' │'
+          result.push(cleanRow)
+        }
+      } else {
+        result.push(line)
+      }
+    }
+
+    const converted = result.join('\n')
+    console.error('[DEBUG] Conversion result:', converted.slice(0, 100))
+    return converted
+  }
+
+  /**
+   * Convert a markdown table to ASCII format
+   */
+  private markdownTableToAscii(tableLines: string[]): string {
+    if (tableLines.length < 3) return tableLines.join('\n')
+
+    // Parse header
+    const headerCells = tableLines[0]
+      .slice(1, -1) // Remove leading and trailing |
+      .split('|')
+      .map(cell => cell.trim())
+
+    // Skip separator line (tableLines[1])
+
+    // Parse data rows
+    const dataRows = tableLines.slice(2).map(line =>
+      line.slice(1, -1) // Remove leading and trailing |
+        .split('|')
+        .map(cell => cell.trim())
+    )
+
+    // Calculate column widths
+    const colWidths = headerCells.map((header, i) => {
+      const headerLen = header.length
+      const maxDataLen = Math.max(...dataRows.map(row => (row[i] || '').length))
+      return Math.max(headerLen, maxDataLen) + 2
+    })
+
+    const lines: string[] = []
+
+    // Top border
+    lines.push('┌' + colWidths.map(w => '─'.repeat(w)).join('┬') + '┐')
+
+    // Header row
+    const headerRow = '│' + headerCells.map((header, i) =>
+      ` ${chalk.cyan(header.padEnd(colWidths[i] - 1))}`
+    ).join('│') + '│'
+    lines.push(headerRow)
+
+    // Header separator
+    lines.push('├' + colWidths.map(w => '─'.repeat(w)).join('┼') + '┤')
+
+    // Data rows
+    dataRows.forEach(row => {
+      const dataRow = '│' + row.map((cell, i) =>
+        ` ${(cell || '').padEnd(colWidths[i] - 1)}`
+      ).join('│') + '│'
+      lines.push(dataRow)
+    })
+
+    // Bottom border
+    lines.push('└' + colWidths.map(w => '─'.repeat(w)).join('┴') + '┘')
+
+    return lines.join('\n')
+  }
+
+  /**
    * Process markdown tables and render them with enhanced table renderer
    */
   private async processTablesInline(content: string): Promise<string> {
     // Import the enhanced table renderer
-    const { parseMarkdownTable, EnhancedTableRenderer } = await import('../../../streamtty/src/utils/enhanced-table-renderer')
+    const { parseMarkdownTable, EnhancedTableRenderer } = await import('streamtty/src/utils/enhanced-table-renderer')
 
     // Check if content contains tables
     if (!content.includes('|')) {
@@ -425,7 +503,7 @@ export class StreamttyService {
    */
   private async processMermaidInline(content: string): Promise<string> {
     // Import mermaid-ascii wrapper
-    const { convertMermaidToASCII } = await import('../../../streamtty/src/utils/mermaid-ascii')
+    const { convertMermaidToASCII } = await import('streamtty/src/utils/mermaid-ascii')
 
     // Look for mermaid code blocks
     const mermaidRegex = /```mermaid\s*\n([\s\S]*?)\n```/gi

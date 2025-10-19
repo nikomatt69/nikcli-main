@@ -3,6 +3,7 @@ import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { BashTool } from './bash-tool'
 import { BrowserbaseTool } from './browserbase-tool'
+import { createBrowserTools } from '../browser/playwright-automation-tools'
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
 import { EditTool } from './edit-tool'
 import { FindFilesTool } from './find-files-tool'
@@ -57,7 +58,7 @@ export class ToolRegistry {
       estimatedDuration: metadata?.estimatedDuration || 5000,
       requiredPermissions: metadata?.requiredPermissions || [],
       supportedFileTypes: metadata?.supportedFileTypes || [],
-      version: metadata?.version || '0.4.0',
+      version: metadata?.version || '0.5.0',
       author: metadata?.author || 'system',
       tags: metadata?.tags || [],
     })
@@ -199,7 +200,7 @@ export class ToolRegistry {
     return {
       tools: Array.from(this.toolMetadata.values()),
       exportedAt: new Date(),
-      version: '0.4.0',
+      version: '0.5.0',
     }
   }
 
@@ -477,6 +478,108 @@ export class ToolRegistry {
       requiredPermissions: ['write'],
       supportedFileTypes: ['gcode', 'nc', 'txt'],
       tags: ['gcode', 'cnc', '3d-printing', 'manufacturing', 'machining', 'laser'],
+    })
+
+    // Browser Automation Tools
+    const browserTools = createBrowserTools(workingDirectory)
+
+    this.registerTool('browser_navigate', browserTools.browser_navigate, {
+      description: 'Navigate to a URL and wait for page to load',
+      category: 'browser',
+      riskLevel: 'medium',
+      reversible: true,
+      estimatedDuration: 5000,
+      requiredPermissions: ['network'],
+      supportedFileTypes: ['*'],
+      tags: ['browser', 'navigate', 'web', 'automation'],
+    })
+
+    this.registerTool('browser_click', browserTools.browser_click, {
+      description: 'Click on an element using CSS selector or text',
+      category: 'browser',
+      riskLevel: 'medium',
+      reversible: true,
+      estimatedDuration: 2000,
+      requiredPermissions: ['execute'],
+      supportedFileTypes: ['*'],
+      tags: ['browser', 'click', 'interact', 'automation'],
+    })
+
+    this.registerTool('browser_type', browserTools.browser_type, {
+      description: 'Type text into an input field or textarea',
+      category: 'browser',
+      riskLevel: 'medium',
+      reversible: true,
+      estimatedDuration: 3000,
+      requiredPermissions: ['execute'],
+      supportedFileTypes: ['*'],
+      tags: ['browser', 'type', 'input', 'automation'],
+    })
+
+    this.registerTool('browser_screenshot', browserTools.browser_screenshot, {
+      description: 'Take a screenshot of the current page or viewport',
+      category: 'browser',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 2000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['png', 'jpg'],
+      tags: ['browser', 'screenshot', 'capture', 'visual'],
+    })
+
+    this.registerTool('browser_extract_text', browserTools.browser_extract_text, {
+      description: 'Extract text content from page or specific element',
+      category: 'browser',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 2000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['browser', 'text', 'extract', 'content'],
+    })
+
+    this.registerTool('browser_wait_for_element', browserTools.browser_wait_for_element, {
+      description: 'Wait for an element to appear or change state',
+      category: 'browser',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 30000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['browser', 'wait', 'element', 'sync'],
+    })
+
+    this.registerTool('browser_scroll', browserTools.browser_scroll, {
+      description: 'Scroll the page or a specific element',
+      category: 'browser',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 1000,
+      requiredPermissions: ['execute'],
+      supportedFileTypes: ['*'],
+      tags: ['browser', 'scroll', 'navigation'],
+    })
+
+    this.registerTool('browser_execute_script', browserTools.browser_execute_script, {
+      description: 'Execute custom JavaScript in the browser context',
+      category: 'browser',
+      riskLevel: 'high',
+      reversible: false,
+      estimatedDuration: 5000,
+      requiredPermissions: ['execute'],
+      supportedFileTypes: ['*'],
+      tags: ['browser', 'javascript', 'execute', 'script'],
+    })
+
+    this.registerTool('browser_get_page_info', browserTools.browser_get_page_info, {
+      description: 'Get current page information (title, URL, navigation state)',
+      category: 'browser',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 1000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['browser', 'info', 'page', 'metadata'],
     })
 
     if (!process.env.NIKCLI_QUIET_STARTUP) {

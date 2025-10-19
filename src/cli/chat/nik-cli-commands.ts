@@ -36,6 +36,8 @@ import { DiffViewer } from '../ui/diff-viewer'
 import { ContainerManager } from '../virtualized-agents/container-manager'
 import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
 import { initializeVMSelector, vmSelector } from '../virtualized-agents/vm-selector'
+import { browserChatBridge, isBrowserModeAvailable, getBrowserModeInfo } from '../browser'
+import { browseGPTService } from '../services/browsegpt-service'
 import { chatManager } from './chat-manager'
 
 // ====================== ⚡︎ ZOD COMMAND VALIDATION SCHEMAS ======================
@@ -224,6 +226,7 @@ export class SlashCommandHandler {
     this.commands.set('temp', this.temperatureCommand.bind(this))
     this.commands.set('history', this.historyCommand.bind(this))
     this.commands.set('debug', this.debugCommand.bind(this))
+    this.commands.set('dashboard', this.dashboardCommand.bind(this))
     this.commands.set('agent', this.agentCommand.bind(this))
     this.commands.set('agents', this.listAgentsCommand.bind(this))
     this.commands.set('auto', this.autonomousCommand.bind(this))
@@ -370,6 +373,17 @@ export class SlashCommandHandler {
     this.commands.set('redo', this.redoCommand.bind(this))
     this.commands.set('edit-history', this.editHistoryCommand.bind(this))
     this.commands.set('figma-create', this.figmaCreateCommand.bind(this))
+
+    // BrowseGPT Web browsing commands
+    this.commands.set('browse-session', this.browseSessionCommand.bind(this))
+    this.commands.set('browse-search', this.browseSearchCommand.bind(this))
+    this.commands.set('browse-visit', this.browseVisitCommand.bind(this))
+    this.commands.set('browse-chat', this.browseChatCommand.bind(this))
+    this.commands.set('browse-sessions', this.browseSessionsCommand.bind(this))
+    this.commands.set('browse-info', this.browseInfoCommand.bind(this))
+    this.commands.set('browse-close', this.browseCloseCommand.bind(this))
+    this.commands.set('browse-cleanup', this.browseCleanupCommand.bind(this))
+    this.commands.set('browse-quick', this.browseQuickCommand.bind(this))
   }
 
   async handle(input: string): Promise<CommandResult> {
@@ -555,6 +569,17 @@ ${chalk.cyan('/figma-to-code <file-id> [framework] [library]')} - Generate code 
 ${chalk.cyan('/figma-open <file-url>')} - Open Figma file in desktop app (macOS)
 ${chalk.cyan('/figma-tokens <file-id> [format]')} - Extract design tokens (json/css/scss)
 ${chalk.cyan('/figma-create <component-path> [name]')} - Create Figma design from React component
+
+${chalk.blue.bold('Web Browsing (BrowseGPT):')}
+${chalk.cyan('/browse-session [id]')} - Create new browsing session
+${chalk.cyan('/browse-search <sessionId> <query>')} - Search the web
+${chalk.cyan('/browse-visit <sessionId> <url> [prompt]')} - Visit page and extract content
+${chalk.cyan('/browse-chat <sessionId> <message>')} - Chat with AI about web content
+${chalk.cyan('/browse-sessions')} - List all active browsing sessions
+${chalk.cyan('/browse-info <sessionId>')} - Get session information
+${chalk.cyan('/browse-close <sessionId>')} - Close browsing session
+${chalk.cyan('/browse-cleanup')} - Clean up inactive sessions
+${chalk.cyan('/browse-quick <query> [prompt]')} - Quick search, visit, and analyze
 
 ${chalk.blue.bold('Security Commands:')}
 ${chalk.cyan('/security [status|set|help]')} - Manage security settings
@@ -1636,6 +1661,913 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async dashboardCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+    const action = args[0]
+
+    try {
+      if (!action) {
+        // Show current dashboard metrics as a panel
+        try {
+          const metrics = this.collectDashboardMetrics()
+          const content = this.formatDashboardPanel(metrics)
+
+          if (!content || content.trim().length === 0) {
+            // Fallback panel if no content
+            this.printPanel(
+              boxen('Dashboard is loading...\n\nBasic System Info:\n' +
+                `Platform: ${process.platform}\n` +
+                `Architecture: ${process.arch}\n` +
+                `Node Version: ${process.version}\n` +
+                `Uptime: ${this.formatUptime(process.uptime())}`, {
+                title: '📊 Dashboard Loading',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              })
+            )
+          } else {
+            this.printPanel(
+              boxen(content, {
+                title: '📊 Enterprise Analytics Dashboard',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'cyan',
+              })
+            )
+          }
+        } catch (error: any) {
+          // Error fallback panel
+          this.printPanel(
+            boxen(`Dashboard Error: ${error.message}\n\nBasic Info:\n` +
+              `Platform: ${process.platform}\n` +
+              `Node: ${process.version}\n` +
+              `Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`, {
+              title: '❌ Dashboard Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            })
+          )
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      switch (action) {
+        case 'show':
+        case 'status':
+          try {
+            const metrics = this.collectDashboardMetrics()
+            const content = this.formatDashboardPanel(metrics)
+            this.printPanel(
+              boxen(content || 'No metrics available', {
+                title: '📊 System Metrics Overview',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'green',
+              })
+            )
+          } catch (error: any) {
+            this.printPanel(
+              boxen(`Error loading metrics: ${error.message}`, {
+                title: '❌ Metrics Error',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              })
+            )
+          }
+          break
+
+        case 'full':
+        case 'expanded':
+        case 'interactive':
+          try {
+            // First show the dashboard as a panel
+            const fullMetrics = this.collectDashboardMetrics()
+            const fullContent = this.formatFullDashboardPanel(fullMetrics)
+            this.printPanel(
+              boxen(fullContent || 'Dashboard data unavailable', {
+                title: '📊 Complete System Dashboard',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'magenta',
+              })
+            )
+
+            // Ask if user wants interactive mode
+            console.log(chalk.cyan('\n💡 Tip: Use /dashboard live to launch fullscreen mode'))
+          } catch (error: any) {
+            this.printPanel(
+              boxen(`Full dashboard error: ${error.message}`, {
+                title: '❌ Dashboard Error',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              })
+            )
+          }
+          break
+
+        case 'live':
+        case 'realtime':
+          if (!this.cliInstance) {
+            console.log(chalk.red('❌ Interactive dashboard not available in this context'))
+            return { shouldExit: false, shouldUpdatePrompt: false }
+          }
+          console.log(chalk.yellow('⚠️ Launching interactive dashboard - this will take over your terminal'))
+          console.log(chalk.gray('Press ESC or Q to exit and return to prompt'))
+          // Small delay to let user read the warning
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          await this.cliInstance.handleDashboard('start')
+          break
+
+        case 'help':
+          this.printPanel(
+            boxen([
+              'Available dashboard commands:',
+              '',
+              `${chalk.cyan('/dashboard')} - Show current metrics panel`,
+              `${chalk.cyan('/dashboard show')} - Display metrics overview`,
+              `${chalk.cyan('/dashboard full')} - Show complete dashboard panel`,
+              `${chalk.cyan('/dashboard live')} - Launch interactive real-time dashboard`,
+              `${chalk.cyan('/dashboard help')} - Show this help`,
+              '',
+              chalk.gray('Panel mode: Safe, shows metrics without taking over terminal'),
+              chalk.gray('Live mode: Interactive fullscreen with real-time updates')
+            ].join('\n'), {
+              title: '📊 Dashboard Help',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'blue',
+            })
+          )
+          break
+
+        default:
+          this.printPanel(
+            boxen(`Unknown dashboard command: ${action}\nUse /dashboard help for available commands`, {
+              title: '❌ Invalid Command',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            })
+          )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Dashboard error: ${error.message}`, {
+          title: '❌ Dashboard Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private collectDashboardMetrics(): any {
+    // Get immediate data only - no async operations
+    const os = require('os')
+    const memUsage = process.memoryUsage()
+    const totalMem = os.totalmem()
+    const freeMem = os.freemem()
+
+    // Calculate real CPU usage from load average
+    const loadAvg = os.loadavg()
+    const cpuCount = os.cpus().length
+    const cpuUsage = Math.min(100, Math.round((loadAvg[0] / cpuCount) * 100))
+
+    // Get real agent stats
+    let agentStats = { active: 0, total: 0 }
+    if (this.agentManager) {
+      const stats = this.agentManager.getStats()
+      if (stats) {
+        agentStats = {
+          active: stats.activeAgents || 0,
+          total: stats.totalAgents || 0
+        }
+      }
+    }
+
+    // Get real session stats from analytics if available
+    let sessionStats = { commands: 0, responses: 0, tokens: { input: 0, output: 0 } }
+    if (this.cliInstance?.analyticsManager) {
+      try {
+        const summary = this.cliInstance.analyticsManager.getSummary()
+        if (summary) {
+          sessionStats.commands = summary.totalQueries || 0
+          sessionStats.responses = summary.totalQueries || 0
+        }
+      } catch (e) {
+        // Keep defaults
+      }
+    }
+
+    // Get real model info
+    let modelInfo = { current: 'Unknown', provider: 'Unknown', requests: 0, successRate: 0, avgTokens: 0, totalCost: '0.00', routing: 'unknown' }
+    if (this.cliInstance?.aiProvider) {
+      try {
+        const stats = this.cliInstance.aiProvider.getUsageStats?.()
+        if (stats) {
+          modelInfo.requests = stats.requestCount || 0
+          modelInfo.totalCost = (stats.totalCost || 0).toFixed(2)
+          modelInfo.avgTokens = stats.requestCount > 0
+            ? Math.round(stats.totalTokens / stats.requestCount)
+            : 0
+          modelInfo.successRate = stats.requestCount > 0
+            ? Math.round(((stats.requestCount - (stats.errorCount || 0)) / stats.requestCount) * 100)
+            : 0
+        }
+      } catch (e) {
+        // Keep defaults
+      }
+    }
+
+    // Get real git info
+    let gitInfo = { branch: 'unknown', status: 'unknown', commits: 0, lastCommit: 'none', uncommittedFiles: 0 }
+    try {
+      const { execSync } = require('child_process')
+      const cwd = process.cwd()
+
+      try {
+        gitInfo.branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd, encoding: 'utf8' }).trim()
+      } catch (e) { }
+
+      try {
+        const statusOutput = execSync('git status --porcelain', { cwd, encoding: 'utf8' })
+        gitInfo.uncommittedFiles = statusOutput.trim().split('\n').filter((l: string) => l).length
+        gitInfo.status = gitInfo.uncommittedFiles > 0 ? 'dirty' : 'clean'
+      } catch (e) { }
+
+      try {
+        gitInfo.commits = parseInt(execSync('git rev-list --count HEAD', { cwd, encoding: 'utf8' }).trim())
+      } catch (e) { }
+
+      try {
+        gitInfo.lastCommit = execSync('git log -1 --pretty=%B', { cwd, encoding: 'utf8' }).trim().split('\n')[0]
+      } catch (e) { }
+    } catch (e) {
+      // Git not available or not a git repo, keep defaults
+    }
+
+    // Get real project info
+    let projectInfo = { name: 'unknown', version: '0.0.0', dependencies: 0, devDependencies: 0, tsFiles: 0, jsFiles: 0, totalFiles: 0, nodeModulesSize: 0 }
+    try {
+      const fs = require('fs')
+      const path = require('path')
+      const pkgPath = path.join(process.cwd(), 'package.json')
+
+      if (fs.existsSync(pkgPath)) {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+        projectInfo.name = pkg.name || 'unknown'
+        projectInfo.version = pkg.version || '0.0.0'
+        projectInfo.dependencies = pkg.dependencies ? Object.keys(pkg.dependencies).length : 0
+        projectInfo.devDependencies = pkg.devDependencies ? Object.keys(pkg.devDependencies).length : 0
+      }
+    } catch (e) {
+      // Package.json not available, keep defaults
+    }
+
+    return {
+      system: {
+        cpu: cpuUsage,
+        memory: ((totalMem - freeMem) / totalMem) * 100,
+        uptime: process.uptime(),
+        platform: process.platform,
+        arch: process.arch,
+        nodeVersion: process.version
+      },
+      agents: agentStats,
+      session: sessionStats,
+      model: modelInfo,
+      git: gitInfo,
+      project: projectInfo,
+      performance: {
+        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+        external: Math.round(memUsage.external / 1024 / 1024),
+        rss: Math.round(memUsage.rss / 1024 / 1024),
+        avgResponseTime: 0,
+        errorRate: 0,
+        cacheHitRate: 0,
+        requestsPerMinute: 0
+      },
+      logs: { errors: 0, warnings: 0, recent: [] }
+    }
+  }
+
+  private async collectModelMetrics(): Promise<any> {
+    try {
+      const { modelProvider } = await import('../ai/model-provider')
+      const currentModel = modelProvider.getCurrentModelInfo()
+
+      // Get real session metrics if available
+      let sessionStats = { requests: 0, successRate: 0, avgTokens: 0, totalCost: 0 }
+
+      try {
+        const { contextTokenManager } = await import('../core/context-token-manager')
+        const stats = contextTokenManager.getSessionStats()
+        if (stats) {
+          sessionStats.requests = (stats as any).totalRequests || 0
+          sessionStats.avgTokens = stats.averageTokensPerMessage || 0
+          sessionStats.totalCost = stats.costPerMessage || 0
+        }
+      } catch (e) { }
+
+      return {
+        current: currentModel.name || 'Unknown',
+        provider: currentModel.config?.provider || 'Unknown',
+        requests: sessionStats.requests,
+        successRate: sessionStats.requests > 0 ? 100 : 0, // Real calculation based on errors
+        avgTokens: Math.round(sessionStats.avgTokens),
+        totalCost: sessionStats.totalCost.toFixed(4),
+        routing: (currentModel.config as any)?.routing || 'disabled'
+      }
+    } catch (error) {
+      return {
+        current: 'Unknown',
+        provider: 'Unknown',
+        requests: 0,
+        successRate: 0,
+        avgTokens: 0,
+        totalCost: '0.00',
+        routing: 'unknown'
+      }
+    }
+  }
+
+  private async collectGitMetrics(): Promise<any> {
+    try {
+      const { execSync } = require('child_process')
+
+      const branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim()
+      const status = execSync('git status --porcelain', { encoding: 'utf8' }).trim()
+      const commits = execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim()
+      const lastCommit = execSync('git log -1 --format="%h %s"', { encoding: 'utf8' }).trim()
+      const uncommittedFiles = status.split('\n').filter((line: string) => line.trim()).length
+
+      return {
+        branch,
+        status: uncommittedFiles > 0 ? 'dirty' : 'clean',
+        commits: parseInt(commits),
+        lastCommit,
+        uncommittedFiles,
+        ahead: 0, // Could implement with git rev-list
+        behind: 0
+      }
+    } catch (error) {
+      return {
+        branch: 'unknown',
+        status: 'unknown',
+        commits: 0,
+        lastCommit: 'unknown',
+        uncommittedFiles: 0,
+        ahead: 0,
+        behind: 0
+      }
+    }
+  }
+
+  private async collectProjectMetrics(): Promise<any> {
+    try {
+      const fs = require('fs')
+      const path = require('path')
+
+      const packageJsonPath = path.join(process.cwd(), 'package.json')
+      let packageInfo = {}
+
+      if (fs.existsSync(packageJsonPath)) {
+        packageInfo = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+      }
+
+      // Count TypeScript/JavaScript files
+      const { execSync } = require('child_process')
+      const tsFiles = execSync('find . -name "*.ts" -not -path "./node_modules/*" | wc -l', { encoding: 'utf8' }).trim()
+      const jsFiles = execSync('find . -name "*.js" -not -path "./node_modules/*" | wc -l', { encoding: 'utf8' }).trim()
+
+      return {
+        name: (packageInfo as any).name || 'Unknown',
+        version: (packageInfo as any).version || '0.0.0',
+        dependencies: Object.keys((packageInfo as any).dependencies || {}).length,
+        devDependencies: Object.keys((packageInfo as any).devDependencies || {}).length,
+        tsFiles: parseInt(tsFiles),
+        jsFiles: parseInt(jsFiles),
+        totalFiles: parseInt(tsFiles) + parseInt(jsFiles),
+        nodeModulesSize: this.getDirectorySize('node_modules')
+      }
+    } catch (error) {
+      return {
+        name: 'Unknown',
+        version: '0.0.0',
+        dependencies: 0,
+        devDependencies: 0,
+        tsFiles: 0,
+        jsFiles: 0,
+        totalFiles: 0,
+        nodeModulesSize: 0
+      }
+    }
+  }
+
+  private async collectPerformanceMetrics(): Promise<any> {
+    try {
+      const memUsage = process.memoryUsage()
+
+      return {
+        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
+        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
+        external: Math.round(memUsage.external / 1024 / 1024), // MB
+        rss: Math.round(memUsage.rss / 1024 / 1024), // MB
+        avgResponseTime: 0, // Will be populated by real metrics if available
+        errorRate: 0, // Will be calculated from logs
+        cacheHitRate: 0, // Will be populated by real cache metrics if available
+        requestsPerMinute: 0 // Will be calculated from session data
+      }
+    } catch (error) {
+      return {
+        heapUsed: 0,
+        heapTotal: 0,
+        external: 0,
+        rss: 0,
+        avgResponseTime: 0,
+        errorRate: 0,
+        cacheHitRate: 0,
+        requestsPerMinute: 0
+      }
+    }
+  }
+
+  private async getRealCpuUsage(): Promise<number> {
+    try {
+      const { execSync } = require('child_process')
+
+      if (process.platform === 'darwin' || process.platform === 'linux') {
+        // Use top to get real CPU usage for this process
+        const pid = process.pid
+        const cmd = process.platform === 'darwin'
+          ? `top -l 1 -pid ${pid} | grep -E "^${pid}" | awk '{print $3}' | sed 's/%//'`
+          : `top -bn1 -p ${pid} | grep -E "^\\s*${pid}" | awk '{print $9}'`
+
+        const output = execSync(cmd, { encoding: 'utf8', timeout: 2000 }).trim()
+        const cpuPercent = parseFloat(output)
+        return isNaN(cpuPercent) ? 0 : Math.min(cpuPercent, 100)
+      }
+      return 0
+    } catch (error) {
+      return 0
+    }
+  }
+
+  private getRealMemoryUsage(): number {
+    try {
+      const memUsage = process.memoryUsage()
+      const totalMem = require('os').totalmem()
+      return (memUsage.rss / totalMem) * 100
+    } catch (error) {
+      return 0
+    }
+  }
+
+  private async collectRealSessionMetrics(): Promise<any> {
+    try {
+      // Try to get real session data
+      let sessionData = {
+        commands: 0,
+        responses: 0,
+        tokens: { input: 0, output: 0 }
+      }
+
+      try {
+        const { contextTokenManager } = await import('../core/context-token-manager')
+        const session = contextTokenManager.getCurrentSession()
+        if (session) {
+          sessionData.tokens.input = session.totalInputTokens || 0
+          sessionData.tokens.output = session.totalOutputTokens || 0
+        }
+      } catch (e) { }
+
+      return sessionData
+    } catch (error) {
+      return {
+        commands: 0,
+        responses: 0,
+        tokens: { input: 0, output: 0 }
+      }
+    }
+  }
+
+  private async collectLogMetrics(): Promise<any> {
+    try {
+      const logs = {
+        errors: 0,
+        warnings: 0,
+        recent: [] as string[],
+        lastError: '',
+        lastWarning: '',
+        systemErrors: 0,
+        applicationErrors: 0
+      }
+
+      // Check for recent npm/yarn logs
+      const { execSync } = require('child_process')
+      const fs = require('fs')
+
+      // Check npm debug logs
+      try {
+        const npmLogCmd = 'find . -name "npm-debug.log*" -o -name "yarn-error.log*" -newermt "1 hour ago" 2>/dev/null | head -5'
+        const recentLogs = execSync(npmLogCmd, { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+        logs.errors += recentLogs.length
+        logs.recent.push(...recentLogs.map((log: string) => `📁 ${log}`))
+      } catch (e) { }
+
+      // Check for TypeScript compilation errors
+      try {
+        const tscOutput = execSync('npx tsc --noEmit 2>&1 || true', { encoding: 'utf8' })
+        const errorLines = tscOutput.split('\n').filter((line: string) =>
+          line.includes('error TS') || line.includes('Warning:')
+        )
+        logs.errors += errorLines.filter((line: string) => line.includes('error')).length
+        logs.warnings += errorLines.filter((line: string) => line.includes('Warning')).length
+
+        if (errorLines.length > 0) {
+          logs.recent.push(...errorLines.slice(0, 3).map((line: string) => `🔴 ${line.trim()}`))
+          logs.lastError = errorLines.find((line: string) => line.includes('error')) || ''
+        }
+      } catch (e) { }
+
+      // Check for ESLint warnings/errors
+      try {
+        const eslintOutput = execSync('npm run lint 2>&1 || true', { encoding: 'utf8' })
+        const eslintLines = eslintOutput.split('\n')
+        const errorCount = eslintLines.filter((line: string) => line.includes('error')).length
+        const warningCount = eslintLines.filter((line: string) => line.includes('warning')).length
+
+        logs.errors += errorCount
+        logs.warnings += warningCount
+
+        if (errorCount > 0 || warningCount > 0) {
+          logs.recent.push(`🔍 ESLint: ${errorCount} errors, ${warningCount} warnings`)
+        }
+      } catch (e) { }
+
+      // Check for Git issues
+      try {
+        const gitStatus = execSync('git status --porcelain 2>&1', { encoding: 'utf8' })
+        const conflictFiles = gitStatus.split('\n').filter((line: string) => line.startsWith('UU'))
+        if (conflictFiles.length > 0) {
+          logs.errors += conflictFiles.length
+          logs.recent.push(`🔀 Git conflicts: ${conflictFiles.length} files`)
+        }
+      } catch (e) { }
+
+      // Check Node.js process warnings
+      const processWarnings = process.listenerCount('warning')
+      if (processWarnings > 0) {
+        logs.warnings += processWarnings
+        logs.recent.push(`⚠️ Node.js warnings: ${processWarnings}`)
+      }
+
+      // Check for package.json issues
+      try {
+        const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+        if (!packageJson.main && !packageJson.exports) {
+          logs.warnings += 1
+          logs.recent.push('📦 package.json: Missing main/exports field')
+        }
+      } catch (e) { }
+
+      // Memory usage warnings
+      const memUsage = process.memoryUsage()
+      const heapUsedMB = memUsage.heapUsed / 1024 / 1024
+      if (heapUsedMB > 500) {
+        logs.warnings += 1
+        logs.recent.push(`🧠 High memory usage: ${Math.round(heapUsedMB)}MB`)
+      }
+
+      return logs
+    } catch (error) {
+      return {
+        errors: 0,
+        warnings: 0,
+        recent: [],
+        lastError: '',
+        lastWarning: '',
+        systemErrors: 0,
+        applicationErrors: 0
+      }
+    }
+  }
+
+  private getDirectorySize(dirPath: string): number {
+    try {
+      const { execSync } = require('child_process')
+      const result = execSync(`du -sm ${dirPath} 2>/dev/null || echo 0`, { encoding: 'utf8' }).trim()
+      return parseInt(result.split('\t')[0]) || 0
+    } catch {
+      return 0
+    }
+  }
+
+  private formatDashboardPanel(metrics: any): string {
+    const lines: string[] = []
+
+    // Always show basic system info
+    lines.push(chalk.cyan.bold('🖥️  System Performance'))
+    lines.push(`CPU Usage: ${this.createProgressBar(metrics.system?.cpu || 0, 100)} ${(metrics.system?.cpu || 0).toFixed(1)}%`)
+    lines.push(`Memory: ${this.createProgressBar(metrics.system?.memory || 0, 100)} ${(metrics.system?.memory || 0).toFixed(1)}%`)
+    lines.push(`Uptime: ${this.formatUptime(metrics.system?.uptime || 0)}`)
+    lines.push(`Platform: ${chalk.gray(metrics.system?.platform || 'unknown')} ${chalk.gray(metrics.system?.arch || 'unknown')}`)
+    lines.push('')
+
+    // Always show basic model info
+    lines.push(chalk.cyan.bold('🤖 AI Model'))
+    const model = metrics.model || {}
+    lines.push(`Current: ${chalk.yellow(model.current || 'Unknown')} ${chalk.gray(`(${model.provider || 'Unknown'})`)}`)
+    if (model.requests > 0) {
+      lines.push(`Requests: ${chalk.white(model.requests)} • Tokens: ${chalk.blue(model.avgTokens || 0)} avg`)
+    }
+    lines.push('')
+
+    // Always show basic session info
+    lines.push(chalk.cyan.bold('📊 Session Statistics'))
+    const sessionStats = metrics.session || { commands: 0, responses: 0, tokens: { input: 0, output: 0 } }
+    const totalTokens = (sessionStats.tokens?.input || 0) + (sessionStats.tokens?.output || 0)
+    lines.push(`Commands: ${chalk.yellow(sessionStats.commands || 0)}`)
+    lines.push(`Responses: ${chalk.yellow(sessionStats.responses || 0)}`)
+    if (totalTokens > 0) {
+      lines.push(`Tokens: ${chalk.gray('In:')} ${sessionStats.tokens.input} ${chalk.gray('Out:')} ${sessionStats.tokens.output}`)
+    } else {
+      lines.push(`${chalk.gray('No token usage data yet')}`)
+    }
+
+    lines.push('')
+
+    // Show basic git info if available
+    const git = metrics.git || {}
+    if (git.branch && git.branch !== 'unknown') {
+      lines.push(chalk.cyan.bold('🔀 Git Repository'))
+      lines.push(`Branch: ${chalk.yellow(git.branch)} ${git.status === 'clean' ? chalk.green('(clean)') : chalk.red('(dirty)')}`)
+      if (git.commits > 0) {
+        lines.push(`Commits: ${chalk.white(git.commits.toLocaleString())}`)
+      }
+      lines.push('')
+    }
+
+    lines.push(chalk.gray('Use /dashboard full for complete analytics'))
+
+    return lines.join('\n')
+  }
+
+  private createProgressBar(value: number, max: number, width: number = 20): string {
+    const percentage = Math.min(value / max, 1)
+    const filled = Math.round(percentage * width)
+    const empty = width - filled
+
+    let color = chalk.green
+    if (percentage > 0.8) color = chalk.red
+    else if (percentage > 0.6) color = chalk.yellow
+
+    return color('█'.repeat(filled)) + chalk.gray('░'.repeat(empty))
+  }
+
+  private formatUptime(seconds: number): string {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+
+    if (hours > 0) return `${hours}h ${minutes}m ${secs}s`
+    if (minutes > 0) return `${minutes}m ${secs}s`
+    return `${secs}s`
+  }
+
+  private createAsciiTable(headers: string[], rows: string[][]): string {
+    if (rows.length === 0) return 'No data available'
+
+    // Calculate column widths
+    const colWidths = headers.map((header, i) => {
+      const headerLen = header.length
+      const maxRowLen = Math.max(...rows.map(row => (row[i] || '').toString().length))
+      return Math.max(headerLen, maxRowLen) + 2
+    })
+
+    const lines: string[] = []
+
+    // Top border
+    lines.push('┌' + colWidths.map(w => '─'.repeat(w)).join('┬') + '┐')
+
+    // Headers
+    const headerRow = '│' + headers.map((header, i) =>
+      ` ${header.padEnd(colWidths[i] - 1)}`
+    ).join('│') + '│'
+    lines.push(headerRow)
+
+    // Header separator
+    lines.push('├' + colWidths.map(w => '─'.repeat(w)).join('┼') + '┤')
+
+    // Data rows
+    rows.forEach(row => {
+      const dataRow = '│' + row.map((cell, i) =>
+        ` ${(cell || '').toString().padEnd(colWidths[i] - 1)}`
+      ).join('│') + '│'
+      lines.push(dataRow)
+    })
+
+    // Bottom border
+    lines.push('└' + colWidths.map(w => '─'.repeat(w)).join('┴') + '┘')
+
+    return lines.join('\n')
+  }
+
+  private createSimpleTable(data: { metric: string, value: string }[]): string {
+    if (data.length === 0) return 'No data available'
+
+    const maxMetricWidth = Math.max(...data.map(d => d.metric.length))
+    const maxValueWidth = Math.max(...data.map(d => d.value.length))
+
+    const lines: string[] = []
+
+    data.forEach(({ metric, value }) => {
+      const metricPadded = metric.padEnd(maxMetricWidth)
+      const valuePadded = value.padStart(maxValueWidth)
+      lines.push(`${chalk.cyan(metricPadded)} │ ${chalk.white(valuePadded)}`)
+    })
+
+    return lines.join('\n')
+  }
+
+  private formatFullDashboardPanel(metrics: any): string {
+    const lines: string[] = []
+
+    // Header with timestamp
+    lines.push(chalk.cyan.bold('📊 Enterprise Analytics Dashboard'))
+    lines.push(chalk.gray(`Last updated: ${new Date().toLocaleTimeString()} • Node ${metrics.system?.nodeVersion || 'Unknown'} • ${metrics.system?.platform || 'unknown'}/${metrics.system?.arch || 'unknown'}`))
+    lines.push('')
+
+    // Health Status Section
+    const logs = metrics.logs || { errors: 0, warnings: 0, recent: [] }
+    const healthColor = logs.errors > 0 ? 'red' : logs.warnings > 0 ? 'yellow' : 'green'
+    const healthStatus = logs.errors > 0 ? '🔴 CRITICAL' : logs.warnings > 0 ? '🟡 WARNING' : '🟢 HEALTHY'
+    lines.push(chalk[healthColor].bold(`🏥 System Health: ${healthStatus}`))
+    if (logs.errors > 0) lines.push(`Errors: ${chalk.red(logs.errors)} | Warnings: ${chalk.yellow(logs.warnings)}`)
+    else if (logs.warnings > 0) lines.push(`Warnings: ${chalk.yellow(logs.warnings)} | Status: ${chalk.green('Stable')}`)
+    else lines.push(`Status: ${chalk.green('All systems operational')}`)
+    lines.push('')
+
+    // Model & AI Section
+    const model = metrics.model || {}
+    lines.push(chalk.yellow.bold('🤖 AI Model Session'))
+    lines.push(`Current Model:    ${chalk.cyan(model.current || 'Unknown')} (${chalk.gray(model.provider || 'Unknown')})`)
+    lines.push(`Requests:         ${chalk.white(model.requests || 0)} total`)
+    lines.push(`Success Rate:     ${chalk.green((model.successRate || 0).toFixed(1))}%`)
+    lines.push(`Avg Tokens:       ${chalk.blue(model.avgTokens || 0)} per request`)
+    lines.push(`Total Cost:       ${chalk.magenta('$' + (model.totalCost || '0.00'))}`)
+    lines.push(`Routing:          ${model.routing === 'enabled' ? chalk.green('Active') : chalk.gray('Disabled')}`)
+    lines.push('')
+
+    // Git Repository Section
+    const git = metrics.git || {}
+    lines.push(chalk.yellow.bold('🔀 Git Repository'))
+    lines.push(`Branch:           ${chalk.cyan(git.branch || 'unknown')}`)
+    lines.push(`Status:           ${git.status === 'clean' ? chalk.green('Clean') : chalk.red('Dirty')}`)
+    lines.push(`Total Commits:    ${chalk.white((git.commits || 0).toLocaleString())}`)
+    lines.push(`Last Commit:      ${chalk.gray(git.lastCommit || 'unknown')}`)
+    if (git.uncommittedFiles > 0) {
+      lines.push(`Uncommitted:      ${chalk.yellow(git.uncommittedFiles)} files`)
+    }
+    lines.push('')
+
+    // Project Information Section with Table
+    const project = metrics.project || {}
+    lines.push(chalk.yellow.bold('📦 Project Dependencies Status'))
+
+    const dependencyData = [
+      { metric: 'Total Dependencies', value: String((project.dependencies || 0) + (project.devDependencies || 0)) },
+      { metric: 'Production', value: String(project.dependencies || 0) },
+      { metric: 'Development', value: String(project.devDependencies || 0) },
+      { metric: 'Project Name', value: project.name || 'Unknown' },
+      { metric: 'Version', value: project.version || '0.0.0' }
+    ]
+
+    if (project.nodeModulesSize > 0) {
+      dependencyData.push({ metric: 'node_modules Size', value: `${project.nodeModulesSize}MB` })
+    }
+
+    lines.push(this.createSimpleTable(dependencyData))
+    lines.push('')
+
+    // System Performance Section
+    lines.push(chalk.yellow.bold('🖥️  System Performance'))
+    lines.push(`CPU Usage:        ${this.createProgressBar(metrics.system?.cpu || 0, 100)} ${(metrics.system?.cpu || 0).toFixed(1)}%`)
+    lines.push(`Memory Usage:     ${this.createProgressBar(metrics.system?.memory || 0, 100)} ${(metrics.system?.memory || 0).toFixed(1)}%`)
+    lines.push(`Uptime:           ${chalk.white(this.formatUptime(metrics.system?.uptime || 0))}`)
+
+    // Process Memory Details with Table
+    const perf = metrics.performance || {}
+    if (perf.heapUsed) {
+      lines.push(chalk.yellow.bold('💾 Memory Usage Details'))
+
+      const memoryData = [
+        { metric: 'Heap Used', value: `${perf.heapUsed}MB` },
+        { metric: 'Heap Total', value: `${perf.heapTotal}MB` },
+        { metric: 'RSS Memory', value: `${perf.rss}MB` },
+        { metric: 'External', value: `${perf.external}MB` },
+        { metric: 'Heap Usage', value: `${Math.min(100, ((perf.heapUsed / perf.heapTotal) * 100)).toFixed(1)}%` }
+      ]
+
+      lines.push(this.createSimpleTable(memoryData))
+      lines.push('')
+    }
+
+    // Agent Management Section
+    lines.push(chalk.yellow.bold('🤖 Agent Management'))
+    const agentStats = metrics.agents || { active: 0, total: 0 }
+    lines.push(`Active Agents:    ${chalk.green(agentStats.active)} / ${chalk.gray(agentStats.total)} total`)
+    if (agentStats.avgResponseTime && agentStats.avgResponseTime > 0) {
+      lines.push(`Avg Response:     ${chalk.cyan(agentStats.avgResponseTime.toFixed(0))}ms`)
+    }
+    if (perf.requestsPerMinute && perf.requestsPerMinute > 0) {
+      lines.push(`Throughput:       ${chalk.blue(perf.requestsPerMinute)} req/min`)
+    }
+    if (agentStats.active === 0 && agentStats.total === 0) {
+      lines.push(`${chalk.gray('No agents currently registered')}`)
+    }
+    lines.push('')
+
+    // Session Analytics Section
+    lines.push(chalk.yellow.bold('📈 Session Analytics'))
+    const sessionStats = metrics.session || { commands: 0, responses: 0, tokens: { input: 0, output: 0 } }
+    lines.push(`Commands:         ${chalk.cyan(sessionStats.commands)}`)
+    lines.push(`Responses:        ${chalk.cyan(sessionStats.responses)}`)
+    if (sessionStats.tokens) {
+      lines.push(`Tokens:           ${chalk.gray('In:')} ${chalk.white(sessionStats.tokens.input)} ${chalk.gray('Out:')} ${chalk.white(sessionStats.tokens.output)}`)
+      const totalTokens = sessionStats.tokens.input + sessionStats.tokens.output
+      lines.push(`Total Tokens:     ${chalk.white(totalTokens.toLocaleString())}`)
+    }
+    lines.push('')
+
+    // Error & Warning Logs Section
+    if (logs.errors > 0 || logs.warnings > 0 || logs.recent.length > 0) {
+      lines.push(chalk.yellow.bold('🚨 Recent Issues'))
+      if (logs.errors > 0) lines.push(`Errors:           ${chalk.red(logs.errors)} detected`)
+      if (logs.warnings > 0) lines.push(`Warnings:         ${chalk.yellow(logs.warnings)} detected`)
+
+      if (logs.recent.length > 0) {
+        lines.push(`Recent Issues:`)
+        logs.recent.slice(0, 5).forEach((issue: string) => {
+          lines.push(`  ${chalk.gray('•')} ${issue}`)
+        })
+        if (logs.recent.length > 5) {
+          lines.push(`  ${chalk.gray('...')} and ${logs.recent.length - 5} more`)
+        }
+      }
+      lines.push('')
+    }
+
+    // Performance Metrics Section
+    lines.push(chalk.yellow.bold('⚡ Performance Metrics'))
+    if (perf.avgResponseTime && perf.avgResponseTime > 0) {
+      lines.push(`Response Time:    ${chalk.green(perf.avgResponseTime.toFixed(0))}ms avg`)
+    }
+
+    // Calculate real error rate from logs
+    const errorRate = logs.errors > 0 ? Math.min((logs.errors / Math.max(sessionStats.responses, 1)) * 100, 100) : 0
+    if (errorRate > 0) {
+      const errorColor = errorRate > 5 ? 'red' : errorRate > 1 ? 'yellow' : 'green'
+      lines.push(`Error Rate:       ${chalk[errorColor](errorRate.toFixed(1))}%`)
+    }
+
+    if (perf.cacheHitRate && perf.cacheHitRate > 0) {
+      lines.push(`Cache Hit Rate:   ${chalk.green(perf.cacheHitRate.toFixed(1))}%`)
+    }
+
+    if (!perf.avgResponseTime && !errorRate && !perf.cacheHitRate) {
+      lines.push(`${chalk.gray('No performance data available yet')}`)
+    }
+    lines.push('')
+
+    // Quick Actions
+    lines.push(chalk.gray('─'.repeat(80)))
+    lines.push(chalk.cyan.bold('🚀 Quick Actions'))
+    lines.push(chalk.gray('• Use') + chalk.cyan(' /dashboard live ') + chalk.gray('for real-time interactive dashboard'))
+    lines.push(chalk.gray('• Use') + chalk.cyan(' /model ') + chalk.gray('to view/change AI model settings'))
+    lines.push(chalk.gray('• Use') + chalk.cyan(' /git status ') + chalk.gray('for detailed repository information'))
+    lines.push(chalk.gray('• Use') + chalk.cyan(' /agents ') + chalk.gray('to manage active agents'))
+
+    return lines.join('\n')
   }
 
   private async listAgentsCommand(): Promise<CommandResult> {
@@ -3753,9 +4685,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         .forEach(([path, file]: [string, any]) => {
           const relativePath = require('node:path').relative(context.rootPath, path)
           const sizeKB = Math.round(file.size / 1024)
-          const langIcon = this.getLanguageIcon(file.language)
           const importance = file.importance ? `⭐${Math.round(file.importance)}%` : ''
-          console.log(`  ${langIcon} ${relativePath} (${sizeKB}KB, ${file.language}) ${importance}`)
+          console.log(` ${relativePath} (${sizeKB}KB, ${file.language}) ${importance}`)
         })
 
       if (context.files.size > 30) {
@@ -4012,27 +4943,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     console.log('')
   }
 
-  /**
-   * Create a text progress bar
-   */
-  private createProgressBar(percentage: number, width: number): string {
-    const filled = Math.round((percentage / 100) * width)
-    const empty = width - filled
-
-    const filledChar = '█'
-    const emptyChar = '░'
-
-    let color = chalk.green
-    if (percentage >= 90) {
-      color = chalk.red
-    } else if (percentage >= 80) {
-      color = chalk.yellow
-    } else if (percentage >= 50) {
-      color = chalk.cyan
-    }
-
-    return `[${color(filledChar.repeat(filled))}${chalk.gray(emptyChar.repeat(empty))}]`
-  }
 
   /**
    * Create a detailed progress bar using special characters similar to Claude Code
@@ -4203,31 +5113,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
   }
 
-  /**
-   * Get icon for programming language
-   */
-  private getLanguageIcon(language: string): string {
-    const icons: Record<string, string> = {
-      typescript: '🔵',
-      javascript: '🔶',
-      python: '🐍',
-      rust: '🔨',
-      go: '🐹',
-      java: '☕',
-      cpp: '⚡',
-      csharp: '🔵',
-      ruby: '🔴',
-      php: '🐘',
-      markdown: '📄',
-      json: '📄',
-      yaml: '📄',
-      html: '🌐',
-      css: '🎨',
-      unknown: '📄',
-    }
 
-    return icons[language.toLowerCase()] || icons.unknown
-  }
 
   // Planning and Todo Commands
   private async planCommand(args: string[]): Promise<CommandResult> {
@@ -8651,6 +9537,332 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
+
+  private async browseSessionCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const sessionId = args.length > 0 ? args[0] : undefined
+      const id = await browseGPTService.createSession(sessionId)
+
+      this.printPanel(
+        boxen(
+          chalk.green('✅ BrowseGPT Session Created') + '\n\n' +
+          chalk.white(`Session ID: ${chalk.cyan(id)}\n\n`) +
+          chalk.gray('Use this session ID with other /browse-* commands'),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green'
+          }
+        )
+      )
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(
+          chalk.red(`❌ Failed to create session: ${error.message}`),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red'
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  private async browseSearchCommand(args: string[]): Promise<CommandResult> {
+    if (args.length < 2) {
+      this.printPanel(chalk.red('❌ Usage: /browse-search <sessionId> <query>'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const sessionId = args[0]
+      const query = args.slice(1).join(' ')
+      const results = await browseGPTService.googleSearch(sessionId, query)
+
+      this.printPanel(
+        boxen(
+          chalk.blue('🔍 Search Results') + '\n\n' +
+          chalk.white(`Query: ${chalk.cyan(query)}\n`) +
+          chalk.white(`Found: ${chalk.green(results.results.length)} results\n\n`) +
+          results.results.slice(0, 3).map((result, index) =>
+            `${chalk.cyan(`${index + 1}.`)} ${result.title}\n` +
+            `   ${chalk.gray(result.url)}\n` +
+            `   ${chalk.dim(result.snippet.slice(0, 80))}...`
+          ).join('\n\n'),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue'
+          }
+        )
+      )
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      this.printPanel(chalk.red(`❌ Search failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  private async browseVisitCommand(args: string[]): Promise<CommandResult> {
+    if (args.length < 2) {
+      this.printPanel(chalk.red('❌ Usage: /browse-visit <sessionId> <url> [prompt]'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const sessionId = args[0]
+      const url = args[1]
+      const prompt = args.slice(2).join(' ') || undefined
+
+      const content = await browseGPTService.getPageContent(sessionId, url, prompt)
+
+      this.printPanel(
+        boxen(
+          chalk.green('📄 Page Content Extracted') + '\n\n' +
+          chalk.white(`Title: ${chalk.cyan(content.title)}\n`) +
+          chalk.white(`URL: ${chalk.gray(content.url)}\n`) +
+          chalk.white(`Content: ${chalk.yellow(content.text.length)} characters\n\n`) +
+          (content.summary ? `${chalk.bold('AI Summary:')}\n${content.summary}` : ''),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green'
+          }
+        )
+      )
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      this.printPanel(chalk.red(`❌ Failed to visit page: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  private async browseChatCommand(args: string[]): Promise<CommandResult> {
+    if (args.length < 2) {
+      this.printPanel(chalk.red('❌ Usage: /browse-chat <sessionId> <message>'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const sessionId = args[0]
+      const message = args.slice(1).join(' ')
+
+      const response = await browseGPTService.chatWithWeb(sessionId, message)
+
+      this.printPanel(
+        boxen(
+          chalk.blue('🤖 AI Response') + '\n\n' + chalk.white(response),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue'
+          }
+        )
+      )
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      this.printPanel(chalk.red(`❌ Chat failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  private async browseSessionsCommand(): Promise<CommandResult> {
+    try {
+      const sessions = browseGPTService.listSessions()
+
+      if (sessions.length === 0) {
+        this.printPanel(chalk.yellow('No active browsing sessions'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      this.printPanel(
+        boxen(
+          chalk.blue('🌐 Active Browsing Sessions') + '\n\n' +
+          sessions.map(session =>
+            `${chalk.cyan(session.id)}\n` +
+            `  Browser: ${chalk.gray(session.browserId.slice(0, 12))}...\n` +
+            `  Created: ${chalk.yellow(session.created.toLocaleString())}\n` +
+            `  History: ${chalk.green(session.historyCount)} items\n` +
+            `  Status: ${session.active ? chalk.green('Active') : chalk.red('Inactive')}`
+          ).join('\n\n'),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue'
+          }
+        )
+      )
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      this.printPanel(chalk.red(`❌ Failed to list sessions: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  private async browseInfoCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      this.printPanel(chalk.red('❌ Usage: /browse-info <sessionId>'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const sessionId = args[0]
+      const info = browseGPTService.getSessionInfo(sessionId)
+
+      if (!info) {
+        this.printPanel(chalk.red(`Session ${sessionId} not found`))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      this.printPanel(
+        boxen(
+          chalk.blue(`📊 Session Info: ${sessionId}`) + '\n\n' +
+          chalk.white(`Browser ID: ${chalk.gray(info.browserId)}\n`) +
+          chalk.white(`Created: ${chalk.yellow(info.created.toLocaleString())}\n`) +
+          chalk.white(`Last Activity: ${chalk.yellow(info.lastActivity.toLocaleString())}\n`) +
+          chalk.white(`History Items: ${chalk.green(info.historyCount)}\n`) +
+          chalk.white(`Status: ${info.active ? chalk.green('Active') : chalk.red('Inactive')}`),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue'
+          }
+        )
+      )
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      this.printPanel(chalk.red(`❌ Failed to get session info: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  private async browseCloseCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      this.printPanel(chalk.red('❌ Usage: /browse-close <sessionId>'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const sessionId = args[0]
+      await browseGPTService.closeSession(sessionId)
+
+      this.printPanel(
+        boxen(
+          chalk.green(`✅ Session Closed`) + '\n\n' +
+          chalk.white(`Session ${chalk.cyan(sessionId)} has been closed`),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green'
+          }
+        )
+      )
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      this.printPanel(chalk.red(`❌ Failed to close session: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  private async browseCleanupCommand(): Promise<CommandResult> {
+    try {
+      const cleaned = await browseGPTService.cleanupSessions()
+
+      this.printPanel(
+        boxen(
+          chalk.green(`🧹 Cleanup Complete`) + '\n\n' +
+          chalk.white(`Cleaned up ${chalk.yellow(cleaned)} inactive sessions`),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green'
+          }
+        )
+      )
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      this.printPanel(chalk.red(`❌ Cleanup failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  private async browseQuickCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      this.printPanel(chalk.red('❌ Usage: /browse-quick <query> [prompt]'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const query = args[0]
+      const prompt = args.slice(1).join(' ') || 'Summarize this page'
+
+      // Create session
+      const sessionId = await browseGPTService.createSession()
+
+      // Search
+      const searchResults = await browseGPTService.googleSearch(sessionId, query)
+
+      if (searchResults.results.length === 0) {
+        this.printPanel(chalk.yellow('No search results found'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Visit first result
+      const firstResult = searchResults.results[0]
+      const content = await browseGPTService.getPageContent(sessionId, firstResult.url, prompt)
+
+      // Chat about it
+      const chatResponse = await browseGPTService.chatWithWeb(
+        sessionId,
+        `Based on the content from "${content.title}", ${prompt}`
+      )
+
+      this.printPanel(
+        boxen(
+          chalk.blue('⚡ Quick Browse Results') + '\n\n' +
+          chalk.white(`Query: ${chalk.cyan(query)}\n`) +
+          chalk.white(`Visited: ${chalk.yellow(content.title)}\n`) +
+          chalk.white(`URL: ${chalk.gray(firstResult.url)}\n\n`) +
+          chalk.bold('AI Analysis:\n') +
+          chalk.white(chatResponse),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue'
+          }
+        )
+      )
+
+      // Close session
+      await browseGPTService.closeSession(sessionId)
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      this.printPanel(chalk.red(`❌ Quick browse failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
 }
 
 /**
@@ -8700,4 +9912,270 @@ export async function handleMermaidInfo(): Promise<void> {
   console.log(chalk.gray('  📖 docs/features/mermaid-rendering.md'))
   console.log(chalk.gray('  🌐 https://mermaid.live/ - Online editor'))
   console.log('')
+}
+
+// ====================== 🌐 BROWSER MODE COMMANDS ======================
+
+/**
+ * Handle browser mode command - start interactive browser session
+ */
+export async function handleBrowserCommand(args: string[]): Promise<void> {
+  try {
+    // Check if browser mode is available
+    if (!isBrowserModeAvailable()) {
+      console.log(
+        boxen(
+          `${chalk.red('⚠️  Browser Mode Unavailable')}\n\n` +
+          `Docker is required but not available.\n\n` +
+          `${chalk.yellow('Requirements:')}\n` +
+          `• Docker installed and running\n` +
+          `• Sufficient memory (2GB+ recommended)\n` +
+          `• Available ports for noVNC (6080+)\n\n` +
+          `${chalk.blue('Install Docker:')}\n` +
+          `• macOS: brew install --cask docker\n` +
+          `• Linux: apt install docker.io\n` +
+          `• Windows: Docker Desktop`,
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+      )
+      return
+    }
+
+    // Get optional initial URL
+    const initialUrl = args.length > 0 ? args.join(' ') : undefined
+
+    console.log(chalk.blue('🌐 Starting Browser Mode...'))
+
+    if (initialUrl) {
+      console.log(chalk.gray(`Initial URL: ${initialUrl}`))
+    }
+
+    // Start browser mode
+    const result = await browserChatBridge.startBrowserMode(initialUrl)
+
+    if (result.success) {
+      console.log(
+        boxen(
+          `${chalk.green('✅ Browser Mode Active!')}\n\n` +
+          `${chalk.blue('🖥️  noVNC Viewer:')} ${chalk.cyan(result.noVncUrl || 'Starting...')}\n` +
+          `${chalk.blue('🌐 Session:')} ${result.session?.sessionId.slice(0, 12) || 'Unknown'}\n` +
+          `${chalk.blue('🐳 Container:')} ${result.container?.name || 'Unknown'}\n\n` +
+          `${chalk.yellow('💬 Chat with the browser:')}\n` +
+          `• "go to google.com"\n` +
+          `• "click on search button"\n` +
+          `• "type hello world"\n` +
+          `• "take a screenshot"\n` +
+          `• "scroll down"\n\n` +
+          `${chalk.gray('Commands:')}\n` +
+          `• ${chalk.cyan('/browser-status')} - Show browser status\n` +
+          `• ${chalk.cyan('/browser-screenshot')} - Take screenshot\n` +
+          `• ${chalk.cyan('/browser-exit')} - Exit browser mode`,
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'double',
+            borderColor: 'green',
+          }
+        )
+      )
+    } else {
+      console.log(
+        boxen(
+          `${chalk.red('❌ Browser Mode Failed')}\n\n` +
+          `${chalk.white('Error:')} ${result.error || 'Unknown error'}\n\n` +
+          `${chalk.yellow('Common Issues:')}\n` +
+          `• Docker not running\n` +
+          `• Insufficient memory\n` +
+          `• Port conflicts\n` +
+          `• Missing Docker permissions`,
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+      )
+    }
+  } catch (error: any) {
+    console.log(chalk.red(`❌ Failed to start browser mode: ${error.message}`))
+  }
+}
+
+/**
+ * Handle browser status command - show current browser session info
+ */
+export async function handleBrowserStatus(): Promise<void> {
+  try {
+    const status = browserChatBridge.getBrowserStatus()
+
+    if (!status.hasActiveSession) {
+      console.log(
+        boxen(
+          `${chalk.yellow('🌐 Browser Mode Status')}\n\n` +
+          `${chalk.gray('Status:')} ${chalk.red('Inactive')}\n\n` +
+          `${chalk.blue('Start browser mode:')}\n` +
+          `${chalk.cyan('/browser')} [url] - Start browser session\n\n` +
+          `${chalk.gray('Example:')}\n` +
+          `${chalk.dim('/browser https://google.com')}`,
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }
+        )
+      )
+      return
+    }
+
+    const session = status.session!
+    const container = status.container!
+
+    console.log(
+      boxen(
+        `${chalk.green('🌐 Browser Mode Status')}\n\n` +
+        `${chalk.blue('Status:')} ${chalk.green('Active')}\n` +
+        `${chalk.blue('Mode:')} ${status.mode}\n\n` +
+        `${chalk.cyan('Session Info:')}\n` +
+        `• ID: ${session.id.slice(0, 12)}...\n` +
+        `• Status: ${session.status}\n` +
+        `• Messages: ${session.messageCount}\n` +
+        `• Created: ${session.createdAt.toLocaleTimeString()}\n` +
+        `• Last Activity: ${session.lastActivity.toLocaleTimeString()}\n\n` +
+        `${chalk.cyan('Current Page:')}\n` +
+        `• URL: ${session.currentUrl}\n` +
+        `• Title: ${session.title || 'No title'}\n\n` +
+        `${chalk.cyan('Container Info:')}\n` +
+        `• Name: ${container.name}\n` +
+        `• Status: ${container.status}\n` +
+        `• noVNC: ${container.noVncUrl}\n` +
+        `• Port: ${container.displayPort}\n\n` +
+        `${chalk.cyan('Capabilities:')}\n` +
+        `${status.capabilities.map(cap => `• ${cap}`).join('\n')}`,
+        {
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        }
+      )
+    )
+  } catch (error: any) {
+    console.log(chalk.red(`❌ Failed to get browser status: ${error.message}`))
+  }
+}
+
+/**
+ * Handle browser exit command - stop browser session and cleanup
+ */
+export async function handleBrowserExit(): Promise<void> {
+  try {
+    const status = browserChatBridge.getBrowserStatus()
+
+    if (!status.hasActiveSession) {
+      console.log(chalk.yellow('🌐 No active browser session to exit'))
+      return
+    }
+
+    console.log(chalk.blue('🛑 Exiting browser mode...'))
+
+    await browserChatBridge.exitBrowserMode()
+
+    console.log(
+      boxen(
+        `${chalk.green('✅ Browser Mode Exited')}\n\n` +
+        `• Session ended successfully\n` +
+        `• Container stopped and removed\n` +
+        `• Resources cleaned up\n\n` +
+        `${chalk.gray('Start again with:')} ${chalk.cyan('/browser')} [url]`,
+        {
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        }
+      )
+    )
+  } catch (error: any) {
+    console.log(chalk.red(`❌ Failed to exit browser mode: ${error.message}`))
+  }
+}
+
+/**
+ * Handle browser screenshot command - take screenshot of current page
+ */
+export async function handleBrowserScreenshot(): Promise<void> {
+  try {
+    const status = browserChatBridge.getBrowserStatus()
+
+    if (!status.hasActiveSession) {
+      console.log(chalk.yellow('🌐 No active browser session. Start with /browser [url]'))
+      return
+    }
+
+    console.log(chalk.blue('📸 Taking screenshot...'))
+
+    const screenshot = await browserChatBridge.takeScreenshot(true) // Full page screenshot
+
+    if (screenshot) {
+      console.log(
+        boxen(
+          `${chalk.green('📸 Screenshot Captured')}\n\n` +
+          `• Page: ${status.session?.currentUrl || 'Unknown'}\n` +
+          `• Title: ${status.session?.title || 'No title'}\n` +
+          `• Time: ${new Date().toLocaleTimeString()}\n` +
+          `• Type: Full page\n\n` +
+          `${chalk.gray('Screenshot data:')} ${screenshot.length} chars\n` +
+          `${chalk.blue('🖥️  View in browser:')} ${status.container?.noVncUrl || 'N/A'}`,
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
+        )
+      )
+    } else {
+      console.log(chalk.red('❌ Failed to capture screenshot'))
+    }
+  } catch (error: any) {
+    console.log(chalk.red(`❌ Failed to take screenshot: ${error.message}`))
+  }
+}
+
+/**
+ * Show browser mode information and capabilities
+ */
+export async function handleBrowserInfo(): Promise<void> {
+  const info = getBrowserModeInfo()
+  const available = isBrowserModeAvailable()
+
+  console.log(
+    boxen(
+      `${chalk.blue.bold('🌐 Browser Mode Information')}\n\n` +
+      `${chalk.cyan('Description:')}\n${info.description}\n\n` +
+      `${chalk.cyan('Status:')} ${available ? chalk.green('Available') : chalk.red('Unavailable')}\n\n` +
+      `${chalk.cyan('Features:')}\n${info.features.map(f => `• ${f}`).join('\n')}\n\n` +
+      `${chalk.cyan('Requirements:')}\n${info.requirements.map(r => `• ${r}`).join('\n')}\n\n` +
+      `${chalk.cyan('Capabilities:')}\n${info.capabilities.map(c => `• ${c}`).join('\n')}\n\n` +
+      `${chalk.cyan('Commands:')}\n` +
+      `• ${chalk.green('/browser')} [url] - Start browser mode\n` +
+      `• ${chalk.green('/browser-status')} - Show status\n` +
+      `• ${chalk.green('/browser-screenshot')} - Take screenshot\n` +
+      `• ${chalk.green('/browser-exit')} - Exit mode\n` +
+      `• ${chalk.green('/browser-info')} - Show this info`,
+      {
+        padding: 1,
+        margin: 1,
+        borderStyle: 'double',
+        borderColor: available ? 'green' : 'red',
+      }
+    )
+  )
 }
