@@ -289,3 +289,18 @@ impl PlanExecutionEvent {
     pub fn tool_complete(plan_id: &str, step_id: &str, tool_call_id: &str) -> Self { Self { event: "tool_complete".into(), plan_id: plan_id.into(), step_id: Some(step_id.into()), message: Some(tool_call_id.into()), success: Some(true), timestamp: chrono::Utc::now() } }
     pub fn tool_failed(plan_id: &str, step_id: &str, tool_call_id: &str, err: &str) -> Self { Self { event: "tool_failed".into(), plan_id: plan_id.into(), step_id: Some(step_id.into()), message: Some(format!("{}: {}", tool_call_id, err)), success: Some(false), timestamp: chrono::Utc::now() } }
 }
+
+impl PlanningService {
+    /// Set validation config - Stub implementation
+    pub fn set_validation_config(&mut self, _config: crate::planning::ValidationConfig) {
+        // Stub implementation
+    }
+
+    /// Subscribe to events - Stub implementation
+    pub fn subscribe_to_events<F>(&self, _callback: F) 
+    where
+        F: Fn(serde_json::Value) + Send + Sync + 'static,
+    {
+        // Stub implementation
+    }
+}

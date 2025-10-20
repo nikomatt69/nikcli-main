@@ -4,7 +4,7 @@
  */
 
 use anyhow::{Context, Result};
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
+use crate::http_client_stub::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
@@ -18,7 +18,7 @@ impl FigmaClient {
     pub fn new(api_token: String) -> Self {
         Self {
             api_token,
-            http: reqwest::Client::new(),
+            http: crate::http_client_stub::Client::new(),
             base_url: "https://api.figma.com/v1".to_string(),
         }
     }

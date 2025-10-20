@@ -3,7 +3,7 @@
  * OpenRouter as main gateway with direct provider fallbacks
  */
 
-use ai_lib::{
+use crate::ai::{
     AiClient,
     Usage,
     ChatCompletionRequest,
@@ -11,7 +11,7 @@ use ai_lib::{
     Message as AiMessage,
     Role as AiRole,
 };
-use ai_lib::types::common::Content as AiContent;
+use crate::ai::types::common::Content as AiContent;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

@@ -29,7 +29,7 @@ impl CacheService {
     
     pub async fn set(&self, key: &str, value: &str, ttl: Option<usize>) -> Result<()> {
         if self.redis.is_enabled() {
-            self.redis.set(key, value, ttl).await
+            self.redis.set_with_ttl(key, value, ttl).await
         } else {
             self.memory.set(key.to_string(), value.to_string(), ttl.map(|t| t as u64));
             Ok(())

@@ -17,4 +17,9 @@ pub use adaptive_model_router::{AdaptiveModelRouter, ModelScope};
 pub use reasoning_detector::ReasoningDetector;
 
 pub mod modern_ai_provider;
+pub mod cognitive_features_config;
+pub mod ai_lib_stub;
 pub use modern_ai_provider::{ModernAIProvider, MODERN_AI_PROVIDER};
+pub use cognitive_features_config::CognitiveFeaturesConfig;
+pub use ai_lib_stub::{AiClient, Provider, ConnectionOptions, Usage, ChatCompletionRequest, ChatCompletionResponse, Message, Role};
+pub use ai_lib_stub::types;

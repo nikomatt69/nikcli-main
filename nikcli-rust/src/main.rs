@@ -40,6 +40,7 @@ mod types;
 mod ui;
 mod utils;
 mod virtualized_agents;
+mod http_client_stub;
 
 use cli::{NikCLI, OnboardingModule, IntroductionModule};
 use core::{Logger, ConfigManager, AgentManager, SessionManager, EventBus,

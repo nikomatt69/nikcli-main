@@ -51,3 +51,4 @@ pub use services::{
 };
 pub mod streaming_orchestrator;
 pub use streaming_orchestrator::StreamingOrchestrator;
+pub mod http_client_stub;

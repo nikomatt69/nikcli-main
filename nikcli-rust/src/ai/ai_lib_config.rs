@@ -3,7 +3,7 @@
  * OpenRouter as main unified gateway provider
  */
 
-use ai_lib::{AiClient, Provider, ConnectionOptions};
+use crate::ai::{AiClient, Provider, ConnectionOptions};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

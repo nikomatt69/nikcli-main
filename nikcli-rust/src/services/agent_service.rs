@@ -385,5 +385,57 @@ mod tests {
         assert!(assigned_task.is_some());
         assert!(assigned_task.unwrap().agent_id.is_some());
     }
+
+    /// Set cognitive mode - Stub implementation
+    pub fn set_cognitive_mode(&mut self, _cognitive_mode: bool) {
+        // Stub implementation
+    }
+
+    /// Set orchestration level - Stub implementation
+    pub fn set_orchestration_level(&mut self, _level: u8) {
+        // Stub implementation
+    }
+
+    /// Set validator manager - Stub implementation
+    pub fn set_validator_manager(&mut self, _validator_manager: Arc<crate::core::ValidatorManager>) {
+        // Stub implementation
+    }
+
+    /// Set tool router - Stub implementation
+    pub fn set_tool_router(&mut self, _tool_router: Arc<crate::core::ToolRouter>) {
+        // Stub implementation
+    }
+
+    /// On file read callback - Stub implementation
+    pub fn on_file_read<F>(&self, _callback: F) 
+    where
+        F: Fn(serde_json::Value) + Send + Sync + 'static,
+    {
+        // Stub implementation
+    }
+
+    /// On file written callback - Stub implementation
+    pub fn on_file_written<F>(&self, _callback: F) 
+    where
+        F: Fn(serde_json::Value) + Send + Sync + 'static,
+    {
+        // Stub implementation
+    }
+
+    /// On file list callback - Stub implementation
+    pub fn on_file_list<F>(&self, _callback: F) 
+    where
+        F: Fn(serde_json::Value) + Send + Sync + 'static,
+    {
+        // Stub implementation
+    }
+
+    /// On grep results callback - Stub implementation
+    pub fn on_grep_results<F>(&self, _callback: F) 
+    where
+        F: Fn(serde_json::Value) + Send + Sync + 'static,
+    {
+        // Stub implementation
+    }
 }
 

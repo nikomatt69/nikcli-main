@@ -99,12 +99,12 @@ impl PromptRenderer {
         let cost_display = format!("${:.4}", cost).magenta();
         
         // Terminal dimensions
-        let terminal_width = termion::terminal_size()
+        let terminal_width = crossterm::terminal::size()
             .map(|(w, _)| w as usize)
             .unwrap_or(120)
             .max(40);
         
-        let terminal_height = termion::terminal_size()
+        let terminal_height = crossterm::terminal::size()
             .map(|(_, h)| h as usize)
             .unwrap_or(24);
         
@@ -161,7 +161,7 @@ impl PromptRenderer {
         } else {
             "model".to_string()
         };
-        let provider_icon = self.get_provider_icon(current_model);
+        let provider_icon = self.get_provider_icon(&current_model);
         let model_display = format!("{} {}", provider_icon, current_model.bright_cyan());
         
         // Queue and agents info

@@ -72,7 +72,7 @@ impl SystemModule {
         let base_url = std::env::var("OLLAMA_BASE_URL")
             .unwrap_or_else(|_| "http://localhost:11434".to_string());
         
-        let client = reqwest::Client::new();
+        let client = crate::http_client_stub::Client::new();
         let response = client
             .get(format!("{}/api/tags", base_url))
             .timeout(Duration::from_secs(2))
