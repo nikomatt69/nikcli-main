@@ -168,6 +168,8 @@ CLAUDE.md
 *.sqlite
 *.sqlite3
 
+nikcli-rust/target/
+
 # ChromaDB
 chroma_db/
 chroma/

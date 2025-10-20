@@ -1,0 +1,70 @@
+/*!
+ * Core Module
+ * Essential system components
+ */
+
+pub mod config_manager;
+pub mod agent_manager;
+pub mod logger;
+pub mod tool_router;
+pub mod mcp_client;
+pub mod session_manager;
+pub mod performance_optimizer;
+pub mod resource_manager;
+pub mod error_handler;
+pub mod event_bus;
+pub mod module_manager;
+pub mod analytics_manager;
+pub mod feedback_system;
+pub mod cache_provider;
+pub mod token_cache;
+pub mod smart_completion_manager;
+pub mod ide_detector;
+pub mod agent_factory;
+pub mod agent_router;
+pub mod input_queue;
+pub mod agent_stream;
+pub mod agent_todo_manager;
+pub mod agent_learning_system;
+pub mod intelligent_feedback_wrapper;
+pub mod context_token_manager;
+pub mod project_memory;
+pub mod enhanced_token_cache;
+pub mod completion_protocol_cache;
+pub mod documentation_library;
+pub mod universal_tokenizer_service;
+pub mod validator_manager;
+pub mod cloud_docs_provider;
+
+pub use config_manager::{ConfigManager, CliConfig, ModelConfig, CONFIG_MANAGER};
+pub use agent_manager::{AgentManager, AgentInfo, AgentManagerStatistics};
+pub use logger::Logger;
+pub use tool_router::ToolRouter;
+pub use mcp_client::MCPClient;
+pub use session_manager::SessionManager;
+pub use performance_optimizer::PerformanceOptimizer;
+pub use resource_manager::ResourceManager;
+pub use error_handler::{ErrorHandler, NikCLIError};
+pub use event_bus::EventBus;
+pub use module_manager::ModuleManager;
+pub use analytics_manager::AnalyticsManager;
+pub use feedback_system::FeedbackSystem;
+pub use cache_provider::CacheProvider;
+pub use token_cache::TokenCache;
+pub use smart_completion_manager::SmartCompletionManager;
+pub use ide_detector::IDEDetector;
+pub use agent_factory::AgentFactory;
+pub use agent_router::AgentRouter;
+pub use input_queue::{InputQueue, Priority, QueuedInput, INPUT_QUEUE};
+pub use agent_stream::AgentStream;
+pub use agent_todo_manager::AgentTodoManager;
+pub use agent_learning_system::AgentLearningSystem;
+pub use intelligent_feedback_wrapper::IntelligentFeedbackWrapper;
+pub use context_token_manager::{ContextTokenManager, CONTEXT_TOKEN_MANAGER};
+pub use project_memory::{ProjectMemory, PROJECT_MEMORY};
+pub use enhanced_token_cache::{EnhancedTokenCache, ENHANCED_TOKEN_CACHE};
+pub use completion_protocol_cache::{CompletionProtocolCache, COMPLETION_CACHE};
+pub use documentation_library::{DocLibrary, DOC_LIBRARY, DocumentationEntry};
+pub use universal_tokenizer_service::{UniversalTokenizer, UNIVERSAL_TOKENIZER};
+pub use validator_manager::{ValidatorManager, VALIDATOR_MANAGER};
+pub use cloud_docs_provider::{CloudDocsProvider, create_cloud_docs_provider, get_cloud_docs_provider};
