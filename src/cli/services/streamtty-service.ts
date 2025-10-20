@@ -503,7 +503,7 @@ export class StreamttyService {
    */
   private async processMermaidInline(content: string): Promise<string> {
     // Import mermaid-ascii wrapper
-    const { convertMermaidToASCII } = await import('streamtty/src/utils/mermaid-ascii')
+    const { convertMermaidToASCII } = await import('streamtty/dist/utils/mermaid-ascii')
 
     // Look for mermaid code blocks
     const mermaidRegex = /```mermaid\s*\n([\s\S]*?)\n```/gi
