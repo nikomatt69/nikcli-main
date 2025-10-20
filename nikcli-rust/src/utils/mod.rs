@@ -10,6 +10,7 @@ pub mod async_lock;
 pub mod circuit_breaker;
 pub mod validation;
 pub mod terminal_helpers;
+pub mod string_extensions;
 
 // Re-exports
 pub use validation::*;
@@ -23,3 +24,4 @@ pub mod paste_handler;
 pub mod structured_logger;
 pub use paste_handler::{PasteHandler, PasteResult};
 pub use structured_logger::{StructuredLogger, STRUCTURED_LOGGER};
+pub use string_extensions::StringExtensions;

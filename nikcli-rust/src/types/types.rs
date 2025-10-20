@@ -547,7 +547,6 @@ pub enum AgentEventType {
 }
 
 /// Agent registry entry
-#[derive(Debug, Clone)]
 pub struct AgentRegistryEntry {
     pub agent_factory: Box<dyn Fn() -> Box<dyn Agent> + Send + Sync>,
     pub metadata: AgentMetadata,

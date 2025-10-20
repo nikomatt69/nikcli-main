@@ -161,7 +161,7 @@ impl PromptRenderer {
         } else {
             "model".to_string()
         };
-        let provider_icon = self.get_provider_icon(current_model);
+        let provider_icon = self.get_provider_icon(&current_model);
         let model_display = format!("{} {}", provider_icon, current_model.bright_cyan());
         
         // Queue and agents info
@@ -317,6 +317,9 @@ impl PromptRenderer {
             is_printing_panel: self.is_printing_panel.clone(),
             is_inquirer_active: self.is_inquirer_active.clone(),
             prompt_render_timer: Arc::new(RwLock::new(None)),
+            model_provider: self.model_provider.clone(),
+            agent_service: self.agent_service.clone(),
         }
     }
 }
+

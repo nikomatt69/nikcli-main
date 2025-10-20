@@ -313,6 +313,19 @@ impl ModelProvider {
             "Unknown model".to_string()
         }
     }
+
+    /// Set current model
+    pub async fn set_model(&self, model: String) -> Result<()> {
+        let mut config = self.config.write().await;
+        config.current_model = model;
+
+        // Recreate client with new model
+        let new_client = config.create_client_with_failover()
+            .context("Failed to create client with new model")?;
+
+        *self.client.write().await = new_client;
+        Ok(())
+    }
 }
 
 impl Default for ModelProvider {

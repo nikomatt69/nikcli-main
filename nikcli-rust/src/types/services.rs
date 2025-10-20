@@ -236,7 +236,6 @@ pub struct Message<T = serde_json::Value> {
     pub offset: Option<u64>,
 }
 
-#[derive(Debug, Clone)]
 pub struct MessageHandler<T = serde_json::Value> {
     pub topic: String,
     pub handler: Box<dyn Fn(Message<T>) -> futures::future::BoxFuture<'static, ()> + Send + Sync>,

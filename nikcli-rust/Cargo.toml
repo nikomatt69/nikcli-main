@@ -168,6 +168,12 @@ path-clean = "1.0"
 # Debouncing
 debounce = "0.2"
 
+# Random number generation
+rand = "0.8"
+
+# Thread-safe global state
+once_cell = "1.20"
+
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.5"
@@ -183,4 +189,3 @@ opt-level = 3
 [profile.dev]
 opt-level = 0
 debug = true
-termion = "4.0"

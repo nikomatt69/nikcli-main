@@ -359,6 +359,18 @@ impl ToolService {
     pub async fn get_tools_count(&self) -> usize {
         self.tools.len()
     }
+
+    /// Read file - public interface
+    pub async fn read_file(&self, path: &str) -> Result<String> {
+        let args = serde_json::json!({ "path": path });
+        self.execute_read_file(&args).await
+    }
+
+    /// Write file - public interface
+    pub async fn write_file(&self, path: &str, content: &str) -> Result<String> {
+        let args = serde_json::json!({ "path": path, "content": content });
+        self.execute_write_file(&args).await
+    }
 }
 
 impl Default for ToolService {

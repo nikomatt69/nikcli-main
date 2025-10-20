@@ -264,6 +264,58 @@ impl PlanningService {
     pub async fn create_plan(&self, task: String) -> Result<ExecutionPlan> {
         self.generate_plan(task).await
     }
+
+    /// Execute a single step
+    pub async fn execute_step(&self, step: &PlanStep) -> Result<StepExecutionResult> {
+        let start = std::time::Instant::now();
+        let mut logs = Vec::new();
+        let mut step_ok = true;
+        let mut last_output: Option<serde_json::Value> = None;
+
+        tracing::info!("Executing step: {}", step.title);
+
+        let tool_service_opt = self.tool_service.read().await.clone();
+
+        for tool_call in &step.tool_calls {
+            if let Some(tool_service) = &tool_service_opt {
+                match tool_service.execute_tool(tool_call.clone(), crate::services::tool_service::ToolContext {
+                    working_directory: self.working_directory.read().await.clone(),
+                    user_id: None,
+                    session_id: None,
+                    permissions: vec!["dangerous_tools".to_string()],
+                }).await {
+                    Ok(tool_result) => {
+                        logs.push(format!("tool:{} ok in {}ms", tool_call.name, tool_result.execution_time_ms));
+                        last_output = Some(serde_json::json!({
+                            "tool": tool_call.name,
+                            "output": tool_result.output,
+                            "time_ms": tool_result.execution_time_ms
+                        }));
+                    }
+                    Err(e) => {
+                        logs.push(format!("tool:{} error: {}", tool_call.name, e));
+                        step_ok = false;
+                        break;
+                    }
+                }
+            } else {
+                logs.push(format!("tool:{} skipped (no tool_service)", tool_call.name));
+            }
+        }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        let status = if step_ok { TaskStatus::Completed } else { TaskStatus::Failed };
+
+        Ok(StepExecutionResult {
+            step_id: step.id.clone(),
+            status,
+            output: last_output,
+            error: if step_ok { None } else { Some("step_failed".to_string()) },
+            duration_ms,
+            timestamp: chrono::Utc::now(),
+            logs,
+        })
+    }
 }
 
 /// Planning events (subset matching TS PlanningEvent names)

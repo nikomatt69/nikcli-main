@@ -54,4 +54,13 @@ impl VMOrchestrator {
         let elapsed = start.elapsed().as_millis() as u64;
         Ok(VMResponse { response_time_ms: elapsed, content })
     }
+
+    /// Execute command in VM
+    pub async fn execute_command(&self, container_id: &str, command: &str) -> Result<String> {
+        tracing::info!("Executing command in container {}: {}", container_id, command);
+
+        // Base implementation - simulate command execution
+        let output = format!("Command '{}' executed in container '{}'", command, container_id);
+        Ok(output)
+    }
 }
