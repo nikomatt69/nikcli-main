@@ -30,6 +30,7 @@ export interface StreamttyServiceOptions {
   mathConfig?: MathRenderConfig
   security?: SecurityConfig
   shikiLanguages?: string[]
+  diagramBorderStyle?: 'simple' | 'rounded' | 'double'
 }
 
 export interface RenderStats {
@@ -53,6 +54,19 @@ export class StreamttyService {
   private isInitialized = false
   private static enhancedTableRenderer: any = null
   private static mermaidRenderer: any = null
+  // Debug flag for noisy table conversion logs
+  private static readonly DEBUG_TABLES =
+    process.env.NIKCLI_DEBUG_TABLES === '1' || process.env.STREAMTTY_DEBUG === '1'
+  // Streaming table state (to handle chunked arrivals)
+  private streamingBuffer = ''
+  private streamingInFence = false
+  private streamingAsciiBlock: string[] | null = null
+  private streamingPendingHeader: string | null = null
+  private streamingPendingSeparator: string | null = null
+  private streamingTableLines: string[] | null = null
+  // Mermaid streaming state
+  private streamingMermaidActive = false
+  private streamingMermaidLines: string[] | null = null
   private stats: RenderStats = {
     totalChunks: 0,
     totalBlocks: 0,
@@ -100,7 +114,25 @@ export class StreamttyService {
     if (process.env.DISABLE_EMOJI === 'true' || process.env.NO_EMOJI === 'true') {
       this.options.stripEmoji = true
     }
+    // Optional diagram border style via env
+    const envBorder = (process.env.NIKCLI_DIAGRAM_BORDER || process.env.DIAGRAM_BORDER || '').toLowerCase()
+    if (envBorder === 'rounded' || envBorder === 'double' || envBorder === 'simple') {
+      this.options.diagramBorderStyle = envBorder as any
+    }
     this.initialize()
+  }
+
+  // Debug helper to avoid polluting output unless explicitly enabled
+  private debugTable(...args: any[]): void {
+    if (StreamttyService.DEBUG_TABLES) {
+      try {
+        // Use stderr so it doesn't mix with content when not captured
+        // Still entirely disabled by default
+        console.error(...args)
+      } catch {
+        // no-op
+      }
+    }
   }
 
   private initialize(): void {
@@ -115,9 +147,354 @@ export class StreamttyService {
     }
   }
 
+  // Border helpers for framing diagrams consistently with tables
+  private getDiagramBorderChars(style: 'simple' | 'rounded' | 'double') {
+    switch (style) {
+      case 'double':
+        return { tl: '╔', tm: '╦', tr: '╗', bl: '╚', bm: '╩', br: '╝', h: '═', v: '║' }
+      case 'rounded':
+        return { tl: '╭', tm: '┬', tr: '╮', bl: '╰', bm: '┴', br: '╯', h: '─', v: '│' }
+      case 'simple':
+      default:
+        return { tl: '┌', tm: '┬', tr: '┐', bl: '└', bm: '┴', br: '┘', h: '─', v: '│' }
+    }
+  }
+
+  private frameDiagram(ascii: string): string {
+    const style = this.options.diagramBorderStyle || 'simple'
+    const chars = this.getDiagramBorderChars(style)
+    const lines = ascii.replace(/\s+$/g, '').split('\n')
+    const first = (lines[0] || '').trim()
+    const last = (lines[lines.length - 1] || '').trim()
+    const alreadyFramed = (/^[┌╔╭].*[┐╗╮]$/.test(first) && /^[└╚╰].*[┘╝╯]$/.test(last))
+    if (alreadyFramed) return ascii
+    const padX = 1
+    const stripAnsi = (s: string) => s.replace(/\x1b\[[\d;]*m/g, '')
+    const innerWidth = Math.max(...lines.map(l => stripAnsi(l).length), 1)
+    const top = chars.tl + chars.h.repeat(innerWidth + 2 * padX) + chars.tr
+    const bottom = chars.bl + chars.h.repeat(innerWidth + 2 * padX) + chars.br
+    const framed = [top,
+      ...lines.map(l => {
+        const pad = Math.max(0, innerWidth - stripAnsi(l).length)
+        return chars.v + ' '.repeat(padX) + l + ' '.repeat(pad) + ' '.repeat(padX) + chars.v
+      }),
+      bottom].join('\n')
+    return framed
+  }
+
   /**
-   * Convert emoji to simple Unicode symbols if stripEmoji option is enabled
+   * Streaming-aware processing for table content. Accumulates partial lines
+   * and converts complete GFM tables to ASCII without corrupting output.
    */
+  private async processStreamingTables(chunk: string): Promise<string> {
+    // Fast path: nothing to do
+    if (!chunk) return ''
+
+    // Helper regex/predicates consistent with block converter
+    const BOX_CHARS = /[┌┐└┘─│┬┴├┤┼╭╮╰╯╔╗╚╝═║╦╩╠╣╬]/
+    const isFence = (line: string) => /^```/.test(line.trim())
+    const isMermaidStart = (line: string) => /^```\s*mermaid\b/i.test(line.trim())
+    const isLooseMermaidStart = (line: string) => /^(graph\s+(TD|LR|BT|RL)\b|sequenceDiagram\b|classDiagram\b|stateDiagram(?:-v2)?\b|erDiagram\b|gantt\b|journey\b|pie\b)/i.test(line.trim())
+    const isSeparator = (line: string) => /^\|?[\s\-:|]+\|?$/.test(line.trim()) && line.includes('|')
+    const hasPipes = (line: string) => line.includes('|')
+    const isAsciiBorderLine = (line: string) => BOX_CHARS.test(line)
+    const isHeaderCandidate = (line: string) => hasPipes(line) && !isSeparator(line)
+    const normalizeLine = (line: string) => {
+      const t = line.trim()
+      let s = t
+      if (!s.startsWith('|')) s = '|' + s
+      if (!s.endsWith('|')) s = s + '|'
+      return s
+    }
+
+    const asciiMod = await import('streamtty/dist/renderers/table-ascii')
+    const isMarkdownTable: (s: string) => boolean = (asciiMod as any).isMarkdownTable
+    const renderMarkdownTableToASCII: (s: string, opts?: any) => string = (asciiMod as any).renderMarkdownTableToASCII
+    // Mermaid converter (loaded on demand)
+    let convertMermaidToASCII: ((code: string, cfg?: any) => Promise<string>) | null = null
+    const ensureMermaid = async () => {
+      if (!convertMermaidToASCII) {
+        const mod = await import('streamtty/dist/utils/mermaid-ascii')
+        convertMermaidToASCII = (mod as any).convertMermaidToASCII
+      }
+    }
+
+    const flushAsciiNoiseIfAny = (output: string[]) => {
+      if (this.streamingAsciiBlock && this.streamingAsciiBlock.length) {
+        // Decide whether to drop or keep noise: keep by default
+        // (noise is dropped only when we begin a GFM table immediately after)
+        for (const line of this.streamingAsciiBlock) output.push(line)
+        this.streamingAsciiBlock = null
+      }
+    }
+
+    // Append new chunk to buffer
+    this.streamingBuffer += chunk
+    const lines = this.streamingBuffer.split('\n')
+    // Keep last partial line in buffer; process full lines only
+    this.streamingBuffer = lines.pop() || ''
+
+    const out: string[] = []
+
+    for (let idx = 0; idx < lines.length; idx++) {
+      let line = lines[idx]
+      const trimmed = line.trim()
+
+      // Mermaid block start handling (stream-aware)
+      if (!this.streamingInFence && isMermaidStart(line)) {
+        // If mermaid feature disabled, treat as generic fence
+        if (!this.options.enhancedFeatures || this.options.enhancedFeatures.mermaid !== false) {
+          // Start capturing mermaid code
+          this.streamingMermaidActive = true
+          this.streamingMermaidLines = []
+          // Do not emit the start fence line
+          continue
+        }
+      }
+
+      // Loose mermaid (no fences): start capturing if a directive appears
+      if (!this.streamingInFence && !this.streamingMermaidActive && isLooseMermaidStart(line)) {
+        if (!this.options.enhancedFeatures || this.options.enhancedFeatures.mermaid !== false) {
+          this.streamingMermaidActive = true
+          this.streamingMermaidLines = [line]
+          // Keep capturing until blank line/fence/ASCII border
+          continue
+        }
+      }
+
+      // Generic fence handling
+      if (isFence(line)) {
+        // Flush noise if any before toggling state
+        flushAsciiNoiseIfAny(out)
+        // Mermaid block end?
+        if (this.streamingMermaidActive) {
+          try {
+            await ensureMermaid()
+            const code = (this.streamingMermaidLines || []).join('\n')
+            const ascii = await (convertMermaidToASCII as any)(code, {
+              paddingX: 3,
+              paddingY: 1,
+              borderPadding: 1,
+            })
+            out.push('')
+            out.push(this.frameDiagram(ascii.trimEnd()))
+            out.push('')
+            this.debugTable('[DEBUG] Streaming mermaid converted')
+          } catch (err) {
+            // Fallback to raw code block
+            out.push('```mermaid')
+            for (const l of (this.streamingMermaidLines || [])) out.push(l)
+            out.push('```')
+            this.debugTable('[DEBUG] Streaming mermaid conversion error:', String(err))
+          }
+          this.streamingMermaidActive = false
+          this.streamingMermaidLines = null
+          // Do not emit this fence line (it was the closing fence)
+          continue
+        }
+        // Not a mermaid fence – toggle generic fence state and pass through
+        this.streamingInFence = !this.streamingInFence
+        out.push(line)
+        continue
+      }
+
+      if (this.streamingInFence) {
+        // Inside code fence, pass through
+        out.push(line)
+        continue
+      }
+
+      // Accumulate mermaid lines when active
+      if (this.streamingMermaidActive) {
+        const lt = trimmed
+        if (lt === '' || isFence(line) || isAsciiBorderLine(lt)) {
+          // Terminate loose mermaid block and convert
+          try {
+            await ensureMermaid()
+            const code = (this.streamingMermaidLines || []).join('\n')
+            const ascii = await (convertMermaidToASCII as any)(code, {
+              paddingX: 3,
+              paddingY: 1,
+              borderPadding: 1,
+            })
+            out.push('')
+            out.push(this.frameDiagram(ascii.trimEnd()))
+            out.push('')
+            this.debugTable('[DEBUG] Streaming loose mermaid converted')
+          } catch (err) {
+            for (const l of (this.streamingMermaidLines || [])) out.push(l)
+          }
+          this.streamingMermaidActive = false
+          this.streamingMermaidLines = null
+          // Now process current line normally (do not continue)
+        } else {
+          (this.streamingMermaidLines as string[]).push(line)
+          continue
+        }
+      }
+
+      // Accumulating an ASCII border block (potential noise or real table)
+      if (isAsciiBorderLine(trimmed) && !this.streamingTableLines) {
+        if (!this.streamingAsciiBlock) this.streamingAsciiBlock = []
+        this.streamingAsciiBlock.push(line)
+        continue
+      }
+
+      // If we held ASCII noise and now hit a GFM header or separator, drop noise
+      if (this.streamingAsciiBlock && this.streamingAsciiBlock.length) {
+        if (isHeaderCandidate(trimmed) || isSeparator(trimmed)) {
+          this.debugTable('[DEBUG] Dropping streaming ASCII noise before GFM at line', String(idx))
+          this.streamingAsciiBlock = null
+        } else {
+          // Otherwise flush and continue
+          flushAsciiNoiseIfAny(out)
+        }
+      }
+
+      // If we are collecting a table rows already
+      if (this.streamingTableLines) {
+        if (trimmed === '' || isAsciiBorderLine(trimmed) || (!hasPipes(line) && !isSeparator(line))) {
+          // End of table -> convert and emit
+          const candidate = this.streamingTableLines.join('\n')
+          if (isMarkdownTable(candidate)) {
+            try {
+              const rendered = renderMarkdownTableToASCII(candidate, {
+                maxWidth: this.options.maxWidth || 80,
+                borderStyle: 'simple',
+              })
+              out.push(rendered.trimEnd())
+              out.push('')
+              this.debugTable('[DEBUG] Streaming table converted')
+            } catch (err) {
+              this.debugTable('[DEBUG] Streaming table conversion error:', String(err))
+              out.push(candidate)
+            }
+          } else {
+            // Not a valid table – flush raw
+            out.push(candidate)
+          }
+          this.streamingTableLines = null
+          // Process this current line again in normal path
+        } else {
+          // Continue table collection
+          this.streamingTableLines.push(normalizeLine(line))
+          continue
+        }
+      }
+
+      // Pending header waiting for separator
+      if (this.streamingPendingHeader) {
+        if (isSeparator(line)) {
+          // Start table collection
+          this.streamingTableLines = [normalizeLine(this.streamingPendingHeader), normalizeLine(line)]
+          this.streamingPendingHeader = null
+          continue
+        } else {
+          // Not a table; flush header and handle current line normally
+          out.push(this.streamingPendingHeader)
+          this.streamingPendingHeader = null
+          // fallthrough to process current line
+        }
+      }
+
+      // Separator-first case: stash separator if next line looks like header
+      if (isSeparator(line)) {
+        this.streamingPendingSeparator = normalizeLine(line)
+        continue
+      }
+
+      if (isHeaderCandidate(trimmed)) {
+        // Use pending separator if present; else wait for next line to confirm
+        if (this.streamingPendingSeparator) {
+          this.streamingTableLines = [normalizeLine(line), this.streamingPendingSeparator]
+          this.streamingPendingSeparator = null
+          continue
+        }
+        // Hold header until we see next line
+        this.streamingPendingHeader = normalizeLine(line)
+        continue
+      }
+
+      // Normal line; flush any pending ASCII noise
+      flushAsciiNoiseIfAny(out)
+      out.push(line)
+    }
+
+    // Return produced output for this chunk; leave remainder in streamingBuffer
+    return out.join('\n') + (out.length ? '\n' : '')
+  }
+
+  /**
+   * Flush any buffered streaming table state at logical boundaries (e.g., stream complete)
+   */
+  private async flushStreamingTables(): Promise<string> {
+    const out: string[] = []
+
+    const asciiMod = await import('streamtty/dist/renderers/table-ascii')
+    const isMarkdownTable: (s: string) => boolean = (asciiMod as any).isMarkdownTable
+    const renderMarkdownTableToASCII: (s: string, opts?: any) => string = (asciiMod as any).renderMarkdownTableToASCII
+    const mermaidMod = await import('streamtty/dist/utils/mermaid-ascii')
+    const convertMermaidToASCII: (code: string, cfg?: any) => Promise<string> = (mermaidMod as any).convertMermaidToASCII
+
+    // Flush ASCII block if present
+    if (this.streamingAsciiBlock && this.streamingAsciiBlock.length) {
+      for (const l of this.streamingAsciiBlock) out.push(l)
+      this.streamingAsciiBlock = null
+    }
+
+    // Flush any pending table lines (use full converter to allow salvage)
+    if (this.streamingTableLines && this.streamingTableLines.length) {
+      const candidate = this.streamingTableLines.join('\n')
+      try {
+        const rendered = await this.convertMarkdownTablesToAscii(candidate)
+        out.push(rendered.trimEnd())
+        out.push('')
+      } catch {
+        out.push(candidate)
+      }
+      this.streamingTableLines = null
+    }
+
+    // Flush pending mermaid block
+    if (this.streamingMermaidActive && this.streamingMermaidLines) {
+      const code = this.streamingMermaidLines.join('\n')
+      try {
+        const ascii = await convertMermaidToASCII(code, {
+          paddingX: 3,
+          paddingY: 1,
+          borderPadding: 1,
+        })
+        out.push('')
+        out.push(this.frameDiagram(ascii.trimEnd()))
+        out.push('')
+      } catch {
+        out.push('```mermaid')
+        out.push(code)
+        out.push('```')
+      }
+      this.streamingMermaidActive = false
+      this.streamingMermaidLines = null
+    }
+
+    // Flush pending header/separator as raw
+    if (this.streamingPendingHeader) {
+      out.push(this.streamingPendingHeader)
+      this.streamingPendingHeader = null
+    }
+    if (this.streamingPendingSeparator) {
+      out.push(this.streamingPendingSeparator)
+      this.streamingPendingSeparator = null
+    }
+
+    // Flush any buffered partial line
+    if (this.streamingBuffer) {
+      out.push(this.streamingBuffer)
+      this.streamingBuffer = ''
+    }
+
+    return out.length ? out.join('\n') + '\n' : ''
+  }
+
   private static readonly EMOJI_REPLACEMENTS = new Map([
     ['✅', '✓'], ['❌', '✗'], ['⚠️', '⚡'], ['⚠', '⚡'], ['⏺', '●'],
     ['⎿', '└─'], ['🚀', '»'], ['💡', '○'], ['🔍', '◎'], ['📝', '∙'],
@@ -226,13 +603,8 @@ export class StreamttyService {
     if (!content || !content.includes('|')) {
       return content
     }
-
-    // Check if content contains complete tables
-    if (this.isStartingTable(content) && this.hasCompleteTable(content)) {
-      return await this.processTablesInline(content)
-    }
-
-    return content
+    // Use the same ASCII converter as streaming path
+    return await this.convertMarkdownTablesToAscii(content)
   }
 
   /**
@@ -245,11 +617,17 @@ export class StreamttyService {
     this.updateStats(type)
     chunk = this.stripEmojiFromText(chunk)
 
-    // Simplify table handling - let applyEnhancedFeaturesInline handle it
-    // Remove complex table accumulation logic for now
+    // Streaming-aware table handling first
+    let prepared = chunk
+    try {
+      prepared = await this.processStreamingTables(chunk)
+    } catch (err) {
+      this.debugTable('[DEBUG] Streaming table preprocessor error:', String(err))
+      prepared = chunk
+    }
 
-    // Apply enhanced features first (including table formatting)
-    let processedChunk = await this.applyEnhancedFeaturesInline(chunk)
+    // Apply enhanced features (mermaid, block-level table fallback, etc.)
+    let processedChunk = await this.applyEnhancedFeaturesInline(prepared)
 
     // Apply syntax highlighting based on chunk type (except tools which stay raw)
     // Check if chunk already contains ANSI codes (to avoid double-processing)
@@ -290,14 +668,14 @@ export class StreamttyService {
 
     let processedContent = content
 
-    // Process markdown tables to ASCII format - add debug logging
+    // Note: table conversion for streaming chunks happens earlier in
+    // processStreamingTables(). This path still supports block conversions.
     if (content.includes('|')) {
-      console.error('[DEBUG] Table marker found in chunk:', content.slice(0, 50) + '...')
-      processedContent = this.convertMarkdownTablesToAscii(processedContent)
-      if (processedContent !== content) {
-        console.error('[DEBUG] Table converted successfully')
-      } else {
-        console.error('[DEBUG] Table conversion had no effect')
+      this.debugTable('[DEBUG] Block table scan:', content.slice(0, 50) + '...')
+      const converted = await this.convertMarkdownTablesToAscii(processedContent)
+      if (converted !== content) {
+        this.debugTable('[DEBUG] Block table conversion applied')
+        processedContent = converted
       }
     }
 
@@ -312,41 +690,186 @@ export class StreamttyService {
   /**
    * Convert markdown tables to ASCII format for better terminal display
    */
-  private convertMarkdownTablesToAscii(content: string): string {
+  private async convertMarkdownTablesToAscii(content: string): Promise<string> {
     if (!content.includes('|')) return content
+    this.debugTable('[DEBUG] Converting tables in content:', content.slice(0, 100))
 
-    console.error('[DEBUG] Converting tables in content:', content.slice(0, 100))
+    // Dynamically import streamtty's ASCII table renderer utilities
+    const asciiMod = await import('streamtty/dist/renderers/table-ascii')
+    const isMarkdownTable: (s: string) => boolean = (asciiMod as any).isMarkdownTable
+    const renderMarkdownTableToASCII: (s: string, opts?: any) => string = (asciiMod as any).renderMarkdownTableToASCII
 
-    // Simple approach: look for any line that looks like a table row
-    const lines = content.split('\n')
-    const result: string[] = []
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]
-      const trimmed = line.trim()
-
-      // Check if this looks like a table row (starts and ends with |, has at least 2 | chars)
-      if (trimmed.startsWith('|') && trimmed.endsWith('|') && (trimmed.match(/\|/g) || []).length >= 3) {
-        console.error('[DEBUG] Found table row:', trimmed)
-
-        // Convert this single row to a simple format
-        const cells = trimmed.slice(1, -1).split('|').map(cell => cell.trim())
-
-        // Check if it's a separator row
-        if (trimmed.match(/^[\|\s\-:]+$/)) {
-          result.push('├' + '─'.repeat(Math.max(20, trimmed.length - 2)) + '┤')
-        } else {
-          // Regular data row - just clean it up
-          const cleanRow = '│ ' + cells.join(' │ ') + ' │'
-          result.push(cleanRow)
+    const BOX_CHARS = /[┌┐└┘─│┬┴├┤┼╭╮╰╯╔╗╚╝═║╦╩╠╣╬]/
+    const isFence = (line: string) => /^```/.test(line.trim())
+    const isSeparator = (line: string) => /^\|?[\s\-:|]+\|?$/.test(line.trim()) && line.includes('|')
+    const hasPipes = (line: string) => line.includes('|')
+    const isAsciiBorderLine = (line: string) => BOX_CHARS.test(line)
+    const isHeaderCandidate = (line: string) => hasPipes(line) && !isSeparator(line)
+    const nextNonNoise = (idx: number, dir: 1 | -1) => {
+      let j = idx
+      while (j >= 0 && j < lines.length) {
+        const t = lines[j].trim()
+        if (t === '' || isAsciiBorderLine(t)) {
+          j += dir
+          continue
         }
-      } else {
-        result.push(line)
+        return j
       }
+      return -1
+    }
+    const normalizeLine = (line: string) => {
+      const t = line.trim()
+      let s = t
+      if (!s.startsWith('|')) s = '|' + s
+      if (!s.endsWith('|')) s = s + '|'
+      return s
     }
 
-    const converted = result.join('\n')
-    console.error('[DEBUG] Conversion result:', converted.slice(0, 100))
+    const pushRendered = (rendered: string) => {
+      if (out.length > 0 && out[out.length - 1] !== '') out.push('')
+      out.push(rendered.trimEnd())
+      out.push('')
+    }
+
+    const lines = content.split('\n')
+    const out: string[] = []
+    // Salvage helper: convert pipe-only blocks without a valid GFM separator
+    const salvageLoosePipeBlock = (block: string[]): string | null => {
+      if (!block || block.length < 2) return null
+      const rows = block.map(l => l.slice(1, -1).split('|').map(c => c.trim()))
+      const colCount = Math.max(...rows.map(r => r.length))
+      if (!Number.isFinite(colCount) || colCount < 2) return null
+      const norm = rows.map(r => r.concat(Array(colCount - r.length).fill('')))
+      const header = (colCount === 2) ? ['Key', 'Value'] : Array.from({ length: colCount }, (_v, idx) => `Col ${idx + 1}`)
+      const sep = Array.from({ length: colCount }, () => '---')
+      const md = ['|' + header.join('|') + '|', '|' + sep.join('|') + '|', ...norm.map(r => '|' + r.join('|') + '|')].join('\n')
+      try {
+        const rendered = renderMarkdownTableToASCII(md, {
+          maxWidth: this.options.maxWidth || 80,
+          borderStyle: 'simple',
+        })
+        return rendered
+      } catch {
+        return null
+      }
+    }
+    let i = 0
+    let inCodeBlock = false
+    let pendingSeparator: string | null = null
+
+    while (i < lines.length) {
+      const raw = lines[i]
+      const trimmed = raw.trim()
+
+      // Track fenced code blocks; never convert inside
+      if (isFence(raw)) {
+        inCodeBlock = !inCodeBlock
+        out.push(raw)
+        i++
+        continue
+      }
+
+      // Skip pre-rendered ASCII tables without touching them (only if standalone)
+      if (!inCodeBlock && isAsciiBorderLine(trimmed)) {
+        const start = i
+        const block: string[] = []
+        while (i < lines.length && isAsciiBorderLine(lines[i].trim())) {
+          block.push(lines[i])
+          i++
+        }
+        // If immediately followed by a GFM line, treat ASCII as noise and drop it
+        const j = nextNonNoise(i, +1)
+        if (j !== -1 && hasPipes(lines[j])) {
+          this.debugTable('[DEBUG] Dropping noisy ASCII border block at', `${start}..${i - 1}`)
+          // Do not emit; continue scanning from j (but i already at end of block)
+          continue
+        }
+        // Otherwise preserve as a standalone ASCII table block
+        this.debugTable('[DEBUG] Preserving ASCII table block at', `${start}..${i - 1}`)
+        pushRendered(block.join('\n'))
+        continue
+      }
+
+      // Handle separator-first cases: a separator line followed by a header
+      if (!inCodeBlock && isSeparator(trimmed)) {
+        const j = nextNonNoise(i + 1, +1)
+        if (j !== -1 && isHeaderCandidate(lines[j].trim())) {
+          // Stash the separator and jump to header
+          pendingSeparator = normalizeLine(lines[i])
+          this.debugTable('[DEBUG] Found separator-before-header at', `${i} -> ${j}`)
+          i = j
+          continue
+        }
+      }
+
+      // Detect GFM tables (with or without leading/trailing pipes), skipping ASCII noise lines
+      if (!inCodeBlock && isHeaderCandidate(trimmed)) {
+        const start = i
+        const block: string[] = [normalizeLine(lines[i])]
+        // Find or use pending separator
+        if (pendingSeparator) {
+          block.push(pendingSeparator)
+          pendingSeparator = null
+          i += 1
+        } else {
+          const j = nextNonNoise(i + 1, +1)
+          if (j === -1 || !isSeparator(lines[j])) {
+            // Not a valid table start; emit raw and continue
+            out.push(raw)
+            i++
+            continue
+          }
+          block.push(normalizeLine(lines[j]))
+          i = j + 1
+        }
+        // Collect subsequent row lines while they look like table rows
+        while (i < lines.length) {
+          const ln = lines[i]
+          const lt = ln.trim()
+          if (lt === '' || isFence(ln) || isAsciiBorderLine(lt)) break
+          if (!hasPipes(ln)) break
+          block.push(normalizeLine(ln))
+          i++
+        }
+
+        const candidate = block.join('\n')
+        if (isMarkdownTable(candidate)) {
+          this.debugTable('[DEBUG] Found markdown table at lines', `${start}..${i - 1}`)
+          try {
+            const rendered = renderMarkdownTableToASCII(candidate, {
+              maxWidth: this.options.maxWidth || 80,
+              borderStyle: 'simple',
+            })
+            pushRendered(rendered)
+            this.debugTable('[DEBUG] Table converted successfully')
+          } catch (err) {
+            this.debugTable('[DEBUG] Table conversion error:', String(err))
+            out.push(lines[start])
+            // Rewind to emit the rest raw
+            for (let k = start + 1; k < i; k++) out.push(lines[k])
+          }
+          continue
+        } else {
+          // Not a valid table after normalization; attempt salvage of loose pipe block
+          const salvaged = salvageLoosePipeBlock(block)
+          if (salvaged) {
+            this.debugTable('[DEBUG] Salvaged loose pipe block at', `${start}`)
+            pushRendered(salvaged)
+          } else {
+            this.debugTable('[DEBUG] Not a valid table after normalization at', `${start}`)
+            for (let k = start; k < i; k++) out.push(lines[k])
+          }
+          continue
+        }
+      }
+
+      // Regular line
+      out.push(raw)
+      i++
+    }
+
+    const converted = out.join('\n')
+    this.debugTable('[DEBUG] Conversion result:', converted.slice(0, 100))
     return converted
   }
 
@@ -355,58 +878,8 @@ export class StreamttyService {
    * Process markdown tables and render them with enhanced table renderer
    */
   private async processTablesInline(content: string): Promise<string> {
-    if (!content.includes('|')) {
-      return content
-    }
-
-    if (!StreamttyService.enhancedTableRenderer) {
-      StreamttyService.enhancedTableRenderer = await import('streamtty/src/utils/enhanced-table-renderer')
-    }
-    const { parseMarkdownTable, EnhancedTableRenderer } = StreamttyService.enhancedTableRenderer
-    const lines = content.split('\n')
-    let result = content
-
-    const processTable = (tableLines: string[], start: number, end?: number) => {
-      if (tableLines.length < 2) return
-
-      try {
-        const tableData = parseMarkdownTable(tableLines.join('\n'))
-        if (tableData && tableData.headers.length > 0) {
-          const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
-            borderStyle: 'solid',
-            compact: false,
-            width: this.options.maxWidth || 80
-          })
-
-          const originalTable = lines.slice(start, end).join('\n')
-          result = result.replace(originalTable, '\n' + renderedTable + '\n')
-        }
-      } catch (error) {
-        console.warn('Inline table processing failed:', error)
-      }
-    }
-
-    let tableLines: string[] = []
-    let tableStart = -1
-
-    for (let i = 0; i < lines.length; i++) {
-      const isTableLine = StreamttyService.TABLE_LINE_REGEX.test(lines[i].trim())
-
-      if (isTableLine) {
-        if (tableStart === -1) tableStart = i
-        tableLines.push(lines[i])
-      } else if (tableStart !== -1) {
-        processTable(tableLines, tableStart, i)
-        tableLines = []
-        tableStart = -1
-      }
-    }
-
-    if (tableStart !== -1) {
-      processTable(tableLines, tableStart)
-    }
-
-    return result
+    // Delegate to ASCII converter to keep one implementation and avoid missing imports
+    return await this.convertMarkdownTablesToAscii(content)
   }
 
   /**
@@ -433,14 +906,62 @@ export class StreamttyService {
             paddingY: 2,
             borderPadding: 1
           })
-          processedContent = processedContent.replace(match[0], '\n' + asciiDiagram + '\n')
+          processedContent = processedContent.replace(match[0], '\n' + this.frameDiagram(asciiDiagram) + '\n')
         }
       } catch (error) {
         console.warn('Inline mermaid processing failed:', error)
       }
     }
 
-    return processedContent
+    // Also handle loose mermaid blocks (without fences) outside other code fences
+    const lines = processedContent.split('\n')
+    const isFence = (l: string) => /^```/.test(l.trim())
+    const isLooseMermaidStart = (l: string) => /^(graph\s+(TD|LR|BT|RL)\b|sequenceDiagram\b|classDiagram\b|stateDiagram(?:-v2)?\b|erDiagram\b|gantt\b|journey\b|pie\b)/i.test(l.trim())
+
+    let inFence = false
+    let i = 0
+    const out: string[] = []
+    while (i < lines.length) {
+      const raw = lines[i]
+      const t = raw.trim()
+      if (isFence(raw)) {
+        inFence = !inFence
+        out.push(raw)
+        i++
+        continue
+      }
+      if (!inFence && isLooseMermaidStart(raw)) {
+        const start = i
+        const block: string[] = [raw]
+        i++
+        while (i < lines.length) {
+          const ln = lines[i]
+          const lt = ln.trim()
+          if (lt === '' || isFence(ln)) break
+          block.push(ln)
+          i++
+        }
+        try {
+          const ascii = await convertMermaidToASCII(block.join('\n'), {
+            paddingX: 3,
+            paddingY: 1,
+            borderPadding: 1,
+          })
+          out.push('')
+          out.push(this.frameDiagram(ascii.trimEnd()))
+          out.push('')
+          this.debugTable('[DEBUG] Loose mermaid block converted at', String(start))
+        } catch {
+          // Fallback: emit raw
+          for (const ln of block) out.push(ln)
+        }
+        continue
+      }
+      out.push(raw)
+      i++
+    }
+
+    return out.join('\n')
   }
 
   /**
@@ -612,7 +1133,25 @@ export class StreamttyService {
     this.updateAISDKStats(event.type)
 
     // Enhanced inline mode: format and output to stdout with enhanced features
-    const enhancedEvent = await this.applyEnhancedFeaturesInline(this.formatAISDKEventFallback(event))
+    let payload = this.formatAISDKEventFallback(event)
+    // On stream completion, flush any buffered table content first
+    if (event.type === 'complete' || event.type === 'error') {
+      try {
+        const flushed = await this.flushStreamingTables()
+        if (flushed) payload = flushed + payload
+      } catch (err) {
+        this.debugTable('[DEBUG] Flush on complete/error failed:', String(err))
+      }
+    }
+    // If it's a text delta, pass through streaming-aware table preprocessor
+    if (event.type === 'text_delta' && payload) {
+      try {
+        payload = await this.processStreamingTables(payload)
+      } catch (err) {
+        this.debugTable('[DEBUG] AISDK streaming preprocessor error:', String(err))
+      }
+    }
+    const enhancedEvent = await this.applyEnhancedFeaturesInline(payload)
     if (enhancedEvent) {
       const lines = TerminalOutputManager.calculateLines(enhancedEvent)
       const outputId = terminalOutputManager.reserveSpace('AISDKEvent', lines)
@@ -811,7 +1350,7 @@ export const streamttyService = new StreamttyService({
   parseIncompleteMarkdown: true,
   syntaxHighlight: true,
   autoScroll: true,
-  maxWidth: 80,
+  maxWidth: Math.min(140, Math.max(60, (process.stdout && process.stdout.columns) ? process.stdout.columns : 80)),
   gfm: true,
 
   useBlessedMode: false, // Enable blessed mode for enhanced features (tables, mermaid, etc.)
