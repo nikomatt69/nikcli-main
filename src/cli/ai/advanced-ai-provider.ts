@@ -1414,13 +1414,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 // Format as natural conversational markdown
                 yield {
                   type: 'text_delta',
-                  content: `\n\n${gapAnalysis}\n\n`,
-                  metadata: { isMarkdown: true },
-                }
-
-                yield {
-                  type: 'text_delta',
-                  content: `${clarifyingQuestion}\n\n`,
+                  content: `\n\n**Round ${this.completedRounds} Analysis:**\n${gapAnalysis}\n\n**Question to continue:**\n${clarifyingQuestion}\n\n`,
                   metadata: { isMarkdown: true },
                 }
                 // Don't break - let the conversation continue naturally

@@ -957,6 +957,11 @@ export class SimpleConfigManager {
       model: 'qwen/qwen3-next-80b-a3b-thinking',
       maxContextTokens: 128000,
     },
+    'qwen/qwen3-coder:free': {
+      provider: 'openrouter',
+      model: 'qwen/qwen3-coder:free',
+      maxContextTokens: 128000,
+    },
     'x-ai/grok-2': {
       provider: 'openrouter',
       model: 'x-ai/grok-2',
