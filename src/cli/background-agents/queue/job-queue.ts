@@ -32,6 +32,7 @@ export class JobQueue extends EventEmitter {
   private localQueue: QueuedJobData[] = []
   private processing = new Set<string>()
   private maxConcurrentJobs: number
+  private processorInterval?: NodeJS.Timeout
 
   constructor(config: QueueConfig) {
     super()
@@ -127,14 +128,40 @@ export class JobQueue extends EventEmitter {
     if (queueData.delay) {
       // Schedule for later
       setTimeout(() => {
-        this.localQueue.push(queueData)
+        this.insertJobSorted(queueData)
         this.processNextLocal()
       }, queueData.delay)
     } else {
-      this.localQueue.push(queueData)
-      this.localQueue.sort((a, b) => b.priority - a.priority)
+      this.insertJobSorted(queueData)
       this.processNextLocal()
     }
+  }
+
+  /**
+   * Insert job maintaining sorted order (descending priority)
+   * Uses binary search for O(log n) search + O(n) insertion
+   * Better than O(n log n) full sort on every addition
+   */
+  private insertJobSorted(queueData: QueuedJobData): void {
+    if (this.localQueue.length === 0) {
+      this.localQueue.push(queueData)
+      return
+    }
+
+    // Binary search for insertion point
+    let left = 0
+    let right = this.localQueue.length
+
+    while (left < right) {
+      const mid = Math.floor((left + right) / 2)
+      if (this.localQueue[mid].priority < queueData.priority) {
+        right = mid
+      } else {
+        left = mid + 1
+      }
+    }
+
+    this.localQueue.splice(left, 0, queueData)
   }
 
   /**
@@ -143,7 +170,7 @@ export class JobQueue extends EventEmitter {
   private startProcessor(): void {
     if (this.config.type !== 'redis' || !this.redis) return
 
-    setInterval(async () => {
+    this.processorInterval = setInterval(async () => {
       try {
         // Move delayed jobs to waiting queue
         await this.processDelayedJobs()
@@ -380,6 +407,12 @@ export class JobQueue extends EventEmitter {
    * Cleanup and close connections
    */
   async close(): Promise<void> {
+    // Clear processor interval to prevent memory leak
+    if (this.processorInterval) {
+      clearInterval(this.processorInterval)
+      this.processorInterval = undefined
+    }
+
     if (this.redis) {
       await this.redis.quit()
     }

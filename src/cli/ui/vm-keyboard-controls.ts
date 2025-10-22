@@ -29,6 +29,8 @@ export class VMKeyboardControls extends EventEmitter {
   private panelContent = ''
   private autoRefresh = true
   private refreshInterval: NodeJS.Timeout | null = null
+  private keypressHandler: ((str: string, key: any) => void) | null = null
+  private messageTimeout: NodeJS.Timeout | null = null
 
   // Key mapping
   private readonly keyMappings: KeyMappings = {
@@ -101,6 +103,17 @@ export class VMKeyboardControls extends EventEmitter {
     this.closePanels()
     this.disableRawMode()
 
+    // Remove keypress listener to prevent memory leak
+    if (this.keypressHandler && process.stdin.isTTY) {
+      process.stdin.removeListener('keypress', this.keypressHandler)
+    }
+
+    // Clear any pending message timeout
+    if (this.messageTimeout) {
+      clearTimeout(this.messageTimeout)
+      this.messageTimeout = null
+    }
+
     advancedUI.logInfo('⌨️ VM keyboard controls deactivated')
     this.emit('controls:deactivated')
   }
@@ -112,11 +125,12 @@ export class VMKeyboardControls extends EventEmitter {
     if (process.stdin.isTTY) {
       readline.emitKeypressEvents(process.stdin)
 
-      process.stdin.on('keypress', (str, key) => {
+      this.keypressHandler = (str, key) => {
         if (!this.isActive) return
-
         this.handleKeypress(str, key)
-      })
+      }
+
+      process.stdin.on('keypress', this.keypressHandler)
     }
   }
 
@@ -462,10 +476,17 @@ export class VMKeyboardControls extends EventEmitter {
    */
   private showMessage(message: string): void {
     console.log(chalk.blue(`📢 ${message}`))
-    setTimeout(() => {
+
+    // Clear existing timeout before setting new one
+    if (this.messageTimeout) {
+      clearTimeout(this.messageTimeout)
+    }
+
+    this.messageTimeout = setTimeout(() => {
       if (this.currentPanel) {
         this.displayPanel()
       }
+      this.messageTimeout = null
     }, 2000)
   }
 

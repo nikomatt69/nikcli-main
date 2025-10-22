@@ -43,15 +43,20 @@ export class LSPManager {
   private clientLastUsed: Map<string, number> = new Map() // Track last usage for cleanup
   private readonly CLIENT_IDLE_TIMEOUT = 5 * 60 * 1000 // 5 minutes
   private cleanupInterval?: NodeJS.Timeout
+  private beforeExitHandler = () => this.shutdown()
+  private sigintHandler = () => this.shutdown()
+  private sigtermHandler = () => this.shutdown()
 
   constructor() {
-    // Cleanup on process exit
-    process.on('beforeExit', () => this.shutdown())
-    process.on('SIGINT', () => this.shutdown())
-    process.on('SIGTERM', () => this.shutdown())
+    // Cleanup on process exit - store handlers for later removal
+    process.on('beforeExit', this.beforeExitHandler)
+    process.on('SIGINT', this.sigintHandler)
+    process.on('SIGTERM', this.sigtermHandler)
 
-    // Start periodic cleanup of idle clients
-    this.cleanupInterval = setInterval(() => this.cleanupIdleClients(), 60000) // Every minute
+    // Start periodic cleanup of idle clients - check if already exists to prevent duplicates
+    if (!this.cleanupInterval) {
+      this.cleanupInterval = setInterval(() => this.cleanupIdleClients(), 60000) // Every minute
+    }
   }
 
   // Get or create LSP clients for a file
@@ -446,6 +451,11 @@ export class LSPManager {
 
   // Dispose resources (alias of shutdown + interval clear)
   async dispose(): Promise<void> {
+    // Remove process signal handlers to prevent memory leaks
+    process.removeListener('beforeExit', this.beforeExitHandler)
+    process.removeListener('SIGINT', this.sigintHandler)
+    process.removeListener('SIGTERM', this.sigtermHandler)
+
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval)
       this.cleanupInterval = undefined
