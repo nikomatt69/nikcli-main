@@ -109,9 +109,15 @@ Consider parallel execution where possible.`,
     const results: TaskResult[] = []
     const completedTasks = new Set<string>()
 
+    // Build task map for O(1) lookup instead of O(n) find per task
+    const taskMap = new Map<string, any>()
+    for (const task of plan.tasks) {
+      taskMap.set(task.id, task)
+    }
+
     // Execute tasks according to dependencies and priorities
     for (const taskId of plan.executionOrder) {
-      const task = plan.tasks.find((t: any) => t.id === taskId)
+      const task = taskMap.get(taskId)
       if (!task) continue
 
       // Check if dependencies are met

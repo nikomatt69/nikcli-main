@@ -22,6 +22,7 @@ export class BackgroundAgentsWebSocketServer {
   private wss: WebSocketServer
   private clients: Map<string, WebSocket> = new Map()
   private heartbeatInterval?: NodeJS.Timeout
+  private serviceListeners: Map<string, (...args: any[]) => void> = new Map()
 
   constructor(server: HTTPServer) {
     this.wss = new WebSocketServer({
@@ -86,45 +87,56 @@ export class BackgroundAgentsWebSocketServer {
 
   private setupEventListeners(): void {
     // Listen to background agent service events
-    backgroundAgentService.on('job:created', (job: BackgroundJob) => {
+    // Store references to remove them later
+    const jobCreatedHandler = (job: BackgroundJob) => {
       this.broadcastToAll({
         type: 'job:created',
         data: job,
         timestamp: new Date(),
       })
-    })
+    }
+    this.serviceListeners.set('job:created', jobCreatedHandler)
+    backgroundAgentService.on('job:created', jobCreatedHandler)
 
-    backgroundAgentService.on('job:started', (job: BackgroundJob) => {
+    const jobStartedHandler = (job: BackgroundJob) => {
       this.broadcastToAll({
         type: 'job:started',
         data: job,
         timestamp: new Date(),
       })
-    })
+    }
+    this.serviceListeners.set('job:started', jobStartedHandler)
+    backgroundAgentService.on('job:started', jobStartedHandler)
 
-    backgroundAgentService.on('job:completed', (job: BackgroundJob) => {
+    const jobCompletedHandler = (job: BackgroundJob) => {
       this.broadcastToAll({
         type: 'job:completed',
         data: job,
         timestamp: new Date(),
       })
-    })
+    }
+    this.serviceListeners.set('job:completed', jobCompletedHandler)
+    backgroundAgentService.on('job:completed', jobCompletedHandler)
 
-    backgroundAgentService.on('job:failed', (job: BackgroundJob) => {
+    const jobFailedHandler = (job: BackgroundJob) => {
       this.broadcastToAll({
         type: 'job:failed',
         data: job,
         timestamp: new Date(),
       })
-    })
+    }
+    this.serviceListeners.set('job:failed', jobFailedHandler)
+    backgroundAgentService.on('job:failed', jobFailedHandler)
 
-    backgroundAgentService.on('job:log', (jobId: string, logEntry: any) => {
+    const jobLogHandler = (jobId: string, logEntry: any) => {
       this.broadcastToAll({
         type: 'job:log',
         data: { jobId, logEntry },
         timestamp: new Date(),
       })
-    })
+    }
+    this.serviceListeners.set('job:log', jobLogHandler)
+    backgroundAgentService.on('job:log', jobLogHandler)
   }
 
   private handleClientMessage(clientId: string, message: any): void {
@@ -254,8 +266,15 @@ export class BackgroundAgentsWebSocketServer {
   public shutdown(): void {
     console.log('📡 Shutting down WebSocket server...')
 
+    // Remove all service listeners to prevent memory leaks
+    for (const [eventName, handler] of this.serviceListeners.entries()) {
+      backgroundAgentService.removeListener(eventName as any, handler)
+    }
+    this.serviceListeners.clear()
+
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval)
+      this.heartbeatInterval = undefined
     }
 
     // Close all client connections

@@ -124,6 +124,17 @@ export class MultiReadTool extends BaseTool {
         targets.push(...globbed.map((p) => path.resolve(root, p)))
       }
 
+      // Pre-compile exclude patterns for performance
+      const compiledPatterns = exclude.map((pat) => {
+        if (pat.endsWith('/')) {
+          return { type: 'dir', pattern: pat.toLowerCase() }
+        } else if (pat.includes('*')) {
+          return { type: 'regex', pattern: new RegExp(pat.replace(/\*/g, '.*'), 'i') }
+        } else {
+          return { type: 'literal', pattern: pat.toLowerCase() }
+        }
+      })
+
       // Deduplicate and filter by exclude patterns
       const seen = new Set<string>()
       const filtered: string[] = []
@@ -132,13 +143,14 @@ export class MultiReadTool extends BaseTool {
         seen.add(abs)
         const rel = path.relative(root, abs)
         const lower = rel.toLowerCase()
-        const ignored = exclude.some((pat) => {
-          if (pat.endsWith('/')) return lower.includes(pat.toLowerCase())
-          if (pat.includes('*')) {
-            const rx = new RegExp(pat.replace(/\*/g, '.*'))
-            return rx.test(lower)
+        const ignored = compiledPatterns.some((compiled) => {
+          if (compiled.type === 'dir') {
+            return lower.includes(compiled.pattern as string)
+          } else if (compiled.type === 'regex') {
+            return (compiled.pattern as RegExp).test(lower)
+          } else {
+            return lower.includes(compiled.pattern as string)
           }
-          return lower.includes(pat.toLowerCase())
         })
         if (!ignored) filtered.push(abs)
       }

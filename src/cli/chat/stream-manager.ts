@@ -19,14 +19,36 @@ export interface StreamEvent {
 export class StreamManager {
   private emitter = new EventEmitter()
   private events: StreamEvent[] = []
+  private readonly MAX_EVENTS = 1000 // Prevent unbounded growth
 
   on(eventType: StreamEvent['type'], listener: (e: StreamEvent) => void) {
     this.emitter.on(eventType, listener)
   }
 
+  off(eventType: StreamEvent['type'], listener: (e: StreamEvent) => void) {
+    this.emitter.off(eventType, listener)
+  }
+
   emit(event: StreamEvent) {
     this.events.push(event)
+
+    // Prevent memory leak: remove oldest events if exceeding limit
+    if (this.events.length > this.MAX_EVENTS) {
+      this.events.shift()
+    }
+
     this.emitter.emit(event.type, event)
+  }
+
+  /** Remove all listeners for a specific event type or all events */
+  removeAllListeners(eventType?: StreamEvent['type']) {
+    this.emitter.removeAllListeners(eventType)
+  }
+
+  /** Clear all stored events and listeners */
+  dispose() {
+    this.events = []
+    this.emitter.removeAllListeners()
   }
 
   /** Export recorded events to a JSON file. */
