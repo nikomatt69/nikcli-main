@@ -15,6 +15,7 @@ export class BrowserSessionManager extends EventEmitter {
   private sessions: Map<string, BrowserSession> = new Map()
   private messageQueues: Map<string, BrowserMessage[]> = new Map()
   private config: BrowserSessionConfig
+  private cleanupInterval?: NodeJS.Timeout
 
   constructor(config?: Partial<BrowserSessionConfig>) {
     super()
@@ -309,6 +310,13 @@ export class BrowserSessionManager extends EventEmitter {
       session.isActive = false
       session.history.endTime = new Date()
 
+      // Clear auto-screenshot interval if it exists
+      const autoScreenshotInterval = (session as any)._autoScreenshotInterval
+      if (autoScreenshotInterval) {
+        clearInterval(autoScreenshotInterval)
+        delete (session as any)._autoScreenshotInterval
+      }
+
       // Save session history if configured
       await this.saveSessionHistory(session)
 
@@ -543,9 +551,31 @@ export class BrowserSessionManager extends EventEmitter {
 
   private setupEventHandlers(): void {
     // Periodic cleanup
-    setInterval(() => {
+    this.cleanupInterval = setInterval(() => {
       this.cleanupInactiveSessions()
     }, 300000) // Every 5 minutes
+  }
+
+  /**
+   * Destroy the session manager and cleanup all resources
+   */
+  destroy(): void {
+    // Clear cleanup interval
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval)
+      this.cleanupInterval = undefined
+    }
+
+    // End all active sessions
+    for (const sessionId of this.sessions.keys()) {
+      this.endSession(sessionId, 'manager_destroyed').catch((error) => {
+        console.error(`Error ending session ${sessionId}:`, error)
+      })
+    }
+
+    this.sessions.clear()
+    this.messageQueues.clear()
+    this.removeAllListeners()
   }
 }
 

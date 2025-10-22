@@ -185,9 +185,13 @@ export class AutonomousClaudeInterface {
   private setupStreamOptimization(): void {
     // Buffer stream output for smoother rendering
     this.streamOptimizationInterval = setInterval(() => {
-      if (this.streamBuffer && Date.now() - this.lastStreamTime > 50) {
-        process.stdout.write(this.streamBuffer)
-        this.streamBuffer = ''
+      try {
+        if (this.streamBuffer && Date.now() - this.lastStreamTime > 50) {
+          process.stdout.write(this.streamBuffer)
+          this.streamBuffer = ''
+        }
+      } catch (error) {
+        console.error('Stream optimization error:', error)
       }
     }, 16) // ~60fps
   }
@@ -195,18 +199,22 @@ export class AutonomousClaudeInterface {
   private setupTokenOptimization(): void {
     // Check token usage periodically and suggest cleanup
     this.tokenOptimizationInterval = setInterval(() => {
-      const metrics = contextManager.getContextMetrics(this.session.messages)
+      try {
+        const metrics = contextManager.getContextMetrics(this.session.messages)
 
-      // Warn if approaching limit
-      if (metrics.estimatedTokens > metrics.tokenLimit * 0.85) {
-        console.log(chalk.yellow('\n⚠️  Token usage high - consider using /clear or auto-optimization will apply'))
-      }
+        // Warn if approaching limit
+        if (metrics.estimatedTokens > metrics.tokenLimit * 0.85) {
+          console.log(chalk.yellow('\n⚠️  Token usage high - consider using /clear or auto-optimization will apply'))
+        }
 
-      // Auto-optimize if way over limit (shouldn't happen but safety net)
-      if (metrics.estimatedTokens > metrics.tokenLimit * 1.1) {
-        console.log(chalk.red('\n🚨 Emergency token optimization - auto-compressing context...'))
-        const { optimizedMessages } = contextManager.optimizeContext(this.session.messages)
-        this.session.messages = optimizedMessages
+        // Auto-optimize if way over limit (shouldn't happen but safety net)
+        if (metrics.estimatedTokens > metrics.tokenLimit * 1.1) {
+          console.log(chalk.red('\n🚨 Emergency token optimization - auto-compressing context...'))
+          const { optimizedMessages } = contextManager.optimizeContext(this.session.messages)
+          this.session.messages = optimizedMessages
+        }
+      } catch (error) {
+        console.error('Token optimization error:', error)
       }
     }, 30000) // Check every 30 seconds
   }

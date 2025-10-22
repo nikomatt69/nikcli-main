@@ -64,6 +64,7 @@ const ExecutionPlanSchema = z.object({
  * AI Call Manager with secure tool integration and batch approval
  */
 export class AICallManager {
+  private readonly MAX_HISTORY_SIZE = 100
   private executionHistory: Array<{
     plan: ExecutionPlan
     results: ToolCallResult[]
@@ -391,13 +392,18 @@ Estimate realistic durations and assess risk levels accurately.`
         }
       }
 
-      // Add to execution history
+      // Add to execution history with size limit to prevent memory leak
       this.executionHistory.push({
         plan,
         results,
         batchSession,
         completedAt: new Date(),
       })
+
+      // Remove oldest entries if exceeding limit
+      if (this.executionHistory.length > this.MAX_HISTORY_SIZE) {
+        this.executionHistory.shift()
+      }
 
       console.log(chalk.green.bold(`\n✓ Plan execution completed`))
       console.log(chalk.gray(`Successful: ${results.filter((r) => r.success).length}/${results.length}`))

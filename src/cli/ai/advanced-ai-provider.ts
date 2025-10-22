@@ -140,6 +140,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
   private tokenOptimizer: TokenOptimizer
 
   //  Command System Properties
+  private readonly MAX_COMMAND_HISTORY = 50
   private commandHistory: CommandExecutionResult[] = []
   private packageCache: Map<string, PackageSearchResult[]> = new Map()
   private commandTemplates: Map<string, Command> = new Map()
@@ -372,6 +373,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
   }
 
   // Tool call tracking for intelligent continuation
+  private readonly MAX_TOOL_CALL_HISTORY = 50
   private toolCallHistory: Array<{
     toolName: string
     args: any
@@ -1360,6 +1362,11 @@ Respond in a helpful, professional manner with clear explanations and actionable
                 timestamp: new Date(),
                 success: false, // Will be updated
               })
+
+              // Prevent unbounded growth
+              if (this.toolCallHistory.length > this.MAX_TOOL_CALL_HISTORY) {
+                this.toolCallHistory.shift()
+              }
 
               // 🚨 EMERGENCY: Check if we're hitting tool call limits for analysis - use intelligent continuation
               if (isAnalysisRequest && toolCallCount > maxToolCallsForAnalysis) {
@@ -3121,8 +3128,11 @@ Use this cognitive understanding to provide more targeted and effective response
       // Validate result
       const validatedResult = CommandExecutionResult.parse(result)
 
-      // Store in history
+      // Store in history with size limit to prevent memory leak
       this.commandHistory.push(validatedResult)
+      if (this.commandHistory.length > this.MAX_COMMAND_HISTORY) {
+        this.commandHistory.shift()
+      }
 
       if (!this.streamSilentMode) {
         advancedUI.logFunctionUpdate('success', `Command completed in ${duration}ms`, '✓')

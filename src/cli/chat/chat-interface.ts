@@ -53,8 +53,13 @@ export class ChatInterface {
         return
       }
 
-      await this.handleInput(trimmed)
-      this.prompt()
+      try {
+        await this.handleInput(trimmed)
+      } catch (error) {
+        console.error(chalk.red('Error handling input:'), error)
+      } finally {
+        this.prompt()
+      }
     })
 
     // Handle close
