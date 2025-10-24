@@ -1,7 +1,7 @@
-import { Streamtty } from 'streamtty'
+import { Streamtty } from '@nicomatt69/streamtty'
 import { terminalOutputManager, TerminalOutputManager } from './terminal-output-manager'
 
-import type { EnhancedFeaturesConfig, MermaidTTYConfig, MathRenderConfig, SecurityConfig } from 'streamtty'
+import type { EnhancedFeaturesConfig, MermaidTTYConfig, MathRenderConfig, SecurityConfig } from '@nicomatt69/streamtty'
 
 export interface StreamttyOptions {
   parseIncompleteMarkdown?: boolean
@@ -29,6 +29,28 @@ export class StreamttyAdapter {
   private streamtty: Streamtty | null = null
   private isInitialized = false
   private useBlessedMode = false
+  // Replace emojis inside tables with width-safe ASCII so borders stay aligned
+  private sanitizeMonospaceEmojis(text: string): string {
+    let out = text.replace(/[\u200D\uFE0F]/g, '')
+    const repl: Array<[RegExp, string]> = [
+      [/✅|✔️|✔|✓/g, '✓'],
+      [/❌|✖️|✖|✕/g, '×'],
+      [/⚠️|⚠/g, '!'],
+      [/🔴|🟥|⛔️|⛔/g, '●'],
+      [/🟠|🟧/g, '●'],
+      [/🟡|🟨/g, '●'],
+      [/🟢|🟩/g, '●'],
+      [/🔵|🟦/g, '●'],
+      [/🟣|🟪/g, '●'],
+      [/🟤|🟫/g, '●'],
+      [/⚫️|⚫/g, '●'],
+      [/⚪️|⚪/g, '○'],
+    ]
+    for (const [re, r] of repl) out = out.replace(re, r)
+    // Fallback for any remaining emoji ranges
+    out = out.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/gu, '·')
+    return out
+  }
 
   constructor(private options: StreamttyOptions = {}) {
     this.useBlessedMode = options.useBlessedMode ?? false
@@ -205,7 +227,7 @@ export class StreamttyAdapter {
 
     try {
       // Import the enhanced table renderer
-      const { parseMarkdownTable, EnhancedTableRenderer } = await import('streamtty/src/utils/enhanced-table-renderer')
+      const { parseMarkdownTable, EnhancedTableRenderer } = await import('@nicomatt69/streamtty/dist/utils/enhanced-table-renderer')
 
       // Find complete markdown tables
       const lines = content.split('\n')
@@ -227,7 +249,7 @@ export class StreamttyAdapter {
           // End of table - process it
           if (tableLines.length >= 2) {
             const tableText = tableLines.join('\n')
-            const tableData = parseMarkdownTable(tableText)
+            const tableData = parseMarkdownTable(this.sanitizeMonospaceEmojis(tableText))
             if (tableData && tableData.headers.length > 0) {
               const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
                 borderStyle: 'solid',
@@ -251,7 +273,7 @@ export class StreamttyAdapter {
       // Handle table at end of content
       if (inTable && tableLines.length >= 2) {
         const tableText = tableLines.join('\n')
-        const tableData = parseMarkdownTable(tableText)
+        const tableData = parseMarkdownTable(this.sanitizeMonospaceEmojis(tableText))
         if (tableData && tableData.headers.length > 0) {
           const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
             borderStyle: 'solid',
@@ -370,7 +392,29 @@ async function processTablesWithRoundedCorners(content: string): Promise<string>
 
   try {
     // Import the enhanced table renderer
-    const { parseMarkdownTable, EnhancedTableRenderer } = await import('streamtty/src/utils/enhanced-table-renderer')
+    const { parseMarkdownTable, EnhancedTableRenderer } = await import('@nicomatt69/streamtty/dist/utils/enhanced-table-renderer')
+
+    // Local sanitizer to keep output monospace-safe when emojis appear in tables
+    const sanitize = (text: string): string => {
+      let out = text.replace(/[\u200D\uFE0F]/g, '')
+      const repl: Array<[RegExp, string]> = [
+        [/✅|✔️|✔|✓/g, '✓'],
+        [/❌|✖️|✖|✕/g, '×'],
+        [/⚠️|⚠/g, '!'],
+        [/🔴|🟥|⛔️|⛔/g, '●'],
+        [/🟠|🟧/g, '●'],
+        [/🟡|🟨/g, '●'],
+        [/🟢|🟩/g, '●'],
+        [/🔵|🟦/g, '●'],
+        [/🟣|🟪/g, '●'],
+        [/🟤|🟫/g, '●'],
+        [/⚫️|⚫/g, '●'],
+        [/⚪️|⚪/g, '○'],
+      ]
+      for (const [re, r] of repl) out = out.replace(re, r)
+      out = out.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/gu, '·')
+      return out
+    }
 
     // Find complete markdown tables
     const lines = content.split('\n')
@@ -392,7 +436,7 @@ async function processTablesWithRoundedCorners(content: string): Promise<string>
         // End of table - process it
         if (tableLines.length >= 2) {
           const tableText = tableLines.join('\n')
-          const tableData = parseMarkdownTable(tableText)
+          const tableData = parseMarkdownTable(sanitize(tableText))
           if (tableData && tableData.headers.length > 0) {
             const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
               borderStyle: 'solid',
@@ -416,7 +460,7 @@ async function processTablesWithRoundedCorners(content: string): Promise<string>
     // Handle table at end of content
     if (inTable && tableLines.length >= 2) {
       const tableText = tableLines.join('\n')
-      const tableData = parseMarkdownTable(tableText)
+      const tableData = parseMarkdownTable(sanitize(tableText))
       if (tableData && tableData.headers.length > 0) {
         const renderedTable = EnhancedTableRenderer.renderTable(tableData, {
           borderStyle: 'solid',

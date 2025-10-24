@@ -207,14 +207,14 @@ export class StreamttyService {
       return s
     }
 
-    const asciiMod = await import('streamtty/dist/renderers/table-ascii')
+    const asciiMod = await import('@nicomatt69/streamtty/dist/renderers/table-ascii')
     const isMarkdownTable: (s: string) => boolean = (asciiMod as any).isMarkdownTable
     const renderMarkdownTableToASCII: (s: string, opts?: any) => string = (asciiMod as any).renderMarkdownTableToASCII
     // Mermaid converter (loaded on demand)
     let convertMermaidToASCII: ((code: string, cfg?: any) => Promise<string>) | null = null
     const ensureMermaid = async () => {
       if (!convertMermaidToASCII) {
-        const mod = await import('streamtty/dist/utils/mermaid-ascii')
+        const mod = await import('@nicomatt69/streamtty/dist/utils/mermaid-ascii')
         convertMermaidToASCII = (mod as any).convertMermaidToASCII
       }
     }
@@ -430,10 +430,10 @@ export class StreamttyService {
   private async flushStreamingTables(): Promise<string> {
     const out: string[] = []
 
-    const asciiMod = await import('streamtty/dist/renderers/table-ascii')
+    const asciiMod = await import('@nicomatt69/streamtty/dist/renderers/table-ascii')
     const isMarkdownTable: (s: string) => boolean = (asciiMod as any).isMarkdownTable
     const renderMarkdownTableToASCII: (s: string, opts?: any) => string = (asciiMod as any).renderMarkdownTableToASCII
-    const mermaidMod = await import('streamtty/dist/utils/mermaid-ascii')
+    const mermaidMod = await import('@nicomatt69/streamtty/dist/utils/mermaid-ascii')
     const convertMermaidToASCII: (code: string, cfg?: any) => Promise<string> = (mermaidMod as any).convertMermaidToASCII
 
     // Flush ASCII block if present
@@ -695,7 +695,7 @@ export class StreamttyService {
     this.debugTable('[DEBUG] Converting tables in content:', content.slice(0, 100))
 
     // Dynamically import streamtty's ASCII table renderer utilities
-    const asciiMod = await import('streamtty/dist/renderers/table-ascii')
+    const asciiMod = await import('@nicomatt69/streamtty/dist/renderers/table-ascii')
     const isMarkdownTable: (s: string) => boolean = (asciiMod as any).isMarkdownTable
     const renderMarkdownTableToASCII: (s: string, opts?: any) => string = (asciiMod as any).renderMarkdownTableToASCII
 
@@ -887,7 +887,7 @@ export class StreamttyService {
    */
   private async processMermaidInline(content: string): Promise<string> {
     if (!StreamttyService.mermaidRenderer) {
-      StreamttyService.mermaidRenderer = await import('streamtty/dist/utils/mermaid-ascii')
+      StreamttyService.mermaidRenderer = await import('@nicomatt69/streamtty/dist/utils/mermaid-ascii')
     }
     const { convertMermaidToASCII } = StreamttyService.mermaidRenderer
 
