@@ -365,7 +365,7 @@ export class NikCLI {
     // Initialize analytics manager and dashboard service
     this.analyticsManager = new AnalyticsManager(this.workingDirectory)
     this.dashboardService = new DashboardService(
-      this.agentManager,
+      this.agentManager as any,
       this.analyticsManager,
       advancedAIProvider
     )
@@ -13258,7 +13258,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   private async startTokenSession(): Promise<void> {
     try {
       const currentModel = this.configManager.getCurrentModel()
-      const currentProvider = 'anthropic' // Fallback for now
+      const modelConfig = this.configManager.getModelConfig(currentModel)
+      const currentProvider = modelConfig?.provider || 'anthropic' // Fallback only if config missing
 
       await contextTokenManager.startSession(currentProvider, currentModel)
     } catch (error) {

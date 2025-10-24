@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const { execSync } = require('node:child_process')
-const fs = require('node:fs')
-const path = require('node:path')
+import { execSync } from 'child_process'
+import fs from 'fs'
+import path from 'path'
 
 console.log('🚀 Building NikCLI release binaries...\n')
 
@@ -11,7 +11,7 @@ console.log('📦 Building TypeScript...')
 execSync('npm run build', { stdio: 'inherit' })
 
 // Crea la directory releases se non esiste
-const releasesDir = path.join(__dirname, 'releases')
+const releasesDir = path.join(import.meta.dirname, 'releases')
 if (!fs.existsSync(releasesDir)) {
   fs.mkdirSync(releasesDir, { recursive: true })
 }

@@ -122,8 +122,8 @@ function pickOpenAI(baseModel: string, tier: 'light' | 'medium' | 'heavy', _need
 
   // Fallback tier-based selection for OpenAI
   if (tier === 'heavy') return 'gpt-5'
-  if (tier === 'medium') return 'gpt-4o'
-  return 'gpt-4o-mini' // light fallback
+  if (tier === 'medium') return 'gpt-5-mini'
+  return 'gpt-5' // light fallback
 }
 
 function pickGoogle(_baseModel: string, tier: 'light' | 'medium' | 'heavy'): string {

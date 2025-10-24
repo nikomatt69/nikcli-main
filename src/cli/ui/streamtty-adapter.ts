@@ -45,10 +45,12 @@ export class StreamttyAdapter {
       [/🟤|🟫/g, '●'],
       [/⚫️|⚫/g, '●'],
       [/⚪️|⚪/g, '○'],
+      // Hourglass and timer emojis → single-width ellipsis
+      [/⏳|⌛|⏱️|⏱|⏲️|⏲|⏰|⌚/g, '…'],
     ]
     for (const [re, r] of repl) out = out.replace(re, r)
-    // Fallback for any remaining emoji ranges
-    out = out.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/gu, '·')
+    // Fallback for any remaining emoji ranges (include 2300–23FF for hourglass/timers)
+    out = out.replace(/[\u{2300}-\u{23FF}\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/gu, '·')
     return out
   }
 

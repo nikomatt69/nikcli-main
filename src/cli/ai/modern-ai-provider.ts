@@ -468,7 +468,7 @@ export class ModernAIProvider {
     switch (config.provider) {
       case 'openai': {
         // OpenAI provider is already response-API compatible via model options; no chainable helper here.
-        const openaiProvider = createOpenAI({ apiKey })
+        const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
         return openaiProvider(config.model)
       }
       case 'anthropic': {
@@ -556,7 +556,6 @@ export class ModernAIProvider {
         model,
         messages,
         tools,
-        maxTokens: 8000,
         temperature: 1,
         // Spread middleware if available
       })
@@ -609,8 +608,7 @@ export class ModernAIProvider {
         messages,
         tools,
         maxSteps: 10,
-        maxTokens: 8000,
-        temperature: 0.7,
+        temperature: 1,
         // Spread middleware if available
       })
 

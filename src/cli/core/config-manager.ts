@@ -741,14 +741,14 @@ export class SimpleConfigManager {
       model: 'v0-1.0-md',
       maxContextTokens: 32000,
     },
-    'v0-1.5-md': {
-      provider: 'vercel',
-      model: 'v0-1.5-md',
+    'vercel/v0-1.5-md': {
+      provider: 'gateway',
+      model: 'vercel/v0-1.5-md',
       maxContextTokens: 32000,
     },
-    'v0-1.5-lg': {
-      provider: 'vercel',
-      model: 'v0-1.5-lg',
+    'vercel/v0-1.5-lg': {
+      provider: 'gateway',
+      model: 'vercel/v0-1.5-lg',
       maxContextTokens: 32000,
     },
     'gemini-2.5-pro': {
@@ -854,30 +854,39 @@ export class SimpleConfigManager {
       model: 'nvidia/nemotron-nano-9b-v2:free',
       maxContextTokens: 32000,
     },
-    'openai/gpt-5': {
+    'openai/gpt-5-pro': {
       provider: 'openrouter',
-      model: 'openai/gpt-5',
-      maxContextTokens: 200000,
+      model: 'openai/gpt-5-pro',
+      maxContextTokens: 400000,
     },
     'openai/gpt-5-codex': {
       provider: 'openrouter',
       model: 'openai/gpt-5-codex',
-      maxContextTokens: 200000,
+      maxContextTokens: 400000,
     },
-    'openai/gpt-5-mini': {
+    'openai/gpt-5-image': {
       provider: 'openrouter',
-      model: 'openai/gpt-5-mini',
-      maxContextTokens: 128000,
+      model: 'openai/gpt-5-image',
+      maxContextTokens: 400000,
+    },
+    'openai/gpt-5-image-mini': {
+      provider: 'openrouter',
+      model: 'openai/gpt-5-image-mini',
+      maxContextTokens: 400000,
+    },
+    'openai/o3-deep-research': {
+      provider: 'openrouter',
+      model: 'openai/o3-deep-research',
+      maxContextTokens: 200000,
     },
     'openai/o4-mini-deep-research': {
       provider: 'openrouter',
       model: 'openai/o4-mini-deep-research',
       maxContextTokens: 200000,
-
     },
-    'openai/gpt-5-nano': {
+    'openai/gpt-4o-audio-preview': {
       provider: 'openrouter',
-      model: 'openai/gpt-5-nano',
+      model: 'openai/gpt-4o-audio-preview',
       maxContextTokens: 128000,
     },
 
@@ -985,6 +994,11 @@ export class SimpleConfigManager {
     'moonshotai/kimi-k2-0905': {
       provider: 'openrouter',
       model: 'moonshotai/kimi-k2-0905',
+      maxContextTokens: 128000,
+    },
+    'moonshotai/kimi-k2-0905:exacto': {
+      provider: 'openrouter',
+      model: 'moonshotai/kimi-k2-0905:exacto',
       maxContextTokens: 128000,
     },
     'qwen/qwen3-coder': {

@@ -2,6 +2,7 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGateway } from '@ai-sdk/gateway'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
 import { generateObject, generateText, streamText } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
@@ -158,7 +159,11 @@ export class ModelProvider {
         if (!apiKey) {
           throw new Error(`API key not found for model: ${currentModelName} (Gateway). Use /set-key to configure.`)
         }
-        const gatewayProvider = createGateway({ apiKey })
+        const gatewayProvider = createOpenAICompatible({
+          name: 'ai-gateway',
+          apiKey,
+          baseURL: 'https://ai-gateway.vercel.sh/v1',
+        })
         return gatewayProvider(config.model)
       }
       case 'openrouter': {
