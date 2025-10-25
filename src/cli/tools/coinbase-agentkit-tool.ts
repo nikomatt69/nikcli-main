@@ -132,7 +132,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
             configManager.getApiKey('cdp_wallet_secret')
           if (walletFromConfig) process.env.CDP_WALLET_SECRET = walletFromConfig
         }
-      } catch {}
+      } catch { }
 
       // Check if dependencies are installed
       const isInstalled = await CoinbaseAgentKitProvider.isInstalled()
@@ -161,7 +161,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
         console.log(chalk.gray('- CDP_API_KEY_ID'))
         console.log(chalk.gray('- CDP_API_KEY_SECRET'))
         console.log(chalk.gray('- CDP_WALLET_SECRET'))
-        console.log(chalk.gray('- NETWORK_ID (optional, defaults to base-sepolia)'))
+        console.log(chalk.gray('- NETWORK_ID (optional, defaults to polygon)'))
 
         return {
           success: false,
@@ -184,7 +184,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
           const saved = configManager.getApiKey('coinbase_wallet_address')
           if (saved) walletAddress = saved
         }
-      } catch {}
+      } catch { }
       await this.agentKitProvider.initialize({ walletAddress })
 
       // Create official agent configuration (like Coinbase CLI)
@@ -310,7 +310,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
             .filter(Boolean)
             .map((s: string) => String(s))
         }
-      } catch {}
+      } catch { }
 
       return {
         success: true,
@@ -487,7 +487,7 @@ export class CoinbaseAgentKitTool extends BaseTool {
     const token = (params.token || params.asset || 'ETH').toString().toUpperCase()
     const amount = params.amount || params.value || '?'
     const to = params.to || params.recipient || '?'
-    const network = params.network || process.env.NETWORK_ID || 'base-sepolia'
+    const network = params.network || process.env.NETWORK_ID || 'polygon'
     const transferMessage = `Use your onchain tools to transfer ${amount} ${token} to ${to} on ${network}. Execute the transfer with the appropriate tool (do not only explain).`
     return await this.processChatMessage(transferMessage, { isTransfer: true })
   }

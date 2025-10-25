@@ -6916,7 +6916,20 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           }
           const [modelName, apiKey] = args
           const keyName = modelName.toLowerCase()
-          if (['coinbase-id', 'coinbase_id', 'cdp-id', 'cdp_api_key_id'].includes(keyName)) {
+          // Polymarket CLOB keys
+          if (['polymarket-key', 'polymarket_private_key', 'poly-key'].includes(keyName)) {
+            configManager.setApiKey('polymarket_private_key', apiKey)
+            process.env.POLYMARKET_PRIVATE_KEY = apiKey
+            console.log(chalk.green('✓ Polymarket POLYMARKET_PRIVATE_KEY set'))
+          } else if (['polymarket-host', 'polymarket_host', 'poly-host'].includes(keyName)) {
+            configManager.setApiKey('polymarket_host', apiKey)
+            process.env.POLYMARKET_HOST = apiKey
+            console.log(chalk.green('✓ Polymarket POLYMARKET_HOST set'))
+          } else if (['polymarket-funder', 'polymarket_funder', 'poly-funder'].includes(keyName)) {
+            configManager.setApiKey('polymarket_funder', apiKey)
+            process.env.POLYMARKET_FUNDER = apiKey
+            console.log(chalk.green('✓ Polymarket POLYMARKET_FUNDER set'))
+          } else if (['coinbase-id', 'coinbase_id', 'cdp-id', 'cdp_api_key_id'].includes(keyName)) {
             configManager.setApiKey('coinbase_id', apiKey)
             process.env.CDP_API_KEY_ID = apiKey
             console.log(chalk.green('✓ Coinbase CDP_API_KEY_ID set'))
@@ -11195,6 +11208,21 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       ['/diagnostic start', 'Start IDE diagnostic monitoring'],
       ['/diagnostic status', 'Show diagnostic status'],
       ['/monitor [path]', 'Monitor file changes'],
+
+      // 📈 Polymarket (CLOB) - Prediction Markets
+      ['/polymarket init', 'Initialize Polymarket CLOB provider'],
+      ['/polymarket markets', 'List prediction markets'],
+      ['/polymarket book <tokenID>', 'Get order book for a token'],
+      ['/polymarket price <tokenID> <BUY|SELL> <amount>', 'Get price quote'],
+      ['/polymarket orders', 'List open orders'],
+      ['/polymarket trades', 'List trade history'],
+      ['/polymarket positions', 'List current positions'],
+      ['/polymarket place-order <tokenID> <BUY|SELL> <price> <size> --confirm', 'Place an order (requires confirm)'],
+      ['/polymarket cancel-order <orderID> --confirm', 'Cancel an order'],
+      ['/polymarket cancel-all --confirm', 'Cancel all orders'],
+      ['/polymarket wallet', 'Get wallet information'],
+      ['/polymarket status', 'Get Polymarket tool status'],
+      ['/polymarket reset', 'Reset Polymarket conversation'],
     ]
   }
 
@@ -11256,6 +11284,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     addGroup('📸 Snapshots:', 139, 142)
     addGroup('🔒 Security:', 142, 145)
     addGroup('💻 IDE Integration:', 145, 148)
+    addGroup('🔮 Polymarket (CLOB):', 148, 161)
 
     lines.push('💡 Quick Tips:')
     lines.push('   • Use Ctrl+C to exit any mode')

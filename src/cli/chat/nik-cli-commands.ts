@@ -327,6 +327,11 @@ export class SlashCommandHandler {
     this.commands.set('web3', this.web3Command.bind(this))
     this.commands.set('blockchain', this.web3Command.bind(this))
 
+    // Polymarket CLOB (Prediction Markets)
+    this.commands.set('polymarket', this.polymarketCommand.bind(this))
+    this.commands.set('poly', this.polymarketCommand.bind(this))
+    this.commands.set('markets', this.polymarketCommand.bind(this))
+
     // IDE diagnostic commands
     this.commands.set('diagnostic', this.diagnosticCommand.bind(this))
     this.commands.set('diag', this.diagnosticCommand.bind(this))
@@ -421,6 +426,8 @@ ${chalk.cyan('/set-key coinbase-id <key>')} - Set Coinbase CDP_API_KEY_ID
 ${chalk.cyan('/set-key coinbase-secret <key>')} - Set Coinbase CDP_API_KEY_SECRET
 ${chalk.cyan('/set-key coinbase-wallet-secret <key>')} - Set Coinbase CDP_WALLET_SECRET
 ${chalk.cyan('/set-key coinbase')} - Interactive wizard for Coinbase keys
+${chalk.cyan('/set-key polymarket-private-key <key>')} - Set Polymarket private key
+${chalk.cyan('/set-key polymarket')} - Interactive wizard for Polymarket keys
 ${chalk.cyan('/set-key browserbase-api-key <key>')} - Set Browserbase API key
 ${chalk.cyan('/set-key browserbase-project-id <id>')} - Set Browserbase Project ID
 ${chalk.cyan('/set-key browserbase')} - Interactive wizard for Browserbase keys
@@ -503,6 +510,19 @@ ${chalk.cyan('/web3 balance')} - Check wallet balance
 ${chalk.cyan('/web3 transfer <amount> <to> [--token ETH|USDC|WETH]')} - Transfer tokens (with confirmation)
 ${chalk.cyan('/web3 chat "message"')} - Natural language blockchain request
 ${chalk.cyan('/web3 wallets')} - List known wallets and pick one
+
+${chalk.blue.bold('Polymarket Prediction Markets:')}
+${chalk.cyan('/polymarket status')} - Show Polymarket CLOB status
+${chalk.cyan('/polymarket init')} - Initialize Polymarket provider
+${chalk.cyan('/polymarket markets [search]')} - List prediction markets
+${chalk.cyan('/polymarket book <tokenID>')} - Show orderbook for token
+${chalk.cyan('/polymarket price <tokenID> <BUY|SELL> <amount>')} - Get price quote
+${chalk.cyan('/polymarket positions')} - View your positions
+${chalk.cyan('/polymarket orders')} - List open orders
+${chalk.cyan('/polymarket trades')} - View trade history
+${chalk.cyan('/polymarket place <tokenID> <BUY|SELL> <price> <size>')} - Place order (requires --confirm)
+${chalk.cyan('/polymarket cancel <orderID>')} - Cancel order (requires --confirm)
+${chalk.cyan('/polymarket chat "message"')} - Natural language trading request
 ${chalk.cyan('/web3 use-wallet <0x...>')} - Use a specific wallet by address
 
 ${chalk.blue.bold('Memory & Personalization:')}
@@ -972,6 +992,12 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
+    // Interactive Polymarket setup
+    if (args.length === 1 && ['polymarket', 'poly', 'polymarket-keys'].includes(args[0].toLowerCase())) {
+      await this.interactiveSetPolymarketKeys()
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
     if (args.length === 1 && ['browserbase', 'browserbase-keys'].includes(args[0].toLowerCase())) {
       await this.interactiveSetBrowserbaseKeys()
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -980,7 +1006,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length < 2) {
       this.printPanel(
         chalk.red(
-          'Usage: /set-key <model|coinbase-id|coinbase-secret|coinbase-wallet-secret|browserbase-api-key|browserbase-project-id> <api-key>'
+          'Usage: /set-key <model|coinbase-id|coinbase-secret|coinbase-wallet-secret|polymarket-private-key|browserbase-api-key|browserbase-project-id> <api-key>'
         )
       )
       console.log(chalk.gray('Examples:'))
@@ -989,6 +1015,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray('  /set-key coinbase-secret your_cdp_api_key_secret'))
       console.log(chalk.gray('  /set-key coinbase-wallet-secret your_cdp_wallet_secret'))
       console.log(chalk.gray('  /set-key coinbase   # interactive wizard'))
+      console.log(chalk.gray('  /set-key polymarket-private-key 0x...'))
+      console.log(chalk.gray('  /set-key polymarket   # interactive wizard'))
       console.log(chalk.gray('  /set-key browserbase-api-key your_browserbase_api_key'))
       console.log(chalk.gray('  /set-key browserbase-project-id your_project_id'))
       console.log(chalk.gray('  /set-key browserbase   # interactive wizard'))
@@ -1010,6 +1038,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         configManager.setApiKey('coinbase_wallet_secret', apiKey)
         process.env.CDP_WALLET_SECRET = apiKey
         console.log(chalk.green('✓ Coinbase CDP_WALLET_SECRET set'))
+      } else if (['polymarket-private-key', 'poly-key', 'polymarket_private_key'].includes(keyName)) {
+        configManager.setApiKey('polymarket_private_key', apiKey)
+        process.env.POLYMARKET_PRIVATE_KEY = apiKey
+        console.log(chalk.green('✓ Polymarket POLYMARKET_PRIVATE_KEY set'))
       } else if (['browserbase-api-key', 'browserbase-key', 'bb-api-key'].includes(keyName)) {
         configManager.setApiKey('browserbase', apiKey)
         process.env.BROWSERBASE_API_KEY = apiKey
@@ -1143,6 +1175,84 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.cliInstance.printPanel(
         boxen(`Failed to set Coinbase keys: ${error.message}`, {
           title: '❌ Set Coinbase Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Interactive wizard to set Polymarket CLOB keys securely
+   */
+  private async interactiveSetPolymarketKeys(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('../core/input-queue')
+
+      const nik: any = (global as any).__nikCLI
+      nik?.beginPanelOutput?.()
+      this.cliInstance.printPanel(
+        boxen('Enter your Polymarket private key. Value is stored encrypted. Leave blank to keep current.', {
+          title: '🔑 Set Polymarket Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
+      nik?.endPanelOutput?.()
+
+      const currentKey = configManager.getApiKey('polymarket_private_key')
+
+      // Suspend prompt for interactive input
+      nik?.suspendPrompt?.()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'password',
+            name: 'privateKey',
+            message: 'POLYMARKET_PRIVATE_KEY (0x...)',
+            mask: '*',
+            suffix: currentKey ? chalk.gray(' (configured)') : '',
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        nik?.renderPromptAfterOutput?.()
+      }
+
+      const setIfProvided = (label: string, key: string | undefined, setter: (v: string) => void) => {
+        if (key && key.trim().length > 0) {
+          setter(key.trim())
+          console.log(chalk.green(`✓ Saved ${label}`))
+        } else {
+          console.log(chalk.gray(`⏭️  Skipped ${label}`))
+        }
+      }
+
+      setIfProvided('POLYMARKET_PRIVATE_KEY', answers.privateKey, (v) => {
+        configManager.setApiKey('polymarket_private_key', v)
+        process.env.POLYMARKET_PRIVATE_KEY = v
+      })
+
+      this.cliInstance.printPanel(
+        boxen('Polymarket keys updated. You can now run /polymarket init', {
+          title: '✓ Keys Saved',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+    } catch (error: any) {
+      this.cliInstance.printPanel(
+        boxen(`Failed to set Polymarket keys: ${error.message}`, {
+          title: '❌ Set Polymarket Keys',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -6917,6 +7027,436 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (ok) {
       lines.push(chalk.green('✓ Completed'))
       // Tool usage summary
+      const calls = typeof dataBlock.toolCalls === 'number' ? dataBlock.toolCalls : 0
+      const results = typeof dataBlock.toolResults === 'number' ? dataBlock.toolResults : 0
+      const toolsUsed = Array.isArray(dataBlock.toolsUsed) ? dataBlock.toolsUsed : []
+      lines.push(
+        chalk.gray(
+          `Tools: calls=${calls}, results=${results}${toolsUsed.length ? `, used=${toolsUsed.join(', ')}` : ''}`
+        )
+      )
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  /**
+   * Polymarket command - CLOB operations with panel output
+   */
+  private async polymarketCommand(args: string[]): Promise<CommandResult> {
+    // Help/usage
+    if (args.length === 0) {
+      this.cliInstance.printPanel(
+        boxen(
+          [
+            chalk.bold('📊 Polymarket CLOB Commands'),
+            chalk.gray('────────────────────────────────────────────'),
+            '',
+            `${chalk.cyan('/polymarket status')}    – Provider status`,
+            `${chalk.cyan('/polymarket init')}      – Initialize provider`,
+            `${chalk.cyan('/polymarket wallet')}    – Show wallet info`,
+            `${chalk.cyan('/polymarket markets [search]')} – List markets`,
+            `${chalk.cyan('/polymarket book <tokenID>')} – Get orderbook`,
+            `${chalk.cyan('/polymarket price <tokenID> <BUY|SELL> <amount>')} – Get price quote`,
+            `${chalk.cyan('/polymarket positions')} – View positions`,
+            `${chalk.cyan('/polymarket orders')}    – List open orders`,
+            `${chalk.cyan('/polymarket trades')}    – View trade history`,
+            `${chalk.cyan('/polymarket place <tokenID> <BUY|SELL> <price> <size>')} – Place order (requires --confirm)`,
+            `${chalk.cyan('/polymarket cancel <orderID>')} – Cancel order (requires --confirm)`,
+            `${chalk.cyan('/polymarket chat "message"')} – Natural language request`,
+            '',
+            chalk.gray('Env required: POLYMARKET_PRIVATE_KEY'),
+            chalk.gray('Tip: /set-key polymarket to enter key interactively'),
+          ].join('\n'),
+          { title: 'Polymarket', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const sub = args[0].toLowerCase()
+
+    // Ensure panel-safe printing
+    const nik: any = (global as any).__nikCLI
+    nik?.beginPanelOutput?.()
+    try {
+      if (sub === 'status') {
+        const result = await secureTools.executePolymarket('status')
+        const content = this.formatPolymarketStatusPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'init') {
+        const result = await secureTools.executePolymarket('init')
+        const content = this.formatPolymarketInitPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'wallet') {
+        const result = await secureTools.executePolymarket('wallet-info')
+        const content = this.formatPolymarketWalletPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'markets') {
+        const search = args.slice(1).join(' ').trim()
+        const result = await secureTools.executePolymarket('markets', { search: search || undefined, limit: 20 })
+        const content = this.formatPolymarketMarketsPanel(result, search)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'book' || sub === 'orderbook') {
+        const tokenID = args[1]
+        if (!tokenID) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /polymarket book <tokenID>', {
+              title: 'Polymarket Orderbook',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+        const result = await secureTools.executePolymarket('book', { tokenID })
+        const content = this.formatPolymarketBookPanel(result, tokenID)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'price' || sub === 'quote') {
+        if (!args[1] || !args[2] || !args[3]) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /polymarket price <tokenID> <BUY|SELL> <amount>', {
+              title: 'Polymarket Price',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+        const tokenID = args[1]
+        const side = args[2].toUpperCase()
+        const amount = args[3]
+        const result = await secureTools.executePolymarket('price', { tokenID, side, amount })
+        const content = this.formatPolymarketPricePanel(result, tokenID, side, amount)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'positions') {
+        const result = await secureTools.executePolymarket('positions')
+        const content = this.formatPolymarketPositionsPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'orders') {
+        const result = await secureTools.executePolymarket('orders')
+        const content = this.formatPolymarketOrdersPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'trades') {
+        const result = await secureTools.executePolymarket('trades')
+        const content = this.formatPolymarketTradesPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'place' || sub === 'place-order') {
+        if (!args[1] || !args[2] || !args[3] || !args[4]) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /polymarket place <tokenID> <BUY|SELL> <price> <size> [--confirm]', {
+              title: 'Polymarket Place Order',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+        const tokenID = args[1]
+        const side = args[2].toUpperCase()
+        const price = args[3]
+        const size = args[4]
+        const confirm = args.includes('--confirm')
+        const result = await secureTools.executePolymarket('place-order', { tokenID, side, price, size, confirm })
+        const content = this.formatPolymarketPlaceOrderPanel(result, tokenID, side, price, size)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'cancel' || sub === 'cancel-order') {
+        const orderID = args[1]
+        if (!orderID) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /polymarket cancel <orderID> [--confirm]', {
+              title: 'Polymarket Cancel Order',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+        const confirm = args.includes('--confirm')
+        const result = await secureTools.executePolymarket('cancel-order', { orderID, confirm })
+        const content = this.formatPolymarketCancelOrderPanel(result, orderID)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'chat') {
+        const message = args.slice(1).join(' ').trim().replace(/^"|"$/g, '')
+        if (!message) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /polymarket chat "your trading request"', {
+              title: 'Polymarket Chat',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+        const result = await secureTools.executePolymarket(message)
+        const content = this.formatPolymarketChatPanel(message, result)
+        this.cliInstance.printPanel(content)
+      } else {
+        const panel = boxen(`Unknown subcommand: ${sub}`, {
+          title: 'Polymarket',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+        this.cliInstance.printPanel(panel)
+      }
+    } catch (error: any) {
+      const panel = boxen(
+        `Failed to execute polymarket command: ${error.message}` +
+        '\n\nTips:\n- Ensure POLYMARKET_PRIVATE_KEY is set\n- Run /polymarket init first',
+        { title: 'Polymarket Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
+      )
+      this.cliInstance.printPanel(panel)
+    } finally {
+      // Properly end panel output and re-render the prompt
+      if (nik) {
+        nik.endPanelOutput?.()
+        nik.renderPromptAfterOutput?.()
+      }
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  // Polymarket Panel formatters
+  private formatPolymarketStatusPanel(result: any): string {
+    const title = 'Polymarket Status'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+    if (ok) {
+      const initialized = dataBlock.initialized ?? false
+      const wallet = dataBlock.wallet || {}
+      lines.push(chalk.green(`✓ Status: ${initialized ? 'Initialized' : 'Not initialized'}`))
+      if (wallet.address) lines.push(`${chalk.gray('Wallet:')} ${wallet.address}`)
+      if (wallet.chainId) lines.push(`${chalk.gray('Chain:')} Polygon (${wallet.chainId})`)
+      if (wallet.host) lines.push(`${chalk.gray('Host:')} ${wallet.host}`)
+    } else {
+      lines.push(chalk.red('❌ Not initialized'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatPolymarketInitPanel(result: any): string {
+    const title = 'Polymarket Initialize'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+    if (ok) {
+      const wallet = dataBlock.walletInfo || {}
+      lines.push(chalk.green('✓ Polymarket provider initialized'))
+      if (wallet.address) lines.push(`${chalk.gray('Wallet:')} ${wallet.address}`)
+      if (wallet.chainId) lines.push(`${chalk.gray('Chain:')} Polygon (${wallet.chainId})`)
+      if (wallet.host) lines.push(`${chalk.gray('Host:')} ${wallet.host}`)
+    } else {
+      lines.push(chalk.red('❌ Initialization failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatPolymarketWalletPanel(result: any): string {
+    const title = 'Polymarket Wallet'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+    if (ok) {
+      lines.push(chalk.green('✓ Wallet info'))
+      if (dataBlock.address) lines.push(`${chalk.gray('Address:')} ${dataBlock.address}`)
+      if (dataBlock.chainId) lines.push(`${chalk.gray('Chain:')} Polygon (${dataBlock.chainId})`)
+      if (dataBlock.host) lines.push(`${chalk.gray('Host:')} ${dataBlock.host}`)
+    } else {
+      lines.push(chalk.red('❌ Failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatPolymarketMarketsPanel(result: any, search?: string): string {
+    const title = 'Polymarket Markets'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const markets = result?.data?.data?.markets || result?.data?.markets || []
+    if (ok && Array.isArray(markets)) {
+      if (search) lines.push(`${chalk.gray('Search:')} ${search}`)
+      lines.push(chalk.cyan(`📊 Found ${markets.length} markets`))
+      markets.slice(0, 10).forEach((m: any) => {
+        lines.push(`\n${chalk.white(m.question || m.description || 'Market')}`)
+        if (m.condition_id) lines.push(chalk.gray(`  ID: ${m.condition_id.slice(0, 12)}...`))
+      })
+      if (markets.length > 10) lines.push(chalk.gray(`\n...and ${markets.length - 10} more`))
+    } else {
+      lines.push(chalk.red('❌ Failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatPolymarketBookPanel(result: any, tokenID: string): string {
+    const title = 'Polymarket Orderbook'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const book = result?.data?.data?.orderbook || result?.data?.orderbook
+    if (ok && book) {
+      lines.push(`${chalk.gray('Token:')} ${tokenID}`)
+      lines.push(`\n${chalk.green('Bids:')} ${book.bids?.length || 0} levels`)
+      if (book.bids && book.bids.length > 0) {
+        book.bids.slice(0, 5).forEach((b: any) => {
+          lines.push(`  ${b.price} @ ${b.size}`)
+        })
+      }
+      lines.push(`\n${chalk.red('Asks:')} ${book.asks?.length || 0} levels`)
+      if (book.asks && book.asks.length > 0) {
+        book.asks.slice(0, 5).forEach((a: any) => {
+          lines.push(`  ${a.price} @ ${a.size}`)
+        })
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatPolymarketPricePanel(result: any, tokenID: string, side: string, amount: string): string {
+    const title = 'Polymarket Price Quote'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const quote = result?.data?.data?.quote || result?.data?.quote
+    if (ok && quote) {
+      lines.push(`${chalk.gray('Token:')} ${tokenID}`)
+      lines.push(`${chalk.gray('Side:')} ${side}`)
+      lines.push(`${chalk.gray('Amount:')} ${amount}`)
+      lines.push(`\n${chalk.green('Price:')} ${quote.price}`)
+      if (quote.size) lines.push(`${chalk.gray('Size:')} ${quote.size}`)
+    } else {
+      lines.push(chalk.red('❌ Failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatPolymarketPositionsPanel(result: any): string {
+    const title = 'Polymarket Positions'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const positions = result?.data?.data?.positions || result?.data?.positions || []
+    if (ok && Array.isArray(positions)) {
+      lines.push(chalk.cyan(`📈 ${positions.length} positions`))
+      positions.slice(0, 10).forEach((p: any) => {
+        lines.push(`\n${chalk.white(p.asset_id || p.market || 'Position')}`)
+        lines.push(`  ${chalk.gray('Side:')} ${p.side}`)
+        lines.push(`  ${chalk.gray('Size:')} ${p.size}`)
+      })
+    } else {
+      lines.push(chalk.red('❌ Failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatPolymarketOrdersPanel(result: any): string {
+    const title = 'Polymarket Orders'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const orders = result?.data?.data?.orders || result?.data?.orders || []
+    if (ok && Array.isArray(orders)) {
+      lines.push(chalk.cyan(`📋 ${orders.length} open orders`))
+      orders.slice(0, 10).forEach((o: any) => {
+        lines.push(`\n${chalk.white(o.id || 'Order')}`)
+        lines.push(`  ${chalk.gray('Side:')} ${o.side}`)
+        lines.push(`  ${chalk.gray('Price:')} ${o.price}`)
+        lines.push(`  ${chalk.gray('Size:')} ${o.size}`)
+        if (o.status) lines.push(`  ${chalk.gray('Status:')} ${o.status}`)
+      })
+    } else {
+      lines.push(chalk.red('❌ Failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatPolymarketTradesPanel(result: any): string {
+    const title = 'Polymarket Trades'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const trades = result?.data?.data?.trades || result?.data?.trades || []
+    if (ok && Array.isArray(trades)) {
+      lines.push(chalk.cyan(`💹 ${trades.length} trades`))
+      trades.slice(0, 10).forEach((t: any) => {
+        lines.push(`\n${chalk.white(t.id || 'Trade')}`)
+        lines.push(`  ${chalk.gray('Side:')} ${t.side}`)
+        lines.push(`  ${chalk.gray('Price:')} ${t.price}`)
+        lines.push(`  ${chalk.gray('Size:')} ${t.size}`)
+      })
+    } else {
+      lines.push(chalk.red('❌ Failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatPolymarketPlaceOrderPanel(result: any, tokenID: string, side: string, price: string, size: string): string {
+    const title = 'Polymarket Place Order'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const order = result?.data?.data?.order || result?.data?.order
+    if (ok && order) {
+      lines.push(chalk.green('✓ Order placed'))
+      lines.push(`${chalk.gray('Order ID:')} ${order.id}`)
+      lines.push(`${chalk.gray('Token:')} ${tokenID}`)
+      lines.push(`${chalk.gray('Side:')} ${side}`)
+      lines.push(`${chalk.gray('Price:')} ${price}`)
+      lines.push(`${chalk.gray('Size:')} ${size}`)
+      if (order.status) lines.push(`${chalk.gray('Status:')} ${order.status}`)
+    } else {
+      lines.push(chalk.red('❌ Failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatPolymarketCancelOrderPanel(result: any, orderID: string): string {
+    const title = 'Polymarket Cancel Order'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    if (ok) {
+      lines.push(chalk.green('✓ Order cancelled'))
+      lines.push(`${chalk.gray('Order ID:')} ${orderID}`)
+    } else {
+      lines.push(chalk.red('❌ Failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatPolymarketChatPanel(message: string, result: any): string {
+    const title = 'Polymarket Chat'
+    const lines: string[] = []
+    lines.push(`${chalk.gray('Message:')} ${message}`)
+    lines.push('')
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+    if (ok) {
+      lines.push(chalk.green('✓ Completed'))
       const calls = typeof dataBlock.toolCalls === 'number' ? dataBlock.toolCalls : 0
       const results = typeof dataBlock.toolResults === 'number' ? dataBlock.toolResults : 0
       const toolsUsed = Array.isArray(dataBlock.toolsUsed) ? dataBlock.toolsUsed : []

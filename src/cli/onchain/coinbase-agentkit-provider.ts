@@ -32,7 +32,7 @@ try {
   // Optional providers (may not be present in all versions)
   try {
     defillamaActionProvider = (agentkit as any).defillamaActionProvider
-  } catch {}
+  } catch { }
 } catch {
   // AgentKit not installed
 }
@@ -135,7 +135,7 @@ export class CoinbaseAgentKitProvider {
       apiKeyId: process.env.CDP_API_KEY_ID!,
       apiKeySecret: process.env.CDP_API_KEY_SECRET!,
       walletSecret: process.env.CDP_WALLET_SECRET,
-      networkId: process.env.NETWORK_ID || config.networkId || 'base-sepolia',
+      networkId: process.env.NETWORK_ID || config.networkId || 'polygon',
       owner: owner as any,
       address: config.walletAddress || walletData?.smartWalletAddress,
       paymasterUrl: process.env.PAYMASTER_URL || config.paymasterUrl,
@@ -177,7 +177,7 @@ export class CoinbaseAgentKitProvider {
         this.appendToWalletList({
           address: exportedWallet.address,
           ownerAddress: exportedWallet.ownerAddress,
-          networkId: this.walletProvider.getNetwork?.().networkId || config.networkId || 'base-sepolia',
+          networkId: this.walletProvider.getNetwork?.().networkId || config.networkId || 'polygon',
           updatedAt: new Date().toISOString(),
         })
       } catch (error) {
@@ -307,7 +307,7 @@ export class CoinbaseAgentKitProvider {
    */
   canUseFaucet(): boolean {
     if (!this.walletProvider) return false
-    return this.walletProvider.getNetwork().networkId === 'base-sepolia'
+    return this.walletProvider.getNetwork().networkId === 'polygon'
   }
 
   /**

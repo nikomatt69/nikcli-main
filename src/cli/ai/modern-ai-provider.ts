@@ -276,6 +276,53 @@ export class ModernAIProvider {
           }
         },
       }),
+
+      polymarket_trading: tool({
+        description:
+          'Execute Polymarket prediction market operations - supports market queries, order placement, portfolio management, and AI-powered trading',
+        parameters: z.object({
+          action: z
+            .string()
+            .describe(
+              'The Polymarket action to perform: init, markets, book, price, place-order, cancel-order, positions, orders, trades, status, reset, or natural language chat'
+            ),
+          params: z
+            .any()
+            .optional()
+            .describe(
+              'Parameters for the action (e.g., {tokenID: "...", side: "BUY", price: "0.52", size: "10"} for orders)'
+            ),
+        }),
+        execute: async ({ action, params = {} }) => {
+          try {
+            const { secureTools } = await import('../tools/secure-tools-registry')
+            const result = await secureTools.executePolymarket(action, params)
+
+            if (result.success) {
+              return {
+                success: true,
+                action,
+                data: result.data,
+                message: `Polymarket operation '${action}' completed successfully`,
+              }
+            } else {
+              return {
+                success: false,
+                action,
+                error: result.error,
+                message: `Polymarket operation '${action}' failed`,
+              }
+            }
+          } catch (error: any) {
+            return {
+              success: false,
+              action,
+              error: error.message,
+              message: `Failed to execute Polymarket operation: ${error.message}`,
+            }
+          }
+        },
+      }),
     }
 
     // Note: Tool-level caching via @ai-sdk-tools/cache is incompatible with AI SDK v3's CoreTool type

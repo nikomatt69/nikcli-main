@@ -5,6 +5,7 @@ import { BashTool } from './bash-tool'
 import { BrowserbaseTool } from './browserbase-tool'
 import { createBrowserTools } from '../browser/playwright-automation-tools'
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
+import { PolymarketTool } from './polymarket-tool'
 import { EditTool } from './edit-tool'
 import { FindFilesTool } from './find-files-tool'
 import { GitTools } from './git-tools'
@@ -420,6 +421,18 @@ export class ToolRegistry {
       requiredPermissions: ['network', 'execute'],
       supportedFileTypes: ['*'],
       tags: ['blockchain', 'crypto', 'coinbase', 'agentkit', 'defi', 'wallet', 'transactions'],
+    })
+
+    // Polymarket tool
+    this.registerTool('polymarket', new PolymarketTool(workingDirectory), {
+      description: 'Polymarket prediction market trading and analytics',
+      category: 'blockchain',
+      riskLevel: 'high',
+      reversible: false,
+      estimatedDuration: 8000,
+      requiredPermissions: ['network', 'execute'],
+      supportedFileTypes: ['*'],
+      tags: ['blockchain', 'trading', 'polymarket', 'prediction-markets', 'clob'],
     })
 
     this.registerTool('browserbase-tool', new BrowserbaseTool(workingDirectory), {

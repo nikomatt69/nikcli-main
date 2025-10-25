@@ -23,6 +23,7 @@ export {
   type BrowserbaseToolResult,
 } from './browserbase-tool'
 export { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
+export { PolymarketTool } from './polymarket-tool'
 export { type DiffChange, type DiffResult, DiffTool, type DiffToolParams } from './diff-tool'
 export {
   extractFileIdFromUrl,

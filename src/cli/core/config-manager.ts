@@ -1371,6 +1371,31 @@ export class SimpleConfigManager {
       return process.env.BROWSERBASE_API_KEY
     }
 
+    // Polymarket CLOB integration
+    if (model === 'polymarket_private_key') {
+      return process.env.POLYMARKET_PRIVATE_KEY
+    }
+    if (model === 'polymarket_host') {
+      return process.env.POLYMARKET_HOST
+    }
+    if (model === 'polymarket_funder') {
+      return process.env.POLYMARKET_FUNDER
+    }
+
+    // Coinbase AgentKit integration
+    if (model === 'coinbase_id') {
+      return process.env.CDP_API_KEY_ID
+    }
+    if (model === 'coinbase_secret') {
+      return process.env.CDP_API_KEY_SECRET
+    }
+    if (model === 'coinbase_wallet_secret') {
+      return process.env.CDP_WALLET_SECRET
+    }
+    if (model === 'coinbase_wallet_address') {
+      return process.env.CDP_WALLET_ADDRESS
+    }
+
     return undefined
   }
 

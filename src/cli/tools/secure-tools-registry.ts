@@ -10,6 +10,7 @@ import {
 export type { BatchSession } from './secure-command-tool'
 
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
+import { PolymarketTool } from './polymarket-tool'
 import { FigmaTool, type FigmaToolResult } from './figma-tool'
 import { FindFilesTool } from './find-files-tool'
 import { GitTools } from './git-tools'
@@ -57,6 +58,7 @@ export class SecureToolsRegistry {
   private secureCommandTool: SecureCommandTool
   private findFilesTool: FindFilesTool
   private coinbaseAgentKitTool: CoinbaseAgentKitTool
+  private polymarketTool: PolymarketTool
   private jsonPatchTool: JsonPatchTool
   private gitTools: GitTools
   private multiReadTool: MultiReadTool
@@ -75,6 +77,7 @@ export class SecureToolsRegistry {
     this.secureCommandTool = new SecureCommandTool(this.workingDirectory)
     this.findFilesTool = new FindFilesTool(this.workingDirectory)
     this.coinbaseAgentKitTool = new CoinbaseAgentKitTool(this.workingDirectory)
+    this.polymarketTool = new PolymarketTool(this.workingDirectory)
     this.jsonPatchTool = new JsonPatchTool(this.workingDirectory)
     this.gitTools = new GitTools(this.workingDirectory)
     this.multiReadTool = new MultiReadTool(this.workingDirectory)
@@ -492,6 +495,30 @@ export class SecureToolsRegistry {
       {
         pathValidated: true,
         userConfirmed: !options.skipConfirmation,
+      }
+    )
+  }
+
+  /**
+   * Execute Polymarket operations
+   */
+  async executePolymarket(
+    action: string,
+    params: any = {},
+    options: {
+      skipConfirmation?: boolean
+    } = {}
+  ): Promise<ToolResult<any>> {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+
+    return this.executeWithTracking(
+      'Polymarket',
+      () => this.polymarketTool.execute(action, params),
+      context,
+      {
+        pathValidated: true,
+        userConfirmed: !options.skipConfirmation,
+        commandAnalyzed: true,
       }
     )
   }
