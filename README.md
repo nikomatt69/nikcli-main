@@ -94,6 +94,19 @@ nikcli
 ## 📚 Documentation
 
 **Complete documentation is available at [nikcli.mintlify.app](https://nikcli.mintlify.app)**
+- 🟣 Polymarket CLOB (Polygon 137)
+  - Env:
+    - `POLYMARKET_PRIVATE_KEY` (required) EOA private key for proxy signer
+    - `POLYMARKET_SIGNATURE_TYPE=1` (recommended)
+    - `POLYMARKET_CHAIN_ID=137` (default)
+    - `POLYMARKET_HOST=https://clob.polymarket.com` (default)
+  - Quickstart:
+    - `nikcli polymarket init`
+    - `nikcli polymarket markets`
+    - `nikcli polymarket price --token-id <id> --side buy`
+    - `nikcli polymarket place-order --token-id <id> --side buy --price 0.55 --size 10 --confirm true`
+    - `nikcli polymarket cancel-order --order-id <id> --confirm true`
+
 
 - 📖 [Getting Started](https://nikcli.mintlify.app/quickstart/installation)
 - 🎯 [CLI Commands Reference](https://nikcli.mintlify.app/cli-reference/commands-overview)
