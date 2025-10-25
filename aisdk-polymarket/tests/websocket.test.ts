@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { PolymarketWebSocket, MessageType } from '../src/polymarket/websocket-client.js';
+import { PolymarketWebSocket, MessageType } from '../src/polymarket/websocket-client.ts';
 import { EventEmitter } from 'events';
 
 // Mock WebSocket

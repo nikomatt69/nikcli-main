@@ -1,4 +1,4 @@
-import { LanguageModelV1, experimental_createProviderRegistry } from 'ai';
+import { LanguageModelV1 } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -108,12 +108,13 @@ export function createModelProvider(config: ProviderConfig = {}) {
   /**
    * Create a fallback chain of models
    */
-  function withFallback(primaryModelId: string, ...fallbackModelIds: string[]): LanguageModelV1 {
+  function withFallback(primaryModelId: string, ..._fallbackModelIds: string[]): LanguageModelV1 {
     const primary = getModel(primaryModelId);
 
     // AI SDK experimental_wrapLanguageModel can be used here for fallback logic
     // For now, we return the primary model
     // In a full implementation, you'd wrap this with retry/fallback logic
+    void _fallbackModelIds; // Reference to avoid unused variable error
 
     return primary;
   }

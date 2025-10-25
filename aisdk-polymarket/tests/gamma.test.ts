@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GammaClient } from '../src/polymarket/gamma.js';
+import { GammaClient } from '../src/polymarket/gamma.ts';
 
 describe('GammaClient', () => {
   let client: GammaClient;

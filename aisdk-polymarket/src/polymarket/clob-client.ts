@@ -12,7 +12,7 @@ import {
   roundToTickSize,
   Eip712TypedData,
   MarketConfig,
-} from './schemas.js';
+} from './schemas.ts';
 
 /**
  * Signer interface for EIP-712 signing
@@ -82,7 +82,7 @@ export enum ClobErrorCode {
  */
 export class PolymarketClient {
   private host: string;
-  private wss: string;
+
   private signer: OrderSigner;
   private chainId: number;
   private apiKey?: string;
@@ -92,7 +92,6 @@ export class PolymarketClient {
 
   constructor(config: ClobClientConfig) {
     this.host = config.host || process.env.POLYMARKET_HOST || 'https://clob.polymarket.com';
-    this.wss = config.wss || process.env.POLYMARKET_WSS || 'wss://ws-subscriptions-clob.polymarket.com/ws/';
     this.signer = config.signer;
     this.chainId = config.chainId || 137;
     this.apiKey = config.apiKey;
@@ -211,7 +210,7 @@ export class PolymarketClient {
         throw new Error(`Market not found: ${tokenId}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       const config: MarketConfig = {
         minSize: parseFloat(data.minimum_order_size || '1'),
@@ -286,11 +285,11 @@ export class PolymarketClient {
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json() as any;
         throw new Error(`Order placement failed: ${error.message || response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       // Transform response to PlacedOrder
       const placedOrder: PlacedOrder = {
@@ -332,7 +331,7 @@ export class PolymarketClient {
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json() as any;
         return {
           success: false,
           orderId,
@@ -365,7 +364,7 @@ export class PolymarketClient {
         throw new Error(`Failed to fetch orderbook: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       const orderbook: Orderbook = {
         tokenId,
@@ -405,7 +404,7 @@ export class PolymarketClient {
         throw new Error(`Failed to fetch orders: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       return (data.data || []).map((order: any) =>
         PlacedOrderSchema.parse({
@@ -444,7 +443,7 @@ export class PolymarketClient {
         throw new Error(`Failed to fetch order: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       return PlacedOrderSchema.parse({
         orderId: data.orderID || data.order_id,

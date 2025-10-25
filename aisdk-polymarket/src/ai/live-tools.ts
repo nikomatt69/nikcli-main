@@ -1,8 +1,8 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { PolymarketWebSocket } from '../polymarket/websocket-client.js';
-import { LiveEventsManager, LiveEvent } from '../polymarket/live-events.js';
-import { logger } from '../utils/logger.js';
+import { PolymarketWebSocket } from '../polymarket/websocket-client.ts';
+import { LiveEventsManager, LiveEvent } from '../polymarket/live-events.ts';
+import { logger } from '../utils/logger.ts';
 
 /**
  * Live tools configuration
@@ -319,7 +319,7 @@ export function liveTools(config: LiveToolsConfig) {
               spread: e.spread,
               hoursToClose: e.hoursToClose,
               outcomes: e.outcomes,
-              recommendation: this.getRecommendation(e),
+              recommendation: getRecommendation(e),
             })),
             count: events.length,
           };
@@ -404,7 +404,7 @@ export function liveTools(config: LiveToolsConfig) {
             marketActivity: {
               buyPressure: trades.filter((t) => t.side === 'BUY').length,
               sellPressure: trades.filter((t) => t.side === 'SELL').length,
-              priceMovement: this.calculatePriceMovement(trades),
+              priceMovement: calculatePriceMovement(trades),
             },
           };
         } catch (error) {
@@ -421,6 +421,7 @@ export function liveTools(config: LiveToolsConfig) {
   /**
    * Helper: Get betting recommendation
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function getRecommendation(event: LiveEvent): string {
     if (event.bettingScore >= 80) {
       return 'Excellent - High volume, tight spread, very liquid';
@@ -436,6 +437,7 @@ export function liveTools(config: LiveToolsConfig) {
   /**
    * Helper: Calculate price movement from trades
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function calculatePriceMovement(trades: any[]): string {
     if (trades.length < 2) return 'Insufficient data';
 

@@ -16,7 +16,7 @@
 import 'dotenv/config';
 import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
-import { setupPolymarket } from '../src/index.js';
+import { setupPolymarket } from '../src/index.ts';
 
 /**
  * Trading agent system prompt

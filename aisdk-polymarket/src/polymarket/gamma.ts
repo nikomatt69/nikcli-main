@@ -1,4 +1,4 @@
-import { Market, MarketSchema } from './schemas.js';
+import { Market, MarketSchema } from './schemas.ts';
 
 /**
  * Gamma API client for Polymarket market data
@@ -117,7 +117,7 @@ export class GammaClient {
         throw new Error(`Get prices failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       return data.map((item: any) => ({
         tokenId: item.token_id,

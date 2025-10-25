@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { polymarketTools } from '../src/ai/tools.js';
-import { PolymarketClient } from '../src/polymarket/clob-client.js';
-import { GammaClient } from '../src/polymarket/gamma.js';
+import { polymarketTools } from '../src/ai/tools.ts';
+import { PolymarketClient } from '../src/polymarket/clob-client.ts';
+import { GammaClient } from '../src/polymarket/gamma.ts';
 
 describe('AI Tools', () => {
   const mockSigner = {

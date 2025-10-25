@@ -42,7 +42,6 @@ export class InvalidTickSizeError extends PolymarketError {
       `Use price ${suggested} instead (rounded to nearest tick size)`
     );
     this.name = 'InvalidTickSizeError';
-    this.recovery = `Try using price: ${suggested}`;
   }
 }
 

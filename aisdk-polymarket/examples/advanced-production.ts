@@ -14,7 +14,7 @@ import {
   createCdpWallet,
   createPolymarketClient,
   createGammaClient,
-} from '../src/index.js';
+} from '../src/index.ts';
 import {
   retryPolymarketRequest,
   RateLimiters,
@@ -23,7 +23,7 @@ import {
   LogLevel,
   parsePolymarketError,
   formatErrorMessage,
-} from '../src/utils/index.js';
+} from '../src/utils/index.ts';
 
 async function main() {
   // Setup logger

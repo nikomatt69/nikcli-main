@@ -8,11 +8,11 @@
  * - High liquidity (can execute trades)
  */
 
-import { GammaClient } from './gamma.js';
-import { PolymarketClient } from './clob-client.js';
-import { Market } from './schemas.js';
-import { logger } from '../utils/logger.js';
-import { Cache } from '../utils/cache.js';
+import { GammaClient } from './gamma.ts';
+import { PolymarketClient } from './clob-client.ts';
+import { Market } from './schemas.ts';
+import { logger } from '../utils/logger.ts';
+import { Cache } from '../utils/cache.ts';
 
 /**
  * Live event criteria

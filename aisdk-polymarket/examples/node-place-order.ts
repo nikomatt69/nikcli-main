@@ -18,7 +18,7 @@ import {
   createCdpWallet,
   createPolymarketClient,
   createGammaClient,
-} from '../src/index.js';
+} from '../src/index.ts';
 
 async function main() {
   console.log('🚀 Polymarket Order Placement Example\n');

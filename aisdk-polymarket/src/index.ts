@@ -42,33 +42,33 @@
  */
 
 // Wallet
-export { CdpWallet, createCdpWallet } from './wallet/cdp.js';
-export type { CdpWalletConfig } from './wallet/cdp.js';
+export { CdpWallet, createCdpWallet } from './wallet/cdp.ts';
+export type { CdpWalletConfig } from './wallet/cdp.ts';
 
 // Polymarket CLOB
 export {
   PolymarketClient,
   createPolymarketClient,
   ClobErrorCode,
-} from './polymarket/clob-client.js';
+} from './polymarket/clob-client.ts';
 export type {
   ClobClientConfig,
   OrderSigner,
-} from './polymarket/clob-client.js';
+} from './polymarket/clob-client.ts';
 
 // Gamma API
-export { GammaClient, createGammaClient } from './polymarket/gamma.js';
+export { GammaClient, createGammaClient } from './polymarket/gamma.ts';
 export type {
   GammaConfig,
   MarketSearchParams,
-} from './polymarket/gamma.js';
+} from './polymarket/gamma.ts';
 
 // WebSocket (Real-time)
 export {
   PolymarketWebSocket,
   createWebSocketClient,
   MessageType,
-} from './polymarket/websocket-client.js';
+} from './polymarket/websocket-client.ts';
 export type {
   WebSocketConfig,
   Channel,
@@ -76,17 +76,17 @@ export type {
   TradeEvent,
   UserOrderUpdate,
   MarketEvent,
-} from './polymarket/websocket-client.js';
+} from './polymarket/websocket-client.ts';
 
 // Live Events
 export {
   LiveEventsManager,
   createLiveEventsManager,
-} from './polymarket/live-events.js';
+} from './polymarket/live-events.ts';
 export type {
   LiveEventCriteria,
   LiveEvent,
-} from './polymarket/live-events.js';
+} from './polymarket/live-events.ts';
 
 // Schemas
 export {
@@ -107,7 +107,7 @@ export {
   validateRisk,
   roundToTickSize,
   calculateEdge,
-} from './polymarket/schemas.js';
+} from './polymarket/schemas.ts';
 export type {
   OrderArgs,
   OrderSide,
@@ -122,29 +122,29 @@ export type {
   TickSize,
   MarketConfig,
   OrderbookLevel,
-} from './polymarket/schemas.js';
+} from './polymarket/schemas.ts';
 
 // AI Tools
-export { polymarketTools } from './ai/tools.js';
-export type { ToolsConfig, PolymarketTools } from './ai/tools.js';
+export { polymarketTools } from './ai/tools.ts';
+export type { ToolsConfig, PolymarketTools } from './ai/tools.ts';
 
 // Live Trading Tools
-export { liveTools } from './ai/live-tools.js';
-export type { LiveToolsConfig, LiveTools } from './ai/live-tools.js';
+export { liveTools } from './ai/live-tools.ts';
+export type { LiveToolsConfig, LiveTools } from './ai/live-tools.ts';
 
 // Provider
 export {
   createModelProvider,
   setupProvider,
   ModelAliases,
-} from './ai/provider.js';
+} from './ai/provider.ts';
 export type {
   ProviderConfig,
   ModelProvider,
-} from './ai/provider.js';
+} from './ai/provider.ts';
 
 // Utilities (production features)
-export * from './utils/index.js';
+export * from './utils/index.ts';
 
 /**
  * Quick setup helper for full stack
@@ -155,16 +155,16 @@ export async function setupPolymarket(config: {
   cdpApiSecret?: string;
   debug?: boolean;
 }) {
-  const { createCdpWallet } = await import('./wallet/cdp.js');
-  const { createPolymarketClient } = await import('./polymarket/clob-client.js');
-  const { createGammaClient } = await import('./polymarket/gamma.js');
-  const { polymarketTools } = await import('./ai/tools.js');
+  const { createCdpWallet } = await import('./wallet/cdp.ts');
+  const { createPolymarketClient } = await import('./polymarket/clob-client.ts');
+  const { createGammaClient } = await import('./polymarket/gamma.ts');
+  const { polymarketTools } = await import('./ai/tools.ts');
 
   // 1. Setup CDP wallet
   const wallet = await createCdpWallet({
     network: config.network || 'polygon',
-    apiKey: config.cdpApiKey,
-    apiSecret: config.cdpApiSecret,
+    apiKeyId: config.cdpApiKey,
+    apiKeySecret: config.cdpApiSecret,
   });
 
   const account = await wallet.getOrCreateEvmAccount();

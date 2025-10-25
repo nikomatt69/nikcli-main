@@ -8,7 +8,7 @@ import {
   calculateEdge,
   MarketSchema,
   OrderbookSchema,
-} from '../src/polymarket/schemas.js';
+} from '../src/polymarket/schemas.ts';
 
 describe('Schemas', () => {
   describe('OrderArgsSchema', () => {

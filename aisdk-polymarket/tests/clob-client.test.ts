@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PolymarketClient } from '../src/polymarket/clob-client.js';
-import type { OrderSigner } from '../src/polymarket/clob-client.js';
+import { PolymarketClient } from '../src/polymarket/clob-client.ts';
+import type { OrderSigner } from '../src/polymarket/clob-client.ts';
 
 describe('PolymarketClient', () => {
   let client: PolymarketClient;

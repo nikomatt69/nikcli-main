@@ -1,8 +1,8 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { PolymarketClient } from '../polymarket/clob-client.js';
-import { GammaClient } from '../polymarket/gamma.js';
-import { OrderArgsSchema, OrderSideSchema, OrderTypeSchema } from '../polymarket/schemas.js';
+import { PolymarketClient } from '../polymarket/clob-client.ts';
+import { GammaClient } from '../polymarket/gamma.ts';
+import { OrderSideSchema, OrderTypeSchema } from '../polymarket/schemas.ts';
 
 /**
  * AI tools configuration

@@ -26,8 +26,8 @@ import {
   polymarketTools,
   logger,
   LogLevel,
-} from '../src/index.js';
-import { liveTools } from '../src/ai/live-tools.js';
+} from '../src/index.ts';
+import { liveTools } from '../src/ai/live-tools.ts';
 
 async function main() {
   console.log('🔴 LIVE Trading Example - Real-time Polymarket Betting\n');

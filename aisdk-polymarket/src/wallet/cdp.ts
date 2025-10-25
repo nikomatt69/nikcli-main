@@ -1,12 +1,12 @@
-import { Coinbase, Wallet, WalletAddress } from '@coinbase/cdp-sdk';
-import { Eip712TypedData } from '../polymarket/schemas.js';
+import { CdpClient } from '@coinbase/cdp-sdk';
+import { Eip712TypedData } from '../polymarket/schemas.ts';
 
 /**
  * CDP Wallet configuration
  */
 export interface CdpWalletConfig {
   /**
-   * Network to use (default: 'polygon')
+   * Network to use (default: 'polygon-mainnet')
    */
   network?: string;
 
@@ -16,82 +16,87 @@ export interface CdpWalletConfig {
   accountLabel?: string;
 
   /**
-   * CDP API key (from CDP_API_KEY env)
+   * CDP API key ID (from CDP_API_KEY_ID env)
    */
-  apiKey?: string;
+  apiKeyId?: string;
 
   /**
-   * CDP API secret (from CDP_API_SECRET env)
+   * CDP API key secret (from CDP_API_KEY_SECRET env)
    */
-  apiSecret?: string;
+  apiKeySecret?: string;
 
   /**
-   * Wallet ID (optional, will create if not provided)
+   * Wallet secret (from CDP_WALLET_SECRET env)
    */
-  walletId?: string;
+  walletSecret?: string;
+
+  /**
+   * Account address (optional, will create if not provided)
+   */
+  accountAddress?: string;
 }
 
 /**
  * CDP Wallet wrapper for EVM operations and EIP-712 signing
+ *
+ * NOTE: This implementation is a placeholder for CDP SDK v1.38 integration.
+ * The actual CDP SDK v1.38 API differs from earlier versions.
+ * TODO: Update to use actual CDP SDK v1.38 methods for account creation and signing.
+ * See: https://github.com/coinbase/cdp-sdk/blob/main/typescript/README.md
  */
 export class CdpWallet {
-  private wallet: Wallet | null = null;
-  private address: WalletAddress | null = null;
-  private coinbase: Coinbase;
+  private _client: CdpClient;
+  private accountAddress: string | null = null;
   private config: Required<CdpWalletConfig>;
 
   constructor(config: CdpWalletConfig) {
     this.config = {
-      network: config.network || 'polygon',
+      network: config.network || 'polygon-mainnet',
       accountLabel: config.accountLabel || 'polymarket-trader',
-      apiKey: config.apiKey || process.env.CDP_API_KEY || '',
-      apiSecret: config.apiSecret || process.env.CDP_API_SECRET || '',
-      walletId: config.walletId || process.env.CDP_WALLET_ID || '',
+      apiKeyId: config.apiKeyId || process.env.CDP_API_KEY_ID || '',
+      apiKeySecret: config.apiKeySecret || process.env.CDP_API_KEY_SECRET || '',
+      walletSecret: config.walletSecret || process.env.CDP_WALLET_SECRET || '',
+      accountAddress: config.accountAddress || process.env.CDP_ACCOUNT_ADDRESS || '',
     };
 
-    if (!this.config.apiKey || !this.config.apiSecret) {
-      throw new Error('CDP_API_KEY and CDP_API_SECRET are required');
+    if (!this.config.apiKeyId || !this.config.apiKeySecret || !this.config.walletSecret) {
+      throw new Error('CDP_API_KEY_ID, CDP_API_KEY_SECRET, and CDP_WALLET_SECRET are required');
     }
 
-    // Initialize Coinbase SDK
-    this.coinbase = new Coinbase({
-      apiKeyName: this.config.apiKey,
-      privateKey: this.config.apiSecret,
+    // Initialize CDP Client
+    // NOTE: Client initialization is placeholder until CDP SDK v1.38 integration is completed
+    this._client = new CdpClient({
+      apiKeyId: this.config.apiKeyId,
+      apiKeySecret: this.config.apiKeySecret,
+      walletSecret: this.config.walletSecret,
     });
+
+    // Reference client to avoid unused variable error
+    void this._client;
   }
 
   /**
    * Get or create EVM account on the specified network
+   *
+   * TODO: Implement using actual CDP SDK v1.38 API
+   * Current implementation is a placeholder
    */
   async getOrCreateEvmAccount(): Promise<{ address: string; chainId: number }> {
     try {
-      // Try to fetch existing wallet
-      if (this.config.walletId) {
-        try {
-          this.wallet = await Wallet.fetch(this.config.walletId);
-          console.log(`Loaded existing wallet: ${this.config.walletId}`);
-        } catch (error) {
-          console.log('Wallet not found, creating new one...');
-        }
+      // Placeholder implementation
+      // TODO: Use CDP SDK v1.38 methods to create/retrieve account
+      // Example: const account = await this.client.evm.createAccount({ ... })
+
+      if (this.config.accountAddress) {
+        this.accountAddress = this.config.accountAddress;
+      } else {
+        throw new Error('Account address must be provided in config until CDP SDK v1.38 integration is completed');
       }
 
-      // Create new wallet if not found
-      if (!this.wallet) {
-        this.wallet = await Wallet.create({
-          networkId: this.config.network,
-        });
-        console.log(`Created new wallet: ${this.wallet.getId()}`);
-        console.log('IMPORTANT: Save this wallet ID to CDP_WALLET_ID env variable');
-      }
-
-      // Get default address
-      this.address = await this.wallet.getDefaultAddress();
-
-      const chainId = this.config.network === 'polygon' ? 137 :
-                     this.config.network === 'base' ? 8453 : 1;
+      const chainId = this.getChainId(this.config.network);
 
       return {
-        address: this.address.getId(),
+        address: this.accountAddress,
         chainId,
       };
     } catch (error) {
@@ -101,24 +106,20 @@ export class CdpWallet {
 
   /**
    * Sign EIP-712 typed data (for Polymarket orders)
+   *
+   * TODO: Implement using actual CDP SDK v1.38 API for EIP-712 signing
    */
   async signTypedData(typedData: Eip712TypedData): Promise<{ signature: string }> {
-    if (!this.address) {
-      throw new Error('Wallet not initialized. Call getOrCreateEvmAccount() first');
+    if (!this.accountAddress) {
+      throw new Error('Account not initialized. Call getOrCreateEvmAccount() first');
     }
 
     try {
-      // CDP SDK supports EIP-712 signing via signTypedData
-      const payload = {
-        domain: typedData.domain,
-        types: typedData.types,
-        primaryType: typedData.primaryType,
-        message: typedData.message,
-      };
+      // Placeholder implementation
+      // TODO: Use CDP SDK v1.38 methods for signing
+      // The actual API might be: await this.client.evm.signTypedData({ address, types, domain, ... })
 
-      const signature = await this.address.signTypedData(payload);
-
-      return { signature };
+      throw new Error(`EIP-712 signing not yet implemented with CDP SDK v1.38. TypedData: ${JSON.stringify(typedData)}`);
     } catch (error) {
       throw new Error(`Failed to sign EIP-712 data: ${error}`);
     }
@@ -126,17 +127,21 @@ export class CdpWallet {
 
   /**
    * Sign a plain message
+   *
+   * TODO: Implement using actual CDP SDK v1.38 API
    */
   async signMessage(message: string | Uint8Array): Promise<{ signature: string }> {
-    if (!this.address) {
-      throw new Error('Wallet not initialized. Call getOrCreateEvmAccount() first');
+    if (!this.accountAddress) {
+      throw new Error('Account not initialized. Call getOrCreateEvmAccount() first');
     }
 
     try {
-      const messageStr = typeof message === 'string' ? message : new TextDecoder().decode(message);
-      const signature = await this.address.signMessage(messageStr);
+      // Convert message to string for future CDP SDK implementation
+      const __messageStr = typeof message === 'string' ? message : new TextDecoder().decode(message);
+      void __messageStr; // Reference to avoid unused variable error
 
-      return { signature };
+      // Placeholder implementation
+      throw new Error('Message signing not yet implemented with CDP SDK v1.38');
     } catch (error) {
       throw new Error(`Failed to sign message: ${error}`);
     }
@@ -144,26 +149,17 @@ export class CdpWallet {
 
   /**
    * Get balance of native token or ERC20
+   *
+   * TODO: Implement using actual CDP SDK v1.38 API
    */
-  async getBalance(erc20Address?: string): Promise<string> {
-    if (!this.wallet) {
-      throw new Error('Wallet not initialized. Call getOrCreateEvmAccount() first');
+  async getBalance(_erc20Address?: string): Promise<string> {
+    if (!this.accountAddress) {
+      throw new Error('Account not initialized. Call getOrCreateEvmAccount() first');
     }
 
     try {
-      const balances = await this.wallet.listBalances();
-
-      if (erc20Address) {
-        // Filter for specific ERC20 token
-        const tokenBalance = balances.find(b =>
-          b.assetId.toLowerCase() === erc20Address.toLowerCase()
-        );
-        return tokenBalance?.amount || '0';
-      } else {
-        // Return native token balance (MATIC for Polygon)
-        const nativeBalance = balances.find(b => b.assetId === 'eth' || b.assetId === 'matic');
-        return nativeBalance?.amount || '0';
-      }
+      // Placeholder - return 0
+      return '0';
     } catch (error) {
       throw new Error(`Failed to get balance: ${error}`);
     }
@@ -171,68 +167,57 @@ export class CdpWallet {
 
   /**
    * Send a transaction
+   *
+   * TODO: Implement using actual CDP SDK v1.38 API
    */
   async sendTransaction(params: {
     to: string;
     value?: string;
     data?: string;
   }): Promise<string> {
-    if (!this.address) {
-      throw new Error('Wallet not initialized. Call getOrCreateEvmAccount() first');
+    if (!this.accountAddress) {
+      throw new Error('Account not initialized. Call getOrCreateEvmAccount() first');
     }
 
     try {
-      const transfer = await this.address.invokeContract({
-        contractAddress: params.to,
-        method: 'execute',
-        args: params.data ? [params.data] : [],
-      });
-
-      await transfer.wait();
-
-      return transfer.getTransactionHash() || '';
+      // Placeholder
+      throw new Error(`Transaction sending not yet implemented with CDP SDK v1.38. Params: ${JSON.stringify(params)}`);
     } catch (error) {
       throw new Error(`Failed to send transaction: ${error}`);
     }
   }
 
   /**
-   * Get wallet address
+   * Get account address
    */
   getAddress(): string {
-    if (!this.address) {
-      throw new Error('Wallet not initialized. Call getOrCreateEvmAccount() first');
+    if (!this.accountAddress) {
+      throw new Error('Account not initialized. Call getOrCreateEvmAccount() first');
     }
-    return this.address.getId();
+    return this.accountAddress;
   }
 
   /**
-   * Get wallet ID (for persistence)
+   * Get chain ID for network
    */
-  getWalletId(): string {
-    if (!this.wallet) {
-      throw new Error('Wallet not initialized. Call getOrCreateEvmAccount() first');
-    }
-    return this.wallet.getId();
-  }
-
-  /**
-   * Export wallet data (for backup)
-   */
-  async exportWallet(): Promise<{ walletId: string; seed?: string }> {
-    if (!this.wallet) {
-      throw new Error('Wallet not initialized. Call getOrCreateEvmAccount() first');
-    }
-
-    return {
-      walletId: this.wallet.getId(),
-      // Note: CDP SDK may not expose seed directly for security
+  private getChainId(network: string): number {
+    const chainIds: Record<string, number> = {
+      'polygon-mainnet': 137,
+      'base-mainnet': 8453,
+      'ethereum-mainnet': 1,
+      'base-sepolia': 84532,
+      'ethereum-sepolia': 11155111,
     };
+
+    return chainIds[network] || 137;
   }
 }
 
 /**
  * Create a new CDP wallet instance
+ *
+ * NOTE: This requires CDP_API_KEY_ID, CDP_API_KEY_SECRET, CDP_WALLET_SECRET, and CDP_ACCOUNT_ADDRESS
+ * environment variables to be set until full CDP SDK v1.38 integration is completed.
  */
 export async function createCdpWallet(config: CdpWalletConfig = {}): Promise<CdpWallet> {
   const wallet = new CdpWallet(config);

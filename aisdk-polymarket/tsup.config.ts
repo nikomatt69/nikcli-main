@@ -20,6 +20,7 @@ export default defineConfig({
     'zod',
     'ethers',
     'viem',
-    'dotenv'
+    'dotenv',
+    'ws'
   ],
 });

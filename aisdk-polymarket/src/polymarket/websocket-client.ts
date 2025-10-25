@@ -9,8 +9,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { logger } from '../utils/logger.js';
-import { retry } from '../utils/retry.js';
+import { logger } from '../utils/logger.ts';
 
 export interface WebSocketConfig {
   /**
@@ -150,9 +149,10 @@ export class PolymarketWebSocket extends EventEmitter {
       // Node.js doesn't have WebSocket built-in, use ws package
       const { default: WebSocket } = await import('ws');
 
-      this.ws = new WebSocket(this.config.url) as any;
+      const ws = new WebSocket(this.config.url) as any;
+      this.ws = ws;
 
-      this.ws.onopen = () => {
+      ws.onopen = () => {
         logger.info('WebSocket connected');
         this.isConnecting = false;
         this.reconnectAttempts = 0;
@@ -165,16 +165,16 @@ export class PolymarketWebSocket extends EventEmitter {
         this.resubscribe();
       };
 
-      this.ws.onmessage = (event: MessageEvent) => {
+      ws.onmessage = (event: MessageEvent) => {
         this.handleMessage(event.data);
       };
 
-      this.ws.onerror = (error: Event) => {
+      ws.onerror = (error: Event) => {
         logger.error('WebSocket error', error);
         this.emit('error', error);
       };
 
-      this.ws.onclose = () => {
+      ws.onclose = () => {
         logger.warn('WebSocket disconnected');
         this.isConnecting = false;
         this.stopPingInterval();
