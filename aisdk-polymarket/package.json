@@ -39,7 +39,8 @@
     "prepare": "husky install",
     "example:place-order": "tsx examples/node-place-order.ts",
     "example:agent": "tsx examples/agent-trader.ts",
-    "example:production": "tsx examples/advanced-production.ts"
+    "example:production": "tsx examples/advanced-production.ts",
+    "example:live": "tsx examples/live-trading.ts"
   },
   "dependencies": {
     "@coinbase/cdp-sdk": "^0.16.0",
@@ -51,10 +52,12 @@
     "zod": "^3.22.4",
     "ethers": "^6.13.0",
     "viem": "^2.37.7",
-    "dotenv": "^17.2.1"
+    "dotenv": "^17.2.1",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/node": "^22.13.14",
+    "@types/ws": "^8.5.10",
     "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
     "typescript": "^5.9.2",

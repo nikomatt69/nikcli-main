@@ -63,6 +63,31 @@ export type {
   MarketSearchParams,
 } from './polymarket/gamma.js';
 
+// WebSocket (Real-time)
+export {
+  PolymarketWebSocket,
+  createWebSocketClient,
+  MessageType,
+} from './polymarket/websocket-client.js';
+export type {
+  WebSocketConfig,
+  Channel,
+  OrderbookUpdate,
+  TradeEvent,
+  UserOrderUpdate,
+  MarketEvent,
+} from './polymarket/websocket-client.js';
+
+// Live Events
+export {
+  LiveEventsManager,
+  createLiveEventsManager,
+} from './polymarket/live-events.js';
+export type {
+  LiveEventCriteria,
+  LiveEvent,
+} from './polymarket/live-events.js';
+
 // Schemas
 export {
   OrderArgsSchema,
@@ -102,6 +127,10 @@ export type {
 // AI Tools
 export { polymarketTools } from './ai/tools.js';
 export type { ToolsConfig, PolymarketTools } from './ai/tools.js';
+
+// Live Trading Tools
+export { liveTools } from './ai/live-tools.js';
+export type { LiveToolsConfig, LiveTools } from './ai/live-tools.js';
 
 // Provider
 export {

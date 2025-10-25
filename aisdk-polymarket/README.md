@@ -17,6 +17,16 @@ Build AI agents that can trade on Polymarket using [Vercel AI SDK](https://sdk.v
 - 📦 **Type-Safe** - Full TypeScript support with Zod schemas
 - ⚡ **Multi-Provider** - OpenAI, Anthropic, Google, OpenRouter support
 
+### 🔴 Live Trading Features (NEW!)
+
+- **🔴 Live Events Detection** - Automatically find events happening RIGHT NOW you can bet on
+- **⚡ WebSocket Streaming** - Real-time orderbook and trade updates via WebSocket
+- **📊 Betting Score** - Smart algorithm ranks markets by tradability (volume, liquidity, spread)
+- **🏆 Sports Betting** - Specialized detection for live sports events (NFL, NBA, Soccer, etc.)
+- **📰 Breaking News** - Find live news and political events as they happen
+- **🎯 Top Opportunities** - AI-powered recommendations for best live trades
+- **📡 Real-Time Monitoring** - Monitor specific events with live orderbook + trade streams
+
 ### 🚀 Production-Ready Features
 
 - **🔄 Retry Logic** - Exponential backoff for network failures and rate limits
@@ -316,6 +326,196 @@ This example demonstrates all production features:
 - Error recovery
 
 See [examples/advanced-production.ts](./examples/advanced-production.ts)
+
+### Example 4: Live Trading with WebSocket
+
+```bash
+npm run example:live
+```
+
+This example demonstrates **real-time live trading**:
+- Finding live events you can bet on RIGHT NOW
+- WebSocket streaming for orderbook + trades
+- Live sports detection (NFL, NBA, Soccer)
+- Breaking news events
+- AI agent with live tools
+- Real-time market monitoring
+
+See [examples/live-trading.ts](./examples/live-trading.ts)
+
+## Live Trading Features
+
+### Finding Live Events
+
+Automatically discover events happening right now where you can place bets:
+
+```typescript
+import {
+  createLiveEventsManager,
+  createGammaClient,
+  createPolymarketClient,
+} from '@bamby/aisdk-polymarket';
+
+// Create live events manager
+const gammaClient = createGammaClient();
+const liveManager = createLiveEventsManager(gammaClient, clobClient);
+
+// Find all live events
+const liveEvents = await liveManager.findLiveEvents({
+  minVolume: 10000,      // Min $10k volume
+  minLiquidity: 1000,    // Min $1k liquidity
+  maxSpread: 0.05,       // Max 5% spread
+  endingWithinHours: 24, // Ending within 24h
+  onlyLive: true,        // Only events live NOW
+});
+
+// Each event has:
+// - bettingScore (0-100) - tradability score
+// - isLive - is event happening now
+// - category - sports, politics, news, etc.
+// - spread - bid/ask spread
+// - hoursToClose - time until market closes
+
+// Find live sports
+const liveSports = await liveManager.findLiveSports('nba');
+
+// Find breaking news
+const breakingNews = await liveManager.findBreakingNews();
+
+// Get top opportunities
+const topEvents = await liveManager.findTopLiveEvents(10);
+```
+
+### WebSocket Streaming
+
+Real-time orderbook and trade updates:
+
+```typescript
+import { createWebSocketClient } from '@bamby/aisdk-polymarket';
+
+// Create WebSocket client
+const wsClient = createWebSocketClient({
+  url: 'wss://ws-subscriptions-clob.polymarket.com/ws/',
+  autoReconnect: true,
+  pingInterval: 30000,
+});
+
+// Connect
+await wsClient.connect();
+
+// Subscribe to orderbook updates
+wsClient.subscribeOrderbook('0xtoken123');
+
+wsClient.on('orderbook', (update) => {
+  console.log('Best bid:', update.bids[0]?.price);
+  console.log('Best ask:', update.asks[0]?.price);
+});
+
+// Subscribe to trade stream
+wsClient.subscribeTrades('0xtoken123');
+
+wsClient.on('trade', (trade) => {
+  console.log(`Trade: ${trade.side} ${trade.size} @ $${trade.price}`);
+});
+
+// Subscribe to user orders (your orders)
+wsClient.subscribeUserOrders('0xYourAddress');
+
+wsClient.on('user_order', (update) => {
+  console.log(`Order ${update.orderId}: ${update.status}`);
+});
+
+// Cleanup
+wsClient.disconnect();
+```
+
+### Live Trading AI Tools
+
+AI SDK tools for live trading:
+
+```typescript
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { liveTools, polymarketTools } from '@bamby/aisdk-polymarket';
+
+const tools = {
+  ...polymarketTools({ clobClient, gammaClient }),
+  ...liveTools({ wsClient, liveManager }),
+};
+
+const result = await generateText({
+  model: openai('gpt-4-turbo'),
+  tools,
+  prompt: `Find the top 3 live betting opportunities right now.
+           For the best one, monitor it for 60 seconds and tell me:
+           - Current orderbook depth
+           - Recent trades
+           - Buy/sell pressure
+           - Your recommendation`,
+});
+```
+
+**Live Tools Available:**
+- `find_live_events` - Find events live right now
+- `subscribe_orderbook_stream` - Real-time orderbook
+- `subscribe_trades_stream` - Real-time trades
+- `get_top_betting_opportunities` - Best trades now
+- `monitor_live_event` - Full monitoring (orderbook + trades)
+
+### Betting Score Algorithm
+
+Markets are scored 0-100 based on:
+
+1. **Volume Score (0-30 points)**
+   - \>$100k = 30 pts
+   - $50k-100k = 25 pts
+   - $20k-50k = 20 pts
+   - $10k-20k = 15 pts
+
+2. **Liquidity Score (0-25 points)**
+   - \>$10k = 25 pts
+   - $5k-10k = 20 pts
+   - $2k-5k = 15 pts
+   - $1k-2k = 10 pts
+
+3. **Spread Score (0-25 points)**
+   - <1% = 25 pts
+   - 1-2% = 20 pts
+   - 2-3% = 15 pts
+   - 3-5% = 10 pts
+
+4. **Time Urgency (0-20 points)**
+   - <1h to close = 20 pts
+   - 1-4h = 15 pts
+   - 4-12h = 10 pts
+   - 12-24h = 5 pts
+
+**Total Score >= 80** = Excellent (tight spread, high liquidity)
+**Score 60-79** = Good (decent liquidity)
+**Score 40-59** = Fair (some slippage possible)
+**Score <40** = Caution (low liquidity)
+
+### Live Event Detection
+
+Automatic categorization:
+
+```typescript
+// Sports: NFL, NBA, MLB, NHL, Soccer, Tennis, UFC
+// - Detects: "game", "match", "season", "playoff"
+// - Live indicators: "tonight", "now", "currently"
+
+// Politics: Elections, votes, polls
+// - Detects: "election", "president", "senate", "poll"
+
+// News: Breaking events
+// - Detects: "breaking", "announce", "report", "today"
+
+// Crypto: Bitcoin, Ethereum, DeFi
+// - Detects: "bitcoin", "eth", "defi", "blockchain"
+
+// Finance: Markets, Fed, GDP
+// - Detects: "stock", "fed", "interest rate", "gdp"
+```
 
 ## Production Features
 

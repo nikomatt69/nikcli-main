@@ -14,12 +14,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coinbase CDP wallet integration with EIP-712 signing
 - Polymarket CLOB client (place/cancel orders, orderbook, portfolio)
 - Gamma API client for market search and data
-- AI SDK tools for LLM integration (7 tools)
+- AI SDK tools for LLM integration (12 tools: 7 standard + 5 live)
 - Multi-provider support (OpenAI, Anthropic, Google, OpenRouter)
 - Risk management with configurable limits
 - Full TypeScript support with Zod schemas
-- Examples for node trading, AI agents, and production deployments
+- Examples for node trading, AI agents, production, and live trading
 - Comprehensive documentation with API reference
+
+**🔴 Live Trading Features:**
+- WebSocket client for real-time data streaming (orderbook, trades, user orders)
+- Live events detection and filtering (finds betting-ready markets)
+- Betting score algorithm (ranks markets 0-100 by tradability)
+- Automatic event categorization (sports, politics, news, crypto, finance)
+- Live sports detection (NFL, NBA, MLB, NHL, Soccer, Tennis, UFC)
+- Breaking news event detection
+- Top betting opportunities finder
+- Real-time market monitoring (combined orderbook + trades)
+- 5 new AI tools for live trading
 
 **Production Features:**
 - ✅ Retry logic with exponential backoff (handles network errors, rate limits, 5xx)
@@ -40,7 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `createCdpWallet()` - Coinbase CDP wallet setup
 - `createPolymarketClient()` - CLOB trading client
 - `createGammaClient()` - Market data client
-- `polymarketTools()` - AI SDK tools for LLMs
+- `createWebSocketClient()` - 🔴 Real-time WebSocket client
+- `createLiveEventsManager()` - 🔴 Live events detection
+- `polymarketTools()` - AI SDK tools for LLMs (7 tools)
+- `liveTools()` - 🔴 Live trading AI tools (5 tools)
 - `createModelProvider()` - Multi-model provider with fallback
 - `setupPolymarket()` - Quick setup helper
 
@@ -52,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Logger` / `logger` - Structured logging
 - `parsePolymarketError()` - Error parsing with recovery suggestions
 
-### AI Tools
+### AI Tools (Standard)
 
 - `search_markets` - Search markets by natural language query
 - `orderbook` - Get real-time orderbook data
@@ -61,5 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `order_status` - Check order status
 - `portfolio` - Get active orders for wallet
 - `market_details` - Get detailed market information
+
+### 🔴 AI Tools (Live Trading)
+
+- `find_live_events` - Find events happening RIGHT NOW you can bet on
+- `subscribe_orderbook_stream` - Real-time orderbook updates via WebSocket
+- `subscribe_trades_stream` - Real-time trade events via WebSocket
+- `get_top_betting_opportunities` - Top ranked live betting opportunities
+- `monitor_live_event` - Full event monitoring (orderbook + trades combined)
 
 [0.1.0]: https://github.com/nikomatt69/nikcli-main/releases/tag/aisdk-polymarket-v0.1.0
