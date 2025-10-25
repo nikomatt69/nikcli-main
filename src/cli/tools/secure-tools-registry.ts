@@ -10,6 +10,7 @@ import {
 export type { BatchSession } from './secure-command-tool'
 
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
+import { PolymarketTool } from './polymarket-tool'
 import { FigmaTool, type FigmaToolResult } from './figma-tool'
 import { FindFilesTool } from './find-files-tool'
 import { GitTools } from './git-tools'
@@ -75,6 +76,7 @@ export class SecureToolsRegistry {
     this.secureCommandTool = new SecureCommandTool(this.workingDirectory)
     this.findFilesTool = new FindFilesTool(this.workingDirectory)
     this.coinbaseAgentKitTool = new CoinbaseAgentKitTool(this.workingDirectory)
+    const polymarketTool = new PolymarketTool(this.workingDirectory)
     this.jsonPatchTool = new JsonPatchTool(this.workingDirectory)
     this.gitTools = new GitTools(this.workingDirectory)
     this.multiReadTool = new MultiReadTool(this.workingDirectory)
@@ -83,6 +85,13 @@ export class SecureToolsRegistry {
 
     console.log(chalk.green('🔒 Secure Tools Registry initialized'))
     console.log(chalk.gray(`📁 Working directory: ${this.workingDirectory}`))
+
+    // Brief Polymarket availability hint
+    try {
+      if (require('../onchain/polymarket-provider').PolymarketProvider.isInstalled()) {
+        console.log(chalk.green('✓ Polymarket tool available (use "polymarket" actions)'))
+      }
+    } catch {}
   }
 
   /**
@@ -493,6 +502,27 @@ export class SecureToolsRegistry {
         pathValidated: true,
         userConfirmed: !options.skipConfirmation,
       }
+    )
+  }
+
+  /**
+   * Execute Polymarket operations via secure wrapper
+   */
+  async executePolymarket(
+    action: string,
+    params: any = {},
+    options: { skipConfirmation?: boolean } = {}
+  ): Promise<ToolResult<any>> {
+    const context = this.createContext(options.skipConfirmation ? 'safe' : 'confirmed')
+    // Lazy require to avoid circular refs in environments without deps
+    const { PolymarketTool } = require('./polymarket-tool')
+    const tool = new PolymarketTool(this.workingDirectory)
+
+    return this.executeWithTracking(
+      'Polymarket',
+      () => tool.execute(action, params),
+      context,
+      { pathValidated: true, userConfirmed: !options.skipConfirmation }
     )
   }
 
