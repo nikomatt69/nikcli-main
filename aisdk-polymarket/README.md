@@ -17,6 +17,18 @@ Build AI agents that can trade on Polymarket using [Vercel AI SDK](https://sdk.v
 - 📦 **Type-Safe** - Full TypeScript support with Zod schemas
 - ⚡ **Multi-Provider** - OpenAI, Anthropic, Google, OpenRouter support
 
+### 🚀 Production-Ready Features
+
+- **🔄 Retry Logic** - Exponential backoff for network failures and rate limits
+- **⏱️ Rate Limiting** - Token bucket algorithm to prevent API abuse
+- **💾 Caching** - In-memory cache with TTL for market data and orderbooks
+- **📝 Structured Logging** - Configurable log levels with automatic secret sanitization
+- **⚠️ Error Recovery** - Detailed error messages with recovery suggestions
+- **🧪 Comprehensive Tests** - 80%+ code coverage with unit and integration tests
+- **🔒 Security** - Dependency scanning, audit checks, and best practices enforcement
+- **📊 Monitoring** - Built-in metrics and health checks
+- **🔧 CI/CD** - GitHub Actions for testing, security scans, and auto-publishing
+
 ## Installation
 
 ```bash
@@ -288,6 +300,206 @@ tsx examples/agent-trader.ts "Find Bitcoin markets and show orderbook for the mo
 ```
 
 See [examples/agent-trader.ts](./examples/agent-trader.ts)
+
+### Example 3: Production-Ready Trading
+
+```bash
+npm run build
+tsx examples/advanced-production.ts
+```
+
+This example demonstrates all production features:
+- Retry logic with exponential backoff
+- Rate limiting for API calls
+- Caching for market data
+- Structured logging
+- Error recovery
+
+See [examples/advanced-production.ts](./examples/advanced-production.ts)
+
+## Production Features
+
+### Retry Logic
+
+Automatic retry with exponential backoff for network errors and rate limits:
+
+```typescript
+import { retryPolymarketRequest } from '@bamby/aisdk-polymarket';
+
+// Auto-retry on network errors, 5xx responses, and rate limits
+const order = await retryPolymarketRequest(
+  () => client.placeOrder({
+    tokenId: '0x...',
+    side: 'BUY',
+    price: 0.55,
+    size: 10,
+  }),
+  {
+    maxAttempts: 3,
+    initialDelay: 2000, // 2 seconds
+  }
+);
+
+// Custom retry logic
+import { retry } from '@bamby/aisdk-polymarket';
+
+const data = await retry(
+  () => fetchSomeData(),
+  {
+    maxAttempts: 5,
+    initialDelay: 1000,
+    maxDelay: 30000,
+    backoffMultiplier: 2,
+    isRetryable: (error) => error.status >= 500,
+  }
+);
+```
+
+### Rate Limiting
+
+Built-in rate limiters using token bucket algorithm:
+
+```typescript
+import { RateLimiters, withRateLimit } from '@bamby/aisdk-polymarket';
+
+// Use pre-configured rate limiters
+await RateLimiters.polymarketCLOB.acquire();
+await client.placeOrder(order);
+
+// Check token availability
+if (RateLimiters.polymarketGamma.hasTokens()) {
+  await gammaClient.searchMarkets({ query: 'Bitcoin' });
+}
+
+// Create custom rate limiter
+import { RateLimiter } from '@bamby/aisdk-polymarket';
+
+const customLimiter = new RateLimiter({
+  maxRequests: 10,
+  interval: 1000, // 10 req/s
+  throwOnLimit: false, // Wait instead of throwing
+});
+
+// Wrap function with rate limiting
+const rateLimitedFetch = withRateLimit(fetchData, customLimiter);
+```
+
+### Caching
+
+In-memory cache with TTL for market data:
+
+```typescript
+import { Caches, withCache, Cache } from '@bamby/aisdk-polymarket';
+
+// Use pre-configured caches
+const markets = await Caches.markets.getOrCompute(
+  'bitcoin-markets',
+  () => gammaClient.searchMarkets({ query: 'Bitcoin' }),
+  300000 // 5 minutes
+);
+
+// Manual cache operations
+Caches.orderbooks.set('0xtoken', orderbook, 10000);
+const cached = Caches.orderbooks.get('0xtoken');
+
+// Create custom cache
+const myCache = new Cache({
+  ttl: 60000, // 1 minute
+  maxSize: 1000,
+});
+
+// Wrap function with caching
+const cachedFetch = withCache(
+  fetchMarkets,
+  myCache,
+  (query) => `markets:${query}` // Key function
+);
+```
+
+### Structured Logging
+
+Configurable logging with automatic secret sanitization:
+
+```typescript
+import { logger, LogLevel } from '@bamby/aisdk-polymarket';
+
+// Set log level
+logger.setLevel(LogLevel.DEBUG);
+
+// Log with automatic sanitization
+logger.info('Order placed', {
+  orderId: '123',
+  apiKey: 'secret', // Auto-redacted
+});
+
+// Create child logger
+const traderLogger = logger.child('trader');
+traderLogger.debug('Fetching markets');
+
+// Log levels
+logger.debug('Debug message');
+logger.info('Info message');
+logger.warn('Warning message');
+logger.error('Error message', error);
+```
+
+### Error Recovery
+
+Typed errors with recovery suggestions:
+
+```typescript
+import {
+  parsePolymarketError,
+  formatErrorMessage,
+  InvalidTickSizeError,
+  InsufficientBalanceError,
+} from '@bamby/aisdk-polymarket';
+
+try {
+  await client.placeOrder(order);
+} catch (error) {
+  // Parse error
+  const polymarketError = parsePolymarketError(error);
+
+  // Format with recovery suggestions
+  const message = formatErrorMessage(polymarketError);
+  console.error(message);
+  // ❌ InvalidTickSizeError: price 0.555 must be multiple of 0.01
+  //
+  // 💡 Recovery: Use price 0.56 instead (rounded to nearest tick size)
+  //
+  // ♻️  This error is recoverable. Please try again.
+
+  // Check if recoverable
+  if (polymarketError.recoverable) {
+    // Implement retry logic
+  }
+}
+```
+
+### Testing
+
+Run the comprehensive test suite:
+
+```bash
+# Run all tests
+npm test
+
+# Run with coverage
+npm run test:coverage
+
+# Watch mode
+npm run test:watch
+
+# UI mode
+npm run test -- --ui
+```
+
+Coverage thresholds:
+- Lines: 80%
+- Functions: 80%
+- Branches: 75%
+- Statements: 80%
 
 ## Error Handling
 

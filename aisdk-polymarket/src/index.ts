@@ -114,6 +114,9 @@ export type {
   ModelProvider,
 } from './ai/provider.js';
 
+// Utilities (production features)
+export * from './utils/index.js';
+
 /**
  * Quick setup helper for full stack
  */

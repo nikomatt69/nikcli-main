@@ -1,0 +1,33 @@
+# Source files
+src/
+tests/
+examples/
+
+# Config files
+.github/
+.husky/
+.eslintrc.js
+.prettierrc
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+typedoc.json
+.nvmrc
+
+# Development files
+*.test.ts
+*.spec.ts
+coverage/
+.nyc_output/
+docs/
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
