@@ -1,0 +1,535 @@
+---
+title: 'Workspace Indexing'
+description: 'Intelligent workspace analysis and file indexing for optimal context retrieval'
+icon: 'folder-tree'
+---
+
+# Workspace Indexing
+
+NikCLI's workspace indexing system intelligently analyzes your codebase to build a searchable knowledge base. It combines file filtering, language detection, importance scoring, and vector embeddings to create an efficient context retrieval system.
+
+## How It Works
+
+### 1. File Discovery & Filtering
+
+The system scans your workspace and applies intelligent filtering:
+
+```typescript
+import { WorkspaceContextManager } from '@nicomatt69/nikcli';
+
+const workspace = new WorkspaceContextManager(process.cwd());
+
+// Automatic filtering applied:
+// ✓ Respects .gitignore
+// ✓ Excludes node_modules, dist, build
+// ✓ Filters by file size (default: 1MB limit)
+// ✓ Detects binary files
+// ✓ Applies custom rules
+
+await workspace.refreshWorkspaceIndex();
+```
+
+**Default Exclusions**:
+```typescript
+const excludedDirectories = [
+  'node_modules',
+  'dist',
+  'build',
+  '.next',
+  '.cache',
+  '.git',
+  'coverage',
+  '__pycache__'
+];
+
+const excludedExtensions = [
+  '.jpg', '.jpeg', '.png', '.gif', '.svg',
+  '.pdf', '.zip', '.tar', '.gz',
+  '.mp4', '.avi', '.mov',
+  '.exe', '.dll', '.so'
+];
+```
+
+###  2. Language & Framework Detection
+
+Automatic detection of languages and frameworks:
+
+```typescript
+// Detected from file extensions
+const languageMap = {
+  '.ts': 'typescript',
+  '.tsx': 'typescript',
+  '.js': 'javascript',
+  '.jsx': 'javascript',
+  '.py': 'python',
+  '.go': 'go',
+  '.rs': 'rust',
+  '.java': 'java',
+  // ... 40+ languages supported
+};
+
+// Framework detection from package.json
+const frameworks = {
+  'next': 'Next.js',
+  'react': 'React',
+  'vue': 'Vue.js',
+  'express': 'Express',
+  'fastify': 'Fastify',
+  // ... many more
+};
+```
+
+### 3. File Analysis
+
+Each file is analyzed to extract:
+
+```typescript
+interface FileContext {
+  path: string;
+  content: string;
+  size: number;
+  modified: Date;
+  language: string;
+  importance: number; // 0-100 score
+
+  // Extracted metadata
+  summary?: string;
+  dependencies?: string[]; // import statements
+  exports?: string[];      // exported symbols
+  functions?: string[];    // function names
+  classes?: string[];      // class names
+  types?: string[];        // type/interface names
+  tags?: string[];         // categorization tags
+
+  // Performance optimization
+  hash?: string;          // Content hash for change detection
+  embedding?: number[];   // Vector embedding
+  lastAnalyzed?: Date;
+}
+```
+
+### 4. Importance Scoring
+
+Files are scored based on multiple factors:
+
+```typescript
+function calculateFileImportance(file: FileContext): number {
+  let score = 50; // Base score
+
+  // Path-based scoring
+  if (isEntryPoint(file.path)) score += 25;       // index.ts, main.ts
+  if (isConfig(file.path)) score += 20;           // package.json, tsconfig.json
+  if (inSourceDir(file.path)) score += 15;        // src/, lib/
+  if (isTest(file.path)) score -= 10;             // test files lower priority
+
+  // Content-based scoring
+  score += Math.min(file.exports.length * 5, 25); // Has exports
+  score += Math.min(file.functions.length * 2, 20); // Has functions
+  score += Math.min(file.classes.length * 3, 15);   // Has classes
+
+  // Size-based scoring
+  const lines = file.content.split('\n').length;
+  if (lines > 100) score += 5;
+  if (lines > 500) score += 10;
+
+  return Math.min(100, Math.max(0, score));
+}
+```
+
+**Importance Categories**:
+- **90-100**: Entry points, core configuration
+- **70-89**: Main source files, important modules
+- **50-69**: Regular source files
+- **30-49**: Utilities, helpers
+- **0-29**: Tests, documentation, generated files
+
+### 5. Vector Embedding Generation
+
+Files are chunked and embedded for semantic search:
+
+```typescript
+// Intelligent chunking preserves context
+const chunks = intelligentChunking(file.content, file.language);
+
+// Code chunking (TypeScript example)
+function chunkCodeFile(content: string): string[] {
+  // Keeps functions/classes together
+  // Respects bracket depth
+  // Smart overlap at function boundaries
+  // Typically 80-150 lines per chunk
+}
+
+// Markdown chunking
+function chunkMarkdownFile(content: string): string[] {
+  // Splits by headers
+  // Preserves hierarchy
+  // Maintains cross-references
+  // Minimum 200 chars per section
+}
+
+// Generate embeddings
+for (const chunk of chunks) {
+  const embedding = await unifiedEmbeddingInterface.generateEmbedding(chunk);
+  await vectorStore.addDocument({
+    id: `${file.path}#${chunkIndex}`,
+    content: chunk,
+    embedding: embedding.vector,
+    metadata: {
+      source: file.path,
+      language: file.language,
+      importance: file.importance,
+      chunkIndex,
+      totalChunks: chunks.length
+    }
+  });
+}
+```
+
+## Indexing Strategies
+
+### Full Workspace Index
+
+Index entire workspace:
+
+```typescript
+import { unifiedRAGSystem } from '@nicomatt69/nikcli';
+
+// Analyze and index full workspace
+const analysis = await unifiedRAGSystem.analyzeProject(process.cwd());
+
+console.log({
+  indexedFiles: analysis.indexedFiles,
+  cost: `$${analysis.embeddingsCost.toFixed(4)}`,
+  time: `${analysis.processingTime}ms`,
+  vectorDB: analysis.vectorDBStatus
+});
+
+// Example output:
+// {
+//   indexedFiles: 342,
+//   cost: '$0.0234',
+//   time: '12450ms',
+//   vectorDB: 'available'
+// }
+```
+
+### Selective Indexing
+
+Index specific paths:
+
+```typescript
+import { WorkspaceContextManager } from '@nicomatt69/nikcli';
+
+const workspace = new WorkspaceContextManager();
+
+// Select specific paths to index
+await workspace.selectPaths([
+  'src/core',
+  'src/agents',
+  'src/tools',
+  'README.md'
+]);
+
+// Only selected paths will be indexed
+const context = workspace.getContext();
+console.log(`Indexed ${context.files.size} files from selected paths`);
+```
+
+### Incremental Updates
+
+Only re-index changed files:
+
+```typescript
+// File change detection via hash
+const fileHash = generateFileHash(filePath, content);
+
+if (cachedHash !== fileHash) {
+  // File changed, re-index
+  await analyzeFile(filePath, content);
+  updateCache(filePath, fileHash);
+} else {
+  // File unchanged, use cached analysis
+  const cached = getCachedAnalysis(filePath);
+}
+```
+
+## Configuration
+
+### File Filter Options
+
+```typescript
+import { createFileFilter } from '@nicomatt69/nikcli';
+
+const fileFilter = createFileFilter(process.cwd(), {
+  // Respect .gitignore
+  respectGitignore: true,
+
+  // Size limits
+  maxFileSize: 1024 * 1024, // 1MB per file
+  maxTotalFiles: 1000,
+
+  // Include/exclude
+  includeExtensions: ['.ts', '.js', '.tsx', '.jsx', '.py'],
+  excludeExtensions: ['.test.ts', '.spec.ts'],
+  excludeDirectories: ['node_modules', 'dist', 'build'],
+  excludePatterns: ['**/*.generated.ts', '**/vendor/**'],
+
+  // Custom rules
+  customRules: [
+    {
+      name: 'priority_configs',
+      pattern: /\.(json|yaml|yml|toml)$/,
+      type: 'include',
+      priority: 10,
+      reason: 'Important configuration files'
+    },
+    {
+      name: 'skip_tests',
+      pattern: /\.(test|spec)\.(ts|js|tsx|jsx)$/,
+      type: 'exclude',
+      priority: 8,
+      reason: 'Test files have lower priority'
+    }
+  ]
+});
+
+// Check if file should be indexed
+const result = fileFilter.shouldIncludeFile(filePath, rootPath);
+if (result.allowed) {
+  await indexFile(filePath);
+}
+```
+
+### Chunking Configuration
+
+```typescript
+import { TOKEN_LIMITS } from '@nicomatt69/nikcli';
+
+// Configure chunk sizes
+const config = {
+  // Token-based chunking
+  chunkTokens: TOKEN_LIMITS.RAG?.CHUNK_TOKENS ?? 700,
+  overlapTokens: TOKEN_LIMITS.RAG?.CHUNK_OVERLAP_TOKENS ?? 80,
+
+  // Code-specific
+  codeChunkMinLines: TOKEN_LIMITS.RAG?.CODE_CHUNK_MIN_LINES ?? 80,
+  codeChunkMaxLines: TOKEN_LIMITS.RAG?.CODE_CHUNK_MAX_LINES ?? 150,
+
+  // Markdown-specific
+  markdownMinSection: TOKEN_LIMITS.RAG?.MARKDOWN_MIN_SECTION ?? 200,
+};
+
+unifiedRAGSystem.updateConfig(config);
+```
+
+### Cost Management
+
+```typescript
+// Set indexing cost threshold
+unifiedRAGSystem.updateConfig({
+  costThreshold: 0.10 // Stop if exceeds $0.10
+});
+
+// Estimate costs before indexing
+const files = await glob('**/*.{ts,js}');
+const estimatedCost = await estimateIndexingCost(files, process.cwd());
+
+if (estimatedCost > 0.10) {
+  console.warn(`Estimated cost: $${estimatedCost.toFixed(4)}`);
+  console.warn('Consider reducing scope or using selective indexing');
+}
+```
+
+## Monitoring & Optimization
+
+### Index Statistics
+
+```typescript
+const workspace = new WorkspaceContextManager();
+const stats = workspace.getPerformanceStats();
+
+console.log({
+  totalFiles: stats.totalFiles,
+  totalDirectories: stats.totalDirectories,
+
+  cacheStats: {
+    hits: stats.cacheStats.hits,
+    misses: stats.cacheStats.misses,
+    hitRate: `${((stats.cacheStats.hits / (stats.cacheStats.hits + stats.cacheStats.misses)) * 100).toFixed(1)}%`
+  },
+
+  cacheSize: {
+    semanticSearch: stats.cacheSize.semanticSearch,
+    fileContent: stats.cacheSize.fileContent,
+    embeddings: stats.cacheSize.embeddings,
+    analysis: stats.cacheSize.analysis
+  },
+
+  ragAvailable: stats.ragAvailable,
+  lastUpdated: stats.lastUpdated
+});
+```
+
+### Cache Management
+
+```typescript
+// Clear all caches
+workspace.clearAllCaches();
+
+// Optimize cache (remove old entries)
+await workspace.optimizeCache();
+
+// Manual cache cleanup
+setInterval(async () => {
+  await workspace.optimizeCache();
+}, 3600000); // Every hour
+```
+
+### Watch Mode
+
+Monitor file changes and re-index automatically:
+
+```typescript
+// Start watching for changes
+workspace.startWatching();
+
+// Files are automatically re-analyzed when changed
+// Debounced to 1 second to avoid excessive re-indexing
+
+// Stop watching
+workspace.stopWatching();
+```
+
+## Best Practices
+
+### 1. Optimize Index Scope
+
+```typescript
+// Instead of indexing everything:
+// await unifiedRAGSystem.analyzeProject(process.cwd());
+
+// Index only source code:
+const workspace = new WorkspaceContextManager();
+await workspace.selectPaths([
+  'src',
+  'lib',
+  'package.json',
+  'tsconfig.json',
+  'README.md'
+]);
+```
+
+### 2. Use Appropriate Filters
+
+```typescript
+const fileFilter = createFileFilter(process.cwd(), {
+  // Include only code files
+  includeExtensions: [
+    '.ts', '.tsx', '.js', '.jsx', // JavaScript/TypeScript
+    '.py',                         // Python
+    '.go',                         // Go
+    '.rs'                          // Rust
+  ],
+
+  // Exclude test files
+  excludePatterns: [
+    '**/*.test.*',
+    '**/*.spec.*',
+    '**/__tests__/**',
+    '**/__mocks__/**'
+  ]
+});
+```
+
+### 3. Leverage Caching
+
+```typescript
+// Enable all caching
+process.env.CACHE_RAG = 'true';
+process.env.CACHE_AI = 'true';
+
+// Embeddings cached for 24 hours
+// Analysis cached for 5 minutes
+// File hashes cached for 7 days
+```
+
+### 4. Monitor Costs
+
+```typescript
+// Track embedding costs
+const analysis = await unifiedRAGSystem.analyzeProject(process.cwd());
+console.log(`Indexing cost: $${analysis.embeddingsCost.toFixed(4)}`);
+
+// Use local-only mode if needed
+unifiedRAGSystem.updateConfig({
+  useVectorDB: false,        // Disable vector DB
+  useLocalEmbeddings: true,  // Use simple TF-IDF
+  hybridMode: false
+});
+```
+
+## Troubleshooting
+
+### High Indexing Costs
+
+```bash
+# Problem: Indexing costs too high
+# Solution: Reduce scope and enable local embeddings
+
+# 1. Selective indexing
+nikcli --index-paths "src,lib"
+
+# 2. Use local embeddings
+export USE_LOCAL_EMBEDDINGS=true
+
+# 3. Set cost limit
+export INDEXING_COST_THRESHOLD=0.05
+```
+
+### Large Workspaces
+
+```bash
+# Problem: Workspace too large
+# Solution: Increase limits or use selective indexing
+
+# 1. Increase file limit
+export MAX_INDEX_FILES=2000
+
+# 2. Increase file size limit
+export MAX_FILE_SIZE_MB=2
+
+# 3. Use selective paths
+nikcli --index-paths "src/core,src/agents"
+```
+
+### Slow Indexing
+
+```typescript
+// Problem: Indexing takes too long
+// Solution: Optimize batch sizes and use caching
+
+unifiedRAGSystem.updateConfig({
+  indexingBatchSize: 500,  // Larger batches
+  embedBatchSize: 100,     // Parallel embedding generation
+});
+
+// Enable caching
+process.env.CACHE_RAG = 'true';
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Semantic Search" icon="magnifying-glass" href="/context-rag/semantic-search">
+    Advanced search capabilities
+  </Card>
+  <Card title="Embeddings" icon="vector-square" href="/context-rag/embeddings">
+    Embedding configuration
+  </Card>
+  <Card title="Token Management" icon="coins" href="/context-rag/token-management">
+    Optimize token usage
+  </Card>
+  <Card title="Cache System" icon="database" href="/context-rag/cache-system">
+    Performance optimization
+  </Card>
+</CardGroup>

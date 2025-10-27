@@ -1,52 +1,88 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "NikCLI Documentation",
+  "name": "NikCLI",
   "logo": {
-    "dark": "/logo/logo.png",
-    "light": "/logo/logo.png"
+    "dark": "/logo/logo-dark.svg",
+    "light": "/logo/logo-light.svg",
+    "href": "https://nikcli.dev"
   },
-  "favicon": "/logo/logo.png",
+  "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#4EC5F1",
-    "light": "#4EC5F1",
-    "dark": "#1f39ff",
+    "primary": "#8B5CF6",
+    "light": "#A78BFA",
+    "dark": "#7C3AED",
     "anchors": {
-      "from": "#4EC5F1",
-      "to": "#1f39ff"
+      "from": "#8B5CF6",
+      "to": "#7C3AED"
     }
   },
   "topbarLinks": [
     {
-      "name": "Support",
-      "url": "https://github.com/nikomatt69/nikcli-main/issues"
+      "name": "GitHub",
+      "url": "https://github.com/nikomatt69/nikcli-main"
     }
   ],
   "topbarCtaButton": {
-    "name": "GitHub",
+    "name": "Get Started",
     "url": "https://github.com/nikomatt69/nikcli-main"
   },
   "tabs": [
     {
-      "name": "User Guide",
-      "url": "user-guide"
-    },
-    {
-      "name": "CLI Reference",
-      "url": "cli-reference"
-    },
-    {
       "name": "API Reference",
       "url": "api-reference"
+    },
+    {
+      "name": "Developer Guide",
+      "url": "developer-guide"
     },
     {
       "name": "Examples",
       "url": "examples"
     }
   ],
+  "anchors": [
+    {
+      "name": "Community",
+      "icon": "discord",
+      "url": "https://discord.gg/nikcli"
+    },
+    {
+      "name": "Blog",
+      "icon": "newspaper",
+      "url": "https://nikcli.dev/blog"
+    },
+    {
+      "name": "npm Package",
+      "icon": "npm",
+      "url": "https://www.npmjs.com/package/@nicomatt69/nikcli"
+    }
+  ],
   "navigation": [
     {
-      "group": "Get Started",
-      "pages": ["introduction", "quickstart/installation", "quickstart/first-steps", "quickstart/configuration"]
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart/installation",
+        "quickstart/first-steps",
+        "quickstart/configuration"
+      ]
+    },
+    {
+      "group": "CLI Reference",
+      "pages": [
+        "cli-reference/commands-overview",
+        "cli-reference/agent-commands",
+        "cli-reference/file-operations",
+        "cli-reference/terminal-ops",
+        "cli-reference/vm-commands",
+        "cli-reference/web3-commands",
+        "cli-reference/security-commands",
+        "cli-reference/session-management",
+        "cli-reference/configuration",
+        "cli-reference/background-agents",
+        "cli-reference/daemon-commands",
+        "cli-reference/browse-commands"
+      ]
     },
     {
       "group": "User Guide",
@@ -58,115 +94,79 @@
       ]
     },
     {
-      "group": "CLI Commands",
-      "pages": [
-        "cli-reference/commands-overview",
-        "cli-reference/mode-control",
-        "cli-reference/file-operations",
-        "cli-reference/terminal-ops",
-        "cli-reference/project-ops",
-        "cli-reference/agent-management",
-        "cli-reference/session-management",
-        "cli-reference/configuration",
-        "cli-reference/mcp-protocol",
-        "cli-reference/advanced-features"
-      ]
-    },
-    {
       "group": "Agent System",
       "pages": [
-        "agent-system/architecture",
-        "agent-system/universal-agent",
-        "agent-system/specialized-agents",
-        "agent-system/orchestration",
-        "agent-system/custom-agents"
+        "agent-system/overview",
+        "agent-system/universal-agent"
       ]
     },
     {
-      "group": "Components A–Z",
+      "group": "Planning System",
       "pages": [
-        "components/a-z",
-        "components/avatar",
-        "components/badge",
-        "components/box",
-        "components/breadcrumb",
-        "components/button",
-        "components/card",
-        "components/checkbox",
-        "components/collapsible",
-        "components/divider",
-        "components/flex",
-        "components/gauge",
-        "components/grid",
-        "components/heading",
-        "components/helpoverlay",
-        "components/keyhint",
-        "components/logviewer",
-        "components/menu",
-        "components/modal",
-        "components/multiselect",
-        "components/notification",
-        "components/panel",
-        "components/paragraph",
-        "components/progressbar",
-        "components/progressdots",
-        "components/progresslist",
-        "components/progressspinner",
-        "components/prompt",
-        "components/radiogroup",
-        "components/scrollable",
-        "components/searchbox",
-        "components/select",
-        "components/spinner",
-        "components/statusbar",
-        "components/statusindicator",
-        "components/stepper",
-        "components/table",
-        "components/tabs",
-        "components/text",
-        "components/textinput",
-        "components/toast",
-        "components/tooltip",
-        "components/tree"
+        "planning-system/overview",
+        "planning-system/plan-generation",
+        "planning-system/execution-flow",
+        "planning-system/plan-templates"
       ]
     },
     {
-      "group": "API Reference",
-      "pages": ["api-reference/core-apis"]
+      "group": "Context & RAG",
+      "pages": [
+        "context-rag/overview",
+        "context-rag/workspace-indexing",
+        "context-rag/semantic-search",
+        "context-rag/embeddings"
+      ]
     },
     {
-      "group": "Advanced",
-      "pages": ["advanced/token-management"]
+      "group": "Architecture",
+      "pages": [
+        "architecture/overview",
+        "architecture/layered-design"
+      ]
     },
     {
       "group": "Troubleshooting",
-      "pages": ["troubleshooting/common-issues", "troubleshooting/faq"]
+      "pages": [
+        "troubleshooting/common-issues",
+        "troubleshooting/faq"
+      ]
+    },
+    {
+      "group": "Core APIs",
+      "pages": [
+        "api-reference/core-apis"
+      ]
     },
     {
       "group": "Examples",
-      "pages": ["examples/basic-workflows", "examples/advanced-automation"]
-    },
-    {
-      "group": "Contributing",
-      "pages": ["contributing/development"]
+      "pages": [
+        "examples/basic-workflows",
+        "examples/advanced-automation"
+      ]
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/nikomatt69/agent-cli",
-    "linkedin": "https://www.linkedin.com/in/nicolamattioli95/"
-  },
-  "search": {
-    "prompt": "Search NikCLI documentation..."
+    "github": "https://github.com/nikomatt69/nikcli-main",
+    "twitter": "https://twitter.com/nikcli",
+    "discord": "https://discord.gg/nikcli"
   },
   "feedback": {
     "thumbsRating": true,
     "suggestEdit": true,
     "raiseIssue": true
   },
+  "search": {
+    "prompt": "Search NikCLI documentation..."
+  },
+  "analytics": {
+    "ga4": {
+      "measurementId": "G-XXXXXXXXXX"
+    }
+  },
   "api": {
-    "baseUrl": "https://nikcli.cadcamfun.xyz",
-    "auth": {
-      "method": "bearer"
+    "playground": {
+      "mode": "show"
     }
   }
 }

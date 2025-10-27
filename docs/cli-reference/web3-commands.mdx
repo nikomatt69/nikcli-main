@@ -1,0 +1,787 @@
+---
+title: "Web3 & Blockchain Commands"
+description: "Complete reference for Web3, blockchain, and DeFi operations"
+---
+
+# Web3 & Blockchain Commands
+
+NikCLI provides comprehensive Web3 and blockchain integration through multiple toolchains including GOAT SDK, Coinbase AgentKit, and custom Web3 toolchains. These commands enable decentralized application development, DeFi operations, and blockchain interactions.
+
+## Core Web3 Commands
+
+### `/web3 [action]`
+
+Main Web3 operations using Coinbase AgentKit integration.
+
+**Syntax:**
+```bash
+/web3 <action> [options]
+```
+
+**Available Actions:**
+- `init` - Initialize Web3 environment
+- `wallet` - Wallet operations
+- `balance` - Check balances
+- `transfer` - Transfer tokens
+- `status` - Show Web3 status
+- `chat` - AI-powered Web3 assistance
+
+**Examples:**
+
+```bash
+# Initialize Web3 environment
+/web3 init
+
+# Show wallet information
+/web3 wallet
+
+# Check ETH balance
+/web3 balance
+
+# Transfer tokens
+/web3 transfer 0.1 ETH 0x742d35Cc6634C0532925a3b8D4C2C1C5C1b2c8c8
+
+# Get Web3 status
+/web3 status
+
+# AI-powered Web3 chat
+/web3 chat "How do I deploy a smart contract?"
+```
+
+### `/blockchain [action]`
+
+Blockchain operations (alias for `/web3`).
+
+**Syntax:**
+```bash
+/blockchain <action> [options]
+```
+
+**Examples:**
+
+```bash
+# Same functionality as /web3
+/blockchain init
+/blockchain wallet
+/blockchain status
+```
+
+## GOAT SDK Commands
+
+### `/goat [action]`
+
+GOAT SDK operations for advanced DeFi and Web3 interactions.
+
+**Syntax:**
+```bash
+/goat <action> [options]
+```
+
+**Available Actions:**
+- `init` - Initialize GOAT SDK
+- `wallet` - Wallet management
+- `balance` - Check balances
+- `transfer` - Transfer assets
+- `tools` - Available tools
+- `markets` - Market data
+- `chat` - AI-powered DeFi assistance
+
+**Examples:**
+
+```bash
+# Initialize GOAT SDK
+/goat init
+
+# Show wallet status
+/goat wallet
+
+# Check balances across chains
+/goat balance
+
+# Transfer tokens
+/goat transfer 100 USDC 0x742d35Cc6634C0532925a3b8D4C2C1C5C1b2c8c8
+
+# Show available tools
+/goat tools
+
+# Get market data
+/goat markets
+
+# AI DeFi assistance
+/goat chat "What's the best yield farming strategy?"
+```
+
+**GOAT SDK Features:**
+- Multi-chain support (Ethereum, Polygon, Arbitrum, etc.)
+- DeFi protocol integrations
+- Automated trading strategies
+- Risk management tools
+- Portfolio analytics
+
+### `/defi [action]`
+
+DeFi-specific operations (alias for `/goat`).
+
+**Syntax:**
+```bash
+/defi <action> [options]
+```
+
+**Examples:**
+
+```bash
+# DeFi operations using GOAT SDK
+/defi init
+/defi balance
+/defi markets
+/defi chat "Find best lending rates"
+```
+
+## Polymarket Integration
+
+### `/polymarket [action]`
+
+Polymarket prediction market operations.
+
+**Syntax:**
+```bash
+/polymarket <action> [options]
+```
+
+**Available Actions:**
+- `markets` - List available markets
+- `positions` - Show current positions
+- `bet` - Place a bet
+- `balance` - Check USDC balance
+- `history` - Trading history
+
+**Examples:**
+
+```bash
+# List available markets
+/polymarket markets
+
+# Show current positions
+/polymarket positions
+
+# Place a bet
+/polymarket bet "2024 Election" YES 100
+
+# Check USDC balance
+/polymarket balance
+
+# View trading history
+/polymarket history
+```
+
+**Market Categories:**
+- Politics and elections
+- Sports events
+- Cryptocurrency prices
+- Economic indicators
+- Technology predictions
+
+## Web3 Toolchain Commands
+
+### `/web3-toolchain [action]`
+
+Advanced Web3 toolchain operations for complex workflows.
+
+**Syntax:**
+```bash
+/web3-toolchain <action> [options]
+```
+
+**Available Actions:**
+- `list` - List available toolchains
+- `execute` - Execute toolchain workflow
+- `status` - Show execution status
+- `cancel` - Cancel running execution
+- `history` - Execution history
+
+**Examples:**
+
+```bash
+# List available toolchains
+/web3-toolchain list
+
+# Execute DeFi arbitrage toolchain
+/web3-toolchain execute defi-arbitrage --amount 1000
+
+# Execute NFT minting toolchain
+/web3-toolchain execute nft-mint --collection "MyNFTs" --count 100
+
+# Check execution status
+/web3-toolchain status execution-123
+
+# Cancel running execution
+/web3-toolchain cancel execution-123
+
+# View execution history
+/web3-toolchain history
+```
+
+### `/w3-toolchain [action]`
+
+Short alias for Web3 toolchain operations.
+
+**Syntax:**
+```bash
+/w3-toolchain <action> [options]
+```
+
+**Examples:**
+
+```bash
+# Same functionality as /web3-toolchain
+/w3-toolchain list
+/w3-toolchain execute defi-swap
+```
+
+### `/defi-toolchain [action]`
+
+DeFi-specific toolchain operations.
+
+**Syntax:**
+```bash
+/defi-toolchain <action> [options]
+```
+
+**Available Toolchains:**
+- `yield-farming` - Automated yield farming
+- `arbitrage` - Cross-DEX arbitrage
+- `liquidity-provision` - LP management
+- `portfolio-rebalancing` - Portfolio optimization
+- `risk-management` - Risk assessment and mitigation
+
+**Examples:**
+
+```bash
+# Execute yield farming strategy
+/defi-toolchain execute yield-farming --strategy conservative --amount 5000
+
+# Run arbitrage bot
+/defi-toolchain execute arbitrage --pairs ETH/USDC,WBTC/USDC --threshold 0.5%
+
+# Provide liquidity
+/defi-toolchain execute liquidity-provision --pool ETH/USDC --amount 1000 --range 5%
+
+# Rebalance portfolio
+/defi-toolchain execute portfolio-rebalancing --target-allocation "50% ETH, 30% BTC, 20% USDC"
+```
+
+## Wallet Management
+
+### Wallet Operations
+
+**Initialize Wallet:**
+```bash
+# Create new wallet
+/web3 wallet create
+
+# Import existing wallet
+/web3 wallet import --private-key 0x...
+
+# Connect hardware wallet
+/web3 wallet connect --type ledger
+```
+
+**Wallet Information:**
+```bash
+# Show wallet details
+/web3 wallet info
+
+# List all wallets
+/web3 wallet list
+
+# Switch active wallet
+/web3 wallet switch wallet-2
+```
+
+**Security Features:**
+```bash
+# Enable multi-sig
+/web3 wallet multisig --signers 3 --threshold 2
+
+# Set spending limits
+/web3 wallet limits --daily 1000 --transaction 100
+
+# Enable notifications
+/web3 wallet notifications --email --sms
+```
+
+## Token Operations
+
+### Balance Management
+
+**Check Balances:**
+```bash
+# Check ETH balance
+/web3 balance ETH
+
+# Check ERC-20 token balance
+/web3 balance USDC
+
+# Check all token balances
+/web3 balance --all
+
+# Check balance on specific chain
+/web3 balance ETH --chain polygon
+```
+
+**Multi-Chain Balances:**
+```bash
+# Check balances across all chains
+/goat balance --all-chains
+
+# Check specific chain
+/goat balance --chain arbitrum
+
+# Portfolio overview
+/goat balance --portfolio
+```
+
+### Token Transfers
+
+**Simple Transfers:**
+```bash
+# Transfer ETH
+/web3 transfer 0.5 ETH 0x742d35Cc6634C0532925a3b8D4C2C1C5C1b2c8c8
+
+# Transfer ERC-20 tokens
+/web3 transfer 100 USDC 0x742d35Cc6634C0532925a3b8D4C2C1C5C1b2c8c8
+
+# Transfer with custom gas
+/web3 transfer 1 ETH 0x... --gas-price 20 --gas-limit 21000
+```
+
+**Batch Transfers:**
+```bash
+# Multiple recipients
+/web3 transfer-batch 0.1 ETH 0xabc...,0xdef...,0x123...
+
+# Multiple tokens
+/web3 transfer-multi --to 0x742d35... --tokens "1 ETH, 100 USDC, 50 LINK"
+```
+
+## DeFi Operations
+
+### Decentralized Exchanges
+
+**Token Swaps:**
+```bash
+# Swap tokens using GOAT SDK
+/goat swap 1 ETH USDC
+
+# Swap with slippage protection
+/goat swap 1000 USDC ETH --slippage 1%
+
+# Cross-chain swap
+/goat swap 1 ETH MATIC --from ethereum --to polygon
+```
+
+**Liquidity Operations:**
+```bash
+# Add liquidity to pool
+/goat liquidity add ETH/USDC --amount-eth 1 --amount-usdc 3000
+
+# Remove liquidity
+/goat liquidity remove ETH/USDC --percentage 50%
+
+# Check LP positions
+/goat liquidity positions
+```
+
+### Lending and Borrowing
+
+**Lending Operations:**
+```bash
+# Lend assets
+/goat lend 1000 USDC --protocol aave
+
+# Check lending positions
+/goat lend positions
+
+# Withdraw from lending
+/goat lend withdraw 500 USDC --protocol aave
+```
+
+**Borrowing Operations:**
+```bash
+# Borrow against collateral
+/goat borrow 500 USDC --collateral 1 ETH --protocol compound
+
+# Repay loan
+/goat borrow repay 500 USDC --protocol compound
+
+# Check borrowing positions
+/goat borrow positions
+```
+
+### Yield Farming
+
+**Farming Operations:**
+```bash
+# Start yield farming
+/defi-toolchain execute yield-farming --pool ETH/USDC --strategy aggressive
+
+# Check farming rewards
+/goat farm rewards
+
+# Harvest rewards
+/goat farm harvest --pool ETH/USDC
+
+# Exit farming position
+/goat farm exit --pool ETH/USDC
+```
+
+## NFT Operations
+
+### NFT Management
+
+**View NFTs:**
+```bash
+# List owned NFTs
+/web3 nft list
+
+# View specific NFT
+/web3 nft view 0x... 123
+
+# Check NFT metadata
+/web3 nft metadata 0x... 123
+```
+
+**NFT Trading:**
+```bash
+# List NFT for sale
+/web3 nft list-for-sale 0x... 123 --price 1 ETH
+
+# Buy NFT
+/web3 nft buy 0x... 123 --max-price 1.5 ETH
+
+# Transfer NFT
+/web3 nft transfer 0x... 123 0x742d35...
+```
+
+### NFT Creation
+
+**Minting NFTs:**
+```bash
+# Mint single NFT
+/web3 nft mint --metadata metadata.json --to 0x742d35...
+
+# Batch mint NFTs
+/web3-toolchain execute nft-mint --collection "MyCollection" --count 1000
+
+# Create NFT collection
+/web3 nft create-collection --name "My NFTs" --symbol "MYNFT"
+```
+
+## Smart Contract Interaction
+
+### Contract Deployment
+
+**Deploy Contracts:**
+```bash
+# Deploy smart contract
+/web3 contract deploy contract.sol --constructor-args "arg1,arg2"
+
+# Deploy with verification
+/web3 contract deploy contract.sol --verify --etherscan-key abc123
+
+# Deploy to testnet
+/web3 contract deploy contract.sol --network goerli
+```
+
+### Contract Interaction
+
+**Read Operations:**
+```bash
+# Call contract function
+/web3 contract call 0x... balanceOf 0x742d35...
+
+# Get contract info
+/web3 contract info 0x...
+
+# Verify contract
+/web3 contract verify 0x... --source contract.sol
+```
+
+**Write Operations:**
+```bash
+# Send transaction to contract
+/web3 contract send 0x... transfer 0x742d35... 100
+
+# Send with custom gas
+/web3 contract send 0x... mint --gas-price 20 --gas-limit 100000
+```
+
+## Market Data and Analytics
+
+### Price Information
+
+**Token Prices:**
+```bash
+# Get current prices
+/goat price ETH USDC BTC
+
+# Price history
+/goat price ETH --history 7d
+
+# Price alerts
+/goat price-alert ETH --above 4000 --below 3000
+```
+
+**Market Analysis:**
+```bash
+# Market overview
+/goat markets overview
+
+# Top gainers/losers
+/goat markets movers
+
+# Market sentiment
+/goat markets sentiment
+```
+
+### Portfolio Analytics
+
+**Portfolio Tracking:**
+```bash
+# Portfolio overview
+/goat portfolio overview
+
+# Performance analysis
+/goat portfolio performance --period 30d
+
+# Risk analysis
+/goat portfolio risk
+
+# Rebalancing suggestions
+/goat portfolio rebalance
+```
+
+## AI-Powered Web3 Assistance
+
+### Web3 Chat
+
+**General Web3 Questions:**
+```bash
+# Get Web3 advice
+/web3 chat "How do I bridge tokens from Ethereum to Polygon?"
+
+# DeFi strategies
+/goat chat "What's the best yield farming strategy for USDC?"
+
+# Risk assessment
+/goat chat "Analyze the risks of providing liquidity to ETH/USDC pool"
+
+# Market analysis
+/goat chat "Should I buy ETH now based on current market conditions?"
+```
+
+**Smart Contract Help:**
+```bash
+# Contract development
+/web3 chat "Help me write a simple ERC-20 token contract"
+
+# Security audit
+/web3 chat "Review this smart contract for security issues"
+
+# Gas optimization
+/web3 chat "How can I optimize gas usage in this contract?"
+```
+
+## Security and Risk Management
+
+### Security Features
+
+**Transaction Security:**
+```bash
+# Enable transaction simulation
+/web3 security simulation enable
+
+# Set spending limits
+/web3 security limits --daily 1000 --transaction 100
+
+# Enable multi-sig
+/web3 security multisig --signers 3 --threshold 2
+```
+
+**Risk Assessment:**
+```bash
+# Assess contract risk
+/web3 security assess-contract 0x...
+
+# Check token legitimacy
+/web3 security check-token 0x...
+
+# Scan for vulnerabilities
+/web3 security scan-wallet
+```
+
+### Monitoring and Alerts
+
+**Transaction Monitoring:**
+```bash
+# Monitor wallet activity
+/web3 monitor wallet --alerts
+
+# Track large transactions
+/web3 monitor transactions --threshold 10000
+
+# Monitor contract interactions
+/web3 monitor contract 0x...
+```
+
+**Price Alerts:**
+```bash
+# Set price alerts
+/goat alert price ETH --above 4000 --below 3000
+
+# Portfolio alerts
+/goat alert portfolio --loss 10% --gain 20%
+
+# Gas price alerts
+/web3 alert gas --above 50
+```
+
+## Integration Examples
+
+### DeFi Yield Strategy
+
+```bash
+# 1. Initialize environment
+/goat init
+
+# 2. Check available opportunities
+/goat markets defi-yields
+
+# 3. Execute yield farming strategy
+/defi-toolchain execute yield-farming --strategy conservative --amount 5000
+
+# 4. Monitor performance
+/goat portfolio performance --real-time
+
+# 5. Rebalance as needed
+/goat portfolio rebalance --auto
+```
+
+### NFT Trading Bot
+
+```bash
+# 1. Set up NFT monitoring
+/web3 nft monitor --collection 0x... --floor-price
+
+# 2. Set buying criteria
+/web3 nft auto-buy --collection 0x... --max-price 0.5 ETH --traits "rare"
+
+# 3. Monitor positions
+/web3 nft positions
+
+# 4. Auto-sell when profitable
+/web3 nft auto-sell --min-profit 20%
+```
+
+### Cross-Chain Arbitrage
+
+```bash
+# 1. Monitor price differences
+/goat arbitrage monitor ETH/USDC --chains ethereum,polygon,arbitrum
+
+# 2. Execute arbitrage when profitable
+/goat arbitrage execute --pair ETH/USDC --min-profit 0.5%
+
+# 3. Track performance
+/goat arbitrage stats
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Connection Problems:**
+```bash
+# Check Web3 connection
+/web3 status
+
+# Test RPC endpoints
+/web3 test-rpc --chain ethereum
+
+# Reset connection
+/web3 reconnect
+```
+
+**Transaction Failures:**
+```bash
+# Check gas prices
+/web3 gas-price
+
+# Simulate transaction
+/web3 simulate-tx 0x...
+
+# Check nonce
+/web3 nonce
+```
+
+**Wallet Issues:**
+```bash
+# Check wallet balance
+/web3 balance --all
+
+# Verify wallet connection
+/web3 wallet verify
+
+# Reset wallet state
+/web3 wallet reset
+```
+
+### Debug Commands
+
+```bash
+# Web3 system diagnostics
+/diagnostic web3
+
+# GOAT SDK debugging
+/debug goat
+
+# Transaction debugging
+/debug transaction 0x...
+
+# Contract debugging
+/debug contract 0x...
+```
+
+## Best Practices
+
+### Security
+
+- Always verify contract addresses
+- Use hardware wallets for large amounts
+- Enable transaction simulation
+- Set appropriate spending limits
+- Regular security audits
+
+### Risk Management
+
+- Diversify across protocols and chains
+- Monitor smart contract risks
+- Use stop-loss mechanisms
+- Keep emergency funds
+- Stay updated on protocol changes
+
+### Performance
+
+- Optimize gas usage
+- Use batch transactions when possible
+- Monitor network congestion
+- Choose appropriate chains for operations
+- Implement proper error handling
+
+### Development
+
+- Test on testnets first
+- Use established protocols
+- Implement proper access controls
+- Regular code audits
+- Follow security best practices

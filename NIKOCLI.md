@@ -77,8 +77,79 @@ This file is auto-generated from codebase analysis and manually updated to refle
 
 - **Provider**: All (uses child_process spawning for Vim).
 
+### /goat [action] [options]
+
+- **New Feature**: Native GOAT SDK integration for DeFi operations on Polygon and Base networks. Supports Polymarket prediction markets and ERC20 token operations.
+
+- **Actions**:
+  - `init`: Initialize GOAT SDK with wallet and chain configuration
+    - **Example**: `/goat init --chains polygon,base --plugins polymarket,erc20`
+  - `wallet-info`: Display wallet address and supported chains/plugins
+    - **Example**: `/goat wallet-info`
+  - `status`: Check GOAT SDK initialization and environment status
+    - **Example**: `/goat status`
+  - `chat <message>`: Natural language blockchain operations using GOAT tools
+    - **Example**: `/goat chat "show me trending prediction markets"`
+  - `markets`: List Polymarket prediction markets (Polymarket plugin)
+    - **Example**: `/goat markets`
+  - `transfer`: Transfer ERC20 tokens (ERC20 plugin)
+    - **Example**: `/goat transfer --token USDC --amount 100 --to 0x... --chain base`
+
+- **Required Environment Variables**:
+  - `GOAT_EVM_PRIVATE_KEY`: 64-character hex private key (no 0x prefix)
+  - `POLYGON_RPC_URL`: Polygon RPC endpoint (optional, defaults to public RPC)
+  - `BASE_RPC_URL`: Base RPC endpoint (optional, defaults to public RPC)
+
+- **Supported Networks**: Polygon (137), Base (8453)
+- **Supported Plugins**: Polymarket (prediction markets), ERC20 (token operations)
+- **Security**: All transactions require user confirmation with detailed previews
+- **Provider**: All (uses AI SDK compatible tools via GOAT Vercel adapter)
+
+## 🔗 Web3 Toolchains
+
+NikCLI includes specialized Web3 toolchains for automated blockchain operations:
+
+### Web3 Toolchain Commands
+- `/web3-toolchain list` - List available Web3 toolchains
+- `/web3-toolchain run <name>` - Execute a Web3 toolchain
+- `/web3-toolchain status` - Show active executions
+- `/web3-toolchain cancel <id>` - Cancel running execution
+
+### DeFi Shortcuts
+- `/defi-toolchain analyze` - DeFi protocol analysis
+- `/defi-toolchain yield` - Yield farming optimization
+- `/defi-toolchain portfolio` - Multi-chain portfolio management
+- `/defi-toolchain bridge` - Cross-chain bridge analysis
+- `/defi-toolchain mev` - MEV protection strategy
+- `/defi-toolchain governance` - DAO governance analysis
+
+### Available Toolchains
+1. **DeFi Analysis** - Protocol analysis and yield optimization
+2. **Polymarket Strategy** - Prediction market trading automation
+3. **Portfolio Management** - Cross-chain portfolio tracking
+4. **NFT Analysis** - Collection analytics and market trends
+5. **Smart Contract Audit** - Security analysis and vulnerability detection
+6. **Yield Optimizer** - Automated yield farming strategies
+7. **Bridge Analysis** - Cross-chain bridge security and routing
+8. **MEV Protection** - MEV analysis and protection strategies
+9. **Governance Analysis** - DAO proposal analysis and voting
+10. **Protocol Integration** - Automated DeFi protocol integration
+
+### Execution Patterns
+- **Sequential** - Tools executed one after another
+- **Parallel** - Multiple tools run simultaneously
+- **Conditional** - Tools executed based on conditions
+- **Iterative** - Tools run until convergence
+
+### Safety Features
+- **Dry Run Mode** - Test without executing transactions
+- **Risk Assessment** - Built-in risk evaluation
+- **Gas Monitoring** - Track gas usage and costs
+- **Transaction Tracking** - Monitor all blockchain transactions
+- **Error Handling** - Comprehensive error reporting
+
 ### Additional Commands (from base)
 
 ... (other commands remain as previously documented)
 
-**Note**: This reference now includes recent Vim integration from commits 0afbf9c and 1e64398. For full list, use `/help` in NikCLI.
+**Note**: This reference now includes GOAT SDK integration for DeFi operations and recent Vim integration from commits 0afbf9c and 1e64398. For full list, use `/help` in NikCLI.

@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import { getSentryProvider, breadcrumbTracker } from '../monitoring'
 
 export type ErrorCategory = 'user' | 'system' | 'network' | 'config' | 'agent' | 'ai'
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal'
@@ -129,6 +130,28 @@ class StructuredLogger {
     const formattedMessage = this.formatMessage(entry)
     const colorizedMessage = this.colorizeLevel(level, formattedMessage)
 
+    // Send to Sentry for errors and fatals
+    const sentry = getSentryProvider()
+    if (sentry && sentry.isInitialized() && (level === 'error' || level === 'fatal')) {
+      if (error) {
+        sentry.captureError(error, {
+          requestId: crypto.randomUUID(),
+          timestamp: new Date(),
+          metadata: {
+            level,
+            context: context || 'unknown',
+            ...details,
+          },
+        })
+      } else {
+        sentry.captureMessage(message, level === 'fatal' ? 'fatal' : 'error', {
+          level,
+          context,
+          ...details,
+        })
+      }
+    }
+
     // Output to appropriate stream
     if (level === 'error' || level === 'fatal') {
       console.error(colorizedMessage)
@@ -159,6 +182,27 @@ export class ErrorHandler {
       recoverable: cliError.recoverable,
       details: cliError.details
     })
+
+    const sentry = getSentryProvider()
+    if (sentry && sentry.isInitialized()) {
+      sentry.captureError(cliError, {
+        requestId: crypto.randomUUID(),
+        timestamp: new Date(),
+        metadata: {
+          code: cliError.code,
+          category: cliError.category,
+          recoverable: cliError.recoverable,
+          context: context || 'unknown',
+          ...cliError.details,
+        },
+      })
+
+      breadcrumbTracker.trackOperation(`error.${cliError.category}`, {
+        error_code: cliError.code,
+        error_message: cliError.message,
+        recoverable: cliError.recoverable,
+      })
+    }
 
     return cliError
   }

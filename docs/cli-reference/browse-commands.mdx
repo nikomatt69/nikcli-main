@@ -1,0 +1,783 @@
+---
+title: "Browse Commands"
+description: "Complete reference for web browsing and automation commands"
+---
+
+# Browse Commands
+
+NikCLI provides comprehensive web browsing capabilities through automated browser sessions, intelligent web search, and AI-powered content analysis. These commands enable web research, content extraction, and browser automation.
+
+## Core Browse Commands
+
+### `/browse-session [action]`
+
+Manage browser sessions for web automation and research.
+
+**Syntax:**
+```bash
+/browse-session <action> [options]
+```
+
+**Available Actions:**
+- `start` - Start new browser session
+- `stop` - Stop browser session
+- `list` - List active sessions
+- `switch` - Switch between sessions
+- `status` - Show session status
+
+**Options:**
+- `--headless` - Run in headless mode
+- `--profile <profile>` - Use browser profile
+- `--viewport <size>` - Set viewport size
+- `--timeout <seconds>` - Set timeout
+
+**Examples:**
+
+```bash
+# Start new browser session
+/browse-session start
+
+# Start headless session
+/browse-session start --headless
+
+# Start with custom viewport
+/browse-session start --viewport 1920x1080
+
+# List active sessions
+/browse-session list
+
+# Stop session
+/browse-session stop session-1
+```
+
+**Browser Session Features:**
+- Persistent cookies and state
+- Multiple tab support
+- Screenshot capabilities
+- Network monitoring
+- Performance metrics
+- Security scanning
+
+### `/browse-search [query]`
+
+Perform intelligent web search with AI-powered result analysis.
+
+**Syntax:**
+```bash
+/browse-search "<search-query>" [options]
+```
+
+**Parameters:**
+- `search-query` - Search terms or question
+
+**Options:**
+- `--engine <engine>` - Search engine (google, bing, duckduckgo)
+- `--results <count>` - Number of results to analyze
+- `--deep` - Deep analysis of top results
+- `--summarize` - Summarize findings
+- `--save` - Save results to session
+
+**Examples:**
+
+```bash
+# Basic web search
+/browse-search "React hooks best practices"
+
+# Search with specific engine
+/browse-search "TypeScript migration guide" --engine google
+
+# Deep analysis of results
+/browse-search "AI development trends 2024" --deep --results 10
+
+# Search and summarize
+/browse-search "GraphQL vs REST API" --summarize
+
+# Save search results
+/browse-search "Docker deployment strategies" --save
+```
+
+**Search Result Analysis:**
+```
+🔍 Search Results: "React hooks best practices"
+
+Top Results (5 analyzed):
+
+1. ✅ React Official Documentation - Hooks Rules
+   📊 Relevance: 95% | 🕒 Read Time: 8 min
+   💡 Key Points: Rules of hooks, custom hooks, performance optimization
+
+2. ✅ Kent C. Dodds Blog - Advanced Hook Patterns  
+   📊 Relevance: 92% | 🕒 Read Time: 12 min
+   💡 Key Points: useCallback, useMemo, custom hook design
+
+3. ✅ React Training - Hook Patterns
+   📊 Relevance: 88% | 🕒 Read Time: 6 min
+   💡 Key Points: State management, effect cleanup, testing
+
+🤖 AI Summary:
+The consensus shows 3 key best practices: follow the rules of hooks,
+optimize with useCallback/useMemo, and design reusable custom hooks.
+Performance and testing are critical considerations.
+```
+
+### `/browse-visit [url]`
+
+Visit a specific webpage and analyze its content.
+
+**Syntax:**
+```bash
+/browse-visit <url> [options]
+```
+
+**Parameters:**
+- `url` - Website URL to visit
+
+**Options:**
+- `--analyze` - Analyze page content
+- `--screenshot` - Take screenshot
+- `--extract <selector>` - Extract specific elements
+- `--wait <selector>` - Wait for element
+- `--mobile` - Use mobile viewport
+
+**Examples:**
+
+```bash
+# Visit webpage
+/browse-visit https://react.dev
+
+# Visit and analyze content
+/browse-visit https://github.com/facebook/react --analyze
+
+# Take screenshot
+/browse-visit https://example.com --screenshot
+
+# Extract specific content
+/browse-visit https://news.ycombinator.com --extract ".storylink"
+
+# Mobile view
+/browse-visit https://responsive-site.com --mobile
+```
+
+**Page Analysis Output:**
+```
+🌐 Page Analysis: https://react.dev
+
+📄 Page Information:
+├── Title: React – The library for web and native user interfaces
+├── Description: React makes it painless to create interactive UIs
+├── Load Time: 1.2s
+├── Size: 2.1MB
+└── Technologies: React, Next.js, Vercel
+
+📊 Content Analysis:
+├── Headings: 12 (well-structured)
+├── Links: 45 (32 internal, 13 external)
+├── Images: 8 (all optimized)
+├── Performance Score: 94/100
+└── Accessibility Score: 98/100
+
+🎯 Key Sections:
+1. Getting Started Guide
+2. Tutorial and Examples  
+3. API Reference
+4. Community Resources
+
+💡 AI Insights:
+Excellent documentation site with clear navigation,
+comprehensive tutorials, and strong performance metrics.
+```
+
+### `/browse-chat [message]`
+
+Chat with AI about the currently loaded webpage content.
+
+**Syntax:**
+```bash
+/browse-chat "<message>" [options]
+```
+
+**Parameters:**
+- `message` - Question or instruction about the page
+
+**Options:**
+- `--context` - Include page context
+- `--deep` - Deep content analysis
+- `--extract` - Extract relevant information
+
+**Examples:**
+
+```bash
+# Ask about page content
+/browse-chat "What are the main features mentioned on this page?"
+
+# Get specific information
+/browse-chat "Find the installation instructions"
+
+# Analyze page structure
+/browse-chat "How is the navigation organized?"
+
+# Extract data
+/browse-chat "List all the pricing tiers mentioned" --extract
+
+# Deep analysis
+/browse-chat "Analyze the technical architecture described" --deep
+```
+
+### `/browse-sessions`
+
+List and manage all browser sessions.
+
+**Syntax:**
+```bash
+/browse-sessions [options]
+```
+
+**Options:**
+- `--active` - Show only active sessions
+- `--detailed` - Show detailed information
+- `--cleanup` - Clean up inactive sessions
+
+**Examples:**
+
+```bash
+# List all sessions
+/browse-sessions
+
+# Show active sessions only
+/browse-sessions --active
+
+# Detailed session information
+/browse-sessions --detailed
+
+# Clean up old sessions
+/browse-sessions --cleanup
+```
+
+**Session List Output:**
+```
+🌐 Browser Sessions:
+
+┌─────────────┬─────────────┬─────────────┬─────────────┬─────────────┐
+│ Session ID  │ Status      │ Tabs        │ Current URL │ Created     │
+├─────────────┼─────────────┼─────────────┼─────────────┼─────────────┤
+│ session-1   │ ● Active    │ 3 tabs      │ react.dev   │ 2h ago      │
+│ session-2   │ ○ Inactive  │ 1 tab       │ github.com  │ 1d ago      │
+│ session-3   │ ● Active    │ 5 tabs      │ docs.ai     │ 30m ago     │
+└─────────────┴─────────────┴─────────────┴─────────────┴─────────────┘
+```
+
+## Advanced Browse Commands
+
+### `/browse-info [session]`
+
+Get detailed information about browser session or current page.
+
+**Syntax:**
+```bash
+/browse-info [session-id] [options]
+```
+
+**Parameters:**
+- `session-id` - Specific session to inspect
+
+**Options:**
+- `--performance` - Show performance metrics
+- `--security` - Show security analysis
+- `--accessibility` - Show accessibility report
+
+**Examples:**
+
+```bash
+# Current session info
+/browse-info
+
+# Specific session info
+/browse-info session-1
+
+# Performance analysis
+/browse-info --performance
+
+# Security analysis
+/browse-info --security
+```
+
+### `/browse-close [session]`
+
+Close browser session or specific tabs.
+
+**Syntax:**
+```bash
+/browse-close [session-id] [options]
+```
+
+**Parameters:**
+- `session-id` - Session to close
+
+**Options:**
+- `--tab <index>` - Close specific tab
+- `--all` - Close all sessions
+- `--save-state` - Save session state before closing
+
+**Examples:**
+
+```bash
+# Close current session
+/browse-close
+
+# Close specific session
+/browse-close session-1
+
+# Close specific tab
+/browse-close --tab 2
+
+# Close all sessions
+/browse-close --all
+
+# Close with state saving
+/browse-close session-1 --save-state
+```
+
+### `/browse-cleanup`
+
+Clean up inactive browser sessions and temporary data.
+
+**Syntax:**
+```bash
+/browse-cleanup [options]
+```
+
+**Options:**
+- `--force` - Force cleanup without confirmation
+- `--keep-recent <hours>` - Keep sessions from last N hours
+- `--clear-cache` - Clear browser cache
+- `--clear-cookies` - Clear cookies
+
+**Examples:**
+
+```bash
+# Standard cleanup
+/browse-cleanup
+
+# Force cleanup
+/browse-cleanup --force
+
+# Keep recent sessions
+/browse-cleanup --keep-recent 24
+
+# Clear cache and cookies
+/browse-cleanup --clear-cache --clear-cookies
+```
+
+### `/browse-quick [query]`
+
+Quick search and summarize workflow for rapid research.
+
+**Syntax:**
+```bash
+/browse-quick "<query>" [options]
+```
+
+**Parameters:**
+- `query` - Research query or topic
+
+**Options:**
+- `--sources <count>` - Number of sources to check
+- `--format <format>` - Output format (summary, bullets, detailed)
+- `--save <filename>` - Save results to file
+
+**Examples:**
+
+```bash
+# Quick research
+/browse-quick "latest JavaScript frameworks 2024"
+
+# Multiple sources
+/browse-quick "AI code generation tools" --sources 5
+
+# Bullet point summary
+/browse-quick "Docker best practices" --format bullets
+
+# Save results
+/browse-quick "React performance optimization" --save react-perf.md
+```
+
+## Browser Automation
+
+### Page Interaction
+
+**Navigate and Interact:**
+```bash
+# Navigate to page
+/browse-navigate https://example.com
+
+# Click element
+/browse-click ".button-primary"
+
+# Fill form field
+/browse-fill "#email" "user@example.com"
+
+# Submit form
+/browse-submit "#login-form"
+
+# Scroll page
+/browse-scroll --to-bottom
+
+# Wait for element
+/browse-wait ".loading-complete"
+```
+
+### Data Extraction
+
+**Extract Page Data:**
+```bash
+# Extract text content
+/browse-extract --text ".article-content"
+
+# Extract links
+/browse-extract --links "a[href]"
+
+# Extract images
+/browse-extract --images "img[src]"
+
+# Extract table data
+/browse-extract --table "#data-table"
+
+# Extract form data
+/browse-extract --forms "form"
+```
+
+### Screenshots and Recording
+
+**Capture Content:**
+```bash
+# Take screenshot
+/browse-screenshot --full-page
+
+# Screenshot specific element
+/browse-screenshot --element ".main-content"
+
+# Start screen recording
+/browse-record start
+
+# Stop recording
+/browse-record stop --save recording.mp4
+
+# PDF generation
+/browse-pdf --save page-content.pdf
+```
+
+## Content Analysis
+
+### AI-Powered Analysis
+
+**Intelligent Content Processing:**
+```bash
+# Analyze page sentiment
+/browse-analyze --sentiment
+
+# Extract key information
+/browse-analyze --key-points
+
+# Summarize content
+/browse-analyze --summarize --length 200
+
+# Compare pages
+/browse-compare url1 url2 --aspects "content,design,performance"
+
+# Fact checking
+/browse-fact-check --claims "specific claim to verify"
+```
+
+### Content Monitoring
+
+**Monitor Page Changes:**
+```bash
+# Monitor page for changes
+/browse-monitor https://example.com --interval 5m
+
+# Monitor specific element
+/browse-monitor https://example.com --element ".price" --notify
+
+# Set up alerts
+/browse-alert --url https://example.com --condition "text-contains:sale"
+
+# Stop monitoring
+/browse-monitor-stop https://example.com
+```
+
+## Research Workflows
+
+### Academic Research
+
+**Research Assistant Features:**
+```bash
+# Academic paper search
+/browse-search "machine learning transformers" --academic
+
+# Citation extraction
+/browse-visit https://arxiv.org/paper --extract-citations
+
+# Bibliography generation
+/browse-bibliography --format apa --save references.bib
+
+# Research summary
+/browse-research-summary "AI ethics" --sources 10 --save research.md
+```
+
+### Market Research
+
+**Business Intelligence:**
+```bash
+# Competitor analysis
+/browse-competitor-analysis "company-name" --aspects "pricing,features,reviews"
+
+# Market trends
+/browse-trends "SaaS pricing models" --timeframe 12m
+
+# Product research
+/browse-product-research "project management tools" --compare-features
+
+# Price monitoring
+/browse-price-monitor "product-url" --notify-change 10%
+```
+
+### Technical Research
+
+**Developer Research:**
+```bash
+# API documentation analysis
+/browse-api-docs https://api.example.com/docs --extract-endpoints
+
+# Library comparison
+/browse-compare-libraries "react,vue,angular" --criteria "performance,bundle-size,learning-curve"
+
+# Tutorial aggregation
+/browse-tutorials "Docker deployment" --difficulty beginner --save tutorial-list.md
+
+# Code example extraction
+/browse-code-examples "authentication patterns" --language javascript
+```
+
+## Integration Examples
+
+### Development Workflow
+
+```bash
+# 1. Research new technology
+/browse-quick "Svelte vs React 2024 comparison"
+
+# 2. Find official documentation
+/browse-search "Svelte official documentation"
+
+# 3. Analyze getting started guide
+/browse-visit https://svelte.dev --analyze
+
+# 4. Chat about implementation
+/browse-chat "How do I migrate from React to Svelte?"
+
+# 5. Save research findings
+/browse-save-session "svelte-research"
+```
+
+### Content Creation
+
+```bash
+# 1. Research topic
+/browse-research-summary "Web3 development trends" --sources 8
+
+# 2. Gather examples
+/browse-collect-examples "DeFi applications" --screenshots
+
+# 3. Fact-check information
+/browse-fact-check --claims "Web3 adoption statistics"
+
+# 4. Generate outline
+/browse-generate-outline "Web3 development guide" --based-on-research
+
+# 5. Export research
+/browse-export-research --format markdown --save web3-research.md
+```
+
+### Competitive Analysis
+
+```bash
+# 1. Identify competitors
+/browse-search "project management tools like Asana"
+
+# 2. Analyze each competitor
+/browse-competitor-analysis "monday.com,notion.so,clickup.com"
+
+# 3. Compare features
+/browse-feature-comparison --competitors "asana,trello,jira" --features "pricing,integrations,mobile"
+
+# 4. Monitor pricing changes
+/browse-price-monitor "competitor-pricing-pages" --interval daily
+
+# 5. Generate report
+/browse-competitive-report --save competitor-analysis.pdf
+```
+
+## Security and Privacy
+
+### Secure Browsing
+
+**Privacy Features:**
+```bash
+# Enable private browsing
+/browse-session start --private
+
+# Block trackers
+/browse-security --block-trackers
+
+# Disable JavaScript
+/browse-security --disable-js
+
+# Use proxy
+/browse-proxy --server proxy.example.com:8080
+
+# Clear browsing data
+/browse-clear-data --cookies --cache --history
+```
+
+### Security Analysis
+
+**Website Security Checks:**
+```bash
+# Security scan
+/browse-security-scan https://example.com
+
+# SSL certificate check
+/browse-ssl-check https://example.com
+
+# Privacy policy analysis
+/browse-privacy-analysis https://example.com/privacy
+
+# Cookie analysis
+/browse-cookie-analysis https://example.com
+
+# Security headers check
+/browse-headers-check https://example.com
+```
+
+## Performance Monitoring
+
+### Page Performance
+
+**Performance Analysis:**
+```bash
+# Performance audit
+/browse-performance https://example.com
+
+# Core Web Vitals
+/browse-vitals https://example.com
+
+# Lighthouse audit
+/browse-lighthouse https://example.com --categories "performance,accessibility,seo"
+
+# Network analysis
+/browse-network-analysis https://example.com
+
+# Bundle analysis
+/browse-bundle-analysis https://example.com
+```
+
+### Monitoring and Alerts
+
+**Performance Monitoring:**
+```bash
+# Monitor page speed
+/browse-monitor-speed https://example.com --threshold 3s
+
+# Uptime monitoring
+/browse-monitor-uptime https://example.com --interval 5m
+
+# Performance alerts
+/browse-alert-performance --url https://example.com --metric "load-time" --threshold 2s
+
+# Status dashboard
+/browse-status-dashboard --urls "url1,url2,url3"
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Browser Session Problems:**
+```bash
+# Check browser status
+/browse-status
+
+# Restart browser
+/browse-restart
+
+# Clear browser cache
+/browse-clear-cache
+
+# Reset browser settings
+/browse-reset --confirm
+```
+
+**Connection Issues:**
+```bash
+# Test connectivity
+/browse-test-connection https://example.com
+
+# Check proxy settings
+/browse-proxy-status
+
+# Network diagnostics
+/browse-network-diagnostics
+
+# DNS resolution test
+/browse-dns-test example.com
+```
+
+### Debug Commands
+
+```bash
+# Browser diagnostics
+/diagnostic browser
+
+# Debug specific session
+/debug browse-session session-1
+
+# Network debugging
+/debug network
+
+# Performance debugging
+/debug performance
+```
+
+## Best Practices
+
+### Efficient Browsing
+
+- Use headless mode for automated tasks
+- Close unused sessions regularly
+- Monitor resource usage
+- Use appropriate timeouts
+- Cache frequently accessed content
+
+### Research Best Practices
+
+- Start with broad searches, then narrow down
+- Verify information from multiple sources
+- Save important findings immediately
+- Use structured note-taking
+- Regular cleanup of research data
+
+### Security Considerations
+
+- Use private browsing for sensitive research
+- Regularly clear browsing data
+- Monitor for malicious websites
+- Use secure connections (HTTPS)
+- Be cautious with downloads
+
+### Performance Optimization
+
+- Limit concurrent sessions
+- Use appropriate viewport sizes
+- Monitor memory usage
+- Optimize screenshot settings
+- Regular performance audits

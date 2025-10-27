@@ -9,7 +9,7 @@ import {
   type MermaidTTYConfig,
   type MathRenderConfig,
   type SecurityConfig
-} from 'streamtty'
+} from '@nicomatt69/streamtty'
 import { terminalOutputManager, TerminalOutputManager } from '../ui/terminal-output-manager'
 
 export type ChunkType = 'ai' | 'tool' | 'thinking' | 'system' | 'error' | 'user' | 'vm' | 'agent'
@@ -533,12 +533,12 @@ export class StreamttyService {
     out = out.replace(/⭐/g, '*')
     // Status/indicators → width-1 symbols
     out = out.replace(/✅|✔️|✔|✓/g, '✓')
-             .replace(/❌|✖️|✖|✕|✗/g, '×')
-             .replace(/⚠️|⚠/g, '!')
-             .replace(/🔴|🟠|🟡|🟢|🔵|🟣|⚫️|⚫/g, '●')
-             .replace(/⚪️|⚪/g, '○')
-             // Hourglass/timers → single-width ellipsis to avoid table drift
-             .replace(/⏳|⌛|⏱️|⏱|⏲️|⏲|⏰|⌚/g, '…')
+      .replace(/❌|✖️|✖|✕|✗/g, '×')
+      .replace(/⚠️|⚠/g, '!')
+      .replace(/🔴|🟠|🟡|🟢|🔵|🟣|⚫️|⚫/g, '●')
+      .replace(/⚪️|⚪/g, '○')
+      // Hourglass/timers → single-width ellipsis to avoid table drift
+      .replace(/⏳|⌛|⏱️|⏱|⏲️|⏲|⏰|⌚/g, '…')
     // Fallback: map any remaining emoji codepoints to a middle dot in table cells
     out = out.replace(StreamttyService.EMOJI_REGEX, '·')
     return out
@@ -1399,5 +1399,5 @@ export const streamttyService = new StreamttyService({
 })
 
 // Re-export AI SDK types for convenience
-export type { StreamEvent, StreamEventType } from 'streamtty'
-export { StreamProtocol } from 'streamtty'
+export type { StreamEvent, StreamEventType } from '@nicomatt69/streamtty'
+export { StreamProtocol } from '@nicomatt69/streamtty'

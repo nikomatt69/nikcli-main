@@ -577,6 +577,155 @@ const ConfigSchema = z.object({
       maxWidth: 120,
       compactThreshold: 20,
     }),
+  // Enterprise Monitoring configuration
+  monitoring: z
+    .object({
+      enabled: z.boolean().default(true).describe('Enable enterprise monitoring'),
+      opentelemetry: z
+        .object({
+          enabled: z.boolean().default(true).describe('Enable OpenTelemetry distributed tracing'),
+          endpoint: z.string().default('http://localhost:4318').describe('OTLP endpoint URL'),
+          serviceName: z.string().default('nikcli').describe('Service name for traces'),
+          serviceVersion: z.string().default('0.5.0').describe('Service version'),
+          sampleRate: z.number().min(0).max(1).default(0.1).describe('Trace sampling rate (0-1)'),
+          exportIntervalMs: z.number().min(1000).max(300000).default(60000).describe('Export interval in milliseconds'),
+        })
+        .default({
+          enabled: true,
+          endpoint: 'http://localhost:4318',
+          serviceName: 'nikcli',
+          serviceVersion: '0.5.0',
+          sampleRate: 0.1,
+          exportIntervalMs: 60000,
+        }),
+      prometheus: z
+        .object({
+          enabled: z.boolean().default(true).describe('Enable Prometheus metrics'),
+          port: z.number().min(1024).max(65535).default(9090).describe('Metrics server port'),
+          path: z.string().default('/metrics').describe('Metrics endpoint path'),
+        })
+        .default({
+          enabled: true,
+          port: 9090,
+          path: '/metrics',
+        }),
+      sentry: z
+        .object({
+          enabled: z.boolean().default(false).describe('Enable Sentry error tracking'),
+          dsn: z.string().optional().describe('Sentry DSN'),
+          environment: z.string().default('production').describe('Environment name'),
+          tracesSampleRate: z.number().min(0).max(1).default(0.1).describe('Traces sample rate'),
+          profilesSampleRate: z.number().min(0).max(1).default(0.1).describe('Profiles sample rate'),
+          debug: z.boolean().default(false).describe('Enable Sentry debug mode'),
+        })
+        .default({
+          enabled: false,
+          environment: 'production',
+          tracesSampleRate: 0.1,
+          profilesSampleRate: 0.1,
+          debug: false,
+        }),
+      alerting: z
+        .object({
+          enabled: z.boolean().default(true).describe('Enable alerting system'),
+          channels: z
+            .object({
+              slack: z
+                .object({
+                  enabled: z.boolean().default(false).describe('Enable Slack alerts'),
+                  webhookUrl: z.string().optional().describe('Slack webhook URL'),
+                  minSeverity: z.enum(['low', 'medium', 'high', 'critical']).default('high').describe('Minimum severity'),
+                })
+                .optional(),
+              discord: z
+                .object({
+                  enabled: z.boolean().default(false).describe('Enable Discord alerts'),
+                  webhookUrl: z.string().optional().describe('Discord webhook URL'),
+                  minSeverity: z.enum(['low', 'medium', 'high', 'critical']).default('high').describe('Minimum severity'),
+                })
+                .optional(),
+            })
+            .default({}),
+          deduplication: z
+            .object({
+              enabled: z.boolean().default(true).describe('Enable alert deduplication'),
+              windowMs: z.number().min(60000).max(3600000).default(300000).describe('Deduplication window (ms)'),
+            })
+            .default({
+              enabled: true,
+              windowMs: 300000,
+            }),
+          throttling: z
+            .object({
+              enabled: z.boolean().default(true).describe('Enable alert throttling'),
+              maxAlertsPerMinute: z.number().min(1).max(100).default(10).describe('Max alerts per minute'),
+            })
+            .default({
+              enabled: true,
+              maxAlertsPerMinute: 10,
+            }),
+        })
+        .default({
+          enabled: true,
+          channels: {},
+          deduplication: {
+            enabled: true,
+            windowMs: 300000,
+          },
+          throttling: {
+            enabled: true,
+            maxAlertsPerMinute: 10,
+          },
+        }),
+      health: z
+        .object({
+          enabled: z.boolean().default(true).describe('Enable health checks'),
+          checkIntervalMs: z.number().min(5000).max(300000).default(30000).describe('Health check interval'),
+        })
+        .default({
+          enabled: true,
+          checkIntervalMs: 30000,
+        }),
+    })
+    .default({
+      enabled: true,
+      opentelemetry: {
+        enabled: true,
+        endpoint: 'http://localhost:4318',
+        serviceName: 'nikcli',
+        serviceVersion: '0.5.0',
+        sampleRate: 0.1,
+        exportIntervalMs: 60000,
+      },
+      prometheus: {
+        enabled: true,
+        port: 9090,
+        path: '/metrics',
+      },
+      sentry: {
+        enabled: false,
+        environment: 'production',
+        tracesSampleRate: 0.1,
+        profilesSampleRate: 0.1,
+        debug: false,
+      },
+      alerting: {
+        enabled: true,
+        channels: {},
+        deduplication: {
+          enabled: true,
+          windowMs: 300000,
+        },
+        throttling: {
+          enabled: true,
+          maxAlertsPerMinute: 10,
+        },
+      },
+      health: {
+        enabled: true,
+        checkIntervalMs: 30000,
+      },
+    }),
 })
 
 export type ConfigType = z.infer<typeof ConfigSchema>
@@ -818,6 +967,12 @@ export class SimpleConfigManager {
       model: 'anthropic/claude-sonnet-4.5',
       maxContextTokens: 1000000,
     },
+    ' z-ai/glm-4.6:exacto': {
+      provider: 'openrouter',
+      model: 'z-ai/glm-4.6:exacto',
+      maxContextTokens: 128000,
+    },
+
     'anthropic/claude-haiku-4.5': {
       provider: 'openrouter',
       model: 'anthropic/claude-haiku-4.5',
@@ -1001,6 +1156,11 @@ export class SimpleConfigManager {
       model: 'moonshotai/kimi-k2-0905:exacto',
       maxContextTokens: 128000,
     },
+    'minimax/minimax-m2:free': {
+      provider: 'openrouter',
+      model: 'minimax/minimax-m2:free',
+      maxContextTokens: 128000,
+    },
     'qwen/qwen3-coder': {
       provider: 'openrouter',
       model: 'qwen/qwen3-coder',
@@ -1050,7 +1210,12 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: '@preset/nikcli-research',
       maxContextTokens: 200000,
-    }
+    },
+    '@preset/nikcli-free': {
+      provider: 'openrouter',
+      model: '@preset/nikcli-free',
+      maxContextTokens: 200000,
+    },
   }
 
   private defaultConfig: ConfigType = {
@@ -1068,7 +1233,7 @@ export class SimpleConfigManager {
         verbosityLevel: 5,
         includeCodeExamples: true,
         includeStepByStep: true,
-        useDecorative: false,
+        useDecorative: true,
         maxResponseLength: 'medium',
       },
     },
@@ -1137,6 +1302,7 @@ export class SimpleConfigManager {
         'registry-1.docker.io',
         'docker.io',
         'hub.docker.com',
+
       ],
     },
     redis: {
@@ -1447,11 +1613,29 @@ export class SimpleConfigManager {
 
   // Model management
   setCurrentModel(model: string): void {
+    // Attempt auto-register for OpenRouter-style IDs if missing
+    if (!this.config.models[model] && this.isOpenRouterModelId(model)) {
+      this.tryAutoRegisterOpenRouterModelIfMissing(model)
+    }
+
     if (!this.config.models[model]) {
       throw new Error(`Model ${model} not found in configuration`)
     }
     this.config.currentModel = model
     this.saveConfig()
+
+    // Validate against OpenRouter API asynchronously (non-blocking)
+    if (this.isOpenRouterModelId(model)) {
+      void this.validateOpenRouterModelExists(model).then((ok) => {
+        if (!ok) {
+          console.warn(
+            chalk.yellow(
+              `Warning: OpenRouter API did not return model '${model}'. It may be new, private, or unavailable.`,
+            ),
+          )
+        }
+      }).catch(() => { })
+    }
   }
 
   getCurrentModel(): string {
@@ -1691,6 +1875,75 @@ export class SimpleConfigManager {
    */
   getSafeContextLimit(modelName?: string, safetyRatio: number = 0.8): number {
     return Math.floor(this.getMaxContextTokens(modelName) * safetyRatio)
+  }
+
+  // ------------------------------------------------------------
+  // OpenRouter model auto-registration helpers
+  // ------------------------------------------------------------
+
+  private isOpenRouterModelId(modelName: string): boolean {
+    if (!modelName) return false
+    // Heuristic: OpenRouter model IDs typically include a provider prefix like "openai/", "anthropic/", etc.
+    // Avoid special local presets and non-OpenRouter identifiers
+    if (modelName.startsWith('@preset/')) return true
+    return modelName.includes('/')
+  }
+
+  private tryAutoRegisterOpenRouterModelIfMissing(modelName: string): boolean {
+    if (this.config.models[modelName]) return true
+    if (!this.isOpenRouterModelId(modelName)) return false
+
+    try {
+      const { getModelContextLimit } = require('../config/token-limits')
+      this.config.models[modelName] = {
+        provider: 'openrouter',
+        model: modelName,
+        maxContextTokens: getModelContextLimit(modelName),
+      }
+      this.saveConfig()
+      return true
+    } catch {
+      // Fallback if token-limits module is unavailable for some reason
+      this.config.models[modelName] = {
+        provider: 'openrouter',
+        model: modelName,
+        maxContextTokens: 128000,
+      }
+      this.saveConfig()
+      return true
+    }
+  }
+
+  private async fetchOpenRouterModels(): Promise<Set<string>> {
+    const apiKey = process.env.OPENROUTER_API_KEY
+    if (!apiKey) return new Set()
+
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/models', {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER || 'https://github.com/nicomatt69/nikcli',
+          'X-Title': process.env.OPENROUTER_X_TITLE || 'NikCLI',
+        },
+      })
+
+      if (!res.ok) return new Set()
+      const data = await res.json()
+      const ids = new Set<string>()
+      const list = Array.isArray(data?.data) ? data.data : []
+      for (const item of list) {
+        if (item && typeof item.id === 'string') ids.add(item.id)
+      }
+      return ids
+    } catch {
+      return new Set()
+    }
+  }
+
+  private async validateOpenRouterModelExists(modelName: string): Promise<boolean> {
+    const ids = await this.fetchOpenRouterModels()
+    if (ids.size === 0) return false
+    return ids.has(modelName)
   }
 }
 

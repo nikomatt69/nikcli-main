@@ -11,6 +11,8 @@ import { securityPolicy } from '../security/security-policy'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from '../types'
 import { setupWebRoutes } from './web-routes'
 import { BackgroundAgentsWebSocketServer } from './websocket-server'
+import { prometheusExporter, type HealthChecker } from '../../monitoring'
+import { simpleConfigManager } from '../../core/config-manager'
 
 export interface APIServerConfig {
   port: number
@@ -47,10 +49,12 @@ export class BackgroundAgentsAPIServer {
   private githubIntegration?: GitHubIntegration
   private clients: Map<string, express.Response> = new Map()
   private wsServer?: BackgroundAgentsWebSocketServer
+  private healthChecker?: HealthChecker
 
-  constructor(config: APIServerConfig) {
+  constructor(config: APIServerConfig, healthChecker?: HealthChecker) {
     this.config = config
     this.app = express()
+    this.healthChecker = healthChecker
     this.jobQueue = new JobQueue({
       type: config.queue.type,
       redis: config.queue.redis,
@@ -65,6 +69,7 @@ export class BackgroundAgentsAPIServer {
     }
 
     this.setupMiddleware()
+    this.setupMonitoring()
     this.setupRoutes()
     this.setupEventListeners()
   }
@@ -108,19 +113,87 @@ export class BackgroundAgentsAPIServer {
   }
 
   /**
+   * Setup monitoring endpoints and middleware
+   */
+  private setupMonitoring(): void {
+    const config = simpleConfigManager.getConfig()
+
+    // Prometheus metrics middleware
+    this.app.use((req, res, next) => {
+      const start = Date.now()
+      prometheusExporter.httpRequestsInFlight.inc()
+
+      res.on('finish', () => {
+        const duration = (Date.now() - start) / 1000
+        prometheusExporter.httpRequestsTotal.inc({
+          method: req.method,
+          route: req.route?.path || req.path,
+          status_code: res.statusCode.toString(),
+        })
+        prometheusExporter.httpRequestDuration.observe(
+          {
+            method: req.method,
+            route: req.route?.path || req.path,
+            status_code: res.statusCode.toString(),
+          },
+          duration
+        )
+        prometheusExporter.httpRequestsInFlight.dec()
+      })
+
+      next()
+    })
+
+    // Prometheus metrics endpoint
+    if (config.monitoring.prometheus.enabled) {
+      this.app.get(config.monitoring.prometheus.path, async (_req, res) => {
+        res.setHeader('Content-Type', prometheusExporter.getContentType())
+        res.send(await prometheusExporter.getMetrics())
+      })
+    }
+
+    // Enhanced health check endpoint
+    this.app.get('/health', async (_req, res) => {
+      if (this.healthChecker) {
+        const health = await this.healthChecker.check()
+        const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 503 : 500
+        res.status(statusCode).json(health)
+      } else {
+        res.json({
+          status: 'healthy',
+          timestamp: new Date().toISOString(),
+          version: '0.5.0',
+          uptime: process.uptime(),
+        })
+      }
+    })
+
+    // Readiness probe endpoint
+    this.app.get('/ready', async (_req, res) => {
+      if (this.healthChecker) {
+        const readiness = await this.healthChecker.readinessProbe()
+        const statusCode = readiness.ready ? 200 : 503
+        res.status(statusCode).json(readiness)
+      } else {
+        res.status(200).json({ ready: true, timestamp: new Date() })
+      }
+    })
+
+    // Liveness probe endpoint
+    this.app.get('/live', (_req, res) => {
+      if (this.healthChecker) {
+        const liveness = this.healthChecker.livenessProbe()
+        res.status(200).json(liveness)
+      } else {
+        res.status(200).json({ alive: true, timestamp: new Date() })
+      }
+    })
+  }
+
+  /**
    * Setup API routes
    */
   private setupRoutes(): void {
-    // Health check
-    this.app.get('/health', (_req, res) => {
-      res.json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        version: '0.5.0',
-        uptime: process.uptime(),
-      })
-    })
-
     // API v1 routes
     const v1 = express.Router()
 

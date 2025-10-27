@@ -482,7 +482,28 @@ export class Logger {
 /**
  * Convenience functions for common logging patterns
  */
-export const logger = Logger.getInstance()
+
+// Feature flag to enable Pino logger (enterprise performance optimization)
+// Default: ENABLED (use NIKCLI_PINO_LOGGER=false to disable)
+const USE_PINO_LOGGER = process.env.NIKCLI_PINO_LOGGER !== 'false'
+
+// Conditional logger initialization - drop-in replacement with zero breaking changes
+function initializeLogger(): Logger {
+  if (USE_PINO_LOGGER) {
+    try {
+      // Dynamic import for Pino adapter (now default)
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PinoLoggerAdapter } = require('./pino-logger-adapter')
+      return PinoLoggerAdapter.getInstance()
+    } catch (error) {
+      console.warn('⚠️  Failed to load Pino logger, falling back to custom logger:', error)
+      return Logger.getInstance()
+    }
+  }
+  return Logger.getInstance()
+}
+
+export const logger = initializeLogger()
 
 export const logAgent = (level: LogLevel, agentId: string, message: string, context?: Record<string, any>) =>
   logger.logAgent(level, agentId, message, context)

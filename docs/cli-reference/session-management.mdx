@@ -1,384 +1,693 @@
 ---
 title: "Session Management"
-description: "Comprehensive session control and history management in NikCLI"
-icon: "clock"
+description: "Complete reference for session management and workspace state commands"
 ---
 
-## Overview
+# Session Management
 
-NikCLI's session management system provides comprehensive control over chat sessions, conversation history, and workspace state. The system enables persistent conversations, context preservation, session recovery, and advanced collaboration features across multiple projects and timeframes.
-
-<CardGroup cols={2}>
-  <Card title="Session Persistence" icon="save">
-    Automatic session saving and recovery
-  </Card>
-  <Card title="History Management" icon="clock-rotate-left">
-    Complete conversation history and search
-  </Card>
-  <Card title="Context Preservation" icon="brain">
-    Maintain workspace context between sessions
-  </Card>
-  <Card title="Collaboration" icon="users">
-    Share and collaborate on sessions
-  </Card>
-</CardGroup>
+NikCLI provides comprehensive session management capabilities for maintaining workspace state, managing multiple work contexts, and preserving development progress across sessions.
 
 ## Core Session Commands
 
-### `/new` - Create New Session
+### `/new [name]`
 
-Start new chat sessions with optional configuration and context initialization.
+Create a new work session with optional name and configuration.
 
-<Tabs>
-  <Tab title="Basic Session Creation">
-    ```bash # Create new session /new # Create with custom title /new "React
-    Component Development" /new "API Integration Project" /new "Database
-    Migration Planning" # Create with description /new "Frontend Refactoring"
-    --description "Modernize React components and improve performance" ```
-  </Tab>
-
-{" "}
-<Tab title="Session Templates">
-  ```bash # Create from template /new --template frontend-development /new
-  --template api-development /new --template debugging-session # Available
-  templates /new --list-templates /new --template-info frontend-development #
-  Create custom template /new --save-template "full-stack-development" --agents
-  "universal-agent,react-expert,backend-expert" --context "src/,api/,tests/" ```
-</Tab>
-
-  <Tab title="Session Configuration">
-    ```bash # Configure session parameters /new "Performance Optimization"
-    --model claude-3-sonnet --temperature 0.3 --max-history 1000 # Set session
-    workspace /new "Component Library" --workspace "packages/ui/" --context
-    "components/,hooks/,utils/" # Configure agents for session /new "Full Stack
-    Development" --agents "react-expert,backend-expert" --auto-mode false
-    --approval-required true ```
-  </Tab>
-</Tabs>
-
-### `/sessions` - Session Management
-
-List, organize, and manage multiple chat sessions with advanced filtering and search.
-
-<AccordionGroup>
-  <Tab >
-    ```bash # List all sessions /sessions # List with detailed information
-    /sessions --detailed /sessions --verbose --with-stats # List recent sessions
-    /sessions --recent 10 /sessions --today /sessions --this-week ``` **Output
-    Example:** ``` Recent Sessions:
-    ┌──────────────────────┬─────────────────────┬──────────┬─────────┬──────────────┐
-    │ ID │ Title │ Created │ Messages│ Last Activity│
-    ├──────────────────────┼─────────────────────┼──────────┼─────────┼──────────────┤
-    │ ses_abc123 │ React Components │ 2h ago │ 45 │ 15m ago │ │ ses_def456 │ API
-    Development │ 1d ago │ 78 │ 3h ago │ │ ses_ghi789 │ Database Migration │ 3d
-    ago │ 23 │ 1d ago │
-    └──────────────────────┴─────────────────────┴──────────┴─────────┴──────────────┘
-    ```
-  </Tab>
-
-{" "}
-<Accordion title="Session Filtering">
-  ```bash # Filter by project /sessions --project "e-commerce" /sessions
-  --workspace "/path/to/project" # Filter by agent usage /sessions --agent
-  react-expert /sessions --multi-agent # Filter by content /sessions --search
-  "authentication" /sessions --contains "typescript" # Filter by date range
-  /sessions --since "2024-01-01" /sessions --between "2024-01-01" "2024-01-31"
-  ```
-</Accordion>
-
-  <Accordion title="Session Organization">
-    ```bash # Organize by tags /sessions --tag frontend /sessions --tag
-    "react,typescript" # Organize by categories /sessions --category development
-    /sessions --category debugging /sessions --category planning # Archive old
-    sessions /sessions --archive --older-than 30d /sessions --archive ses_abc123
-    # Star important sessions /sessions --star ses_def456 /sessions --starred
-    ```
-  </Accordion>
-</AccordionGroup>
-
-### `/load` - Session Loading
-
-Load and resume previous chat sessions with full context restoration.
-
-<Tabs>
-  <Tab title="Basic Session Loading">
-    ```bash # Load by session ID /load ses_abc123 # Load by title (fuzzy match)
-    /load "React Components" /load "API Dev" # Load most recent session /load
-    --recent /load --last ```
-  </Tab>
-
-{" "}
-<Tab title="Interactive Session Selection">
-  ```bash # Interactive session picker /load --interactive /load --picker
-  --recent 20 # Search and load /load --search "authentication" /load --find
-  "react component" # Load with preview /load --preview ses_abc123 /load
-  --preview --interactive ```
-</Tab>
-
-  <Tab title="Context Restoration">
-    ```bash # Load with full context restoration /load ses_abc123
-    --restore-context /load ses_abc123 --restore-agents --restore-workspace #
-    Selective context loading /load ses_abc123 --restore-agents-only /load
-    ses_abc123 --restore-workspace-only # Load with conflict resolution /load
-    ses_abc123 --merge-context /load ses_abc123 --resolve-conflicts auto ```
-  </Tab>
-</Tabs>
-
-### `/save` - Session Persistence
-
-Manually save session state with custom metadata and organization.
-
-<AccordionGroup>
-  <Accordion title="Session Saving">
-    ```bash # Save current session /save # Save with custom title /save "React
-    Hook Implementation" # Save with metadata /save "Authentication System"
-    --description "JWT implementation with refresh tokens" --tags
-    "auth,jwt,security" --category development ```
-  </Accordion>
-
-{" "}
-<Accordion title="Save Options">
-  ```bash # Save with compression /save --compress --optimize-history # Save
-  snapshot only (no full history) /save --snapshot "Current Progress" # Save
-  with external references /save --include-files --include-context /save
-  --embed-workspace-state ```
-</Accordion>
-
-  <Accordion title="Auto-Save Configuration">
-    ```bash # Configure auto-save /save --auto-save enable /save
-    --auto-save-interval 10m /save --auto-save-on-exit true # Auto-save policies
-    /save --auto-save-policy significant-changes /save --auto-save-threshold
-    5-messages ```
-  </Accordion>
-</AccordionGroup>
-
-## Advanced Session Features
-
-### `/export` - Session Export
-
-Export sessions in various formats for sharing, backup, and integration.
-
-<Tabs>
-  <Tab title="Export Formats">
-    ```bash # Export as Markdown /export ses_abc123 --format markdown /export
-    ses_abc123 --markdown --file "session-export.md" # Export as JSON /export
-    ses_abc123 --format json --pretty /export --json --include-metadata
-    --include-context # Export as HTML /export ses_abc123 --format html --styled
-    /export --html --include-code-highlighting ```
-  </Tab>
-
-{" "}
-<Tab title="Export Options">
-  ```bash # Export with filtering /export ses_abc123 --messages-only /export
-  ses_abc123 --exclude-system-messages /export ses_abc123
-  --important-messages-only # Export date range /export ses_abc123 --from
-  "2024-01-01" --to "2024-01-31" /export ses_abc123 --last 20-messages # Export
-  with anonymization /export ses_abc123 --anonymize --remove-paths /export
-  ses_abc123 --sanitize --remove-sensitive ```
-</Tab>
-
-  <Tab title="Batch Export">
-    ```bash # Export multiple sessions /export --sessions ses_abc123,ses_def456
-    --format markdown /export --all-sessions --archive-format zip # Export by
-    criteria /export --tag frontend --format markdown /export --project
-    "e-commerce" --format json /export --recent 30d --format html ```
-  </Tab>
-</Tabs>
-
-### `/import` - Session Import
-
-Import sessions from various sources and formats for migration and sharing.
-
-<AccordionGroup>
-  <Accordion title="Import Sources">
-    ```bash # Import from file /import session-backup.json /import
-    conversation-export.md --format markdown # Import from URL /import
-    https://example.com/session-export.json /import --url --validate --preview #
-    Import from clipboard /import --clipboard --format auto-detect ```
-  </Accordion>
-
-{" "}
-<Accordion title="Import Options">
-  ```bash # Import with validation /import session.json --validate
-  --check-integrity # Import with merge options /import session.json
-  --merge-with-current /import session.json --create-new-session # Import with
-  transformations /import session.json --update-timestamps /import session.json
-  --resolve-references ```
-</Accordion>
-
-  <Accordion title="Migration Import">
-    ```bash # Import from other CLI tools /import --from-chatgpt
-    conversation.json /import --from-claude-desktop session.json # Import from
-    version control /import --from-git-history --branch main --path docs/ #
-    Import from backup systems /import --from-backup backup-2024-01-15.zip ```
-  </Accordion>
-</AccordionGroup>
-
-### `/fork` - Session Branching
-
-Create session branches for exploring different approaches and maintaining conversation variants.
-
-<Tabs>
-  <Tab title="Basic Forking">
-    ```bash # Fork current session /fork "Alternative Implementation" # Fork
-    specific session /fork ses_abc123 "Performance Optimization Branch" # Fork
-    from specific message /fork --from-message 25 "Different Approach" ```
-  </Tab>
-
-{" "}
-<Tab title="Branch Management">
-  ```bash # List session branches /fork --list /fork --branches --tree-view #
-  Switch between branches /fork --switch branch-name /fork --checkout
-  ses_def456_branch1 # Merge branches /fork --merge branch-name /fork --merge
-  --strategy selective ```
-</Tab>
-
-  <Tab title="Branch Operations">
-    ```bash # Compare branches /fork --compare main alternative /fork --diff
-    --show-changes # Delete branches /fork --delete old-branch /fork --cleanup
-    --unused-branches # Branch metadata /fork --info branch-name /fork --history
-    --branch main ```
-  </Tab>
-</Tabs>
-
-## History and Search
-
-### `/history` - Conversation History
-
-Access and manage comprehensive conversation history with advanced search and analysis.
-
-<AccordionGroup>
-  <Accordion title="History Viewing">
-    ```bash # Show session history /history # Show detailed history /history
-    --detailed --with-timestamps /history --verbose --include-metadata # Show
-    specific range /history --last 20 /history --from-message 10 --to-message 30
-    /history --today /history --since "2024-01-01" ```
-  </Accordion>
-
-{" "}
-<Accordion title="History Search">
-  ```bash # Search conversation history /history search "react component"
-  /history --search "authentication" --case-sensitive # Search by message type
-  /history --user-messages "TODO" /history --agent-responses "function" /history
-  --system-messages "error" # Search with context /history search "database"
-  --context 3 /history --find "optimization" --show-surrounding ```
-</Accordion>
-
-  <Accordion title="History Analysis">
-    ```bash # Analyze conversation patterns /history analyze /history --patterns
-    --topics --trends # Generate conversation summary /history summary /history
-    --summarize --key-points --decisions # Extract action items /history actions
-    /history --todos --next-steps --follow-ups ```
-  </Accordion>
-</AccordionGroup>
-
-### `/search-sessions` - Cross-Session Search
-
-Search across all sessions for specific content, patterns, or solutions.
-
-<Tabs>
-  <Tab title="Content Search">
-    ```bash # Search across all sessions /search-sessions "react hooks"
-    /search-sessions "authentication implementation" # Advanced search with
-    filters /search-sessions "database migration" --sessions-with-tag backend
-    --recent 30d # Search with regular expressions /search-sessions --regex
-    "function\s+\w+Component" /search-sessions --pattern "interface\s+\w+Props"
-    ```
-  </Tab>
-
-{" "}
-<Tab title="Semantic Search">
-  ```bash # Semantic content search /search-sessions --semantic "user
-  authentication patterns" /search-sessions --meaning "performance optimization
-  techniques" # Similar problem search /search-sessions --similar-to-current
-  /search-sessions --related-topics # Solution search /search-sessions
-  --solutions-for "state management" /search-sessions --examples-of "error
-  handling" ```
-</Tab>
-
-  <Tab title="Search Results">
-    ```bash # Format search results /search-sessions "typescript"
-    --results-format summary /search-sessions "testing" --results-format
-    detailed /search-sessions "deployment" --results-format snippets # Search
-    result actions /search-sessions "components" --open-session-on-select
-    /search-sessions "API" --create-reference-collection ```
-  </Tab>
-</Tabs>
-
-## Real-World Examples
-
-### Session Workflow Management
-
+**Syntax:**
 ```bash
-# Create specialized development sessions
-/new "React Component Library" --template frontend-development --agents "react-expert"
-/new "API Backend Development" --template api-development --agents "backend-expert"
-/new "Database Migration" --template database-development --agents "database-expert"
-
-# Switch between sessions based on current task
-/load "React Component Library"
-> "Create a reusable Button component with variants"
-
-/load "API Backend Development"
-> "Implement user authentication endpoints"
-
-/load "Database Migration"
-> "Migrate user table to include new fields"
+/new [session-name] [options]
 ```
 
-### Session Collaboration
+**Parameters:**
+- `session-name` - Optional name for the session
+
+**Options:**
+- `--template <template>` - Use session template
+- `--copy-from <session>` - Copy from existing session
+- `--workspace <path>` - Set workspace directory
+- `--description <text>` - Session description
+
+**Examples:**
 
 ```bash
-# Share session with team members
-/share ses_abc123 --with "developer@company.com" --read-only
-/share ses_def456 --team "frontend-team" --comment-only
+# Create new session with auto-generated name
+/new
 
-# Export session for documentation
-/export ses_abc123 --format markdown --file "component-development-guide.md"
-/export ses_def456 --format html --styled --file "api-documentation.html"
+# Create named session
+/new "feature-authentication"
 
-# Import shared sessions
-/import "team-session-export.json" --merge-with-current
-/import "https://company-wiki.com/session-export.md" --format markdown
+# Create session from template
+/new "api-development" --template backend
+
+# Copy existing session
+/new "feature-v2" --copy-from "feature-authentication"
+
+# Create session with workspace
+/new "mobile-app" --workspace /path/to/mobile-project
 ```
 
-### Session History Analysis
+**Session Creation Process:**
+1. Initialize new session context
+2. Set up workspace environment
+3. Configure AI model preferences
+4. Initialize memory and context
+5. Create session metadata
+
+### `/sessions`
+
+List all available sessions with status and metadata.
+
+**Syntax:**
+```bash
+/sessions [options]
+```
+
+**Options:**
+- `--active` - Show only active sessions
+- `--recent` - Show recently used sessions
+- `--detailed` - Show detailed information
+- `--json` - Output in JSON format
+
+**Examples:**
 
 ```bash
-# Analyze development patterns
-/history analyze --patterns --topics --trends
+# List all sessions
+/sessions
 
-# Search for specific solutions
-/search-sessions "authentication implementation" --recent 30d
-/search-sessions --semantic "performance optimization" --sessions-with-tag frontend
+# Show only active sessions
+/sessions --active
 
-# Extract action items from sessions
-/history actions --todos --next-steps --follow-ups
+# Show recent sessions
+/sessions --recent
+
+# Detailed session information
+/sessions --detailed
 ```
 
-## Next Steps
+**Session List Output:**
+```
+📋 Available Sessions:
 
-<CardGroup cols={2}>
-  <Card title="Configuration" icon="gear" href="/cli-reference/configuration">
-    Learn about NikCLI configuration and customization options
-  </Card>
-  <Card title="MCP Protocol" icon="plug" href="/cli-reference/mcp-protocol">
-    Explore Model Context Protocol integration and features
-  </Card>
-  <Card
-    title="Advanced Features"
-    icon="rocket"
-    href="/cli-reference/advanced-features"
-  >
-    Discover advanced CLI capabilities and power-user features
-  </Card>
-  <Card title="Token Management" icon="coins" href="/advanced/token-management">
-    Understand token management and optimization strategies
-  </Card>
-</CardGroup>
+┌─────────────────────┬─────────────┬─────────────┬─────────────┬─────────────┐
+│ Name                │ Status      │ Created     │ Last Used   │ Size        │
+├─────────────────────┼─────────────┼─────────────┼─────────────┼─────────────┤
+│ feature-auth        │ ● Active    │ 2d ago      │ 5m ago      │ 2.3MB       │
+│ api-refactor        │ ○ Inactive  │ 1w ago      │ 2d ago      │ 1.8MB       │
+│ mobile-app          │ ○ Inactive  │ 3d ago      │ 1d ago      │ 4.1MB       │
+│ bug-fix-123         │ ○ Inactive  │ 5d ago      │ 3d ago      │ 0.9MB       │
+└─────────────────────┴─────────────┴─────────────┴─────────────┴─────────────┘
 
-<Tip>
-  Use `/sessions --recent` to quickly access your most recent work, and consider
-  using session templates to standardize your workflow setup for different types
-  of projects.
-</Tip>
+Total: 4 sessions (1 active, 3 inactive)
+```
+
+### `/resume [name]`
+
+Resume a previously saved work session.
+
+**Syntax:**
+```bash
+/resume <session-name> [options]
+```
+
+**Parameters:**
+- `session-name` - Name of session to resume
+
+**Options:**
+- `--merge` - Merge with current session
+- `--force` - Force resume even if conflicts exist
+- `--readonly` - Resume in read-only mode
+
+**Examples:**
+
+```bash
+# Resume specific session
+/resume "feature-authentication"
+
+# Resume with merge
+/resume "api-refactor" --merge
+
+# Force resume with conflicts
+/resume "mobile-app" --force
+
+# Resume in read-only mode
+/resume "bug-fix-123" --readonly
+```
+
+**Resume Process:**
+1. Load session metadata
+2. Restore workspace context
+3. Reload conversation history
+4. Restore AI model settings
+5. Reinitialize tools and agents
+
+### `/save-session [name]`
+
+Save current session state with optional name.
+
+**Syntax:**
+```bash
+/save-session [session-name] [options]
+```
+
+**Parameters:**
+- `session-name` - Optional name for saved session
+
+**Options:**
+- `--description <text>` - Session description
+- `--tags <tags>` - Session tags (comma-separated)
+- `--compress` - Compress session data
+- `--include-files` - Include modified files
+
+**Examples:**
+
+```bash
+# Save current session
+/save-session
+
+# Save with specific name
+/save-session "checkpoint-before-refactor"
+
+# Save with description and tags
+/save-session "api-complete" --description "API implementation finished" --tags "backend,api,complete"
+
+# Save with file inclusion
+/save-session "full-backup" --include-files --compress
+```
+
+### `/delete-session [name]`
+
+Delete a saved session permanently.
+
+**Syntax:**
+```bash
+/delete-session <session-name> [options]
+```
+
+**Parameters:**
+- `session-name` - Name of session to delete
+
+**Options:**
+- `--force` - Skip confirmation prompt
+- `--backup` - Create backup before deletion
+
+**Examples:**
+
+```bash
+# Delete session with confirmation
+/delete-session "old-experiment"
+
+# Force delete without confirmation
+/delete-session "temp-session" --force
+
+# Delete with backup
+/delete-session "outdated-feature" --backup
+```
+
+### `/export-session [name]`
+
+Export session data to external format.
+
+**Syntax:**
+```bash
+/export-session [session-name] [options]
+```
+
+**Parameters:**
+- `session-name` - Session to export (default: current)
+
+**Options:**
+- `--format <format>` - Export format (json, zip, tar)
+- `--output <file>` - Output file path
+- `--include-files` - Include workspace files
+- `--compress` - Compress export
+
+**Examples:**
+
+```bash
+# Export current session
+/export-session
+
+# Export specific session to JSON
+/export-session "feature-auth" --format json --output auth-session.json
+
+# Export with files included
+/export-session "complete-project" --include-files --compress --output project-backup.zip
+```
+
+## Advanced Session Management
+
+### `/work-sessions [action]`
+
+Manage work sessions with advanced features.
+
+**Syntax:**
+```bash
+/work-sessions <action> [options]
+```
+
+**Available Actions:**
+- `list` - List work sessions
+- `create` - Create new work session
+- `switch` - Switch between sessions
+- `merge` - Merge sessions
+- `archive` - Archive old sessions
+
+**Examples:**
+
+```bash
+# List work sessions
+/work-sessions list
+
+# Create work session
+/work-sessions create "sprint-planning"
+
+# Switch to different session
+/work-sessions switch "bug-fixes"
+
+# Merge sessions
+/work-sessions merge "feature-a" "feature-b" --output "combined-feature"
+
+# Archive old sessions
+/work-sessions archive --older-than 30d
+```
+
+### Session Templates
+
+**Create Session Templates:**
+```bash
+# Create template from current session
+/save-session-template "backend-dev" --description "Backend development template"
+
+# Use template for new session
+/new "new-backend-project" --template "backend-dev"
+
+# List available templates
+/session-templates list
+
+# Delete template
+/session-templates delete "old-template"
+```
+
+**Predefined Templates:**
+
+**Frontend Development:**
+```bash
+/new "frontend-project" --template frontend
+# Includes: React/Vue setup, styling tools, testing framework
+```
+
+**Backend Development:**
+```bash
+/new "backend-project" --template backend
+# Includes: API development tools, database setup, testing
+```
+
+**Full-Stack Development:**
+```bash
+/new "fullstack-project" --template fullstack
+# Includes: Frontend + backend tools, deployment setup
+```
+
+**Data Science:**
+```bash
+/new "data-project" --template data-science
+# Includes: Python environment, Jupyter, data analysis tools
+```
+
+## Session State Management
+
+### Context Preservation
+
+Sessions automatically preserve:
+- Conversation history
+- AI model preferences
+- Tool configurations
+- Agent settings
+- Workspace context
+- Memory and recall data
+- File modification history
+- Environment variables
+
+### Session Metadata
+
+**View Session Information:**
+```bash
+# Show current session info
+/session-info
+
+# Show detailed session metadata
+/session-info --detailed
+
+# Show session statistics
+/session-stats
+
+# Show session timeline
+/session-timeline
+```
+
+**Session Metadata Includes:**
+- Creation and modification dates
+- Total conversation length
+- AI model usage statistics
+- Tool usage patterns
+- File modification count
+- Memory usage
+- Performance metrics
+
+### Session Synchronization
+
+**Sync Sessions Across Devices:**
+```bash
+# Enable session sync
+/session-sync enable --provider cloud
+
+# Sync current session
+/session-sync push
+
+# Pull remote session
+/session-sync pull "feature-auth"
+
+# List remote sessions
+/session-sync list-remote
+
+# Configure sync settings
+/session-sync config --auto-sync --interval 5m
+```
+
+## Memory and Context Management
+
+### Session Memory
+
+**Memory Operations:**
+```bash
+# Show session memory
+/memory session
+
+# Clear session memory
+/memory clear --session
+
+# Export session memory
+/memory export --session --output session-memory.json
+
+# Import session memory
+/memory import session-memory.json --merge
+```
+
+### Context Management
+
+**Workspace Context:**
+```bash
+# Show current context
+/context
+
+# Set workspace context
+/context workspace /path/to/project
+
+# Add context information
+/context add "Working on authentication system"
+
+# Clear context
+/context clear
+
+# Context history
+/context history
+```
+
+## Session Collaboration
+
+### Shared Sessions
+
+**Share Sessions with Team:**
+```bash
+# Share session
+/session-share "feature-auth" --with "team@company.com"
+
+# Accept shared session
+/session-accept "shared-session-id"
+
+# List shared sessions
+/sessions --shared
+
+# Collaborate on session
+/session-collaborate "shared-feature" --mode real-time
+```
+
+### Session Permissions
+
+**Manage Session Access:**
+```bash
+# Set session permissions
+/session-permissions "feature-auth" --read-write "alice@company.com" --read-only "bob@company.com"
+
+# View session permissions
+/session-permissions "feature-auth" --list
+
+# Revoke access
+/session-permissions "feature-auth" --revoke "alice@company.com"
+```
+
+## Session Analytics
+
+### Usage Statistics
+
+**Session Analytics:**
+```bash
+# Show session statistics
+/session-analytics
+
+# Detailed usage report
+/session-analytics --detailed --period 30d
+
+# Export analytics
+/session-analytics --export analytics-report.json
+
+# Compare sessions
+/session-analytics --compare "session-a" "session-b"
+```
+
+**Analytics Include:**
+- Time spent in sessions
+- AI model usage patterns
+- Tool usage frequency
+- Productivity metrics
+- Error rates
+- Performance trends
+
+### Session Insights
+
+**Get Session Insights:**
+```bash
+# AI-powered session insights
+/session-insights
+
+# Productivity analysis
+/session-insights --productivity
+
+# Recommendations
+/session-insights --recommendations
+
+# Pattern analysis
+/session-insights --patterns
+```
+
+## Session Backup and Recovery
+
+### Automatic Backups
+
+**Configure Automatic Backups:**
+```bash
+# Enable auto-backup
+/session-backup enable --interval 30m
+
+# Configure backup retention
+/session-backup config --keep 10 --compress
+
+# List backups
+/session-backup list
+
+# Restore from backup
+/session-backup restore "backup-20240115-143000"
+```
+
+### Manual Backups
+
+**Create Manual Backups:**
+```bash
+# Create backup
+/session-backup create "before-major-changes"
+
+# Create full backup with files
+/session-backup create "complete-backup" --include-files
+
+# Backup to external location
+/session-backup create "external-backup" --output /external/drive/
+```
+
+### Recovery Operations
+
+**Session Recovery:**
+```bash
+# Recover corrupted session
+/session-recover "corrupted-session"
+
+# Recover from crash
+/session-recover --from-crash
+
+# Partial recovery
+/session-recover "session-name" --partial --keep-history
+
+# Emergency recovery
+/session-recover --emergency --all-sessions
+```
+
+## Integration Examples
+
+### Development Workflow
+
+```bash
+# 1. Start new feature development
+/new "feature-user-profiles" --template frontend
+
+# 2. Work on feature with context
+/context add "Implementing user profile management with React and TypeScript"
+
+# 3. Save progress periodically
+/save-session "profiles-initial-setup"
+
+# 4. Continue development
+# ... development work ...
+
+# 5. Save major milestone
+/save-session "profiles-ui-complete" --description "UI components finished"
+
+# 6. Switch to different task
+/new "bug-fix-login" --template backend
+
+# 7. Resume original work
+/resume "feature-user-profiles"
+```
+
+### Team Collaboration
+
+```bash
+# 1. Create shared session
+/new "team-sprint-planning" --template collaboration
+
+# 2. Share with team
+/session-share "team-sprint-planning" --with "team@company.com"
+
+# 3. Collaborate in real-time
+/session-collaborate "team-sprint-planning" --mode real-time
+
+# 4. Save team decisions
+/save-session "sprint-decisions" --description "Sprint planning outcomes"
+
+# 5. Export for documentation
+/export-session "sprint-decisions" --format json --output sprint-plan.json
+```
+
+### Project Handoff
+
+```bash
+# 1. Prepare handoff session
+/save-session "project-handoff" --include-files --compress
+
+# 2. Add handoff documentation
+/context add "Project handoff to new team member - includes all implementation details"
+
+# 3. Export complete package
+/export-session "project-handoff" --format zip --output project-complete.zip
+
+# 4. Share with new team member
+/session-share "project-handoff" --with "newdev@company.com" --permissions read-write
+```
+
+## Troubleshooting
+
+### Common Session Issues
+
+**Session Won't Load:**
+```bash
+# Check session integrity
+/session-check "session-name"
+
+# Repair corrupted session
+/session-repair "session-name"
+
+# Recover from backup
+/session-backup restore "latest-backup"
+```
+
+**Memory Issues:**
+```bash
+# Check session memory usage
+/session-stats --memory
+
+# Clear session cache
+/session-cache clear
+
+# Optimize session
+/session-optimize "session-name"
+```
+
+**Sync Problems:**
+```bash
+# Check sync status
+/session-sync status
+
+# Force sync
+/session-sync push --force
+
+# Resolve sync conflicts
+/session-sync resolve-conflicts
+```
+
+### Debug Commands
+
+```bash
+# Session system diagnostics
+/diagnostic sessions
+
+# Debug specific session
+/debug session "session-name"
+
+# Check session database
+/session-db check
+
+# Repair session database
+/session-db repair
+```
+
+## Best Practices
+
+### Session Organization
+
+- Use descriptive session names
+- Add meaningful descriptions and tags
+- Regular cleanup of old sessions
+- Use templates for consistent setup
+- Archive completed projects
+
+### Performance
+
+- Regular session optimization
+- Monitor memory usage
+- Clean up large sessions
+- Use compression for storage
+- Regular backup maintenance
+
+### Collaboration
+
+- Clear session sharing permissions
+- Document shared session purpose
+- Regular sync with team
+- Resolve conflicts promptly
+- Maintain session hygiene
+
+### Security
+
+- Protect sensitive sessions
+- Regular backup verification
+- Secure session sharing
+- Monitor access logs
+- Use appropriate permissions

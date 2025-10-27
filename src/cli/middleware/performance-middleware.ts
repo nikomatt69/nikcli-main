@@ -8,6 +8,7 @@ import {
   type MiddlewareRequest,
   type MiddlewareResponse,
 } from './types'
+import { tracerService, prometheusExporter } from '../monitoring'
 
 interface PerformanceMetrics {
   executionTime: number
@@ -83,51 +84,91 @@ export class PerformanceMiddleware extends BaseMiddleware {
     next: MiddlewareNext,
     _context: MiddlewareExecutionContext
   ): Promise<MiddlewareResponse> {
-    const startTime = Date.now()
-    const startMemory = this.getMemoryUsage()
-    const startCpu = this.performanceConfig.trackCpu ? process.cpuUsage() : undefined
+    return tracerService.trackOperation(
+      `middleware.performance.${request.operation}`,
+      async () => {
+        const startTime = Date.now()
+        const startMemory = this.getMemoryUsage()
+        const startCpu = this.performanceConfig.trackCpu ? process.cpuUsage() : undefined
 
-    let response: MiddlewareResponse
+        tracerService.setAttributes({
+          'middleware.name': 'performance',
+          'request.id': request.id,
+          'request.type': request.type,
+          'request.operation': request.operation,
+        })
 
-    try {
-      if (this.performanceConfig.enableOptimizations) {
-        response = await this.executeWithOptimizations(request, next)
-      } else {
-        response = await next()
-      }
-    } catch (error: any) {
-      const metrics = this.collectMetrics(startTime, startMemory, startCpu)
-      this.recordBenchmark(request.operation, metrics, false)
-      throw error
-    }
+        let response: MiddlewareResponse
 
-    const metrics = this.collectMetrics(startTime, startMemory, startCpu)
-    this.recordBenchmark(request.operation, metrics, true)
-    this.recordMetrics(metrics)
+        try {
+          if (this.performanceConfig.enableOptimizations) {
+            response = await this.executeWithOptimizations(request, next)
+          } else {
+            response = await next()
+          }
+        } catch (error: any) {
+          const metrics = this.collectMetrics(startTime, startMemory, startCpu)
+          this.recordBenchmark(request.operation, metrics, false)
+          throw error
+        }
 
-    const alerts = this.checkPerformanceAlerts(request.operation, metrics)
-    alerts.forEach((alert) => this.addAlert(alert))
+        const metrics = this.collectMetrics(startTime, startMemory, startCpu)
+        this.recordBenchmark(request.operation, metrics, true)
+        this.recordMetrics(metrics)
 
-    if (
-      this.performanceConfig.reportSlowOperations &&
-      metrics.executionTime > this.performanceConfig.slowExecutionThreshold
-    ) {
-      this.reportSlowOperation(request.operation, metrics)
-    }
+        tracerService.setAttributes({
+          'performance.execution_time_ms': metrics.executionTime,
+          'performance.memory_used_mb': Math.round(metrics.memoryUsed / 1024 / 1024),
+          'performance.memory_delta_mb': Math.round(metrics.memoryDelta / 1024 / 1024),
+        })
 
-    return {
-      ...response,
-      metadata: {
-        ...response.metadata,
-        performance: {
-          executionTime: metrics.executionTime,
-          memoryUsed: metrics.memoryUsed,
-          memoryDelta: metrics.memoryDelta,
-          cpuUsage: metrics.cpuUsage,
-          benchmark: this.benchmarks.get(request.operation),
-        },
+        if (metrics.cpuUsage) {
+          tracerService.setAttributes({
+            'performance.cpu_user_ms': Math.round(metrics.cpuUsage.user / 1000),
+            'performance.cpu_system_ms': Math.round(metrics.cpuUsage.system / 1000),
+          })
+        }
+
+        const alerts = this.checkPerformanceAlerts(request.operation, metrics)
+        alerts.forEach((alert) => {
+          this.addAlert(alert)
+          tracerService.addEvent('performance.alert', {
+            'alert.type': alert.type,
+            'alert.severity': alert.severity,
+            'alert.message': alert.message,
+          })
+        })
+
+        if (
+          this.performanceConfig.reportSlowOperations &&
+          metrics.executionTime > this.performanceConfig.slowExecutionThreshold
+        ) {
+          this.reportSlowOperation(request.operation, metrics)
+          tracerService.addEvent('performance.slow_operation', {
+            'operation': request.operation,
+            'execution_time_ms': metrics.executionTime,
+          })
+        }
+
+        return {
+          ...response,
+          metadata: {
+            ...response.metadata,
+            performance: {
+              executionTime: metrics.executionTime,
+              memoryUsed: metrics.memoryUsed,
+              memoryDelta: metrics.memoryDelta,
+              cpuUsage: metrics.cpuUsage,
+              benchmark: this.benchmarks.get(request.operation),
+            },
+          },
+        }
       },
-    }
+      {
+        'middleware.type': 'performance',
+        'request.operation': request.operation,
+      }
+    )
   }
 
   private async executeWithOptimizations(

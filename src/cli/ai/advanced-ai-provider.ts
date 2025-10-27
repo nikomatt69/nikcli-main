@@ -1294,7 +1294,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
       const currentToolCalls: ToolCallPart[] = []
       let accumulatedText = ''
       let toolCallCount = 0
-      const maxToolCallsForAnalysis = 10 // REDUCED: Aggressive limit to prevent token overflow
+      const maxToolCallsForAnalysis = 12 // REDUCED: Aggressive limit to prevent token overflow
 
       const approxCharLimit =
         provider === 'openai' && this.getCurrentModelInfo().config.provider === 'openai'
@@ -1384,7 +1384,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
                 // Check if we've completed 2 rounds - if so, provide final summary and stop
                 if (this.completedRounds >= this.maxRounds) {
-                  const finalSummary = this.analyzeMissingInformation(originalQuery, this.toolCallHistory)
+                  const finalSummary = this.generateFinalSummary(originalQuery, this.toolCallHistory)
 
                   yield {
                     type: 'thinking',
@@ -1588,6 +1588,78 @@ Respond in a helpful, professional manner with clear explanations and actionable
         content: friendlyMessage,
       }
     }
+  }
+
+  private generateFinalSummary(
+    originalQuery: string,
+    toolHistory: Array<{ toolName: string; args: any; result: any; success: boolean }>
+  ): string {
+    const tools = [...new Set(toolHistory.map((t) => t.toolName))]
+    const successful = toolHistory.filter((t) => t.success).length
+    const failed = toolHistory.filter((t) => !t.success).length
+    const totalOperations = toolHistory.length
+
+    let summary = `**Final Analysis Summary:**\n\n`
+
+    // What was done
+    summary += `📊 **Operations Completed:** ${totalOperations} total operations across ${this.completedRounds} rounds\n`
+    summary += `✓ **Successful:** ${successful} operations\n`
+    summary += `❌ **Failed:** ${failed} operations\n`
+    summary += `🔨 **Tools Used:** ${tools.join(', ')}\n\n`
+
+    // Key findings
+    summary += `🔍 **Key Findings:**\n`
+    if (successful > 0) {
+      summary += `- Successfully executed ${successful} operations\n`
+    }
+    if (failed > 0) {
+      summary += `- ${failed} operations encountered issues\n`
+    }
+
+    // Analysis of query fulfillment
+    const queryLower = originalQuery.toLowerCase()
+    summary += `\n📝 **Query Analysis:**\n`
+    summary += `- Original request: "${this.truncateForPrompt(originalQuery, 80)}"\n`
+
+    // Recommend next steps based on analysis
+    summary += `\n🎯 **Recommended Next Steps:**\n`
+
+    // Strategy based on what was tried
+    if (failed > successful && failed > 3) {
+      summary += `- Review and refine search criteria (many operations failed)\n`
+      summary += `- Try different search patterns or keywords\n`
+    }
+
+    if (queryLower.includes('search') || queryLower.includes('find')) {
+      if (!tools.includes('web_search')) {
+        summary += `- Try web search for external documentation\n`
+      }
+      if (!tools.includes('semantic_search')) {
+        summary += `- Use semantic search for similar patterns\n`
+      }
+      summary += `- Manually specify directories or file patterns\n`
+      summary += `- Consider searching in hidden/config directories\n`
+    }
+
+    if (queryLower.includes('analyze') || queryLower.includes('analisi')) {
+      if (!tools.includes('dependency_analysis')) {
+        summary += `- Run dependency analysis for comprehensive view\n`
+      }
+      if (!tools.includes('code_analysis')) {
+        summary += `- Perform detailed code quality analysis\n`
+      }
+      summary += `- Focus on specific modules or components\n`
+    }
+
+    // General strategies
+    summary += `- Provide more specific context or constraints\n`
+    summary += `- Break down the request into smaller, targeted tasks\n`
+    summary += `- Try alternative approaches or tools not yet used\n`
+
+    // Final guidance
+    summary += `\n💡 **How to Continue:** Please provide more specific guidance, narrow the scope, or try a different approach based on the recommendations above. Consider breaking your request into smaller, more focused tasks.`
+
+    return this.truncateForPrompt(summary, 800)
   }
 
   // Execute autonomous task with intelligent planning and parallel agent support
@@ -3098,9 +3170,23 @@ Use this cognitive understanding to provide more targeted and effective response
         throw new Error(`Safety check failed: ${safetyCheck.reason}`)
       }
 
+      // Request approval for npm, git, and other critical commands
+      const fullCommand = command.args ? `${command.command} ${command.args.join(' ')}` : command.command
+      if (command.requiresApproval || command.type === 'npm' || command.type === 'git') {
+        const { approvalSystem } = await import('../ui/approval-system')
+        const approved = await approvalSystem.confirm(
+          `Execute ${command.type} command?`,
+          `Command: ${fullCommand}\nDescription: ${command.description}`,
+          false
+        )
+
+        if (!approved) {
+          throw new Error('Command execution cancelled by user')
+        }
+      }
+
       // Execute with timeout
       const timeout = command.estimatedDuration ? command.estimatedDuration * 1000 : 30000
-      const fullCommand = command.args ? `${command.command} ${command.args.join(' ')}` : command.command
 
       const { stdout, stderr } = await Promise.race([
         execAsync(fullCommand, {

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as fsPromises from 'node:fs/promises'
 import * as path from 'node:path'
-import { cached } from '@ai-sdk-tools/cache'
+
 import { tool } from 'ai'
 import chalk from 'chalk'
 import { z } from 'zod'
@@ -115,12 +115,12 @@ export class WorkspaceContextManager {
     path: string
     max?: number
   }> = [
-    { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
-    { kind: 'directory', path: 'src/cli/cloud', max: 6 },
-    { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
-    { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
-    { kind: 'file', path: 'src/cli/core/config-manager.ts' },
-  ]
+      { kind: 'directory', path: 'src/cli/background-agents', max: 8 },
+      { kind: 'directory', path: 'src/cli/cloud', max: 6 },
+      { kind: 'directory', path: 'src/cli/github-bot', max: 4 },
+      { kind: 'file', path: 'src/cli/core/api-key-manager.ts' },
+      { kind: 'file', path: 'src/cli/core/config-manager.ts' },
+    ]
 
   // Integrated components
   private fileFilter: FileFilterSystem
@@ -195,11 +195,11 @@ export class WorkspaceContextManager {
       this.context.ragAvailable = !ragResult.fallbackMode
       this.ragInitialized = true
 
-      console.log(
+      advancedUI.logSuccess(
         chalk.green(`✓ RAG integration ${this.context.ragAvailable ? 'enabled' : 'disabled (fallback mode)'}`)
       )
     } catch (_error) {
-      console.log(chalk.yellow('⚠️ RAG integration failed, using basic workspace analysis'))
+      advancedUI.logWarning(chalk.yellow('⚠️ RAG integration failed, using basic workspace analysis'))
       this.context.ragAvailable = false
       this.ragInitialized = true
     }
@@ -216,9 +216,9 @@ export class WorkspaceContextManager {
       await this.refreshWorkspaceIndex()
 
       this.isInitialized = true
-      console.log(chalk.green('✓ Integrated components initialized successfully'))
+      advancedUI.logSuccess(chalk.green('✓ Integrated components initialized successfully'))
     } catch (error) {
-      console.log(chalk.yellow('⚠️ Failed to initialize integrated components:', error))
+      advancedUI.logWarning(chalk.yellow('⚠️ Failed to initialize integrated components:', error))
       this.isInitialized = false
     }
   }
@@ -473,20 +473,20 @@ export class WorkspaceContextManager {
       this.lastCacheCleanup = now
       this.context.cacheStats!.lastCleanup = new Date()
 
-      console.log(chalk.yellow(`🧹 Cleaned ${keysToDelete.length} cache entries`))
+      advancedUI.logWarning(chalk.yellow(`🧹 Cleaned ${keysToDelete.length} cache entries`))
     }
   }
 
   // Select specific directories/files for focused context
   async selectPaths(paths: string[]): Promise<void> {
-    console.log(chalk.blue(`🎯 Selecting workspace context: ${paths.join(', ')}`))
+    advancedUI.logInfo(chalk.blue(`🎯 Selecting workspace context: ${paths.join(', ')}`))
 
     this.context.selectedPaths = paths.map((p) => path.resolve(this.context.rootPath, p))
 
     // Analyze selected paths
     await this.analyzeSelectedPaths()
 
-    console.log(chalk.green(`✓ Workspace context updated with ${this.context.files.size} files`))
+    advancedUI.logSuccess(chalk.green(`✓ Workspace context updated with ${this.context.files.size} files`))
   }
 
   private async analyzeSelectedPaths(): Promise<void> {
@@ -528,7 +528,7 @@ export class WorkspaceContextManager {
       }
     }
 
-    console.log(chalk.cyan(`📁 Analyzing directory: ${relativePath}`))
+    advancedUI.logInfo(chalk.cyan(`📁 Analyzing directory: ${relativePath}`))
 
     const files: FileContext[] = []
     const subdirectories: DirectoryContext[] = []
@@ -819,7 +819,7 @@ export class WorkspaceContextManager {
     projectSummary: string
     totalContext: string
   } {
-    console.log(
+    advancedUI.logWarning(
       chalk.yellow(`🔍 Auto-filtering context${searchQuery ? ` for query: "${searchQuery}"` : ' (large workspace)'}...`)
     )
 
@@ -838,7 +838,7 @@ export class WorkspaceContextManager {
     const projectSummary = this.generateProjectSummary()
     const totalContext = this.generateContextString(relevantFiles, projectSummary)
 
-    console.log(chalk.green(`✓ Context filtered to ${relevantFiles.length} relevant files`))
+    advancedUI.logSuccess(chalk.green(`✓ Context filtered to ${relevantFiles.length} relevant files`))
 
     return {
       selectedPaths: this.context.selectedPaths,
@@ -961,7 +961,7 @@ Selected Paths: ${this.context.selectedPaths.join(', ')}`
       // Get filtered file list by scanning directory
       const filteredFiles = await this.scanDirectoryWithFilter(this.context.rootPath)
 
-      console.log(chalk.green(`✓ Found ${filteredFiles.length} files after filtering`))
+      advancedUI.logSuccess(chalk.green(`✓ Found ${filteredFiles.length} files after filtering`))
 
       // Update file context with filtered results
       for (const filePath of filteredFiles) {

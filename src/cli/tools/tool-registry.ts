@@ -5,6 +5,7 @@ import { BashTool } from './bash-tool'
 import { BrowserbaseTool } from './browserbase-tool'
 import { createBrowserTools } from '../browser/playwright-automation-tools'
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
+import { GoatTool } from './goat-tool'
 import { EditTool } from './edit-tool'
 import { FindFilesTool } from './find-files-tool'
 import { GitTools } from './git-tools'
@@ -420,6 +421,17 @@ export class ToolRegistry {
       requiredPermissions: ['network', 'execute'],
       supportedFileTypes: ['*'],
       tags: ['blockchain', 'crypto', 'coinbase', 'agentkit', 'defi', 'wallet', 'transactions'],
+    })
+
+    this.registerTool('goat-tool', new GoatTool(workingDirectory), {
+      description: 'Execute blockchain operations using GOAT SDK (Polymarket, ERC20) on Polygon and Base',
+      category: 'blockchain',
+      riskLevel: 'high',
+      reversible: false,
+      estimatedDuration: 12000,
+      requiredPermissions: ['network', 'execute'],
+      supportedFileTypes: ['*'],
+      tags: ['blockchain', 'crypto', 'goat', 'polymarket', 'erc20', 'polygon', 'base', 'defi'],
     })
 
     this.registerTool('browserbase-tool', new BrowserbaseTool(workingDirectory), {
