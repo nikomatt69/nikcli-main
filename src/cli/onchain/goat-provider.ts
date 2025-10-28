@@ -174,7 +174,13 @@ export class GoatProvider {
           }
           break
         default:
-          throw new Error(`Unsupported chain: ${chainName}`)
+          chainConfig = {
+            name: 'polygon',
+            rpcUrl: rpcUrls.polygon || process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
+            chainId: 137
+          }
+          break
+
       }
 
       this.supportedChains.push(chainConfig)
@@ -218,7 +224,7 @@ export class GoatProvider {
    */
   private async setupPlugins(config: GoatConfig): Promise<void> {
     const plugins = config.plugins || ['polymarket', 'erc20']
-    
+
     for (const pluginName of plugins) {
       switch (pluginName) {
         case 'polymarket':

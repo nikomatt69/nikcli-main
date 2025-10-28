@@ -4,20 +4,57 @@ import { generateText } from 'ai'
 import chalk from 'chalk'
 import { configManager } from '../core/config-manager'
 import { GoatProvider } from '../onchain/goat-provider'
+import {
+  validateERC20Balance,
+  validateERC20Transfer,
+  validateERC20Approve,
+  validatePolymarketBet,
+  validatePolymarketSearch,
+  validateWalletInfo,
+  validateGoatChatMessage,
+  checksumAddress,
+  normalizeEVMAddress,
+  isZeroAddress,
+  sanitizeAddress,
+  isValidEVMAddress,
+} from './goat-validation-schemas'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 
 /**
  * GoatTool - Official GOAT SDK Integration as NikCLI Tool
  *
  * This tool provides access to all GOAT SDK capabilities including:
- * - Polymarket prediction markets
- * - ERC20 token operations
- * - Multi-chain support (Polygon, Base)
+ * - Polymarket prediction markets (on Polygon)
+ * - ERC20 token operations (multi-chain: Polygon, Base)
+ * - Multi-chain support (Polygon: 137, Base: 8453)
  * - User confirmation for all blockchain transactions
  * - Secure environment variable handling
  * - Audit logging for compliance
  * - Conversational AI interface for natural language blockchain operations
  */
+
+// ============================================================
+// BLOCKCHAIN CHAIN CONSTANTS
+// ============================================================
+
+const BLOCKCHAIN_CHAINS = {
+  POLYGON: {
+    chainId: 137,
+    name: 'Polygon',
+    symbol: 'MATIC',
+  },
+  BASE: {
+    chainId: 8453,
+    name: 'Base',
+    symbol: 'ETH',
+  },
+} as const
+
+const PLUGIN_DEFAULT_CHAINS = {
+  polymarket: BLOCKCHAIN_CHAINS.POLYGON, // Polymarket ONLY on Polygon
+  erc20: BLOCKCHAIN_CHAINS.POLYGON, // Default to Polygon
+} as const
+
 export class GoatTool extends BaseTool {
   private goatProvider: GoatProvider | null = null
   private isInitialized: boolean = false
@@ -259,13 +296,39 @@ export class GoatTool extends BaseTool {
     }
 
     try {
-      // Inject tool hint once
+      // Inject tool hint once with EVM address instructions
       if (!this.toolHintInjected) {
         this.conversationMessages.push({
           role: 'system',
-          content: `You have access to GOAT SDK tools for blockchain operations. 
+          content: `You have access to GOAT SDK tools for blockchain operations.
 Available plugins: ${this.goatProvider!.getEnabledPlugins().join(', ')}
 Available chains: ${this.goatProvider!.getSupportedChains().map(c => c.name).join(', ')}
+
+IMPORTANT INSTRUCTIONS FOR ETHEREUM ADDRESSES:
+- ALWAYS generate valid Ethereum addresses in format: 0x followed by 40 hexadecimal characters (0-9, a-f)
+- Valid example: 0x742d35Cc6634C0532925a3b844Bc029e4f94b4b0
+- NEVER use short addresses like 0x0, 0x1, or similar
+- If user provides a short address, pad it with leading zeros: 0x0 → 0x0000000000000000000000000000000000000000
+
+BLOCKCHAIN CHAINS & TOKENS:
+- Polymarket ALWAYS uses Polygon (chainId: 137) - NEVER use other chains for Polymarket
+- Polymarket bets use USDC token on Polygon
+- USDC on Polygon contract address: 0x2791Bca1f2de4661ED88A30C99a7a9449Aa84174 (checksummed)
+- ERC20 operations can use Base (chainId: 8453) or Polygon (chainId: 137)
+- Default to Polygon if not specified
+
+POLYMARKET OPERATIONS:
+- IMPORTANT: Always use USDC (0x2791Bca1f2de4661ED88A30C99a7a9449Aa84174 - checksummed) on Polygon for Polymarket
+- Market IDs must be actual market identifiers (hex string or market slug)
+- Text-based market search by description DOES NOT WORK with Polymarket API
+- To find markets, you MUST:
+  1. Ask user for the EXACT market ID or market slug (available on polymarket.com)
+  2. OR list active markets using list_markets() and show user the options
+  3. Let user choose from the list
+  4. Then use that market ID for placing bets with USDC
+- NEVER attempt full-text search by market description (API doesn't support it)
+- If user provides a description, tell them: "I need the exact market ID from polymarket.com or I can list available markets for you to choose from"
+- NEVER try to use zero address (0x0000...) or invalid addresses as token contracts
 
 ALWAYS confirm with user before executing any blockchain transaction.`,
         })
@@ -477,6 +540,25 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
   }
 
   /**
+   * Get the appropriate blockchain chain for a plugin
+   * Polymarket ALWAYS uses Polygon, others can be overridden
+   */
+  private getChainForPlugin(plugin: string, overrideChainId?: number): typeof BLOCKCHAIN_CHAINS.POLYGON {
+    // Polymarket MUST use Polygon - no exceptions
+    if (plugin === 'polymarket') {
+      return PLUGIN_DEFAULT_CHAINS.polymarket
+    }
+
+    // For other plugins, check if chainId is provided
+    if (overrideChainId === BLOCKCHAIN_CHAINS.BASE.chainId) {
+      return PLUGIN_DEFAULT_CHAINS.erc20
+    }
+
+    // Default to Polygon for other operations
+    return PLUGIN_DEFAULT_CHAINS[plugin as keyof typeof PLUGIN_DEFAULT_CHAINS] || BLOCKCHAIN_CHAINS.POLYGON
+  }
+
+  /**
    * Reset conversation history
    */
   private async resetConversation(params: any = {}): Promise<ToolExecutionResult> {
@@ -500,7 +582,11 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
   }
 
   /**
-   * Handle Polymarket-specific actions
+   * Handle Polymarket-specific actions with Zod validation
+   *
+   * IMPORTANT: Use market IDs (numeric), not descriptions
+   * Example: market ID is "0x123abc", not "Which CEOs Will Be Out in 2025?"
+   * Use /polymarket chat "search markets about CEOs" to find market IDs first
    */
   private async handlePolymarketAction(action: string, params: any = {}): Promise<ToolExecutionResult> {
     const startTime = Date.now()
@@ -532,13 +618,55 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
       }
     }
 
-    // Use chat interface for Polymarket operations
-    const message = `Execute Polymarket ${action}: ${JSON.stringify(params)}`
-    return await this.processChatMessage(message, { plugin: 'polymarket' })
+    // Validate parameters based on action
+    let validationResult: any
+    switch (action.toLowerCase()) {
+      case 'bet':
+      case 'polymarket-bet':
+        validationResult = validatePolymarketBet(params)
+        break
+      case 'markets':
+      case 'polymarket-markets':
+        // Markets listing doesn't require strict validation
+        validationResult = { valid: true }
+        break
+      default:
+        // For unknown actions, just create a message
+        validationResult = { valid: true }
+    }
+
+    if (!validationResult.valid) {
+      return {
+        success: false,
+        data: null,
+        error: validationResult.error || 'Parameter validation failed',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: { action, params },
+        },
+      }
+    }
+
+    // ⛓️ Force Polygon chain for Polymarket (Polymarket ONLY operates on Polygon)
+    const polymarketChain = PLUGIN_DEFAULT_CHAINS.polymarket
+    const polymarketParams = {
+      ...validationResult.data,
+      chainId: polymarketChain.chainId,
+      chain: 'polygon',
+    }
+
+    // Use chat interface for Polymarket operations with Polygon chain
+    const message = `Execute Polymarket ${action} on ${polymarketChain.name} chain (chainId: ${polymarketChain.chainId}): ${JSON.stringify(polymarketParams)}`
+    return await this.processChatMessage(message, {
+      plugin: 'polymarket',
+      chainId: polymarketChain.chainId,
+      chain: 'polygon',
+    })
   }
 
   /**
-   * Handle ERC20-specific actions
+   * Handle ERC20-specific actions with Zod validation
    */
   private async handleERC20Action(action: string, params: any = {}): Promise<ToolExecutionResult> {
     const startTime = Date.now()
@@ -570,8 +698,41 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
       }
     }
 
+    // Validate parameters based on action
+    let validationResult: any
+    switch (action.toLowerCase()) {
+      case 'balance':
+      case 'erc20-balance':
+        validationResult = validateERC20Balance(params)
+        break
+      case 'transfer':
+      case 'erc20-transfer':
+        validationResult = validateERC20Transfer(params)
+        break
+      case 'approve':
+      case 'erc20-approve':
+        validationResult = validateERC20Approve(params)
+        break
+      default:
+        // For unknown actions, just create a message
+        validationResult = { valid: true }
+    }
+
+    if (!validationResult.valid) {
+      return {
+        success: false,
+        data: null,
+        error: validationResult.error || 'Parameter validation failed',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: { action, params },
+        },
+      }
+    }
+
     // Use chat interface for ERC20 operations
-    const message = `Execute ERC20 ${action}: ${JSON.stringify(params)}`
+    const message = `Execute ERC20 ${action}: ${JSON.stringify(validationResult.data || params)}`
     return await this.processChatMessage(message, { plugin: 'erc20' })
   }
 }
