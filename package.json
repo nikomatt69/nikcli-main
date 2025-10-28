@@ -133,7 +133,7 @@
     "dotenv": "^17.2.1",
     "express": "5.1.0",
     "express-rate-limit": "^8.0.1",
-    "globby": "^14.1.0",
+    "globby": "^15.0.0",
     "gpt-tokenizer": "^3.0.1",
     "gradient-string": "^3.0.0",
     "helmet": "^8.1.0",
