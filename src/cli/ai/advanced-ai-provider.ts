@@ -31,12 +31,14 @@ import { smartCache } from '../core/smart-cache-manager'
 import { ToolRouter } from '../core/tool-router'
 import { type ValidationContext, validatorManager } from '../core/validator-manager'
 import { WebSearchProvider } from '../core/web-search-provider'
+import { ToolRegistry } from '../tools/tool-registry'
 import { PromptManager } from '../prompts/prompt-manager'
 import { aiDocsTools } from '../tools/docs-request-tool'
 import { smartDocsTools } from '../tools/smart-docs-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
+import { CliUI } from '../utils/cli-ui'
 import { compactAnalysis, safeStringifyContext } from '../utils/analysis-utils'
 import { adaptiveModelRouter, type ModelScope } from './adaptive-model-router'
 
@@ -318,6 +320,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
   private ideContextEnricher: IDEContextEnricher
   private advancedTools: AdvancedTools
   private toolRouter: ToolRouter
+  private toolRegistry: ToolRegistry
   private promptManager: PromptManager
   private smartCache: typeof smartCache
   private docLibrary: typeof docLibrary
@@ -333,6 +336,7 @@ export class AdvancedAIProvider implements AutonomousProvider {
     this.ideContextEnricher = new IDEContextEnricher()
     this.advancedTools = new AdvancedTools()
     this.toolRouter = new ToolRouter()
+    this.toolRegistry = new ToolRegistry(process.cwd())
     this.promptManager = PromptManager.getInstance(process.cwd(), optimizationConfig)
     this.smartCache = smartCache
     this.docLibrary = docLibrary
@@ -859,6 +863,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
         }),
         execute: async ({ command, args, autonomous, timeout }) => {
           try {
+            // Load tool-specific prompt for context
+            const toolPrompt = await this.getToolPrompt('execute_command', { command, args, autonomous })
+            CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
+
             const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command
 
             // Safety check for dangerous commands
@@ -941,6 +949,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
         }),
         execute: async ({ includeMetrics, analyzeDependencies, securityScan }) => {
           try {
+            // Load tool-specific prompt for context
+            const toolPrompt = await this.getToolPrompt('analyze_project', { includeMetrics, analyzeDependencies, securityScan })
+            CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
+
             advancedUI.logFunctionUpdate('info', 'Starting comprehensive project analysis...', 'ℹ')
 
             const analysis = await this.performAdvancedProjectAnalysis({
@@ -977,6 +989,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
         }),
         execute: async ({ action, packages, dev, global }) => {
           try {
+            // Load tool-specific prompt for context
+            const toolPrompt = await this.getToolPrompt('manage_packages', { action, packages, dev, global })
+            CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
+
             const command = 'npm'
             let args: string[] = []
 
@@ -1042,6 +1058,10 @@ Respond in a helpful, professional manner with clear explanations and actionable
         }),
         execute: async ({ type, description, language, framework, outputPath }) => {
           try {
+            // Load tool-specific prompt for context
+            const toolPrompt = await this.getToolPrompt('generate_code', { type, description, language, framework })
+            CliUI.logDebug(`Using system prompt: ${toolPrompt.substring(0, 100)}...`)
+
             advancedUI.logFunctionCall(`generating${type}`)
             advancedUI.logFunctionUpdate('info', description, '●')
 
@@ -1092,6 +1112,139 @@ Respond in a helpful, professional manner with clear explanations and actionable
       // AI documentation request tools
       docs_request: aiDocsTools.request,
       docs_gap_report: aiDocsTools.gapReport,
+
+      // ==================== ENTERPRISE BATCH & SEARCH TOOLS ====================
+
+      // 1. MULTI-READ: Batch file reading con search/context (Priority 8)
+      multi_read: tool({
+        description: 'Read multiple files safely with optional content search and context - preferred for batch operations',
+        parameters: z.object({
+          files: z.array(z.string()).optional().describe('Explicit file paths to read'),
+          globs: z.array(z.string()).optional().describe('Glob patterns (e.g., src/**/*.ts)'),
+          root: z.string().optional().describe('Root directory for search'),
+          exclude: z.array(z.string()).optional().describe('Patterns to exclude'),
+          pattern: z.string().optional().describe('Search pattern within files'),
+          useRegex: z.boolean().default(false).describe('Use regex for pattern'),
+          caseSensitive: z.boolean().default(false).describe('Case sensitive search'),
+          contextLines: z.number().default(0).describe('Lines of context around matches'),
+        }),
+        execute: async (params) => {
+          const multiReadTool = this.toolRegistry.getTool('multi-read-tool')
+          if (!multiReadTool) return { error: 'Multi-read tool not available' }
+          const result = await multiReadTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 2. GREP: Advanced pattern search (Priority 9 - HIGHEST)
+      grep: tool({
+        description: 'Search for text patterns in codebase - ripgrep-like search for finding specific strings, function names, TODOs, imports, etc. Always preferred over web_search for local code search. Examples: "search for TODO comments", "find all imports of React", "locate function definitions"',
+        parameters: z.object({
+          pattern: z.string().describe('The text or string to search for (literal string by default, use useRegex:true for regex patterns). Examples: "TODO", "export function", "import React"'),
+          path: z.string().optional().describe('Search directory (defaults to current working directory). Examples: "src", "src/components", "." for all'),
+          include: z.string().optional().describe('File pattern to include (glob pattern like "*.ts", "*.tsx", "*.js"). Leave empty to search all files'),
+          exclude: z.array(z.string()).optional().describe('Array of patterns to exclude. Examples: ["node_modules", "dist", "*.test.ts"]'),
+          caseSensitive: z.boolean().default(false).describe('Case sensitive search - default false (case insensitive)'),
+          wholeWord: z.boolean().default(false).describe('Match whole words only - prevents partial matches'),
+          useRegex: z.boolean().default(false).describe('Treat pattern as regex - set true for regex patterns like "^export"'),
+          contextLines: z.number().default(0).describe('Number of lines to show before/after match for context (0 = just the line)'),
+          maxResults: z.number().default(100).describe('Maximum number of results to return (default 100)'),
+        }),
+        execute: async (params) => {
+          const grepTool = this.toolRegistry.getTool('grep-tool')
+          if (!grepTool) return { error: 'Grep tool not available' }
+          const result = await grepTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 3. MULTI-EDIT: Atomic batch edits (Priority 8)
+      multi_edit: tool({
+        description: 'Apply multiple edits atomically with rollback - preferred for batch modifications',
+        parameters: z.object({
+          edits: z.array(z.object({
+            file: z.string().describe('File path to edit'),
+            search: z.string().describe('Text to search for'),
+            replace: z.string().describe('Replacement text'),
+          })).describe('Array of edit operations'),
+          dryRun: z.boolean().default(false).describe('Preview changes without applying'),
+        }),
+        execute: async (params) => {
+          const multiEditTool = this.toolRegistry.getTool('multi-edit-tool')
+          if (!multiEditTool) return { error: 'Multi-edit tool not available' }
+          const result = await multiEditTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 4. FIND-FILES: Glob pattern matching (Priority 5)
+      find_files: tool({
+        description: 'Find files matching glob patterns with intelligent filtering',
+        parameters: z.object({
+          patterns: z.array(z.string()).describe('Glob patterns (e.g., **/*.ts, src/**/*.json)'),
+          cwd: z.string().optional().describe('Working directory for search'),
+          exclude: z.array(z.string()).optional().describe('Patterns to exclude'),
+          maxDepth: z.number().optional().describe('Maximum directory depth'),
+        }),
+        execute: async (params) => {
+          const findTool = this.toolRegistry.getTool('find-files-tool')
+          if (!findTool) return { error: 'Find files tool not available' }
+          const result = await findTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 5. EDIT-FILE: Edit with diff preview (Priority 6)
+      edit_file: tool({
+        description: 'Edit file with diff preview, validation and backup',
+        parameters: z.object({
+          file: z.string().describe('File path to edit'),
+          search: z.string().describe('Exact text to find'),
+          replace: z.string().describe('Replacement text'),
+          backup: z.boolean().default(true).describe('Create backup before editing'),
+        }),
+        execute: async (params) => {
+          const editTool = this.toolRegistry.getTool('edit-tool')
+          if (!editTool) return { error: 'Edit tool not available' }
+          const result = await editTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 6. REPLACE-IN-FILE: Regex replace with validation (Priority 6)
+      replace_in_file: tool({
+        description: 'Replace content in files with regex support and validation',
+        parameters: z.object({
+          file: z.string().describe('File path to modify'),
+          pattern: z.string().describe('Search pattern (regex supported)'),
+          replacement: z.string().describe('Replacement text'),
+          useRegex: z.boolean().default(false).describe('Use regex for pattern'),
+          backup: z.boolean().default(true).describe('Create backup before replacing'),
+        }),
+        execute: async (params) => {
+          const replaceTool = this.toolRegistry.getTool('replace-in-file-tool')
+          if (!replaceTool) return { error: 'Replace tool not available' }
+          const result = await replaceTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 7. LIST: Advanced directory listing (Priority 4)
+      list: tool({
+        description: 'List files and directories with intelligent ignore patterns',
+        parameters: z.object({
+          path: z.string().default('.').describe('Directory path to list'),
+          recursive: z.boolean().default(false).describe('List recursively'),
+          includeHidden: z.boolean().default(false).describe('Include hidden files'),
+          pattern: z.string().optional().describe('Filter by pattern'),
+        }),
+        execute: async (params) => {
+          const listTool = this.toolRegistry.getTool('list-tool')
+          if (!listTool) return { error: 'List tool not available' }
+          const result = await listTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
     }
   }
 

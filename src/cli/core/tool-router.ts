@@ -86,7 +86,7 @@ export class ToolRouter extends EventEmitter {
         'news',
         'version',
       ],
-      priority: 8,
+      priority: 6, // REDUCED: generic 'search' conflicts with grep/multi_read
       description: 'Search for updated web information',
       examples: ['search React 18 features', 'find TypeScript tutorial', 'information about Next.js 15'],
     },
@@ -110,7 +110,7 @@ export class ToolRouter extends EventEmitter {
         'open files',
         'recent',
       ],
-      priority: 7,
+      priority: 5, // REDUCED: too many generic keywords cause false positives
       description: 'IDE and workspace context analysis',
       examples: ['analyze development environment', 'project status', 'installed dependencies'],
     },
@@ -130,7 +130,7 @@ export class ToolRouter extends EventEmitter {
         'similar component',
         'implementation',
       ],
-      priority: 9,
+      priority: 8, // KEPT: very specific use case (semantic matching)
       description: 'Semantic search in codebase',
       examples: ['find files similar to this', 'search similar implementations', 'similar patterns in code'],
     },
@@ -153,7 +153,7 @@ export class ToolRouter extends EventEmitter {
         'performance',
         'complexity',
       ],
-      priority: 8,
+      priority: 7, // REDUCED: 'analyze' is too generic, let grep/multi_read take precedence
       description: 'Code quality analysis and optimization',
       examples: ['analyze code quality', 'find security issues', 'optimize performance'],
     },
@@ -176,7 +176,7 @@ export class ToolRouter extends EventEmitter {
         'package-lock',
         'yarn.lock',
       ],
-      priority: 7,
+      priority: 6, // REDUCED: more specific context needed to avoid false positives
       description: 'Dependencies and security analysis',
       examples: ['analyze dependencies', 'find vulnerabilities', 'update outdated packages'],
     },
@@ -240,11 +240,11 @@ export class ToolRouter extends EventEmitter {
       examples: ['read package.json', 'show file content', 'view configuration'],
     },
 
-    // Multi-read (batch) - ENHANCED PRIORITY
+    // Multi-read (batch) - HIGH PRIORITY FOR BATCH OPERATIONS
     {
       tool: 'multi_read',
       keywords: ['multi read', 'batch read', 'analyze files', 'collect contents', 'inspect many files', 'read several', 'read multiple', 'analyze all', 'check all files'],
-      priority: 8, // Increased from 6 to 8
+      priority: 7, // BALANCED: high for batch ops but not higher than grep for precision
       description: 'Read multiple files with search and context - preferred for batch operations',
       examples: ['read multiple files', 'batch analyze src/**/*.ts', 'check all config files'],
     },
@@ -275,7 +275,7 @@ export class ToolRouter extends EventEmitter {
     {
       tool: 'multi_edit',
       keywords: ['multi', 'batch', 'atomic', 'transaction', 'multiple files', 'batch edit', 'edit several', 'change multiple', 'update all', 'modify multiple'],
-      priority: 8, // Increased from 5 to 8
+      priority: 6, // MODERATE: batch edits important but less common than single edits
       description: 'Apply multiple edits atomically - preferred for batch modifications',
       examples: ['batch replace across files', 'atomic patch multiple files', 'update multiple components'],
     },
@@ -297,11 +297,11 @@ export class ToolRouter extends EventEmitter {
       examples: ['find *.ts in src', 'glob **/*.spec.ts'],
     },
 
-    // Grep/Search - ENHANCED FOR TEXT SEARCH
+    // Grep/Search - HIGHEST PRIORITY FOR PRECISE TEXT SEARCH
     {
       tool: 'grep',
-      keywords: ['grep', 'search', 'find text', 'search in files', 'search code', 'find pattern', 'search content', 'look for', 'find string', 'search term'],
-      priority: 9, // High priority for text search
+      keywords: ['grep', 'search', 'find text', 'search in files', 'search code', 'find pattern', 'search content', 'look for', 'find string', 'search term', 'search for'],
+      priority: 9, // HIGHEST: grep is most precise for finding specific text/patterns
       description: 'Search text patterns in files - preferred for content search',
       examples: ['search for "function"', 'grep "export" in src/', 'find all TODO comments'],
     },
@@ -378,7 +378,7 @@ export class ToolRouter extends EventEmitter {
         'extract text',
         'summarize webpage',
       ],
-      priority: 8,
+      priority: 6, // REDUCED: external tool, use only when explicitly requested
       description: 'Web browsing automation and AI-powered content analysis',
       examples: ['browse https://example.com', 'analyze web content', 'extract text from website', 'summarize webpage'],
     },
@@ -429,7 +429,7 @@ export class ToolRouter extends EventEmitter {
         'v0',
         'vercel v0',
       ],
-      priority: 8,
+      priority: 5, // REDUCED: design-specific tool, use only when explicitly requested
       description: 'Figma design file operations, export, and AI-powered code generation',
       examples: [
         'export figma design as PNG',

@@ -2,8 +2,7 @@
 [install]
 # Use cache on external SSD
 cache = "/Volumes/SSD/.bun-cache"
-linker = "isolated"
-# linker = "hoisted"
+
 
 
 # Faster resolution

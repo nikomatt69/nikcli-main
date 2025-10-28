@@ -6,6 +6,7 @@
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { z } from 'zod'
+import { PatternValidation } from '../patterns/arkregex-patterns'
 import type { ContentValidator, ValidationResult } from '../schemas/tool-schemas'
 import { ContentValidators } from '../tools/write-file-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
@@ -468,13 +469,17 @@ export class ValidatorManager extends EventEmitter {
   }
 
   /**
-   * Detect framework from content analysis
+   * Detect framework from content analysis using arkregex patterns
+   * Provides type-safe framework detection with pattern matching
    */
   private detectFramework(content: string, filePath: string): string | undefined {
-    if (content.includes('import React') || content.includes('from "react"')) return 'react'
-    if (content.includes('import { NextPage }') || content.includes('next/')) return 'nextjs'
-    if (content.includes('import express') || content.includes('app.listen')) return 'express'
-    if (content.includes('import { FastifyInstance }')) return 'fastify'
+    // Use arkregex pattern detection for consistent matching
+    const detectedFrameworks = PatternValidation.detectFramework(content)
+    if (detectedFrameworks.length > 0) {
+      return detectedFrameworks[0] // Return first detected framework
+    }
+
+    // Fallback to legacy detection for edge cases
     if (filePath.includes('__tests__') || content.includes('describe(')) return 'jest'
     return undefined
   }

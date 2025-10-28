@@ -158,12 +158,12 @@ export class AuditMiddleware extends BaseMiddleware {
         ...response,
         metadata: {
           ...response.metadata,
-          audit: {
+          audit: JSON.stringify({
             auditId,
             audited: true,
-            riskLevel: auditEntry.riskLevel,
+            riskLevel: auditEntry.riskLevel as 'low' | 'medium' | 'high',
             complianceChecked: this.auditConfig.enableCompliance,
-          },
+          }),
         },
       }
     } catch (error: any) {

@@ -113,6 +113,26 @@ export interface MiddlewareExecutionContext {
   readonly retries: number;
 }
 
+/**
+ * Mutable version of MiddlewareExecutionContext for internal use
+ */
+export interface MutableMiddlewareExecutionContext {
+  /** Original request object */
+  readonly request: MiddlewareRequest;
+  /** Current response object (set after first middleware) */
+  response?: MiddlewareResponse;
+  /** When this execution started */
+  readonly startTime: Date;
+  /** When this execution ended (set after completion) */
+  endTime?: Date;
+  /** Total execution duration in milliseconds */
+  duration?: number;
+  /** Whether execution was halted */
+  aborted: boolean;
+  /** Number of retry attempts made */
+  retries: number;
+}
+
 // ============================================================================
 // Middleware Configuration
 // ============================================================================
@@ -133,6 +153,24 @@ export interface MiddlewareConfig {
   readonly retries?: number;
   /** Additional configuration metadata */
   readonly metadata?: SafeRecord;
+}
+
+/**
+ * Mutable version of MiddlewareConfig for internal use
+ */
+export interface MutableMiddlewareConfig {
+  /** Enable or disable this middleware */
+  enabled: boolean;
+  /** Execution priority (lower number = higher priority) */
+  priority: number;
+  /** Conditions that must be met to execute */
+  conditions?: readonly MiddlewareCondition[];
+  /** Execution timeout in milliseconds */
+  timeout?: number;
+  /** Number of retry attempts */
+  retries?: number;
+  /** Additional configuration metadata */
+  metadata?: SafeRecord;
 }
 
 /**
@@ -166,6 +204,18 @@ export interface MiddlewareRegistration {
   readonly middleware: BaseMiddleware;
   /** Middleware configuration */
   readonly config: MiddlewareConfig;
+}
+
+/**
+ * Mutable version of MiddlewareRegistration for internal use
+ */
+export interface MutableMiddlewareRegistration {
+  /** Unique middleware name */
+  readonly name: string;
+  /** Middleware instance */
+  readonly middleware: BaseMiddleware;
+  /** Middleware configuration */
+  config: MutableMiddlewareConfig;
 }
 
 /**
@@ -344,6 +394,24 @@ export interface MiddlewareMetrics {
   readonly lastExecutionTime?: Date;
   /** Error rate as percentage */
   readonly errorRate: number;
+}
+
+/**
+ * Mutable version of MiddlewareMetrics for internal use
+ */
+export interface MutableMiddlewareMetrics {
+  /** Total requests processed */
+  totalRequests: number;
+  /** Successful requests */
+  successfulRequests: number;
+  /** Failed requests */
+  failedRequests: number;
+  /** Average execution time in milliseconds */
+  averageExecutionTime: number;
+  /** Last execution timestamp */
+  lastExecutionTime?: Date;
+  /** Error rate as percentage */
+  errorRate: number;
 }
 
 /**

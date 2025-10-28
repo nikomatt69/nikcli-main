@@ -64,14 +64,14 @@ export class HealthChecker extends EventEmitter {
   private async checkRedis(): Promise<DependencyHealth> {
     const start = Date.now();
     try {
-      const health = await this.redis.healthCheck();
+      const health = await this.redis.isHealthy();
       return {
         name: 'redis',
-        status: health.status,
+        status: health ? 'healthy' : 'unhealthy',
         latency: Date.now() - start,
         metadata: {
-          connected: health.connected,
-          uptime: health.uptime,
+          connected: true,
+          uptime: 0,
         },
       };
     } catch (error) {

@@ -298,7 +298,7 @@ export class BackgroundAgentsClient {
       }
     })
 
-    ws.on('error', (error) => {
+    ws.on('error', (error: Error) => {
       console.error('📡 WebSocket error:', error)
       handlers.onError?.(error)
     })

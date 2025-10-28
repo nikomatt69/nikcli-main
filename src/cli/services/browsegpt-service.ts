@@ -2,8 +2,9 @@ import { chromium } from 'playwright'
 import { JSDOM } from 'jsdom'
 import { Readability } from '@mozilla/readability'
 import { generateText } from 'ai'
-import { anthropic } from '@ai-sdk/anthropic'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { openai } from '@ai-sdk/openai'
 
 /**
  * BrowseGPT Service - AI-powered web browsing for CLI
@@ -250,7 +251,7 @@ When responding:
 - Be concise but comprehensive in your responses`
 
       const response = await generateText({
-        model: anthropic('claude-3-5-sonnet-20241022'),
+        model: openai('gpt-5') as any,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
@@ -388,7 +389,7 @@ When responding:
     if (!element) return ''
 
     const snippetElements = element.querySelectorAll('span, div')
-    for (const el of snippetElements) {
+    for (const el of Array.from(snippetElements)) {
       const text = el.textContent || ''
       if (text.length > 50 && text.length < 300) {
         return text
@@ -414,7 +415,7 @@ When responding:
   private async summarizeWithAI(content: string, prompt: string): Promise<string> {
     try {
       const response = await generateText({
-        model: anthropic('claude-3-5-sonnet-20241022'),
+        model: openai('gpt-5') as any,
         messages: [
           {
             role: 'system',

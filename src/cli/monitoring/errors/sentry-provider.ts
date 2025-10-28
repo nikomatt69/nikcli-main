@@ -45,7 +45,7 @@ export class SentryProvider {
         debug: this.config.debug || false,
         integrations: [
           nodeProfilingIntegration(),
-          Sentry.httpIntegration({ tracing: true }),
+          Sentry.httpIntegration({}),
           Sentry.expressIntegration(),
         ],
         tracesSampleRate: this.config.tracesSampleRate,
@@ -142,12 +142,17 @@ export class SentryProvider {
     Sentry.setContext(name, context);
   }
 
-  startTransaction(name: string, op: string): Sentry.Transaction | undefined {
+  startTransaction(name: string, op: string): any {
     if (!this.initialized) {
       return undefined;
     }
 
-    return Sentry.startTransaction({ name, op });
+    // Use startSpan for newer Sentry versions, fallback to startTransaction
+    if (typeof Sentry.startSpan === 'function') {
+      return Sentry.startSpan({ name, op }, () => { });
+    } else {
+      return (Sentry as any).startTransaction({ name, op });
+    }
   }
 
   async flush(timeout = 2000): Promise<boolean> {

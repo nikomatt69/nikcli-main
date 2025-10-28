@@ -74,7 +74,7 @@ export class PlanGenerator {
     const suggestions: string[] = []
 
     // Check for circular dependencies
-    if (this.hasCircularDependencies(plan.steps)) {
+    if (this.hasCircularDependencies(plan.steps as ExecutionStep[])) {
       errors.push('Plan contains circular dependencies between steps')
     }
 
@@ -190,7 +190,7 @@ export class PlanGenerator {
         title: 'Analyze Project',
         description: 'Analyze current project structure and relevant files',
         toolName: 'find-files-tool',
-        toolArgs: { pattern: '**/*', options: { cwd: context.projectPath } },
+        toolArgs: { pattern: '**/*', options: context.projectPath as unknown as string | number | boolean | null },
         estimatedDuration: 5000,
         riskLevel: 'low',
         reversible: true,

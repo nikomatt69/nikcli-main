@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import { logger } from '../utils/logger'
+import { PatternValidation } from '../patterns/arkregex-patterns'
 import {
   BaseMiddleware,
   type MiddlewareConfig,
@@ -104,12 +105,10 @@ export class ValidationMiddleware extends BaseMiddleware {
       ...response,
       metadata: {
         ...response.metadata,
-        validation: {
-          validated: true,
-          requestValid: true,
-          responseValid: this.validationConfig.validateResponse,
-          validationTime: Date.now() - startTime,
-        },
+        'validation.validated': true,
+        'validation.requestValid': true,
+        'validation.responseValid': this.validationConfig.validateResponse,
+        'validation.validationTime': Date.now() - startTime,
       },
     }
   }
@@ -227,13 +226,13 @@ export class ValidationMiddleware extends BaseMiddleware {
     }
 
     if (request.context.requestId && typeof request.context.requestId === 'string') {
-      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-      if (!uuidPattern.test(request.context.requestId)) {
+      const uuidValidation = PatternValidation.validateUUID(request.context.requestId)
+      if (!uuidValidation.valid) {
         warnings.push({
           field: 'context.requestId',
           value: request.context.requestId,
           rule: 'format',
-          message: 'Request ID should be a valid UUID',
+          message: uuidValidation.error || 'Request ID should be a valid UUID',
         })
       }
     }
@@ -513,9 +512,9 @@ export class ValidationMiddleware extends BaseMiddleware {
         success: false,
         error: `${message}: ${validation.errors.map((e) => e.message).join(', ')}`,
         metadata: {
-          validationFailed: true,
-          validationErrors: validation.errors,
-          validationWarnings: validation.warnings,
+          'validation.failed': true,
+          'validation.errorCount': validation.errors.length,
+          'validation.warningCount': validation.warnings.length,
         },
       }
     }
@@ -523,9 +522,9 @@ export class ValidationMiddleware extends BaseMiddleware {
     return {
       success: true,
       metadata: {
-        validationFailed: true,
-        validationErrors: validation.errors,
-        validationWarnings: validation.warnings,
+        'validation.failed': true,
+        'validation.errorCount': validation.errors.length,
+        'validation.warningCount': validation.warnings.length,
       },
     }
   }

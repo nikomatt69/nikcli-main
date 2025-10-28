@@ -80,7 +80,7 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       // Close server
       if (this.wss) {
         await new Promise<void>((resolve, reject) => {
-          this.wss?.close((error) => {
+          this.wss?.close((error: Error | undefined) => {
             if (error) reject(error)
             else resolve()
           })
@@ -217,9 +217,9 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
     console.log(chalk.green('🔌 New WebSocket connection received'))
 
     // Setup connection handlers
-    ws.on('message', (data) => this.handleMessage(ws, data))
-    ws.on('close', (code, reason) => this.handleClose(ws, code, reason.toString()))
-    ws.on('error', (error) => this.handleConnectionError(ws, error))
+    ws.on('message', (data: any) => this.handleMessage(ws, data))
+    ws.on('close', (code: number, reason: string) => this.handleClose(ws, code, reason.toString()))
+    ws.on('error', (error: any) => this.handleConnectionError(ws, error))
     ws.on('pong', () => this.handlePong(ws))
 
     // Wait for session initialization
@@ -229,8 +229,8 @@ export class VMWebSocketServer extends EventEmitter implements VMEventEmitter {
       }
     }, 10000) // 10 second timeout
 
-    // Store temporary connection until initialized
-    ;(ws as any)._initTimeout = initTimeout
+      // Store temporary connection until initialized
+      ; (ws as any)._initTimeout = initTimeout
   }
 
   private async handleMessage(ws: WebSocket, data: any): Promise<void> {

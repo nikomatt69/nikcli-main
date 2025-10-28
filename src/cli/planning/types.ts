@@ -1,5 +1,5 @@
 // TODO: Consider refactoring for reduced complexity
-import type { BaseTask, TaskStatus, SafeRecord } from '../types/base-types';
+import type { BaseTask, TaskStatus, SafeRecord, TaskPriority } from '../types/base-types';
 
 // ============================================================================
 // Risk Assessment
@@ -154,6 +154,47 @@ export interface ExecutionPlan {
   };
 }
 
+/**
+ * Mutable version of ExecutionPlan for internal use
+ */
+export interface MutableExecutionPlan {
+  /** Unique plan identifier */
+  readonly id: string;
+  /** Plan title */
+  title: string;
+  /** Plan description */
+  description: string;
+  /** Ordered list of steps to execute */
+  steps: ExecutionStep[];
+  /** Related todo items */
+  todos: MutablePlanTodo[];
+  /** Current execution status */
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  /** Estimated total duration in milliseconds */
+  estimatedTotalDuration: number;
+  /** Actual duration if completed */
+  actualDuration?: number;
+  /** Risk assessment for entire plan */
+  riskAssessment: RiskAssessment;
+  /** When plan was created */
+  readonly createdAt: Date;
+  /** Agent that created this plan */
+  createdBy: string;
+  /** Execution context and metadata */
+  context: {
+    /** Original user request */
+    userRequest: string;
+    /** Project path for operation */
+    projectPath: string;
+    /** Files relevant to this plan */
+    relevantFiles?: string[];
+    /** Planning reasoning (explanation of choices) */
+    reasoning?: string;
+    /** Whether this is a simple plan (few steps) */
+    simple?: boolean;
+  };
+}
+
 // ============================================================================
 // Step Execution Results
 // ============================================================================
@@ -179,6 +220,26 @@ export interface StepExecutionResult {
 }
 
 /**
+ * Mutable version of StepExecutionResult for internal use
+ */
+export interface MutableStepExecutionResult {
+  /** ID of executed step */
+  readonly stepId: string;
+  /** Outcome of execution */
+  status: 'success' | 'failure' | 'skipped' | 'cancelled';
+  /** Output data from step */
+  output?: unknown;
+  /** Error if step failed */
+  error?: Error;
+  /** How long step took to execute in milliseconds */
+  duration: number;
+  /** When step was executed */
+  readonly timestamp: Date;
+  /** Execution logs */
+  logs?: string[];
+}
+
+/**
  * Complete result of executing a plan
  */
 export interface PlanExecutionResult {
@@ -194,6 +255,33 @@ export interface PlanExecutionResult {
   readonly stepResults: readonly StepExecutionResult[];
   /** Summary statistics */
   readonly summary: {
+    /** Total number of steps */
+    totalSteps: number;
+    /** Steps completed successfully */
+    successfulSteps: number;
+    /** Steps that failed */
+    failedSteps: number;
+    /** Steps that were skipped */
+    skippedSteps: number;
+  };
+}
+
+/**
+ * Mutable version of PlanExecutionResult for internal use
+ */
+export interface MutablePlanExecutionResult {
+  /** ID of executed plan */
+  readonly planId: string;
+  /** Overall execution status */
+  status: 'completed' | 'failed' | 'cancelled' | 'partial';
+  /** When execution started */
+  readonly startTime: Date;
+  /** When execution ended */
+  endTime?: Date;
+  /** Results for each step */
+  stepResults: MutableStepExecutionResult[];
+  /** Summary statistics */
+  summary: {
     /** Total number of steps */
     totalSteps: number;
     /** Steps completed successfully */
@@ -335,6 +423,44 @@ export interface PlanTodo extends BaseTask {
   readonly reasoning?: string;
   /** Tools needed to complete this todo */
   readonly tools?: readonly string[];
+}
+
+/**
+ * Mutable version of PlanTodo for internal use
+ */
+export interface MutablePlanTodo {
+  /** Unique task identifier */
+  readonly id: string;
+  /** Human-readable task title */
+  title: string;
+  /** Detailed task description */
+  description: string;
+  /** Current execution status */
+  status: TaskStatus;
+  /** Task priority level */
+  priority: TaskPriority;
+  /** Task creation timestamp */
+  readonly createdAt: Date;
+  /** Task last update timestamp */
+  updatedAt: Date;
+  /** Task completion timestamp (if completed) */
+  completedAt?: Date;
+  /** Task progress percentage (0-100) */
+  progress: number;
+  /** Estimated duration in milliseconds */
+  estimatedDuration?: number;
+  /** Actual duration in milliseconds (if completed) */
+  actualDuration?: number;
+  /** Dependencies on other task IDs */
+  dependencies?: string[];
+  /** Related metadata */
+  metadata?: Record<string, unknown>;
+  /** Agent assigned to this todo */
+  assignedAgent?: string;
+  /** Reasoning for this todo */
+  reasoning?: string;
+  /** Tools needed to complete this todo */
+  tools?: string[];
 }
 
 // ============================================================================

@@ -7,18 +7,23 @@ import type {
   BaseMiddleware,
   MiddlewareChainResult,
   MiddlewareConfig,
+  MiddlewareContext,
   MiddlewareEvent,
   MiddlewareExecutionContext,
+  MutableMiddlewareConfig,
+  MutableMiddlewareExecutionContext,
   MiddlewareMetrics,
+  MutableMiddlewareMetrics,
   MiddlewareNext,
   MiddlewareRegistration,
+  MutableMiddlewareRegistration,
   MiddlewareRequest,
   MiddlewareResponse,
 } from './types'
 
 export class MiddlewareManager extends EventEmitter {
-  private middleware: Map<string, MiddlewareRegistration> = new Map()
-  private metrics: Map<string, MiddlewareMetrics> = new Map()
+  private middleware: Map<string, MutableMiddlewareRegistration> = new Map()
+  private metrics: Map<string, MutableMiddlewareMetrics> = new Map()
   private executionHistory: MiddlewareEvent[] = []
   private readonly maxHistorySize = 1000
 
@@ -28,7 +33,7 @@ export class MiddlewareManager extends EventEmitter {
   }
 
   register(middleware: BaseMiddleware, config?: Partial<MiddlewareConfig>): void {
-    const finalConfig: MiddlewareConfig = {
+    const finalConfig: MutableMiddlewareConfig = {
       enabled: true,
       priority: 100,
       timeout: 30000,
@@ -36,7 +41,7 @@ export class MiddlewareManager extends EventEmitter {
       ...config,
     }
 
-    const registration: MiddlewareRegistration = {
+    const registration: MutableMiddlewareRegistration = {
       name: middleware.name,
       middleware,
       config: finalConfig,
@@ -72,8 +77,8 @@ export class MiddlewareManager extends EventEmitter {
     args: any[],
     moduleContext: ModuleContext,
     requestType: 'command' | 'agent' | 'tool' | 'file' = 'command'
-  ): Promise<MiddlewareChainResult> {
-    const context = MiddlewareContextBuilder.forRequest(operation, args, moduleContext)
+  ): Promise<MiddlewareChainResult | undefined> {
+    const context: MiddlewareContext = MiddlewareContextBuilder.forRequest(operation, args, moduleContext) as MiddlewareContext
 
     const request: MiddlewareRequest = {
       id: context.requestId,
@@ -110,7 +115,7 @@ export class MiddlewareManager extends EventEmitter {
 
         executedMiddleware.push(middleware.name)
 
-        const executionContext: MiddlewareExecutionContext = {
+        const executionContext: MutableMiddlewareExecutionContext = {
           request,
           startTime: new Date(),
           aborted: false,
@@ -144,7 +149,7 @@ export class MiddlewareManager extends EventEmitter {
           this.recordEvent('error', middleware.name, request.id, executionContext.duration, error)
 
           if (registration.config.retries && executionContext.retries < registration.config.retries) {
-            executionContext.retries++
+            executionContext.retries = executionContext.retries + 1
             logger.warn(`Retrying middleware ${middleware.name} (attempt ${executionContext.retries})`)
             return next()
           }
@@ -153,29 +158,21 @@ export class MiddlewareManager extends EventEmitter {
         }
       }
 
-      finalResponse = await next()
+      // Execute the middleware chain
+      const response = await next()
 
       return {
-        success: true,
-        response: finalResponse,
+        success: response.success,
+        response: response,
         executedMiddleware,
         skippedMiddleware,
         totalDuration: Date.now() - startTime,
         metrics: this.getAllMetrics(),
       }
     } catch (error: any) {
-      finalError = error
-      logger.error('Middleware chain execution failed', {
-        requestId: request.id,
-        operation,
-        error: error.message,
-        executedMiddleware,
-        skippedMiddleware,
-      })
-
       return {
         success: false,
-        error: finalError,
+        error: error as Error,
         executedMiddleware,
         skippedMiddleware,
         totalDuration: Date.now() - startTime,
@@ -188,7 +185,7 @@ export class MiddlewareManager extends EventEmitter {
     middleware: BaseMiddleware,
     request: MiddlewareRequest,
     next: MiddlewareNext,
-    context: MiddlewareExecutionContext,
+    context: MutableMiddlewareExecutionContext,
     timeout: number
   ): Promise<MiddlewareResponse> {
     return new Promise((resolve, reject) => {
@@ -289,17 +286,39 @@ export class MiddlewareManager extends EventEmitter {
   }
 
   getAllMiddleware(): MiddlewareRegistration[] {
-    return Array.from(this.middleware.values())
+    return Array.from(this.middleware.values()).map(registration => ({
+      name: registration.name,
+      middleware: registration.middleware,
+      config: { ...registration.config }
+    }))
   }
 
   getMetrics(middlewareName: string): MiddlewareMetrics | undefined {
-    return this.metrics.get(middlewareName)
+    const mutableMetrics = this.metrics.get(middlewareName)
+    if (!mutableMetrics) return undefined
+
+    // Return a readonly copy
+    return {
+      totalRequests: mutableMetrics.totalRequests,
+      successfulRequests: mutableMetrics.successfulRequests,
+      failedRequests: mutableMetrics.failedRequests,
+      averageExecutionTime: mutableMetrics.averageExecutionTime,
+      lastExecutionTime: mutableMetrics.lastExecutionTime,
+      errorRate: mutableMetrics.errorRate,
+    }
   }
 
   getAllMetrics(): Record<string, MiddlewareMetrics> {
     const result: Record<string, MiddlewareMetrics> = {}
-    for (const [name, metrics] of this.metrics.entries()) {
-      result[name] = { ...metrics }
+    for (const [name, mutableMetrics] of this.metrics.entries()) {
+      result[name] = {
+        totalRequests: mutableMetrics.totalRequests,
+        successfulRequests: mutableMetrics.successfulRequests,
+        failedRequests: mutableMetrics.failedRequests,
+        averageExecutionTime: mutableMetrics.averageExecutionTime,
+        lastExecutionTime: mutableMetrics.lastExecutionTime,
+        errorRate: mutableMetrics.errorRate,
+      }
     }
     return result
   }

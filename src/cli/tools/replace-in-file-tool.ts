@@ -81,7 +81,7 @@ export class ReplaceInFileTool extends BaseTool {
         duration,
         preview: this.generatePreview(originalContent, replaceResult.newContent, options.previewLines),
         metadata: {
-          searchPattern: searchPattern.toString(),
+          searchPattern: searchPattern ? searchPattern.toString() : 'undefined',
           replacement,
           encoding: 'utf8',
           hasChanges: replaceResult.matchCount > 0,
@@ -100,7 +100,7 @@ export class ReplaceInFileTool extends BaseTool {
         metadata: {
           executionTime: duration,
           toolName: this.name,
-          parameters: { filePath, searchPattern: searchPattern.toString(), replacement, options },
+          parameters: { filePath, searchPattern: searchPattern ? searchPattern.toString() : 'undefined', replacement, options },
         },
       }
     } catch (error: any) {
@@ -115,7 +115,7 @@ export class ReplaceInFileTool extends BaseTool {
         duration,
         error: error.message,
         metadata: {
-          searchPattern: searchPattern.toString(),
+          searchPattern: searchPattern ? searchPattern.toString() : 'undefined',
           replacement,
           encoding: 'utf8',
           hasChanges: false,
@@ -130,7 +130,7 @@ export class ReplaceInFileTool extends BaseTool {
         metadata: {
           executionTime: duration,
           toolName: this.name,
-          parameters: { filePath, searchPattern: searchPattern.toString(), replacement, options },
+          parameters: { filePath, searchPattern: searchPattern ? searchPattern.toString() : 'undefined', replacement, options },
         },
       }
     }
@@ -171,7 +171,7 @@ export class ReplaceInFileTool extends BaseTool {
           duration: 0,
           error: error.message,
           metadata: {
-            searchPattern: searchPattern.toString(),
+            searchPattern: searchPattern ? searchPattern.toString() : 'undefined',
             replacement,
             encoding: 'utf8',
             hasChanges: false,
@@ -252,7 +252,7 @@ export class ReplaceInFileTool extends BaseTool {
         duration: 0,
         preview: this.generatePreview(content, newContent),
         metadata: {
-          searchPattern: searchPattern.toString(),
+          searchPattern: searchPattern ? searchPattern.toString() : 'undefined',
           replacement,
           encoding: 'utf8',
           hasChanges: matchCount > 0,

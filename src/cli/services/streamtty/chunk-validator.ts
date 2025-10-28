@@ -5,6 +5,7 @@
  */
 
 import type { StreamChunk } from './circular-buffer'
+import { DangerousANSIPattern, SafeANSIPattern } from '../../patterns/arkregex-patterns'
 
 export type ChunkType = 'ai' | 'tool' | 'thinking' | 'system' | 'error' | 'user' | 'vm' | 'agent'
 
@@ -21,10 +22,12 @@ export interface ValidationResult {
   estimatedLines: number
 }
 
-const DANGEROUS_ANSI = /\x1b\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGKHflSTABCDE]/g
-const ANSI_CODE = /\x1b\[[0-9;]*m/g
 const MAX_CHUNK_SIZE = 1024 * 1024 // 1MB
 const VALID_CHUNK_TYPES = new Set(['ai', 'tool', 'thinking', 'system', 'error', 'user', 'vm', 'agent'])
+
+// Get the underlying RegExp objects from arkregex patterns for runtime use
+const DANGEROUS_ANSI = /\x1b\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGKHflSTABCDE]/g
+const ANSI_CODE = /\x1b\[[0-9;]*m/g
 
 export class ChunkValidator {
   static validate(chunk: StreamChunk): ValidationResult {

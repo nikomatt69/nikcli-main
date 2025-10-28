@@ -35,15 +35,14 @@ export async function runAnalysisWithEvents(
     // Naive file enumeration to stream some progress without touching core
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const _globby =
+    const globbyModule: any =
       (await import('globby')).globby || (await import('globby')).default || (await import('globby')).globbySync
 
-    const patterns = ['**/*.{ts,tsx,js,jsx,json,md}', '!node_modules/**', '!dist/**', '!build/**']
+    const patterns = ['**/*.{ts,tsx,js,jsx,json,md}', '!node_modules/**', '!dist/**', '!build/**', '!coverage/**', '!out/**', '!.next/**', '!.nuxt/**', '!.env/**', '!.env.local/**', '!.env.development.local/**', '!.env.test.local/**', '!.env.production.local/**']
     let files: string[] = []
     try {
       // Prefer globby async
-      const { globby: globbyAsync } = await import('globby')
-      files = await globbyAsync(patterns, { cwd })
+      files = await globbyModule(patterns, { cwd })
     } catch {
       // fallback minimal scan
       files = []

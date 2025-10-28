@@ -154,13 +154,15 @@ export class PerformanceMiddleware extends BaseMiddleware {
           ...response,
           metadata: {
             ...response.metadata,
-            performance: {
-              executionTime: metrics.executionTime,
-              memoryUsed: metrics.memoryUsed,
-              memoryDelta: metrics.memoryDelta,
-              cpuUsage: metrics.cpuUsage,
-              benchmark: this.benchmarks.get(request.operation),
-            },
+            'performance.executionTime': metrics.executionTime,
+            'performance.memoryUsed': metrics.memoryUsed,
+            'performance.memoryDelta': metrics.memoryDelta,
+            'performance.cpuUser': metrics.cpuUsage?.user || 0,
+            'performance.cpuSystem': metrics.cpuUsage?.system || 0,
+            'performance.benchmarkAvgTime': this.benchmarks.get(request.operation)?.averageTime || 0,
+            'performance.benchmarkMinTime': this.benchmarks.get(request.operation)?.minTime || 0,
+            'performance.benchmarkMaxTime': this.benchmarks.get(request.operation)?.maxTime || 0,
+            'performance.benchmarkCount': this.benchmarks.get(request.operation)?.totalExecutions || 0,
           },
         }
       },

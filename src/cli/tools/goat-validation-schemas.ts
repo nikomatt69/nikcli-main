@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { getAddress } from 'viem'
+import { PatternValidation } from '../patterns/arkregex-patterns'
 
 /**
  * GOAT SDK Tool Validation Schemas
@@ -11,8 +12,6 @@ import { getAddress } from 'viem'
 // EVM ADDRESS VALIDATION & NORMALIZATION WITH CHECKSUM
 // ============================================================
 
-const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/
-
 /**
  * Checksum an EVM address using viem's getAddress function
  * This applies EIP-55 checksum encoding which is required by viem
@@ -23,32 +22,16 @@ const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/
 export function checksumAddress(address: string | null | undefined): string | null {
   if (!address) return null
 
-  const trimmed = address.trim()
-
-  // Must start with 0x
-  if (!trimmed.startsWith('0x')) {
+  const validation = PatternValidation.validateEVMAddress(address)
+  if (!validation.valid) {
     return null
   }
 
-  const hexPart = trimmed.slice(2)
-
-  // Check if hex part contains only valid hex characters
-  if (!/^[a-f0-9]*$/i.test(hexPart)) {
-    return null
-  }
-
-  // If too long (more than 40 chars), invalid
-  if (hexPart.length > 40) {
-    return null
-  }
-
-  // Pad with leading zeros if too short
-  const padded = hexPart.padStart(40, '0')
-  const paddedAddress = `0x${padded}`
+  const paddedAddress = validation.normalized
 
   try {
-    // viem's getAddress applies EIP-55 checksum and validates
-    return getAddress(paddedAddress)
+    // viem's getAddress applies EIP-55 checksum and validates 
+    return getAddress(paddedAddress as `0x${string}`)
   } catch {
     return null
   }
@@ -64,28 +47,12 @@ export function checksumAddress(address: string | null | undefined): string | nu
 export function normalizeEVMAddress(address: string | null | undefined): string | null {
   if (!address) return null
 
-  const trimmed = address.trim().toLowerCase()
-
-  // Must start with 0x
-  if (!trimmed.startsWith('0x')) {
+  const validation = PatternValidation.validateEVMAddress(address)
+  if (!validation.valid) {
     return null
   }
 
-  const hexPart = trimmed.slice(2)
-
-  // Check if hex part contains only valid hex characters
-  if (!/^[a-f0-9]*$/.test(hexPart)) {
-    return null
-  }
-
-  // If too long (more than 40 chars), invalid
-  if (hexPart.length > 40) {
-    return null
-  }
-
-  // Pad with leading zeros if too short
-  const padded = hexPart.padStart(40, '0')
-  return `0x${padded}`
+  return validation.normalized as string | null
 }
 
 /**
@@ -112,7 +79,7 @@ export const EVMAddressSchema = z
     return checksummed
   })
   .refine(
-    (val) => EVM_ADDRESS_REGEX.test(val),
+    (val) => PatternValidation.validateEVMAddress(val).valid,
     'Invalid EVM address format after checksumming'
   )
 
@@ -368,8 +335,8 @@ export function sanitizeAddress(address: string | undefined): string | null {
  * Returns true if the address can be normalized to a valid EVM address
  */
 export function isValidEVMAddress(address: string): boolean {
-  const normalized = normalizeEVMAddress(address)
-  return normalized !== null && EVM_ADDRESS_REGEX.test(normalized)
+  const validation = PatternValidation.validateEVMAddress(address)
+  return validation.valid
 }
 
 export default {

@@ -1,7 +1,7 @@
 import { logger, logInfo, logError } from './error-handler'
 import { resourceManager } from './resource-manager'
 import { cacheRegistry } from './unified-cache'
-import { typedConfigManager, type TypedConfig } from './typed-config'
+import { simpleConfigManager as configManager, ConfigType } from './config-manager'
 import { AsyncUtils } from './async-utils'
 
 export interface InitializationOptions {
@@ -23,7 +23,7 @@ export interface SystemHealth {
 export class SystemInitializer {
   private static instance: SystemInitializer
   private initialized = false
-  private config: TypedConfig | null = null
+  private config: ConfigType = configManager.getConfig()
   private startTime = Date.now()
   private healthCheckInterval: NodeJS.Timeout | null = null
 
@@ -34,7 +34,7 @@ export class SystemInitializer {
     return this.instance
   }
 
-  async initialize(options: InitializationOptions = {}): Promise<TypedConfig> {
+  async initialize(options: InitializationOptions = {}): Promise<ConfigType> {
     if (this.initialized) {
       logInfo('System already initialized', 'SystemInitializer')
       return this.config!
@@ -53,32 +53,12 @@ export class SystemInitializer {
       // 1. Load configuration
       await this.initializeConfiguration(configSource)
 
-      // 2. Setup logging based on config
-      this.setupLogging()
-
-      // 3. Initialize core systems
-      await this.initializeCoreSystems()
-
-      // 4. Setup monitoring and health checks
-      if (enablePerformanceMonitoring) {
-        this.setupPerformanceMonitoring()
-      }
-
-      if (!skipHealthChecks) {
-        this.setupHealthChecks()
-      }
-
-      // 5. Setup graceful shutdown
-      if (enableGracefulShutdown) {
-        this.setupGracefulShutdown()
-      }
-
       this.initialized = true
       logInfo('System initialization completed successfully', 'SystemInitializer', {
         initializationTime: Date.now() - this.startTime
       })
 
-      return this.config!
+      return this.config
 
     } catch (error) {
       logError('System initialization failed', 'SystemInitializer', error as Error)
@@ -88,137 +68,41 @@ export class SystemInitializer {
 
   private async initializeConfiguration(source: 'file' | 'env' | 'mixed'): Promise<void> {
     try {
-      this.config = await typedConfigManager.loadConfig(source)
+      this.config = configManager.getConfig()
       logInfo('Configuration loaded', 'SystemInitializer', {
-        environment: this.config.base.environment,
-        source
+        workingDirectory: process.cwd(),
+        currentModel: this.config.currentModel,
+        temperature: this.config.temperature,
+        maxTokens: this.config.maxTokens,
+        chatHistory: this.config.chatHistory,
+        maxHistoryLength: this.config.maxHistoryLength,
+        models: this.config.models,
+        monitoring: this.config.monitoring,
+        outputStyle: this.config.outputStyle,
+        redis: this.config.redis,
+        supabase: this.config.supabase,
+        apiKeys: this.config.apiKeys,
+        environmentVariables: this.config.environmentVariables,
+        environmentSources: this.config.environmentSources,
       })
     } catch (error) {
       logError('Failed to load configuration', 'SystemInitializer', error as Error)
-      throw error
     }
-  }
-
-  private setupLogging(): void {
-    if (this.config) {
-      logger.setLogLevel(this.config.base.logLevel)
-      logInfo(`Logging configured with level: ${this.config.base.logLevel}`, 'SystemInitializer')
-    }
-  }
-
-  private async initializeCoreSystems(): Promise<void> {
-    if (!this.config) {
-      throw new Error('Configuration not loaded')
-    }
-
-    // Initialize caches if enabled
-    if (this.config.cache.enabled) {
-      logInfo('Cache system enabled', 'SystemInitializer', {
-        maxSize: this.config.cache.maxSize,
-        maxEntries: this.config.cache.maxEntries
-      })
-    }
-
-    // Initialize other systems as needed
-    logInfo('Core systems initialized', 'SystemInitializer')
-  }
-
-  private setupPerformanceMonitoring(): void {
-    if (!this.config?.performance.enableMetrics) {
-      return
-    }
-
-    const interval = this.config.performance.metricsInterval
-
-    setInterval(() => {
-      const memUsage = process.memoryUsage()
-      const cacheStats = cacheRegistry.getAllStats()
-
-      logInfo('Performance metrics', 'SystemInitializer', {
-        memory: {
-          rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
-          heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
-          heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`
-        },
-        uptime: Date.now() - this.startTime,
-        activeResources: resourceManager.getResourceCount(),
-        cacheStats
-      })
-
-      // Check memory usage against limits
-      if (this.config?.performance.maxMemoryUsage &&
-          memUsage.rss > this.config.performance.maxMemoryUsage) {
-        logger.warn(
-          'Memory usage exceeds configured limit',
-          'SystemInitializer',
-          {
-            current: memUsage.rss,
-            limit: this.config.performance.maxMemoryUsage
-          }
-        )
-      }
-    }, interval)
-
-    logInfo('Performance monitoring enabled', 'SystemInitializer', { interval })
-  }
-
-  private setupHealthChecks(): void {
-    const interval = 60000 // 1 minute
-
-    this.healthCheckInterval = setInterval(async () => {
-      try {
-        const health = await this.checkSystemHealth()
-
-        if (health.status === 'unhealthy') {
-          logger.error('System health check failed', 'SystemInitializer', health.lastError)
-        } else if (health.status === 'degraded') {
-          logger.warn('System health degraded', 'SystemInitializer', {
-            memoryUsage: health.memoryUsage,
-            activeResources: health.activeResources
-          })
-        }
-      } catch (error) {
-        logger.error('Health check error', 'SystemInitializer', error as Error)
-      }
-    }, interval)
-
-    logInfo('Health checks enabled', 'SystemInitializer', { interval })
   }
 
   private setupGracefulShutdown(): void {
-    const signals = ['SIGINT', 'SIGTERM', 'SIGUSR2']
-
-    const shutdownHandler = async (signal: string) => {
-      logInfo(`Received ${signal}, initiating graceful shutdown...`, 'SystemInitializer')
-
-      try {
-        await this.shutdown()
-        logInfo('Graceful shutdown completed', 'SystemInitializer')
-        process.exit(0)
-      } catch (error) {
-        logError('Error during shutdown', 'SystemInitializer', error as Error)
-        process.exit(1)
-      }
-    }
-
-    signals.forEach(signal => {
-      process.on(signal, () => shutdownHandler(signal))
-    })
-
-    // Handle uncaught exceptions
-    process.on('uncaughtException', async (error) => {
-      logError('Uncaught exception', 'SystemInitializer', error)
-      await this.shutdown()
-      process.exit(1)
-    })
-
     process.on('unhandledRejection', async (reason) => {
       logError('Unhandled rejection', 'SystemInitializer', reason as Error)
       await this.shutdown()
-      process.exit(1)
     })
 
-    logInfo('Graceful shutdown handlers registered', 'SystemInitializer')
+    process.on('uncaughtException', async (error) => {
+      logError('Uncaught exception', 'SystemInitializer', error)
+      await this.shutdown()
+    })
+    process.on('SIGINT', () => this.shutdown())
+    process.on('SIGTERM', () => this.shutdown())
+    process.on('SIGUSR2', () => this.shutdown())
   }
 
   async checkSystemHealth(): Promise<SystemHealth> {
@@ -229,22 +113,6 @@ export class SystemInitializer {
       const cacheStats = cacheRegistry.getAllStats()
 
       let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy'
-
-      // Check memory usage
-      if (this.config?.performance.maxMemoryUsage &&
-          memUsage.rss > this.config.performance.maxMemoryUsage * 0.9) {
-        status = 'degraded'
-      }
-
-      if (this.config?.performance.maxMemoryUsage &&
-          memUsage.rss > this.config.performance.maxMemoryUsage) {
-        status = 'unhealthy'
-      }
-
-      // Check resource count (potential memory leaks)
-      if (activeResources > 1000) {
-        status = status === 'unhealthy' ? 'unhealthy' : 'degraded'
-      }
 
       return {
         status,
@@ -304,7 +172,7 @@ export class SystemInitializer {
     return this.initialized
   }
 
-  getConfig(): TypedConfig | null {
+  getConfig(): ConfigType {
     return this.config
   }
 
@@ -312,14 +180,14 @@ export class SystemInitializer {
     return Date.now() - this.startTime
   }
 
-  async restart(options?: InitializationOptions): Promise<TypedConfig> {
+  async restart(options?: InitializationOptions): Promise<ConfigType> {
     logInfo('Restarting system...', 'SystemInitializer')
 
     await this.shutdown()
 
     // Reset state
     this.initialized = false
-    this.config = null
+    this.config = configManager.getConfig()
     this.startTime = Date.now()
 
     return this.initialize(options)
@@ -329,7 +197,7 @@ export class SystemInitializer {
 // Export singleton and utility functions
 export const systemInitializer = SystemInitializer.getInstance()
 
-export async function initializeSystem(options?: InitializationOptions): Promise<TypedConfig> {
+export async function initializeSystem(options?: InitializationOptions): Promise<ConfigType> {
   return systemInitializer.initialize(options)
 }
 
@@ -345,7 +213,7 @@ export function isSystemInitialized(): boolean {
   return systemInitializer.isInitialized()
 }
 
-export function getSystemConfig(): TypedConfig | null {
+export function getSystemConfig(): ConfigType {
   return systemInitializer.getConfig()
 }
 

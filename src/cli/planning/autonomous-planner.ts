@@ -5,17 +5,17 @@ import { nanoid } from 'nanoid'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
 import { WorkspaceRAG } from '../context/workspace-rag'
 import { advancedUI } from '../ui/advanced-cli-ui'
-import type { ExecutionPlan, PlanTodo } from './types'
+import type { ExecutionPlan, MutableExecutionPlan, PlanTodo } from './types'
 
 export interface PlanningEvent {
   type:
-    | 'plan_start'
-    | 'plan_created'
-    | 'todo_start'
-    | 'todo_progress'
-    | 'todo_complete'
-    | 'plan_complete'
-    | 'plan_failed'
+  | 'plan_start'
+  | 'plan_created'
+  | 'todo_start'
+  | 'todo_progress'
+  | 'todo_complete'
+  | 'plan_complete'
+  | 'plan_failed'
   planId?: string
   todoId?: string
   content?: string
@@ -145,8 +145,8 @@ ${workspaceContext.relevantFiles.map((f: { path: any; summary: any }) => `- ${f.
 
 AVAILABLE TOOLCHAINS:
 ${Array.from(this.toolchainRegistry.entries())
-  .map(([key, chain]) => `- ${key}: ${chain.description} (tools: ${chain.tools.join(', ')})`)
-  .join('\n')}
+            .map(([key, chain]) => `- ${key}: ${chain.description} (tools: ${chain.tools.join(', ')})`)
+            .join('\n')}
 
 AVAILABLE TOOLS:
 - read_file: Read and analyze file contents
@@ -253,12 +253,32 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
   }
 
   public async *executePlan(plan: ExecutionPlan): AsyncGenerator<PlanningEvent> {
-    plan.status = 'running'
+    // Convert to mutable for internal modifications
+    const mutablePlan: MutableExecutionPlan = {
+      ...plan,
+      status: 'running',
+      steps: [...plan.steps],
+      todos: plan.todos.map(todo => ({
+        ...todo,
+        status: todo.status,
+        progress: todo.progress,
+        updatedAt: todo.updatedAt,
+        completedAt: todo.completedAt,
+        actualDuration: todo.actualDuration,
+        dependencies: todo.dependencies ? [...todo.dependencies] : undefined,
+        metadata: todo.metadata ? { ...todo.metadata } : undefined,
+        tools: todo.tools ? [...todo.tools] : undefined
+      })),
+      context: {
+        ...plan.context,
+        relevantFiles: plan.context.relevantFiles ? [...plan.context.relevantFiles] : undefined
+      }
+    }
     let completedTodos = 0
 
     try {
       // Execute todos based on dependencies
-      const todoQueue = [...plan.todos]
+      const todoQueue = [...mutablePlan.todos]
       const completed = new Set<string>()
 
       while (todoQueue.length > 0) {
@@ -267,7 +287,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
         if (shouldInterrupt?.()) {
           yield {
             type: 'plan_failed',
-            planId: plan.id,
+            planId: mutablePlan.id,
             content: '🛑 Plan execution interrupted by user',
             error: 'User interrupted',
           }
@@ -290,14 +310,14 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
         for (const todo of readyTodos) {
           yield {
             type: 'todo_start',
-            planId: plan.id,
+            planId: mutablePlan.id,
             todoId: todo.id,
             content: `🔧 Executing: ${todo.title}`,
           }
 
           try {
             // Execute the todo using toolchain
-            const result = await this.executeTodo(todo, plan.context)
+            const result = await this.executeTodo(todo, mutablePlan.context)
 
             todo.status = 'completed'
             todo.completedAt = new Date()
@@ -306,11 +326,11 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
 
             yield {
               type: 'todo_complete',
-              planId: plan.id,
+              planId: mutablePlan.id,
               todoId: todo.id,
               content: `✓ Completed: ${todo.title}`,
               result,
-              progress: (completedTodos / plan.todos.length) * 100,
+              progress: (completedTodos / mutablePlan.todos.length) * 100,
             }
 
             // Remove from queue
@@ -321,7 +341,7 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
 
             yield {
               type: 'todo_complete',
-              planId: plan.id,
+              planId: mutablePlan.id,
               todoId: todo.id,
               content: `❌ Failed: ${todo.title} - ${error.message}`,
               error: error.message,
@@ -336,24 +356,24 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
       }
 
       // Plan completed
-      plan.status = 'completed'
-      plan.actualDuration = Date.now() - plan.createdAt.getTime()
+      mutablePlan.status = 'completed'
+      mutablePlan.actualDuration = Date.now() - mutablePlan.createdAt.getTime()
 
       yield {
         type: 'plan_complete',
-        planId: plan.id,
-        content: `🎉 Plan completed successfully! (${completedTodos}/${plan.todos.length} todos)`,
+        planId: mutablePlan.id,
+        content: `🎉 Plan completed successfully! (${completedTodos}/${mutablePlan.todos.length} todos)`,
         metadata: {
           completed: completedTodos,
-          total: plan.todos.length,
-          duration: plan.actualDuration,
+          total: mutablePlan.todos.length,
+          duration: mutablePlan.actualDuration,
         },
       }
     } catch (error: any) {
-      plan.status = 'failed'
+      mutablePlan.status = 'failed'
       yield {
         type: 'plan_failed',
-        planId: plan.id,
+        planId: mutablePlan.id,
         content: `❌ Plan failed: ${error.message}`,
         error: error.message,
       }

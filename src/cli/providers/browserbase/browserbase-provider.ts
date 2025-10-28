@@ -3,7 +3,7 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { Readability } from '@mozilla/readability'
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import { createOpenRouter, openrouter } from '@openrouter/ai-sdk-provider'
 
 import { type CoreMessage, generateObject } from 'ai'
 import chalk from 'chalk'
@@ -380,19 +380,19 @@ export class BrowserbaseProvider extends EventEmitter {
    */
   private async analyzeWithClaude(content: BrowserbaseContentResult, options: any): Promise<BrowserbaseAIAnalysis> {
     const apiKey =
-      simpleConfigManager.getApiKey('claude-3-5-sonnet-latest') || simpleConfigManager.getApiKey('anthropic')
+      simpleConfigManager.getApiKey('openrouter') || simpleConfigManager.getApiKey('@preset/nikcli')
 
     if (!apiKey) {
       throw new Error('Anthropic API key not configured')
     }
 
-    const anthropicProvider = createAnthropic({ apiKey })
-    const model = anthropicProvider('claude-3-5-sonnet-latest')
+    const anthropicProvider = createOpenRouter({ apiKey })
+    const model = anthropicProvider('@preset/nikcli')
 
     const systemPrompt = this.getAnalysisPrompt(options.analysisType, options.prompt)
 
     const result = await generateObject({
-      model,
+      model: openrouter('@preset/nikcli') as any,
       messages: [
         {
           role: 'user',
@@ -413,7 +413,7 @@ export class BrowserbaseProvider extends EventEmitter {
     return {
       ...(result.object as BrowserbaseAIAnalysis),
       metadata: {
-        modelUsed: 'claude-3-5-sonnet-latest',
+        modelUsed: '@preset/nikcli',
         processingTime: 0,
         contentLength: content.textContent.length,
       },
@@ -431,12 +431,12 @@ export class BrowserbaseProvider extends EventEmitter {
     }
 
     const openaiProvider = createOpenAI({ apiKey })
-    const model = openaiProvider('gpt-4o')
+    const model = openaiProvider('gpt-5') as any
 
     const systemPrompt = this.getAnalysisPrompt(options.analysisType, options.prompt)
 
     const result = await generateObject({
-      model,
+      model: openrouter('@preset/nikcli') as any,
       messages: [
         {
           role: 'user',
@@ -480,7 +480,7 @@ export class BrowserbaseProvider extends EventEmitter {
     const systemPrompt = this.getAnalysisPrompt(options.analysisType, options.prompt)
 
     const result = await generateObject({
-      model,
+      model: openrouter('@preset/nikcli') as any,
       messages: [
         {
           role: 'user',
@@ -633,26 +633,26 @@ export class BrowserbaseProvider extends EventEmitter {
       const anthropicKey =
         simpleConfigManager.getApiKey('claude-3-5-sonnet-latest') || simpleConfigManager.getApiKey('anthropic')
       if (anthropicKey) providers.push('claude')
-    } catch {}
+    } catch { }
 
     // Check OpenAI
     try {
       const openaiKey = simpleConfigManager.getApiKey('gpt-4o') || simpleConfigManager.getApiKey('openai')
       if (openaiKey) providers.push('openai')
-    } catch {}
+    } catch { }
 
     // Check Google
     try {
       const googleKey = simpleConfigManager.getApiKey('gemini-1.5-pro') || simpleConfigManager.getApiKey('google')
       if (googleKey) providers.push('google')
-    } catch {}
+    } catch { }
 
     // Check OpenRouter
     try {
       const openrouterKey =
         simpleConfigManager.getApiKey('openrouter') || simpleConfigManager.getApiKey('OPENROUTER_API_KEY')
       if (openrouterKey) providers.push('openrouter')
-    } catch {}
+    } catch { }
 
     return providers
   }

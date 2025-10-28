@@ -10,9 +10,14 @@ interface AlertFingerprint {
   readonly lastSeen: number;
 }
 
+interface MutableAlertFingerprint {
+  readonly key: string;
+  lastSeen: number;
+}
+
 export class AlertDeduplicator {
   private readonly config: DeduplicatorConfig;
-  private readonly fingerprints = new Map<string, AlertFingerprint>();
+  private readonly fingerprints = new Map<string, MutableAlertFingerprint>();
   private deduplicatedCount = 0;
 
   constructor(config: DeduplicatorConfig) {

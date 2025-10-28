@@ -6,13 +6,13 @@ import type { BackgroundJob } from '../types'
 
 export interface WebSocketMessage {
   type:
-    | 'job:created'
-    | 'job:started'
-    | 'job:completed'
-    | 'job:failed'
-    | 'job:log'
-    | 'heartbeat'
-    | 'connection:established'
+  | 'job:created'
+  | 'job:started'
+  | 'job:completed'
+  | 'job:failed'
+  | 'job:log'
+  | 'heartbeat'
+  | 'connection:established'
   data: any
   timestamp: Date
   clientId?: string
@@ -36,7 +36,7 @@ export class BackgroundAgentsWebSocketServer {
   }
 
   private setupWebSocketServer(): void {
-    this.wss.on('connection', (ws: WebSocket, _request) => {
+    this.wss.on('connection', (ws: WebSocket, _request: Request) => {
       const clientId = this.generateClientId()
       this.clients.set(clientId, ws)
 
@@ -50,7 +50,7 @@ export class BackgroundAgentsWebSocketServer {
       })
 
       // Handle client messages
-      ws.on('message', (data) => {
+      ws.on('message', (data: Buffer) => {
         try {
           const message = JSON.parse(data.toString())
           this.handleClientMessage(clientId, message)
@@ -75,7 +75,7 @@ export class BackgroundAgentsWebSocketServer {
       })
 
       // Handle errors
-      ws.on('error', (error) => {
+      ws.on('error', (error: Error) => {
         console.error(`📡 WebSocket error for client ${clientId}:`, error)
         this.clients.delete(clientId)
       })

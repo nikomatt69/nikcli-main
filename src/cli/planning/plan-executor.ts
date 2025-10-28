@@ -10,11 +10,14 @@ import { CliUI } from '../utils/cli-ui'
 import type {
   ExecutionPlan,
   ExecutionStep,
+  MutablePlanExecutionResult,
+  MutableStepExecutionResult,
   PlanApprovalResponse,
   PlanExecutionResult,
   PlannerConfig,
   StepExecutionResult,
 } from './types'
+import { CommandOptions } from '../tools/secure-command-tool'
 
 /**
  * Production-ready Plan Executor
@@ -91,7 +94,7 @@ export class PlanExecutor {
     await streamttyService.renderBlock(`## Executing Plan: ${plan.title}\n`, 'system')
 
     const startTime = new Date()
-    const result: PlanExecutionResult = {
+    const result: MutablePlanExecutionResult = {
       planId: plan.id,
       status: 'completed',
       startTime,
@@ -112,7 +115,22 @@ export class PlanExecutor {
         advancedUI.logWarning('Plan execution cancelled by user')
         // Cleanup/reset before returning
         this.resetCliContext()
-        return result
+        return {
+          planId: result.planId,
+          status: result.status,
+          startTime: result.startTime,
+          endTime: result.endTime,
+          stepResults: result.stepResults.map(step => ({
+            stepId: step.stepId,
+            status: step.status,
+            output: step.output,
+            error: step.error,
+            duration: step.duration,
+            timestamp: step.timestamp,
+            logs: step.logs ? [...step.logs] : undefined
+          })),
+          summary: { ...result.summary }
+        }
       }
 
       // Filter steps based on approval
@@ -142,7 +160,15 @@ export class PlanExecutor {
         advancedUI.addLiveUpdate({ type: 'info', content: `Executing: ${step.title}`, source: 'stepexecution' })
 
         const stepResult = await this.executeStep(step, plan)
-        result.stepResults.push(stepResult)
+        result.stepResults.push({
+          stepId: stepResult.stepId,
+          status: stepResult.status,
+          output: stepResult.output,
+          error: stepResult.error,
+          duration: stepResult.duration,
+          timestamp: stepResult.timestamp,
+          logs: stepResult.logs ? [...stepResult.logs] : undefined
+        })
 
         // Update summary
         switch (stepResult.status) {
@@ -159,7 +185,7 @@ export class PlanExecutor {
 
         // Handle step failure
         if (stepResult.status === 'failure') {
-          const decision = await this.handleStepFailure(step, stepResult, plan)
+          const decision = await this.handleStepFailure(step, result.stepResults[result.stepResults.length - 1], plan)
           if (decision === 'abort') {
             result.status = 'failed'
             break
@@ -199,7 +225,22 @@ export class PlanExecutor {
       // Cleanup/reset after successful run
       this.resetCliContext()
 
-      return result
+      return {
+        planId: result.planId,
+        status: result.status,
+        startTime: result.startTime,
+        endTime: result.endTime,
+        stepResults: result.stepResults.map(step => ({
+          stepId: step.stepId,
+          status: step.status,
+          output: step.output,
+          error: step.error,
+          duration: step.duration,
+          timestamp: step.timestamp,
+          logs: step.logs ? [...step.logs] : undefined
+        })),
+        summary: { ...result.summary }
+      }
     } catch (error: any) {
       result.status = 'failed'
       result.endTime = new Date()
@@ -213,7 +254,22 @@ export class PlanExecutor {
 
       // Cleanup/reset after failure
       this.resetCliContext()
-      return result
+      return {
+        planId: result.planId,
+        status: result.status,
+        startTime: result.startTime,
+        endTime: result.endTime,
+        stepResults: result.stepResults.map(step => ({
+          stepId: step.stepId,
+          status: step.status,
+          output: step.output,
+          error: step.error,
+          duration: step.duration,
+          timestamp: step.timestamp,
+          logs: step.logs ? [...step.logs] : undefined
+        })),
+        summary: { ...result.summary }
+      }
     }
   }
 
@@ -292,7 +348,7 @@ export class PlanExecutor {
    */
   private async executeStep(step: ExecutionStep, plan: ExecutionPlan): Promise<StepExecutionResult> {
     const startTime = Date.now()
-    const result: StepExecutionResult = {
+    const result: MutableStepExecutionResult = {
       stepId: step.id,
       status: 'success',
       duration: 0,
@@ -346,7 +402,15 @@ export class PlanExecutor {
       advancedUI.logError(`Step failed: ${error.message}`)
     }
 
-    return result
+    return {
+      stepId: result.stepId,
+      status: result.status,
+      output: result.output,
+      error: result.error,
+      duration: result.duration,
+      timestamp: result.timestamp,
+      logs: result.logs ? [...result.logs] : undefined
+    }
   }
 
   /**
@@ -544,19 +608,19 @@ export class PlanExecutor {
         case 'status':
           return { routed: true, result: await secureTools.gitStatus() }
         case 'diff':
-          return { routed: true, result: await secureTools.gitDiff(args.args || {}) }
+          return { routed: true, result: await secureTools.gitDiff(args.args as unknown as { staged?: boolean | undefined; pathspec?: string[] | undefined; } | undefined) }
         case 'commit': {
           if (!args || typeof args.message !== 'string') {
             throw new Error("git commit requires 'message' in args")
           }
           return {
             routed: true,
-            result: await secureTools.gitCommit(args as { message: string; add?: string[]; allowEmpty?: boolean }),
+            result: await secureTools.gitCommit(args as unknown as { message: string; add?: string[]; allowEmpty?: boolean }),
           }
         }
         case 'applypatch':
         case 'apply_patch':
-          return { routed: true, result: await secureTools.gitApplyPatch(args.patch) }
+          return { routed: true, result: await secureTools.gitApplyPatch(args.patch as unknown as string) }
         default:
           return { routed: false }
       }
@@ -579,7 +643,7 @@ export class PlanExecutor {
       }
       // Sequence
       if (Array.isArray(args.commands) && args.commands.length > 0) {
-        return { routed: true, result: await secureTools.executeCommandSequence(args.commands, args.options || {}) }
+        return { routed: true, result: await secureTools.executeCommandSequence(args.commands, args.options as unknown as CommandOptions | undefined) }
       }
       return { routed: false }
     }
@@ -651,7 +715,7 @@ export class PlanExecutor {
    */
   private async handleStepFailure(
     step: ExecutionStep,
-    result: StepExecutionResult,
+    result: MutableStepExecutionResult,
     _plan: ExecutionPlan
   ): Promise<'abort' | 'skip' | 'retry' | 'continue'> {
     advancedUI.logError(`Step "${step.title}" failed: ${result.error?.message}`)

@@ -37,12 +37,16 @@ async function testMiddlewareSystem() {
   try {
     const result = await middlewareManager.execute('test-operation', ['arg1', 'arg2'], moduleContext, 'command')
 
-    if (result.success) {
-      console.log('✓ Middleware pipeline executed successfully')
-      console.log(`📊 Executed middleware: ${result.executedMiddleware.join(', ')}`)
-      console.log(`⚡ Total execution time: ${result.totalDuration}ms`)
+    if (result) {
+      if (result.success) {
+        console.log('✓ Middleware pipeline executed successfully')
+        console.log(`📊 Executed middleware: ${result.executedMiddleware.join(', ')}`)
+        console.log(`⚡ Total execution time: ${result.totalDuration}ms`)
+      } else {
+        console.log('❌ Middleware pipeline failed:', result.error?.message)
+      }
     } else {
-      console.log('❌ Middleware pipeline failed:', result.error?.message)
+      console.log('❌ Middleware pipeline returned undefined')
     }
   } catch (error: any) {
     console.log('❌ Error during middleware execution:', error.message)

@@ -1238,6 +1238,47 @@ export class SimpleConfigManager {
       },
     },
     models: this.defaultModels,
+    monitoring: {
+      enabled: true,
+      opentelemetry: {
+        enabled: true,
+        endpoint: 'http://localhost:4318',
+        serviceName: 'nikcli',
+        serviceVersion: '0.5.0',
+        sampleRate: 0.1,
+        exportIntervalMs: 60000,
+      },
+      prometheus: {
+        enabled: true,
+        port: 9090,
+        path: '/metrics',
+      },
+      sentry: {
+        enabled: false,
+        environment: 'production',
+        debug: false,
+        tracesSampleRate: 0.1,
+        profilesSampleRate: 0.1,
+      },
+      alerting: {
+        enabled: true,
+        channels: {},
+        deduplication: {
+          enabled: true,
+          windowMs: 300000,
+        },
+        throttling: {
+          enabled: true,
+          maxAlertsPerMinute: 10,
+        },
+      },
+      health: {
+        enabled: true,
+        checkIntervalMs: 30000,
+      },
+
+    },
+
     apiKeys: {},
     environmentVariables: {},
     environmentSources: [],

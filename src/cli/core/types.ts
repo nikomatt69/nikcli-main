@@ -282,9 +282,6 @@ export function createAgentTask(
   const now = new Date();
 
   return {
-    id: data.id,
-    agentId: data.agentId,
-    title: data.title,
     description: data.description ?? '',
     status: data.status ?? ('pending' as TaskStatus),
     priority: data.priority ?? ('medium' as TaskPriority),
