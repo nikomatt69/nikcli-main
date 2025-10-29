@@ -116,6 +116,7 @@
     "@upstash/redis": "^1.35.3",
     "@vercel/kv": "^1.0.1",
     "ai": "^3.4.33",
+    "arkregex": "^0.0.2",
     "arktype": "^2.1.25",
     "axios": "^1.12.2",
     "blessed": "^0.1.81",

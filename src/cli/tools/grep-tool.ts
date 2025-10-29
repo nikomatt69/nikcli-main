@@ -86,7 +86,7 @@ export class GrepTool extends BaseTool {
         throw new Error(`Search path does not exist: ${searchPath}`)
       }
 
-      CliUI.logInfo(`🔍 Searching for pattern: ${CliUI.highlight(params.pattern)}`)
+      advancedUI.logInfo(`🔍 Searching for pattern: ${CliUI.highlight(params.pattern)}`)
 
       const startTime = Date.now()
 
@@ -99,7 +99,7 @@ export class GrepTool extends BaseTool {
       // Se non trova file, potrebbe essere dovuto a IGNORE_PATTERNS troppo aggressivi
       // Mostra warning ma continua comunque
       if (filesToSearch.length === 0) {
-        CliUI.logInfo(`⚠️  No files found matching criteria - this might be due to aggressive ignore patterns`)
+        advancedUI.logInfo(`⚠️  No files found matching criteria - this might be due to aggressive ignore patterns`)
         CliUI.logDebug(`Search path: ${searchPath}, pattern: ${params.pattern}`)
       } else {
         CliUI.logDebug(`Found ${filesToSearch.length} files to search`)
@@ -147,7 +147,7 @@ export class GrepTool extends BaseTool {
         },
       }
 
-      CliUI.logSuccess(`✓ Found ${result.totalMatches} matches in ${filesWithMatches} files`)
+      advancedUI.logSuccess(`✓ Found ${result.totalMatches} matches in ${filesWithMatches} files`)
 
       // Show grep results in structured UI
       if (result.matches.length > 0) {
@@ -339,7 +339,7 @@ export class GrepTool extends BaseTool {
         if (pattern.endsWith('/')) {
           // Pattern come 'node_modules/' - ignora solo se il path INIZIA con questo
           return pathLower.startsWith(patternLower.slice(0, -1)) ||
-                 pathLower.includes('/' + patternLower.slice(0, -1) + '/')
+            pathLower.includes('/' + patternLower.slice(0, -1) + '/')
         }
         if (pattern.includes('*')) {
           // Pattern globby come '*.log'

@@ -6,6 +6,7 @@ import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
 import { CognitiveAgentBase } from './cognitive-agent-base'
 import type { OrchestrationPlan, ReactCognition, TaskCognition } from './cognitive-interfaces'
+import { advancedUI } from '@/cli/ui/advanced-cli-ui'
 
 /**
  * 🎨 Enhanced React Agent with Cognitive Intelligence
@@ -54,15 +55,15 @@ export class ReactAgent extends CognitiveAgentBase {
   }
 
   protected override async onInitialize(): Promise<void> {
-    CliUI.logInfo('🎨 Initializing Enhanced React Agent with cognitive capabilities...')
+    advancedUI.logInfo('🎨 Initializing Enhanced React Agent with cognitive capabilities...')
     await this.initializeReactCognition()
-    CliUI.logSuccess(`✓ React Agent initialized with ${this.capabilities.length} capabilities`)
+    advancedUI.logSuccess(`✓ React Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
   protected override async onStop(): Promise<void> {
-    CliUI.logInfo('🛑 React Agent shutting down...')
+    advancedUI.logInfo('🛑 React Agent shutting down...')
     await this.saveCognitiveState()
-    CliUI.logSuccess('✓ React Agent stopped - cognitive state saved')
+    advancedUI.logSuccess('✓ React Agent stopped - cognitive state saved')
   }
 
   protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
@@ -83,7 +84,7 @@ export class ReactAgent extends CognitiveAgentBase {
     const startTime = Date.now()
 
     try {
-      CliUI.logInfo(`🎨 Executing React task with ${plan.strategy} orchestration`)
+      advancedUI.logInfo(`🎨 Executing React task with ${plan.strategy} orchestration`)
 
       // Phase 1: Analyze project and component requirements
       const context = await this.analyzeProjectContext(cognition)
@@ -359,13 +360,13 @@ Provide complete, working code that can be used immediately.`
       try {
         await toolsManager.writeFile(filename, code)
         result.filesCreated.push(filename)
-        CliUI.logSuccess(`✓ Created: ${filename}`)
+        advancedUI.logSuccess(`✓ Created: ${filename}`)
 
         if (filename.includes('test') || filename.includes('spec')) {
           result.testsGenerated = true
         }
       } catch (error: any) {
-        CliUI.logWarning(`⚠️ Could not create ${filename}: ${error.message}`)
+        advancedUI.logWarning(`⚠️ Could not create ${filename}: ${error.message}`)
       }
     }
 

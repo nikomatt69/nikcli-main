@@ -1,3 +1,4 @@
+import { advancedUI } from '@/cli/ui/advanced-cli-ui'
 import { ToolRegistry } from '../../tools/tool-registry'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentInstance, AgentStatus, AgentTask } from './agent-router'
@@ -49,7 +50,7 @@ export abstract class BaseAgent implements AgentInstance {
    */
   async initialize(): Promise<void> {
     try {
-      CliUI.logInfo(`🔌 Initializing agent: ${this.id}`)
+      advancedUI.logInfo(`🔌 Initializing agent: ${this.id}`)
 
       // Setup event listeners
       this.setupEventListeners()
@@ -67,7 +68,7 @@ export abstract class BaseAgent implements AgentInstance {
         specialization: this.specialization,
       })
 
-      CliUI.logSuccess(`✓ Agent ${this.id} initialized successfully`)
+      advancedUI.logSuccess(`✓ Agent ${this.id} initialized successfully`)
     } catch (error: any) {
       this.status = 'error'
       CliUI.logError(`❌ Failed to initialize agent ${this.id}: ${error.message}`)
@@ -91,7 +92,7 @@ export abstract class BaseAgent implements AgentInstance {
     this.agentMetrics.lastActive = new Date()
 
     try {
-      CliUI.logInfo(`🎯 Agent ${this.id} executing task: ${task.type}`)
+      advancedUI.logInfo(`🎯 Agent ${this.id} executing task: ${task.type}`)
 
       // Validate task compatibility
       await this.validateTask(task)
@@ -124,7 +125,7 @@ export abstract class BaseAgent implements AgentInstance {
         duration: execution.duration,
       })
 
-      CliUI.logSuccess(`✓ Task ${task.id} completed in ${execution.duration}ms`)
+      advancedUI.logSuccess(`✓ Task ${task.id} completed in ${execution.duration}ms`)
 
       return result
     } catch (error: any) {
@@ -165,11 +166,11 @@ export abstract class BaseAgent implements AgentInstance {
    */
   async stop(): Promise<void> {
     try {
-      CliUI.logInfo(`🛑 Stopping agent: ${this.id}`)
+      advancedUI.logInfo(`🛑 Stopping agent: ${this.id}`)
 
       // Wait for current tasks to complete
       while (this.currentTasks > 0) {
-        CliUI.logInfo(`⏳ Waiting for ${this.currentTasks} tasks to complete...`)
+        advancedUI.logInfo(`⏳ Waiting for ${this.currentTasks} tasks to complete...`)
         await new Promise((resolve) => setTimeout(resolve, 1000))
       }
 
@@ -184,7 +185,7 @@ export abstract class BaseAgent implements AgentInstance {
         agentId: this.id,
       })
 
-      CliUI.logSuccess(`✓ Agent ${this.id} stopped successfully`)
+      advancedUI.logSuccess(`✓ Agent ${this.id} stopped successfully`)
     } catch (error: any) {
       CliUI.logError(`❌ Failed to stop agent ${this.id}: ${error.message}`)
       throw error

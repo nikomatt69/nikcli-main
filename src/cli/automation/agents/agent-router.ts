@@ -1,3 +1,4 @@
+import { advancedUI } from '@/cli/ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import { EventBus, EventTypes } from './event-bus'
 
@@ -31,7 +32,7 @@ export class AgentRouter {
    */
   registerAgent(agentId: string, agent: AgentInstance): void {
     if (this.agents.has(agentId)) {
-      CliUI.logWarning(`Agent ${agentId} already registered. Overwriting...`)
+      advancedUI.logWarning(`Agent ${agentId} already registered. Overwriting...`)
     }
 
     this.agents.set(agentId, agent)
@@ -42,7 +43,7 @@ export class AgentRouter {
       successRate: 0,
     })
 
-    CliUI.logInfo(`🔌 Agent registered: ${agentId} (${agent.capabilities.join(', ')})`)
+    advancedUI.logInfo(`🔌 Agent registered: ${agentId} (${agent.capabilities.join(', ')})`)
 
     // Publish agent registration event
     this.eventBus.publish(EventTypes.AGENT_STARTED, {
@@ -62,7 +63,7 @@ export class AgentRouter {
     this.agents.delete(agentId)
     this.routingMetrics.agentUtilization.delete(agentId)
 
-    CliUI.logInfo(`🔌 Agent unregistered: ${agentId}`)
+    advancedUI.logInfo(`🔌 Agent unregistered: ${agentId}`)
 
     // Publish agent stop event
     this.eventBus.publish(EventTypes.AGENT_STOPPED, { agentId })
@@ -78,7 +79,7 @@ export class AgentRouter {
     this.routingMetrics.totalTasks++
 
     try {
-      CliUI.logInfo(`🎯 Routing task: ${task.type} - ${task.description}`)
+      advancedUI.logInfo(`🎯 Routing task: ${task.type} - ${task.description}`)
 
       // Analyze task to determine requirements
       const taskAnalysis = await this.analyzeTask(task)
@@ -113,7 +114,7 @@ export class AgentRouter {
       routeExecution.endTime = new Date()
       routeExecution.result = result
 
-      CliUI.logSuccess(`✓ Task routed to ${selectedAgent.agentId} in ${routingTime}ms`)
+      advancedUI.logSuccess(`✓ Task routed to ${selectedAgent.agentId} in ${routingTime}ms`)
 
       return {
         success: true,
@@ -146,7 +147,7 @@ export class AgentRouter {
     this.routingRules.push(rule)
     this.routingRules.sort((a, b) => (b.priority || 0) - (a.priority || 0))
 
-    CliUI.logInfo(`📋 Routing rule added: ${rule.name}`)
+    advancedUI.logInfo(`📋 Routing rule added: ${rule.name}`)
   }
 
   /**
@@ -158,7 +159,7 @@ export class AgentRouter {
 
     const removed = this.routingRules.length < initialLength
     if (removed) {
-      CliUI.logInfo(`📋 Routing rule removed: ${ruleName}`)
+      advancedUI.logInfo(`📋 Routing rule removed: ${ruleName}`)
     }
 
     return removed
@@ -260,11 +261,11 @@ export class AgentRouter {
     const bestCandidate = candidates[0]
     return bestCandidate
       ? {
-          agentId: bestCandidate.agentId,
-          agent: bestCandidate.agent,
-          score: bestCandidate.score,
-          reasoning: bestCandidate.reasoning,
-        }
+        agentId: bestCandidate.agentId,
+        agent: bestCandidate.agent,
+        score: bestCandidate.score,
+        reasoning: bestCandidate.reasoning,
+      }
       : null
   }
 
@@ -356,7 +357,7 @@ export class AgentRouter {
   private setupEventListeners(): void {
     // Listen for system events
     this.eventBus.subscribe(EventTypes.SYSTEM_SHUTDOWN, () => {
-      CliUI.logInfo('⚡︎ AgentRouter shutting down...')
+      advancedUI.logInfo('⚡︎ AgentRouter shutting down...')
       this.cleanup()
     })
 

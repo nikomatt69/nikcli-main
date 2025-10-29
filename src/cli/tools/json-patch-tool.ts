@@ -7,6 +7,7 @@ import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath, validateIsFile } from './secure-file-tools'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export type JsonPatchOp =
   | { op: 'add'; path: string; value: any }
@@ -108,7 +109,7 @@ export class JsonPatchTool extends BaseTool {
       const after = JSON.stringify(applied)
 
       if (before === after) {
-        CliUI.logWarning('⚠️ No changes produced by provided operations')
+        advancedUI.logWarning('⚠️ No changes produced by provided operations')
         return {
           success: true,
           data: { changes: 0, backupPath: undefined },
@@ -170,14 +171,14 @@ export class JsonPatchTool extends BaseTool {
         const ts = new Date().toISOString().replace(/[:.]/g, '-')
         backupPath = `${absolute}.backup.${ts}`
         fs.writeFileSync(backupPath, originalContent, 'utf8')
-        CliUI.logInfo(`💾 Backup created: ${path.relative(this.getWorkingDirectory(), backupPath)}`)
+        advancedUI.logInfo(`💾 Backup created: ${path.relative(this.getWorkingDirectory(), backupPath)}`)
       }
 
       if (!params.previewOnly) {
         fs.writeFileSync(absolute, newContent, 'utf8')
-        CliUI.logSuccess('✅ JSON patch applied')
+        advancedUI.logSuccess('✅ JSON patch applied')
       } else {
-        CliUI.logInfo('📋 Preview only, no changes written')
+        advancedUI.logInfo('📋 Preview only, no changes written')
       }
 
       return {

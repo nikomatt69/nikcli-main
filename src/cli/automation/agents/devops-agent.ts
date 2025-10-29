@@ -230,7 +230,7 @@ export class DevOpsAgent extends CognitiveAgentBase {
         cloudProvider: await this.detectCloudProvider(),
       }
 
-      CliUI.logSuccess(`✓ Infrastructure analyzed - Cloud: ${environment.cloudProvider || 'Unknown'}`)
+      advancedUI.logSuccess(`✓ Infrastructure analyzed - Cloud: ${environment.cloudProvider || 'Unknown'}`)
       return environment
     } catch (error: any) {
       throw new Error(`Infrastructure analysis failed: ${error.message}`)
@@ -288,7 +288,7 @@ Create production-ready infrastructure with security-first approach, cost optimi
         monitoringSetup: aiResponse.toLowerCase().includes('monitoring'),
       }
 
-      CliUI.logSuccess(`✓ Implementation complete - ${implementation.resourcesCreated.length} resources`)
+      advancedUI.logSuccess(`✓ Implementation complete - ${implementation.resourcesCreated.length} resources`)
       return implementation
     } catch (error: any) {
       CliUI.logError(`❌ Implementation failed: ${error.message}`)

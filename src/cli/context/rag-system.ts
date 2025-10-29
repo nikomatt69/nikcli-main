@@ -17,6 +17,7 @@ import { createVectorStoreManager, type VectorDocument, type VectorStoreManager 
 // Import workspace analysis types for integration
 import type { FileEmbedding, WorkspaceContext } from './workspace-rag'
 import { WorkspaceRAG } from './workspace-rag'
+import { regex } from 'arkregex'
 
 // Unified RAG interfaces
 export interface UnifiedRAGConfig {

@@ -187,11 +187,11 @@ Generate a structured plan with commands to execute.`,
       }
 
       console.log(chalk.blue.bold('\nCommands to execute:'))
-      ;(planResult.commands || []).forEach((cmd: any, index: number) => {
-        console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
-        console.log(`   ${chalk.gray(cmd.description)}`)
-        if (cmd.sudo) console.log(`   ${chalk.red('⚠️ Requires sudo')}`)
-      })
+        ; (planResult.commands || []).forEach((cmd: any, index: number) => {
+          console.log(`${index + 1}. ${chalk.cyan(cmd.command)}`)
+          console.log(`   ${chalk.gray(cmd.description)}`)
+          if (cmd.sudo) console.log(`   ${chalk.red('⚠️ Requires sudo')}`)
+        })
 
       // Ask for confirmation
       const readline = require('readline').createInterface({
@@ -417,7 +417,7 @@ Generate a structured plan with commands to execute.`,
     const startTime = Date.now()
 
     try {
-      CliUI.logInfo(`🖥️ Executing System Admin task with ${plan.strategy} orchestration`)
+      advancedUI.logInfo(`🖥️ Executing System Admin task with ${plan.strategy} orchestration`)
 
       // Phase 1: System Environment Analysis
       const systemContext = await this.analyzeSystemEnvironmentCognitive(cognition)
@@ -570,7 +570,7 @@ Generate working commands, scripts, and configurations.`
         monitoringSetup: aiResponse.toLowerCase().includes('monitoring') || aiResponse.toLowerCase().includes('cron'),
       }
 
-      CliUI.logSuccess(
+      advancedUI.logSuccess(
         `✓ System administration complete - ${implementation.commandsGenerated.length} commands generated`
       )
       return implementation

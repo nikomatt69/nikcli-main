@@ -7,6 +7,7 @@ import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
 import { CognitiveAgentBase } from './cognitive-agent-base'
 import type { CodingCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
+import { advancedUI } from '@/cli/ui/advanced-cli-ui'
 
 const CodeAnalysisSchema = z.object({
   language: z.string(),
@@ -93,9 +94,9 @@ export class CodingAgent extends CognitiveAgentBase {
   }
 
   protected override async onInitialize(): Promise<void> {
-    CliUI.logInfo('💻 Initializing Enhanced Coding Agent with cognitive capabilities...')
+    advancedUI.logInfo('💻 Initializing Enhanced Coding Agent with cognitive capabilities...')
     await this.initializeCodingCognition()
-    CliUI.logSuccess(`✓ Coding Agent initialized with ${this.capabilities.length} capabilities`)
+    advancedUI.logSuccess(`✓ Coding Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
   private async initializeCodingCognition(): Promise<void> {
@@ -190,7 +191,7 @@ export class CodingAgent extends CognitiveAgentBase {
     const startTime = Date.now()
 
     try {
-      CliUI.logInfo(`💻 Executing Coding task with ${plan.strategy} orchestration`)
+      advancedUI.logInfo(`💻 Executing Coding task with ${plan.strategy} orchestration`)
 
       const taskType = this.determineCodingTaskType(cognition)
       let result
@@ -564,7 +565,7 @@ export class CodingAgent extends CognitiveAgentBase {
 
   // Abstract method implementations
   protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
-    CliUI.logInfo(`🔧 Coding Agent processing: ${task.type}`)
+    advancedUI.logInfo(`🔧 Coding Agent processing: ${task.type}`)
 
     switch (task.type.toLowerCase()) {
       case 'analyze':
@@ -612,7 +613,7 @@ export class CodingAgent extends CognitiveAgentBase {
   }
 
   protected override async onStop(): Promise<void> {
-    CliUI.logInfo('🔧 Coding Agent shutting down...')
+    advancedUI.logInfo('🔧 Coding Agent shutting down...')
     // Cleanup any coding-specific resources
   }
 
