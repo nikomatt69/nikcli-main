@@ -33,6 +33,11 @@ export class BrowseGPTService {
    * Create a new browsing session
    */
   async createSession(sessionId?: string): Promise<string> {
+    // Check if service is configured
+    if (!this.config.apiKey || !this.config.projectId) {
+      throw new Error('BrowseGPT Service is not configured (missing BROWSERBASE_API_KEY or BROWSERBASE_PROJECT_ID)')
+    }
+
     const id = sessionId || this.generateSessionId()
 
     if (this.sessions.has(id)) {
@@ -348,11 +353,13 @@ When responding:
   // Private methods
 
   private validateConfig(): void {
-    if (!this.config.apiKey) {
-      throw new Error('BROWSERBASE_API_KEY environment variable is required')
-    }
-    if (!this.config.projectId) {
-      throw new Error('BROWSERBASE_PROJECT_ID environment variable is required')
+    if (!this.config.apiKey || !this.config.projectId) {
+      // Don't throw error - just log warning and disable service
+      advancedUI.logFunctionUpdate(
+        'warning',
+        'BrowseGPT Service disabled: BROWSERBASE_API_KEY and/or BROWSERBASE_PROJECT_ID not configured',
+        '⚠︎'
+      )
     }
   }
 

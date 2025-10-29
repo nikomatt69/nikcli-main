@@ -8,11 +8,6 @@
 // Set quiet startup mode immediately to prevent module initialization logs
 process.env.NIKCLI_QUIET_STARTUP = 'true'
 
-// Load environment variables first
-import dotenv from 'dotenv'
-
-dotenv.config()
-
 import chalk from 'chalk'
 import gradient from 'gradient-string'
 
@@ -1982,8 +1977,17 @@ class MainOrchestrator {
  * Main entry point function
  */
 async function main() {
-  // Initialize RAG if configured (non-blocking)
-
+  // Initialize embedded secrets from bundle FIRST, before any service initialization
+  try {
+    const { initializeEmbeddedSecrets } = await import('./init-secrets')
+    await initializeEmbeddedSecrets()
+    ;(global as any).__SECRETS_LOADED = true
+  } catch (error) {
+    // Continue even if secrets fail to load - services will fail gracefully if needed
+    if (process.env.DEBUG) {
+      console.warn('Warning: Failed to load embedded secrets:', error)
+    }
+  }
 
   // Parse command line arguments
   const argv = process.argv.slice(2)

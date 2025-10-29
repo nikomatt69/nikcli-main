@@ -575,15 +575,19 @@ export class BrowserbaseProvider extends EventEmitter {
    */
   private validateConfig(): void {
     if (!this.config.enabled) {
-      throw new Error('Browserbase not configured. Set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID')
-    }
-
-    if (!this.config.apiKey) {
-      throw new Error('BROWSERBASE_API_KEY is required')
-    }
-
-    if (!this.config.projectId) {
-      throw new Error('BROWSERBASE_PROJECT_ID is required')
+      // Don't throw - just log warning. Service will be disabled but process continues
+      advancedUI.logFunctionUpdate(
+        'warning',
+        'Browserbase Provider disabled: BROWSERBASE_API_KEY and/or BROWSERBASE_PROJECT_ID not configured',
+        '⚠︎'
+      )
+    } else if (!this.config.apiKey || !this.config.projectId) {
+      // Partial config - log warning
+      advancedUI.logFunctionUpdate(
+        'warning',
+        'Browserbase Provider partial configuration: missing BROWSERBASE_API_KEY or BROWSERBASE_PROJECT_ID',
+        '⚠︎'
+      )
     }
   }
 

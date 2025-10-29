@@ -1457,10 +1457,19 @@ export class SimpleConfigManager {
       fs.mkdirSync(configDir, { recursive: true })
     }
 
-    // Load or create config
+    // Load configuration from config.json
     this.loadConfig()
-    this.applySmartDefaults()
+
+    // Load embedded secrets from bundle and update config.json
+    // This happens BEFORE applying to process.env so new secrets are available
+    this.loadAndSaveEmbeddedSecrets()
+
+    // Apply ALL environment variables to process.env
+    // This includes both stored (from config.json) and newly loaded (from bundle)
     this.applyEnvironmentVariablesToProcess()
+
+    // Apply smart defaults AFTER all env vars are loaded
+    this.applySmartDefaults()
   }
 
   private loadConfig(): void {
@@ -1502,11 +1511,143 @@ export class SimpleConfigManager {
     const stored = this.config.environmentVariables ?? {}
 
     for (const [key, encryptedValue] of Object.entries(stored)) {
-      const value = KeyEncryption.decrypt(encryptedValue)
-      if (overwriteProcess || process.env[key] === undefined) {
-        process.env[key] = value
+      try {
+        const value = KeyEncryption.decrypt(encryptedValue)
+        if (overwriteProcess || process.env[key] === undefined) {
+          process.env[key] = value
+        }
+      } catch (error) {
+        if (process.env.DEBUG) {
+          console.error(`Failed to apply ${key}:`, error)
+        }
       }
     }
+  }
+
+  private loadAndSaveEmbeddedSecrets(): void {
+    try {
+      // Import the generated secrets file first (this injects configs into EmbeddedSecrets)
+      require('../config/generated-embedded-secrets')
+
+      // Try to load EmbeddedSecrets
+      const { EmbeddedSecrets } = require('../config/embedded-secrets')
+
+      // Check if we have embedded secrets in the bundle
+      if (!EmbeddedSecrets.isBuiltWithSecrets()) {
+        return // No embedded secrets to load
+      }
+
+      // Initialize EmbeddedSecrets synchronously
+      EmbeddedSecrets.initializeSync()
+
+      // Get all available embedded secrets
+      const secretConfigs = EmbeddedSecrets.listAvailable()
+
+      if (!this.config.environmentVariables) {
+        this.config.environmentVariables = {}
+      }
+
+      let changed = false
+      const secretsToOverwrite: { envVarName: string; oldValue: string; newValue: string }[] = []
+
+      // For each embedded secret, check if it needs to be added or updated
+      for (const secretInfo of secretConfigs) {
+        const secret = EmbeddedSecrets.getSecretSync(secretInfo.id)
+        if (!secret) continue
+
+        // Use the actual env var name (not the internal ID)
+        const envVarName = secretInfo.envVarName
+        const encryptedNewValue = KeyEncryption.encrypt(secret.value)
+
+        // Check if secret exists in config
+        if (!this.config.environmentVariables[envVarName]) {
+          // Secret doesn't exist - add it automatically
+          this.config.environmentVariables[envVarName] = encryptedNewValue
+          changed = true
+
+          // Also apply to process.env
+          if (!process.env[envVarName]) {
+            process.env[envVarName] = secret.value
+          }
+        } else {
+          // Secret exists - check if it's different
+          try {
+            const existingDecrypted = KeyEncryption.decrypt(this.config.environmentVariables[envVarName])
+
+            if (existingDecrypted !== secret.value) {
+              // Value is different - need to ask user confirmation
+              secretsToOverwrite.push({
+                envVarName,
+                oldValue: existingDecrypted,
+                newValue: secret.value,
+              })
+            } else {
+              // Value is the same - update silently to ensure sync
+              this.config.environmentVariables[envVarName] = encryptedNewValue
+              changed = true
+            }
+          } catch (decryptError) {
+            // If decryption fails, treat as different and ask user
+            secretsToOverwrite.push({
+              envVarName,
+              oldValue: '[encrypted]',
+              newValue: secret.value,
+            })
+          }
+        }
+      }
+
+      // Handle secrets that need user confirmation
+      if (secretsToOverwrite.length > 0) {
+        this.handleSecretOverwrites(secretsToOverwrite)
+        changed = true
+      }
+
+      // Save config if we made changes
+      if (changed) {
+        this.saveConfig()
+      }
+    } catch (error) {
+      // Silently fail - embedded secrets are optional
+      if (process.env.DEBUG) {
+        console.warn('Failed to load embedded secrets:', error)
+      }
+    }
+  }
+
+  private handleSecretOverwrites(secretsToOverwrite: { envVarName: string; oldValue: string; newValue: string }[]): void {
+    const { createInterface } = require('readline')
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    })
+
+    const askForOverwrite = (index: number) => {
+      if (index >= secretsToOverwrite.length) {
+        rl.close()
+        return
+      }
+
+      const secret = secretsToOverwrite[index]
+      rl.question(
+        `\n🔄 Secret "${secret.envVarName}" has been updated in the new version.\n` +
+          `   Old: ${secret.oldValue.slice(0, 20)}${secret.oldValue.length > 20 ? '...' : ''}\n` +
+          `   New: ${secret.newValue.slice(0, 20)}${secret.newValue.length > 20 ? '...' : ''}\n` +
+          `   Overwrite with new value? (y/n): `,
+        (answer: string) => {
+          if (answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes') {
+            this.config.environmentVariables[secret.envVarName] = KeyEncryption.encrypt(secret.newValue)
+            process.env[secret.envVarName] = secret.newValue
+            console.log(`✓ Updated ${secret.envVarName}`)
+          } else {
+            console.log(`✗ Kept existing value for ${secret.envVarName}`)
+          }
+          askForOverwrite(index + 1)
+        }
+      )
+    }
+
+    askForOverwrite(0)
   }
 
   private saveConfig(): void {
