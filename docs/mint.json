@@ -2,10 +2,11 @@
   "$schema": "https://mintlify.com/schema.json",
   "name": "NikCLI",
   "logo": {
-    "dark": "/logo/logo-dark.svg",
-    "light": "/logo/logo-light.svg",
-    "href": "https://nikcli.dev"
+    "dark": "/images/icon.png",
+    "light": "/images/icon.png",
+    "href": "https://nikcli.store"
   },
+  "theme": "mint",
   "favicon": "/favicon.svg",
   "colors": {
     "primary": "#8B5CF6",
