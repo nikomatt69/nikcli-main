@@ -545,12 +545,14 @@ const ConfigSchema = z.object({
       requireExplicitTrigger: z.boolean().default(false),
     })
     .default({ requireExplicitTrigger: false }),
-  // Authentication credentials
+  // Authentication credentials (encrypted)
   auth: z
     .object({
-      email: z.string().optional(),
-      token: z.string().optional(),
-      lastLogin: z.string().optional(),
+      email: z.string().optional().describe('Encrypted user email'),
+      password: z.string().optional().describe('Encrypted user password'),
+      accessToken: z.string().optional().describe('Encrypted access token'),
+      refreshToken: z.string().optional().describe('Encrypted refresh token'),
+      lastLogin: z.string().optional().describe('ISO timestamp of last login'),
     })
     .optional(),
   // Enhanced diff display configuration
@@ -2126,6 +2128,54 @@ export class SimpleConfigManager {
     const ids = await this.fetchOpenRouterModels()
     if (ids.size === 0) return false
     return ids.has(modelName)
+  }
+
+  // Authentication credentials management
+  saveAuthCredentials(credentials: {
+    email?: string
+    password?: string
+    accessToken?: string
+    refreshToken?: string
+  }): void {
+    if (!this.config.auth) {
+      this.config.auth = {}
+    }
+
+    // Encrypt sensitive data
+    if (credentials.email) this.config.auth.email = KeyEncryption.encrypt(credentials.email)
+    if (credentials.password) this.config.auth.password = KeyEncryption.encrypt(credentials.password)
+    if (credentials.accessToken) this.config.auth.accessToken = KeyEncryption.encrypt(credentials.accessToken)
+    if (credentials.refreshToken) this.config.auth.refreshToken = KeyEncryption.encrypt(credentials.refreshToken)
+
+    this.config.auth.lastLogin = new Date().toISOString()
+    this.saveConfig()
+  }
+
+  getAuthCredentials(): { email?: string; password?: string; accessToken?: string; refreshToken?: string } | null {
+    if (!this.config.auth) {
+      return null
+    }
+
+    try {
+      return {
+        email: this.config.auth.email ? KeyEncryption.decrypt(this.config.auth.email) : undefined,
+        password: this.config.auth.password ? KeyEncryption.decrypt(this.config.auth.password) : undefined,
+        accessToken: this.config.auth.accessToken ? KeyEncryption.decrypt(this.config.auth.accessToken) : undefined,
+        refreshToken: this.config.auth.refreshToken ? KeyEncryption.decrypt(this.config.auth.refreshToken) : undefined,
+      }
+    } catch (error) {
+      console.warn(chalk.yellow('Warning: Failed to decrypt auth credentials'))
+      return null
+    }
+  }
+
+  clearAuthCredentials(): void {
+    this.config.auth = undefined
+    this.saveConfig()
+  }
+
+  hasAuthCredentials(): boolean {
+    return !!(this.config.auth?.email || this.config.auth?.accessToken)
   }
 }
 

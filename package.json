@@ -28,7 +28,7 @@
     "build": "bun build src/cli/index.ts --compiler=nodejs --target=node --outdir=dist/cli --format=cjs --packages=external --sourcemap",
     "build:vercel": "echo 'Vercel build completed - using serverless functions'",
     "prepublishOnly": "bun run build",
-    "build:start": "bun dist/cli/index.js",
+    "build:start": "bun scripts/build-with-secrets.mjs && bun dist/cli/index.js",
     "build:binary": "bun scripts/build-all.js",
     "build:pkg": "bun run build && mkdir -p public/bin && pkg dist/cli/index.js --target node18-macos-arm64 --output public/bin/nikcli-macos-arm64",
     "build:pkg:all": "bun run build && mkdir -p public/bin && bun run pkg:macos:arm64 && bun run pkg:macos:x64 && bun run pkg:linux:x64 && bun run pkg:win:x64",

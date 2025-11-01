@@ -1,6 +1,5 @@
 import chalk from 'chalk'
 import { logger } from '../utils/logger'
-import { PatternValidation } from '../patterns/arkregex-patterns'
 import {
   BaseMiddleware,
   type MiddlewareConfig,
@@ -105,10 +104,12 @@ export class ValidationMiddleware extends BaseMiddleware {
       ...response,
       metadata: {
         ...response.metadata,
-        'validation.validated': true,
-        'validation.requestValid': true,
-        'validation.responseValid': this.validationConfig.validateResponse,
-        'validation.validationTime': Date.now() - startTime,
+        validation: {
+          validated: true,
+          requestValid: true,
+          responseValid: this.validationConfig.validateResponse,
+          validationTime: Date.now() - startTime,
+        } as any,
       },
     }
   }
@@ -215,7 +216,7 @@ export class ValidationMiddleware extends BaseMiddleware {
     })
 
     if (request.context.workingDirectory && typeof request.context.workingDirectory === 'string') {
-      if (!require('node:path').isAbsolute(request.context.workingDirectory)) {
+      if (!require('path').isAbsolute(request.context.workingDirectory)) {
         warnings.push({
           field: 'context.workingDirectory',
           value: request.context.workingDirectory,
@@ -226,13 +227,13 @@ export class ValidationMiddleware extends BaseMiddleware {
     }
 
     if (request.context.requestId && typeof request.context.requestId === 'string') {
-      const uuidValidation = PatternValidation.validateUUID(request.context.requestId)
-      if (!uuidValidation.valid) {
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      if (!uuidPattern.test(request.context.requestId)) {
         warnings.push({
           field: 'context.requestId',
           value: request.context.requestId,
           rule: 'format',
-          message: uuidValidation.error || 'Request ID should be a valid UUID',
+          message: 'Request ID should be a valid UUID',
         })
       }
     }
@@ -512,9 +513,9 @@ export class ValidationMiddleware extends BaseMiddleware {
         success: false,
         error: `${message}: ${validation.errors.map((e) => e.message).join(', ')}`,
         metadata: {
-          'validation.failed': true,
-          'validation.errorCount': validation.errors.length,
-          'validation.warningCount': validation.warnings.length,
+          validationFailed: true,
+          validationErrors: validation.errors as any,
+          validationWarnings: validation.warnings as any,
         },
       }
     }
@@ -522,9 +523,9 @@ export class ValidationMiddleware extends BaseMiddleware {
     return {
       success: true,
       metadata: {
-        'validation.failed': true,
-        'validation.errorCount': validation.errors.length,
-        'validation.warningCount': validation.warnings.length,
+        validationFailed: true,
+        validationErrors: validation.errors as any,
+        validationWarnings: validation.warnings as any,
       },
     }
   }

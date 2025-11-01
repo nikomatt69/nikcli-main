@@ -39,6 +39,7 @@ const SECRETS_TO_EMBED = [
   { name: 'CONSOLE_PORT', envVarName: 'CONSOLE_PORT', id: 'console_port', provider: 'config', description: 'Console port' },
   { name: 'NIKCLI_COMPACT', envVarName: 'NIKCLI_COMPACT', id: 'nikcli_compact', provider: 'config', description: 'Compact mode' },
   { name: 'ALLOWED_ORIGINS', envVarName: 'ALLOWED_ORIGINS', id: 'allowed_origins', provider: 'config', description: 'CORS origins' },
+  { name: 'OPENROUTER_ADMIN_API_KEY', envVarName: 'OPENROUTER_ADMIN_API_KEY', id: 'openrouter_admin_api_key', provider: 'openrouter', description: 'OpenRouter Admin API Key' },
 
   // GITHUB INTEGRATION
   { name: 'GITHUB_TOKEN', envVarName: 'GITHUB_TOKEN', id: 'github_token', provider: 'github', description: 'GitHub Personal Access Token' },
@@ -439,8 +440,8 @@ import { EmbeddedSecrets } from './embedded-secrets'
 // Embedded secrets configuration
 const EMBEDDED_SECRETS_CONFIG = [
 ${secrets
-  .map(
-    (secret) => `
+      .map(
+        (secret) => `
   {
     id: '${secret.id}',
     envVarName: '${secret.envVarName}',
@@ -450,8 +451,8 @@ ${secrets
     provider: '${secret.provider}',
     description: '${secret.description}',
   },`
-  )
-  .join('\n')}
+      )
+      .join('\n')}
 ]
 
 // Initialize embedded secrets when this module is imported

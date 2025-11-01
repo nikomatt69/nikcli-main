@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { extname, join, relative } from 'node:path'
-import { PatternValidation } from '../patterns/arkregex-patterns'
+
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
@@ -197,9 +197,10 @@ export class GrepTool extends BaseTool {
 
     // Validazione del pattern usando arkregex prima della compilazione
     if (params.useRegex) {
-      const validation = PatternValidation.validateRegexPattern(pattern)
-      if (!validation.valid) {
-        throw new Error(`Invalid regex pattern: ${pattern}. ${validation.error}`)
+      try {
+        new RegExp(pattern)
+      } catch (error) {
+        throw new Error(`Invalid regex pattern: ${pattern}. ${error}`)
       }
     }
 

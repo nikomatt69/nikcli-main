@@ -5,7 +5,6 @@
  */
 
 import type { StreamChunk } from './circular-buffer'
-import { DangerousANSIPattern, SafeANSIPattern } from '../../patterns/arkregex-patterns'
 
 export type ChunkType = 'ai' | 'tool' | 'thinking' | 'system' | 'error' | 'user' | 'vm' | 'agent'
 

@@ -208,6 +208,7 @@ export class SlashCommandHandler {
     this.commands.set('exit', this.quitCommand.bind(this))
     this.commands.set('clear', this.clearCommand.bind(this))
     this.commands.set('default', this.defaultModeCommand.bind(this))
+    this.commands.set('auth', this.authCommand.bind(this))
     this.commands.set('pro', this.proCommand.bind(this))
     this.commands.set('model', this.modelCommand.bind(this))
     this.commands.set('models', this.modelsCommand.bind(this))
@@ -326,12 +327,12 @@ export class SlashCommandHandler {
     // Blockchain/Web3 (Coinbase AgentKit)
     this.commands.set('web3', this.web3Command.bind(this))
     this.commands.set('blockchain', this.web3Command.bind(this))
-    
+
     // GOAT SDK Web3 Operations
     this.commands.set('goat', this.goatCommand.bind(this))
     this.commands.set('defi', this.goatCommand.bind(this))
     this.commands.set('polymarket', this.polymarketCommand.bind(this))
-    
+
     // Web3 Toolchains
     this.commands.set('web3-toolchain', this.web3ToolchainCommand.bind(this))
     this.commands.set('w3-toolchain', this.web3ToolchainCommand.bind(this))
@@ -627,16 +628,222 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
+  private async authCommand(args: string[] = []): Promise<CommandResult> {
+    const sub = (args[0] || 'login').toLowerCase()
+    const nik: any = (global as any).__nikCLI
+
+    try {
+      const { authProvider } = await import('../providers/supabase/auth-provider')
+      const readline = await import('readline')
+
+      if (sub === 'help' || sub === '-h') {
+        const panel = boxen(
+          [
+            chalk.cyan.bold('🔐 Authentication Commands'),
+            chalk.gray('─'.repeat(40)),
+            '',
+            `${chalk.green('/auth')}           - Sign in with email and password`,
+            `${chalk.green('/auth login')}    - Sign in with email and password`,
+            `${chalk.green('/auth signup')}   - Create a new account`,
+            `${chalk.green('/auth logout')}   - Sign out and clear credentials`,
+            `${chalk.green('/auth status')}   - Show authentication status`,
+          ].join('\n'),
+          { title: 'Authentication', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+        )
+        if (nik?.printPanel) nik.printPanel(panel)
+        else console.log(panel)
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      if (sub === 'logout') {
+        await authProvider.signOut()
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      if (sub === 'status') {
+        const currentUser = authProvider.getCurrentUser()
+        const profile = authProvider.getCurrentProfile()
+        if (currentUser && profile) {
+          const panel = boxen(
+            [
+              chalk.green(`✓ Logged in as ${profile.email || profile.username}`),
+              '',
+              `Email: ${profile.email}`,
+              `Tier: ${profile.subscription_tier}`,
+            ].join('\n'),
+            { title: 'Auth Status', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'green' }
+          )
+          if (nik?.printPanel) nik.printPanel(panel)
+          else console.log(panel)
+        } else {
+          const panel = boxen(chalk.yellow('⚠️ Not authenticated. Use /auth to login.'), {
+            title: 'Auth Status',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+          if (nik?.printPanel) nik.printPanel(panel)
+          else console.log(panel)
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Sign in or sign up flow
+      const isSignUp = sub === 'signup'
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      })
+
+      const email = await new Promise<string>((resolve) => {
+        rl.question(chalk.blue('Email: '), resolve)
+      })
+
+      if (!email) {
+        rl.close()
+        console.log(chalk.yellow('⚠️ Email required'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Read password with hidden input
+      const password = await new Promise<string>((resolve) => {
+        const { stdin, stdout } = process
+        const password: string[] = []
+
+        const onData = (buf: Buffer) => {
+          const char = buf.toString()
+          switch (char) {
+            case '\n':
+            case '\r':
+            case '\u0004':
+              stdout.write('\n')
+              stdin.setRawMode(false)
+              stdin.pause()
+              stdin.removeListener('data', onData)
+              resolve(password.join(''))
+              break
+            case '\u0003':
+              stdout.write('\n')
+              stdin.setRawMode(false)
+              stdin.pause()
+              stdin.removeListener('data', onData)
+              process.exit(130)
+              break
+            case '\u007f':
+            case '\b':
+              if (password.length > 0) {
+                password.pop()
+                stdout.write('\b \b')
+              }
+              break
+            default:
+              if (char.charCodeAt(0) >= 32) {
+                password.push(char)
+                stdout.write('*')
+              }
+          }
+        }
+
+        stdout.write(chalk.blue('Password: '))
+        stdin.setRawMode(true)
+        stdin.resume()
+        stdin.on('data', onData)
+      })
+
+      rl.close()
+
+      if (!password) {
+        console.log(chalk.yellow('⚠️ Password required'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Show processing message
+      const processingBox = boxen(chalk.blue('⚡︎ Processing...'), {
+        padding: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+        title: isSignUp ? 'Creating Account' : 'Signing In',
+      })
+      if (nik?.printPanel) nik.printPanel(processingBox)
+      else console.log(processingBox)
+
+      // Perform sign in or sign up
+      const result = isSignUp
+        ? await authProvider.signUp(email, password, { username: email.split('@')[0] })
+        : await authProvider.signIn(email, password, { rememberMe: true })
+
+      if (result) {
+        const successBox = boxen(
+          [
+            chalk.green(`✓ ${isSignUp ? 'Account created' : 'Signed in'} as ${result.profile.email}`),
+            '',
+            `Subscription: ${result.profile.subscription_tier}`,
+            chalk.dim('Credentials saved - you can now use /pro'),
+          ].join('\n'),
+          {
+            padding: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+            title: isSignUp ? 'Account Created' : 'Signed In',
+          }
+        )
+        if (nik?.printPanel) nik.printPanel(successBox)
+        else console.log(successBox)
+      } else {
+        const errorBox = boxen(chalk.red('❌ Authentication failed'), {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+          title: 'Error',
+        })
+        if (nik?.printPanel) nik.printPanel(errorBox)
+        else console.log(errorBox)
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.error(chalk.red(`Error: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
   private async proCommand(args: string[] = []): Promise<CommandResult> {
     const sub = (args[0] || 'status').toLowerCase()
     try {
       const { authProvider } = await import('../providers/supabase/auth-provider')
       const { subscriptionService } = await import('../services/subscription-service')
+      const nik: any = (global as any).__nikCLI
+      const currentUser = authProvider.getCurrentUser()
+
+      // Check if user is authenticated (except for 'help' command)
+      if (sub !== 'help' && !currentUser) {
+        const panel = boxen(
+          [
+            chalk.yellow('⚠️ Authentication Required'),
+            '',
+            chalk.gray('Pro features require authentication.'),
+            '',
+            chalk.cyan('Please authenticate with:'),
+            chalk.blue('/auth'),
+          ].join('\n'),
+          {
+            title: 'Plan',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }
+        )
+        if (nik?.printPanel) nik.printPanel(panel)
+        else console.log(panel)
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
       const profile = authProvider.getCurrentProfile()
       const tier = profile?.subscription_tier || 'free'
 
       if (sub === 'help') {
-        const nik: any = (global as any).__nikCLI
         const panel = boxen(
           [
             chalk.cyan.bold('💳 Pro Plan Commands'),
@@ -654,7 +861,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       if (sub === 'status') {
-        const nik: any = (global as any).__nikCLI
         const hasKey = Boolean(simpleConfigManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY)
         const lines: string[] = []
         lines.push(`${chalk.white('Current plan:')} ${chalk.green(tier)}`)
@@ -664,20 +870,20 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           lines.push(chalk.gray('• Provide your own OpenRouter key'))
           lines.push(chalk.gray('• Configure with: /set-key openrouter <key>'))
           lines.push(chalk.gray('• Or set env OPENROUTER_API_KEY'))
-          lines.push('')
-          lines.push(chalk.green('Upgrade to Pro:'))
-          const currentUser = authProvider.getCurrentUser()
-          if (currentUser) {
-            const paymentLink = subscriptionService.getPaymentLink(currentUser.id)
-            lines.push(chalk.gray(`• Visit: ${paymentLink}`))
-          }
-          lines.push(chalk.gray('• Or use: /pro upgrade'))
         } else {
           lines.push(chalk.cyan('Pro mode (Managed):'))
           lines.push(chalk.gray('• NikCLI manages your OpenRouter key'))
           lines.push(chalk.gray('• Key loaded automatically on login'))
           lines.push(chalk.gray('• Manual reload: /pro activate'))
         }
+        lines.push('')
+        lines.push(chalk.green('Upgrade to Pro:'))
+        const currentUser = authProvider.getCurrentUser()
+        if (currentUser) {
+          const paymentLink = subscriptionService.getPaymentLink(currentUser.id)
+          lines.push(chalk.gray(`• Visit: ${paymentLink}`))
+        }
+        lines.push(chalk.gray('• Or use: /pro upgrade'))
         lines.push('')
         lines.push(`${chalk.white('Key status:')} ${hasKey ? chalk.green('present') : chalk.yellow('not configured')}`)
         const panel = boxen(lines.join('\n'), {
@@ -693,13 +899,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       if (sub === 'upgrade') {
-        const nik: any = (global as any).__nikCLI
-        const currentUser = authProvider.getCurrentUser()
-        if (!currentUser) {
-          console.log(chalk.yellow('Please login first: /login'))
-          return { shouldExit: false, shouldUpdatePrompt: false }
-        }
-        const paymentLink = subscriptionService.getPaymentLink(currentUser.id)
+        // Note: currentUser is already checked above, this is redundant but kept for clarity
+        const paymentLink = subscriptionService.getPaymentLink(currentUser?.id as string)
         const lines: string[] = []
         lines.push(chalk.cyan.bold('Upgrade to NikCLI Pro'))
         lines.push('')
@@ -725,9 +926,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       if (sub === 'activate') {
         if (tier !== 'pro' && tier !== 'enterprise') {
-          const nik: any = (global as any).__nikCLI
-          const currentUser = authProvider.getCurrentUser()
-          const paymentLink = currentUser ? subscriptionService.getPaymentLink(currentUser.id) : 'Please login first'
+          // currentUser is guaranteed to exist due to check at top of function
+          const paymentLink = subscriptionService.getPaymentLink(currentUser!.id)
           const panel = boxen(
             [
               chalk.yellow('⚠️ Pro subscription required'),
@@ -5913,7 +6113,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (blueprints.length > 0) {
         console.log(chalk.blue.bold('\n📋 Available Blueprints:'))
         blueprints.forEach((blueprint, index) => {
-          console.log(`\n${index + 1}. ${chalk.bold(blueprint.name)} ${chalk.gray(`(${blueprint.id.slice(0, 8)}...)`)}`)
+          const safeId = blueprint?.id ? blueprint.id.slice(0, 8) : 'unknown'
+          console.log(`\n${index + 1}. ${chalk.bold(blueprint.name || safeId)} ${chalk.gray(`(${safeId}...)`)}`)
           console.log(`   Specialization: ${blueprint.specialization}`)
           console.log(`   Autonomy: ${blueprint.autonomyLevel} | Context: ${blueprint.contextScope}`)
           this.printPanel(
@@ -6691,7 +6892,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const to = args[2]
         let chain: string | undefined
         let token: string | undefined
-        
+
         for (let i = 3; i < args.length; i++) {
           if (args[i] === '--chain' && args[i + 1]) {
             chain = args[i + 1].toLowerCase()
@@ -6798,7 +6999,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const action = args[0].toLowerCase()
     const nik: any = (global as any).__nikCLI
     nik?.beginPanelOutput?.()
-    
+
     try {
       switch (action) {
         case 'markets':
@@ -6806,7 +7007,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           const marketsContent = this.formatGoatMarketsPanel(marketsResult)
           this.cliInstance.printPanel(marketsContent)
           break
-          
+
         case 'bet':
           if (args.length < 4) {
             this.cliInstance.printPanel(
@@ -6829,13 +7030,13 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           const betContent = this.formatGoatBetPanel(betResult)
           this.cliInstance.printPanel(betContent)
           break
-          
+
         case 'positions':
           const positionsResult = await secureTools.executeGoat('polymarket-positions', { chain: 'polygon' })
           const positionsContent = this.formatGoatPositionsPanel(positionsResult)
           this.cliInstance.printPanel(positionsContent)
           break
-          
+
         case 'chat':
           const message = args.slice(1).join(' ').trim().replace(/^"|"$/g, '')
           if (!message) {
@@ -6850,7 +7051,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             )
             break
           }
-          const chatResult = await secureTools.executeGoat('chat', { 
+          const chatResult = await secureTools.executeGoat('chat', {
             message: `Polymarket operation: ${message}`,
             plugin: 'polymarket',
             chain: 'polygon'
@@ -6858,7 +7059,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           const chatContent = this.formatGoatChatPanel(message, chatResult)
           this.cliInstance.printPanel(chatContent)
           break
-          
+
         default:
           this.cliInstance.printPanel(
             boxen(`Unknown Polymarket command: ${action}`, {
@@ -6950,10 +7151,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             )
             break
           }
-          
+
           const toolchainName = args[1]
           const options: any = {}
-          
+
           for (let i = 2; i < args.length; i++) {
             if (args[i] === '--chain' && args[i + 1]) {
               options.chain = args[i + 1]
@@ -6987,7 +7188,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
             )
             break
           }
-          
+
           const executionId = args[1]
           const cancelled = web3ToolchainRegistry.cancelExecution(executionId)
           const cancelContent = this.formatWeb3ToolchainCancelPanel(cancelled, executionId)
@@ -7033,9 +7234,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     if (args.length === 0) {
       return await this.web3ToolchainCommand(['list'])
     }
-    
+
     const action = args[0].toLowerCase()
-    
+
     // Map common DeFi actions to toolchains
     const toolchainMap: Record<string, string> = {
       'analyze': 'defi-analysis',
@@ -7045,7 +7246,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       'mev': 'mev-protection',
       'governance': 'governance-analysis'
     }
-    
+
     const toolchainName = toolchainMap[action]
     if (toolchainName) {
       return await this.web3ToolchainCommand(['run', toolchainName, ...args.slice(1)])
@@ -7061,7 +7262,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
     const dataBlock = result?.data?.data || result?.data || {}
-    
+
     if (ok) {
       const data = dataBlock
       lines.push(chalk.green('✓ GOAT SDK status'))
@@ -7081,7 +7282,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push('')
       lines.push(chalk.yellow('Run /goat init to set up GOAT SDK'))
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
@@ -7090,7 +7291,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
     const dataBlock = result?.data?.data || result?.data || {}
-    
+
     if (ok) {
       const data = dataBlock
       lines.push(chalk.green('✓ GOAT SDK initialized'))
@@ -7102,7 +7303,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Initialization failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
@@ -7111,7 +7312,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
     const dataBlock = result?.data?.data || result?.data || {}
-    
+
     if (ok) {
       const data = dataBlock
       lines.push(chalk.cyan('🔐 Wallet Information'))
@@ -7129,7 +7330,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Failed to get wallet info'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
@@ -7138,7 +7339,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
     const dataBlock = result?.data?.data || result?.data || {}
-    
+
     if (ok && dataBlock.tools) {
       lines.push(chalk.cyan(`Available Tools (${dataBlock.count || 0})`))
       lines.push('')
@@ -7155,7 +7356,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.yellow('No tools available'))
       lines.push(chalk.gray('Initialize GOAT SDK first with /goat init'))
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
@@ -7164,7 +7365,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
     const dataBlock = result?.data?.data || result?.data || {}
-    
+
     if (ok) {
       lines.push(chalk.green('✓ Markets loaded'))
       if (dataBlock.response) {
@@ -7175,7 +7376,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Failed to load markets'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
   }
 
@@ -7186,10 +7387,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     lines.push(`${chalk.gray('To:')} ${to}`)
     lines.push(`${chalk.gray('Chain:')} ${chain || 'base'}`)
     lines.push('')
-    
+
     const ok = result?.data?.success ?? result?.success
     const dataBlock = result?.data?.data || result?.data || {}
-    
+
     if (ok) {
       lines.push(chalk.green('✓ Transfer request submitted'))
       if (dataBlock?.response) {
@@ -7200,7 +7401,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Transfer failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
@@ -7209,7 +7410,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
     const dataBlock = result?.data?.data || result?.data || {}
-    
+
     if (ok) {
       lines.push(chalk.green('✓ Balance request processed'))
       if (dataBlock.response) {
@@ -7220,7 +7421,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Failed to fetch balance'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
@@ -7229,10 +7430,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const lines: string[] = []
     lines.push(`${chalk.gray('Message:')} ${message}`)
     lines.push('')
-    
+
     const ok = result?.data?.success ?? result?.success
     const dataBlock = result?.data?.data || result?.data || {}
-    
+
     if (ok) {
       lines.push(chalk.green('✓ Completed'))
       if (dataBlock?.response) {
@@ -7243,7 +7444,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
@@ -7252,7 +7453,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
     const dataBlock = result?.data?.data || result?.data || {}
-    
+
     if (ok) {
       lines.push(chalk.green('✓ Bet placed successfully'))
       if (dataBlock?.txHash) {
@@ -7266,7 +7467,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Bet placement failed'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
   }
 
@@ -7275,7 +7476,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     const lines: string[] = []
     const ok = result?.data?.success ?? result?.success
     const dataBlock = result?.data?.data || result?.data || {}
-    
+
     if (ok) {
       lines.push(chalk.green('✓ Positions loaded'))
       if (dataBlock?.response) {
@@ -7286,7 +7487,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push(chalk.red('❌ Failed to load positions'))
       if (result?.error) lines.push(chalk.gray(result.error))
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
   }
 
@@ -7295,18 +7496,18 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private formatWeb3ToolchainListPanel(toolchains: any[]): string {
     const title = 'Available Web3 Toolchains'
     const lines: string[] = []
-    
+
     if (toolchains.length === 0) {
       lines.push(chalk.yellow('No Web3 toolchains available'))
     } else {
       lines.push(`Found ${toolchains.length} Web3 toolchain(s)`)
       lines.push('')
-      
+
       toolchains.forEach((toolchain, index) => {
-        const riskColor = toolchain.riskLevel === 'critical' ? 'red' : 
-                         toolchain.riskLevel === 'high' ? 'yellow' : 
-                         toolchain.riskLevel === 'medium' ? 'blue' : 'green'
-        
+        const riskColor = toolchain.riskLevel === 'critical' ? 'red' :
+          toolchain.riskLevel === 'high' ? 'yellow' :
+            toolchain.riskLevel === 'medium' ? 'blue' : 'green'
+
         lines.push(`${index + 1}. ${chalk.bold(toolchain.name)}`)
         lines.push(`   ${chalk.gray(toolchain.description)}`)
         lines.push(`   Chains: ${chalk.cyan(toolchain.chains.join(', '))}`)
@@ -7316,28 +7517,28 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         if (index < toolchains.length - 1) lines.push('')
       })
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
   }
 
   private formatWeb3ToolchainExecutionPanel(execution: any): string {
     const title = `Web3 Toolchain: ${execution.toolchain}`
     const lines: string[] = []
-    
+
     lines.push(`${chalk.gray('Execution ID:')} ${execution.id}`)
     lines.push(`${chalk.gray('Status:')} ${this.formatExecutionStatus(execution.status)}`)
     lines.push(`${chalk.gray('Progress:')} ${execution.progress}%`)
     lines.push(`${chalk.gray('Started:')} ${execution.startTime.toLocaleTimeString()}`)
-    
+
     if (execution.endTime) {
       const duration = Math.round((execution.endTime.getTime() - execution.startTime.getTime()) / 1000)
       lines.push(`${chalk.gray('Duration:')} ${duration}s`)
     }
-    
+
     if (execution.chainId) {
       lines.push(`${chalk.gray('Chain ID:')} ${execution.chainId}`)
     }
-    
+
     if (execution.txHashes.length > 0) {
       lines.push('')
       lines.push(chalk.cyan('Transaction Hashes:'))
@@ -7345,7 +7546,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(`  ${hash}`)
       })
     }
-    
+
     if (execution.errors.length > 0) {
       lines.push('')
       lines.push(chalk.red('Errors:'))
@@ -7353,14 +7554,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         lines.push(`  ${error}`)
       })
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
   }
 
   private formatWeb3ToolchainStatusPanel(executions: any[]): string {
     const title = 'Active Web3 Toolchain Executions'
     const lines: string[] = []
-    
+
     if (executions.length === 0) {
       lines.push(chalk.yellow('No active toolchain executions'))
       lines.push('')
@@ -7368,7 +7569,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     } else {
       lines.push(`Active executions: ${executions.length}`)
       lines.push('')
-      
+
       executions.forEach((exec, index) => {
         const duration = Math.round((Date.now() - exec.startTime.getTime()) / 1000)
         lines.push(`${index + 1}. ${chalk.bold(exec.toolchain)}`)
@@ -7379,14 +7580,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         if (index < executions.length - 1) lines.push('')
       })
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
   }
 
   private formatWeb3ToolchainCancelPanel(cancelled: boolean, executionId: string): string {
     const title = 'Cancel Web3 Toolchain'
     const lines: string[] = []
-    
+
     if (cancelled) {
       lines.push(chalk.green(`✓ Execution cancelled: ${executionId}`))
       lines.push('')
@@ -7396,7 +7597,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       lines.push('')
       lines.push(chalk.gray('Execution not found or already completed'))
     }
-    
+
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: cancelled ? 'green' : 'red' })
   }
 
@@ -11098,7 +11299,7 @@ export async function handleGoatSDKCommand(args: string[]): Promise<void> {
       const to = args[2]
       let chain: string | undefined
       let token: string | undefined
-      
+
       for (let i = 3; i < args.length; i++) {
         if (args[i] === '--chain' && args[i + 1]) {
           chain = args[i + 1].toLowerCase()
@@ -11197,7 +11398,7 @@ export async function handlePolymarketCommand(args: string[]): Promise<void> {
   }
 
   const action = args[0].toLowerCase()
-  
+
   try {
     const { secureTools } = await import('../tools/secure-tools-registry')
 
@@ -11207,7 +11408,7 @@ export async function handlePolymarketCommand(args: string[]): Promise<void> {
         const marketsContent = formatGoatMarketsPanel(marketsResult)
         console.log(marketsContent)
         break
-        
+
       case 'bet':
         if (args.length < 4) {
           console.log(
@@ -11230,13 +11431,13 @@ export async function handlePolymarketCommand(args: string[]): Promise<void> {
         const betContent = formatGoatBetPanel(betResult)
         console.log(betContent)
         break
-        
+
       case 'positions':
         const positionsResult = await secureTools.executeGoat('polymarket-positions', { chain: 'polygon' })
         const positionsContent = formatGoatPositionsPanel(positionsResult)
         console.log(positionsContent)
         break
-        
+
       case 'chat':
         const message = args.slice(1).join(' ').trim().replace(/^"|"$/g, '')
         if (!message) {
@@ -11251,7 +11452,7 @@ export async function handlePolymarketCommand(args: string[]): Promise<void> {
           )
           break
         }
-        const chatResult = await secureTools.executeGoat('chat', { 
+        const chatResult = await secureTools.executeGoat('chat', {
           message: `Polymarket operation: ${message}`,
           plugin: 'polymarket',
           chain: 'polygon'
@@ -11259,7 +11460,7 @@ export async function handlePolymarketCommand(args: string[]): Promise<void> {
         const chatContent = formatGoatChatPanel(message, chatResult)
         console.log(chatContent)
         break
-        
+
       default:
         console.log(
           boxen(`Unknown Polymarket command: ${action}`, {
@@ -11342,10 +11543,10 @@ export async function handleWeb3ToolchainCommand(args: string[]): Promise<void> 
           )
           break
         }
-        
+
         const toolchainName = args[1]
         const options: any = {}
-        
+
         for (let i = 2; i < args.length; i++) {
           if (args[i] === '--chain' && args[i + 1]) {
             options.chain = args[i + 1]
@@ -11379,7 +11580,7 @@ export async function handleWeb3ToolchainCommand(args: string[]): Promise<void> 
           )
           break
         }
-        
+
         const executionId = args[1]
         const cancelled = web3ToolchainRegistry.cancelExecution(executionId)
         const cancelContent = formatWeb3ToolchainCancelPanel(cancelled, executionId)
@@ -11417,7 +11618,7 @@ function formatGoatStatusPanel(result: any): string {
   const lines: string[] = []
   const ok = result?.data?.success ?? result?.success
   const dataBlock = result?.data?.data || result?.data || {}
-  
+
   if (ok) {
     const data = dataBlock
     lines.push(chalk.green('✓ GOAT SDK status'))
@@ -11437,7 +11638,7 @@ function formatGoatStatusPanel(result: any): string {
     lines.push('')
     lines.push(chalk.yellow('Run /goat init to set up GOAT SDK'))
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
 }
 
@@ -11446,7 +11647,7 @@ function formatGoatInitPanel(result: any): string {
   const lines: string[] = []
   const ok = result?.data?.success ?? result?.success
   const dataBlock = result?.data?.data || result?.data || {}
-  
+
   if (ok) {
     const data = dataBlock
     lines.push(chalk.green('✓ GOAT SDK initialized'))
@@ -11458,7 +11659,7 @@ function formatGoatInitPanel(result: any): string {
     lines.push(chalk.red('❌ Initialization failed'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
 }
 
@@ -11467,7 +11668,7 @@ function formatGoatWalletPanel(result: any): string {
   const lines: string[] = []
   const ok = result?.data?.success ?? result?.success
   const dataBlock = result?.data?.data || result?.data || {}
-  
+
   if (ok) {
     const data = dataBlock
     lines.push(chalk.cyan('🔐 Wallet Information'))
@@ -11485,7 +11686,7 @@ function formatGoatWalletPanel(result: any): string {
     lines.push(chalk.red('❌ Failed to get wallet info'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
 }
 
@@ -11494,7 +11695,7 @@ function formatGoatToolsPanel(result: any): string {
   const lines: string[] = []
   const ok = result?.data?.success ?? result?.success
   const dataBlock = result?.data?.data || result?.data || {}
-  
+
   if (ok && dataBlock.tools) {
     lines.push(chalk.cyan(`Available Tools (${dataBlock.count || 0})`))
     lines.push('')
@@ -11511,7 +11712,7 @@ function formatGoatToolsPanel(result: any): string {
     lines.push(chalk.yellow('No tools available'))
     lines.push(chalk.gray('Initialize GOAT SDK first with /goat init'))
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
 }
 
@@ -11520,7 +11721,7 @@ function formatGoatMarketsPanel(result: any): string {
   const lines: string[] = []
   const ok = result?.data?.success ?? result?.success
   const dataBlock = result?.data?.data || result?.data || {}
-  
+
   if (ok) {
     lines.push(chalk.green('✓ Markets loaded'))
     if (dataBlock.response) {
@@ -11531,7 +11732,7 @@ function formatGoatMarketsPanel(result: any): string {
     lines.push(chalk.red('❌ Failed to load markets'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
 }
 
@@ -11542,10 +11743,10 @@ function formatGoatTransferPanel({ result, amount, to, chain, token }: any): str
   lines.push(`${chalk.gray('To:')} ${to}`)
   lines.push(`${chalk.gray('Chain:')} ${chain || 'base'}`)
   lines.push('')
-  
+
   const ok = result?.data?.success ?? result?.success
   const dataBlock = result?.data?.data || result?.data || {}
-  
+
   if (ok) {
     lines.push(chalk.green('✓ Transfer request submitted'))
     if (dataBlock?.response) {
@@ -11556,7 +11757,7 @@ function formatGoatTransferPanel({ result, amount, to, chain, token }: any): str
     lines.push(chalk.red('❌ Transfer failed'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
 }
 
@@ -11565,7 +11766,7 @@ function formatGoatBalancePanel(result: any): string {
   const lines: string[] = []
   const ok = result?.data?.success ?? result?.success
   const dataBlock = result?.data?.data || result?.data || {}
-  
+
   if (ok) {
     lines.push(chalk.green('✓ Balance request processed'))
     if (dataBlock.response) {
@@ -11576,7 +11777,7 @@ function formatGoatBalancePanel(result: any): string {
     lines.push(chalk.red('❌ Failed to fetch balance'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
 }
 
@@ -11585,10 +11786,10 @@ function formatGoatChatPanel(message: string, result: any): string {
   const lines: string[] = []
   lines.push(`${chalk.gray('Message:')} ${message}`)
   lines.push('')
-  
+
   const ok = result?.data?.success ?? result?.success
   const dataBlock = result?.data?.data || result?.data || {}
-  
+
   if (ok) {
     lines.push(chalk.green('✓ Completed'))
     if (dataBlock?.response) {
@@ -11599,7 +11800,7 @@ function formatGoatChatPanel(message: string, result: any): string {
     lines.push(chalk.red('❌ Failed'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
 }
 
@@ -11608,7 +11809,7 @@ function formatGoatBetPanel(result: any): string {
   const lines: string[] = []
   const ok = result?.data?.success ?? result?.success
   const dataBlock = result?.data?.data || result?.data || {}
-  
+
   if (ok) {
     lines.push(chalk.green('✓ Bet placed successfully'))
     if (dataBlock?.txHash) {
@@ -11622,7 +11823,7 @@ function formatGoatBetPanel(result: any): string {
     lines.push(chalk.red('❌ Bet placement failed'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
 }
 
@@ -11631,7 +11832,7 @@ function formatGoatPositionsPanel(result: any): string {
   const lines: string[] = []
   const ok = result?.data?.success ?? result?.success
   const dataBlock = result?.data?.data || result?.data || {}
-  
+
   if (ok) {
     lines.push(chalk.green('✓ Positions loaded'))
     if (dataBlock?.response) {
@@ -11642,7 +11843,7 @@ function formatGoatPositionsPanel(result: any): string {
     lines.push(chalk.red('❌ Failed to load positions'))
     if (result?.error) lines.push(chalk.gray(result.error))
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
 }
 
@@ -11651,18 +11852,18 @@ function formatGoatPositionsPanel(result: any): string {
 function formatWeb3ToolchainListPanel(toolchains: any[]): string {
   const title = 'Available Web3 Toolchains'
   const lines: string[] = []
-  
+
   if (toolchains.length === 0) {
     lines.push(chalk.yellow('No Web3 toolchains available'))
   } else {
     lines.push(`Found ${toolchains.length} Web3 toolchain(s)`)
     lines.push('')
-    
+
     toolchains.forEach((toolchain, index) => {
-      const riskColor = toolchain.riskLevel === 'critical' ? 'red' : 
-                       toolchain.riskLevel === 'high' ? 'yellow' : 
-                       toolchain.riskLevel === 'medium' ? 'blue' : 'green'
-      
+      const riskColor = toolchain.riskLevel === 'critical' ? 'red' :
+        toolchain.riskLevel === 'high' ? 'yellow' :
+          toolchain.riskLevel === 'medium' ? 'blue' : 'green'
+
       lines.push(`${index + 1}. ${chalk.bold(toolchain.name)}`)
       lines.push(`   ${chalk.gray(toolchain.description)}`)
       lines.push(`   Chains: ${chalk.cyan(toolchain.chains.join(', '))}`)
@@ -11672,28 +11873,28 @@ function formatWeb3ToolchainListPanel(toolchains: any[]): string {
       if (index < toolchains.length - 1) lines.push('')
     })
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
 }
 
 function formatWeb3ToolchainExecutionPanel(execution: any): string {
   const title = `Web3 Toolchain: ${execution.toolchain}`
   const lines: string[] = []
-  
+
   lines.push(`${chalk.gray('Execution ID:')} ${execution.id}`)
   lines.push(`${chalk.gray('Status:')} ${formatExecutionStatus(execution.status)}`)
   lines.push(`${chalk.gray('Progress:')} ${execution.progress}%`)
   lines.push(`${chalk.gray('Started:')} ${execution.startTime.toLocaleTimeString()}`)
-  
+
   if (execution.endTime) {
     const duration = Math.round((execution.endTime.getTime() - execution.startTime.getTime()) / 1000)
     lines.push(`${chalk.gray('Duration:')} ${duration}s`)
   }
-  
+
   if (execution.chainId) {
     lines.push(`${chalk.gray('Chain ID:')} ${execution.chainId}`)
   }
-  
+
   if (execution.txHashes.length > 0) {
     lines.push('')
     lines.push(chalk.cyan('Transaction Hashes:'))
@@ -11701,7 +11902,7 @@ function formatWeb3ToolchainExecutionPanel(execution: any): string {
       lines.push(`  ${hash}`)
     })
   }
-  
+
   if (execution.errors.length > 0) {
     lines.push('')
     lines.push(chalk.red('Errors:'))
@@ -11709,14 +11910,14 @@ function formatWeb3ToolchainExecutionPanel(execution: any): string {
       lines.push(`  ${error}`)
     })
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
 }
 
 function formatWeb3ToolchainStatusPanel(executions: any[]): string {
   const title = 'Active Web3 Toolchain Executions'
   const lines: string[] = []
-  
+
   if (executions.length === 0) {
     lines.push(chalk.yellow('No active toolchain executions'))
     lines.push('')
@@ -11724,7 +11925,7 @@ function formatWeb3ToolchainStatusPanel(executions: any[]): string {
   } else {
     lines.push(`Active executions: ${executions.length}`)
     lines.push('')
-    
+
     executions.forEach((exec, index) => {
       const duration = Math.round((Date.now() - exec.startTime.getTime()) / 1000)
       lines.push(`${index + 1}. ${chalk.bold(exec.toolchain)}`)
@@ -11735,14 +11936,14 @@ function formatWeb3ToolchainStatusPanel(executions: any[]): string {
       if (index < executions.length - 1) lines.push('')
     })
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
 }
 
 function formatWeb3ToolchainCancelPanel(cancelled: boolean, executionId: string): string {
   const title = 'Cancel Web3 Toolchain'
   const lines: string[] = []
-  
+
   if (cancelled) {
     lines.push(chalk.green(`✓ Execution cancelled: ${executionId}`))
     lines.push('')
@@ -11752,7 +11953,7 @@ function formatWeb3ToolchainCancelPanel(cancelled: boolean, executionId: string)
     lines.push('')
     lines.push(chalk.gray('Execution not found or already completed'))
   }
-  
+
   return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: cancelled ? 'green' : 'red' })
 }
 

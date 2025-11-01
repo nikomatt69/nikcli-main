@@ -136,12 +136,20 @@ export class BlueprintStorage {
       const filepath = path.join(this.config.storageDir, filename)
 
       const content = await fs.readFile(filepath, 'utf-8')
-      const blueprint = JSON.parse(content) as AgentBlueprint
+      const raw = JSON.parse(content) as any
+
+      // Coerce fields for robustness (id/name/createdAt)
+      const coerced: AgentBlueprint = {
+        ...raw,
+        id: (raw && typeof raw.id === 'string' && raw.id.length > 0) ? raw.id : filename.replace('.json', ''),
+        name: raw?.name || (typeof raw?.specialization === 'string' ? raw.specialization.toLowerCase().replace(/\s+/g, '-') : (filename.replace('.json', ''))),
+        createdAt: raw?.createdAt ? new Date(raw.createdAt) : new Date(),
+      }
 
       // Aggiorna cache
-      this.blueprintsCache.set(blueprintId, blueprint)
+      this.blueprintsCache.set(coerced.id, coerced)
 
-      return blueprint
+      return coerced
     } catch (error: any) {
       if (error.code === 'ENOENT') {
         return null // File non trovato
@@ -165,9 +173,17 @@ export class BlueprintStorage {
         try {
           const filepath = path.join(this.config.storageDir, file)
           const content = await fs.readFile(filepath, 'utf-8')
-          const blueprint = JSON.parse(content) as AgentBlueprint
+          const raw = JSON.parse(content) as any
 
-          this.blueprintsCache.set(blueprint.id, blueprint)
+          // Coerce fields for robustness (id/name/createdAt)
+          const coerced: AgentBlueprint = {
+            ...raw,
+            id: (raw && typeof raw.id === 'string' && raw.id.length > 0) ? raw.id : file.replace('.json', ''),
+            name: raw?.name || (typeof raw?.specialization === 'string' ? raw.specialization.toLowerCase().replace(/\s+/g, '-') : (file.replace('.json', ''))),
+            createdAt: raw?.createdAt ? new Date(raw.createdAt) : new Date(),
+          }
+
+          this.blueprintsCache.set(coerced.id, coerced)
         } catch (error: any) {
           console.error(chalk.yellow(`⚠️ Skipping invalid blueprint file ${file}: ${error.message}`))
         }

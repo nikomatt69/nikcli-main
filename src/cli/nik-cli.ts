@@ -4631,19 +4631,18 @@ EOF`
    * Execute a single todo with all agents in parallel
    */
   private async runTodoInParallel(todo: any, agents: any[], collaborationContext: any): Promise<void> {
-    const todoText = todo.description || todo.title
-
     // Execute with all agents concurrently
     const agentPromises = agents.map(async (agent) => {
       const agentName = agent.blueprint?.name || agent.blueprintId
       const tools = this.createSpecializedToolchain(agent.blueprint)
+      const agentTaskText = this.buildAgentSpecificTodo(todo, agent.blueprint)
 
       try {
         // Set up agent helpers for collaboration
         this.setupAgentCollaborationHelpers(agent, collaborationContext)
 
-        // Execute using plan-mode streaming
-        await this.executeAgentWithPlanModeStreaming(agent, todoText, agentName, tools)
+        // Execute using plan-mode streaming with agent-specific task derived from its blueprint
+        await this.executeAgentWithPlanModeStreaming(agent, agentTaskText, agentName, tools)
 
         // Store agent's output
         const agentOutput = collaborationContext.sharedData.get(`${agent.id}:current-output`) || ''
@@ -4666,6 +4665,51 @@ EOF`
     })
 
     await Promise.all(agentPromises)
+  }
+
+  /**
+   * Build an agent-specific task description for a todo, leveraging the agent's blueprint
+   * so each agent executes the same todo according to its specialization and context.
+   */
+  private buildAgentSpecificTodo(todo: any, blueprint: any): string {
+    const base = (todo && (todo.description || todo.title)) || ''
+    try {
+      const name = blueprint?.name || 'agent'
+      const specialization = blueprint?.specialization || 'generalist'
+      const autonomy = blueprint?.autonomyLevel || 'semi-autonomous'
+      const contextScope = blueprint?.contextScope || 'project'
+      const caps: string[] = Array.isArray(blueprint?.capabilities) ? blueprint.capabilities : []
+      const topCaps = caps.slice(0, 5)
+      const todoId = todo?.id ? `#${todo.id}` : undefined
+      const priority = todo?.priority ? String(todo.priority).toUpperCase() : undefined
+      const tags: string[] = Array.isArray(todo?.tags) ? todo.tags : []
+      const criteria: string[] = Array.isArray(todo?.acceptanceCriteria) ? todo.acceptanceCriteria : []
+
+      const header = `${base}`
+      const guidance = [
+        `
+Execute this todo according to your blueprint:`,
+        todoId ? `- Todo: ${todoId}` : undefined,
+        `- Agent: ${name}`,
+        `- Specialization: ${specialization}`,
+        `- Autonomy: ${autonomy} | Context: ${contextScope}`,
+        topCaps.length ? `- Capabilities: ${topCaps.join(', ')}` : undefined,
+        priority ? `- Priority: ${priority}` : undefined,
+        tags.length ? `- Tags: ${tags.join(', ')}` : undefined,
+        `
+Instructions:`,
+        `- Apply your specialization to decide the optimal approach.`,
+        `- Use available tools as needed; prefer those aligned with your capabilities.`,
+        `- Output concrete results (code, analysis, or actions) relevant to this todo.`,
+        criteria.length ? `- Acceptance Criteria:\n  - ${criteria.join('\n  - ')}` : undefined,
+      ]
+        .filter(Boolean)
+        .join('\n')
+
+      return `${header}\n${guidance}`
+    } catch {
+      return base
+    }
   }
 
   /**
@@ -7945,9 +7989,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const blueprintLines: string[] = [`Found ${blueprints.length} blueprint(s) in factory:`, '']
 
       blueprints.forEach((blueprint, index) => {
-        if (!blueprint || !blueprint.id) return
-        blueprintLines.push(`${index + 1}. ${blueprint.name || blueprint.id.slice(-8)}`)
-        blueprintLines.push(`   ID: ${blueprint.id}`)
+        if (!blueprint) return
+        const safeId = blueprint.id ? blueprint.id : 'unknown'
+        const shortId = safeId.length >= 8 ? safeId.slice(-8) : safeId
+        blueprintLines.push(`${index + 1}. ${blueprint.name || shortId}`)
+        blueprintLines.push(`   ID: ${safeId}`)
         blueprintLines.push(`   Specialization: ${blueprint.specialization || 'N/A'}`)
         if (blueprint.description) {
           blueprintLines.push(`   Description: ${blueprint.description}`)
@@ -7960,7 +8006,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       blueprintLines.push(
         `  /parallel [${blueprints
           .slice(0, 2)
-          .map((b) => b.name || b.id.slice(-8))
+          .map((b) => (b?.name || (b?.id ? (b.id.length >= 8 ? b.id.slice(-8) : b.id) : 'unknown')))
           .join(', ')}] "analyze this code"`
       )
       blueprintLines.push(`  /launch-agent ${blueprints[0]?.id || 'blueprint-id'} "specific task"`)
