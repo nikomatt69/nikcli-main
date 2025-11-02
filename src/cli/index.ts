@@ -971,10 +971,22 @@ class OnboardingModule {
 
       let password = ''
       const wasRaw = stdin.isRaw
+      const wasPaused = stdin.isPaused()
 
+      // Enable raw mode temporarily and ensure input is flowing
       stdin.setRawMode(true)
-      stdin.resume()
+      if (wasPaused) stdin.resume()
       stdin.setEncoding('utf8')
+
+      const cleanup = () => {
+        // Restore original TTY/raw state and pause/resume exactly as before
+        stdin.setRawMode(wasRaw)
+        if (wasPaused) {
+          stdin.pause()
+        } else {
+          stdin.resume()
+        }
+      }
 
       const onData = (char: string) => {
         char = char.toString()
@@ -984,16 +996,14 @@ class OnboardingModule {
           case '\r':
           case '\u0004': // Ctrl+D
             stdout.write('\n')
-            stdin.setRawMode(wasRaw)
-            stdin.pause()
             stdin.removeListener('data', onData)
+            cleanup()
             resolve(password)
             break
           case '\u0003': // Ctrl+C
             stdout.write('\n')
-            stdin.setRawMode(wasRaw)
-            stdin.pause()
             stdin.removeListener('data', onData)
+            cleanup()
             process.exit(130)
             break
           case '\u007f': // Backspace
@@ -1007,7 +1017,7 @@ class OnboardingModule {
             if (char.charCodeAt(0) >= 32) {
               // Printable characters
               password += char
-              stdout.write('\b \b*') // Cancella il carattere e mostra solo *
+              stdout.write('\b \b*')
             }
             break
         }

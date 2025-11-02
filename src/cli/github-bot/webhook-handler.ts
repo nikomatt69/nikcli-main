@@ -4,7 +4,7 @@ import crypto from 'node:crypto'
 import { Octokit } from '@octokit/rest'
 import { CommentProcessor } from './comment-processor'
 import { TaskExecutor } from './task-executor'
-import type { GitHubBotConfig, GitHubWebhookEvent, ProcessingJob } from './types'
+import type { GitHubBotConfig, GitHubPullRequest, GitHubWebhookEvent, ProcessingJob } from './types'
 
 /**
  * GitHub Bot Webhook Handler for @nikcli mentions
@@ -144,7 +144,7 @@ export class GitHubWebhookHandler {
     // Check if this is a comment on a PR (issue.pull_request exists)
     const isPR = !!issue.pull_request
     let pullRequest = null
-    
+
     if (isPR) {
       // Fetch full PR details
       try {
@@ -172,8 +172,8 @@ export class GitHubWebhookHandler {
       createdAt: new Date(),
       author: comment.user.login,
       isPR,
-      pullRequest,
-    }
+      pullRequest: pullRequest as GitHubPullRequest,
+    } as ProcessingJob
 
     this.processingJobs.set(jobId, job)
 
