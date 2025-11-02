@@ -2,8 +2,9 @@ import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { nanoid } from 'nanoid'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
-import type { PlanTodo } from '../planning/types'
+import type { MutableExecutionPlan, MutablePlanTodo, PlanTodo } from '../planning/types'
 import type {
+  MutableTaskMasterTask,
   TaskMasterConfig,
   TaskMasterIntegrationConfig,
   TaskMasterModule,
@@ -251,13 +252,13 @@ export class TaskMasterService extends EventEmitter {
     const todos = await this.generateSmartTodos(userRequest, context)
 
     // Convert to TaskMaster task format using proper mappings
-    const taskMasterTasks: TaskMasterTask[] = todos.map((todo) => ({
+    const taskMasterTasks: MutableTaskMasterTask[] = todos.map((todo) => ({
       id: todo.id,
       title: todo.title,
       description: todo.description || '',
       status: this.mapToTaskMasterStatus(todo.status),
       priority: this.mapPriority(todo.priority) as TaskPriority,
-      tags: todo.tools || [],
+      tags: todo.tools ? [...todo.tools] : [],
       estimatedHours: (todo.estimatedDuration || 5) / 60, // Convert minutes to hours
       createdAt: todo.createdAt.toISOString(),
       updatedAt: todo.updatedAt.toISOString(),
@@ -897,10 +898,26 @@ Generate tasks NOW (JSON only):`
    * Execute plan with fallback logic
    */
   private async executeFallbackPlan(plan: TaskMasterPlan): Promise<TaskMasterExecutionResult> {
+    // Convert to mutable version for internal use
+    const mutablePlan: MutableTaskMasterPlan = {
+      ...plan,
+      todos: plan.todos.map(todo => ({
+        ...todo,
+        status: todo.status,
+        progress: todo.progress,
+        updatedAt: todo.updatedAt,
+        completedAt: todo.completedAt,
+        actualDuration: todo.actualDuration,
+        dependencies: todo.dependencies ? [...todo.dependencies] : undefined,
+        tags: todo.tools ? [...todo.tools] : undefined,
+        metadata: todo.metadata ? { ...todo.metadata } : undefined,
+        tools: todo.tools ? [...todo.tools] : undefined
+      }))
+    }
     const startTime = new Date()
     const results: TaskMasterStepResult[] = []
 
-    for (const todo of plan.todos) {
+    for (const todo of mutablePlan.todos) {
       todo.status = 'in_progress'
       this.emit('stepStart', { planId: plan.id, taskId: todo.id })
 
@@ -1126,6 +1143,24 @@ export interface TaskMasterPlan {
   description: string
   userRequest: string
   todos: PlanTodo[]
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  createdAt: Date
+  estimatedDuration: number
+  taskMasterData?: any // Original TaskMaster data
+  riskAssessment: {
+    overallRisk: 'low' | 'medium' | 'high'
+    destructiveOperations: number
+    fileModifications: number
+    externalCalls: number
+  }
+}
+
+export interface MutableTaskMasterPlan {
+  id: string
+  title: string
+  description: string
+  userRequest: string
+  todos: MutablePlanTodo[]
   status: 'pending' | 'running' | 'completed' | 'failed'
   createdAt: Date
   estimatedDuration: number

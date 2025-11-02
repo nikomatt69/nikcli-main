@@ -11,6 +11,8 @@
  */
 
 import axios, { type AxiosInstance } from 'axios'
+import http from 'node:http'
+import https from 'node:https'
 import chalk from 'chalk'
 
 // ==================== TYPES & INTERFACES ====================
@@ -172,9 +174,14 @@ export class FigmaProvider {
       ...config,
     }
 
+    const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 32 })
+    const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 32 })
+
     this.apiClient = axios.create({
       baseURL: 'https://api.figma.com/v1',
       timeout: this.config.timeout,
+      httpAgent,
+      httpsAgent,
       headers: {
         'X-Figma-Token': this.config.apiToken,
         'Content-Type': 'application/json',

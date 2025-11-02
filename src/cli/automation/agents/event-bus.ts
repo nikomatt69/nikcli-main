@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { CliUI } from '../../utils/cli-ui'
+import { advancedUI } from '@/cli/ui/advanced-cli-ui'
 
 /**
  * Production-ready Event Bus for Multi-Agent Communication
@@ -103,7 +104,7 @@ export class EventBus extends EventEmitter {
 
     this.subscribers.set(eventType, new Set(sortedSubscribers))
 
-    CliUI.logInfo(`📋 Subscribed to event: ${eventType}`)
+    advancedUI.logInfo(`📋 Subscribed to event: ${eventType}`)
 
     return {
       eventType,
@@ -135,7 +136,7 @@ export class EventBus extends EventEmitter {
       this.subscribers.delete(eventType)
     }
 
-    CliUI.logInfo(`📋 Unsubscribed from event: ${eventType}`)
+    advancedUI.logInfo(`📋 Unsubscribed from event: ${eventType}`)
     return true
   }
 
@@ -191,7 +192,7 @@ export class EventBus extends EventEmitter {
    */
   clearHistory(): void {
     this.eventHistory = []
-    CliUI.logInfo('📡 Event history cleared')
+    advancedUI.logInfo('📡 Event history cleared')
   }
 
   /**

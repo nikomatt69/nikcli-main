@@ -1,0 +1,827 @@
+---
+title: "Virtual Machine Commands"
+description: "Complete reference for VM and container management operations"
+---
+
+# Virtual Machine Commands
+
+NikCLI provides comprehensive virtual machine and container management for isolated development environments. These commands enable you to create, manage, and interact with containerized development environments.
+
+## Core VM Commands
+
+### `/vm [action]`
+
+Main VM management command with multiple sub-actions.
+
+**Syntax:**
+```bash
+/vm <action> [options]
+```
+
+**Available Actions:**
+- `list` - List all VMs
+- `create` - Create new VM
+- `start` - Start VM
+- `stop` - Stop VM
+- `remove` - Remove VM
+- `connect` - Connect to VM
+- `status` - Show VM status
+- `logs` - Show VM logs
+
+**Examples:**
+
+```bash
+# Show VM help and status
+/vm
+
+# List all VMs
+/vm list
+
+# Create new VM
+/vm create node:18
+
+# Connect to VM
+/vm connect my-vm
+
+# Show VM status
+/vm status my-vm
+```
+
+### `/vm-create [config]`
+
+Create a new virtual machine with specified configuration.
+
+**Syntax:**
+```bash
+/vm-create <image> [options]
+```
+
+**Parameters:**
+- `image` - Base Docker image or predefined template
+- `options` - VM configuration options
+
+**Predefined Templates:**
+- `node` - Node.js development environment
+- `python` - Python development environment
+- `go` - Go development environment
+- `rust` - Rust development environment
+- `java` - Java development environment
+- `php` - PHP development environment
+- `ruby` - Ruby development environment
+- `full-stack` - Complete development stack
+
+**Examples:**
+
+```bash
+# Create Node.js VM
+/vm-create node:18
+
+# Create Python VM
+/vm-create python:3.11
+
+# Create custom VM
+/vm-create ubuntu:22.04
+
+# Create VM with specific configuration
+/vm-create node:18 --name my-dev-env --port 3000:3000 --volume ./src:/app/src
+
+# Create VM from GitHub repository
+/vm-create --from-repo https://github.com/user/project
+
+# Create VM with predefined template
+/vm-create full-stack --name web-dev
+```
+
+**Configuration Options:**
+- `--name <name>` - VM name
+- `--port <host:container>` - Port mapping
+- `--volume <host:container>` - Volume mounting
+- `--env <key=value>` - Environment variables
+- `--memory <size>` - Memory limit
+- `--cpu <count>` - CPU limit
+- `--network <network>` - Network configuration
+
+### `/vm-list`
+
+List all virtual machines with detailed information.
+
+**Syntax:**
+```bash
+/vm-list [options]
+```
+
+**Options:**
+- `--all` - Show all VMs (including stopped)
+- `--running` - Show only running VMs
+- `--json` - Output in JSON format
+
+**Examples:**
+
+```bash
+# List all VMs
+/vm-list
+
+# List only running VMs
+/vm-list --running
+
+# List with JSON output
+/vm-list --json
+```
+
+**Output Format:**
+```
+🖥️  Virtual Machines:
+
+┌──────────────┬─────────────┬─────────────┬─────────────┬──────────────┐
+│ Name         │ Image       │ Status      │ Ports       │ Created      │
+├──────────────┼─────────────┼─────────────┼─────────────┼──────────────┤
+│ my-dev-env   │ node:18     │ Running     │ 3000:3000   │ 2h ago       │
+│ python-ml    │ python:3.11 │ Stopped     │ 8000:8000   │ 1d ago       │
+│ web-stack    │ full-stack  │ Running     │ 80:80,443   │ 3h ago       │
+└──────────────┴─────────────┴─────────────┴─────────────┴──────────────┘
+
+Total: 3 VMs (2 running, 1 stopped)
+```
+
+### `/vm-connect [id]`
+
+Connect to a running virtual machine.
+
+**Syntax:**
+```bash
+/vm-connect <vm-name> [options]
+```
+
+**Parameters:**
+- `vm-name` - Name or ID of the VM to connect to
+
+**Options:**
+- `--shell <shell>` - Shell to use (bash, zsh, sh)
+- `--user <user>` - User to connect as
+- `--workdir <path>` - Working directory
+
+**Examples:**
+
+```bash
+# Connect to VM with default shell
+/vm-connect my-dev-env
+
+# Connect with specific shell
+/vm-connect my-dev-env --shell zsh
+
+# Connect as specific user
+/vm-connect my-dev-env --user developer
+
+# Connect to specific directory
+/vm-connect my-dev-env --workdir /app
+```
+
+**Interactive Features:**
+- Full terminal emulation
+- File system access
+- Port forwarding
+- Environment synchronization
+- Session persistence
+
+### `/vm-stop [id]`
+
+Stop a running virtual machine.
+
+**Syntax:**
+```bash
+/vm-stop <vm-name> [options]
+```
+
+**Options:**
+- `--force` - Force stop (kill)
+- `--timeout <seconds>` - Graceful shutdown timeout
+
+**Examples:**
+
+```bash
+# Graceful stop
+/vm-stop my-dev-env
+
+# Force stop
+/vm-stop my-dev-env --force
+
+# Stop with custom timeout
+/vm-stop my-dev-env --timeout 30
+```
+
+### `/vm-remove [id]`
+
+Remove a virtual machine and its data.
+
+**Syntax:**
+```bash
+/vm-remove <vm-name> [options]
+```
+
+**Options:**
+- `--force` - Skip confirmation
+- `--volumes` - Remove associated volumes
+- `--images` - Remove associated images
+
+**Examples:**
+
+```bash
+# Remove VM with confirmation
+/vm-remove my-dev-env
+
+# Force remove without confirmation
+/vm-remove my-dev-env --force
+
+# Remove VM and volumes
+/vm-remove my-dev-env --volumes
+
+# Remove everything
+/vm-remove my-dev-env --force --volumes --images
+```
+
+## Advanced VM Commands
+
+### `/vm-logs [id]`
+
+View logs from a virtual machine.
+
+**Syntax:**
+```bash
+/vm-logs <vm-name> [options]
+```
+
+**Options:**
+- `--follow` - Follow logs in real-time
+- `--tail <lines>` - Show last N lines
+- `--since <time>` - Show logs since timestamp
+
+**Examples:**
+
+```bash
+# Show recent logs
+/vm-logs my-dev-env
+
+# Follow logs in real-time
+/vm-logs my-dev-env --follow
+
+# Show last 100 lines
+/vm-logs my-dev-env --tail 100
+
+# Show logs from last hour
+/vm-logs my-dev-env --since 1h
+```
+
+### `/vm-status [id]`
+
+Show detailed status information for a VM.
+
+**Syntax:**
+```bash
+/vm-status <vm-name> [options]
+```
+
+**Options:**
+- `--json` - Output in JSON format
+- `--detailed` - Show detailed information
+
+**Examples:**
+
+```bash
+# Show basic status
+/vm-status my-dev-env
+
+# Show detailed status
+/vm-status my-dev-env --detailed
+
+# JSON output
+/vm-status my-dev-env --json
+```
+
+**Status Information:**
+- Container state and health
+- Resource usage (CPU, memory, disk)
+- Network configuration
+- Volume mounts
+- Environment variables
+- Process list
+- Port mappings
+
+### `/vm-exec [id] [command]`
+
+Execute commands inside a virtual machine.
+
+**Syntax:**
+```bash
+/vm-exec <vm-name> "<command>" [options]
+```
+
+**Options:**
+- `--user <user>` - Execute as specific user
+- `--workdir <path>` - Set working directory
+- `--env <key=value>` - Set environment variables
+- `--interactive` - Interactive mode
+
+**Examples:**
+
+```bash
+# Execute simple command
+/vm-exec my-dev-env "ls -la"
+
+# Execute with specific user
+/vm-exec my-dev-env "whoami" --user root
+
+# Execute in specific directory
+/vm-exec my-dev-env "npm install" --workdir /app
+
+# Interactive command execution
+/vm-exec my-dev-env "bash" --interactive
+
+# Execute with environment variables
+/vm-exec my-dev-env "echo $NODE_ENV" --env NODE_ENV=production
+```
+
+### `/vm-dashboard`
+
+Show a comprehensive dashboard of all VMs.
+
+**Syntax:**
+```bash
+/vm-dashboard [options]
+```
+
+**Options:**
+- `--refresh <seconds>` - Auto-refresh interval
+- `--compact` - Compact view
+
+**Examples:**
+
+```bash
+# Show VM dashboard
+/vm-dashboard
+
+# Auto-refresh every 5 seconds
+/vm-dashboard --refresh 5
+
+# Compact view
+/vm-dashboard --compact
+```
+
+**Dashboard Features:**
+- Real-time resource usage
+- VM status overview
+- Network activity
+- Performance metrics
+- Quick action buttons
+
+## VM Management Commands
+
+### `/vm-mode`
+
+Switch to VM development mode.
+
+**Syntax:**
+```bash
+/vm-mode [options]
+```
+
+**Features:**
+- Automatic VM selection
+- Context switching
+- Resource optimization
+- Session management
+
+**Examples:**
+
+```bash
+# Enter VM mode
+/vm-mode
+
+# VM mode with specific VM
+/vm-mode --vm my-dev-env
+```
+
+### `/vm-switch`
+
+Switch between different VMs.
+
+**Syntax:**
+```bash
+/vm-switch [vm-name]
+```
+
+**Examples:**
+
+```bash
+# Interactive VM selection
+/vm-switch
+
+# Switch to specific VM
+/vm-switch my-dev-env
+```
+
+### `/vm-select [args]`
+
+Select and configure active VM.
+
+**Syntax:**
+```bash
+/vm-select <vm-name> [options]
+```
+
+**Examples:**
+
+```bash
+# Select VM
+/vm-select my-dev-env
+
+# Select with configuration
+/vm-select my-dev-env --auto-connect
+```
+
+## VM Utility Commands
+
+### `/vm-ls [id]`
+
+List files in VM filesystem.
+
+**Syntax:**
+```bash
+/vm-ls <vm-name> [path] [options]
+```
+
+**Examples:**
+
+```bash
+# List root directory
+/vm-ls my-dev-env /
+
+# List specific directory
+/vm-ls my-dev-env /app
+
+# List with details
+/vm-ls my-dev-env /app -la
+```
+
+### `/vm-broadcast [message]`
+
+Send message to all running VMs.
+
+**Syntax:**
+```bash
+/vm-broadcast "<message>" [options]
+```
+
+**Examples:**
+
+```bash
+# Broadcast message
+/vm-broadcast "System maintenance in 10 minutes"
+
+# Broadcast command
+/vm-broadcast "npm update" --execute
+```
+
+### `/vm-health`
+
+Check health of all VMs.
+
+**Syntax:**
+```bash
+/vm-health [options]
+```
+
+**Examples:**
+
+```bash
+# Check all VM health
+/vm-health
+
+# Detailed health check
+/vm-health --detailed
+
+# Health check with auto-repair
+/vm-health --repair
+```
+
+### `/vm-backup [id]`
+
+Create backup of VM state.
+
+**Syntax:**
+```bash
+/vm-backup <vm-name> [options]
+```
+
+**Options:**
+- `--name <backup-name>` - Backup name
+- `--compress` - Compress backup
+- `--exclude <patterns>` - Exclude patterns
+
+**Examples:**
+
+```bash
+# Create backup
+/vm-backup my-dev-env
+
+# Named backup
+/vm-backup my-dev-env --name "before-update"
+
+# Compressed backup
+/vm-backup my-dev-env --compress
+
+# Backup excluding node_modules
+/vm-backup my-dev-env --exclude "node_modules,*.log"
+```
+
+### `/vm-stats [id]`
+
+Show VM statistics and metrics.
+
+**Syntax:**
+```bash
+/vm-stats [vm-name] [options]
+```
+
+**Options:**
+- `--real-time` - Real-time monitoring
+- `--history` - Historical data
+- `--export` - Export data
+
+**Examples:**
+
+```bash
+# Show stats for all VMs
+/vm-stats
+
+# Show stats for specific VM
+/vm-stats my-dev-env
+
+# Real-time monitoring
+/vm-stats my-dev-env --real-time
+
+# Historical data
+/vm-stats my-dev-env --history 24h
+```
+
+## VM Templates and Presets
+
+### Predefined Templates
+
+**Node.js Development:**
+```bash
+/vm-create node-dev --template nodejs
+# Includes: Node.js, npm, yarn, git, common dev tools
+```
+
+**Python Data Science:**
+```bash
+/vm-create python-ds --template data-science
+# Includes: Python, Jupyter, pandas, numpy, matplotlib
+```
+
+**Full-Stack Web:**
+```bash
+/vm-create web-stack --template fullstack
+# Includes: Node.js, Python, PostgreSQL, Redis, nginx
+```
+
+**Mobile Development:**
+```bash
+/vm-create mobile-dev --template mobile
+# Includes: Node.js, React Native CLI, Android SDK
+```
+
+### Custom Templates
+
+Create custom VM templates:
+
+```bash
+# Create template from existing VM
+/vm-create-template my-dev-env --name custom-node
+
+# Use custom template
+/vm-create new-env --template custom-node
+```
+
+## VM Networking
+
+### Port Management
+
+```bash
+# Map additional ports
+/vm-port-add my-dev-env 8080:8080
+
+# Remove port mapping
+/vm-port-remove my-dev-env 8080
+
+# List port mappings
+/vm-port-list my-dev-env
+```
+
+### Network Configuration
+
+```bash
+# Create custom network
+/vm-network-create dev-network
+
+# Connect VM to network
+/vm-network-connect my-dev-env dev-network
+
+# List networks
+/vm-network-list
+```
+
+## VM Storage
+
+### Volume Management
+
+```bash
+# Create volume
+/vm-volume-create my-data
+
+# Mount volume to VM
+/vm-volume-mount my-dev-env my-data:/data
+
+# List volumes
+/vm-volume-list
+
+# Backup volume
+/vm-volume-backup my-data
+```
+
+### File Synchronization
+
+```bash
+# Sync local directory to VM
+/vm-sync ./src my-dev-env:/app/src
+
+# Sync VM directory to local
+/vm-sync my-dev-env:/app/dist ./dist
+
+# Real-time sync
+/vm-sync ./src my-dev-env:/app/src --watch
+```
+
+## Performance Optimization
+
+### Resource Limits
+
+```bash
+# Set CPU limit
+/vm-limit my-dev-env --cpu 2
+
+# Set memory limit
+/vm-limit my-dev-env --memory 4g
+
+# Set disk limit
+/vm-limit my-dev-env --disk 20g
+```
+
+### Performance Monitoring
+
+```bash
+# Monitor performance
+/vm-monitor my-dev-env
+
+# Performance profiling
+/vm-profile my-dev-env --duration 60s
+
+# Resource usage alerts
+/vm-alert my-dev-env --cpu 80 --memory 90
+```
+
+## Integration Examples
+
+### Development Workflow
+
+```bash
+# 1. Create development environment
+/vm-create node:18 --name project-dev --port 3000:3000
+
+# 2. Connect and setup
+/vm-connect project-dev
+# Inside VM: git clone, npm install, etc.
+
+# 3. Start development
+/vm-exec project-dev "npm run dev"
+
+# 4. Monitor and debug
+/vm-logs project-dev --follow
+/vm-stats project-dev --real-time
+```
+
+### Team Collaboration
+
+```bash
+# 1. Create shared template
+/vm-create-template team-env --from project-dev
+
+# 2. Team members create VMs from template
+/vm-create team-member-1 --template team-env
+
+# 3. Share configurations
+/vm-export-config project-dev > team-config.json
+/vm-import-config team-config.json --vm team-member-2
+```
+
+### CI/CD Integration
+
+```bash
+# 1. Create CI environment
+/vm-create ci-env --template nodejs --ephemeral
+
+# 2. Run tests
+/vm-exec ci-env "npm test"
+
+# 3. Build application
+/vm-exec ci-env "npm run build"
+
+# 4. Cleanup
+/vm-remove ci-env --force
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**VM won't start:**
+```bash
+# Check Docker daemon
+/run docker info
+
+# Check VM configuration
+/vm-status my-dev-env --detailed
+
+# Check resource availability
+/vm-health --system
+```
+
+**Connection issues:**
+```bash
+# Check VM status
+/vm-status my-dev-env
+
+# Check port mappings
+/vm-port-list my-dev-env
+
+# Test connectivity
+/vm-exec my-dev-env "ping host.docker.internal"
+```
+
+**Performance issues:**
+```bash
+# Check resource usage
+/vm-stats my-dev-env
+
+# Adjust resource limits
+/vm-limit my-dev-env --memory 8g --cpu 4
+
+# Clean up unused resources
+/vm-cleanup --unused
+```
+
+### Debug Commands
+
+```bash
+# VM system diagnostics
+/diagnostic vm
+
+# VM-specific debugging
+/debug vm my-dev-env
+
+# Container inspection
+/vm-inspect my-dev-env
+
+# System resource check
+/vm-health --system
+```
+
+## Best Practices
+
+### VM Management
+
+- Use descriptive VM names
+- Regular backup of important VMs
+- Monitor resource usage
+- Clean up unused VMs regularly
+
+### Development
+
+- Use appropriate base images
+- Mount source code as volumes
+- Use environment variables for configuration
+- Implement proper logging
+
+### Security
+
+- Use non-root users when possible
+- Limit resource usage
+- Regular security updates
+- Network isolation when needed
+
+### Performance
+
+- Optimize Docker images
+- Use appropriate resource limits
+- Monitor and profile regularly
+- Use caching strategies

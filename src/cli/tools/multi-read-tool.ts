@@ -138,7 +138,10 @@ export class MultiReadTool extends BaseTool {
       // Deduplicate and filter by exclude patterns
       const seen = new Set<string>()
       const filtered: string[] = []
+      const MAX_FILES_TO_READ = 5 // LIMIT: max 5 files per multi_read call
+
       for (const abs of targets) {
+        if (filtered.length >= MAX_FILES_TO_READ) break // HARD LIMIT
         if (seen.has(abs)) continue
         seen.add(abs)
         const rel = path.relative(root, abs)

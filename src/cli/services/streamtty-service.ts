@@ -9,7 +9,7 @@ import {
   type MermaidTTYConfig,
   type MathRenderConfig,
   type SecurityConfig
-} from 'streamtty'
+} from '@nicomatt69/streamtty'
 import { terminalOutputManager, TerminalOutputManager } from '../ui/terminal-output-manager'
 
 export type ChunkType = 'ai' | 'tool' | 'thinking' | 'system' | 'error' | 'user' | 'vm' | 'agent'
@@ -207,14 +207,14 @@ export class StreamttyService {
       return s
     }
 
-    const asciiMod = await import('streamtty/dist/renderers/table-ascii')
+    const asciiMod = await import('@nicomatt69/streamtty/dist/renderers/table-ascii')
     const isMarkdownTable: (s: string) => boolean = (asciiMod as any).isMarkdownTable
     const renderMarkdownTableToASCII: (s: string, opts?: any) => string = (asciiMod as any).renderMarkdownTableToASCII
     // Mermaid converter (loaded on demand)
     let convertMermaidToASCII: ((code: string, cfg?: any) => Promise<string>) | null = null
     const ensureMermaid = async () => {
       if (!convertMermaidToASCII) {
-        const mod = await import('streamtty/dist/utils/mermaid-ascii')
+        const mod = await import('@nicomatt69/streamtty/dist/utils/mermaid-ascii')
         convertMermaidToASCII = (mod as any).convertMermaidToASCII
       }
     }
@@ -358,7 +358,7 @@ export class StreamttyService {
           const candidate = this.streamingTableLines.join('\n')
           if (isMarkdownTable(candidate)) {
             try {
-              const rendered = renderMarkdownTableToASCII(candidate, {
+              const rendered = renderMarkdownTableToASCII(this.sanitizeTableEmojis(candidate), {
                 maxWidth: this.options.maxWidth || 80,
                 borderStyle: 'simple',
               })
@@ -430,10 +430,10 @@ export class StreamttyService {
   private async flushStreamingTables(): Promise<string> {
     const out: string[] = []
 
-    const asciiMod = await import('streamtty/dist/renderers/table-ascii')
+    const asciiMod = await import('@nicomatt69/streamtty/dist/renderers/table-ascii')
     const isMarkdownTable: (s: string) => boolean = (asciiMod as any).isMarkdownTable
     const renderMarkdownTableToASCII: (s: string, opts?: any) => string = (asciiMod as any).renderMarkdownTableToASCII
-    const mermaidMod = await import('streamtty/dist/utils/mermaid-ascii')
+    const mermaidMod = await import('@nicomatt69/streamtty/dist/utils/mermaid-ascii')
     const convertMermaidToASCII: (code: string, cfg?: any) => Promise<string> = (mermaidMod as any).convertMermaidToASCII
 
     // Flush ASCII block if present
@@ -501,7 +501,8 @@ export class StreamttyService {
     ['🎯', '◉'], ['🔧', '⚙'], ['📊', '▤'], ['🌐', '◈']
   ])
 
-  private static readonly EMOJI_REGEX = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{FE00}-\u{FE0F}\u{1F1E0}-\u{1F1FF}]/gu
+  // Include common emoji planes plus 2300–23FF (hourglass, timers, control pictures)
+  private static readonly EMOJI_REGEX = /[\u{2300}-\u{23FF}\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{FE00}-\u{FE0F}\u{1F1E0}-\u{1F1FF}]/gu
 
   private stripEmojiFromText(text: string): string {
     if (!this.options.stripEmoji) return text
@@ -520,6 +521,27 @@ export class StreamttyService {
       .replace(StreamttyService.EMOJI_REGEX, '')
       .replace(/\s+/g, ' ')
       .trim()
+  }
+
+  // Preserve newlines; only replace emojis that can break table width
+  private sanitizeTableEmojis(block: string): string {
+    if (!block) return block
+    let out = block
+    // Remove variation selectors and zero-width joiners that change glyph width
+    out = out.replace(/[\uFE0F\u200D]/g, '')
+    // Ratings: stars → asterisks
+    out = out.replace(/⭐/g, '*')
+    // Status/indicators → width-1 symbols
+    out = out.replace(/✅|✔️|✔|✓/g, '✓')
+      .replace(/❌|✖️|✖|✕|✗/g, '×')
+      .replace(/⚠️|⚠/g, '!')
+      .replace(/🔴|🟠|🟡|🟢|🔵|🟣|⚫️|⚫/g, '●')
+      .replace(/⚪️|⚪/g, '○')
+      // Hourglass/timers → single-width ellipsis to avoid table drift
+      .replace(/⏳|⌛|⏱️|⏱|⏲️|⏲|⏰|⌚/g, '…')
+    // Fallback: map any remaining emoji codepoints to a middle dot in table cells
+    out = out.replace(StreamttyService.EMOJI_REGEX, '·')
+    return out
   }
 
   private static readonly TABLE_LINE_REGEX = /^\|.*\|$/
@@ -615,7 +637,7 @@ export class StreamttyService {
 
     // Update stats and strip emoji if enabled
     this.updateStats(type)
-    chunk = this.stripEmojiFromText(chunk)
+    // Do not strip emojis globally; table renderer will sanitize emojis locally
 
     // Streaming-aware table handling first
     let prepared = chunk
@@ -695,7 +717,7 @@ export class StreamttyService {
     this.debugTable('[DEBUG] Converting tables in content:', content.slice(0, 100))
 
     // Dynamically import streamtty's ASCII table renderer utilities
-    const asciiMod = await import('streamtty/dist/renderers/table-ascii')
+    const asciiMod = await import('@nicomatt69/streamtty/dist/renderers/table-ascii')
     const isMarkdownTable: (s: string) => boolean = (asciiMod as any).isMarkdownTable
     const renderMarkdownTableToASCII: (s: string, opts?: any) => string = (asciiMod as any).renderMarkdownTableToASCII
 
@@ -744,7 +766,7 @@ export class StreamttyService {
       const sep = Array.from({ length: colCount }, () => '---')
       const md = ['|' + header.join('|') + '|', '|' + sep.join('|') + '|', ...norm.map(r => '|' + r.join('|') + '|')].join('\n')
       try {
-        const rendered = renderMarkdownTableToASCII(md, {
+        const rendered = renderMarkdownTableToASCII(this.sanitizeTableEmojis(md), {
           maxWidth: this.options.maxWidth || 80,
           borderStyle: 'simple',
         })
@@ -836,7 +858,7 @@ export class StreamttyService {
         if (isMarkdownTable(candidate)) {
           this.debugTable('[DEBUG] Found markdown table at lines', `${start}..${i - 1}`)
           try {
-            const rendered = renderMarkdownTableToASCII(candidate, {
+            const rendered = renderMarkdownTableToASCII(this.sanitizeTableEmojis(candidate), {
               maxWidth: this.options.maxWidth || 80,
               borderStyle: 'simple',
             })
@@ -887,7 +909,7 @@ export class StreamttyService {
    */
   private async processMermaidInline(content: string): Promise<string> {
     if (!StreamttyService.mermaidRenderer) {
-      StreamttyService.mermaidRenderer = await import('streamtty/dist/utils/mermaid-ascii')
+      StreamttyService.mermaidRenderer = await import('@nicomatt69/streamtty/dist/utils/mermaid-ascii')
     }
     const { convertMermaidToASCII } = StreamttyService.mermaidRenderer
 
@@ -1377,5 +1399,5 @@ export const streamttyService = new StreamttyService({
 })
 
 // Re-export AI SDK types for convenience
-export type { StreamEvent, StreamEventType } from 'streamtty'
-export { StreamProtocol } from 'streamtty'
+export type { StreamEvent, StreamEventType } from '@nicomatt69/streamtty'
+export { StreamProtocol } from '@nicomatt69/streamtty'

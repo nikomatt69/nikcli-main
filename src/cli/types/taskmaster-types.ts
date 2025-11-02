@@ -48,6 +48,24 @@ export interface TaskMasterTask {
   context?: Record<string, any>
 }
 
+export interface MutableTaskMasterTask {
+  id: string
+  title: string
+  description?: string
+  status: TaskStatus
+  priority: TaskPriority
+  tags?: string[]
+  dependencies?: string[]
+  estimatedHours?: number
+  actualHours?: number
+  assignee?: string
+  dueDate?: string
+  createdAt: string
+  updatedAt: string
+  completedAt?: string
+  context?: Record<string, any>
+}
+
 export interface TaskMasterPlan {
   id: string
   title: string

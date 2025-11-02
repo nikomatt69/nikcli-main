@@ -257,10 +257,10 @@ export class OrchestratorService extends EventEmitter {
         input.startsWith('/') ? 'command' : input.startsWith('@') ? 'agent' : 'command'
       )
 
-      if (!middlewareResult.success) {
+      if (!(middlewareResult as any).success) {
         advancedUI.logFunctionUpdate(
           'error',
-          `Operation blocked: ${middlewareResult.error?.message || 'Unknown error'}`,
+          `Operation blocked: ${(middlewareResult as any).error?.message || 'Unknown error'}`,
           '❌'
         )
         return

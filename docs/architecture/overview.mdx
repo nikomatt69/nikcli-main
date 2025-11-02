@@ -1,0 +1,505 @@
+---
+title: 'Architecture Overview'
+description: 'Comprehensive overview of NikCLI system architecture and design principles'
+---
+
+# Architecture Overview
+
+NikCLI is a production-ready, context-aware AI development assistant built on a sophisticated multi-layered architecture. This document provides a comprehensive overview of the system's design, core components, and architectural decisions.
+
+## System Philosophy
+
+NikCLI's architecture is guided by several key principles:
+
+1. **Modularity**: Every component is designed as a standalone, pluggable module with well-defined interfaces
+2. **Scalability**: From single-file edits to enterprise deployments, the architecture scales seamlessly
+3. **Observability**: Built-in monitoring, tracing, and telemetry at every layer
+4. **Extensibility**: Plugin architecture for agents, tools, providers, and integrations
+5. **Security-First**: Multi-layered security with approval systems, sandboxing, and audit trails
+
+## High-Level Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        CLI Interface Layer                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────┐  │
+│  │   Terminal   │  │   Web UI     │  │   Background API    │  │
+│  │   Interface  │  │   Dashboard  │  │     Server          │  │
+│  └──────────────┘  └──────────────┘  └─────────────────────┘  │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+┌──────────────────────────┴──────────────────────────────────────┐
+│                    Orchestration Layer                           │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────┐ │
+│  │   Main           │  │   Streaming      │  │   VM          │ │
+│  │   Orchestrator   │  │   Orchestrator   │  │   Orchestrator│ │
+│  └──────────────────┘  └──────────────────┘  └───────────────┘ │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+┌──────────────────────────┴──────────────────────────────────────┐
+│                       Agent System                               │
+│  ┌─────────────┐  ┌─────────────┐  ┌──────────────────────┐   │
+│  │   Universal │  │ Specialized │  │   Virtualized        │   │
+│  │   Agent     │  │   Agents    │  │   Agents             │   │
+│  └─────────────┘  └─────────────┘  └──────────────────────┘   │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+┌──────────────────────────┴──────────────────────────────────────┐
+│                      Service Layer                               │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌────────┐ ┌──────────┐  │
+│  │ Agent   │ │Planning │ │ Memory  │ │  LSP   │ │  Tool    │  │
+│  │ Service │ │ Service │ │ Service │ │Service │ │ Service  │  │
+│  └─────────┘ └─────────┘ └─────────┘ └────────┘ └──────────┘  │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+┌──────────────────────────┴──────────────────────────────────────┐
+│                    Infrastructure Layer                          │
+│  ┌─────────┐ ┌──────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ │
+│  │   AI    │ │  Memory  │ │ Context │ │  Event  │ │ Monitor │ │
+│  │Provider │ │ Provider │ │   RAG   │ │  System │ │  System │ │
+│  └─────────┘ └──────────┘ └─────────┘ └─────────┘ └─────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Core Components
+
+### 1. Orchestration Layer
+
+The orchestration layer coordinates all system operations and manages the execution flow.
+
+#### Main Orchestrator
+- **Purpose**: Top-level coordinator for the entire system
+- **Responsibilities**:
+  - Service lifecycle management
+  - Global error handling and recovery
+  - Resource allocation and cleanup
+  - Graceful shutdown coordination
+- **Location**: `/src/cli/main-orchestrator.ts`
+
+#### Streaming Orchestrator
+- **Purpose**: Real-time message processing and agent coordination
+- **Responsibilities**:
+  - Message queue management
+  - Agent lifecycle (spawn, monitor, terminate)
+  - Real-time streaming output
+  - Context management and token tracking
+  - Cognitive AI pipeline integration
+- **Location**: `/src/cli/streaming-orchestrator.ts`
+
+#### VM Orchestrator
+- **Purpose**: Manages virtualized agent execution environments
+- **Responsibilities**:
+  - Container lifecycle management
+  - VM session coordination
+  - Resource isolation
+  - Cross-environment communication
+- **Location**: `/src/cli/virtualized-agents/vm-orchestrator.ts`
+
+### 2. Agent System
+
+NikCLI implements a sophisticated multi-agent architecture with different specialization levels.
+
+#### Universal Agent
+A general-purpose agent capable of handling diverse tasks:
+- File operations and code editing
+- Git operations
+- Command execution
+- Project analysis
+- Natural language understanding
+
+#### Specialized Agents
+Domain-specific agents optimized for particular tasks:
+- **React Expert**: React component development and optimization
+- **Next.js Expert**: Next.js application development
+- **Backend Expert**: API and server-side development
+- **DevOps Expert**: Deployment, CI/CD, containerization
+- **Code Review Agent**: Code quality analysis and security auditing
+- **AI SDK Integrator**: Vercel AI SDK integration
+- **Framer Motion Expert**: Animation and interaction design
+
+#### Virtualized Agents
+Agents running in isolated container environments:
+- Sandboxed execution
+- Custom runtime configurations
+- Enhanced security
+- Resource limits
+
+### 3. Service Layer
+
+The service layer provides reusable business logic and orchestrates complex operations.
+
+#### Agent Service
+- Agent registration and discovery
+- Task queueing and scheduling
+- Concurrent agent management
+- Agent capability matching
+- **Location**: `/src/cli/services/agent-service.ts`
+
+#### Planning Service
+- Multi-step plan generation
+- Task decomposition
+- Execution flow management
+- Progress tracking
+- **Location**: `/src/cli/services/planning-service.ts`
+
+#### Memory Service
+- Conversation history management
+- Context persistence
+- Semantic memory storage
+- Memory retrieval and search
+- **Location**: `/src/cli/services/memory-service.ts`
+
+#### LSP Service
+- Language Server Protocol integration
+- Code intelligence (completions, diagnostics, references)
+- Multi-language support
+- IDE-quality code understanding
+- **Location**: `/src/cli/services/lsp-service.ts`
+
+#### Tool Service
+- Tool registration and discovery
+- Tool execution coordination
+- Permission management
+- Tool metadata and categorization
+- **Location**: `/src/cli/services/tool-service.ts`
+
+### 4. Middleware System
+
+A flexible middleware pipeline for cross-cutting concerns:
+
+#### Middleware Manager
+- Priority-based execution
+- Timeout handling
+- Retry logic
+- Metrics collection
+- **Location**: `/src/cli/middleware/middleware-manager.ts`
+
+#### Built-in Middleware
+- **Validation Middleware**: Input validation and sanitization
+- **Audit Middleware**: Operation logging and compliance
+- **Logging Middleware**: Structured logging
+- **Performance Middleware**: Performance tracking and optimization
+- **Security Middleware**: Authorization and rate limiting
+
+### 5. Infrastructure Layer
+
+#### AI Providers
+Multiple AI provider integrations with intelligent routing:
+- **Anthropic**: Claude models with reasoning support
+- **OpenAI**: GPT models
+- **Google**: Gemini models
+- **Ollama**: Local models
+- **OpenRouter**: Multi-provider gateway
+- **Vercel AI SDK**: Unified AI interface
+
+**Provider Selection**:
+- Automatic model routing based on task complexity
+- Cost optimization
+- Fallback mechanisms
+- Token budget management
+
+#### Context & RAG System
+- **Workspace Indexing**: Automatic codebase analysis and indexing
+- **Semantic Search**: Vector-based code search with ChromaDB
+- **Embeddings**: Code and documentation embeddings
+- **Token Management**: Intelligent context window optimization
+- **Cache System**: Multi-tier caching (semantic, API, tool results)
+
+#### Event System
+- **Event Bus**: Centralized event distribution
+- **Event Types**:
+  - Agent events (spawn, complete, error)
+  - Tool events (execute, result)
+  - System events (startup, shutdown)
+  - User events (input, approval)
+- **Subscribers**: Logging, monitoring, UI updates, webhooks
+
+#### Monitoring System
+- **OpenTelemetry**: Distributed tracing and metrics
+- **Prometheus**: Metrics export and aggregation
+- **Sentry**: Error tracking and performance monitoring
+- **Alerting**: Multi-channel alert delivery (Slack, Discord)
+- **Health Checks**: System health monitoring
+- **Location**: `/src/cli/monitoring/`
+
+### 6. Tool System
+
+A comprehensive tool ecosystem for AI agents:
+
+#### Core Tools
+- **File Operations**: Read, write, edit, multi-edit, JSON patch
+- **Search**: Glob pattern matching, grep, find files
+- **Git Operations**: Status, diff, commit, branch management
+- **Command Execution**: Bash commands with safety checks
+- **Code Analysis**: LSP-based code intelligence
+
+#### Integration Tools
+- **Browser Automation**: Playwright integration, Browserbase
+- **Web3**: GOAT SDK, Coinbase AgentKit, wallet operations
+- **Figma**: Design file access and manipulation
+- **Image Generation**: AI image generation
+- **CAD/3D**: Text-to-CAD, G-code generation
+
+#### Tool Security
+- **Approval System**: User approval for high-risk operations
+- **Sandboxing**: Isolated execution environments
+- **Rate Limiting**: Operation frequency controls
+- **Audit Trail**: Complete operation logging
+
+## Data Flow
+
+### Request Processing Flow
+
+```
+User Input
+    ↓
+Input Queue (debouncing, batching)
+    ↓
+Streaming Orchestrator
+    ↓
+Middleware Chain (validation, logging, audit)
+    ↓
+Agent Selection (capability matching)
+    ↓
+Agent Execution (streaming)
+    ↓
+Tool Invocation (with approval if needed)
+    ↓
+Result Processing
+    ↓
+UI Update (real-time streaming)
+    ↓
+Memory Storage (persistence)
+```
+
+### Context Flow
+
+```
+User Request
+    ↓
+Workspace Context Manager
+    ↓
+┌──────────────────────────────────────┐
+│ Context Gathering                     │
+│  - File tree                          │
+│  - Git status                         │
+│  - Recent changes                     │
+│  - LSP diagnostics                    │
+│  - Semantic search results            │
+└──────────────────────────────────────┘
+    ↓
+Token Budget Manager (optimization)
+    ↓
+AI Provider (with optimized context)
+    ↓
+Streaming Response
+    ↓
+Context Update (incremental)
+```
+
+## Configuration Architecture
+
+### Configuration Layers
+
+1. **Default Configuration**: Built-in sensible defaults
+2. **User Configuration**: `~/.nikcli/config.yaml`
+3. **Project Configuration**: `.nikcli/config.yaml`
+4. **Environment Variables**: Runtime overrides
+5. **CLI Flags**: Command-line overrides
+
+### Configuration Manager
+
+The configuration manager provides:
+- Schema validation (Zod)
+- Type-safe access
+- Hot reloading
+- Migration support
+- Environment variable interpolation
+
+**Location**: `/src/cli/core/config-manager.ts`
+
+## State Management
+
+### State Categories
+
+1. **Session State**: Current conversation, context, active agents
+2. **Persistent State**: Configuration, history, cached data
+3. **Transient State**: Streaming buffers, temporary files
+4. **Distributed State**: Multi-agent coordination (Redis)
+
+### State Synchronization
+
+- **Lock-based Coordination**: AsyncLock for critical sections
+- **Event-driven Updates**: Event emitters for state changes
+- **Snapshot System**: Point-in-time state capture
+- **State Recovery**: Automatic recovery from crashes
+
+## Extension Points
+
+NikCLI is designed for extensibility at multiple levels:
+
+### 1. Custom Agents
+```typescript
+class CustomAgent extends BaseAgent {
+  async execute(task: string): Promise<Result> {
+    // Custom logic
+  }
+}
+
+agentService.registerAgent({
+  name: 'custom-agent',
+  handler: customAgentHandler
+});
+```
+
+### 2. Custom Tools
+```typescript
+class CustomTool extends BaseTool {
+  async execute(args: any): Promise<ToolExecutionResult> {
+    // Tool implementation
+  }
+}
+
+toolRegistry.registerTool('custom-tool', new CustomTool());
+```
+
+### 3. Custom Middleware
+```typescript
+class CustomMiddleware implements BaseMiddleware {
+  async execute(req, next, ctx): Promise<MiddlewareResponse> {
+    // Pre-processing
+    const response = await next();
+    // Post-processing
+    return response;
+  }
+}
+
+middlewareManager.register(new CustomMiddleware());
+```
+
+### 4. Custom Providers
+```typescript
+class CustomAIProvider implements AIProvider {
+  async generateCompletion(prompt: string): Promise<Completion> {
+    // Provider implementation
+  }
+}
+```
+
+## Performance Characteristics
+
+### Scalability Metrics
+
+- **Concurrent Agents**: Up to 10 agents (configurable)
+- **File Operations**: Handles repositories with 100K+ files
+- **Context Window**: Up to 200K tokens (model-dependent)
+- **Streaming Latency**: < 50ms time-to-first-token
+- **Memory Footprint**: ~100-500MB typical usage
+
+### Optimization Strategies
+
+1. **Lazy Loading**: Components loaded on-demand
+2. **Incremental Context**: Only changed files re-indexed
+3. **Result Caching**: Multi-tier cache (semantic, API, tool)
+4. **Token Optimization**: Intelligent context pruning
+5. **Parallel Processing**: Concurrent tool execution
+6. **Stream Processing**: Real-time output without buffering
+
+## Reliability & Resilience
+
+### Error Handling
+
+- **Structured Errors**: Categorized, typed error classes
+- **Error Recovery**: Automatic retry with exponential backoff
+- **Graceful Degradation**: Fallback to reduced functionality
+- **Error Reporting**: Sentry integration for production monitoring
+
+### Fault Tolerance
+
+- **Circuit Breakers**: Prevent cascading failures
+- **Timeout Management**: Per-operation timeout controls
+- **Resource Limits**: Memory and CPU constraints
+- **Health Checks**: Continuous system health monitoring
+
+## Security Architecture
+
+### Defense in Depth
+
+1. **Input Validation**: Zod schemas at all boundaries
+2. **Approval System**: User confirmation for risky operations
+3. **Sandboxing**: Isolated execution environments
+4. **Rate Limiting**: Operation frequency controls
+5. **Audit Logging**: Complete operation history
+6. **Token Security**: Secure credential management
+
+### Security Policies
+
+- **Execution Policies**: Configurable operation restrictions
+- **File Access Control**: Workspace-scoped file operations
+- **Network Policies**: Outbound connection controls
+- **Resource Quotas**: CPU, memory, storage limits
+
+## Deployment Models
+
+### Local Development
+- Single-process CLI
+- In-memory state
+- Local file system
+- SQLite for persistence
+
+### Background Mode
+- Daemon process (nikd)
+- API server on localhost
+- Redis for state
+- WebSocket for real-time updates
+
+### Enterprise Deployment
+- Kubernetes orchestration
+- Distributed agents
+- PostgreSQL database
+- External monitoring (Prometheus, Grafana)
+- Multi-tenant support
+
+## Technology Stack
+
+### Core Technologies
+- **Runtime**: Node.js 18+ / Bun
+- **Language**: TypeScript 5.x
+- **Package Manager**: pnpm
+- **Build Tool**: esbuild / Bun
+
+### Key Dependencies
+- **AI SDK**: Vercel AI SDK
+- **Vector DB**: ChromaDB
+- **Cache**: Upstash Redis
+- **Telemetry**: OpenTelemetry
+- **Error Tracking**: Sentry
+- **LSP**: vscode-languageserver-node
+- **UI**: Blessed, Ink (React for terminal)
+- **Web3**: GOAT SDK, Coinbase AgentKit
+
+## Future Architecture Roadmap
+
+### Planned Enhancements
+
+1. **Distributed Agent Network**: Multi-machine agent collaboration
+2. **Plugin Marketplace**: Community-contributed extensions
+3. **GraphQL API**: Structured API for integrations
+4. **WebAssembly Tools**: High-performance tool execution
+5. **Federated Learning**: Privacy-preserving model improvements
+6. **Multi-Modal Support**: Image, audio, video processing
+7. **Real-time Collaboration**: Multi-user sessions
+
+## Related Documentation
+
+- [Layered Design](/architecture/layered-design) - Deep dive into architectural layers
+- [Event System](/architecture/event-system) - Event-driven architecture details
+- [Streaming Architecture](/architecture/streaming-architecture) - Real-time streaming implementation
+- [Security Model](/architecture/security-model) - Security architecture and policies
+- [Performance](/architecture/performance) - Performance optimization strategies
+
+## Conclusion
+
+NikCLI's architecture is designed for production use with enterprise-grade reliability, security, and performance. The modular design enables easy extension while maintaining system stability. The multi-layered approach ensures separation of concerns and allows each component to evolve independently.
+
+For implementation details, refer to the source code in `/src/cli/` and the specialized architecture documents linked above.

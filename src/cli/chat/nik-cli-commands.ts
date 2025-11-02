@@ -208,6 +208,7 @@ export class SlashCommandHandler {
     this.commands.set('exit', this.quitCommand.bind(this))
     this.commands.set('clear', this.clearCommand.bind(this))
     this.commands.set('default', this.defaultModeCommand.bind(this))
+    this.commands.set('auth', this.authCommand.bind(this))
     this.commands.set('pro', this.proCommand.bind(this))
     this.commands.set('model', this.modelCommand.bind(this))
     this.commands.set('models', this.modelsCommand.bind(this))
@@ -327,6 +328,16 @@ export class SlashCommandHandler {
     this.commands.set('web3', this.web3Command.bind(this))
     this.commands.set('blockchain', this.web3Command.bind(this))
 
+    // GOAT SDK Web3 Operations
+    this.commands.set('goat', this.goatCommand.bind(this))
+    this.commands.set('defi', this.goatCommand.bind(this))
+    this.commands.set('polymarket', this.polymarketCommand.bind(this))
+
+    // Web3 Toolchains
+    this.commands.set('web3-toolchain', this.web3ToolchainCommand.bind(this))
+    this.commands.set('w3-toolchain', this.web3ToolchainCommand.bind(this))
+    this.commands.set('defi-toolchain', this.defiToolchainCommand.bind(this))
+
     // IDE diagnostic commands
     this.commands.set('diagnostic', this.diagnosticCommand.bind(this))
     this.commands.set('diag', this.diagnosticCommand.bind(this))
@@ -412,6 +423,15 @@ ${chalk.cyan('/clear')} - Clear current chat session
 ${chalk.cyan('/new [title]')} - Start a new chat session
 ${chalk.cyan('/default')} - Switch to default chat mode
 
+${chalk.blue.bold('API Keys & Authentication:')}
+${chalk.cyan('/set-key <model> <key>')} - Set API key for a model
+${chalk.gray('  e.g. /set-key openrouter sk-or-v1-...')}
+${chalk.cyan('/set-coin-keys')} - Interactive wizard for Coinbase keys
+${chalk.cyan('/set-key-bb')} - Configure Browserbase API key and project
+${chalk.cyan('/set-key-figma')} - Configure Figma and v0 API credentials
+${chalk.cyan('/set-key-redis')} - Configure Redis/Upstash cache credentials
+${chalk.cyan('/set-vector-key')} - Configure Upstash Vector database credentials
+
 ${chalk.blue.bold('Model Management:')}
 ${chalk.cyan('/model <name>')} - Switch to a model
 ${chalk.cyan('/models')} - List available models
@@ -436,6 +456,13 @@ ${chalk.cyan('/debug')} - Debug API key configuration
 ${chalk.cyan('/temp <0.0-2.0>')} - Set temperature (creativity)
 ${chalk.cyan('/history <on|off>')} - Enable/disable chat history
 ${chalk.cyan('/system <prompt>')} - Set system prompt for current session
+
+${chalk.blue.bold('Performance & Caching:')}
+${chalk.cyan('/tokens')} - Show token usage and optimization
+${chalk.cyan('/cache [stats|clear|settings]')} - Manage token cache system
+${chalk.cyan('/redis-enable')} - Enable Redis caching
+${chalk.cyan('/redis-disable')} - Disable Redis caching
+${chalk.cyan('/redis-status')} - Show Redis cache status
 
 ${chalk.blue.bold('Session Management:')}
 ${chalk.cyan('/sessions')} - List all chat sessions
@@ -494,6 +521,13 @@ ${chalk.cyan('/generate-image "prompt"')} - Generate image with AI models
 ${chalk.cyan('/create-image "prompt"')} - Alias for generate-image
 ${chalk.cyan('/generate-image --model <dall-e-3|dall-e-2|gpt-image-1>')} - Choose model
 ${chalk.cyan('/generate-image --size <1024x1024|1792x1024|1024x1792>')} - Set size
+
+${chalk.blue.bold('Browser Mode (Interactive):')}
+${chalk.cyan('/browser [url]')} - Start interactive browser mode
+${chalk.cyan('/browser-status')} - Show current browser session status
+${chalk.cyan('/browser-screenshot')} - Take screenshot of current page
+${chalk.cyan('/browser-exit')} - Exit browser mode and cleanup
+${chalk.cyan('/browser-info')} - Show browser capabilities and diagnostics
 
 ${chalk.blue.bold('Blockchain & Web3:')}
 ${chalk.cyan('/web3 status')} - Show Coinbase AgentKit status
@@ -594,16 +628,222 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
+  private async authCommand(args: string[] = []): Promise<CommandResult> {
+    const sub = (args[0] || 'login').toLowerCase()
+    const nik: any = (global as any).__nikCLI
+
+    try {
+      const { authProvider } = await import('../providers/supabase/auth-provider')
+      const readline = await import('readline')
+
+      if (sub === 'help' || sub === '-h') {
+        const panel = boxen(
+          [
+            chalk.cyan.bold('🔐 Authentication Commands'),
+            chalk.gray('─'.repeat(40)),
+            '',
+            `${chalk.green('/auth')}           - Sign in with email and password`,
+            `${chalk.green('/auth login')}    - Sign in with email and password`,
+            `${chalk.green('/auth signup')}   - Create a new account`,
+            `${chalk.green('/auth logout')}   - Sign out and clear credentials`,
+            `${chalk.green('/auth status')}   - Show authentication status`,
+          ].join('\n'),
+          { title: 'Authentication', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+        )
+        if (nik?.printPanel) nik.printPanel(panel)
+        else console.log(panel)
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      if (sub === 'logout') {
+        await authProvider.signOut()
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      if (sub === 'status') {
+        const currentUser = authProvider.getCurrentUser()
+        const profile = authProvider.getCurrentProfile()
+        if (currentUser && profile) {
+          const panel = boxen(
+            [
+              chalk.green(`✓ Logged in as ${profile.email || profile.username}`),
+              '',
+              `Email: ${profile.email}`,
+              `Tier: ${profile.subscription_tier}`,
+            ].join('\n'),
+            { title: 'Auth Status', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'green' }
+          )
+          if (nik?.printPanel) nik.printPanel(panel)
+          else console.log(panel)
+        } else {
+          const panel = boxen(chalk.yellow('⚠️ Not authenticated. Use /auth to login.'), {
+            title: 'Auth Status',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+          if (nik?.printPanel) nik.printPanel(panel)
+          else console.log(panel)
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Sign in or sign up flow
+      const isSignUp = sub === 'signup'
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      })
+
+      const email = await new Promise<string>((resolve) => {
+        rl.question(chalk.blue('Email: '), resolve)
+      })
+
+      if (!email) {
+        rl.close()
+        console.log(chalk.yellow('⚠️ Email required'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Read password with hidden input
+      const password = await new Promise<string>((resolve) => {
+        const { stdin, stdout } = process
+        const password: string[] = []
+
+        const onData = (buf: Buffer) => {
+          const char = buf.toString()
+          switch (char) {
+            case '\n':
+            case '\r':
+            case '\u0004':
+              stdout.write('\n')
+              stdin.setRawMode(false)
+              stdin.pause()
+              stdin.removeListener('data', onData)
+              resolve(password.join(''))
+              break
+            case '\u0003':
+              stdout.write('\n')
+              stdin.setRawMode(false)
+              stdin.pause()
+              stdin.removeListener('data', onData)
+              process.exit(130)
+              break
+            case '\u007f':
+            case '\b':
+              if (password.length > 0) {
+                password.pop()
+                stdout.write('\b \b')
+              }
+              break
+            default:
+              if (char.charCodeAt(0) >= 32) {
+                password.push(char)
+                stdout.write('*')
+              }
+          }
+        }
+
+        stdout.write(chalk.blue('Password: '))
+        stdin.setRawMode(true)
+        stdin.resume()
+        stdin.on('data', onData)
+      })
+
+      rl.close()
+
+      if (!password) {
+        console.log(chalk.yellow('⚠️ Password required'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Show processing message
+      const processingBox = boxen(chalk.blue('⚡︎ Processing...'), {
+        padding: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+        title: isSignUp ? 'Creating Account' : 'Signing In',
+      })
+      if (nik?.printPanel) nik.printPanel(processingBox)
+      else console.log(processingBox)
+
+      // Perform sign in or sign up
+      const result = isSignUp
+        ? await authProvider.signUp(email, password, { username: email.split('@')[0] })
+        : await authProvider.signIn(email, password, { rememberMe: true })
+
+      if (result) {
+        const successBox = boxen(
+          [
+            chalk.green(`✓ ${isSignUp ? 'Account created' : 'Signed in'} as ${result.profile.email}`),
+            '',
+            `Subscription: ${result.profile.subscription_tier}`,
+            chalk.dim('Credentials saved - you can now use /pro'),
+          ].join('\n'),
+          {
+            padding: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+            title: isSignUp ? 'Account Created' : 'Signed In',
+          }
+        )
+        if (nik?.printPanel) nik.printPanel(successBox)
+        else console.log(successBox)
+      } else {
+        const errorBox = boxen(chalk.red('❌ Authentication failed'), {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+          title: 'Error',
+        })
+        if (nik?.printPanel) nik.printPanel(errorBox)
+        else console.log(errorBox)
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.error(chalk.red(`Error: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
   private async proCommand(args: string[] = []): Promise<CommandResult> {
     const sub = (args[0] || 'status').toLowerCase()
     try {
       const { authProvider } = await import('../providers/supabase/auth-provider')
       const { subscriptionService } = await import('../services/subscription-service')
+      const nik: any = (global as any).__nikCLI
+      const currentUser = authProvider.getCurrentUser()
+
+      // Check if user is authenticated (except for 'help' command)
+      if (sub !== 'help' && !currentUser) {
+        const panel = boxen(
+          [
+            chalk.yellow('⚠️ Authentication Required'),
+            '',
+            chalk.gray('Pro features require authentication.'),
+            '',
+            chalk.cyan('Please authenticate with:'),
+            chalk.blue('/auth'),
+          ].join('\n'),
+          {
+            title: 'Plan',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }
+        )
+        if (nik?.printPanel) nik.printPanel(panel)
+        else console.log(panel)
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
       const profile = authProvider.getCurrentProfile()
       const tier = profile?.subscription_tier || 'free'
 
       if (sub === 'help') {
-        const nik: any = (global as any).__nikCLI
         const panel = boxen(
           [
             chalk.cyan.bold('💳 Pro Plan Commands'),
@@ -621,7 +861,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       if (sub === 'status') {
-        const nik: any = (global as any).__nikCLI
         const hasKey = Boolean(simpleConfigManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY)
         const lines: string[] = []
         lines.push(`${chalk.white('Current plan:')} ${chalk.green(tier)}`)
@@ -631,20 +870,20 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           lines.push(chalk.gray('• Provide your own OpenRouter key'))
           lines.push(chalk.gray('• Configure with: /set-key openrouter <key>'))
           lines.push(chalk.gray('• Or set env OPENROUTER_API_KEY'))
-          lines.push('')
-          lines.push(chalk.green('Upgrade to Pro:'))
-          const currentUser = authProvider.getCurrentUser()
-          if (currentUser) {
-            const paymentLink = subscriptionService.getPaymentLink(currentUser.id)
-            lines.push(chalk.gray(`• Visit: ${paymentLink}`))
-          }
-          lines.push(chalk.gray('• Or use: /pro upgrade'))
         } else {
           lines.push(chalk.cyan('Pro mode (Managed):'))
           lines.push(chalk.gray('• NikCLI manages your OpenRouter key'))
           lines.push(chalk.gray('• Key loaded automatically on login'))
           lines.push(chalk.gray('• Manual reload: /pro activate'))
         }
+        lines.push('')
+        lines.push(chalk.green('Upgrade to Pro:'))
+        const currentUser = authProvider.getCurrentUser()
+        if (currentUser) {
+          const paymentLink = subscriptionService.getPaymentLink(currentUser.id)
+          lines.push(chalk.gray(`• Visit: ${paymentLink}`))
+        }
+        lines.push(chalk.gray('• Or use: /pro upgrade'))
         lines.push('')
         lines.push(`${chalk.white('Key status:')} ${hasKey ? chalk.green('present') : chalk.yellow('not configured')}`)
         const panel = boxen(lines.join('\n'), {
@@ -660,13 +899,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
 
       if (sub === 'upgrade') {
-        const nik: any = (global as any).__nikCLI
-        const currentUser = authProvider.getCurrentUser()
-        if (!currentUser) {
-          console.log(chalk.yellow('Please login first: /login'))
-          return { shouldExit: false, shouldUpdatePrompt: false }
-        }
-        const paymentLink = subscriptionService.getPaymentLink(currentUser.id)
+        // Note: currentUser is already checked above, this is redundant but kept for clarity
+        const paymentLink = subscriptionService.getPaymentLink(currentUser?.id as string)
         const lines: string[] = []
         lines.push(chalk.cyan.bold('Upgrade to NikCLI Pro'))
         lines.push('')
@@ -692,9 +926,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       if (sub === 'activate') {
         if (tier !== 'pro' && tier !== 'enterprise') {
-          const nik: any = (global as any).__nikCLI
-          const currentUser = authProvider.getCurrentUser()
-          const paymentLink = currentUser ? subscriptionService.getPaymentLink(currentUser.id) : 'Please login first'
+          // currentUser is guaranteed to exist due to check at top of function
+          const paymentLink = subscriptionService.getPaymentLink(currentUser!.id)
           const panel = boxen(
             [
               chalk.yellow('⚠️ Pro subscription required'),
@@ -5880,7 +6113,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       if (blueprints.length > 0) {
         console.log(chalk.blue.bold('\n📋 Available Blueprints:'))
         blueprints.forEach((blueprint, index) => {
-          console.log(`\n${index + 1}. ${chalk.bold(blueprint.name)} ${chalk.gray(`(${blueprint.id.slice(0, 8)}...)`)}`)
+          const safeId = blueprint?.id ? blueprint.id.slice(0, 8) : 'unknown'
+          console.log(`\n${index + 1}. ${chalk.bold(blueprint.name || safeId)} ${chalk.gray(`(${safeId}...)`)}`)
           console.log(`   Specialization: ${blueprint.specialization}`)
           console.log(`   Autonomy: ${blueprint.autonomyLevel} | Context: ${blueprint.contextScope}`)
           this.printPanel(
@@ -6578,6 +6812,812 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   /**
    * Web3 command - Coinbase AgentKit operations with panel output
    */
+  // ====================== 🐐 GOAT SDK COMMANDS ======================
+
+  /**
+   * GOAT command - GOAT SDK operations with panel output
+   */
+  private async goatCommand(args: string[]): Promise<CommandResult> {
+    // Help/usage
+    if (args.length === 0) {
+      this.cliInstance.printPanel(
+        boxen(
+          [
+            chalk.bold('🐐 GOAT SDK (Polymarket + ERC20) Commands'),
+            chalk.gray('────────────────────────────────────────────'),
+            '',
+            `${chalk.cyan('/goat status')}     – GOAT SDK status`,
+            `${chalk.cyan('/goat init')}       – Initialize with wallet and chains`,
+            `${chalk.cyan('/goat wallet')}     – Show wallet and networks`,
+            `${chalk.cyan('/goat tools')}      – List available GOAT tools`,
+            `${chalk.cyan('/goat chat "message"')} – Natural language DeFi request`,
+            `${chalk.cyan('/goat markets')}    – Show Polymarket prediction markets`,
+            `${chalk.cyan('/goat transfer <amount> <to> [--chain base|polygon]')} – Transfer ERC20 tokens`,
+            `${chalk.cyan('/goat balance [--chain base|polygon]')} – Check token balances`,
+            '',
+            chalk.gray('Env required: GOAT_EVM_PRIVATE_KEY'),
+            chalk.gray('Optional: POLYGON_RPC_URL, BASE_RPC_URL'),
+            chalk.gray('Tip: Use natural language with /goat chat for complex operations'),
+          ].join('\n'),
+          { title: 'GOAT SDK', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const sub = args[0].toLowerCase()
+
+    // Ensure panel-safe printing
+    const nik: any = (global as any).__nikCLI
+    nik?.beginPanelOutput?.()
+    try {
+      if (sub === 'status') {
+        const result = await secureTools.executeGoat('status')
+        const content = this.formatGoatStatusPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'init') {
+        const result = await secureTools.executeGoat('init', {
+          chains: args.slice(1).includes('--chains') ? args[args.indexOf('--chains') + 1]?.split(',') : ['polygon', 'base'],
+          plugins: args.slice(1).includes('--plugins') ? args[args.indexOf('--plugins') + 1]?.split(',') : ['polymarket', 'erc20']
+        })
+        const content = this.formatGoatInitPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'wallet') {
+        const result = await secureTools.executeGoat('wallet-info')
+        const content = this.formatGoatWalletPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'tools') {
+        const result = await secureTools.executeGoat('tools')
+        const content = this.formatGoatToolsPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'markets') {
+        const result = await secureTools.executeGoat('polymarket-markets')
+        const content = this.formatGoatMarketsPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'transfer') {
+        if (!args[1] || !args[2]) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /goat transfer <amount> <to> [--chain base|polygon] [--token USDC|ETH]', {
+              title: 'GOAT Transfer',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const amount = args[1]
+        const to = args[2]
+        let chain: string | undefined
+        let token: string | undefined
+
+        for (let i = 3; i < args.length; i++) {
+          if (args[i] === '--chain' && args[i + 1]) {
+            chain = args[i + 1].toLowerCase()
+            i++
+          } else if (args[i] === '--token' && args[i + 1]) {
+            token = args[i + 1].toUpperCase()
+            i++
+          }
+        }
+
+        const result = await secureTools.executeGoat('erc20-transfer', {
+          amount,
+          to,
+          chain: chain || 'base',
+          token: token || 'USDC'
+        })
+        const content = this.formatGoatTransferPanel({ result, amount, to, chain, token })
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'balance') {
+        let chain: string | undefined
+        for (let i = 1; i < args.length; i++) {
+          if (args[i] === '--chain' && args[i + 1]) {
+            chain = args[i + 1].toLowerCase()
+            break
+          }
+        }
+
+        const result = await secureTools.executeGoat('erc20-balance', {
+          chain: chain || 'base'
+        })
+        const content = this.formatGoatBalancePanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'chat') {
+        const message = args.slice(1).join(' ').trim().replace(/^"|"$/g, '')
+        if (!message) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /goat chat "your DeFi request"', {
+              title: 'GOAT Chat',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const result = await secureTools.executeGoat('chat', { message })
+        const content = this.formatGoatChatPanel(message, result)
+        this.cliInstance.printPanel(content)
+      } else {
+        const panel = boxen(`Unknown subcommand: ${sub}`, {
+          title: 'GOAT SDK',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+        this.cliInstance.printPanel(panel)
+      }
+    } catch (error: any) {
+      const panel = boxen(
+        `Failed to execute GOAT command: ${error.message}` +
+        '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
+        { title: 'GOAT Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
+      )
+      this.cliInstance.printPanel(panel)
+    } finally {
+      // Properly end panel output and re-render the prompt
+      if (nik) {
+        nik.endPanelOutput?.()
+        nik.renderPromptAfterOutput?.()
+      }
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Polymarket specific command
+   */
+  private async polymarketCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      this.cliInstance.printPanel(
+        boxen(
+          [
+            chalk.bold('📊 Polymarket Commands'),
+            chalk.gray('────────────────────────────────────────────'),
+            '',
+            `${chalk.cyan('/polymarket markets')}     – List prediction markets`,
+            `${chalk.cyan('/polymarket bet <market> <amount> <outcome>')} – Place a bet`,
+            `${chalk.cyan('/polymarket positions')}   – Show your positions`,
+            `${chalk.cyan('/polymarket chat "query"')} – Natural language Polymarket operations`,
+            '',
+            chalk.gray('Note: Polymarket operates on Polygon network'),
+            chalk.gray('Ensure GOAT_EVM_PRIVATE_KEY and POLYGON_RPC_URL are configured'),
+          ].join('\n'),
+          { title: 'Polymarket', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const action = args[0].toLowerCase()
+    const nik: any = (global as any).__nikCLI
+    nik?.beginPanelOutput?.()
+
+    try {
+      switch (action) {
+        case 'markets':
+          const marketsResult = await secureTools.executeGoat('polymarket-markets', { chain: 'polygon' })
+          const marketsContent = this.formatGoatMarketsPanel(marketsResult)
+          this.cliInstance.printPanel(marketsContent)
+          break
+
+        case 'bet':
+          if (args.length < 4) {
+            this.cliInstance.printPanel(
+              boxen('Usage: /polymarket bet <market-id> <amount> <outcome>', {
+                title: 'Polymarket Bet',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              })
+            )
+            break
+          }
+          const betResult = await secureTools.executeGoat('polymarket-bet', {
+            market: args[1],
+            amount: args[2],
+            outcome: args[3],
+            chain: 'polygon'
+          })
+          const betContent = this.formatGoatBetPanel(betResult)
+          this.cliInstance.printPanel(betContent)
+          break
+
+        case 'positions':
+          const positionsResult = await secureTools.executeGoat('polymarket-positions', { chain: 'polygon' })
+          const positionsContent = this.formatGoatPositionsPanel(positionsResult)
+          this.cliInstance.printPanel(positionsContent)
+          break
+
+        case 'chat':
+          const message = args.slice(1).join(' ').trim().replace(/^"|"$/g, '')
+          if (!message) {
+            this.cliInstance.printPanel(
+              boxen('Usage: /polymarket chat "your prediction market query"', {
+                title: 'Polymarket Chat',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              })
+            )
+            break
+          }
+          const chatResult = await secureTools.executeGoat('chat', {
+            message: `Polymarket operation: ${message}`,
+            plugin: 'polymarket',
+            chain: 'polygon'
+          })
+          const chatContent = this.formatGoatChatPanel(message, chatResult)
+          this.cliInstance.printPanel(chatContent)
+          break
+
+        default:
+          this.cliInstance.printPanel(
+            boxen(`Unknown Polymarket command: ${action}`, {
+              title: 'Polymarket Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            })
+          )
+      }
+    } catch (error: any) {
+      this.cliInstance.printPanel(
+        boxen(`Polymarket command failed: ${error.message}`, {
+          title: 'Polymarket Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    } finally {
+      if (nik) {
+        nik.endPanelOutput?.()
+        nik.renderPromptAfterOutput?.()
+      }
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Web3 Toolchain command
+   */
+  private async web3ToolchainCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      this.cliInstance.printPanel(
+        boxen(
+          [
+            chalk.bold('🔗 Web3 Toolchain Commands'),
+            chalk.gray('────────────────────────────────────────────'),
+            '',
+            `${chalk.cyan('/web3-toolchain list')}    – List available Web3 toolchains`,
+            `${chalk.cyan('/web3-toolchain run <name>')} – Execute a Web3 toolchain`,
+            `${chalk.cyan('/web3-toolchain status')}  – Show active executions`,
+            `${chalk.cyan('/web3-toolchain cancel <id>')} – Cancel running execution`,
+            '',
+            chalk.gray('Available toolchains:'),
+            chalk.gray('• defi-analysis - DeFi protocol analysis'),
+            chalk.gray('• polymarket-strategy - Prediction market trading'),
+            chalk.gray('• portfolio-management - Multi-chain portfolio'),
+            chalk.gray('• nft-analysis - NFT collection analytics'),
+            chalk.gray('• contract-audit - Smart contract security'),
+            chalk.gray('• yield-optimizer - Yield farming optimization'),
+            chalk.gray('• bridge-analysis - Cross-chain bridge analysis'),
+            chalk.gray('• mev-protection - MEV protection strategy'),
+            chalk.gray('• governance-analysis - DAO governance analysis'),
+          ].join('\n'),
+          { title: 'Web3 Toolchains', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const action = args[0].toLowerCase()
+    const nik: any = (global as any).__nikCLI
+    nik?.beginPanelOutput?.()
+
+    try {
+      const { web3ToolchainRegistry } = await import('../toolchains/web3-toolchains')
+
+      switch (action) {
+        case 'list':
+          const toolchains = web3ToolchainRegistry.listToolchains()
+          const listContent = this.formatWeb3ToolchainListPanel(toolchains)
+          this.cliInstance.printPanel(listContent)
+          break
+
+        case 'run':
+          if (!args[1]) {
+            this.cliInstance.printPanel(
+              boxen('Usage: /web3-toolchain run <toolchain-name> [--chain <chain>] [--dry-run]', {
+                title: 'Web3 Toolchain Run',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              })
+            )
+            break
+          }
+
+          const toolchainName = args[1]
+          const options: any = {}
+
+          for (let i = 2; i < args.length; i++) {
+            if (args[i] === '--chain' && args[i + 1]) {
+              options.chain = args[i + 1]
+              i++
+            } else if (args[i] === '--dry-run') {
+              options.dryRun = true
+            }
+          }
+
+          const execution = await web3ToolchainRegistry.executeToolchain(toolchainName, {}, options)
+          const execContent = this.formatWeb3ToolchainExecutionPanel(execution)
+          this.cliInstance.printPanel(execContent)
+          break
+
+        case 'status':
+          const activeExecutions = web3ToolchainRegistry.getActiveExecutions()
+          const statusContent = this.formatWeb3ToolchainStatusPanel(activeExecutions)
+          this.cliInstance.printPanel(statusContent)
+          break
+
+        case 'cancel':
+          if (!args[1]) {
+            this.cliInstance.printPanel(
+              boxen('Usage: /web3-toolchain cancel <execution-id>', {
+                title: 'Web3 Toolchain Cancel',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              })
+            )
+            break
+          }
+
+          const executionId = args[1]
+          const cancelled = web3ToolchainRegistry.cancelExecution(executionId)
+          const cancelContent = this.formatWeb3ToolchainCancelPanel(cancelled, executionId)
+          this.cliInstance.printPanel(cancelContent)
+          break
+
+        default:
+          this.cliInstance.printPanel(
+            boxen(`Unknown toolchain command: ${action}`, {
+              title: 'Web3 Toolchain Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            })
+          )
+      }
+    } catch (error: any) {
+      this.cliInstance.printPanel(
+        boxen(`Web3 toolchain command failed: ${error.message}`, {
+          title: 'Web3 Toolchain Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    } finally {
+      if (nik) {
+        nik.endPanelOutput?.()
+        nik.renderPromptAfterOutput?.()
+      }
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * DeFi Toolchain shortcut command
+   */
+  private async defiToolchainCommand(args: string[]): Promise<CommandResult> {
+    // Redirect to specific DeFi toolchains
+    if (args.length === 0) {
+      return await this.web3ToolchainCommand(['list'])
+    }
+
+    const action = args[0].toLowerCase()
+
+    // Map common DeFi actions to toolchains
+    const toolchainMap: Record<string, string> = {
+      'analyze': 'defi-analysis',
+      'yield': 'yield-optimizer',
+      'portfolio': 'portfolio-management',
+      'bridge': 'bridge-analysis',
+      'mev': 'mev-protection',
+      'governance': 'governance-analysis'
+    }
+
+    const toolchainName = toolchainMap[action]
+    if (toolchainName) {
+      return await this.web3ToolchainCommand(['run', toolchainName, ...args.slice(1)])
+    } else {
+      return await this.web3ToolchainCommand([action, ...args.slice(1)])
+    }
+  }
+
+  // ====================== GOAT PANEL FORMATTERS ======================
+
+  private formatGoatStatusPanel(result: any): string {
+    const title = 'GOAT SDK Status'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      const data = dataBlock
+      lines.push(chalk.green('✓ GOAT SDK status'))
+      lines.push('')
+      lines.push(`${chalk.gray('Installed:')} ${data.installed ? 'Yes' : 'No'}`)
+      lines.push(`${chalk.gray('Initialized:')} ${data.initialized ? 'Yes' : 'No'}`)
+      lines.push(`${chalk.gray('Environment:')} ${data.environment}`)
+      if (data.plugins?.length) {
+        lines.push(`${chalk.gray('Plugins:')} ${data.plugins.join(', ')}`)
+      }
+      if (data.chains?.length) {
+        lines.push(`${chalk.gray('Chains:')} ${data.chains.join(', ')}`)
+      }
+    } else {
+      lines.push(chalk.red('❌ Not initialized'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+      lines.push('')
+      lines.push(chalk.yellow('Run /goat init to set up GOAT SDK'))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatGoatInitPanel(result: any): string {
+    const title = 'GOAT SDK Initialize'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      const data = dataBlock
+      lines.push(chalk.green('✓ GOAT SDK initialized'))
+      if (data.wallet?.address) lines.push(`${chalk.gray('Wallet:')} ${data.wallet.address}`)
+      if (data.chains?.length) lines.push(`${chalk.gray('Chains:')} ${data.chains.map((c: any) => c.name).join(', ')}`)
+      if (data.plugins?.length) lines.push(`${chalk.gray('Plugins:')} ${data.plugins.join(', ')}`)
+      lines.push(`${chalk.gray('Tools:')} ${data.toolsCount || 0} available`)
+    } else {
+      lines.push(chalk.red('❌ Initialization failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatGoatWalletPanel(result: any): string {
+    const title = 'GOAT Wallet'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      const data = dataBlock
+      lines.push(chalk.cyan('🔐 Wallet Information'))
+      if (data.wallet?.address) lines.push(`${chalk.gray('Address:')} ${data.wallet.address}`)
+      if (data.chains?.length) {
+        lines.push(`${chalk.gray('Supported Chains:')}`)
+        data.chains.forEach((chain: any) => {
+          lines.push(`  • ${chain.name} (${chain.chainId})`)
+        })
+      }
+      if (data.plugins?.length) {
+        lines.push(`${chalk.gray('Active Plugins:')} ${data.plugins.join(', ')}`)
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to get wallet info'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatGoatToolsPanel(result: any): string {
+    const title = 'GOAT Tools'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok && dataBlock.tools) {
+      lines.push(chalk.cyan(`Available Tools (${dataBlock.count || 0})`))
+      lines.push('')
+      dataBlock.tools.slice(0, 10).forEach((tool: any) => {
+        lines.push(`• ${chalk.bold(tool.name)}`)
+        if (tool.description) {
+          lines.push(`  ${chalk.gray(tool.description)}`)
+        }
+      })
+      if (dataBlock.tools.length > 10) {
+        lines.push(chalk.gray(`... and ${dataBlock.tools.length - 10} more tools`))
+      }
+    } else {
+      lines.push(chalk.yellow('No tools available'))
+      lines.push(chalk.gray('Initialize GOAT SDK first with /goat init'))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatGoatMarketsPanel(result: any): string {
+    const title = 'Polymarket Markets'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✓ Markets loaded'))
+      if (dataBlock.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to load markets'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  private formatGoatTransferPanel({ result, amount, to, chain, token }: any): string {
+    const title = 'GOAT Transfer'
+    const lines: string[] = []
+    lines.push(`${chalk.gray('Amount:')} ${amount} ${token || 'USDC'}`)
+    lines.push(`${chalk.gray('To:')} ${to}`)
+    lines.push(`${chalk.gray('Chain:')} ${chain || 'base'}`)
+    lines.push('')
+
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✓ Transfer request submitted'))
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Transfer failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatGoatBalancePanel(result: any): string {
+    const title = 'GOAT Balance'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✓ Balance request processed'))
+      if (dataBlock.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to fetch balance'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatGoatChatPanel(message: string, result: any): string {
+    const title = 'GOAT Chat'
+    const lines: string[] = []
+    lines.push(`${chalk.gray('Message:')} ${message}`)
+    lines.push('')
+
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✓ Completed'))
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatGoatBetPanel(result: any): string {
+    const title = 'Polymarket Bet'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✓ Bet placed successfully'))
+      if (dataBlock?.txHash) {
+        lines.push(`${chalk.gray('Transaction:')} ${dataBlock.txHash}`)
+      }
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Bet placement failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  private formatGoatPositionsPanel(result: any): string {
+    const title = 'Polymarket Positions'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✓ Positions loaded'))
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to load positions'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  // ====================== WEB3 TOOLCHAIN PANEL FORMATTERS ======================
+
+  private formatWeb3ToolchainListPanel(toolchains: any[]): string {
+    const title = 'Available Web3 Toolchains'
+    const lines: string[] = []
+
+    if (toolchains.length === 0) {
+      lines.push(chalk.yellow('No Web3 toolchains available'))
+    } else {
+      lines.push(`Found ${toolchains.length} Web3 toolchain(s)`)
+      lines.push('')
+
+      toolchains.forEach((toolchain, index) => {
+        const riskColor = toolchain.riskLevel === 'critical' ? 'red' :
+          toolchain.riskLevel === 'high' ? 'yellow' :
+            toolchain.riskLevel === 'medium' ? 'blue' : 'green'
+
+        lines.push(`${index + 1}. ${chalk.bold(toolchain.name)}`)
+        lines.push(`   ${chalk.gray(toolchain.description)}`)
+        lines.push(`   Chains: ${chalk.cyan(toolchain.chains.join(', '))}`)
+        lines.push(`   Protocols: ${chalk.gray(toolchain.protocols.join(', '))}`)
+        lines.push(`   Risk: ${chalk[riskColor](toolchain.riskLevel)} | Pattern: ${chalk.gray(toolchain.pattern)}`)
+        lines.push(`   Duration: ~${Math.round(toolchain.estimatedDuration / 1000)}s`)
+        if (index < toolchains.length - 1) lines.push('')
+      })
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+  }
+
+  private formatWeb3ToolchainExecutionPanel(execution: any): string {
+    const title = `Web3 Toolchain: ${execution.toolchain}`
+    const lines: string[] = []
+
+    lines.push(`${chalk.gray('Execution ID:')} ${execution.id}`)
+    lines.push(`${chalk.gray('Status:')} ${this.formatExecutionStatus(execution.status)}`)
+    lines.push(`${chalk.gray('Progress:')} ${execution.progress}%`)
+    lines.push(`${chalk.gray('Started:')} ${execution.startTime.toLocaleTimeString()}`)
+
+    if (execution.endTime) {
+      const duration = Math.round((execution.endTime.getTime() - execution.startTime.getTime()) / 1000)
+      lines.push(`${chalk.gray('Duration:')} ${duration}s`)
+    }
+
+    if (execution.chainId) {
+      lines.push(`${chalk.gray('Chain ID:')} ${execution.chainId}`)
+    }
+
+    if (execution.txHashes.length > 0) {
+      lines.push('')
+      lines.push(chalk.cyan('Transaction Hashes:'))
+      execution.txHashes.forEach((hash: string) => {
+        lines.push(`  ${hash}`)
+      })
+    }
+
+    if (execution.errors.length > 0) {
+      lines.push('')
+      lines.push(chalk.red('Errors:'))
+      execution.errors.forEach((error: string) => {
+        lines.push(`  ${error}`)
+      })
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatWeb3ToolchainStatusPanel(executions: any[]): string {
+    const title = 'Active Web3 Toolchain Executions'
+    const lines: string[] = []
+
+    if (executions.length === 0) {
+      lines.push(chalk.yellow('No active toolchain executions'))
+      lines.push('')
+      lines.push(chalk.gray('Use /web3-toolchain run <name> to start a toolchain'))
+    } else {
+      lines.push(`Active executions: ${executions.length}`)
+      lines.push('')
+
+      executions.forEach((exec, index) => {
+        const duration = Math.round((Date.now() - exec.startTime.getTime()) / 1000)
+        lines.push(`${index + 1}. ${chalk.bold(exec.toolchain)}`)
+        lines.push(`   ID: ${exec.id}`)
+        lines.push(`   Status: ${this.formatExecutionStatus(exec.status)}`)
+        lines.push(`   Progress: ${exec.progress}%`)
+        lines.push(`   Duration: ${duration}s`)
+        if (index < executions.length - 1) lines.push('')
+      })
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+  }
+
+  private formatWeb3ToolchainCancelPanel(cancelled: boolean, executionId: string): string {
+    const title = 'Cancel Web3 Toolchain'
+    const lines: string[] = []
+
+    if (cancelled) {
+      lines.push(chalk.green(`✓ Execution cancelled: ${executionId}`))
+      lines.push('')
+      lines.push(chalk.gray('The toolchain execution has been stopped'))
+    } else {
+      lines.push(chalk.red(`❌ Failed to cancel: ${executionId}`))
+      lines.push('')
+      lines.push(chalk.gray('Execution not found or already completed'))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: cancelled ? 'green' : 'red' })
+  }
+
+  private formatExecutionStatus(status: string): string {
+    switch (status) {
+      case 'pending':
+        return chalk.yellow('⏳ Pending')
+      case 'running':
+        return chalk.blue('🔄 Running')
+      case 'completed':
+        return chalk.green('✅ Completed')
+      case 'failed':
+        return chalk.red('❌ Failed')
+      case 'cancelled':
+        return chalk.gray('🛑 Cancelled')
+      default:
+        return chalk.gray(status)
+    }
+  }
+
   private async web3Command(args: string[]): Promise<CommandResult> {
     // Help/usage
     if (args.length === 0) {
@@ -10178,4 +11218,758 @@ export async function handleBrowserInfo(): Promise<void> {
       }
     )
   )
+}
+
+// ====================== 🐐 GOAT SDK COMMANDS ======================
+
+/**
+ * GOAT command - GOAT SDK operations with panel output
+ */
+export async function handleGoatSDKCommand(args: string[]): Promise<void> {
+  // Help/usage
+  if (args.length === 0) {
+    console.log(
+      boxen(
+        [
+          chalk.bold('🐐 GOAT SDK (Polymarket + ERC20) Commands'),
+          chalk.gray('────────────────────────────────────────────'),
+          '',
+          `${chalk.cyan('/goat status')}     – GOAT SDK status`,
+          `${chalk.cyan('/goat init')}       – Initialize with wallet and chains`,
+          `${chalk.cyan('/goat wallet')}     – Show wallet and networks`,
+          `${chalk.cyan('/goat tools')}      – List available GOAT tools`,
+          `${chalk.cyan('/goat chat "message"')} – Natural language DeFi request`,
+          `${chalk.cyan('/goat markets')}    – Show Polymarket prediction markets`,
+          `${chalk.cyan('/goat transfer <amount> <to> [--chain base|polygon]')} – Transfer ERC20 tokens`,
+          `${chalk.cyan('/goat balance [--chain base|polygon]')} – Check token balances`,
+          '',
+          chalk.gray('Env required: GOAT_EVM_PRIVATE_KEY'),
+          chalk.gray('Optional: POLYGON_RPC_URL, BASE_RPC_URL'),
+          chalk.gray('Tip: Use natural language with /goat chat for complex operations'),
+        ].join('\n'),
+        { title: 'GOAT SDK', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' }
+      )
+    )
+    return
+  }
+
+  const sub = args[0].toLowerCase()
+
+  try {
+    const { secureTools } = await import('../tools/secure-tools-registry')
+
+    if (sub === 'status') {
+      const result = await secureTools.executeGoat('status')
+      const content = formatGoatStatusPanel(result)
+      console.log(content)
+    } else if (sub === 'init') {
+      const result = await secureTools.executeGoat('init', {
+        chains: args.slice(1).includes('--chains') ? args[args.indexOf('--chains') + 1]?.split(',') : ['polygon', 'base'],
+        plugins: args.slice(1).includes('--plugins') ? args[args.indexOf('--plugins') + 1]?.split(',') : ['polymarket', 'erc20']
+      })
+      const content = formatGoatInitPanel(result)
+      console.log(content)
+    } else if (sub === 'wallet') {
+      const result = await secureTools.executeGoat('wallet-info')
+      const content = formatGoatWalletPanel(result)
+      console.log(content)
+    } else if (sub === 'tools') {
+      const result = await secureTools.executeGoat('tools')
+      const content = formatGoatToolsPanel(result)
+      console.log(content)
+    } else if (sub === 'markets') {
+      const result = await secureTools.executeGoat('polymarket-markets')
+      const content = formatGoatMarketsPanel(result)
+      console.log(content)
+    } else if (sub === 'transfer') {
+      if (!args[1] || !args[2]) {
+        console.log(
+          boxen('Usage: /goat transfer <amount> <to> [--chain base|polygon] [--token USDC|ETH]', {
+            title: 'GOAT Transfer',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const amount = args[1]
+      const to = args[2]
+      let chain: string | undefined
+      let token: string | undefined
+
+      for (let i = 3; i < args.length; i++) {
+        if (args[i] === '--chain' && args[i + 1]) {
+          chain = args[i + 1].toLowerCase()
+          i++
+        } else if (args[i] === '--token' && args[i + 1]) {
+          token = args[i + 1].toUpperCase()
+          i++
+        }
+      }
+
+      const result = await secureTools.executeGoat('erc20-transfer', {
+        amount,
+        to,
+        chain: chain || 'base',
+        token: token || 'USDC'
+      })
+      const content = formatGoatTransferPanel({ result, amount, to, chain, token })
+      console.log(content)
+    } else if (sub === 'balance') {
+      let chain: string | undefined
+      for (let i = 1; i < args.length; i++) {
+        if (args[i] === '--chain' && args[i + 1]) {
+          chain = args[i + 1].toLowerCase()
+          break
+        }
+      }
+
+      const result = await secureTools.executeGoat('erc20-balance', {
+        chain: chain || 'base'
+      })
+      const content = formatGoatBalancePanel(result)
+      console.log(content)
+    } else if (sub === 'chat') {
+      const message = args.slice(1).join(' ').trim().replace(/^"|"$/g, '')
+      if (!message) {
+        console.log(
+          boxen('Usage: /goat chat "your DeFi request"', {
+            title: 'GOAT Chat',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+        return
+      }
+
+      const result = await secureTools.executeGoat('chat', { message })
+      const content = formatGoatChatPanel(message, result)
+      console.log(content)
+    } else {
+      console.log(
+        boxen(`Unknown subcommand: ${sub}`, {
+          title: 'GOAT SDK',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  } catch (error: any) {
+    console.log(
+      boxen(
+        `Failed to execute GOAT command: ${error.message}` +
+        '\n\nTips:\n- Ensure GOAT_EVM_PRIVATE_KEY is set\n- Run /goat init first\n- Use /goat status to check setup',
+        { title: 'GOAT Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
+      )
+    )
+  }
+}
+
+/**
+ * Polymarket specific command
+ */
+export async function handlePolymarketCommand(args: string[]): Promise<void> {
+  if (args.length === 0) {
+    console.log(
+      boxen(
+        [
+          chalk.bold('📊 Polymarket Commands'),
+          chalk.gray('────────────────────────────────────────────'),
+          '',
+          `${chalk.cyan('/polymarket markets')}     – List prediction markets`,
+          `${chalk.cyan('/polymarket bet <market> <amount> <outcome>')} – Place a bet`,
+          `${chalk.cyan('/polymarket positions')}   – Show your positions`,
+          `${chalk.cyan('/polymarket chat "query"')} – Natural language Polymarket operations`,
+          '',
+          chalk.gray('Note: Polymarket operates on Polygon network'),
+          chalk.gray('Ensure GOAT_EVM_PRIVATE_KEY and POLYGON_RPC_URL are configured'),
+        ].join('\n'),
+        { title: 'Polymarket', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' }
+      )
+    )
+    return
+  }
+
+  const action = args[0].toLowerCase()
+
+  try {
+    const { secureTools } = await import('../tools/secure-tools-registry')
+
+    switch (action) {
+      case 'markets':
+        const marketsResult = await secureTools.executeGoat('polymarket-markets', { chain: 'polygon' })
+        const marketsContent = formatGoatMarketsPanel(marketsResult)
+        console.log(marketsContent)
+        break
+
+      case 'bet':
+        if (args.length < 4) {
+          console.log(
+            boxen('Usage: /polymarket bet <market-id> <amount> <outcome>', {
+              title: 'Polymarket Bet',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          break
+        }
+        const betResult = await secureTools.executeGoat('polymarket-bet', {
+          market: args[1],
+          amount: args[2],
+          outcome: args[3],
+          chain: 'polygon'
+        })
+        const betContent = formatGoatBetPanel(betResult)
+        console.log(betContent)
+        break
+
+      case 'positions':
+        const positionsResult = await secureTools.executeGoat('polymarket-positions', { chain: 'polygon' })
+        const positionsContent = formatGoatPositionsPanel(positionsResult)
+        console.log(positionsContent)
+        break
+
+      case 'chat':
+        const message = args.slice(1).join(' ').trim().replace(/^"|"$/g, '')
+        if (!message) {
+          console.log(
+            boxen('Usage: /polymarket chat "your prediction market query"', {
+              title: 'Polymarket Chat',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          break
+        }
+        const chatResult = await secureTools.executeGoat('chat', {
+          message: `Polymarket operation: ${message}`,
+          plugin: 'polymarket',
+          chain: 'polygon'
+        })
+        const chatContent = formatGoatChatPanel(message, chatResult)
+        console.log(chatContent)
+        break
+
+      default:
+        console.log(
+          boxen(`Unknown Polymarket command: ${action}`, {
+            title: 'Polymarket Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+    }
+  } catch (error: any) {
+    console.log(
+      boxen(`Polymarket command failed: ${error.message}`, {
+        title: 'Polymarket Error',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'red',
+      })
+    )
+  }
+}
+
+/**
+ * Web3 Toolchain command
+ */
+export async function handleWeb3ToolchainCommand(args: string[]): Promise<void> {
+  if (args.length === 0) {
+    console.log(
+      boxen(
+        [
+          chalk.bold('🔗 Web3 Toolchain Commands'),
+          chalk.gray('────────────────────────────────────────────'),
+          '',
+          `${chalk.cyan('/web3-toolchain list')}    – List available Web3 toolchains`,
+          `${chalk.cyan('/web3-toolchain run <name>')} – Execute a Web3 toolchain`,
+          `${chalk.cyan('/web3-toolchain status')}  – Show active executions`,
+          `${chalk.cyan('/web3-toolchain cancel <id>')} – Cancel running execution`,
+          '',
+          chalk.gray('Available toolchains:'),
+          chalk.gray('• defi-analysis - DeFi protocol analysis'),
+          chalk.gray('• polymarket-strategy - Prediction market trading'),
+          chalk.gray('• portfolio-management - Multi-chain portfolio'),
+          chalk.gray('• nft-analysis - NFT collection analytics'),
+          chalk.gray('• contract-audit - Smart contract security'),
+          chalk.gray('• yield-optimizer - Yield farming optimization'),
+          chalk.gray('• bridge-analysis - Cross-chain bridge analysis'),
+          chalk.gray('• mev-protection - MEV protection strategy'),
+          chalk.gray('• governance-analysis - DAO governance analysis'),
+        ].join('\n'),
+        { title: 'Web3 Toolchains', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+      )
+    )
+    return
+  }
+
+  const action = args[0].toLowerCase()
+
+  try {
+    const { web3ToolchainRegistry } = await import('../toolchains/web3-toolchains')
+
+    switch (action) {
+      case 'list':
+        const toolchains = web3ToolchainRegistry.listToolchains()
+        const listContent = formatWeb3ToolchainListPanel(toolchains)
+        console.log(listContent)
+        break
+
+      case 'run':
+        if (!args[1]) {
+          console.log(
+            boxen('Usage: /web3-toolchain run <toolchain-name> [--chain <chain>] [--dry-run]', {
+              title: 'Web3 Toolchain Run',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          break
+        }
+
+        const toolchainName = args[1]
+        const options: any = {}
+
+        for (let i = 2; i < args.length; i++) {
+          if (args[i] === '--chain' && args[i + 1]) {
+            options.chain = args[i + 1]
+            i++
+          } else if (args[i] === '--dry-run') {
+            options.dryRun = true
+          }
+        }
+
+        const execution = await web3ToolchainRegistry.executeToolchain(toolchainName, {}, options)
+        const execContent = formatWeb3ToolchainExecutionPanel(execution)
+        console.log(execContent)
+        break
+
+      case 'status':
+        const activeExecutions = web3ToolchainRegistry.getActiveExecutions()
+        const statusContent = formatWeb3ToolchainStatusPanel(activeExecutions)
+        console.log(statusContent)
+        break
+
+      case 'cancel':
+        if (!args[1]) {
+          console.log(
+            boxen('Usage: /web3-toolchain cancel <execution-id>', {
+              title: 'Web3 Toolchain Cancel',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          break
+        }
+
+        const executionId = args[1]
+        const cancelled = web3ToolchainRegistry.cancelExecution(executionId)
+        const cancelContent = formatWeb3ToolchainCancelPanel(cancelled, executionId)
+        console.log(cancelContent)
+        break
+
+      default:
+        console.log(
+          boxen(`Unknown toolchain command: ${action}`, {
+            title: 'Web3 Toolchain Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+    }
+  } catch (error: any) {
+    console.log(
+      boxen(`Web3 toolchain command failed: ${error.message}`, {
+        title: 'Web3 Toolchain Error',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'red',
+      })
+    )
+  }
+}
+
+// ====================== GOAT PANEL FORMATTERS ======================
+
+function formatGoatStatusPanel(result: any): string {
+  const title = 'GOAT SDK Status'
+  const lines: string[] = []
+  const ok = result?.data?.success ?? result?.success
+  const dataBlock = result?.data?.data || result?.data || {}
+
+  if (ok) {
+    const data = dataBlock
+    lines.push(chalk.green('✓ GOAT SDK status'))
+    lines.push('')
+    lines.push(`${chalk.gray('Installed:')} ${data.installed ? 'Yes' : 'No'}`)
+    lines.push(`${chalk.gray('Initialized:')} ${data.initialized ? 'Yes' : 'No'}`)
+    lines.push(`${chalk.gray('Environment:')} ${data.environment}`)
+    if (data.plugins?.length) {
+      lines.push(`${chalk.gray('Plugins:')} ${data.plugins.join(', ')}`)
+    }
+    if (data.chains?.length) {
+      lines.push(`${chalk.gray('Chains:')} ${data.chains.join(', ')}`)
+    }
+  } else {
+    lines.push(chalk.red('❌ Not initialized'))
+    if (result?.error) lines.push(chalk.gray(result.error))
+    lines.push('')
+    lines.push(chalk.yellow('Run /goat init to set up GOAT SDK'))
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+}
+
+function formatGoatInitPanel(result: any): string {
+  const title = 'GOAT SDK Initialize'
+  const lines: string[] = []
+  const ok = result?.data?.success ?? result?.success
+  const dataBlock = result?.data?.data || result?.data || {}
+
+  if (ok) {
+    const data = dataBlock
+    lines.push(chalk.green('✓ GOAT SDK initialized'))
+    if (data.wallet?.address) lines.push(`${chalk.gray('Wallet:')} ${data.wallet.address}`)
+    if (data.chains?.length) lines.push(`${chalk.gray('Chains:')} ${data.chains.map((c: any) => c.name).join(', ')}`)
+    if (data.plugins?.length) lines.push(`${chalk.gray('Plugins:')} ${data.plugins.join(', ')}`)
+    lines.push(`${chalk.gray('Tools:')} ${data.toolsCount || 0} available`)
+  } else {
+    lines.push(chalk.red('❌ Initialization failed'))
+    if (result?.error) lines.push(chalk.gray(result.error))
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+}
+
+function formatGoatWalletPanel(result: any): string {
+  const title = 'GOAT Wallet'
+  const lines: string[] = []
+  const ok = result?.data?.success ?? result?.success
+  const dataBlock = result?.data?.data || result?.data || {}
+
+  if (ok) {
+    const data = dataBlock
+    lines.push(chalk.cyan('🔐 Wallet Information'))
+    if (data.wallet?.address) lines.push(`${chalk.gray('Address:')} ${data.wallet.address}`)
+    if (data.chains?.length) {
+      lines.push(`${chalk.gray('Supported Chains:')}`)
+      data.chains.forEach((chain: any) => {
+        lines.push(`  • ${chain.name} (${chain.chainId})`)
+      })
+    }
+    if (data.plugins?.length) {
+      lines.push(`${chalk.gray('Active Plugins:')} ${data.plugins.join(', ')}`)
+    }
+  } else {
+    lines.push(chalk.red('❌ Failed to get wallet info'))
+    if (result?.error) lines.push(chalk.gray(result.error))
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+}
+
+function formatGoatToolsPanel(result: any): string {
+  const title = 'GOAT Tools'
+  const lines: string[] = []
+  const ok = result?.data?.success ?? result?.success
+  const dataBlock = result?.data?.data || result?.data || {}
+
+  if (ok && dataBlock.tools) {
+    lines.push(chalk.cyan(`Available Tools (${dataBlock.count || 0})`))
+    lines.push('')
+    dataBlock.tools.slice(0, 10).forEach((tool: any) => {
+      lines.push(`• ${chalk.bold(tool.name)}`)
+      if (tool.description) {
+        lines.push(`  ${chalk.gray(tool.description)}`)
+      }
+    })
+    if (dataBlock.tools.length > 10) {
+      lines.push(chalk.gray(`... and ${dataBlock.tools.length - 10} more tools`))
+    }
+  } else {
+    lines.push(chalk.yellow('No tools available'))
+    lines.push(chalk.gray('Initialize GOAT SDK first with /goat init'))
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+}
+
+function formatGoatMarketsPanel(result: any): string {
+  const title = 'Polymarket Markets'
+  const lines: string[] = []
+  const ok = result?.data?.success ?? result?.success
+  const dataBlock = result?.data?.data || result?.data || {}
+
+  if (ok) {
+    lines.push(chalk.green('✓ Markets loaded'))
+    if (dataBlock.response) {
+      lines.push('')
+      lines.push(chalk.white(dataBlock.response))
+    }
+  } else {
+    lines.push(chalk.red('❌ Failed to load markets'))
+    if (result?.error) lines.push(chalk.gray(result.error))
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+}
+
+function formatGoatTransferPanel({ result, amount, to, chain, token }: any): string {
+  const title = 'GOAT Transfer'
+  const lines: string[] = []
+  lines.push(`${chalk.gray('Amount:')} ${amount} ${token || 'USDC'}`)
+  lines.push(`${chalk.gray('To:')} ${to}`)
+  lines.push(`${chalk.gray('Chain:')} ${chain || 'base'}`)
+  lines.push('')
+
+  const ok = result?.data?.success ?? result?.success
+  const dataBlock = result?.data?.data || result?.data || {}
+
+  if (ok) {
+    lines.push(chalk.green('✓ Transfer request submitted'))
+    if (dataBlock?.response) {
+      lines.push('')
+      lines.push(chalk.white(dataBlock.response))
+    }
+  } else {
+    lines.push(chalk.red('❌ Transfer failed'))
+    if (result?.error) lines.push(chalk.gray(result.error))
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+}
+
+function formatGoatBalancePanel(result: any): string {
+  const title = 'GOAT Balance'
+  const lines: string[] = []
+  const ok = result?.data?.success ?? result?.success
+  const dataBlock = result?.data?.data || result?.data || {}
+
+  if (ok) {
+    lines.push(chalk.green('✓ Balance request processed'))
+    if (dataBlock.response) {
+      lines.push('')
+      lines.push(chalk.white(dataBlock.response))
+    }
+  } else {
+    lines.push(chalk.red('❌ Failed to fetch balance'))
+    if (result?.error) lines.push(chalk.gray(result.error))
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+}
+
+function formatGoatChatPanel(message: string, result: any): string {
+  const title = 'GOAT Chat'
+  const lines: string[] = []
+  lines.push(`${chalk.gray('Message:')} ${message}`)
+  lines.push('')
+
+  const ok = result?.data?.success ?? result?.success
+  const dataBlock = result?.data?.data || result?.data || {}
+
+  if (ok) {
+    lines.push(chalk.green('✓ Completed'))
+    if (dataBlock?.response) {
+      lines.push('')
+      lines.push(chalk.white(dataBlock.response))
+    }
+  } else {
+    lines.push(chalk.red('❌ Failed'))
+    if (result?.error) lines.push(chalk.gray(result.error))
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+}
+
+function formatGoatBetPanel(result: any): string {
+  const title = 'Polymarket Bet'
+  const lines: string[] = []
+  const ok = result?.data?.success ?? result?.success
+  const dataBlock = result?.data?.data || result?.data || {}
+
+  if (ok) {
+    lines.push(chalk.green('✓ Bet placed successfully'))
+    if (dataBlock?.txHash) {
+      lines.push(`${chalk.gray('Transaction:')} ${dataBlock.txHash}`)
+    }
+    if (dataBlock?.response) {
+      lines.push('')
+      lines.push(chalk.white(dataBlock.response))
+    }
+  } else {
+    lines.push(chalk.red('❌ Bet placement failed'))
+    if (result?.error) lines.push(chalk.gray(result.error))
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+}
+
+function formatGoatPositionsPanel(result: any): string {
+  const title = 'Polymarket Positions'
+  const lines: string[] = []
+  const ok = result?.data?.success ?? result?.success
+  const dataBlock = result?.data?.data || result?.data || {}
+
+  if (ok) {
+    lines.push(chalk.green('✓ Positions loaded'))
+    if (dataBlock?.response) {
+      lines.push('')
+      lines.push(chalk.white(dataBlock.response))
+    }
+  } else {
+    lines.push(chalk.red('❌ Failed to load positions'))
+    if (result?.error) lines.push(chalk.gray(result.error))
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+}
+
+// ====================== WEB3 TOOLCHAIN PANEL FORMATTERS ======================
+
+function formatWeb3ToolchainListPanel(toolchains: any[]): string {
+  const title = 'Available Web3 Toolchains'
+  const lines: string[] = []
+
+  if (toolchains.length === 0) {
+    lines.push(chalk.yellow('No Web3 toolchains available'))
+  } else {
+    lines.push(`Found ${toolchains.length} Web3 toolchain(s)`)
+    lines.push('')
+
+    toolchains.forEach((toolchain, index) => {
+      const riskColor = toolchain.riskLevel === 'critical' ? 'red' :
+        toolchain.riskLevel === 'high' ? 'yellow' :
+          toolchain.riskLevel === 'medium' ? 'blue' : 'green'
+
+      lines.push(`${index + 1}. ${chalk.bold(toolchain.name)}`)
+      lines.push(`   ${chalk.gray(toolchain.description)}`)
+      lines.push(`   Chains: ${chalk.cyan(toolchain.chains.join(', '))}`)
+      lines.push(`   Protocols: ${chalk.gray(toolchain.protocols.join(', '))}`)
+      lines.push(`   Risk: ${chalk[riskColor](toolchain.riskLevel)} | Pattern: ${chalk.gray(toolchain.pattern)}`)
+      lines.push(`   Duration: ~${Math.round(toolchain.estimatedDuration / 1000)}s`)
+      if (index < toolchains.length - 1) lines.push('')
+    })
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+}
+
+function formatWeb3ToolchainExecutionPanel(execution: any): string {
+  const title = `Web3 Toolchain: ${execution.toolchain}`
+  const lines: string[] = []
+
+  lines.push(`${chalk.gray('Execution ID:')} ${execution.id}`)
+  lines.push(`${chalk.gray('Status:')} ${formatExecutionStatus(execution.status)}`)
+  lines.push(`${chalk.gray('Progress:')} ${execution.progress}%`)
+  lines.push(`${chalk.gray('Started:')} ${execution.startTime.toLocaleTimeString()}`)
+
+  if (execution.endTime) {
+    const duration = Math.round((execution.endTime.getTime() - execution.startTime.getTime()) / 1000)
+    lines.push(`${chalk.gray('Duration:')} ${duration}s`)
+  }
+
+  if (execution.chainId) {
+    lines.push(`${chalk.gray('Chain ID:')} ${execution.chainId}`)
+  }
+
+  if (execution.txHashes.length > 0) {
+    lines.push('')
+    lines.push(chalk.cyan('Transaction Hashes:'))
+    execution.txHashes.forEach((hash: string) => {
+      lines.push(`  ${hash}`)
+    })
+  }
+
+  if (execution.errors.length > 0) {
+    lines.push('')
+    lines.push(chalk.red('Errors:'))
+    execution.errors.forEach((error: string) => {
+      lines.push(`  ${error}`)
+    })
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+}
+
+function formatWeb3ToolchainStatusPanel(executions: any[]): string {
+  const title = 'Active Web3 Toolchain Executions'
+  const lines: string[] = []
+
+  if (executions.length === 0) {
+    lines.push(chalk.yellow('No active toolchain executions'))
+    lines.push('')
+    lines.push(chalk.gray('Use /web3-toolchain run <name> to start a toolchain'))
+  } else {
+    lines.push(`Active executions: ${executions.length}`)
+    lines.push('')
+
+    executions.forEach((exec, index) => {
+      const duration = Math.round((Date.now() - exec.startTime.getTime()) / 1000)
+      lines.push(`${index + 1}. ${chalk.bold(exec.toolchain)}`)
+      lines.push(`   ID: ${exec.id}`)
+      lines.push(`   Status: ${formatExecutionStatus(exec.status)}`)
+      lines.push(`   Progress: ${exec.progress}%`)
+      lines.push(`   Duration: ${duration}s`)
+      if (index < executions.length - 1) lines.push('')
+    })
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+}
+
+function formatWeb3ToolchainCancelPanel(cancelled: boolean, executionId: string): string {
+  const title = 'Cancel Web3 Toolchain'
+  const lines: string[] = []
+
+  if (cancelled) {
+    lines.push(chalk.green(`✓ Execution cancelled: ${executionId}`))
+    lines.push('')
+    lines.push(chalk.gray('The toolchain execution has been stopped'))
+  } else {
+    lines.push(chalk.red(`❌ Failed to cancel: ${executionId}`))
+    lines.push('')
+    lines.push(chalk.gray('Execution not found or already completed'))
+  }
+
+  return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: cancelled ? 'green' : 'red' })
+}
+
+function formatExecutionStatus(status: string): string {
+  switch (status) {
+    case 'pending':
+      return chalk.yellow('⏳ Pending')
+    case 'running':
+      return chalk.blue('🔄 Running')
+    case 'completed':
+      return chalk.green('✅ Completed')
+    case 'failed':
+      return chalk.red('❌ Failed')
+    case 'cancelled':
+      return chalk.gray('🛑 Cancelled')
+    default:
+      return chalk.gray(status)
+  }
 }

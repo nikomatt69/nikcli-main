@@ -8,7 +8,7 @@ import { OutputStyleConfigSchema, OutputStyleEnum } from '../types/output-styles
 
 // Validation schemas
 const ModelConfigSchema = z.object({
-  provider: z.enum(['openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway', 'openrouter']),
+  provider: z.enum(['openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway', 'openrouter', 'cerebras']),
   model: z.string(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().min(1).max(8000).optional(),
@@ -545,12 +545,14 @@ const ConfigSchema = z.object({
       requireExplicitTrigger: z.boolean().default(false),
     })
     .default({ requireExplicitTrigger: false }),
-  // Authentication credentials
+  // Authentication credentials (encrypted)
   auth: z
     .object({
-      email: z.string().optional(),
-      token: z.string().optional(),
-      lastLogin: z.string().optional(),
+      email: z.string().optional().describe('Encrypted user email'),
+      password: z.string().optional().describe('Encrypted user password'),
+      accessToken: z.string().optional().describe('Encrypted access token'),
+      refreshToken: z.string().optional().describe('Encrypted refresh token'),
+      lastLogin: z.string().optional().describe('ISO timestamp of last login'),
     })
     .optional(),
   // Enhanced diff display configuration
@@ -576,6 +578,155 @@ const ConfigSchema = z.object({
       showStats: true,
       maxWidth: 120,
       compactThreshold: 20,
+    }),
+  // Enterprise Monitoring configuration
+  monitoring: z
+    .object({
+      enabled: z.boolean().default(true).describe('Enable enterprise monitoring'),
+      opentelemetry: z
+        .object({
+          enabled: z.boolean().default(true).describe('Enable OpenTelemetry distributed tracing'),
+          endpoint: z.string().default('http://localhost:4318').describe('OTLP endpoint URL'),
+          serviceName: z.string().default('nikcli').describe('Service name for traces'),
+          serviceVersion: z.string().default('0.5.0').describe('Service version'),
+          sampleRate: z.number().min(0).max(1).default(0.1).describe('Trace sampling rate (0-1)'),
+          exportIntervalMs: z.number().min(1000).max(300000).default(60000).describe('Export interval in milliseconds'),
+        })
+        .default({
+          enabled: true,
+          endpoint: 'http://localhost:4318',
+          serviceName: 'nikcli',
+          serviceVersion: '0.5.0',
+          sampleRate: 0.1,
+          exportIntervalMs: 60000,
+        }),
+      prometheus: z
+        .object({
+          enabled: z.boolean().default(true).describe('Enable Prometheus metrics'),
+          port: z.number().min(1024).max(65535).default(9090).describe('Metrics server port'),
+          path: z.string().default('/metrics').describe('Metrics endpoint path'),
+        })
+        .default({
+          enabled: true,
+          port: 9090,
+          path: '/metrics',
+        }),
+      sentry: z
+        .object({
+          enabled: z.boolean().default(false).describe('Enable Sentry error tracking'),
+          dsn: z.string().optional().describe('Sentry DSN'),
+          environment: z.string().default('production').describe('Environment name'),
+          tracesSampleRate: z.number().min(0).max(1).default(0.1).describe('Traces sample rate'),
+          profilesSampleRate: z.number().min(0).max(1).default(0.1).describe('Profiles sample rate'),
+          debug: z.boolean().default(false).describe('Enable Sentry debug mode'),
+        })
+        .default({
+          enabled: false,
+          environment: 'production',
+          tracesSampleRate: 0.1,
+          profilesSampleRate: 0.1,
+          debug: false,
+        }),
+      alerting: z
+        .object({
+          enabled: z.boolean().default(true).describe('Enable alerting system'),
+          channels: z
+            .object({
+              slack: z
+                .object({
+                  enabled: z.boolean().default(false).describe('Enable Slack alerts'),
+                  webhookUrl: z.string().optional().describe('Slack webhook URL'),
+                  minSeverity: z.enum(['low', 'medium', 'high', 'critical']).default('high').describe('Minimum severity'),
+                })
+                .optional(),
+              discord: z
+                .object({
+                  enabled: z.boolean().default(false).describe('Enable Discord alerts'),
+                  webhookUrl: z.string().optional().describe('Discord webhook URL'),
+                  minSeverity: z.enum(['low', 'medium', 'high', 'critical']).default('high').describe('Minimum severity'),
+                })
+                .optional(),
+            })
+            .default({}),
+          deduplication: z
+            .object({
+              enabled: z.boolean().default(true).describe('Enable alert deduplication'),
+              windowMs: z.number().min(60000).max(3600000).default(300000).describe('Deduplication window (ms)'),
+            })
+            .default({
+              enabled: true,
+              windowMs: 300000,
+            }),
+          throttling: z
+            .object({
+              enabled: z.boolean().default(true).describe('Enable alert throttling'),
+              maxAlertsPerMinute: z.number().min(1).max(100).default(10).describe('Max alerts per minute'),
+            })
+            .default({
+              enabled: true,
+              maxAlertsPerMinute: 10,
+            }),
+        })
+        .default({
+          enabled: true,
+          channels: {},
+          deduplication: {
+            enabled: true,
+            windowMs: 300000,
+          },
+          throttling: {
+            enabled: true,
+            maxAlertsPerMinute: 10,
+          },
+        }),
+      health: z
+        .object({
+          enabled: z.boolean().default(true).describe('Enable health checks'),
+          checkIntervalMs: z.number().min(5000).max(300000).default(30000).describe('Health check interval'),
+        })
+        .default({
+          enabled: true,
+          checkIntervalMs: 30000,
+        }),
+    })
+    .default({
+      enabled: true,
+      opentelemetry: {
+        enabled: true,
+        endpoint: 'http://localhost:4318',
+        serviceName: 'nikcli',
+        serviceVersion: '0.5.0',
+        sampleRate: 0.1,
+        exportIntervalMs: 60000,
+      },
+      prometheus: {
+        enabled: true,
+        port: 9090,
+        path: '/metrics',
+      },
+      sentry: {
+        enabled: false,
+        environment: 'production',
+        tracesSampleRate: 0.1,
+        profilesSampleRate: 0.1,
+        debug: false,
+      },
+      alerting: {
+        enabled: true,
+        channels: {},
+        deduplication: {
+          enabled: true,
+          windowMs: 300000,
+        },
+        throttling: {
+          enabled: true,
+          maxAlertsPerMinute: 10,
+        },
+      },
+      health: {
+        enabled: true,
+        checkIntervalMs: 30000,
+      },
     }),
 })
 
@@ -741,14 +892,14 @@ export class SimpleConfigManager {
       model: 'v0-1.0-md',
       maxContextTokens: 32000,
     },
-    'v0-1.5-md': {
-      provider: 'vercel',
-      model: 'v0-1.5-md',
+    'vercel/v0-1.5-md': {
+      provider: 'gateway',
+      model: 'vercel/v0-1.5-md',
       maxContextTokens: 32000,
     },
-    'v0-1.5-lg': {
-      provider: 'vercel',
-      model: 'v0-1.5-lg',
+    'vercel/v0-1.5-lg': {
+      provider: 'gateway',
+      model: 'vercel/v0-1.5-lg',
       maxContextTokens: 32000,
     },
     'gemini-2.5-pro': {
@@ -818,6 +969,12 @@ export class SimpleConfigManager {
       model: 'anthropic/claude-sonnet-4.5',
       maxContextTokens: 1000000,
     },
+    ' z-ai/glm-4.6:exacto': {
+      provider: 'openrouter',
+      model: 'z-ai/glm-4.6:exacto',
+      maxContextTokens: 128000,
+    },
+
     'anthropic/claude-haiku-4.5': {
       provider: 'openrouter',
       model: 'anthropic/claude-haiku-4.5',
@@ -854,30 +1011,39 @@ export class SimpleConfigManager {
       model: 'nvidia/nemotron-nano-9b-v2:free',
       maxContextTokens: 32000,
     },
-    'openai/gpt-5': {
+    'openai/gpt-5-pro': {
       provider: 'openrouter',
-      model: 'openai/gpt-5',
-      maxContextTokens: 200000,
+      model: 'openai/gpt-5-pro',
+      maxContextTokens: 400000,
     },
     'openai/gpt-5-codex': {
       provider: 'openrouter',
       model: 'openai/gpt-5-codex',
-      maxContextTokens: 200000,
+      maxContextTokens: 400000,
     },
-    'openai/gpt-5-mini': {
+    'openai/gpt-5-image': {
       provider: 'openrouter',
-      model: 'openai/gpt-5-mini',
-      maxContextTokens: 128000,
+      model: 'openai/gpt-5-image',
+      maxContextTokens: 400000,
+    },
+    'openai/gpt-5-image-mini': {
+      provider: 'openrouter',
+      model: 'openai/gpt-5-image-mini',
+      maxContextTokens: 400000,
+    },
+    'openai/o3-deep-research': {
+      provider: 'openrouter',
+      model: 'openai/o3-deep-research',
+      maxContextTokens: 200000,
     },
     'openai/o4-mini-deep-research': {
       provider: 'openrouter',
       model: 'openai/o4-mini-deep-research',
       maxContextTokens: 200000,
-
     },
-    'openai/gpt-5-nano': {
+    'openai/gpt-4o-audio-preview': {
       provider: 'openrouter',
-      model: 'openai/gpt-5-nano',
+      model: 'openai/gpt-4o-audio-preview',
       maxContextTokens: 128000,
     },
 
@@ -987,6 +1153,16 @@ export class SimpleConfigManager {
       model: 'moonshotai/kimi-k2-0905',
       maxContextTokens: 128000,
     },
+    'moonshotai/kimi-k2-0905:exacto': {
+      provider: 'openrouter',
+      model: 'moonshotai/kimi-k2-0905:exacto',
+      maxContextTokens: 128000,
+    },
+    'minimax/minimax-m2:free': {
+      provider: 'openrouter',
+      model: 'minimax/minimax-m2:free',
+      maxContextTokens: 128000,
+    },
     'qwen/qwen3-coder': {
       provider: 'openrouter',
       model: 'qwen/qwen3-coder',
@@ -1036,7 +1212,12 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: '@preset/nikcli-research',
       maxContextTokens: 200000,
-    }
+    },
+    '@preset/nikcli-free': {
+      provider: 'openrouter',
+      model: '@preset/nikcli-free',
+      maxContextTokens: 200000,
+    },
   }
 
   private defaultConfig: ConfigType = {
@@ -1054,11 +1235,52 @@ export class SimpleConfigManager {
         verbosityLevel: 5,
         includeCodeExamples: true,
         includeStepByStep: true,
-        useDecorative: false,
+        useDecorative: true,
         maxResponseLength: 'medium',
       },
     },
     models: this.defaultModels,
+    monitoring: {
+      enabled: true,
+      opentelemetry: {
+        enabled: true,
+        endpoint: 'http://localhost:4318',
+        serviceName: 'nikcli',
+        serviceVersion: '0.5.0',
+        sampleRate: 0.1,
+        exportIntervalMs: 60000,
+      },
+      prometheus: {
+        enabled: true,
+        port: 9090,
+        path: '/metrics',
+      },
+      sentry: {
+        enabled: false,
+        environment: 'production',
+        debug: false,
+        tracesSampleRate: 0.1,
+        profilesSampleRate: 0.1,
+      },
+      alerting: {
+        enabled: true,
+        channels: {},
+        deduplication: {
+          enabled: true,
+          windowMs: 300000,
+        },
+        throttling: {
+          enabled: true,
+          maxAlertsPerMinute: 10,
+        },
+      },
+      health: {
+        enabled: true,
+        checkIntervalMs: 30000,
+      },
+
+    },
+
     apiKeys: {},
     environmentVariables: {},
     environmentSources: [],
@@ -1123,6 +1345,7 @@ export class SimpleConfigManager {
         'registry-1.docker.io',
         'docker.io',
         'hub.docker.com',
+
       ],
     },
     redis: {
@@ -1236,10 +1459,19 @@ export class SimpleConfigManager {
       fs.mkdirSync(configDir, { recursive: true })
     }
 
-    // Load or create config
+    // Load configuration from config.json
     this.loadConfig()
-    this.applySmartDefaults()
+
+    // Load embedded secrets from bundle and update config.json
+    // This happens BEFORE applying to process.env so new secrets are available
+    this.loadAndSaveEmbeddedSecrets()
+
+    // Apply ALL environment variables to process.env
+    // This includes both stored (from config.json) and newly loaded (from bundle)
     this.applyEnvironmentVariablesToProcess()
+
+    // Apply smart defaults AFTER all env vars are loaded
+    this.applySmartDefaults()
   }
 
   private loadConfig(): void {
@@ -1281,11 +1513,143 @@ export class SimpleConfigManager {
     const stored = this.config.environmentVariables ?? {}
 
     for (const [key, encryptedValue] of Object.entries(stored)) {
-      const value = KeyEncryption.decrypt(encryptedValue)
-      if (overwriteProcess || process.env[key] === undefined) {
-        process.env[key] = value
+      try {
+        const value = KeyEncryption.decrypt(encryptedValue)
+        if (overwriteProcess || process.env[key] === undefined) {
+          process.env[key] = value
+        }
+      } catch (error) {
+        if (process.env.DEBUG) {
+          console.error(`Failed to apply ${key}:`, error)
+        }
       }
     }
+  }
+
+  private loadAndSaveEmbeddedSecrets(): void {
+    try {
+      // Import the generated secrets file first (this injects configs into EmbeddedSecrets)
+      require('../config/generated-embedded-secrets')
+
+      // Try to load EmbeddedSecrets
+      const { EmbeddedSecrets } = require('../config/embedded-secrets')
+
+      // Check if we have embedded secrets in the bundle
+      if (!EmbeddedSecrets.isBuiltWithSecrets()) {
+        return // No embedded secrets to load
+      }
+
+      // Initialize EmbeddedSecrets synchronously
+      EmbeddedSecrets.initializeSync()
+
+      // Get all available embedded secrets
+      const secretConfigs = EmbeddedSecrets.listAvailable()
+
+      if (!this.config.environmentVariables) {
+        this.config.environmentVariables = {}
+      }
+
+      let changed = false
+      const secretsToOverwrite: { envVarName: string; oldValue: string; newValue: string }[] = []
+
+      // For each embedded secret, check if it needs to be added or updated
+      for (const secretInfo of secretConfigs) {
+        const secret = EmbeddedSecrets.getSecretSync(secretInfo.id)
+        if (!secret) continue
+
+        // Use the actual env var name (not the internal ID)
+        const envVarName = secretInfo.envVarName
+        const encryptedNewValue = KeyEncryption.encrypt(secret.value)
+
+        // Check if secret exists in config
+        if (!this.config.environmentVariables[envVarName]) {
+          // Secret doesn't exist - add it automatically
+          this.config.environmentVariables[envVarName] = encryptedNewValue
+          changed = true
+
+          // Also apply to process.env
+          if (!process.env[envVarName]) {
+            process.env[envVarName] = secret.value
+          }
+        } else {
+          // Secret exists - check if it's different
+          try {
+            const existingDecrypted = KeyEncryption.decrypt(this.config.environmentVariables[envVarName])
+
+            if (existingDecrypted !== secret.value) {
+              // Value is different - need to ask user confirmation
+              secretsToOverwrite.push({
+                envVarName,
+                oldValue: existingDecrypted,
+                newValue: secret.value,
+              })
+            } else {
+              // Value is the same - update silently to ensure sync
+              this.config.environmentVariables[envVarName] = encryptedNewValue
+              changed = true
+            }
+          } catch (decryptError) {
+            // If decryption fails, treat as different and ask user
+            secretsToOverwrite.push({
+              envVarName,
+              oldValue: '[encrypted]',
+              newValue: secret.value,
+            })
+          }
+        }
+      }
+
+      // Handle secrets that need user confirmation
+      if (secretsToOverwrite.length > 0) {
+        this.handleSecretOverwrites(secretsToOverwrite)
+        changed = true
+      }
+
+      // Save config if we made changes
+      if (changed) {
+        this.saveConfig()
+      }
+    } catch (error) {
+      // Silently fail - embedded secrets are optional
+      if (process.env.DEBUG) {
+        console.warn('Failed to load embedded secrets:', error)
+      }
+    }
+  }
+
+  private handleSecretOverwrites(secretsToOverwrite: { envVarName: string; oldValue: string; newValue: string }[]): void {
+    const { createInterface } = require('readline')
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    })
+
+    const askForOverwrite = (index: number) => {
+      if (index >= secretsToOverwrite.length) {
+        rl.close()
+        return
+      }
+
+      const secret = secretsToOverwrite[index]
+      rl.question(
+        `\n🔄 Secret "${secret.envVarName}" has been updated in the new version.\n` +
+          `   Old: ${secret.oldValue.slice(0, 20)}${secret.oldValue.length > 20 ? '...' : ''}\n` +
+          `   New: ${secret.newValue.slice(0, 20)}${secret.newValue.length > 20 ? '...' : ''}\n` +
+          `   Overwrite with new value? (y/n): `,
+        (answer: string) => {
+          if (answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes') {
+            this.config.environmentVariables[secret.envVarName] = KeyEncryption.encrypt(secret.newValue)
+            process.env[secret.envVarName] = secret.newValue
+            console.log(`✓ Updated ${secret.envVarName}`)
+          } else {
+            console.log(`✗ Kept existing value for ${secret.envVarName}`)
+          }
+          askForOverwrite(index + 1)
+        }
+      )
+    }
+
+    askForOverwrite(0)
   }
 
   private saveConfig(): void {
@@ -1433,11 +1797,29 @@ export class SimpleConfigManager {
 
   // Model management
   setCurrentModel(model: string): void {
+    // Attempt auto-register for OpenRouter-style IDs if missing
+    if (!this.config.models[model] && this.isOpenRouterModelId(model)) {
+      this.tryAutoRegisterOpenRouterModelIfMissing(model)
+    }
+
     if (!this.config.models[model]) {
       throw new Error(`Model ${model} not found in configuration`)
     }
     this.config.currentModel = model
     this.saveConfig()
+
+    // Validate against OpenRouter API asynchronously (non-blocking)
+    if (this.isOpenRouterModelId(model)) {
+      void this.validateOpenRouterModelExists(model).then((ok) => {
+        if (!ok) {
+          console.warn(
+            chalk.yellow(
+              `Warning: OpenRouter API did not return model '${model}'. It may be new, private, or unavailable.`,
+            ),
+          )
+        }
+      }).catch(() => { })
+    }
   }
 
   getCurrentModel(): string {
@@ -1677,6 +2059,123 @@ export class SimpleConfigManager {
    */
   getSafeContextLimit(modelName?: string, safetyRatio: number = 0.8): number {
     return Math.floor(this.getMaxContextTokens(modelName) * safetyRatio)
+  }
+
+  // ------------------------------------------------------------
+  // OpenRouter model auto-registration helpers
+  // ------------------------------------------------------------
+
+  private isOpenRouterModelId(modelName: string): boolean {
+    if (!modelName) return false
+    // Heuristic: OpenRouter model IDs typically include a provider prefix like "openai/", "anthropic/", etc.
+    // Avoid special local presets and non-OpenRouter identifiers
+    if (modelName.startsWith('@preset/')) return true
+    return modelName.includes('/')
+  }
+
+  private tryAutoRegisterOpenRouterModelIfMissing(modelName: string): boolean {
+    if (this.config.models[modelName]) return true
+    if (!this.isOpenRouterModelId(modelName)) return false
+
+    try {
+      const { getModelContextLimit } = require('../config/token-limits')
+      this.config.models[modelName] = {
+        provider: 'openrouter',
+        model: modelName,
+        maxContextTokens: getModelContextLimit(modelName),
+      }
+      this.saveConfig()
+      return true
+    } catch {
+      // Fallback if token-limits module is unavailable for some reason
+      this.config.models[modelName] = {
+        provider: 'openrouter',
+        model: modelName,
+        maxContextTokens: 128000,
+      }
+      this.saveConfig()
+      return true
+    }
+  }
+
+  private async fetchOpenRouterModels(): Promise<Set<string>> {
+    const apiKey = process.env.OPENROUTER_API_KEY
+    if (!apiKey) return new Set()
+
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/models', {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER || 'https://github.com/nicomatt69/nikcli',
+          'X-Title': process.env.OPENROUTER_X_TITLE || 'NikCLI',
+        },
+      })
+
+      if (!res.ok) return new Set()
+      const data = await res.json()
+      const ids = new Set<string>()
+      const list = Array.isArray(data?.data) ? data.data : []
+      for (const item of list) {
+        if (item && typeof item.id === 'string') ids.add(item.id)
+      }
+      return ids
+    } catch {
+      return new Set()
+    }
+  }
+
+  private async validateOpenRouterModelExists(modelName: string): Promise<boolean> {
+    const ids = await this.fetchOpenRouterModels()
+    if (ids.size === 0) return false
+    return ids.has(modelName)
+  }
+
+  // Authentication credentials management
+  saveAuthCredentials(credentials: {
+    email?: string
+    password?: string
+    accessToken?: string
+    refreshToken?: string
+  }): void {
+    if (!this.config.auth) {
+      this.config.auth = {}
+    }
+
+    // Encrypt sensitive data
+    if (credentials.email) this.config.auth.email = KeyEncryption.encrypt(credentials.email)
+    if (credentials.password) this.config.auth.password = KeyEncryption.encrypt(credentials.password)
+    if (credentials.accessToken) this.config.auth.accessToken = KeyEncryption.encrypt(credentials.accessToken)
+    if (credentials.refreshToken) this.config.auth.refreshToken = KeyEncryption.encrypt(credentials.refreshToken)
+
+    this.config.auth.lastLogin = new Date().toISOString()
+    this.saveConfig()
+  }
+
+  getAuthCredentials(): { email?: string; password?: string; accessToken?: string; refreshToken?: string } | null {
+    if (!this.config.auth) {
+      return null
+    }
+
+    try {
+      return {
+        email: this.config.auth.email ? KeyEncryption.decrypt(this.config.auth.email) : undefined,
+        password: this.config.auth.password ? KeyEncryption.decrypt(this.config.auth.password) : undefined,
+        accessToken: this.config.auth.accessToken ? KeyEncryption.decrypt(this.config.auth.accessToken) : undefined,
+        refreshToken: this.config.auth.refreshToken ? KeyEncryption.decrypt(this.config.auth.refreshToken) : undefined,
+      }
+    } catch (error) {
+      console.warn(chalk.yellow('Warning: Failed to decrypt auth credentials'))
+      return null
+    }
+  }
+
+  clearAuthCredentials(): void {
+    this.config.auth = undefined
+    this.saveConfig()
+  }
+
+  hasAuthCredentials(): boolean {
+    return !!(this.config.auth?.email || this.config.auth?.accessToken)
   }
 }
 

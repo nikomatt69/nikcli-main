@@ -142,6 +142,11 @@ export class AuthProvider extends EventEmitter {
       // Persist session if enabled
       if (this.config.persistSession && options?.rememberMe !== false) {
         await this.persistSession(session, profile)
+        // Also save credentials to config for auto-login on next startup
+        simpleConfigManager.saveAuthCredentials({
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        })
       }
 
       // Setup auto-refresh
@@ -261,6 +266,9 @@ export class AuthProvider extends EventEmitter {
 
         // Clear cached session
         await this.clearPersistedSession()
+
+        // Clear stored credentials from config
+        simpleConfigManager.clearAuthCredentials()
 
         // Sign out from Supabase
         await this.supabase.signOut()
@@ -482,8 +490,46 @@ export class AuthProvider extends EventEmitter {
    * Restore session from cache
    */
   private async restoreSession(): Promise<void> {
-    // This would be implemented based on your session storage strategy
-    // For now, we'll skip automatic session restoration
+    try {
+      // Try to restore from config.json first (for persistent login)
+      const savedCredentials = simpleConfigManager.getAuthCredentials()
+      if (savedCredentials?.accessToken && savedCredentials?.refreshToken) {
+        try {
+          // Try to refresh the session with stored tokens
+          const user = await this.supabase.refreshSession(
+            savedCredentials.accessToken,
+            savedCredentials.refreshToken
+          )
+
+          if (user) {
+            const session: AuthSession = {
+              user,
+              accessToken: savedCredentials.accessToken,
+              refreshToken: savedCredentials.refreshToken,
+              expiresAt: Date.now() + this.config.sessionTTL * 1000,
+            }
+
+            const profile = (await this.loadUserProfile(user.id)) || (await this.createUserProfile(user))
+
+            this.currentSession = session
+            this.currentProfile = profile
+
+            console.log(chalk.green(`✓ Auto-logged in as ${profile.email || profile.username}`))
+            this.emit('auto_login_success', { session, profile })
+            return
+          }
+        } catch (error: any) {
+          // Tokens expired or invalid, clear them
+          simpleConfigManager.clearAuthCredentials()
+          console.warn(chalk.yellow('Stored session expired, please login again'))
+        }
+      }
+    } catch (error: any) {
+      // Silently fail - user will be logged out
+      if (process.env.DEBUG) {
+        console.warn('Session restoration failed:', error.message)
+      }
+    }
   }
 
   /**

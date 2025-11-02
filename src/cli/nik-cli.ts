@@ -365,7 +365,7 @@ export class NikCLI {
     // Initialize analytics manager and dashboard service
     this.analyticsManager = new AnalyticsManager(this.workingDirectory)
     this.dashboardService = new DashboardService(
-      this.agentManager,
+      this.agentManager as any,
       this.analyticsManager,
       advancedAIProvider
     )
@@ -3295,6 +3295,22 @@ export class NikCLI {
           await this.handleWeb3Commands(cmd, args)
           break
 
+        // GOAT SDK Commands
+        case 'goat':
+        case 'defi':
+          await this.handleGoatCommands(cmd, args)
+          break
+        case 'polymarket':
+          await this.handlePolymarketCommands(cmd, args)
+          break
+        case 'web3-toolchain':
+        case 'w3-toolchain':
+          await this.handleWeb3ToolchainCommands(cmd, args)
+          break
+        case 'defi-toolchain':
+          await this.handleDefiToolchainCommands(cmd, args)
+          break
+
         // Miscellaneous Commands
         case 'env':
           await this.handleEnvCommand(args)
@@ -4615,19 +4631,18 @@ EOF`
    * Execute a single todo with all agents in parallel
    */
   private async runTodoInParallel(todo: any, agents: any[], collaborationContext: any): Promise<void> {
-    const todoText = todo.description || todo.title
-
     // Execute with all agents concurrently
     const agentPromises = agents.map(async (agent) => {
       const agentName = agent.blueprint?.name || agent.blueprintId
       const tools = this.createSpecializedToolchain(agent.blueprint)
+      const agentTaskText = this.buildAgentSpecificTodo(todo, agent.blueprint)
 
       try {
         // Set up agent helpers for collaboration
         this.setupAgentCollaborationHelpers(agent, collaborationContext)
 
-        // Execute using plan-mode streaming
-        await this.executeAgentWithPlanModeStreaming(agent, todoText, agentName, tools)
+        // Execute using plan-mode streaming with agent-specific task derived from its blueprint
+        await this.executeAgentWithPlanModeStreaming(agent, agentTaskText, agentName, tools)
 
         // Store agent's output
         const agentOutput = collaborationContext.sharedData.get(`${agent.id}:current-output`) || ''
@@ -4650,6 +4665,51 @@ EOF`
     })
 
     await Promise.all(agentPromises)
+  }
+
+  /**
+   * Build an agent-specific task description for a todo, leveraging the agent's blueprint
+   * so each agent executes the same todo according to its specialization and context.
+   */
+  private buildAgentSpecificTodo(todo: any, blueprint: any): string {
+    const base = (todo && (todo.description || todo.title)) || ''
+    try {
+      const name = blueprint?.name || 'agent'
+      const specialization = blueprint?.specialization || 'generalist'
+      const autonomy = blueprint?.autonomyLevel || 'semi-autonomous'
+      const contextScope = blueprint?.contextScope || 'project'
+      const caps: string[] = Array.isArray(blueprint?.capabilities) ? blueprint.capabilities : []
+      const topCaps = caps.slice(0, 5)
+      const todoId = todo?.id ? `#${todo.id}` : undefined
+      const priority = todo?.priority ? String(todo.priority).toUpperCase() : undefined
+      const tags: string[] = Array.isArray(todo?.tags) ? todo.tags : []
+      const criteria: string[] = Array.isArray(todo?.acceptanceCriteria) ? todo.acceptanceCriteria : []
+
+      const header = `${base}`
+      const guidance = [
+        `
+Execute this todo according to your blueprint:`,
+        todoId ? `- Todo: ${todoId}` : undefined,
+        `- Agent: ${name}`,
+        `- Specialization: ${specialization}`,
+        `- Autonomy: ${autonomy} | Context: ${contextScope}`,
+        topCaps.length ? `- Capabilities: ${topCaps.join(', ')}` : undefined,
+        priority ? `- Priority: ${priority}` : undefined,
+        tags.length ? `- Tags: ${tags.join(', ')}` : undefined,
+        `
+Instructions:`,
+        `- Apply your specialization to decide the optimal approach.`,
+        `- Use available tools as needed; prefer those aligned with your capabilities.`,
+        `- Output concrete results (code, analysis, or actions) relevant to this todo.`,
+        criteria.length ? `- Acceptance Criteria:\n  - ${criteria.join('\n  - ')}` : undefined,
+      ]
+        .filter(Boolean)
+        .join('\n')
+
+      return `${header}\n${guidance}`
+    } catch {
+      return base
+    }
   }
 
   /**
@@ -5192,7 +5252,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           // Add a small delay to ensure all output is flushed
           await new Promise((resolve) => setTimeout(resolve, 100))
 
-          await advancedUI.logFunctionUpdate('success', `Task completed successfully: ${task.title}`)
+          advancedUI.logFunctionUpdate('success', `Task completed successfully: ${task.title}`)
         } catch (error: any) {
           advancedUI.logFunctionUpdate('error', `Task execution failed: ${error.message}`)
           throw error
@@ -7929,9 +7989,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const blueprintLines: string[] = [`Found ${blueprints.length} blueprint(s) in factory:`, '']
 
       blueprints.forEach((blueprint, index) => {
-        if (!blueprint || !blueprint.id) return
-        blueprintLines.push(`${index + 1}. ${blueprint.name || blueprint.id.slice(-8)}`)
-        blueprintLines.push(`   ID: ${blueprint.id}`)
+        if (!blueprint) return
+        const safeId = blueprint.id ? blueprint.id : 'unknown'
+        const shortId = safeId.length >= 8 ? safeId.slice(-8) : safeId
+        blueprintLines.push(`${index + 1}. ${blueprint.name || shortId}`)
+        blueprintLines.push(`   ID: ${safeId}`)
         blueprintLines.push(`   Specialization: ${blueprint.specialization || 'N/A'}`)
         if (blueprint.description) {
           blueprintLines.push(`   Description: ${blueprint.description}`)
@@ -7944,7 +8006,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       blueprintLines.push(
         `  /parallel [${blueprints
           .slice(0, 2)
-          .map((b) => b.name || b.id.slice(-8))
+          .map((b) => (b?.name || (b?.id ? (b.id.length >= 8 ? b.id.slice(-8) : b.id) : 'unknown')))
           .join(', ')}] "analyze this code"`
       )
       blueprintLines.push(`  /launch-agent ${blueprints[0]?.id || 'blueprint-id'} "specific task"`)
@@ -10988,214 +11050,360 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   }
 
   /**
-   * Get all available slash commands
+   * Structured groups of slash commands to ensure correct grouping.
+   */
+  private getSlashGroups(): { title: string; commands: [string, string][] }[] {
+    return [
+      {
+        title: '🏠 Core System',
+        commands: [
+          ['/help', 'Show this comprehensive help guide'],
+          ['/exit', 'Exit NikCLI safely'],
+          ['/clear', 'Clear current session context'],
+          ['/status', 'Show comprehensive system status and health'],
+          ['/debug', 'Show detailed debug information'],
+          ['/init [--force]', 'Initialize project context and workspace'],
+          ['/dashboard [start|stop|expand|collapse]', 'Toggle analytics dashboard (compact/expanded/off)'],
+        ],
+      },
+      {
+        title: '🎯 Mode Control & Navigation',
+        commands: [
+          ['/default', 'Switch to default conversational mode'],
+          ['/plan [task]', 'Switch to plan mode or generate execution plan'],
+          ['/vm', 'Switch to virtual machine development mode'],
+        ],
+      },
+      {
+        title: '📁 File & Directory Operations',
+        commands: [
+          ['/read <file> [options]', 'Read file contents with pagination support'],
+          ['/write <file> <content>', 'Write content to file with approval'],
+          ['/edit <file>', 'Open file in system editor (code/open)'],
+          ['/ls [directory]', 'List files and directories'],
+          ['/search <query> [dir]', 'Search text in files (grep functionality)'],
+        ],
+      },
+      {
+        title: '⚡ Terminal & Command Execution',
+        commands: [
+          ['/run <command>', 'Execute terminal command with approval'],
+          ['/build', 'Build the current project'],
+          ['/test [pattern]', 'Run tests with optional pattern'],
+          ['/npm <args>', 'Run npm commands'],
+          ['/yarn <args>', 'Run yarn commands'],
+          ['/git <args>', 'Run git commands'],
+          ['/docker <args>', 'Run docker commands'],
+        ],
+      },
+      {
+        title: '🤖 AI Models & Configuration',
+        commands: [
+          ['/models', 'List all available AI models'],
+          ['/model <name>', 'Switch to specific AI model'],
+          ['/temp <0.0-2.0>', 'Set AI model temperature'],
+          ['/system <prompt>', 'Set custom system prompt'],
+          ['/config [interactive]', 'Show/edit configuration'],
+          ['/env <path>', 'Import .env file and persist variables'],
+        ],
+      },
+      {
+        title: '🎨 Output Style & Display',
+        commands: [
+          ['/style set <style>', 'Set default AI output style'],
+          ['/style show', 'Display current style configuration'],
+          ['/style model <style>', 'Set style for current model'],
+          ['/style context <ctx> <style>', 'Set style for specific context'],
+          ['/style list-custom', 'List custom output styles'],
+          ['/style delete-custom <id>', 'Delete custom output style'],
+          ['/style export <id> <path>', 'Export custom style to file'],
+          ['/style import <path>', 'Import custom style from file'],
+          ['/styles', 'List all available output styles'],
+        ],
+      },
+      {
+        title: '🔑 API Keys & Authentication',
+        commands: [
+          ['/set-key <model> <key>', 'Set API key for AI models'],
+          ['/set-coin-keys', 'Configure Coinbase CDP API keys'],
+          ['/set-key-bb', 'Configure Browserbase API credentials'],
+          ['/set-key-figma', 'Configure Figma and v0 API credentials'],
+          ['/set-key-redis', 'Configure Redis/Upstash cache credentials'],
+          ['/set-vector-key', 'Configure Upstash Vector database credentials'],
+        ],
+      },
+      {
+        title: '🚀 Performance & Caching',
+        commands: [
+          ['/cache [stats|clear|settings]', 'Manage token cache system'],
+          ['/tokens', 'Show token usage and optimization'],
+          ['/redis-enable', 'Enable Redis caching'],
+          ['/redis-disable', 'Disable Redis caching'],
+          ['/redis-status', 'Show Redis cache status'],
+        ],
+      },
+      {
+        title: '🤖 Agent Management & Factory',
+        commands: [
+          ['/agents', 'List all available agents'],
+          ['/agent <name> <task>', 'Run specific agent with task'],
+          ['/factory', 'Show agent factory dashboard'],
+          ['/blueprints', 'List and manage agent blueprints'],
+          ['/create-agent <name> <spec>', 'Create new specialized agent'],
+          ['/launch-agent <id>', 'Launch agent from blueprint'],
+          ['/parallel [agent1, agent2] <task>', 'Run multiple factory agents in parallel'],
+          ['/parallel-logs', 'View parallel execution logs'],
+          ['/parallel-status', 'Check parallel execution status'],
+        ],
+      },
+      {
+        title: '🧠 Memory & Context Management',
+        commands: [
+          ['/remember "fact"', 'Store information in long-term memory'],
+          ['/recall "query"', 'Search and retrieve memories'],
+          ['/memory stats', 'Show memory usage statistics'],
+          ['/context [interactive|i]', 'Open interactive context management panel'],
+          ['/index [interactive|i]', 'View & manage indexed content'],
+        ],
+      },
+      {
+        title: '📋 Todo & Planning System',
+        commands: [
+          ['/todo [command]', 'Todo list operations and management'],
+          ['/todos [on|off|status]', 'Show lists; toggle auto‑todos feature'],
+        ],
+      },
+      {
+        title: '📝 Session & History Management',
+        commands: [
+          ['/new [title]', 'Start new chat session'],
+          ['/sessions', 'List all available sessions'],
+          ['/history <on|off>', 'Enable/disable chat history'],
+          ['/export [sessionId]', 'Export session to markdown'],
+        ],
+      },
+      {
+        title: '💼 Work Session Management',
+        commands: [
+          ['/resume [session-id]', 'Resume previous work session'],
+          ['/work-sessions', 'List all saved work sessions'],
+          ['/save-session [name]', 'Save current work session'],
+          ['/delete-session <id>', 'Delete a work session'],
+          ['/export-session <id> <path>', 'Export work session to file'],
+        ],
+      },
+      {
+        title: '⟺ Edit History (Undo/Redo)',
+        commands: [
+          ['/undo [count]', 'Undo last N file edits (default: 1)'],
+          ['/redo [count]', 'Redo last N undone edits (default: 1)'],
+          ['/edit-history', 'Show edit history and statistics'],
+        ],
+      },
+      {
+        title: '🔌 Background Agent Operations',
+        commands: [
+          ['/bg-agent <task>', 'Create background job with VM execution + auto PR'],
+          ['/bg-jobs [status]', 'List all background jobs (filter by status)'],
+          ['/bg-status <jobId>', 'Get detailed status of specific job'],
+          ['/bg-logs <jobId> [limit]', 'View job execution logs'],
+        ],
+      },
+      {
+        title: '🐳 VM Container Operations',
+        commands: [
+          ['/vm-create <repo-url|os>', 'Create VM (alpine|debian|ubuntu). Flags: --os, --mount-desktop, --no-repo'],
+          ['/vm-list', 'List all active containers'],
+          ['/vm-connect <id>', 'Connect to specific container'],
+          ['/vm-stop <id>', 'Stop running container'],
+          ['/vm-remove <id>', 'Remove container'],
+          ['/vm-create-pr <id> "<title>" "<desc>"', 'Create PR from container'],
+          ['/vm-logs <id>', 'View container logs'],
+          ['/vm-mode <mode>', 'Set VM execution mode'],
+          ['/vm-switch <id>', 'Switch active VM context'],
+          ['/vm-dashboard', 'Show VM dashboard overview'],
+          ['/vm-select', 'Interactively select VM container'],
+          ['/vm-status <id>', 'Show detailed container status'],
+          ['/vm-exec <id> <command>', 'Execute command in container'],
+          ['/vm-ls <id> [path]', 'List files in container'],
+          ['/vm-broadcast <command>', 'Broadcast command to all VMs'],
+          ['/vm-health', 'Check health of all containers'],
+          ['/vm-backup <id>', 'Create container backup'],
+          ['/vm-stats <id>', 'Show container resource stats'],
+        ],
+      },
+      {
+        title: '🌐 Browser Mode (Interactive Browser Automation)',
+        commands: [
+          ['/browser [url]', 'Start interactive browser mode with optional URL'],
+          ['/browser-status', 'Show current browser session status'],
+          ['/browser-screenshot', 'Take screenshot of current page'],
+          ['/browser-exit', 'Exit browser mode and cleanup'],
+          ['/browser-info', 'Show browser mode capabilities and info'],
+        ],
+      },
+      {
+        title: '🌐 Web Browsing & Analysis (BrowseGPT)',
+        commands: [
+          ['/browse-session [id]', 'Create new browsing session'],
+          ['/browse-search <sessionId> <query>', 'Search the web'],
+          ['/browse-visit <sessionId> <url> [prompt]', 'Visit page and extract content'],
+          ['/browse-chat <sessionId> <message>', 'Chat with AI about web content'],
+          ['/browse-sessions', 'List all active browsing sessions'],
+          ['/browse-info <sessionId>', 'Get session information'],
+          ['/browse-close <sessionId>', 'Close browsing session'],
+          ['/browse-cleanup', 'Clean up inactive sessions'],
+          ['/browse-quick <query> [prompt]', 'Quick search, visit, and analyze'],
+        ],
+      },
+      {
+        title: '🎨 Figma Design Integration',
+        commands: [
+          ['/figma-config', 'Show Figma API configuration status'],
+          ['/figma-info <file-id>', 'Get file information from Figma'],
+          ['/figma-export <file-id> [format]', 'Export designs from Figma'],
+          ['/figma-to-code <file-id>', 'Generate code from Figma designs'],
+          ['/figma-create <component-path>', 'Create design from React component'],
+          ['/figma-tokens <file-id>', 'Extract design tokens from Figma'],
+        ],
+      },
+      {
+        title: '🔗 Blockchain & Web3 Operations',
+        commands: [
+          ['/web3 status', 'Show Coinbase AgentKit status'],
+          ['/web3 wallet', 'Show wallet address and network'],
+          ['/web3 balance', 'Check wallet balance'],
+          ['/web3 transfer <amount> <to>', 'Transfer tokens to address'],
+        ],
+      },
+      {
+        title: '🐐 GOAT SDK (DeFi Operations)',
+        commands: [
+          ['/goat status', 'Show GOAT SDK status'],
+          ['/goat init', 'Initialize GOAT SDK with wallet and chains'],
+          ['/goat wallet', 'Show GOAT wallet and networks'],
+          ['/goat tools', 'List available GOAT tools'],
+          ['/goat chat "message"', 'Natural language DeFi requests'],
+          ['/goat markets', 'Show Polymarket prediction markets'],
+          ['/goat transfer <amount> <to>', 'Transfer ERC20 tokens'],
+          ['/goat balance', 'Check token balances'],
+        ],
+      },
+      {
+        title: '📊 Polymarket Commands',
+        commands: [
+          ['/polymarket markets', 'List prediction markets'],
+          ['/polymarket bet <market> <amount> <outcome>', 'Place a bet'],
+          ['/polymarket positions', 'Show your positions'],
+          ['/polymarket chat "query"', 'Natural language Polymarket operations'],
+        ],
+      },
+      {
+        title: '🔗 Web3 Toolchains',
+        commands: [
+          ['/web3-toolchain list', 'List available Web3 toolchains'],
+          ['/web3-toolchain run <name>', 'Execute a Web3 toolchain'],
+          ['/web3-toolchain status', 'Show active executions'],
+          ['/web3-toolchain cancel <id>', 'Cancel running execution'],
+        ],
+      },
+      {
+        title: '🚀 DeFi Shortcuts',
+        commands: [
+          ['/defi-toolchain analyze', 'DeFi protocol analysis'],
+          ['/defi-toolchain yield', 'Yield farming optimization'],
+          ['/defi-toolchain portfolio', 'Multi-chain portfolio management'],
+          ['/defi-toolchain bridge', 'Cross-chain bridge analysis'],
+          ['/defi-toolchain mev', 'MEV protection strategy'],
+          ['/defi-toolchain governance', 'DAO governance analysis'],
+        ],
+      },
+      {
+        title: '🔍 Vision & Image Processing',
+        commands: [
+          ['/analyze-image <path>', 'Analyze image with AI vision'],
+          ['/generate-image "prompt"', 'Generate image with AI'],
+          ['/images', 'Discover and analyze images'],
+          ['/create-image "prompt"', 'Generate image with AI'],
+        ],
+      },
+      {
+        title: '🛠️ CAD & Manufacturing',
+        commands: [
+          ['/cad generate <description>', 'Generate CAD model from text description'],
+          ['/cad stream <description>', 'Generate CAD with real-time progress'],
+          ['/cad export <format> <description>', 'Generate and export CAD to file format'],
+          ['/cad formats', 'Show supported CAD export formats'],
+          ['/cad examples', 'Show CAD generation examples'],
+          ['/cad status', 'Show CAD system status'],
+        ],
+      },
+      {
+        title: '⚙️ G-code & CNC Operations',
+        commands: [
+          ['/gcode generate <description>', 'Generate G-code from machining description'],
+          ['/gcode cnc <description>', 'Generate CNC G-code'],
+          ['/gcode 3d <description>', 'Generate 3D printer G-code'],
+          ['/gcode laser <description>', 'Generate laser cutter G-code'],
+          ['/gcode examples', 'Show G-code generation examples'],
+        ],
+      },
+      {
+        title: '📚 Documentation System',
+        commands: [
+          ['/docs', 'Documentation system help'],
+          ['/doc-search <query>', 'Search documentation'],
+          ['/doc-add <url>', 'Add documentation from URL'],
+          ['/doc-stats', 'Show documentation statistics'],
+          ['/doc-list', 'List indexed documentation'],
+          ['/doc-tag <id> <tags>', 'Tag documentation entries'],
+          ['/doc-sync', 'Sync documentation index'],
+          ['/doc-load <path>', 'Load documentation from path'],
+          ['/doc-context <query>', 'Get documentation context'],
+          ['/doc-unload <id>', 'Unload documentation entry'],
+          ['/doc-suggest <query>', 'Get documentation suggestions'],
+        ],
+      },
+      {
+        title: '📸 Snapshots & Backup',
+        commands: [
+          ['/snapshot <name>', 'Create project snapshot'],
+          ['/restore <snapshot-id>', 'Restore from snapshot'],
+          ['/snapshots', 'List available snapshots'],
+        ],
+      },
+      {
+        title: '📥 Input Queue',
+        commands: [
+          ['/queue [status|clear|process]', 'Inspect or control queued inputs'],
+        ],
+      },
+      {
+        title: '🔒 Security & Development',
+        commands: [
+          ['/security [status|set]', 'Manage security settings'],
+          ['/dev-mode [enable|status]', 'Developer mode controls'],
+          ['/safe-mode', 'Enable safe mode (maximum security)'],
+          ['/clear-approvals', 'Clear all pending approvals'],
+        ],
+      },
+      {
+        title: '💻 IDE Integration & Monitoring',
+        commands: [
+          ['/diagnostic start', 'Start IDE diagnostic monitoring'],
+          ['/diagnostic status', 'Show diagnostic status'],
+          ['/monitor [path]', 'Monitor file changes'],
+          ['/diag-status', 'Show diagnostic system status'],
+        ],
+      },
+    ]
+  }
+
+  /**
+   * Get all available slash commands (flattened list)
    */
   private getSlashCommands(): [string, string][] {
-    return [
-      // 🏠 Core System Commands
-      ['/help', 'Show this comprehensive help guide'],
-      ['/exit', 'Exit NikCLI safely'],
-      ['/clear', 'Clear current session context'],
-      ['/status', 'Show comprehensive system status and health'],
-      ['/debug', 'Show detailed debug information'],
-      ['/init [--force]', 'Initialize project context and workspace'],
-      ['/dashboard [start|stop|expand|collapse]', 'Toggle analytics dashboard (compact/expanded/off)'],
-
-      // 🎯 Mode Control & Navigation
-      ['/default', 'Switch to default conversational mode'],
-      ['/plan [task]', 'Switch to plan mode or generate execution plan'],
-      ['/vm', 'Switch to virtual machine development mode'],
-
-      // 📁 File & Directory Operations
-      ['/read <file> [options]', 'Read file contents with pagination support'],
-      ['/write <file> <content>', 'Write content to file with approval'],
-      ['/edit <file>', 'Open file in system editor (code/open)'],
-      ['/ls [directory]', 'List files and directories'],
-      ['/search <query> [dir]', 'Search text in files (grep functionality)'],
-
-      // ⚡ Terminal & Command Execution
-      ['/run <command>', 'Execute terminal command with approval'],
-      ['/build', 'Build the current project'],
-      ['/test [pattern]', 'Run tests with optional pattern'],
-      ['/npm <args>', 'Run npm commands'],
-      ['/yarn <args>', 'Run yarn commands'],
-      ['/git <args>', 'Run git commands'],
-      ['/docker <args>', 'Run docker commands'],
-
-      // 🤖 AI Models & Configuration
-      ['/models', 'List all available AI models'],
-      ['/model <name>', 'Switch to specific AI model'],
-      ['/temp <0.0-2.0>', 'Set AI model temperature'],
-      ['/system <prompt>', 'Set custom system prompt'],
-      ['/config [interactive]', 'Show/edit configuration'],
-      ['/env <path>', 'Import .env file and persist variables'],
-
-      // 🎨 Output Style & Display
-      ['/style set <style>', 'Set default AI output style'],
-      ['/style show', 'Display current style configuration'],
-      ['/style model <style>', 'Set style for current model'],
-      ['/style context <ctx> <style>', 'Set style for specific context'],
-      ['/style list-custom', 'List custom output styles'],
-      ['/style delete-custom <id>', 'Delete custom output style'],
-      ['/style export <id> <path>', 'Export custom style to file'],
-      ['/style import <path>', 'Import custom style from file'],
-      ['/styles', 'List all available output styles'],
-      ['/create-style [name]', 'Create new custom output style'],
-
-      // 🔑 API Keys & Authentication
-      ['/set-key <model> <key>', 'Set API key for AI models'],
-      ['/set-coin-keys', 'Configure Coinbase CDP API keys'],
-      ['/set-key-bb', 'Configure Browserbase API credentials'],
-      ['/set-key-figma', 'Configure Figma and v0 API credentials'],
-      ['/set-key-redis', 'Configure Redis/Upstash cache credentials'],
-      ['/set-vector-key', 'Configure Upstash Vector database credentials'],
-
-      // 🚀 Performance & Caching
-      ['/cache [stats|clear|settings]', 'Manage token cache system'],
-      ['/tokens', 'Show token usage and optimization'],
-      ['/redis-enable', 'Enable Redis caching'],
-      ['/redis-disable', 'Disable Redis caching'],
-      ['/redis-status', 'Show Redis cache status'],
-
-      // 🤖 Agent Management & Factory
-      ['/agents', 'List all available agents'],
-      ['/agent <name> <task>', 'Run specific agent with task'],
-      ['/factory', 'Show agent factory dashboard'],
-      ['/blueprints', 'List and manage agent blueprints'],
-      ['/create-agent <name> <spec>', 'Create new specialized agent'],
-      ['/launch-agent <id>', 'Launch agent from blueprint'],
-      ['/parallel [agent1, agent2] <task>', 'Run multiple factory agents in parallel'],
-      ['/parallel-logs', 'View parallel execution logs'],
-      ['/parallel-status', 'Check parallel execution status'],
-
-      // 🧠 Memory & Context Management
-      ['/remember "fact"', 'Store information in long-term memory'],
-      ['/recall "query"', 'Search and retrieve memories'],
-      ['/memory stats', 'Show memory usage statistics'],
-
-      // 📚 Context Management (Interactive Panel)
-      ['/context [interactive|i]', 'Open interactive context management panel'],
-      ['/index [interactive|i]', 'View & manage indexed content'],
-
-      // 📋 Todo & Planning System
-      ['/todo [command]', 'Todo list operations and management'],
-      ['/todos [on|off|status]', 'Show lists; toggle auto‑todos feature'],
-
-      // 📝 Session & History Management
-      ['/new [title]', 'Start new chat session'],
-      ['/sessions', 'List all available sessions'],
-      ['/history <on|off>', 'Enable/disable chat history'],
-      ['/export [sessionId]', 'Export session to markdown'],
-
-      // 💼 Work Session Management
-      ['/resume [session-id]', 'Resume previous work session'],
-      ['/work-sessions', 'List all saved work sessions'],
-      ['/save-session [name]', 'Save current work session'],
-      ['/delete-session <id>', 'Delete a work session'],
-      ['/export-session <id> <path>', 'Export work session to file'],
-
-      // ⟺ Edit History (Undo/Redo)
-      ['/undo [count]', 'Undo last N file edits (default: 1)'],
-      ['/redo [count]', 'Redo last N undone edits (default: 1)'],
-      ['/edit-history', 'Show edit history and statistics'],
-
-      // 🔌 Background Agent Operations
-      ['/bg-agent <task>', 'Create background job with VM execution + auto PR'],
-      ['/bg-jobs [status]', 'List all background jobs (filter by status)'],
-      ['/bg-status <jobId>', 'Get detailed status of specific job'],
-      ['/bg-logs <jobId> [limit]', 'View job execution logs'],
-
-      // 🐳 VM Container Operations
-      ['/vm-create <repo-url|os>', 'Create VM (alpine|debian|ubuntu). Flags: --os, --mount-desktop, --no-repo'],
-      ['/vm-list', 'List all active containers'],
-      ['/vm-connect <id>', 'Connect to specific container'],
-      ['/vm-stop <id>', 'Stop running container'],
-      ['/vm-remove <id>', 'Remove container'],
-      ['/vm-create-pr <id> "<title>" "<desc>"', 'Create PR from container'],
-      ['/vm-logs <id>', 'View container logs'],
-      ['/vm-mode <mode>', 'Set VM execution mode'],
-      ['/vm-switch <id>', 'Switch active VM context'],
-      ['/vm-dashboard', 'Show VM dashboard overview'],
-      ['/vm-select', 'Interactively select VM container'],
-      ['/vm-status <id>', 'Show detailed container status'],
-      ['/vm-exec <id> <command>', 'Execute command in container'],
-      ['/vm-ls <id> [path]', 'List files in container'],
-      ['/vm-broadcast <command>', 'Broadcast command to all VMs'],
-      ['/vm-health', 'Check health of all containers'],
-      ['/vm-backup <id>', 'Create container backup'],
-      ['/vm-stats <id>', 'Show container resource stats'],
-
-      // 🌐 Browser Mode (Interactive Browser Automation)
-      ['/browser [url]', 'Start interactive browser mode with optional URL'],
-      ['/browser-status', 'Show current browser session status'],
-      ['/browser-screenshot', 'Take screenshot of current page'],
-      ['/browser-exit', 'Exit browser mode and cleanup'],
-      ['/browser-info', 'Show browser mode capabilities and info'],
-
-      // 🌐 Web Browsing & Analysis (BrowseGPT)
-      ['/browse-session [id]', 'Create new browsing session'],
-      ['/browse-search <sessionId> <query>', 'Search the web'],
-      ['/browse-visit <sessionId> <url> [prompt]', 'Visit page and extract content'],
-      ['/browse-chat <sessionId> <message>', 'Chat with AI about web content'],
-      ['/browse-sessions', 'List all active browsing sessions'],
-      ['/browse-info <sessionId>', 'Get session information'],
-      ['/browse-close <sessionId>', 'Close browsing session'],
-      ['/browse-cleanup', 'Clean up inactive sessions'],
-      ['/browse-quick <query> [prompt]', 'Quick search, visit, and analyze'],
-
-      // 🎨 Figma Design Integration
-      ['/figma-config', 'Show Figma API configuration status'],
-      ['/figma-info <file-id>', 'Get file information from Figma'],
-      ['/figma-export <file-id> [format]', 'Export designs from Figma'],
-      ['/figma-to-code <file-id>', 'Generate code from Figma designs'],
-      ['/figma-create <component-path>', 'Create design from React component'],
-      ['/figma-tokens <file-id>', 'Extract design tokens from Figma'],
-
-      // 🔗 Blockchain & Web3 Operations
-      ['/web3 status', 'Show Coinbase AgentKit status'],
-      ['/web3 wallet', 'Show wallet address and network'],
-      ['/web3 balance', 'Check wallet balance'],
-      ['/web3 transfer <amount> <to>', 'Transfer tokens to address'],
-
-      // 🔍 Vision & Image Processing
-      ['/analyze-image <path>', 'Analyze image with AI vision'],
-      ['/generate-image "prompt"', 'Generate image with AI'],
-
-      // 🛠️ CAD & Manufacturing
-      ['/cad generate <description>', 'Generate CAD model from text description'],
-      ['/cad stream <description>', 'Generate CAD with real-time progress'],
-      ['/cad export <format> <description>', 'Generate and export CAD to file format'],
-      ['/cad formats', 'Show supported CAD export formats'],
-      ['/cad examples', 'Show CAD generation examples'],
-      ['/cad status', 'Show CAD system status'],
-
-      // ⚙️ G-code & CNC Operations
-      ['/gcode generate <description>', 'Generate G-code from machining description'],
-      ['/gcode cnc <description>', 'Generate CNC G-code'],
-      ['/gcode 3d <description>', 'Generate 3D printer G-code'],
-      ['/gcode laser <description>', 'Generate laser cutter G-code'],
-      ['/gcode examples', 'Show G-code generation examples'],
-
-      // 📚 Documentation System
-      ['/docs', 'Documentation system help'],
-      ['/doc-search <query>', 'Search documentation'],
-      ['/doc-add <url>', 'Add documentation from URL'],
-
-      // 📸 Snapshots & Backup
-      ['/snapshot <name>', 'Create project snapshot'],
-      ['/restore <snapshot-id>', 'Restore from snapshot'],
-      ['/snapshots', 'List available snapshots'],
-
-      // 🔒 Security & Development
-      ['/security [status|set]', 'Manage security settings'],
-      ['/dev-mode [enable|status]', 'Developer mode controls'],
-      ['/safe-mode', 'Enable safe mode (maximum security)'],
-
-      //  IDE Integration & Monitoring
-      ['/diagnostic start', 'Start IDE diagnostic monitoring'],
-      ['/diagnostic status', 'Show diagnostic status'],
-      ['/monitor [path]', 'Monitor file changes'],
-    ]
+    return this.getSlashGroups().flatMap((g) => g.commands)
   }
 
   /**
@@ -11216,46 +11424,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   }
 
   private showSlashHelp(): void {
-    const commands = this.getSlashCommands()
-
     const pad = (s: string) => s.padEnd(32)
     const lines: string[] = []
 
-    const addGroup = (title: string, a: number, b: number) => {
-      lines.push(title)
-      commands.slice(a, b).forEach(([cmd, desc]) => {
+    for (const group of this.getSlashGroups()) {
+      lines.push(group.title + ':')
+      group.commands.forEach(([cmd, desc]) => {
         lines.push(`   ${pad(cmd)} ${desc}`)
       })
       lines.push('')
     }
-
-    addGroup('🏠 Core System:', 0, 7)
-    addGroup('🎯 Mode Control:', 7, 10)
-    addGroup('📁 File Operations:', 10, 15)
-    addGroup('⚡ Terminal Operations:', 15, 22)
-    addGroup('🤖 AI Configuration:', 22, 28)
-    addGroup('🎨 Output Styles:', 28, 38)
-    addGroup('🔑 API Keys:', 38, 44)
-    addGroup('🚀 Performance:', 44, 49)
-    addGroup('🤖 Agent Factory:', 49, 58)
-    addGroup('💾 Memory & Context:', 58, 63)
-    addGroup('📋 Planning & Todos:', 63, 65)
-    addGroup('📝 Session Management:', 65, 69)
-    addGroup('💼 Work Session Management:', 69, 74)
-    addGroup('⟺ Edit History (Undo/Redo):', 74, 77)
-    addGroup('🔌 Background Agents:', 77, 81)
-    addGroup('🐳 VM Containers:', 81, 99)
-    addGroup('🌐 Browser Mode:', 99, 104)
-    addGroup('🌐 Web Browsing (BrowseGPT):', 104, 113)
-    addGroup('🎨 Figma Integration:', 113, 119)
-    addGroup('🔗 Blockchain/Web3:', 119, 123)
-    addGroup('🔍 Vision & Images:', 123, 125)
-    addGroup('🛠️ CAD Design:', 125, 131)
-    addGroup('⚙️ G-code/CNC:', 131, 136)
-    addGroup('📚 Documentation:', 136, 139)
-    addGroup('📸 Snapshots:', 139, 142)
-    addGroup('🔒 Security:', 142, 145)
-    addGroup('💻 IDE Integration:', 145, 148)
 
     lines.push('💡 Quick Tips:')
     lines.push('   • Use Ctrl+C to exit any mode')
@@ -13258,7 +13436,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   private async startTokenSession(): Promise<void> {
     try {
       const currentModel = this.configManager.getCurrentModel()
-      const currentProvider = 'anthropic' // Fallback for now
+      const modelConfig = this.configManager.getModelConfig(currentModel)
+      const currentProvider = modelConfig?.provider || 'anthropic' // Fallback only if config missing
 
       await contextTokenManager.startSession(currentProvider, currentModel)
     } catch (error) {
@@ -15274,6 +15453,46 @@ This file is automatically maintained by NikCLI to provide consistent context ac
    * Delegate Web3 commands to slash handler
    */
   private async handleWeb3Commands(cmd: string, args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate GOAT commands to slash handler
+   */
+  private async handleGoatCommands(cmd: string, args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Polymarket commands to slash handler
+   */
+  private async handlePolymarketCommands(cmd: string, args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate Web3 Toolchain commands to slash handler
+   */
+  private async handleWeb3ToolchainCommands(cmd: string, args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate DeFi Toolchain commands to slash handler
+   */
+  private async handleDefiToolchainCommands(cmd: string, args: string[]): Promise<void> {
     const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
     if (result.shouldExit) {
       await this.shutdown()

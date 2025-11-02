@@ -6,6 +6,7 @@ import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { IGNORE_PATTERNS } from './list-tool'
 import { sanitizePath, validateIsDirectory } from './secure-file-tools'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * TreeTool - Directory structure visualization
@@ -120,7 +121,7 @@ export class TreeTool extends BaseTool {
       // Validate that it's a directory
       validateIsDirectory(sanitized, `Tree path must be a directory: ${params.path || '.'}`)
 
-      CliUI.logInfo(`🌳 Building tree for: ${CliUI.highlight(sanitized)}`)
+      advancedUI.logInfo(`🌳 Building tree for: ${CliUI.highlight(sanitized)}`)
 
       const startTime = Date.now()
 
@@ -151,7 +152,7 @@ export class TreeTool extends BaseTool {
         },
       }
 
-      CliUI.logSuccess(
+      advancedUI.logSuccess(
         `✓ Tree complete: ${this.totalDirectories} directories, ${this.totalFiles} files`
       )
 

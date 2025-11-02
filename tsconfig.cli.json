@@ -8,7 +8,7 @@
       "ESNext",
       "es2022"
     ],
-    "module": "bundler",
+    "module": "commonjs",
     "moduleResolution": "node",
     "allowJs": true,
     "skipLibCheck": true,

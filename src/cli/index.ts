@@ -8,11 +8,6 @@
 // Set quiet startup mode immediately to prevent module initialization logs
 process.env.NIKCLI_QUIET_STARTUP = 'true'
 
-// Load environment variables first
-import dotenv from 'dotenv'
-
-dotenv.config()
-
 import chalk from 'chalk'
 import gradient from 'gradient-string'
 
@@ -781,7 +776,7 @@ class OnboardingModule {
     // Check Upstash Vector configuration
     const upstashVectorUrl = process.env.UPSTASH_VECTOR_REST_URL || configManager.getApiKey('upstash_vector_url')
     const upstashVectorToken = process.env.UPSTASH_VECTOR_REST_TOKEN || configManager.getApiKey('upstash_vector_token')
-    
+
     if (upstashVectorUrl && upstashVectorToken) {
       try {
         const vectorLines = [
@@ -1053,7 +1048,9 @@ class OnboardingModule {
         try {
           configManager.set('auth', {
             email: result.profile.email || email,
-            token: result.session.accessToken,
+            password: password,
+            accessToken: result.session.accessToken as string | undefined,
+            refreshToken: result.session.refreshToken as string | undefined,
             lastLogin: new Date().toISOString(),
           })
         } catch (_e) {
@@ -1153,7 +1150,9 @@ class OnboardingModule {
         try {
           configManager.set('auth', {
             email: result.profile.email || email,
-            token: result.session.accessToken,
+            accessToken: result.session.accessToken as string | undefined,
+            password: password,
+            refreshToken: result.session.refreshToken as string | undefined,
             lastLogin: new Date().toISOString(),
           })
         } catch (_e) {
@@ -1982,8 +1981,17 @@ class MainOrchestrator {
  * Main entry point function
  */
 async function main() {
-  // Initialize RAG if configured (non-blocking)
-
+  // Initialize embedded secrets from bundle FIRST, before any service initialization
+  try {
+    const { initializeEmbeddedSecrets } = await import('./init-secrets')
+    await initializeEmbeddedSecrets()
+      ; (global as any).__SECRETS_LOADED = true
+  } catch (error) {
+    // Continue even if secrets fail to load - services will fail gracefully if needed
+    if (process.env.DEBUG) {
+      console.warn('Warning: Failed to load embedded secrets:', error)
+    }
+  }
 
   // Parse command line arguments
   const argv = process.argv.slice(2)

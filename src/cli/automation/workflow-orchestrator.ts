@@ -1,5 +1,6 @@
 import { agentFactory } from '../core/agent-factory'
 import { ToolRegistry } from '../tools/tool-registry'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
 import { EventBus, EventTypes } from './agents/event-bus'
 
@@ -88,7 +89,7 @@ export class WorkflowOrchestrator {
       // Launch the specified agent
       const agent = await agentFactory.launchAgent(agentId)
 
-      CliUI.logInfo(`🔌 Using agent: ${agent.id} (${agent.specialization})`)
+      advancedUI.logInfo(`🔌 Using agent: ${agent.id} (${agent.specialization})`)
 
       // Execute the workflow chain
       const result = await this.executeChain(chainId, initialParams)
@@ -113,7 +114,7 @@ export class WorkflowOrchestrator {
     }
 
     CliUI.logSection(`🔗 Executing Workflow Chain: ${chain.name}`)
-    CliUI.logInfo(`Goal: ${chain.goal}`)
+    advancedUI.logInfo(`Goal: ${chain.goal}`)
 
     const context: WorkflowContext = {
       workingDirectory: this.toolRegistry.getWorkingDirectory(),
@@ -176,11 +177,11 @@ export class WorkflowOrchestrator {
       context.currentStep = i + 1
 
       try {
-        CliUI.logInfo(`📋 Step ${context.currentStep}/${context.totalSteps}: ${step.toolName}`)
+        advancedUI.logInfo(`📋 Step ${context.currentStep}/${context.totalSteps}: ${step.toolName}`)
 
         // Verifica condizioni
         if (step.condition && !step.condition(context.previousResults)) {
-          CliUI.logWarning(`⏭️ Skipping step ${step.id} - condition not met`)
+          advancedUI.logWarning(`⏭️ Skipping step ${step.id} - condition not met`)
           continue
         }
 
@@ -202,7 +203,7 @@ export class WorkflowOrchestrator {
         context.previousResults.push(result)
 
         logs.push(`✓ Step ${step.id} completed successfully`)
-        CliUI.logSuccess(`✓ Step completed: ${step.toolName}`)
+        advancedUI.logSuccess(`✓ Step completed: ${step.toolName}`)
 
         // Handle dynamic step generation
         if (step.onSuccess) {
@@ -210,7 +211,7 @@ export class WorkflowOrchestrator {
           if (additionalSteps.length > 0) {
             chain.steps.splice(i + 1, 0, ...additionalSteps)
             context.totalSteps += additionalSteps.length
-            CliUI.logInfo(`📈 Added ${additionalSteps.length} dynamic steps`)
+            advancedUI.logInfo(`📈 Added ${additionalSteps.length} dynamic steps`)
           }
         }
       } catch (error: any) {
@@ -220,7 +221,7 @@ export class WorkflowOrchestrator {
         // Handle retry logic
         const retryCount = step.retryCount || 0
         if (retryCount > 0) {
-          CliUI.logWarning(`⚡︎ Retrying step ${step.id} (${retryCount} attempts remaining)`)
+          advancedUI.logWarning(`⚡︎ Retrying step ${step.id} (${retryCount} attempts remaining)`)
           step.retryCount = retryCount - 1
           i-- // Retry current step
           continue
@@ -232,7 +233,7 @@ export class WorkflowOrchestrator {
           if (recoverySteps.length > 0) {
             chain.steps.splice(i + 1, 0, ...recoverySteps)
             context.totalSteps += recoverySteps.length
-            CliUI.logInfo(`🔧 Added ${recoverySteps.length} recovery steps`)
+            advancedUI.logInfo(`🔧 Added ${recoverySteps.length} recovery steps`)
             continue
           }
         }
@@ -374,9 +375,9 @@ export class WorkflowOrchestrator {
    * Richiede approvazione umana per step critici
    */
   private async requestHumanApproval(step: WorkflowStep, _context: WorkflowContext): Promise<boolean> {
-    CliUI.logWarning(`🚨 Human approval required for step: ${step.id}`)
-    CliUI.logInfo(`Tool: ${step.toolName}`)
-    CliUI.logInfo(`Parameters: ${JSON.stringify(step.parameters, null, 2)}`)
+    advancedUI.logWarning(`🚨 Human approval required for step: ${step.id}`)
+    advancedUI.logInfo(`Tool: ${step.toolName}`)
+    advancedUI.logInfo(`Parameters: ${JSON.stringify(step.parameters, null, 2)}`)
 
     // In un'implementazione reale, questo dovrebbe aspettare input umano
     // Per ora, assumiamo approvazione automatica per step sicuri
@@ -455,7 +456,7 @@ export class WorkflowOrchestrator {
       ],
     })
 
-    CliUI.logInfo(`🔗 Initialized ${this.chainDefinitions.size} workflow chains`)
+    advancedUI.logInfo(`🔗 Initialized ${this.chainDefinitions.size} workflow chains`)
   }
 
   /**
@@ -463,7 +464,7 @@ export class WorkflowOrchestrator {
    */
   registerChain(chain: WorkflowChain): void {
     this.chainDefinitions.set(chain.id, chain)
-    CliUI.logInfo(`📝 Registered workflow chain: ${chain.name}`)
+    advancedUI.logInfo(`📝 Registered workflow chain: ${chain.name}`)
   }
 
   /**

@@ -9,7 +9,7 @@ import type {
   StepExecutionResult,
 } from '../planning/types'
 import type { TaskMasterExecutionResult, TaskMasterPlan, TaskMasterService } from '../services/taskmaster-service'
-import type { SessionTodo } from '../store/todo-store'
+import type { SessionTodo, TodoPriority, TodoStatus } from '../store/todo-store'
 
 /**
  * TaskMaster Adapter
@@ -102,8 +102,8 @@ export class TaskMasterAdapter extends EventEmitter {
     return {
       id: planTodo.id,
       content: planTodo.title,
-      status: this.mapTodoStatus(planTodo.status) as any,
-      priority: this.mapTodoPriority(planTodo.priority) as any,
+      status: this.mapTodoStatus(planTodo.status as 'pending' | 'in_progress' | 'completed' | 'failed') as TodoStatus,
+      priority: this.mapTodoPriority(planTodo.priority as 'low' | 'medium' | 'high') as TodoPriority,
       progress: planTodo.progress,
     }
   }
@@ -138,13 +138,13 @@ export class TaskMasterAdapter extends EventEmitter {
       agentId: planTodo.assignedAgent || agentId,
       title: planTodo.title,
       description: planTodo.description,
-      status: this.mapTodoToAgentStatus(planTodo.status),
-      priority: this.mapTodoToAgentPriority(planTodo.priority),
+      status: this.mapTodoToAgentStatus(planTodo.status as any) as any,
+      priority: this.mapTodoToAgentPriority(planTodo.priority as any) as any,
       createdAt: planTodo.createdAt,
       updatedAt: planTodo.updatedAt,
       estimatedDuration: planTodo.estimatedDuration,
       actualDuration: planTodo.actualDuration,
-      tags: planTodo.tools || [],
+      tags: planTodo.tools?.slice() as string[] || [],
       progress: planTodo.progress,
       context: {
         reasoning: planTodo.reasoning,
@@ -417,7 +417,7 @@ export class TaskMasterAdapter extends EventEmitter {
       title: todo.title,
       description: todo.description,
       estimatedDuration: (todo.estimatedDuration || 5) * 60 * 1000, // Convert minutes to ms
-      riskLevel: this.priorityToRisk(todo.priority),
+      riskLevel: this.priorityToRisk(todo.priority as any) as 'low' | 'medium' | 'high',
       reversible: true,
       toolName: todo.tools?.[0],
     }

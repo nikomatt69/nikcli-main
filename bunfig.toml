@@ -4,6 +4,7 @@
 cache = "/Volumes/SSD/.bun-cache"
 
 
+
 # Faster resolution
 registry = "https://registry.npmjs.org"
 auto = "auto"

@@ -318,6 +318,8 @@ jspm_packages/
 # dotenv environment variables file
 .env
 .env.test
+.env.production
+src/cli/config/generated-embedded-secrets.ts
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

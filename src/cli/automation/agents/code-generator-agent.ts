@@ -78,9 +78,9 @@ export class CodeGeneratorAgent extends CognitiveAgentBase {
   }
 
   protected override async onStop(): Promise<void> {
-    CliUI.logInfo('🛑 Code Generator Agent shutting down...')
+    advancedUI.logInfo('🛑 Code Generator Agent shutting down...')
     await this.saveCognitiveState()
-    CliUI.logSuccess('✓ Code Generator Agent stopped - cognitive state saved')
+    advancedUI.logSuccess('✓ Code Generator Agent stopped - cognitive state saved')
   }
 
   /**

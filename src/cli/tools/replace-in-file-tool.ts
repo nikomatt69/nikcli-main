@@ -4,6 +4,7 @@ import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath, validateIsFile } from './secure-file-tools'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Production-ready Replace In File Tool
@@ -81,7 +82,7 @@ export class ReplaceInFileTool extends BaseTool {
         duration,
         preview: this.generatePreview(originalContent, replaceResult.newContent, options.previewLines),
         metadata: {
-          searchPattern: searchPattern.toString(),
+          searchPattern: searchPattern ? searchPattern.toString() : 'undefined',
           replacement,
           encoding: 'utf8',
           hasChanges: replaceResult.matchCount > 0,
@@ -89,9 +90,9 @@ export class ReplaceInFileTool extends BaseTool {
       }
 
       if (replaceResult.matchCount > 0) {
-        CliUI.logSuccess(`Replaced ${replaceResult.matchCount} occurrence(s) in ${filePath}`)
+        advancedUI.logSuccess(`Replaced ${replaceResult.matchCount} occurrence(s) in ${filePath}`)
       } else {
-        CliUI.logInfo(`No matches found in ${filePath}`)
+        advancedUI.logInfo(`No matches found in ${filePath}`)
       }
 
       return {
@@ -100,7 +101,7 @@ export class ReplaceInFileTool extends BaseTool {
         metadata: {
           executionTime: duration,
           toolName: this.name,
-          parameters: { filePath, searchPattern: searchPattern.toString(), replacement, options },
+          parameters: { filePath, searchPattern: searchPattern ? searchPattern.toString() : 'undefined', replacement, options },
         },
       }
     } catch (error: any) {
@@ -115,7 +116,7 @@ export class ReplaceInFileTool extends BaseTool {
         duration,
         error: error.message,
         metadata: {
-          searchPattern: searchPattern.toString(),
+          searchPattern: searchPattern ? searchPattern.toString() : 'undefined',
           replacement,
           encoding: 'utf8',
           hasChanges: false,
@@ -130,7 +131,7 @@ export class ReplaceInFileTool extends BaseTool {
         metadata: {
           executionTime: duration,
           toolName: this.name,
-          parameters: { filePath, searchPattern: searchPattern.toString(), replacement, options },
+          parameters: { filePath, searchPattern: searchPattern ? searchPattern.toString() : 'undefined', replacement, options },
         },
       }
     }
@@ -171,7 +172,7 @@ export class ReplaceInFileTool extends BaseTool {
           duration: 0,
           error: error.message,
           metadata: {
-            searchPattern: searchPattern.toString(),
+            searchPattern: searchPattern ? searchPattern.toString() : 'undefined',
             replacement,
             encoding: 'utf8',
             hasChanges: false,
@@ -252,7 +253,7 @@ export class ReplaceInFileTool extends BaseTool {
         duration: 0,
         preview: this.generatePreview(content, newContent),
         metadata: {
-          searchPattern: searchPattern.toString(),
+          searchPattern: searchPattern ? searchPattern.toString() : 'undefined',
           replacement,
           encoding: 'utf8',
           hasChanges: matchCount > 0,

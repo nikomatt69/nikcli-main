@@ -1,4 +1,5 @@
 import type { CoreMessage } from 'ai'
+import crypto from 'node:crypto'
 import { universalTokenizer } from '../core/universal-tokenizer-service'
 import { structuredLogger } from '../utils/structured-logger'
 import type { ChatMessage } from './model-provider'
@@ -122,8 +123,8 @@ function pickOpenAI(baseModel: string, tier: 'light' | 'medium' | 'heavy', _need
 
   // Fallback tier-based selection for OpenAI
   if (tier === 'heavy') return 'gpt-5'
-  if (tier === 'medium') return 'gpt-4o'
-  return 'gpt-4o-mini' // light fallback
+  if (tier === 'medium') return 'gpt-5-mini'
+  return 'gpt-5' // light fallback
 }
 
 function pickGoogle(_baseModel: string, tier: 'light' | 'medium' | 'heavy'): string {
@@ -173,6 +174,61 @@ export class AdaptiveModelRouter {
   private readonly FAILURE_THRESHOLD = 3 // Switch to fallback after 3 consecutive failures
   private readonly CONTEXT_WARNING_THRESHOLD = 0.8 // Warn when using >80% of context
 
+  // Token counting memoization cache with TTL (1 hour)
+  private tokenCountCache: Map<
+    string,
+    {
+      tokens: number
+      method: 'precise' | 'fallback'
+      timestamp: number
+    }
+  > = new Map()
+  private readonly TOKEN_CACHE_TTL = 3600000 // 1 hour
+
+  /**
+   * Generate cache key for token count memoization
+   */
+  private generateTokenCacheKey(
+    messages: Array<{ role: string; content: string }>,
+    provider: string,
+    model: string
+  ): string {
+    const messageHash = crypto
+      .createHash('sha256')
+      .update(JSON.stringify(messages))
+      .digest('hex')
+    return `${provider}:${model}:${messageHash}`
+  }
+
+  /**
+   * Get token count with memoization (1 hour TTL)
+   */
+  private async getTokenCountMemoized(
+    messages: Array<{ role: string; content: string }>,
+    provider: string,
+    model: string
+  ): Promise<{ tokens: number; method: 'precise' | 'fallback' }> {
+    const cacheKey = this.generateTokenCacheKey(messages, provider, model)
+
+    // Check cache
+    const cached = this.tokenCountCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < this.TOKEN_CACHE_TTL) {
+      return {
+        tokens: cached.tokens,
+        method: cached.method,
+      }
+    }
+
+    // Fetch and cache
+    const result = await estimateTokensPrecise(messages, provider, model)
+    this.tokenCountCache.set(cacheKey, {
+      ...result,
+      timestamp: Date.now(),
+    })
+
+    return result
+  }
+
   /**
    * Choose optimal model with precise token counting and intelligent fallback
    */
@@ -185,8 +241,12 @@ export class AdaptiveModelRouter {
         content: m.content!,
       }))
 
-    // Get precise token count
-    const { tokens, method } = await estimateTokensPrecise(validMessages, input.provider, input.baseModel)
+    // Get precise token count with memoization
+    const { tokens, method } = await this.getTokenCountMemoized(
+      validMessages,
+      input.provider,
+      input.baseModel
+    )
 
     const lastUser = [...input.messages].reverse().find((m) => m.role === 'user')?.content || ''
     const tier = determineTier(tokens, input.scope, lastUser)

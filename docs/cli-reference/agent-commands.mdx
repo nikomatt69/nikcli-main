@@ -1,0 +1,508 @@
+---
+title: "Agent Commands"
+description: "Complete reference for AI agent management and execution commands"
+---
+
+# Agent Commands
+
+NikCLI provides powerful AI agent management capabilities for autonomous task execution. These commands allow you to list, configure, and execute tasks with specialized AI agents.
+
+## Core Agent Commands
+
+### `/agents`
+
+List all available AI agents with their capabilities and status.
+
+**Syntax:**
+```bash
+/agents
+```
+
+**Output includes:**
+- Agent name and type
+- Specialization areas
+- Current status (available/busy)
+- Performance metrics
+- Last used timestamp
+
+**Example:**
+```bash
+/agents
+```
+
+**Sample Output:**
+```
+🤖 Available AI Agents:
+
+┌─────────────────┬──────────────┬────────────┬─────────────┐
+│ Agent           │ Type         │ Status     │ Specializes │
+├─────────────────┼──────────────┼────────────┼─────────────┤
+│ backend-expert  │ Specialized  │ Available  │ APIs, DBs   │
+│ frontend-expert │ Specialized  │ Available  │ React, UI   │
+│ devops-expert   │ Specialized  │ Busy       │ CI/CD, K8s  │
+│ universal-agent │ Universal    │ Available  │ General     │
+│ autonomous-coder│ Autonomous   │ Available  │ Full-stack  │
+└─────────────────┴──────────────┴────────────┴─────────────┘
+```
+
+### `/agent [name] [task]`
+
+Execute a specific task using a named agent.
+
+**Syntax:**
+```bash
+/agent <agent-name> "<task-description>"
+```
+
+**Parameters:**
+- `agent-name` - Name of the agent to use
+- `task-description` - Detailed description of the task
+
+**Available Agents:**
+- `backend-expert` - Backend development, APIs, databases
+- `frontend-expert` - Frontend development, React, UI/UX
+- `devops-expert` - DevOps, CI/CD, containerization
+- `code-review` - Code review and quality analysis
+- `system-admin` - System administration and configuration
+- `universal-agent` - General-purpose agent
+- `autonomous-coder` - Fully autonomous coding
+
+**Examples:**
+
+```bash
+# Backend development
+/agent backend-expert "Create a REST API for user authentication with JWT tokens"
+
+# Frontend development
+/agent frontend-expert "Build a responsive dashboard with charts using React and Tailwind"
+
+# DevOps tasks
+/agent devops-expert "Set up CI/CD pipeline with GitHub Actions and Docker"
+
+# Code review
+/agent code-review "Review the authentication module for security issues"
+
+# System administration
+/agent system-admin "Configure nginx reverse proxy with SSL certificates"
+
+# General tasks
+/agent universal-agent "Analyze this codebase and suggest improvements"
+```
+
+### `/auto [task]`
+
+Execute a task with full autonomous mode - the system selects the best agent and approach.
+
+**Syntax:**
+```bash
+/auto "<task-description>"
+```
+
+**Features:**
+- Automatic agent selection
+- Multi-step task breakdown
+- Progress monitoring
+- Error recovery
+- Resource optimization
+
+**Examples:**
+
+```bash
+# Full application development
+/auto "Build a todo app with React frontend and Node.js backend"
+
+# Complex refactoring
+/auto "Migrate this Express app to use TypeScript with proper types"
+
+# Infrastructure setup
+/auto "Deploy this application to AWS with proper monitoring and scaling"
+
+# Bug investigation
+/auto "Find and fix the memory leak in the user service"
+
+# Performance optimization
+/auto "Optimize this React app for better performance and SEO"
+```
+
+### `/parallel [tasks]`
+
+Execute multiple tasks in parallel using different agents.
+
+**Syntax:**
+```bash
+/parallel "<task1>" "<task2>" "<task3>"
+```
+
+**Features:**
+- Concurrent execution
+- Resource management
+- Progress tracking
+- Dependency handling
+- Result aggregation
+
+**Examples:**
+
+```bash
+# Development workflow
+/parallel "Run tests" "Build production bundle" "Update documentation"
+
+# Code quality
+/parallel "Run linter" "Check security vulnerabilities" "Analyze performance"
+
+# Deployment tasks
+/parallel "Build Docker image" "Update Kubernetes manifests" "Run integration tests"
+
+# Multi-service development
+/parallel "Update user service API" "Update frontend components" "Update database schema"
+```
+
+## Agent Factory Commands
+
+### `/factory`
+
+Show the agent factory status and available agent templates.
+
+**Syntax:**
+```bash
+/factory
+```
+
+**Output includes:**
+- Available agent templates
+- Custom agent definitions
+- Factory configuration
+- Resource usage
+- Creation history
+
+### `/create-agent [specification]`
+
+Create a custom agent with specific capabilities.
+
+**Syntax:**
+```bash
+/create-agent <agent-spec>
+```
+
+**Agent Specifications:**
+- `frontend` - Frontend-focused agent
+- `backend` - Backend-focused agent
+- `fullstack` - Full-stack development agent
+- `mobile` - Mobile development agent
+- `data` - Data analysis and ML agent
+- `security` - Security-focused agent
+- `custom` - Interactive custom agent creation
+
+**Examples:**
+
+```bash
+# Create frontend specialist
+/create-agent frontend
+
+# Create backend specialist
+/create-agent backend
+
+# Create custom agent interactively
+/create-agent custom
+```
+
+**Interactive Creation Process:**
+1. Agent name and description
+2. Specialization areas
+3. Tool access permissions
+4. Resource limits
+5. Behavioral parameters
+
+### `/launch-agent [name]`
+
+Launch a previously created custom agent.
+
+**Syntax:**
+```bash
+/launch-agent <agent-name>
+```
+
+**Examples:**
+
+```bash
+# Launch custom agent
+/launch-agent my-react-expert
+
+# Launch with specific task
+/launch-agent my-backend-agent "optimize database queries"
+```
+
+## Advanced Agent Features
+
+### Agent Streaming
+
+Real-time output streaming from agent execution:
+
+```bash
+# Enable streaming for agent commands
+/stream enable
+
+# Execute with streaming
+/agent backend-expert "create API endpoints"
+# Output streams in real-time as agent works
+```
+
+### Agent Context
+
+Agents maintain context across interactions:
+
+```bash
+# Set context for subsequent agent calls
+/context set "working on e-commerce project with React and Node.js"
+
+# Agent calls will use this context
+/agent frontend-expert "add shopping cart functionality"
+```
+
+### Agent Memory
+
+Agents can remember information across sessions:
+
+```bash
+# Agent learns from interactions
+/agent backend-expert "create user model with validation"
+
+# Later, agent remembers previous work
+/agent backend-expert "add authentication to the user model"
+```
+
+## Agent Configuration
+
+### Model Selection
+
+Configure which AI model agents use:
+
+```bash
+# Set model for all agents
+/model claude-3-5-sonnet
+
+# Set model for specific agent type
+/router set backend-expert gpt-4
+
+# View current model configuration
+/router status
+```
+
+### Agent Permissions
+
+Configure what agents can access:
+
+```bash
+# Security settings
+/security agent-permissions
+
+# Enable/disable specific capabilities
+/dev-mode enable  # Allows broader access
+/safe-mode        # Restricts agent capabilities
+```
+
+### Resource Limits
+
+Set limits on agent resource usage:
+
+```bash
+# Configure in system settings
+/system agent-limits
+
+# View current limits
+/stats agents
+```
+
+## Agent Workflows
+
+### Development Workflow
+
+```bash
+# 1. Plan the work
+/plan "implement user authentication system"
+
+# 2. Execute with appropriate agent
+/agent backend-expert "create JWT authentication middleware"
+
+# 3. Test and validate
+/agent code-review "review authentication implementation"
+
+# 4. Deploy
+/agent devops-expert "deploy authentication service"
+```
+
+### Code Review Workflow
+
+```bash
+# 1. Analyze current code
+/agent code-review "analyze codebase for issues"
+
+# 2. Get specific recommendations
+/agent code-review "suggest performance improvements"
+
+# 3. Implement fixes
+/auto "implement the suggested performance improvements"
+
+# 4. Validate changes
+/agent code-review "verify performance improvements"
+```
+
+### Multi-Agent Collaboration
+
+```bash
+# 1. Parallel development
+/parallel "backend API development" "frontend component creation" "database schema design"
+
+# 2. Integration
+/agent universal-agent "integrate frontend with backend API"
+
+# 3. Testing
+/parallel "unit tests" "integration tests" "e2e tests"
+
+# 4. Deployment
+/agent devops-expert "deploy integrated application"
+```
+
+## Agent Troubleshooting
+
+### Common Issues
+
+**Agent not responding:**
+```bash
+# Check agent status
+/agents
+
+# Restart agent system
+/factory reset
+
+# Check system resources
+/debug agents
+```
+
+**Poor agent performance:**
+```bash
+# Check model configuration
+/model
+
+# Verify API keys
+/config
+
+# Check resource limits
+/system limits
+```
+
+**Agent errors:**
+```bash
+# View detailed logs
+/debug agent-logs
+
+# Check permissions
+/security status
+
+# Verify tool access
+/tools status
+```
+
+### Debug Commands
+
+```bash
+# Show agent debug information
+/debug agents
+
+# Show agent execution logs
+/debug agent-logs [agent-name]
+
+# Show agent performance metrics
+/stats agents
+
+# Test agent connectivity
+/diagnostic agents
+```
+
+## Best Practices
+
+### Task Description
+
+Write clear, specific task descriptions:
+
+```bash
+# ✅ Good: Specific and actionable
+/agent backend-expert "Create a REST API endpoint for user registration that validates email format, checks for duplicate emails, hashes passwords with bcrypt, and returns JWT tokens"
+
+# ❌ Bad: Vague and unclear
+/agent backend-expert "make user stuff work"
+```
+
+### Agent Selection
+
+Choose the right agent for the task:
+
+```bash
+# ✅ Use specialized agents for their expertise
+/agent frontend-expert "optimize React component rendering"
+/agent devops-expert "configure Kubernetes ingress"
+/agent security-expert "audit authentication flow"
+
+# ✅ Use universal agent for general tasks
+/agent universal-agent "analyze project structure"
+
+# ✅ Use autonomous mode for complex multi-step tasks
+/auto "build complete user management system"
+```
+
+### Resource Management
+
+Monitor and manage agent resource usage:
+
+```bash
+# Check current usage
+/stats agents
+
+# Set appropriate limits
+/system agent-limits
+
+# Use parallel execution efficiently
+/parallel "quick task 1" "quick task 2"  # Good
+# Avoid: /parallel "long task 1" "long task 2" "long task 3"  # May overwhelm system
+```
+
+### Error Handling
+
+Handle agent errors gracefully:
+
+```bash
+# If agent fails, try different approach
+/agent backend-expert "create API"  # If this fails
+/auto "create API"                  # Try autonomous mode
+/agent universal-agent "create API" # Or use universal agent
+```
+
+## Integration Examples
+
+### CI/CD Integration
+
+```bash
+# In CI pipeline
+/agent code-review "analyze pull request changes"
+/parallel "run tests" "check security" "validate performance"
+/agent devops-expert "deploy if all checks pass"
+```
+
+### Development Environment
+
+```bash
+# Daily development workflow
+/agent universal-agent "analyze today's tasks from project board"
+/auto "implement highest priority feature"
+/agent code-review "review completed work"
+/agent devops-expert "deploy to staging environment"
+```
+
+### Code Maintenance
+
+```bash
+# Regular maintenance
+/agent code-review "identify technical debt"
+/agent backend-expert "optimize database queries"
+/agent frontend-expert "update dependencies and fix deprecations"
+/parallel "update documentation" "run security audit" "performance testing"
+```

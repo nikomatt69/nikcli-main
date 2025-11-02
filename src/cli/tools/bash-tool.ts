@@ -9,6 +9,7 @@ import {
   type ShellConfiguration,
   type SupportedShellName,
 } from './shell-support'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 
 const MAX_OUTPUT_LENGTH = 30000
@@ -172,9 +173,9 @@ export class BashTool extends BaseTool {
         throw new Error(`Working directory not safe: ${workingDir}`)
       }
 
-      CliUI.logInfo(`🔧 Executing command: ${CliUI.highlight(parsedParams.command)}`)
+      advancedUI.logInfo(`🔧 Executing command: ${CliUI.highlight(parsedParams.command)}`)
       if (parsedParams.description) {
-        CliUI.logInfo(`📝 Description: ${parsedParams.description}`)
+        advancedUI.logInfo(`📝 Description: ${parsedParams.description}`)
       }
       CliUI.logDebug(`Shell selected for execution: ${shellConfig.displayName} (${shellConfig.executable})`)
 
@@ -186,9 +187,9 @@ export class BashTool extends BaseTool {
       })
 
       if (result.exitCode === 0) {
-        CliUI.logSuccess(`✅ Command completed successfully (${result.executionTime}ms)`)
+        advancedUI.logSuccess(`✅ Command completed successfully (${result.executionTime}ms)`)
       } else {
-        CliUI.logWarning(`⚠️ Command exited with code ${result.exitCode}`)
+        advancedUI.logWarning(`⚠️ Command exited with code ${result.exitCode}`)
       }
 
       return {
@@ -234,7 +235,7 @@ export class BashTool extends BaseTool {
       if (!allowDangerous) {
         throw new Error(`Dangerous command not allowed: ${commandWithoutPath}. Use allowDangerous=true to override.`)
       }
-      CliUI.logWarning(`⚠️ Executing dangerous command: ${commandWithoutPath}`)
+      advancedUI.logWarning(`⚠️ Executing dangerous command: ${commandWithoutPath}`)
     }
 
     // Verifica pattern pericolosi
@@ -243,13 +244,13 @@ export class BashTool extends BaseTool {
         if (!allowDangerous) {
           throw new Error(`Dangerous pattern detected in command: ${pattern}. Use allowDangerous=true to override.`)
         }
-        CliUI.logWarning(`⚠️ Dangerous pattern detected: ${pattern}`)
+        advancedUI.logWarning(`⚠️ Dangerous pattern detected: ${pattern}`)
       }
     }
 
     // Verifica se comando è in whitelist (solo se non pericoloso)
     if (!SAFE_COMMANDS.includes(commandWithoutPath) && !allowDangerous) {
-      CliUI.logWarning(
+      advancedUI.logWarning(
         `Command '${commandWithoutPath}' not in safe whitelist. Consider adding to SAFE_COMMANDS if appropriate.`
       )
     }

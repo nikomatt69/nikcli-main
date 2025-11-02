@@ -105,8 +105,8 @@ export class EnhancedSupabaseProvider extends EventEmitter {
         },
         realtime: this.config.features.realtime
           ? {
-              heartbeatIntervalMs: 30000,
-            }
+            heartbeatIntervalMs: 30000,
+          }
           : undefined,
       })
 
@@ -611,6 +611,31 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       const { data, error } = await this.client.auth.getSession()
       if (error) return null
       return (data.session as any)?.refresh_token || null
+    } catch (_e) {
+      return null
+    }
+  }
+
+  /**
+   * Refresh session with stored tokens
+   */
+  async refreshSession(accessToken: string, refreshToken: string): Promise<SupabaseUser | null> {
+    if (!this.client || !this.config.features.auth) return null
+    try {
+      const { data, error } = await this.client.auth.refreshSession({
+        refresh_token: refreshToken,
+      })
+
+      if (error || !data.user) {
+        return null
+      }
+
+      // Set the new session
+      if (data.session) {
+        await this.client.auth.setSession(data.session)
+      }
+
+      return data.user as any
     } catch (_e) {
       return null
     }

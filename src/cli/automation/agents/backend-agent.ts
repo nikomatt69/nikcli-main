@@ -78,7 +78,7 @@ export class BackendAgent extends CognitiveAgentBase {
     // Setup backend-specific tool configurations
     await this.configureBackendTools()
 
-    CliUI.logSuccess(`✓ Backend Agent initialized with ${this.capabilities.length} capabilities`)
+    advancedUI.logSuccess(`✓ Backend Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
   protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
@@ -91,13 +91,13 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   protected override async onStop(): Promise<void> {
-    CliUI.logInfo('🛑 Backend Agent shutting down...')
+    advancedUI.logInfo('🛑 Backend Agent shutting down...')
 
     // Save learned patterns and optimizations
     await this.saveCognitiveState()
 
     // Cleanup any backend-specific resources
-    CliUI.logSuccess('✓ Backend Agent stopped - cognitive state saved')
+    advancedUI.logSuccess('✓ Backend Agent stopped - cognitive state saved')
   }
 
   /**
@@ -111,7 +111,7 @@ export class BackendAgent extends CognitiveAgentBase {
     const startTime = Date.now()
 
     try {
-      CliUI.logInfo(` Executing Backend task with ${plan.strategy} orchestration`)
+      advancedUI.logInfo(` Executing Backend task with ${plan.strategy} orchestration`)
 
       // Phase 1: Backend Environment Analysis
       const backendContext = await this.analyzeBackendEnvironment(cognition)
@@ -282,7 +282,7 @@ export class BackendAgent extends CognitiveAgentBase {
   // Backend analysis methods
   private async analyzeBackendEnvironment(cognition: TaskCognition): Promise<any> {
     try {
-      CliUI.logInfo('📊 Analyzing Backend environment...')
+      advancedUI.logInfo('📊 Analyzing Backend environment...')
 
       const backendStack = await this.detectBackendStack()
 
@@ -296,7 +296,7 @@ export class BackendAgent extends CognitiveAgentBase {
         packageManager: this.detectPackageManager(),
       }
 
-      CliUI.logSuccess(`✓ Backend environment analyzed - ${environment.framework} with ${environment.language}`)
+      advancedUI.logSuccess(`✓ Backend environment analyzed - ${environment.framework} with ${environment.language}`)
       return environment
     } catch (error: any) {
       throw new Error(`Backend environment analysis failed: ${error.message}`)
@@ -395,7 +395,7 @@ export class BackendAgent extends CognitiveAgentBase {
           })
       }
 
-      CliUI.logSuccess(`✓ Backend implementation complete - ${taskType}`)
+      advancedUI.logSuccess(`✓ Backend implementation complete - ${taskType}`)
       return { taskType, result, success: true }
     } catch (error: any) {
       CliUI.logError(`❌ Backend implementation failed: ${error.message}`)
@@ -405,7 +405,7 @@ export class BackendAgent extends CognitiveAgentBase {
 
   private async validateBackendImplementation(implementation: any): Promise<any> {
     try {
-      CliUI.logInfo('🔍 Validating Backend implementation...')
+      advancedUI.logInfo('🔍 Validating Backend implementation...')
 
       const validation = {
         syntax: await this.performSyntaxValidation(),
@@ -417,9 +417,9 @@ export class BackendAgent extends CognitiveAgentBase {
       const overallSuccess = Object.values(validation).every((v) => !v.hasErrors)
 
       if (overallSuccess) {
-        CliUI.logSuccess('✓ All backend validations passed')
+        advancedUI.logSuccess('✓ All backend validations passed')
       } else {
-        CliUI.logWarning('⚠️ Some backend validations found issues')
+        advancedUI.logWarning('⚠️ Some backend validations found issues')
       }
 
       return { validation, overallSuccess }
@@ -629,7 +629,7 @@ export class BackendAgent extends CognitiveAgentBase {
   private async createAPI(task: AgentTask): Promise<any> {
     const { apiName, methods, framework, database } = task.metadata || {}
 
-    CliUI.logInfo(`🚀 Creating API: ${apiName} with methods: ${methods?.join(', ')}`)
+    advancedUI.logInfo(`🚀 Creating API: ${apiName} with methods: ${methods?.join(', ')}`)
 
     try {
       // Generate API routes
@@ -675,7 +675,7 @@ export class BackendAgent extends CognitiveAgentBase {
   private async designDatabase(task: AgentTask): Promise<any> {
     const { entities, relationships, databaseType } = task.metadata || {}
 
-    CliUI.logInfo(`🗄️ Designing ${databaseType} database schema`)
+    advancedUI.logInfo(`🗄️ Designing ${databaseType} database schema`)
 
     try {
       // Generate database schema
@@ -713,7 +713,7 @@ export class BackendAgent extends CognitiveAgentBase {
   private async implementAuthentication(task: AgentTask): Promise<any> {
     const { authType, provider, features } = task.metadata || {}
 
-    CliUI.logInfo(`🔐 Implementing ${authType} authentication`)
+    advancedUI.logInfo(`🔐 Implementing ${authType} authentication`)
 
     try {
       // Generate authentication middleware
@@ -757,7 +757,7 @@ export class BackendAgent extends CognitiveAgentBase {
   private async setupMiddleware(task: AgentTask): Promise<any> {
     const { middlewareTypes, framework } = task.metadata || {}
 
-    CliUI.logInfo(`🔨 Setting up middleware: ${middlewareTypes?.join(', ')}`)
+    advancedUI.logInfo(`🔨 Setting up middleware: ${middlewareTypes?.join(', ')}`)
 
     try {
       const middlewareFiles = []
@@ -789,7 +789,7 @@ export class BackendAgent extends CognitiveAgentBase {
   private async optimizeBackendPerformance(task: AgentTask): Promise<any> {
     const { optimizationType, targetFiles } = task.metadata || {}
 
-    CliUI.logInfo(`⚡ Optimizing backend performance: ${optimizationType}`)
+    advancedUI.logInfo(`⚡ Optimizing backend performance: ${optimizationType}`)
 
     try {
       const optimizations = []
@@ -834,7 +834,7 @@ export class BackendAgent extends CognitiveAgentBase {
   private async setupMonitoring(task: AgentTask): Promise<any> {
     const { monitoringTools, metrics } = task.metadata || {}
 
-    CliUI.logInfo(`📊 Setting up monitoring with: ${monitoringTools?.join(', ')}`)
+    advancedUI.logInfo(`📊 Setting up monitoring with: ${monitoringTools?.join(', ')}`)
 
     try {
       const monitoringFiles = []
@@ -874,7 +874,7 @@ export class BackendAgent extends CognitiveAgentBase {
   private async containerizeApplication(task: AgentTask): Promise<any> {
     const { containerTool, environment } = task.metadata || {}
 
-    CliUI.logInfo(`🐳 Containerizing application with ${containerTool}`)
+    advancedUI.logInfo(`🐳 Containerizing application with ${containerTool}`)
 
     try {
       // Generate Dockerfile
@@ -905,7 +905,7 @@ export class BackendAgent extends CognitiveAgentBase {
    * Handle generic backend tasks
    */
   private async handleGenericBackendTask(task: AgentTask): Promise<any> {
-    CliUI.logInfo(` Handling generic backend task: ${task.type}`)
+    advancedUI.logInfo(` Handling generic backend task: ${task.type}`)
 
     // Use planning system for complex tasks
     const plan = await this.generateTaskPlan(task)
@@ -919,19 +919,19 @@ export class BackendAgent extends CognitiveAgentBase {
       const dependencies = JSON.parse(packageJson).dependencies || {}
 
       if (dependencies.express) {
-        CliUI.logInfo('📦 Detected Express.js framework')
+        advancedUI.logInfo('📦 Detected Express.js framework')
       }
       if (dependencies.fastify) {
-        CliUI.logInfo('📦 Detected Fastify framework')
+        advancedUI.logInfo('📦 Detected Fastify framework')
       }
       if (dependencies.mongoose || dependencies.mongodb) {
-        CliUI.logInfo('📦 Detected MongoDB database')
+        advancedUI.logInfo('📦 Detected MongoDB database')
       }
       if (dependencies.pg || dependencies.mysql2) {
-        CliUI.logInfo('📦 Detected SQL database')
+        advancedUI.logInfo('📦 Detected SQL database')
       }
     } catch {
-      CliUI.logInfo('📦 No specific backend framework detected')
+      advancedUI.logInfo('📦 No specific backend framework detected')
     }
   }
 
@@ -989,7 +989,7 @@ export class BackendAgent extends CognitiveAgentBase {
   }
 
   private async updateAppWithMiddleware(types: string[], framework: string): Promise<void> {
-    CliUI.logInfo(`Updating ${framework} app with middleware: ${types.join(', ')}`)
+    advancedUI.logInfo(`Updating ${framework} app with middleware: ${types.join(', ')}`)
   }
 
   private async generateDockerfile(environment: string): Promise<string> {

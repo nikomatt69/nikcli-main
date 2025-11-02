@@ -1,557 +1,823 @@
 ---
-title: "Universal Agent"
-description: "Complete guide to the Universal Agent - NikCLI's comprehensive full-stack AI assistant"
-icon: "robot"
+title: 'Universal Agent'
+description: 'Master the versatile Universal Agent with 64+ capabilities for all development tasks'
+icon: 'stars'
 ---
 
-## Overview
+## Introduction
 
-The Universal Agent is NikCLI's all-in-one enterprise AI assistant, designed to handle complex full-stack development tasks with comprehensive capabilities across frontend, backend, DevOps, and autonomous coding. It provides **44 comprehensive capabilities** in a single, highly capable system with cognitive orchestration.
+The **Universal Agent** is NikCLI's most versatile and powerful agent. With 64+ distinct capabilities spanning code generation, analysis, testing, documentation, and more, it's your go-to agent for any development task.
+
+Unlike specialized agents that focus on specific domains, the Universal Agent understands the full spectrum of software development and can seamlessly switch between tasks.
+
+## Why Universal Agent?
 
 <CardGroup cols={2}>
-  <Card title="Full-Stack Expertise" icon="layers">
-    Complete coverage of frontend, backend, and infrastructure
+  <Card title="One Agent, All Tasks" icon="swiss-army-knife">
+    No need to switch between agents - handles frontend, backend, DevOps, and more
   </Card>
-  <Card title="Autonomous Operation" icon="robot">
-    Self-directed task completion with minimal supervision
+
+  <Card title="Context-Aware" icon="brain">
+    Understands your entire project and makes decisions based on codebase patterns
   </Card>
-  <Card title="Context Awareness" icon="brain">
-    Deep understanding of project structure and requirements
-  </Card>
+
   <Card title="Adaptive Learning" icon="graduation-cap">
-    Continuous improvement through feedback and patterns
+    Learns from your project structure and coding conventions
+  </Card>
+
+  <Card title="Production-Ready" icon="shield-check">
+    Built-in approval system ensures safe, controlled execution
   </Card>
 </CardGroup>
 
 ## Core Capabilities
 
-### Frontend Development
-
-<Tabs>
-  <Tab title="React/Next.js">
-    ```bash
-    # Component development
-    /agent universal-agent "create a responsive navigation component with TypeScript"
-    
-    # Performance optimization
-    /agent universal-agent "optimize React app for Core Web Vitals - analyze current performance and implement improvements"
-    
-    # State management
-    /agent universal-agent "implement Redux Toolkit for user management with proper TypeScript types"
-    ```
-  </Tab>
-  
-  <Tab title="Vue/Nuxt">
-    ```bash
-    # Vue 3 composition API
-    /agent universal-agent "create Vue 3 dashboard with Composition API and Pinia for state management"
-    
-    # Nuxt.js applications
-    /agent universal-agent "build Nuxt 3 e-commerce site with server-side rendering and SEO optimization"
-    ```
-  </Tab>
-  
-  <Tab title="Angular">
-    ```bash
-    # Angular applications
-    /agent universal-agent "create Angular 17 application with standalone components and signals"
-    
-    # Enterprise Angular
-    /agent universal-agent "implement Angular enterprise architecture with lazy loading and micro-frontends"
-    ```
-  </Tab>
-</Tabs>
-
-### Backend Development
+### 1. Code Generation (12 Capabilities)
 
 <AccordionGroup>
-  <Accordion title="API Development">
+  <Accordion title="Component Creation" icon="cube">
+    Generate complete, production-ready components:
+
     ```bash
-    # REST API creation
-    /agent universal-agent "design and implement REST API for blog platform with authentication, CRUD operations, and proper error handling"
-    
-    # GraphQL implementation
-    /agent universal-agent "create GraphQL API with schema-first approach, resolvers, and DataLoader for N+1 optimization"
-    
-    # API documentation
-    /agent universal-agent "generate comprehensive OpenAPI documentation with examples and test cases"
+    /agent universal-agent "create a DataTable component with sorting, filtering, and pagination"
+    ```
+
+    **Generates:**
+    - Component file with TypeScript
+    - Props interface
+    - State management
+    - Event handlers
+    - Styling (matches your approach)
+    - Export statements
+
+    **Example Output:**
+    ```typescript DataTable.tsx
+    import React, { useState, useMemo } from 'react';
+
+    interface Column<T> {
+      key: keyof T;
+      label: string;
+      sortable?: boolean;
+      render?: (value: T[keyof T], row: T) => React.ReactNode;
+    }
+
+    interface DataTableProps<T> {
+      data: T[];
+      columns: Column<T>[];
+      pageSize?: number;
+    }
+
+    export function DataTable<T extends Record<string, any>>({
+      data,
+      columns,
+      pageSize = 10,
+    }: DataTableProps<T>) {
+      const [sortKey, setSortKey] = useState<keyof T | null>(null);
+      const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+      const [currentPage, setCurrentPage] = useState(1);
+      const [filter, setFilter] = useState('');
+
+      const filteredData = useMemo(() => {
+        return data.filter((row) =>
+          Object.values(row).some((value) =>
+            String(value).toLowerCase().includes(filter.toLowerCase())
+          )
+        );
+      }, [data, filter]);
+
+      const sortedData = useMemo(() => {
+        if (!sortKey) return filteredData;
+
+        return [...filteredData].sort((a, b) => {
+          const aVal = a[sortKey];
+          const bVal = b[sortKey];
+
+          if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+          if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }, [filteredData, sortKey, sortOrder]);
+
+      const paginatedData = useMemo(() => {
+        const startIdx = (currentPage - 1) * pageSize;
+        return sortedData.slice(startIdx, startIdx + pageSize);
+      }, [sortedData, currentPage, pageSize]);
+
+      const totalPages = Math.ceil(sortedData.length / pageSize);
+
+      const handleSort = (key: keyof T) => {
+        if (sortKey === key) {
+          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+          setSortKey(key);
+          setSortOrder('asc');
+        }
+      };
+
+      return (
+        <div className="data-table">
+          <input
+            type="text"
+            placeholder="Filter..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="filter-input"
+          />
+
+          <table>
+            <thead>
+              <tr>
+                {columns.map((col) => (
+                  <th
+                    key={String(col.key)}
+                    onClick={() => col.sortable && handleSort(col.key)}
+                    className={col.sortable ? 'sortable' : ''}
+                  >
+                    {col.label}
+                    {sortKey === col.key && (sortOrder === 'asc' ? ' ↑' : ' ↓')}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedData.map((row, idx) => (
+                <tr key={idx}>
+                  {columns.map((col) => (
+                    <td key={String(col.key)}>
+                      {col.render
+                        ? col.render(row[col.key], row)
+                        : String(row[col.key])}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="pagination">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              Previous
+            </button>
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      );
+    }
     ```
   </Accordion>
-  
-  <Accordion title="Database Integration">
+
+  <Accordion title="API Endpoint Creation" icon="server">
+    Generate complete REST APIs:
+
     ```bash
-    # Database design
-    /agent universal-agent "design PostgreSQL schema for multi-tenant SaaS application with proper indexing and constraints"
-    
-    # ORM integration
-    /agent universal-agent "implement Prisma ORM with migrations, seed data, and type-safe queries"
-    
-    # Database optimization
-    /agent universal-agent "analyze and optimize database performance - identify slow queries and add proper indexes"
+    /agent universal-agent "create CRUD API for products with validation and error handling"
+    ```
+
+    **Generates:**
+    - Route handlers
+    - Validation middleware
+    - Error handling
+    - Database queries
+    - TypeScript types
+    - Response formatting
+
+    **Example Output:**
+    ```typescript products.routes.ts
+    import express from 'express';
+    import { z } from 'zod';
+    import { prisma } from '../lib/prisma';
+    import { asyncHandler } from '../middleware/asyncHandler';
+    import { validate } from '../middleware/validate';
+
+    const router = express.Router();
+
+    // Validation schemas
+    const createProductSchema = z.object({
+      name: z.string().min(1).max(255),
+      description: z.string().optional(),
+      price: z.number().positive(),
+      stock: z.number().int().nonnegative(),
+      categoryId: z.string().uuid(),
+    });
+
+    const updateProductSchema = createProductSchema.partial();
+
+    // GET /products - List all products
+    router.get(
+      '/',
+      asyncHandler(async (req, res) => {
+        const { page = 1, limit = 10, category } = req.query;
+
+        const where = category ? { categoryId: String(category) } : {};
+
+        const [products, total] = await Promise.all([
+          prisma.product.findMany({
+            where,
+            skip: (Number(page) - 1) * Number(limit),
+            take: Number(limit),
+            include: { category: true },
+          }),
+          prisma.product.count({ where }),
+        ]);
+
+        res.json({
+          data: products,
+          pagination: {
+            page: Number(page),
+            limit: Number(limit),
+            total,
+            pages: Math.ceil(total / Number(limit)),
+          },
+        });
+      })
+    );
+
+    // GET /products/:id - Get single product
+    router.get(
+      '/:id',
+      asyncHandler(async (req, res) => {
+        const product = await prisma.product.findUnique({
+          where: { id: req.params.id },
+          include: { category: true },
+        });
+
+        if (!product) {
+          return res.status(404).json({ error: 'Product not found' });
+        }
+
+        res.json({ data: product });
+      })
+    );
+
+    // POST /products - Create product
+    router.post(
+      '/',
+      validate(createProductSchema),
+      asyncHandler(async (req, res) => {
+        const product = await prisma.product.create({
+          data: req.body,
+          include: { category: true },
+        });
+
+        res.status(201).json({ data: product });
+      })
+    );
+
+    // PATCH /products/:id - Update product
+    router.patch(
+      '/:id',
+      validate(updateProductSchema),
+      asyncHandler(async (req, res) => {
+        const product = await prisma.product.update({
+          where: { id: req.params.id },
+          data: req.body,
+          include: { category: true },
+        });
+
+        res.json({ data: product });
+      })
+    );
+
+    // DELETE /products/:id - Delete product
+    router.delete(
+      '/:id',
+      asyncHandler(async (req, res) => {
+        await prisma.product.delete({
+          where: { id: req.params.id },
+        });
+
+        res.status(204).send();
+      })
+    );
+
+    export default router;
     ```
   </Accordion>
-  
-  <Accordion title="Microservices">
+
+  <Accordion title="Database Schema Design" icon="database">
+    Design normalized database schemas:
+
     ```bash
-    # Service architecture
-    /agent universal-agent "design microservices architecture for e-commerce platform with proper service boundaries"
-    
-    # Inter-service communication
-    /agent universal-agent "implement service communication with message queues, event sourcing, and saga patterns"
-    
-    # Service monitoring
-    /agent universal-agent "add distributed tracing, metrics, and health checks to microservices"
+    /agent universal-agent "create database schema for e-commerce with users, products, orders, and reviews"
     ```
+
+    Generates schemas for Prisma, Drizzle, TypeORM, or SQL based on your project.
   </Accordion>
 </AccordionGroup>
 
-### DevOps and Infrastructure
+### 2. Code Analysis (10 Capabilities)
 
 <Tabs>
-  <Tab title="Containerization">
+  <Tab title="Quality Assessment">
     ```bash
-    # Docker implementation
-    /agent universal-agent "create multi-stage Docker builds for Node.js application with optimization for production"
-    
-    # Container orchestration
-    /agent universal-agent "design Kubernetes deployment with auto-scaling, health checks, and proper resource limits"
+    /agent universal-agent "analyze code quality in src/components/"
+    ```
+
+    **Analyzes:**
+    - Code complexity
+    - Code smells
+    - Duplication
+    - Naming conventions
+    - File structure
+    - Dependencies
+
+    **Reports:**
+    ```
+    📊 Code Quality Report
+
+    Overall Score: 78/100
+
+    Issues Found:
+    • High Complexity (3 files)
+      - UserDashboard.tsx: Cyclomatic complexity 15
+      - OrderProcessor.ts: Cyclomatic complexity 18
+      - DataTransformer.ts: Cyclomatic complexity 12
+
+    • Code Duplication (2 instances)
+      - validateEmail() in utils/validation.ts and helpers/user.ts
+      - formatCurrency() in components/Price.tsx and utils/format.ts
+
+    • Long Functions (4 files)
+      - processCheckout(): 120 lines
+      - renderDashboard(): 95 lines
+
+    Recommendations:
+    ✓ Extract validateEmail() to shared utility
+    ✓ Split processCheckout() into smaller functions
+    ✓ Reduce UserDashboard component complexity
     ```
   </Tab>
-  
-  <Tab title="CI/CD Pipelines">
+
+  <Tab title="Security Audit">
     ```bash
-    # GitHub Actions
-    /agent universal-agent "create comprehensive CI/CD pipeline with testing, security scanning, and automated deployment"
-    
-    # GitLab CI/CD
-    /agent universal-agent "implement GitLab CI/CD with proper staging, testing, and production deployment strategies"
+    /agent universal-agent "scan for security vulnerabilities"
+    ```
+
+    **Detects:**
+    - SQL injection risks
+    - XSS vulnerabilities
+    - Insecure dependencies
+    - Hardcoded secrets
+    - Weak cryptography
+    - CSRF vulnerabilities
+
+    **Reports:**
+    ```
+    🔒 Security Audit Results
+
+    Critical Issues: 2
+    High: 5
+    Medium: 8
+    Low: 12
+
+    🚨 Critical:
+    1. Hardcoded API key in config.ts:15
+       → Move to environment variables
+
+    2. SQL injection risk in database/query.ts:42
+       → Use parameterized queries
+
+    ⚠️ High:
+    1. Weak password hashing (MD5) in auth/password.ts
+       → Use bcrypt or argon2
+
+    2. Missing rate limiting on /api/login
+       → Add express-rate-limit
+
+    3. Unvalidated user input in search.ts:28
+       → Add input validation with Zod
     ```
   </Tab>
-  
-  <Tab title="Cloud Infrastructure">
+
+  <Tab title="Performance Analysis">
     ```bash
-    # AWS deployment
-    /agent universal-agent "design and implement AWS infrastructure using CDK with proper security and monitoring"
-    
-    # Multi-cloud strategy
-    /agent universal-agent "create Terraform configuration for multi-cloud deployment with disaster recovery"
+    /agent universal-agent "analyze performance bottlenecks"
     ```
+
+    **Identifies:**
+    - Slow algorithms
+    - Memory leaks
+    - Inefficient queries
+    - Large bundle sizes
+    - Render performance
+
+    **Suggests optimizations**
   </Tab>
 </Tabs>
 
-## Advanced Features
+### 3. Code Refactoring (8 Capabilities)
 
-### Code Analysis and Refactoring
-
-<AccordionGroup>
-  <Accordion title="Codebase Analysis">
+<Steps>
+  <Step title="Identify Refactoring Opportunities">
     ```bash
-    # Comprehensive code analysis
-    /agent universal-agent "analyze entire codebase for technical debt, security vulnerabilities, and performance issues"
-    
-    # Architecture review
-    /agent universal-agent "review application architecture and suggest improvements for scalability and maintainability"
-    
-    # Dependency analysis
-    /agent universal-agent "audit project dependencies, identify outdated packages, and suggest upgrade paths"
+    /agent universal-agent "suggest refactoring improvements for UserProfile.tsx"
     ```
-  </Accordion>
-  
-  <Accordion title="Automated Refactoring">
-    ```bash
-    # Large-scale refactoring
-    /agent universal-agent "refactor legacy codebase to modern standards - convert class components to hooks, update TypeScript"
-    
-    # Performance refactoring
-    /agent universal-agent "identify and fix performance bottlenecks across the entire application"
-    
-    # Security refactoring
-    /agent universal-agent "implement security best practices throughout the codebase"
-    ```
-  </Accordion>
-</AccordionGroup>
 
-### Project Management Integration
+    Agent analyzes code and suggests:
+    - Extract complex logic to hooks
+    - Split large components
+    - Reduce prop drilling
+    - Simplify conditional logic
+  </Step>
+
+  <Step title="Execute Refactoring">
+    ```bash
+    /agent universal-agent "refactor UserProfile.tsx following clean code principles"
+    ```
+
+    Agent performs refactoring while:
+    - Preserving functionality
+    - Maintaining tests
+    - Improving readability
+    - Following best practices
+  </Step>
+
+  <Step title="Verify Changes">
+    ```bash
+    /exec npm test
+    ```
+
+    Runs tests to ensure refactoring didn't break functionality
+  </Step>
+</Steps>
+
+### 4. Testing (8 Capabilities)
 
 <Tabs>
-  <Tab title="Requirements Analysis">
+  <Tab title="Unit Tests">
     ```bash
-    # Feature specification
-    /agent universal-agent "analyze business requirements and create detailed technical specifications for user authentication system"
-    
-    # Technical planning
-    /agent universal-agent "break down epic into user stories with acceptance criteria and technical tasks"
+    /agent universal-agent "create comprehensive unit tests for utils/validation.ts"
+    ```
+
+    **Generates:**
+    - Test suite setup
+    - Test cases for all functions
+    - Edge cases
+    - Error scenarios
+    - Mocks and stubs
+    - 100% coverage
+
+    ```typescript validation.test.ts
+    import { describe, it, expect } from 'vitest';
+    import {
+      validateEmail,
+      validatePassword,
+      validatePhone,
+    } from './validation';
+
+    describe('validateEmail', () => {
+      it('should accept valid emails', () => {
+        expect(validateEmail('user@example.com')).toBe(true);
+        expect(validateEmail('test+tag@domain.co.uk')).toBe(true);
+      });
+
+      it('should reject invalid emails', () => {
+        expect(validateEmail('invalid')).toBe(false);
+        expect(validateEmail('@example.com')).toBe(false);
+        expect(validateEmail('user@')).toBe(false);
+      });
+
+      it('should handle edge cases', () => {
+        expect(validateEmail('')).toBe(false);
+        expect(validateEmail(null as any)).toBe(false);
+        expect(validateEmail(undefined as any)).toBe(false);
+      });
+    });
+
+    describe('validatePassword', () => {
+      it('should require minimum length', () => {
+        expect(validatePassword('short')).toBe(false);
+        expect(validatePassword('longenough123')).toBe(true);
+      });
+
+      it('should require complexity', () => {
+        expect(validatePassword('alllowercase')).toBe(false);
+        expect(validatePassword('WithUpperCase123')).toBe(true);
+      });
+    });
     ```
   </Tab>
-  
-  <Tab title="Documentation Generation">
+
+  <Tab title="Integration Tests">
     ```bash
-    # API documentation
-    /agent universal-agent "generate comprehensive API documentation with examples, error codes, and integration guides"
-    
-    # Project documentation
-    /agent universal-agent "create project README, architecture diagrams, and developer onboarding guide"
+    /agent universal-agent "create integration tests for authentication flow"
     ```
+
+    Tests complete user flows including:
+    - API endpoints
+    - Database operations
+    - External services
+    - Error handling
+  </Tab>
+
+  <Tab title="E2E Tests">
+    ```bash
+    /agent universal-agent "create Playwright tests for checkout process"
+    ```
+
+    Generates full end-to-end browser tests
   </Tab>
 </Tabs>
 
-### Quality Assurance
+### 5. Documentation (6 Capabilities)
 
-<AccordionGroup>
-  <Accordion title="Testing Implementation">
-    ```bash
-    # Comprehensive testing
-    /agent universal-agent "implement complete testing strategy: unit tests, integration tests, and e2e tests"
-    
-    # Test coverage analysis
-    /agent universal-agent "analyze test coverage and add tests for uncovered critical paths"
-    
-    # Performance testing
-    /agent universal-agent "create performance test suite and establish benchmarks for application performance"
-    ```
-  </Accordion>
-  
-  <Accordion title="Code Quality">
-    ```bash
-    # Code review automation
-    /agent universal-agent "perform comprehensive code review focusing on best practices, security, and performance"
-    
-    # Style consistency
-    /agent universal-agent "establish and enforce coding standards across the entire project"
-    
-    # Technical debt management
-    /agent universal-agent "identify, prioritize, and create plan to address technical debt"
-    ```
-  </Accordion>
-</AccordionGroup>
+Generate comprehensive documentation:
 
-## Specialized Modes
+```bash
+/agent universal-agent "create complete documentation for this API"
+```
 
-### Autonomous Mode
+**Generates:**
+- README.md with setup instructions
+- API documentation
+- JSDoc/TSDoc comments
+- Usage examples
+- Architecture diagrams
+- Contributing guidelines
 
-<Tabs>
-  <Tab title="Project Initialization">
-    ```bash
-    # Complete project setup
-    /auto "Create a full-stack e-commerce application with React frontend, Node.js backend, PostgreSQL database, and AWS deployment"
-    
-    # Startup MVP development
-    /auto "Build MVP for task management SaaS with user authentication, team collaboration, and subscription billing"
-    ```
-  </Tab>
-  
-  <Tab title="Feature Development">
-    ```bash
-    # Complex feature implementation
-    /auto "Implement real-time chat system with WebSocket connection, message history, file sharing, and push notifications"
-    
-    # Integration projects
-    /auto "Add payment processing with Stripe integration, subscription management, and invoice generation"
-    ```
-  </Tab>
-  
-  <Tab title="Maintenance and Optimization">
-    ```bash
-    # System optimization
-    /auto "Optimize application performance - analyze bottlenecks, implement caching, optimize database queries"
-    
-    # Security hardening
-    /auto "Perform security audit and implement all recommended security measures"
-    ```
-  </Tab>
-</Tabs>
+### 6. Debugging (6 Capabilities)
 
-### Interactive Mode
+<CodeGroup>
+```bash Diagnose Error
+/agent universal-agent "debug this TypeError: Cannot read property 'map' of undefined"
+```
 
-<AccordionGroup>
-  <Accordion title="Guided Development">
-    ```bash
-    # Step-by-step guidance
-    /agent universal-agent "Guide me through implementing OAuth2 authentication - explain each step and let me approve before proceeding"
-    
-    # Educational approach
-    /agent universal-agent "Teach me GraphQL by building a simple API together - explain concepts as we implement"
-    ```
-  </Accordion>
-  
-  <Accordion title="Problem Solving">
-    ```bash
-    # Debugging assistance
-    /agent universal-agent "Help me debug this performance issue - let's analyze the problem together and implement solutions"
-    
-    # Architecture decisions
-    /agent universal-agent "Let's discuss different approaches for implementing this feature and choose the best one for our use case"
-    ```
-  </Accordion>
-</AccordionGroup>
+```bash Fix Bug
+/agent universal-agent "fix the memory leak in useEffect"
+```
 
-## Configuration and Customization
+```bash Explain Error
+/agent universal-agent "explain this error and suggest fixes"
+```
+</CodeGroup>
 
-### Agent Configuration
+## Advanced Usage
 
-<Tabs>
-  <Tab title="Behavior Settings">
-    ```bash
-    # Configure agent personality
-    /agent-config universal-agent --style collaborative --verbosity detailed
-    /agent-config universal-agent --approach methodical --creativity balanced
-    
-    # Set expertise preferences
-    /agent-config universal-agent --prefer-frameworks "react,nextjs,nodejs,postgresql"
-    /agent-config universal-agent --coding-style "functional,typescript-strict"
-    ```
-  </Tab>
-  
-  <Tab title="Context Optimization">
-    ```bash
-    # Context management
-    /agent-config universal-agent --context-size 16000 --context-strategy smart
-    /agent-config universal-agent --memory-retention high --learning-mode active
-    
-    # Specialization tuning
-    /agent-config universal-agent --focus-areas "fullstack,performance,security"
-    ```
-  </Tab>
-</Tabs>
+### Multi-Step Workflows
 
-### Performance Optimization
+Handle complex tasks spanning multiple files:
 
-<AccordionGroup>
-  <Accordion title="Response Optimization">
-    ```bash
-    # Optimize for speed
-    /optimize-agent universal-agent --target response-time --max-time 30s
-    
-    # Optimize for quality
-    /optimize-agent universal-agent --target code-quality --thorough-analysis
-    
-    # Balance speed and quality
-    /optimize-agent universal-agent --balanced --adaptive-quality
-    ```
-  </Accordion>
-  
-  <Accordion title="Resource Management">
-    ```bash
-    # Token optimization
-    /optimize-agent universal-agent --token-efficiency high --context-pruning smart
-    
-    # Parallel processing
-    /optimize-agent universal-agent --parallel-tasks enable --max-concurrent 3
-    ```
-  </Accordion>
-</AccordionGroup>
+```bash
+/agent universal-agent "implement user authentication system with:
+- JWT tokens with refresh
+- Email verification
+- Password reset
+- Rate limiting
+- Session management
+- Comprehensive tests
+- Full documentation"
+```
+
+**Agent workflow:**
+1. Analyzes project structure
+2. Creates detailed 12-step plan
+3. Requests approval
+4. Implements each component
+5. Creates tests
+6. Generates documentation
+7. Provides usage examples
+
+### Context-Aware Development
+
+Agent understands your project:
+
+```bash
+/agent universal-agent "add dark mode support"
+```
+
+**Agent automatically:**
+- Detects your UI framework (React, Vue, etc.)
+- Finds your theming approach
+- Identifies components to update
+- Matches your code style
+- Updates all relevant files
+
+### Iterative Refinement
+
+Refine results through conversation:
+
+```
+> /agent universal-agent "create a login form"
+
+[Agent creates form]
+
+> Add validation and show errors inline
+
+[Agent adds validation]
+
+> Use Zod for schema validation instead
+
+[Agent refactors to use Zod]
+
+> Make it look better with Tailwind
+
+[Agent adds Tailwind styling]
+```
 
 ## Best Practices
 
-### Effective Task Description
-
-<CardGroup cols={2}>
-  <Card title="Specific Requirements" icon="target">
-    Provide clear, specific requirements with context about the project, technology stack, and constraints
-    
-    ```bash
-    # Good example
-    /agent universal-agent "Create a React TypeScript component for user profile editing with form validation using Formik, proper error handling, and responsive design for mobile"
-    ```
-  </Card>
-  
-  <Card title="Context Information" icon="info">
-    Include relevant context about existing codebase, patterns, and preferences
-    
-    ```bash
-    # Include context
-    /context set "src/components/,src/hooks/" --include-patterns "*.tsx,*.ts"
-    /agent universal-agent "Following our existing component patterns, create..."
-    ```
-  </Card>
-  
-  <Card title="Iterative Refinement" icon="refresh">
-    Use follow-up messages to refine and improve implementations
-    
-    ```bash
-    # Follow-up refinement
-    "Add loading states and error boundaries to the previous component"
-    "Optimize this implementation for accessibility"
-    ```
-  </Card>
-  
-  <Card title="Quality Requirements" icon="check-circle">
-    Specify quality requirements like testing, documentation, and performance
-    
-    ```bash
-    # Include quality requirements
-    /agent universal-agent "...with comprehensive unit tests, JSDoc documentation, and optimized for performance"
-    ```
-  </Card>
-</CardGroup>
-
-### Multi-Step Projects
-
-<Tabs>
-  <Tab title="Project Planning">
-    ```bash
-    # Start with planning
-    /agent universal-agent "Create a detailed plan for implementing user authentication system with JWT, including database schema, API endpoints, and frontend components"
-    
-    # Review and approve plan
-    "Refine the plan to include password reset functionality and social login options"
-    ```
-  </Tab>
-  
-  <Tab title="Phased Implementation">
-    ```bash
-    # Implement in phases
-    /agent universal-agent "Implement Phase 1: User registration and login API endpoints with password hashing and JWT generation"
-    
-    # Continue to next phase
-    /agent universal-agent "Now implement Phase 2: Frontend login/register components with form validation and error handling"
-    ```
-  </Tab>
-</Tabs>
-
-## Troubleshooting and Support
-
-### Common Issues
-
 <AccordionGroup>
-  <Accordion title="Performance Issues">
-    **Problem:** Agent responses are slow or incomplete
-    
-    **Solutions:**
+  <Accordion title="Be Specific" icon="crosshairs">
+    ✅ **Good**: "create a Button component with primary/secondary/danger variants, loading state, disabled state, and size options (sm/md/lg) using Tailwind CSS"
+
+    ❌ **Bad**: "make a button"
+
+    **Why**: Specific instructions produce better, more complete results
+  </Accordion>
+
+  <Accordion title="Provide Context" icon="context">
+    Mention technologies and patterns:
+
     ```bash
-    # Optimize context size
-    /context optimize --reduce-noise --focus-relevant
-    
-    # Check agent load
-    /agent-performance universal-agent --current-load --optimization-suggestions
-    
-    # Adjust complexity
-    "Break this into smaller, more manageable tasks"
+    /agent universal-agent "create authentication API using Express, Prisma, JWT, bcrypt, and Zod for validation"
+    ```
+
+    **Benefits:**
+    - Agent uses correct libraries
+    - Matches your stack
+    - Follows framework conventions
+  </Accordion>
+
+  <Accordion title="Review Plans" icon="eye">
+    Always review execution plans:
+
+    Press `v` to view detailed changes before approving:
+    ```
+    📋 Execution Plan Details:
+
+    Step 1: Create src/components/Button.tsx
+    + 45 lines added
+    + TypeScript interfaces
+    + Three variants implementation
+    + Event handlers
+
+    Step 2: Create tests
+    + Button.test.tsx with 12 test cases
+    + 100% coverage
+
+    Step 3: Update exports
+    + Add to src/components/index.ts
     ```
   </Accordion>
-  
-  <Accordion title="Quality Issues">
-    **Problem:** Generated code doesn't meet expectations
-    
-    **Solutions:**
+
+  <Accordion title="Iterate as Needed" icon="rotate">
+    Don't expect perfection on first try:
+
     ```bash
-    # Provide more specific requirements
-    "Please follow our existing code patterns shown in src/components/Button.tsx"
-    
-    # Request review and improvement
-    "Review this implementation and suggest improvements for better performance and maintainability"
-    
-    # Use iterative refinement
-    "Add proper TypeScript types and error handling to this code"
+    # First attempt
+    /agent universal-agent "create a navbar"
+
+    # Refine
+    /agent universal-agent "make the navbar sticky and add mobile menu"
+
+    # Polish
+    /agent universal-agent "add smooth scroll animations to navbar"
     ```
+  </Accordion>
+
+  <Accordion title="Use Autonomous Mode Wisely" icon="bolt">
+    Use `/auto` for:
+    - Routine, well-defined tasks
+    - Tasks you've done before
+    - Non-critical changes
+
+    Avoid `/auto` for:
+    - Critical system changes
+    - Security-sensitive operations
+    - Complex refactoring
+    - First-time tasks
   </Accordion>
 </AccordionGroup>
 
-### Getting Help
+## Performance Tips
 
-<Tabs>
-  <Tab title="Agent Guidance">
+<CardGroup cols={2}>
+  <Card title="Provide File Paths" icon="file">
     ```bash
-    # Ask for guidance
-    /agent universal-agent "I'm new to React. Can you guide me through creating my first component with explanations?"
-    
-    # Request best practices
-    /agent universal-agent "What are the best practices for structuring a Node.js API project?"
+    /agent universal-agent "refactor src/components/Dashboard.tsx"
     ```
-  </Tab>
-  
-  <Tab title="Learning Resources">
+    Faster than letting agent search
+  </Card>
+
+  <Card title="Break Down Large Tasks" icon="list">
+    Split into smaller, focused tasks:
+    - ✅ "Create user model"
+    - ✅ "Create auth endpoints"
+    - ❌ "Build entire auth system"
+  </Card>
+
+  <Card title="Use Project Context" icon="folder-tree">
     ```bash
-    # Educational approach
-    /agent universal-agent "Teach me about design patterns by showing how to implement Repository pattern in TypeScript"
-    
-    # Concept explanation
-    /agent universal-agent "Explain the trade-offs between different state management solutions for React applications"
+    /analyze-project
     ```
-  </Tab>
-</Tabs>
+    Run once to build context cache
+  </Card>
 
-## Real-World Examples
+  <Card title="Reuse Sessions" icon="save">
+    ```bash
+    /save my-session
+    ```
+    Preserve context for future work
+  </Card>
+</CardGroup>
 
-### Complete Project Development
+## Common Patterns
 
+### Feature Development
 ```bash
-# Full-stack e-commerce platform
-/agent universal-agent "Build a complete e-commerce platform with:
-- React frontend with TypeScript and Tailwind CSS
-- Node.js backend with Express and JWT authentication
-- PostgreSQL database with Prisma ORM
-- Stripe payment integration
-- Email notifications with SendGrid
-- Docker containerization
-- GitHub Actions CI/CD pipeline
-- Comprehensive testing suite"
-
-# Real-time chat application
-/agent universal-agent "Create a real-time chat application with:
-- React frontend with real-time updates
-- Node.js backend with Socket.io
-- MongoDB for message storage
-- User authentication and authorization
-- File sharing capabilities
-- Push notifications
-- Message encryption
-- Responsive design for mobile"
+/agent universal-agent "implement [feature] with:
+- Frontend components
+- Backend API
+- Database schema
+- Tests
+- Documentation"
 ```
 
-### Code Quality and Refactoring
-
+### Bug Fixing
 ```bash
-# Legacy code modernization
-/agent universal-agent "Modernize this legacy React application:
-- Convert class components to functional components with hooks
-- Update to TypeScript with strict mode
-- Implement modern state management with Zustand
-- Add comprehensive error boundaries
-- Optimize bundle size and performance
-- Add accessibility features
-- Implement proper testing with React Testing Library"
-
-# Performance optimization
-/agent universal-agent "Optimize this application for performance:
-- Analyze current performance bottlenecks
-- Implement code splitting and lazy loading
-- Optimize database queries and add caching
-- Add service worker for offline functionality
-- Implement virtual scrolling for large lists
-- Optimize images and assets
-- Add performance monitoring"
+/agent universal-agent "fix [issue] in [file]:
+- Identify root cause
+- Fix the bug
+- Add tests to prevent regression
+- Update documentation if needed"
 ```
+
+### Code Quality
+```bash
+/agent universal-agent "improve [file/directory]:
+- Refactor for readability
+- Add type safety
+- Optimize performance
+- Add missing tests"
+```
+
+### Documentation
+```bash
+/agent universal-agent "document [feature/module]:
+- Add inline comments
+- Create README
+- Add usage examples
+- Include API reference"
+```
+
+## Limitations
+
+<Warning>
+  **Current Limitations:**
+  - Cannot execute system commands (use `/exec` separately)
+  - Cannot access external APIs without configuration
+  - File size limit: 100KB per file
+  - Cannot modify binary files
+  - Internet access limited to configured integrations
+</Warning>
 
 ## Next Steps
 
 <CardGroup cols={2}>
   <Card
-    title="VM Agent"
-    icon="container"
-    href="/agent-system/vm-agent"
+    title="Specialized Agents"
+    icon="toolbox"
+    href="/agent-system/specialized-agents"
   >
-    Learn about the secure virtualized development agent
+    Learn about domain-specific agents
   </Card>
+
   <Card
-    title="Agent Orchestration"
-    icon="sitemap"
-    href="/agent-system/orchestration"
+    title="Autonomous Mode"
+    icon="bolt"
+    href="/agent-system/autonomous-execution"
   >
-    Discover how to coordinate multiple agents effectively
+    Master fully autonomous execution
   </Card>
-  <Card title="Custom Agents" icon="wrench" href="/agent-system/custom-agents">
-    Create your own specialized agents for unique requirements
-  </Card>
+
   <Card
-    title="Advanced Automation"
-    icon="robot"
-    href="/examples/advanced-automation"
+    title="Custom Agents"
+    icon="wrench"
+    href="/agent-system/custom-agents"
   >
-    See real-world examples of advanced automation workflows
+    Create your own specialized agents
+  </Card>
+
+  <Card
+    title="Agent Examples"
+    icon="lightbulb"
+    href="/examples/agent-examples"
+  >
+    See real-world usage examples
   </Card>
 </CardGroup>
 
 <Tip>
-  The Universal Agent works best when given clear, specific tasks with adequate context. Start with smaller tasks to understand its capabilities, then gradually increase complexity as you become more comfortable with its responses.
+  **Pro Tip**: The Universal Agent learns from your feedback. If results aren't perfect, provide specific feedback and iterate until satisfied.
 </Tip>

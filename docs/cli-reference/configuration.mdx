@@ -1,234 +1,740 @@
 ---
-title: 'Configuration'
-description: 'Complete configuration management reference for NikCLI'
-icon: 'gear'
+title: "Configuration Commands"
+description: "Complete reference for system configuration and environment management"
 ---
 
-## Overview
+# Configuration Commands
 
-NikCLI provides comprehensive configuration management through multiple layers: global settings, project-specific configurations, session preferences, and runtime parameters. The configuration system supports environment variables, configuration files, command-line options, and interactive configuration wizards.
+NikCLI provides comprehensive configuration management for AI models, environment variables, system settings, and application preferences. These commands help you customize and optimize your development environment.
 
-<CardGroup cols={2}>
-  <Card title="Multi-Layer Config" icon="layers">
-    Global, project, session, and runtime configuration layers
-  </Card>
-  <Card title="Environment Integration" icon="cloud">
-    Seamless integration with environment variables and CI/CD
-  </Card>
-  <Card title="Security" icon="shield">
-    Encrypted storage for sensitive configuration data
-  </Card>
-  <Card title="Validation" icon="check-circle">
-    Configuration validation and error prevention
-  </Card>
-</CardGroup>
+## Core Configuration Commands
 
-## Configuration Commands
+### `/config`
 
-### `/config` - Configuration Management
+Display current system configuration and settings.
 
-<Tabs>
-  <Tab title="View Configuration">
-    ```bash
-    # Show all configuration
-    /config
-    /config --all --detailed
-    
-    # Show specific sections
-    /config ai
-    /config security
-    /config agents
-    
-    # Show configuration hierarchy
-    /config --hierarchy --sources
-    ```
-  </Tab>
-  
-  <Tab title="Set Configuration">
-    ```bash
-    # Set configuration values
-    /config set ai.default-model claude-3-sonnet
-    /config set security.approval-required true
-    /config set agents.max-concurrent 3
-    
-    # Interactive configuration
-    /config setup --interactive
-    /config wizard --guided-setup
-    ```
-  </Tab>
-  
-  <Tab title="Configuration Files">
-    ```bash
-    # Export configuration
-    /config export --file nikcli.config.json
-    /config export --format yaml --pretty
-    
-    # Import configuration
-    /config import --file config.json
-    /config import --merge --validate
-    ```
-  </Tab>
-</Tabs>
+**Syntax:**
+```bash
+/config [section] [options]
+```
 
-### AI Model Configuration
+**Parameters:**
+- `section` - Specific configuration section to display
 
-<AccordionGroup>
-  <Accordion title="Model Selection">
-    ```bash
-    # Configure default AI model
-    /config set ai.default-model claude-3-sonnet
-    /config set ai.fallback-model gpt-4
-    
-    # Model-specific settings
-    /config set ai.claude.temperature 0.3
-    /config set ai.gpt.max-tokens 4000
-    
-    # Model availability configuration
-    /config set ai.providers "anthropic,openai"
-    /config set ai.model-rotation true
-    ```
-  </Accordion>
-  
-  <Accordion title="API Configuration">
-    ```bash
-    # Set API keys (encrypted storage)
-    /config set-key anthropic sk-ant-...
-    /config set-key openai sk-...
-    
-    # API endpoint configuration
-    /config set api.anthropic.base-url https://api.anthropic.com
-    /config set api.timeout 30000
-    /config set api.retry-attempts 3
-    ```
-  </Accordion>
-</AccordionGroup>
+**Options:**
+- `--detailed` - Show detailed configuration
+- `--json` - Output in JSON format
+- `--export` - Export configuration to file
 
-### Security Configuration
+**Examples:**
 
-<Tabs>
-  <Tab title="Access Control">
-    ```bash
-    # Security mode configuration
-    /config set security.mode safe
-    /config set security.approval-required true
-    /config set security.command-restrictions strict
-    
-    # File system permissions
-    /config set security.allowed-paths "src/,docs/,tests/"
-    /config set security.blocked-paths "node_modules/,.env"
-    ```
-  </Tab>
-  
-  <Tab title="Audit Configuration">
-    ```bash
-    # Audit logging
-    /config set audit.enabled true
-    /config set audit.level detailed
-    /config set audit.retention-days 90
-    
-    # Compliance settings
-    /config set compliance.gdpr true
-    /config set compliance.data-retention 365d
-    ```
-  </Tab>
-</Tabs>
+```bash
+# Show all configuration
+/config
 
-### Agent Configuration
+# Show specific section
+/config models
 
-<AccordionGroup>
-  <Accordion title="Agent Behavior">
-    ```bash
-    # Default agent settings
-    /config set agents.default universal-agent
-    /config set agents.auto-select true
-    /config set agents.max-concurrent 3
-    
-    # Agent-specific configuration
-    /config set agents.react-expert.temperature 0.2
-    /config set agents.backend-agent.context-size 8000
-    ```
-  </Accordion>
-  
-  <Accordion title="Performance Settings">
-    ```bash
-    # Performance optimization
-    /config set agents.performance.caching true
-    /config set agents.performance.parallel-execution true
-    /config set agents.performance.resource-limits enabled
-    ```
-  </Accordion>
-</AccordionGroup>
+# Detailed configuration view
+/config --detailed
+
+# Export configuration
+/config --export config-backup.json
+```
+
+**Configuration Sections:**
+- `models` - AI model settings
+- `environment` - Environment variables
+- `security` - Security settings
+- `performance` - Performance tuning
+- `integrations` - External integrations
+- `ui` - User interface preferences
+
+### `/model [name]`
+
+Switch AI model or show current model configuration.
+
+**Syntax:**
+```bash
+/model [model-name] [options]
+```
+
+**Parameters:**
+- `model-name` - Name of AI model to switch to
+
+**Options:**
+- `--provider <provider>` - Specify AI provider
+- `--temperature <value>` - Set model temperature
+- `--max-tokens <count>` - Set maximum tokens
+- `--show-available` - Show available models
+
+**Available Models:**
+- `claude-3-5-sonnet` - Anthropic Claude 3.5 Sonnet
+- `claude-3-opus` - Anthropic Claude 3 Opus
+- `gpt-4` - OpenAI GPT-4
+- `gpt-4-turbo` - OpenAI GPT-4 Turbo
+- `gpt-3.5-turbo` - OpenAI GPT-3.5 Turbo
+- `gemini-pro` - Google Gemini Pro
+- `mistral-large` - Mistral Large
+- `ollama/*` - Local Ollama models
+
+**Examples:**
+
+```bash
+# Show current model
+/model
+
+# Switch to Claude 3.5 Sonnet
+/model claude-3-5-sonnet
+
+# Switch with custom temperature
+/model gpt-4 --temperature 0.7
+
+# Switch with token limit
+/model claude-3-opus --max-tokens 4000
+
+# Show available models
+/model --show-available
+```
+
+### `/models`
+
+List all available AI models with details and capabilities.
+
+**Syntax:**
+```bash
+/models [options]
+```
+
+**Options:**
+- `--provider <provider>` - Filter by provider
+- `--capability <capability>` - Filter by capability
+- `--detailed` - Show detailed model information
+- `--benchmark` - Show performance benchmarks
+
+**Examples:**
+
+```bash
+# List all models
+/models
+
+# List OpenAI models only
+/models --provider openai
+
+# List models with code capability
+/models --capability code
+
+# Detailed model information
+/models --detailed
+
+# Show performance benchmarks
+/models --benchmark
+```
+
+**Model Information Display:**
+```
+🤖 Available AI Models:
+
+┌─────────────────────┬─────────────┬─────────────┬─────────────┬─────────────┐
+│ Model               │ Provider    │ Context     │ Capabilities│ Cost/1K     │
+├─────────────────────┼─────────────┼─────────────┼─────────────┼─────────────┤
+│ claude-3-5-sonnet   │ Anthropic   │ 200K        │ Code, Text  │ $3.00       │
+│ claude-3-opus       │ Anthropic   │ 200K        │ Reasoning   │ $15.00      │
+│ gpt-4-turbo         │ OpenAI      │ 128K        │ Code, Vision│ $10.00      │
+│ gpt-4               │ OpenAI      │ 8K          │ General     │ $30.00      │
+│ gemini-pro          │ Google      │ 32K         │ Multimodal  │ $0.50       │
+└─────────────────────┴─────────────┴─────────────┴─────────────┴─────────────┘
+```
+
+### `/set-key [provider]`
+
+Set API keys for AI providers interactively.
+
+**Syntax:**
+```bash
+/set-key [provider] [options]
+```
+
+**Parameters:**
+- `provider` - AI provider name
+
+**Supported Providers:**
+- `anthropic` - Anthropic Claude models
+- `openai` - OpenAI GPT models
+- `google` - Google Gemini models
+- `mistral` - Mistral AI models
+- `openrouter` - OpenRouter proxy
+- `ollama` - Local Ollama instance
+- `perplexity` - Perplexity AI
+- `coinbase` - Coinbase AgentKit
+- `browserbase` - Browser automation
+
+**Examples:**
+
+```bash
+# Set Anthropic API key
+/set-key anthropic
+
+# Set OpenAI API key
+/set-key openai
+
+# Set all keys interactively
+/set-key
+
+# Set key with validation
+/set-key anthropic --validate
+```
+
+**Interactive Key Setup:**
+```
+🔑 API Key Configuration
+
+Provider: Anthropic
+Current Status: ❌ Not configured
+
+Please enter your Anthropic API key:
+Key: sk-ant-api03-... (hidden)
+
+✅ API key validated successfully
+✅ Model access confirmed
+✅ Configuration saved
+
+Available models: claude-3-5-sonnet, claude-3-opus, claude-3-haiku
+```
+
+### `/router [action]`
+
+Configure model routing and load balancing.
+
+**Syntax:**
+```bash
+/router <action> [options]
+```
+
+**Available Actions:**
+- `status` - Show routing configuration
+- `set` - Set model for specific use case
+- `balance` - Configure load balancing
+- `fallback` - Set fallback models
+- `reset` - Reset routing configuration
+
+**Examples:**
+
+```bash
+# Show routing status
+/router status
+
+# Set model for code tasks
+/router set code claude-3-5-sonnet
+
+# Set model for reasoning tasks
+/router set reasoning claude-3-opus
+
+# Configure load balancing
+/router balance --models "gpt-4,claude-3-5-sonnet" --weights "50,50"
+
+# Set fallback model
+/router fallback gpt-3.5-turbo
+
+# Reset to defaults
+/router reset
+```
+
+**Routing Configuration:**
+```
+🔀 Model Routing Configuration:
+
+Use Case Routing:
+├── Code Generation: claude-3-5-sonnet
+├── Text Analysis: claude-3-opus
+├── Quick Tasks: gpt-3.5-turbo
+└── Reasoning: claude-3-opus
+
+Load Balancing:
+├── Primary: gpt-4 (60%)
+├── Secondary: claude-3-5-sonnet (40%)
+└── Fallback: gpt-3.5-turbo
+
+Health Status:
+✅ All models operational
+⚠️  Rate limits: OpenAI (80% used)
+```
+
+## Environment Management
+
+### `/env [var] [value]`
+
+Manage environment variables and configuration.
+
+**Syntax:**
+```bash
+/env [variable] [value] [options]
+```
+
+**Parameters:**
+- `variable` - Environment variable name
+- `value` - Variable value to set
+
+**Options:**
+- `--list` - List all environment variables
+- `--unset <var>` - Unset variable
+- `--export` - Export to .env file
+- `--load <file>` - Load from file
+
+**Examples:**
+
+```bash
+# List all environment variables
+/env --list
+
+# Show specific variable
+/env NODE_ENV
+
+# Set environment variable
+/env NODE_ENV production
+
+# Set multiple variables
+/env DATABASE_URL "postgresql://..." API_KEY "abc123"
+
+# Unset variable
+/env --unset TEMP_VAR
+
+# Export to .env file
+/env --export .env.backup
+
+# Load from file
+/env --load .env.production
+```
+
+**Environment Variable Categories:**
+
+**System Variables:**
+- `NODE_ENV` - Node.js environment
+- `PATH` - System path
+- `HOME` - Home directory
+- `USER` - Current user
+
+**AI Provider Keys:**
+- `ANTHROPIC_API_KEY` - Anthropic Claude
+- `OPENAI_API_KEY` - OpenAI GPT
+- `GOOGLE_API_KEY` - Google Gemini
+- `MISTRAL_API_KEY` - Mistral AI
+
+**Application Settings:**
+- `NIKCLI_LOG_LEVEL` - Logging level
+- `NIKCLI_CACHE_DIR` - Cache directory
+- `NIKCLI_CONFIG_DIR` - Configuration directory
+
+### `/temp [value]`
+
+Set AI model temperature for response creativity.
+
+**Syntax:**
+```bash
+/temp [temperature] [options]
+```
+
+**Parameters:**
+- `temperature` - Temperature value (0.0-2.0)
+
+**Options:**
+- `--model <model>` - Set for specific model
+- `--reset` - Reset to default
+- `--show` - Show current temperature
+
+**Temperature Guidelines:**
+- `0.0-0.3` - Deterministic, factual responses
+- `0.4-0.7` - Balanced creativity and accuracy
+- `0.8-1.2` - Creative, varied responses
+- `1.3-2.0` - Highly creative, experimental
+
+**Examples:**
+
+```bash
+# Show current temperature
+/temp
+
+# Set conservative temperature
+/temp 0.2
+
+# Set balanced temperature
+/temp 0.7
+
+# Set creative temperature
+/temp 1.0
+
+# Set for specific model
+/temp 0.5 --model claude-3-5-sonnet
+
+# Reset to default
+/temp --reset
+```
+
+## System Configuration
+
+### `/system [action]`
+
+Manage system-level configuration and settings.
+
+**Syntax:**
+```bash
+/system <action> [options]
+```
+
+**Available Actions:**
+- `info` - Show system information
+- `limits` - Configure resource limits
+- `cache` - Cache management
+- `logs` - Logging configuration
+- `performance` - Performance settings
+
+**Examples:**
+
+```bash
+# Show system information
+/system info
+
+# Configure memory limits
+/system limits --memory 4GB --tokens 100000
+
+# Clear system cache
+/system cache clear
+
+# Set logging level
+/system logs --level debug
+
+# Performance optimization
+/system performance --mode balanced
+```
+
+**System Information Display:**
+```
+💻 System Information:
+
+Environment:
+├── OS: macOS 14.2.1 (arm64)
+├── Node.js: v18.19.0
+├── Memory: 16GB (4.2GB used)
+└── Disk: 512GB SSD (234GB free)
+
+NikCLI:
+├── Version: 0.5.0
+├── Config: ~/.nikcli/config.json
+├── Cache: ~/.nikcli/cache (1.2GB)
+└── Logs: ~/.nikcli/logs
+
+Performance:
+├── CPU Usage: 12%
+├── Memory Usage: 26%
+├── Cache Hit Rate: 89%
+└── Response Time: 1.2s avg
+```
+
+### `/stats`
+
+Show detailed system and usage statistics.
+
+**Syntax:**
+```bash
+/stats [category] [options]
+```
+
+**Parameters:**
+- `category` - Statistics category
+
+**Categories:**
+- `usage` - Usage statistics
+- `performance` - Performance metrics
+- `models` - Model usage stats
+- `tokens` - Token consumption
+- `sessions` - Session statistics
+
+**Examples:**
+
+```bash
+# Show all statistics
+/stats
+
+# Show usage statistics
+/stats usage
+
+# Show performance metrics
+/stats performance
+
+# Show model usage
+/stats models
+
+# Export statistics
+/stats --export stats-report.json
+```
+
+### `/dashboard [action]`
+
+Control the system dashboard display.
+
+**Syntax:**
+```bash
+/dashboard [action] [options]
+```
+
+**Available Actions:**
+- `start` - Start dashboard
+- `stop` - Stop dashboard
+- `expand` - Expand dashboard view
+- `collapse` - Collapse dashboard view
+- `refresh` - Refresh dashboard data
+
+**Options:**
+- `--interval <seconds>` - Refresh interval
+- `--compact` - Compact view
+- `--metrics <list>` - Specific metrics to show
+
+**Examples:**
+
+```bash
+# Start dashboard
+/dashboard start
+
+# Start with auto-refresh
+/dashboard start --interval 5
+
+# Compact dashboard
+/dashboard start --compact
+
+# Show specific metrics
+/dashboard start --metrics "cpu,memory,tokens"
+
+# Stop dashboard
+/dashboard stop
+```
 
 ## Advanced Configuration
 
-### Environment-Specific Configuration
+### Configuration Profiles
 
+**Manage Configuration Profiles:**
 ```bash
-# Development environment
-/config env development
-/config set --env dev security.mode relaxed
-/config set --env dev agents.debug true
+# Create configuration profile
+/config profile create development
 
-# Production environment  
-/config env production
-/config set --env prod security.mode strict
-/config set --env prod audit.level comprehensive
+# Switch to profile
+/config profile switch production
+
+# List profiles
+/config profile list
+
+# Export profile
+/config profile export development dev-config.json
+
+# Import profile
+/config profile import production-config.json
 ```
 
-### Project Configuration
+**Predefined Profiles:**
 
+**Development Profile:**
+- Relaxed security settings
+- Debug logging enabled
+- Higher token limits
+- Development model preferences
+
+**Production Profile:**
+- Strict security settings
+- Error logging only
+- Conservative token limits
+- Stable model preferences
+
+**Testing Profile:**
+- Isolated environment
+- Verbose logging
+- Test-specific settings
+- Mock integrations
+
+### Model Configuration
+
+**Advanced Model Settings:**
 ```bash
-# Project-specific settings
-/config project-init
-/config set --project tools.preferred typescript,react
-/config set --project style.formatter prettier
+# Configure model parameters
+/model config claude-3-5-sonnet --temperature 0.7 --max-tokens 4000 --top-p 0.9
+
+# Set model aliases
+/model alias fast gpt-3.5-turbo
+/model alias smart claude-3-opus
+
+# Configure model routing rules
+/model route "code generation" claude-3-5-sonnet
+/model route "data analysis" claude-3-opus
+
+# Model performance tuning
+/model tune --optimize-for speed
+/model tune --optimize-for quality
 ```
 
-### Configuration Validation
+### Integration Configuration
 
+**Configure External Integrations:**
+```bash
+# GitHub integration
+/config github --token ghp_xxx --org myorg
+
+# Docker integration
+/config docker --host unix:///var/run/docker.sock
+
+# Database integration
+/config database --url postgresql://localhost/mydb
+
+# Cloud provider integration
+/config aws --profile default --region us-east-1
+```
+
+## Configuration Files
+
+### Configuration File Locations
+
+**System Configuration:**
+- `~/.nikcli/config.json` - Main configuration
+- `~/.nikcli/profiles/` - Configuration profiles
+- `~/.nikcli/cache/` - Cache directory
+- `~/.nikcli/logs/` - Log files
+
+**Project Configuration:**
+- `.nikcli/config.json` - Project-specific config
+- `.nikcli/profiles/` - Project profiles
+- `.env` - Environment variables
+- `.nikcli-ignore` - Ignore patterns
+
+### Configuration Schema
+
+**Main Configuration Structure:**
+```json
+{
+  "models": {
+    "default": "claude-3-5-sonnet",
+    "routing": {
+      "code": "claude-3-5-sonnet",
+      "reasoning": "claude-3-opus"
+    },
+    "parameters": {
+      "temperature": 0.7,
+      "max_tokens": 4000
+    }
+  },
+  "security": {
+    "approval_required": true,
+    "safe_mode": false,
+    "dev_mode": false
+  },
+  "performance": {
+    "cache_enabled": true,
+    "max_memory": "4GB",
+    "token_limit": 100000
+  },
+  "integrations": {
+    "github": {
+      "enabled": true,
+      "token": "ghp_xxx"
+    }
+  }
+}
+```
+
+## Troubleshooting Configuration
+
+### Common Configuration Issues
+
+**API Key Problems:**
+```bash
+# Validate API keys
+/set-key --validate-all
+
+# Test model access
+/model test claude-3-5-sonnet
+
+# Check key permissions
+/config check-permissions
+```
+
+**Model Access Issues:**
+```bash
+# Check model availability
+/models --check-access
+
+# Test model connection
+/model test --all
+
+# Reset model configuration
+/model reset
+```
+
+**Configuration Corruption:**
 ```bash
 # Validate configuration
 /config validate
-/config validate --strict --report-issues
 
-# Check configuration compatibility
-/config compatibility-check
-/config --migration-required --suggestions
+# Repair configuration
+/config repair
+
+# Reset to defaults
+/config reset --confirm
+
+# Restore from backup
+/config restore config-backup.json
 ```
 
-## Next Steps
+### Debug Commands
 
-<CardGroup cols={2}>
-  <Card
-    title="MCP Protocol"
-    icon="plug"
-    href="/cli-reference/mcp-protocol"
-  >
-    Learn about Model Context Protocol integration
-  </Card>
-  <Card
-    title="Advanced Features"
-    icon="rocket"
-    href="/cli-reference/advanced-features"
-  >
-    Explore advanced CLI capabilities
-  </Card>
-  <Card
-    title="Token Management"
-    icon="coins"
-    href="/advanced/token-management"
-  >
-    Understand token optimization strategies
-  </Card>
-  <Card
-    title="Caching"
-    icon="database"
-    href="/advanced/caching"
-  >
-    Learn about caching systems and optimization
-  </Card>
-</CardGroup>
+```bash
+# Configuration diagnostics
+/diagnostic config
 
-<Tip>
-  Use `/config wizard` for first-time setup or when migrating between environments. The interactive wizard ensures all required settings are properly configured.
-</Tip>
+# Debug model issues
+/debug models
+
+# Check system health
+/system health
+
+# Validate environment
+/env validate
+```
+
+## Best Practices
+
+### Configuration Management
+
+- Regular configuration backups
+- Use profiles for different environments
+- Document configuration changes
+- Validate configuration regularly
+- Keep sensitive data secure
+
+### Model Selection
+
+- Choose appropriate models for tasks
+- Monitor token usage and costs
+- Use routing for optimization
+- Set appropriate temperature values
+- Configure fallback models
+
+### Environment Variables
+
+- Use .env files for projects
+- Keep secrets secure
+- Document required variables
+- Use consistent naming conventions
+- Regular cleanup of unused variables
+
+### Performance Optimization
+
+- Monitor resource usage
+- Configure appropriate limits
+- Use caching effectively
+- Optimize model routing
+- Regular performance reviews
+
+### Security
+
+- Protect API keys
+- Use secure configuration storage
+- Regular security audits
+- Appropriate access controls
+- Monitor configuration changes

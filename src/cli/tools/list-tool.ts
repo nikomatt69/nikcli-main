@@ -4,6 +4,7 @@ import { basename, join, relative } from 'node:path'
 import { PromptManager } from '../prompts/prompt-manager'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Enhanced ListTool - Lista file e directory con ignore patterns intelligenti
@@ -90,7 +91,7 @@ export class ListTool extends BaseTool {
         throw new Error(`Path is not a directory (is a file): ${searchPath}`)
       }
 
-      CliUI.logInfo(`📁 Listing directory: ${relative(this.workingDirectory, searchPath)}`)
+      advancedUI.logInfo(`📁 Listing directory: ${relative(this.workingDirectory, searchPath)}`)
 
       // Scansione intelligente con limiti
       const results = await this.scanDirectory(searchPath, {

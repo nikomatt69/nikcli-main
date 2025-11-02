@@ -6,6 +6,7 @@ import { diffManager } from '../ui/diff-manager'
 import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Enhanced EditTool - Editor avanzato con diff, patch e validation
@@ -77,7 +78,7 @@ export class EditTool extends BaseTool {
         throw new Error(`File path not safe or outside working directory: ${filePath}`)
       }
 
-      CliUI.logInfo(`✏️ Editing file: ${relative(this.workingDirectory, filePath)}`)
+      advancedUI.logInfo(`✏️ Editing file: ${relative(this.workingDirectory, filePath)}`)
 
       // Leggi contenuto file esistente
       let originalContent = ''
@@ -100,7 +101,7 @@ export class EditTool extends BaseTool {
 
       // Preview mode - non scrivere file
       if (params.previewOnly) {
-        CliUI.logInfo('📋 Preview mode - no changes written to file')
+        advancedUI.logInfo('📋 Preview mode - no changes written to file')
         return {
           success: true,
           data: editResult,
@@ -117,15 +118,15 @@ export class EditTool extends BaseTool {
         const backupPath = await this.createBackup(filePath, originalContent)
         editResult.backupCreated = true
         editResult.backupPath = backupPath
-        CliUI.logInfo(`💾 Backup created: ${relative(this.workingDirectory, backupPath)}`)
+        advancedUI.logInfo(`💾 Backup created: ${relative(this.workingDirectory, backupPath)}`)
       }
 
       // Scrivi nuovo contenuto
       if (editResult.replacementsMade > 0) {
         await this.writeFileWithValidation(filePath, editResult.changes, params)
-        CliUI.logSuccess(`✓ File edited successfully: ${editResult.replacementsMade} replacements made`)
+        advancedUI.logSuccess(`✓ File edited successfully: ${editResult.replacementsMade} replacements made`)
       } else {
-        CliUI.logWarning('⚠️ No replacements made - pattern not found')
+        advancedUI.logWarning('⚠️ No replacements made - pattern not found')
       }
 
       return {
@@ -408,7 +409,7 @@ export class EditTool extends BaseTool {
           return true
       }
     } catch (error) {
-      CliUI.logWarning(`Syntax validation failed: ${error}`)
+      advancedUI.logWarning(`Syntax validation failed: ${error}`)
       return false
     }
   }

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { type TokenOptimizationConfig, TokenOptimizer } from '../core/performance-optimizer'
 import type { OutputStyle } from '../types/output-styles'
 import { CliUI } from '../utils/cli-ui'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * PromptManager - Sistema per gestire e caricare system prompts specifici
@@ -282,7 +283,7 @@ export class PromptManager {
    */
   clearCache(): void {
     this.promptCache.clear()
-    CliUI.logInfo('🗑️ Prompt cache cleared')
+    advancedUI.logInfo('🗑️ Prompt cache cleared')
   }
 
   /**
@@ -305,14 +306,14 @@ export class PromptManager {
   /**
    * Load output style prompt for enhanced AI responses (supports custom styles)
    */
-  async loadOutputStylePrompt(outputStyle: string): Promise<string> {
+  async loadOutputStylePrompt(outputStyle: OutputStyle): Promise<string> {
     try {
       // Check custom styles first
       const { blueprintStorage } = await import('../core/blueprint-storage')
-      const customStyle = await blueprintStorage.loadStyle(outputStyle)
+      const customStyle = await blueprintStorage.loadBlueprint(outputStyle)
 
       if (customStyle) {
-        return customStyle.promptTemplate
+        return customStyle.systemPrompt
       }
 
       // Fallback to built-in styles
@@ -320,7 +321,7 @@ export class PromptManager {
       const prompt = await this.loadPrompt(stylePath)
       return prompt.content
     } catch (error: any) {
-      CliUI.logWarning(`Failed to load output style '${outputStyle}': ${error.message}`)
+      advancedUI.logWarning(`Failed to load output style '${outputStyle}': ${error.message}`)
       return this.getDefaultOutputStylePrompt()
     }
   }
@@ -339,7 +340,7 @@ export class PromptManager {
         outputStylePrompt = await this.loadOutputStylePrompt(context.outputStyle)
         combinedPrompt = this.combinePrompts(basePrompt, outputStylePrompt, context)
       } catch (error: any) {
-        CliUI.logWarning(`Failed to apply output style '${context.outputStyle}': ${error.message}`)
+        advancedUI.logWarning(`Failed to apply output style '${context.outputStyle}': ${error.message}`)
       }
     }
 
@@ -442,7 +443,7 @@ RESPONSE GUIDELINES:
         .map((file: string) => file.replace('.txt', '') as OutputStyle)
         .filter((style: string) => this.isValidOutputStyle(style))
     } catch (error) {
-      CliUI.logWarning(`Failed to list output styles: ${error}`)
+      advancedUI.logWarning(`Failed to list output styles: ${error}`)
       return []
     }
   }

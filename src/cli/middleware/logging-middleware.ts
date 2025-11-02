@@ -216,7 +216,7 @@ export class LoggingMiddleware extends BaseMiddleware {
     return {
       ...request,
       context: ContextSanitizer.sanitizeForLogging(request.context),
-      args: this.sanitizeArgs(request.args),
+      args: this.sanitizeArgs(request.args as any[]),
       metadata: this.sanitizeMetadata(request.metadata),
     }
   }

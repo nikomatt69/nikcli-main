@@ -2,6 +2,7 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGateway } from '@ai-sdk/gateway'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
 import { generateObject, generateText, streamText } from 'ai'
 import { createOllama } from 'ollama-ai-provider'
@@ -158,7 +159,11 @@ export class ModelProvider {
         if (!apiKey) {
           throw new Error(`API key not found for model: ${currentModelName} (Gateway). Use /set-key to configure.`)
         }
-        const gatewayProvider = createGateway({ apiKey })
+        const gatewayProvider = createOpenAICompatible({
+          name: 'ai-gateway',
+          apiKey,
+          baseURL: 'https://ai-gateway.vercel.sh/v1',
+        })
         return gatewayProvider(config.model)
       }
       case 'openrouter': {
@@ -318,7 +323,26 @@ export class ModelProvider {
     const reasoningEnabled = this.shouldEnableReasoning(validatedOptions, currentModelConfig)
     this.logReasoning(currentModelConfig.provider, currentModelConfig.model, reasoningEnabled)
 
+    // 🚀 OPTIMIZATION: Start model routing decision in parallel while outputting reasoning
+    // This eliminates blocking: routing happens during reasoning output instead of after
+    const routingCfg2 = configManager.get('modelRouting')
+    let routingPromise: Promise<any> | null = null
+    let effectiveModelId2 = currentModelConfig.model
+
+    if (routingCfg2?.enabled) {
+      // Start routing decision asynchronously
+      routingPromise = adaptiveModelRouter.choose({
+        provider: currentModelConfig.provider as any,
+        baseModel: currentModelConfig.model,
+        messages: validatedOptions.messages,
+        scope: (validatedOptions as any).scope as ModelScope | undefined,
+        needsVision: (validatedOptions as any).needsVision,
+        sizeHints: (validatedOptions as any).sizeHints,
+      })
+    }
+
     // Show reasoning summary before streaming if enabled - format as markdown blockquote
+    // This happens in parallel with routing decision
     if (reasoningEnabled) {
       const summary = ReasoningDetector.getModelReasoningSummary(currentModelConfig.provider, currentModelConfig.model)
 
@@ -333,19 +357,11 @@ export class ModelProvider {
       }
     }
 
-    const routingCfg2 = configManager.get('modelRouting')
-    let effectiveModelId2 = currentModelConfig.model
-    if (routingCfg2?.enabled) {
-      const decision = await adaptiveModelRouter.choose({
-        provider: currentModelConfig.provider as any,
-        baseModel: currentModelConfig.model,
-        messages: validatedOptions.messages,
-        scope: (validatedOptions as any).scope as ModelScope | undefined,
-        needsVision: (validatedOptions as any).needsVision,
-        sizeHints: (validatedOptions as any).sizeHints,
-      })
+    // Wait for routing decision to complete (may already be done)
+    if (routingPromise) {
+      const decision = await routingPromise
       effectiveModelId2 = decision.selectedModel
-      if (routingCfg2.verbose) {
+      if (routingCfg2?.verbose) {
         try {
           const nik = (global as any).__nikCLI
           const msg = `[Router] ${currentModelName} → ${decision.selectedModel} (${decision.tier}, ~${decision.estimatedTokens} tok)`
@@ -354,6 +370,7 @@ export class ModelProvider {
         } catch { }
       }
     }
+
     const effectiveConfig2: ModelConfig = { ...currentModelConfig, model: effectiveModelId2 } as ModelConfig
     const model = this.getModel(effectiveConfig2)
 

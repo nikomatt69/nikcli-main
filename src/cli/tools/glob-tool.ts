@@ -93,7 +93,7 @@ export class GlobTool extends BaseTool {
       // Normalize pattern to array
       const patterns = Array.isArray(params.pattern) ? params.pattern : [params.pattern]
 
-      CliUI.logInfo(`🔍 Globbing pattern(s): ${CliUI.highlight(patterns.join(', '))}`)
+      advancedUI.logInfo(`🔍 Globbing pattern(s): ${CliUI.highlight(patterns.join(', '))}`)
 
       const startTime = Date.now()
 
@@ -173,7 +173,7 @@ export class GlobTool extends BaseTool {
         },
       }
 
-      CliUI.logSuccess(`✓ Found ${result.totalMatches} matches (${filesCount} files, ${directoriesCount} dirs)`)
+      advancedUI.logSuccess(`✓ Found ${result.totalMatches} matches (${filesCount} files, ${directoriesCount} dirs)`)
 
       // Show glob results in structured UI
       if (result.matches.length > 0) {

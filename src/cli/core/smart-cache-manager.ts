@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import chalk from 'chalk'
 import { QuietCacheLogger } from './performance-optimizer'
+import { LRUCache } from 'lru-cache'
+import { getLightweightInference } from '../ai/lightweight-inference-layer'
 
 export interface CacheStrategy {
   name: string
@@ -37,11 +39,16 @@ export interface SmartCacheEntry {
 }
 
 export class SmartCacheManager {
-  private cache: Map<string, SmartCacheEntry> = new Map()
+  private cache: LRUCache<string, SmartCacheEntry>
   private strategies: Map<string, CacheStrategy> = new Map()
   private accessPatterns: Map<string, number> = new Map() // Track access frequency
 
   constructor() {
+    // Initialize with conservative defaults; max entries bounded
+    this.cache = new LRUCache<string, SmartCacheEntry>({
+      max: 300,
+      // We'll set per-entry TTL according to strategy at insertion
+    })
     this.initializeDefaultStrategies()
   }
 
@@ -253,7 +260,7 @@ export class SmartCacheManager {
     const normalizedContent = this.normalizeContent(content)
     const normalizedContext = this.normalizeContent(context)
 
-    for (const [_id, entry] of this.cache) {
+    for (const [_id, entry] of this.cache.entries()) {
       // Verifica età
       const age = Date.now() - entry.timestamp.getTime()
       if (age > strategy.maxAge) continue
@@ -303,9 +310,7 @@ export class SmartCacheManager {
     if (!strategy) return
 
     // Verifica dimensione cache
-    if (this.cache.size >= strategy.maxSize) {
-      this.evictOldEntries(strategy)
-    }
+    // LRU will enforce global max; we still bound per strategy via TTL below
 
     const entry: SmartCacheEntry = {
       id: this.generateId(),
@@ -324,7 +329,8 @@ export class SmartCacheManager {
       },
     }
 
-    this.cache.set(entry.id, entry)
+    // Per-entry TTL equals strategy maxAge so stale entries auto-expire
+    this.cache.set(entry.id, entry, { ttl: strategy.maxAge })
     this.accessPatterns.set(content, (this.accessPatterns.get(content) || 0) + 1)
 
     QuietCacheLogger.logCacheSave(entry.metadata.tokensSaved)
@@ -334,28 +340,16 @@ export class SmartCacheManager {
    * Rimuove entry vecchie dalla cache
    */
   private evictOldEntries(strategy: CacheStrategy): void {
-    const entries = Array.from(this.cache.entries())
-      .filter(([_, entry]) => entry.strategy === strategy.name)
-      .sort((a, b) => a[1].lastAccessed.getTime() - b[1].lastAccessed.getTime())
-
-    // Rimuovi il 20% più vecchio
-    const toRemove = Math.ceil(entries.length * 0.2)
-    for (let i = 0; i < toRemove; i++) {
-      this.cache.delete(entries[i][0])
-    }
+    // No-op: LRU + TTL handle eviction; keep method for API compatibility
   }
 
   /**
-   * Calcola similarità tra due testi
+   * Calcola similarità tra due testi usando semantic similarity
    */
   private calculateSimilarity(text1: string, text2: string): number {
-    const words1 = new Set(text1.split(/\s+/))
-    const words2 = new Set(text2.split(/\s+/))
-
-    const intersection = new Set([...words1].filter((w) => words2.has(w)))
-    const union = new Set([...words1, ...words2])
-
-    return intersection.size / union.size
+    // Use synchronous semantic similarity from lightweight inference layer
+    const lightweightEngine = getLightweightInference()
+    return lightweightEngine.semanticSimilaritySync(text1, text2)
   }
 
   /**
@@ -372,7 +366,7 @@ export class SmartCacheManager {
     const stats: any = {}
 
     for (const [strategyId, strategy] of this.strategies) {
-      const entries = Array.from(this.cache.values()).filter((e) => e.strategy === strategyId)
+    const entries = Array.from(this.cache.values()).filter((e) => e.strategy === strategyId)
 
       stats[strategyId] = {
         name: strategy.name,
@@ -393,7 +387,7 @@ export class SmartCacheManager {
     const now = Date.now()
     let _removed = 0
 
-    for (const [id, entry] of this.cache) {
+    for (const [id, entry] of this.cache.entries()) {
       const strategy = this.strategies.get(entry.strategy)
       if (!strategy) continue
 

@@ -1,0 +1,720 @@
+---
+title: "Security Commands"
+description: "Complete reference for security settings and approval management"
+---
+
+# Security Commands
+
+NikCLI provides comprehensive security features to protect your development environment and control AI agent permissions. These commands help you manage security policies, approval workflows, and development modes.
+
+## Core Security Commands
+
+### `/security [action]`
+
+Main security management command with multiple configuration options.
+
+**Syntax:**
+```bash
+/security <action> [options]
+```
+
+**Available Actions:**
+- `status` - Show current security configuration
+- `enable` - Enable security features
+- `disable` - Disable security features
+- `policy` - Manage security policies
+- `audit` - Security audit and scan
+- `permissions` - Manage permissions
+
+**Examples:**
+
+```bash
+# Show security status
+/security status
+
+# Enable all security features
+/security enable
+
+# Configure security policy
+/security policy strict
+
+# Run security audit
+/security audit
+
+# Manage agent permissions
+/security permissions
+```
+
+**Security Status Output:**
+```
+🔒 Security Configuration:
+
+┌─────────────────┬─────────────┬─────────────────┐
+│ Feature         │ Status      │ Level           │
+├─────────────────┼─────────────┼─────────────────┤
+│ Approval System │ ✅ Enabled  │ Strict          │
+│ Dev Mode        │ ❌ Disabled │ -               │
+│ Safe Mode       │ ❌ Disabled │ -               │
+│ Agent Limits    │ ✅ Enabled  │ Conservative    │
+│ File Protection │ ✅ Enabled  │ Important Files │
+│ Network Access  │ ⚠️  Limited │ Whitelist Only  │
+└─────────────────┴─────────────┴─────────────────┘
+
+Security Level: HIGH
+Last Audit: 2 hours ago
+Pending Approvals: 3
+```
+
+### `/dev-mode [on|off]`
+
+Toggle development mode for enhanced AI agent capabilities.
+
+**Syntax:**
+```bash
+/dev-mode [on|off] [options]
+```
+
+**Options:**
+- `on` - Enable development mode
+- `off` - Disable development mode
+- `--temporary` - Enable for current session only
+- `--timeout <minutes>` - Auto-disable after timeout
+
+**Features in Dev Mode:**
+- Broader file system access
+- Network operations allowed
+- Reduced approval requirements
+- Enhanced debugging capabilities
+- Extended tool access
+
+**Examples:**
+
+```bash
+# Enable development mode
+/dev-mode on
+
+# Disable development mode
+/dev-mode off
+
+# Temporary dev mode for 30 minutes
+/dev-mode on --temporary --timeout 30
+
+# Check current dev mode status
+/dev-mode
+```
+
+**Security Implications:**
+- ⚠️ Reduced security restrictions
+- ⚠️ AI agents can modify more files
+- ⚠️ Network access enabled
+- ⚠️ Fewer approval prompts
+- ✅ Enhanced development capabilities
+
+### `/safe-mode`
+
+Enable safe mode with maximum security restrictions.
+
+**Syntax:**
+```bash
+/safe-mode [options]
+```
+
+**Options:**
+- `--level <level>` - Safe mode level (basic, strict, paranoid)
+- `--whitelist <files>` - Allowed files/directories
+- `--readonly` - Read-only mode
+
+**Safe Mode Restrictions:**
+- No file modifications without approval
+- No network access
+- Limited tool access
+- All operations require approval
+- Restricted system access
+
+**Examples:**
+
+```bash
+# Enable basic safe mode
+/safe-mode
+
+# Enable strict safe mode
+/safe-mode --level strict
+
+# Enable with file whitelist
+/safe-mode --whitelist "src/,docs/,package.json"
+
+# Read-only safe mode
+/safe-mode --readonly
+```
+
+**Safe Mode Levels:**
+
+**Basic:**
+- File modifications require approval
+- Network access blocked
+- System commands restricted
+
+**Strict:**
+- All operations require approval
+- No file system modifications
+- No external tool access
+
+**Paranoid:**
+- Read-only access only
+- No AI agent operations
+- Manual approval for everything
+
+### `/clear-approvals`
+
+Clear pending approvals and reset approval state.
+
+**Syntax:**
+```bash
+/clear-approvals [options]
+```
+
+**Options:**
+- `--all` - Clear all pending approvals
+- `--type <type>` - Clear specific approval types
+- `--older-than <time>` - Clear approvals older than specified time
+
+**Examples:**
+
+```bash
+# Clear all pending approvals
+/clear-approvals
+
+# Clear file operation approvals
+/clear-approvals --type file
+
+# Clear approvals older than 1 hour
+/clear-approvals --older-than 1h
+
+# Clear specific approval types
+/clear-approvals --type "file,network,system"
+```
+
+**Approval Types:**
+- `file` - File system operations
+- `network` - Network requests
+- `system` - System commands
+- `agent` - Agent operations
+- `tool` - Tool executions
+
+## Approval System
+
+### Approval Workflow
+
+The approval system provides fine-grained control over AI agent operations:
+
+**Automatic Approvals:**
+- Safe read operations
+- Whitelisted files
+- Approved tools
+- Low-risk operations
+
+**Manual Approvals Required:**
+- File modifications
+- Network requests
+- System commands
+- Sensitive operations
+- High-risk tools
+
+### Approval Configuration
+
+**Configure Approval Policies:**
+```bash
+# Set approval policy
+/security policy --approval strict
+
+# Configure auto-approval rules
+/security auto-approve --files "*.md,*.txt" --tools "read,list"
+
+# Set approval timeout
+/security approval-timeout 300  # 5 minutes
+
+# Configure approval notifications
+/security notifications --email --slack
+```
+
+**Approval Levels:**
+
+**Permissive:**
+- Most operations auto-approved
+- Manual approval for destructive operations
+- Network access allowed
+
+**Balanced:**
+- File modifications require approval
+- Network requests require approval
+- System commands restricted
+
+**Strict:**
+- All operations require approval
+- Detailed operation descriptions
+- Risk assessment provided
+
+**Paranoid:**
+- Everything requires approval
+- Multiple confirmation steps
+- Detailed audit logging
+
+### Interactive Approval
+
+When an operation requires approval, you'll see:
+
+```
+🔒 Approval Required
+
+Operation: Write file 'src/components/Button.tsx'
+Agent: frontend-expert
+Risk Level: LOW
+Details: Creating new React component with TypeScript
+
+Changes:
++ Create new file: src/components/Button.tsx (2.1KB)
++ Import statements for React and styled-components
++ Component interface and implementation
+
+Security Check: ✅ Safe operation
+File Protection: ✅ Not a protected file
+Network Access: ❌ No network required
+
+[A]pprove  [D]eny  [V]iew Details  [M]odify  [S]ave Policy
+```
+
+## Security Policies
+
+### Policy Management
+
+**Predefined Policies:**
+
+**Development Policy:**
+```bash
+/security policy development
+```
+- Balanced security and productivity
+- File modifications allowed with approval
+- Network access for package management
+- Standard tool access
+
+**Production Policy:**
+```bash
+/security policy production
+```
+- High security restrictions
+- All modifications require approval
+- Limited network access
+- Restricted tool access
+
+**Audit Policy:**
+```bash
+/security policy audit
+```
+- Maximum security
+- All operations logged
+- Multiple approvals required
+- Read-only by default
+
+### Custom Policies
+
+**Create Custom Policy:**
+```bash
+# Create custom security policy
+/security policy create my-policy
+
+# Configure policy rules
+/security policy my-policy --files "src/**:approve,docs/**:allow" --network deny --tools "read,write:approve,system:deny"
+
+# Apply custom policy
+/security policy my-policy
+```
+
+**Policy Configuration Options:**
+- `files` - File access rules
+- `network` - Network access rules
+- `tools` - Tool access rules
+- `agents` - Agent permission rules
+- `system` - System command rules
+
+## File Protection
+
+### Protected Files
+
+Certain files are automatically protected and require approval:
+
+**System Files:**
+- `package.json`
+- `package-lock.json`
+- `.env` files
+- Configuration files
+- Build scripts
+
+**Security Files:**
+- SSH keys
+- Certificates
+- API keys
+- Secrets
+
+**Critical Project Files:**
+- Main entry points
+- Database schemas
+- Deployment configs
+
+### File Protection Configuration
+
+**Configure Protected Files:**
+```bash
+# Add files to protection list
+/security protect-files "*.env,*.key,database.sql"
+
+# Remove files from protection
+/security unprotect-files "temp.txt"
+
+# List protected files
+/security protected-files
+
+# Set protection level
+/security file-protection --level strict
+```
+
+**Protection Levels:**
+
+**Basic:**
+- System files protected
+- Approval required for modifications
+
+**Standard:**
+- System and configuration files protected
+- Backup created before modifications
+
+**Strict:**
+- All important files protected
+- Multiple approvals required
+- Automatic versioning
+
+## Network Security
+
+### Network Access Control
+
+**Configure Network Policies:**
+```bash
+# Block all network access
+/security network deny
+
+# Allow specific domains
+/security network allow --domains "github.com,npmjs.org"
+
+# Block specific domains
+/security network block --domains "malicious-site.com"
+
+# Show network policy
+/security network status
+```
+
+**Network Request Approval:**
+When network access is restricted, requests require approval:
+
+```
+🌐 Network Request Approval
+
+URL: https://api.github.com/user/repos
+Method: GET
+Agent: backend-expert
+Purpose: Fetch repository information
+
+Security Analysis:
+✅ HTTPS connection
+✅ Known safe domain (github.com)
+✅ Read-only operation
+⚠️  API key will be sent
+
+[A]pprove  [D]eny  [V]iew Headers  [T]emporary Allow
+```
+
+### API Key Management
+
+**Secure API Key Handling:**
+```bash
+# List configured API keys
+/security api-keys list
+
+# Add API key securely
+/security api-keys add --service github --key ghp_xxxx
+
+# Rotate API keys
+/security api-keys rotate --service openai
+
+# Audit API key usage
+/security api-keys audit
+```
+
+## Tool Security
+
+### Tool Access Control
+
+**Configure Tool Permissions:**
+```bash
+# List available tools
+/security tools list
+
+# Allow specific tools
+/security tools allow read,write,search
+
+# Block dangerous tools
+/security tools block system,network
+
+# Set tool approval requirements
+/security tools require-approval system,file-write
+```
+
+**Tool Risk Levels:**
+
+**Safe Tools:**
+- File reading
+- Directory listing
+- Search operations
+- Information display
+
+**Medium Risk Tools:**
+- File writing
+- File editing
+- Package installation
+- Git operations
+
+**High Risk Tools:**
+- System commands
+- Network requests
+- File deletion
+- Process management
+
+### Tool Execution Monitoring
+
+**Monitor Tool Usage:**
+```bash
+# Show tool usage statistics
+/security tools stats
+
+# Monitor tool execution
+/security tools monitor --real-time
+
+# Audit tool usage
+/security tools audit --period 7d
+```
+
+## Security Auditing
+
+### Security Scans
+
+**Run Security Audits:**
+```bash
+# Full security audit
+/security audit
+
+# Audit specific areas
+/security audit --files --network --tools
+
+# Audit with detailed report
+/security audit --detailed --export audit-report.json
+
+# Quick security check
+/security check
+```
+
+**Audit Report Sections:**
+- File system permissions
+- Network configuration
+- Tool access controls
+- API key security
+- Agent permissions
+- Policy compliance
+
+### Vulnerability Assessment
+
+**Assess Security Vulnerabilities:**
+```bash
+# Scan for vulnerabilities
+/security scan --vulnerabilities
+
+# Check for exposed secrets
+/security scan --secrets
+
+# Analyze file permissions
+/security scan --permissions
+
+# Network security assessment
+/security scan --network
+```
+
+### Security Monitoring
+
+**Real-time Security Monitoring:**
+```bash
+# Enable security monitoring
+/security monitor enable
+
+# Monitor specific events
+/security monitor --events "file-write,network-request,tool-execution"
+
+# Set up alerts
+/security alerts --email --threshold high
+
+# View security events
+/security events --live
+```
+
+## Integration Examples
+
+### Development Workflow Security
+
+```bash
+# 1. Start with secure development setup
+/security policy development
+
+# 2. Enable temporary dev mode for setup
+/dev-mode on --temporary --timeout 60
+
+# 3. Perform development tasks with approvals
+/agent frontend-expert "create new component"
+# Approval required for file creation
+
+# 4. Return to secure mode
+/dev-mode off
+
+# 5. Audit development session
+/security audit --session
+```
+
+### Production Deployment Security
+
+```bash
+# 1. Enable strict security for production
+/security policy production
+
+# 2. Enable safe mode
+/safe-mode --level strict
+
+# 3. All operations require approval
+/agent devops-expert "deploy to production"
+# Multiple approvals required
+
+# 4. Audit deployment
+/security audit --deployment
+```
+
+### Security Review Workflow
+
+```bash
+# 1. Run comprehensive security audit
+/security audit --detailed
+
+# 2. Review security events
+/security events --period 24h
+
+# 3. Check for policy violations
+/security violations
+
+# 4. Update security policies
+/security policy update --based-on-audit
+
+# 5. Generate security report
+/security report --export security-review.pdf
+```
+
+## Troubleshooting
+
+### Common Security Issues
+
+**Approval System Not Working:**
+```bash
+# Check approval system status
+/security status
+
+# Reset approval system
+/security reset-approvals
+
+# Check approval queue
+/security approvals pending
+```
+
+**Dev Mode Issues:**
+```bash
+# Check dev mode status
+/dev-mode
+
+# Force disable dev mode
+/dev-mode off --force
+
+# Check dev mode permissions
+/security permissions dev-mode
+```
+
+**File Protection Issues:**
+```bash
+# Check file protection status
+/security protected-files
+
+# Temporarily unprotect file
+/security unprotect-files temp.txt --temporary
+
+# Check file permissions
+/security file-permissions src/app.js
+```
+
+### Debug Commands
+
+```bash
+# Security system diagnostics
+/diagnostic security
+
+# Debug approval system
+/debug approvals
+
+# Debug security policies
+/debug security-policies
+
+# Test security configuration
+/security test-config
+```
+
+## Best Practices
+
+### Security Configuration
+
+- Start with strict policies and relax as needed
+- Regularly audit security settings
+- Use dev mode sparingly and temporarily
+- Monitor security events continuously
+- Keep security policies updated
+
+### Approval Management
+
+- Review approval requests carefully
+- Don't auto-approve without understanding
+- Use approval policies to reduce manual work
+- Set appropriate approval timeouts
+- Document approval decisions
+
+### File Protection
+
+- Protect all sensitive files
+- Use version control for important changes
+- Regular backup of critical files
+- Monitor file access patterns
+- Implement proper access controls
+
+### Network Security
+
+- Whitelist only necessary domains
+- Monitor network requests
+- Use HTTPS whenever possible
+- Rotate API keys regularly
+- Audit network access logs
+
+### Development Security
+
+- Use secure development practices
+- Regular security training
+- Implement security reviews
+- Use automated security tools
+- Follow security guidelines

@@ -109,7 +109,7 @@ export class ValidationMiddleware extends BaseMiddleware {
           requestValid: true,
           responseValid: this.validationConfig.validateResponse,
           validationTime: Date.now() - startTime,
-        },
+        } as any,
       },
     }
   }
@@ -216,7 +216,7 @@ export class ValidationMiddleware extends BaseMiddleware {
     })
 
     if (request.context.workingDirectory && typeof request.context.workingDirectory === 'string') {
-      if (!require('node:path').isAbsolute(request.context.workingDirectory)) {
+      if (!require('path').isAbsolute(request.context.workingDirectory)) {
         warnings.push({
           field: 'context.workingDirectory',
           value: request.context.workingDirectory,
@@ -514,8 +514,8 @@ export class ValidationMiddleware extends BaseMiddleware {
         error: `${message}: ${validation.errors.map((e) => e.message).join(', ')}`,
         metadata: {
           validationFailed: true,
-          validationErrors: validation.errors,
-          validationWarnings: validation.warnings,
+          validationErrors: validation.errors as any,
+          validationWarnings: validation.warnings as any,
         },
       }
     }
@@ -524,8 +524,8 @@ export class ValidationMiddleware extends BaseMiddleware {
       success: true,
       metadata: {
         validationFailed: true,
-        validationErrors: validation.errors,
-        validationWarnings: validation.warnings,
+        validationErrors: validation.errors as any,
+        validationWarnings: validation.warnings as any,
       },
     }
   }

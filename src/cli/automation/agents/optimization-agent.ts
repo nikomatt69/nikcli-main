@@ -5,6 +5,7 @@ import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
 import { CognitiveAgentBase } from './cognitive-agent-base'
 import type { OptimizationCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
+import { advancedUI } from '@/cli/ui/advanced-cli-ui'
 
 /**
  * ⚡ Enhanced Optimization Agent with Cognitive Intelligence
@@ -61,9 +62,9 @@ export class OptimizationAgent extends CognitiveAgentBase {
   }
 
   protected override async onInitialize(): Promise<void> {
-    CliUI.logInfo('⚡ Initializing Enhanced Optimization Agent with cognitive capabilities...')
+    advancedUI.logInfo('⚡ Initializing Enhanced Optimization Agent with cognitive capabilities...')
     await this.initializeOptimizationCognition()
-    CliUI.logSuccess(`✓ Optimization Agent initialized with ${this.capabilities.length} capabilities`)
+    advancedUI.logSuccess(`✓ Optimization Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
   protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
@@ -75,9 +76,9 @@ export class OptimizationAgent extends CognitiveAgentBase {
   }
 
   protected override async onStop(): Promise<void> {
-    CliUI.logInfo('🛑 Optimization Agent shutting down...')
+    advancedUI.logInfo('🛑 Optimization Agent shutting down...')
     await this.saveCognitiveState()
-    CliUI.logSuccess('✓ Optimization Agent stopped - cognitive state saved')
+    advancedUI.logSuccess('✓ Optimization Agent stopped - cognitive state saved')
   }
 
   /**
@@ -91,7 +92,7 @@ export class OptimizationAgent extends CognitiveAgentBase {
     const startTime = Date.now()
 
     try {
-      CliUI.logInfo(`⚡ Executing Optimization task with ${plan.strategy} orchestration`)
+      advancedUI.logInfo(`⚡ Executing Optimization task with ${plan.strategy} orchestration`)
 
       const originalCode = this.extractCodeFromCognition(cognition) || this.getDefaultCodeToOptimize()
       const optimizationPrompt = this.generateOptimizationPrompt(cognition, originalCode)

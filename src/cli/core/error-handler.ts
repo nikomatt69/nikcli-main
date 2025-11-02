@@ -1,4 +1,8 @@
 import chalk from 'chalk'
+import { getSentryProvider, breadcrumbTracker } from '../monitoring'
+import { MiddlewareContext } from '../middleware/types'
+import { ExecutionPolicyManager } from '../policies/execution-policy'
+import { simpleConfigManager as configManager } from './config-manager'
 
 export type ErrorCategory = 'user' | 'system' | 'network' | 'config' | 'agent' | 'ai'
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal'
@@ -129,6 +133,32 @@ class StructuredLogger {
     const formattedMessage = this.formatMessage(entry)
     const colorizedMessage = this.colorizeLevel(level, formattedMessage)
 
+    // Send to Sentry for errors and fatals
+    const sentry = getSentryProvider()
+    if (sentry && sentry.isInitialized() && (level === 'error' || level === 'fatal')) {
+      if (error) {
+        sentry.captureError(error as Error, {
+          workingDirectory: process.cwd(),
+          session: {
+            id: crypto.randomUUID(),
+            userId: 'unknown',
+          },
+          policyManager: new ExecutionPolicyManager(configManager),
+          isProcessing: false,
+        } as MiddlewareContext)
+      } else {
+        sentry.captureMessage(message as string, level === 'fatal' ? 'fatal' : 'error', {
+          workingDirectory: process.cwd(),
+          session: {
+            id: crypto.randomUUID(),
+            userId: 'unknown',
+          },
+          policyManager: new ExecutionPolicyManager(configManager),
+          isProcessing: false,
+        })
+      }
+    }
+
     // Output to appropriate stream
     if (level === 'error' || level === 'fatal') {
       console.error(colorizedMessage)
@@ -159,6 +189,25 @@ export class ErrorHandler {
       recoverable: cliError.recoverable,
       details: cliError.details
     })
+
+    const sentry = getSentryProvider()
+    if (sentry && sentry.isInitialized()) {
+      sentry.captureError(cliError as Error, {
+        workingDirectory: process.cwd(),
+        session: {
+          id: crypto.randomUUID(),
+          userId: 'unknown',
+        },
+        policyManager: new ExecutionPolicyManager(configManager),
+        isProcessing: false,
+      } as MiddlewareContext)
+
+      breadcrumbTracker.trackOperation(`error.${cliError.category}`, {
+        error_code: cliError.code,
+        error_message: cliError.message,
+        recoverable: cliError.recoverable,
+      })
+    }
 
     return cliError
   }

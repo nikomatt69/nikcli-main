@@ -1136,9 +1136,9 @@ Execute tasks step-by-step and verify results before proceeding.`
     const defaultVMConfig: VMContainerConfig = {
       containerImage: 'node:18-alpine',
       resourceLimits: {
-        memory: '2Gi',
-        cpu: '1000m',
-        disk: '5Gi',
+        memory: '2GB',
+        cpu: '1.0',
+        disk: '5GB',
       },
       networkAccess: true,
       volumeMounts: ['/workspace'],
@@ -1557,11 +1557,14 @@ Execute tasks step-by-step and verify results before proceeding.`
     if (blueprints.length > 0) {
       console.log(chalk.blue.bold('\n📋 Available Blueprints:'))
       blueprints.forEach((blueprint) => {
-        if (!blueprint || !blueprint.id || !blueprint.name) return
-        const isActive = this.instances.has(blueprint.name)
+        if (!blueprint) return
+        const name = blueprint.name || 'unnamed'
+        const safeId = blueprint.id || 'unknown'
+        const shortId = safeId.length >= 8 ? safeId.slice(0, 8) : safeId
+        const isActive = this.instances.has(name)
         const status = isActive ? chalk.green('🟢 Active') : chalk.gray('⚪ Inactive')
 
-        console.log(`  ${status} ${chalk.bold(blueprint.name)} ${chalk.gray(`(${blueprint.id.slice(0, 8)}...)`)}`)
+        console.log(`  ${status} ${chalk.bold(name)} ${chalk.gray(`(${shortId}...)`)}`)
         console.log(`    Specialization: ${blueprint.specialization || 'N/A'}`)
         console.log(`    Autonomy: ${blueprint.autonomyLevel || 'N/A'}`)
         console.log(`    Created: ${blueprint.createdAt}`)

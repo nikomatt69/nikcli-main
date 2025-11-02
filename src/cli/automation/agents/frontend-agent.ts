@@ -1,3 +1,4 @@
+import { advancedUI } from '@/cli/ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
 import { BaseAgent } from './base-agent'
@@ -29,7 +30,7 @@ export class FrontendAgent extends BaseAgent {
   }
 
   protected async onInitialize(): Promise<void> {
-    CliUI.logInfo('🎨 Frontend Agent initializing...')
+    advancedUI.logInfo('🎨 Frontend Agent initializing...')
 
     // Check for frontend frameworks and tools
     await this.detectFrontendStack()
@@ -37,11 +38,11 @@ export class FrontendAgent extends BaseAgent {
     // Setup frontend-specific tool configurations
     await this.configureFrontendTools()
 
-    CliUI.logSuccess('✓ Frontend Agent ready for UI/UX tasks')
+    advancedUI.logSuccess('✓ Frontend Agent ready for UI/UX tasks')
   }
 
   protected async onExecuteTask(task: AgentTask): Promise<any> {
-    CliUI.logInfo(`🎨 Frontend Agent processing: ${task.type}`)
+    advancedUI.logInfo(`🎨 Frontend Agent processing: ${task.type}`)
 
     switch (task.type.toLowerCase()) {
       case 'create-component':
@@ -68,7 +69,7 @@ export class FrontendAgent extends BaseAgent {
   }
 
   protected async onStop(): Promise<void> {
-    CliUI.logInfo('🎨 Frontend Agent shutting down...')
+    advancedUI.logInfo('🎨 Frontend Agent shutting down...')
     // Cleanup any frontend-specific resources
   }
 
@@ -78,7 +79,7 @@ export class FrontendAgent extends BaseAgent {
   private async createComponent(task: AgentTask): Promise<any> {
     const { componentName, componentType, framework } = task.metadata || {}
 
-    CliUI.logInfo(`🧩 Creating ${componentType || 'React'} component: ${componentName}`)
+    advancedUI.logInfo(`🧩 Creating ${componentType || 'React'} component: ${componentName}`)
 
     try {
       // Determine component structure based on framework
@@ -119,7 +120,7 @@ export class FrontendAgent extends BaseAgent {
   private async styleComponent(task: AgentTask): Promise<any> {
     const { componentPath, styleRequirements } = task.metadata || {}
 
-    CliUI.logInfo(`🎨 Styling component: ${componentPath}`)
+    advancedUI.logInfo(`🎨 Styling component: ${componentPath}`)
 
     try {
       // Read existing component
@@ -152,7 +153,7 @@ export class FrontendAgent extends BaseAgent {
   private async optimizePerformance(task: AgentTask): Promise<any> {
     const { targetFiles, optimizationType } = task.metadata || {}
 
-    CliUI.logInfo(`⚡ Optimizing frontend performance: ${optimizationType}`)
+    advancedUI.logInfo(`⚡ Optimizing frontend performance: ${optimizationType}`)
 
     try {
       const optimizations = []
@@ -197,7 +198,7 @@ export class FrontendAgent extends BaseAgent {
   private async addResponsiveDesign(task: AgentTask): Promise<any> {
     const { targetFiles, breakpoints } = task.metadata || {}
 
-    CliUI.logInfo(`📱 Adding responsive design to components`)
+    advancedUI.logInfo(`📱 Adding responsive design to components`)
 
     try {
       const responsiveUpdates = []
@@ -229,7 +230,7 @@ export class FrontendAgent extends BaseAgent {
   private async improveAccessibility(task: AgentTask): Promise<any> {
     const { targetFiles, accessibilityLevel } = task.metadata || {}
 
-    CliUI.logInfo(`♿ Improving accessibility: ${accessibilityLevel} level`)
+    advancedUI.logInfo(`♿ Improving accessibility: ${accessibilityLevel} level`)
 
     try {
       const accessibilityImprovements = []
@@ -267,7 +268,7 @@ export class FrontendAgent extends BaseAgent {
   private async setupFrontendTesting(task: AgentTask): Promise<any> {
     const { testingFramework, componentPaths } = task.metadata || {}
 
-    CliUI.logInfo(`🧪 Setting up frontend testing with ${testingFramework}`)
+    advancedUI.logInfo(`🧪 Setting up frontend testing with ${testingFramework}`)
 
     try {
       // Setup testing configuration
@@ -298,7 +299,7 @@ export class FrontendAgent extends BaseAgent {
    * Handle generic frontend tasks
    */
   private async handleGenericFrontendTask(task: AgentTask): Promise<any> {
-    CliUI.logInfo(`🎨 Handling generic frontend task: ${task.type}`)
+    advancedUI.logInfo(`🎨 Handling generic frontend task: ${task.type}`)
 
     // Use planning system for complex tasks
     const plan = await this.generateTaskPlan(task)
@@ -313,16 +314,16 @@ export class FrontendAgent extends BaseAgent {
       const dependencies = JSON.parse(packageJson).dependencies || {}
 
       if (dependencies.react) {
-        CliUI.logInfo('📦 Detected React framework')
+        advancedUI.logInfo('📦 Detected React framework')
       }
       if (dependencies.vue) {
-        CliUI.logInfo('📦 Detected Vue framework')
+        advancedUI.logInfo('📦 Detected Vue framework')
       }
       if (dependencies['@angular/core']) {
-        CliUI.logInfo('📦 Detected Angular framework')
+        advancedUI.logInfo('📦 Detected Angular framework')
       }
     } catch {
-      CliUI.logInfo('📦 No specific frontend framework detected')
+      advancedUI.logInfo('📦 No specific frontend framework detected')
     }
   }
 
@@ -559,7 +560,7 @@ describe('${componentName}', () => {
   }
 
   private async setupTestingFramework(framework: string): Promise<void> {
-    CliUI.logInfo(`Setting up ${framework} testing framework`)
+    advancedUI.logInfo(`Setting up ${framework} testing framework`)
   }
 
   private async generateTaskPlan(_task: AgentTask): Promise<any> {

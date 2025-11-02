@@ -5,6 +5,8 @@
  * with Playwright automation and noVNC real-time viewing.
  */
 
+import { browserToolDescriptions } from './playwright-automation-tools'
+
 // Core browser functionality
 export {
   BrowserContainerManager,

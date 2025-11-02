@@ -3,8 +3,8 @@
  * Provides unified validation across all agents and tools
  */
 
-import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
+import { EventEmitter } from 'events'
 import { z } from 'zod'
 import type { ContentValidator, ValidationResult } from '../schemas/tool-schemas'
 import { ContentValidators } from '../tools/write-file-tool'

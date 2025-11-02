@@ -18,6 +18,7 @@ import { DiffViewer, type FileDiff } from '../ui/diff-viewer'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath, isDirectory } from './secure-file-tools'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * Production-ready Write File Tool
@@ -160,7 +161,7 @@ export class WriteFileTool extends BaseTool {
 
       // Show relative path in logs for cleaner output
       const relativePath = sanitizedPath.replace(this.workingDirectory, '').replace(/^\//, '') || sanitizedPath
-      CliUI.logSuccess(`File written: ${relativePath} (${writeFileResult.bytesWritten} bytes)`)
+      advancedUI.logSuccess(`File written: ${relativePath} (${writeFileResult.bytesWritten} bytes)`)
       return {
         success: true,
         data: validatedResult,
@@ -175,9 +176,9 @@ export class WriteFileTool extends BaseTool {
       if (backupPath && options.autoRollback !== false) {
         try {
           await this.rollback(filePath, backupPath)
-          CliUI.logInfo('Rolled back to backup due to error')
+          advancedUI.logInfo('Rolled back to backup due to error')
         } catch (rollbackError: any) {
-          CliUI.logWarning(`Rollback failed: ${rollbackError.message}`)
+          advancedUI.logWarning(`Rollback failed: ${rollbackError.message}`)
         }
       }
 
@@ -253,7 +254,7 @@ export class WriteFileTool extends BaseTool {
       // Phase 3: Handle partial failures
       if (successCount < files.length && options.rollbackOnPartialFailure) {
         await this.rollbackMultiple(backups)
-        CliUI.logWarning('Rolled back all changes due to partial failure')
+        advancedUI.logWarning('Rolled back all changes due to partial failure')
       }
 
       return {
@@ -333,7 +334,7 @@ export class WriteFileTool extends BaseTool {
       // Copy file to backup location
       await copyFile(filePath, backupPath)
 
-      CliUI.logInfo(`Backup created: ${backupPath}`)
+      advancedUI.logInfo(`Backup created: ${backupPath}`)
       return backupPath
     } catch {
       // File doesn't exist or can't be backed up
@@ -367,7 +368,7 @@ export class WriteFileTool extends BaseTool {
 
         await this.rollback(originalPath, backupPath)
       } catch (error: any) {
-        CliUI.logWarning(`Failed to rollback ${backupPath}: ${error.message}`)
+        advancedUI.logWarning(`Failed to rollback ${backupPath}: ${error.message}`)
       }
     }
   }
@@ -418,10 +419,10 @@ export class WriteFileTool extends BaseTool {
         }
       }
 
-      CliUI.logInfo(`Cleaned ${deletedCount} old backup files`)
+      advancedUI.logInfo(`Cleaned ${deletedCount} old backup files`)
       return deletedCount
     } catch (error: any) {
-      CliUI.logWarning(`Failed to clean backups: ${error.message}`)
+      advancedUI.logWarning(`Failed to clean backups: ${error.message}`)
       return 0
     }
   }
@@ -436,14 +437,14 @@ export class WriteFileTool extends BaseTool {
         const warnings = lspContext.diagnostics.filter((d) => d.severity === 2)
 
         if (errors.length > 0) {
-          CliUI.logWarning(`LSP found ${errors.length} errors in ${filePath}`)
+          advancedUI.logWarning(`LSP found ${errors.length} errors in ${filePath}`)
           errors.slice(0, 3).forEach((error) => {
             CliUI.logError(`  Line ${error.range.start.line + 1}: ${error.message}`)
           })
         }
 
         if (warnings.length > 0) {
-          CliUI.logInfo(`LSP found ${warnings.length} warnings in ${filePath}`)
+          advancedUI.logInfo(`LSP found ${warnings.length} warnings in ${filePath}`)
         }
       }
 
@@ -461,7 +462,7 @@ export class WriteFileTool extends BaseTool {
       // Update workspace context with new file
       await this.contextSystem.analyzeFile(filePath)
     } catch (error: any) {
-      CliUI.logWarning(`LSP/Context analysis failed: ${error.message}`)
+      advancedUI.logWarning(`LSP/Context analysis failed: ${error.message}`)
     }
   }
 }

@@ -5,6 +5,7 @@ import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
 import { CognitiveAgentBase } from './cognitive-agent-base'
 import type { CodeReviewCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
+import { advancedUI } from '@/cli/ui/advanced-cli-ui'
 
 /**
  * 🔍 Enhanced Code Review Agent with Cognitive Intelligence
@@ -61,9 +62,9 @@ export class CodeReviewAgent extends CognitiveAgentBase {
   }
 
   protected override async onInitialize(): Promise<void> {
-    CliUI.logInfo('🔍 Initializing Enhanced Code Review Agent with cognitive capabilities...')
+    advancedUI.logInfo('🔍 Initializing Enhanced Code Review Agent with cognitive capabilities...')
     await this.initializeCodeReviewCognition()
-    CliUI.logSuccess(`✓ Code Review Agent initialized with ${this.capabilities.length} capabilities`)
+    advancedUI.logSuccess(`✓ Code Review Agent initialized with ${this.capabilities.length} capabilities`)
   }
 
   protected override async onExecuteTask(task: AgentTask): Promise<AgentTaskResult> {
@@ -75,9 +76,9 @@ export class CodeReviewAgent extends CognitiveAgentBase {
   }
 
   protected override async onStop(): Promise<void> {
-    CliUI.logInfo('🛑 Code Review Agent shutting down...')
+    advancedUI.logInfo('🛑 Code Review Agent shutting down...')
     await this.saveCognitiveState()
-    CliUI.logSuccess('✓ Code Review Agent stopped - cognitive state saved')
+    advancedUI.logSuccess('✓ Code Review Agent stopped - cognitive state saved')
   }
 
   /**
@@ -91,7 +92,7 @@ export class CodeReviewAgent extends CognitiveAgentBase {
     const startTime = Date.now()
 
     try {
-      CliUI.logInfo(`🔍 Executing Code Review task with ${plan.strategy} orchestration`)
+      advancedUI.logInfo(`🔍 Executing Code Review task with ${plan.strategy} orchestration`)
 
       const codeToReview = this.extractCodeFromCognition(cognition) || this.getDefaultCodeToReview()
       const reviewPrompt = this.generateReviewPrompt(cognition, codeToReview)

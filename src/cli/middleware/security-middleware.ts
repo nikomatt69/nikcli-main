@@ -99,12 +99,10 @@ export class SecurityMiddleware extends BaseMiddleware {
       ...sanitizedResponse,
       metadata: {
         ...sanitizedResponse.metadata,
-        security: {
-          validated: true,
-          riskLevel: securityCheck.riskLevel,
-          executionTime: duration,
-          policyApplied: true,
-        },
+        'security.validated': true,
+        'security.riskLevel': securityCheck.riskLevel as 'low' | 'medium' | 'high',
+        'security.executionTime': duration as number,
+        'security.policyApplied': true as boolean,
       },
     }
   }

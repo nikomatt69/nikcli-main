@@ -2,8 +2,9 @@ import { chromium } from 'playwright'
 import { JSDOM } from 'jsdom'
 import { Readability } from '@mozilla/readability'
 import { generateText } from 'ai'
-import { anthropic } from '@ai-sdk/anthropic'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { openai } from '@ai-sdk/openai'
 
 /**
  * BrowseGPT Service - AI-powered web browsing for CLI
@@ -32,6 +33,11 @@ export class BrowseGPTService {
    * Create a new browsing session
    */
   async createSession(sessionId?: string): Promise<string> {
+    // Check if service is configured
+    if (!this.config.apiKey || !this.config.projectId) {
+      throw new Error('BrowseGPT Service is not configured (missing BROWSERBASE_API_KEY or BROWSERBASE_PROJECT_ID)')
+    }
+
     const id = sessionId || this.generateSessionId()
 
     if (this.sessions.has(id)) {
@@ -250,7 +256,7 @@ When responding:
 - Be concise but comprehensive in your responses`
 
       const response = await generateText({
-        model: anthropic('claude-3-5-sonnet-20241022'),
+        model: openai('gpt-5') as any,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
@@ -347,11 +353,13 @@ When responding:
   // Private methods
 
   private validateConfig(): void {
-    if (!this.config.apiKey) {
-      throw new Error('BROWSERBASE_API_KEY environment variable is required')
-    }
-    if (!this.config.projectId) {
-      throw new Error('BROWSERBASE_PROJECT_ID environment variable is required')
+    if (!this.config.apiKey || !this.config.projectId) {
+      // Don't throw error - just log warning and disable service
+      advancedUI.logFunctionUpdate(
+        'warning',
+        'BrowseGPT Service disabled: BROWSERBASE_API_KEY and/or BROWSERBASE_PROJECT_ID not configured',
+        '⚠︎'
+      )
     }
   }
 
@@ -388,7 +396,7 @@ When responding:
     if (!element) return ''
 
     const snippetElements = element.querySelectorAll('span, div')
-    for (const el of snippetElements) {
+    for (const el of Array.from(snippetElements)) {
       const text = el.textContent || ''
       if (text.length > 50 && text.length < 300) {
         return text
@@ -414,7 +422,7 @@ When responding:
   private async summarizeWithAI(content: string, prompt: string): Promise<string> {
     try {
       const response = await generateText({
-        model: anthropic('claude-3-5-sonnet-20241022'),
+        model: openai('gpt-5') as any,
         messages: [
           {
             role: 'system',

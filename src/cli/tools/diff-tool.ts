@@ -5,6 +5,7 @@ import { PromptManager } from '../prompts/prompt-manager'
 import { CliUI } from '../utils/cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath } from './secure-file-tools'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 /**
  * DiffTool - File and content comparison with multiple diff algorithms
@@ -80,7 +81,7 @@ export class DiffTool extends BaseTool {
       const context = params.context !== undefined ? params.context : 3
       const colorize = params.colorize !== undefined ? params.colorize : true
 
-      CliUI.logInfo(`🔍 Comparing: ${CliUI.highlight(params.source)} vs ${CliUI.highlight(params.target)}`)
+      advancedUI.logInfo(`🔍 Comparing: ${CliUI.highlight(params.source)} vs ${CliUI.highlight(params.target)}`)
 
       const startTime = Date.now()
 
@@ -150,7 +151,7 @@ export class DiffTool extends BaseTool {
         },
       }
 
-      CliUI.logSuccess(`✓ Diff complete: +${additions} -${deletions} (${unchanged} unchanged)`)
+      advancedUI.logSuccess(`✓ Diff complete: +${additions} -${deletions} (${unchanged} unchanged)`)
 
       // Display formatted diff
       console.log('\n' + result.formatted + '\n')

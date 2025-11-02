@@ -1,0 +1,719 @@
+---
+title: "Daemon Commands (nikd)"
+description: "Complete reference for nikd daemon management and configuration"
+---
+
+# Daemon Commands (nikd)
+
+The `nikd` daemon is the background service that executes background agent jobs. It provides a REST API for job management and handles job queuing, execution, and monitoring.
+
+## Installation
+
+```bash
+npm install -g @nicomatt69/nikcli
+```
+
+## Commands Overview
+
+### `nikd start`
+
+Start the background agent daemon with specified configuration.
+
+**Syntax:**
+```bash
+nikd start [options]
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-p, --port <port>` | API server port | `3000` |
+| `--redis <url>` | Redis connection URL | Local queue |
+| `--max-concurrent <count>` | Maximum concurrent jobs | `3` |
+| `--workspace <path>` | Workspace directory | Current directory |
+| `--github-app-id <id>` | GitHub App ID | - |
+| `--github-private-key <path>` | Path to GitHub App private key | - |
+| `--github-installation-id <id>` | GitHub App installation ID | - |
+| `--github-webhook-secret <secret>` | GitHub webhook secret | - |
+
+**Examples:**
+
+```bash
+# Basic daemon start
+nikd start
+
+# Custom port
+nikd start -p 8080
+
+# With Redis queue
+nikd start --redis redis://localhost:6379
+
+# Production setup with Redis and GitHub
+nikd start \
+  --port 3000 \
+  --redis redis://redis.example.com:6379 \
+  --max-concurrent 10 \
+  --workspace /opt/workspace \
+  --github-app-id 123456 \
+  --github-private-key /etc/secrets/github-app.pem \
+  --github-installation-id 789012 \
+  --github-webhook-secret "webhook-secret-here"
+
+# Docker environment
+nikd start \
+  --redis redis://redis:6379 \
+  --workspace /workspace \
+  --max-concurrent 5
+```
+
+**Configuration Details:**
+
+**Port Configuration:**
+- Default port is `3000`
+- Must be available and not in use
+- Used for REST API and health checks
+
+**Redis Configuration:**
+- Optional external Redis for job queue
+- Format: `redis://[username:password@]host:port[/database]`
+- Falls back to local in-memory queue if not specified
+- Required for multi-instance deployments
+
+**GitHub Integration:**
+- Enables automatic PR creation and management
+- Requires GitHub App with appropriate permissions
+- Private key must be accessible to daemon process
+
+**Workspace Configuration:**
+- Directory where jobs execute
+- Must have read/write permissions
+- Should have sufficient disk space for repositories
+
+### `nikd status`
+
+Check the daemon status and health information.
+
+**Syntax:**
+```bash
+nikd status [options]
+```
+
+**Options:**
+- `--api-url <url>` - API server URL (default: `http://localhost:3000`)
+
+**Examples:**
+```bash
+# Check default daemon
+nikd status
+
+# Check custom API URL
+nikd status --api-url http://localhost:8080
+
+# Check remote daemon
+nikd status --api-url https://nikd.example.com
+```
+
+**Status Information:**
+- Daemon running status
+- API endpoint availability
+- Uptime information
+- Last health check timestamp
+- Version information
+
+**Exit Codes:**
+- `0` - Daemon is running and healthy
+- `1` - Daemon is not running or unreachable
+
+### `nikd logs`
+
+Stream daemon logs (placeholder for future implementation).
+
+**Syntax:**
+```bash
+nikd logs [options]
+```
+
+**Options:**
+- `--api-url <url>` - API server URL (default: `http://localhost:3000`)
+
+**Current Behavior:**
+- Shows connection information
+- Notes that real-time logs require additional implementation
+- Suggests checking daemon console output
+
+**Future Implementation:**
+- Real-time log streaming via WebSocket
+- Log filtering and search capabilities
+- Historical log access
+
+## Configuration
+
+### Environment Variables
+
+The daemon supports configuration via environment variables:
+
+```bash
+# Server Configuration
+NIKD_PORT=3000
+NIKD_HOST=0.0.0.0
+NIKD_MAX_CONCURRENT=3
+NIKD_WORKSPACE=/opt/workspace
+
+# Redis Configuration
+REDIS_URL=redis://localhost:6379
+REDIS_PASSWORD=secret
+REDIS_DB=0
+
+# GitHub Integration
+GITHUB_APP_ID=123456
+GITHUB_PRIVATE_KEY_PATH=/etc/secrets/github-app.pem
+GITHUB_INSTALLATION_ID=789012
+GITHUB_WEBHOOK_SECRET=webhook-secret
+
+# Security
+JWT_SECRET=your-jwt-secret
+API_KEY=your-api-key
+
+# Logging
+LOG_LEVEL=info
+LOG_FORMAT=json
+LOG_FILE=/var/log/nikd.log
+
+# Resource Limits
+MAX_MEMORY_MB=2048
+MAX_EXECUTION_TIME_MIN=60
+MAX_TOOL_CALLS=100
+```
+
+### Configuration File
+
+Create `/etc/nikd/config.json` or `~/.nikd/config.json`:
+
+```json
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "maxConcurrent": 3
+  },
+  "workspace": {
+    "path": "/opt/workspace",
+    "cleanup": true,
+    "maxSize": "10GB"
+  },
+  "queue": {
+    "type": "redis",
+    "redis": {
+      "host": "localhost",
+      "port": 6379,
+      "password": null,
+      "db": 0
+    }
+  },
+  "github": {
+    "appId": "123456",
+    "privateKeyPath": "/etc/secrets/github-app.pem",
+    "installationId": "789012",
+    "webhookSecret": "webhook-secret"
+  },
+  "limits": {
+    "maxMemoryMB": 2048,
+    "maxExecutionTimeMin": 60,
+    "maxToolCalls": 100
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "file": "/var/log/nikd.log"
+  }
+}
+```
+
+## API Endpoints
+
+The daemon exposes a REST API for job management:
+
+### Health Check
+```http
+GET /health
+```
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "uptime": 3600,
+  "timestamp": "2024-01-15T10:30:00Z",
+  "version": "0.5.0",
+  "jobs": {
+    "queued": 2,
+    "running": 1,
+    "total": 156
+  }
+}
+```
+
+### Job Management
+```http
+POST /jobs
+GET /jobs
+GET /jobs/:id
+DELETE /jobs/:id
+POST /jobs/:id/followup
+```
+
+### Metrics
+```http
+GET /metrics
+GET /stats
+```
+
+## Deployment
+
+### Docker Deployment
+
+**Dockerfile:**
+```dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY . .
+RUN npm run build
+
+EXPOSE 3000
+CMD ["nikd", "start"]
+```
+
+**docker-compose.yml:**
+```yaml
+version: '3.8'
+services:
+  nikd:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - WORKSPACE_PATH=/workspace
+      - MAX_CONCURRENT=5
+    volumes:
+      - workspace:/workspace
+      - ./secrets:/etc/secrets:ro
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  workspace:
+  redis_data:
+```
+
+**Run with Docker:**
+```bash
+# Build and start
+docker-compose up -d
+
+# Check logs
+docker-compose logs -f nikd
+
+# Scale instances
+docker-compose up -d --scale nikd=3
+```
+
+### Kubernetes Deployment
+
+**deployment.yaml:**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nikd
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nikd
+  template:
+    metadata:
+      labels:
+        app: nikd
+    spec:
+      containers:
+      - name: nikd
+        image: nikcli/nikd:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: REDIS_URL
+          value: "redis://redis-service:6379"
+        - name: MAX_CONCURRENT
+          value: "5"
+        - name: WORKSPACE_PATH
+          value: "/workspace"
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: github-secrets
+          mountPath: /etc/secrets
+          readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: workspace
+        emptyDir: {}
+      - name: github-secrets
+        secret:
+          secretName: github-app-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nikd-service
+spec:
+  selector:
+    app: nikd
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: LoadBalancer
+```
+
+### Systemd Service
+
+**nikd.service:**
+```ini
+[Unit]
+Description=NikCLI Background Agent Daemon
+After=network.target redis.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=nikd
+Group=nikd
+WorkingDirectory=/opt/nikd
+ExecStart=/usr/local/bin/nikd start --config /etc/nikd/config.json
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nikd
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/nikd /var/log/nikd
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=4G
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Installation:**
+```bash
+# Create user
+sudo useradd -r -s /bin/false nikd
+
+# Install service
+sudo cp nikd.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable nikd
+sudo systemctl start nikd
+
+# Check status
+sudo systemctl status nikd
+sudo journalctl -u nikd -f
+```
+
+## Monitoring
+
+### Health Monitoring
+
+**Basic health check:**
+```bash
+#!/bin/bash
+# health-check.sh
+
+NIKD_URL="${NIKD_URL:-http://localhost:3000}"
+TIMEOUT=10
+
+if curl -f -s --max-time $TIMEOUT "$NIKD_URL/health" > /dev/null; then
+  echo "✓ nikd is healthy"
+  exit 0
+else
+  echo "✗ nikd is unhealthy"
+  exit 1
+fi
+```
+
+**Advanced monitoring script:**
+```bash
+#!/bin/bash
+# monitor-nikd.sh
+
+NIKD_URL="${NIKD_URL:-http://localhost:3000}"
+ALERT_WEBHOOK="${ALERT_WEBHOOK:-}"
+
+check_health() {
+  local response
+  response=$(curl -s --max-time 10 "$NIKD_URL/health")
+  
+  if [[ $? -eq 0 ]]; then
+    local uptime
+    uptime=$(echo "$response" | jq -r '.uptime // 0')
+    
+    if [[ $uptime -gt 0 ]]; then
+      echo "✓ nikd healthy (uptime: ${uptime}s)"
+      return 0
+    fi
+  fi
+  
+  echo "✗ nikd unhealthy"
+  return 1
+}
+
+check_queue() {
+  local stats
+  stats=$(curl -s --max-time 10 "$NIKD_URL/stats")
+  
+  if [[ $? -eq 0 ]]; then
+    local queued running
+    queued=$(echo "$stats" | jq -r '.queued // 0')
+    running=$(echo "$stats" | jq -r '.running // 0')
+    
+    echo "Queue: $queued queued, $running running"
+    
+    # Alert if queue is backing up
+    if [[ $queued -gt 10 ]]; then
+      send_alert "Queue backup: $queued jobs queued"
+    fi
+  fi
+}
+
+send_alert() {
+  local message="$1"
+  
+  if [[ -n "$ALERT_WEBHOOK" ]]; then
+    curl -X POST "$ALERT_WEBHOOK" \
+      -H 'Content-Type: application/json' \
+      -d "{\"text\": \"🚨 nikd Alert: $message\"}"
+  fi
+  
+  echo "ALERT: $message"
+}
+
+# Main monitoring loop
+while true; do
+  if ! check_health; then
+    send_alert "nikd daemon is unhealthy"
+  else
+    check_queue
+  fi
+  
+  sleep 60
+done
+```
+
+### Prometheus Metrics
+
+**metrics endpoint:**
+```http
+GET /metrics
+```
+
+**Sample metrics:**
+```
+# HELP nikd_jobs_total Total number of jobs processed
+# TYPE nikd_jobs_total counter
+nikd_jobs_total{status="succeeded"} 1234
+nikd_jobs_total{status="failed"} 56
+nikd_jobs_total{status="cancelled"} 12
+
+# HELP nikd_jobs_duration_seconds Job execution duration
+# TYPE nikd_jobs_duration_seconds histogram
+nikd_jobs_duration_seconds_bucket{le="30"} 100
+nikd_jobs_duration_seconds_bucket{le="60"} 200
+nikd_jobs_duration_seconds_bucket{le="300"} 300
+
+# HELP nikd_queue_size Current queue size
+# TYPE nikd_queue_size gauge
+nikd_queue_size{status="queued"} 5
+nikd_queue_size{status="running"} 2
+
+# HELP nikd_uptime_seconds Daemon uptime in seconds
+# TYPE nikd_uptime_seconds counter
+nikd_uptime_seconds 86400
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Daemon won't start:**
+```bash
+# Check port availability
+netstat -tlnp | grep 3000
+
+# Check permissions
+ls -la /opt/workspace
+
+# Check logs
+journalctl -u nikd -n 50
+
+# Test configuration
+nikd start --dry-run
+```
+
+**Jobs stuck in queue:**
+```bash
+# Check daemon status
+nikd status
+
+# Check queue stats
+curl http://localhost:3000/stats
+
+# Check Redis connection (if using Redis)
+redis-cli ping
+
+# Restart daemon
+sudo systemctl restart nikd
+```
+
+**Memory issues:**
+```bash
+# Check memory usage
+ps aux | grep nikd
+
+# Check job limits
+curl http://localhost:3000/jobs | jq '.[] | select(.status=="running")'
+
+# Adjust limits in config
+vim /etc/nikd/config.json
+```
+
+**GitHub integration issues:**
+```bash
+# Test GitHub App permissions
+curl -H "Authorization: Bearer $GITHUB_TOKEN" \
+  https://api.github.com/app/installations
+
+# Check private key
+openssl rsa -in github-app.pem -check
+
+# Verify webhook secret
+echo -n "webhook-secret" | openssl sha1 -hmac "secret"
+```
+
+### Debug Mode
+
+Enable debug logging:
+
+```bash
+# Environment variable
+export LOG_LEVEL=debug
+nikd start
+
+# Command line flag
+nikd start --debug
+
+# Configuration file
+{
+  "logging": {
+    "level": "debug"
+  }
+}
+```
+
+### Log Analysis
+
+**Common log patterns:**
+```bash
+# Job failures
+grep "ERROR" /var/log/nikd.log | tail -20
+
+# Queue operations
+grep "queue" /var/log/nikd.log | tail -10
+
+# GitHub API calls
+grep "github" /var/log/nikd.log | tail -15
+
+# Memory warnings
+grep -i "memory\|oom" /var/log/nikd.log
+```
+
+## Security
+
+### Best Practices
+
+1. **Network Security:**
+   - Run behind reverse proxy (nginx, traefik)
+   - Use HTTPS in production
+   - Restrict API access with firewall rules
+
+2. **Authentication:**
+   - Use API keys for external access
+   - Implement JWT tokens for session management
+   - Rotate secrets regularly
+
+3. **Resource Isolation:**
+   - Run jobs in containers or VMs
+   - Limit resource usage per job
+   - Implement proper cleanup
+
+4. **Data Protection:**
+   - Encrypt sensitive configuration
+   - Use secrets management (Vault, K8s secrets)
+   - Audit log access
+
+### Security Configuration
+
+```json
+{
+  "security": {
+    "apiKey": "your-secure-api-key",
+    "jwtSecret": "your-jwt-secret",
+    "corsOrigins": ["https://your-frontend.com"],
+    "rateLimiting": {
+      "enabled": true,
+      "requests": 100,
+      "window": "15m"
+    },
+    "encryption": {
+      "enabled": true,
+      "algorithm": "aes-256-gcm"
+    }
+  }
+}
+```

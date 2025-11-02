@@ -276,6 +276,73 @@ export class ModernAIProvider {
           }
         },
       }),
+
+      goat_finance: tool({
+        description:
+          'Execute DeFi operations using GOAT SDK - supports Polymarket prediction markets and ERC20 tokens on Polygon and Base networks',
+        parameters: z.object({
+          plugin: z
+            .enum(['polymarket', 'erc20'])
+            .describe('The GOAT plugin to use: polymarket for prediction markets, erc20 for token operations'),
+          action: z
+            .string()
+            .describe('The action to perform: init, chat, wallet-info, markets, bet, transfer, balance, approve, status, tools, reset'),
+          chain: z
+            .enum(['polygon', 'base'])
+            .optional()
+            .describe('The blockchain network to use (defaults to base)'),
+          params: z
+            .any()
+            .optional()
+            .describe('Parameters for the action (e.g., {amount: "100", token: "USDC", to: "0x..."} for transfers)'),
+        }),
+        execute: async ({ plugin, action, chain, params = {} }) => {
+          try {
+            const { secureTools } = await import('../tools/secure-tools-registry')
+            
+            // Construct action with plugin prefix if needed
+            const fullAction = action.startsWith(`${plugin}-`) ? action : `${plugin}-${action}`
+            
+            // Add chain and plugin info to params
+            const enhancedParams = {
+              ...params,
+              plugin,
+              chain: chain || 'base'
+            }
+
+            const result = await secureTools.executeGoat(fullAction, enhancedParams)
+
+            if (result.success) {
+              return {
+                success: true,
+                plugin,
+                action,
+                chain: chain || 'base',
+                data: result.data,
+                message: `GOAT ${plugin} operation '${action}' completed successfully on ${chain || 'base'}`,
+              }
+            } else {
+              return {
+                success: false,
+                plugin,
+                action,
+                chain: chain || 'base',
+                error: result.error,
+                message: `GOAT ${plugin} operation '${action}' failed on ${chain || 'base'}`,
+              }
+            }
+          } catch (error: any) {
+            return {
+              success: false,
+              plugin,
+              action,
+              chain: chain || 'base',
+              error: error.message,
+              message: `Failed to execute GOAT operation: ${error.message}`,
+            }
+          }
+        },
+      }),
     }
 
     // Note: Tool-level caching via @ai-sdk-tools/cache is incompatible with AI SDK v3's CoreTool type
@@ -468,7 +535,7 @@ export class ModernAIProvider {
     switch (config.provider) {
       case 'openai': {
         // OpenAI provider is already response-API compatible via model options; no chainable helper here.
-        const openaiProvider = createOpenAI({ apiKey })
+        const openaiProvider = createOpenAI({ apiKey, compatibility: 'strict' })
         return openaiProvider(config.model)
       }
       case 'anthropic': {
@@ -556,7 +623,6 @@ export class ModernAIProvider {
         model,
         messages,
         tools,
-        maxTokens: 8000,
         temperature: 1,
         // Spread middleware if available
       })
@@ -609,8 +675,7 @@ export class ModernAIProvider {
         messages,
         tools,
         maxSteps: 10,
-        maxTokens: 8000,
-        temperature: 0.7,
+        temperature: 1,
         // Spread middleware if available
       })
 

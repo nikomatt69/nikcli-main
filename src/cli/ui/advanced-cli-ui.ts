@@ -104,6 +104,10 @@ export class AdvancedCliUI {
   private ephemeralCleanupPaused: boolean = false
   // Flag to prioritize tool calls during plan mode execution
   private isPlanExecutionActive: boolean = false
+  // Track function status for indicator colors: 'running' | 'success' | 'warning' | 'error'
+  private functionStatus: Map<string, 'running' | 'success' | 'warning' | 'error'> = new Map()
+  private animationFrame: number = 0
+  private animationTimer: NodeJS.Timeout | null = null
   constructor() {
     this.theme = {
       primary: chalk.blue,
@@ -599,9 +603,10 @@ export class AdvancedCliUI {
 
     // Rendering strutturato per source
     for (const [source, updates] of groupedUpdates.entries()) {
-      // Header del gruppo con ⏺ - usa lowercase per il nome funzione
+      // Header del gruppo con ⏺ colorato - usa lowercase per il nome funzione
       const functionName = this.formatSourceAsFunctionName(source).toLowerCase()
-      console.log(chalk.cyan(`⏺ ${functionName}()`))
+      const indicator = this.getStatusIndicator(functionName)
+      console.log(`${indicator} ${chalk.cyan(functionName + '()')}`)
 
       // Updates del gruppo con ⎿
       updates.forEach((update) => {
@@ -679,7 +684,8 @@ export class AdvancedCliUI {
     // Print ⏺ header only if source changed
     if (this.lastPrintedSource !== currentSource) {
       const functionName = this.formatSourceAsFunctionName(currentSource).toLowerCase()
-      console.log(chalk.cyan(`⏺ ${functionName}()`))
+      const indicator = this.getStatusIndicator(functionName)
+      console.log(`${indicator} ${chalk.cyan(functionName + '()')}`)
       this.lastPrintedSource = currentSource
     }
 
@@ -774,12 +780,42 @@ export class AdvancedCliUI {
   }
 
   /**
+   * Get status indicator (colored and possibly animated)
+   */
+  private getStatusIndicator(functionName: string): string {
+    const status = this.functionStatus.get(functionName)
+
+    if (!status || status === 'running') {
+      // Verde lampeggiante quando in esecuzione
+      const isVisible = (this.animationFrame % 2) === 0
+      return isVisible ? chalk.green('⏺') : chalk.green.dim('⏺')
+    }
+
+    // Colori fissi in base al risultato
+    switch (status) {
+      case 'error':
+        return chalk.red('⏺')
+      case 'warning':
+        return chalk.yellow('⏺')
+      case 'success':
+        return chalk.green('⏺')
+      default:
+        return chalk.cyan('⏺')
+    }
+  }
+
+  /**
    * Log function call header - Public API for structured logging
    * Used for ⏺ functionname() format
    */
   logFunctionCall(functionName: string, data?: Record<string, any>): void {
     const formattedName = functionName.toLowerCase()
-    const outputText = chalk.cyan(`⏺ ${formattedName}()`)
+    // Mark as running
+    this.functionStatus.set(formattedName, 'running')
+    this.startAnimationTimer()
+
+    const indicator = this.getStatusIndicator(formattedName)
+    const outputText = `${indicator} ${chalk.cyan(formattedName + '()')}`
     const outputId = terminalOutputManager.reserveSpace('FunctionCall', 1)
     console.log(outputText)
     terminalOutputManager.confirmOutput(outputId, 'FunctionCall', 1, { persistent: false, expiryMs: 30000 })
@@ -814,6 +850,12 @@ export class AdvancedCliUI {
         defaultIcon = '❌'
         color = chalk.red
         break
+    }
+
+    // Update function status if it's a final result
+    if (this.lastPrintedSource && (level === 'success' || level === 'warning' || level === 'error')) {
+      const functionName = this.formatSourceAsFunctionName(this.lastPrintedSource).toLowerCase()
+      this.functionStatus.set(functionName, level === 'success' ? 'success' : level)
     }
 
     const displayIcon = icon || defaultIcon
@@ -2040,6 +2082,32 @@ export class AdvancedCliUI {
   }
 
   /**
+   * Start animation timer for blinking indicators
+   */
+  private startAnimationTimer(): void {
+    if (this.animationTimer) return
+
+    this.animationTimer = setInterval(() => {
+      const hasRunning = Array.from(this.functionStatus.values()).some((s) => s === 'running')
+      if (hasRunning) {
+        this.animationFrame++
+      } else if (this.functionStatus.size === 0) {
+        this.stopAnimationTimer()
+      }
+    }, 500)
+  }
+
+  /**
+   * Stop animation timer
+   */
+  private stopAnimationTimer(): void {
+    if (this.animationTimer) {
+      clearInterval(this.animationTimer)
+      this.animationTimer = null
+    }
+  }
+
+  /**
    * Cleanup resources
    */
   private cleanup(): void {
@@ -2061,11 +2129,13 @@ export class AdvancedCliUI {
       clearTimeout(this.renderTimer)
       this.renderTimer = null
     }
+    this.stopAnimationTimer()
     this.cleanup()
     this.indicators.clear()
     this.backgroundAgents.clear()
     this.liveUpdates = []
     this.lastPrintedSource = null
+    this.functionStatus.clear()
   }
 
   /**

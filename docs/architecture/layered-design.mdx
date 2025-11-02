@@ -1,0 +1,1313 @@
+---
+title: 'Layered Design'
+description: 'Deep dive into NikCLI layered architecture and component interactions'
+---
+
+# Layered Design
+
+NikCLI employs a sophisticated layered architecture that promotes separation of concerns, modularity, and maintainability. This document provides an in-depth analysis of each architectural layer, their responsibilities, and interaction patterns.
+
+## Architectural Layers Overview
+
+The system is organized into six primary layers, each with distinct responsibilities:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Layer 1: Presentation Layer (CLI/UI)                            │
+├─────────────────────────────────────────────────────────────────┤
+│ Layer 2: Orchestration Layer                                    │
+├─────────────────────────────────────────────────────────────────┤
+│ Layer 3: Agent Layer                                            │
+├─────────────────────────────────────────────────────────────────┤
+│ Layer 4: Service Layer                                          │
+├─────────────────────────────────────────────────────────────────┤
+│ Layer 5: Infrastructure Layer                                   │
+├─────────────────────────────────────────────────────────────────┤
+│ Layer 6: Data Layer                                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Layer 1: Presentation Layer
+
+### Responsibilities
+
+The presentation layer handles all user interactions and output rendering.
+
+### Components
+
+#### Terminal Interface (`/src/cli/nik-cli.ts`)
+
+**Core Functions**:
+- Command-line argument parsing
+- Interactive chat interface
+- Real-time streaming output
+- User input handling
+- Vim mode support
+- Paste detection and handling
+
+**Key Features**:
+```typescript
+// Main CLI entry point
+class NikCLI {
+  private streamOrchestrator: StreamingOrchestrator;
+  private rl: readline.Interface;
+  private inputBuffer: string[];
+
+  async start(): Promise<void> {
+    // Initialize UI components
+    await this.setupReadline();
+    await this.setupStreamingOutput();
+
+    // Start main loop
+    await this.mainLoop();
+  }
+
+  private async handleUserInput(input: string): Promise<void> {
+    // Queue input for processing
+    inputQueue.enqueue(input);
+
+    // Trigger orchestrator
+    await this.streamOrchestrator.processMessage(input);
+  }
+}
+```
+
+#### Advanced CLI UI (`/src/cli/ui/advanced-cli-ui.ts`)
+
+**Capabilities**:
+- Colored, formatted output
+- Progress indicators (spinners, progress bars, dots)
+- Tables and structured data display
+- Syntax highlighting
+- Interactive prompts
+- Status panels
+
+**Output Formatting**:
+```typescript
+class AdvancedUI {
+  logInfo(message: string): void;
+  logSuccess(message: string): void;
+  logWarning(message: string): void;
+  logError(message: string): void;
+
+  // Structured output
+  displayTable(data: any[]): void;
+  displayTree(structure: TreeNode): void;
+  displayCode(code: string, language: string): void;
+
+  // Interactive elements
+  showSpinner(message: string): SpinnerHandle;
+  showProgress(total: number): ProgressHandle;
+  prompt(question: string, options: PromptOptions): Promise<string>;
+}
+```
+
+#### Terminal Output Manager (`/src/cli/ui/terminal-output-manager.ts`)
+
+**Responsibilities**:
+- Stream management
+- Panel-based layout
+- Real-time updates
+- Buffer management
+- Terminal capability detection
+
+**Panel System**:
+```typescript
+interface Panel {
+  id: string;
+  title: string;
+  position: 'top' | 'bottom' | 'left' | 'right';
+  width?: number;
+  height?: number;
+  content: string[];
+  maxLines?: number;
+}
+
+class TerminalOutputManager {
+  private panels: Map<string, Panel>;
+
+  createPanel(config: PanelConfig): string;
+  updatePanel(id: string, content: string[]): void;
+  removePanel(id: string): void;
+  renderAllPanels(): void;
+}
+```
+
+#### Diff Manager (`/src/cli/ui/diff-manager.ts`)
+
+**Features**:
+- Side-by-side diffs
+- Unified diffs
+- Syntax-highlighted diffs
+- Interactive approval
+- Batch operations
+
+**Diff Display**:
+```typescript
+class DiffManager {
+  async showDiff(
+    original: string,
+    modified: string,
+    filePath: string
+  ): Promise<void> {
+    const diff = this.computeDiff(original, modified);
+    const formatted = this.formatDiff(diff, filePath);
+
+    // Display with syntax highlighting
+    advancedUI.displayCode(formatted, 'diff');
+  }
+
+  async requestApproval(diff: DiffResult): Promise<boolean> {
+    return await advancedUI.prompt(
+      'Apply these changes?',
+      { type: 'confirm' }
+    );
+  }
+}
+```
+
+#### Web Dashboard (Optional) (`/web`)
+
+**Features**:
+- Real-time agent status
+- Job queue visualization
+- Metrics and analytics
+- GitHub integration
+- Subscription management
+
+### Layer Boundaries
+
+**Upward Communication**: None (top layer)
+
+**Downward Communication**:
+- Sends commands to Orchestration Layer
+- Receives events from Event System
+- Subscribes to streaming updates
+
+## Layer 2: Orchestration Layer
+
+### Responsibilities
+
+Coordinates system-wide operations and manages execution flow.
+
+### Components
+
+#### Main Orchestrator (`/src/cli/main-orchestrator.ts`)
+
+**Lifecycle Management**:
+```typescript
+class MainOrchestrator {
+  private serviceStates: Map<string, ServiceState>;
+  private streamOrchestrator: StreamingOrchestrator;
+  private vmOrchestrator: VMOrchestrator;
+
+  async initialize(): Promise<void> {
+    // Phase 1: Core services
+    await this.initializeCoreServices();
+
+    // Phase 2: Dependent services
+    await this.initializeDependentServices();
+
+    // Phase 3: Start orchestration
+    await this.startOrchestration();
+  }
+
+  private async initializeCoreServices(): Promise<void> {
+    const services = [
+      { name: 'config', init: () => configManager.initialize() },
+      { name: 'logging', init: () => logger.initialize() },
+      { name: 'monitoring', init: () => monitoringSystem.initialize() }
+    ];
+
+    for (const service of services) {
+      await this.initializeService(service);
+    }
+  }
+
+  async gracefulShutdown(): Promise<void> {
+    // Stop accepting new requests
+    await this.stopAcceptingRequests();
+
+    // Wait for active operations
+    await this.waitForActiveOperations();
+
+    // Cleanup resources
+    await this.cleanup();
+  }
+}
+```
+
+**Service State Tracking**:
+```typescript
+interface ServiceState {
+  name: string;
+  initialized: boolean;
+  phase: 'core' | 'dependent' | 'all';
+  dependencies: string[];
+  error?: Error;
+}
+```
+
+#### Streaming Orchestrator (`/src/cli/streaming-orchestrator.ts`)
+
+**Message Queue System**:
+```typescript
+interface StreamMessage {
+  id: string;
+  type: 'user' | 'system' | 'agent' | 'tool' | 'diff' | 'error' | 'vm';
+  content: string;
+  timestamp: Date;
+  status: 'queued' | 'processing' | 'completed' | 'absorbed';
+  metadata?: any;
+  agentId?: string;
+  progress?: number;
+}
+
+class StreamingOrchestratorImpl {
+  private messageQueue: StreamMessage[] = [];
+  private activeAgents: Map<string, any> = new Map();
+  private processingMessage = false;
+
+  async processMessage(content: string): Promise<void> {
+    const message: StreamMessage = {
+      id: randomUUID(),
+      type: 'user',
+      content,
+      timestamp: new Date(),
+      status: 'queued'
+    };
+
+    this.messageQueue.push(message);
+
+    if (!this.processingMessage) {
+      await this.processNextMessage();
+    }
+  }
+
+  private async processNextMessage(): Promise<void> {
+    if (this.messageQueue.length === 0) return;
+
+    this.processingMessage = true;
+    const message = this.messageQueue.shift()!;
+    message.status = 'processing';
+
+    try {
+      // Execute through middleware chain
+      const result = await middlewareManager.execute(
+        'process_message',
+        [message],
+        this.context
+      );
+
+      // Route to appropriate agent
+      await this.routeToAgent(message, result);
+
+      message.status = 'completed';
+    } catch (error) {
+      message.status = 'error';
+      await this.handleError(error, message);
+    } finally {
+      this.processingMessage = false;
+      await this.processNextMessage();
+    }
+  }
+}
+```
+
+**Context Management**:
+```typescript
+interface StreamContext {
+  workingDirectory: string;
+  autonomous: boolean;
+  planMode: boolean;
+  autoAcceptEdits: boolean;
+  vmMode: boolean;
+  contextLeft: number;
+  maxContext: number;
+  adaptiveSupervision?: boolean;
+  intelligentPrioritization?: boolean;
+  cognitiveFiltering?: boolean;
+}
+```
+
+**Cognitive AI Pipeline**:
+```typescript
+class StreamingOrchestrator {
+  private cognitiveEnabled: boolean = true;
+  private adaptiveMetrics: Map<string, number> = new Map();
+
+  private async applyCognitiveFiltering(
+    input: string
+  ): Promise<string> {
+    if (!this.cognitiveEnabled) return input;
+
+    // Apply intelligent filtering
+    const filtered = await this.intelligentPrioritization(input);
+    const optimized = await this.adaptiveSupervision(filtered);
+
+    return optimized;
+  }
+
+  private async intelligentPrioritization(
+    input: string
+  ): Promise<string> {
+    // Analyze input priority
+    const priority = await this.analyzePriority(input);
+
+    // Adjust processing based on priority
+    if (priority === 'high') {
+      return this.expediteProcessing(input);
+    }
+
+    return input;
+  }
+}
+```
+
+#### VM Orchestrator (`/src/cli/virtualized-agents/vm-orchestrator.ts`)
+
+**Container Management**:
+```typescript
+class VMOrchestrator {
+  private containerManager: ContainerManager;
+  private activeSessions: Map<string, VMSession> = new Map();
+
+  async createVMAgent(config: VMConfig): Promise<string> {
+    // Create isolated container
+    const containerId = await this.containerManager.createContainer({
+      image: config.image,
+      resources: config.resources,
+      network: config.networkMode
+    });
+
+    // Initialize agent in container
+    const agentId = await this.initializeAgent(containerId, config);
+
+    // Track session
+    this.activeSessions.set(agentId, {
+      containerId,
+      agentId,
+      created: new Date(),
+      status: 'active'
+    });
+
+    return agentId;
+  }
+
+  async executeInVM(
+    agentId: string,
+    task: string
+  ): Promise<AsyncGenerator<any>> {
+    const session = this.activeSessions.get(agentId);
+    if (!session) throw new Error('Session not found');
+
+    // Execute in isolated environment
+    return this.containerManager.execute(
+      session.containerId,
+      task
+    );
+  }
+}
+```
+
+### Layer Boundaries
+
+**Upward Communication**:
+- Emits events to Presentation Layer
+- Streams real-time updates
+
+**Downward Communication**:
+- Delegates to Agent Layer
+- Uses Service Layer for business logic
+- Coordinates multiple agents
+
+## Layer 3: Agent Layer
+
+### Responsibilities
+
+Executes AI-driven tasks with domain-specific intelligence.
+
+### Components
+
+#### Universal Agent
+
+**Multi-Purpose Execution**:
+```typescript
+class UniversalAgent {
+  async execute(task: string, context: AgentContext): AsyncGenerator<any> {
+    // Analyze task
+    const analysis = await this.analyzeTask(task);
+
+    // Generate plan
+    const plan = await planningService.generatePlan(task, analysis);
+
+    // Execute steps
+    for (const step of plan.steps) {
+      yield* this.executeStep(step, context);
+    }
+  }
+
+  private async analyzeTask(task: string): Promise<TaskAnalysis> {
+    return {
+      complexity: this.assessComplexity(task),
+      requiredTools: this.identifyTools(task),
+      estimatedSteps: this.estimateSteps(task),
+      riskLevel: this.assessRisk(task)
+    };
+  }
+}
+```
+
+#### Specialized Agents
+
+**Domain Expertise**:
+```typescript
+// React Expert Agent
+class ReactExpertAgent extends BaseAgent {
+  private specialization = ['react', 'jsx', 'hooks', 'components'];
+
+  async execute(task: string): AsyncGenerator<any> {
+    // React-specific analysis
+    const componentAnalysis = await this.analyzeComponents(task);
+
+    // Apply React best practices
+    const optimized = await this.applyBestPractices(componentAnalysis);
+
+    // Generate React code
+    yield* this.generateReactCode(optimized);
+  }
+
+  private async analyzeComponents(task: string): Promise<ComponentAnalysis> {
+    // Use LSP for React analysis
+    const diagnostics = await lspService.getDiagnostics('tsx');
+
+    // Analyze component structure
+    const structure = await this.analyzeStructure(task);
+
+    return { diagnostics, structure };
+  }
+}
+```
+
+**Agent Registration**:
+```typescript
+// Agent Service manages all agents
+agentService.registerAgent({
+  name: 'react-expert',
+  description: 'React component development specialist',
+  specialization: ['react', 'jsx', 'tsx', 'components'],
+  maxConcurrency: 1,
+  handler: async function* (task: string) {
+    // Agent implementation
+    yield* new ReactExpertAgent().execute(task);
+  }
+});
+```
+
+#### Virtualized Agents
+
+**Isolated Execution**:
+```typescript
+class VirtualizedAgent {
+  private containerId: string;
+  private executor: ContainerExecutor;
+
+  async execute(task: string): AsyncGenerator<any> {
+    // Execute in sandbox
+    const result = await this.executor.run({
+      container: this.containerId,
+      command: task,
+      timeout: 30000,
+      resources: {
+        memory: '512MB',
+        cpu: '0.5'
+      }
+    });
+
+    yield* result;
+  }
+}
+```
+
+### Agent Communication Patterns
+
+**Agent-to-Agent Communication**:
+```typescript
+class AgentCoordinator {
+  async coordinateAgents(
+    agents: Agent[],
+    task: string
+  ): AsyncGenerator<any> {
+    // Distribute subtasks
+    const subtasks = await this.distributeWork(task, agents);
+
+    // Execute in parallel
+    const results = await Promise.all(
+      subtasks.map((subtask, i) =>
+        agents[i].execute(subtask)
+      )
+    );
+
+    // Merge results
+    yield* this.mergeResults(results);
+  }
+}
+```
+
+### Layer Boundaries
+
+**Upward Communication**:
+- Reports progress to Orchestration Layer
+- Requests resources and permissions
+
+**Downward Communication**:
+- Uses Service Layer for operations
+- Invokes tools via Tool Service
+- Accesses context via Context Service
+
+## Layer 4: Service Layer
+
+### Responsibilities
+
+Provides reusable business logic and coordinates complex operations.
+
+### Components
+
+#### Agent Service (`/src/cli/services/agent-service.ts`)
+
+**Agent Lifecycle**:
+```typescript
+class AgentService {
+  private agents: Map<string, AgentCapability>;
+  private activeTasks: Map<string, AgentTask>;
+  private taskQueue: AgentTask[];
+  private maxConcurrentAgents = 3;
+
+  async executeTask(
+    agentType: string,
+    task: string
+  ): Promise<string> {
+    // Create task
+    const taskId = randomUUID();
+    const agentTask: AgentTask = {
+      id: taskId,
+      agentType,
+      task,
+      status: 'pending',
+      startTime: new Date()
+    };
+
+    // Queue or execute
+    if (this.canExecuteNow()) {
+      await this.execute(agentTask);
+    } else {
+      this.taskQueue.push(agentTask);
+    }
+
+    return taskId;
+  }
+
+  private async execute(task: AgentTask): Promise<void> {
+    task.status = 'running';
+    this.activeTasks.set(task.id, task);
+
+    try {
+      const agent = this.agents.get(task.agentType);
+      if (!agent) throw new Error('Agent not found');
+
+      // Execute through handler
+      const result = agent.handler(task.task, {});
+
+      // Process streaming results
+      for await (const chunk of result) {
+        task.progress = chunk.progress;
+        this.emit('task:progress', task);
+      }
+
+      task.status = 'completed';
+      task.endTime = new Date();
+    } catch (error) {
+      task.status = 'failed';
+      task.error = error.message;
+    } finally {
+      this.activeTasks.delete(task.id);
+      this.processQueue();
+    }
+  }
+}
+```
+
+#### Planning Service (`/src/cli/services/planning-service.ts`)
+
+**Plan Generation**:
+```typescript
+class PlanningService {
+  async generatePlan(
+    task: string,
+    context: PlanContext
+  ): Promise<ExecutionPlan> {
+    // Analyze task complexity
+    const analysis = await this.analyzeTask(task);
+
+    // Generate steps
+    const steps = await this.decomposeTask(task, analysis);
+
+    // Optimize execution order
+    const optimized = this.optimizeSteps(steps);
+
+    // Create plan
+    return {
+      id: randomUUID(),
+      task,
+      steps: optimized,
+      estimatedDuration: this.estimateDuration(optimized),
+      dependencies: this.mapDependencies(optimized)
+    };
+  }
+
+  private async decomposeTask(
+    task: string,
+    analysis: TaskAnalysis
+  ): Promise<PlanStep[]> {
+    // Use AI to decompose
+    const prompt = this.buildDecompositionPrompt(task, analysis);
+    const response = await aiProvider.generate(prompt);
+
+    // Parse steps
+    return this.parseSteps(response);
+  }
+}
+```
+
+#### Memory Service (`/src/cli/services/memory-service.ts`)
+
+**Conversation Management**:
+```typescript
+class MemoryService {
+  private conversationHistory: ConversationMessage[] = [];
+  private semanticMemory: SemanticStore;
+  private maxHistoryLength = 100;
+
+  async addMessage(
+    role: 'user' | 'assistant' | 'system',
+    content: string
+  ): Promise<void> {
+    const message: ConversationMessage = {
+      id: randomUUID(),
+      role,
+      content,
+      timestamp: new Date()
+    };
+
+    // Add to history
+    this.conversationHistory.push(message);
+
+    // Prune if needed
+    if (this.conversationHistory.length > this.maxHistoryLength) {
+      this.conversationHistory.shift();
+    }
+
+    // Store in semantic memory
+    await this.semanticMemory.store(message);
+  }
+
+  async searchMemory(query: string): Promise<ConversationMessage[]> {
+    // Semantic search
+    return await this.semanticMemory.search(query, { limit: 5 });
+  }
+
+  async getRelevantContext(
+    query: string,
+    maxTokens: number
+  ): Promise<string> {
+    // Get relevant messages
+    const relevant = await this.searchMemory(query);
+
+    // Format within token budget
+    return this.formatContext(relevant, maxTokens);
+  }
+}
+```
+
+#### LSP Service (`/src/cli/services/lsp-service.ts`)
+
+**Language Intelligence**:
+```typescript
+class LSPService {
+  private lspClients: Map<string, LSPClient> = new Map();
+
+  async getDiagnostics(
+    filePath: string
+  ): Promise<Diagnostic[]> {
+    const language = this.detectLanguage(filePath);
+    const client = await this.getOrCreateClient(language);
+
+    return await client.getDiagnostics(filePath);
+  }
+
+  async getCompletions(
+    filePath: string,
+    position: Position
+  ): Promise<CompletionItem[]> {
+    const language = this.detectLanguage(filePath);
+    const client = await this.getOrCreateClient(language);
+
+    return await client.getCompletions(filePath, position);
+  }
+
+  async getDefinition(
+    filePath: string,
+    position: Position
+  ): Promise<Location[]> {
+    const language = this.detectLanguage(filePath);
+    const client = await this.getOrCreateClient(language);
+
+    return await client.getDefinition(filePath, position);
+  }
+}
+```
+
+#### Tool Service (`/src/cli/services/tool-service.ts`)
+
+**Tool Orchestration**:
+```typescript
+class ToolService {
+  private toolRegistry: ToolRegistry;
+  private executionHistory: ToolExecution[] = [];
+
+  async executeTool(
+    toolName: string,
+    args: any,
+    requireApproval: boolean = false
+  ): Promise<ToolExecutionResult> {
+    const tool = this.toolRegistry.getTool(toolName);
+    if (!tool) throw new Error(`Tool ${toolName} not found`);
+
+    // Check approval
+    if (requireApproval) {
+      const approved = await this.requestApproval(tool, args);
+      if (!approved) {
+        return { success: false, error: 'User rejected operation' };
+      }
+    }
+
+    // Execute
+    const execution: ToolExecution = {
+      id: randomUUID(),
+      toolName,
+      args,
+      startTime: new Date(),
+      status: 'running'
+    };
+
+    this.executionHistory.push(execution);
+
+    try {
+      const result = await tool.execute(args);
+      execution.status = 'completed';
+      execution.result = result;
+      execution.endTime = new Date();
+
+      return result;
+    } catch (error) {
+      execution.status = 'failed';
+      execution.error = error;
+      execution.endTime = new Date();
+
+      throw error;
+    }
+  }
+}
+```
+
+### Layer Boundaries
+
+**Upward Communication**:
+- Provides APIs to Agent Layer
+- Emits service-level events
+
+**Downward Communication**:
+- Uses Infrastructure Layer for providers
+- Accesses Data Layer for persistence
+
+## Layer 5: Infrastructure Layer
+
+### Responsibilities
+
+Provides foundational services and integrations.
+
+### Components
+
+#### AI Provider System
+
+**Model Routing**:
+```typescript
+class ModelProvider {
+  private providers: Map<string, AIProvider> = new Map();
+  private routingConfig: RoutingConfig;
+
+  async generateCompletion(
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<Completion> {
+    // Route to appropriate model
+    const provider = await this.selectProvider(prompt, options);
+
+    // Generate with retry
+    return await this.withRetry(() =>
+      provider.generateCompletion(prompt, options)
+    );
+  }
+
+  private async selectProvider(
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<AIProvider> {
+    if (options?.model) {
+      return this.getProviderForModel(options.model);
+    }
+
+    // Intelligent routing
+    const complexity = await this.assessComplexity(prompt);
+
+    if (complexity === 'high') {
+      return this.providers.get('anthropic'); // Claude
+    } else if (complexity === 'medium') {
+      return this.providers.get('openai'); // GPT-4
+    } else {
+      return this.providers.get('openai'); // GPT-3.5
+    }
+  }
+}
+```
+
+#### Context & RAG System
+
+**Workspace Indexing**:
+```typescript
+class WorkspaceContext {
+  private vectorStore: ChromaDB;
+  private fileIndex: Map<string, FileMetadata>;
+
+  async indexWorkspace(directory: string): Promise<void> {
+    // Scan files
+    const files = await this.scanFiles(directory);
+
+    // Generate embeddings
+    for (const file of files) {
+      const content = await fs.readFile(file, 'utf-8');
+      const chunks = this.chunkContent(content);
+
+      for (const chunk of chunks) {
+        const embedding = await this.generateEmbedding(chunk);
+        await this.vectorStore.add({
+          id: `${file}:${chunk.start}`,
+          embedding,
+          metadata: {
+            file,
+            start: chunk.start,
+            end: chunk.end
+          }
+        });
+      }
+    }
+  }
+
+  async search(query: string, limit: number = 10): Promise<SearchResult[]> {
+    const queryEmbedding = await this.generateEmbedding(query);
+    const results = await this.vectorStore.search(queryEmbedding, limit);
+
+    return results;
+  }
+}
+```
+
+#### Event System
+
+**Event Bus**:
+```typescript
+class EventBus {
+  private subscribers: Map<string, EventHandler[]> = new Map();
+
+  subscribe(event: string, handler: EventHandler): () => void {
+    if (!this.subscribers.has(event)) {
+      this.subscribers.set(event, []);
+    }
+
+    this.subscribers.get(event)!.push(handler);
+
+    // Return unsubscribe function
+    return () => {
+      const handlers = this.subscribers.get(event);
+      if (handlers) {
+        const index = handlers.indexOf(handler);
+        if (index > -1) handlers.splice(index, 1);
+      }
+    };
+  }
+
+  async emit(event: string, data: any): Promise<void> {
+    const handlers = this.subscribers.get(event) || [];
+
+    await Promise.all(
+      handlers.map(handler => handler(data))
+    );
+  }
+}
+```
+
+#### Monitoring System
+
+**Telemetry**:
+```typescript
+class OpenTelemetryProvider {
+  private tracer: Tracer;
+  private meter: Meter;
+
+  startSpan(name: string, options?: SpanOptions): Span {
+    return this.tracer.startSpan(name, options);
+  }
+
+  recordMetric(name: string, value: number, labels?: Record<string, string>): void {
+    const counter = this.meter.createCounter(name);
+    counter.add(value, labels);
+  }
+
+  async trace<T>(
+    name: string,
+    fn: () => Promise<T>
+  ): Promise<T> {
+    const span = this.startSpan(name);
+
+    try {
+      const result = await fn();
+      span.setStatus({ code: SpanStatusCode.OK });
+      return result;
+    } catch (error) {
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: error.message
+      });
+      throw error;
+    } finally {
+      span.end();
+    }
+  }
+}
+```
+
+### Layer Boundaries
+
+**Upward Communication**:
+- Provides APIs to Service Layer
+- Emits infrastructure events
+
+**Downward Communication**:
+- Uses Data Layer for persistence
+- Makes external API calls
+
+## Layer 6: Data Layer
+
+### Responsibilities
+
+Handles data persistence and retrieval.
+
+### Components
+
+#### Configuration Storage
+
+**Config Manager**:
+```typescript
+class ConfigManager {
+  private config: ConfigType;
+  private configPath: string;
+  private watchers: FSWatcher[] = [];
+
+  async load(): Promise<void> {
+    // Load from multiple sources
+    const defaultConfig = this.getDefaultConfig();
+    const userConfig = await this.loadUserConfig();
+    const projectConfig = await this.loadProjectConfig();
+    const envConfig = this.loadEnvConfig();
+
+    // Merge configurations
+    this.config = this.mergeConfigs([
+      defaultConfig,
+      userConfig,
+      projectConfig,
+      envConfig
+    ]);
+
+    // Validate
+    this.validate();
+
+    // Watch for changes
+    this.watchConfig();
+  }
+
+  async save(): Promise<void> {
+    await fs.writeFile(
+      this.configPath,
+      yaml.stringify(this.config),
+      'utf-8'
+    );
+  }
+}
+```
+
+#### State Persistence
+
+**Snapshot Service**:
+```typescript
+class SnapshotService {
+  async saveSnapshot(state: SystemState): Promise<string> {
+    const snapshotId = randomUUID();
+    const snapshot = {
+      id: snapshotId,
+      timestamp: new Date(),
+      state
+    };
+
+    await fs.writeFile(
+      this.getSnapshotPath(snapshotId),
+      JSON.stringify(snapshot),
+      'utf-8'
+    );
+
+    return snapshotId;
+  }
+
+  async loadSnapshot(snapshotId: string): Promise<SystemState> {
+    const data = await fs.readFile(
+      this.getSnapshotPath(snapshotId),
+      'utf-8'
+    );
+
+    const snapshot = JSON.parse(data);
+    return snapshot.state;
+  }
+}
+```
+
+#### Cache Storage
+
+**Multi-Tier Cache**:
+```typescript
+class CacheManager {
+  private memoryCache: Map<string, CacheEntry> = new Map();
+  private redisCache: Redis;
+  private diskCache: DiskCache;
+
+  async get(key: string): Promise<any> {
+    // L1: Memory cache
+    if (this.memoryCache.has(key)) {
+      return this.memoryCache.get(key)!.value;
+    }
+
+    // L2: Redis cache
+    const redisValue = await this.redisCache.get(key);
+    if (redisValue) {
+      this.memoryCache.set(key, {
+        value: redisValue,
+        expiry: Date.now() + 60000
+      });
+      return redisValue;
+    }
+
+    // L3: Disk cache
+    const diskValue = await this.diskCache.get(key);
+    if (diskValue) {
+      await this.redisCache.set(key, diskValue, 'EX', 3600);
+      return diskValue;
+    }
+
+    return null;
+  }
+
+  async set(
+    key: string,
+    value: any,
+    ttl: number = 3600
+  ): Promise<void> {
+    // Write to all tiers
+    this.memoryCache.set(key, {
+      value,
+      expiry: Date.now() + ttl * 1000
+    });
+
+    await this.redisCache.set(key, value, 'EX', ttl);
+    await this.diskCache.set(key, value);
+  }
+}
+```
+
+### Layer Boundaries
+
+**Upward Communication**:
+- Provides data APIs to Infrastructure Layer
+- None (bottom layer)
+
+**Downward Communication**:
+- File system operations
+- Database connections
+- External storage APIs
+
+## Cross-Cutting Concerns
+
+### Middleware Pipeline
+
+The middleware system operates across all layers:
+
+```typescript
+// Request flows through middleware at each layer
+class MiddlewareChain {
+  async execute(
+    operation: string,
+    args: any[],
+    context: any
+  ): Promise<any> {
+    // Validation middleware
+    await validationMiddleware.execute(args);
+
+    // Logging middleware
+    await loggingMiddleware.execute(operation, args);
+
+    // Performance middleware
+    const start = Date.now();
+
+    // Execute operation
+    const result = await this.executeOperation(operation, args, context);
+
+    // Audit middleware
+    await auditMiddleware.execute(operation, result);
+
+    // Metrics middleware
+    await metricsMiddleware.execute(operation, Date.now() - start);
+
+    return result;
+  }
+}
+```
+
+### Error Propagation
+
+Errors flow upward through layers:
+
+```
+Data Layer Error
+    ↓
+Infrastructure Layer (wrap, add context)
+    ↓
+Service Layer (categorize, add metadata)
+    ↓
+Agent Layer (recover or escalate)
+    ↓
+Orchestration Layer (log, decide action)
+    ↓
+Presentation Layer (format, display)
+```
+
+### Event Flow
+
+Events can flow both up and down:
+
+```
+User Input Event (up)
+    ↑
+Presentation Layer
+    ↑
+Orchestration Layer (broadcast)
+    ↓           ↓           ↓
+Agent Layer  Service Layer  Infrastructure Layer
+```
+
+## Design Patterns
+
+### Dependency Injection
+
+```typescript
+// Services injected into components
+class Agent {
+  constructor(
+    private toolService: ToolService,
+    private memoryService: MemoryService,
+    private lspService: LSPService
+  ) {}
+}
+```
+
+### Factory Pattern
+
+```typescript
+// Agent factory
+class AgentFactory {
+  createAgent(type: string, config: AgentConfig): Agent {
+    switch (type) {
+      case 'universal':
+        return new UniversalAgent(config);
+      case 'react-expert':
+        return new ReactExpertAgent(config);
+      default:
+        throw new Error('Unknown agent type');
+    }
+  }
+}
+```
+
+### Strategy Pattern
+
+```typescript
+// Different routing strategies
+interface RoutingStrategy {
+  selectProvider(prompt: string): AIProvider;
+}
+
+class ConservativeRouting implements RoutingStrategy {
+  selectProvider(prompt: string): AIProvider {
+    return mostReliableProvider;
+  }
+}
+
+class AggressiveRouting implements RoutingStrategy {
+  selectProvider(prompt: string): AIProvider {
+    return cheapestProvider;
+  }
+}
+```
+
+### Observer Pattern
+
+```typescript
+// Event-driven architecture
+class Observable {
+  private observers: Observer[] = [];
+
+  subscribe(observer: Observer): void {
+    this.observers.push(observer);
+  }
+
+  notify(event: Event): void {
+    for (const observer of this.observers) {
+      observer.update(event);
+    }
+  }
+}
+```
+
+## Conclusion
+
+NikCLI's layered architecture provides:
+- **Clear separation of concerns**
+- **Testability** at each layer
+- **Flexibility** to swap implementations
+- **Scalability** through horizontal and vertical scaling
+- **Maintainability** with well-defined boundaries
+
+Each layer has specific responsibilities and communicates through well-defined interfaces, making the system robust and extensible.
+
+## Related Documentation
+
+- [Architecture Overview](/architecture/overview)
+- [Event System](/architecture/event-system)
+- [Streaming Architecture](/architecture/streaming-architecture)
+- [Security Model](/architecture/security-model)

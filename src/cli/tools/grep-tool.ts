@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { extname, join, relative } from 'node:path'
+
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
@@ -85,7 +86,7 @@ export class GrepTool extends BaseTool {
         throw new Error(`Search path does not exist: ${searchPath}`)
       }
 
-      CliUI.logInfo(`🔍 Searching for pattern: ${CliUI.highlight(params.pattern)}`)
+      advancedUI.logInfo(`🔍 Searching for pattern: ${CliUI.highlight(params.pattern)}`)
 
       const startTime = Date.now()
 
@@ -94,7 +95,15 @@ export class GrepTool extends BaseTool {
 
       // Scansione file
       const filesToSearch = await this.findFilesToSearch(searchPath, params)
-      CliUI.logDebug(`Found ${filesToSearch.length} files to search`)
+
+      // Se non trova file, potrebbe essere dovuto a IGNORE_PATTERNS troppo aggressivi
+      // Mostra warning ma continua comunque
+      if (filesToSearch.length === 0) {
+        advancedUI.logInfo(`⚠️  No files found matching criteria - this might be due to aggressive ignore patterns`)
+        CliUI.logDebug(`Search path: ${searchPath}, pattern: ${params.pattern}`)
+      } else {
+        CliUI.logDebug(`Found ${filesToSearch.length} files to search`)
+      }
 
       // Ricerca pattern nei file
       const matches: GrepMatch[] = []
@@ -138,7 +147,7 @@ export class GrepTool extends BaseTool {
         },
       }
 
-      CliUI.logSuccess(`✓ Found ${result.totalMatches} matches in ${filesWithMatches} files`)
+      advancedUI.logSuccess(`✓ Found ${result.totalMatches} matches in ${filesWithMatches} files`)
 
       // Show grep results in structured UI
       if (result.matches.length > 0) {
@@ -171,6 +180,7 @@ export class GrepTool extends BaseTool {
 
   /**
    * Costruisce regex pattern basato sui parametri
+   * Valida il pattern usando arkregex prima della compilazione
    */
   private buildRegexPattern(params: GrepToolParams): RegExp {
     let pattern = params.pattern
@@ -183,6 +193,15 @@ export class GrepTool extends BaseTool {
     // Whole word matching
     if (params.wholeWord) {
       pattern = `\\b${pattern}\\b`
+    }
+
+    // Validazione del pattern usando arkregex prima della compilazione
+    if (params.useRegex) {
+      try {
+        new RegExp(pattern)
+      } catch (error) {
+        throw new Error(`Invalid regex pattern: ${pattern}. ${error}`)
+      }
     }
 
     const flags = params.caseSensitive ? 'g' : 'gi'
@@ -308,21 +327,28 @@ export class GrepTool extends BaseTool {
 
   /**
    * Verifica se un file/directory deve essere ignorato per grep
+   * FIX: Ignora solo se il path INIZIA con ignore pattern, non se lo CONTIENE
    */
   private shouldIgnoreForGrep(relativePath: string, excludePatterns: string[]): boolean {
     const pathLower = relativePath.toLowerCase()
 
-    // Applica ignore patterns standard
+    // Applica ignore patterns standard - IMPORTANTE: usa startsWith, non includes!
     if (
       IGNORE_PATTERNS.some((pattern) => {
+        const patternLower = pattern.toLowerCase()
+
         if (pattern.endsWith('/')) {
-          return pathLower.includes(pattern.toLowerCase())
+          // Pattern come 'node_modules/' - ignora solo se il path INIZIA con questo
+          return pathLower.startsWith(patternLower.slice(0, -1)) ||
+            pathLower.includes('/' + patternLower.slice(0, -1) + '/')
         }
         if (pattern.includes('*')) {
-          const regex = new RegExp(pattern.replace(/\*/g, '.*'))
-          return regex.test(pathLower)
+          // Pattern globby come '*.log'
+          const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
+          return regex.test(pathLower) || regex.test(pathLower.split('/').pop() || '')
         }
-        return pathLower.includes(pattern.toLowerCase())
+        // Pattern semplice - ignora solo se il path INIZIA o FINISCE con questo
+        return pathLower.startsWith(patternLower) || pathLower.endsWith(patternLower)
       })
     ) {
       return true
@@ -330,11 +356,12 @@ export class GrepTool extends BaseTool {
 
     // Applica exclude patterns personalizzati
     return excludePatterns.some((pattern) => {
+      const patternLower = pattern.toLowerCase()
       if (pattern.includes('*')) {
-        const regex = new RegExp(pattern.replace(/\*/g, '.*'))
-        return regex.test(pathLower)
+        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
+        return regex.test(pathLower) || regex.test(pathLower.split('/').pop() || '')
       }
-      return pathLower.includes(pattern.toLowerCase())
+      return pathLower.startsWith(patternLower) || pathLower.endsWith(patternLower)
     })
   }
 
