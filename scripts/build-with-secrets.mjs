@@ -152,8 +152,6 @@ const SECRETS_TO_EMBED = [
   // BLOCKCHAIN & CRYPTO
   { name: 'WALLET_ADDRESS', envVarName: 'WALLET_ADDRESS', id: 'wallet_address', provider: 'blockchain', description: 'Wallet address' },
   { name: 'RPC_URL', envVarName: 'RPC_URL', id: 'rpc_url', provider: 'blockchain', description: 'RPC URL' },
-  { name: 'UPSTASH_VECTOR_REST_URL', envVarName: 'UPSTASH_VECTOR_REST_URL', id: 'upstash_vector_url', provider: 'upstash', description: 'Upstash Vector REST URL' },
-  { name: 'UPSTASH_VECTOR_REST_TOKEN', envVarName: 'UPSTASH_VECTOR_REST_TOKEN', id: 'upstash_vector_token', provider: 'upstash', description: 'Upstash Vector REST Token' },
   { name: 'POLYMARKET_CHAIN_ID', envVarName: 'POLYMARKET_CHAIN_ID', id: 'polymarket_chain_id', provider: 'polymarket', description: 'Polymarket Chain ID' },
   { name: 'POLYMARKET_HOST', envVarName: 'POLYMARKET_HOST', id: 'polymarket_host', provider: 'polymarket', description: 'Polymarket Host' },
   { name: 'POLYMARKET_SIGNATURE_TYPE', envVarName: 'POLYMARKET_SIGNATURE_TYPE', id: 'polymarket_signature_type', provider: 'polymarket', description: 'Polymarket Signature Type' },
