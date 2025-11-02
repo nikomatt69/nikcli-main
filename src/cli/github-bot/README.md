@@ -48,7 +48,7 @@ Use @nikcli in GitHub comments with these commands:
 | `security` | Security improvements | `@nikcli security sanitize user inputs` |
 | `accessibility` | A11y improvements | `@nikcli accessibility keyboard navigation` |
 | `analyze` | Code analysis | `@nikcli analyze performance bottlenecks` |
-| `review` | Code review | `@nikcli review --suggestions` |
+| `review` | Code review with automated fixes | `@nikcli review` |
 
 ### Options
 
@@ -105,7 +105,50 @@ GitHub Comment → Webhook → NikCLI API Server
 ✅ All core components implemented
 ✅ Webhook processing integrated with existing API server
 ✅ Compatible with current NikCLI background agents system
+✅ Advanced PR review with automated fixes
+✅ TypeScript type checking and ESLint integration
+✅ AI-powered code fixing capabilities
 ✅ Minimal changes to existing codebase
 ✅ Production-ready error handling and logging
+✅ Full type safety with TypeScript
+
+## New Features (Latest Update)
+
+### Advanced PR Review & Automated Fixes
+
+The bot now includes sophisticated PR review capabilities:
+
+- **Automated Issue Detection**: Scans PRs for TypeScript errors, ESLint issues, and code quality problems
+- **Smart Fixes**: Applies automated fixes using ESLint auto-fix and AI-powered code correction
+- **Type Safety**: Runs TypeScript compiler checks to ensure type correctness
+- **Targeted Commits**: Creates focused commits with detailed descriptions of fixes applied
+- **New PR Creation**: Automatically creates a new PR with fixes targeting the correct base branch
+- **Comprehensive Analysis**: Provides detailed analysis of issues found and fixes applied
+
+### Usage Example for PR Review
+
+```markdown
+@nikcli review
+
+Please review this PR and fix any TypeScript errors or linting issues.
+```
+
+The bot will:
+1. Fetch the PR diff and changed files
+2. Clone the PR branch
+3. Run TypeScript compiler and ESLint
+4. Apply automated fixes
+5. Create a new branch with fixes
+6. Create a new PR targeting the same base branch
+7. Post a detailed comment with analysis
+
+### Components
+
+- **webhook-handler.ts**: Enhanced to pass PR context to task executor
+- **task-executor.ts**: Integrated with PRReviewExecutor for advanced reviews
+- **pr-review-executor.ts**: New component for comprehensive PR analysis and fixing
+- **comment-processor.ts**: Parses @nikcli commands from comments
+- **types.ts**: Type-safe interfaces for all components
+- **index.ts**: Clean exports for external usage
 
 Ready for deployment and testing with GitHub App configuration!

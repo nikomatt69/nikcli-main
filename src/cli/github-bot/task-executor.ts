@@ -8,9 +8,11 @@ import type { Octokit } from '@octokit/rest'
 import { backgroundAgentService } from '../background-agents/background-agent-service'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CommentProcessor } from './comment-processor'
+import { PRReviewExecutor } from './pr-review-executor'
 import type {
   CommandParseResult,
   GitHubBotConfig,
+  GitHubPullRequest,
   ProcessingJob,
   RepositoryContext,
   TaskContext,
@@ -30,6 +32,7 @@ export class TaskExecutor {
   private octokit: Octokit
   private config: GitHubBotConfig
   private commentProcessor: CommentProcessor
+  private prReviewExecutor: PRReviewExecutor
   private workingDir: string
   private executionMode: ExecutionMode
   private useBackgroundAgents: boolean
@@ -38,6 +41,7 @@ export class TaskExecutor {
     this.octokit = octokit
     this.config = config
     this.commentProcessor = new CommentProcessor()
+    this.prReviewExecutor = new PRReviewExecutor(octokit, config)
     this.workingDir = join(tmpdir(), 'nikcli-github-bot')
     this.executionMode = executionMode
 
@@ -373,6 +377,7 @@ export class TaskExecutor {
       repository: repoContext,
       workingDirectory: repoContext.clonePath,
       tempBranch,
+      originalPR: job.pullRequest,
     }
   }
 
@@ -583,6 +588,13 @@ export class TaskExecutor {
   }
 
   private async executeReview(command: CommandParseResult, context: TaskContext): Promise<TaskResult> {
+    // Check if this is a PR review
+    if (context.originalPR) {
+      console.log('🔍 Executing advanced PR review with automated fixes')
+      return await this.prReviewExecutor.reviewAndFixPR(context.job, context.repository, context.originalPR)
+    }
+    
+    // Fallback to generic review
     return this.executeGenericCommand('review', command, context)
   }
 

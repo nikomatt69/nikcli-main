@@ -141,6 +141,25 @@ export class GitHubWebhookHandler {
 
     console.log('🔌 @nikcli mentioned! Processing request...')
 
+    // Check if this is a comment on a PR (issue.pull_request exists)
+    const isPR = !!issue.pull_request
+    let pullRequest = null
+    
+    if (isPR) {
+      // Fetch full PR details
+      try {
+        const [owner, repo] = repository.full_name.split('/')
+        const { data: prData } = await this.octokit.rest.pulls.get({
+          owner,
+          repo,
+          pull_number: issue.number,
+        })
+        pullRequest = prData
+      } catch (error) {
+        console.error('Failed to fetch PR details:', error)
+      }
+    }
+
     // Create processing job
     const jobId = `${repository.full_name}-${issue.number}-${comment.id}`
     const job: ProcessingJob = {
@@ -152,6 +171,8 @@ export class GitHubWebhookHandler {
       status: 'queued',
       createdAt: new Date(),
       author: comment.user.login,
+      isPR,
+      pullRequest,
     }
 
     this.processingJobs.set(jobId, job)
@@ -196,6 +217,7 @@ export class GitHubWebhookHandler {
       // Mark as PR review comment to use correct reactions API
       // (expanded type in types.ts to include isPRReview)
       isPRReview: true,
+      pullRequest: pullRequest,
     }
 
     this.processingJobs.set(jobId, job)

@@ -134,6 +134,7 @@ export interface ProcessingJob {
   isPR?: boolean // Is this a PR comment?
   isIssue?: boolean // Is this an issue body?
   isPRReview?: boolean // Is this a PR review comment?
+  pullRequest?: GitHubPullRequest // Full PR data if available
 }
 
 export type JobStatus = 'queued' | 'processing' | 'completed' | 'failed'
