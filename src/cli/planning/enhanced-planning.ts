@@ -82,6 +82,7 @@ export class EnhancedPlanningSystem {
   private workingDirectory: string
   private planHistory: TodoPlan[] = []
   private cliInstance: any
+  private notificationService: any = null
   private executionStats: {
     totalPlans: number
     successfulPlans: number
@@ -96,6 +97,120 @@ export class EnhancedPlanningSystem {
 
   constructor(workingDirectory: string = process.cwd()) {
     this.workingDirectory = workingDirectory
+    this.initializeNotificationService()
+  }
+
+  /**
+   * Initialize notification service (silent, optional)
+   */
+  private initializeNotificationService(): void {
+    try {
+      const { simpleConfigManager } = require('../core/config-manager')
+      const { getNotificationService } = require('../services/notification-service')
+      const notificationConfig = simpleConfigManager.getNotificationConfig()
+      this.notificationService = getNotificationService(notificationConfig)
+    } catch {
+      // optional
+    }
+  }
+
+  // ===== Notification helpers (optional, silent failures) =====
+  private async sendTaskStartedNotification(plan: TodoPlan, todo: TodoItem): Promise<void> {
+    if (!this.notificationService) return
+    try {
+      const { NotificationType, NotificationSeverity } = require('../types/notifications')
+      const payload: any = {
+        type: NotificationType.TASK_STARTED,
+        severity: NotificationSeverity.INFO,
+        timestamp: new Date(),
+        sessionId: plan.id,
+        workingDirectory: this.workingDirectory,
+        taskId: todo.id,
+        taskTitle: todo.title,
+        taskDescription: todo.description,
+        agentName: todo.agentTypeUsed || 'Plan Executor',
+        blueprintId: todo.agentTypeUsed || 'enhanced-plan',
+        planId: plan.id,
+        planTitle: plan.title,
+      }
+      await this.notificationService.sendTaskStarted(payload)
+    } catch { }
+  }
+
+  private async sendTaskCompletionOrFailure(
+    plan: TodoPlan,
+    todo: TodoItem,
+    success: boolean,
+    error?: string
+  ): Promise<void> {
+    if (!this.notificationService) return
+    try {
+      const { NotificationType, NotificationSeverity } = require('../types/notifications')
+      const payload: any = {
+        type: success ? NotificationType.TASK_COMPLETED : NotificationType.TASK_FAILED,
+        severity: success ? NotificationSeverity.SUCCESS : NotificationSeverity.ERROR,
+        timestamp: new Date(),
+        sessionId: plan.id,
+        workingDirectory: this.workingDirectory,
+        taskId: todo.id,
+        taskTitle: todo.title,
+        taskDescription: todo.description,
+        agentName: todo.agentTypeUsed || 'Plan Executor',
+        blueprintId: todo.agentTypeUsed || 'enhanced-plan',
+        duration: todo.actualDuration ? todo.actualDuration * 60 * 1000 : undefined,
+        success,
+        error,
+      }
+      if (success) {
+        await this.notificationService.sendTaskCompletion(payload)
+      } else {
+        await this.notificationService.sendTaskFailure(payload)
+      }
+    } catch { }
+  }
+
+  private async sendPlanStartedNotification(plan: TodoPlan): Promise<void> {
+    if (!this.notificationService) return
+    try {
+      const { NotificationType, NotificationSeverity } = require('../types/notifications')
+      const payload: any = {
+        type: NotificationType.PLAN_STARTED,
+        severity: NotificationSeverity.INFO,
+        timestamp: new Date(),
+        sessionId: plan.id,
+        workingDirectory: this.workingDirectory,
+        planId: plan.id,
+        planTitle: plan.title,
+        planDescription: plan.description,
+        totalTasks: Array.isArray(plan.todos) ? plan.todos.length : 0,
+      }
+      await this.notificationService.sendPlanStarted(payload)
+    } catch { }
+  }
+
+  private async sendPlanCompletionNotification(plan: TodoPlan, success: boolean): Promise<void> {
+    if (!this.notificationService) return
+    try {
+      const { NotificationType, NotificationSeverity } = require('../types/notifications')
+      const completed = plan.todos.filter((t) => t.status === 'completed').length
+      const failed = plan.todos.filter((t) => t.status === 'failed' || t.status === 'skipped').length
+      const payload: any = {
+        type: success ? NotificationType.PLAN_COMPLETED : NotificationType.PLAN_FAILED,
+        severity: success ? NotificationSeverity.SUCCESS : NotificationSeverity.ERROR,
+        timestamp: new Date(),
+        sessionId: plan.id,
+        workingDirectory: this.workingDirectory,
+        planId: plan.id,
+        planTitle: plan.title,
+        planDescription: plan.description,
+        totalTasks: Array.isArray(plan.todos) ? plan.todos.length : 0,
+        completedTasks: completed,
+        failedTasks: failed,
+        agents: [],
+        success,
+      }
+      await this.notificationService.sendPlanCompletion(payload)
+    } catch { }
   }
 
   /**
@@ -299,6 +414,9 @@ export class EnhancedPlanningSystem {
     // Initial sync to store at execution start
     await this.syncPlanTodosToStore(plan)
 
+    // Notify plan started
+    try { await this.sendPlanStartedNotification(plan) } catch { }
+
     try {
       // Execute as toolchains derived from the todo plan (deterministic, no extra prompts salvo runtime approvals)
       await this.executeToolchainsFromPlan(plan)
@@ -315,9 +433,11 @@ export class EnhancedPlanningSystem {
       await this.updateTodoFile(plan)
       // Final sync
       await this.syncPlanTodosToStore(plan)
+      try { await this.sendPlanCompletionNotification(plan, failedCount === 0) } catch { }
     } catch (error: any) {
       plan.status = 'failed'
       advancedUI.logError(`Enhanced plan execution failed: ${error.message}`, '❌')
+      try { await this.sendPlanCompletionNotification(plan, false) } catch { }
     } finally {
       // Always return to default mode after plan execution
       try {
@@ -386,6 +506,9 @@ export class EnhancedPlanningSystem {
           await this.updateStoreForTodo(plan, todo.id, 'in_progress')
         } catch { }
 
+        // Notify task started
+        try { await this.sendTaskStartedNotification(plan, todo) } catch { }
+
         try {
           // 1) Execute explicit commands if provided
           if (Array.isArray(todo.commands) && todo.commands.length > 0) {
@@ -400,14 +523,15 @@ export class EnhancedPlanningSystem {
                 inquirer,
                 inputQueue
               )
-              if (!approved) {
-                // Skip this todo and continue with the rest
-                todo.status = 'skipped'
-                try {
-                  await this.updateStoreForTodo(plan, todo.id, 'cancelled')
-                } catch { }
-                continue
-              }
+          if (!approved) {
+            // Skip this todo and continue with the rest
+            todo.status = 'skipped'
+            try {
+              await this.updateStoreForTodo(plan, todo.id, 'cancelled')
+            } catch { }
+            try { await this.sendTaskCompletionOrFailure(plan, todo, false, 'Skipped by user approval') } catch { }
+            continue
+          }
               await runCmd.execute(cmd)
             }
           }
@@ -454,6 +578,7 @@ export class EnhancedPlanningSystem {
               try {
                 await this.updateStoreForTodo(plan, todo.id, 'cancelled')
               } catch { }
+              try { await this.sendTaskCompletionOrFailure(plan, todo, false, 'Skipped by user approval') } catch { }
               continue
             }
             await writeFile.execute(target, content, { showDiff: false, createBackup: true })
@@ -482,6 +607,7 @@ export class EnhancedPlanningSystem {
                   try {
                     await this.updateStoreForTodo(plan, todo.id, 'cancelled')
                   } catch { }
+                  try { await this.sendTaskCompletionOrFailure(plan, todo, false, 'Skipped by user approval') } catch { }
                   continue
                 }
                 await replaceTool.execute(f, search, replacement)
@@ -496,6 +622,7 @@ export class EnhancedPlanningSystem {
           try {
             await this.updateStoreForTodo(plan, todo.id, 'completed')
           } catch { }
+          try { await this.sendTaskCompletionOrFailure(plan, todo, true) } catch { }
         } catch (err: any) {
           // On any failure, mark as cancelled to keep flow going
           if (!compact)
@@ -505,6 +632,7 @@ export class EnhancedPlanningSystem {
           try {
             await this.updateStoreForTodo(plan, todo.id, 'cancelled')
           } catch { }
+          try { await this.sendTaskCompletionOrFailure(plan, todo, false, todo.errorMessage) } catch { }
           // Continue with next todo
         }
       }

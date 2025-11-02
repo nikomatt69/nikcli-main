@@ -198,6 +198,7 @@ export class NikCLI {
   private dashboardService: DashboardService
   private analyticsManager: AnalyticsManager
   private workingDirectory: string
+  private notificationService: any = null
   private currentMode: 'default' | 'plan' | 'vm' = 'default'
   private currentAgent?: string
   private activeVMContainer?: string
@@ -396,6 +397,9 @@ export class NikCLI {
     this.setupOrchestratorEventBridge()
     this.setupAdvancedUIFeatures()
     this.setupPlanningEventListeners()
+
+    // Initialize notification service (silent)
+    this.initializeNotificationService()
 
     // Initialize structured UI system
     this.initializeStructuredUI()
@@ -716,6 +720,170 @@ export class NikCLI {
       intelligentCommands: true,
       adaptivePlanning: true,
     })
+  }
+
+  /**
+   * Initialize notification service (silent)
+   */
+  private initializeNotificationService(): void {
+    try {
+      const { getNotificationService } = require('./services/notification-service')
+      const notificationConfig = this.configManager.getNotificationConfig()
+      this.notificationService = getNotificationService(notificationConfig)
+    } catch (error: any) {
+      // Silent fail - notifications are optional
+    }
+  }
+
+  /**
+   * Send task completion notification (silent)
+   */
+  private async sendTaskCompletionNotification(
+    plan: any,
+    todo: any,
+    agents: any[],
+    success: boolean
+  ): Promise<void> {
+    if (!this.notificationService) return
+
+    try {
+      const { NotificationType, NotificationSeverity } = require('./types/notifications')
+
+      const agentNames = agents.map((a) => a.blueprint?.name || a.blueprintId).join(', ')
+
+      const payload: any = {
+        type: success ? NotificationType.TASK_COMPLETED : NotificationType.TASK_FAILED,
+        severity: success ? NotificationSeverity.SUCCESS : NotificationSeverity.ERROR,
+        timestamp: new Date(),
+        sessionId: this.currentCollaborationContext?.sessionId || plan.id,
+        workingDirectory: this.workingDirectory,
+        taskId: todo.id,
+        taskTitle: todo.title,
+        taskDescription: todo.description,
+        agentName: agentNames,
+        blueprintId: 'parallel-execution',
+        success,
+      }
+
+      // Add user info if authenticated
+      try {
+        const profile = authProvider.getCurrentProfile()
+        if (profile) {
+          payload.userEmail = profile.email
+          payload.userId = profile.id
+        }
+      } catch {
+        // Auth not available
+      }
+
+      await this.notificationService.sendTaskCompletion(payload)
+    } catch {
+      // Silent fail - notifications should not break execution
+    }
+  }
+
+  /**
+   * Send task started notification (silent)
+   */
+  private async sendTaskStartedNotification(plan: any, todo: any, agents: any[]): Promise<void> {
+    if (!this.notificationService) return
+
+    try {
+      const { NotificationType, NotificationSeverity } = require('./types/notifications')
+
+      const agentNames = agents.map((a) => a.blueprint?.name || a.blueprintId).join(', ')
+
+      const payload: any = {
+        type: NotificationType.TASK_STARTED,
+        severity: NotificationSeverity.INFO,
+        timestamp: new Date(),
+        sessionId: this.currentCollaborationContext?.sessionId || plan.id,
+        workingDirectory: this.workingDirectory,
+        taskId: todo.id,
+        taskTitle: todo.title,
+        taskDescription: todo.description,
+        agentName: agentNames,
+        blueprintId: 'parallel-execution',
+        planId: plan.id,
+        planTitle: plan.title,
+      }
+
+      await this.notificationService.sendTaskStarted(payload)
+    } catch {
+      // Silent fail
+    }
+  }
+
+  /**
+   * Send plan started notification (silent)
+   */
+  private async sendPlanStartedNotification(plan: any, agents: any[]): Promise<void> {
+    if (!this.notificationService) return
+
+    try {
+      const { NotificationType, NotificationSeverity } = require('./types/notifications')
+      const payload: any = {
+        type: NotificationType.PLAN_STARTED,
+        severity: NotificationSeverity.INFO,
+        timestamp: new Date(),
+        sessionId: this.currentCollaborationContext?.sessionId || plan.id,
+        workingDirectory: this.workingDirectory,
+        planId: plan.id,
+        planTitle: plan.title,
+        planDescription: plan.description,
+        totalTasks: Array.isArray(plan.todos) ? plan.todos.length : 0,
+        agents: agents.map((a: any) => a.blueprint?.name || a.blueprintId),
+      }
+
+      await this.notificationService.sendPlanStarted(payload)
+    } catch {
+      // Silent fail
+    }
+  }
+
+  /**
+   * Send plan completion notification (silent)
+   */
+  private async sendPlanCompletionNotification(plan: any, success: boolean): Promise<void> {
+    if (!this.notificationService || !plan) return
+
+    try {
+      const { NotificationType, NotificationSeverity } = require('./types/notifications')
+
+      const completedTasks = plan.todos.filter((t: any) => t.status === 'completed').length
+      const failedTasks = plan.todos.filter((t: any) => t.status === 'failed').length
+
+      const payload: any = {
+        type: success ? NotificationType.PLAN_COMPLETED : NotificationType.PLAN_FAILED,
+        severity: success ? NotificationSeverity.SUCCESS : NotificationSeverity.ERROR,
+        timestamp: new Date(),
+        sessionId: this.currentCollaborationContext?.sessionId || plan.id,
+        workingDirectory: this.workingDirectory,
+        planId: plan.id,
+        planTitle: plan.title,
+        planDescription: plan.description,
+        totalTasks: plan.todos.length,
+        completedTasks,
+        failedTasks,
+        agents: this.currentCollaborationContext?.agents || [],
+        success,
+      }
+
+      // Add user info if authenticated
+      try {
+        const profile = authProvider.getCurrentProfile()
+        if (profile) {
+          payload.userEmail = profile.email
+          payload.userId = profile.id
+        }
+      } catch {
+        // Auth not available
+      }
+
+      await this.notificationService.sendPlanCompletion(payload)
+    } catch {
+      // Silent fail - notifications should not break execution
+    }
   }
 
   /**
@@ -4553,6 +4721,9 @@ EOF`
     try {
       const allAggregatedResults: string[] = []
 
+      // Notify plan start
+      void this.sendPlanStartedNotification(plan, agents)
+
       // Execute each todo in the plan with all agents in parallel
       for (let i = 0; i < plan.todos.length; i++) {
         const todo = plan.todos[i]
@@ -4573,6 +4744,9 @@ EOF`
         // Mark todo as in-progress
         this.updatePlanHudTodoStatus(todo.id, 'in_progress')
 
+        // Notify task started
+        void this.sendTaskStartedNotification(plan, todo, agents)
+
         // Execute this todo with all agents in parallel
         await this.runTodoInParallel(todo, agents, collaborationContext)
 
@@ -4590,6 +4764,9 @@ EOF`
           content: `✅ Todo completed: ${todo.title}`,
           source: 'parallel-plan',
         })
+
+        // Send task completion notification (silent)
+        void this.sendTaskCompletionNotification(plan, todo, agents, true)
 
         // Render prompt after each todo (like plan mode)
         setTimeout(() => this.renderPromptAfterOutput(), 50)
@@ -4610,6 +4787,9 @@ EOF`
 
       // Final prompt render after everything is done (like plan mode)
       setTimeout(() => this.renderPromptAfterOutput(), 150)
+
+      // Notify plan completion (success)
+      void this.sendPlanCompletionNotification(plan, true)
     } catch (error: any) {
       this.addLiveUpdate({
         type: 'error',
@@ -4623,6 +4803,9 @@ EOF`
       // Render prompt after error (like plan mode)
       setTimeout(() => this.renderPromptAfterOutput(), 100)
 
+      // Notify plan completion (failed)
+      try { void this.sendPlanCompletionNotification(plan, false) } catch { }
+
       throw error
     }
   }
@@ -4631,18 +4814,19 @@ EOF`
    * Execute a single todo with all agents in parallel
    */
   private async runTodoInParallel(todo: any, agents: any[], collaborationContext: any): Promise<void> {
+    const todoText = todo.description || todo.title
+
     // Execute with all agents concurrently
     const agentPromises = agents.map(async (agent) => {
       const agentName = agent.blueprint?.name || agent.blueprintId
       const tools = this.createSpecializedToolchain(agent.blueprint)
-      const agentTaskText = this.buildAgentSpecificTodo(todo, agent.blueprint)
 
       try {
         // Set up agent helpers for collaboration
         this.setupAgentCollaborationHelpers(agent, collaborationContext)
 
-        // Execute using plan-mode streaming with agent-specific task derived from its blueprint
-        await this.executeAgentWithPlanModeStreaming(agent, agentTaskText, agentName, tools)
+        // Execute using plan-mode streaming
+        await this.executeAgentWithPlanModeStreaming(agent, todoText, agentName, tools)
 
         // Store agent's output
         const agentOutput = collaborationContext.sharedData.get(`${agent.id}:current-output`) || ''
@@ -4665,51 +4849,6 @@ EOF`
     })
 
     await Promise.all(agentPromises)
-  }
-
-  /**
-   * Build an agent-specific task description for a todo, leveraging the agent's blueprint
-   * so each agent executes the same todo according to its specialization and context.
-   */
-  private buildAgentSpecificTodo(todo: any, blueprint: any): string {
-    const base = (todo && (todo.description || todo.title)) || ''
-    try {
-      const name = blueprint?.name || 'agent'
-      const specialization = blueprint?.specialization || 'generalist'
-      const autonomy = blueprint?.autonomyLevel || 'semi-autonomous'
-      const contextScope = blueprint?.contextScope || 'project'
-      const caps: string[] = Array.isArray(blueprint?.capabilities) ? blueprint.capabilities : []
-      const topCaps = caps.slice(0, 5)
-      const todoId = todo?.id ? `#${todo.id}` : undefined
-      const priority = todo?.priority ? String(todo.priority).toUpperCase() : undefined
-      const tags: string[] = Array.isArray(todo?.tags) ? todo.tags : []
-      const criteria: string[] = Array.isArray(todo?.acceptanceCriteria) ? todo.acceptanceCriteria : []
-
-      const header = `${base}`
-      const guidance = [
-        `
-Execute this todo according to your blueprint:`,
-        todoId ? `- Todo: ${todoId}` : undefined,
-        `- Agent: ${name}`,
-        `- Specialization: ${specialization}`,
-        `- Autonomy: ${autonomy} | Context: ${contextScope}`,
-        topCaps.length ? `- Capabilities: ${topCaps.join(', ')}` : undefined,
-        priority ? `- Priority: ${priority}` : undefined,
-        tags.length ? `- Tags: ${tags.join(', ')}` : undefined,
-        `
-Instructions:`,
-        `- Apply your specialization to decide the optimal approach.`,
-        `- Use available tools as needed; prefer those aligned with your capabilities.`,
-        `- Output concrete results (code, analysis, or actions) relevant to this todo.`,
-        criteria.length ? `- Acceptance Criteria:\n  - ${criteria.join('\n  - ')}` : undefined,
-      ]
-        .filter(Boolean)
-        .join('\n')
-
-      return `${header}\n${guidance}`
-    } catch {
-      return base
-    }
   }
 
   /**
@@ -5350,6 +5489,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const allTasksSuccessfullyCompleted = this.activePlanForHud.todos.every((todo) => todo.status === 'completed')
 
     if (allTasksSuccessfullyCompleted && state === 'completed') {
+      // Send plan completion notification (silent)
+      void this.sendPlanCompletionNotification(this.activePlanForHud, true)
+
       // Clear the HUD completely when ALL tasks are successfully completed
       this.activePlanForHud = undefined
       console.log(chalk.green('\n🎉 All tasks completed successfully! HUD cleared.'))
@@ -7373,10 +7515,52 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           break
         }
         case 'launch-agent': {
-          if (args.length === 0) {
+          // Mirror /parallel behavior without modifying /parallel
+          if (args.length < 2) {
             this.printPanel(
-              boxen('Usage: /launch-agent <blueprint-id> [task]', {
-                title: 'Launch Agent Command',
+              boxen(
+                [
+                  'Usage: /parallel [agent1, agent2, agent3] <description>',
+                  '',
+                  'Examples:',
+                  '  /parallel [react-expert, code-reviewer] "analyze this component"',
+                  '  /parallel [security-agent, performance-agent] "audit API endpoint"',
+                  '',
+                  'Note: Use square brackets [] to specify factory agents by blueprint name/ID',
+                ].join('\n'),
+                {
+                  title: 'Parallel Command',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'red',
+                }
+              )
+            )
+            break // Let finally handle cleanup
+          }
+
+          // Parse agents list with [] syntax (same as /parallel)
+          let agentList: string[] = []
+          let taskDescription = ''
+
+          const input = args.join(' ')
+          const bracketMatch = input.match(/^\[([^\]]+)\]\s*(.*)/)
+
+          if (bracketMatch) {
+            // New syntax: [agent1, agent2, agent3] description
+            agentList = bracketMatch[1].split(',').map((name) => name.trim())
+            taskDescription = bracketMatch[2].trim()
+          } else {
+            // Fallback to old syntax: agent1,agent2,agent3 description
+            agentList = args[0].split(',').map((name) => name.trim())
+            taskDescription = args.slice(1).join(' ')
+          }
+
+          if (!taskDescription) {
+            this.printPanel(
+              boxen('Error: Task description is required', {
+                title: 'Missing Description',
                 padding: 1,
                 margin: 1,
                 borderStyle: 'round',
@@ -7385,16 +7569,160 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
             )
             break // Let finally handle cleanup
           }
-          const blueprintId = args[0]
-          const task = args.slice(1).join(' ')
-          const agent = await agentFactory.launchAgent(blueprintId)
-          if (task) {
-            console.log(formatAgent('agent', 'running', task))
-            const _result = await agent.run(task)
-            console.log(chalk.green('✓ Agent execution completed'))
-          } else {
-            console.log(chalk.blue('🔌 Agent launched and ready'))
+
+          this.printPanel(
+            boxen(`Launching ${agentList.length} factory agents in parallel...`, {
+              title: 'Parallel Plan-Mode Execution',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'blue',
+            })
+          )
+
+          // Create parallel execution context for agent collaboration
+          const collaborationContext = {
+            sessionId: `parallel-${Date.now()}`,
+            agents: agentList,
+            task: taskDescription,
+            logs: new Map<string, string[]>(),
+            sharedData: new Map<string, any>(),
+            planId: '',
           }
+
+          // Launch agents first
+          const agentPromises = agentList.map(async (agentIdentifier) => {
+            try {
+              // Check if blueprint exists
+              const blueprint = await agentFactory.getBlueprint(agentIdentifier)
+              if (!blueprint) {
+                throw new Error(`Blueprint '${agentIdentifier}' not found`)
+              }
+
+              // Launch agent from factory (but don't execute task yet)
+              const agent = await agentFactory.launchAgent(agentIdentifier)
+
+              // Initialize agent logs
+              collaborationContext.logs.set(agentIdentifier, [])
+
+              this.printPanel(
+                boxen(
+                  [
+                    `✓ Launched: ${blueprint.name || agentIdentifier}`,
+                    `Specialization: ${blueprint.specialization || 'N/A'}`,
+                    `Agent ID: ${agent.id.slice(-8)}`,
+                    `Blueprint ID: ${blueprint.id ? blueprint.id.slice(-8) : 'N/A'}`,
+                  ].join('\n'),
+                  {
+                    title: `Agent Started: ${agentIdentifier}`,
+                    padding: 1,
+                    margin: 1,
+                    borderStyle: 'round',
+                    borderColor: 'green',
+                  }
+                )
+              )
+
+              // Set up collaboration context for this agent
+              ;(agent as any).collaborationContext = collaborationContext
+
+              return {
+                agentIdentifier,
+                agent,
+                blueprint,
+                success: true,
+              }
+            } catch (error: any) {
+              this.printPanel(
+                boxen(`Failed to launch ${agentIdentifier}: ${error.message}`, {
+                  title: 'Agent Launch Error',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'red',
+                })
+              )
+              return {
+                agentIdentifier,
+                error: error.message,
+                success: false,
+              }
+            }
+          })
+
+          // Wait for all agents to start
+          const results = await Promise.allSettled(agentPromises)
+          const successful = results.filter((r) => r.status === 'fulfilled' && r.value.success).length
+          const failed = results.length - successful
+
+          if (successful === 0) {
+            this.printPanel(
+              boxen('❌ No agents launched successfully. Aborting parallel execution.', {
+                title: 'Error',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              })
+            )
+            break
+          }
+
+          const launchedAgents = results
+            .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value.success)
+            .map((r) => r.value.agent)
+
+          // Generate a single TaskMaster plan (like plan mode)
+          this.addLiveUpdate({ type: 'info', content: '📋 Generating execution plan...', source: 'planning' })
+          const plan = await planningService.createPlan(taskDescription, {
+            showProgress: false,
+            autoExecute: false,
+            confirmSteps: false,
+          })
+
+          collaborationContext.planId = plan.id
+
+          // Initialize Plan HUD with real todos from TaskMaster
+          this.initializePlanHud({
+            id: collaborationContext.sessionId,
+            title: `Parallel Agents (${launchedAgents.length}): ${plan.title || taskDescription}`,
+            description: plan.description || taskDescription,
+            userRequest: taskDescription,
+            estimatedTotalDuration: plan.estimatedTotalDuration,
+            riskAssessment: plan.riskAssessment,
+            todos: plan.todos,
+          })
+
+          this.printPanel(
+            boxen(
+              [
+                `🚀 Parallel Plan-Mode Execution Initiated`,
+                `✓ Successfully launched: ${successful} agents`,
+                failed > 0 ? `❌ Failed to launch: ${failed} agents` : '',
+                '',
+                `📋 Plan: ${plan.title || taskDescription}`,
+                `📝 Todos: ${plan.todos.length}`,
+                `🔄 Agents will execute each todo in parallel`,
+                '',
+                `Collaboration Context: ${collaborationContext.sessionId}`,
+              ]
+                .filter(Boolean)
+                .join('\n'),
+              {
+                title: 'Parallel Execution Summary',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: successful === agentList.length ? 'green' : 'yellow',
+              }
+            )
+          )
+
+          // Store collaboration context for monitoring
+          this.currentCollaborationContext = collaborationContext
+
+          // Execute todos in parallel with both agents
+          await this.executeParallelPlanMode(plan, launchedAgents, collaborationContext)
           break
         }
         case 'context': {

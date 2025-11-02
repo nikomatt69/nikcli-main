@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import chalk from 'chalk'
 import { MemoryManager } from '../utils/memory-manager'
+import { advancedUI } from '../ui/advanced-cli-ui'
 
 export interface StreamEvent {
   type: 'thinking' | 'planning' | 'executing' | 'progress' | 'result' | 'error' | 'info'
@@ -29,6 +30,7 @@ export class AgentStreamManager extends EventEmitter {
   private streams: Map<string, StreamEvent[]> = new Map()
   private actions: Map<string, AgentAction[]> = new Map()
   private activeAgents: Set<string> = new Set()
+  private silentMode = false // Disable direct console output in plan/launch-agent mode
 
   // 🔒 FIXED: Memory managers to prevent memory leaks
   private streamMemoryManager = new MemoryManager<StreamEvent[]>({
@@ -55,6 +57,11 @@ export class AgentStreamManager extends EventEmitter {
   stopAgentStream(agentId: string): void {
     this.activeAgents.delete(agentId)
     this.emitEvent(agentId, 'info', `✓ Agent ${agentId} stream completed`)
+  }
+
+  // Enable/disable direct console output (for plan/launch-agent mode)
+  setSilentMode(enabled: boolean): void {
+    this.silentMode = enabled
   }
 
   /**
@@ -93,52 +100,29 @@ export class AgentStreamManager extends EventEmitter {
   }
 
   private displayEvent(event: StreamEvent): void {
-    const timeStr = event.timestamp.toLocaleTimeString()
-    const agentStr = chalk.cyan(`[${event.agentId}]`)
-
-    let color = chalk.gray
-    let icon = '•'
-
-    switch (event.type) {
-      case 'thinking':
-        color = chalk.blue
-        icon = '⚡︎'
-        break
-      case 'planning':
-        color = chalk.yellow
-        icon = '📋'
-        break
-      case 'executing':
-        color = chalk.green
-        icon = '⚡'
-        break
-      case 'progress':
-        color = chalk.cyan
-        icon = '📊'
-        break
-      case 'result':
-        color = chalk.green
-        icon = '✓'
-        break
-      case 'error':
-        color = chalk.red
-        icon = '❌'
-        break
-      case 'info':
-        color = chalk.gray
-        icon = 'ℹ️'
-        break
+    // Skip direct display if in silent mode (logs will be handled by listeners via addLiveUpdate)
+    if (this.silentMode) {
+      return
     }
 
-    let message = `${chalk.gray(timeStr)} ${agentStr} ${icon} ${color(event.message)}`
-
-    if (event.progress !== undefined) {
-      const progressBar = '█'.repeat(Math.floor(event.progress / 10)) + '░'.repeat(10 - Math.floor(event.progress / 10))
-      message += ` [${chalk.cyan(progressBar)}] ${event.progress}%`
+    // Map event type to icon
+    const typeIconMap: Record<string, string> = {
+      thinking: '⚡︎',
+      planning: '📋',
+      executing: '⚡',
+      progress: '📊',
+      result: '✓',
+      error: '❌',
+      info: 'ℹ',
     }
 
-    console.log(message)
+    const icon = typeIconMap[event.type] || '•'
+    const content = `${icon} ${event.message}`
 
+    // Use advancedUI.logInfo for consistent formatting with ⏺ and ⎿
+    advancedUI.logInfo(content, event.agentId)
+
+    // Log data if present
     if (event.data && typeof event.data === 'object') {
       console.log(chalk.gray(`    ${JSON.stringify(event.data, null, 2)}`))
     }

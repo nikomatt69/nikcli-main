@@ -25,6 +25,7 @@ export class TaskMasterService extends EventEmitter {
   private config: TaskMasterIntegrationConfig
   private activePlans: Map<string, TaskMasterPlan> = new Map()
   private static instanceCount = 0
+  private notificationService: any = null
 
   constructor(config?: Partial<TaskMasterIntegrationConfig>) {
     super()
@@ -48,6 +49,23 @@ export class TaskMasterService extends EventEmitter {
 
     // Set API key after config is initialized
     this.config.apiKey = this.config.apiKey || this.getApiKey()
+
+    // Initialize notification service
+    this.initializeNotificationService()
+  }
+
+  /**
+   * Initialize notification service
+   */
+  private initializeNotificationService(): void {
+    try {
+      const { simpleConfigManager } = require('../core/config-manager')
+      const { getNotificationService } = require('./notification-service')
+      const notificationConfig = simpleConfigManager.getNotificationConfig()
+      this.notificationService = getNotificationService(notificationConfig)
+    } catch (error: any) {
+      // Notification service initialization is optional - silent fail
+    }
   }
 
   /**
@@ -340,7 +358,7 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 10,
           progress: 0,
-          tools: ['analyze_project', 'read_file', 'explore_directory'],
+          tools: ['analyze_project', 'read_file', 'explore_directory', 'search_semantic', 'multi_read_file', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search'],
           reasoning: 'Understanding project context is crucial for successful implementation',
         },
         {
@@ -353,7 +371,7 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 15,
           progress: 0,
-          tools: ['analyze_project', 'doc_search'],
+          tools: ['analyze_project', 'read_file', 'explore_directory', 'search_semantic', 'multi_read_file', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search'],
           reasoning: 'Proper planning reduces implementation complexity',
         },
         {
@@ -366,7 +384,7 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 30,
           progress: 0,
-          tools: ['generate_code', 'write_file', 'read_file'],
+          tools: ['generate_code', 'write_file', 'read_file', 'explore_directory', 'search_semantic', 'multi_read_file', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search'],
           reasoning: 'Core implementation task',
         },
         {
@@ -379,7 +397,7 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 15,
           progress: 0,
-          tools: ['execute_command', 'analyze_project'],
+          tools: ['execute_command', 'analyze_project', 'read_file', 'explore_directory', 'search_semantic', 'multi_read_tool', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search'],
           reasoning: 'Ensure quality and functionality',
         }
       )
@@ -395,7 +413,8 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 15,
           progress: 0,
-          tools: ['read_file', 'analyze_project', 'explore_directory'],
+          tools: ['read_file', 'analyze_project', 'explore_directory', 'multi_read_tool', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search'],
+          reasoning: 'Investigate the issue using the available tools',
         },
         {
           id: nanoid(),
@@ -407,7 +426,8 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 20,
           progress: 0,
-          tools: ['read_file', 'write_file', 'execute_command'],
+          tools: ['read_file', 'write_file', 'execute_command', 'explore_directory', 'search_semantic', 'multi_read_tool', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search', 'multi_edit_tool'],
+          reasoning: 'Implement the solution using the available tools',
         }
       )
     } else {
@@ -422,8 +442,22 @@ export class TaskMasterService extends EventEmitter {
         updatedAt: new Date(),
         estimatedDuration: 20,
         progress: 0,
-        tools: ['analyze_project', 'read_file', 'generate_code', 'write_file', 'execute_command'],
-      })
+        tools: ['analyze_project', 'read_file', 'generate_code', 'write_file', 'execute_command', 'multi_edit_tool', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search', 'multi_read_tool'],
+        reasoning: 'Execute the task using the available tools',
+      },
+        {
+          id: nanoid(),
+          title: 'Task Execution',
+          description: userRequest,
+          status: 'pending',
+          priority: 'medium',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          estimatedDuration: 20,
+          progress: 0,
+          tools: ['analyze_project', 'read_file', 'generate_code', 'write_file', 'execute_command', 'multi_edit_tool', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search', 'multi_read_tool'],
+          reasoning: 'Execute the task using the available tools',
+        })
     }
 
     return todos
@@ -917,9 +951,15 @@ Generate tasks NOW (JSON only):`
     const startTime = new Date()
     const results: TaskMasterStepResult[] = []
 
+    // Notify plan started
+    try { await this.sendPlanLifecycleNotification(plan, true, true) } catch { }
+
     for (const todo of mutablePlan.todos) {
       todo.status = 'in_progress'
       this.emit('stepStart', { planId: plan.id, taskId: todo.id })
+
+       // Notify task started
+       try { await this.sendTaskStartedNotification(plan, todo) } catch { }
 
       try {
         // Simulate task execution
@@ -936,6 +976,9 @@ Generate tasks NOW (JSON only):`
         })
 
         this.emit('stepComplete', { planId: plan.id, taskId: todo.id })
+
+        // Send task completion notification
+        this.sendTaskCompletionNotification(plan, todo, true, 1000)
       } catch (error: any) {
         todo.status = 'failed'
         results.push({
@@ -946,10 +989,19 @@ Generate tasks NOW (JSON only):`
         })
 
         this.emit('stepFailed', { planId: plan.id, taskId: todo.id, error: error.message })
+
+        // Send task failure notification
+        this.sendTaskCompletionNotification(plan, todo, false, 1000, error.message)
       }
     }
 
     plan.status = 'completed'
+
+    // Notify plan completion
+    try {
+      const failedCount = plan.todos.filter((t) => t.status === 'failed').length
+      await this.sendPlanLifecycleNotification(plan, failedCount === 0, false)
+    } catch { }
 
     return {
       planId: plan.id,
@@ -1132,6 +1184,129 @@ Generate tasks NOW (JSON only):`
     this.activePlans.clear()
     this.removeAllListeners()
     this.initialized = false
+  }
+
+  /**
+   * Send task completion/failure notification
+   */
+  private async sendTaskCompletionNotification(
+    plan: TaskMasterPlan,
+    todo: MutablePlanTodo,
+    success: boolean,
+    duration?: number,
+    error?: string
+  ): Promise<void> {
+    if (!this.notificationService) return
+
+    try {
+      const { NotificationType, NotificationSeverity } = require('../types/notifications')
+      const { authProvider } = require('../providers/supabase/auth-provider')
+
+      const payload: any = {
+        type: success ? NotificationType.TASK_COMPLETED : NotificationType.TASK_FAILED,
+        severity: success ? NotificationSeverity.SUCCESS : NotificationSeverity.ERROR,
+        timestamp: new Date(),
+        sessionId: plan.id,
+        workingDirectory: this.config.workspacePath,
+        taskId: todo.id,
+        taskTitle: todo.title,
+        taskDescription: todo.description,
+        agentName: 'TaskMaster',
+        blueprintId: 'taskmaster',
+        duration,
+        success,
+        error,
+      }
+
+      // Add user info if authenticated
+      try {
+        const profile = authProvider.getCurrentProfile()
+        if (profile) {
+          payload.userEmail = profile.email
+          payload.userId = profile.id
+        }
+      } catch {
+        // Auth not available
+      }
+
+      if (success) {
+        await this.notificationService.sendTaskCompletion(payload)
+      } else {
+        await this.notificationService.sendTaskFailure(payload)
+      }
+    } catch (notifError: any) {
+      // Silent fail - notifications should not break execution
+    }
+  }
+
+  /**
+   * Send task started notification
+   */
+  private async sendTaskStartedNotification(plan: TaskMasterPlan, todo: MutablePlanTodo): Promise<void> {
+    if (!this.notificationService) return
+    try {
+      const { NotificationType, NotificationSeverity } = require('../types/notifications')
+      const payload: any = {
+        type: NotificationType.TASK_STARTED,
+        severity: NotificationSeverity.INFO,
+        timestamp: new Date(),
+        sessionId: plan.id,
+        workingDirectory: this.config.workspacePath,
+        taskId: todo.id,
+        taskTitle: todo.title,
+        taskDescription: todo.description,
+        agentName: 'TaskMaster',
+        blueprintId: 'taskmaster',
+        planId: plan.id,
+        planTitle: plan.title,
+      }
+      await this.notificationService.sendTaskStarted(payload)
+    } catch { }
+  }
+
+  /**
+   * Send plan lifecycle notifications (start/complete)
+   */
+  private async sendPlanLifecycleNotification(
+    plan: TaskMasterPlan,
+    success: boolean,
+    started: boolean
+  ): Promise<void> {
+    if (!this.notificationService) return
+    try {
+      const { NotificationType, NotificationSeverity } = require('../types/notifications')
+      if (started) {
+        const payload: any = {
+          type: NotificationType.PLAN_STARTED,
+          severity: NotificationSeverity.INFO,
+          timestamp: new Date(),
+          sessionId: plan.id,
+          workingDirectory: this.config.workspacePath,
+          planId: plan.id,
+          planTitle: plan.title,
+          planDescription: plan.description,
+          totalTasks: plan.todos.length,
+        }
+        await this.notificationService.sendPlanStarted(payload)
+      } else {
+        const payload: any = {
+          type: success ? NotificationType.PLAN_COMPLETED : NotificationType.PLAN_FAILED,
+          severity: success ? NotificationSeverity.SUCCESS : NotificationSeverity.ERROR,
+          timestamp: new Date(),
+          sessionId: plan.id,
+          workingDirectory: this.config.workspacePath,
+          planId: plan.id,
+          planTitle: plan.title,
+          planDescription: plan.description,
+          totalTasks: plan.todos.length,
+          completedTasks: plan.todos.filter((t) => t.status === 'completed').length,
+          failedTasks: plan.todos.filter((t) => t.status === 'failed').length,
+          agents: ['TaskMaster'],
+          success,
+        }
+        await this.notificationService.sendPlanCompletion(payload)
+      }
+    } catch { }
   }
 }
 

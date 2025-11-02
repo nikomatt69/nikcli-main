@@ -1941,6 +1941,59 @@ export class SimpleConfigManager {
     }
   }
 
+  // Notification configuration management
+  getNotificationConfig(): import('../types/notifications').NotificationConfig {
+    const { DEFAULT_NOTIFICATION_CONFIG, mergeNotificationConfigs } = require('../config/notification-defaults')
+
+    // ENV configuration (highest priority after local)
+    const envConfig: Partial<import('../types/notifications').NotificationConfig> = {
+      enabled: process.env.NOTIFICATIONS_ENABLED === 'true',
+      providers: {
+        slack: {
+          enabled: process.env.SLACK_TASK_NOTIFICATIONS === 'true',
+          webhookUrl: process.env.SLACK_WEBHOOK_URL,
+          channel: process.env.SLACK_CHANNEL,
+          username: process.env.SLACK_USERNAME,
+        },
+        discord: {
+          enabled: process.env.DISCORD_TASK_NOTIFICATIONS === 'true',
+          webhookUrl: process.env.DISCORD_WEBHOOK_URL,
+          username: process.env.DISCORD_USERNAME,
+        },
+        linear: {
+          enabled: process.env.LINEAR_TASK_NOTIFICATIONS === 'true',
+          apiKey: process.env.LINEAR_API_KEY,
+          teamId: process.env.LINEAR_TEAM_ID,
+          createIssues: process.env.LINEAR_CREATE_ISSUES === 'true',
+        },
+      },
+    }
+
+    // Supabase user profile config (lower priority)
+    let supabaseConfig: Partial<import('../types/notifications').NotificationConfig> | undefined
+    try {
+      const { authProvider } = require('../providers/supabase/auth-provider')
+      const profile = authProvider.getCurrentProfile()
+      if (profile?.notification_settings) {
+        supabaseConfig = {
+          enabled: profile.notification_settings.enabled,
+          providers: profile.notification_settings.providers,
+        }
+      }
+    } catch {
+      // Auth provider not available or not authenticated
+    }
+
+    // Merge configs: local > env > supabase > defaults
+    return mergeNotificationConfigs(DEFAULT_NOTIFICATION_CONFIG, supabaseConfig, envConfig)
+  }
+
+  validateNotificationConfig(config: any): boolean {
+    const { validateNotificationConfig } = require('../config/notification-defaults')
+    const result = validateNotificationConfig(config)
+    return result.valid
+  }
+
   // Browserbase configuration management
   getBrowserbaseCredentials(): { apiKey?: string; projectId?: string } {
     return {

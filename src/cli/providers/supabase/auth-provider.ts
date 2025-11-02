@@ -34,6 +34,28 @@ export interface UserProfile {
     notifications: boolean
     analytics: boolean
   }
+  notification_settings?: {
+    enabled: boolean
+    providers: {
+      slack?: {
+        enabled: boolean
+        webhookUrl?: string
+        channel?: string
+        username?: string
+      }
+      discord?: {
+        enabled: boolean
+        webhookUrl?: string
+        username?: string
+      }
+      linear?: {
+        enabled: boolean
+        apiKey?: string
+        teamId?: string
+        createIssues?: boolean
+      }
+    }
+  }
   quotas: {
     sessionsPerMonth: number
     tokensPerMonth: number

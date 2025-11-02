@@ -215,6 +215,7 @@ export class SlashCommandHandler {
     this.commands.set('set-key', this.setKeyCommand.bind(this))
     this.commands.set('config', this.configCommand.bind(this))
     this.commands.set('env', this.envCommand.bind(this))
+    this.commands.set('notify', this.notifyCommand.bind(this))
 
     // Output Style Commands
     this.commands.set('style', this.styleCommand.bind(this))
@@ -234,7 +235,7 @@ export class SlashCommandHandler {
     this.commands.set('parallel', this.parallelCommand.bind(this))
     this.commands.set('factory', this.factoryCommand.bind(this))
     this.commands.set('create-agent', this.createAgentCommand.bind(this))
-    this.commands.set('launch-agent', this.launchAgentCommand.bind(this))
+    this.commands.set('launch-agent', this.parallelCommand.bind(this))
     this.commands.set('blueprints', this.blueprintsCommand.bind(this))
     this.commands.set('blueprint', this.blueprintCommand.bind(this))
     this.commands.set('delete-blueprint', this.deleteBlueprintCommand.bind(this))
@@ -9652,6 +9653,99 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       }
     } catch (error: any) {
       console.log(chalk.red(`❌ Error: ${error.message}`))
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async notifyCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      // Show current notification settings
+      const config = simpleConfigManager.getNotificationConfig()
+
+      const statusIcon = (enabled: boolean) => enabled ? chalk.green('✓ ON') : chalk.gray('✗ OFF')
+
+      this.printPanel(
+        boxen(
+          chalk.bold('📬 Notification Settings\n\n') +
+          `${chalk.cyan('Global:')} ${statusIcon(config.enabled)}\n\n` +
+          `${chalk.cyan('Providers:')}\n` +
+          `  Slack:   ${statusIcon(config.providers.slack?.enabled ?? false)}\n` +
+          `  Discord: ${statusIcon(config.providers.discord?.enabled ?? false)}\n` +
+          `  Linear:  ${statusIcon(config.providers.linear?.enabled ?? false)}\n\n` +
+          chalk.gray('Usage: /notify [slack|discord|linear|all] [on|off]'),
+          {
+            title: 'Notifications',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    // Parse command: /notify [provider] [on|off]
+    const provider = args[0]?.toLowerCase()
+    const action = args[1]?.toLowerCase()
+
+    if (!['slack', 'discord', 'linear', 'all'].includes(provider)) {
+      console.log(chalk.red('❌ Invalid provider. Use: slack, discord, linear, or all'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    if (!['on', 'off'].includes(action)) {
+      console.log(chalk.red('❌ Invalid action. Use: on or off'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const enabled = action === 'on'
+
+    try {
+      // Update environment variables
+      if (provider === 'all') {
+        process.env.NOTIFICATIONS_ENABLED = enabled ? 'true' : 'false'
+        process.env.SLACK_TASK_NOTIFICATIONS = enabled ? 'true' : 'false'
+        process.env.DISCORD_TASK_NOTIFICATIONS = enabled ? 'true' : 'false'
+        process.env.LINEAR_TASK_NOTIFICATIONS = enabled ? 'true' : 'false'
+      } else if (provider === 'slack') {
+        process.env.SLACK_TASK_NOTIFICATIONS = enabled ? 'true' : 'false'
+        if (enabled) process.env.NOTIFICATIONS_ENABLED = 'true'
+      } else if (provider === 'discord') {
+        process.env.DISCORD_TASK_NOTIFICATIONS = enabled ? 'true' : 'false'
+        if (enabled) process.env.NOTIFICATIONS_ENABLED = 'true'
+      } else if (provider === 'linear') {
+        process.env.LINEAR_TASK_NOTIFICATIONS = enabled ? 'true' : 'false'
+        if (enabled) process.env.NOTIFICATIONS_ENABLED = 'true'
+      }
+
+      // Reinitialize notification service with new config
+      if (this.cliInstance?.notificationService) {
+        const { getNotificationService } = require('../services/notification-service')
+        const notificationConfig = simpleConfigManager.getNotificationConfig()
+        this.cliInstance.notificationService = getNotificationService(notificationConfig)
+      }
+
+      const providerName = provider === 'all' ? 'All providers' : provider.charAt(0).toUpperCase() + provider.slice(1)
+      const actionText = enabled ? chalk.green('enabled') : chalk.gray('disabled')
+
+      this.printPanel(
+        boxen(
+          `${chalk.green('✓')} Notifications ${actionText}\n\n` +
+          chalk.gray(`Provider: ${providerName}\n`) +
+          chalk.gray('Changes applied for this session'),
+          {
+            title: 'Updated',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          }
+        )
+      )
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Error updating notifications: ${error.message}`))
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
