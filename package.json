@@ -71,7 +71,11 @@
     "docker:logs": "docker-compose logs -f",
     "config:check": "bun -e \"console.log('Config check:', process.env.NODE_ENV || 'not set')\"",
     "db:init": "mkdir -p database && echo 'Database directory created'",
-    "system:diagnose": "bun -e \"console.log('Node:', process.version, 'Platform:', process.platform, 'Arch:', process.arch)\""
+    "system:diagnose": "bun -e \"console.log('Node:', process.version, 'Platform:', process.platform, 'Arch:', process.arch)\"",
+    "benchmark:setup": "bash benchmarks/setup.sh",
+    "benchmark:run": "bunx ts-node benchmarks/openrouter-benchmark.ts",
+    "benchmark:quick": "BENCHMARK_SIZE=5 bunx ts-node benchmarks/openrouter-benchmark.ts",
+    "benchmark:full": "BENCHMARK_SIZE=164 bunx ts-node benchmarks/openrouter-benchmark.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.0.0",
@@ -116,6 +120,7 @@
     "@types/uuid": "^9.0.8",
     "@upstash/redis": "^1.35.3",
     "@vercel/kv": "^1.0.1",
+    "@vercel/node": "^5.5.3",
     "ai": "^3.4.33",
     "arkregex": "^0.0.2",
     "arktype": "^2.1.25",
@@ -146,6 +151,7 @@
     "js-yaml": "^4.1.0",
     "jsdom": "^27.0.0",
     "jsonwebtoken": "^9.0.2",
+    "lru-cache": "^11.0.0",
     "marked": "^15.0.7",
     "marked-terminal": "^7.3.0",
     "nanoid": "^5.0.4",

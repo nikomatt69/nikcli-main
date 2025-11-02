@@ -14,6 +14,7 @@ import { getUnifiedToolRenderer, initializeUnifiedToolRenderer } from '../servic
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
 import { configureSyntaxHighlighting } from '../utils/syntax-highlighter'
+import { rawModeManager } from '../core/raw-mode-manager'
 
 // Configure syntax highlighting for terminal output
 configureSyntaxHighlighting()
@@ -119,12 +120,10 @@ export class AutonomousClaudeInterface {
     this.eventHandlers.set('SIGINT', sigintHandler)
     this.rl.on('SIGINT', sigintHandler)
 
-    // Enable raw mode for keypress detection
+    // Enable raw mode for keypress detection with proper state tracking
     if (process.stdin.isTTY) {
       require('readline').emitKeypressEvents(process.stdin)
-      if (!(process.stdin as any).isRaw) {
-        ; (process.stdin as any).setRawMode(true)
-      }
+      rawModeManager.pushRawMode(true)
       ; (process.stdin as any).resume()
     }
 
@@ -1621,11 +1620,9 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
         this.eventHandlers.clear()
       }
 
-      // Reset raw mode
+      // Reset raw mode with proper state restoration
       try {
-        if (process.stdin.isTTY && (process.stdin as any).isRaw) {
-          ; (process.stdin as any).setRawMode(false)
-        }
+        rawModeManager.popRawMode()
       } catch (error) {
         // Ignore raw mode errors
       }

@@ -61,6 +61,13 @@ const ExecutionPlanSchema = z.object({
 })
 
 /**
+ * Tool dependency map for parallel execution
+ */
+interface ToolDependencyMap {
+  [toolId: string]: string[] // Map of toolId -> dependent toolIds
+}
+
+/**
  * AI Call Manager with secure tool integration and batch approval
  */
 export class AICallManager {
@@ -71,6 +78,151 @@ export class AICallManager {
     batchSession?: BatchSession
     completedAt: Date
   }> = []
+
+  /**
+   * Build dependency graph for tool execution
+   * Determines which tools can run in parallel
+   */
+  private buildToolDependencyGraph(toolCalls: ToolCall[]): ToolDependencyMap {
+    const dependencies: ToolDependencyMap = {}
+    const toolIds = toolCalls.map((tc) => tc.id)
+
+    for (const toolCall of toolCalls) {
+      dependencies[toolCall.id] = []
+    }
+
+    // Read operations have no dependencies
+    // Write operations depend on all preceding reads of same file
+    // Commands may depend on read/write operations
+    const fileOperations = new Map<string, string[]>()
+
+    for (const toolCall of toolCalls) {
+      const filePath = toolCall.arguments.filePath || toolCall.arguments.directoryPath
+
+      if (['readFile', 'listDirectory'].includes(toolCall.name)) {
+        // Read-only: no dependencies
+        if (filePath && !fileOperations.has(filePath)) {
+          fileOperations.set(filePath, [])
+        }
+      } else if (['writeFile', 'replaceInFile'].includes(toolCall.name)) {
+        // Write depends on previous reads of same file
+        if (filePath && fileOperations.has(filePath)) {
+          dependencies[toolCall.id] = [...fileOperations.get(filePath)!]
+          fileOperations.set(filePath, [toolCall.id])
+        }
+      }
+    }
+
+    return dependencies
+  }
+
+  /**
+   * Group tools into phases for parallel execution
+   */
+  private groupIndependentTools(
+    toolCalls: ToolCall[],
+    dependencies: ToolDependencyMap
+  ): ToolCall[][] {
+    const groups: ToolCall[][] = []
+    const executed = new Set<string>()
+
+    while (executed.size < toolCalls.length) {
+      const currentGroup: ToolCall[] = []
+
+      for (const toolCall of toolCalls) {
+        if (executed.has(toolCall.id)) continue
+
+        // Check if all dependencies are executed
+        const canExecute = dependencies[toolCall.id].every((depId) => executed.has(depId))
+
+        if (canExecute) {
+          currentGroup.push(toolCall)
+        }
+      }
+
+      if (currentGroup.length === 0) {
+        break // Prevent infinite loop
+      }
+
+      groups.push(currentGroup)
+      currentGroup.forEach((tc) => executed.add(tc.id))
+    }
+
+    return groups
+  }
+
+  /**
+   * Execute a single tool call with error handling
+   */
+  private async executeSingleToolCall(
+    toolCall: ToolCall,
+    options: any,
+    batchSession: any
+  ): Promise<{ result: any; executionTime: number }> {
+    const startTime = Date.now()
+    let result: any
+
+    switch (toolCall.name) {
+      case 'readFile': {
+        const readResult = await secureTools.readFile(toolCall.arguments.filePath)
+        result = readResult.data
+        break
+      }
+
+      case 'writeFile': {
+        const writeResult = await secureTools.writeFile(toolCall.arguments.filePath, toolCall.arguments.content, {
+          skipConfirmation: options.skipApproval,
+          createDirectories: toolCall.arguments.createDirectories,
+        })
+        result = writeResult.data
+        break
+      }
+
+      case 'listDirectory': {
+        const listResult = await secureTools.listDirectory(toolCall.arguments.directoryPath, {
+          recursive: toolCall.arguments.recursive,
+          includeHidden: toolCall.arguments.includeHidden,
+          pattern: toolCall.arguments.pattern ? new RegExp(toolCall.arguments.pattern) : undefined,
+        })
+        result = listResult.data
+        break
+      }
+
+      case 'replaceInFile': {
+        const replaceResult = await secureTools.replaceInFile(
+          toolCall.arguments.filePath,
+          toolCall.arguments.replacements,
+          {
+            skipConfirmation: options.skipApproval,
+            createBackup: toolCall.arguments.createBackup,
+          }
+        )
+        result = replaceResult.data
+        break
+      }
+
+      case 'executeCommand':
+        if (batchSession) {
+          result = { message: 'Command queued in batch session', batchSessionId: batchSession.id }
+        } else {
+          const commandResult = await secureTools.executeCommand(toolCall.arguments.command, {
+            cwd: toolCall.arguments.cwd,
+            timeout: toolCall.arguments.timeout,
+            env: toolCall.arguments.env,
+            skipConfirmation: options.skipApproval,
+            allowDangerous: toolCall.arguments.allowDangerous,
+            shell: toolCall.arguments.shell,
+          })
+          result = commandResult.data
+        }
+        break
+
+      default:
+        throw new Error(`Unknown tool: ${toolCall.name}`)
+    }
+
+    return { result, executionTime: Date.now() - startTime }
+  }
 
   /**
    * Generate an execution plan from user request with RAG context
@@ -284,111 +436,93 @@ Estimate realistic durations and assess risk levels accurately.`
         }
       }
 
-      // Execute tool calls
-      for (let i = 0; i < plan.toolCalls.length; i++) {
-        if (options.signal?.aborted) throw new Error('Operation aborted')
-        const toolCall = plan.toolCalls[i]
-        if (!toolCall) continue
-        const startTime = Date.now()
+      // Build dependency graph and group independent tools for parallel execution
+      const toolDependencies = this.buildToolDependencyGraph(plan.toolCalls)
+      const executionGroups = this.groupIndependentTools(plan.toolCalls, toolDependencies)
 
-        console.log(chalk.blue(`\n[${i + 1}/${plan.toolCalls.length}] ${toolCall.name}`))
-        if (toolCall.reasoning) {
-          console.log(chalk.gray(`   Reasoning: ${toolCall.reasoning}`))
+      // Execute tools in parallel groups (respecting dependencies)
+      let currentGroupIndex = 0
+      for (const group of executionGroups) {
+        if (options.signal?.aborted) throw new Error('Operation aborted')
+        currentGroupIndex++
+
+        const groupSize = group.length
+        const isParallel = groupSize > 1
+
+        if (isParallel) {
+          console.log(chalk.cyan(`\n⚡️ Executing group ${currentGroupIndex}/${executionGroups.length} (${groupSize} tools in parallel)`))
         }
 
-        try {
-          let result: any
+        // Execute all tools in group in parallel
+        const groupResults = await Promise.allSettled(
+          group.map(async (toolCall, idx) => {
+            const displayIndex = plan.toolCalls.indexOf(toolCall) + 1
+            const logPrefix = isParallel ? ` (parallel ${idx + 1}/${groupSize})` : ''
 
-          // Execute tool call based on name
-          switch (toolCall.name) {
-            case 'readFile': {
-              const readResult = await secureTools.readFile(toolCall.arguments.filePath)
-              result = readResult.data
-              break
+            console.log(chalk.blue(`\n[${displayIndex}/${plan.toolCalls.length}${logPrefix}] ${toolCall.name}`))
+            if (toolCall.reasoning) {
+              console.log(chalk.gray(`   Reasoning: ${toolCall.reasoning}`))
             }
 
-            case 'writeFile': {
-              const writeResult = await secureTools.writeFile(toolCall.arguments.filePath, toolCall.arguments.content, {
-                skipConfirmation: options.skipApproval,
-                createDirectories: toolCall.arguments.createDirectories,
-              })
-              result = writeResult.data
-              break
-            }
+            try {
+              const { result, executionTime } = await this.executeSingleToolCall(toolCall, options, batchSession)
 
-            case 'listDirectory': {
-              const listResult = await secureTools.listDirectory(toolCall.arguments.directoryPath, {
-                recursive: toolCall.arguments.recursive,
-                includeHidden: toolCall.arguments.includeHidden,
-                pattern: toolCall.arguments.pattern ? new RegExp(toolCall.arguments.pattern) : undefined,
-              })
-              result = listResult.data
-              break
-            }
-
-            case 'replaceInFile': {
-              const replaceResult = await secureTools.replaceInFile(
-                toolCall.arguments.filePath,
-                toolCall.arguments.replacements,
-                {
-                  skipConfirmation: options.skipApproval,
-                  createBackup: toolCall.arguments.createBackup,
-                }
-              )
-              result = replaceResult.data
-              break
-            }
-
-            case 'executeCommand':
-              // If we have a batch session, skip individual execution
-              if (batchSession) {
-                result = { message: 'Command queued in batch session', batchSessionId: batchSession.id }
-              } else {
-                const commandResult = await secureTools.executeCommand(toolCall.arguments.command, {
-                  cwd: toolCall.arguments.cwd,
-                  timeout: toolCall.arguments.timeout,
-                  env: toolCall.arguments.env,
-                  skipConfirmation: options.skipApproval,
-                  allowDangerous: toolCall.arguments.allowDangerous,
-                  shell: toolCall.arguments.shell,
-                })
-                result = commandResult.data
+              const toolResult: ToolCallResult = {
+                id: toolCall.id,
+                name: toolCall.name,
+                success: true,
+                result,
+                executionTime,
               }
-              break
 
-            default:
-              throw new Error(`Unknown tool: ${toolCall.name}`)
-          }
+              console.log(chalk.green(`✓ [${displayIndex}/${plan.toolCalls.length}] Completed (${executionTime}ms)`))
+              return toolResult
+            } catch (error: any) {
+              const toolResult: ToolCallResult = {
+                id: toolCall.id,
+                name: toolCall.name,
+                success: false,
+                error: error.message,
+                executionTime: 0,
+              }
 
-          const executionTime = Date.now() - startTime
+              console.log(chalk.red(`❌ [${displayIndex}/${plan.toolCalls.length}] Failed: ${error.message}`))
 
-          results.push({
-            id: toolCall.id,
-            name: toolCall.name,
-            success: true,
-            result,
-            executionTime,
+              // Store error result
+              return toolResult
+            }
           })
+        )
 
-          console.log(chalk.green(`✓ [${i + 1}/${plan.toolCalls.length}] Completed (${executionTime}ms)`))
-        } catch (error: any) {
-          const executionTime = Date.now() - startTime
-
-          results.push({
-            id: toolCall.id,
-            name: toolCall.name,
-            success: false,
-            error: error.message,
-            executionTime,
-          })
-
-          console.log(chalk.red(`❌ [${i + 1}/${plan.toolCalls.length}] Failed: ${error.message}`))
-
-          // Stop execution on first failure unless continuing
-          if (plan.riskLevel === 'high') {
-            console.log(chalk.red('🛑 Stopping execution due to high-risk failure'))
-            break
+        // Process results from Promise.allSettled
+        let hasFailure = false
+        for (const result of groupResults) {
+          if (result.status === 'fulfilled') {
+            results.push(result.value)
+            if (!result.value.success) {
+              hasFailure = true
+            }
+          } else {
+            // Handle rejection from Promise.allSettled
+            const toolIndex = groupResults.indexOf(result)
+            const toolCall = group[toolIndex]
+            if (toolCall) {
+              results.push({
+                id: toolCall.id,
+                name: toolCall.name,
+                success: false,
+                error: result.reason?.message || 'Unknown error',
+                executionTime: 0,
+              })
+              hasFailure = true
+            }
           }
+        }
+
+        // Stop execution on first failure if high risk
+        if (hasFailure && plan.riskLevel === 'high') {
+          console.log(chalk.red('🛑 Stopping execution due to high-risk failure'))
+          break
         }
       }
 

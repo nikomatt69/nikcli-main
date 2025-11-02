@@ -7,6 +7,8 @@ import { modelProvider } from '../ai/model-provider'
 import { streamttyService } from '../services/streamtty-service'
 import { chatManager } from './chat-manager'
 import { SlashCommandHandler } from './nik-cli-commands'
+import { readlineManager } from '../core/readline-manager'
+import { AnsiStripper } from '../utils/ansi-strip'
 
 // Configure marked for terminal rendering
 const renderer = new TerminalRenderer() as any
@@ -15,25 +17,34 @@ marked.setOptions({
 })
 
 export class ChatInterface {
-  private rl: readline.Interface
+  private rl: readline.Interface | null = null
   private slashCommands: SlashCommandHandler
   private isStreaming = false
   private cliInstance: any
+  private eventHandlers = new Map<string, Function>()
+
   constructor() {
-    this.rl = readline.createInterface({
+    this.slashCommands = new SlashCommandHandler()
+    this.initializeReadline()
+  }
+
+  private initializeReadline(): void {
+    // Use readline manager singleton to prevent multiple instances
+    const prompt = AnsiStripper.safePrompt(this.getPrompt())
+    this.rl = readlineManager.createInterface({
       input: process.stdin,
       output: process.stdout,
-      prompt: this.getPrompt(),
+      prompt,
       historySize: 100,
     })
-
-    this.slashCommands = new SlashCommandHandler()
     this.setupEventHandlers()
   }
 
   private setupEventHandlers(): void {
+    if (!this.rl) return
+
     // Handle Ctrl+C gracefully
-    this.rl.on('SIGINT', () => {
+    const sigintHandler = () => {
       if (this.isStreaming) {
         console.log(chalk.yellow('\n⏸️  Streaming stopped'))
         this.isStreaming = false
@@ -42,10 +53,12 @@ export class ChatInterface {
         console.log(chalk.yellow('\n👋 Goodbye!'))
         process.exit(0)
       }
-    })
+    }
+    this.eventHandlers.set('SIGINT', sigintHandler)
+    readlineManager.on('SIGINT', sigintHandler)
 
     // Handle line input
-    this.rl.on('line', async (input) => {
+    const lineHandler = async (input: string) => {
       const trimmed = input.trim()
 
       if (!trimmed) {
@@ -60,13 +73,24 @@ export class ChatInterface {
       } finally {
         this.prompt()
       }
-    })
+    }
+    this.eventHandlers.set('line', lineHandler)
+    readlineManager.on('line', lineHandler)
 
     // Handle close
-    this.rl.on('close', () => {
+    const closeHandler = () => {
       console.log(chalk.yellow('\n👋 Goodbye!'))
       process.exit(0)
-    })
+    }
+    this.eventHandlers.set('close', closeHandler)
+    readlineManager.on('close', closeHandler)
+  }
+
+  private removeEventHandlers(): void {
+    for (const [eventName, handler] of this.eventHandlers) {
+      readlineManager.removeListener(eventName, handler)
+    }
+    this.eventHandlers.clear()
   }
 
   private getPrompt(): string {
@@ -77,7 +101,10 @@ export class ChatInterface {
   }
 
   private updatePrompt(): void {
-    this.rl.setPrompt(this.getPrompt())
+    if (!this.rl) return
+    // Use ANSI stripper to fix invisible text after arrow keys
+    const coloredPrompt = this.getPrompt()
+    readlineManager.setPrompt(coloredPrompt)
   }
 
   async start(): Promise<void> {
@@ -128,7 +155,9 @@ ${chalk.gray('Type your message or use slash commands...')}
         this.updatePrompt()
       }
       if (result.shouldExit) {
-        this.rl.close()
+        if (this.rl) {
+          this.rl.close()
+        }
       }
       return
     }
@@ -172,13 +201,14 @@ ${chalk.gray('Type your message or use slash commands...')}
   }
 
   private prompt(): void {
-    if (!this.isStreaming) {
+    if (!this.isStreaming && this.rl) {
       this.rl.prompt()
     }
   }
 
   stop(): void {
-    this.rl.close()
+    this.removeEventHandlers()
+    readlineManager.cleanup()
   }
 }
 

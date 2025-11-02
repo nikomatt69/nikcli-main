@@ -2,6 +2,8 @@
 // Connects CLI to cloud-deployed API services
 
 import axios, { type AxiosInstance } from 'axios'
+import http from 'node:http'
+import https from 'node:https'
 import { WebSocket } from 'ws'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from '../types'
 
@@ -40,6 +42,8 @@ export class BackgroundAgentsClient {
   private client: AxiosInstance
   private baseUrl: string
   private wsUrl: string
+  private httpAgent: http.Agent
+  private httpsAgent: https.Agent
 
   constructor(config: BackgroundAgentsClientConfig = {}) {
     // Priority: config > env variable > default cloud URL
@@ -51,9 +55,15 @@ export class BackgroundAgentsClient {
 
     this.wsUrl = this.baseUrl.replace(/^http/, 'ws')
 
+    // Reuse sockets across requests for lower latency
+    this.httpAgent = new http.Agent({ keepAlive: true, maxSockets: 64 })
+    this.httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 64 })
+
     this.client = axios.create({
       baseURL: `${this.baseUrl}/v1`,
       timeout: config.timeout || 30000,
+      httpAgent: this.httpAgent,
+      httpsAgent: this.httpsAgent,
       headers: {
         'Content-Type': 'application/json',
         ...(config.apiKey && { Authorization: `Bearer ${config.apiKey}` }),
@@ -99,6 +109,8 @@ export class BackgroundAgentsClient {
     try {
       const response = await axios.get(`${this.baseUrl}/health`, {
         timeout: 5000,
+        httpAgent: this.httpAgent,
+        httpsAgent: this.httpsAgent,
       })
       return response.status === 200
     } catch {
@@ -115,7 +127,10 @@ export class BackgroundAgentsClient {
     timestamp: string
     uptime: number
   }> {
-    const response = await axios.get(`${this.baseUrl}/health`)
+    const response = await axios.get(`${this.baseUrl}/health`, {
+      httpAgent: this.httpAgent,
+      httpsAgent: this.httpsAgent,
+    })
     return response.data
   }
 
@@ -315,7 +330,7 @@ export class BackgroundAgentsClient {
    * Stream job logs using Server-Sent Events
    */
   async *streamJobLogs(jobId: string): AsyncGenerator<{ type: string; data: any }, void, unknown> {
-    const response = await axios.get(`${this.baseUrl}/v1/jobs/${jobId}/stream`, {
+    const response = await this.client.get(`/jobs/${jobId}/stream`, {
       responseType: 'stream',
       timeout: 0, // No timeout for streaming
     })

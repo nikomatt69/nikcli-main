@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import chalk from 'chalk'
+import { LRUCache } from 'lru-cache'
 import { QuietCacheLogger } from './performance-optimizer'
 import { tokenTelemetry } from './token-telemetry'
 
@@ -36,15 +37,88 @@ export interface CacheStats {
  * Reduces AI API calls by caching similar prompts and responses
  */
 export class TokenCacheManager {
-  private cache: Map<string, CacheEntry> = new Map()
+  private cache: LRUCache<string, CacheEntry>
   private cacheFile: string
   private maxCacheSize: number = 1000
   private similarityThreshold: number = 0.92
   private maxCacheAge: number = 3 * 24 * 60 * 60 * 1000 // 3 days
 
+  // Semantic indexing: maps words -> list of cache entry keys that contain those words
+  // Allows O(1) candidate retrieval instead of O(n) full scan
+  private wordIndex: Map<string, Set<string>> = new Map()
+
   constructor(cacheDir: string = './.nikcli') {
     this.cacheFile = path.join(cacheDir, 'token-cache.json')
+    // Initialize LRU with TTL; items auto-evict when over max
+    this.cache = new LRUCache<string, CacheEntry>({
+      // Limit by number of entries; simpler and compatible with v11
+      max: this.maxCacheSize,
+      ttl: this.maxCacheAge,
+    })
     this.loadCache()
+  }
+
+  /**
+   * Build semantic index from signature words (called on load/add)
+   * Maps words -> cache entry keys for fast candidate retrieval
+   */
+  private updateWordIndex(key: string, entry: CacheEntry): void {
+    for (const word of entry.signatureWords) {
+      if (!this.wordIndex.has(word)) {
+        this.wordIndex.set(word, new Set())
+      }
+      this.wordIndex.get(word)!.add(key)
+    }
+  }
+
+  /**
+   * Remove entry from word index (called on eviction)
+   */
+  private removeFromWordIndex(key: string, entry: CacheEntry): void {
+    for (const word of entry.signatureWords) {
+      const set = this.wordIndex.get(word)
+      if (set) {
+        set.delete(key)
+        if (set.size === 0) {
+          this.wordIndex.delete(word)
+        }
+      }
+    }
+  }
+
+  /**
+   * Get candidate entries using word intersection (O(1) lookup + O(m) intersection where m << n)
+   */
+  private getCandidateEntries(prompt: string): CacheEntry[] {
+    const words = this.extractSignatureWords(prompt)
+    if (words.length === 0) {
+      return []
+    }
+
+    // Find intersection of all entry keys that contain any of the words
+    const candidateSets = words
+      .map((word) => this.wordIndex.get(word))
+      .filter((set) => set !== undefined) as Set<string>[]
+
+    if (candidateSets.length === 0) {
+      return []
+    }
+
+    // Intersection: entries that appear in at least one word set
+    // For efficiency, use the smallest set and check others
+    const candidates = new Set<string>()
+    const smallestSet = candidateSets.reduce((a, b) => (a.size <= b.size ? a : b))
+
+    for (const key of smallestSet) {
+      const entry = this.cache.get(key)
+      if (entry) {
+        candidates.add(key)
+      }
+    }
+
+    return Array.from(candidates)
+      .map((key) => this.cache.get(key))
+      .filter((entry) => entry !== undefined) as CacheEntry[]
   }
 
   /**
@@ -128,9 +202,10 @@ export class TokenCacheManager {
 
   /**
    * Find cached response for similar prompts
+   * Uses semantic indexing for O(1) candidate retrieval instead of O(n) full scan
    */
   async getCachedResponse(prompt: string, context: string = '', tags: string[] = []): Promise<CacheEntry | null> {
-    // First try exact match
+    // First try exact match (fastest path)
     const exactKey = this.generateExactKey(prompt, context)
     if (this.cache.has(exactKey)) {
       const entry = this.cache.get(exactKey)!
@@ -142,11 +217,11 @@ export class TokenCacheManager {
       return entry
     }
 
-    // Then try semantic similarity
-    const _semanticKey = this.generateSemanticKey(prompt, context)
+    // Then try semantic similarity using indexed candidates (O(1) retrieval + O(m) comparison where m << n)
+    const candidates = this.getCandidateEntries(prompt + context)
 
-    // Find similar entries
-    const similarEntries = Array.from(this.cache.values())
+    // Filter and score candidates
+    const similarEntries = candidates
       .filter((entry) => {
         // Check if entry is not expired
         const age = Date.now() - new Date(entry.timestamp).getTime()
@@ -217,7 +292,10 @@ export class TokenCacheManager {
       similarity: 1.0,
     }
 
-    this.cache.set(exactKey, entry)
+    this.cache.set(exactKey, entry, { ttl: this.maxCacheAge })
+
+    // Update semantic word index for fast lookup
+    this.updateWordIndex(exactKey, entry)
 
     // Cleanup old entries if cache is too large
     await this.cleanupExpired()
@@ -244,26 +322,11 @@ export class TokenCacheManager {
    * Clean up old and least used cache entries
    */
   private async cleanupCache(): Promise<void> {
-    if (this.cache.size <= this.maxCacheSize) return
-
-    const entries = Array.from(this.cache.entries())
-
-    // Sort by last used (hitCount) and age
-    entries.sort(([, a], [, b]) => {
-      const scoreA = a.hitCount * 0.7 + (Date.now() - new Date(a.timestamp).getTime()) * -0.3
-      const scoreB = b.hitCount * 0.7 + (Date.now() - new Date(b.timestamp).getTime()) * -0.3
-      return scoreB - scoreA
-    })
-
-    // Remove oldest/least used entries
-    const toRemove = entries.slice(this.maxCacheSize)
-    toRemove.forEach(([key]) => this.cache.delete(key))
-
-    // Silent cleanup
+    // No-op: LRU max handles eviction automatically
   }
 
   /**
-   * Load cache from disk
+   * Load cache from disk and rebuild semantic index
    */
   private async loadCache(): Promise<void> {
     try {
@@ -273,10 +336,14 @@ export class TokenCacheManager {
       const data = await fs.readFile(this.cacheFile, 'utf8')
       const parsed = JSON.parse(data)
 
-      // Convert back to Map with Date objects
+      // Reinsert into LRU with adjusted TTL based on age
       parsed.forEach((entry: any) => {
         entry.timestamp = new Date(entry.timestamp)
-        this.cache.set(entry.key, entry)
+        const age = Date.now() - new Date(entry.timestamp).getTime()
+        const remainingTtl = Math.max(0, this.maxCacheAge - age)
+        this.cache.set(entry.key, entry, { ttl: remainingTtl || 1 })
+        // Rebuild semantic index
+        this.updateWordIndex(entry.key, entry)
       })
 
       // Silent load
@@ -317,11 +384,12 @@ export class TokenCacheManager {
   }
 
   /**
-   * Clear all cache entries
+   * Clear all cache entries and rebuild index
    */
   async clearCache(): Promise<void> {
     const oldSize = this.cache.size
     this.cache.clear()
+    this.wordIndex.clear()
 
     try {
       await fs.unlink(this.cacheFile)
@@ -333,7 +401,7 @@ export class TokenCacheManager {
   }
 
   /**
-   * Remove expired entries
+   * Remove expired entries and update semantic index
    */
   async cleanupExpired(): Promise<number> {
     const beforeSize = this.cache.size
@@ -342,6 +410,7 @@ export class TokenCacheManager {
     for (const [key, entry] of this.cache.entries()) {
       const age = now - new Date(entry.timestamp).getTime()
       if (age > this.maxCacheAge) {
+        this.removeFromWordIndex(key, entry)
         this.cache.delete(key)
       }
     }
@@ -375,6 +444,11 @@ export class TokenCacheManager {
     if (maxSize !== undefined) this.maxCacheSize = maxSize
     if (similarityThreshold !== undefined) this.similarityThreshold = similarityThreshold
     if (maxAge !== undefined) this.maxCacheAge = maxAge
+
+    // Align LRU config to new limits (best-effort)
+    try {
+      ; (this.cache as any).max = this.maxCacheSize
+    } catch { }
 
     console.log(chalk.blue('🔨 Cache settings updated'))
   }

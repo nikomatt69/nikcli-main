@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid'
 import { advancedAIProvider } from '../ai/advanced-ai-provider'
 import { WorkspaceRAG } from '../context/workspace-rag'
 import { advancedUI } from '../ui/advanced-cli-ui'
+import { getLightweightInference } from '../ai/lightweight-inference-layer'
 import type { ExecutionPlan, MutableExecutionPlan, PlanTodo } from './types'
 
 export interface PlanningEvent {
@@ -88,6 +89,7 @@ export class AutonomousPlanner extends EventEmitter {
   }
 
   // Main planning method - like Claude's internal planning
+  // 🚀 OPTIMIZED: Uses lightweight inference to estimate complexity before full AI planning
   async *createAndExecutePlan(userGoal: string, _context?: any): AsyncGenerator<PlanningEvent> {
     const planId = nanoid()
 
@@ -98,6 +100,43 @@ export class AutonomousPlanner extends EventEmitter {
     }
 
     try {
+      // 🚀 OPTIMIZATION: Estimate goal complexity in ~5-8ms
+      const lightweightEngine = getLightweightInference()
+      const complexity = await lightweightEngine.estimateComplexity(userGoal)
+
+      yield {
+        type: 'todo_progress',
+        planId,
+        progress: 25,
+        content: `📊 Goal complexity: ${complexity.level} (confidence: ${Math.round(complexity.confidence * 100)}%)`,
+      }
+
+      // For simple goals, use template-based planning instead of expensive LLM
+      if (complexity.level === 'simple' && complexity.template) {
+        yield {
+          type: 'todo_progress',
+          planId,
+          progress: 50,
+          content: `✨ Using template: ${complexity.template} for faster execution`,
+        }
+
+        // Use predefined template instead of AI planning
+        const plan = this.createTemplateBasedPlan(planId, userGoal, complexity.template)
+        this.activePlans.set(planId, plan)
+
+        yield {
+          type: 'plan_created',
+          planId,
+          content: `📋 Quick plan created (template-based) with ${plan.todos.length} steps`,
+          metadata: { todos: plan.todos.length, estimatedDuration: plan.estimatedTotalDuration, method: 'template' },
+        }
+
+        // 3. Execute the plan autonomously
+        yield* this.executePlan(plan)
+        return
+      }
+
+      // For complex goals, use full AI planning
       // 1. Analyze the goal and workspace context
       const workspaceContext = this.workspaceRAG.getContextForTask(userGoal)
 
@@ -396,6 +435,130 @@ IMPORTANT: Only use tools that are actually available. Be specific about file pa
       } catch {
         /* ignore */
       }
+    }
+  }
+
+  /**
+   * Create plan from predefined templates for simple goals
+   * ~50-100ms vs 500-2000ms for AI-generated plans
+   */
+  private createTemplateBasedPlan(planId: string, goal: string, template: string): ExecutionPlan {
+    const templates: Record<string, PlanTodo[]> = {
+      'template-simple-file-read': [
+        {
+          id: nanoid(),
+          title: 'Locate and read file',
+          description: goal,
+          reasoning: 'Extract relevant file path from user goal',
+          tools: ['read_file'],
+          estimatedDuration: 5,
+          status: 'pending' as const,
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          progress: 0,
+          dependencies: [],
+          metadata: {
+            method: 'template',
+            template,
+            simple: true,
+          },
+        },
+      ],
+      'template-simple-search': [
+        {
+          id: nanoid(),
+          title: 'Search for content',
+          description: goal,
+          reasoning: 'Find matching content using search/grep',
+          tools: ['grep'],
+          estimatedDuration: 10,
+          status: 'pending' as const,
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          progress: 0,
+          dependencies: [],
+          metadata: {
+            method: 'template',
+            template,
+            simple: true,
+          },
+        },
+      ],
+      'template-simple-info': [
+        {
+          id: nanoid(),
+          title: 'Gather information',
+          description: goal,
+          reasoning: 'Retrieve requested information using available tools',
+          tools: ['read_file', 'analyze_project'],
+          estimatedDuration: 15,
+          status: 'pending' as const,
+          priority: 'high',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          progress: 0,
+          dependencies: [],
+          metadata: {
+            method: 'template',
+            template,
+            simple: true,
+          },
+        },
+      ],
+    }
+
+    const todos = templates[template] || [
+      {
+        id: nanoid(),
+        title: 'Execute task',
+        description: goal,
+        reasoning: 'Execute simple task using appropriate tools',
+        tools: ['read_file', 'execute_command'],
+        estimatedDuration: 10,
+        status: 'pending' as const,
+        priority: 'high',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        progress: 0,
+        dependencies: [],
+        metadata: {
+          method: 'template',
+          template,
+          simple: true,
+        },
+      },
+    ].map((todo) => ({
+      ...todo,
+      id: todo.id || nanoid(),
+      status: todo.status || 'pending',
+      priority: todo.priority || 'high',
+      createdAt: todo.createdAt || new Date(),
+      updatedAt: todo.updatedAt || new Date(),
+    }))
+    return {
+      id: planId,
+      title: goal,
+      description: goal,
+      steps: [],
+      todos,
+      status: 'pending' as const,
+      createdAt: new Date(),
+      estimatedTotalDuration: todos.reduce((sum, t) => sum + (t?.estimatedDuration || 0), 0),
+      riskAssessment: {
+        overallRisk: 'low',
+        destructiveOperations: 0,
+        fileModifications: 0,
+        externalCalls: 0,
+      },
+      actualDuration: 0,
+      createdBy: 'autonomous-planner',
+      context: {
+        userRequest: goal,
+        projectPath: process.cwd(),
+        simple: true,
+      },
     }
   }
 

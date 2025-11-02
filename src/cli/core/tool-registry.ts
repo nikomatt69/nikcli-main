@@ -146,6 +146,16 @@ export class ToolRegistry {
   private timers: Set<NodeJS.Timeout> = new Set()
   private intervals: Set<NodeJS.Timeout> = new Set()
 
+  // LSP workspace insights cache with TTL (5 seconds)
+  private workspaceInsightsCache: Map<
+    string,
+    {
+      insights: any
+      timestamp: number
+    }
+  > = new Map()
+  private readonly LSP_CACHE_TTL = 5000 // 5 seconds
+
   constructor(workingDirectory: string = process.cwd(), config: Partial<ToolRegistryConfig> = {}) {
     this.workingDirectory = workingDirectory
     this.config = ToolRegistryConfigSchema.parse(config)
@@ -673,10 +683,29 @@ export class ToolRegistry {
     }
   }
 
+  private async getWorkspaceInsights(directory: string): Promise<any> {
+    // Check cache first (TTL: 5 seconds)
+    const cached = this.workspaceInsightsCache.get(directory)
+    if (cached && Date.now() - cached.timestamp < this.LSP_CACHE_TTL) {
+      return cached.insights
+    }
+
+    // Fetch fresh insights
+    const insights = await lspManager.getWorkspaceInsights(directory)
+
+    // Store in cache
+    this.workspaceInsightsCache.set(directory, {
+      insights,
+      timestamp: Date.now(),
+    })
+
+    return insights
+  }
+
   private async performLSPContextAnalysis(toolInstance: ToolInstance, args: any[]): Promise<void> {
     try {
-      // Get workspace insights for better tool execution context
-      const insights = await lspManager.getWorkspaceInsights(this.workingDirectory)
+      // Get workspace insights for better tool execution context (using cache)
+      const insights = await this.getWorkspaceInsights(this.workingDirectory)
 
       if (insights.diagnostics.errors > 0) {
         advancedUI.logWarning(

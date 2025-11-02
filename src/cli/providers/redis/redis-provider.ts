@@ -86,6 +86,7 @@ export class RedisProvider extends EventEmitter {
           port: this.config.port,
           password: this.config.password || undefined,
           db: this.config.database || 0,
+          enableAutoPipelining: true,
           retryStrategy: (times: number) => {
             if (times > this.config.maxRetries) {
               return null
