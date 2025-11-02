@@ -1,0 +1,371 @@
+---
+title: "Tools Module"
+description: "Understanding the Tools module in src/cli - The command toolkit that powers NikCLI"
+icon: "tools"
+---
+
+# Tools Module: The Command Toolkit
+
+The `tools` module in `src/cli` contains the implementation of all commands available in NikCLI. Each tool is a self-contained module that performs a specific action, from file operations to AI-powered code generation.
+
+<CardGroup cols={2}>
+  <Card title="80+ Commands" icon="terminal">
+    A comprehensive toolkit with over 80 commands for file operations, terminal integration, project management, and more.
+  </Card>
+  <Card title="Secure Execution" icon="shield-alt">
+    All tools are designed with security in mind, with approval systems and sandboxed execution for sensitive operations.
+  </Card>
+  <Card title="Extensible Design" icon="puzzle-piece">
+    The tool system is designed for extensibility, allowing new commands to be added with ease.
+  </Card>
+  <Card title="Context-Aware" icon="lightbulb">
+    Tools are context-aware, adapting their behavior based on your project structure and environment.
+  </Card>
+</CardGroup>
+
+## Tool Categories
+
+NikCLI's tools are organized into logical categories for easy discovery and use.
+
+<AccordionGroup>
+  <Accordion title="File Operations" icon="folder-open">
+    Tools for reading, writing, editing, and managing files in your project.
+
+    ### Available Commands
+    - **`/read`**: Read the contents of a file.
+    - **`/write`**: Write content to a file (creates or overwrites).
+    - **`/edit`**: Edit a file using AI-powered suggestions.
+    - **`/multi-edit`**: Edit multiple files simultaneously.
+    - **`/ls`**: List files and directories.
+    - **`/search`**: Search for files by name or pattern.
+    - **`/grep`**: Search for text within files.
+    - **`/tree`**: Display directory structure as a tree.
+
+    ### Example Usage
+    ```bash
+    # Read a file
+    /read src/components/Button.tsx
+
+    # Write to a file
+    /write src/utils/helpers.ts "export const formatDate = (date) => { /* ... */ }"
+
+    # Edit a file with AI assistance
+    /edit src/components/Button.tsx "Add a loading state to the button component"
+
+    # Search for files
+    /search "*.test.ts"
+
+    # Search within files
+    /grep "TODO" src/**/*.ts
+    ```
+
+    ### Best Practices
+    - **Use `/read` before `/edit`**: Always read a file first to understand its current state before making changes.
+    - **Review diffs**: Always review the diff preview before confirming file edits.
+    - **Use patterns**: Use glob patterns with `/search` and `/grep` for efficient file discovery.
+  </Accordion>
+
+  <Accordion title="Terminal Operations" icon="terminal">
+    Tools for executing shell commands, managing processes, and interacting with the terminal.
+
+    ### Available Commands
+    - **`/run`**: Execute a shell command.
+    - **`/sh`**: Run a shell script.
+    - **`/bash`**: Execute a bash command.
+    - **`/install`**: Install packages using the detected package manager.
+    - **`/npm`**: Run npm commands.
+    - **`/yarn`**: Run yarn commands.
+    - **`/git`**: Execute git commands.
+    - **`/docker`**: Run docker commands.
+    - **`/ps`**: List running processes.
+    - **`/kill`**: Terminate a process.
+
+    ### Example Usage
+    ```bash
+    # Run a command
+    /run npm test
+
+    # Install dependencies
+    /install axios react-query
+
+    # Execute a git command
+    /git status
+
+    # Run a docker command
+    /docker ps -a
+
+    # List processes
+    /ps
+
+    # Kill a process
+    /kill 1234
+    ```
+
+    ### Best Practices
+    - **Use approval mode**: Enable approval mode for commands that modify your system.
+    - **Check output**: Always check the output of commands to ensure they executed successfully.
+    - **Use package manager detection**: Use `/install` instead of `/npm` or `/yarn` to automatically detect the right package manager.
+  </Accordion>
+
+  <Accordion title="Project Management" icon="project-diagram">
+    Tools for building, testing, linting, and managing your project.
+
+    ### Available Commands
+    - **`/build`**: Build your project.
+    - **`/test`**: Run tests.
+    - **`/lint`**: Lint your code.
+    - **`/create`**: Create a new project or component.
+
+    ### Example Usage
+    ```bash
+    # Build the project
+    /build
+
+    # Run tests
+    /test
+
+    # Lint the code
+    /lint
+
+    # Create a new component
+    /create component UserProfile
+    ```
+
+    ### Best Practices
+    - **Run tests before committing**: Always run `/test` before committing changes.
+    - **Fix lint errors**: Use `/lint` regularly to catch and fix code quality issues.
+    - **Use templates**: Use `/create` with templates to ensure consistency across your project.
+  </Accordion>
+
+  <Accordion title="AI-Powered Tools" icon="magic">
+    Tools that leverage AI for code generation, analysis, and transformation.
+
+    ### Available Commands
+    - **`/analyze-image`**: Analyze an image using AI vision.
+    - **`/vision`**: Use AI vision for image understanding.
+    - **`/generate-image`**: Generate images using AI.
+    - **`/create-image`**: Create images with AI assistance.
+
+    ### Example Usage
+    ```bash
+    # Analyze an image
+    /analyze-image screenshot.png "What UI components are visible in this screenshot?"
+
+    # Generate an image
+    /generate-image "A futuristic dashboard UI with dark mode"
+    ```
+
+    ### Best Practices
+    - **Provide context**: Give detailed descriptions for better AI-generated results.
+    - **Iterate**: Use AI-generated outputs as a starting point and refine them iteratively.
+    - **Review outputs**: Always review AI-generated code or images before using them in production.
+  </Accordion>
+
+  <Accordion title="Memory & Data" icon="database">
+    Tools for managing memory, snapshots, and persistent data.
+
+    ### Available Commands
+    - **`/remember`**: Store information in memory.
+    - **`/recall`**: Retrieve stored information.
+    - **`/memory`**: View all stored memories.
+    - **`/forget`**: Delete stored information.
+    - **`/snapshot`**: Create a snapshot of the current state.
+    - **`/snap`**: Quick snapshot alias.
+    - **`/restore`**: Restore from a snapshot.
+    - **`/snapshots`**: List all snapshots.
+
+    ### Example Usage
+    ```bash
+    # Remember information
+    /remember "The API endpoint for user authentication is /api/auth/login"
+
+    # Recall information
+    /recall "API endpoint"
+
+    # Create a snapshot
+    /snapshot "Before refactoring authentication system"
+
+    # Restore from a snapshot
+    /restore snapshot-123
+    ```
+
+    ### Best Practices
+    - **Use descriptive names**: Give snapshots and memories descriptive names for easy retrieval.
+    - **Regular snapshots**: Create snapshots before major changes to enable easy rollback.
+    - **Clean up**: Periodically clean up old memories and snapshots to keep the system organized.
+  </Accordion>
+</AccordionGroup>
+
+## Tool Architecture
+
+All tools in NikCLI extend the `BaseTool` class, which provides a common interface for execution, validation, and error handling.
+
+```typescript
+// Example: BaseTool structure
+abstract class BaseTool {
+  abstract name: string;
+  abstract description: string;
+  abstract execute(params: any): Promise<any>;
+  
+  validate(params: any): boolean {
+    // Validation logic
+  }
+  
+  handleError(error: Error): void {
+    // Error handling logic
+  }
+}
+```
+
+### Creating a Custom Tool
+
+You can create custom tools by extending the `BaseTool` class:
+
+```typescript
+import { BaseTool } from './tools/base-tool';
+
+export class MyCustomTool extends BaseTool {
+  name = 'my-custom-tool';
+  description = 'A custom tool that does something amazing';
+  
+  async execute(params: { input: string }): Promise<string> {
+    // Your tool logic here
+    const result = await this.doSomething(params.input);
+    return result;
+  }
+  
+  validate(params: any): boolean {
+    return typeof params.input === 'string';
+  }
+  
+  private async doSomething(input: string): Promise<string> {
+    // Implementation
+    return `Processed: ${input}`;
+  }
+}
+```
+
+### Registering a Custom Tool
+
+Once you've created a custom tool, register it with the tool registry:
+
+```typescript
+import { ToolRegistry } from './tools/tool-registry';
+import { MyCustomTool } from './my-custom-tool';
+
+const registry = ToolRegistry.getInstance();
+registry.register(new MyCustomTool());
+```
+
+## Secure Tools
+
+NikCLI includes a secure tools system for operations that require special permissions or could potentially harm the system.
+
+<Tabs>
+  <Tab title="Approval System">
+    **Interactive Approval for Sensitive Operations**
+
+    The approval system ensures that potentially dangerous operations require explicit user confirmation before execution.
+
+    ```bash
+    # Example: File write with approval
+    /write package.json "{ ... }"
+    # → Shows diff preview
+    # → Asks for confirmation
+    # → Executes only after approval
+    ```
+
+    ### Configuring Approval Mode
+    ```bash
+    # Enable approval mode
+    /config set approval.enabled true
+
+    # Set approval level (low, medium, high)
+    /config set approval.level medium
+    ```
+  </Tab>
+
+  <Tab title="Sandbox Mode">
+    **Restricted Execution Environment**
+
+    Sandbox mode provides a restricted execution environment with configurable permissions, ensuring that tools cannot access or modify resources outside of the sandbox.
+
+    ```bash
+    # Enable sandbox mode
+    /config set sandbox.enabled true
+
+    # Configure sandbox permissions
+    /config set sandbox.permissions.filesystem read-only
+    /config set sandbox.permissions.network disabled
+    ```
+
+    ### Sandbox Permissions
+    - **Filesystem**: `read-only`, `read-write`, `disabled`
+    - **Network**: `enabled`, `disabled`
+    - **Process**: `enabled`, `disabled`
+  </Tab>
+
+  <Tab title="VM Isolation">
+    **Secure Virtualized Execution**
+
+    For maximum security, use the VM Agent to execute tools in a completely isolated Docker container.
+
+    ```bash
+    # Execute a command in a secure VM
+    /vm-agent "Install and test this third-party library"
+
+    # Create a VM for a specific task
+    /vm-create --name test-env --image node:18
+
+    # Connect to a VM
+    /vm-connect test-env
+
+    # Execute a command in the VM
+    /vm-exec test-env "npm install suspicious-package"
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Approval Mode" icon="check-circle">
+    Enable approval mode for sensitive operations to prevent accidental changes.
+  </Card>
+  <Card title="Review Diffs" icon="code-compare">
+    Always review diff previews before confirming file edits.
+  </Card>
+  <Card title="Use Patterns" icon="search">
+    Use glob patterns for efficient file discovery and batch operations.
+  </Card>
+  <Card title="Create Snapshots" icon="camera">
+    Create snapshots before major changes to enable easy rollback.
+  </Card>
+  <Card title="Combine Tools" icon="link">
+    Combine multiple tools to create powerful, automated workflows.
+  </Card>
+  <Card title="Extend with Custom Tools" icon="plus-circle">
+    Create custom tools to tailor NikCLI to your specific needs.
+  </Card>
+</CardGroup>
+
+<Tip>
+  **Pro Tip**: You can chain multiple tools together in a single command using the `/plan` command. This allows you to create complex, multi-step workflows that execute automatically.
+</Tip>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Command Reference" icon="terminal" href="/cli-reference/commands-overview">
+    Complete reference for all available commands.
+  </Card>
+  <Card title="File Operations" icon="folder-open" href="/cli-reference/file-operations">
+    Detailed guide to file operation commands.
+  </Card>
+  <Card title="Security Commands" icon="shield-alt" href="/cli-reference/security-commands">
+    Learn about security features and commands.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/core-apis">
+    API documentation for the tools module.
+  </Card>
+</CardGroup>

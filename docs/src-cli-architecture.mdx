@@ -1,0 +1,108 @@
+--- 
+title: "src/cli Architecture"
+description: "A deep dive into the architecture of the src/cli directory in NikCLI."
+icon: "file-code"
+---
+
+# Architecture of `src/cli`
+
+The `src/cli` directory is the heart of NikCLI, containing the core logic for the command-line interface, agent systems, and cognitive orchestration. This document provides a comprehensive overview of its structure and key components.
+
+<CardGroup cols={2}>
+  <Card title="Modular Design" icon="cubes">
+    The architecture is highly modular, with clear separation of concerns between different components like AI, automation, and tools.
+  </Card>
+  <Card title="Extensible Tooling" icon="tools">
+    The tool system is designed for extensibility, allowing new commands and capabilities to be added with ease.
+  </Card>
+  <Card title="Cognitive Core" icon="brain">
+    The `ai` and `automation` directories form the cognitive core, enabling intelligent task understanding and execution.
+  </Card>
+  <Card title="Secure by Design" icon="shield-alt">
+    Security is a primary consideration, with features like the secure VM agent and encrypted API key management.
+  </Card>
+</CardGroup>
+
+## Directory Structure Overview
+
+The `src/cli` directory is organized into several key subdirectories, each responsible for a specific aspect of NikCLI's functionality.
+
+```bash
+src/cli
+├── ai
+├── automation
+├── background-agents
+├── commands
+├── components
+├── config
+├── constants
+├── database
+├── events
+├── functions
+├── lib
+├── llms
+├── main
+├── models
+├── orchestration
+├── providers
+├── services
+├── tools
+├── types
+├── ui
+├── utils
+└── virtualized-agents
+```
+
+### Key Directories and Their Roles
+
+<AccordionGroup>
+  <Accordion title="`ai` - The Cognitive Engine">
+    This directory contains the core AI logic of NikCLI. It is responsible for interacting with various AI models, managing prompts, and processing AI-generated responses.
+
+    - **`adaptive-model-router.ts`**: Intelligently routes requests to the best-suited AI model based on the task's complexity and requirements.
+    - **`ai-call-manager.ts`**: Manages and orchestrates calls to AI providers, handling retries, and ensuring reliability.
+    - **`model-provider.ts`**: A generic interface for interacting with different AI language models, allowing for multi-provider support.
+  </Accordion>
+
+  <Accordion title="`automation` - Intelligent Task Orchestration">
+    The `automation` directory houses the agent system and the logic for cognitive orchestration. This is where high-level tasks are broken down into executable steps.
+
+    - **`agent-manager.ts`**: Manages the lifecycle of AI agents, including their creation, execution, and termination.
+    - **`universal-agent.ts`**: The primary, general-purpose agent with a wide range of capabilities for development tasks.
+    - **`workflow-orchestrator.ts`**: Orchestrates complex workflows, combining multiple tools and agents to achieve a high-level goal.
+  </Accordion>
+
+  <Accordion title="`tools` - The Command Toolkit">
+    This directory contains the implementation of the various commands available in NikCLI. Each tool is a self-contained module that performs a specific action.
+
+    - **`base-tool.ts`**: The base class for all tools, defining the common interface for execution and validation.
+    - **`secure-tools-registry.ts`**: A registry for tools that require special permissions or operate in a secure context.
+    - **Extensibility**: New tools can be easily added by extending the `BaseTool` class and registering them in the `tool-registry.ts`.
+  </Accordion>
+
+  <Accordion title="`virtualized-agents` - Secure, Isolated Execution">
+    The `virtualized-agents` directory contains the logic for the Secure VM Agent, which provides a sandboxed environment for development tasks.
+
+    - **`container-manager.ts`**: Manages the lifecycle of Docker containers used for virtualized development.
+    - **`secure-vm-agent.ts`**: The agent that runs within the secure VM, providing a safe and isolated execution environment.
+    - **`vm-chat-bridge.ts`**: A bridge that facilitates communication between the main CLI and the agent running inside the VM.
+  </Accordion>
+</AccordionGroup>
+
+## Core Concepts
+
+<Tabs>
+  <Tab title="Cognitive Orchestration">
+    Cognitive orchestration is the process of understanding a user's intent, creating a plan to achieve it, and then executing that plan using a combination of AI and traditional tools. This is the core concept that makes NikCLI so powerful.
+  </Tab>
+  <Tab title="Agent System">
+    NikCLI's agent system is a collection of specialized AI agents that can be combined to solve complex problems. The `UniversalAgent` is the most versatile, but other agents can be created for specific tasks.
+  </Tab>
+  <Tab title="Secure Tooling">
+    Security is a top priority in NikCLI. The secure tooling system ensures that potentially dangerous operations are executed in a sandboxed environment, protecting the user's system from harm.
+  </Tab>
+</Tabs>
+
+<Tip>
+  To learn more about the specific implementation of a command or component, you can explore the corresponding files in the `src/cli` directory. The code is well-documented and follows a consistent structure.
+</Tip>

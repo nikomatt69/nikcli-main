@@ -1,0 +1,369 @@
+---
+title: "Virtualized Agents Module"
+description: "Understanding the Virtualized Agents module - Secure, isolated development environments"
+icon: "container"
+---
+
+# Virtualized Agents: Secure, Isolated Development
+
+The `virtualized-agents` module provides secure, isolated execution environments for development tasks using Docker containers. This ensures that potentially risky operations are executed in a sandboxed environment, protecting your host system from harm.
+
+<CardGroup cols={2}>
+  <Card title="Docker Integration" icon="docker">
+    Seamless integration with Docker for containerized development environments.
+  </Card>
+  <Card title="Isolation & Security" icon="shield-alt">
+    Complete isolation from the host system, ensuring security and preventing conflicts.
+  </Card>
+  <Card title="Repository Management" icon="code-branch">
+    Clone, analyze, and work with Git repositories in isolated containers.
+  </Card>
+  <Card title="PR Automation" icon="git-alt">
+    Create and manage pull requests directly from the secure VM environment.
+  </Card>
+</CardGroup>
+
+## Core Components
+
+<AccordionGroup>
+  <Accordion title="container-manager.ts" icon="docker">
+    The **Container Manager** handles the lifecycle of Docker containers used for virtualized development.
+
+    ### Key Responsibilities
+    - **Container Creation**: Creates Docker containers with specified configurations.
+    - **Lifecycle Management**: Manages the start, stop, restart, and removal of containers.
+    - **Resource Allocation**: Allocates CPU, memory, and storage resources to containers.
+    - **Network Configuration**: Configures networking for container communication.
+
+    ### Example Usage
+    ```typescript
+    import { ContainerManager } from './virtualized-agents/container-manager';
+
+    const manager = new ContainerManager();
+
+    // Create a new container
+    const container = await manager.create({
+      name: 'dev-env',
+      image: 'node:18-alpine',
+      volumes: ['/workspace:/app'],
+      environment: {
+        NODE_ENV: 'development'
+      }
+    });
+
+    // Start the container
+    await manager.start(container.id);
+
+    // Execute a command in the container
+    const result = await manager.exec(container.id, 'npm install');
+
+    // Stop and remove the container
+    await manager.stop(container.id);
+    await manager.remove(container.id);
+    ```
+  </Accordion>
+
+  <Accordion title="secure-vm-agent.ts" icon="shield-alt">
+    The **Secure VM Agent** is a specialized agent that runs within a Docker container, providing a safe and isolated execution environment for development tasks.
+
+    ### Key Features
+    - **Sandboxed Execution**: All operations are executed within the container, isolated from the host.
+    - **20 Specialized Capabilities**: Focused on secure development tasks like testing, analysis, and experimentation.
+    - **Resource Limits**: Enforces resource limits to prevent container abuse.
+    - **Automatic Cleanup**: Automatically cleans up resources after task completion.
+
+    ### Capabilities
+    - **Code Testing**: Run tests in an isolated environment.
+    - **Dependency Analysis**: Analyze and test third-party dependencies safely.
+    - **Security Scanning**: Scan code for vulnerabilities without risk.
+    - **Experimental Features**: Test experimental code or libraries.
+
+    ### Example Usage
+    ```bash
+    # Create a VM for testing
+    /vm-create --name test-env --image node:18
+
+    # Execute a task in the VM
+    /vm-agent test-env "Install and test the 'suspicious-package' library"
+
+    # View VM logs
+    /vm-logs test-env
+
+    # Stop and remove the VM
+    /vm-stop test-env
+    /vm-remove test-env
+    ```
+  </Accordion>
+
+  <Accordion title="vm-chat-bridge.ts" icon="comments">
+    The **VM Chat Bridge** facilitates communication between the main CLI and the agent running inside the VM container.
+
+    ### Communication Protocol
+    - **WebSocket-Based**: Uses WebSockets for real-time, bidirectional communication.
+    - **Message Serialization**: Serializes messages using JSON for compatibility.
+    - **Error Handling**: Handles connection errors and retries automatically.
+    - **State Synchronization**: Keeps the CLI and VM agent in sync.
+
+    ### Message Types
+    - **Task Assignment**: Sends tasks from the CLI to the VM agent.
+    - **Progress Updates**: Receives progress updates from the VM agent.
+    - **Result Delivery**: Receives task results from the VM agent.
+    - **Error Reporting**: Receives error messages and logs.
+
+    ### Example Usage
+    ```typescript
+    import { VMChatBridge } from './virtualized-agents/vm-chat-bridge';
+
+    const bridge = new VMChatBridge();
+
+    // Connect to a VM
+    await bridge.connect('test-env');
+
+    // Send a task to the VM
+    await bridge.sendTask({
+      type: 'execute-command',
+      command: 'npm test',
+      workingDir: '/app'
+    });
+
+    // Listen for progress updates
+    bridge.on('progress', (update) => {
+      console.log('Progress:', update.message);
+    });
+
+    // Listen for results
+    bridge.on('result', (result) => {
+      console.log('Result:', result);
+    });
+
+    // Disconnect from the VM
+    await bridge.disconnect();
+    ```
+  </Accordion>
+
+  <Accordion title="vm-orchestrator.ts" icon="project-diagram">
+    The **VM Orchestrator** coordinates complex workflows that involve multiple VMs and tasks.
+
+    ### Key Features
+    - **Multi-VM Management**: Manages multiple VMs simultaneously.
+    - **Task Distribution**: Distributes tasks across VMs for parallel execution.
+    - **Resource Optimization**: Optimizes resource usage across VMs.
+    - **Workflow Coordination**: Coordinates dependencies between tasks running in different VMs.
+
+    ### Example Usage
+    ```typescript
+    import { VMOrchestrator } from './virtualized-agents/vm-orchestrator';
+
+    const orchestrator = new VMOrchestrator();
+
+    // Define a workflow with multiple VMs
+    const workflow = {
+      vms: [
+        { name: 'frontend-vm', image: 'node:18', tasks: ['build-frontend', 'test-frontend'] },
+        { name: 'backend-vm', image: 'node:18', tasks: ['build-backend', 'test-backend'] }
+      ],
+      dependencies: {
+        'test-frontend': ['build-frontend'],
+        'test-backend': ['build-backend']
+      }
+    };
+
+    // Execute the workflow
+    const results = await orchestrator.execute(workflow);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Security Features
+
+The virtualized agents module is designed with security as a top priority.
+
+<Tabs>
+  <Tab title="Isolation">
+    **Complete System Isolation**
+
+    All operations in a VM are completely isolated from the host system:
+
+    - **Filesystem Isolation**: The VM has its own filesystem, separate from the host.
+    - **Network Isolation**: The VM's network is isolated, with configurable access rules.
+    - **Process Isolation**: Processes in the VM cannot affect host processes.
+    - **Resource Isolation**: CPU, memory, and storage are allocated separately.
+
+    ```bash
+    # Create a fully isolated VM
+    /vm-create --name isolated-env --image alpine:latest --network none --no-host-access
+    ```
+  </Tab>
+
+  <Tab title="API Key Protection">
+    **Zero-Exposure API Key Proxy**
+
+    API keys are never exposed to the VM. Instead, a secure proxy handles all API calls:
+
+    - **Encrypted Storage**: API keys are stored encrypted on the host.
+    - **Proxy Server**: A proxy server on the host handles API calls on behalf of the VM.
+    - **Token-Based Auth**: The VM uses temporary tokens to authenticate with the proxy.
+    - **Automatic Rotation**: Tokens are automatically rotated for enhanced security.
+
+    ```typescript
+    // Example: API key proxy configuration
+    const proxyConfig = {
+      encryptionKey: process.env.ENCRYPTION_KEY,
+      tokenExpiration: 3600, // 1 hour
+      allowedProviders: ['anthropic', 'openai']
+    };
+    ```
+  </Tab>
+
+  <Tab title="Resource Limits">
+    **Enforced Resource Limits**
+
+    Resource limits prevent VMs from consuming excessive system resources:
+
+    - **CPU Limits**: Maximum CPU usage per VM.
+    - **Memory Limits**: Maximum memory allocation per VM.
+    - **Storage Limits**: Maximum disk space per VM.
+    - **Network Limits**: Maximum bandwidth per VM.
+
+    ```bash
+    # Create a VM with resource limits
+    /vm-create --name limited-env --image node:18 --cpu 2 --memory 4g --storage 10g
+    ```
+  </Tab>
+
+  <Tab title="Automatic Cleanup">
+    **Automatic Resource Cleanup**
+
+    VMs are automatically cleaned up after task completion or timeout:
+
+    - **Timeout-Based Cleanup**: VMs are stopped after a period of inactivity.
+    - **Task-Based Cleanup**: VMs are removed after task completion.
+    - **Manual Cleanup**: Users can manually clean up VMs at any time.
+    - **Orphan Detection**: Orphaned containers are automatically detected and removed.
+
+    ```bash
+    # Configure automatic cleanup
+    /config set vm.auto-cleanup true
+    /config set vm.timeout 3600  # 1 hour
+    ```
+  </Tab>
+</Tabs>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Testing Third-Party Libraries" icon="flask">
+    Safely test untrusted or experimental libraries without risking your system.
+  </Card>
+  <Card title="Security Analysis" icon="bug">
+    Analyze code for vulnerabilities in a secure, isolated environment.
+  </Card>
+  <Card title="Experimental Development" icon="lightbulb">
+    Experiment with new technologies or approaches without affecting your main environment.
+  </Card>
+  <Card title="Multi-Environment Testing" icon="layer-group">
+    Test your application in multiple environments (Node versions, OS, etc.) simultaneously.
+  </Card>
+  <Card title="CI/CD Integration" icon="rocket">
+    Integrate with CI/CD pipelines for automated testing and deployment.
+  </Card>
+  <Card title="Code Review Automation" icon="search">
+    Automatically review and test pull requests in isolated environments.
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Specific Images">
+    Use specific Docker images (e.g., `node:18-alpine`) rather than generic tags (e.g., `node:latest`) for reproducibility.
+  </Step>
+  <Step title="Set Resource Limits">
+    Always set resource limits to prevent VMs from consuming excessive system resources.
+  </Step>
+  <Step title="Clean Up Regularly">
+    Regularly clean up unused VMs to free up system resources.
+  </Step>
+  <Step title="Use Volume Mounts">
+    Use volume mounts to share code between the host and VM, avoiding unnecessary file copying.
+  </Step>
+  <Step title="Monitor VM Usage">
+    Monitor VM resource usage to identify and resolve performance bottlenecks.
+  </Step>
+  <Step title="Leverage PR Automation">
+    Use the VM agent to automatically create and test pull requests.
+  </Step>
+</Steps>
+
+## VM Commands Reference
+
+<AccordionGroup>
+  <Accordion title="VM Creation & Management">
+    ```bash
+    # Create a new VM
+    /vm-create --name <name> --image <docker-image>
+
+    # List all VMs
+    /vm-list
+
+    # Connect to a VM
+    /vm-connect <name>
+
+    # Stop a VM
+    /vm-stop <name>
+
+    # Remove a VM
+    /vm-remove <name>
+
+    # View VM logs
+    /vm-logs <name>
+    ```
+  </Accordion>
+
+  <Accordion title="VM Task Execution">
+    ```bash
+    # Execute a task in a VM
+    /vm-agent <name> "<task description>"
+
+    # Execute a command in a VM
+    /vm-exec <name> "<command>"
+
+    # Copy files to/from a VM
+    /vm-copy <source> <destination>
+    ```
+  </Accordion>
+
+  <Accordion title="VM PR Automation">
+    ```bash
+    # Create a PR from a VM
+    /vm-create-pr <name> --title "<PR title>" --branch <branch-name>
+
+    # List PRs created by VMs
+    /vm-list-prs
+
+    # Merge a VM PR
+    /vm-merge-pr <pr-number>
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  **Pro Tip**: You can use the VM agent to test changes in a pull request before merging. Simply create a VM, clone the PR branch, run tests, and review the results—all in an isolated environment.
+</Tip>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="VM Commands" icon="terminal" href="/cli-reference/vm-commands">
+    Complete reference for VM-related commands.
+  </Card>
+  <Card title="Security Commands" icon="shield-alt" href="/cli-reference/security-commands">
+    Learn about security features and best practices.
+  </Card>
+  <Card title="Automation Module" icon="robot" href="/src-cli/automation-module">
+    Understand how VMs integrate with the agent system.
+  </Card>
+  <Card title="Docker Integration" icon="docker" href="/integrations/docker">
+    Learn more about Docker integration in NikCLI.
+  </Card>
+</CardGroup>

@@ -1,0 +1,200 @@
+---
+title: "AI Module"
+description: "Understanding the AI module in src/cli - The cognitive engine of NikCLI"
+icon: "brain"
+---
+
+# AI Module: The Cognitive Engine
+
+The `ai` module in `src/cli` is the cognitive engine that powers NikCLI's intelligent capabilities. It manages interactions with various AI language models, orchestrates AI calls, and provides the foundation for cognitive orchestration.
+
+<CardGroup cols={2}>
+  <Card title="Multi-Provider Support" icon="network-wired">
+    Seamlessly integrates with Claude, GPT, Gemini, and Ollama, allowing you to choose the best model for your task.
+  </Card>
+  <Card title="Adaptive Routing" icon="route">
+    Intelligently routes requests to the most suitable AI model based on task complexity, cost, and performance requirements.
+  </Card>
+  <Card title="Call Management" icon="phone">
+    Manages AI API calls with retries, rate limiting, and error handling to ensure reliability and efficiency.
+  </Card>
+  <Card title="RAG Integration" icon="database">
+    Integrates with the RAG (Retrieval-Augmented Generation) system to provide context-aware AI responses.
+  </Card>
+</CardGroup>
+
+## Core Components
+
+<AccordionGroup>
+  <Accordion title="adaptive-model-router.ts" icon="route">
+    The **Adaptive Model Router** is responsible for intelligently selecting the best AI model for a given task. It considers factors such as task complexity, model capabilities, cost, and user preferences.
+
+    ### Key Features
+    - **Dynamic Model Selection**: Automatically chooses the optimal model based on the task's requirements.
+    - **Cost Optimization**: Balances performance and cost by routing simpler tasks to less expensive models.
+    - **Fallback Mechanisms**: Provides fallback options if the primary model is unavailable or fails.
+
+    ### Example Usage
+    ```typescript
+    import { AdaptiveModelRouter } from './ai/adaptive-model-router';
+
+    const router = new AdaptiveModelRouter();
+    const selectedModel = await router.selectModel({
+      taskType: 'code-generation',
+      complexity: 'high',
+      context: { language: 'typescript' }
+    });
+
+    console.log(`Selected model: ${selectedModel.name}`);
+    ```
+  </Accordion>
+
+  <Accordion title="ai-call-manager.ts" icon="phone">
+    The **AI Call Manager** orchestrates calls to AI providers, handling retries, rate limiting, and error management to ensure robust and reliable interactions.
+
+    ### Key Features
+    - **Retry Logic**: Automatically retries failed requests with exponential backoff.
+    - **Rate Limiting**: Respects API rate limits to prevent throttling and service interruptions.
+    - **Error Handling**: Provides detailed error messages and fallback strategies for failed calls.
+
+    ### Example Usage
+    ```typescript
+    import { AICallManager } from './ai/ai-call-manager';
+
+    const callManager = new AICallManager();
+    const response = await callManager.call({
+      provider: 'anthropic',
+      model: 'claude-3-opus',
+      prompt: 'Explain quantum computing in simple terms.'
+    });
+
+    console.log(response.text);
+    ```
+  </Accordion>
+
+  <Accordion title="model-provider.ts" icon="server">
+    The **Model Provider** is a generic interface for interacting with different AI language models. It abstracts the specifics of each provider's API, allowing NikCLI to support multiple providers with a unified interface.
+
+    ### Supported Providers
+    - **Anthropic (Claude)**: High-quality, reasoning-focused models.
+    - **OpenAI (GPT)**: Versatile models for a wide range of tasks.
+    - **Google (Gemini)**: Advanced multimodal capabilities.
+    - **Ollama**: Local, privacy-focused model execution.
+
+    ### Example Usage
+    ```typescript
+    import { ModelProvider } from './ai/model-provider';
+
+    const provider = new ModelProvider('openai');
+    const completion = await provider.complete({
+      model: 'gpt-4',
+      messages: [
+        { role: 'user', content: 'Write a Python function to calculate Fibonacci numbers.' }
+      ]
+    });
+
+    console.log(completion.choices[0].message.content);
+    ```
+  </Accordion>
+
+  <Accordion title="rag-inference-layer.ts" icon="database">
+    The **RAG Inference Layer** integrates Retrieval-Augmented Generation (RAG) capabilities, allowing the AI to access and leverage external knowledge sources for more accurate and context-aware responses.
+
+    ### Key Features
+    - **Semantic Search**: Retrieves relevant information from indexed documents and codebases.
+    - **Context Injection**: Injects retrieved context into AI prompts to improve response quality.
+    - **Workspace Awareness**: Understands the structure and content of your project for better assistance.
+
+    ### Example Usage
+    ```typescript
+    import { RAGInferenceLayer } from './ai/rag-inference-layer';
+
+    const ragLayer = new RAGInferenceLayer();
+    const context = await ragLayer.retrieveContext({
+      query: 'How do I implement authentication in this project?',
+      workspace: '/path/to/project'
+    });
+
+    console.log('Retrieved context:', context);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Tabs>
+  <Tab title="Model Selection">
+    **Choosing the Right Model**
+
+    Different tasks require different models. Here are some guidelines:
+
+    - **Code Generation**: Use `claude-3-opus` or `gpt-4` for complex, high-quality code generation.
+    - **Simple Queries**: Use `gpt-3.5-turbo` or `claude-3-haiku` for faster, cost-effective responses.
+    - **Multimodal Tasks**: Use `gemini-pro-vision` for tasks involving images or diagrams.
+    - **Privacy-Sensitive Tasks**: Use `ollama` with a local model for tasks that require data privacy.
+
+    ```bash
+    # Example: Set the model for a specific task
+    /model set claude-3-opus
+    /agent universal-agent "Generate a complex authentication system with JWT and refresh tokens."
+    ```
+  </Tab>
+
+  <Tab title="Error Handling">
+    **Handling AI Errors Gracefully**
+
+    AI calls can fail for various reasons (rate limits, network issues, model unavailability). Always implement proper error handling:
+
+    ```typescript
+    try {
+      const response = await callManager.call({ /* ... */ });
+      // Process response
+    } catch (error) {
+      if (error.code === 'RATE_LIMIT_EXCEEDED') {
+        console.log('Rate limit exceeded. Retrying in 60 seconds...');
+        await sleep(60000);
+        // Retry logic
+      } else {
+        console.error('AI call failed:', error.message);
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Cost Optimization">
+    **Optimizing AI Costs**
+
+    AI API calls can be expensive. Here are some tips to optimize costs:
+
+    - **Use Adaptive Routing**: Let the Adaptive Model Router choose the most cost-effective model for each task.
+    - **Cache Responses**: Cache frequently requested information to avoid redundant API calls.
+    - **Batch Requests**: Combine multiple small requests into a single batch when possible.
+    - **Monitor Usage**: Regularly review your AI usage and costs to identify optimization opportunities.
+
+    ```bash
+    # Example: Enable cost-optimized mode
+    /config set ai.cost-optimized true
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  **Pro Tip**: The AI module is designed to be extensible. You can add support for new AI providers by implementing the `ModelProvider` interface and registering the provider in the `model-provider.ts` file.
+</Tip>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Agent System" icon="robot" href="/agent-system/overview">
+    Learn how the AI module powers the agent system.
+  </Card>
+  <Card title="Context & RAG" icon="database" href="/context-rag/overview">
+    Explore the RAG system for context-aware AI responses.
+  </Card>
+  <Card title="Configuration" icon="cog" href="/cli-reference/configuration">
+    Configure AI providers and models.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/core-apis">
+    Detailed API documentation for the AI module.
+  </Card>
+</CardGroup>
