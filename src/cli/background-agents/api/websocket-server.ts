@@ -28,6 +28,19 @@ export class BackgroundAgentsWebSocketServer {
     this.wss = new WebSocketServer({
       server,
       path: '/ws',
+      // WebSocket doesn't use CORS headers directly, but we can verify origin
+      verifyClient: (info) => {
+        const origin = info.origin
+        // Allow connections from any origin in production (handled by Railway OPTIONS Allowlist)
+        // In development, check against allowed origins
+        if (process.env.NODE_ENV === 'production') {
+          return true // Railway handles origin verification via OPTIONS Allowlist
+        }
+        // Development: check against allowed origins
+        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || 
+          ['http://localhost:3000', 'http://localhost:3001']
+        return !origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')
+      },
     })
 
     this.setupWebSocketServer()

@@ -2,6 +2,7 @@
 
 import { EventEmitter } from 'node:events'
 import IORedis from 'ioredis'
+import { Redis as UpstashRedis } from '@upstash/redis'
 import type { QueueStats } from '../types'
 
 export interface QueueConfig {
@@ -12,6 +13,10 @@ export interface QueueConfig {
     password?: string
     db?: number
     maxRetriesPerRequest?: number
+    upstash?: {
+      url: string
+      token: string
+    }
   }
   maxConcurrentJobs?: number
   retryAttempts?: number
@@ -29,6 +34,7 @@ export interface QueuedJobData {
 export class JobQueue extends EventEmitter {
   private config: QueueConfig
   private redis?: IORedis
+  private upstashRedis?: UpstashRedis
   private localQueue: QueuedJobData[] = []
   private processing = new Set<string>()
   private maxConcurrentJobs: number
@@ -51,35 +57,147 @@ export class JobQueue extends EventEmitter {
   }
 
   /**
+   * Redis helper methods - work with both IORedis and Upstash
+   */
+  private async redisZadd(key: string, score: number, member: string): Promise<void> {
+    if (this.upstashRedis) {
+      await this.upstashRedis.zadd(key, { score, member })
+    } else if (this.redis) {
+      await this.redis.zadd(key, score, member)
+    }
+  }
+
+  private async redisZrem(key: string, member: string): Promise<void> {
+    if (this.upstashRedis) {
+      await this.upstashRedis.zrem(key, member)
+    } else if (this.redis) {
+      await this.redis.zrem(key, member)
+    }
+  }
+
+  private async redisZrangebyscore(key: string, min: number, max: number, limit: number): Promise<string[]> {
+    if (this.upstashRedis) {
+      const result = await this.upstashRedis.zrange(key, min, max, { byScore: true, offset: 0, count: limit })
+      return result as string[]
+    } else if (this.redis) {
+      return await this.redis.zrangebyscore(key, min, max, 'LIMIT', 0, limit)
+    }
+    return []
+  }
+
+  private async redisZpopmin(key: string, count: number): Promise<string[]> {
+    if (this.upstashRedis) {
+      const result = await this.upstashRedis.zpopmin(key, count)
+      // Upstash returns [member1, score1, member2, score2, ...], we need only members
+      return Array.isArray(result) ? (result.filter((_, i) => i % 2 === 0) as string[]) : []
+    } else if (this.redis) {
+      return await this.redis.zpopmin(key, count)
+    }
+    return []
+  }
+
+  private async redisZcard(key: string): Promise<number> {
+    if (this.upstashRedis) {
+      return await this.upstashRedis.zcard(key)
+    } else if (this.redis) {
+      return await this.redis.zcard(key)
+    }
+    return 0
+  }
+
+  private async redisHset(key: string, field: string, value: string): Promise<void> {
+    if (this.upstashRedis) {
+      await this.upstashRedis.hset(key, { [field]: value })
+    } else if (this.redis) {
+      await this.redis.hset(key, field, value)
+    }
+  }
+
+  private async redisHdel(key: string, field: string): Promise<number> {
+    if (this.upstashRedis) {
+      return await this.upstashRedis.hdel(key, field)
+    } else if (this.redis) {
+      return await this.redis.hdel(key, field)
+    }
+    return 0
+  }
+
+  private async redisSet(key: string, value: string, ex?: number): Promise<string | null> {
+    if (this.upstashRedis) {
+      await this.upstashRedis.set(key, value, ex ? { ex } : {})
+      return 'OK'
+    } else if (this.redis) {
+      if (ex) {
+        return await this.redis.set(key, value, 'EX', ex, 'NX')
+      }
+      return await this.redis.set(key, value)
+    }
+    return null
+  }
+
+  private async redisDel(...keys: string[]): Promise<void> {
+    if (this.upstashRedis) {
+      await this.upstashRedis.del(...keys)
+    } else if (this.redis) {
+      await this.redis.del(...keys)
+    }
+  }
+
+  /**
    * Initialize Redis queue
    */
   private async initRedisQueue(): Promise<void> {
     if (!this.config.redis) return
 
-    this.redis = new IORedis({
-      host: this.config.redis.host,
-      port: this.config.redis.port,
-      password: this.config.redis.password,
-      db: this.config.redis.db || 0,
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-    })
-
-    this.redis.on('connect', () => {
-      this.emit('connected')
-    })
-
-    this.redis.on('error', (error) => {
-      console.error('Redis queue error:', error)
-      this.emit('error', error)
-
-      // Gracefully degrade to local queue if Redis disconnects/errors
+    // Check if using Upstash REST API
+    if (this.config.redis.upstash) {
+      console.log('🔄 Initializing Upstash Redis REST queue...')
       try {
-        this.redis?.disconnect()
-      } catch {}
-      this.redis = undefined
-      this.config.type = 'local'
-    })
+        this.upstashRedis = new UpstashRedis({
+          url: this.config.redis.upstash.url,
+          token: this.config.redis.upstash.token,
+        })
+
+        // Test connection
+        await this.upstashRedis.ping()
+        console.log('✅ Upstash Redis connected successfully')
+        this.emit('connected')
+      } catch (error) {
+        console.error('❌ Upstash Redis connection failed:', error)
+        this.emit('error', error)
+
+        // Gracefully degrade to local queue
+        this.upstashRedis = undefined
+        this.config.type = 'local'
+        console.log('⚠️  Falling back to local queue')
+      }
+    } else {
+      // Standard Redis connection
+      this.redis = new IORedis({
+        host: this.config.redis.host,
+        port: this.config.redis.port,
+        password: this.config.redis.password,
+        db: this.config.redis.db || 0,
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      })
+
+      this.redis.on('connect', () => {
+        this.emit('connected')
+      })
+
+      this.redis.on('error', (error) => {
+        console.error('Redis queue error:', error)
+        this.emit('error', error)
+
+        // Gracefully degrade to local queue if Redis disconnects/errors
+        try {
+          this.redis?.disconnect()
+        } catch { }
+        this.redis = undefined
+        this.config.type = 'local'
+      })
+    }
 
     // Start job processor
     this.startProcessor()
@@ -97,7 +215,7 @@ export class JobQueue extends EventEmitter {
       retryAt: delay ? new Date(Date.now() + delay) : undefined,
     }
 
-    if (this.config.type === 'redis' && this.redis) {
+    if (this.config.type === 'redis' && (this.redis || this.upstashRedis)) {
       await this.addJobToRedis(queueData)
     } else {
       this.addJobToLocal(queueData)
@@ -110,15 +228,11 @@ export class JobQueue extends EventEmitter {
    * Add job to Redis queue
    */
   private async addJobToRedis(queueData: QueuedJobData): Promise<void> {
-    if (!this.redis) return
-
     const key = queueData.delay ? 'background-jobs:delayed' : 'background-jobs:waiting'
     const score = queueData.delay ? Date.now() + queueData.delay : Date.now() - queueData.priority
 
-    await this.redis.zadd(key, score, JSON.stringify(queueData))
-
-    // Set job data
-    await this.redis.hset('background-jobs:data', queueData.jobId, JSON.stringify(queueData))
+    await this.redisZadd(key, score, JSON.stringify(queueData))
+    await this.redisHset('background-jobs:data', queueData.jobId, JSON.stringify(queueData))
   }
 
   /**
@@ -168,7 +282,7 @@ export class JobQueue extends EventEmitter {
    * Start Redis job processor
    */
   private startProcessor(): void {
-    if (this.config.type !== 'redis' || !this.redis) return
+    if (this.config.type !== 'redis' || (!this.redis && !this.upstashRedis)) return
 
     this.processorInterval = setInterval(async () => {
       try {
@@ -187,15 +301,13 @@ export class JobQueue extends EventEmitter {
    * Process delayed jobs in Redis
    */
   private async processDelayedJobs(): Promise<void> {
-    if (!this.redis) return
-
     const now = Date.now()
-    const delayedJobs = await this.redis.zrangebyscore('background-jobs:delayed', 0, now, 'LIMIT', 0, 10)
+    const delayedJobs = await this.redisZrangebyscore('background-jobs:delayed', 0, now, 10)
 
     for (const jobData of delayedJobs) {
       // Move from delayed to waiting
-      await this.redis.zrem('background-jobs:delayed', jobData)
-      await this.redis.zadd('background-jobs:waiting', now, jobData)
+      await this.redisZrem('background-jobs:delayed', jobData)
+      await this.redisZadd('background-jobs:waiting', now, jobData)
     }
   }
 
@@ -203,13 +315,11 @@ export class JobQueue extends EventEmitter {
    * Process Redis jobs with proper locking
    */
   private async processRedisJobs(): Promise<void> {
-    if (!this.redis) return
-
     if (this.processing.size >= this.maxConcurrentJobs) {
       return
     }
 
-    const jobs = await this.redis.zpopmin('background-jobs:waiting', 1)
+    const jobs = await this.redisZpopmin('background-jobs:waiting', 1)
     if (jobs.length === 0) return
 
     const [jobDataStr] = jobs
@@ -219,7 +329,7 @@ export class JobQueue extends EventEmitter {
     const lockAcquired = await this.acquireJobLock(queueData.jobId)
     if (!lockAcquired) {
       // Another process is handling this job, put it back
-      await this.redis.zadd('background-jobs:waiting', Date.now(), jobDataStr)
+      await this.redisZadd('background-jobs:waiting', Date.now(), jobDataStr)
       return
     }
 
@@ -240,13 +350,11 @@ export class JobQueue extends EventEmitter {
    * Acquire Redis-based job lock
    */
   private async acquireJobLock(jobId: string): Promise<boolean> {
-    if (!this.redis) return true
-
     const lockKey = `background-jobs:lock:${jobId}`
     const lockValue = `${process.pid}-${Date.now()}`
 
     // Try to acquire lock with 10 minute expiry (EX seconds) and NX (only if not exists)
-    const result = await this.redis.set(lockKey, lockValue, 'EX', 600, 'NX')
+    const result = await this.redisSet(lockKey, lockValue, 600)
 
     return result === 'OK'
   }
@@ -255,10 +363,8 @@ export class JobQueue extends EventEmitter {
    * Release job lock
    */
   private async releaseJobLock(jobId: string): Promise<void> {
-    if (!this.redis) return
-
     const lockKey = `background-jobs:lock:${jobId}`
-    await this.redis.del(lockKey)
+    await this.redisDel(lockKey)
   }
 
   /**
@@ -283,10 +389,10 @@ export class JobQueue extends EventEmitter {
   async completeJob(jobId: string): Promise<void> {
     this.processing.delete(jobId)
 
-    if (this.config.type === 'redis' && this.redis) {
+    if (this.config.type === 'redis' && (this.redis || this.upstashRedis)) {
       await this.releaseJobLock(jobId)
-      await this.redis.hdel('background-jobs:data', jobId)
-      await this.redis.zadd('background-jobs:completed', Date.now(), jobId)
+      await this.redisHdel('background-jobs:data', jobId)
+      await this.redisZadd('background-jobs:completed', Date.now(), jobId)
     }
 
     this.emit('job:completed', jobId)
@@ -303,10 +409,10 @@ export class JobQueue extends EventEmitter {
   async failJob(jobId: string, error: string): Promise<void> {
     this.processing.delete(jobId)
 
-    if (this.config.type === 'redis' && this.redis) {
+    if (this.config.type === 'redis' && (this.redis || this.upstashRedis)) {
       await this.releaseJobLock(jobId)
-      await this.redis.hdel('background-jobs:data', jobId)
-      await this.redis.zadd('background-jobs:failed', Date.now(), JSON.stringify({ jobId, error }))
+      await this.redisHdel('background-jobs:data', jobId)
+      await this.redisZadd('background-jobs:failed', Date.now(), JSON.stringify({ jobId, error }))
     }
 
     this.emit('job:failed', jobId, error)
@@ -340,11 +446,11 @@ export class JobQueue extends EventEmitter {
    * Get queue statistics
    */
   async getStats(): Promise<QueueStats> {
-    if (this.config.type === 'redis' && this.redis) {
-      const waiting = await this.redis.zcard('background-jobs:waiting')
-      const delayed = await this.redis.zcard('background-jobs:delayed')
-      const completed = await this.redis.zcard('background-jobs:completed')
-      const failed = await this.redis.zcard('background-jobs:failed')
+    if (this.config.type === 'redis' && (this.redis || this.upstashRedis)) {
+      const waiting = await this.redisZcard('background-jobs:waiting')
+      const delayed = await this.redisZcard('background-jobs:delayed')
+      const completed = await this.redisZcard('background-jobs:completed')
+      const failed = await this.redisZcard('background-jobs:failed')
 
       return {
         waiting: waiting + delayed,
@@ -368,10 +474,10 @@ export class JobQueue extends EventEmitter {
    * Remove job from queue
    */
   async removeJob(jobId: string): Promise<boolean> {
-    if (this.config.type === 'redis' && this.redis) {
-      const removed = await this.redis.hdel('background-jobs:data', jobId)
-      await this.redis.zrem('background-jobs:waiting', jobId)
-      await this.redis.zrem('background-jobs:delayed', jobId)
+    if (this.config.type === 'redis' && (this.redis || this.upstashRedis)) {
+      const removed = await this.redisHdel('background-jobs:data', jobId)
+      await this.redisZrem('background-jobs:waiting', jobId)
+      await this.redisZrem('background-jobs:delayed', jobId)
       return removed > 0
     } else {
       const index = this.localQueue.findIndex((job) => job.jobId === jobId)
@@ -387,8 +493,8 @@ export class JobQueue extends EventEmitter {
    * Clear all jobs
    */
   async clear(): Promise<void> {
-    if (this.config.type === 'redis' && this.redis) {
-      await this.redis.del(
+    if (this.config.type === 'redis' && (this.redis || this.upstashRedis)) {
+      await this.redisDel(
         'background-jobs:waiting',
         'background-jobs:delayed',
         'background-jobs:completed',
@@ -416,6 +522,10 @@ export class JobQueue extends EventEmitter {
     if (this.redis) {
       await this.redis.quit()
     }
+
+    // Upstash REST client doesn't need explicit disconnect
+    this.upstashRedis = undefined
+
     this.removeAllListeners()
   }
 }

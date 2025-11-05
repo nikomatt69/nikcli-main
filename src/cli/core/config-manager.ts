@@ -1528,8 +1528,21 @@ export class SimpleConfigManager {
 
   private loadAndSaveEmbeddedSecrets(): void {
     try {
-      // Import the generated secrets file first (this injects configs into EmbeddedSecrets)
-      require('../config/generated-embedded-secrets')
+      // Try to import the generated secrets file first (this injects configs into EmbeddedSecrets)
+      // This file may not exist in all build contexts (e.g., Docker), so we handle it gracefully
+      try {
+        require('../config/generated-embedded-secrets')
+      } catch (requireError: any) {
+        // File doesn't exist or can't be loaded - this is expected in some build contexts
+        // Silently return if it's a MODULE_NOT_FOUND error, otherwise re-throw
+        if (requireError?.code === 'MODULE_NOT_FOUND') {
+          if (process.env.DEBUG) {
+            console.debug('Embedded secrets file not found - skipping embedded secrets loading')
+          }
+          return
+        }
+        throw requireError
+      }
 
       // Try to load EmbeddedSecrets
       const { EmbeddedSecrets } = require('../config/embedded-secrets')
@@ -1609,9 +1622,10 @@ export class SimpleConfigManager {
       if (changed) {
         this.saveConfig()
       }
-    } catch (error) {
+    } catch (error: any) {
       // Silently fail - embedded secrets are optional
-      if (process.env.DEBUG) {
+      // Only log non-MODULE_NOT_FOUND errors in DEBUG mode since missing files are expected
+      if (process.env.DEBUG && error?.code !== 'MODULE_NOT_FOUND') {
         console.warn('Failed to load embedded secrets:', error)
       }
     }
@@ -1633,9 +1647,9 @@ export class SimpleConfigManager {
       const secret = secretsToOverwrite[index]
       rl.question(
         `\n🔄 Secret "${secret.envVarName}" has been updated in the new version.\n` +
-          `   Old: ${secret.oldValue.slice(0, 20)}${secret.oldValue.length > 20 ? '...' : ''}\n` +
-          `   New: ${secret.newValue.slice(0, 20)}${secret.newValue.length > 20 ? '...' : ''}\n` +
-          `   Overwrite with new value? (y/n): `,
+        `   Old: ${secret.oldValue.slice(0, 20)}${secret.oldValue.length > 20 ? '...' : ''}\n` +
+        `   New: ${secret.newValue.slice(0, 20)}${secret.newValue.length > 20 ? '...' : ''}\n` +
+        `   Overwrite with new value? (y/n): `,
         (answer: string) => {
           if (answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes') {
             this.config.environmentVariables[secret.envVarName] = KeyEncryption.encrypt(secret.newValue)

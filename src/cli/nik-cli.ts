@@ -4003,6 +4003,9 @@ export class NikCLI {
         `Plan generated with ${plan.todos.length} todos${usedTaskMaster ? ' (TaskMaster AI)' : ' (Enhanced)'}`
       )
 
+      // Send plan started notification
+      void this.sendPlanStartedNotification(plan, [])
+
       // Show plan summary (only in non-compact mode)
       if (process.env.NIKCLI_COMPACT !== '1') {
         this.addLiveUpdate({ type: 'log', content: '📋 Plan Generated', source: 'planning' })
@@ -4029,15 +4032,20 @@ export class NikCLI {
 
       if (startTasks) {
         // Start with first task instead of executing entire plan
+        let executionSuccess = true
         try {
           await this.startFirstTask(plan)
         } catch (error: any) {
+          executionSuccess = false
           this.addLiveUpdate({
             type: 'error',
             content: `❌ Task execution failed: ${error.message}`,
             source: 'planning',
           })
         }
+
+        // Send plan completion notification
+        void this.sendPlanCompletionNotification(plan, executionSuccess)
 
         // After task execution, return to default mode
         this.addLiveUpdate({ type: 'log', content: '⚡︎ Returning to default mode...', source: 'planning' })
@@ -4084,6 +4092,9 @@ export class NikCLI {
         }
 
         // User declined new plan, exit plan mode and return to default
+        // Send plan completion notification (not executed but saved)
+        void this.sendPlanCompletionNotification(plan, true)
+
         this.addLiveUpdate({ type: 'log', content: '⚡︎ Returning to normal mode...', source: 'planning' })
         this.currentMode = 'default'
 
@@ -4514,6 +4525,9 @@ EOF`
         currentTask.progress = 0
         this.updatePlanHudTodoStatus(currentTask.id, 'in_progress')
 
+        // Send task started notification
+        void this.sendTaskStartedNotification(plan, currentTask, [])
+
         // Execute the task using existing logic
         await this.executeTaskWithToolchains(currentTask, plan)
 
@@ -4522,6 +4536,9 @@ EOF`
         currentTask.progress = 100
         currentTask.completedAt = new Date()
         this.updatePlanHudTodoStatus(currentTask.id, 'completed')
+
+        // Send task completion notification
+        void this.sendTaskCompletionNotification(plan, currentTask, [], true)
 
         advancedUI.logFunctionUpdate('success', `Task ${currentTaskIndex + 1} completed: ${currentTask.title}`)
 
@@ -4554,6 +4571,9 @@ EOF`
         // Mark task as failed
         currentTask.status = 'failed'
         this.updatePlanHudTodoStatus(currentTask.id, 'failed')
+
+        // Send task completion notification (failed)
+        void this.sendTaskCompletionNotification(plan, currentTask, [], false)
 
         // Ask if user wants to continue with next task despite the error
         const { approvalSystem } = await import('./ui/approval-system')
@@ -6034,6 +6054,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         `Plan generated with ${plan.todos?.length || plan.steps?.length} todos`
       )
 
+      // Send plan started notification
+      void this.sendPlanStartedNotification(plan, [])
+
       // Show plan summary like in plan mode
       console.log(chalk.blue.bold('\n📋 Plan Generated:'))
       console.log(chalk.green(`✓ Todo file saved: ${path.join(this.workingDirectory, 'todo.md')}`))
@@ -6057,10 +6080,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           this.executionInProgress = true
           advancedUI.logFunctionCall('executing')
           advancedUI.logFunctionUpdate('info', 'Executing', '●')
+          let executionSuccess = true
           try {
             await this.executePlanWithTaskMaster(plan.id)
+          } catch (error) {
+            executionSuccess = false
+            throw error
           } finally {
             this.executionInProgress = false
+            // Send plan completion notification
+            void this.sendPlanCompletionNotification(plan, executionSuccess)
           }
           this.showExecutionSummary()
           console.log(chalk.green.bold('\n🎉 Plan execution completed successfully!'))
@@ -6072,6 +6101,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           // Use renderPromptAfterOutput for consistent behavior
           this.renderPromptAfterOutput()
         } else {
+          // Send plan completion notification (not executed but saved)
+          void this.sendPlanCompletionNotification(plan, true)
+
           console.log(chalk.yellow('\n📝 Plan saved but not executed.'))
           console.log(chalk.gray('You can review the todo.md file and run `/plan execute` later.'))
 

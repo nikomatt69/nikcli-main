@@ -13,6 +13,11 @@ import { setupWebRoutes } from './web-routes'
 import { BackgroundAgentsWebSocketServer } from './websocket-server'
 import { prometheusExporter, type HealthChecker } from '../../monitoring'
 import { simpleConfigManager } from '../../core/config-manager'
+import { SlackNotifier } from '../integrations/slack-notifier'
+import { ChatSessionService } from '../services/chat-session-service'
+import { createChatRouter } from './chat-routes'
+import { getEnvironmentConfig } from '../config/env-validator'
+import { errorHandler, notFoundHandler } from '../middleware/error-handler'
 
 export interface APIServerConfig {
   port: number
@@ -37,6 +42,10 @@ export interface APIServerConfig {
       host: string
       port: number
       password?: string
+      upstash?: {
+        url: string
+        token: string
+      }
     }
   }
 }
@@ -50,10 +59,21 @@ export class BackgroundAgentsAPIServer {
   private clients: Map<string, express.Response> = new Map()
   private wsServer?: BackgroundAgentsWebSocketServer
   private healthChecker?: HealthChecker
+  private slackNotifier?: SlackNotifier
+  private chatSessionService: ChatSessionService
 
   constructor(config: APIServerConfig, healthChecker?: HealthChecker) {
+    // Validate environment before proceeding
+    const envConfig = getEnvironmentConfig()
+    console.log(`[Server] Initializing in ${envConfig.nodeEnv} mode`)
+
     this.config = config
     this.app = express()
+    
+    // Trust proxy for Railway/deployment environments (required for express-rate-limit to work correctly)
+    // This allows Express to trust the X-Forwarded-* headers from Railway's reverse proxy
+    this.app.set('trust proxy', true)
+    
     this.healthChecker = healthChecker
     this.jobQueue = new JobQueue({
       type: config.queue.type,
@@ -68,6 +88,12 @@ export class BackgroundAgentsAPIServer {
       this.githubIntegration = new GitHubIntegration(config.github)
     }
 
+    // Initialize Slack notifier
+    this.slackNotifier = new SlackNotifier(backgroundAgentService)
+
+    // Initialize Chat Session Service
+    this.chatSessionService = new ChatSessionService(backgroundAgentService)
+
     this.setupMiddleware()
     this.setupMonitoring()
     this.setupRoutes()
@@ -78,36 +104,213 @@ export class BackgroundAgentsAPIServer {
    * Setup Express middleware
    */
   private setupMiddleware(): void {
-    // Security
-    this.app.use(helmet())
+    // CORS must be applied FIRST, before any other middleware
+    // This ensures preflight OPTIONS requests get proper CORS headers
 
-    // Environment-driven CORS configuration
-    const allowedOrigins = process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-      : this.config.cors.origin
+    // Use the origins from config (already parsed with wildcards in production)
+    const allowedOrigins = this.config.cors.origin
 
+    // Log CORS configuration on startup
+    console.log(`[CORS] Configured allowed origins: ${allowedOrigins.join(', ')}`)
+
+    // Helper function to check if origin is allowed
+    const isOriginAllowed = (origin: string | undefined): boolean => {
+      if (!origin) {
+        return true // Allow requests with no origin
+      }
+
+      // Check against explicit allowed origins
+      if (allowedOrigins.includes(origin)) {
+        return true
+      }
+
+      // Check for wildcard patterns
+      for (const pattern of allowedOrigins) {
+        // Support wildcard pattern like 'https://*.vercel.app'
+        if (pattern.includes('*')) {
+          const regexPattern = pattern
+            .replace(/\./g, '\\.')
+            .replace(/\*/g, '.*')
+          const regex = new RegExp(`^${regexPattern}$`)
+          if (regex.test(origin)) {
+            return true
+          }
+        }
+
+        // Support explicit wildcard to allow all origins
+        if (pattern === '*') {
+          return true
+        }
+      }
+
+      return false
+    }
+
+    // CORS middleware - handles both preflight OPTIONS and regular requests
+    const corsOptions = {
+      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        // Only log rejected origins to reduce log noise
+        const allowed = isOriginAllowed(origin)
+        if (!allowed) {
+          console.warn(`[CORS] ✗ Rejected origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`)
+        }
+        callback(null, allowed)
+      },
+      credentials: this.config.cors.credentials,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-AI-Provider', 'X-AI-Model', 'X-AI-Key'],
+      exposedHeaders: ['Content-Type', 'Authorization'],
+      optionsSuccessStatus: 200,
+      preflightContinue: false,
+    }
+
+    // Apply CORS middleware globally
+    this.app.use(cors(corsOptions))
+
+    // CRITICAL: Handle ALL OPTIONS requests FIRST, before any other middleware can interfere
+    // This MUST be early in the middleware chain to catch preflight requests
+    // Railway may block OPTIONS before they reach us, but if they do reach us, we handle them here
+    this.app.use((req, res, next) => {
+      // Handle OPTIONS preflight requests immediately
+      if (req.method === 'OPTIONS') {
+        const origin = req.headers.origin as string | undefined
+
+        console.log(`[CORS] OPTIONS preflight request for: ${req.path} from origin: ${origin}`)
+
+        // Check if origin is allowed
+        const allowed = isOriginAllowed(origin)
+
+        if (allowed) {
+          if (origin) {
+            res.header('Access-Control-Allow-Origin', origin)
+            res.header('Access-Control-Allow-Credentials', 'true')
+          }
+          res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
+          res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-AI-Provider, X-AI-Model, X-AI-Key')
+          res.header('Access-Control-Max-Age', '86400') // 24 hours
+          console.log(`[CORS] ✓ OPTIONS preflight allowed for: ${req.path}`)
+        } else {
+          console.warn(`[CORS] ✗ OPTIONS preflight rejected for: ${req.path} from: ${origin}`)
+        }
+
+        res.status(200).end()
+        return
+      }
+
+      // For non-OPTIONS requests, add CORS headers if origin is present and allowed
+      const origin = req.headers.origin as string | undefined
+      if (origin && isOriginAllowed(origin)) {
+        res.header('Access-Control-Allow-Origin', origin)
+        res.header('Access-Control-Allow-Credentials', 'true')
+        res.header('Access-Control-Expose-Headers', 'Content-Type, Authorization')
+      }
+
+      next()
+    })
+
+    // Security - configure helmet AFTER CORS to not interfere
     this.app.use(
-      cors({
-        origin: allowedOrigins,
-        credentials: this.config.cors.credentials,
+      helmet({
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+        crossOriginEmbedderPolicy: false,
       })
     )
 
-    // Rate limiting
-    const limiter = rateLimit({
+    // Rate limiting configuration
+    // More permissive rate limiter for monitoring endpoints (stats, jobs GET)
+    const monitoringLimiter = rateLimit({
+      windowMs: 1 * 60 * 1000, // 1 minute window
+      max: 1000, // Drastically increased to 1000 requests per minute for monitoring endpoints
+      message: 'Too many monitoring requests from this IP',
+      skip: (req) => req.method === 'OPTIONS',
+      standardHeaders: true,
+      legacyHeaders: false,
+      // Disable X-Forwarded-For validation since we trust the proxy
+      validate: {
+        xForwardedForHeader: false,
+      },
+      handler: (req, res) => {
+        const resetTime = Math.ceil((Date.now() + 1 * 60 * 1000) / 1000) // Reset in 1 minute
+        const retryAfter = 60 // seconds until reset
+        
+        res.setHeader('Retry-After', retryAfter.toString())
+        res.setHeader('X-RateLimit-Reset', resetTime.toString())
+        res.status(429).json({
+          error: 'Too Many Requests',
+          message: 'Rate limit exceeded for monitoring endpoints. Try again in 60 seconds.',
+          retryAfter,
+          resetTime,
+        })
+      },
+    })
+
+    // Standard rate limiter for other endpoints
+    const standardLimiter = rateLimit({
       windowMs: this.config.rateLimit.windowMs,
       max: this.config.rateLimit.max,
       message: 'Too many requests from this IP',
+      skip: (req) => {
+        // Skip OPTIONS requests (preflight)
+        if (req.method === 'OPTIONS') return true
+        // Skip monitoring endpoints that have their own limiter
+        if (req.path === '/v1/stats') return true
+        if (req.path === '/v1/jobs' && req.method === 'GET') return true
+        // Skip chat endpoints that are frequently polled
+        if (req.path.startsWith('/v1/chat')) return true
+        // Skip POST /v1/jobs (job creation) - already has validation and shouldn't be rate limited heavily
+        if (req.path === '/v1/jobs' && req.method === 'POST') return true
+        return false
+      },
+      standardHeaders: true,
+      legacyHeaders: false,
+      // Disable X-Forwarded-For validation since we trust the proxy
+      validate: {
+        xForwardedForHeader: false,
+      },
+      handler: (req, res) => {
+        const resetTime = Math.ceil((Date.now() + this.config.rateLimit.windowMs) / 1000)
+        const retryAfter = Math.ceil(this.config.rateLimit.windowMs / 1000) // seconds until reset
+        
+        res.setHeader('Retry-After', retryAfter.toString())
+        res.setHeader('X-RateLimit-Reset', resetTime.toString())
+        res.status(429).json({
+          error: 'Too Many Requests',
+          message: `Rate limit exceeded. Try again in ${retryAfter} seconds.`,
+          retryAfter,
+          resetTime,
+        })
+      },
     })
-    this.app.use('/v1/', limiter)
+
+    // Apply monitoring limiter to stats endpoint (more permissive)
+    this.app.use('/v1/stats', monitoringLimiter)
+    
+    // Apply monitoring limiter to jobs GET endpoint (list jobs)
+    this.app.use('/v1/jobs', (req, res, next) => {
+      // Only apply monitoring limiter to GET requests (list jobs)
+      if (req.method === 'GET') {
+        return monitoringLimiter(req, res, next)
+      }
+      // For other methods, continue to next middleware (standard limiter will handle them)
+      next()
+    })
+
+    // Apply monitoring limiter to chat endpoints (frequently polled)
+    this.app.use('/v1/chat', monitoringLimiter)
+
+    // Apply standard limiter to all v1 endpoints (it will skip monitoring endpoints)
+    this.app.use('/v1/', standardLimiter)
 
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }))
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
-    // Request logging
+    // Request logging (only for non-health-check requests to reduce noise)
     this.app.use((req, _res, next) => {
-      console.log(`${new Date().toISOString()} ${req.method} ${req.path}`)
+      // Skip logging health checks and OPTIONS requests to reduce log noise
+      if (req.path !== '/health' && req.method !== 'OPTIONS') {
+        console.log(`${new Date().toISOString()} ${req.method} ${req.path}`)
+      }
       next()
     })
   }
@@ -194,6 +397,26 @@ export class BackgroundAgentsAPIServer {
    * Setup API routes
    */
   private setupRoutes(): void {
+    // Root route - API info
+    this.app.get('/', (_req, res) => {
+      res.json({
+        name: 'NikCLI Background Agents API',
+        version: '1.0.0',
+        status: 'running',
+        endpoints: {
+          health: '/health',
+          api: '/v1',
+          docs: '/v1',
+        },
+        timestamp: new Date().toISOString(),
+      })
+    })
+
+    // Favicon handler - return 204 No Content to avoid 404 errors
+    this.app.get('/favicon.ico', (_req, res) => {
+      res.status(204).end()
+    })
+
     // API v1 routes
     const v1 = express.Router()
 
@@ -221,32 +444,20 @@ export class BackgroundAgentsAPIServer {
       v1.post('/github/webhook', this.handleGitHubWebhook.bind(this))
     }
 
+    // Chat routes
+    const chatRouter = createChatRouter(this.chatSessionService)
+    v1.use('/chat', chatRouter)
+
     this.app.use('/v1', v1)
 
     // Setup web interface routes
     setupWebRoutes(this.app)
 
-    // Serve Next.js static files in production
-    if (process.env.NODE_ENV === 'production') {
-      this.app.use(express.static('.next/static'))
-    }
+    // 404 handler (must be before error handler)
+    this.app.use(notFoundHandler)
 
-    // 404 handler
-    this.app.use('*', (req, res) => {
-      res.status(404).json({
-        error: 'Not Found',
-        message: `Route ${req.method} ${req.path} not found`,
-      })
-    })
-
-    // Error handler
-    this.app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-      console.error('API Error:', error)
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong',
-      })
-    })
+    // Centralized error handler (must be last)
+    this.app.use(errorHandler)
   }
 
   /**
@@ -695,14 +906,16 @@ export class BackgroundAgentsAPIServer {
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        this.server = this.app.listen(this.config.port, () => {
+        // Listen on 0.0.0.0 to accept connections from Railway's load balancer
+        // Railway routes external traffic to the container, so we need to listen on all interfaces
+        this.server = this.app.listen(this.config.port, '0.0.0.0', () => {
           console.log(`🚀 Background Agents API server running on port ${this.config.port}`)
-          console.log(`📊 Health check: http://localhost:${this.config.port}/health`)
-          console.log(`📋 API docs: http://localhost:${this.config.port}/v1`)
+          console.log(`📊 Health check: http://0.0.0.0:${this.config.port}/health`)
+          console.log(`📋 API docs: http://0.0.0.0:${this.config.port}/v1`)
 
           // Initialize WebSocket server
           this.wsServer = new BackgroundAgentsWebSocketServer(this.server)
-          console.log(`📡 WebSocket server ready on ws://localhost:${this.config.port}/ws`)
+          console.log(`📡 WebSocket server ready on ws://0.0.0.0:${this.config.port}/ws`)
 
           resolve()
         })

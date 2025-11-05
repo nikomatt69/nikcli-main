@@ -75,7 +75,7 @@ export class BackgroundAgentsClient {
   }
 
   /**
-   * Setup axios retry interceptor
+   * Setup axios retry interceptor with improved 429 handling
    */
   private setupRetryInterceptor(maxRetries: number): void {
     this.client.interceptors.response.use(
@@ -87,15 +87,50 @@ export class BackgroundAgentsClient {
           config.retry = 0
         }
 
+        // Don't retry on client errors (4xx) except 429 (rate limit)
+        if (error.response?.status >= 400 && error.response?.status < 500 && error.response?.status !== 429) {
+          return Promise.reject(error)
+        }
+
         if (config.retry >= maxRetries) {
           return Promise.reject(error)
         }
 
         config.retry += 1
 
-        // Exponential backoff
-        const delay = Math.min(1000 * 2 ** config.retry, 10000)
-        await new Promise((resolve) => setTimeout(resolve, delay))
+        // Special handling for 429 (Too Many Requests)
+        if (error.response?.status === 429) {
+          // Try to read Retry-After header or X-RateLimit-Reset
+          const retryAfter = error.response.headers['retry-after']
+          const rateLimitReset = error.response.headers['x-ratelimit-reset']
+          
+          let delay: number
+          
+          if (retryAfter) {
+            // Retry-After can be a number (seconds) or a date
+            const retryAfterSeconds = Number.parseInt(retryAfter, 10)
+            delay = isNaN(retryAfterSeconds) 
+              ? Math.max(0, new Date(retryAfter).getTime() - Date.now())
+              : retryAfterSeconds * 1000
+          } else if (rateLimitReset) {
+            // Calculate delay from reset timestamp
+            const resetTime = Number.parseInt(rateLimitReset, 10) * 1000
+            delay = Math.max(0, resetTime - Date.now())
+          } else {
+            // Fallback: exponential backoff with longer delay for 429
+            delay = Math.min(2000 * 2 ** config.retry, 30000) // Max 30 seconds
+          }
+          
+          // Ensure minimum delay of 1 second
+          delay = Math.max(delay, 1000)
+          
+          console.warn(`Rate limit hit (429). Retrying after ${Math.ceil(delay / 1000)}s (attempt ${config.retry}/${maxRetries})`)
+          await new Promise((resolve) => setTimeout(resolve, delay))
+        } else {
+          // Exponential backoff for other retryable errors (5xx, network errors)
+          const delay = Math.min(1000 * 2 ** config.retry, 10000)
+          await new Promise((resolve) => setTimeout(resolve, delay))
+        }
 
         return this.client(config)
       }

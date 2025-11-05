@@ -21,6 +21,10 @@ export interface BackgroundJob {
   followUpMessages: FollowUpMessage[]
   githubContext?: GitHubContext
   containerId?: string
+  mode?: 'auto' | 'interactive'
+  pendingToolApprovals?: PendingToolApproval[]
+  chatSessionId?: string
+  fileChanges?: FileChange[]
 }
 
 export interface JobLimits {
@@ -218,4 +222,75 @@ export interface GitHubContext {
   isPR?: boolean
   isPRReview?: boolean
   isIssue?: boolean
+}
+
+/**
+ * Chat Session Types
+ */
+export interface ChatSession {
+  id: string
+  jobId: string
+  repo: string
+  status: 'active' | 'completed' | 'failed'
+  messages: ChatMessage[]
+  createdAt: Date
+  updatedAt: Date
+  fileChanges: FileChange[]
+  userId?: string
+}
+
+export interface ChatMessage {
+  id: string
+  sessionId: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: Date
+  toolCalls?: ToolCall[]
+  streamComplete?: boolean
+}
+
+export interface ToolCall {
+  id: string
+  name: string
+  args: Record<string, unknown>
+  result?: unknown
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'failed'
+  riskLevel?: 'low' | 'medium' | 'high'
+  affectedFiles?: string[]
+}
+
+export interface PendingToolApproval {
+  id: string
+  toolCall: ToolCall
+  requestedAt: Date
+  resolvedAt?: Date
+  approved?: boolean
+}
+
+export interface FileChange {
+  path: string
+  type: 'added' | 'modified' | 'deleted'
+  diff: string
+  timestamp: Date
+}
+
+/**
+ * SSE Event Types
+ */
+export type SSEEventType =
+  | 'connection:established'
+  | 'text:delta'
+  | 'text:complete'
+  | 'tool:call'
+  | 'tool:result'
+  | 'tool:approval_required'
+  | 'file:change'
+  | 'status:update'
+  | 'error'
+  | 'session:complete'
+
+export interface SSEEvent<T = unknown> {
+  type: SSEEventType
+  data: T
+  timestamp: Date
 }

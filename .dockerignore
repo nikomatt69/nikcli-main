@@ -1,0 +1,85 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+.pnpm-debug.log
+
+# Build outputs
+dist
+build
+.next
+out
+public/bin
+
+# Development files
+.git
+.github
+.vscode
+.cursor
+.claude
+
+# Test files
+tests
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+coverage
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+*.swp
+*.swo
+*~
+.idea
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Web UI (not needed for backend)
+web-ui
+
+# Database
+database/*.db
+database/*.sqlite
+
+# Generated files
+generated_images
+.checkpoints
+
+# Vercel
+.vercel
+
+# Docker
+Dockerfile.dev
+docker-compose.yml
+docker-compose.*.yml
+
+# Other
+installer
+benchmarks
+streamtty

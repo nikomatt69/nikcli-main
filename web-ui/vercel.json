@@ -1,0 +1,37 @@
+{
+  "buildCommand": "bun run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "regions": [
+    "iad1"
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://bg.nikcli.store",
+    "NEXT_PUBLIC_WS_URL": "wss://bg.nikcli.store",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://bopgyibjrbwaynegbska.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvcGd5aWJqcmJ3YXluZWdic2thIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxMDg1NzcsImV4cCI6MjA3MDY4NDU3N30.7bGfju4t7otkLyHrB5HzBYjNJCciqsvcOfE7qAc8kQc"
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ]
+}

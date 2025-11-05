@@ -134,6 +134,13 @@ export function setupWebRoutes(app: express.Application): void {
   webRouter.delete('/snapshots/:id', deleteSnapshot)
 
   app.use('/api/v1/web', webRouter)
+
+  // Import and mount Slack routes
+  import('./slack-routes').then(({ slackRouter }) => {
+    app.use('/v1/slack', slackRouter)
+  }).catch(err => {
+    console.error('Failed to load Slack routes:', err)
+  })
 }
 
 // Configuration handlers

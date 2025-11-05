@@ -1,0 +1,16 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 100,
+    "sleepApplication": false
+  },
+  "_comment": "IMPORTANT: Railway does NOT support HTTP headers configuration in railway.json. CORS headers must be handled by the Express server. Configure OPTIONS Allowlist in Railway Dashboard: Settings → Deployment Protection → OPTIONS Allowlist (add '/*' to allow all preflight requests)"
+}
