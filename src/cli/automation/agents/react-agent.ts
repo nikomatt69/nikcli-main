@@ -6,7 +6,7 @@ import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
 import { CognitiveAgentBase } from './cognitive-agent-base'
 import type { OrchestrationPlan, ReactCognition, TaskCognition } from './cognitive-interfaces'
-import { advancedUI } from '@/cli/ui/advanced-cli-ui'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 
 /**
  * 🎨 Enhanced React Agent with Cognitive Intelligence

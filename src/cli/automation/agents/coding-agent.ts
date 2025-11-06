@@ -7,7 +7,7 @@ import type { AgentTask } from './agent-router'
 import type { AgentTaskResult } from './base-agent'
 import { CognitiveAgentBase } from './cognitive-agent-base'
 import type { CodingCognition, OrchestrationPlan, TaskCognition } from './cognitive-interfaces'
-import { advancedUI } from '@/cli/ui/advanced-cli-ui'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 
 const CodeAnalysisSchema = z.object({
   language: z.string(),

@@ -1,4 +1,4 @@
-import { configManager } from '@/cli/core/config-manager'
+import { configManager } from '../../core/config-manager'
 import { type ChatMessage, modelProvider } from '../../ai/model-provider'
 import { BaseAgent } from './base-agent'
 

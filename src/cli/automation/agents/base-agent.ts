@@ -1,4 +1,4 @@
-import { advancedUI } from '@/cli/ui/advanced-cli-ui'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { ToolRegistry } from '../../tools/tool-registry'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentInstance, AgentStatus, AgentTask } from './agent-router'
@@ -27,7 +27,7 @@ export abstract class BaseAgent implements AgentInstance {
   protected agentMetrics: AgentMetrics
 
   // Enhanced properties for unified interface
-  public readonly version: string = '1.0.1'
+  public readonly version: string = '1.0.2'
   protected memoryLimit: number = 100 // Limit task history to prevent memory leaks
   protected performanceOptimized: boolean = true
   protected batchSize: number = 5 // Process tasks in batches for better performance

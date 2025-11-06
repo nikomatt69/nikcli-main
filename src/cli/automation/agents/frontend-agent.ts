@@ -1,4 +1,4 @@
-import { advancedUI } from '@/cli/ui/advanced-cli-ui'
+import { advancedUI } from '../../ui/advanced-cli-ui'
 import { CliUI } from '../../utils/cli-ui'
 import type { AgentTask } from './agent-router'
 import { BaseAgent } from './base-agent'

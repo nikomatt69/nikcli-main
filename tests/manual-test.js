@@ -365,7 +365,7 @@ async function main() {
       // 2. Configuration
       const config = {
         project: 'Manual Test Project',
-        version: '1.0.1',
+        version: '1.0.2',
         features: ['file-ops', 'data-processing', 'security'],
       }
       await fs.writeFile(path.join(workflowDir, 'config.json'), JSON.stringify(config, null, 2))

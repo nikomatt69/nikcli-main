@@ -804,7 +804,7 @@ export class BackgroundAgentService extends EventEmitter {
       // Create basic package.json
       const packageJson = {
         name: "background-agent-workspace",
-        version: "1.0.1",
+        version: "1.0.2",
         description: "Background agent workspace",
         scripts: {
           test: "echo 'No tests configured'"
