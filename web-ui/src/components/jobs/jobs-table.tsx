@@ -18,23 +18,30 @@ export default function JobsTable({ filters }: JobsTableProps) {
   const [selectedJob, setSelectedJob] = useState<BackgroundJob | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
 
-  const { data: response, isLoading, refetch } = useQuery({
+  const { data: response, isLoading, refetch, error } = useQuery({
     queryKey: ['jobs', filters],
-    queryFn: () => apiClient.get<{ jobs: BackgroundJob[]; total: number; offset: number; limit: number } | BackgroundJob[]>('/v1/jobs', { params: filters }),
+    queryFn: async () => {
+      const result = await apiClient.get<{ jobs: BackgroundJob[]; total: number; offset: number; limit: number } | BackgroundJob[]>('/v1/jobs', { params: filters })
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to fetch jobs')
+      }
+      return result.data
+    },
     refetchInterval: 5000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    refetchOnWindowFocus: false, // Reduce unnecessary refetches
   })
 
   // Safely extract jobs array - handle both response formats
-  // Backend returns: { jobs: [...], total, offset, limit }
-  // We need to handle both array and object formats
+  // Backend returns: { jobs: [...], total, offset, limit } or BackgroundJob[]
+  // Response is already unwrapped data from apiClient.get
   let jobs: BackgroundJob[] = []
-  if (response?.success && response.data) {
-    if (Array.isArray(response.data)) {
-      jobs = response.data
-    } else if (typeof response.data === 'object' && 'jobs' in response.data) {
-      jobs = Array.isArray((response.data as { jobs?: BackgroundJob[] }).jobs) 
-        ? (response.data as { jobs: BackgroundJob[] }).jobs 
-        : []
+  if (response) {
+    if (Array.isArray(response)) {
+      jobs = response
+    } else if ('jobs' in response && Array.isArray(response.jobs)) {
+      jobs = response.jobs
     }
   }
 
@@ -139,12 +146,12 @@ export default function JobsTable({ filters }: JobsTableProps) {
                 <td className="py-3 pr-4 text-sm">
                   {job.completedAt && job.startedAt
                     ? formatDuration(
-                        new Date(job.completedAt).getTime() -
-                          new Date(job.startedAt).getTime()
-                      )
+                      new Date(job.completedAt).getTime() -
+                      new Date(job.startedAt).getTime()
+                    )
                     : job.startedAt
-                    ? formatDuration(Date.now() - new Date(job.startedAt).getTime())
-                    : '-'}
+                      ? formatDuration(Date.now() - new Date(job.startedAt).getTime())
+                      : '-'}
                 </td>
                 <td className="py-3 text-right">
                   <div className="flex items-center justify-end gap-2">

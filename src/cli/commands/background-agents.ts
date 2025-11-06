@@ -144,7 +144,10 @@ export class BackgroundAgentsCommand {
    */
   private static async listJobs(options: any): Promise<void> {
     try {
-      const jobs = backgroundAgentService.listJobs({
+      // Ensure service is initialized
+      await backgroundAgentService.waitForInitialization()
+
+      const jobs = await backgroundAgentService.listJobs({
         status: options.status as JobStatus,
         limit: parseInt(options.limit, 10),
       })

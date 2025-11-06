@@ -3,6 +3,7 @@
  * Card for approving/rejecting tool calls
  */
 
+import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -31,8 +32,15 @@ export function ToolApprovalCard({
   }
 
   return (
-    <Card className={cn('border-2', riskColors[riskLevel])}>
-      <CardContent className="p-4">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, x: -20 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      whileHover={{ scale: 1.02 }}
+    >
+      <Card className={cn('border-2 holo-glow', riskColors[riskLevel])}>
+        <CardContent className="p-4">
         <div className="space-y-3">
           {/* Header */}
           <div className="flex items-start justify-between gap-2">
@@ -50,6 +58,7 @@ export function ToolApprovalCard({
                       : 'secondary'
                   }
                   className="text-xs"
+                  pulse={riskLevel === 'high'}
                 >
                   {riskLevel.toUpperCase()}
                 </Badge>
@@ -58,18 +67,30 @@ export function ToolApprovalCard({
                 Requires your approval before execution
               </p>
             </div>
-            {riskLevel === 'high' && <AlertTriangleIcon className="h-5 w-5 text-red-500" />}
+            {riskLevel === 'high' && (
+              <motion.div
+                animate={{ rotate: [0, -10, 10, -10, 0] }}
+                transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
+              >
+                <AlertTriangleIcon className="h-5 w-5 text-red-500" />
+              </motion.div>
+            )}
           </div>
 
           {/* Arguments */}
-          <div className="space-y-2">
+          <motion.div
+            className="space-y-2"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            transition={{ delay: 0.1 }}
+          >
             <p className="text-xs font-medium">Arguments:</p>
-            <div className="bg-accent/50 rounded p-2 text-xs font-mono max-h-32 overflow-y-auto">
+            <div className="bg-accent/50 rounded p-2 text-xs font-mono max-h-32 overflow-y-auto holo-border">
               <pre className="whitespace-pre-wrap break-all">
                 {JSON.stringify(toolCall.args, null, 2)}
               </pre>
             </div>
-          </div>
+          </motion.div>
 
           {/* Affected files */}
           {toolCall.affectedFiles && toolCall.affectedFiles.length > 0 && (
@@ -111,5 +132,6 @@ export function ToolApprovalCard({
         </div>
       </CardContent>
     </Card>
+    </motion.div>
   )
 }

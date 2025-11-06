@@ -2,14 +2,16 @@
 
 import cors from 'cors'
 import express from 'express'
-import { rateLimit } from 'express-rate-limit'
+import { rateLimit, ipKeyGenerator } from 'express-rate-limit'
 import helmet from 'helmet'
+import { LRUCache } from 'lru-cache'
 import { backgroundAgentService } from '../background-agent-service'
 import { GitHubIntegration } from '../github/github-integration'
 import { JobQueue } from '../queue/job-queue'
 import { securityPolicy } from '../security/security-policy'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from '../types'
 import { setupWebRoutes } from './web-routes'
+import { slackRouter } from './slack-routes'
 import { BackgroundAgentsWebSocketServer } from './websocket-server'
 import { prometheusExporter, type HealthChecker } from '../../monitoring'
 import { simpleConfigManager } from '../../core/config-manager'
@@ -61,6 +63,9 @@ export class BackgroundAgentsAPIServer {
   private healthChecker?: HealthChecker
   private slackNotifier?: SlackNotifier
   private chatSessionService: ChatSessionService
+  // Cache for jobs and stats endpoints to reduce API calls
+  private jobsCache: LRUCache<string, { data: any; timestamp: number }>
+  private statsCache: LRUCache<string, { data: any; timestamp: number }>
 
   constructor(config: APIServerConfig, healthChecker?: HealthChecker) {
     // Validate environment before proceeding
@@ -69,11 +74,18 @@ export class BackgroundAgentsAPIServer {
 
     this.config = config
     this.app = express()
-    
+
     // Trust proxy for Railway/deployment environments (required for express-rate-limit to work correctly)
-    // This allows Express to trust the X-Forwarded-* headers from Railway's reverse proxy
-    this.app.set('trust proxy', true)
-    
+    // Configure trust proxy securely - trust only the first proxy hop (Railway/Vercel reverse proxy)
+    // This prevents bypassing rate limiting while still allowing proper IP detection
+    if (process.env.NODE_ENV === 'production') {
+      // In production, trust only 1 proxy hop (Railway/Vercel reverse proxy)
+      this.app.set('trust proxy', 1)
+    } else {
+      // In development, trust localhost proxy
+      this.app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal'])
+    }
+
     this.healthChecker = healthChecker
     this.jobQueue = new JobQueue({
       type: config.queue.type,
@@ -81,6 +93,30 @@ export class BackgroundAgentsAPIServer {
       maxConcurrentJobs: 3,
       retryAttempts: 3,
       retryDelay: 5000,
+    })
+
+    // Initialize LRU caches for jobs and stats endpoints
+    // Cache TTL: 2 seconds for jobs (frequently polled), 5 seconds for stats
+    this.jobsCache = new LRUCache<string, { data: any; timestamp: number }>({
+      max: 100, // Cache up to 100 different query combinations
+      ttl: 2000, // 2 seconds TTL
+    })
+
+    this.statsCache = new LRUCache<string, { data: any; timestamp: number }>({
+      max: 10, // Cache up to 10 different stats queries
+      ttl: 5000, // 5 seconds TTL
+    })
+
+    // Invalidate cache when jobs change
+    backgroundAgentService.on('job:created', () => this.jobsCache.clear())
+    backgroundAgentService.on('job:started', () => this.jobsCache.clear())
+    backgroundAgentService.on('job:completed', () => {
+      this.jobsCache.clear()
+      this.statsCache.clear()
+    })
+    backgroundAgentService.on('job:failed', () => {
+      this.jobsCache.clear()
+      this.statsCache.clear()
     })
 
     // Initialize GitHub integration if configured
@@ -219,20 +255,36 @@ export class BackgroundAgentsAPIServer {
     // Rate limiting configuration
     // More permissive rate limiter for monitoring endpoints (stats, jobs GET)
     const monitoringLimiter = rateLimit({
+      // Use ipKeyGenerator helper for proper IPv6 handling
+      keyGenerator: (req) => {
+        // Use the real IP from X-Forwarded-For header when behind proxy
+        const forwarded = req.headers['x-forwarded-for']
+        if (forwarded) {
+          // X-Forwarded-For can contain multiple IPs, take the first one (client IP)
+          const ips = typeof forwarded === 'string' ? forwarded.split(',') : forwarded
+          const clientIp = ips[0]?.trim() || req.ip || req.socket.remoteAddress || 'unknown'
+          // Use ipKeyGenerator helper for proper IPv6 normalization
+          return ipKeyGenerator(clientIp)
+        }
+        // Use ipKeyGenerator helper for proper IPv6 normalization
+        return ipKeyGenerator(req.ip || req.socket.remoteAddress || 'unknown')
+      },
+      // Validate trust proxy configuration
+      validate: {
+        trustProxy: false, // Disable trust proxy validation to avoid errors
+      },
       windowMs: 1 * 60 * 1000, // 1 minute window
-      max: 1000, // Drastically increased to 1000 requests per minute for monitoring endpoints
+      max: 5000, // Increased to 5000 requests per minute for monitoring endpoints (with cache, this should be more than enough)
       message: 'Too many monitoring requests from this IP',
       skip: (req) => req.method === 'OPTIONS',
       standardHeaders: true,
       legacyHeaders: false,
       // Disable X-Forwarded-For validation since we trust the proxy
-      validate: {
-        xForwardedForHeader: false,
-      },
+
       handler: (req, res) => {
         const resetTime = Math.ceil((Date.now() + 1 * 60 * 1000) / 1000) // Reset in 1 minute
         const retryAfter = 60 // seconds until reset
-        
+
         res.setHeader('Retry-After', retryAfter.toString())
         res.setHeader('X-RateLimit-Reset', resetTime.toString())
         res.status(429).json({
@@ -246,6 +298,24 @@ export class BackgroundAgentsAPIServer {
 
     // Standard rate limiter for other endpoints
     const standardLimiter = rateLimit({
+      // Use ipKeyGenerator helper for proper IPv6 handling
+      keyGenerator: (req) => {
+        // Use the real IP from X-Forwarded-For header when behind proxy
+        const forwarded = req.headers['x-forwarded-for']
+        if (forwarded) {
+          // X-Forwarded-For can contain multiple IPs, take the first one (client IP)
+          const ips = typeof forwarded === 'string' ? forwarded.split(',') : forwarded
+          const clientIp = ips[0]?.trim() || req.ip || req.socket.remoteAddress || 'unknown'
+          // Use ipKeyGenerator helper for proper IPv6 normalization
+          return ipKeyGenerator(clientIp)
+        }
+        // Use ipKeyGenerator helper for proper IPv6 normalization
+        return ipKeyGenerator(req.ip || req.socket.remoteAddress || 'unknown')
+      },
+      // Validate trust proxy configuration
+      validate: {
+        trustProxy: false, // Disable trust proxy validation to avoid errors
+      },
       windowMs: this.config.rateLimit.windowMs,
       max: this.config.rateLimit.max,
       message: 'Too many requests from this IP',
@@ -263,14 +333,10 @@ export class BackgroundAgentsAPIServer {
       },
       standardHeaders: true,
       legacyHeaders: false,
-      // Disable X-Forwarded-For validation since we trust the proxy
-      validate: {
-        xForwardedForHeader: false,
-      },
       handler: (req, res) => {
         const resetTime = Math.ceil((Date.now() + this.config.rateLimit.windowMs) / 1000)
         const retryAfter = Math.ceil(this.config.rateLimit.windowMs / 1000) // seconds until reset
-        
+
         res.setHeader('Retry-After', retryAfter.toString())
         res.setHeader('X-RateLimit-Reset', resetTime.toString())
         res.status(429).json({
@@ -284,7 +350,7 @@ export class BackgroundAgentsAPIServer {
 
     // Apply monitoring limiter to stats endpoint (more permissive)
     this.app.use('/v1/stats', monitoringLimiter)
-    
+
     // Apply monitoring limiter to jobs GET endpoint (list jobs)
     this.app.use('/v1/jobs', (req, res, next) => {
       // Only apply monitoring limiter to GET requests (list jobs)
@@ -365,7 +431,7 @@ export class BackgroundAgentsAPIServer {
         res.json({
           status: 'healthy',
           timestamp: new Date().toISOString(),
-          version: '0.5.0',
+          version: '1.0.1',
           uptime: process.uptime(),
         })
       }
@@ -401,7 +467,7 @@ export class BackgroundAgentsAPIServer {
     this.app.get('/', (_req, res) => {
       res.json({
         name: 'NikCLI Background Agents API',
-        version: '1.0.0',
+        version: '1.0.1',
         status: 'running',
         endpoints: {
           health: '/health',
@@ -431,6 +497,14 @@ export class BackgroundAgentsAPIServer {
     // Stats
     v1.get('/stats', this.getStats.bind(this))
 
+    // Models
+    v1.get('/models/openrouter', this.getOpenRouterModels.bind(this))
+
+    // Enterprise: User usage and quota endpoints
+    v1.get('/users/:userId/usage', this.getUserUsage.bind(this))
+    v1.get('/users/:userId/quota', this.getUserQuota.bind(this))
+    v1.put('/users/:userId/quota', this.setUserQuota.bind(this))
+
     // Queue management
     v1.get('/queue/stats', this.getQueueStats.bind(this))
     v1.post('/queue/clear', this.clearQueue.bind(this))
@@ -448,6 +522,9 @@ export class BackgroundAgentsAPIServer {
     const chatRouter = createChatRouter(this.chatSessionService)
     v1.use('/chat', chatRouter)
 
+    // Slack routes
+    v1.use('/slack', slackRouter)
+
     this.app.use('/v1', v1)
 
     // Setup web interface routes
@@ -464,6 +541,10 @@ export class BackgroundAgentsAPIServer {
    * Setup event listeners for real-time updates
    */
   private setupEventListeners(): void {
+    // CRITICAL: Connect JobQueue to BackgroundAgentService for automatic job execution
+    // This was the missing link that prevented jobs from being executed
+    backgroundAgentService.setupQueueListeners(this.jobQueue)
+
     // Job events
     backgroundAgentService.on('job:created', (job: BackgroundJob) => {
       this.broadcastToClients('job:created', job)
@@ -515,76 +596,221 @@ export class BackgroundAgentsAPIServer {
         return
       }
 
-      // Require AI provider credentials from headers
-      const aiProvider = (req.headers['x-ai-provider'] as string | undefined)?.toLowerCase()
-      const aiModel = req.headers['x-ai-model'] as string | undefined
-      const aiKey = req.headers['x-ai-key'] as string | undefined
+      // Get AI provider credentials from headers or use OpenRouter defaults
+      let aiProvider = (req.headers['x-ai-provider'] as string | undefined)?.toLowerCase()
+      let aiModel = req.headers['x-ai-model'] as string | undefined
+      let aiKey = req.headers['x-ai-key'] as string | undefined
 
+      // If no credentials provided, use OpenRouter from environment
       if (!aiKey || !aiProvider) {
-        res.status(400).json({
-          error: 'Bad Request',
-          message: 'Missing AI provider credentials (x-ai-provider, x-ai-key)',
-        })
-        return
+        const openRouterKey = process.env.OPENROUTER_API_KEY
+        if (openRouterKey) {
+          aiProvider = 'openrouter'
+          aiKey = openRouterKey
+          aiModel = aiModel || process.env.OPENROUTER_MODEL || '@preset/nikcli'
+          console.log('[API] Using OpenRouter from environment variables (default)')
+        } else {
+          res.status(400).json({
+            error: 'Bad Request',
+            message: 'Missing AI provider credentials. Provide x-ai-provider and x-ai-key headers, or set OPENROUTER_API_KEY environment variable.',
+          })
+          return
+        }
       }
 
       // Mask key in any logs
       const maskedKey = `${aiKey.slice(0, 4)}****${aiKey.slice(-4)}`
-      console.log('AI credentials received:', { provider: aiProvider, model: aiModel, key: maskedKey })
+      console.log('[API] AI credentials:', { provider: aiProvider, model: aiModel, key: maskedKey })
 
-      // TODO: inject credentials into job context (in-memory only)
+      // Inject credentials into job context
+      if (!request.envVars) {
+        request.envVars = {}
+      }
+      request.envVars.AI_PROVIDER = aiProvider
+      request.envVars.AI_MODEL = aiModel || ''
+      request.envVars.AI_API_KEY = aiKey
+
+      // Enterprise: Extract userId from header or request body
+      const userId = (req.headers['x-user-id'] as string) || request.userId
+      if (userId) {
+        request.userId = userId
+        console.log(`[API] Job created for user: ${userId}`)
+      }
+
+      // Enterprise: Check quota before creating job
+      if (userId) {
+        const { safeDynamicImport } = await import('../utils/esm-fix-loader')
+        const usageTrackerModule = await safeDynamicImport('../services/user-usage-tracker', process.cwd())
+        const quotaServiceModule = await safeDynamicImport('../services/user-quota-service', process.cwd())
+        const usageTracker = usageTrackerModule.getUserUsageTracker()
+        const quotaService = quotaServiceModule.getUserQuotaService()
+
+        const usage = usageTracker.getUsageStats(userId)
+        if (usage) {
+          const quotaCheck = quotaService.checkJobCreationAllowed(userId, usage)
+          if (!quotaCheck.allowed) {
+            res.status(429).json({
+              error: 'Quota Exceeded',
+              message: quotaCheck.reason,
+              remaining: quotaCheck.remaining,
+            })
+            return
+          }
+        }
+      }
 
       // Create job
+      console.log(`[API] POST /v1/jobs - Creating job for repo: ${request.repo}, task: ${request.task.substring(0, 50)}...`)
       const jobId = await backgroundAgentService.createJob(request)
+      console.log(`[API] Job created with ID: ${jobId}`)
 
       // Add to queue
       await this.jobQueue.addJob(jobId, request.priority || 5)
 
       const job = backgroundAgentService.getJob(jobId)
+      console.log(`[API] Job retrieved after creation: ${job ? 'found' : 'NOT FOUND'}`)
 
       res.status(201).json({
         jobId,
         job,
         message: 'Job created successfully',
       })
+      return
     } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message,
       })
+      return
     }
   }
 
   /**
-   * List jobs with filtering
+   * List jobs with filtering (with caching)
    */
   private async listJobs(req: express.Request, res: express.Response): Promise<void> {
     try {
       const { status, limit = '50', offset = '0', repo } = req.query
 
-      const jobs = backgroundAgentService.listJobs({
+      // Create cache key from query parameters
+      const cacheKey = `jobs:${status || 'all'}:${limit}:${offset}:${repo || 'all'}`
+
+      // Check cache first
+      const cached = this.jobsCache.get(cacheKey)
+      if (cached) {
+        res.setHeader('X-Cache', 'HIT')
+        res.setHeader('X-Cache-Age', Math.floor((Date.now() - cached.timestamp) / 1000))
+        res.json(cached.data)
+        return
+      }
+
+      await backgroundAgentService.waitForInitialization()
+      const jobs = await backgroundAgentService.listJobs({
         status: status as JobStatus,
         limit: parseInt(limit as string, 10),
         offset: parseInt(offset as string, 10),
       })
 
+      // Log for debugging (only on cache miss)
+      console.log(`[API] GET /v1/jobs - Found ${jobs.length} jobs`)
+
       // Filter by repo if specified
       let filteredJobs = jobs
       if (repo) {
         filteredJobs = jobs.filter((job) => job.repo === repo)
+        console.log(`[API] Filtered by repo ${repo}: ${filteredJobs.length} jobs`)
       }
 
-      res.json({
+      const responseData = {
         jobs: filteredJobs,
         total: filteredJobs.length,
         offset: parseInt(offset as string, 10),
         limit: parseInt(limit as string, 10),
+      }
+
+      // Cache the response
+      this.jobsCache.set(cacheKey, {
+        data: responseData,
+        timestamp: Date.now(),
       })
+
+      res.setHeader('X-Cache', 'MISS')
+      res.json(responseData)
+      return
     } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message,
       })
+      return
+    }
+  }
+
+  /**
+   * Get available OpenRouter models
+   */
+  private async getOpenRouterModels(_req: express.Request, res: express.Response): Promise<void> {
+    try {
+      console.log('[API] Fetching OpenRouter models...')
+
+      const response = await fetch('https://openrouter.ai/api/v1/models', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`OpenRouter API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      const models = Array.isArray(data.data) ? data.data : []
+
+      // Filter and format models
+      const formattedModels = models
+        .map((model: any) => ({
+          id: model.id,
+          name: model.name || model.id,
+          context_length: model.context_length || 0,
+          pricing: {
+            prompt: model.pricing?.prompt || '0',
+            completion: model.pricing?.completion || '0',
+          },
+          architecture: {
+            modality: model.architecture?.modality || 'text',
+            tokenizer: model.architecture?.tokenizer || 'unknown',
+          },
+          top_provider: model.top_provider || null,
+          per_request_limits: model.per_request_limits || null,
+        }))
+        .filter((model: any) => {
+          // Filter out models without IDs
+          return model.id && model.id.length > 0
+        })
+        .sort((a: any, b: any) => {
+          // Sort: @preset/nikcli first, then by name
+          if (a.id === '@preset/nikcli') return -1
+          if (b.id === '@preset/nikcli') return 1
+          return a.name.localeCompare(b.name)
+        })
+
+      console.log(`[API] Retrieved ${formattedModels.length} OpenRouter models`)
+
+      res.json({
+        success: true,
+        models: formattedModels,
+        total: formattedModels.length,
+      })
+      return
+    } catch (error: any) {
+      console.error('[API] Error fetching OpenRouter models:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch OpenRouter models',
+        message: error.message,
+      })
+      return
     }
   }
 
@@ -605,11 +831,13 @@ export class BackgroundAgentsAPIServer {
       }
 
       res.json({ job })
+      return
     } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message,
       })
+      return
     }
   }
 
@@ -632,11 +860,13 @@ export class BackgroundAgentsAPIServer {
       res.json({
         message: `Job ${id} cancelled successfully`,
       })
+      return
     } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message,
       })
+      return
     }
   }
 
@@ -734,32 +964,149 @@ export class BackgroundAgentsAPIServer {
         messageId,
         message: 'Follow-up message sent successfully',
       })
+      return
     } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message,
       })
+      return
     }
   }
 
   /**
-   * Get background agent statistics
+   * Enterprise: Get user usage statistics
    */
-  private async getStats(_req: express.Request, res: express.Response): Promise<void> {
+  private async getUserUsage(req: express.Request, res: express.Response): Promise<void> {
     try {
-      const stats = backgroundAgentService.getStats()
-      const queueStats = await this.jobQueue.getStats()
+      const { userId } = req.params
 
-      res.json({
-        jobs: stats,
-        queue: queueStats,
-        timestamp: new Date().toISOString(),
-      })
+      const { safeDynamicImport } = await import('../utils/esm-fix-loader')
+      const usageTrackerModule = await safeDynamicImport('../services/user-usage-tracker', process.cwd())
+      const usageTracker = usageTrackerModule.getUserUsageTracker()
+
+      const usage = usageTracker.getUsageStats(userId)
+      if (!usage) {
+        res.status(404).json({
+          error: 'Not Found',
+          message: `No usage data found for user: ${userId}`,
+        })
+        return
+      }
+
+      res.json(usage)
+      return
     } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message,
       })
+      return
+    }
+  }
+
+  /**
+   * Enterprise: Get user quota
+   */
+  private async getUserQuota(req: express.Request, res: express.Response): Promise<void> {
+    try {
+      const { userId } = req.params
+
+      const { safeDynamicImport } = await import('../utils/esm-fix-loader')
+      const quotaServiceModule = await safeDynamicImport('../services/user-quota-service', process.cwd())
+      const quotaService = quotaServiceModule.getUserQuotaService()
+
+      const quota = quotaService.getQuota(userId)
+      if (!quota) {
+        res.status(404).json({
+          error: 'Not Found',
+          message: `No quota found for user: ${userId}`,
+        })
+        return
+      }
+
+      res.json(quota)
+      return
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message,
+      })
+      return
+    }
+  }
+
+  /**
+   * Enterprise: Set user quota
+   */
+  private async setUserQuota(req: express.Request, res: express.Response): Promise<void> {
+    try {
+      const { userId } = req.params
+      const quota = req.body
+
+      const { safeDynamicImport } = await import('../utils/esm-fix-loader')
+      const quotaServiceModule = await safeDynamicImport('../services/user-quota-service', process.cwd())
+      const quotaService = quotaServiceModule.getUserQuotaService()
+
+      quotaService.setQuota(userId, {
+        userId,
+        ...quota,
+      })
+
+      res.json({
+        message: 'Quota updated successfully',
+        quota: quotaService.getQuota(userId),
+      })
+      return
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message,
+      })
+      return
+    }
+  }
+
+  /**
+   * Get background agent statistics (with caching)
+   */
+  private async getStats(_req: express.Request, res: express.Response): Promise<void> {
+    try {
+      const cacheKey = 'stats:all'
+
+      // Check cache first
+      const cached = this.statsCache.get(cacheKey)
+      if (cached) {
+        res.setHeader('X-Cache', 'HIT')
+        res.setHeader('X-Cache-Age', Math.floor((Date.now() - cached.timestamp) / 1000))
+        res.json(cached.data)
+        return
+      }
+
+      const stats = backgroundAgentService.getStats()
+      const queueStats = await this.jobQueue.getStats()
+
+      const responseData = {
+        jobs: stats,
+        queue: queueStats,
+        timestamp: new Date().toISOString(),
+      }
+
+      // Cache the response
+      this.statsCache.set(cacheKey, {
+        data: responseData,
+        timestamp: Date.now(),
+      })
+
+      res.setHeader('X-Cache', 'MISS')
+      res.json(responseData)
+      return
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message,
+      })
+      return
     }
   }
 
@@ -774,11 +1121,13 @@ export class BackgroundAgentsAPIServer {
         queue: stats,
         timestamp: new Date().toISOString(),
       })
+      return
     } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message,
       })
+      return
     }
   }
 
@@ -792,11 +1141,13 @@ export class BackgroundAgentsAPIServer {
       res.json({
         message: 'Queue cleared successfully',
       })
+      return
     } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message,
       })
+      return
     }
   }
 
@@ -812,11 +1163,13 @@ export class BackgroundAgentsAPIServer {
         total: violations.length,
         timestamp: new Date().toISOString(),
       })
+      return
     } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message,
       })
+      return
     }
   }
 
@@ -833,11 +1186,13 @@ export class BackgroundAgentsAPIServer {
         report,
         timestamp: new Date().toISOString(),
       })
+      return
     } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message,
       })
+      return
     }
   }
 
@@ -876,11 +1231,13 @@ export class BackgroundAgentsAPIServer {
       res.json({
         message: 'Webhook processed successfully',
       })
+      return
     } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message,
       })
+      return
     }
   }
 
@@ -970,7 +1327,7 @@ export const defaultAPIConfig: APIServerConfig = {
   },
   rateLimit: {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requests per window
+    max: 50000, // 50000 requests per window (increased with caching support)
   },
   queue: {
     type: 'local',

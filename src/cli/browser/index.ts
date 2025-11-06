@@ -92,7 +92,7 @@ export function getBrowserModeInfo() {
 }
 
 // Version and metadata
-export const BROWSER_MODE_VERSION = '1.0.0'
+export const BROWSER_MODE_VERSION = '1.0.1'
 export const SUPPORTED_BROWSER_ENGINES = ['chromium', 'chrome'] as const
 export const DEFAULT_BROWSER_PORTS = {
   noVNC: 6080,

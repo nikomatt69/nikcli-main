@@ -15,15 +15,16 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
    * POST /sessions
    * Create a new chat session
    */
-  router.post('/sessions', async (req: Request, res: Response) => {
+  router.post('/sessions', async (req: Request, res: Response): Promise<void> => {
     try {
       const { repo, baseBranch, initialMessage, userId } = req.body
 
       if (!repo) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Repository is required',
         })
+        return
       }
 
       const session = await chatSessionService.createSession({
@@ -37,12 +38,14 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
         success: true,
         session,
       })
+      return
     } catch (error: any) {
       console.error('[ChatRoutes] Error creating session:', error)
       res.status(500).json({
         success: false,
         error: error.message,
       })
+      return
     }
   })
 
@@ -50,7 +53,7 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
    * GET /sessions
    * List all chat sessions (optionally filtered by userId)
    */
-  router.get('/sessions', (req: Request, res: Response) => {
+  router.get('/sessions', (req: Request, res: Response): void => {
     try {
       const { userId } = req.query
       const sessions = chatSessionService.listSessions(userId as string | undefined)
@@ -59,12 +62,14 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
         success: true,
         sessions,
       })
+      return
     } catch (error: any) {
       console.error('[ChatRoutes] Error listing sessions:', error)
       res.status(500).json({
         success: false,
         error: error.message,
       })
+      return
     }
   })
 
@@ -72,28 +77,31 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
    * GET /sessions/:id
    * Get a specific chat session
    */
-  router.get('/sessions/:id', (req: Request, res: Response) => {
+  router.get('/sessions/:id', (req: Request, res: Response): void => {
     try {
       const { id } = req.params
       const session = chatSessionService.getSession(id)
 
       if (!session) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'Session not found',
         })
+        return
       }
 
       res.json({
         success: true,
         session,
       })
+      return
     } catch (error: any) {
       console.error('[ChatRoutes] Error getting session:', error)
       res.status(500).json({
         success: false,
         error: error.message,
       })
+      return
     }
   })
 
@@ -101,16 +109,17 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
    * POST /sessions/:id/messages
    * Send a message in a chat session
    */
-  router.post('/sessions/:id/messages', async (req: Request, res: Response) => {
+  router.post('/sessions/:id/messages', async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params
       const { message } = req.body
 
       if (!message) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Message is required',
         })
+        return
       }
 
       const chatMessage = await chatSessionService.sendMessage({
@@ -122,12 +131,14 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
         success: true,
         message: chatMessage,
       })
+      return
     } catch (error: any) {
       console.error('[ChatRoutes] Error sending message:', error)
       res.status(500).json({
         success: false,
         error: error.message,
       })
+      return
     }
   })
 
@@ -135,16 +146,17 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
    * POST /sessions/:id/approve-tool
    * Approve or reject a tool call
    */
-  router.post('/sessions/:id/approve-tool', async (req: Request, res: Response) => {
+  router.post('/sessions/:id/approve-tool', async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params
       const { toolApprovalId, approved } = req.body
 
       if (!toolApprovalId || typeof approved !== 'boolean') {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'toolApprovalId and approved (boolean) are required',
         })
+        return
       }
 
       await chatSessionService.approveTool({
@@ -157,12 +169,14 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
         success: true,
         message: `Tool ${approved ? 'approved' : 'rejected'} successfully`,
       })
+      return
     } catch (error: any) {
       console.error('[ChatRoutes] Error approving tool:', error)
       res.status(500).json({
         success: false,
         error: error.message,
       })
+      return
     }
   })
 
@@ -170,7 +184,7 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
    * DELETE /sessions/:id
    * Close a chat session
    */
-  router.delete('/sessions/:id', async (req: Request, res: Response) => {
+  router.delete('/sessions/:id', async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params
       await chatSessionService.closeSession(id)
@@ -179,12 +193,14 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
         success: true,
         message: 'Session closed successfully',
       })
+      return
     } catch (error: any) {
       console.error('[ChatRoutes] Error closing session:', error)
       res.status(500).json({
         success: false,
         error: error.message,
       })
+      return
     }
   })
 
@@ -192,17 +208,18 @@ export function createChatRouter(chatSessionService: ChatSessionService): Router
    * GET /sessions/:id/stream
    * SSE endpoint for real-time chat session updates
    */
-  router.get('/sessions/:id/stream', (req: Request, res: Response) => {
+  router.get('/sessions/:id/stream', (req: Request, res: Response): void => {
     const { id } = req.params
     const connectionId = uuidv4()
 
     // Verify session exists
     const session = chatSessionService.getSession(id)
     if (!session) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Session not found',
       })
+      return
     }
 
     // Set SSE headers

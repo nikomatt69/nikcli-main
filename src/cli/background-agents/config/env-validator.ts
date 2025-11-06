@@ -66,7 +66,7 @@ class EnvironmentValidator {
       allowedOrigins: this.getAllowedOrigins(),
 
       // AI Configuration
-      openrouterModel: this.getOptional('OPENROUTER_MODEL') || 'anthropic/claude-3.5-sonnet',
+      openrouterModel: this.getOptional('OPENROUTER_MODEL') || '@preset/nikcli',
       maxTokens: this.getNumber('MAX_TOKENS', 8000),
       temperature: this.getNumber('TEMPERATURE', 0.7),
 

@@ -93,10 +93,10 @@ export default function ChatPage() {
 
   return (
     <MainLayout>
-      <div className="flex h-full">
+      <div className="flex h-full overflow-hidden">
         {/* Left sidebar - Session list */}
-        <div className="w-80 border-r border-border bg-card flex flex-col">
-          <div className="p-4 border-b border-border">
+        <div className="w-80 border-r border-border bg-card flex flex-col min-h-0">
+          <div className="p-4 border-b border-border flex-shrink-0">
             <Button
               onClick={() => setNewSessionDialogOpen(true)}
               className="w-full"
@@ -107,17 +107,19 @@ export default function ChatPage() {
             </Button>
           </div>
 
-          <SessionList
-            sessions={sessions}
-            selectedSessionId={selectedSessionId}
-            onSelectSession={setSelectedSessionId}
-            onCloseSession={handleCloseSession}
-            isLoading={isLoadingSessions}
-          />
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <SessionList
+              sessions={sessions}
+              selectedSessionId={selectedSessionId}
+              onSelectSession={setSelectedSessionId}
+              onCloseSession={handleCloseSession}
+              isLoading={isLoadingSessions}
+            />
+          </div>
         </div>
 
         {/* Main content - Chat interface */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           {selectedSession ? (
             <ChatInterface
               session={selectedSession}

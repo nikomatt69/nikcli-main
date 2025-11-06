@@ -31,7 +31,7 @@ export class AIChatService extends EventEmitter {
 
   constructor(config?: AIChatServiceConfig) {
     super()
-    this.model = config?.model || process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet'
+    this.model = config?.model || process.env.OPENROUTER_MODEL || '@preset/nikcli'
     const apiKey = config?.apiKey || process.env.OPENROUTER_API_KEY || ''
     this.maxTokens = config?.maxTokens || 8000
     this.temperature = config?.temperature || 0.7

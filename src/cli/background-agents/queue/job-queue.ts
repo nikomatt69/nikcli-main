@@ -85,13 +85,18 @@ export class JobQueue extends EventEmitter {
     return []
   }
 
-  private async redisZpopmin(key: string, count: number): Promise<string[]> {
+  private async redisZpopmin(key: string, count: number): Promise<(string | object)[]> {
     if (this.upstashRedis) {
       const result = await this.upstashRedis.zpopmin(key, count)
       // Upstash returns [member1, score1, member2, score2, ...], we need only members
-      return Array.isArray(result) ? (result.filter((_, i) => i % 2 === 0) as string[]) : []
+      // Upstash may deserialize JSON strings automatically, so we return both strings and objects
+      if (Array.isArray(result)) {
+        return result.filter((_, i) => i % 2 === 0) as (string | object)[]
+      }
+      return []
     } else if (this.redis) {
-      return await this.redis.zpopmin(key, count)
+      const result = await this.redis.zpopmin(key, count)
+      return Array.isArray(result) ? result : []
     }
     return []
   }
@@ -145,13 +150,14 @@ export class JobQueue extends EventEmitter {
 
   /**
    * Initialize Redis queue
+   * Background agents prioritize Upstash over local Redis
    */
   private async initRedisQueue(): Promise<void> {
     if (!this.config.redis) return
 
-    // Check if using Upstash REST API
+    // Check if using Upstash REST API (preferred for background agents)
     if (this.config.redis.upstash) {
-      console.log('🔄 Initializing Upstash Redis REST queue...')
+      console.log('🔄 Background agents: Initializing Upstash Redis REST queue...')
       try {
         this.upstashRedis = new UpstashRedis({
           url: this.config.redis.upstash.url,
@@ -160,34 +166,47 @@ export class JobQueue extends EventEmitter {
 
         // Test connection
         await this.upstashRedis.ping()
-        console.log('✅ Upstash Redis connected successfully')
+        console.log('✅ Background agents: Upstash Redis connected successfully')
+        this.config.type = 'redis' // Ensure queue type is set to redis
         this.emit('connected')
-      } catch (error) {
-        console.error('❌ Upstash Redis connection failed:', error)
+      } catch (error: any) {
+        console.error('❌ Background agents: Upstash Redis connection failed:', error.message)
         this.emit('error', error)
 
-        // Gracefully degrade to local queue
+        // Don't fallback to local Redis - use local queue instead
         this.upstashRedis = undefined
         this.config.type = 'local'
-        console.log('⚠️  Falling back to local queue')
+        console.warn('⚠️  Background agents: Falling back to local queue (no Redis)')
       }
-    } else {
-      // Standard Redis connection
+    } else if (this.config.redis.host && this.config.redis.port) {
+      // Standard Redis connection (fallback, not recommended for background agents)
+      console.warn('⚠️  Background agents: Using standard Redis (Upstash is preferred)')
+      
       this.redis = new IORedis({
         host: this.config.redis.host,
         port: this.config.redis.port,
         password: this.config.redis.password,
         db: this.config.redis.db || 0,
-        maxRetriesPerRequest: null,
+        maxRetriesPerRequest: 3,
         enableReadyCheck: false,
+        retryStrategy: (times) => {
+          if (times > 3) {
+            console.error('❌ Background agents: Redis connection failed after 3 attempts')
+            console.error('   Falling back to local queue')
+            this.config.type = 'local'
+            return null // Stop retrying
+          }
+          return Math.min(times * 200, 2000)
+        },
       })
 
       this.redis.on('connect', () => {
+        console.log('✅ Background agents: Standard Redis connected successfully')
         this.emit('connected')
       })
 
       this.redis.on('error', (error) => {
-        console.error('Redis queue error:', error)
+        console.error('❌ Background agents: Redis queue error:', error.message)
         this.emit('error', error)
 
         // Gracefully degrade to local queue if Redis disconnects/errors
@@ -196,7 +215,11 @@ export class JobQueue extends EventEmitter {
         } catch { }
         this.redis = undefined
         this.config.type = 'local'
+        console.warn('⚠️  Background agents: Falling back to local queue')
       })
+    } else {
+      console.warn('⚠️  Background agents: No valid Redis configuration found, using local queue')
+      this.config.type = 'local'
     }
 
     // Start job processor
@@ -323,13 +346,24 @@ export class JobQueue extends EventEmitter {
     if (jobs.length === 0) return
 
     const [jobDataStr] = jobs
-    const queueData: QueuedJobData = JSON.parse(jobDataStr)
+    // Handle case where jobDataStr might already be an object (from Upstash)
+    let queueData: QueuedJobData
+    if (typeof jobDataStr === 'string') {
+      queueData = JSON.parse(jobDataStr)
+    } else if (typeof jobDataStr === 'object' && jobDataStr !== null) {
+      queueData = jobDataStr as QueuedJobData
+    } else {
+      console.error('Invalid job data format:', typeof jobDataStr, jobDataStr)
+      return
+    }
 
     // Try to acquire lock
     const lockAcquired = await this.acquireJobLock(queueData.jobId)
     if (!lockAcquired) {
       // Another process is handling this job, put it back
-      await this.redisZadd('background-jobs:waiting', Date.now(), jobDataStr)
+      // Ensure we store as JSON string
+      const jobDataToStore = typeof jobDataStr === 'string' ? jobDataStr : JSON.stringify(queueData)
+      await this.redisZadd('background-jobs:waiting', Date.now(), jobDataToStore)
       return
     }
 

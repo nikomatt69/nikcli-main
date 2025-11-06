@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import './holographic.css';
+
 @layer base {
   :root {
     --background: 220 13% 8%;
@@ -33,6 +35,12 @@
     --ring: 217 91% 60%;
 
     --radius: 0.5rem;
+
+    /* Holographic Enhancement Variables */
+    --holo-shine: rgba(99, 102, 241, 0.08);
+    --holo-accent: rgba(168, 85, 247, 0.12);
+    --glass-bg: rgba(17, 24, 39, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.08);
   }
 
   .light {
@@ -63,6 +71,55 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
+
+    /* Holographic Enhancement Variables for Light Mode */
+    --holo-shine: rgba(99, 102, 241, 0.05);
+    --holo-accent: rgba(168, 85, 247, 0.08);
+    --glass-bg: rgba(255, 255, 255, 0.5);
+    --glass-border: rgba(0, 0, 0, 0.06);
+  }
+}
+
+/* Holographic Utility Classes */
+@layer utilities {
+  .holo-card {
+    @apply relative overflow-hidden;
+    background: linear-gradient(135deg, var(--holo-shine) 0%, transparent 100%);
+  }
+
+  .holo-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .holo-card:hover::after {
+    opacity: 1;
+  }
+
+  .glass-effect {
+    background: var(--glass-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-border);
+  }
+
+  .micro-elevation {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .micro-elevation:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 }
 
@@ -70,9 +127,28 @@
   * {
     @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Selection */
+  ::selection {
+    background-color: hsl(var(--primary) / 0.3);
+    color: hsl(var(--foreground));
+  }
+
+  /* Focus visible */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
 

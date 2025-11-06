@@ -82,23 +82,25 @@ slackRouter.post('/config', (req: Request, res: Response) => {
  * POST /v1/slack/test
  * Send a test message to Slack
  */
-slackRouter.post('/test', async (req: Request, res: Response) => {
+slackRouter.post('/test', async (req: Request, res: Response): Promise<void> => {
   const { message, channel } = req.body
 
   if (!message) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Message is required',
     })
+    return
   }
 
   const webhookUrl = process.env.SLACK_WEBHOOK_URL
 
   if (!webhookUrl) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Slack webhook not configured. Set SLACK_WEBHOOK_URL in environment variables.',
     })
+    return
   }
 
   try {
@@ -131,6 +133,7 @@ slackRouter.post('/test', async (req: Request, res: Response) => {
         timestamp,
         message: 'Test message sent successfully',
       })
+      return
     } else {
       const errorText = await response.text()
       console.error('[Slack] Failed to send message:', errorText)
@@ -139,6 +142,7 @@ slackRouter.post('/test', async (req: Request, res: Response) => {
         success: false,
         error: `Slack API error: ${response.status} ${response.statusText}`,
       })
+      return
     }
   } catch (error) {
     console.error('[Slack] Error sending test message:', error)
@@ -147,6 +151,7 @@ slackRouter.post('/test', async (req: Request, res: Response) => {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     })
+    return
   }
 })
 

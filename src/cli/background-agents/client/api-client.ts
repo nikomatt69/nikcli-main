@@ -51,7 +51,7 @@ export class BackgroundAgentsClient {
       config.baseUrl ||
       process.env.NIKCLI_API_URL ||
       process.env.BACKGROUND_AGENTS_API_URL ||
-      'https://nikcli-api.railway.app'
+      'https://bg.nikcli.store'
 
     this.wsUrl = this.baseUrl.replace(/^http/, 'ws')
 
@@ -103,13 +103,13 @@ export class BackgroundAgentsClient {
           // Try to read Retry-After header or X-RateLimit-Reset
           const retryAfter = error.response.headers['retry-after']
           const rateLimitReset = error.response.headers['x-ratelimit-reset']
-          
+
           let delay: number
-          
+
           if (retryAfter) {
             // Retry-After can be a number (seconds) or a date
             const retryAfterSeconds = Number.parseInt(retryAfter, 10)
-            delay = isNaN(retryAfterSeconds) 
+            delay = isNaN(retryAfterSeconds)
               ? Math.max(0, new Date(retryAfter).getTime() - Date.now())
               : retryAfterSeconds * 1000
           } else if (rateLimitReset) {
@@ -120,10 +120,10 @@ export class BackgroundAgentsClient {
             // Fallback: exponential backoff with longer delay for 429
             delay = Math.min(2000 * 2 ** config.retry, 30000) // Max 30 seconds
           }
-          
+
           // Ensure minimum delay of 1 second
           delay = Math.max(delay, 1000)
-          
+
           console.warn(`Rate limit hit (429). Retrying after ${Math.ceil(delay / 1000)}s (attempt ${config.retry}/${maxRetries})`)
           await new Promise((resolve) => setTimeout(resolve, delay))
         } else {

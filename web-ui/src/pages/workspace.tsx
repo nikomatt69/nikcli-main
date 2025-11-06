@@ -28,6 +28,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
+import { supabase } from '@/lib/supabase'
 import type { BackgroundJob } from '@/types/jobs'
 
 interface Repository {
@@ -47,6 +48,7 @@ export default function WorkspacePage() {
   const [jobs, setJobs] = useState<BackgroundJob[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [newRepoUrl, setNewRepoUrl] = useState('')
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [stats, setStats] = useState({
     totalJobs: 0,
     completedJobs: 0,
@@ -80,7 +82,13 @@ export default function WorkspacePage() {
       const jobsRes = await apiClient.get<{ jobs: BackgroundJob[]; total: number }>('/v1/jobs')
 
       if (!jobsRes.success || !jobsRes.data) {
-        throw new Error('Failed to load jobs')
+        const errorMsg = jobsRes.error?.message || 'Failed to load jobs'
+        // Only show error toast if we've loaded successfully before (not initial load failure)
+        if (hasLoadedOnce || jobsRes.error?.code !== 'NETWORK_ERROR') {
+          toast.error(errorMsg)
+        }
+        console.error('Failed to load jobs:', jobsRes.error)
+        return
       }
 
       const fetchedJobs = jobsRes.data.jobs
@@ -154,9 +162,15 @@ export default function WorkspacePage() {
         failedJobs: fetchedJobs.filter((j) => j.status === 'failed').length,
         activeJobs: fetchedJobs.filter((j) => j.status === 'running').length,
       })
+      
+      // Mark as successfully loaded
+      setHasLoadedOnce(true)
     } catch (error) {
       console.error('Failed to load workspace data:', error)
-      toast.error('Failed to load workspace data')
+      // Only show error toast if we've loaded successfully before (not initial load failure)
+      if (hasLoadedOnce) {
+        toast.error('Failed to load workspace data')
+      }
     } finally {
       setLoading(false)
     }
@@ -192,12 +206,44 @@ export default function WorkspacePage() {
     }
 
     try {
+      // Load user preferences for model and API key
+      let headers: Record<string, string> = {}
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user?.id) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('preferences')
+            .eq('id', session.user.id)
+            .single()
+
+          if (profile?.preferences) {
+            const prefs = profile.preferences as any
+            if (prefs.api_keys?.openrouterModel) {
+              headers['x-ai-model'] = prefs.api_keys.openrouterModel
+            }
+            if (prefs.api_keys?.openrouter) {
+              headers['x-ai-provider'] = 'openrouter'
+              headers['x-ai-key'] = prefs.api_keys.openrouter
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load user preferences:', error)
+      }
+
       // Create a new job for this repository
-      const res = await apiClient.post('/v1/jobs', {
+      const rawClient = apiClient.getRawClient()
+      const response = await rawClient.post('/v1/jobs', {
         repo: repoName,
         task: 'Initialize repository workspace',
         baseBranch: 'main',
-      })
+      }, { headers })
+      
+      const res = {
+        success: true,
+        data: response.data,
+      }
 
       if (!res.success) {
         throw new Error('Failed to add repository')
@@ -214,11 +260,43 @@ export default function WorkspacePage() {
 
   const handleSyncRepo = async (repo: Repository) => {
     try {
-      const res = await apiClient.post('/v1/jobs', {
+      // Load user preferences for model and API key
+      let headers: Record<string, string> = {}
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user?.id) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('preferences')
+            .eq('id', session.user.id)
+            .single()
+
+          if (profile?.preferences) {
+            const prefs = profile.preferences as any
+            if (prefs.api_keys?.openrouterModel) {
+              headers['x-ai-model'] = prefs.api_keys.openrouterModel
+            }
+            if (prefs.api_keys?.openrouter) {
+              headers['x-ai-provider'] = 'openrouter'
+              headers['x-ai-key'] = prefs.api_keys.openrouter
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load user preferences:', error)
+      }
+
+      const rawClient = apiClient.getRawClient()
+      const response = await rawClient.post('/v1/jobs', {
         repo: repo.fullName,
         task: 'Sync repository',
         baseBranch: repo.branch,
-      })
+      }, { headers })
+      
+      const res = {
+        success: true,
+        data: response.data,
+      }
 
       if (!res.success) {
         throw new Error('Failed to sync repository')
@@ -312,10 +390,10 @@ export default function WorkspacePage() {
 
   return (
     <MainLayout>
-      <div className="flex h-full">
+      <div className="flex h-full overflow-hidden">
         {/* Left sidebar - Repository list */}
-        <div className="w-80 border-r border-border bg-card flex flex-col">
-          <div className="p-4 border-b border-border">
+        <div className="w-80 border-r border-border bg-card flex flex-col min-h-0">
+          <div className="p-4 border-b border-border flex-shrink-0">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <FolderOpen className="h-5 w-5" />
               Workspaces
@@ -352,7 +430,7 @@ export default function WorkspacePage() {
           </div>
 
           {/* Repository list */}
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-2 space-y-1">
               {filteredRepos.length === 0 ? (
                 <div className="text-center p-6 text-muted-foreground">
@@ -363,7 +441,7 @@ export default function WorkspacePage() {
                 filteredRepos.map((repo) => (
                   <div
                     key={repo.fullName}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                    className={`p-3 rounded-lg cursor-pointer ${
                       selectedRepo?.fullName === repo.fullName
                         ? 'bg-accent border border-primary'
                         : 'hover:bg-accent'
@@ -399,11 +477,11 @@ export default function WorkspacePage() {
         </div>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           {selectedRepo ? (
             <>
               {/* Header */}
-              <div className="border-b border-border p-4">
+              <div className="border-b border-border p-4 flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div>
                     <h1 className="text-2xl font-bold">
@@ -434,7 +512,7 @@ export default function WorkspacePage() {
               </div>
 
               {/* Content area */}
-              <div className="flex-1 overflow-auto">
+              <div className="flex-1 overflow-y-auto min-h-0">
                 <div className="p-6">
                   <div className="space-y-6 max-w-4xl">
                     {/* Repository Stats */}
@@ -490,7 +568,7 @@ export default function WorkspacePage() {
                             repoJobs.slice(0, 10).map((job) => (
                               <div
                                 key={job.id}
-                                className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors"
+                                className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent"
                               >
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">

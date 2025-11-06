@@ -1,6 +1,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { globby } from 'globby'
+import { v4 as uuidv4 } from 'uuid'
+import { logger } from '../utils/logger'
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
@@ -98,6 +99,7 @@ export class MultiReadTool extends BaseTool {
 
   async execute(params: MultiReadParams): Promise<ToolExecutionResult> {
     const startTime = Date.now()
+    const requestId = uuidv4()
     try {
       const promptManager = PromptManager.getInstance()
       const systemPrompt = await promptManager.loadPromptForContext({
@@ -105,6 +107,13 @@ export class MultiReadTool extends BaseTool {
         parameters: params,
       })
       advancedUI.logInfo(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
+      await logger.info('multi-read start', {
+        requestId,
+        includeHidden: !!params.includeHidden,
+        maxFileSizeBytes: params.maxFileSizeBytes ?? 512 * 1024,
+        filesCount: Array.isArray(params.files) ? params.files.length : 0,
+        globsCount: Array.isArray(params.globs) ? params.globs.length : 0,
+      })
 
       const root = sanitizePath(params.root || '.', this.getWorkingDirectory())
       const includeHidden = !!params.includeHidden
@@ -120,8 +129,16 @@ export class MultiReadTool extends BaseTool {
         }
       }
       if (Array.isArray(params.globs) && params.globs.length > 0) {
-        const globbed = await globby(params.globs, { cwd: root, onlyFiles: true, dot: includeHidden })
-        targets.push(...globbed.map((p) => path.resolve(root, p)))
+        const globbyModule: any = (await import('globby')) as any
+        const globbyFn = globbyModule.globby || globbyModule.default || globbyModule
+        const globbed = await globbyFn(params.globs, { cwd: root, onlyFiles: true, dot: includeHidden })
+        await logger.debug('multi-read glob resolved', {
+          requestId,
+          cwd: root,
+          requestedGlobs: params.globs,
+          resolvedCount: globbed.length,
+        })
+        targets.push(...globbed.map((p: string) => path.resolve(root, p)))
       }
 
       // Pre-compile exclude patterns for performance
@@ -159,6 +176,12 @@ export class MultiReadTool extends BaseTool {
       }
 
       if (filtered.length === 0) {
+        await logger.info('multi-read completed (no files after filtering)', {
+          requestId,
+          totalRequested: targets.length,
+          filtered: 0,
+          elapsedMs: Date.now() - startTime,
+        })
         return {
           success: true,
           data: {
@@ -250,6 +273,14 @@ export class MultiReadTool extends BaseTool {
       }
 
       advancedUI.logSuccess(`📖 Read ${results.length}/${filtered.length} files${search ? `, ${totalMatches} matches` : ''}`)
+      await logger.info('multi-read completed', {
+        requestId,
+        totalRequested: filtered.length,
+        totalRead: results.length,
+        filesWithMatches: search ? filesWithMatches : undefined,
+        totalMatches: search ? totalMatches : undefined,
+        elapsedMs: Date.now() - startTime,
+      })
 
       return {
         success: true,
@@ -258,6 +289,7 @@ export class MultiReadTool extends BaseTool {
       }
     } catch (error: any) {
       advancedUI.logError(`Multi-read tool failed: ${error.message}`)
+      await logger.error('multi-read failed', { requestId }, error)
       return {
         success: false,
         error: error.message,

@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -77,68 +78,110 @@ export function FileChangesPanel({ fileChanges }: FileChangesPanelProps) {
       {/* File list */}
       <div className="border-b border-border">
         <ScrollArea className="h-48">
-          <div className="p-2 space-y-1">
-            {fileChanges.map((change) => (
-              <button
+          <motion.div
+            className="p-2 space-y-1"
+            initial="hidden"
+            animate="visible"
+            variants={{
+              visible: {
+                transition: {
+                  staggerChildren: 0.05,
+                },
+              },
+            }}
+          >
+            {fileChanges.map((change, index) => (
+              <motion.button
                 key={change.path}
                 onClick={() => setSelectedFile(change.path)}
                 className={cn(
-                  'w-full flex items-center gap-2 p-2 rounded text-left text-sm hover:bg-accent transition-colors',
-                  selectedFile === change.path && 'bg-accent border border-primary'
+                  'w-full flex items-center gap-2 p-2 rounded text-left text-sm transition-all duration-200',
+                  'holo-border micro-elevation',
+                  selectedFile === change.path && 'bg-accent border border-primary holo-glow'
                 )}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05, duration: 0.2 }}
+                whileHover={{ x: 4, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 {getFileIcon(change.type)}
                 <span className="flex-1 truncate font-mono text-xs">{change.path}</span>
                 <Badge variant={getTypeBadgeVariant(change.type)} className="text-xs">
                   {change.type[0].toUpperCase()}
                 </Badge>
-              </button>
+              </motion.button>
             ))}
-          </div>
+          </motion.div>
         </ScrollArea>
       </div>
 
       {/* Diff viewer */}
       <ScrollArea className="flex-1">
-        {selectedChange ? (
-          <div className="p-4">
-            <div className="mb-3">
-              <div className="flex items-center gap-2 mb-1">
-                {getFileIcon(selectedChange.type)}
-                <span className="text-sm font-mono font-semibold">
-                  {selectedChange.path}
-                </span>
-                <Badge variant={getTypeBadgeVariant(selectedChange.type)}>
-                  {selectedChange.type}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {new Date(selectedChange.timestamp).toLocaleString()}
-              </p>
-            </div>
-
-            <Separator className="mb-3" />
-
-            {/* Diff display */}
-            <div className="text-xs">
-              <SyntaxHighlighter
-                language="diff"
-                style={vscDarkPlus}
-                customStyle={{
-                  margin: 0,
-                  borderRadius: '0.375rem',
-                  fontSize: '0.75rem',
-                }}
+        <AnimatePresence mode="wait">
+          {selectedChange ? (
+            <motion.div
+              key={selectedChange.path}
+              className="p-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <motion.div
+                className="mb-3"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
               >
-                {selectedChange.diff}
-              </SyntaxHighlighter>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            Select a file to view changes
-          </div>
-        )}
+                <div className="flex items-center gap-2 mb-1">
+                  {getFileIcon(selectedChange.type)}
+                  <span className="text-sm font-mono font-semibold">
+                    {selectedChange.path}
+                  </span>
+                  <Badge variant={getTypeBadgeVariant(selectedChange.type)}>
+                    {selectedChange.type}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(selectedChange.timestamp).toLocaleString()}
+                </p>
+              </motion.div>
+
+              <Separator className="mb-3" />
+
+              {/* Diff display */}
+              <motion.div
+                className="text-xs holo-card"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2, duration: 0.3 }}
+              >
+                <SyntaxHighlighter
+                  language="diff"
+                  style={vscDarkPlus}
+                  customStyle={{
+                    margin: 0,
+                    borderRadius: '0.375rem',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  {selectedChange.diff}
+                </SyntaxHighlighter>
+              </motion.div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="placeholder"
+              className="flex items-center justify-center h-full text-muted-foreground text-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              Select a file to view changes
+            </motion.div>
+          )}
+        </AnimatePresence>
       </ScrollArea>
     </div>
   )

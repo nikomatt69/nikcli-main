@@ -6,7 +6,7 @@
  * for efficient result caching and retrieval.
  * 
  * @module SemanticCache
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 import Redis from 'ioredis';

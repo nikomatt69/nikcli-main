@@ -529,4 +529,4 @@ For issues or questions:
 
 Last Updated: 2025-11-02  
 Test Environment Version: 1.0  
-NikCLI Version: 0.5.0
+NikCLI Version: 1.0.1

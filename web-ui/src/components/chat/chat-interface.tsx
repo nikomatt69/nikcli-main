@@ -5,6 +5,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -120,15 +121,27 @@ export function ChatInterface({ session, onClose }: ChatInterfaceProps) {
   }
 
   return (
-    <div className="flex h-full">
+    <motion.div
+      className="flex h-full overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+    >
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Header */}
-        <div className="border-b border-border p-4 flex items-center justify-between">
+        <motion.div
+          className="border-b border-border p-4 flex items-center justify-between glass-effect"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+        >
           <div>
             <h2 className="text-lg font-semibold">{session.repo}</h2>
             <div className="flex items-center gap-2 mt-1">
               <Badge
+                pulse={session.status === 'active'}
                 variant={
                   session.status === 'active'
                     ? 'default'
@@ -140,7 +153,7 @@ export function ChatInterface({ session, onClose }: ChatInterfaceProps) {
                 {session.status}
               </Badge>
               {isConnected && (
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs" pulse>
                   <span className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse" />
                   Connected
                 </Badge>
@@ -150,31 +163,67 @@ export function ChatInterface({ session, onClose }: ChatInterfaceProps) {
           <Button variant="ghost" size="icon" onClick={onClose}>
             <XIcon className="h-4 w-4" />
           </Button>
-        </div>
+        </motion.div>
 
         {/* Messages */}
         <ScrollArea className="flex-1 p-4">
-          <div className="space-y-4">
-            {messages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} />
-            ))}
+          <motion.div
+            className="space-y-4"
+            initial="hidden"
+            animate="visible"
+            variants={{
+              visible: {
+                transition: {
+                  staggerChildren: 0.05,
+                },
+              },
+            }}
+          >
+            <AnimatePresence mode="popLayout" initial={false}>
+              {messages.map((msg, index) => {
+                // Only animate recent messages to avoid performance issues
+                const shouldAnimate = messages.length - index <= 10
+                return (
+                  <motion.div
+                    key={msg.id}
+                    initial={shouldAnimate ? { opacity: 0, y: 20 } : false}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{
+                      delay: shouldAnimate ? Math.min(index * 0.03, 0.3) : 0,
+                      duration: 0.3,
+                      ease: [0.4, 0, 0.2, 1],
+                    }}
+                  >
+                    <ChatMessage message={msg} />
+                  </motion.div>
+                )
+              })}
 
-            {/* Streaming message */}
-            {isStreaming && streamingMessage && (
-              <ChatMessage
-                message={{
-                  id: 'streaming',
-                  sessionId: session.id,
-                  role: 'assistant',
-                  content: streamingMessage,
-                  timestamp: new Date(),
-                  streamComplete: false,
-                }}
-              />
-            )}
+              {/* Streaming message */}
+              {isStreaming && streamingMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ChatMessage
+                    message={{
+                      id: 'streaming',
+                      sessionId: session.id,
+                      role: 'assistant',
+                      content: streamingMessage,
+                      timestamp: new Date(),
+                      streamComplete: false,
+                    }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div ref={messagesEndRef} />
-          </div>
+          </motion.div>
         </ScrollArea>
 
         {/* Input area */}
@@ -206,32 +255,62 @@ export function ChatInterface({ session, onClose }: ChatInterfaceProps) {
       </div>
 
       {/* Right sidebar - Tool approvals and file changes */}
-      <div className="w-96 border-l border-border flex flex-col">
+      <motion.div
+        className="w-96 border-l border-border flex flex-col glass-effect md:block hidden"
+        initial={{ x: 100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.3 }}
+      >
         {/* Pending tool approvals */}
-        {pendingApprovals.length > 0 && (
-          <>
-            <div className="p-4 border-b border-border">
-              <h3 className="font-semibold text-sm flex items-center gap-2">
-                Tool Approvals
-                <Badge variant="destructive">{pendingApprovals.length}</Badge>
-              </h3>
-            </div>
-            <div className="p-4 space-y-3 border-b border-border">
-              {pendingApprovals.map((approval) => (
-                <ToolApprovalCard
-                  key={approval.id}
-                  approval={approval}
-                  onApprove={(approved) => handleApproveTool(approval.id, approved)}
-                  isProcessing={approveToolMutation.isPending}
-                />
-              ))}
-            </div>
-          </>
-        )}
+        <AnimatePresence>
+          {pendingApprovals.length > 0 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="p-4 border-b border-border">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  Tool Approvals
+                  <Badge variant="destructive" pulse>{pendingApprovals.length}</Badge>
+                </h3>
+              </div>
+              <motion.div
+                className="p-4 space-y-3 border-b border-border"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.1,
+                    },
+                  },
+                }}
+              >
+                {pendingApprovals.map((approval) => (
+                  <motion.div
+                    key={approval.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ToolApprovalCard
+                      approval={approval}
+                      onApprove={(approved) => handleApproveTool(approval.id, approved)}
+                      isProcessing={approveToolMutation.isPending}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* File changes */}
         <FileChangesPanel fileChanges={fileChanges} />
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }

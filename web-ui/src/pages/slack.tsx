@@ -79,14 +79,16 @@ export default function SlackPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-6 p-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Slack Integration</h1>
-          <p className="text-muted-foreground">
-            Manage Slack notifications for your background jobs
-          </p>
-        </div>
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex-1 overflow-y-auto min-h-0 p-6">
+          <div className="space-y-6">
+            {/* Header */}
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Slack Integration</h1>
+              <p className="text-muted-foreground">
+                Manage Slack notifications for your background jobs
+              </p>
+            </div>
 
         {/* Connection Status Card */}
         <Card>
@@ -274,6 +276,8 @@ export default function SlackPage() {
             </div>
           </CardContent>
         </Card>
+          </div>
+        </div>
       </div>
     </MainLayout>
   )

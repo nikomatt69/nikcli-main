@@ -33,17 +33,20 @@ class APIClient {
       (error) => Promise.reject(error)
     )
 
-    // Response interceptor: Handle errors
+    // Response interceptor: Handle authentication errors
     this.client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        // Handle 401 unauthorized
+        // Handle 401 unauthorized - redirect to login
         if (error.response?.status === 401) {
           await supabase.auth.signOut()
           window.location.href = '/login'
+          return Promise.reject(error) // Reject with original error
         }
 
-        return Promise.reject(this.normalizeError(error))
+        // For other errors, let React Query handle them
+        // Don't normalize here - let the methods handle it
+        return Promise.reject(error)
       }
     )
   }
@@ -85,7 +88,16 @@ class APIClient {
         data: response.data,
       }
     } catch (error) {
-      return this.normalizeError(error as AxiosError) as APIResponse<T>
+      const normalizedError = this.normalizeError(error as AxiosError) as APIResponse<T>
+      // Throw error for React Query to handle retries and error states
+      // React Query expects thrown errors, not error objects in responses
+      if (!normalizedError.success) {
+        const apiError = new Error(normalizedError.error?.message || 'Request failed')
+        ;(apiError as any).code = normalizedError.error?.code
+        ;(apiError as any).details = normalizedError.error?.details
+        throw apiError
+      }
+      return normalizedError
     }
   }
 
@@ -100,7 +112,15 @@ class APIClient {
         data: response.data,
       }
     } catch (error) {
-      return this.normalizeError(error as AxiosError) as APIResponse<T>
+      const normalizedError = this.normalizeError(error as AxiosError) as APIResponse<T>
+      // Throw error for React Query to handle retries and error states
+      if (!normalizedError.success) {
+        const apiError = new Error(normalizedError.error?.message || 'Request failed')
+        ;(apiError as any).code = normalizedError.error?.code
+        ;(apiError as any).details = normalizedError.error?.details
+        throw apiError
+      }
+      return normalizedError
     }
   }
 
@@ -115,7 +135,15 @@ class APIClient {
         data: response.data,
       }
     } catch (error) {
-      return this.normalizeError(error as AxiosError) as APIResponse<T>
+      const normalizedError = this.normalizeError(error as AxiosError) as APIResponse<T>
+      // Throw error for React Query to handle retries and error states
+      if (!normalizedError.success) {
+        const apiError = new Error(normalizedError.error?.message || 'Request failed')
+        ;(apiError as any).code = normalizedError.error?.code
+        ;(apiError as any).details = normalizedError.error?.details
+        throw apiError
+      }
+      return normalizedError
     }
   }
 
@@ -130,7 +158,15 @@ class APIClient {
         data: response.data,
       }
     } catch (error) {
-      return this.normalizeError(error as AxiosError) as APIResponse<T>
+      const normalizedError = this.normalizeError(error as AxiosError) as APIResponse<T>
+      // Throw error for React Query to handle retries and error states
+      if (!normalizedError.success) {
+        const apiError = new Error(normalizedError.error?.message || 'Request failed')
+        ;(apiError as any).code = normalizedError.error?.code
+        ;(apiError as any).details = normalizedError.error?.details
+        throw apiError
+      }
+      return normalizedError
     }
   }
 

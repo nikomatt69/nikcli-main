@@ -70,6 +70,7 @@ function parseCorsOrigins(): string[] {
 
 /**
  * Parse Redis configuration from environment
+ * Background agents prioritize Upstash over local Redis
  */
 function parseRedisConfig():
   | {
@@ -82,12 +83,13 @@ function parseRedisConfig():
     }
   }
   | undefined {
-  // Check for Upstash REST API first
+  // ALWAYS check for Upstash REST API first for background agents
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN
 
   if (upstashUrl && upstashToken) {
-    console.log('✅ Using Upstash Redis REST API')
+    console.log('✅ Background agents: Using Upstash Redis REST API')
+    console.log(`   Upstash URL: ${upstashUrl.substring(0, 30)}...`)
     return {
       host: '', // Not used for Upstash REST
       port: 0, // Not used for Upstash REST
@@ -98,25 +100,35 @@ function parseRedisConfig():
     }
   }
 
-  // Fallback to standard Redis URL
+  // If Upstash is not configured, warn and return undefined (use local queue)
+  if (!upstashUrl || !upstashToken) {
+    console.warn('⚠️  Background agents: Upstash Redis not configured')
+    console.warn('   Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to use Upstash')
+    console.warn('   Falling back to local queue (no Redis)')
+    return undefined
+  }
+
+  // Fallback to standard Redis URL (only if explicitly set via REDIS_URL)
+  // This is a fallback, but background agents should use Upstash
   const redisUrl = process.env.REDIS_URL
 
-  if (!redisUrl) {
-    return undefined
-  }
-
-  try {
-    const url = new URL(redisUrl)
-
-    return {
-      host: url.hostname,
-      port: Number.parseInt(url.port || '6379', 10),
-      password: url.password || undefined,
+  if (redisUrl) {
+    console.warn('⚠️  Background agents: REDIS_URL detected, but Upstash is preferred')
+    try {
+      const url = new URL(redisUrl)
+      console.log('   Using standard Redis as fallback')
+      return {
+        host: url.hostname,
+        port: Number.parseInt(url.port || '6379', 10),
+        password: url.password || undefined,
+      }
+    } catch (error) {
+      console.error('❌ Failed to parse Redis URL:', error)
+      return undefined
     }
-  } catch (error) {
-    console.error('❌ Failed to parse Redis URL:', error)
-    return undefined
   }
+
+  return undefined
 }
 
 /**
@@ -142,12 +154,22 @@ function parseGitHubConfig():
 
   // If private key is a file path, read it from the file system
   if (!privateKey && privateKeyPath) {
-    try {
-      const fs = require('fs')
-      privateKey = fs.readFileSync(privateKeyPath, 'utf8')
-    } catch (error: any) {
-      console.error('❌ Failed to read GitHub private key from file:', privateKeyPath, error.message)
-      return undefined
+    // Security check: If privateKeyPath looks like a key itself (not a file path), use it directly
+    const isLikelyKey = privateKeyPath.includes('BEGIN') || privateKeyPath.length > 100 || privateKeyPath.includes('\n')
+    if (isLikelyKey) {
+      // It's the key content, not a file path
+      privateKey = privateKeyPath
+    } else {
+      // It's a file path, try to read it
+      try {
+        const fs = require('fs')
+        privateKey = fs.readFileSync(privateKeyPath, 'utf8')
+      } catch (error: any) {
+        // Security: Don't log the private key path if it looks like a key itself
+        const safePath = privateKeyPath.length > 100 ? '[REDACTED - path too long]' : privateKeyPath
+        console.error('❌ Failed to read GitHub private key from file:', safePath, error.message)
+        return undefined
+      }
     }
   }
 
@@ -208,7 +230,7 @@ function buildServerConfig(): APIServerConfig {
     },
     rateLimit: {
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: Number.parseInt(process.env.RATE_LIMIT_MAX || '10000', 10), // Drastically increased to 10000 requests per 15 minutes
+      max: Number.parseInt(process.env.RATE_LIMIT_MAX || '50000', 10), // Increased to 50000 requests per 15 minutes (with cache, this should be more than enough)
     },
     queue: {
       type: redisConfig ? 'redis' : 'local',
@@ -237,13 +259,13 @@ async function startServer() {
   }
 
   // Check AI provider API keys
-  const aiProviders = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY']
+  const aiProviders = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'OPENROUTER_API_KEY']
 
   const configuredProviders = aiProviders.filter((envVar) => process.env[envVar])
 
   if (configuredProviders.length === 0) {
     console.error('❌ No AI provider API keys configured. At least one is required.')
-    console.error('   Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY')
+    console.error('   Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or OPENROUTER_API_KEY')
     process.exit(1)
   }
 

@@ -34,7 +34,7 @@ class GitHubAPIClient {
         headers: {
           Authorization: `token ${this.token}`,
           Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'NikCLI-BackgroundAgents/0.5.0',
+          'User-Agent': 'NikCLI-BackgroundAgents/1.0.1',
         },
       })
 
@@ -72,7 +72,7 @@ class GitHubAPIClient {
         headers: {
           Authorization: `token ${this.token}`,
           Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'NikCLI-BackgroundAgents/0.5.0',
+          'User-Agent': 'NikCLI-BackgroundAgents/1.0.1',
         },
       })
 
@@ -100,6 +100,7 @@ interface WebConfig {
     repositories: GitHubRepository[]
   }
   defaultModel: string
+  openrouterModel: string
   defaultRepository: string | null
   notifications: {
     slack: boolean
@@ -135,12 +136,7 @@ export function setupWebRoutes(app: express.Application): void {
 
   app.use('/api/v1/web', webRouter)
 
-  // Import and mount Slack routes
-  import('./slack-routes').then(({ slackRouter }) => {
-    app.use('/v1/slack', slackRouter)
-  }).catch(err => {
-    console.error('Failed to load Slack routes:', err)
-  })
+  // Note: Slack routes are now mounted in server.ts under /v1/slack
 }
 
 // Configuration handlers
@@ -168,6 +164,7 @@ async function getWebConfig(_req: express.Request, res: express.Response): Promi
         repositories,
       },
       defaultModel: 'claude-3-5-sonnet-latest',
+      openrouterModel: process.env.OPENROUTER_MODEL || '@preset/nikcli',
       defaultRepository: null,
       notifications: {
         slack: false,
@@ -179,11 +176,13 @@ async function getWebConfig(_req: express.Request, res: express.Response): Promi
       success: true,
       config,
     })
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 
@@ -212,6 +211,7 @@ async function updateWebConfig(req: express.Request, res: express.Response): Pro
         repositories,
       },
       defaultModel: updates.defaultModel || 'claude-3-5-sonnet-latest',
+      openrouterModel: updates.openrouterModel || process.env.OPENROUTER_MODEL || '@preset/nikcli',
       defaultRepository: updates.defaultRepository || null,
       notifications: {
         slack: updates.notifications?.slack || false,
@@ -224,11 +224,13 @@ async function updateWebConfig(req: express.Request, res: express.Response): Pro
       config,
       message: 'Configuration updated successfully',
     })
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 
@@ -247,11 +249,13 @@ async function initiateGitHubOAuth(req: express.Request, res: express.Response):
     const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${state}`
 
     res.redirect(authUrl)
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 
@@ -266,8 +270,10 @@ async function handleGitHubCallback(req: express.Request, res: express.Response)
     // Exchange code for token (implementation would go here)
     // For now, redirect back to config page
     res.redirect('/config?tab=github&success=true')
+    return
   } catch (_error: any) {
     res.redirect('/config?tab=github&error=oauth_failed')
+    return
   }
 }
 
@@ -280,18 +286,21 @@ async function getGitHubRepositories(_req: express.Request, res: express.Respons
       success: true,
       repositories,
     })
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 
 // Job management handlers
 async function getWebJobs(req: express.Request, res: express.Response): Promise<void> {
   try {
-    const jobs = backgroundAgentService.listJobs({
+    await backgroundAgentService.waitForInitialization()
+    const jobs = await backgroundAgentService.listJobs({
       limit: parseInt(req.query.limit as string, 10) || 50,
       offset: parseInt(req.query.offset as string, 10) || 0,
     })
@@ -305,11 +314,13 @@ async function getWebJobs(req: express.Request, res: express.Response): Promise<
         webLogs: [],
       })),
     })
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 
@@ -331,11 +342,13 @@ async function createWebJob(req: express.Request, res: express.Response): Promis
       jobId,
       message: 'Background job created successfully',
     })
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 
@@ -361,11 +374,13 @@ async function getWebJob(req: express.Request, res: express.Response): Promise<v
         webLogs: [],
       },
     })
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 
@@ -378,11 +393,13 @@ async function cancelWebJob(req: express.Request, res: express.Response): Promis
       success,
       message: success ? 'Job cancelled successfully' : 'Job not found or cannot be cancelled',
     })
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 
@@ -412,11 +429,13 @@ async function getSnapshots(_req: express.Request, res: express.Response): Promi
       success: true,
       snapshots,
     })
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 
@@ -446,11 +465,13 @@ async function createSnapshot(req: express.Request, res: express.Response): Prom
       snapshot,
       message: 'Snapshot created successfully',
     })
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 
@@ -477,11 +498,13 @@ async function getSnapshot(req: express.Request, res: express.Response): Promise
         },
       },
     })
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 
@@ -494,11 +517,13 @@ async function deleteSnapshot(req: express.Request, res: express.Response): Prom
       success: true,
       message: 'Snapshot deleted successfully',
     })
+    return
   } catch (error: any) {
     res.status(500).json({
       success: false,
       error: error.message,
     })
+    return
   }
 }
 

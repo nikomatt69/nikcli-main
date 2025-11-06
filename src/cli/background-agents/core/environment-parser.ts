@@ -215,7 +215,7 @@ export class EnvironmentParser {
       install: `${packageManager} install`,
       start: '',
       terminals: [],
-      secrets: ['OPENAI_API_KEY,OPENROUTER_API_KEY'],
+      secrets: ['OPENAI_API_KEY', 'OPENROUTER_API_KEY'],
       cache: ['node_modules'],
       policies: {
         maxMemoryMB: 4096,

@@ -16,15 +16,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Key, Bell, Shield, Settings2, Eye, EyeOff, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { apiClient } from '@/lib/api-client'
 
 const apiKeySchema = z.object({
   openrouterKey: z
     .string()
     .min(1, 'OpenRouter API key is required')
     .regex(/^sk-or-v1-/, 'Invalid OpenRouter key format (must start with sk-or-v1-)'),
+  openrouterModel: z.string().optional().default('@preset/nikcli'),
   githubToken: z
     .string()
     .regex(/^(gh[ps]_|github_pat_)/, 'Invalid GitHub token format')
@@ -40,6 +49,7 @@ interface UserSettings {
   user_id: string
   api_keys?: {
     openrouter?: string
+    openrouterModel?: string
     github?: string
   }
   preferences?: {
@@ -72,6 +82,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
   const [userId, setUserId] = useState<string | null>(null)
+  const [openRouterModels, setOpenRouterModels] = useState<Array<{ id: string; name: string; context_length: number }>>([])
+  const [loadingModels, setLoadingModels] = useState(false)
 
   const [preferences, setPreferences] = useState({
     darkMode: true,
@@ -108,6 +120,7 @@ export default function SettingsPage() {
     resolver: zodResolver(apiKeySchema),
     defaultValues: {
       openrouterKey: '',
+      openrouterModel: '@preset/nikcli',
       githubToken: '',
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
       supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
@@ -152,6 +165,9 @@ export default function SettingsPage() {
         // Load API keys (stored in preferences.api_keys)
         if (prefs.api_keys?.openrouter) {
           setValue('openrouterKey', prefs.api_keys.openrouter)
+        }
+        if (prefs.api_keys?.openrouterModel) {
+          setValue('openrouterModel', prefs.api_keys.openrouterModel)
         }
         if (prefs.api_keys?.github) {
           setValue('githubToken', prefs.api_keys.github)
@@ -199,6 +215,27 @@ export default function SettingsPage() {
     }
   }
 
+  const fetchOpenRouterModels = async () => {
+    if (openRouterModels.length > 0) return // Already loaded
+    
+    try {
+      setLoadingModels(true)
+      const response = await apiClient.get<{ success: boolean; models: Array<{ id: string; name: string; context_length: number }> }>('/v1/models/openrouter')
+      
+      if (response.success && response.data?.models) {
+        setOpenRouterModels(response.data.models)
+      } else {
+        console.error('Failed to fetch models:', response)
+        toast.error('Failed to load OpenRouter models')
+      }
+    } catch (error) {
+      console.error('Error fetching OpenRouter models:', error)
+      toast.error('Failed to load OpenRouter models')
+    } finally {
+      setLoadingModels(false)
+    }
+  }
+
   const handleSaveApiKeys = async (data: ApiKeyForm) => {
     if (!userId) {
       toast.error('Please login to save settings')
@@ -224,6 +261,7 @@ export default function SettingsPage() {
             ...currentPrefs,
             api_keys: {
               openrouter: data.openrouterKey,
+              openrouterModel: data.openrouterModel || '@preset/nikcli',
               github: data.githubToken || null,
             },
           },
@@ -414,16 +452,17 @@ export default function SettingsPage() {
 
   return (
     <MainLayout>
-      <div className="container mx-auto p-6 max-w-5xl">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Settings2 className="h-8 w-8" />
-            Settings
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your API keys, preferences, security, and notifications
-          </p>
-        </div>
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="container mx-auto p-6 max-w-5xl flex-1 overflow-y-auto min-h-0">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Settings2 className="h-8 w-8" />
+              Settings
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Manage your API keys, preferences, security, and notifications
+            </p>
+          </div>
 
         <Tabs defaultValue="api-keys" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
@@ -491,6 +530,49 @@ export default function SettingsPage() {
                       >
                         OpenRouter
                       </a>
+                    </p>
+                  </div>
+
+                  {/* OpenRouter Model Selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="openrouterModel">OpenRouter Model</Label>
+                    <Select
+                      value={watch('openrouterModel') || '@preset/nikcli'}
+                      onValueChange={(value) => setValue('openrouterModel', value)}
+                      onOpenChange={(open) => {
+                        if (open && openRouterModels.length === 0) {
+                          fetchOpenRouterModels()
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="openrouterModel" disabled={loadingModels}>
+                        <SelectValue placeholder="Select a model">
+                          {loadingModels ? (
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading models...
+                            </span>
+                          ) : (
+                            watch('openrouterModel') || '@preset/nikcli'
+                          )}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {openRouterModels.length === 0 ? (
+                          <SelectItem value="@preset/nikcli">@preset/nikcli (Default)</SelectItem>
+                        ) : (
+                          openRouterModels.map((model) => (
+                            <SelectItem key={model.id} value={model.id}>
+                              {model.id === '@preset/nikcli' ? '⭐ ' : ''}
+                              {model.name || model.id}
+                              {model.context_length > 0 && ` (${(model.context_length / 1000).toFixed(0)}k)`}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Select the AI model to use for your jobs. Default: @preset/nikcli
                     </p>
                   </div>
 
@@ -831,6 +913,7 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
     </MainLayout>
   )

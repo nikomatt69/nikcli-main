@@ -22,8 +22,24 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        await signUp(email, password, username)
-        toast.success('Account created successfully! Please check your email to verify.')
+        // Basic validations for signup
+        if (!username || username.trim().length < 3) {
+          toast.error('Please enter a username (min 3 characters)')
+          return
+        }
+
+        const result = await signUp(email, password, username.trim())
+
+        // If email confirmation is disabled, Supabase returns a session
+        if (result?.session) {
+          toast.success('Account created and signed in!')
+          router.push('/')
+          return
+        }
+
+        // Otherwise, guide user to verify email and switch back to Sign In
+        toast.success('Account created! Please check your email to verify your account.')
+        setIsSignUp(false)
       } else {
         await signIn(email, password)
         toast.success('Logged in successfully!')
@@ -61,6 +77,7 @@ export default function LoginPage() {
                   placeholder="Enter your username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  required
                   disabled={isLoading}
                 />
               </div>

@@ -18,8 +18,14 @@ export default function HomePage() {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <div className="relative">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary/30 border-t-primary" />
+            <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-primary/10" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium">Loading...</p>
+            <p className="text-xs text-muted-foreground mt-1">Preparing your workspace</p>
+          </div>
         </div>
       </div>
     )

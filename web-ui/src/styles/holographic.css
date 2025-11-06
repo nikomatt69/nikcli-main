@@ -1,0 +1,223 @@
+/* Holographic Effects - Micro Subtle Enhancements */
+
+/* CSS Variables for Holographic Colors */
+:root {
+  --holo-gradient-1: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%);
+  --holo-gradient-2: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(147, 51, 234, 0.08) 100%);
+  --holo-border: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.15));
+  --holo-glow: 0 0 12px rgba(99, 102, 241, 0.12);
+  --holo-glow-strong: 0 0 16px rgba(99, 102, 241, 0.18);
+}
+
+/* Glassmorphism Panel */
+.glass-panel {
+  background: rgba(17, 24, 39, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Holographic Border */
+.holo-border {
+  position: relative;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+.holo-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--holo-border);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.holo-border:hover::before {
+  opacity: 1;
+}
+
+/* Micro Lift Effect */
+.micro-lift {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.micro-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Shimmer Effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+  pointer-events: none;
+}
+
+/* Holographic Glow */
+.holo-glow {
+  box-shadow: var(--holo-glow);
+  transition: box-shadow 0.3s ease;
+}
+
+.holo-glow:hover {
+  box-shadow: var(--holo-glow-strong);
+}
+
+/* Pulse Holographic */
+@keyframes pulse-holo {
+  0%, 100% {
+    opacity: 0.8;
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.15);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 16px rgba(99, 102, 241, 0.25);
+  }
+}
+
+.pulse-holo {
+  animation: pulse-holo 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Gradient Animation */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.gradient-animated {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Micro Parallax */
+.micro-parallax {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.micro-parallax:hover {
+  transform: translateZ(0) scale(1.01);
+}
+
+/* Ripple Effect */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.3);
+  pointer-events: none;
+  animation: ripple 0.6s ease-out;
+}
+
+/* Smooth Transitions */
+.smooth-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .glass-panel {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .holo-border::before {
+    opacity: 0.4;
+  }
+
+  .micro-lift:hover {
+    transform: none;
+  }
+
+  .shimmer::after {
+    display: none;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .shimmer::after,
+  .pulse-holo,
+  .gradient-animated,
+  .ripple {
+    animation: none;
+  }
+
+  .micro-lift:hover,
+  .micro-parallax:hover {
+    transform: none;
+  }
+
+  .smooth-transition {
+    transition: none;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .holo-border:hover::before {
+    opacity: 0.6;
+  }
+
+  .holo-glow:hover {
+    box-shadow: var(--holo-glow);
+  }
+
+  .micro-lift:hover {
+    transform: none;
+  }
+}

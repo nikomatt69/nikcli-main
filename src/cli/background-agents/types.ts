@@ -25,6 +25,7 @@ export interface BackgroundJob {
   pendingToolApprovals?: PendingToolApproval[]
   chatSessionId?: string
   fileChanges?: FileChange[]
+  userId?: string // Enterprise: User isolation for AI calls tracking and quota management
 }
 
 export interface JobLimits {
@@ -56,6 +57,8 @@ export interface JobMetrics {
   toolCalls: number
   executionTime: number
   memoryUsage: number
+  aiCalls?: number // Enterprise: Number of AI API calls made
+  estimatedCost?: number // Enterprise: Estimated cost in USD
 }
 
 export interface FollowUpMessage {
@@ -204,6 +207,7 @@ export interface CreateBackgroundJobRequest {
   labels?: string[]
   draft?: boolean
   githubContext?: GitHubContext
+  userId?: string // Enterprise: User ID for isolation and quota management
 }
 
 export interface QueueStats {

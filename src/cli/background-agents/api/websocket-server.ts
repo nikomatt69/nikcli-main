@@ -1,6 +1,6 @@
 // WebSocket server for real-time updates in Background Agents web interface
-import type { Server as HTTPServer } from 'node:http'
-import { WebSocket, WebSocketServer } from 'ws'
+import type { Server as HTTPServer, IncomingMessage, OutgoingHttpHeaders } from 'node:http'
+import { WebSocket, WebSocketServer, type VerifyClientCallbackAsync } from 'ws'
 import { backgroundAgentService } from '../background-agent-service'
 import type { BackgroundJob } from '../types'
 
@@ -29,7 +29,7 @@ export class BackgroundAgentsWebSocketServer {
       server,
       path: '/ws',
       // WebSocket doesn't use CORS headers directly, but we can verify origin
-      verifyClient: (info) => {
+      verifyClient: async (info: { origin: string; secure: boolean; req: IncomingMessage }, callback: (res: boolean, code?: number | undefined, message?: string | undefined, headers?: OutgoingHttpHeaders | undefined) => void) => {
         const origin = info.origin
         // Allow connections from any origin in production (handled by Railway OPTIONS Allowlist)
         // In development, check against allowed origins
@@ -37,7 +37,7 @@ export class BackgroundAgentsWebSocketServer {
           return true // Railway handles origin verification via OPTIONS Allowlist
         }
         // Development: check against allowed origins
-        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || 
+        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) ||
           ['http://localhost:3000', 'http://localhost:3001']
         return !origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')
       },
@@ -93,8 +93,10 @@ export class BackgroundAgentsWebSocketServer {
         this.clients.delete(clientId)
       })
 
-      // Send initial data
-      this.sendInitialData(clientId)
+      // Send initial data (async, don't await to avoid blocking connection)
+      this.sendInitialData(clientId).catch((error) => {
+        console.error(`Error sending initial data to ${clientId}:`, error)
+      })
     })
   }
 
@@ -173,10 +175,11 @@ export class BackgroundAgentsWebSocketServer {
     }
   }
 
-  private sendInitialData(clientId: string): void {
+  private async sendInitialData(clientId: string): Promise<void> {
     try {
       // Send current jobs state to new client
-      const jobs = backgroundAgentService.listJobs({ limit: 50, offset: 0 })
+      await backgroundAgentService.waitForInitialization()
+      const jobs = await backgroundAgentService.listJobs({ limit: 50, offset: 0 })
 
       jobs.forEach((job) => {
         this.sendToClient(clientId, {

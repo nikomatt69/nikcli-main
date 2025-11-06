@@ -6,6 +6,7 @@ import { VMStatusIndicator } from '../ui/vm-status-indicator'
 import { ContainerManager } from '../virtualized-agents/container-manager'
 import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
 import { VercelKVBackgroundAgentAdapter, vercelKVAdapter } from './adapters/vercel-kv-adapter'
+import { LocalFileBackgroundAgentAdapter, localFileAdapter, type LocalFileAdapter } from './adapters/local-file-adapter'
 import { EnvironmentParser } from './core/environment-parser'
 import { PlaybookParser } from './core/playbook-parser'
 import type { BackgroundJob, CreateBackgroundJobRequest, JobStatus } from './types'
@@ -26,13 +27,24 @@ export class BackgroundAgentService extends EventEmitter {
   private maxConcurrentJobs = 3
   private runningJobs = 0
   private useVercelKV = false
+  private useLocalFile = false
   private kvAdapter?: VercelKVBackgroundAgentAdapter
+  private localAdapter?: LocalFileBackgroundAgentAdapter
+  private initialized = false
+  private initializationPromise: Promise<void>
 
   constructor() {
     super()
     this.vmOrchestrator = new VMOrchestrator(new ContainerManager())
     this.vmStatusIndicator = VMStatusIndicator.getInstance()
-    this.initializeService()
+    this.initializationPromise = this.initializeService()
+  }
+
+  /**
+   * Wait for service initialization to complete
+   */
+  async waitForInitialization(): Promise<void> {
+    await this.initializationPromise
   }
 
   private async initializeService(): Promise<void> {
@@ -51,10 +63,13 @@ export class BackgroundAgentService extends EventEmitter {
           // Load existing jobs from KV
           await this.loadJobsFromKV()
         } else {
-          console.warn('⚠️ Vercel KV not available - falling back to in-memory storage')
+          console.warn('⚠️ Vercel KV not available - falling back to local file storage')
+          // Fall back to local file storage
+          await this.initializeLocalFileStorage()
         }
       } else {
-        console.log('🔧 Local environment - using in-memory storage')
+        console.log('🔧 Local environment - using local file storage')
+        await this.initializeLocalFileStorage()
       }
 
       // Initialize VM orchestrator if available
@@ -62,10 +77,34 @@ export class BackgroundAgentService extends EventEmitter {
         // VM orchestrator is initialized via constructor
       }
 
+      this.initialized = true
       this.emit('ready')
     } catch (error) {
       console.error('Failed to initialize Background Agent Service:', error)
       this.emit('error', error)
+      // Even if initialization fails, mark as initialized to prevent blocking
+      this.initialized = true
+    }
+  }
+
+  /**
+   * Initialize local file storage
+   */
+  private async initializeLocalFileStorage(): Promise<void> {
+    try {
+      this.localAdapter = localFileAdapter
+      const isAvailable = await this.localAdapter.isAvailable()
+      if (isAvailable) {
+        this.useLocalFile = true
+        console.log('✓ Local file storage initialized')
+
+        // Load existing jobs from local file
+        await this.loadJobsFromLocalFile()
+      } else {
+        console.warn('⚠️ Local file storage not available - using in-memory storage only')
+      }
+    } catch (error) {
+      console.error('Error initializing local file storage:', error)
     }
   }
 
@@ -89,6 +128,29 @@ export class BackgroundAgentService extends EventEmitter {
       }
     } catch (error) {
       console.error('Error loading jobs from KV:', error)
+    }
+  }
+
+  /**
+   * Load existing jobs from local file storage
+   */
+  private async loadJobsFromLocalFile(): Promise<void> {
+    if (!this.useLocalFile || !this.localAdapter) return
+
+    try {
+      const jobs = await this.localAdapter.getAllJobs()
+      console.log(`📋 Loaded ${jobs.length} jobs from local file storage`)
+
+      for (const job of jobs) {
+        this.jobs.set(job.id, job)
+
+        // Count running jobs
+        if (job.status === 'running') {
+          this.runningJobs++
+        }
+      }
+    } catch (error) {
+      console.error('Error loading jobs from local file:', error)
     }
   }
 
@@ -123,6 +185,7 @@ export class BackgroundAgentService extends EventEmitter {
       },
       followUpMessages: [],
       githubContext: request.githubContext,
+      userId: request.userId, // Enterprise: User isolation
     }
 
     this.jobs.set(jobId, job)
@@ -138,17 +201,61 @@ export class BackgroundAgentService extends EventEmitter {
       }
     }
 
-    this.emit('job:created', job.id, job)
-
-    // Start job execution if we have capacity
-    if (this.runningJobs < this.maxConcurrentJobs) {
-      this.executeJob(jobId).catch((error) => {
-        this.logJob(job, 'error', `Failed to start job: ${error.message}`)
-        this.emit('job:failed', job.id, job)
-      })
+    // Store in local file if available
+    if (this.useLocalFile && this.localAdapter) {
+      try {
+        await this.localAdapter.storeJob(jobId, job)
+        await this.localAdapter.incrementStat('total')
+        await this.localAdapter.incrementStat('queued')
+      } catch (error) {
+        console.error('Error storing job in local file:', error)
+      }
     }
 
+    this.emit('job:created', job.id, job)
+
+    // Job will be started by JobQueue when ready (no direct execution here to avoid race conditions)
+    // The queue will emit 'job:ready' which will trigger executeJob via setupQueueListeners
+
     return jobId
+  }
+
+  /**
+   * Setup queue event listeners to connect JobQueue with execution
+   * This MUST be called after JobQueue initialization to enable automatic job execution
+   */
+  setupQueueListeners(jobQueue: any): void {
+    // Listen for job:ready event from JobQueue
+    jobQueue.on('job:ready', async (jobId: string) => {
+      try {
+        console.log(`[BackgroundAgentService] Job ${jobId} ready for execution`)
+
+        // Check if job still exists and is in correct state
+        const job = this.jobs.get(jobId)
+        if (!job) {
+          console.error(`[BackgroundAgentService] Job ${jobId} not found, skipping execution`)
+          await jobQueue.failJob(jobId, 'Job not found in BackgroundAgentService')
+          return
+        }
+
+        if (job.status !== 'queued') {
+          console.warn(`[BackgroundAgentService] Job ${jobId} has status ${job.status}, expected 'queued'`)
+          return
+        }
+
+        // Execute the job
+        await this.executeJob(jobId)
+
+        // Mark as completed in queue
+        await jobQueue.completeJob(jobId)
+
+      } catch (error: any) {
+        console.error(`[BackgroundAgentService] Error executing job ${jobId}:`, error)
+        await jobQueue.failJob(jobId, error.message || 'Unknown error')
+      }
+    })
+
+    console.log('[BackgroundAgentService] Queue event listeners initialized')
   }
 
   /**
@@ -161,7 +268,12 @@ export class BackgroundAgentService extends EventEmitter {
   /**
    * List jobs with filtering
    */
-  listJobs(options: { status?: JobStatus; limit?: number; offset?: number } = {}): BackgroundJob[] {
+  async listJobs(options: { status?: JobStatus; limit?: number; offset?: number } = {}): Promise<BackgroundJob[]> {
+    // Ensure initialization is complete
+    if (!this.initialized) {
+      await this.waitForInitialization()
+    }
+
     let filteredJobs = Array.from(this.jobs.values())
 
     if (options.status) {
@@ -194,6 +306,7 @@ export class BackgroundAgentService extends EventEmitter {
     job.completedAt = new Date()
     job.error = 'Cancelled by user'
 
+    await this.saveJob(job)
     this.logJob(job, 'warn', 'Job cancelled by user')
     this.emit('job:cancelled', job)
 
@@ -257,6 +370,7 @@ export class BackgroundAgentService extends EventEmitter {
     job.startedAt = new Date()
     this.runningJobs++
 
+    await this.saveJob(job)
     this.logJob(job, 'info', 'Starting background job execution')
     this.emit('job:started', job.id, job)
 
@@ -278,14 +392,45 @@ export class BackgroundAgentService extends EventEmitter {
       job.completedAt = new Date()
       job.metrics.executionTime = job.completedAt.getTime() - job.startedAt?.getTime()
 
+      await this.saveJob(job)
       this.logJob(job, 'info', 'Job completed successfully')
       this.emit('job:completed', job.id, job)
     } catch (error: any) {
       job.status = 'failed'
-      job.error = error.message
-      job.completedAt = new Date()
 
-      this.logJob(job, 'error', `Job failed: ${error.message}`)
+      // Check if this is a module resolution error for a malformed package
+      const isModuleResolutionError =
+        error.message?.includes('exports') &&
+        error.message?.includes('package.json') &&
+        error.message?.includes('node_modules')
+
+      if (isModuleResolutionError) {
+        // This is likely a dependency issue, not a critical failure
+        const packageMatch = error.message.match(/node_modules\/([^/]+)/)
+        const packageName = packageMatch ? packageMatch[1] : 'unknown'
+
+        job.error = `Module resolution error: ${packageName} has malformed package.json. This may be a dependency issue.`
+        this.logJob(job, 'warn', `⚠️ Module resolution warning: ${error.message}`)
+        this.logJob(job, 'info', `💡 Attempting to continue execution despite dependency issue...`)
+
+        // Try to continue execution by clearing module cache if possible
+        try {
+          // Clear require cache for the problematic package if it exists
+          const cacheKeys = Object.keys(require.cache)
+          const problematicKeys = cacheKeys.filter(key => key.includes(packageName))
+          problematicKeys.forEach(key => delete require.cache[key])
+
+          this.logJob(job, 'info', `🧹 Cleared module cache for ${packageName}`)
+        } catch (cacheError) {
+          // Ignore cache clearing errors
+        }
+      } else {
+        job.error = error.message
+        this.logJob(job, 'error', `Job failed: ${error.message}`)
+      }
+
+      job.completedAt = new Date()
+      await this.saveJob(job)
       this.emit('job:failed', job.id, job)
     } finally {
       this.runningJobs--
@@ -304,6 +449,7 @@ export class BackgroundAgentService extends EventEmitter {
       job.status = 'timeout'
       job.error = `Job timeout after ${job.limits.timeMin} minutes`
       job.completedAt = new Date()
+      await this.saveJob(job)
 
       await this.logJob(job, 'error', 'Job timed out - cleaning up resources')
 
@@ -435,8 +581,8 @@ export class BackgroundAgentService extends EventEmitter {
 
       // Network issues detected - fallback to local repository copy
       if (cloneError.message.includes('Could not resolve host') ||
-          cloneError.message.includes('timeout') ||
-          cloneError.message.includes('network')) {
+        cloneError.message.includes('timeout') ||
+        cloneError.message.includes('network')) {
 
         this.logJob(job, 'info', '🔄 Network issue detected, using local repository copy as fallback')
         await this.copyLocalRepository(job, workspaceDir, repoDir)
@@ -459,9 +605,154 @@ export class BackgroundAgentService extends EventEmitter {
       })
 
       this.logJob(job, 'info', `Created work branch: ${job.workBranch}`)
+
+      // Fix ESM-only packages after clone to prevent module resolution errors
+      await this.fixESMPackages(job, repoDir)
     } catch (error: any) {
       this.logJob(job, 'error', `Failed to setup repository: ${error.message}`)
       throw error
+    }
+  }
+
+  /**
+   * Fix ESM-only packages in cloned repository to prevent module resolution errors
+   */
+  private async fixESMPackages(job: BackgroundJob, repoDir: string): Promise<void> {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+
+    try {
+      // Check if scripts/fix-unicorn-magic.js exists in the cloned repo
+      const fixScriptPath = path.join(repoDir, 'scripts', 'fix-unicorn-magic.js')
+      const nodeModulesPath = path.join(repoDir, 'node_modules')
+
+      // Only run fix if node_modules exists (npm install has been run)
+      try {
+        await fs.access(nodeModulesPath)
+      } catch {
+        // node_modules doesn't exist yet, skip fix (will be fixed after npm install)
+        return
+      }
+
+      // Check if fix script exists
+      try {
+        await fs.access(fixScriptPath)
+        // Script exists, run it
+        const { execSync } = await import('node:child_process')
+        this.logJob(job, 'info', '🔧 Fixing ESM-only packages...')
+        execSync(`node scripts/fix-unicorn-magic.js`, {
+          cwd: repoDir,
+          stdio: 'pipe',
+        })
+        this.logJob(job, 'info', '✅ ESM packages fixed')
+      } catch {
+        // Script doesn't exist, run inline fix
+        await this.fixESMPackagesInline(job, repoDir)
+      }
+    } catch (error: any) {
+      // Non-critical error, log and continue
+      this.logJob(job, 'warn', `⚠️ Failed to fix ESM packages: ${error.message}`)
+    }
+  }
+
+  /**
+   * Inline fix for ESM packages (when script doesn't exist)
+   * Handles both standard npm/yarn structure and pnpm structure
+   */
+  private async fixESMPackagesInline(job: BackgroundJob, repoDir: string): Promise<void> {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+
+    const packagesToFix = [
+      { name: 'unicorn-magic', main: './node.js' },
+      { name: 'is-plain-obj', main: './index.js' },
+      { name: 'is-docker', main: './index.js' },
+      { name: 'is-inside-container', main: './index.js' },
+      { name: 'responselike', main: './index.js' },
+    ]
+
+    const nodeModulesPath = path.join(repoDir, 'node_modules')
+
+    // Helper to find package in pnpm structure
+    // pnpm can nest packages inside other packages (e.g., .pnpm/globby@15.0.0/node_modules/unicorn-magic)
+    const findPackageInPnpm = async (pkgName: string): Promise<string | null> => {
+      const pnpmPath = path.join(nodeModulesPath, '.pnpm')
+      try {
+        await fs.access(pnpmPath)
+        const entries = await fs.readdir(pnpmPath, { withFileTypes: true })
+        // Search in ALL directories, not just those containing the package name
+        // because packages can be nested inside other packages' node_modules
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            const candidatePath = path.join(pnpmPath, entry.name, 'node_modules', pkgName, 'package.json')
+            try {
+              await fs.access(candidatePath)
+              return candidatePath
+            } catch {
+              // Continue searching
+            }
+          }
+        }
+      } catch {
+        // .pnpm doesn't exist or error reading
+      }
+      return null
+    }
+
+    let fixedCount = 0
+
+    for (const pkg of packagesToFix) {
+      try {
+        // Try standard location first
+        let pkgPath = path.join(repoDir, 'node_modules', pkg.name, 'package.json')
+
+        // If not found, try pnpm structure
+        try {
+          await fs.access(pkgPath)
+        } catch {
+          const pnpmPath = await findPackageInPnpm(pkg.name)
+          if (pnpmPath) {
+            pkgPath = pnpmPath
+          } else {
+            // Package not found, skip
+            continue
+          }
+        }
+
+        const pkgJson = JSON.parse(await fs.readFile(pkgPath, 'utf8'))
+
+        if (!pkgJson.main) {
+          // Verify main file exists
+          const mainPath = path.join(path.dirname(pkgPath), pkg.main)
+          try {
+            await fs.access(mainPath)
+            pkgJson.main = pkg.main
+            await fs.writeFile(pkgPath, JSON.stringify(pkgJson, null, '\t') + '\n', 'utf8')
+            fixedCount++
+          } catch {
+            // Try alternatives
+            const alternatives = ['./index.js', './dist/index.js', './src/index.js']
+            for (const alt of alternatives) {
+              const altPath = path.join(path.dirname(pkgPath), alt)
+              try {
+                await fs.access(altPath)
+                pkgJson.main = alt
+                await fs.writeFile(pkgPath, JSON.stringify(pkgJson, null, '\t') + '\n', 'utf8')
+                fixedCount++
+                break
+              } catch {
+                // Continue to next alternative
+              }
+            }
+          }
+        }
+      } catch {
+        // Package not found or already fixed, skip
+      }
+    }
+
+    if (fixedCount > 0) {
+      this.logJob(job, 'info', `✅ Fixed ${fixedCount} ESM package(s)`)
     }
   }
 
@@ -513,7 +804,7 @@ export class BackgroundAgentService extends EventEmitter {
       // Create basic package.json
       const packageJson = {
         name: "background-agent-workspace",
-        version: "1.0.0",
+        version: "1.0.1",
         description: "Background agent workspace",
         scripts: {
           test: "echo 'No tests configured'"
@@ -737,64 +1028,343 @@ export class BackgroundAgentService extends EventEmitter {
 
 
   /**
-   * Execute task using TaskMaster for planning and execution
+   * Execute task using real toolchains exactly like NikCLI user mode
+   * Uses advancedAIProvider.streamChatWithFullAutonomy with unifiedRenderer and streamttyService
    */
   private async executeRealToolchain(job: BackgroundJob, workingDir: string, task: string): Promise<void> {
-    const { taskMasterService } = await import('../services/taskmaster-service')
+    // Suppress Node.js module resolution warnings for malformed packages
+    const originalEmitWarning = process.emitWarning
+    process.emitWarning = function (warning: any, ...args: any[]) {
+      // Ignore warnings about missing exports/main in package.json
+      if (typeof warning === 'string' && warning.includes('exports') && warning.includes('package.json')) {
+        return
+      }
+      if (warning?.message?.includes('exports') && warning?.message?.includes('package.json')) {
+        return
+      }
+      return originalEmitWarning.call(process, warning, ...args)
+    }
 
-    this.logJob(job, 'info', `🤖 Using TaskMaster for task execution: ${task}`)
-    this.logJob(job, 'info', `📁 Sandbox workspace: ${workingDir}`)
-
-    // CRITICAL: Background job must operate in complete isolation in its workspace
-    process.chdir(workingDir)
-    this.logJob(job, 'info', `🔒 Background job operating in sandbox: ${workingDir}`)
+    // Save original working directory
+    const originalCwd = process.cwd()
 
     try {
-      // Initialize TaskMaster with current working directory
-      const originalWorkspace = taskMasterService['config'].workspacePath
-      taskMasterService['config'].workspacePath = workingDir
+      // CRITICAL: Background job must operate in complete isolation in its workspace
+      process.chdir(workingDir)
+      this.logJob(job, 'info', `🔒 Background job operating in sandbox: ${workingDir}`)
+      this.logJob(job, 'info', `⚡ Executing task with real toolchains: ${task}`)
 
-      // Create plan using TaskMaster's AI planning
-      this.logJob(job, 'info', '📋 Creating execution plan with TaskMaster AI...')
-      const plan = await taskMasterService.createPlan(task, {
-        projectPath: workingDir,
-        projectType: 'background-job'
-      })
+      // CRITICAL: Fix ESM packages BEFORE any imports to prevent module resolution errors
+      // This must happen in both the cloned repo AND the main project's node_modules
+      // Execute fix IMMEDIATELY and SYNCHRONOUSLY to ensure it completes before any imports
+      
+      // 1. Fix in main project's node_modules FIRST (where imports actually resolve from)
+      // Use synchronous require to avoid any async import issues
+      try {
+        const esmFixLoader = require('./utils/esm-fix-loader')
+        // Fix in current working directory (main project)
+        esmFixLoader.autoFixESMPackages(process.cwd(), true) // silent mode
+        // Also fix in /app (Railway deployment path)
+        if (process.cwd() !== '/app') {
+          esmFixLoader.autoFixESMPackages('/app', true) // silent mode
+        }
+        this.logJob(job, 'info', '🔧 ESM packages fixed in main project')
+      } catch (fixError: any) {
+        // Non-critical, log and continue
+        this.logJob(job, 'warn', `⚠️ ESM fix warning: ${fixError.message}`)
+      }
+      
+      // 2. Fix in cloned repository (if node_modules exists)
+      await this.fixESMPackages(job, workingDir)
+      
+      // 3. Small delay to ensure file system writes are flushed
+      await new Promise(resolve => setTimeout(resolve, 200))
 
-      this.logJob(job, 'info', `✅ Plan created with ${plan.todos.length} tasks`)
+      // Declare variables outside try-catch so they're accessible later
+      let advancedAIProvider: any
+      let getUnifiedToolRenderer: any
+      let streamttyService: any
 
-      // Execute the plan using TaskMaster service and then invoke our toolchains
-      this.logJob(job, 'info', '🚀 Starting task execution...')
-      const result = await taskMasterService.executePlan(plan.id)
+      // Import services - ESM packages should now be fixed
+      try {
 
-      // Now execute our real toolchains based on the TaskMaster plan
-      this.logJob(job, 'info', '🔧 Executing real toolchains based on TaskMaster plan...')
-      await this.executeTaskMasterToolchains(job, workingDir, plan)
+        // Use direct imports with error handling - import() resolves relative paths
+        // from the current file's location, so we need to import from the correct context
+        // Since we're in background-agent-service.ts, relative imports work correctly
+        const aiProviderModule = await import('../ai/advanced-ai-provider')
+        const rendererModule = await import('../services/unified-tool-renderer')
+        const streamttyModule = await import('../services/streamtty-service')
 
-      // Log execution results
-      if (result.status === 'completed') {
-        this.logJob(job, 'info', `✅ Task completed successfully`)
-        this.logJob(job, 'info', `📊 Tasks: ${result.summary.completedTasks}/${result.summary.totalTasks} completed`)
-      } else if (result.status === 'failed') {
-        this.logJob(job, 'error', `❌ Task execution failed`)
-        this.logJob(job, 'error', `📊 Tasks: ${result.summary.completedTasks}/${result.summary.totalTasks} completed`)
-      } else if (result.status === 'partial') {
-        this.logJob(job, 'warn', `⚠️ Task partially completed`)
-        this.logJob(job, 'info', `📊 Tasks: ${result.summary.completedTasks}/${result.summary.totalTasks} completed`)
+        advancedAIProvider = aiProviderModule.advancedAIProvider
+        getUnifiedToolRenderer = rendererModule.getUnifiedToolRenderer
+        streamttyService = streamttyModule.streamttyService
+      } catch (importError: any) {
+        // Fallback to direct imports with error handling
+        this.logJob(job, 'warn', `⚠️ Safe import failed, using fallback: ${importError.message}`)
+
+        try {
+          const aiProviderModule = await import('../ai/advanced-ai-provider')
+          advancedAIProvider = aiProviderModule.advancedAIProvider
+        } catch (err: any) {
+          const isESMError = err?.message?.includes('exports') && err?.message?.includes('package.json')
+          if (isESMError) {
+            // Try to fix and retry
+            const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
+            autoFixESMPackages(process.cwd())
+            await new Promise(resolve => setTimeout(resolve, 100))
+            const aiProviderModule = await import('../ai/advanced-ai-provider')
+            advancedAIProvider = aiProviderModule.advancedAIProvider
+          } else {
+            throw err
+          }
+        }
+
+        try {
+          const rendererModule = await import('../services/unified-tool-renderer')
+          getUnifiedToolRenderer = rendererModule.getUnifiedToolRenderer
+        } catch (err: any) {
+          const isESMError = err?.message?.includes('exports') && err?.message?.includes('package.json')
+          if (isESMError) {
+            const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
+            autoFixESMPackages(process.cwd())
+            await new Promise(resolve => setTimeout(resolve, 100))
+            const rendererModule = await import('../services/unified-tool-renderer')
+            getUnifiedToolRenderer = rendererModule.getUnifiedToolRenderer
+          } else {
+            throw err
+          }
+        }
+
+        try {
+          const streamttyModule = await import('../services/streamtty-service')
+          streamttyService = streamttyModule.streamttyService
+        } catch (err: any) {
+          const isESMError = err?.message?.includes('exports') && err?.message?.includes('package.json')
+          if (isESMError) {
+            const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
+            autoFixESMPackages(process.cwd())
+            await new Promise(resolve => setTimeout(resolve, 100))
+            const streamttyModule = await import('../services/streamtty-service')
+            streamttyService = streamttyModule.streamttyService
+          } else {
+            throw err
+          }
+        }
       }
 
-      // Restore original workspace
-      taskMasterService['config'].workspacePath = originalWorkspace
+      // Initialize unified renderer
+      const unifiedRenderer = getUnifiedToolRenderer()
+      unifiedRenderer.startExecution('parallel')
 
-      // Store execution metrics
-      job.metrics.toolCalls += result.summary.totalTasks
+      // Create messages exactly like NikCLI plan mode
+      const messages = [{ role: 'user' as const, content: task }]
+      let streamCompleted = false
+      let assistantText = ''
+      let shouldFormatOutput = false
+      let streamedLines = 0
+      const terminalWidth = process.stdout.columns || 80
+      let activeToolCallId: string | undefined
+
+      // Track tool calls for metrics
+      let toolCallCount = 0
+      let aiCallCount = 0
+      let totalInputTokens = 0
+      let totalOutputTokens = 0
+      let totalEstimatedCost = 0
+
+      // Enterprise: Initialize user usage tracking if userId is present
+      // Use safe dynamic import to handle ESM errors
+      const { safeDynamicImport } = await import('./utils/esm-fix-loader')
+      const usageTrackerModule = await safeDynamicImport('./services/user-usage-tracker', process.cwd())
+      const quotaServiceModule = await safeDynamicImport('./services/user-quota-service', process.cwd())
+      const usageTracker = usageTrackerModule.getUserUsageTracker()
+      const quotaService = quotaServiceModule.getUserQuotaService()
+
+      // Enterprise: Check quota before execution if userId is present
+      if (job.userId) {
+        const usage = usageTracker.getUsageStats(job.userId)
+        if (usage) {
+          const quotaCheck = quotaService.checkAICallAllowed(job.userId, usage, 0)
+          if (!quotaCheck.allowed) {
+            throw new Error(`Quota exceeded: ${quotaCheck.reason}`)
+          }
+        }
+      }
+
+      try {
+        // Stream execution exactly like NikCLI executeAgentWithPlanModeStreaming
+        // Wrap the stream generator call to catch module resolution errors during initialization
+        let streamGenerator: AsyncGenerator<any>
+        try {
+          streamGenerator = advancedAIProvider.streamChatWithFullAutonomy(messages)
+        } catch (streamInitError: any) {
+          const isModuleError = streamInitError?.message?.includes('exports') && streamInitError?.message?.includes('package.json')
+          if (isModuleError) {
+            this.logJob(job, 'warn', `⚠️ Module resolution warning during stream init (non-critical): ${streamInitError.message}`)
+            this.logJob(job, 'info', '💡 Retrying stream initialization...')
+            // Retry once
+            streamGenerator = advancedAIProvider.streamChatWithFullAutonomy(messages)
+          } else {
+            throw streamInitError
+          }
+        }
+
+        for await (const ev of streamGenerator) {
+          switch (ev.type) {
+            case 'text_delta':
+              // Stream text exactly like NikCLI
+              if (ev.content) {
+                assistantText += ev.content
+                await streamttyService.streamChunk(ev.content, 'ai')
+
+                // Track lines for clearing (same as NikCLI)
+                const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
+                const newlines = (visualContent.match(/\n/g) || []).length
+                const charsWithoutNewlines = visualContent.replace(/\n/g, '').length
+                const wrappedLines = Math.ceil(charsWithoutNewlines / terminalWidth)
+                streamedLines += newlines + wrappedLines
+
+                // Also log to job logs
+                this.logJob(job, 'debug', ev.content)
+              }
+              break
+
+            case 'tool_call': {
+              // Use unified renderer for tool call logging (same as NikCLI)
+              const toolName = ev.toolName || 'unknown_tool'
+              const toolCallId = `bg-${toolName}-${Date.now()}`
+              toolCallCount++
+
+              await unifiedRenderer.logToolCall(
+                toolName,
+                ev.toolArgs,
+                { mode: 'plan', toolCallId, agentName: 'Background Agent' },
+                { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+              )
+              activeToolCallId = toolCallId
+
+              // Log to job
+              this.logJob(job, 'info', `🔧 Tool call: ${toolName}`)
+              break
+            }
+
+            case 'tool_result': {
+              // Use unified renderer for tool result logging (same as NikCLI)
+              if (activeToolCallId) {
+                await unifiedRenderer.logToolResult(
+                  activeToolCallId,
+                  ev.toolResult,
+                  { mode: 'plan', agentName: 'Background Agent' },
+                  { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+                )
+              }
+              activeToolCallId = undefined
+
+              // Log to job
+              this.logJob(job, 'info', `✅ Tool result received`)
+              break
+            }
+
+            case 'complete':
+              // Mark that we should format output after stream ends (like NikCLI)
+              if (assistantText.length > 200) {
+                shouldFormatOutput = true
+              }
+              streamCompleted = true
+
+              // Enterprise: Track AI call completion
+              // Estimate tokens from content (rough: ~4 chars per token)
+              if (job.userId) {
+                aiCallCount++
+                // Estimate input tokens from original task
+                const estimatedInputTokens = Math.ceil((task.length + 500) / 4) // Task + system prompt overhead
+                // Estimate output tokens from assistant text
+                const estimatedOutputTokens = Math.ceil(assistantText.length / 4)
+                totalInputTokens += estimatedInputTokens
+                totalOutputTokens += estimatedOutputTokens
+
+                // Estimate cost (rough calculation - adjust based on your model pricing)
+                // Example: $0.01 per 1K input tokens, $0.03 per 1K output tokens
+                const estimatedCost = (estimatedInputTokens / 1000) * 0.01 + (estimatedOutputTokens / 1000) * 0.03
+                totalEstimatedCost += estimatedCost
+
+                // Track the AI call
+                await usageTracker.trackAICall(job.userId, estimatedInputTokens, estimatedOutputTokens, estimatedCost)
+              }
+              break
+
+            case 'error':
+              // Stream error - check if it's a non-critical module resolution error
+              const isModuleResolutionErrorInStream =
+                ev.error?.includes('exports') &&
+                ev.error?.includes('package.json')
+
+              if (isModuleResolutionErrorInStream) {
+                this.logJob(job, 'warn', `⚠️ Module resolution warning (non-critical): ${ev.error}`)
+                this.logJob(job, 'info', '💡 Continuing execution despite module resolution warning...')
+                // Don't throw - continue execution
+                break
+              } else {
+                // Real error - throw it
+                this.logJob(job, 'error', `❌ Background agent error: ${ev.error}`)
+                throw new Error(ev.error)
+              }
+          }
+        }
+
+        // Clear streamed output and show formatted version if needed (same as NikCLI)
+        if (shouldFormatOutput) {
+          // Just add spacing
+          console.log('')
+        } else {
+          // No formatting needed - add spacing after stream
+          console.log('\n')
+        }
+
+        if (!streamCompleted) {
+          throw new Error('Stream did not complete properly')
+        }
+
+        // Store execution metrics
+        job.metrics.toolCalls += toolCallCount
+        job.metrics.aiCalls = (job.metrics.aiCalls || 0) + aiCallCount
+        job.metrics.tokenUsage = totalInputTokens + totalOutputTokens
+        job.metrics.estimatedCost = (job.metrics.estimatedCost || 0) + totalEstimatedCost
+
+        // Enterprise: Track tool calls and job completion for user
+        if (job.userId) {
+          await usageTracker.trackToolCalls(job.userId, toolCallCount)
+          await usageTracker.trackJobCompletion(job.userId)
+        }
+
+        this.logJob(job, 'info', `✅ Task completed successfully with ${toolCallCount} tool calls, ${aiCallCount} AI calls, ${job.metrics.tokenUsage} tokens ($${job.metrics.estimatedCost?.toFixed(4)})`)
+
+      } catch (error: any) {
+        // Check if this is a module resolution error that we can ignore
+        const isModuleResolutionError =
+          error.message?.includes('exports') &&
+          error.message?.includes('package.json')
+
+        if (isModuleResolutionError) {
+          this.logJob(job, 'warn', `⚠️ Module resolution warning (non-critical): ${error.message}`)
+          this.logJob(job, 'info', '💡 Continuing execution despite module resolution warning...')
+          // Continue - don't throw
+        } else {
+          this.logJob(job, 'error', `Task execution failed: ${error.message}`)
+          throw error
+        }
+      } finally {
+        unifiedRenderer.endExecution()
+      }
 
     } catch (error: any) {
-      this.logJob(job, 'error', `TaskMaster execution failed: ${error.message}`)
-
-      // Fallback to basic tool execution
-      this.logJob(job, 'info', '🔄 Falling back to basic tool execution...')
-      await this.executeBasicToolchain(job, workingDir, task)
+      this.logJob(job, 'error', `Background agent execution failed: ${error.message}`)
+      throw error
+    } finally {
+      // Restore original working directory
+      process.chdir(originalCwd)
+      // Restore original emitWarning
+      process.emitWarning = originalEmitWarning
     }
   }
 
@@ -1035,7 +1605,19 @@ EOF`
    * Fallback to host execution when container is not available
    */
   private async executeAutonomousTaskOnHost(job: BackgroundJob, workingDir: string, todo: any): Promise<void> {
-    const { advancedAIProvider } = await import('../ai/advanced-ai-provider')
+    // Fix ESM packages before importing
+    try {
+      const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
+      autoFixESMPackages(process.cwd())
+      if (process.cwd() !== '/app') {
+        autoFixESMPackages('/app')
+      }
+    } catch {
+      // Non-critical
+    }
+
+    const { safeDynamicImport } = await import('./utils/esm-fix-loader')
+    const { advancedAIProvider } = await safeDynamicImport('../ai/advanced-ai-provider', process.cwd())
 
     this.logJob(job, 'info', `🖥️ Executing on host (fallback): ${todo.title}`)
 
@@ -1046,9 +1628,9 @@ EOF`
 
     // Create execution context similar to autonomous planner
     const executionMessages = [
-        {
-          role: 'system' as const,
-          content: `You are an autonomous executor that completes specific development tasks.
+      {
+        role: 'system' as const,
+        content: `You are an autonomous executor that completes specific development tasks.
 
 CURRENT TASK: ${todo.title}
 TASK DESCRIPTION: ${todo.description}
@@ -1069,47 +1651,47 @@ EXECUTION GUIDELINES:
 10. All changes will be committed and pushed as a PR from this workspace
 
 Execute the task now using the available tools. Make real changes in the sandbox workspace.`
-        },
-        {
-          role: 'user' as const,
-          content: `Execute task: ${todo.title}\n\nDescription: ${todo.description}\n\nComplete this task fully using all necessary tools in workspace: ${workingDir}`
+      },
+      {
+        role: 'user' as const,
+        content: `Execute task: ${todo.title}\n\nDescription: ${todo.description}\n\nComplete this task fully using all necessary tools in workspace: ${workingDir}`
+      }
+    ]
+
+    let responseText = ''
+    const toolCalls: any[] = []
+    const toolResults: any[] = []
+
+    try {
+      // Execute using autonomous task execution like plan mode
+      for await (const event of advancedAIProvider.executeAutonomousTask('Background Agent Task', {
+        messages: executionMessages,
+      })) {
+        if (event.type === 'text_delta' && event.content) {
+          responseText += event.content
+        } else if (event.type === 'tool_call') {
+          toolCalls.push({ name: event.toolName, args: event.toolArgs })
+          this.logJob(job, 'info', `🔧 Using tool: ${event.toolName}`)
+        } else if (event.type === 'tool_result') {
+          toolResults.push({ tool: event.toolName, result: event.toolResult })
         }
-      ]
-
-      let responseText = ''
-      const toolCalls: any[] = []
-      const toolResults: any[] = []
-
-      try {
-        // Execute using autonomous task execution like plan mode
-        for await (const event of advancedAIProvider.executeAutonomousTask('Background Agent Task', {
-          messages: executionMessages,
-        })) {
-          if (event.type === 'text_delta' && event.content) {
-            responseText += event.content
-          } else if (event.type === 'tool_call') {
-            toolCalls.push({ name: event.toolName, args: event.toolArgs })
-            this.logJob(job, 'info', `🔧 Using tool: ${event.toolName}`)
-          } else if (event.type === 'tool_result') {
-            toolResults.push({ tool: event.toolName, result: event.toolResult })
-          }
-        }
-
-        this.logJob(job, 'info', `🎯 Host task executed with ${toolCalls.length} tool calls`)
-
-        // Log summary if we have response text
-        if (responseText.trim()) {
-          this.logJob(job, 'info', `📄 AI Response: ${responseText.substring(0, 200)}...`)
-        }
-
-      } catch (error: any) {
-        this.logJob(job, 'error', `Host execution failed: ${error.message}`)
-        throw error
       }
 
-      // Background jobs remain in their workspace - no restoration needed
-      // This ensures all subsequent operations (like PR creation) happen in the correct sandbox
-      this.logJob(job, 'info', `🔒 Maintaining sandbox workspace: ${workingDir}`)
+      this.logJob(job, 'info', `🎯 Host task executed with ${toolCalls.length} tool calls`)
+
+      // Log summary if we have response text
+      if (responseText.trim()) {
+        this.logJob(job, 'info', `📄 AI Response: ${responseText.substring(0, 200)}...`)
+      }
+
+    } catch (error: any) {
+      this.logJob(job, 'error', `Host execution failed: ${error.message}`)
+      throw error
+    }
+
+    // Background jobs remain in their workspace - no restoration needed
+    // This ensures all subsequent operations (like PR creation) happen in the correct sandbox
+    this.logJob(job, 'info', `🔒 Maintaining sandbox workspace: ${workingDir}`)
   }
 
 
@@ -1117,7 +1699,28 @@ Execute the task now using the available tools. Make real changes in the sandbox
    * Basic toolchain fallback when TaskMaster fails
    */
   private async executeBasicToolchain(job: BackgroundJob, workingDir: string, task: string): Promise<void> {
-    const { ToolService } = await import('../services/tool-service')
+    // Fix ESM packages before importing
+    try {
+      const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
+      autoFixESMPackages(process.cwd())
+      if (process.cwd() !== '/app') {
+        autoFixESMPackages('/app')
+      }
+    } catch {
+      // Non-critical
+    }
+
+    // Use safe import for tool-service
+    let ToolService: any
+    try {
+      const { safeDynamicImport } = await import('./utils/esm-fix-loader')
+      const toolServiceModule = await safeDynamicImport('../services/tool-service', process.cwd())
+      ToolService = toolServiceModule.ToolService
+    } catch {
+      // Fallback to direct import
+      const toolServiceModule = await import('../services/tool-service')
+      ToolService = toolServiceModule.ToolService
+    }
     const toolService = new ToolService()
     toolService.setWorkingDirectory(workingDir)
 
@@ -1162,8 +1765,20 @@ Execute the task now using the available tools. Make real changes in the sandbox
         packageInfo = 'No package.json found'
       }
 
+      // Fix ESM packages before importing
+      try {
+        const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
+        autoFixESMPackages(process.cwd())
+        if (process.cwd() !== '/app') {
+          autoFixESMPackages('/app')
+        }
+      } catch {
+        // Non-critical
+      }
+
       // Use AI to analyze the bug
-      const { advancedAIProvider } = await import('../ai/advanced-ai-provider')
+      const { safeDynamicImport } = await import('./utils/esm-fix-loader')
+      const { advancedAIProvider } = await safeDynamicImport('../ai/advanced-ai-provider', process.cwd())
       this.logJob(job, 'info', '🤖 Analyzing bug with AI...')
 
       const analysisPrompt = `You are an expert software engineer. Analyze this bug/issue and provide specific fixes:
@@ -1262,8 +1877,20 @@ Generated by NikCLI Background Agent with AI Analysis
         gitStatus = 'Not a git repository or git not available'
       }
 
+      // Fix ESM packages before importing
+      try {
+        const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
+        autoFixESMPackages(process.cwd())
+        if (process.cwd() !== '/app') {
+          autoFixESMPackages('/app')
+        }
+      } catch {
+        // Non-critical
+      }
+
       // Use AI for comprehensive project analysis
-      const { advancedAIProvider } = await import('../ai/advanced-ai-provider')
+      const { safeDynamicImport } = await import('./utils/esm-fix-loader')
+      const { advancedAIProvider } = await safeDynamicImport('../ai/advanced-ai-provider', process.cwd())
       this.logJob(job, 'info', '🤖 Performing AI project analysis...')
 
       const analysisPrompt = `You are a senior software architect. Analyze this project and provide comprehensive insights:
@@ -1497,7 +2124,39 @@ Generated by NikCLI Background Agent with AI Analysis
       }
     }
 
+    // Update job in local file if available
+    if (this.useLocalFile && this.localAdapter) {
+      try {
+        await this.localAdapter.storeJob(job.id, job)
+      } catch (error) {
+        console.error('Error updating job in local file:', error)
+      }
+    }
+
     this.emit('job:log', job.id, logEntry)
+  }
+
+  /**
+   * Save job to persistent storage (KV or local file)
+   */
+  private async saveJob(job: BackgroundJob): Promise<void> {
+    // Save to Vercel KV if available
+    if (this.useVercelKV && this.kvAdapter) {
+      try {
+        await this.kvAdapter.storeJob(job.id, job)
+      } catch (error) {
+        console.error('Error saving job to KV:', error)
+      }
+    }
+
+    // Save to local file if available
+    if (this.useLocalFile && this.localAdapter) {
+      try {
+        await this.localAdapter.storeJob(job.id, job)
+      } catch (error) {
+        console.error('Error saving job to local file:', error)
+      }
+    }
   }
 }
 

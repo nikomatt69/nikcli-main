@@ -1,12 +1,14 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@nicomatt69/nikcli",
-  "version": "0.5.0",
+  "version": "1.0.1",
   "description": "NikCLI - Context-Aware AI Development Assistant",
   "author": "nikomatt69",
   "license": "MIT",
   "main": "dist/cli/index.js",
-  "bin": "dist/cli/index.js",
+  "bin": {
+    "nikcli": "dist/cli/index.js"
+  },
   "files": [
     "dist/**",
     "README.md"
@@ -28,7 +30,7 @@
     "build": "bun build src/cli/index.ts --compiler=nodejs --target=node --outdir=dist/cli --format=cjs --packages=external --sourcemap",
     "build:api": "echo 'TypeScript compiled on-the-fly with tsx'",
     "build:vercel": "echo 'Vercel build completed - using serverless functions'",
-    "prepublishOnly": "bun run build",
+    "prepublishOnly": "bun run build:with-secrets",
     "build:start": "bun scripts/build-with-secrets.mjs && bun dist/cli/index.js",
     "build:binary": "bun scripts/build-all.js",
     "build:pkg": "bun run build && mkdir -p public/bin && pkg dist/cli/index.js --target node18-macos-arm64 --output public/bin/nikcli-macos-arm64",
@@ -39,6 +41,7 @@
     "pkg:win:x64": "bun run pkg dist/cli/index.js --target node18-win-x64 --output public/bin/nikcli-x86_64-windows.exe",
     "build:release": "bun scripts/build-release.mjs",
     "build:with-secrets": "bun scripts/build-with-secrets.mjs",
+    "postinstall": "node scripts/fix-unicorn-magic.js",
     "build:bun": "mkdir -p public/bin && bun build --compile --minify --sourcemap src/cli/index.ts --packages=external --outfile public/bin/nikcli",
     "build:bun:macos:arm64": "mkdir -p public/bin && bun build --compile --minify --sourcemap --packages=external --target=bun-darwin-arm64 src/cli/index.ts --outfile public/bin/nikcli-aarch64-apple-darwin",
     "build:bun:macos:x64": "mkdir -p public/bin && bun build --compile --minify --sourcemap --packages=external --target=bun-darwin-x64 src/cli/index.ts --outfile public/bin/nikcli-x86_64-apple-darwin",

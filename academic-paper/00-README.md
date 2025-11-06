@@ -50,7 +50,7 @@ When referencing this academic paper series, please use:
   author={Academic Analysis Team},
   institution={NikCLI Research},
   year={2025},
-  version={0.5.0}
+  version={1.0.1}
 }
 ```
 
