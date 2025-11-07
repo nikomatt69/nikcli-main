@@ -454,7 +454,7 @@ export class TaskMasterAdapter extends EventEmitter {
       taskMasterAvailable: this.isTaskMasterAvailable(),
       legacySupport: this.legacySupport,
       activePlans: this.taskMasterService.listPlans().length,
-      adapterVersion: '1.0.2',
+      adapterVersion: '1.0.3',
     }
   }
 }

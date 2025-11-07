@@ -14,7 +14,7 @@ import { BackgroundAgentsCommand } from './commands/background-agents'
 const program = new Command()
 
 async function main() {
-  program.name('nikctl').description('CLI tool for managing nikCLI Background Agents').version('1.0.2')
+  program.name('nikctl').description('CLI tool for managing nikCLI Background Agents').version('1.0.3')
 
   // Add background agent commands
   BackgroundAgentsCommand.register(program)

@@ -34,7 +34,7 @@ class GitHubAPIClient {
         headers: {
           Authorization: `token ${this.token}`,
           Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'NikCLI-BackgroundAgents/1.0.2',
+          'User-Agent': 'NikCLI-BackgroundAgents/1.0.3',
         },
       })
 
@@ -72,7 +72,7 @@ class GitHubAPIClient {
         headers: {
           Authorization: `token ${this.token}`,
           Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'NikCLI-BackgroundAgents/1.0.2',
+          'User-Agent': 'NikCLI-BackgroundAgents/1.0.3',
         },
       })
 

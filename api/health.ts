@@ -6,7 +6,7 @@ export default function handler(_req: VercelRequest, res: VercelResponse) {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     service: 'nikcli-github-bot',
-    version: '1.0.2',
+    version: '1.0.3',
     endpoints: {
       webhook: '/v1/github/webhook',
       health: '/health',
