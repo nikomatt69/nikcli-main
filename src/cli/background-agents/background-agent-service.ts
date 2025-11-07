@@ -804,7 +804,7 @@ export class BackgroundAgentService extends EventEmitter {
       // Create basic package.json
       const packageJson = {
         name: "background-agent-workspace",
-        version: "1.0.3",
+        version: "1.1.0",
         description: "Background agent workspace",
         scripts: {
           test: "echo 'No tests configured'"
@@ -1057,7 +1057,7 @@ export class BackgroundAgentService extends EventEmitter {
       // CRITICAL: Fix ESM packages BEFORE any imports to prevent module resolution errors
       // This must happen in both the cloned repo AND the main project's node_modules
       // Execute fix IMMEDIATELY and SYNCHRONOUSLY to ensure it completes before any imports
-      
+
       // 1. Fix in main project's node_modules FIRST (where imports actually resolve from)
       // Use synchronous require to avoid any async import issues
       try {
@@ -1073,10 +1073,10 @@ export class BackgroundAgentService extends EventEmitter {
         // Non-critical, log and continue
         this.logJob(job, 'warn', `⚠️ ESM fix warning: ${fixError.message}`)
       }
-      
+
       // 2. Fix in cloned repository (if node_modules exists)
       await this.fixESMPackages(job, workingDir)
-      
+
       // 3. Small delay to ensure file system writes are flushed
       await new Promise(resolve => setTimeout(resolve, 200))
 

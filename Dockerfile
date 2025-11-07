@@ -5,19 +5,12 @@ FROM node:22-alpine AS deps
 
 WORKDIR /app
 
-# Copy package files and fix script
+# Copy package files
 COPY package.json ./
-COPY scripts/fix-unicorn-magic.js ./scripts/
 
-# Install pnpm for better ESM dependency handling
-RUN npm install -g pnpm@latest
-
-# Install dependencies using pnpm (handles ESM packages better)
-# pnpm's packageExtensions will automatically fix ESM-only packages
-RUN pnpm install --frozen-lockfile=false --shamefully-hoist
-
-# Ensure ESM packages are fixed (pnpm packageExtensions + postinstall script)
-RUN node scripts/fix-unicorn-magic.js || echo "ESM fix script completed (some packages may not be installed)"
+# Install dependencies (tsx is already in package.json)
+# Use --legacy-peer-deps to handle peer dependency conflicts
+RUN npm install --production=false --legacy-peer-deps
 
 # Stage 2: Runtime
 FROM node:22-alpine AS runtime
@@ -41,7 +34,6 @@ COPY --from=deps /app/package*.json ./
 # Copy source code (tsx compiles TypeScript at runtime)
 COPY src ./src
 COPY tsconfig*.json ./
-COPY scripts/fix-unicorn-magic.js ./scripts/
 
 # Expose port (Railway will override with its own PORT)
 EXPOSE 8080

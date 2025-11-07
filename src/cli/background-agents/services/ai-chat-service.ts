@@ -4,7 +4,7 @@
  */
 
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { streamText, type CoreMessage } from 'ai'
+import { LanguageModelV1, streamText, type CoreMessage } from 'ai'
 import { EventEmitter } from 'node:events'
 import type { ChatMessage, ChatSession } from '../types'
 import { retryOperation, withTimeout, ExternalServiceError } from '../middleware/error-handler'
@@ -103,7 +103,7 @@ export class AIChatService extends EventEmitter {
     let fullText = ''
 
     const result = await streamText({
-      model: this.openrouter.languageModel(this.model),
+      model: this.openrouter.languageModel(this.model) as unknown as LanguageModelV1,
       system: systemPrompt,
       messages,
       maxTokens: this.maxTokens,

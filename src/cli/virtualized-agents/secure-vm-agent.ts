@@ -32,7 +32,7 @@ export class SecureVirtualizedAgent extends EventEmitter implements Agent {
   public readonly description: string
   public readonly capabilities: string[]
   public readonly specialization: string
-  public readonly version: string = '1.0.3'
+  public readonly version: string = '1.1.0'
 
   // Agent properties
   public status: AgentStatus = 'initializing'

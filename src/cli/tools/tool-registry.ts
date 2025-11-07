@@ -6,10 +6,14 @@ import { BrowserbaseTool } from './browserbase-tool'
 import { createBrowserTools } from '../browser/playwright-automation-tools'
 import { CoinbaseAgentKitTool } from './coinbase-agentkit-tool'
 import { GoatTool } from './goat-tool'
+import { DiffTool } from './diff-tool'
 import { EditTool } from './edit-tool'
 import { FindFilesTool } from './find-files-tool'
 import { GitTools } from './git-tools'
+import { GlobTool } from './glob-tool'
 import { GrepTool } from './grep-tool'
+import { TreeTool } from './tree-tool'
+import { WatchTool } from './watch-tool'
 import { ImageGenerationTool } from './image-generation-tool'
 import { JsonPatchTool } from './json-patch-tool'
 import { ListTool } from './list-tool'
@@ -59,7 +63,7 @@ export class ToolRegistry {
       estimatedDuration: metadata?.estimatedDuration || 5000,
       requiredPermissions: metadata?.requiredPermissions || [],
       supportedFileTypes: metadata?.supportedFileTypes || [],
-      version: metadata?.version || '1.0.3',
+      version: metadata?.version || '1.1.0',
       author: metadata?.author || 'system',
       tags: metadata?.tags || [],
     })
@@ -201,7 +205,7 @@ export class ToolRegistry {
     return {
       tools: Array.from(this.toolMetadata.values()),
       exportedAt: new Date(),
-      version: '1.0.3',
+      version: '1.1.0',
     }
   }
 
@@ -256,6 +260,18 @@ export class ToolRegistry {
       requiredPermissions: ['read'],
       supportedFileTypes: ['*'],
       tags: ['search', 'filesystem', 'glob'],
+    })
+
+    // Register GlobTool (fast glob pattern matching)
+    this.registerTool('glob-tool', new GlobTool(workingDirectory), {
+      description: 'Fast file pattern matching with glob support, sorting, and filtering',
+      category: 'filesystem',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 2000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['glob', 'pattern', 'search', 'filesystem', 'matching'],
     })
 
     // Additional tools would be registered here
@@ -490,6 +506,42 @@ export class ToolRegistry {
       requiredPermissions: ['write'],
       supportedFileTypes: ['gcode', 'nc', 'txt'],
       tags: ['gcode', 'cnc', '3d-printing', 'manufacturing', 'machining', 'laser'],
+    })
+
+    // Diff tool (file comparison)
+    this.registerTool('diff-tool', new DiffTool(workingDirectory), {
+      description: 'Compare files and content with multiple diff algorithms (line, word, char)',
+      category: 'filesystem',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 2000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['diff', 'compare', 'comparison', 'changes', 'unified'],
+    })
+
+    // Tree tool (directory visualization)
+    this.registerTool('tree-tool', new TreeTool(workingDirectory), {
+      description: 'Visualize directory structure as a tree with statistics',
+      category: 'filesystem',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 1500,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['tree', 'directory', 'structure', 'visualization', 'explore'],
+    })
+
+    // Watch tool (file system monitoring)
+    this.registerTool('watch-tool', new WatchTool(workingDirectory), {
+      description: 'Monitor file system changes in real-time with pattern filtering',
+      category: 'filesystem',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 1000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['watch', 'monitor', 'filesystem', 'changes', 'events', 'realtime'],
     })
 
     // Browser Automation Tools

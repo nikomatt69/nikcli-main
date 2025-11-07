@@ -90,9 +90,9 @@ export class ReplaceInFileTool extends BaseTool {
       }
 
       if (replaceResult.matchCount > 0) {
-        advancedUI.logSuccess(`Replaced ${replaceResult.matchCount} occurrence(s) in ${filePath}`)
+        advancedUI.logSuccess(`Replaced ${replaceResult.matchCount} occurrence(s) in ${sanitizedPath}`)
       } else {
-        advancedUI.logInfo(`No matches found in ${filePath}`)
+        advancedUI.logInfo(`No matches found in ${sanitizedPath}`)
       }
 
       return {
@@ -106,9 +106,18 @@ export class ReplaceInFileTool extends BaseTool {
       }
     } catch (error: any) {
       const duration = Date.now() - startTime
+      // Try to get sanitized path if available, otherwise use original
+      let finalFilePath = filePath
+      try {
+        finalFilePath = sanitizePath(filePath, this.workingDirectory)
+      } catch {
+        // If sanitization fails, use original path
+        finalFilePath = filePath
+      }
+
       const errorResult: ReplaceResult = {
         success: false,
-        filePath,
+        filePath: finalFilePath,
         matchCount: 0,
         replacementsMade: 0,
         originalSize: backupContent ? Buffer.byteLength(backupContent, 'utf8') : 0,
@@ -123,7 +132,7 @@ export class ReplaceInFileTool extends BaseTool {
         },
       }
 
-      CliUI.logError(`Failed to replace in file ${filePath}: ${error.message}`)
+      CliUI.logError(`Failed to replace in file ${finalFilePath}: ${error.message}`)
       return {
         success: false,
         data: errorResult,

@@ -13,7 +13,7 @@ export class ReadlineManager {
   private eventListeners: Map<string, Set<Function>> = new Map()
   private isInitialized = false
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): ReadlineManager {
     if (!ReadlineManager.instance) {
@@ -27,7 +27,7 @@ export class ReadlineManager {
    * Automatically cleans up previous instance if exists
    */
   createInterface(
-    options: readline.ReadlineOptions
+    options: readline.ReadLineOptions
   ): readline.Interface {
     // If interface exists, close it first
     if (this.rl) {

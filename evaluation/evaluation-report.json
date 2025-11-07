@@ -1,0 +1,92 @@
+{
+  "documentation": {
+    "readme": {
+      "score": 35,
+      "comments": [
+        "Substantial README content",
+        "Contains installation instructions",
+        "Contains visual elements"
+      ]
+    },
+    "commandReference": {
+      "score": 95,
+      "comments": [
+        "Comprehensive command reference found",
+        "Contains feature documentation and examples",
+        "Well-structured with multiple sections",
+        "Documented provider compatibility",
+        "Substantial documentation content"
+      ]
+    },
+    "webReadme": {
+      "score": 85,
+      "comments": [
+        "Features section found",
+        "Tech stack documented",
+        "Installation guide found",
+        "Project structure documented",
+        "Contains code examples"
+      ]
+    },
+    "databaseDoc": {
+      "score": 80,
+      "comments": [
+        "Database overview provided",
+        "Setup instructions found",
+        "Database functions/tables documented",
+        "Contains SQL examples",
+        "Usage examples provided"
+      ]
+    },
+    "analysisReports": {
+      "score": 80,
+      "comments": [
+        "Found 4 analysis reports",
+        "Found DEPENDENCY_AUDIT_SUMMARY.md (1412 words)",
+        "Found CURRENT_STATE_OPTIMIZATION_ANALYSIS.md (1991 words)",
+        "Found BUILD_ANALYSIS_REPORT.md (1596 words)",
+        "Found OPTIMIZATION_ACTION_PLAN.md (1406 words)"
+      ]
+    }
+  },
+  "dependencies": {
+    "packageJson": {
+      "score": 90,
+      "comments": [
+        "Name field present",
+        "Version field present",
+        "Description present",
+        "License specified",
+        "56 scripts defined",
+        "96 production + 15 dev dependencies",
+        "Engine requirements specified",
+        "CLI binary configured"
+      ]
+    },
+    "audit": {
+      "score": 15,
+      "comments": [
+        "CRITICAL security issues identified in audit",
+        "3 critical security vulnerabilities found",
+        "High dependency count (127 total)",
+        "18 outdated packages identified"
+      ]
+    },
+    "lockfile": {
+      "score": 100,
+      "comments": [
+        "Lockfile present"
+      ]
+    }
+  },
+  "recommendations": [
+    "Improve main README with installation, usage, and API documentation",
+    "Address critical security vulnerabilities in dependencies"
+  ],
+  "scores": {
+    "documentation": 75,
+    "dependencies": 68.33333333333333,
+    "overall": 72.33333333333333,
+    "riskLevel": "MEDIUM"
+  }
+}

@@ -123,7 +123,9 @@ export class EditTool extends BaseTool {
 
       // Scrivi nuovo contenuto
       if (editResult.replacementsMade > 0) {
-        await this.writeFileWithValidation(filePath, editResult.changes, params)
+        // Rebuild new content from changes using original content to ensure correctness
+        const newContent = this.reconstructContentFromChanges(originalContent, editResult.changes)
+        await this.writeFileWithValidation(filePath, newContent, params)
         advancedUI.logSuccess(`✓ File edited successfully: ${editResult.replacementsMade} replacements made`)
       } else {
         advancedUI.logWarning('⚠️ No replacements made - pattern not found')
@@ -339,7 +341,7 @@ export class EditTool extends BaseTool {
    */
   private async writeFileWithValidation(
     filePath: string,
-    changes: EditChange[],
+    newContent: string,
     params: EditToolParams
   ): Promise<void> {
     // Crea directory se non esiste
@@ -347,9 +349,6 @@ export class EditTool extends BaseTool {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true })
     }
-
-    // Ricostruisci contenuto dalle modifiche
-    const newContent = this.reconstructContentFromChanges(filePath, changes)
 
     // Validazione finale
     if (params.validateSyntax) {
@@ -368,17 +367,32 @@ export class EditTool extends BaseTool {
   }
 
   /**
-   * Ricostruisce contenuto dalle modifiche
+   * Ricostruisce contenuto dalle modifiche basandosi sul contenuto originale
    */
-  private reconstructContentFromChanges(filePath: string, changes: EditChange[]): string {
-    // Per semplicità, rileggiamo il file e applichiamo le modifiche
-    // In una implementazione più sofisticata, potremmo ricostruire dal diff
-    if (existsSync(filePath)) {
-      return require('node:fs').readFileSync(filePath, 'utf-8')
+  private reconstructContentFromChanges(originalContent: string, changes: EditChange[]): string {
+    if (changes.length === 0) {
+      return originalContent
     }
 
-    // Se è un nuovo file, usa il contenuto dalla prima modifica
-    return changes.length > 0 ? changes[0].after : ''
+    // Se è un nuovo file (prima modifica ha before vuoto)
+    if (changes[0].before === '' && changes.length === 1) {
+      return changes[0].after
+    }
+
+    // Per file esistenti, ricostruisci applicando le modifiche
+    const lines = originalContent.split('\n')
+    const changeMap = new Map<number, string>()
+    
+    for (const change of changes) {
+      changeMap.set(change.lineNumber - 1, change.after) // lineNumber è 1-based, array è 0-based
+    }
+
+    // Applica le modifiche
+    const newLines = lines.map((line, index) => {
+      return changeMap.has(index) ? changeMap.get(index)! : line
+    })
+
+    return newLines.join('\n')
   }
 
   /**
