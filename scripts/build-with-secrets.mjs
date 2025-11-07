@@ -464,17 +464,36 @@ export default EMBEDDED_SECRETS_CONFIG
 }
 
 /**
- * Execute build
+ * Execute build with Bun (same as bun run build but with secrets embedded)
  */
 function buildWithSecrets() {
   try {
-    // Import the generated secrets to register them
-    execSync('bun run build', {
+    // Ensure dist/cli directory exists
+    const distDir = path.join(projectRoot, 'dist', 'cli')
+    if (!fs.existsSync(distDir)) {
+      fs.mkdirSync(distDir, { recursive: true })
+    }
+
+    // Build with Bun using the same command as bun run build
+    // This will include the generated-embedded-secrets.ts file automatically
+    const buildCommand = [
+      'bun',
+      'build',
+      '--compile',
+      '--minify',
+      '--sourcemap',
+      'src/cli/index.ts',
+      '--packages=external',
+      `--outfile=${path.join(distDir, 'nikcli')}`,
+    ].join(' ')
+
+    console.log(`🔨 Executing: ${buildCommand}\n`)
+    execSync(buildCommand, {
       cwd: projectRoot,
       stdio: 'inherit',
     })
   } catch (error) {
-    console.error('Build failed:', error.message)
+    console.error('❌ Build failed:', error.message)
     process.exit(1)
   }
 }
@@ -484,12 +503,31 @@ function buildWithSecrets() {
  */
 function buildWithoutSecrets() {
   try {
-    execSync('bun run build', {
+    // Ensure dist/cli directory exists
+    const distDir = path.join(projectRoot, 'dist', 'cli')
+    if (!fs.existsSync(distDir)) {
+      fs.mkdirSync(distDir, { recursive: true })
+    }
+
+    // Build with Bun using the same command as bun run build
+    const buildCommand = [
+      'bun',
+      'build',
+      '--compile',
+      '--minify',
+      '--sourcemap',
+      'src/cli/index.ts',
+      '--packages=external',
+      `--outfile=${path.join(distDir, 'nikcli')}`,
+    ].join(' ')
+
+    console.log(`🔨 Executing: ${buildCommand}\n`)
+    execSync(buildCommand, {
       cwd: projectRoot,
       stdio: 'inherit',
     })
   } catch (error) {
-    console.error('Build failed:', error.message)
+    console.error('❌ Build failed:', error.message)
     process.exit(1)
   }
 }

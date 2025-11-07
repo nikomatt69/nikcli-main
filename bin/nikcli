@@ -5,23 +5,28 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-DIST_ENTRY="${ROOT_DIR}/dist/cli/index.mjs"
+BINARY_ENTRY="${ROOT_DIR}/dist/cli/nikcli"
 SRC_ENTRY="${ROOT_DIR}/src/cli/index.ts"
 TSCONFIG="${ROOT_DIR}/tsconfig.cli.json"
 
-# Check if built file exists and execute with ESM support
-if [[ -f "$DIST_ENTRY" ]]; then
-  # .mjs extension tells Node.js to treat this as an ES module
-  exec node "$DIST_ENTRY" "$@"
+# Priority 1: Use compiled binary if available (standalone executable)
+if [[ -f "$BINARY_ENTRY" ]]; then
+  exec "$BINARY_ENTRY" "$@"
 fi
 
-# Fallback to ts-node for development (supports ESM with proper config)
+# Priority 2: Use Bun to run TypeScript directly (Bun supports TS natively)
+if command -v bun >/dev/null 2>&1; then
+  exec bun --bun run "$SRC_ENTRY" "$@"
+fi
+
+# Priority 3: Fallback to Node.js with ts-node
 if command -v npx >/dev/null 2>&1; then
-  # ts-node with ESM support
-  exec npx ts-node --esm --project "$TSCONFIG" "$SRC_ENTRY" "$@" 2>/dev/null || \
-       exec npx ts-node --project "$TSCONFIG" "$SRC_ENTRY" "$@"
+  exec npx ts-node --project "$TSCONFIG" "$SRC_ENTRY" "$@"
 fi
 
-echo "NikCLI: build output not found."
-echo "Run: npm run build"
+echo "NikCLI: build output not found and no runtime available."
+echo "Options:"
+echo "  1. Run: bun run build (to create binary)"
+echo "  2. Install Bun: https://bun.sh"
+echo "  3. Install Node.js and ts-node"
 exit 1
