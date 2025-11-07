@@ -1,15 +1,15 @@
 {
   "compilerOptions": {
     "isolatedModules": true,
-    "target": "es2020",
+    "target": "ES2020",
     "lib": [
-      "es2020",
+      "ES2020",
       "ES2015",
       "ESNext",
-      "es2022"
+      "ES2022"
     ],
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,

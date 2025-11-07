@@ -75,7 +75,19 @@ export async function renderChatStreamToTerminal(
       // Track non-rerender chunk output
       const chunkLines = TerminalOutputManager.calculateLines(chunk)
       const outputId = terminalOutputManager.reserveSpace('StreamChunk', chunkLines)
-      process.stdout.write(chunk)
+      
+      // Force immediate flush for streaming (critical for pkg binaries)
+      const flushed = process.stdout.write(chunk, () => {
+        // Callback ensures write is complete
+      })
+      
+      // If write returned false, the buffer is full - wait for drain
+      if (!flushed) {
+        await new Promise<void>((resolve) => {
+          process.stdout.once('drain', resolve)
+        })
+      }
+      
       terminalOutputManager.confirmOutput(outputId, 'StreamChunk', chunkLines, { persistent: false, expiryMs: 30000 })
       continue
     }

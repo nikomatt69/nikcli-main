@@ -8,6 +8,19 @@
 // Set quiet startup mode immediately to prevent module initialization logs
 process.env.NIKCLI_QUIET_STARTUP = 'true'
 
+// Force stdout to be non-blocking for streaming in pkg binaries
+// This ensures streaming output works correctly when compiled with pkg
+if (process.stdout.isTTY) {
+  process.stdout.setDefaultEncoding('utf8')
+} else {
+  // For non-TTY (like pkg binaries), ensure unbuffered output
+  if (typeof (process.stdout as any)._handle?.setBlocking === 'function') {
+    (process.stdout as any)._handle.setBlocking(true)
+  }
+  // Force line buffering for better streaming experience
+  process.stdout.setDefaultEncoding('utf8')
+}
+
 import chalk from 'chalk'
 import gradient from 'gradient-string'
 
@@ -1682,9 +1695,9 @@ class StreamingModule extends EventEmitter {
       agentCount: agents > 0 ? agents : undefined,
     })
 
-    const modes = []
-    if (this.context.planMode) modes.push(chalk.cyan('plan'))
-    if (this.context.autoAcceptEdits) modes.push(chalk.green('auto-accept'))
+    const modes: string[] = []
+    if (this.context.planMode) modes.push(chalk.cyan('plan') as string)
+    if (this.context.autoAcceptEdits) modes.push(chalk.green('auto-accept') as string)
     const modeStr = modes.length > 0 ? `─[${modes.join(' ')}]` : ''
 
     const contextStr = chalk.dim(`${this.context.contextLeft}%`)

@@ -427,6 +427,30 @@ export class StreamttyService {
   /**
    * Flush any buffered streaming table state at logical boundaries (e.g., stream complete)
    */
+  /**
+   * Flush stdout with proper handling for pkg binaries
+   * Ensures streaming output is visible immediately in compiled binaries
+   */
+  private async flushStdout(chunk: string): Promise<void> {
+    return new Promise<void>((resolve) => {
+      // Force immediate flush for streaming (critical for pkg binaries)
+      const flushed = process.stdout.write(chunk, () => {
+        // Callback ensures write is complete - resolve here
+        resolve()
+      })
+      
+      // If write returned false, the buffer is full - wait for drain
+      // Note: if flushed is true, we still wait for the callback above
+      if (!flushed) {
+        // Buffer is full, wait for drain event
+        process.stdout.once('drain', () => {
+          // Drain event fired, but callback above will resolve
+          // This is just to ensure we don't block if callback doesn't fire
+        })
+      }
+    })
+  }
+
   private async flushStreamingTables(): Promise<string> {
     const out: string[] = []
 
@@ -675,7 +699,11 @@ export class StreamttyService {
     // Always use enhanced inline mode - direct stdout with enhanced formatting
     const chunkLines = TerminalOutputManager.calculateLines(processedChunk)
     const outputId = terminalOutputManager.reserveSpace('StreamttyChunk', chunkLines)
-    process.stdout.write(processedChunk)
+    
+    // Force immediate flush for streaming (critical for pkg binaries)
+    // In pkg binaries, stdout may be buffered, so we need to handle this explicitly
+    await this.flushStdout(processedChunk)
+    
     terminalOutputManager.confirmOutput(outputId, 'StreamttyChunk', chunkLines, {
       persistent: false,
       expiryMs: 30000,
