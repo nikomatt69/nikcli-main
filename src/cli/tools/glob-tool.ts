@@ -1,6 +1,5 @@
 import { stat } from 'node:fs/promises'
-import { v4 as uuidv4 } from 'uuid'
-import { logger } from '../utils/logger'
+import { globby } from 'globby'
 import { PromptManager } from '../prompts/prompt-manager'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { CliUI } from '../utils/cli-ui'
@@ -69,7 +68,6 @@ export class GlobTool extends BaseTool {
   }
 
   async execute(params: GlobToolParams): Promise<ToolExecutionResult> {
-    const requestId = uuidv4()
     try {
       // Load tool-specific prompt
       const promptManager = PromptManager.getInstance()
@@ -96,6 +94,10 @@ export class GlobTool extends BaseTool {
       const patterns = Array.isArray(params.pattern) ? params.pattern : [params.pattern]
 
       advancedUI.logInfo(`🔍 Globbing pattern(s): ${CliUI.highlight(patterns.join(', '))}`)
+
+      const startTime = Date.now()
+
+      // Build globby options
       const globOptions: any = {
         cwd: sanitizedPath,
         onlyFiles: params.onlyFiles !== undefined ? params.onlyFiles : true,
@@ -108,28 +110,10 @@ export class GlobTool extends BaseTool {
         absolute: false,
       }
 
-      const startTime = Date.now()
-      await logger.info('glob start', {
-        requestId,
-        cwd: sanitizedPath,
-        patterns,
-        options: {
-          onlyFiles: globOptions.onlyFiles,
-          onlyDirectories: globOptions.onlyDirectories,
-          deep: globOptions.deep,
-          ignore: globOptions.ignore,
-        },
-      })
-
-
-
-      // Execute glob search (ESM-safe dynamic import)
-      const globbyModule: any = (await import('globby')) as any
-      const globbyFn = globbyModule.globby || globbyModule.default || globbyModule
-      const files = (await globbyFn(patterns, globOptions)) as unknown as string[]
+      // Execute glob search
+      const files = (await globby(patterns, globOptions)) as unknown as string[]
 
       CliUI.logDebug(`Found ${files.length} raw matches`)
-      await logger.debug('glob raw matches', { requestId, count: files.length })
 
       // Get file stats and build GlobMatch objects
       const matches: GlobMatch[] = []
@@ -190,14 +174,6 @@ export class GlobTool extends BaseTool {
       }
 
       advancedUI.logSuccess(`✓ Found ${result.totalMatches} matches (${filesCount} files, ${directoriesCount} dirs)`)
-      await logger.info('glob completed', {
-        requestId,
-        totalMatches: result.totalMatches,
-        filesFound: filesCount,
-        directoriesFound: directoriesCount,
-        truncated,
-        elapsedMs: executionTime,
-      })
 
       // Show glob results in structured UI
       if (result.matches.length > 0) {
@@ -218,7 +194,6 @@ export class GlobTool extends BaseTool {
       }
     } catch (error: any) {
       CliUI.logError(`Glob tool failed: ${error.message}`)
-      await logger.error('glob failed', { requestId, errorMessage: error.message }, error)
       return {
         success: false,
         error: error.message,

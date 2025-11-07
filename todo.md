@@ -1,0 +1,142 @@
+# TaskMaster AI Plan: TaskMaster Plan: now analyze workspace and show me optimizations
+
+**Generated:** 2025-11-07T18:05:44.003Z
+**Planning Engine:** TaskMaster AI
+**Request:** now analyze workspace and show me optimizations
+**Risk Level:** medium
+**Estimated Duration:** 0 minutes
+
+## Description
+
+now analyze workspace and show me optimizations
+
+## Risk Assessment
+
+- **Overall Risk:** medium
+- **Destructive Operations:** 0
+- **File Modifications:** 2
+- **External Calls:** 0
+
+## Tasks
+
+### 1. ✓ Analyze Project Structure & Dependencies 🔴
+
+**Description:** Execute comprehensive project analysis to identify current workspace structure, technology stack, dependencies, and potential optimization opportunities. Use analyze_project tool with all analysis flags enabled including security checks and dependency optimization suggestions.
+
+**Tools:** analyze_project, explore_directory
+
+**Reasoning:** Foundation for all subsequent optimization analysis - need to understand project composition, dependencies, and existing patterns before recommending optimizations
+
+**Status:** completed
+**Priority:** high
+**Progress:** 100%
+
+---
+
+### 2. ✓ Identify Performance Bottlenecks 🔴
+
+**Description:** Search codebase for performance-critical sections using grep patterns. Look for inefficient algorithms, N+1 query patterns, unoptimized loops, and heavy dependencies. Analyze execution bottlenecks and resource usage patterns across the workspace.
+
+**Tools:** grep, code_analysis
+
+**Reasoning:** Performance optimization is a key metric - need to identify specific bottlenecks before recommending improvements
+
+**Status:** completed
+**Priority:** high
+**Progress:** 100%
+
+---
+
+### 3. ✓ Audit Code Quality & Security Issues 🔴
+
+**Description:** Run code quality analysis on key files using code_analysis tool with security focus. Check for common vulnerabilities, code smells, and security anti-patterns. Generate detailed quality report with recommendations.
+
+**Tools:** code_analysis, dependency_analysis
+
+**Reasoning:** Security and code quality directly impact maintainability and reliability - must be identified early in optimization planning
+
+**Status:** completed
+**Priority:** high
+**Progress:** 100%
+
+---
+
+### 4. ⚡︎ Analyze Build & Bundle Size 🟡
+
+**Description:** Execute build commands and analyze generated bundle sizes. Identify unused dependencies, large imports, and optimization opportunities in build output. Check for tree-shaking effectiveness and redundant dependencies.
+
+**Tools:** execute_command, grep
+
+**Reasoning:** Bundle size directly affects performance metrics - optimization here can significantly improve load times and user experience
+
+**Status:** in_progress
+**Priority:** medium
+**Progress:** 15%
+
+---
+
+### 5. ⏳ Review Dependency Tree for Redundancies 🟡
+
+**Description:** Perform comprehensive dependency analysis to identify duplicate dependencies, outdated packages, and unused modules. Check for security vulnerabilities and compatibility issues. Suggest consolidations and upgrades.
+
+**Tools:** dependency_analysis, grep
+
+**Reasoning:** Dependency optimization reduces complexity, improves security, and decreases bundle size - critical for maintenance
+
+**Status:** pending
+**Priority:** medium
+**Progress:** 0%
+
+---
+
+### 6. ⏳ Generate Optimization Recommendations Report 🔴
+
+**Description:** Compile findings from all analysis tasks into a comprehensive optimization report. Document specific improvements with estimated impact, priority levels, and implementation complexity. Include quick wins and strategic improvements.
+
+**Tools:** write_file
+
+**Reasoning:** Consolidate all findings into actionable recommendations that developers can immediately implement
+
+**Status:** pending
+**Priority:** high
+**Progress:** 0%
+
+---
+
+### 7. ⏳ Assess Git Workflow & Commit Patterns 🟡
+
+**Description:** Analyze repository patterns using git_workflow tool. Review branching strategy, commit frequency, and collaboration patterns. Identify opportunities for improved workflow efficiency and team coordination.
+
+**Tools:** git_workflow
+
+**Reasoning:** Workflow optimization improves team productivity and code quality consistency
+
+**Status:** pending
+**Priority:** medium
+**Progress:** 0%
+
+---
+
+### 8. ⏳ Document Optimization Implementation Plan 🟡
+
+**Description:** Create prioritized action plan for implementing recommended optimizations. Include implementation steps, estimated effort, risk assessment, and rollback procedures. Organize by quick wins vs. long-term improvements.
+
+**Tools:** write_file
+
+**Reasoning:** Clear implementation roadmap ensures optimizations are executed systematically with measurable outcomes
+
+**Status:** pending
+**Priority:** medium
+**Progress:** 0%
+
+---
+
+## Summary
+
+- **Total Tasks:** 8
+- **Pending:** 4
+- **In Progress:** 1
+- **Completed:** 3
+- **Failed:** 0
+
+*Generated by TaskMaster AI integrated with NikCLI*

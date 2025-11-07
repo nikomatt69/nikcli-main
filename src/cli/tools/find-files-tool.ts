@@ -1,5 +1,5 @@
-import { v4 as uuidv4 } from 'uuid'
-import { logger } from '../utils/logger'
+import { globby } from 'globby'
+import { logger as cliLogger } from '../utils/logger'
 import { BaseTool, type ToolExecutionResult } from './base-tool'
 import { sanitizePath, validateIsDirectory } from './secure-file-tools'
 
@@ -13,7 +13,6 @@ export class FindFilesTool extends BaseTool {
   }
   async execute(pattern: string, options: { cwd?: string } = {}): Promise<ToolExecutionResult> {
     const startTime = Date.now()
-    const requestId = uuidv4()
 
     try {
       const sanitizedCwd = sanitizePath(options.cwd || '.', this.workingDirectory)
@@ -21,20 +20,7 @@ export class FindFilesTool extends BaseTool {
       // Validate that cwd is a directory
       validateIsDirectory(sanitizedCwd, `Search path must be a directory: ${options.cwd || '.'}`)
 
-      await logger.info('find-files start', {
-        requestId,
-        pattern,
-        cwd: sanitizedCwd,
-      })
-
-      const globbyModule: any = (await import('globby')) as any
-      const globbyFn = globbyModule.globby || globbyModule.default || globbyModule
-      const files = await globbyFn(pattern, { cwd: sanitizedCwd, onlyFiles: true })
-      await logger.info('find-files matched', {
-        requestId,
-        count: files.length,
-        elapsedMs: Date.now() - startTime,
-      })
+      const files = await globby(pattern, { cwd: sanitizedCwd, onlyFiles: true })
 
       // Show file list in structured UI (optional; safe in headless envs)
       if (files.length > 0 && typeof process !== 'undefined' && process.stdout && process.stdout.isTTY) {
@@ -45,7 +31,7 @@ export class FindFilesTool extends BaseTool {
         } catch (error: any) {
           // Non-fatal: swallow UI errors but log for diagnostics
           try {
-            logger.debug('Optional advanced UI display failed; continuing without UI', {
+            cliLogger.debug('Optional advanced UI display failed; continuing without UI', {
               tool: 'find-files-tool',
               pattern,
               fileCount: files.length,
@@ -73,7 +59,6 @@ export class FindFilesTool extends BaseTool {
         },
       }
     } catch (error: any) {
-      await logger.error('find-files failed', { requestId, pattern, cwd: options.cwd || '.' }, error)
       return {
         success: false,
         data: [],
