@@ -69,7 +69,7 @@ import path from 'node:path'
 import boxen from 'boxen'
 import readline from 'readline'
 import { AgentManager } from './core/agent-manager'
-import { simpleConfigManager as configManager } from './core/config-manager'
+import { simpleConfigManager as configManager, simpleConfigManager } from './core/config-manager'
 import { ideDetector } from './core/ide-detector'
 import { Logger } from './core/logger'
 // Core imports
@@ -860,12 +860,18 @@ class OnboardingModule {
   private static async setupAuthentication(): Promise<void> {
     const header = chalk.cyanBright('🔐 Authentication Setup')
 
-    // Check if already logged in
+    // Check if already logged in via authProvider (which handles session restoration automatically)
     try {
-      const savedAuth = configManager.get('auth') as any
-      if (savedAuth?.email && savedAuth?.token) {
+      const { authProvider } = await import('./providers/supabase/auth-provider')
+      
+      // Check if user is authenticated (authProvider.restoreSession() is called during initialization)
+      if (authProvider.isAuthenticated()) {
+        const profile = authProvider.getCurrentProfile()
+        const email = profile?.email || 'user'
+        
         const alreadyLoggedBox = boxen(
-          chalk.green(`✓ Already logged in as ${savedAuth.email}\n`) + chalk.gray('Using saved credentials.'),
+          chalk.green(`✓ Already logged in as ${email}\n`) + 
+          chalk.gray('Session restored from saved credentials.'),
           {
             padding: 1,
             borderStyle: 'round',
@@ -878,8 +884,8 @@ class OnboardingModule {
         await OnboardingModule.pause()
         return
       }
-    } catch (_) {
-      // No saved credentials, continue
+    } catch (_error) {
+      // Auth provider not available or error, continue to login prompt
     }
 
     const introBox = boxen(

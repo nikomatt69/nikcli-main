@@ -19,6 +19,7 @@ import { JsonPatchTool } from './json-patch-tool'
 import { ListTool } from './list-tool'
 import { MultiEditTool } from './multi-edit-tool'
 import { MultiReadTool } from './multi-read-tool'
+import { RAGSearchTool } from './rag-search-tool'
 import { ReadFileTool } from './read-file-tool'
 import { ReplaceInFileTool } from './replace-in-file-tool'
 import { RunCommandTool } from './run-command-tool'
@@ -63,13 +64,13 @@ export class ToolRegistry {
       estimatedDuration: metadata?.estimatedDuration || 5000,
       requiredPermissions: metadata?.requiredPermissions || [],
       supportedFileTypes: metadata?.supportedFileTypes || [],
-      version: metadata?.version || '1.1.0',
+      version: metadata?.version || '1.2.0',
       author: metadata?.author || 'system',
       tags: metadata?.tags || [],
     })
 
     if (!process.env.NIKCLI_SUPPRESS_TOOL_REGISTER_LOGS && !process.env.NIKCLI_QUIET_STARTUP) {
-      advancedUI.logInfo(`Registered tool: ${CliUI.highlight(name)}`)
+
     }
   }
 
@@ -205,7 +206,7 @@ export class ToolRegistry {
     return {
       tools: Array.from(this.toolMetadata.values()),
       exportedAt: new Date(),
-      version: '1.1.0',
+      version: '1.2.0',
     }
   }
 
@@ -345,6 +346,18 @@ export class ToolRegistry {
       requiredPermissions: ['read'],
       supportedFileTypes: ['*'],
       tags: ['read', 'batch', 'analysis'],
+    })
+
+    // RAG semantic search tool
+    this.registerTool('rag-search-tool', new RAGSearchTool(workingDirectory), {
+      description: 'Perform semantic search in the RAG system to find relevant code and documentation',
+      category: 'search',
+      riskLevel: 'low',
+      reversible: true,
+      estimatedDuration: 5000,
+      requiredPermissions: ['read'],
+      supportedFileTypes: ['*'],
+      tags: ['rag', 'semantic', 'search', 'code', 'documentation'],
     })
 
     this.registerTool('run-command-tool', new RunCommandTool(workingDirectory), {

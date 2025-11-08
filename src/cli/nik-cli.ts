@@ -2306,7 +2306,6 @@ export class NikCLI {
         chalk.cyan('\n🎨 UI Selection: AdvancedCliUI selected (structuredUI = true)')
       )
       advancedUI.startInteractiveMode()
-      advancedUI.logInfo('AdvancedCliUI Ready', `Mode: ${this.currentMode} - 4 Panels configured`)
     } else {
       advancedUI.logFunctionUpdate(
         'info',
@@ -7655,8 +7654,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
                 )
               )
 
-              // Set up collaboration context for this agent
-              ;(agent as any).collaborationContext = collaborationContext
+                // Set up collaboration context for this agent
+                ; (agent as any).collaborationContext = collaborationContext
 
               return {
                 agentIdentifier,
@@ -8221,7 +8220,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   }
 
   private createSpecializedToolchain(blueprint: any): any[] {
-    const tools = []
+    const tools: Array<{ name: string; description: string }> = []
     const specialization = blueprint.specialization.toLowerCase()
 
     // Create tools based on agent specialization
@@ -9725,12 +9724,12 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Warm up learning and feedback systems (non-blocking)
     try {
       const insights = this.agentLearningSystem.getAgentInsights()
-      advancedUI.logInfo('Learning System', `Patterns: ${insights.totalPatterns}, Confidence: ${insights.confidenceScore}`)
+
     } catch { }
 
     try {
       const stats = this.intelligentFeedbackWrapper.getLearningStats()
-      advancedUI.logInfo('Feedback System', `Patterns: ${stats.totalPatterns}, Avg confidence: ${stats.avgConfidence.toFixed(2)}`)
+
     } catch { }
 
     // Initialize memory and snapshot services
@@ -9762,11 +9761,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         })
 
         if (cloudDocsConfig.autoSync) {
-          structuredLogger.info('Docs Cloud', '⚡︎ Auto-syncing documentation library...')
+
           await provider.sync()
         }
 
-        structuredLogger.info('Docs Cloud', '✓ Cloud documentation system ready')
+
       } else {
         structuredLogger.info('Docs Cloud', 'ℹ️ Cloud documentation disabled')
       }
@@ -13379,7 +13378,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const args = ev.toolArgs || ev.args || {}
 
     // Extract primary parameter based on tool type
-    let primaryParam = null
+    let primaryParam: string | null = null
 
     // Common file operation tools
     if (args.file_path || args.filePath) {
@@ -17109,7 +17108,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       }
 
       // Warnings
-      const warnings = []
+      const warnings: string[] = []
       if (!sessionQuota.allowed) warnings.push('Sessions limit reached')
       if (!tokenQuota.allowed) warnings.push('Token limit reached')
       if (!apiQuota.allowed) warnings.push('API rate limit reached')

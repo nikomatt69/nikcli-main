@@ -34,6 +34,7 @@ import { WebSearchProvider } from '../core/web-search-provider'
 import { ToolRegistry } from '../tools/tool-registry'
 import { PromptManager } from '../prompts/prompt-manager'
 import { aiDocsTools } from '../tools/docs-request-tool'
+import { aiMemoryTools } from '../tools/memory-search-tool'
 import { smartDocsTools } from '../tools/smart-docs-tool'
 import { advancedUI } from '../ui/advanced-cli-ui'
 import { diffManager } from '../ui/diff-manager'
@@ -1113,6 +1114,11 @@ Respond in a helpful, professional manner with clear explanations and actionable
       docs_request: aiDocsTools.request,
       docs_gap_report: aiDocsTools.gapReport,
 
+
+      // AI memory search tools
+      memory_search: aiMemoryTools.search,
+      memory_get_context: aiMemoryTools.getContext,
+
       // ==================== ENTERPRISE BATCH & SEARCH TOOLS ====================
 
       // 1. MULTI-READ: Batch file reading con search/context (Priority 8)
@@ -1242,6 +1248,464 @@ Respond in a helpful, professional manner with clear explanations and actionable
           const listTool = this.toolRegistry.getTool('list-tool')
           if (!listTool) return { error: 'List tool not available' }
           const result = await listTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // ==================== SEARCH & ANALYSIS TOOLS ====================
+
+      // 8. RAG_SEARCH: Semantic search in RAG system (Priority 8)
+      rag_search: tool({
+        description: 'Perform semantic search in the RAG system to find relevant code and documentation using embeddings',
+        parameters: z.object({
+          query: z.string().describe('What to search for semantically (e.g., "authentication logic", "error handling patterns")'),
+          limit: z.number().min(1).max(50).default(10).describe('Maximum number of results'),
+          semanticOnly: z.boolean().default(false).describe('Use pure semantic search (embedding-based) vs hybrid'),
+          threshold: z.number().min(0).max(1).default(0.3).describe('Minimum similarity score (0-1)'),
+          includeAnalysis: z.boolean().default(false).describe('Include query analysis metadata'),
+          workingDirectory: z.string().optional().describe('Working directory for search context'),
+        }),
+        execute: async (params) => {
+          const ragSearchTool = this.toolRegistry.getTool('rag-search-tool')
+          if (!ragSearchTool) return { error: 'RAG search tool not available' }
+          const result = await ragSearchTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 9. GLOB: Fast glob pattern matching (Priority 6)
+      glob: tool({
+        description: 'Fast file pattern matching with glob support, sorting, and filtering',
+        parameters: z.object({
+          pattern: z.union([z.string(), z.array(z.string())]).describe('Glob pattern(s) (e.g., "**/*.ts", ["*.ts", "*.tsx"])'),
+          path: z.string().optional().describe('Base path for search'),
+          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          onlyFiles: z.boolean().optional().describe('Return only files'),
+          onlyDirectories: z.boolean().optional().describe('Return only directories'),
+          followSymlinks: z.boolean().optional().describe('Follow symbolic links'),
+          caseSensitive: z.boolean().optional().describe('Case sensitive matching'),
+          maxDepth: z.number().optional().describe('Maximum directory depth'),
+          sortBy: z.enum(['name', 'size', 'mtime', 'atime']).optional().describe('Sort results by'),
+          sortOrder: z.enum(['asc', 'desc']).optional().describe('Sort order'),
+          maxResults: z.number().optional().describe('Maximum number of results'),
+          minSize: z.number().optional().describe('Minimum file size in bytes'),
+          maxSize: z.number().optional().describe('Maximum file size in bytes'),
+          modifiedAfter: z.string().optional().describe('Modified after date (ISO string)'),
+          modifiedBefore: z.string().optional().describe('Modified before date (ISO string)'),
+        }),
+        execute: async (params) => {
+          const globTool = this.toolRegistry.getTool('glob-tool')
+          if (!globTool) return { error: 'Glob tool not available' }
+          const result = await globTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 10. DIFF: File comparison tool (Priority 5)
+      diff: tool({
+        description: 'Compare files and content with multiple diff algorithms (line, word, character)',
+        parameters: z.object({
+          source: z.string().describe('Source file path or content'),
+          target: z.string().describe('Target file path or content'),
+          mode: z.enum(['lines', 'words', 'chars']).default('lines').describe('Diff algorithm mode'),
+          format: z.enum(['unified', 'side-by-side', 'inline']).default('unified').describe('Output format'),
+          context: z.number().optional().describe('Lines of context for unified diff'),
+          ignoreWhitespace: z.boolean().default(false).describe('Ignore whitespace differences'),
+          ignoreCase: z.boolean().default(false).describe('Case insensitive comparison'),
+          showLineNumbers: z.boolean().default(true).describe('Show line numbers'),
+          colorize: z.boolean().default(true).describe('Colorize output'),
+        }),
+        execute: async (params) => {
+          const diffTool = this.toolRegistry.getTool('diff-tool')
+          if (!diffTool) return { error: 'Diff tool not available' }
+          const result = await diffTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 11. TREE: Directory tree visualization (Priority 4)
+      tree: tool({
+        description: 'Visualize directory structure as a tree with statistics',
+        parameters: z.object({
+          path: z.string().optional().describe('Directory path to visualize'),
+          maxDepth: z.number().optional().describe('Maximum depth to traverse'),
+          showHidden: z.boolean().default(false).describe('Include hidden files'),
+          showSize: z.boolean().default(false).describe('Show file sizes'),
+          showFullPath: z.boolean().default(false).describe('Show full paths'),
+          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          onlyDirectories: z.boolean().default(false).describe('Show only directories'),
+          sortBy: z.enum(['name', 'size', 'type']).optional().describe('Sort order'),
+          useIcons: z.boolean().default(true).describe('Use file type icons'),
+        }),
+        execute: async (params) => {
+          const treeTool = this.toolRegistry.getTool('tree-tool')
+          if (!treeTool) return { error: 'Tree tool not available' }
+          const result = await treeTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 12. WATCH: File system monitoring (Priority 3)
+      watch: tool({
+        description: 'Monitor file system changes in real-time with pattern filtering',
+        parameters: z.object({
+          path: z.union([z.string(), z.array(z.string())]).optional().describe('Path(s) to watch'),
+          patterns: z.array(z.string()).optional().describe('File patterns to watch'),
+          ignorePatterns: z.array(z.string()).optional().describe('Patterns to ignore'),
+          ignoreInitial: z.boolean().default(true).describe('Ignore initial file scan'),
+          persistent: z.boolean().default(true).describe('Keep watching after first event'),
+          depth: z.number().optional().describe('Maximum directory depth'),
+          awaitWriteFinish: z.boolean().default(false).describe('Wait for write operations to finish'),
+          debounceDelay: z.number().optional().describe('Debounce delay in milliseconds'),
+          events: z.array(z.enum(['add', 'change', 'unlink', 'addDir', 'unlinkDir'])).optional().describe('Event types to watch'),
+          maxEvents: z.number().optional().describe('Maximum number of events to collect'),
+        }),
+        execute: async (params) => {
+          const watchTool = this.toolRegistry.getTool('watch-tool')
+          if (!watchTool) return { error: 'Watch tool not available' }
+          const result = await watchTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // ==================== AI & VISION TOOLS ====================
+
+      // 13. VISION_ANALYSIS: AI vision analysis (Priority 7)
+      vision_analysis: tool({
+        description: 'Analyze images with AI vision models (Claude, GPT-4V, Gemini)',
+        parameters: z.object({
+          imagePath: z.string().describe('Path to image file to analyze'),
+          provider: z.enum(['claude', 'openai', 'google']).optional().describe('AI provider to use'),
+          prompt: z.string().optional().describe('Custom analysis prompt'),
+          cache: z.boolean().default(true).describe('Cache analysis results'),
+        }),
+        execute: async (params) => {
+          const visionTool = this.toolRegistry.getTool('vision-analysis-tool')
+          if (!visionTool) return { error: 'Vision analysis tool not available' }
+          // Vision tool takes imagePath as first param, options as second
+          const result = await visionTool.execute(params.imagePath, {
+            provider: params.provider,
+            prompt: params.prompt,
+            cache: params.cache,
+          })
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 14. IMAGE_GENERATION: AI image generation (Priority 6)
+      image_generation: tool({
+        description: 'Generate images from text prompts using DALL-E 3, GPT-Image-1, or other AI models',
+        parameters: z.object({
+          prompt: z.string().min(1).describe('Text description of image to generate'),
+          model: z.enum(['dall-e-3', 'dall-e-2', 'gpt-image-1', 'google/gemini-2.5-flash-image', 'openai/gpt-5-image-mini', 'openai/gpt-5-image']).optional().describe('Image generation model'),
+          size: z.enum(['1024x1024', '1792x1024', '1024x1792', '512x512', '256x256']).optional().describe('Image dimensions'),
+          quality: z.enum(['standard', 'hd']).optional().describe('Image quality'),
+          style: z.enum(['vivid', 'natural']).optional().describe('Image style'),
+          n: z.number().min(1).max(10).optional().describe('Number of images to generate'),
+          outputPath: z.string().optional().describe('Path to save generated image'),
+          cache: z.boolean().default(true).describe('Cache generation results'),
+        }),
+        execute: async (params) => {
+          const imageGenTool = this.toolRegistry.getTool('image-generation-tool')
+          if (!imageGenTool) return { error: 'Image generation tool not available' }
+          const result = await imageGenTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // ==================== BLOCKCHAIN TOOLS ====================
+
+      // 15. COINBASE_AGENTKIT: Coinbase blockchain operations (Priority 7)
+      coinbase_agentkit: tool({
+        description: 'Execute blockchain operations using official Coinbase AgentKit (WETH, Pyth, ERC20, CDP Smart Wallet)',
+        parameters: z.object({
+          action: z.string().describe('Action: init, chat, wallet-info, transfer, balance, status, reset'),
+          params: z.record(z.any()).optional().describe('Action-specific parameters'),
+        }),
+        execute: async (params) => {
+          const coinbaseTool = this.toolRegistry.getTool('coinbase-agentkit-tool')
+          if (!coinbaseTool) return { error: 'Coinbase AgentKit tool not available' }
+          // Coinbase tool takes action as first param, params as second
+          const result = await coinbaseTool.execute(params.action, params.params || {})
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 16. GOAT_TOOL: GOAT SDK blockchain operations (Priority 7)
+      goat_tool: tool({
+        description: 'Execute blockchain operations using GOAT SDK (Polymarket, ERC20) on Polygon and Base',
+        parameters: z.object({
+          action: z.string().describe('Action: init, chat, wallet-info, polymarket-*, erc20-*, status, reset'),
+          params: z.record(z.any()).optional().describe('Action-specific parameters'),
+        }),
+        execute: async (params) => {
+          const goatTool = this.toolRegistry.getTool('goat-tool')
+          if (!goatTool) return { error: 'GOAT tool not available' }
+          // GOAT tool takes action as first param, params as second
+          const result = await goatTool.execute(params.action, params.params || {})
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // ==================== BROWSER AUTOMATION TOOLS ====================
+
+      // 17. BROWSERBASE: Browserbase web automation (Priority 6)
+      browserbase: tool({
+        description: 'Web browsing automation and AI-powered content analysis using Browserbase',
+        parameters: z.object({
+          action: z.string().describe('Action: create-session, navigate, analyze, get-content, close-session'),
+          params: z.record(z.any()).optional().describe('Action-specific parameters'),
+        }),
+        execute: async (params) => {
+          const browserbaseTool = this.toolRegistry.getTool('browserbase-tool')
+          if (!browserbaseTool) return { error: 'Browserbase tool not available' }
+          // Browserbase tool takes action as first param, params as second
+          const result = await browserbaseTool.execute(params.action, params.params || {})
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 18. BROWSER_NAVIGATE: Navigate to URL (Priority 5)
+      browser_navigate: tool({
+        description: 'Navigate to a URL and wait for page to load',
+        parameters: z.object({
+          sessionId: z.string().describe('Browser session ID'),
+          url: z.string().url().describe('URL to navigate to'),
+          waitUntil: z.enum(['load', 'domcontentloaded', 'networkidle']).optional().describe('Wait condition'),
+          timeout: z.number().optional().describe('Timeout in milliseconds'),
+        }),
+        execute: async (params) => {
+          const browserNavTool = this.toolRegistry.getTool('browser_navigate')
+          if (!browserNavTool) return { error: 'Browser navigate tool not available' }
+          const result = await browserNavTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 19. BROWSER_CLICK: Click elements (Priority 5)
+      browser_click: tool({
+        description: 'Click on an element using CSS selector or text',
+        parameters: z.object({
+          sessionId: z.string().describe('Browser session ID'),
+          selector: z.string().describe('CSS selector or text to click'),
+          button: z.enum(['left', 'right', 'middle']).optional().describe('Mouse button'),
+          clickCount: z.number().optional().describe('Number of clicks'),
+          delay: z.number().optional().describe('Delay between clicks'),
+          force: z.boolean().optional().describe('Force click even if element is not visible'),
+        }),
+        execute: async (params) => {
+          const browserClickTool = this.toolRegistry.getTool('browser_click')
+          if (!browserClickTool) return { error: 'Browser click tool not available' }
+          const result = await browserClickTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 20. BROWSER_TYPE: Type text (Priority 5)
+      browser_type: tool({
+        description: 'Type text into an input field or textarea',
+        parameters: z.object({
+          sessionId: z.string().describe('Browser session ID'),
+          selector: z.string().describe('CSS selector of input element'),
+          text: z.string().describe('Text to type'),
+          clear: z.boolean().optional().describe('Clear existing text first'),
+          delay: z.number().optional().describe('Delay between keystrokes'),
+        }),
+        execute: async (params) => {
+          const browserTypeTool = this.toolRegistry.getTool('browser_type')
+          if (!browserTypeTool) return { error: 'Browser type tool not available' }
+          const result = await browserTypeTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 21. BROWSER_SCREENSHOT: Take screenshots (Priority 4)
+      browser_screenshot: tool({
+        description: 'Take a screenshot of the current page or viewport',
+        parameters: z.object({
+          sessionId: z.string().describe('Browser session ID'),
+          fullPage: z.boolean().optional().describe('Capture full page or viewport only'),
+          quality: z.number().min(0).max(100).optional().describe('JPEG quality (0-100)'),
+          type: z.enum(['png', 'jpeg']).optional().describe('Image format'),
+        }),
+        execute: async (params) => {
+          const browserScreenshotTool = this.toolRegistry.getTool('browser_screenshot')
+          if (!browserScreenshotTool) return { error: 'Browser screenshot tool not available' }
+          const result = await browserScreenshotTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 22. BROWSER_EXTRACT_TEXT: Extract text content (Priority 4)
+      browser_extract_text: tool({
+        description: 'Extract text content from page or specific element',
+        parameters: z.object({
+          sessionId: z.string().describe('Browser session ID'),
+          selector: z.string().optional().describe('CSS selector to extract text from (or entire page)'),
+          attribute: z.string().optional().describe('Extract attribute value instead of text'),
+        }),
+        execute: async (params) => {
+          const browserExtractTool = this.toolRegistry.getTool('browser_extract_text')
+          if (!browserExtractTool) return { error: 'Browser extract text tool not available' }
+          const result = await browserExtractTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 23. BROWSER_WAIT_FOR_ELEMENT: Wait for elements (Priority 4)
+      browser_wait_for_element: tool({
+        description: 'Wait for an element to appear or change state',
+        parameters: z.object({
+          sessionId: z.string().describe('Browser session ID'),
+          selector: z.string().describe('CSS selector to wait for'),
+          state: z.enum(['visible', 'hidden', 'attached', 'detached']).optional().describe('Element state to wait for'),
+          timeout: z.number().optional().describe('Timeout in milliseconds'),
+        }),
+        execute: async (params) => {
+          const browserWaitTool = this.toolRegistry.getTool('browser_wait_for_element')
+          if (!browserWaitTool) return { error: 'Browser wait for element tool not available' }
+          const result = await browserWaitTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 24. BROWSER_SCROLL: Scroll page (Priority 3)
+      browser_scroll: tool({
+        description: 'Scroll the page or a specific element',
+        parameters: z.object({
+          sessionId: z.string().describe('Browser session ID'),
+          direction: z.enum(['up', 'down', 'left', 'right']).describe('Scroll direction'),
+          amount: z.number().optional().describe('Pixels to scroll (default: 500)'),
+          selector: z.string().optional().describe('Element to scroll (default: page)'),
+        }),
+        execute: async (params) => {
+          const browserScrollTool = this.toolRegistry.getTool('browser_scroll')
+          if (!browserScrollTool) return { error: 'Browser scroll tool not available' }
+          const result = await browserScrollTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 25. BROWSER_EXECUTE_SCRIPT: Execute JavaScript (Priority 5)
+      browser_execute_script: tool({
+        description: 'Execute custom JavaScript in the browser context',
+        parameters: z.object({
+          sessionId: z.string().describe('Browser session ID'),
+          script: z.string().describe('JavaScript code to execute'),
+          args: z.array(z.any()).optional().describe('Arguments to pass to script'),
+        }),
+        execute: async (params) => {
+          const browserScriptTool = this.toolRegistry.getTool('browser_execute_script')
+          if (!browserScriptTool) return { error: 'Browser execute script tool not available' }
+          const result = await browserScriptTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 26. BROWSER_GET_PAGE_INFO: Get page information (Priority 3)
+      browser_get_page_info: tool({
+        description: 'Get current page information (title, URL, navigation state)',
+        parameters: z.object({
+          sessionId: z.string().describe('Browser session ID'),
+        }),
+        execute: async (params) => {
+          const browserInfoTool = this.toolRegistry.getTool('browser_get_page_info')
+          if (!browserInfoTool) return { error: 'Browser get page info tool not available' }
+          const result = await browserInfoTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // ==================== MANUFACTURING TOOLS ====================
+
+      // 27. TEXT_TO_CAD: Text to CAD conversion (Priority 5)
+      text_to_cad: tool({
+        description: 'Convert text descriptions into CAD elements and models with AI',
+        parameters: z.object({
+          description: z.string().min(1).describe('Text description of CAD model to generate'),
+          outputFormat: z.enum(['stl', 'step', 'dwg', 'json', 'scad']).optional().describe('Output file format'),
+          streaming: z.boolean().default(false).describe('Stream generation progress'),
+          constraints: z.record(z.any()).optional().describe('Design constraints'),
+          outputPath: z.string().optional().describe('Path to save CAD file'),
+        }),
+        execute: async (params) => {
+          const cadTool = this.toolRegistry.getTool('text-to-cad-tool')
+          if (!cadTool) return { error: 'Text to CAD tool not available' }
+          const result = await cadTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 28. TEXT_TO_GCODE: Text to G-code conversion (Priority 5)
+      text_to_gcode: tool({
+        description: 'Convert text descriptions into G-code for CNC machining and 3D printing',
+        parameters: z.object({
+          description: z.string().min(1).describe('Text description of machining operation to generate'),
+        }),
+        execute: async (params) => {
+          const gcodeTool = this.toolRegistry.getTool('text-to-gcode-tool')
+          if (!gcodeTool) return { error: 'Text to G-code tool not available' }
+          const result = await gcodeTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // ==================== SYSTEM TOOLS ====================
+
+      // 29. BASH: Bash command execution (Priority 6)
+      bash: tool({
+        description: 'Execute shell commands with analysis, confirmation and streaming',
+        parameters: z.object({
+          command: z.string().min(1).max(1000).describe('Shell command to execute'),
+          timeout: z.number().int().positive().max(600000).optional().describe('Timeout in milliseconds'),
+          description: z.string().max(500).optional().describe('Description of what the command does'),
+          workingDirectory: z.string().optional().describe('Working directory for command'),
+          environment: z.record(z.string()).optional().describe('Environment variables'),
+          allowDangerous: z.boolean().default(false).describe('Allow potentially dangerous commands'),
+          shell: z.enum(['bash', 'sh', 'zsh', 'fish', 'powershell', 'cmd']).optional().describe('Shell to use'),
+        }),
+        execute: async (params) => {
+          const bashTool = this.toolRegistry.getTool('bash-tool')
+          if (!bashTool) return { error: 'Bash tool not available' }
+          const result = await bashTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 30. JSON_PATCH: JSON patch operations (Priority 6)
+      json_patch: tool({
+        description: 'Apply RFC6902-like JSON patches with diff/backup to configuration files',
+        parameters: z.object({
+          filePath: z.string().describe('Path to JSON/YAML file to patch'),
+          operations: z.array(z.object({
+            op: z.enum(['add', 'replace', 'remove']).describe('Operation type'),
+            path: z.string().describe('JSON path (e.g., "/scripts/build")'),
+            value: z.any().optional().describe('Value for add/replace operations'),
+          })).describe('Array of patch operations'),
+          createBackup: z.boolean().default(true).describe('Create backup before patching'),
+          previewOnly: z.boolean().default(false).describe('Preview changes without applying'),
+          allowMissing: z.boolean().default(false).describe('Allow patching non-existent files'),
+          skipConfirmation: z.boolean().default(false).describe('Skip user confirmation'),
+        }),
+        execute: async (params) => {
+          const jsonPatchTool = this.toolRegistry.getTool('json-patch-tool')
+          if (!jsonPatchTool) return { error: 'JSON patch tool not available' }
+          const result = await jsonPatchTool.execute(params)
+          return result.success ? result.data : { error: result.error }
+        }
+      }),
+
+      // 31. GIT_TOOLS: Git operations (Priority 6)
+      git_tools: tool({
+        description: 'Safe Git operations: status, diff, commit, applyPatch (no push)',
+        parameters: z.object({
+          action: z.enum(['status', 'diff', 'commit', 'applyPatch']).describe('Git action to perform'),
+          args: z.record(z.any()).optional().describe('Action-specific arguments (e.g., {message: "..."} for commit)'),
+        }),
+        execute: async (params) => {
+          const gitTools = this.toolRegistry.getTool('git-tools')
+          if (!gitTools) return { error: 'Git tools not available' }
+          const result = await gitTools.execute(params)
           return result.success ? result.data : { error: result.error }
         }
       }),

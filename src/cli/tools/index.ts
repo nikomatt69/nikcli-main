@@ -52,6 +52,7 @@ export {
   toolsManager, // deprecated, for backward compatibility
 } from './migration-to-secure-tools'
 export { MultiReadTool } from './multi-read-tool'
+export { RAGSearchTool } from './rag-search-tool'
 export {
   type BatchSession,
   type CommandOptions,

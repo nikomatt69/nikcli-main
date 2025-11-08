@@ -252,6 +252,15 @@ export class ToolRouter extends EventEmitter {
       examples: ['read multiple files', 'batch analyze src/**/*.ts', 'check all config files'],
     },
 
+    // RAG Semantic Search - HIGH PRIORITY FOR SEMANTIC CODE SEARCH
+    {
+      tool: 'rag_search',
+      keywords: ['semantic search', 'rag search', 'code search', 'find similar', 'semantic find', 'vector search', 'embedding search', 'contextual search', 'meaning search', 'similar code', 'related code'],
+      priority: 8, // HIGH: semantic search is powerful for code understanding
+      description: 'Perform semantic search in the RAG system to find relevant code and documentation',
+      examples: ['semantic search for authentication', 'find similar implementations', 'rag search user login', 'semantic find error handling'],
+    },
+
     {
       tool: 'write_file',
       keywords: ['write', 'create', 'generate', 'save', 'new', 'file', 'code', 'component', 'function'],
@@ -558,6 +567,10 @@ export class ToolRouter extends EventEmitter {
       run_command: 'run-command-tool',
       read_file: 'read-file-tool',
       multi_read: 'multi-read-tool',
+      rag_search: 'rag-search-tool',
+      ragSearch: 'rag-search-tool',
+      semantic_search: 'rag-search-tool',
+      semanticSearch: 'rag-search-tool',
       write_file: 'write-file-tool',
       explore_directory: 'list-tool',
       find_files: 'find-files-tool',

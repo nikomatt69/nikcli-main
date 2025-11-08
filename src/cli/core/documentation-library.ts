@@ -643,7 +643,7 @@ export class DocumentationLibrary {
         this.categories.add(typedEntry.category)
       }
 
-      console.log(chalk.green(`⚡︎ Loaded ${this.docs.size} documentation entries`))
+
     } catch (_error) {
       // File non esiste, inizia con libreria vuota
     }

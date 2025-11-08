@@ -62,21 +62,14 @@ export class AgentManager extends EventEmitter {
       })
     }
 
-    await structuredLogger.info('AgentManager initialized successfully', 'AgentManager')
+
   }
 
   /**
    * Register an agent in the system
    */
   async registerAgent(agent: Agent): Promise<void> {
-    await structuredLogger.info(
-      'Registering agent',
-      JSON.stringify({
-        name: agent.name,
-        specialization: agent.specialization,
-        capabilities: agent.capabilities,
-      })
-    )
+
 
     // Initialize agent with context
     const context = await this.buildAgentContext(agent)
@@ -95,7 +88,7 @@ export class AgentManager extends EventEmitter {
       data: { agent: this.getAgentInfo(agent) },
     } as AgentEvent)
 
-    await structuredLogger.info('Agent registered successfully', 'AgentManager')
+
   }
 
   /**
@@ -108,14 +101,7 @@ export class AgentManager extends EventEmitter {
       isEnabled: true,
     })
 
-    structuredLogger.info(
-      'Agent class registered',
-      JSON.stringify({
-        agentId: metadata.id,
-        name: metadata.name,
-        specialization: metadata.specialization,
-      })
-    )
+
   }
 
   /**
@@ -241,14 +227,7 @@ export class AgentManager extends EventEmitter {
    * Schedule a task for execution
    */
   async scheduleTask(task: AgentTask, preferredAgentId?: string): Promise<string> {
-    await structuredLogger.info(
-      'Scheduling task',
-      JSON.stringify({
-        title: task.title,
-        priority: task.priority,
-        requiredCapabilities: task.requiredCapabilities,
-      })
-    )
+
 
     let agent: Agent | null = null
 
@@ -271,14 +250,8 @@ export class AgentManager extends EventEmitter {
     queue.push(task)
     this.taskQueues.set(agent.id, queue)
 
-    await structuredLogger.info(
-      'Task scheduled',
-      JSON.stringify({
-        taskId: task.id,
-        agentId: agent.id,
-        queueLength: queue.length,
-      })
-    )
+
+
 
     // FIXED: Added error handling to async setImmediate (ERR-034)
     // Start execution if agent is available
@@ -342,15 +315,6 @@ export class AgentManager extends EventEmitter {
       // Store result
       this.taskHistory.set(task.id, result)
 
-      await structuredLogger.info(
-        'Task completed successfully',
-        JSON.stringify({
-          taskId: task.id,
-          agentId: agentId,
-          duration: result.duration,
-          status: result.status,
-        })
-      )
 
       return result
     } catch (error: any) {

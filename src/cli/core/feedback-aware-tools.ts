@@ -1,5 +1,6 @@
 import type { CoreTool } from 'ai'
 import { aiDocsTools } from '../tools/docs-request-tool'
+import { aiMemoryTools } from '../tools/memory-search-tool'
 import { smartDocsTools } from '../tools/smart-docs-tool'
 import { documentationTools } from './documentation-tool'
 import { intelligentFeedbackWrapper } from './intelligent-feedback-wrapper'
@@ -65,6 +66,10 @@ export class FeedbackAwareTools {
       // AI docs tools con feedback
       docs_request: FeedbackAwareTools.wrapTool('docs_request', aiDocsTools.request, agentType),
       docs_gap_report: FeedbackAwareTools.wrapTool('docs_gap_report', aiDocsTools.gapReport, agentType),
+
+      // AI memory tools con feedback
+      memory_search: FeedbackAwareTools.wrapTool('memory_search', aiMemoryTools.search, agentType),
+      memory_get_context: FeedbackAwareTools.wrapTool('memory_get_context', aiMemoryTools.getContext, agentType),
 
       // Documentation tools standard con feedback
       doc_search: FeedbackAwareTools.wrapTool('doc_search', documentationTools.search, agentType),

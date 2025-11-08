@@ -513,7 +513,41 @@ export class AuthProvider extends EventEmitter {
    */
   private async restoreSession(): Promise<void> {
     try {
-      // Try to restore from config.json first (for persistent login)
+      // First try Supabase client's own session storage (most reliable)
+      try {
+        const currentUser = await this.supabase.getCurrentUser()
+        if (currentUser) {
+          const accessToken = await this.supabase.getAccessToken()
+          const refreshToken = await this.supabase.getRefreshToken()
+          
+          if (accessToken && refreshToken) {
+            const session: AuthSession = {
+              user: currentUser,
+              accessToken,
+              refreshToken,
+              expiresAt: Date.now() + this.config.sessionTTL * 1000,
+            }
+
+            const profile = (await this.loadUserProfile(currentUser.id)) || (await this.createUserProfile(currentUser))
+
+            this.currentSession = session
+            this.currentProfile = profile
+
+            // Save credentials for next time
+            simpleConfigManager.saveAuthCredentials({
+              accessToken: session.accessToken,
+              refreshToken: session.refreshToken,
+            })
+
+            this.emit('auto_login_success', { session, profile })
+            return
+          }
+        }
+      } catch (_error) {
+        // Supabase session not available, try saved credentials
+      }
+
+      // Try to restore from config.json (for persistent login)
       const savedCredentials = simpleConfigManager.getAuthCredentials()
       if (savedCredentials?.accessToken && savedCredentials?.refreshToken) {
         try {
@@ -524,10 +558,14 @@ export class AuthProvider extends EventEmitter {
           )
 
           if (user) {
+            // Get fresh tokens from Supabase client after refresh
+            const freshAccessToken = await this.supabase.getAccessToken()
+            const freshRefreshToken = await this.supabase.getRefreshToken()
+            
             const session: AuthSession = {
               user,
-              accessToken: savedCredentials.accessToken,
-              refreshToken: savedCredentials.refreshToken,
+              accessToken: freshAccessToken || savedCredentials.accessToken,
+              refreshToken: freshRefreshToken || savedCredentials.refreshToken,
               expiresAt: Date.now() + this.config.sessionTTL * 1000,
             }
 
@@ -536,14 +574,18 @@ export class AuthProvider extends EventEmitter {
             this.currentSession = session
             this.currentProfile = profile
 
-            console.log(chalk.green(`✓ Auto-logged in as ${profile.email || profile.username}`))
+            // Update saved credentials with fresh tokens
+            simpleConfigManager.saveAuthCredentials({
+              accessToken: session.accessToken,
+              refreshToken: session.refreshToken,
+            })
+
             this.emit('auto_login_success', { session, profile })
             return
           }
         } catch (error: any) {
           // Tokens expired or invalid, clear them
           simpleConfigManager.clearAuthCredentials()
-          console.warn(chalk.yellow('Stored session expired, please login again'))
         }
       }
     } catch (error: any) {

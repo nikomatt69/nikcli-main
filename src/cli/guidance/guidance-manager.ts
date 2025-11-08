@@ -59,8 +59,6 @@ export class GuidanceManager {
   async initialize(onContextUpdate?: (context: GuidanceContext) => void): Promise<void> {
     this.onContextUpdate = onContextUpdate
 
-    structuredLogger.info('Guidance', '⚡︎ Initializing guidance system...')
-
     // Scan for existing guidance files
     await this.scanGuidanceFiles()
 
@@ -70,7 +68,6 @@ export class GuidanceManager {
     // Build initial context
     await this.updateContext()
 
-    structuredLogger.success('Guidance', `✓ Guidance system initialized with ${this.guidanceFiles.size} files`)
   }
 
   /**
@@ -145,7 +142,6 @@ export class GuidanceManager {
 
       this.guidanceFiles.set(filePath, guidanceFile)
     } catch (error: any) {
-      structuredLogger.warning('Guidance', `⚠️ Could not load guidance file ${filePath}: ${error.message}`)
     }
   }
 
@@ -270,7 +266,6 @@ export class GuidanceManager {
       this.watchers.push(watcher)
     }
 
-    structuredLogger.info('Guidance', '⚡︎ File watchers active for guidance files')
   }
 
   private async handleFileChange(filePath: string, changeType: 'add' | 'change' | 'unlink'): Promise<void> {

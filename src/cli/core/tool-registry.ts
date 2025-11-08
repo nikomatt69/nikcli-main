@@ -35,7 +35,7 @@ export const ToolMetadataSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
-  version: z.string().default('1.1.0'),
+  version: z.string().default('1.2.0'),
   author: z.string().optional(),
   category: z.enum([
     'file-ops',
@@ -245,7 +245,7 @@ export class ToolRegistry {
       this.loadedTools.add(toolMetadata.id)
 
       if (!process.env.NIKCLI_SUPPRESS_TOOL_REGISTER_LOGS && !process.env.NIKCLI_QUIET_STARTUP) {
-        advancedUI.logInfo(`🔧 Registered tool: ${toolMetadata.name} (${toolMetadata.id})`)
+
       }
       return toolMetadata.id
     } catch (error: any) {
@@ -262,7 +262,7 @@ export class ToolRegistry {
       try {
         await toolInstance.instance.initialize()
         toolInstance.isInitialized = true
-        advancedUI.logInfo(`🔧 Initialized tool: ${toolInstance.metadata.name}`)
+
       } catch (error: any) {
         advancedUI.logWarning(`⚠️  Tool initialization failed: ${toolInstance.metadata.name} - ${error.message}`)
       }

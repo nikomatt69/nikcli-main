@@ -231,7 +231,7 @@ export class MemoryService extends EventEmitter {
           userId: options.userId,
         })
 
-        const semanticResults = []
+        const semanticResults: MemorySearchResult[] = []
         for (const memoryResult of allMemories) {
           if ((memoryResult.memory.metadata as any).embedding) {
             const similarity = unifiedEmbeddingInterface.calculateSimilarity(
@@ -242,14 +242,15 @@ export class MemoryService extends EventEmitter {
             if (similarity > 0.3) {
               // Similarity threshold
               semanticResults.push({
-                ...memoryResult,
-                score: similarity,
+                memory: memoryResult.memory,
+                similarity: similarity,
+                relevance_explanation: memoryResult.relevance_explanation,
               })
             }
           }
         }
 
-        return semanticResults.sort((a, b) => b.score - a.score).slice(0, options.limit || 10)
+        return semanticResults.sort((a, b) => b.similarity - a.similarity).slice(0, options.limit || 10)
       } else {
         // Hybrid: semantic + traditional search
         return await this.searchMemories(query, options)
