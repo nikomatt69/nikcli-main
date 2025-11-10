@@ -1,0 +1,51 @@
+# CODEOWNERS file for automatic review assignment
+# This file defines the code owners for different parts of the repository
+
+# Global owners
+* @nikomatt69 @maintainers
+
+# Frontend code
+/web-ui/ @frontend-team
+/web-ui/src/ @frontend-team
+/web-ui/components/ @frontend-team
+
+# Backend code
+/bin/ @backend-team
+/web-ui/pages/api/ @backend-team
+/lib/ @backend-team
+
+# Configuration files
+*.json @devops-team
+*.yml @devops-team
+*.yaml @devops-team
+.github/ @devops-team
+
+# Documentation
+*.md @docs-team
+/docs/ @docs-team
+
+# Test files
+*.test.* @qa-team
+*.spec.* @qa-team
+/test/ @qa-team
+
+# Dependencies
+package.json @devops-team
+package-lock.json @devops-team
+yarn.lock @devops-team
+pnpm-lock.yaml @devops-team
+
+# Security and compliance
+**/*.pem @security-team
+**/*.key @security-team
+**/secrets/ @security-team
+**/config/production* @security-team
+
+# Review requirements
+# @required-reviewers 2
+# @required-approvals 2
+
+# Auto-merge rules
+*.small_change @maintainers
+*.documentation_update @docs-team
+*.test_only @qa-team

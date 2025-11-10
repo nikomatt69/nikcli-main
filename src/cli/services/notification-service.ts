@@ -46,7 +46,9 @@ export class NotificationService {
 
       // Discord and Linear are HTTP-based, no client initialization needed
       if (this.config.providers.discord?.enabled && this.config.providers.discord.webhookUrl) {
-        advancedUI.logFunctionUpdate('success', 'Discord notification provider initialized', '✓')
+        advancedUI.logFunctionUpdate('success', `Discord notification provider initialized (webhook: ${this.config.providers.discord.webhookUrl.substring(0, 50)}...)`, '✓')
+      } else {
+        advancedUI.logFunctionUpdate('info', `Discord NOT initialized - enabled: ${this.config.providers.discord?.enabled}, webhook: ${this.config.providers.discord?.webhookUrl ? 'set' : 'missing'}`, 'ℹ️')
       }
 
       if (this.config.providers.linear?.enabled && this.config.providers.linear.apiKey) {
@@ -259,12 +261,24 @@ export class NotificationService {
 
     const message = this.formatMessage(payload, 'discord')
 
-    await axios.post(webhookUrl, message, {
-      timeout,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    try {
+      advancedUI.logFunctionUpdate('info', `Sending Discord notification to ${webhookUrl.substring(0, 50)}...`, '📤')
+
+      const response = await axios.post(webhookUrl, message, {
+        timeout,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      advancedUI.logFunctionUpdate('success', `Discord notification sent successfully (status: ${response.status})`, '✓')
+    } catch (error: any) {
+      advancedUI.logFunctionUpdate('error', `Discord notification failed: ${error.message}`, '❌')
+      if (error.response) {
+        advancedUI.logFunctionUpdate('error', `Discord API error: ${JSON.stringify(error.response.data)}`, '⚠️')
+      }
+      throw error
+    }
   }
 
   /**

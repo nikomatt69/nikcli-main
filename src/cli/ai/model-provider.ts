@@ -1,10 +1,13 @@
 import { createAnthropic } from '@ai-sdk/anthropic'
-import { createGateway } from '@ai-sdk/gateway'
+import { createCerebras } from '@ai-sdk/cerebras'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
 import { generateObject, generateText, streamText } from 'ai'
+
+
 import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 
@@ -35,6 +38,13 @@ export const GenerateOptionsSchema = z.object({
   // Reasoning options
   enableReasoning: z.boolean().optional(),
   showReasoningProcess: z.boolean().optional(),
+  // OpenRouter reasoning configuration
+  reasoning: z.object({
+    effort: z.enum(['high', 'medium', 'low']).optional(),
+    max_tokens: z.number().int().min(1024).max(32000).optional(),
+    exclude: z.boolean().optional(),
+    enabled: z.boolean().optional(),
+  }).optional(),
 })
 
 // Model Response Schema
@@ -192,6 +202,40 @@ export class ModelProvider {
         const ollamaProvider = createOllama({})
         return ollamaProvider(config.model)
       }
+      case 'cerebras': {
+        const apiKey = configManager.getApiKey(currentModelName)
+        if (!apiKey) {
+          throw new Error(`API key not found for model: ${currentModelName} (Cerebras). Use /set-key to configure.`)
+        }
+        const cerebrasProvider = createCerebras({ apiKey })
+        return cerebrasProvider(config.model)
+      }
+      case 'groq': {
+        const apiKey = configManager.getApiKey(currentModelName)
+        if (!apiKey) {
+          throw new Error(`API key not found for model: ${currentModelName} (Groq). Use /set-key to configure.`)
+        }
+        const groqProvider = createGroq({ apiKey })
+        return groqProvider(config.model)
+      }
+      case 'llamacpp': {
+        // LlamaCpp uses OpenAI-compatible API; assumes local server at default endpoint
+        const llamacppProvider = createOpenAICompatible({
+          name: 'llamacpp',
+          apiKey: 'llamacpp', // LlamaCpp doesn't require a real API key for local server
+          baseURL: process.env.LLAMACPP_BASE_URL || 'http://localhost:8080/v1',
+        })
+        return llamacppProvider(config.model)
+      }
+      case 'lmstudio': {
+        // LMStudio uses OpenAI-compatible API; assumes local server at default endpoint
+        const lmstudioProvider = createOpenAICompatible({
+          name: 'lmstudio',
+          apiKey: 'lm-studio', // LMStudio doesn't require a real API key
+          baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
+        })
+        return lmstudioProvider(config.model)
+      }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
@@ -266,6 +310,35 @@ export class ModelProvider {
     const resolvedTemp = validatedOptions.temperature ?? configManager.get('temperature')
     if (resolvedTemp != null) {
       baseOptions.temperature = resolvedTemp
+    }
+
+    // OpenRouter-specific parameters support
+    if (effectiveConfig.provider === 'openrouter') {
+      if (!baseOptions.experimental_providerMetadata) {
+        baseOptions.experimental_providerMetadata = {}
+      }
+      if (!baseOptions.experimental_providerMetadata.openrouter) {
+        baseOptions.experimental_providerMetadata.openrouter = {}
+      }
+
+      // Reasoning parameter support
+      if (reasoningEnabled) {
+        const reasoningConfig = validatedOptions.reasoning || {
+          effort: 'medium',
+          exclude: false,
+          enabled: true,
+        }
+        baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+      }
+
+      // Transforms parameter support (e.g., middle-out for context compression)
+      const transforms = (effectiveConfig as any).transforms || configManager.get('openrouterTransforms')
+      if (transforms && Array.isArray(transforms) && transforms.length > 0) {
+        baseOptions.experimental_providerMetadata.openrouter.transforms = transforms
+      } else {
+        // Default to middle-out for automatic context compression
+        baseOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+      }
     }
     const result = await generateText(baseOptions)
 
@@ -383,6 +456,36 @@ export class ModelProvider {
       streamOptions.maxTokens = validatedOptions.maxTokens ?? 1500
       streamOptions.temperature = validatedOptions.temperature ?? configManager.get('temperature')
     }
+
+    // OpenRouter-specific parameters support for streaming
+    if (effectiveConfig2.provider === 'openrouter') {
+      if (!streamOptions.experimental_providerMetadata) {
+        streamOptions.experimental_providerMetadata = {}
+      }
+      if (!streamOptions.experimental_providerMetadata.openrouter) {
+        streamOptions.experimental_providerMetadata.openrouter = {}
+      }
+
+      // Reasoning parameter support
+      if (reasoningEnabled) {
+        const reasoningConfig = validatedOptions.reasoning || {
+          effort: 'medium',
+          exclude: false,
+          enabled: true,
+        }
+        streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
+      }
+
+      // Transforms parameter support (e.g., middle-out for context compression)
+      const transforms = (effectiveConfig2 as any).transforms || configManager.get('openrouterTransforms')
+      if (transforms && Array.isArray(transforms) && transforms.length > 0) {
+        streamOptions.experimental_providerMetadata.openrouter.transforms = transforms
+      } else {
+        // Default to middle-out for automatic context compression
+        streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+      }
+    }
+
     const result = await streamText(streamOptions)
 
     for await (const delta of result.textStream) {

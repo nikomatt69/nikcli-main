@@ -194,6 +194,18 @@ const SECRETS_TO_EMBED = [
   { name: 'ALERT_THROTTLING_ENABLED', envVarName: 'ALERT_THROTTLING_ENABLED', id: 'alert_throttling_enabled', provider: 'config', description: 'Alert throttling enabled' },
   { name: 'ALERT_MAX_ALERTS_PER_MINUTE', envVarName: 'ALERT_MAX_ALERTS_PER_MINUTE', id: 'alert_max_per_minute', provider: 'config', description: 'Alert max per minute' },
 
+  // NOTIFICATIONS
+  { name: 'NOTIFICATIONS_ENABLED', envVarName: 'NOTIFICATIONS_ENABLED', id: 'notifications_enabled', provider: 'config', description: 'Notifications enabled' },
+  { name: 'SLACK_TASK_NOTIFICATIONS', envVarName: 'SLACK_TASK_NOTIFICATIONS', id: 'slack_task_notifications', provider: 'slack', description: 'Slack task notifications' },
+  { name: 'SLACK_CHANNEL', envVarName: 'SLACK_CHANNEL', id: 'slack_channel', provider: 'slack', description: 'Slack channel' },
+  { name: 'SLACK_USERNAME', envVarName: 'SLACK_USERNAME', id: 'slack_username', provider: 'slack', description: 'Slack username' },
+  { name: 'DISCORD_TASK_NOTIFICATIONS', envVarName: 'DISCORD_TASK_NOTIFICATIONS', id: 'discord_task_notifications', provider: 'discord', description: 'Discord task notifications' },
+  { name: 'DISCORD_USERNAME', envVarName: 'DISCORD_USERNAME', id: 'discord_username', provider: 'discord', description: 'Discord username' },
+  { name: 'LINEAR_TASK_NOTIFICATIONS', envVarName: 'LINEAR_TASK_NOTIFICATIONS', id: 'linear_task_notifications', provider: 'linear', description: 'Linear task notifications' },
+  { name: 'LINEAR_API_KEY', envVarName: 'LINEAR_API_KEY', id: 'linear_api_key', provider: 'linear', description: 'Linear API Key' },
+  { name: 'LINEAR_TEAM_ID', envVarName: 'LINEAR_TEAM_ID', id: 'linear_team_id', provider: 'linear', description: 'Linear Team ID' },
+  { name: 'LINEAR_CREATE_ISSUES', envVarName: 'LINEAR_CREATE_ISSUES', id: 'linear_create_issues', provider: 'linear', description: 'Linear create issues' },
+
   // HEALTH CHECKS
   { name: 'HEALTH_CHECKS_ENABLED', envVarName: 'HEALTH_CHECKS_ENABLED', id: 'health_checks_enabled', provider: 'config', description: 'Health checks enabled' },
   { name: 'HEALTH_CHECK_INTERVAL_MS', envVarName: 'HEALTH_CHECK_INTERVAL_MS', id: 'health_check_interval', provider: 'config', description: 'Health check interval' },

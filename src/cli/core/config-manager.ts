@@ -8,7 +8,7 @@ import { OutputStyleConfigSchema, OutputStyleEnum } from '../types/output-styles
 
 // Validation schemas
 const ModelConfigSchema = z.object({
-  provider: z.enum(['openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway', 'openrouter', 'cerebras']),
+  provider: z.enum(['openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway', 'openrouter', 'cerebras', 'groq', 'llamacpp', 'lmstudio']),
   model: z.string(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().min(1).max(8000).optional(),
@@ -62,6 +62,11 @@ const ConfigSchema = z.object({
       logReasoning: z.boolean().default(false).describe('Log reasoning to debug output'),
     })
     .default({ enabled: true, autoDetect: true, showReasoningProcess: false, logReasoning: false }),
+  // OpenRouter transforms configuration (e.g., middle-out for context compression)
+  openrouterTransforms: z
+    .array(z.string())
+    .default(['middle-out'])
+    .describe('OpenRouter prompt transforms to apply (e.g., "middle-out" for automatic context compression)'),
   // MCP (Model Context Protocol) servers configuration - Claude Code/OpenCode compatible
   mcp: z
     .record(
@@ -948,6 +953,104 @@ export class SimpleConfigManager {
       model: 'mistral:7b',
       maxContextTokens: 128000,
     },
+    // Groq models - Ultra-fast inference
+    'llama-3.1-8b-instant': {
+      provider: 'groq',
+      model: 'llama-3.1-8b-instant',
+      maxContextTokens: 131072,
+    },
+    'llama-3.3-70b-versatile': {
+      provider: 'groq',
+      model: 'llama-3.3-70b-versatile',
+      maxContextTokens: 131072,
+    },
+    'meta-llama/llama-guard-4-12b': {
+      provider: 'groq',
+      model: 'meta-llama/llama-guard-4-12b',
+      maxContextTokens: 131072,
+    },
+    'openai/gpt-oss-120b': {
+      provider: 'groq',
+      model: 'openai/gpt-oss-120b',
+      maxContextTokens: 131072,
+    },
+    'openai/gpt-oss-20b': {
+      provider: 'groq',
+      model: 'openai/gpt-oss-20b',
+      maxContextTokens: 131072,
+    },
+    'whisper-large-v3': {
+      provider: 'groq',
+      model: 'whisper-large-v3',
+      maxContextTokens: 8192,
+    },
+    'whisper-large-v3-turbo': {
+      provider: 'groq',
+      model: 'whisper-large-v3-turbo',
+      maxContextTokens: 8192,
+    },
+    'groq/compound': {
+      provider: 'groq',
+      model: 'groq/compound',
+      maxContextTokens: 131072,
+    },
+    'groq/compound-mini': {
+      provider: 'groq',
+      model: 'groq/compound-mini',
+      maxContextTokens: 131072,
+    },
+    // Groq Preview Models
+    'meta-llama/llama-4-maverick-17b-128e-instruct': {
+      provider: 'groq',
+      model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+      maxContextTokens: 131072,
+    },
+    'meta-llama/llama-4-scout-17b-16e-instruct': {
+      provider: 'groq',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      maxContextTokens: 131072,
+    },
+    'meta-llama/llama-prompt-guard-2-22m': {
+      provider: 'groq',
+      model: 'meta-llama/llama-prompt-guard-2-22m',
+      maxContextTokens: 512,
+    },
+    'meta-llama/llama-prompt-guard-2-86m': {
+      provider: 'groq',
+      model: 'meta-llama/llama-prompt-guard-2-86m',
+      maxContextTokens: 512,
+    },
+    'moonshotai/kimi-k2-instruct-0905': {
+      provider: 'groq',
+      model: 'moonshotai/kimi-k2-instruct-0905',
+      maxContextTokens: 262144,
+    },
+    'openai/gpt-oss-safeguard-20b': {
+      provider: 'groq',
+      model: 'openai/gpt-oss-safeguard-20b',
+      maxContextTokens: 131072,
+    },
+    'playai-tts': {
+      provider: 'groq',
+      model: 'playai-tts',
+      maxContextTokens: 8192,
+    },
+    'playai-tts-arabic': {
+      provider: 'groq',
+      model: 'playai-tts-arabic',
+      maxContextTokens: 8192,
+    },
+    'qwen/qwen3-32b': {
+      provider: 'groq',
+      model: 'qwen/qwen3-32b',
+      maxContextTokens: 131072,
+    },
+    // Cerebras models - High-speed inference
+    'zai-glm-4.6': {
+      provider: 'cerebras',
+      model: 'zai-glm-4.6',
+      maxContextTokens: 128000,
+    },
     'gpt-oss:20b': {
       provider: 'openrouter',
       model: 'gpt-oss:20b',
@@ -1286,6 +1389,7 @@ export class SimpleConfigManager {
     environmentSources: [],
     modelRouting: { enabled: true, verbose: false, mode: 'balanced' },
     reasoning: { enabled: true, autoDetect: true, showReasoningProcess: true, logReasoning: false },
+    openrouterTransforms: ['middle-out'],
     mcpServers: {},
     maxConcurrentAgents: 5,
     enableGuidanceSystem: true,
@@ -1614,7 +1718,7 @@ export class SimpleConfigManager {
 
       // Handle secrets that need user confirmation
       if (secretsToOverwrite.length > 0) {
-        this.handleSecretOverwrites(secretsToOverwrite)
+
         changed = true
       }
 
@@ -1631,40 +1735,7 @@ export class SimpleConfigManager {
     }
   }
 
-  private handleSecretOverwrites(secretsToOverwrite: { envVarName: string; oldValue: string; newValue: string }[]): void {
-    const { createInterface } = require('readline')
-    const rl = createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    })
 
-    const askForOverwrite = (index: number) => {
-      if (index >= secretsToOverwrite.length) {
-        rl.close()
-        return
-      }
-
-      const secret = secretsToOverwrite[index]
-      rl.question(
-        `\n🔄 Secret "${secret.envVarName}" has been updated in the new version.\n` +
-        `   Old: ${secret.oldValue.slice(0, 20)}${secret.oldValue.length > 20 ? '...' : ''}\n` +
-        `   New: ${secret.newValue.slice(0, 20)}${secret.newValue.length > 20 ? '...' : ''}\n` +
-        `   Overwrite with new value? (y/n): `,
-        (answer: string) => {
-          if (answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes') {
-            this.config.environmentVariables[secret.envVarName] = KeyEncryption.encrypt(secret.newValue)
-            process.env[secret.envVarName] = secret.newValue
-            console.log(`✓ Updated ${secret.envVarName}`)
-          } else {
-            console.log(`✗ Kept existing value for ${secret.envVarName}`)
-          }
-          askForOverwrite(index + 1)
-        }
-      )
-    }
-
-    askForOverwrite(0)
-  }
 
   private saveConfig(): void {
     try {
@@ -1725,8 +1796,16 @@ export class SimpleConfigManager {
           return process.env.GATEWAY_API_KEY
         case 'openrouter':
           return process.env.OPENROUTER_API_KEY
+        case 'cerebras':
+          return process.env.CEREBRAS_API_KEY
+        case 'groq':
+          return process.env.GROQ_API_KEY
         case 'ollama':
           return undefined // Ollama doesn't need API keys
+        case 'llamacpp':
+          return undefined // LlamaCpp local server doesn't need API keys
+        case 'lmstudio':
+          return undefined // LMStudio local server doesn't need API keys
       }
     }
 
@@ -2179,7 +2258,7 @@ export class SimpleConfigManager {
       })
 
       if (!res.ok) return new Set()
-      const data = await res.json()
+      const data = await res.json() as { data?: Array<{ id?: string }> }
       const ids = new Set<string>()
       const list = Array.isArray(data?.data) ? data.data : []
       for (const item of list) {

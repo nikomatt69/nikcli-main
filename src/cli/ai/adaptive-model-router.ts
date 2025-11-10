@@ -7,7 +7,7 @@ import type { ChatMessage } from './model-provider'
 export type ModelScope = 'chat_default' | 'planning' | 'code_gen' | 'tool_light' | 'tool_heavy' | 'vision'
 
 export interface ModelRouteInput {
-  provider: 'openai' | 'anthropic' | 'google' | 'ollama' | 'vercel' | 'gateway' | 'openrouter'
+  provider: 'openai' | 'anthropic' | 'google' | 'ollama' | 'vercel' | 'gateway' | 'openrouter' | 'groq' | 'cerebras'
   baseModel: string // model id configured as current for provider
   messages: Array<Pick<ChatMessage, 'role' | 'content'>>
   scope?: ModelScope
@@ -101,6 +101,8 @@ function getCharTokenRatio(provider: string): number {
     vercel: 3.7, // Mixed models
     gateway: 3.7, // Mixed models
     openrouter: 3.7, // Mixed models
+    groq: 3.5, // Llama-based models, similar to GPT
+    cerebras: 4.0, // GLM and mixed models
   }
 
   return ratios[provider] || 4.0 // Default fallback
@@ -142,6 +144,18 @@ function pickOpenRouter(baseModel: string, _tier: 'light' | 'medium' | 'heavy', 
     selected = baseModel // Keep if vision-capable
   }
   return selected // e.g., returns 'openrouter-claude-3-7-sonnet-20250219' directly
+}
+
+function pickGroq(baseModel: string, _tier: 'light' | 'medium' | 'heavy', _needsVision?: boolean): string {
+  // Groq: Use configured baseModel directly (e.g., 'llama-3.1-8b-instant', 'meta-llama/llama-4-maverick-17b-128e-instruct')
+  // No tier-based switching - Groq models are already optimized for ultra-fast inference
+  return baseModel
+}
+
+function pickCerebras(baseModel: string, _tier: 'light' | 'medium' | 'heavy', _needsVision?: boolean): string {
+  // Cerebras: Use configured baseModel directly (e.g., 'zai-glm-4.6', 'llama-3.3-70b')
+  // No tier-based switching - Cerebras models are already optimized for high-speed inference
+  return baseModel
 }
 
 function determineTier(tokens: number, scope?: ModelScope, content?: string): 'light' | 'medium' | 'heavy' {
@@ -271,6 +285,14 @@ export class AdaptiveModelRouter {
         selected = pickOpenRouter(input.baseModel, tier, input.needsVision)
         reason = `openrouter ${tier} (${method})`
         break
+      case 'groq':
+        selected = pickGroq(input.baseModel, tier, input.needsVision)
+        reason = `groq ${tier} (${method})`
+        break
+      case 'cerebras':
+        selected = pickCerebras(input.baseModel, tier, input.needsVision)
+        reason = `cerebras ${tier} (${method})`
+        break
       case 'vercel':
       case 'gateway':
         // Default: keep base model (gateways often wrap specific ids)
@@ -362,6 +384,14 @@ export class AdaptiveModelRouter {
       case 'openrouter':
         selected = pickOpenRouter(input.baseModel, tier, input.needsVision)
         reason = `openrouter ${tier}`
+        break
+      case 'groq':
+        selected = pickGroq(input.baseModel, tier, input.needsVision)
+        reason = `groq ${tier}`
+        break
+      case 'cerebras':
+        selected = pickCerebras(input.baseModel, tier, input.needsVision)
+        reason = `cerebras ${tier}`
         break
       case 'vercel':
       case 'gateway':

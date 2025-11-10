@@ -3,9 +3,13 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { createAnthropic } from '@ai-sdk/anthropic'
+import { createCerebras } from '@ai-sdk/cerebras'
 import { createGateway } from '@ai-sdk/gateway'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+import { createVercel } from '@ai-sdk/vercel'
 import { type CoreMessage, type CoreTool, generateText, streamText, type ToolCallPart, tool } from 'ai'
 import chalk from 'chalk'
 import { createOllama } from 'ollama-ai-provider'
@@ -3038,6 +3042,54 @@ Requirements:
         const ollamaProvider = createOllama({})
         return ollamaProvider(configData.model)
       }
+      case 'vercel': {
+        let apiKey = configManager.getApiKey(model)
+        if (!apiKey) {
+          const current = configManager.get('currentModel')
+          if (current && current !== model) apiKey = configManager.getApiKey(current)
+        }
+        if (!apiKey) throw new Error(`No API key found for provider Vercel (model ${model})`)
+        const vercelProvider = createVercel({ apiKey })
+        return vercelProvider(configData.model)
+      }
+      case 'cerebras': {
+        let apiKey = configManager.getApiKey(model)
+        if (!apiKey) {
+          const current = configManager.get('currentModel')
+          if (current && current !== model) apiKey = configManager.getApiKey(current)
+        }
+        if (!apiKey) throw new Error(`No API key found for provider Cerebras (model ${model})`)
+        const cerebrasProvider = createCerebras({ apiKey })
+        return cerebrasProvider(configData.model)
+      }
+      case 'groq': {
+        let apiKey = configManager.getApiKey(model)
+        if (!apiKey) {
+          const current = configManager.get('currentModel')
+          if (current && current !== model) apiKey = configManager.getApiKey(current)
+        }
+        if (!apiKey) throw new Error(`No API key found for provider Groq (model ${model})`)
+        const groqProvider = createGroq({ apiKey })
+        return groqProvider(configData.model)
+      }
+      case 'llamacpp': {
+        // LlamaCpp uses OpenAI-compatible API; assumes local server at default endpoint
+        const llamacppProvider = createOpenAICompatible({
+          name: 'llamacpp',
+          apiKey: 'llamacpp', // LlamaCpp doesn't require a real API key for local server
+          baseURL: process.env.LLAMACPP_BASE_URL || 'http://localhost:8080/v1',
+        })
+        return llamacppProvider(configData.model)
+      }
+      case 'lmstudio': {
+        // LMStudio uses OpenAI-compatible API; assumes local server at default endpoint
+        const lmstudioProvider = createOpenAICompatible({
+          name: 'lmstudio',
+          apiKey: 'lm-studio', // LMStudio doesn't require a real API key
+          baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
+        })
+        return lmstudioProvider(configData.model)
+      }
       default:
         throw new Error(`Unsupported provider: ${configData.provider}`)
     }
@@ -3093,6 +3145,22 @@ Requirements:
           return { maxTokens: 4000, temperature: 0.7 } // Legacy model
         }
         return { maxTokens: 4000, temperature: 0.7 }
+
+      case 'cerebras':
+        // Cerebras models - High-speed inference
+        return { maxTokens: 8192, temperature: 0.7 }
+
+      case 'groq':
+        // Groq models - Ultra-fast inference
+        return { maxTokens: 8192, temperature: 0.7 }
+
+      case 'llamacpp':
+        // LlamaCpp local models
+        return { maxTokens: 4096, temperature: 0.7 }
+
+      case 'lmstudio':
+        // LMStudio local models
+        return { maxTokens: 4096, temperature: 0.7 }
 
       default:
         return { maxTokens: 4096, temperature: 1 } // RIDOTTO per compatibilità universale

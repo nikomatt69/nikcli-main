@@ -2,11 +2,15 @@ import { execSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { createAnthropic } from '@ai-sdk/anthropic'
+import { createCerebras } from '@ai-sdk/cerebras'
 import { createGateway } from '@ai-sdk/gateway'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
 import { type CoreMessage, type CoreTool, generateText, streamText, tool } from 'ai'
+import { createOllama } from 'ollama-ai-provider'
 import { z } from 'zod'
 
 import { simpleConfigManager } from '../core/config-manager'
@@ -16,13 +20,14 @@ import type { OutputStyle } from '../types/output-styles'
 import { ReasoningDetector } from './reasoning-detector'
 
 export interface ModelConfig {
-  provider: 'openai' | 'anthropic' | 'google' | 'vercel' | 'gateway' | 'openrouter'
+  provider: 'openai' | 'anthropic' | 'google' | 'vercel' | 'gateway' | 'openrouter' | 'ollama' | 'cerebras' | 'groq' | 'llamacpp' | 'lmstudio'
   model: string
   temperature?: number
   maxTokens?: number
   enableReasoning?: boolean
   reasoningMode?: 'auto' | 'explicit' | 'disabled'
   outputStyle?: OutputStyle
+  transforms?: string[] // OpenRouter transforms (e.g., ["middle-out"] for context compression)
 }
 
 export interface AIProviderOptions {
@@ -151,8 +156,8 @@ export class ModernAIProvider {
             }
 
             const items = readdirSync(fullPath, { withFileTypes: true })
-            const files = []
-            const directories = []
+            const files: Array<{ name: string; path: string; size: number; modified: Date }> = []
+            const directories: Array<{ name: string; path: string; size: number; modified: Date }> = []
 
             for (const item of items) {
               if (pattern && !item.name.includes(pattern)) continue
@@ -299,10 +304,10 @@ export class ModernAIProvider {
         execute: async ({ plugin, action, chain, params = {} }) => {
           try {
             const { secureTools } = await import('../tools/secure-tools-registry')
-            
+
             // Construct action with plugin prefix if needed
             const fullAction = action.startsWith(`${plugin}-`) ? action : `${plugin}-${action}`
-            
+
             // Add chain and plugin info to params
             const enhancedParams = {
               ...params,
@@ -355,7 +360,7 @@ export class ModernAIProvider {
 
   private async analyzeWorkspaceStructure(rootPath: string, maxDepth: number): Promise<any> {
     const packageJsonPath = join(rootPath, 'package.json')
-    let packageInfo = null
+    let packageInfo: { name?: string; version?: string; description?: string; dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | null = null
 
     if (existsSync(packageJsonPath)) {
       try {
@@ -373,7 +378,7 @@ export class ModernAIProvider {
       rootPath: relative(process.cwd(), rootPath),
       packageInfo: packageInfo
         ? {
-          name: packageInfo.name,
+          name: packageInfo.name as string,
           version: packageInfo.version,
           description: packageInfo.description,
         }
@@ -565,6 +570,37 @@ export class ModernAIProvider {
         })
         return openrouterProvider(config.model) // Assumes model like 'openai/gpt-4o'
       }
+      case 'ollama': {
+        // Ollama does not require API keys; assumes local daemon at default endpoint
+        const ollamaProvider = createOllama({})
+        return ollamaProvider(config.model)
+      }
+      case 'cerebras': {
+        const cerebrasProvider = createCerebras({ apiKey })
+        return cerebrasProvider(config.model)
+      }
+      case 'groq': {
+        const groqProvider = createGroq({ apiKey })
+        return groqProvider(config.model)
+      }
+      case 'llamacpp': {
+        // LlamaCpp uses OpenAI-compatible API; assumes local server at default endpoint
+        const llamacppProvider = createOpenAICompatible({
+          name: 'llamacpp',
+          apiKey: 'llamacpp', // LlamaCpp doesn't require a real API key for local server
+          baseURL: process.env.LLAMACPP_BASE_URL || 'http://localhost:8080/v1',
+        })
+        return llamacppProvider(config.model)
+      }
+      case 'lmstudio': {
+        // LMStudio uses OpenAI-compatible API; assumes local server at default endpoint
+        const lmstudioProvider = createOpenAICompatible({
+          name: 'lmstudio',
+          apiKey: 'lm-studio', // LMStudio doesn't require a real API key
+          baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
+        })
+        return lmstudioProvider(config.model)
+      }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }
@@ -619,13 +655,36 @@ export class ModernAIProvider {
         }
       } catch (_) { }
 
-      const result = await streamText({
+      // Prepare base options
+      const streamOptions: any = {
         model,
         messages,
         tools,
         temperature: 1,
         // Spread middleware if available
-      })
+      }
+
+      // OpenRouter-specific parameters support
+      const cfg = simpleConfigManager?.getCurrentModel() as any
+      if (cfg?.provider === 'openrouter') {
+        if (!streamOptions.experimental_providerMetadata) {
+          streamOptions.experimental_providerMetadata = {}
+        }
+        if (!streamOptions.experimental_providerMetadata.openrouter) {
+          streamOptions.experimental_providerMetadata.openrouter = {}
+        }
+
+        // Transforms parameter support (e.g., middle-out for context compression)
+        const transforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
+        if (transforms && Array.isArray(transforms) && transforms.length > 0) {
+          streamOptions.experimental_providerMetadata.openrouter.transforms = transforms
+        } else {
+          // Default to middle-out for automatic context compression
+          streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        }
+      }
+
+      const result = await streamText(streamOptions)
 
       for await (const delta of result.textStream) {
         yield {
@@ -669,15 +728,37 @@ export class ModernAIProvider {
     this.logReasoningStatus(reasoningEnabled)
 
     try {
-
-      const result = await generateText({
+      // Prepare base options
+      const generateOptions: any = {
         model,
         messages,
         tools,
         maxSteps: 10,
         temperature: 1,
         // Spread middleware if available
-      })
+      }
+
+      // OpenRouter-specific parameters support
+      const cfg = simpleConfigManager?.getCurrentModel() as any
+      if (cfg?.provider === 'openrouter') {
+        if (!generateOptions.experimental_providerMetadata) {
+          generateOptions.experimental_providerMetadata = {}
+        }
+        if (!generateOptions.experimental_providerMetadata.openrouter) {
+          generateOptions.experimental_providerMetadata.openrouter = {}
+        }
+
+        // Transforms parameter support (e.g., middle-out for context compression)
+        const transforms = cfg.transforms || simpleConfigManager.get('openrouterTransforms')
+        if (transforms && Array.isArray(transforms) && transforms.length > 0) {
+          generateOptions.experimental_providerMetadata.openrouter.transforms = transforms
+        } else {
+          // Default to middle-out for automatic context compression
+          generateOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+        }
+      }
+
+      const result = await generateText(generateOptions)
 
       // Extract reasoning if available
       let reasoningData = {}

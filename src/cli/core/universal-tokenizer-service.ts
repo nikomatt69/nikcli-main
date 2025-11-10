@@ -430,6 +430,8 @@ export class UniversalTokenizerService extends EventEmitter {
     this.adapters.set('gateway', new DynamicTokenizerAdapter())
     this.adapters.set('vercel', new DynamicTokenizerAdapter())
     this.adapters.set('openrouter', new DynamicTokenizerAdapter())
+    this.adapters.set('groq', new DynamicTokenizerAdapter())
+    this.adapters.set('cerebras', new DynamicTokenizerAdapter())
   }
 
   /**

@@ -657,7 +657,6 @@ export class BackgroundAgentService extends EventEmitter {
 
   /**
    * Inline fix for ESM packages (when script doesn't exist)
-   * Handles both standard npm/yarn structure and pnpm structure
    */
   private async fixESMPackagesInline(job: BackgroundJob, repoDir: string): Promise<void> {
     const fs = await import('node:fs/promises')
@@ -671,54 +670,11 @@ export class BackgroundAgentService extends EventEmitter {
       { name: 'responselike', main: './index.js' },
     ]
 
-    const nodeModulesPath = path.join(repoDir, 'node_modules')
-
-    // Helper to find package in pnpm structure
-    // pnpm can nest packages inside other packages (e.g., .pnpm/globby@15.0.0/node_modules/unicorn-magic)
-    const findPackageInPnpm = async (pkgName: string): Promise<string | null> => {
-      const pnpmPath = path.join(nodeModulesPath, '.pnpm')
-      try {
-        await fs.access(pnpmPath)
-        const entries = await fs.readdir(pnpmPath, { withFileTypes: true })
-        // Search in ALL directories, not just those containing the package name
-        // because packages can be nested inside other packages' node_modules
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            const candidatePath = path.join(pnpmPath, entry.name, 'node_modules', pkgName, 'package.json')
-            try {
-              await fs.access(candidatePath)
-              return candidatePath
-            } catch {
-              // Continue searching
-            }
-          }
-        }
-      } catch {
-        // .pnpm doesn't exist or error reading
-      }
-      return null
-    }
-
     let fixedCount = 0
 
     for (const pkg of packagesToFix) {
       try {
-        // Try standard location first
-        let pkgPath = path.join(repoDir, 'node_modules', pkg.name, 'package.json')
-
-        // If not found, try pnpm structure
-        try {
-          await fs.access(pkgPath)
-        } catch {
-          const pnpmPath = await findPackageInPnpm(pkg.name)
-          if (pnpmPath) {
-            pkgPath = pnpmPath
-          } else {
-            // Package not found, skip
-            continue
-          }
-        }
-
+        const pkgPath = path.join(repoDir, 'node_modules', pkg.name, 'package.json')
         const pkgJson = JSON.parse(await fs.readFile(pkgPath, 'utf8'))
 
         if (!pkgJson.main) {
@@ -804,7 +760,7 @@ export class BackgroundAgentService extends EventEmitter {
       // Create basic package.json
       const packageJson = {
         name: "background-agent-workspace",
-        version: "1.2.0",
+        version: "1.0.0",
         description: "Background agent workspace",
         scripts: {
           test: "echo 'No tests configured'"
@@ -1054,39 +1010,20 @@ export class BackgroundAgentService extends EventEmitter {
       this.logJob(job, 'info', `🔒 Background job operating in sandbox: ${workingDir}`)
       this.logJob(job, 'info', `⚡ Executing task with real toolchains: ${task}`)
 
-      // CRITICAL: Fix ESM packages BEFORE any imports to prevent module resolution errors
-      // This must happen in both the cloned repo AND the main project's node_modules
-      // Execute fix IMMEDIATELY and SYNCHRONOUSLY to ensure it completes before any imports
-
-      // 1. Fix in main project's node_modules FIRST (where imports actually resolve from)
-      // Use synchronous require to avoid any async import issues
-      try {
-        const esmFixLoader = require('./utils/esm-fix-loader')
-        // Fix in current working directory (main project)
-        esmFixLoader.autoFixESMPackages(process.cwd(), true) // silent mode
-        // Also fix in /app (Railway deployment path)
-        if (process.cwd() !== '/app') {
-          esmFixLoader.autoFixESMPackages('/app', true) // silent mode
-        }
-        this.logJob(job, 'info', '🔧 ESM packages fixed in main project')
-      } catch (fixError: any) {
-        // Non-critical, log and continue
-        this.logJob(job, 'warn', `⚠️ ESM fix warning: ${fixError.message}`)
-      }
-
-      // 2. Fix in cloned repository (if node_modules exists)
+      // Fix ESM packages before importing modules (in case npm install was run after clone)
+      // This proactively fixes packages to prevent module resolution errors
       await this.fixESMPackages(job, workingDir)
-
-      // 3. Small delay to ensure file system writes are flushed
-      await new Promise(resolve => setTimeout(resolve, 200))
 
       // Declare variables outside try-catch so they're accessible later
       let advancedAIProvider: any
       let getUnifiedToolRenderer: any
       let streamttyService: any
 
-      // Import services - ESM packages should now be fixed
+      // Also fix in the main project's node_modules (where imports resolve from)
+      // Fix ESM packages BEFORE any imports to prevent errors
       try {
+        const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
+        autoFixESMPackages(process.cwd())
 
         // Use direct imports with error handling - import() resolves relative paths
         // from the current file's location, so we need to import from the correct context
@@ -1605,17 +1542,6 @@ EOF`
    * Fallback to host execution when container is not available
    */
   private async executeAutonomousTaskOnHost(job: BackgroundJob, workingDir: string, todo: any): Promise<void> {
-    // Fix ESM packages before importing
-    try {
-      const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
-      autoFixESMPackages(process.cwd())
-      if (process.cwd() !== '/app') {
-        autoFixESMPackages('/app')
-      }
-    } catch {
-      // Non-critical
-    }
-
     const { safeDynamicImport } = await import('./utils/esm-fix-loader')
     const { advancedAIProvider } = await safeDynamicImport('../ai/advanced-ai-provider', process.cwd())
 
@@ -1699,28 +1625,7 @@ Execute the task now using the available tools. Make real changes in the sandbox
    * Basic toolchain fallback when TaskMaster fails
    */
   private async executeBasicToolchain(job: BackgroundJob, workingDir: string, task: string): Promise<void> {
-    // Fix ESM packages before importing
-    try {
-      const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
-      autoFixESMPackages(process.cwd())
-      if (process.cwd() !== '/app') {
-        autoFixESMPackages('/app')
-      }
-    } catch {
-      // Non-critical
-    }
-
-    // Use safe import for tool-service
-    let ToolService: any
-    try {
-      const { safeDynamicImport } = await import('./utils/esm-fix-loader')
-      const toolServiceModule = await safeDynamicImport('../services/tool-service', process.cwd())
-      ToolService = toolServiceModule.ToolService
-    } catch {
-      // Fallback to direct import
-      const toolServiceModule = await import('../services/tool-service')
-      ToolService = toolServiceModule.ToolService
-    }
+    const { ToolService } = await import('../services/tool-service')
     const toolService = new ToolService()
     toolService.setWorkingDirectory(workingDir)
 
@@ -1763,17 +1668,6 @@ Execute the task now using the available tools. Make real changes in the sandbox
         packageInfo = await toolService.executeTool('read_file', { filePath: 'package.json' })
       } catch {
         packageInfo = 'No package.json found'
-      }
-
-      // Fix ESM packages before importing
-      try {
-        const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
-        autoFixESMPackages(process.cwd())
-        if (process.cwd() !== '/app') {
-          autoFixESMPackages('/app')
-        }
-      } catch {
-        // Non-critical
       }
 
       // Use AI to analyze the bug
@@ -1875,17 +1769,6 @@ Generated by NikCLI Background Agent with AI Analysis
         gitStatus = await toolService.executeTool('execute_command', { command: 'git status --porcelain' })
       } catch {
         gitStatus = 'Not a git repository or git not available'
-      }
-
-      // Fix ESM packages before importing
-      try {
-        const { autoFixESMPackages } = await import('./utils/esm-fix-loader')
-        autoFixESMPackages(process.cwd())
-        if (process.cwd() !== '/app') {
-          autoFixESMPackages('/app')
-        }
-      } catch {
-        // Non-critical
       }
 
       // Use AI for comprehensive project analysis

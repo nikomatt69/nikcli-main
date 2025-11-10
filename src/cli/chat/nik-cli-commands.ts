@@ -438,6 +438,7 @@ ${chalk.cyan('/model <name>')} - Switch to a model
 ${chalk.cyan('/models')} - List available models
 ${chalk.cyan('/set-key <model> <key>')} - Set API key for a model
 ${chalk.gray('  e.g. /set-key openrouter sk-or-v1-...')}
+${chalk.gray('  Supported: openrouter, cerebras, groq, openai, anthropic, google, vercel')}
 ${chalk.cyan('/set-key coinbase-id <key>')} - Set Coinbase CDP_API_KEY_ID
 ${chalk.cyan('/set-key coinbase-secret <key>')} - Set Coinbase CDP_API_KEY_SECRET
 ${chalk.cyan('/set-key coinbase-wallet-secret <key>')} - Set Coinbase CDP_WALLET_SECRET
@@ -1261,6 +1262,30 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         configManager.setApiKey('openrouter', apiKey)
         process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || apiKey
         console.log(chalk.green('✓ OpenRouter key set and validated'))
+      } else if (keyName === 'cerebras') {
+        configManager.setApiKey('cerebras', apiKey)
+        process.env.CEREBRAS_API_KEY = apiKey
+        console.log(chalk.green('✓ Cerebras API key set'))
+      } else if (keyName === 'groq') {
+        configManager.setApiKey('groq', apiKey)
+        process.env.GROQ_API_KEY = apiKey
+        console.log(chalk.green('✓ Groq API key set'))
+      } else if (keyName === 'openai') {
+        configManager.setApiKey('openai', apiKey)
+        process.env.OPENAI_API_KEY = apiKey
+        console.log(chalk.green('✓ OpenAI API key set'))
+      } else if (keyName === 'anthropic' || keyName === 'claude') {
+        configManager.setApiKey('anthropic', apiKey)
+        process.env.ANTHROPIC_API_KEY = apiKey
+        console.log(chalk.green('✓ Anthropic API key set'))
+      } else if (keyName === 'google' || keyName === 'gemini') {
+        configManager.setApiKey('google', apiKey)
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY = apiKey
+        console.log(chalk.green('✓ Google AI API key set'))
+      } else if (keyName === 'vercel' || keyName === 'v0') {
+        configManager.setApiKey('vercel', apiKey)
+        process.env.V0_API_KEY = apiKey
+        console.log(chalk.green('✓ Vercel v0 API key set'))
       } else {
         configManager.setApiKey(name, apiKey)
         console.log(chalk.green(`✓ API key set for ${name}`))

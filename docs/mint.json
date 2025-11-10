@@ -1,0 +1,152 @@
+{
+    "$schema": "https://mintlify.com/schema.json",
+    "name": "NikCLI",
+    "logo": {
+        "dark": "./images/icon.png",
+        "light": "./images/icon.png",
+        "href": "https://nikcli.store"
+    },
+    "favicon": "./images/icon.png",
+    "colors": {
+        "primary": "#8B5CF6",
+        "light": "#A78BFA",
+        "dark": "#7C3AED",
+        "anchors": {
+            "from": "#8B5CF6",
+            "to": "#7C3AED"
+        }
+    },
+    "topbarLinks": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/nikomatt69/nikcli-main"
+        }
+    ],
+    "topbarCtaButton": {
+        "name": "Get Started",
+        "url": "https://github.com/nikomatt69/nikcli-main"
+    },
+    "tabs": [
+        {
+            "name": "API Reference",
+            "url": "api-reference"
+        },
+        {
+            "name": "Developer Guide",
+            "url": "developer-guide"
+        },
+        {
+            "name": "Examples",
+            "url": "examples"
+        }
+    ],
+    "anchors": [
+        {
+            "name": "npm Package",
+            "icon": "npm",
+            "url": "https://www.npmjs.com/package/@nicomatt69/nikcli"
+        },
+    ],
+    "navigation": [
+        {
+            "group": "Getting Started",
+            "pages": [
+                "introduction",
+                "quickstart/installation",
+                "quickstart/first-steps",
+                "quickstart/configuration"
+            ]
+        },
+        {
+            "group": "CLI Reference",
+            "pages": [
+                "cli-reference/commands-overview",
+                "cli-reference/agent-commands",
+                "cli-reference/file-operations",
+                "cli-reference/terminal-ops",
+                "cli-reference/vm-commands",
+                "cli-reference/web3-commands",
+                "cli-reference/security-commands",
+                "cli-reference/session-management",
+                "cli-reference/configuration",
+                "cli-reference/background-agents",
+                "cli-reference/daemon-commands",
+                "cli-reference/browse-commands"
+            ]
+        },
+        {
+            "group": "Agent System",
+            "pages": [
+                "agent-system/overview",
+                "agent-system/universal-agent"
+            ]
+        },
+        {
+            "group": "Planning System",
+            "pages": [
+                "planning-system/overview",
+                "planning-system/plan-generation",
+                "planning-system/execution-flow",
+                "planning-system/plan-templates"
+            ]
+        },
+        {
+            "group": "Context & RAG",
+            "pages": [
+                "context-rag/overview",
+                "context-rag/workspace-indexing",
+                "context-rag/semantic-search",
+                "context-rag/embeddings"
+            ]
+        },
+        {
+            "group": "Architecture",
+            "pages": [
+                "architecture/overview",
+                "architecture/layered-design"
+            ]
+        },
+        {
+            "group": "Troubleshooting",
+            "pages": [
+                "troubleshooting/common-issues",
+                "troubleshooting/faq"
+            ]
+        },
+        {
+            "group": "Core APIs",
+            "pages": [
+                "api-reference/core-apis"
+            ]
+        },
+        {
+            "group": "Examples",
+            "pages": [
+                "examples/basic-workflows",
+                "examples/advanced-automation"
+            ]
+        }
+    ],
+    "footerSocials": {
+        "github": "https://github.com/nikomatt69/nikcli-main",
+        "twitter": "https://x.com/nikomatt69",
+    },
+    "feedback": {
+        "thumbsRating": true,
+        "suggestEdit": true,
+        "raiseIssue": true
+    },
+    "search": {
+        "prompt": "Search NikCLI documentation..."
+    },
+    "analytics": {
+        "ga4": {
+            "measurementId": "G-XXXXXXXXXX"
+        }
+    },
+    "api": {
+        "playground": {
+            "mode": "show"
+        }
+    }
+}
