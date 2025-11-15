@@ -18,6 +18,11 @@ export interface UserUsage {
   estimatedCost: number // USD
   jobsCompleted: number
   toolCalls: number
+  adMetrics?: {
+    impressions: number
+    tokenCreditsEarned: number
+    revenue: number // Advertiser cost attributed to user
+  }
 }
 
 export interface UserUsageStats {
@@ -33,6 +38,8 @@ export interface UserUsageStats {
     estimatedCost: number
     jobsCompleted: number
     toolCalls: number
+    adImpressions?: number
+    tokenCreditsFromAds?: number
   }
 }
 
@@ -148,6 +155,56 @@ export class UserUsageTracker {
   }
 
   /**
+   * Track ad impression and token credit for a user
+   */
+  async trackAdImpression(userId: string, tokenCredit: number): Promise<void> {
+    const now = new Date()
+    const hour = this.getPeriodStart(now, 'hour')
+    const day = this.getPeriodStart(now, 'day')
+    const month = this.getPeriodStart(now, 'month')
+
+    const records = this.usage.get(userId) || []
+    const updateRecord = (period: Date, periodType: 'hour' | 'day' | 'month') => {
+      let record = records.find((r) => r.timestamp.getTime() === period.getTime() && r.period === periodType)
+      if (!record) {
+        record = {
+          userId,
+          period: periodType,
+          timestamp: period,
+          aiCalls: 0,
+          tokenUsage: { input: 0, output: 0, total: 0 },
+          estimatedCost: 0,
+          jobsCompleted: 0,
+          toolCalls: 0,
+          adMetrics: {
+            impressions: 0,
+            tokenCreditsEarned: 0,
+            revenue: 0,
+          },
+        }
+        records.push(record)
+      }
+      if (!record.adMetrics) {
+        record.adMetrics = {
+          impressions: 0,
+          tokenCreditsEarned: 0,
+          revenue: 0,
+        }
+      }
+      record.adMetrics.impressions += 1
+      record.adMetrics.tokenCreditsEarned += tokenCredit
+      // Revenue: user gets 25% of $3 CPM per impression
+      record.adMetrics.revenue += (3.0 / 1000) * 0.25
+    }
+
+    updateRecord(hour, 'hour')
+    updateRecord(day, 'day')
+    updateRecord(month, 'month')
+
+    this.usage.set(userId, records)
+  }
+
+  /**
    * Get usage statistics for a user
    */
   getUsageStats(userId: string): UserUsageStats | null {
@@ -198,6 +255,8 @@ export class UserUsageTracker {
         estimatedCost: acc.estimatedCost + record.estimatedCost,
         jobsCompleted: acc.jobsCompleted + record.jobsCompleted,
         toolCalls: acc.toolCalls + record.toolCalls,
+        adImpressions: acc.adImpressions + (record.adMetrics?.impressions || 0),
+        tokenCreditsFromAds: acc.tokenCreditsFromAds + (record.adMetrics?.tokenCreditsEarned || 0),
       }),
       {
         aiCalls: 0,
@@ -205,6 +264,8 @@ export class UserUsageTracker {
         estimatedCost: 0,
         jobsCompleted: 0,
         toolCalls: 0,
+        adImpressions: 0,
+        tokenCreditsFromAds: 0,
       }
     )
 
@@ -315,6 +376,22 @@ export function getUserUsageTracker(): UserUsageTracker {
   }
   return userUsageTrackerInstance
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -12,6 +12,9 @@ import { ToolRegistry } from '../tools/tool-registry'
 // 🚀 Import Lightweight Inference Layer
 import { getLightweightInference } from '../ai/lightweight-inference-layer'
 
+// 🤖 Import ML Toolchain Optimizer
+import type { ToolchainOptimizer } from '../ml/toolchain-optimizer'
+
 // 🔧 Enhanced Tool Routing Schemas
 const ToolSecurityLevel = z.enum(['safe', 'moderate', 'risky', 'dangerous'])
 const ToolCategory = z.enum(['file', 'command', 'search', 'analysis', 'git', 'package', 'ide', 'ai', 'blockchain'])
@@ -61,11 +64,19 @@ export interface ToolRecommendation {
 
 export class ToolRouter extends EventEmitter {
   private toolRegistry: ToolRegistry
+  private toolchainOptimizer: ToolchainOptimizer | null = null
 
   constructor(workingDirectory: string = process.cwd()) {
     super()
     // 🔧 Initialize unified tool registry
     this.toolRegistry = new ToolRegistry(workingDirectory)
+  }
+
+  /**
+   * Set ML toolchain optimizer for enhanced routing
+   */
+  setMLOptimizer(optimizer: ToolchainOptimizer): void {
+    this.toolchainOptimizer = optimizer
   }
 
   private toolKeywords: ToolKeyword[] = [
@@ -847,8 +858,31 @@ export class ToolRouter extends EventEmitter {
         availableTools: validatedTool,
       })
 
+      // Step 4.5: 🤖 ML-Enhanced Tool Boost (non-blocking)
+      let mlEnhancedTools = toolCandidates
+      if (this.toolchainOptimizer) {
+        try {
+          const mlPrediction = await this.toolchainOptimizer.predictOptimalTools(
+            context.userIntent,
+            {
+              workspaceType: context.projectType || 'general',
+              fileTypes: context.currentWorkspace,
+              intentType: intentAnalysis.primaryAction,
+              estimatedDifficulty: intentAnalysis.complexity / 10,
+            }
+          )
+
+          if (mlPrediction.confidence > 0.75) {
+            // Boost ML-predicted tools in the candidates list
+            mlEnhancedTools = this.applyMLBoost(toolCandidates, mlPrediction)
+          }
+        } catch {
+          // Silent ML failure - use rule-based routing
+        }
+      }
+
       // Step 4: 🛡️ Security and Safety Filtering
-      const secureTools = this.applySecurityFiltering(toolCandidates, context.securityMode)
+      const secureTools = this.applySecurityFiltering(mlEnhancedTools, context.securityMode)
 
       // Step 5: 📋 Orchestration-Aware Sequencing
       const sequencedTools = context.orchestrationPlan
@@ -1377,7 +1411,7 @@ export class ToolRouter extends EventEmitter {
     _context: RoutingContext
   ): AdvancedToolRecommendation[] {
     const validated: AdvancedToolRecommendation[] = []
-    const maxTools = 5 // Limit recommendations
+    const maxTools = 4 // Limit recommendations
 
     for (let i = 0; i < Math.min(tools.length, maxTools); i++) {
       const tool = tools[i]
@@ -1683,6 +1717,34 @@ export class ToolRouter extends EventEmitter {
     }
 
     return recommendations
+  }
+
+  // ====================== 🤖 ML-ENHANCED ROUTING ======================
+
+  /**
+   * Apply ML predictions to boost tool recommendations
+   */
+  private applyMLBoost(
+    candidates: AdvancedToolRecommendation[],
+    mlPrediction: any
+  ): AdvancedToolRecommendation[] {
+    // Create a map of predicted tools for quick lookup
+    const predictedToolSet = new Set(mlPrediction.tools)
+
+    // Boost confidence for ML-predicted tools
+    const boosted = candidates.map((candidate) => {
+      if (predictedToolSet.has(candidate.tool)) {
+        return {
+          ...candidate,
+          confidence: Math.min(candidate.confidence + 0.15, 1),
+          reason: `${candidate.reason} (ML-enhanced)`,
+        }
+      }
+      return candidate
+    })
+
+    // Sort by confidence descending
+    return boosted.sort((a, b) => b.confidence - a.confidence)
   }
 
   // ====================== 📊 ANALYTICS AND MONITORING ======================

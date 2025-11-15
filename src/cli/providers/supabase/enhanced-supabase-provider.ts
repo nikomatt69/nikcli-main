@@ -711,6 +711,16 @@ export class EnhancedSupabaseProvider extends EventEmitter {
   }
 
   /**
+   * Get Supabase client instance
+   */
+  async getClient(): Promise<SupabaseClient | null> {
+    if (!this.isConnected || !this.client) {
+      return null
+    }
+    return this.client
+  }
+
+  /**
    * Disconnect and cleanup
    */
   async disconnect(): Promise<void> {
@@ -746,6 +756,276 @@ export class EnhancedSupabaseProvider extends EventEmitter {
       await this.connect()
     } else if (newConfig.enabled === false && this.isConnected) {
       await this.disconnect()
+    }
+  }
+
+  // ===== ML OPERATIONS =====
+
+  /**
+   * Record toolchain execution for ML training
+   */
+  async recordToolchainExecution(execution: Record<string, any>): Promise<void> {
+    if (!this.client || !this.config.features.database) {
+      return
+    }
+
+    try {
+      const { error } = await this.client.from('ml_toolchain_executions').insert({
+        ...execution,
+        created_at: new Date().toISOString(),
+      })
+
+      if (error) {
+        console.log(chalk.yellow(`⚠️ Failed to record toolchain execution: ${error.message}`))
+      }
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Toolchain execution recording failed: ${error.message}`))
+    }
+  }
+
+  /**
+   * Get session toolchain executions
+   */
+  async getSessionToolchainExecutions(sessionId: string): Promise<any[]> {
+    if (!this.client || !this.config.features.database) {
+      return []
+    }
+
+    try {
+      const { data, error } = await this.client
+        .from('ml_toolchain_executions')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true })
+
+      if (error) {
+        console.log(chalk.yellow(`⚠️ Failed to get session executions: ${error.message}`))
+        return []
+      }
+
+      return data || []
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Session executions query failed: ${error.message}`))
+      return []
+    }
+  }
+
+  /**
+   * Get toolchain executions from specific date
+   */
+  async getToolchainExecutions(startDate: Date): Promise<any[]> {
+    if (!this.client || !this.config.features.database) {
+      return []
+    }
+
+    try {
+      const { data, error } = await this.client
+        .from('ml_toolchain_executions')
+        .select('*')
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.log(chalk.yellow(`⚠️ Failed to get toolchain executions: ${error.message}`))
+        return []
+      }
+
+      return data || []
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Toolchain executions query failed: ${error.message}`))
+      return []
+    }
+  }
+
+  /**
+   * Get latest deployed ML model
+   */
+  async getLatestModel(modelType: string): Promise<any | null> {
+    if (!this.client || !this.config.features.database) {
+      return null
+    }
+
+    try {
+      const { data, error } = await this.client
+        .from('ml_toolchain_models')
+        .select('*')
+        .eq('model_type', modelType)
+        .eq('deployed', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') return null
+        console.log(chalk.yellow(`⚠️ Failed to get latest model: ${error.message}`))
+        return null
+      }
+
+      return data
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Latest model query failed: ${error.message}`))
+      return null
+    }
+  }
+
+  /**
+   * Cache ML inference result
+   */
+  async cacheInference(
+    hash: string,
+    prediction: Record<string, any>,
+    expiresAt: string
+  ): Promise<void> {
+    if (!this.client || !this.config.features.database) {
+      return
+    }
+
+    try {
+      const { error } = await this.client.from('ml_inference_cache').upsert({
+        input_hash: hash,
+        prediction,
+        expires_at: expiresAt,
+        created_at: new Date().toISOString(),
+      })
+
+      if (error) {
+        console.log(chalk.yellow(`⚠️ Failed to cache inference: ${error.message}`))
+      }
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Inference caching failed: ${error.message}`))
+    }
+  }
+
+  /**
+   * Get cached inference result
+   */
+  async getInferenceCache(hash: string): Promise<any | null> {
+    if (!this.client || !this.config.features.database) {
+      return null
+    }
+
+    try {
+      const now = new Date().toISOString()
+      const { data, error } = await this.client
+        .from('ml_inference_cache')
+        .select('prediction')
+        .eq('input_hash', hash)
+        .gt('expires_at', now)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') return null
+        return null // Silent fail for cache misses
+      }
+
+      return data?.prediction || null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Get baseline metrics for comparison
+   */
+  async getBaselineMetrics(): Promise<any | null> {
+    if (!this.client || !this.config.features.database) {
+      return null
+    }
+
+    try {
+      const { data, error } = await this.client
+        .from('ml_toolchain_executions')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single()
+
+      if (error || !data) {
+        return null
+      }
+
+      return data
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Get current best metrics
+   */
+  async getCurrentMetrics(): Promise<any | null> {
+    if (!this.client || !this.config.features.database) {
+      return null
+    }
+
+    try {
+      const { data, error } = await this.client
+        .from('ml_toolchain_executions')
+        .select('*')
+        .eq('execution_success', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (error || !data) {
+        return null
+      }
+
+      return data
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Record benchmark result
+   */
+  async recordBenchmarkResult(result: Record<string, any>): Promise<void> {
+    if (!this.client || !this.config.features.database) {
+      return
+    }
+
+    try {
+      const { error } = await this.client.from('ml_benchmark_results').insert({
+        session_id: result.sessionId,
+        metrics: result.metrics,
+        regressions: result.regressions,
+        improvements: result.improvements,
+        recommendations: result.recommendations,
+        created_at: new Date().toISOString(),
+      })
+
+      if (error) {
+        console.log(chalk.yellow(`⚠️ Failed to record benchmark: ${error.message}`))
+      }
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Benchmark recording failed: ${error.message}`))
+    }
+  }
+
+  /**
+   * Record batch metrics
+   */
+  async recordBatchMetrics(
+    metrics: Record<string, any>,
+    lookbackDays: number
+  ): Promise<void> {
+    if (!this.client || !this.config.features.database) {
+      return
+    }
+
+    try {
+      const { error } = await this.client.from('ml_batch_metrics').insert({
+        metrics,
+        lookback_days: lookbackDays,
+        created_at: new Date().toISOString(),
+      })
+
+      if (error) {
+        console.log(chalk.yellow(`⚠️ Failed to record batch metrics: ${error.message}`))
+      }
+    } catch (error: any) {
+      console.log(chalk.yellow(`⚠️ Batch metrics recording failed: ${error.message}`))
     }
   }
 }

@@ -170,7 +170,7 @@ export class BackgroundAgentService extends EventEmitter {
       envVars: request.envVars || {},
       limits: {
         timeMin: request.limits?.timeMin || 30,
-        maxToolCalls: request.limits?.maxToolCalls || 50,
+        maxToolCalls: request.limits?.maxToolCalls || 20,
         maxMemoryMB: request.limits?.maxMemoryMB || 2048,
       },
       status: 'queued',

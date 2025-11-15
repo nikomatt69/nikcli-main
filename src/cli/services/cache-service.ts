@@ -626,6 +626,38 @@ export class CacheService extends EventEmitter {
       await this.redis.reconnect()
     }
   }
+
+  // ===== ML INFERENCE CACHING =====
+
+  /**
+   * Cache ML inference result with TTL
+   */
+  async cacheMLInference(
+    key: string,
+    prediction: Record<string, any>,
+    ttl: number = 3600
+  ): Promise<void> {
+    try {
+      const cacheKey = `ml:inference:${key}`
+      await this.set(cacheKey, prediction, { ml: true }, { ttl })
+    } catch (error) {
+      // Silent failure - inference still usable without cache
+      structuredLogger.debug('Failed to cache ML inference', { error })
+    }
+  }
+
+  /**
+   * Get cached ML inference result
+   */
+  async getMLInference(key: string): Promise<Record<string, any> | null> {
+    try {
+      const cacheKey = `ml:inference:${key}`
+      return await this.get<Record<string, any>>(cacheKey, { ml: true })
+    } catch (error) {
+      // Silent failure - return null for cache miss
+      return null
+    }
+  }
 }
 
 // Singleton instance

@@ -137,7 +137,7 @@ export class TaskExecutor {
       task: this.buildTaskDescription(command),
       limits: {
         timeMin: 15,
-        maxToolCalls: 100,
+        maxToolCalls: 25,
         maxMemoryMB: 2048,
       },
       githubContext: {

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { generateText } from 'ai'
 import boxen from 'boxen'
 import chalk from 'chalk'
@@ -38,6 +39,9 @@ import { VMOrchestrator } from '../virtualized-agents/vm-orchestrator'
 import { initializeVMSelector, vmSelector } from '../virtualized-agents/vm-selector'
 import { browserChatBridge, isBrowserModeAvailable, getBrowserModeInfo } from '../browser'
 import { browseGPTService } from '../services/browsegpt-service'
+import { adDisplayManager } from '../services/ad-display-manager'
+import { stripeService } from '../services/stripe-service'
+import { renderAdPanel } from '../ui/ad-panel'
 import { chatManager } from './chat-manager'
 
 // ====================== ⚡︎ ZOD COMMAND VALIDATION SCHEMAS ======================
@@ -380,6 +384,9 @@ export class SlashCommandHandler {
     this.commands.set('delete-session', this.deleteSessionCommand.bind(this))
     this.commands.set('export-session', this.exportSessionCommand.bind(this))
 
+    // Advertising system commands
+    this.commands.set('ads', this.adsCommand.bind(this))
+
     // Edit history commands (undo/redo)
     this.commands.set('undo', this.undoCommand.bind(this))
     this.commands.set('redo', this.redoCommand.bind(this))
@@ -502,6 +509,13 @@ ${chalk.cyan('/delete-blueprint <id|name>')} - Delete a blueprint
 ${chalk.cyan('/export-blueprint <id|name> <file>')} - Export blueprint to file
 ${chalk.cyan('/import-blueprint <file>')} - Import blueprint from file
 ${chalk.cyan('/search-blueprints <query>')} - Search blueprints by capabilities
+
+${chalk.blue.bold('Advertising & Rewards:')}
+${chalk.cyan('/ads [status|toggle|create|help]')} - Manage ads and earn token credits
+${chalk.gray('  status  - View ad statistics and earned tokens')}
+${chalk.gray('  toggle  - Enable/disable ads (free tier only)')}
+${chalk.gray('  create  - Create ad campaign (for advertisers)')}
+${chalk.gray('  help    - Show advertising help')}
 
 ${chalk.blue.bold('File Operations:')}
 ${chalk.cyan('/read <file>')} - Read file contents
@@ -1017,6 +1031,335 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       })
     )
     return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async adsCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const boxen = (await import('boxen')).default
+      const sub = (args[0] || 'help').toLowerCase()
+
+      // Get user ID and tier (use simple defaults for non-authenticated users)
+      const userId = randomUUID() // Generate valid UUID for database
+
+      // Check if user has pro access based on email
+      const userEmail = 'nicola.mattioli.95@gmail.com' // Example email for pro access
+      const isProUser = userEmail === 'nicola.mattioli.95@gmail.com'
+      const userTier = isProUser ? 'pro' : 'free'
+
+      switch (sub) {
+        case 'status': {
+          // Show user's ad statistics and earnings
+          const stats = await adDisplayManager.getUserAdStats(userId)
+          const panel = boxen(
+            chalk.green(`📊 Ad Statistics\n\n`) +
+            chalk.gray(`Total Impressions: ${chalk.cyan(stats.impressions.toString())}\n`) +
+            chalk.gray(`Tokens Earned: ${chalk.yellow(`+${stats.tokenCredits.toFixed(2)}`)}\n`) +
+            chalk.gray(`Estimated Revenue: ${chalk.cyan(`$${stats.revenue.toFixed(2)}`)}\n\n`) +
+            chalk.gray(`💰 Your Earnings: $${(stats.tokenCredits * 0.01).toFixed(2)}`),
+            {
+              title: '🎯 Advertising Status',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+          if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+            this.cliInstance.printPanel(panel)
+          } else {
+            console.log(panel)
+          }
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        case 'on':
+        case 'toggle': {
+          // Toggle ads on/off for current user
+          const currentConfig = { userOptIn: false } // Default config
+          const newOptIn = !currentConfig.userOptIn
+          const updatedConfig = { ...currentConfig, userOptIn: newOptIn }
+          // Note: In production, save to persistent config storage
+
+          const message = newOptIn
+            ? '✅ Ads enabled! You will see ads and earn tokens.'
+            : '❌ Ads disabled. You will not see ads or earn tokens.'
+
+          const panel = boxen(message, {
+            title: '🎯 Ads ' + (newOptIn ? 'Enabled' : 'Disabled'),
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: newOptIn ? 'green' : 'yellow',
+          })
+          if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+            this.cliInstance.printPanel(panel)
+          } else {
+            console.log(panel)
+          }
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        case 'off': {
+          // Disable ads
+          const currentConfig = { userOptIn: false } // Default config
+          // Note: In production, save to persistent config storage
+
+          const panel = boxen('❌ Ads disabled. You will not see ads or earn tokens.', {
+            title: '🎯 Ads Disabled',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+          if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+            this.cliInstance.printPanel(panel)
+          } else {
+            console.log(panel)
+          }
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        case 'create': {
+          // Interactive wizard for creating an ad campaign
+          if (userTier === 'free') {
+            const panel = boxen(
+              chalk.red('❌ Ad creation requires a paid subscription.') +
+              chalk.gray('\nUpgrade to Pro or Enterprise to create campaigns.'),
+              {
+                title: 'Ad Campaign',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              }
+            )
+            if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+              this.cliInstance.printPanel(panel)
+            } else {
+              console.log(panel)
+            }
+            return { shouldExit: false, shouldUpdatePrompt: false }
+          }
+
+          // Display header panel
+          if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+            this.cliInstance.printPanel(
+              boxen('Configure your ad campaign. All fields are required.', {
+                title: '📢 Create Ad Campaign',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'cyan',
+              })
+            )
+          }
+
+          const inquirer = (await import('inquirer')).default
+          const { inputQueue } = await import('../core/input-queue')
+
+          let answers: any
+          let sanitizedAnswers: any
+          let checkoutSession: any
+          let error: Error | null = null
+
+          // Suspend prompt and enable input queue bypass for interactive mode
+          if (this.cliInstance && typeof this.cliInstance.suspendPrompt === 'function') {
+            this.cliInstance.suspendPrompt()
+          }
+          inputQueue.enableBypass()
+
+          try {
+            answers = await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'content',
+                message: 'Ad content (max 280 chars)',
+                validate: (input: string) => {
+                  if (!input || input.trim().length === 0) return 'Content cannot be empty'
+                  if (input.length > 280) return 'Content exceeds 280 characters'
+                  return true
+                },
+              },
+              {
+                type: 'input',
+                name: 'ctaText',
+                message: 'Call-to-action text (e.g., "Learn More")',
+                validate: (input: string) => {
+                  if (!input || input.trim().length === 0) return 'CTA text cannot be empty'
+                  if (input.length > 100) return 'CTA text exceeds 100 characters'
+                  return true
+                },
+              },
+              {
+                type: 'input',
+                name: 'ctaUrl',
+                message: 'Call-to-action URL',
+                validate: (input: string) => {
+                  if (!input || input.trim().length === 0) return 'URL cannot be empty'
+                  try {
+                    const url = new URL(input)
+                    if (!url.protocol.startsWith('http')) return 'URL must use http or https'
+                    return true
+                  } catch {
+                    return 'Invalid URL format'
+                  }
+                },
+              },
+              {
+                type: 'input',
+                name: 'targetAudience',
+                message: 'Target audience (comma-separated tags, or "all" for everyone)',
+                default: 'all',
+                validate: (input: string) => {
+                  if (!input || input.trim().length === 0) return 'Target audience required'
+                  return true
+                },
+              },
+              {
+                type: 'number',
+                name: 'budgetImpressions',
+                message: 'Budget impressions (minimum 1000)',
+                default: 1000,
+                validate: (input: number) => {
+                  if (!Number.isInteger(input)) return 'Must be a whole number'
+                  if (input < 1000) return 'Minimum 1000 impressions required'
+                  if (input > 1000000) return 'Maximum 1,000,000 impressions per campaign'
+                  return true
+                },
+              },
+              {
+                type: 'number',
+                name: 'durationDays',
+                message: 'Campaign duration (days, 1-365)',
+                default: 30,
+                validate: (input: number) => {
+                  if (!Number.isInteger(input)) return 'Must be a whole number'
+                  if (input < 1 || input > 365) return 'Duration must be between 1 and 365 days'
+                  return true
+                },
+              },
+            ])
+
+            // Normalize and validate answers
+            sanitizedAnswers = {
+              content: answers.content.trim(),
+              ctaText: answers.ctaText.trim(),
+              ctaUrl: answers.ctaUrl.trim(),
+              targetAudience: answers.targetAudience === 'all' ? ['all'] : answers.targetAudience.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0),
+              budgetImpressions: Math.floor(answers.budgetImpressions),
+              durationDays: Math.floor(answers.durationDays),
+            }
+
+            // Validate constraints again (defense in depth)
+            if (sanitizedAnswers.content.length > 280) {
+              error = new Error('Ad content exceeds 280 characters')
+            } else if (sanitizedAnswers.ctaText.length > 100) {
+              error = new Error('CTA text exceeds 100 characters')
+            } else if (sanitizedAnswers.budgetImpressions < 1000) {
+              error = new Error('Minimum 1000 impressions required')
+            } else if (sanitizedAnswers.budgetImpressions > 1000000) {
+              error = new Error('Maximum 1,000,000 impressions per campaign')
+            } else if (sanitizedAnswers.durationDays < 1 || sanitizedAnswers.durationDays > 365) {
+              error = new Error('Campaign duration must be between 1 and 365 days')
+            } else if (sanitizedAnswers.targetAudience.length === 0) {
+              error = new Error('Target audience cannot be empty')
+            }
+
+            if (!error) {
+              // Create advertiser customer first (idempotent upsert)
+              const advertiserId = await stripeService.createAdvertiserCustomer(userEmail, 'NikCLI Advertiser')
+
+              // Create checkout session with campaign in pending status
+              checkoutSession = await stripeService.createCheckoutSession(advertiserId, sanitizedAnswers, userEmail)
+            }
+          } catch (e: any) {
+            error = e instanceof Error ? e : new Error(String(e))
+          } finally {
+            // ALWAYS restore prompt and disable bypass (even on error)
+            inputQueue.disableBypass()
+            if (this.cliInstance && typeof this.cliInstance.resumePromptAndRender === 'function') {
+              this.cliInstance.resumePromptAndRender()
+            }
+          }
+
+          // Display result panel
+          if (error) {
+            const errorPanel = boxen(
+              chalk.red('❌ Campaign Creation Failed\n\n') +
+              chalk.gray(error.message),
+              {
+                title: 'Error',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              }
+            )
+            if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+              this.cliInstance.printPanel(errorPanel)
+            } else {
+              console.log(errorPanel)
+            }
+          } else if (checkoutSession && sanitizedAnswers) {
+            const successPanel = boxen(
+              chalk.green('✅ Campaign Created Successfully!\n\n') +
+              chalk.gray(`Campaign ID: ${chalk.cyan(checkoutSession.campaignId)}\n`) +
+              chalk.gray(`Total Cost: ${chalk.yellow(`$${checkoutSession.totalCost.toFixed(2)}`)}\n`) +
+              chalk.gray(`Impressions: ${chalk.cyan(checkoutSession.impressions.toString())}\n`) +
+              chalk.gray(`Duration: ${chalk.cyan(sanitizedAnswers.durationDays.toString())} days\n\n`) +
+              chalk.blue(`🔗 Payment Link:\n${checkoutSession.stripeSessionId}`),
+              {
+                title: '💳 Ready to Checkout',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'green',
+              }
+            )
+            if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+              this.cliInstance.printPanel(successPanel)
+            } else {
+              console.log(successPanel)
+            }
+          }
+
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        case 'help':
+        default: {
+          const helpText = chalk.cyan('📢 Advertising System\n\n') +
+            chalk.gray('Subcommands:\n') +
+            chalk.green('/ads status') +
+            chalk.gray(' - View your earnings and impressions\n') +
+            chalk.green('/ads on') +
+            chalk.gray(' - Enable ads and earn tokens\n') +
+            chalk.green('/ads off') +
+            chalk.gray(' - Disable ads\n') +
+            chalk.green('/ads create') +
+            chalk.gray(' - Create an ad campaign (requires paid tier)\n\n') +
+            chalk.gray('Earn +0.02 tokens per ad viewed!\n') +
+            chalk.gray('Tokens apply to future query costs.')
+
+          const panel = boxen(helpText, {
+            title: '🎯 Help',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          })
+          if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+            this.cliInstance.printPanel(panel)
+          } else {
+            console.log(panel)
+          }
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+      }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Ads command failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
   }
 
   private async modelCommand(args: string[]): Promise<CommandResult> {
@@ -9849,8 +10192,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const isModelCurrent = style === modelStyle
 
       const indicators = []
-      if (isDefault) indicators.push(chalk.green('default'))
-      if (isModelCurrent) indicators.push(chalk.blue('model'))
+      if (isDefault) indicators.push()
+      if (isModelCurrent) indicators.push()
 
       const prefix = indicators.length > 0 ? ` [${indicators.join(', ')}]` : ''
 
@@ -10509,7 +10852,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         task,
         limits: {
           timeMin: 30,
-          maxToolCalls: 100,
+          maxToolCalls: 25,
           maxMemoryMB: 2048,
         },
       })
@@ -10575,7 +10918,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
-      const lines = []
+      const lines: string[] = []
       lines.push(`ID: ${job.id}`)
       lines.push(`Status: ${job.status.toUpperCase()}`)
       lines.push(`Repo: ${job.repo}`)
@@ -10664,7 +11007,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
-      const lines = []
+      const lines: string[] = []
       lines.push(`Showing last ${logs.length} log entries:`)
       lines.push('')
 

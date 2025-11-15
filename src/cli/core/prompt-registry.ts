@@ -10,7 +10,7 @@ export const PromptMetadataSchema = z.object({
   name: z.string(),
   description: z.string(),
   category: z.enum(['tool', 'agent', 'system', 'validation', 'error-handling', 'reasoning']),
-  version: z.string().default('1.2.0'),
+  version: z.string().default('1.3.0'),
   author: z.string().optional(),
   tags: z.array(z.string()).default([]),
   language: z.string().default('en'),

@@ -1375,12 +1375,21 @@ export class AdvancedCliUI {
    * Show file list (grep/find results)
    */
   showFileList(files: string[], title: string = '📁 Files'): void {
-    const listContent = files
+    const MAX_DISPLAY_ITEMS = 5
+    const displayFiles = files.slice(0, MAX_DISPLAY_ITEMS)
+    const remainingCount = files.length - displayFiles.length
+
+    let listContent = displayFiles
       .map((file, _index) => {
         const icon = this.getFileIcon(path.extname(file))
         return `${icon} ${file}`
       })
       .join('\n')
+
+    // Add "e altri N" indicator if there are more results
+    if (remainingCount > 0) {
+      listContent += `\n\n${chalk.dim(`e altri ${remainingCount}`)}`
+    }
 
     this.panels.set('list', {
       id: 'list',
@@ -1441,7 +1450,11 @@ export class AdvancedCliUI {
    * Show grep results in structured format
    */
   showGrepResults(pattern: string, matches: any[]): void {
-    const grepContent = matches
+    const MAX_DISPLAY_ITEMS = 5
+    const displayMatches = matches.slice(0, MAX_DISPLAY_ITEMS)
+    const remainingCount = matches.length - displayMatches.length
+
+    let grepContent = displayMatches
       .map((match) => {
         const fileName = chalk.blue(match.file || match.filePath)
         const lineNum = chalk.yellow(`${match.lineNumber || match.line}`)
@@ -1449,6 +1462,11 @@ export class AdvancedCliUI {
         return `${fileName}:${lineNum}: ${line}`
       })
       .join('\n')
+
+    // Add "e altri N" indicator if there are more results
+    if (remainingCount > 0) {
+      grepContent += `\n\n${chalk.dim(`+ ${remainingCount} more results`)}`
+    }
 
     this.panels.set('list', {
       id: 'list',

@@ -46,7 +46,7 @@ export class NotificationService {
 
       // Discord and Linear are HTTP-based, no client initialization needed
       if (this.config.providers.discord?.enabled && this.config.providers.discord.webhookUrl) {
-        advancedUI.logFunctionUpdate('success', `Discord notification provider initialized (webhook: ${this.config.providers.discord.webhookUrl.substring(0, 50)}...)`, '✓')
+        advancedUI.logFunctionUpdate('success', `Discord notification provider initialized`, '✓')
       } else {
         advancedUI.logFunctionUpdate('info', `Discord NOT initialized - enabled: ${this.config.providers.discord?.enabled}, webhook: ${this.config.providers.discord?.webhookUrl ? 'set' : 'missing'}`, 'ℹ️')
       }

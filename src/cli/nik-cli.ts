@@ -50,6 +50,7 @@ import { enhancedSupabaseProvider } from './providers/supabase/enhanced-supabase
 import { registerAgents } from './register-agents'
 import { agentService } from './services/agent-service'
 import { DashboardService } from './services/dashboard-service'
+import { adRotationService } from './services/ad-rotation-service'
 // New enhanced services
 import { cacheService } from './services/cache-service'
 import { memoryService } from './services/memory-service'
@@ -65,6 +66,12 @@ import { projectMemory, type ProjectMemoryManager } from './core/project-memory'
 import { approvalSystem } from './ui/approval-system'
 import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
 
+// ML System imports
+import { ToolchainOptimizer } from './ml/toolchain-optimizer'
+import { MLInferenceEngine } from './ml/ml-inference-engine'
+import { FeatureExtractor } from './ml/feature-extractor'
+import { EvaluationPipeline } from './ml/evaluation-pipeline'
+import { DynamicToolSelector } from './core/dynamic-tool-selector'
 
 import { PasteHandler } from './utils/paste-handler'
 
@@ -327,6 +334,13 @@ export class NikCLI {
   private enhancedSessionManager: EnhancedSessionManager
   private isEnhancedMode: boolean = true
 
+  // ML System services
+  private toolchainOptimizer?: ToolchainOptimizer
+  private mlInferenceEngine?: MLInferenceEngine
+  private featureExtractor?: FeatureExtractor
+  private evaluationPipeline?: EvaluationPipeline
+  private dynamicToolSelector?: DynamicToolSelector
+
   // NEW: Chat UI System
   private chatBuffer: string[] = []
   private maxChatLines: number = 1000
@@ -335,7 +349,10 @@ export class NikCLI {
   private isChatMode: boolean = false
   private isPrintingPanel: boolean = false
 
-
+  // Ad Caching System - prevent repeated rendering during progressbar updates
+  private cachedAdLines: string[] = []
+  private lastAdFetchTime: number = 0
+  private readonly AD_CACHE_TTL_MS: number = 60000 // Cache ad for 60 seconds
 
   constructor() {
     this.workingDirectory = process.cwd()
@@ -420,7 +437,7 @@ export class NikCLI {
     this.initializeChatUI()
 
     // Render initial prompt
-    this.renderPromptArea()
+    void void this.renderPromptArea()
 
       // Expose NikCLI globally for token management
       ; (global as any).__nikcli = this
@@ -5486,7 +5503,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   public clearPlanHud(): void {
     this.activePlanForHud = undefined
     this.clearPlanHudSubscription()
-    this.renderPromptArea()
+    void this.renderPromptArea()
   }
 
   private finalizePlanHud(state: 'completed' | 'failed'): void {
@@ -5517,7 +5534,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     }
 
     this.clearPlanHudSubscription()
-    this.renderPromptArea()
+    void this.renderPromptArea()
     void this.cleanupPlanArtifacts()
   }
 
@@ -5543,7 +5560,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         tools: todo.tools,
       })),
     }
-    this.renderPromptArea()
+    void this.renderPromptArea()
   }
 
   private updatePlanHudTodoStatus(todoId: string, status: 'pending' | 'in_progress' | 'completed' | 'failed'): void {
@@ -5571,7 +5588,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         this.finalizePlanHud(allSuccessful ? 'completed' : 'failed')
       }, 500) // 500ms delay to ensure output is complete
     } else {
-      this.renderPromptArea()
+      void this.renderPromptArea()
     }
   }
 
@@ -5678,6 +5695,178 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     }
 
     return lines
+  }
+
+  /**
+   * Build ad panel lines for display
+   * Fetches active ad campaigns from Supabase and formats for terminal display
+   * Returns empty array if no ads are available
+   */
+  private async buildAdPanelLines(maxWidth: number): Promise<string[]> {
+    try {
+      // Return cached ad lines if still within cache TTL window
+      const now = Date.now()
+      if (this.cachedAdLines.length > 0 && (now - this.lastAdFetchTime) < this.AD_CACHE_TTL_MS) {
+        return this.cachedAdLines
+      }
+
+      const supabase = await enhancedSupabaseProvider.getClient()
+
+      if (!supabase) {
+        console.error('[AD] Supabase client not available')
+        return []
+      }
+
+      const nowIso = new Date().toISOString()
+      const { data: campaigns, error } = await supabase
+        .from('ad_campaigns')
+        .select('*')
+        .eq('status', 'active')
+        .gte('end_date', nowIso)
+        .lte('start_date', nowIso)
+
+      if (error) {
+        console.error('[AD] Query error:', error.message)
+        return []
+      }
+
+      if (!campaigns || campaigns.length === 0) {
+        return []
+      }
+
+      // Filter out campaigns that have reached their impression limit
+      const availableCampaigns = campaigns.filter(
+        (campaign: any) => campaign.impressions_served < campaign.budget_impressions
+      )
+
+      if (availableCampaigns.length === 0) {
+        return []
+      }
+
+      // Map database rows to AdCampaign type for rotation service
+      const typedCampaigns = availableCampaigns.map((c: any) => ({
+        id: c.id,
+        advertiserId: c.advertiser_id,
+        content: c.content,
+        ctaText: c.cta_text,
+        ctaUrl: c.cta_url,
+        targetAudience: c.target_audience || ['all'],
+        budgetImpressions: c.budget_impressions,
+        impressionsServed: c.impressions_served,
+        cpmRate: c.cpm_rate,
+        totalCost: c.total_cost,
+        status: c.status,
+        startDate: new Date(c.start_date),
+        endDate: new Date(c.end_date),
+        createdAt: new Date(c.created_at),
+        updatedAt: new Date(c.updated_at),
+        stripePaymentId: c.stripe_payment_id,
+        conversionCount: c.conversion_count,
+      }))
+
+      // Get rotation state
+      let rotationState = await adRotationService.getRotationState()
+
+      // Initialize if doesn't exist
+      if (!rotationState) {
+        rotationState = await adRotationService.initializeRotationState(typedCampaigns[0])
+      }
+
+      // Check if we should rotate to next campaign
+      const shouldRotate = await adRotationService.shouldRotate()
+
+      let selectedAd: any = null
+
+      if (shouldRotate && rotationState) {
+        // Time to rotate: build weighted order and select next campaign
+        const weightedOrder = await adRotationService.buildWeightedOrder(typedCampaigns)
+        rotationState.weightedOrder = weightedOrder
+
+        selectedAd = await adRotationService.getNextCampaign(typedCampaigns, rotationState)
+
+        if (selectedAd) {
+          // Update rotation state in Supabase
+          const updatedState = await adRotationService.updateRotationState(selectedAd, rotationState)
+          if (updatedState) {
+            rotationState = updatedState
+          }
+        }
+      } else if (rotationState?.currentCampaignId) {
+        // Still within rotation interval: show current campaign
+        selectedAd = typedCampaigns.find((c) => c.id === rotationState!.currentCampaignId) || null
+      }
+
+      // Fallback to first available if nothing selected
+      if (!selectedAd && typedCampaigns.length > 0) {
+        selectedAd = typedCampaigns[0]
+      }
+
+      // Safety check - no campaign available
+      if (!selectedAd) {
+        return []
+      }
+
+      // Track impression asynchronously (don't block rendering)
+      this.trackAdImpressionAsync(selectedAd, supabase)
+
+      const orange = chalk.rgb(255, 165, 0)
+
+      // Build ad on single line
+      let adText = `📢 ${selectedAd.content}`
+
+      if (selectedAd.ctaText && selectedAd.ctaUrl) {
+        adText += ` | 🔗 ${selectedAd.ctaText}: ${selectedAd.ctaUrl}`
+      } else if (selectedAd.ctaText) {
+        adText += ` | 🔗 ${selectedAd.ctaText}`
+      } else {
+        adText += ` | +0.02 tokens`
+      }
+
+      const adLines = [orange(adText)]
+
+      // Store in cache and update fetch time
+      this.cachedAdLines = adLines
+      this.lastAdFetchTime = now
+
+      return adLines
+    } catch (error: any) {
+      console.error('[AD] Exception:', error.message)
+      return []
+    }
+  }
+
+  /**
+   * Track ad impression asynchronously
+   * Called when an ad is displayed, without blocking rendering
+   */
+  private trackAdImpressionAsync(ad: any, supabase: any): void {
+    // Fire and forget - don't await, don't block
+    Promise.resolve().then(async () => {
+      try {
+        const { randomUUID } = await import('node:crypto')
+        const userId = randomUUID()
+
+        // Record impression
+        await supabase.from('ad_impressions').insert({
+          campaign_id: ad.id,
+          user_id: userId,
+          timestamp: new Date().toISOString(),
+          session_id: `session-${Date.now()}`,
+          token_credit_awarded: 0.02,
+          ad_content: ad.content,
+        })
+
+        // Increment impressions_served counter
+        const newImpressions = (ad.impressions_served || 0) + 1
+        await supabase
+          .from('ad_campaigns')
+          .update({ impressions_served: newImpressions })
+          .eq('id', ad.id)
+      } catch (error: any) {
+        // Silently fail - don't log or interrupt anything
+        // Impression tracking errors should never break the user experience
+      }
+    })
   }
 
   private showExecutionSummary(): void {
@@ -9736,6 +9925,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     await memoryService.initialize()
     await snapshotService.initialize()
 
+    // 🤖 Initialize ML Toolchain Optimization System (non-blocking)
+    try {
+      await this.initializeMLSystem()
+    } catch (error: any) {
+      structuredLogger.warning('ML System', `⚠️ ML initialization failed: ${error.message}`)
+    }
+
     // Event bridge is idempotent
     this.setupOrchestratorEventBridge()
 
@@ -9743,6 +9939,42 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     await this.initializeCloudDocs()
 
     structuredLogger.info('System Init', '✓ Systems initialized')
+  }
+
+  /**
+   * Initialize ML Toolchain Optimization System
+   */
+  private async initializeMLSystem(): Promise<void> {
+    try {
+      // Initialize components in order
+      this.featureExtractor = new FeatureExtractor()
+      this.mlInferenceEngine = new MLInferenceEngine()
+      this.evaluationPipeline = new EvaluationPipeline()
+      this.toolchainOptimizer = new ToolchainOptimizer()
+      this.dynamicToolSelector = new DynamicToolSelector(this.workingDirectory)
+
+      // Initialize ML Inference Engine with cache service
+      await this.mlInferenceEngine.initialize(cacheService)
+
+      // Initialize ML Optimizer with Supabase provider
+      await this.toolchainOptimizer.initialize(
+        enhancedSupabaseProvider,
+        this.mlInferenceEngine,
+        this.featureExtractor
+      )
+
+      // Initialize Evaluation Pipeline
+      await this.evaluationPipeline.initialize(enhancedSupabaseProvider)
+
+      // Integrate ML components with tools
+      toolRouter.setMLOptimizer(this.toolchainOptimizer)
+      this.dynamicToolSelector.setMLInferenceEngine(this.mlInferenceEngine)
+
+      structuredLogger.info('ML System', '✓ ML toolchain optimizer initialized')
+    } catch (error: any) {
+      structuredLogger.warning('ML System', `⚠️ ML initialization error: ${error.message}`)
+      // Non-blocking - system continues without ML
+    }
   }
 
   private async initializeCloudDocs(): Promise<void> {
@@ -12387,7 +12619,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     if (this.isInquirerActive) return // avoid drawing over interactive lists
     if (this.isPrintingPanel) return // avoid drawing over panels
     // Move cursor to bottom and render prompt area
-    this.renderPromptArea()
+    void this.renderPromptArea()
   }
 
   // Temporarily pause/resume CLI prompt for external interactive prompts (inquirer)
@@ -12690,7 +12922,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   /**
    * Render prompt area (fixed at bottom)
    */
-  private renderPromptArea(): void {
+  private async renderPromptArea(): Promise<void> {
     if (this.isPrintingPanel) return // do not draw status frame while a panel prints
 
     // Lock prompt area during rendering (split-screen protection)
@@ -12705,6 +12937,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const terminalWidth = Math.max(40, process.stdout.columns || 120)
     const workingDir = chalk.blue(path.basename(this.workingDirectory))
     const planHudLines = this.planHudVisible ? this.buildPlanHudLines(terminalWidth) : []
+    const adPanelLines = await this.buildAdPanelLines(terminalWidth)
 
     // Mode info
     const _modeIcon = this.currentMode === 'plan' ? '✅' : this.currentMode === 'vm' ? '🐳' : '💎'
@@ -12719,7 +12952,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Move cursor to bottom of terminal (reserve HUD + frame + prompt + slash menu)
     const terminalHeight = process.stdout.rows || 24
     const hudExtraLines = planHudLines.length > 0 ? planHudLines.length + 1 : 0
-    const reservedLines = 3 + hudExtraLines
+    const adExtraLines = adPanelLines.length > 0 ? adPanelLines.length + 1 : 0
+    const reservedLines = 3 + hudExtraLines + adExtraLines
     process.stdout.write(`\x1B[${Math.max(1, terminalHeight - reservedLines)};0H`)
 
     // Clear the bottom lines
@@ -12733,6 +12967,15 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
       process.stdout.write('\n')
 
+    }
+
+    // Render ad panel if available
+    if (adPanelLines.length > 0) {
+      process.stdout.write('\n') // Add blank line above ad panel
+      for (const line of adPanelLines) {
+        process.stdout.write(`${line}\n`)
+      }
+      process.stdout.write('\n')
     }
 
     // Render slash menu if active
@@ -12904,7 +13147,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     this.promptRenderTimer = setTimeout(() => {
       try {
         if (!this.isPrintingPanel && !this.isInquirerActive && !(inputQueue.isBypassEnabled?.() ?? false))
-          this.renderPromptArea()
+          void this.renderPromptArea()
       } finally {
         if (this.promptRenderTimer) {
           clearTimeout(this.promptRenderTimer)
@@ -20998,7 +21241,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           this.slashMenuScrollOffset = this.slashMenuSelectedIndex
         }
       }
-      this.renderPromptArea()
+      void this.renderPromptArea()
       return true
     } else if (key.name === 'down') {
       if (this.slashMenuSelectedIndex < this.slashMenuCommands.length - 1) {
@@ -21010,7 +21253,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           this.slashMenuScrollOffset = this.slashMenuSelectedIndex - this.SLASH_MENU_MAX_VISIBLE + 1
         }
       }
-      this.renderPromptArea()
+      void this.renderPromptArea()
       return true
     } else if (key.name === 'return') {
       this.selectSlashCommand()
@@ -21048,7 +21291,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     this.slashMenuSelectedIndex = 0
     this.slashMenuScrollOffset = 0
     this.currentSlashInput = ''
-    this.renderPromptArea()
+    void this.renderPromptArea()
   }
 
   /**
@@ -21060,7 +21303,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     this.slashMenuSelectedIndex = 0
     this.slashMenuScrollOffset = 0
     this.isSlashMenuActive = true
-    this.renderPromptArea()
+    void this.renderPromptArea()
   }
 
   /**
@@ -21082,7 +21325,7 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       this.slashMenuScrollOffset = this.slashMenuSelectedIndex - this.SLASH_MENU_MAX_VISIBLE + 1
     }
 
-    this.renderPromptArea()
+    void this.renderPromptArea()
   }
 }
 

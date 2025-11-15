@@ -544,6 +544,36 @@ const ConfigSchema = z.object({
       autoLoadForAgents: true,
       smartSuggestions: true,
     }),
+  // Advertising System Configuration (CPM-based revenue model)
+  ads: z
+    .object({
+      enabled: z.boolean().default(true).describe('Enable ads system'),
+      userOptIn: z.boolean().default(false).describe('User has opted in to see ads'),
+      frequencyMinutes: z.number().min(1).max(60).default(5).describe('Minutes between ads'),
+      impressionCount: z.number().min(0).default(0).describe('Total impressions seen'),
+      tokenCreditsEarned: z.number().min(0).default(0).describe('Total token credits earned'),
+      lastAdShownAt: z.string().optional().describe('ISO timestamp of last ad shown'),
+      tier: z.enum(['free', 'pro']).default('free').describe('User tier'),
+      optInDate: z.string().optional().describe('ISO timestamp of opt-in'),
+      adPreferences: z
+        .object({
+          allowedCategories: z.array(z.string()).default(['all']),
+          blockedAdvertisers: z.array(z.string()).default([]),
+        })
+        .default({ allowedCategories: ['all'], blockedAdvertisers: [] }),
+    })
+    .default({
+      enabled: true,
+      userOptIn: false,
+      frequencyMinutes: 5,
+      impressionCount: 0,
+      tokenCreditsEarned: 0,
+      tier: 'free',
+      adPreferences: {
+        allowedCategories: ['all'],
+        blockedAdvertisers: [],
+      },
+    }),
   // Auto Todo generation settings
   autoTodo: z
     .object({
@@ -593,7 +623,7 @@ const ConfigSchema = z.object({
           enabled: z.boolean().default(true).describe('Enable OpenTelemetry distributed tracing'),
           endpoint: z.string().default('http://localhost:4318').describe('OTLP endpoint URL'),
           serviceName: z.string().default('nikcli').describe('Service name for traces'),
-          serviceVersion: z.string().default('1.2.0').describe('Service version'),
+          serviceVersion: z.string().default('1.3.0').describe('Service version'),
           sampleRate: z.number().min(0).max(1).default(0.1).describe('Trace sampling rate (0-1)'),
           exportIntervalMs: z.number().min(1000).max(300000).default(60000).describe('Export interval in milliseconds'),
         })
@@ -601,7 +631,7 @@ const ConfigSchema = z.object({
           enabled: true,
           endpoint: 'http://localhost:4318',
           serviceName: 'nikcli',
-          serviceVersion: '1.2.0',
+          serviceVersion: '1.3.0',
           sampleRate: 0.1,
           exportIntervalMs: 60000,
         }),
@@ -700,7 +730,7 @@ const ConfigSchema = z.object({
         enabled: true,
         endpoint: 'http://localhost:4318',
         serviceName: 'nikcli',
-        serviceVersion: '1.2.0',
+        serviceVersion: '1.3.0',
         sampleRate: 0.1,
         exportIntervalMs: 60000,
       },
@@ -1134,6 +1164,21 @@ export class SimpleConfigManager {
       model: 'openai/gpt-5-image-mini',
       maxContextTokens: 400000,
     },
+    'openai/gpt-5.1-codex-mini': {
+      provider: 'openrouter',
+      model: 'openai/gpt-5.1-codex-mini',
+      maxContextTokens: 400000,
+    },
+    'openai/gpt-5.1-codex': {
+      provider: 'openrouter',
+      model: 'openai/gpt-5.1-codex',
+      maxContextTokens: 400000,
+    },
+    'openai/gpt-5.1-image': {
+      provider: 'openrouter',
+      model: 'openai/gpt-5.1-image',
+      maxContextTokens: 400000,
+    },
     'openai/o3-deep-research': {
       provider: 'openrouter',
       model: 'openai/o3-deep-research',
@@ -1349,7 +1394,7 @@ export class SimpleConfigManager {
         enabled: true,
         endpoint: 'http://localhost:4318',
         serviceName: 'nikcli',
-        serviceVersion: '1.2.0',
+        serviceVersion: '1.3.0',
         sampleRate: 0.1,
         exportIntervalMs: 60000,
       },
@@ -1490,6 +1535,18 @@ export class SimpleConfigManager {
       maxContextSize: 50000,
       autoLoadForAgents: true,
       smartSuggestions: true,
+    },
+    ads: {
+      enabled: true,
+      userOptIn: false,
+      frequencyMinutes: 5,
+      impressionCount: 0,
+      tokenCreditsEarned: 0,
+      tier: 'free',
+      adPreferences: {
+        allowedCategories: ['all'],
+        blockedAdvertisers: [],
+      },
     },
     autoTodo: {
       requireExplicitTrigger: false,

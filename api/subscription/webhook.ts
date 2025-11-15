@@ -195,6 +195,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         })
         break
       }
+
+      case 'order_created': {
+        // Check if this is an ad campaign payment by looking for campaign_id in custom data
+        const campaignId = customData.campaign_id
+        if (campaignId) {
+          // This is an ad campaign purchase
+          console.log(`[Webhook] Processing ad campaign payment for campaign ${campaignId}`)
+
+          try {
+            // Activate the ad campaign by updating status to 'active' in database
+            const { error: updateError } = await supabase
+              .from('ad_campaigns')
+              .update({
+                status: 'active',
+                stripe_payment_id: `lemonsqueezy_${meta?.event_id || Date.now()}`,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', campaignId)
+
+            if (updateError) {
+              throw updateError
+            }
+
+            // Log ad payment event
+            await supabase.from('subscription_events').insert({
+              user_id: userId,
+              event_type: 'ad_payment_success',
+              event_data: {
+                campaignId,
+                advertiserId: customData.advertiser_id,
+                impressions: customData.impressions,
+                cpmRate: customData.cpm_rate,
+                amount: data?.attributes?.total,
+              },
+              lemonsqueezy_event_id: meta?.event_id,
+            })
+
+            console.log(`[Webhook] Ad campaign ${campaignId} activated successfully`)
+          } catch (error: any) {
+            console.error(`[Webhook] Failed to process ad payment for campaign ${campaignId}:`, error)
+
+            // Log ad payment failure
+            await supabase.from('subscription_events').insert({
+              user_id: userId,
+              event_type: 'ad_payment_failed',
+              event_data: {
+                campaignId,
+                error: error.message,
+              },
+              lemonsqueezy_event_id: meta?.event_id,
+            })
+          }
+        }
+        break
+      }
     }
 
     return res.status(200).json({ received: true })

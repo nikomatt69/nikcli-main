@@ -8,7 +8,7 @@ import type { NikPlaybook } from '../types'
 
 // Zod schemas for validation
 const PlaybookLimitsSchema = z.object({
-  max_tool_calls: z.number().positive().max(200).default(50),
+  max_tool_calls: z.number().positive().max(50).default(15),
   max_time_minutes: z.number().positive().max(120).default(30),
   max_memory_mb: z.number().positive().optional().default(2048),
 })
@@ -249,7 +249,7 @@ goals:
   - "Ensure all tests pass"
   - "Maintain code quality"
 limits:
-  max_tool_calls: 50
+  max_tool_calls: 20
   max_time_minutes: 25
 policy:
   approve_commands: false
@@ -273,7 +273,7 @@ goals:
   - "Fix any breaking changes"
   - "Ensure project still builds and tests pass"
 limits:
-  max_tool_calls: 80
+  max_tool_calls: 25
   max_time_minutes: 40
 policy:
   approve_commands: false
@@ -298,7 +298,7 @@ goals:
   - "Fix vulnerabilities"
   - "Generate security report"
 limits:
-  max_tool_calls: 30
+  max_tool_calls: 15
   max_time_minutes: 20
 policy:
   approve_commands: true

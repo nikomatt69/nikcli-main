@@ -1915,7 +1915,7 @@ Respond in a helpful, professional manner with clear explanations and actionable
       const currentToolCalls: ToolCallPart[] = []
       let accumulatedText = ''
       let toolCallCount = 0
-      const maxToolCallsForAnalysis = 12 // REDUCED: Aggressive limit to prevent token overflow
+      const maxToolCallsForAnalysis = 8 // REDUCED: Conservative limit to prevent token overflow (was 12)
 
       const approxCharLimit =
         provider === 'openai' && this.getCurrentModelInfo().config.provider === 'openai'

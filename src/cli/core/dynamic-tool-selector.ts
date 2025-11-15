@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { ToolRegistry } from '../tools/tool-registry'
 import { type ToolRecommendation, toolRouter } from './tool-router'
+import type { MLInferenceEngine } from '../ml/ml-inference-engine'
 
 /**
  * Dynamic Tool Selector
@@ -13,15 +14,23 @@ export class DynamicToolSelector {
   private lastUsedTools: string[] = []
   private maxHistorySize = 50
   private toolRegistry: ToolRegistry
+  private mlInferenceEngine: MLInferenceEngine | null = null
 
   constructor(workingDirectory: string = process.cwd()) {
     this.toolRegistry = new ToolRegistry(workingDirectory)
   }
 
   /**
+   * Set ML inference engine for success prediction
+   */
+  setMLInferenceEngine(engine: MLInferenceEngine): void {
+    this.mlInferenceEngine = engine
+  }
+
+  /**
    * Select tools dynamically based on context and usage patterns
    */
-  selectToolsDynamically(
+  async selectToolsDynamically(
     userMessage: string,
     context?: {
       taskType?: 'read' | 'write' | 'search' | 'analyze' | 'execute' | 'mixed'
@@ -29,8 +38,8 @@ export class DynamicToolSelector {
       avoidTools?: string[]
       maxTools?: number
     }
-  ): ToolRecommendation[] {
-    const maxTools = context?.maxTools || 5
+  ): Promise<ToolRecommendation[]> {
+    const maxTools = context?.maxTools || 4
 
     // 1. Get base recommendations from router
     const baseRecommendations = toolRouter.analyzeMessage({
@@ -66,8 +75,30 @@ export class DynamicToolSelector {
     const alternativeTools = this.discoverAlternativeTools(userMessage, context?.taskType)
     const combinedRecommendations = [...filteredRecommendations, ...alternativeTools]
 
+    // 5.5: 🤖 ML Success Prediction (non-blocking)
+    let finalRecommendations = combinedRecommendations
+    if (this.mlInferenceEngine) {
+      try {
+        const successRates = await this.mlInferenceEngine.predictSuccessRates(
+          combinedRecommendations.map(r => r.tool),
+          context || {}
+        )
+
+        // Filter tools with low predicted success rate (<60%)
+        finalRecommendations = combinedRecommendations
+          .map((rec) => ({
+            ...rec,
+            confidence: rec.confidence * (successRates[rec.tool] || 0.85), // Apply success probability
+          }))
+          .filter((rec) => (successRates[rec.tool] || 0.85) > 0.6)
+      } catch {
+        // Silent ML failure - use rule-based selection
+        finalRecommendations = combinedRecommendations
+      }
+    }
+
     // 6. Sort by final confidence and return top N
-    const sortedRecommendations = combinedRecommendations.sort((a, b) => b.confidence - a.confidence).slice(0, maxTools)
+    const sortedRecommendations = finalRecommendations.sort((a, b) => b.confidence - a.confidence).slice(0, maxTools)
 
     // 7. Update usage history
     sortedRecommendations.forEach((rec) => {
