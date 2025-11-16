@@ -453,14 +453,14 @@ export class ToolRegistry {
     })
 
     this.registerTool('goat-tool', new GoatTool(workingDirectory), {
-      description: 'Execute blockchain operations using GOAT SDK (Polymarket, ERC20) on Polygon and Base',
+      description: 'Execute blockchain operations using GOAT SDK (Polymarket, ERC20) on Polygon and Base with comprehensive help system',
       category: 'blockchain',
       riskLevel: 'high',
       reversible: false,
       estimatedDuration: 12000,
       requiredPermissions: ['network', 'execute'],
       supportedFileTypes: ['*'],
-      tags: ['blockchain', 'crypto', 'goat', 'polymarket', 'erc20', 'polygon', 'base', 'defi'],
+      tags: ['blockchain', 'crypto', 'goat', 'polymarket', 'erc20', 'polygon', 'base', 'defi', 'help', 'commands'],
     })
 
     this.registerTool('browserbase-tool', new BrowserbaseTool(workingDirectory), {

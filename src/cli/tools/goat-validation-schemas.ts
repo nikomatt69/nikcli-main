@@ -372,6 +372,213 @@ export function isValidEVMAddress(address: string): boolean {
   return normalized !== null && EVM_ADDRESS_REGEX.test(normalized)
 }
 
+// ============================================================
+// BUILDER PROGRAM VALIDATION (Enterprise)
+// ============================================================
+
+export const BuilderCredentialsSchema = z.object({
+  apiKey: z.string().min(1).describe('Builder API key (from Polymarket dashboard)'),
+  secret: z.string().min(1).describe('Builder secret for HMAC signing'),
+  passphrase: z.string().min(1).describe('Builder passphrase for authentication'),
+})
+
+export type BuilderCredentials = z.infer<typeof BuilderCredentialsSchema>
+
+export const BuilderSignOrderSchema = z.object({
+  signedOrder: z.object({}).describe('Pre-signed order from user wallet'),
+  orderType: z
+    .enum(['FOK', 'GTC', 'GTD'])
+    .default('GTC')
+    .describe('Order type: FOK (Fill-Or-Kill), GTC (Good-Till-Cancelled), GTD (Good-Till-Date)'),
+})
+
+export type BuilderSignOrder = z.infer<typeof BuilderSignOrderSchema>
+
+export const PolymarketOrderSchema = z.object({
+  tokenId: z
+    .string()
+    .min(1)
+    .describe('Token ID (market outcome identifier on Polymarket)'),
+  price: z
+    .number()
+    .min(0)
+    .max(1)
+    .describe('Order price (0.00 to 1.00, representing 0% to 100%)'),
+  size: z.number().min(0.01).describe('Order size in shares'),
+  side: z.enum(['BUY', 'SELL']).describe('Order side: BUY or SELL'),
+  orderType: z
+    .enum(['FOK', 'GTC', 'GTD'])
+    .default('GTC')
+    .describe('Order type'),
+  expiration: z.number().optional().describe('Unix timestamp for GTD expiration'),
+  feeRateBps: z.number().optional().default(100).describe('Fee rate in basis points (100 = 1%)'),
+})
+
+export type PolymarketOrder = z.infer<typeof PolymarketOrderSchema>
+
+export const PolymarketNativeOrderSchema = z.object({
+  tokenId: z.string().min(1).describe('Polymarket token ID'),
+  price: z.number().min(0).max(1).describe('Price between 0 and 1'),
+  size: z.number().min(0).describe('Order size'),
+  side: z.enum(['BUY', 'SELL']).describe('BUY or SELL'),
+  orderType: z.enum(['FOK', 'GTC', 'GTD']).describe('Order type'),
+  builderAttribution: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe('Include builder attribution headers'),
+})
+
+export type PolymarketNativeOrder = z.infer<typeof PolymarketNativeOrderSchema>
+
+/**
+ * Validate builder credentials
+ */
+export function validateBuilderCredentials(params: any): {
+  valid: boolean
+  data?: BuilderCredentials
+  error?: string
+} {
+  try {
+    const validated = BuilderCredentialsSchema.parse(params)
+    return { valid: true, data: validated }
+  } catch (error: any) {
+    const errors = error.errors?.map((e: any) => `${e.path.join('.')}: ${e.message}`) || [error.message]
+    return {
+      valid: false,
+      error: `Invalid builder credentials: ${errors.join('; ')}`,
+    }
+  }
+}
+
+/**
+ * Validate builder sign order parameters
+ */
+export function validateBuilderSignOrder(params: any): {
+  valid: boolean
+  data?: BuilderSignOrder
+  error?: string
+} {
+  try {
+    const validated = BuilderSignOrderSchema.parse(params)
+    return { valid: true, data: validated }
+  } catch (error: any) {
+    const errors = error.errors?.map((e: any) => `${e.path.join('.')}: ${e.message}`) || [error.message]
+    return {
+      valid: false,
+      error: `Invalid builder sign order parameters: ${errors.join('; ')}`,
+    }
+  }
+}
+
+/**
+ * Validate Polymarket order parameters
+ */
+export function validatePolymarketOrder(params: any): {
+  valid: boolean
+  data?: PolymarketOrder
+  error?: string
+} {
+  try {
+    const validated = PolymarketOrderSchema.parse(params)
+    return { valid: true, data: validated }
+  } catch (error: any) {
+    const errors = error.errors?.map((e: any) => `${e.path.join('.')}: ${e.message}`) || [error.message]
+    return {
+      valid: false,
+      error: `Invalid Polymarket order parameters: ${errors.join('; ')}`,
+    }
+  }
+}
+
+/**
+ * Validate native Polymarket order parameters
+ */
+export function validatePolymarketNativeOrder(params: any): {
+  valid: boolean
+  data?: PolymarketNativeOrder
+  error?: string
+} {
+  try {
+    const validated = PolymarketNativeOrderSchema.parse(params)
+    return { valid: true, data: validated }
+  } catch (error: any) {
+    const errors = error.errors?.map((e: any) => `${e.path.join('.')}: ${e.message}`) || [error.message]
+    return {
+      valid: false,
+      error: `Invalid native Polymarket order parameters: ${errors.join('; ')}`,
+    }
+  }
+}
+
+// ============================================================
+// WEBSOCKET VALIDATION (Enterprise)
+// ============================================================
+
+export const WebSocketSubscriptionSchema = z.object({
+  assetId: z.string().min(1).describe('Market asset ID to subscribe to'),
+  handler: z.function().optional().describe('Optional callback handler for updates'),
+})
+
+export type WebSocketSubscription = z.infer<typeof WebSocketSubscriptionSchema>
+
+/**
+ * Validate WebSocket subscription parameters
+ */
+export function validateWebSocketSubscription(params: any): {
+  valid: boolean
+  data?: WebSocketSubscription
+  error?: string
+} {
+  try {
+    const validated = WebSocketSubscriptionSchema.parse(params)
+    return { valid: true, data: validated }
+  } catch (error: any) {
+    const errors = error.errors?.map((e: any) => `${e.path.join('.')}: ${e.message}`) || [error.message]
+    return {
+      valid: false,
+      error: `Invalid WebSocket subscription parameters: ${errors.join('; ')}`,
+    }
+  }
+}
+
+// ============================================================
+// FUNDER ADDRESS VALIDATION (For Builder Program)
+// ============================================================
+
+export const FunderAddressSchema = z.object({
+  address: z
+    .string()
+    .regex(EVM_ADDRESS_REGEX)
+    .transform(checksumAddress)
+    .refine((val) => val !== null, {
+      message: 'Invalid EVM address format',
+    })
+    .describe('Funder address for Polymarket operations (EIP-55 checksummed)'),
+})
+
+export type FunderAddress = z.infer<typeof FunderAddressSchema>
+
+/**
+ * Validate funder address parameters
+ */
+export function validateFunderAddress(params: any): {
+  valid: boolean
+  data?: FunderAddress
+  error?: string
+} {
+  try {
+    const validated = FunderAddressSchema.parse({ address: params.address || params })
+    return { valid: true, data: validated }
+  } catch (error: any) {
+    const errors = error.errors?.map((e: any) => `${e.path.join('.')}: ${e.message}`) || [error.message]
+    return {
+      valid: false,
+      error: `Invalid funder address: ${errors.join('; ')}`,
+    }
+  }
+}
+
 export default {
   EVMAddressSchema,
   EVMAddressOptionalSchema,
@@ -382,12 +589,24 @@ export default {
   PolymarketMarketsSchema,
   WalletInfoSchema,
   GoatChatMessageSchema,
+  BuilderCredentialsSchema,
+  BuilderSignOrderSchema,
+  PolymarketOrderSchema,
+  PolymarketNativeOrderSchema,
+  WebSocketSubscriptionSchema,
+  FunderAddressSchema,
   validateERC20Balance,
   validateERC20Transfer,
   validateERC20Approve,
   validatePolymarketBet,
   validateWalletInfo,
   validateGoatChatMessage,
+  validateBuilderCredentials,
+  validateBuilderSignOrder,
+  validatePolymarketOrder,
+  validatePolymarketNativeOrder,
+  validateWebSocketSubscription,
+  validateFunderAddress,
   checksumAddress,
   normalizeEVMAddress,
   isZeroAddress,

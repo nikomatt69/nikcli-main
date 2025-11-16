@@ -31,6 +31,10 @@ import { BaseTool, type ToolExecutionResult } from './base-tool'
  * - Secure environment variable handling
  * - Audit logging for compliance
  * - Conversational AI interface for natural language blockchain operations
+ * - Comprehensive help system with command categories
+ *
+ * Available actions: init, status, wallet-info, chat, help, tools, reset,
+ * polymarket-*, erc20-*, builder-*, websocket-*, rtds-*, gamma-*, ctf-*
  */
 
 // ============================================================
@@ -106,6 +110,10 @@ export class GoatTool extends BaseTool {
         case 'reset':
           return await this.resetConversation(params)
 
+        case 'help':
+        case '?':
+          return await this.displayHelp(params)
+
         // Polymarket specific actions
         case 'polymarket-markets':
         case 'markets':
@@ -127,6 +135,117 @@ export class GoatTool extends BaseTool {
         case 'erc20-approve':
         case 'approve':
           return await this.handleERC20Action('approve', params)
+
+        // Builder program actions
+        case 'builder-status':
+          return await this.getBuilderStatus(params)
+
+        case 'builder-metrics':
+          return await this.getBuilderMetrics(params)
+
+        case 'builder-sign-order':
+        case 'sign-order':
+          return await this.handleBuilderSignOrder(params)
+
+        case 'builder-attribution':
+          return await this.getBuilderAttribution(params)
+
+        // WebSocket actions
+        case 'ws-connect':
+        case 'websocket-connect':
+          return await this.connectWebSocket(params)
+
+        case 'ws-disconnect':
+        case 'websocket-disconnect':
+          return await this.disconnectWebSocket(params)
+
+        case 'ws-subscribe':
+        case 'websocket-subscribe':
+          return await this.subscribeWebSocket(params)
+
+        case 'ws-stats':
+        case 'websocket-stats':
+          return await this.getWebSocketStats(params)
+
+        // Native API actions
+        case 'native-health':
+        case 'api-health':
+          return await this.checkNativeHealth(params)
+
+        case 'native-status':
+        case 'api-status':
+          return await this.getNativeApiStatus(params)
+
+        // Funder address management actions
+        case 'set-funder':
+        case 'funder-set':
+          return await this.setFunderAddress(params)
+
+        case 'get-funder':
+        case 'funder-get':
+          return await this.getFunderAddress(params)
+
+        case 'clear-funder':
+        case 'funder-clear':
+          return await this.clearFunderAddress(params)
+
+        case 'funder-status':
+          return await this.getFunderStatus(params)
+
+        // ===== RELAYER CLIENT (PHASE 2) =====
+        case 'relayer-deploy':
+          return await this.relayerDeploy(params)
+
+        case 'relayer-execute':
+          return await this.relayerExecute(params)
+
+        case 'relayer-status':
+          return await this.relayerStatus(params)
+
+        // ===== GAMMA MARKETS API (PHASE 2) =====
+        case 'gamma-trending':
+          return await this.gammaTrendingMarkets(params)
+
+        case 'gamma-search':
+          return await this.gammaSearchMarkets(params)
+
+        case 'gamma-details':
+          return await this.gammaMarketDetails(params)
+
+        case 'gamma-category':
+          return await this.gammaMarketsByCategory(params)
+
+        // ===== RTDS REAL-TIME DATA (PHASE 2) =====
+        case 'rtds-connect':
+          return await this.rtdsConnect(params)
+
+        case 'rtds-disconnect':
+          return await this.rtdsDisconnect(params)
+
+        case 'rtds-subscribe-prices':
+          return await this.rtdsSubscribePrices(params)
+
+        case 'rtds-subscribe-comments':
+          return await this.rtdsSubscribeComments(params)
+
+        case 'rtds-stats':
+          return await this.rtdsStats(params)
+
+        // ===== CTF TOKEN OPERATIONS (PHASE 2) =====
+        case 'ctf-create-condition':
+          return await this.ctfCreateCondition(params)
+
+        case 'ctf-split':
+          return await this.ctfSplit(params)
+
+        case 'ctf-merge':
+          return await this.ctfMerge(params)
+
+        case 'ctf-redeem':
+          return await this.ctfRedeem(params)
+
+        case 'ctf-positions':
+          return await this.ctfGetPositions(params)
 
         default:
           // Treat unknown actions as chat messages
@@ -734,5 +853,2170 @@ ALWAYS confirm with user before executing any blockchain transaction.`,
     // Use chat interface for ERC20 operations
     const message = `Execute ERC20 ${action}: ${JSON.stringify(validationResult.data || params)}`
     return await this.processChatMessage(message, { plugin: 'erc20' })
+  }
+
+  /**
+   * Get builder program status
+   */
+  private async getBuilderStatus(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const signingService = this.goatProvider.getBuilderSigningService()
+      if (!signingService) {
+        return {
+          success: true,
+          data: {
+            configured: false,
+            message: 'Builder program not configured. Set POLYMARKET_BUILDER_API_KEY to enable.',
+          },
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      const summary = signingService.getSummary()
+      return {
+        success: true,
+        data: {
+          configured: true,
+          summary,
+        },
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Get builder metrics and performance
+   */
+  private async getBuilderMetrics(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const signingService = this.goatProvider.getBuilderSigningService()
+      if (!signingService) {
+        return {
+          success: false,
+          data: null,
+          error: 'Builder program not configured',
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      const report = signingService.exportMetricsReport()
+      return {
+        success: true,
+        data: report,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Sign order with builder attribution
+   */
+  private async handleBuilderSignOrder(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const signingService = this.goatProvider.getBuilderSigningService()
+      if (!signingService) {
+        return {
+          success: false,
+          data: null,
+          error: 'Builder program not configured',
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      const result = await signingService.signOrder({
+        signedOrder: params.signedOrder,
+        orderType: params.orderType || 'GTC',
+      })
+
+      return {
+        success: result.success,
+        data: result,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: { orderType: params.orderType },
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Get builder attribution log
+   */
+  private async getBuilderAttribution(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const signingService = this.goatProvider.getBuilderSigningService()
+      if (!signingService) {
+        return {
+          success: false,
+          data: null,
+          error: 'Builder program not configured',
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      const log = signingService.getAttributionLog(params.limit || 100)
+      return {
+        success: true,
+        data: { records: log, count: log.length },
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Connect to WebSocket for real-time data
+   */
+  private async connectWebSocket(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const wsManager = this.goatProvider.getWebSocketManager()
+      if (!wsManager) {
+        return {
+          success: false,
+          data: null,
+          error: 'WebSocket manager not available',
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      await wsManager.connect()
+      const stats = wsManager.getStats()
+
+      return {
+        success: true,
+        data: { connected: true, stats },
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Disconnect WebSocket
+   */
+  private async disconnectWebSocket(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const wsManager = this.goatProvider.getWebSocketManager()
+      if (wsManager) {
+        wsManager.disconnect()
+      }
+
+      return {
+        success: true,
+        data: { disconnected: true },
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Subscribe to WebSocket market updates
+   */
+  private async subscribeWebSocket(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider || !params.assetId) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized or missing assetId',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const wsManager = this.goatProvider.getWebSocketManager()
+      if (!wsManager) {
+        return {
+          success: false,
+          data: null,
+          error: 'WebSocket manager not available',
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      wsManager.subscribe(params.assetId)
+      const stats = wsManager.getStats()
+
+      return {
+        success: true,
+        data: { subscribed: true, assetId: params.assetId, stats },
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Get WebSocket statistics
+   */
+  private async getWebSocketStats(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const wsManager = this.goatProvider.getWebSocketManager()
+      if (!wsManager) {
+        return {
+          success: false,
+          data: null,
+          error: 'WebSocket manager not available',
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      const stats = wsManager.getStats()
+      const health = await wsManager.healthCheck()
+
+      return {
+        success: true,
+        data: { stats, healthy: health },
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Check native API health
+   */
+  private async checkNativeHealth(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const nativeClient = this.goatProvider.getPolymarketNativeClient()
+      const health = nativeClient ? await nativeClient.healthCheck() : false
+
+      return {
+        success: true,
+        data: { healthy: health, timestamp: Date.now() },
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Get native API status
+   */
+  private async getNativeApiStatus(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const status = this.goatProvider.getNativeApiStatus()
+      return {
+        success: true,
+        data: status,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Set funder address for Polymarket operations
+   */
+  private async setFunderAddress(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const address = params.address || params.funderAddress
+      if (!address) {
+        return {
+          success: false,
+          data: null,
+          error: 'Funder address parameter required (address or funderAddress)',
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      const nativeClient = this.goatProvider.getPolymarketNativeClient()
+      if (!nativeClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'Polymarket native client not available',
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      nativeClient.setFunderAddress(address)
+      return {
+        success: true,
+        data: { funderAddress: address, message: 'Funder address set successfully' },
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Get current funder address
+   */
+  private async getFunderAddress(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const nativeClient = this.goatProvider.getPolymarketNativeClient()
+      if (!nativeClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'Polymarket native client not available',
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      const funderAddress = nativeClient.getFunderAddress()
+      return {
+        success: true,
+        data: { funderAddress, isConfigured: !!funderAddress },
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Clear funder address
+   */
+  private async clearFunderAddress(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const nativeClient = this.goatProvider.getPolymarketNativeClient()
+      if (!nativeClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'Polymarket native client not available',
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      nativeClient.clearFunderAddress()
+      return {
+        success: true,
+        data: { message: 'Funder address cleared successfully' },
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  /**
+   * Get funder address status
+   */
+  private async getFunderStatus(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+
+    try {
+      const nativeClient = this.goatProvider.getPolymarketNativeClient()
+      if (!nativeClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'Polymarket native client not available',
+          metadata: {
+            executionTime: Date.now() - startTime,
+            toolName: this.name,
+            parameters: params,
+          },
+        }
+      }
+
+      const funderAddress = nativeClient.getFunderAddress()
+      const hasFunder = nativeClient.hasFunderAddress()
+
+      return {
+        success: true,
+        data: {
+          configured: hasFunder,
+          funderAddress: funderAddress || 'Not set',
+          status: hasFunder ? 'Active' : 'Not configured',
+          actions: [
+            'Use set-funder to configure',
+            'Use get-funder to retrieve current',
+            'Use clear-funder to remove'
+          ]
+        },
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: {
+          executionTime: Date.now() - startTime,
+          toolName: this.name,
+          parameters: params,
+        },
+      }
+    }
+  }
+
+  // ===== PHASE 2 TOOL ACTIONS =====
+
+  /**
+   * Relayer: Deploy Safe wallet
+   */
+  private async relayerDeploy(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const relayerClient = this.goatProvider.getPolymarketRelayerClient()
+      if (!relayerClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'Relayer client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const userAddress = params.address || process.env.GOAT_EVM_ADDRESS
+      if (!userAddress) {
+        return {
+          success: false,
+          data: null,
+          error: 'User address required (address param or GOAT_EVM_ADDRESS env)',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const safeWallet = await relayerClient.deploySafe(userAddress)
+
+      return {
+        success: true,
+        data: {
+          walletAddress: safeWallet.address,
+          chainId: safeWallet.chainId,
+          status: 'Deployed',
+          safeWallet: safeWallet
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * Relayer: Execute gasless transactions
+   */
+  private async relayerExecute(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const relayerClient = this.goatProvider.getPolymarketRelayerClient()
+      if (!relayerClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'Relayer client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const userAddress = params.address || process.env.GOAT_EVM_ADDRESS
+      if (!userAddress) {
+        return {
+          success: false,
+          data: null,
+          error: 'User address required',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const transactions = params.transactions || params.transaction ? [params.transaction] : []
+      if (transactions.length === 0) {
+        return {
+          success: false,
+          data: null,
+          error: 'Transactions required in params',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const result = await relayerClient.executeSafeTransactions(userAddress, transactions)
+
+      return {
+        success: true,
+        data: {
+          transactionHash: result.transactionHash,
+          status: result.status,
+          result: result
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * Relayer: Get relayer status
+   */
+  private async relayerStatus(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const relayerClient = this.goatProvider.getPolymarketRelayerClient()
+      if (!relayerClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'Relayer client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const isHealthy = await relayerClient.healthCheck()
+
+      return {
+        success: true,
+        data: {
+          status: isHealthy ? 'Healthy' : 'Unhealthy',
+          healthy: isHealthy,
+          service: 'Polymarket Relayer'
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * Gamma: Get trending markets
+   */
+  private async gammaTrendingMarkets(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const gammaAPI = this.goatProvider.getGammaMarketsAPI()
+      if (!gammaAPI) {
+        return {
+          success: false,
+          data: null,
+          error: 'Gamma Markets API not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const limit = params.limit || 20
+      const markets = await gammaAPI.getTrendingMarkets(limit)
+
+      return {
+        success: true,
+        data: {
+          count: markets.length,
+          markets: markets,
+          limit: limit
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * Gamma: Search markets
+   */
+  private async gammaSearchMarkets(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const gammaAPI = this.goatProvider.getGammaMarketsAPI()
+      if (!gammaAPI) {
+        return {
+          success: false,
+          data: null,
+          error: 'Gamma Markets API not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const searchTerm = params.query || params.searchTerm
+      if (!searchTerm) {
+        return {
+          success: false,
+          data: null,
+          error: 'Search term required',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const limit = params.limit || 20
+      const markets = await gammaAPI.searchByTerm(searchTerm, limit)
+
+      return {
+        success: true,
+        data: {
+          searchTerm: searchTerm,
+          count: markets.length,
+          markets: markets
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * Gamma: Get market details
+   */
+  private async gammaMarketDetails(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const gammaAPI = this.goatProvider.getGammaMarketsAPI()
+      if (!gammaAPI) {
+        return {
+          success: false,
+          data: null,
+          error: 'Gamma Markets API not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const marketId = params.marketId || params.id
+      if (!marketId) {
+        return {
+          success: false,
+          data: null,
+          error: 'Market ID required',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const details = await gammaAPI.getMarketDetails(marketId)
+
+      return {
+        success: true,
+        data: {
+          marketId: marketId,
+          details: details
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * Gamma: Get markets by category
+   */
+  private async gammaMarketsByCategory(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const gammaAPI = this.goatProvider.getGammaMarketsAPI()
+      if (!gammaAPI) {
+        return {
+          success: false,
+          data: null,
+          error: 'Gamma Markets API not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const category = params.category
+      if (!category) {
+        return {
+          success: false,
+          data: null,
+          error: 'Category required',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const limit = params.limit || 20
+      const markets = await gammaAPI.getMarketsByCategory(category, limit)
+
+      return {
+        success: true,
+        data: {
+          category: category,
+          count: markets.length,
+          markets: markets
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * RTDS: Connect to real-time data stream
+   */
+  private async rtdsConnect(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const rtdsClient = this.goatProvider.getRTDSClient()
+      if (!rtdsClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'RTDS client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      await rtdsClient.connect()
+
+      return {
+        success: true,
+        data: {
+          status: 'Connected',
+          connected: true,
+          message: 'RTDS WebSocket connected successfully'
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * RTDS: Disconnect from real-time data stream
+   */
+  private async rtdsDisconnect(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const rtdsClient = this.goatProvider.getRTDSClient()
+      if (!rtdsClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'RTDS client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      rtdsClient.disconnect()
+
+      return {
+        success: true,
+        data: {
+          status: 'Disconnected',
+          connected: false,
+          message: 'RTDS WebSocket disconnected'
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * RTDS: Subscribe to crypto prices
+   */
+  private async rtdsSubscribePrices(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const rtdsClient = this.goatProvider.getRTDSClient()
+      if (!rtdsClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'RTDS client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const symbols = params.symbols || params.symbol ? (Array.isArray(params.symbol) ? params.symbol : [params.symbol]) : []
+      if (symbols.length === 0) {
+        return {
+          success: false,
+          data: null,
+          error: 'Symbols required (symbols array or symbol string)',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      rtdsClient.subscribeToCryptoPrices(symbols)
+
+      return {
+        success: true,
+        data: {
+          status: 'Subscribed',
+          symbols: symbols,
+          message: `Subscribed to prices for: ${symbols.join(', ')}`
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * RTDS: Subscribe to market comments
+   */
+  private async rtdsSubscribeComments(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const rtdsClient = this.goatProvider.getRTDSClient()
+      if (!rtdsClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'RTDS client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const marketId = params.marketId || params.market
+      if (!marketId) {
+        return {
+          success: false,
+          data: null,
+          error: 'Market ID required',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      rtdsClient.subscribeToComments(marketId)
+
+      return {
+        success: true,
+        data: {
+          status: 'Subscribed',
+          marketId: marketId,
+          message: `Subscribed to comments for market: ${marketId}`
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * RTDS: Get connection statistics
+   */
+  private async rtdsStats(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const rtdsClient = this.goatProvider.getRTDSClient()
+      if (!rtdsClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'RTDS client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const stats = rtdsClient.getStats()
+
+      return {
+        success: true,
+        data: {
+          stats: stats,
+          connected: stats.connected,
+          uptime: stats.uptime,
+          messageCount: stats.messageCount,
+          subscriptions: Array.from(stats.subscriptions)
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * CTF: Create condition for market
+   */
+  private async ctfCreateCondition(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const ctfClient = this.goatProvider.getCTFClient()
+      if (!ctfClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'CTF client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const questionId = params.questionId || params.questionid
+      if (!questionId) {
+        return {
+          success: false,
+          data: null,
+          error: 'Question ID required',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      await ctfClient.initialize()
+      const condition = await ctfClient.createCondition(questionId)
+
+      return {
+        success: true,
+        data: {
+          conditionId: condition.conditionId,
+          questionId: condition.questionId,
+          oracle: condition.oracle,
+          condition: condition
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * CTF: Split collateral into outcome tokens
+   */
+  private async ctfSplit(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const ctfClient = this.goatProvider.getCTFClient()
+      if (!ctfClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'CTF client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const userAddress = params.address || params.userAddress || process.env.GOAT_EVM_ADDRESS
+      const amount = params.amount || params.collateralAmount
+      const conditionId = params.conditionId || params.condition
+
+      if (!userAddress || !amount || !conditionId) {
+        return {
+          success: false,
+          data: null,
+          error: 'User address, amount, and condition ID required',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      await ctfClient.initialize()
+      const positions = await ctfClient.split(userAddress, amount.toString(), conditionId)
+
+      return {
+        success: true,
+        data: {
+          userAddress: userAddress,
+          amount: amount,
+          conditionId: conditionId,
+          positions: positions,
+          message: 'Split successful - created YES and NO positions'
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * CTF: Merge outcome tokens back to collateral
+   */
+  private async ctfMerge(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const ctfClient = this.goatProvider.getCTFClient()
+      if (!ctfClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'CTF client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const userAddress = params.address || params.userAddress || process.env.GOAT_EVM_ADDRESS
+      const amount = params.amount || params.collateralAmount
+      const conditionId = params.conditionId || params.condition
+
+      if (!userAddress || !amount || !conditionId) {
+        return {
+          success: false,
+          data: null,
+          error: 'User address, amount, and condition ID required',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      await ctfClient.initialize()
+      const mergedAmount = await ctfClient.merge(userAddress, amount.toString(), conditionId)
+
+      return {
+        success: true,
+        data: {
+          userAddress: userAddress,
+          mergedAmount: mergedAmount,
+          conditionId: conditionId,
+          message: 'Merge successful - positions converted back to collateral'
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * CTF: Redeem position after condition resolution
+   */
+  private async ctfRedeem(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const ctfClient = this.goatProvider.getCTFClient()
+      if (!ctfClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'CTF client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const userAddress = params.address || params.userAddress || process.env.GOAT_EVM_ADDRESS
+      const positionId = params.positionId || params.position
+      const conditionId = params.conditionId || params.condition
+      const amount = params.amount
+      const payouts = params.payoutNumerators || params.payouts || [1, 0]
+
+      if (!userAddress || !positionId || !conditionId || !amount) {
+        return {
+          success: false,
+          data: null,
+          error: 'User address, position ID, condition ID, and amount required',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      await ctfClient.initialize()
+      const redeemAmount = await ctfClient.redeem(userAddress, positionId, conditionId, amount.toString(), payouts)
+
+      return {
+        success: true,
+        data: {
+          userAddress: userAddress,
+          positionId: positionId,
+          redeemAmount: redeemAmount,
+          message: 'Redemption successful'
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * CTF: Get user positions for condition
+   */
+  private async ctfGetPositions(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+
+    if (!this.goatProvider) {
+      return {
+        success: false,
+        data: null,
+        error: 'GOAT provider not initialized',
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+
+    try {
+      const ctfClient = this.goatProvider.getCTFClient()
+      if (!ctfClient) {
+        return {
+          success: false,
+          data: null,
+          error: 'CTF client not available',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      const userAddress = params.address || params.userAddress || process.env.GOAT_EVM_ADDRESS
+      const conditionId = params.conditionId || params.condition
+
+      if (!userAddress || !conditionId) {
+        return {
+          success: false,
+          data: null,
+          error: 'User address and condition ID required',
+          metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+        }
+      }
+
+      await ctfClient.initialize()
+      const positions = await ctfClient.getUserPositions(userAddress, conditionId)
+
+      return {
+        success: true,
+        data: {
+          userAddress: userAddress,
+          conditionId: conditionId,
+          count: positions.length,
+          positions: positions
+        },
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        data: null,
+        error: error.message,
+        metadata: { executionTime: Date.now() - startTime, toolName: this.name, parameters: params },
+      }
+    }
+  }
+
+  /**
+   * Display comprehensive help for GOAT tool
+   */
+  private async displayHelp(params: any = {}): Promise<ToolExecutionResult> {
+    const startTime = Date.now()
+    const category = params.category || params.section || null
+
+    const helpData = {
+      title: '🐐 GOAT Tool - Complete Guide',
+      description: 'Enterprise-grade blockchain operations with Polymarket prediction markets',
+      version: '2.0.0',
+      sections: this.getHelpSections(category),
+    }
+
+    console.log('\n' + chalk.cyan('═'.repeat(80)))
+    console.log(chalk.bold.cyan(helpData.title))
+    console.log(chalk.cyan('═'.repeat(80)))
+    console.log(chalk.gray(helpData.description))
+    console.log(chalk.gray(`Version: ${helpData.version}\n`))
+
+    if (category) {
+      console.log(chalk.bold.yellow(`📚 ${category.toUpperCase()}\n`))
+      const section = helpData.sections.find(s => s.name.toLowerCase() === category.toLowerCase())
+      if (section) {
+        this.printSection(section)
+      } else {
+        console.log(chalk.red(`❌ Category not found: ${category}`))
+        console.log(chalk.yellow(`\nAvailable categories: ${helpData.sections.map(s => s.name).join(', ')}\n`))
+      }
+    } else {
+      // Print all sections
+      for (const section of helpData.sections) {
+        this.printSection(section)
+        console.log()
+      }
+      console.log(chalk.cyan('═'.repeat(80)))
+      console.log(chalk.gray(`Use: nikcli goat help --category <section> for detailed help\n`))
+    }
+
+    return {
+      success: true,
+      data: {
+        message: 'Help displayed',
+        sections: helpData.sections.map(s => s.name),
+        category: category || 'all'
+      },
+      metadata: {
+        executionTime: Date.now() - startTime,
+        toolName: this.name,
+        parameters: params,
+      },
+    }
+  }
+
+  /**
+   * Get help sections
+   */
+  private getHelpSections(category: string | null) {
+    return [
+      {
+        name: 'GETTING_STARTED',
+        title: '🚀 Getting Started',
+        commands: [
+          {
+            cmd: 'nikcli goat init',
+            desc: 'Initialize GOAT SDK with Polymarket and ERC20 plugins',
+            example: 'Sets up wallet, chains, and blockchain plugins'
+          },
+          {
+            cmd: 'nikcli goat wallet-info',
+            desc: 'Display current wallet address and configuration',
+            example: 'Shows address, chains, and enabled plugins'
+          },
+          {
+            cmd: 'nikcli goat status',
+            desc: 'Check GOAT SDK initialization status',
+            example: 'Reports if GOAT is ready for operations'
+          },
+        ]
+      },
+      {
+        name: 'MARKET_DISCOVERY',
+        title: '📊 Market Discovery (Gamma API)',
+        commands: [
+          {
+            cmd: 'nikcli goat gamma-trending [--limit 20]',
+            desc: 'Get top trending prediction markets',
+            example: 'nikcli goat gamma-trending --limit 10'
+          },
+          {
+            cmd: 'nikcli goat gamma-search --query <term> [--limit 20]',
+            desc: 'Search markets by keyword',
+            example: 'nikcli goat gamma-search --query "Trump election"'
+          },
+          {
+            cmd: 'nikcli goat gamma-details --marketId <id>',
+            desc: 'Get detailed market information',
+            example: 'nikcli goat gamma-details --marketId 0x123abc'
+          },
+          {
+            cmd: 'nikcli goat gamma-category --category <name> [--limit 20]',
+            desc: 'Get markets by category (elections, crypto, sports, etc)',
+            example: 'nikcli goat gamma-category --category elections'
+          },
+        ]
+      },
+      {
+        name: 'REAL_TIME_DATA',
+        title: '⚡ Real-Time Data Streams (RTDS)',
+        commands: [
+          {
+            cmd: 'nikcli goat rtds-connect',
+            desc: 'Connect to real-time data WebSocket',
+            example: 'Establishes live price and comment feeds'
+          },
+          {
+            cmd: 'nikcli goat rtds-subscribe-prices --symbols BTC,ETH,SOL',
+            desc: 'Subscribe to crypto price updates',
+            example: 'nikcli goat rtds-subscribe-prices --symbols BTC,ETH'
+          },
+          {
+            cmd: 'nikcli goat rtds-subscribe-comments --marketId <id>',
+            desc: 'Subscribe to market comment stream',
+            example: 'nikcli goat rtds-subscribe-comments --marketId 0x123'
+          },
+          {
+            cmd: 'nikcli goat rtds-stats',
+            desc: 'Get connection statistics and subscription info',
+            example: 'Shows uptime, message count, active subscriptions'
+          },
+          {
+            cmd: 'nikcli goat rtds-disconnect',
+            desc: 'Disconnect from real-time data stream',
+            example: 'Closes WebSocket and cleans up'
+          },
+        ]
+      },
+      {
+        name: 'TRADING',
+        title: '💰 Trading Operations',
+        commands: [
+          {
+            cmd: 'nikcli goat place-order --tokenId <id> --price <0-1> --size <num> --side BUY|SELL',
+            desc: 'Place limit order on Polymarket CLOB',
+            example: 'nikcli goat place-order --tokenId TRUMP --price 0.55 --size 100 --side BUY'
+          },
+          {
+            cmd: 'nikcli goat cancel-order --orderId <id>',
+            desc: 'Cancel an existing order',
+            example: 'nikcli goat cancel-order --orderId 0x123abc'
+          },
+          {
+            cmd: 'nikcli goat set-funder --address 0x...',
+            desc: 'Set funder address for order attribution',
+            example: 'Enables builder program benefits and gas coverage'
+          },
+          {
+            cmd: 'nikcli goat get-funder',
+            desc: 'Get current funder address',
+            example: 'Returns configured funder or "Not set"'
+          },
+          {
+            cmd: 'nikcli goat funder-status',
+            desc: 'Check funder configuration status',
+            example: 'Shows if funder is active and configured'
+          },
+        ]
+      },
+      {
+        name: 'GASLESS_TRANSACTIONS',
+        title: '🔐 Gasless Transactions (Relayer)',
+        commands: [
+          {
+            cmd: 'nikcli goat relayer-deploy --address 0x...',
+            desc: 'Deploy Safe wallet for gasless operations',
+            example: 'Creates Safe on Polygon for transaction batching'
+          },
+          {
+            cmd: 'nikcli goat relayer-execute --transactions <json>',
+            desc: 'Execute transactions without paying gas',
+            example: 'Executes Safe transaction batches'
+          },
+          {
+            cmd: 'nikcli goat relayer-status',
+            desc: 'Check relayer service health',
+            example: 'Verifies relayer infrastructure status'
+          },
+        ]
+      },
+      {
+        name: 'TOKEN_OPERATIONS',
+        title: '🎫 Token Operations (CTF)',
+        commands: [
+          {
+            cmd: 'nikcli goat ctf-create-condition --questionId <id>',
+            desc: 'Create market condition for token operations',
+            example: 'Creates condition for YES/NO token split'
+          },
+          {
+            cmd: 'nikcli goat ctf-split --amount 1000 --conditionId <id>',
+            desc: 'Split collateral into YES and NO outcome tokens',
+            example: 'Converts 1000 USDC into 1000 YES + 1000 NO tokens'
+          },
+          {
+            cmd: 'nikcli goat ctf-merge --amount 1000 --conditionId <id>',
+            desc: 'Merge outcome tokens back to collateral',
+            example: 'Converts YES/NO tokens back to USDC'
+          },
+          {
+            cmd: 'nikcli goat ctf-redeem --positionId <id> --amount 1000 --conditionId <id>',
+            desc: 'Redeem position after market resolution',
+            example: 'Claims payout based on market outcome'
+          },
+          {
+            cmd: 'nikcli goat ctf-positions --conditionId <id>',
+            desc: 'Get all user positions for condition',
+            example: 'Lists YES/NO token holdings'
+          },
+        ]
+      },
+      {
+        name: 'BUILDER_PROGRAM',
+        title: '🏗️ Builder Program (Order Attribution)',
+        commands: [
+          {
+            cmd: 'nikcli goat builder-status',
+            desc: 'Check builder program configuration',
+            example: 'Shows API key and builder credentials status'
+          },
+          {
+            cmd: 'nikcli goat builder-sign-order --signedOrder <json>',
+            desc: 'Add builder attribution to order',
+            example: 'Signs order with builder credentials for gas coverage'
+          },
+          {
+            cmd: 'nikcli goat builder-metrics',
+            desc: 'Get builder program metrics',
+            example: 'Shows orders, volume, gas fees saved'
+          },
+          {
+            cmd: 'nikcli goat builder-attribution',
+            desc: 'Get attribution log and revenue details',
+            example: 'Lists all attributed orders and earnings'
+          },
+        ]
+      },
+      {
+        name: 'WEBSOCKET',
+        title: '📡 WebSocket Management',
+        commands: [
+          {
+            cmd: 'nikcli goat ws-connect',
+            desc: 'Connect to Polymarket orderbook WebSocket',
+            example: 'Establishes real-time order book stream'
+          },
+          {
+            cmd: 'nikcli goat ws-subscribe --topic <topic>',
+            desc: 'Subscribe to specific orderbook topic',
+            example: 'nikcli goat ws-subscribe --topic TRUMP'
+          },
+          {
+            cmd: 'nikcli goat ws-stats',
+            desc: 'Get WebSocket connection statistics',
+            example: 'Shows message count, uptime, subscriptions'
+          },
+          {
+            cmd: 'nikcli goat ws-disconnect',
+            desc: 'Disconnect from WebSocket',
+            example: 'Closes connection and cleans up'
+          },
+        ]
+      },
+      {
+        name: 'AI_AGENT',
+        title: '🤖 AI Agent (Autonomous Trading)',
+        commands: [
+          {
+            cmd: 'nikcli goat chat "<natural language task>"',
+            desc: 'Execute task using AI agent with reasoning',
+            example: 'nikcli goat chat "Buy 100 shares at 0.55 on TRUMP"'
+          },
+          {
+            cmd: 'nikcli goat register-agent polymarket',
+            desc: 'Register PolymarketAgent for autonomous operations',
+            example: 'Makes agent available system-wide'
+          },
+        ]
+      },
+      {
+        name: 'ERC20',
+        title: '💵 ERC20 Token Operations',
+        commands: [
+          {
+            cmd: 'nikcli goat balance --token USDC',
+            desc: 'Check ERC20 token balance',
+            example: 'nikcli goat balance --token USDC'
+          },
+          {
+            cmd: 'nikcli goat transfer --to 0x... --amount 100 --token USDC',
+            desc: 'Transfer ERC20 tokens',
+            example: 'nikcli goat transfer --to 0x123 --amount 100 --token USDC'
+          },
+          {
+            cmd: 'nikcli goat approve --spender 0x... --amount 100 --token USDC',
+            desc: 'Approve token spending',
+            example: 'nikcli goat approve --spender 0xCLOB --amount 1000 --token USDC'
+          },
+        ]
+      },
+      {
+        name: 'CONVERSATION',
+        title: '💬 Conversation Management',
+        commands: [
+          {
+            cmd: 'nikcli goat chat "<message>"',
+            desc: 'Continue AI conversation about blockchain',
+            example: 'Maintains context across multiple messages'
+          },
+          {
+            cmd: 'nikcli goat reset',
+            desc: 'Reset conversation history',
+            example: 'Clears previous messages and context'
+          },
+          {
+            cmd: 'nikcli goat tools',
+            desc: 'List all available GOAT tools',
+            example: 'Shows tool registry and capabilities'
+          },
+        ]
+      },
+      {
+        name: 'EXAMPLES',
+        title: '📋 Common Workflows',
+        commands: [
+          {
+            cmd: 'Discovery & Trade',
+            desc: 'nikcli goat gamma-trending | find market | nikcli goat place-order',
+            example: 'Find trending market and place order'
+          },
+          {
+            cmd: 'Real-Time Monitoring',
+            desc: 'nikcli goat rtds-connect && nikcli goat rtds-subscribe-prices --symbols BTC,ETH',
+            example: 'Stream live crypto prices'
+          },
+          {
+            cmd: 'AI-Powered Trading',
+            desc: 'nikcli goat chat "Buy low in trending markets, sell high"',
+            example: 'AI agent analyzes and executes trades'
+          },
+          {
+            cmd: 'Token Position Management',
+            desc: 'nikcli goat ctf-split | monitor | nikcli goat ctf-redeem',
+            example: 'Create positions, monitor, redeem after resolution'
+          },
+          {
+            cmd: 'Gasless Execution',
+            desc: 'nikcli goat relayer-deploy && nikcli goat relayer-execute',
+            example: 'Deploy Safe and execute without gas costs'
+          },
+        ]
+      },
+    ]
+  }
+
+  /**
+   * Print help section
+   */
+  private printSection(section: any) {
+    console.log(chalk.bold.yellow(`\n${section.title}`))
+    console.log(chalk.gray('─'.repeat(80)))
+
+    for (const cmd of section.commands) {
+      if (cmd.example && !cmd.example.includes('nikcli')) {
+        // It's a workflow example
+        console.log(chalk.cyan(`  ${cmd.cmd}`))
+        console.log(chalk.gray(`    ${cmd.desc}`))
+        console.log(chalk.blue(`    ⤷ ${cmd.example}\n`))
+      } else {
+        // It's a regular command
+        console.log(chalk.cyan(`  ${cmd.cmd}`))
+        console.log(chalk.gray(`    ${cmd.desc}`))
+        if (cmd.example) {
+          console.log(chalk.blue(`    📝 ${cmd.example}`))
+        }
+        console.log()
+      }
+    }
   }
 }

@@ -3,6 +3,7 @@ import { CognitiveAgentBase as CognitiveAgentBaseClass } from './automation/agen
 import { UniversalAgent } from './automation/agents/universal-agent'
 import type { AgentManager } from './core/agent-manager'
 import { SecureVirtualizedAgent } from './virtualized-agents/secure-vm-agent'
+import { PolymarketAgent } from './automation/agents/polymarket-agent'
 export function registerAgents(agentManager: AgentManager): void {
   // Register the unified UniversalAgent for enterprise production use
   agentManager.registerAgentClass(UniversalAgent, {
@@ -266,6 +267,83 @@ export function registerAgents(agentManager: AgentManager): void {
       ],
       // VM-specific configuration moved to metadata
       maxTokens: 50000,
+    },
+  })
+
+  // Register PolymarketAgent for prediction market trading
+  agentManager.registerAgentClass(PolymarketAgent, {
+    id: 'polymarket-agent',
+    name: 'Polymarket Trading Agent',
+    description: 'Specialized agent for Polymarket prediction market operations with order placement, market analysis, and risk assessment',
+    specialization: 'prediction-market-trading',
+    version: '1.0.0',
+    capabilities: [
+      // Market operations
+      'market-analysis',
+      'order-placement',
+      'order-cancellation',
+      'order-management',
+      'market-monitoring',
+
+      // Risk management
+      'risk-assessment',
+      'risk-management',
+      'position-management',
+      'portfolio-rebalancing',
+
+      // Data and analysis
+      'sentiment-analysis',
+      'real-time-data',
+      'orderbook-analysis',
+      'price-analysis',
+
+      // Builder program
+      'builder-attribution',
+      'gas-optimization',
+      'revenue-sharing',
+
+      // Trading strategies
+      'market-making',
+      'arbitrage-detection',
+      'order-optimization',
+    ],
+    category: 'trading',
+    tags: ['polymarket', 'prediction-markets', 'trading', 'autonomous', 'defi'],
+    requiresGuidance: false,
+    defaultConfig: {
+      autonomyLevel: 'fully-autonomous',
+      maxConcurrentTasks: 5,
+      defaultTimeout: 600000, // 10 minutes for market operations
+      retryPolicy: {
+        maxAttempts: 3,
+        backoffMs: 1000,
+        backoffMultiplier: 2,
+        retryableErrors: ['rate-limit', 'network', 'temporary'],
+      },
+      enabledTools: ['polymarket-native', 'websocket', 'builder-signing', 'risk-calculator'],
+      guidanceFiles: [],
+      logLevel: 'info',
+      permissions: {
+        canReadFiles: true,
+        canWriteFiles: false,
+        canDeleteFiles: false,
+        allowedPaths: [],
+        forbiddenPaths: ['*'],
+        canExecuteCommands: false,
+        allowedCommands: [],
+        forbiddenCommands: ['*'],
+        canAccessNetwork: true,
+        allowedDomains: ['clob.polymarket.com', 'gamma.polymarket.com', 'ws-subscriptions-clob.polymarket.com'],
+        canInstallPackages: false,
+        canModifyConfig: false,
+        canAccessSecrets: true, // Needs access to private key and builder credentials
+      },
+      sandboxRestrictions: [
+        'network-api-only',
+        'no-file-system',
+        'no-command-execution',
+        'credential-isolation',
+      ],
     },
   })
 }

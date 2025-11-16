@@ -59,17 +59,56 @@ export class Web3ToolchainRegistry extends EventEmitter {
       estimatedDuration: 45000, // 45 seconds
     })
 
-    // Polymarket Trading Strategy Toolchain
+    // Polymarket Trading Strategy Toolchain (Enhanced)
     this.registerToolchain({
       name: 'polymarket-strategy',
-      description: 'Automated Polymarket prediction market analysis and trading strategy',
-      tools: ['goat_finance', 'web_search', 'data_analysis', 'risk_assessment'],
+      description: 'Automated Polymarket prediction market analysis and trading strategy with native API integration',
+      tools: ['polymarket_agent', 'goat_finance', 'web_search', 'data_analysis', 'risk_assessment', 'websocket_monitor'],
       pattern: 'conditional',
       chains: ['polygon'],
       protocols: ['polymarket'],
       riskLevel: 'high',
       requiredEnv: ['GOAT_EVM_PRIVATE_KEY', 'POLYGON_RPC_URL'],
       estimatedDuration: 60000, // 60 seconds
+    })
+
+    // Polymarket Market Making Toolchain (New)
+    this.registerToolchain({
+      name: 'polymarket-market-making',
+      description: 'Market making strategy with real-time orderbook analysis and automated order placement',
+      tools: ['websocket_manager', 'polymarket_native_client', 'orderbook_analyzer', 'price_optimizer', 'risk_limiter'],
+      pattern: 'iterative',
+      chains: ['polygon'],
+      protocols: ['polymarket'],
+      riskLevel: 'critical',
+      requiredEnv: ['GOAT_EVM_PRIVATE_KEY', 'POLYMARKET_BUILDER_API_KEY', 'POLYMARKET_BUILDER_SECRET', 'POLYMARKET_BUILDER_PASSPHRASE'],
+      estimatedDuration: 300000, // 5 minutes continuous operation
+    })
+
+    // Polymarket Arbitrage Toolchain (New)
+    this.registerToolchain({
+      name: 'polymarket-arbitrage',
+      description: 'Cross-market arbitrage detection and execution with builder attribution',
+      tools: ['polymarket_native_client', 'multi_market_analyzer', 'builder_signing', 'execution_engine', 'profit_calculator'],
+      pattern: 'iterative',
+      chains: ['polygon'],
+      protocols: ['polymarket'],
+      riskLevel: 'high',
+      requiredEnv: ['GOAT_EVM_PRIVATE_KEY', 'POLYMARKET_BUILDER_API_KEY'],
+      estimatedDuration: 180000, // 3 minutes per cycle
+    })
+
+    // Polymarket Portfolio Management Toolchain (New)
+    this.registerToolchain({
+      name: 'polymarket-portfolio',
+      description: 'Multi-market position management, rebalancing, and PnL tracking',
+      tools: ['polymarket_native_client', 'position_manager', 'risk_calculator', 'pnl_tracker', 'rebalancer'],
+      pattern: 'sequential',
+      chains: ['polygon'],
+      protocols: ['polymarket'],
+      riskLevel: 'medium',
+      requiredEnv: ['GOAT_EVM_PRIVATE_KEY'],
+      estimatedDuration: 45000, // 45 seconds
     })
 
     // Multi-Chain Portfolio Management

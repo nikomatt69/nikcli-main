@@ -261,6 +261,10 @@ export class GoatProvider {
 
     const pluginInstances = []
 
+    // Get primary chain for token configuration
+    const primaryChain = this.supportedChains[0]
+    const primaryChainId = primaryChain.chainId
+
     // Initialize enabled plugins
     for (const pluginName of this.enabledPlugins) {
       switch (pluginName) {
@@ -280,16 +284,20 @@ export class GoatProvider {
           break
         case 'erc20':
           if (erc20Plugin && erc20Plugin.tokens) {
-            // Use standard tokens for Polygon and Base
+            // Use standard tokens for the primary chain
             const tokens = [
               erc20Plugin.tokens.USDC,  // Stablecoin principale per pagamenti
               erc20Plugin.tokens.WETH,  // Wrapped ETH per DEX e DeFi
-              erc20Plugin.tokens.PEPE,  // Meme coin popolare su Base
+              erc20Plugin.tokens.PEPE,  // Meme coin popolare
             ].filter(Boolean)
 
             if (tokens.length > 0) {
-              pluginInstances.push(erc20Plugin({ tokens }))
-              console.log(`✓ ERC20 plugin configured with ${tokens.length} tokens`)
+              // Pass chain context to ensure correct token addresses
+              pluginInstances.push(erc20Plugin({
+                tokens,
+                chainId: primaryChainId
+              }))
+              console.log(`✓ ERC20 plugin configured with ${tokens.length} tokens for chain ${primaryChain.name} (${primaryChainId})`)
             } else {
               console.warn('⚠️ No ERC20 tokens available for configuration')
             }
@@ -407,6 +415,173 @@ For any blockchain transaction, provide a clear summary including:
         plugins: this.enabledPlugins,
         updatedAt: new Date().toISOString()
       }
+    }
+  }
+
+  /**
+   * Get native Polymarket client for advanced operations
+   * Supports:
+   * - Native CLOB API (beyond GOAT SDK)
+   * - Builder program attribution
+   * - Real-time WebSocket feeds
+   * - Advanced market analytics
+   */
+  getPolymarketNativeClient(): any {
+    try {
+      // Lazy load native client
+      const { PolymarketNativeClient } = require('./polymarket-native-client')
+
+      if (!process.env.GOAT_EVM_PRIVATE_KEY) {
+        throw new Error('GOAT_EVM_PRIVATE_KEY required for native client')
+      }
+
+      const builderCreds = process.env.POLYMARKET_BUILDER_API_KEY ? {
+        apiKey: process.env.POLYMARKET_BUILDER_API_KEY,
+        secret: process.env.POLYMARKET_BUILDER_SECRET || '',
+        passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE || ''
+      } : undefined
+
+      return new PolymarketNativeClient({
+        clobUrl: 'https://clob.polymarket.com',
+        clobWsUrl: 'wss://ws-subscriptions-clob.polymarket.com/ws/',
+        chainId: 137,
+        privateKey: process.env.GOAT_EVM_PRIVATE_KEY as any,
+        builderCredentials: builderCreds
+      })
+    } catch (error: any) {
+      console.warn('⚠️ Failed to load native Polymarket client:', error.message)
+      return null
+    }
+  }
+
+  /**
+   * Get WebSocket manager for real-time market data
+   */
+  getWebSocketManager(): any {
+    try {
+      // Lazy load WebSocket manager
+      const { PolymarketWebSocketManager } = require('./polymarket-websocket-manager')
+      return new PolymarketWebSocketManager(
+        'wss://ws-subscriptions-clob.polymarket.com/ws/'
+      )
+    } catch (error: any) {
+      console.warn('⚠️ Failed to load WebSocket manager:', error.message)
+      return null
+    }
+  }
+
+  /**
+   * Get builder signing service for order attribution
+   */
+  getBuilderSigningService(): any {
+    try {
+      // Lazy load builder signing service
+      const { PolymarketBuilderSigningService } = require('./polymarket-builder-signing')
+
+      if (!process.env.POLYMARKET_BUILDER_API_KEY) {
+        throw new Error('Builder credentials not configured')
+      }
+
+      return new PolymarketBuilderSigningService({
+        apiKey: process.env.POLYMARKET_BUILDER_API_KEY,
+        secret: process.env.POLYMARKET_BUILDER_SECRET || '',
+        passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE || ''
+      })
+    } catch (error: any) {
+      console.warn('⚠️ Failed to load builder signing service:', error.message)
+      return null
+    }
+  }
+
+  /**
+   * Get native API availability and status
+   */
+  getNativeApiStatus(): {
+    nativeClient: boolean
+    webSocket: boolean
+    builderProgram: boolean
+  } {
+    return {
+      nativeClient: !!process.env.GOAT_EVM_PRIVATE_KEY,
+      webSocket: true,
+      builderProgram: !!process.env.POLYMARKET_BUILDER_API_KEY
+    }
+  }
+
+  /**
+   * Get Polymarket Relayer Client for gasless transactions
+   */
+  getPolymarketRelayerClient(): any {
+    try {
+      const { PolymarketRelayerClient } = require('./polymarket-relayer-client')
+
+      const builderCreds = {
+        apiKey: process.env.POLYMARKET_BUILDER_API_KEY || '',
+        secret: process.env.POLYMARKET_BUILDER_SECRET || '',
+        passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE || '',
+      }
+
+      return new PolymarketRelayerClient({
+        relayerUrl: process.env.POLYMARKET_RELAYER_URL || 'https://clob.polymarket.com/relayer',
+        chainId: 137, // Polygon
+        builderCredentials: builderCreds,
+      })
+    } catch (error: any) {
+      console.warn('⚠️ Failed to load relayer client:', error.message)
+      return null
+    }
+  }
+
+  /**
+   * Get Gamma Markets API client for market data
+   */
+  getGammaMarketsAPI(): any {
+    try {
+      const { PolymarketGammaAPI } = require('./polymarket-gamma-api')
+
+      return new PolymarketGammaAPI(process.env.GAMMA_API_URL || 'https://gamma-api.polymarket.com')
+    } catch (error: any) {
+      console.warn('⚠️ Failed to load Gamma Markets API:', error.message)
+      return null
+    }
+  }
+
+  /**
+   * Get RTDS (Real-Time Data Stream) client for live data
+   */
+  getRTDSClient(): any {
+    try {
+      const { PolymarketRTDS } = require('./polymarket-rtds')
+
+      return new PolymarketRTDS({
+        wsUrl: process.env.POLYMARKET_RTDS_URL || 'wss://ws-live-data.polymarket.com',
+        walletAddress: process.env.GOAT_EVM_ADDRESS,
+        apiKey: process.env.POLYMARKET_BUILDER_API_KEY,
+        secret: process.env.POLYMARKET_BUILDER_SECRET,
+        passphrase: process.env.POLYMARKET_BUILDER_PASSPHRASE,
+      })
+    } catch (error: any) {
+      console.warn('⚠️ Failed to load RTDS client:', error.message)
+      return null
+    }
+  }
+
+  /**
+   * Get CTF (Conditional Token Framework) client for token operations
+   */
+  getCTFClient(): any {
+    try {
+      const { PolymarketCTF } = require('./polymarket-ctf')
+
+      return new PolymarketCTF({
+        chainId: 137, // Polygon
+        collateralTokenAddress: process.env.CTF_COLLATERAL_TOKEN || '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', // USDC.e
+        conditionalTokensAddress: process.env.CTF_CONDITIONAL_TOKENS || '0xCeB27882Dfd80a4c39d4F2e407fd1C8d2C8bC8Ac',
+        oracleAddress: process.env.CTF_ORACLE || '0x1d78bccb7fa0db0d0fc8c03b3ceae2f7a0d4de8d',
+      })
+    } catch (error: any) {
+      console.warn('⚠️ Failed to load CTF client:', error.message)
+      return null
     }
   }
 }

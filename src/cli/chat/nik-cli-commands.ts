@@ -7312,6 +7312,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const result = await secureTools.executeGoat('chat', { message })
         const content = this.formatGoatChatPanel(message, result)
         this.cliInstance.printPanel(content)
+      } else if (sub === 'help' || sub === '?') {
+        const category = args[1]?.toLowerCase() || null
+        const content = this.formatGoatHelpPanel(category)
+        this.cliInstance.printPanel(content)
       } else {
         const panel = boxen(`Unknown subcommand: ${sub}`, {
           title: 'GOAT SDK',
@@ -7858,6 +7862,112 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  private formatGoatHelpPanel(category: string | null): string {
+    const title = '🐐 GOAT SDK - Complete Commands Guide'
+    const lines: string[] = []
+
+    // Help sections with commands
+    const helpSections = {
+      'getting_started': {
+        name: 'getting_started',
+        title: '🚀 Getting Started',
+        commands: [
+          { cmd: '/goat init', desc: 'Initialize GOAT SDK with wallet and chains' },
+          { cmd: '/goat status', desc: 'Check GOAT SDK initialization status' },
+          { cmd: '/goat wallet', desc: 'Display current wallet and configuration' },
+        ]
+      },
+      'erc20': {
+        name: 'erc20',
+        title: '💵 ERC20 Token Operations',
+        commands: [
+          { cmd: '/goat balance [--chain polygon|base]', desc: 'Check ERC20 token balance' },
+          { cmd: '/goat transfer <amount> <to> [--chain polygon|base] [--token USDC|ETH]', desc: 'Transfer ERC20 tokens' },
+          { cmd: '/goat approve --spender <addr> --amount <num> --token USDC', desc: 'Approve token spending' },
+        ]
+      },
+      'polymarket': {
+        name: 'polymarket',
+        title: '📊 Polymarket (Prediction Markets)',
+        commands: [
+          { cmd: '/polymarket markets', desc: 'List available prediction markets' },
+          { cmd: '/polymarket bet <market-id> <amount> <outcome>', desc: 'Place a bet on prediction market' },
+          { cmd: '/polymarket positions', desc: 'Show your market positions' },
+        ]
+      },
+      'conversation': {
+        name: 'conversation',
+        title: '💬 Conversation & Chat',
+        commands: [
+          { cmd: '/goat chat "<message>"', desc: 'Execute task using AI agent' },
+          { cmd: '/goat reset', desc: 'Reset conversation history' },
+          { cmd: '/goat tools', desc: 'List all available GOAT tools' },
+        ]
+      },
+      'builder': {
+        name: 'builder',
+        title: '🏗️ Builder Program (Order Attribution)',
+        commands: [
+          { cmd: '/goat builder-status', desc: 'Check builder program configuration' },
+          { cmd: '/goat builder-metrics', desc: 'Get builder program metrics' },
+          { cmd: '/goat set-funder <address>', desc: 'Set funder address for order attribution' },
+          { cmd: '/goat funder-status', desc: 'Check funder configuration status' },
+        ]
+      },
+      'advanced': {
+        name: 'advanced',
+        title: '⚡ Advanced Features',
+        commands: [
+          { cmd: '/goat gamma-trending [--limit 20]', desc: 'Get top trending prediction markets' },
+          { cmd: '/goat gamma-search --query <term>', desc: 'Search markets by keyword' },
+          { cmd: '/goat ws-connect', desc: 'Connect to Polymarket orderbook WebSocket' },
+          { cmd: '/goat rtds-connect', desc: 'Connect to real-time data streams' },
+        ]
+      },
+    }
+
+    if (category && helpSections[category as keyof typeof helpSections]) {
+      // Show specific category
+      const section = helpSections[category as keyof typeof helpSections]
+      lines.push(chalk.bold(section.title))
+      lines.push(chalk.gray('─'.repeat(80)))
+      lines.push('')
+
+      section.commands.forEach((cmd, idx) => {
+        lines.push(chalk.cyan(`${idx + 1}. ${cmd.cmd}`))
+        lines.push(`   ${chalk.gray(cmd.desc)}`)
+        if (idx < section.commands.length - 1) lines.push('')
+      })
+
+      lines.push('')
+      lines.push(chalk.gray('─'.repeat(80)))
+      const categories = Object.keys(helpSections).filter(k => k !== category)
+      lines.push(chalk.gray(`Other categories: ${categories.join(', ')}`))
+      lines.push(chalk.gray(`Use: /goat help <category> for more details`))
+    } else {
+      // Show all categories overview
+      lines.push('')
+      lines.push(chalk.gray('Available Categories:'))
+      lines.push('')
+
+      Object.values(helpSections).forEach((section) => {
+        const cmdCount = section.commands.length
+        lines.push(chalk.yellow(`  ${section.title} (${cmdCount} commands)`))
+      })
+
+      lines.push('')
+      lines.push(chalk.gray('Environment Setup:'))
+      lines.push(chalk.gray('  • GOAT_EVM_PRIVATE_KEY (required)'))
+      lines.push(chalk.gray('  • POLYGON_RPC_URL (optional, default: polygon-rpc.com)'))
+      lines.push(chalk.gray('  • BASE_RPC_URL (optional, default: mainnet.base.org)'))
+      lines.push('')
+      lines.push(chalk.gray('Usage: /goat help <category> to see all commands in that category'))
+      lines.push(chalk.gray('Or use: /goat help getting_started to get started'))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'green' })
   }
 
   // ====================== WEB3 TOOLCHAIN PANEL FORMATTERS ======================
