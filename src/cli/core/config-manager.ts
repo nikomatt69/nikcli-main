@@ -400,6 +400,35 @@ const ConfigSchema = z.object({
         'hub.docker.com',
       ],
     }),
+  // Sandbox Approvals - Persistent user approvals for dangerous operations
+  sandboxApprovals: z
+    .object({
+      approvedPaths: z.array(
+        z.object({
+          path: z.string().describe('File or directory path'),
+          operation: z.enum(['read', 'write', 'delete']).describe('Operation type'),
+          toolName: z.string().describe('Tool that requested approval'),
+          timestamp: z.string().describe('When approval was granted'),
+          expiresAt: z.string().optional().describe('Optional expiration date'),
+        })
+      ).default([]),
+      approvedCommands: z.array(
+        z.object({
+          command: z.string().describe('Command pattern (supports wildcards)'),
+          toolName: z.string().describe('Tool that requested approval'),
+          timestamp: z.string().describe('When approval was granted'),
+          expiresAt: z.string().optional().describe('Optional expiration date'),
+        })
+      ).default([]),
+      rememberChoices: z.boolean().default(true).describe('Save user approvals to config'),
+      expirationDays: z.number().min(1).max(365).default(30).describe('Days until approval expires'),
+    })
+    .default({
+      approvedPaths: [],
+      approvedCommands: [],
+      rememberChoices: true,
+      expirationDays: 30,
+    }),
   // Redis Cache System (Upstash Redis - Cloud Native)
   redis: z
     .object({
@@ -493,14 +522,14 @@ const ConfigSchema = z.object({
         .object({
           sessions: z.string().default('chat_sessions'),
           blueprints: z.string().default('agent_blueprints'),
-          users: z.string().default('cli_users'),
+          users: z.string().default('user_profiles'),
           metrics: z.string().default('usage_metrics'),
           documents: z.string().default('documentation'),
         })
         .default({
           sessions: 'chat_sessions',
           blueprints: 'agent_blueprints',
-          users: 'cli_users',
+          users: 'user_profiles',
           metrics: 'usage_metrics',
           documents: 'documentation',
         }),
@@ -548,10 +577,9 @@ const ConfigSchema = z.object({
   ads: z
     .object({
       enabled: z.boolean().default(true).describe('Enable ads system'),
-      userOptIn: z.boolean().default(false).describe('User has opted in to see ads'),
+      userOptIn: z.boolean().default(false).describe('Pro: hide ads, Free: ignored'),
       frequencyMinutes: z.number().min(1).max(60).default(5).describe('Minutes between ads'),
       impressionCount: z.number().min(0).default(0).describe('Total impressions seen'),
-      tokenCreditsEarned: z.number().min(0).default(0).describe('Total token credits earned'),
       lastAdShownAt: z.string().optional().describe('ISO timestamp of last ad shown'),
       tier: z.enum(['free', 'pro']).default('free').describe('User tier'),
       optInDate: z.string().optional().describe('ISO timestamp of opt-in'),
@@ -567,7 +595,6 @@ const ConfigSchema = z.object({
       userOptIn: false,
       frequencyMinutes: 5,
       impressionCount: 0,
-      tokenCreditsEarned: 0,
       tier: 'free',
       adPreferences: {
         allowedCategories: ['all'],
@@ -1497,6 +1524,12 @@ export class SimpleConfigManager {
 
       ],
     },
+    sandboxApprovals: {
+      approvedPaths: [],
+      approvedCommands: [],
+      rememberChoices: true,
+      expirationDays: 30,
+    },
     redis: {
       enabled: true, // ✅ Enabled by default - Upstash Redis cache
       host: 'localhost',
@@ -1522,7 +1555,7 @@ export class SimpleConfigManager {
       tables: {
         sessions: 'chat_sessions',
         blueprints: 'agent_blueprints',
-        users: 'cli_users',
+        users: 'user_profiles',
         metrics: 'usage_metrics',
         documents: 'documentation',
       },
@@ -1541,7 +1574,6 @@ export class SimpleConfigManager {
       userOptIn: false,
       frequencyMinutes: 5,
       impressionCount: 0,
-      tokenCreditsEarned: 0,
       tier: 'free',
       adPreferences: {
         allowedCategories: ['all'],
@@ -2400,4 +2432,84 @@ export function getMermaidRenderingPreferences() {
   // TODO: In future, load from user config if available
   // For now, return defaults
   return DEFAULT_MERMAID_RENDERING_PREFERENCES
+}
+
+/**
+ * Load user ads config from Supabase database
+ * Synchronizes local config with database preferences
+ */
+export async function loadUserAdsConfigFromDatabase(userId: string, supabase: any): Promise<void> {
+  try {
+    const { data } = await supabase
+      .from('user_ads_config')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+
+    if (data) {
+      const config = simpleConfigManager.getAll()
+      config.ads = {
+        enabled: data.ads_enabled !== false,
+        userOptIn: data.ads_hidden === true,
+        frequencyMinutes: data.frequency_minutes || 5,
+        impressionCount: data.impression_count || 0,
+        lastAdShownAt: data.last_ad_shown_at,
+        tier: config.ads.tier,
+        optInDate: data.optInDate,
+        adPreferences: {
+          allowedCategories: data.allowed_categories || ['all'],
+          blockedAdvertisers: data.blocked_advertisers || [],
+        },
+      }
+      simpleConfigManager.setAll(config)
+    }
+  } catch (error) {
+    console.debug('Could not load ads config from database:', error)
+  }
+}
+
+/**
+ * Save user ads config to Supabase database
+ * Persists local config to database for cross-device sync
+ */
+export async function saveUserAdsConfigToDatabase(userId: string, supabase: any): Promise<void> {
+  try {
+    const config = simpleConfigManager.getAll()
+    await supabase
+      .from('user_ads_config')
+      .update({
+        ads_enabled: config.ads.enabled,
+        ads_hidden: config.ads.userOptIn,
+        frequency_minutes: config.ads.frequencyMinutes,
+        impression_count: config.ads.impressionCount,
+        last_ad_shown_at: config.ads.lastAdShownAt,
+        allowed_categories: config.ads.adPreferences.allowedCategories,
+        blocked_advertisers: config.ads.adPreferences.blockedAdvertisers,
+      })
+      .eq('user_id', userId)
+  } catch (error) {
+    console.debug('Could not save ads config to database:', error)
+  }
+}
+
+/**
+ * Sync subscription tier from Supabase user_profiles
+ * Ensures ads.tier matches actual subscription level
+ */
+export async function syncSubscriptionTierFromDatabase(userId: string, supabase: any): Promise<void> {
+  try {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('subscription_tier')
+      .eq('id', userId)
+      .single()
+
+    if (profile) {
+      const config = simpleConfigManager.getAll()
+      config.ads.tier = profile.subscription_tier || 'free'
+      simpleConfigManager.setAll(config)
+    }
+  } catch (error) {
+    console.debug('Could not sync subscription tier from database:', error)
+  }
 }

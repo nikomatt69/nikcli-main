@@ -5,7 +5,6 @@ import { AdCampaign } from '../types/ads'
 export interface AdPanelOptions {
   maxWidth?: number
   borderColor?: string
-  showTokenCredit?: boolean
   margin?: { top?: number; bottom?: number; left?: number; right?: number }
 }
 
@@ -35,7 +34,7 @@ function createProgressBar(percentage: number, width: number = 20): string {
 }
 
 export function renderAdPanel(ad: AdCampaign, format: string = 'full', options: AdPanelOptions = {}): string {
-  const { maxWidth = 60, borderColor = 'yellow', showTokenCredit = true, margin = { top: 1, bottom: 1, left: 0, right: 0 } } = options
+  const { maxWidth = 60, borderColor = 'yellow', margin = { top: 1, bottom: 1, left: 0, right: 0 } } = options
 
   if (format === 'indicator') return renderAdIndicator(ad)
   if (format === 'compact') return formatAdForTerminal(ad)
@@ -54,11 +53,6 @@ export function renderAdPanel(ad: AdCampaign, format: string = 'full', options: 
   if (ad.ctaText && ad.ctaUrl) {
     lines.push(chalk.cyan(`[LINK] ${ad.ctaText}`))
     lines.push(chalk.gray(`       ${ad.ctaUrl}`))
-    lines.push('')
-  }
-
-  if (showTokenCredit) {
-    lines.push(chalk.green('[EARN] +0.02 tokens'))
   }
 
   const content = lines.join('\n')
@@ -81,7 +75,7 @@ export function renderAdListItem(ad: AdCampaign, index: number): string {
   return lines.join('\n')
 }
 
-export function renderAdsSummaryPanel(stats: { totalCampaigns: number; activeCampaigns: number; totalImpressions: number; totalCost: number; totalTokens: number }): string {
+export function renderAdsSummaryPanel(stats: { totalCampaigns: number; activeCampaigns: number; totalImpressions: number; totalCost: number }): string {
   const lines: string[] = []
   lines.push(chalk.bold('Ads Overview'))
   lines.push('')
@@ -89,18 +83,15 @@ export function renderAdsSummaryPanel(stats: { totalCampaigns: number; activeCam
   lines.push(`${chalk.green('[+] Active')}: ${chalk.bold(stats.activeCampaigns.toString())}`)
   lines.push(`${chalk.yellow('[~] Impressions')}: ${chalk.bold(stats.totalImpressions.toLocaleString())}`)
   lines.push(`${chalk.blue('[$] Total Spend')}: ${chalk.bold(`$${stats.totalCost.toFixed(2)}`)}`)
-  lines.push(`${chalk.magenta('[!] Tokens')}: ${chalk.bold(stats.totalTokens.toFixed(2))}`)
   return boxen(lines.join('\n'), { title: 'Analytics', titleAlignment: 'left', padding: 1, borderStyle: 'round', borderColor: 'blue', width: 50, margin: { top: 1, bottom: 1, left: 0, right: 0 } })
 }
 
-export function renderUserAdEarnings(earnings: { impressions: number; tokenCredits: number; estimatedValue: number }): string {
+export function renderUserAdEarnings(earnings: { impressions: number }): string {
   const lines: string[] = []
-  lines.push(chalk.bold('Ad Earnings'))
+  lines.push(chalk.bold('Ad Impressions'))
   lines.push('')
   lines.push(`${chalk.cyan('[o] Impressions')}: ${chalk.bold(earnings.impressions.toString())}`)
-  lines.push(`${chalk.yellow('[#] Tokens')}: ${chalk.bold(earnings.tokenCredits.toFixed(2))}`)
-  lines.push(`${chalk.green('[$] Value')}: ${chalk.bold(`$${earnings.estimatedValue.toFixed(4)}`)}`)
-  return boxen(lines.join('\n'), { title: 'Rewards', titleAlignment: 'left', padding: 1, borderStyle: 'round', borderColor: 'green', width: 45, margin: { top: 1, bottom: 1, left: 0, right: 0 } })
+  return boxen(lines.join('\n'), { title: 'Stats', titleAlignment: 'left', padding: 1, borderStyle: 'round', borderColor: 'green', width: 45, margin: { top: 1, bottom: 1, left: 0, right: 0 } })
 }
 
 export function validateAdContent(content: string): { valid: boolean; error?: string } {
@@ -114,6 +105,5 @@ export function formatAdForTerminal(ad: AdCampaign): string {
   const parts: string[] = []
   parts.push(chalk.white(`"${ad.content}"`))
   if (ad.ctaText && ad.ctaUrl) parts.push(chalk.cyan(`[LINK] ${ad.ctaText}`))
-  parts.push(chalk.yellow('+0.02 tokens'))
   return parts.join(' ')
 }

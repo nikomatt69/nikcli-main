@@ -1,14 +1,15 @@
 /**
  * Ad Display Manager Service
- * Manages CPM ad display, frequency control, and user compensation tracking
+ * Manages CPM ad display and frequency control
+ * Free users always see ads, Pro users can hide ads
  */
 
 import { simpleConfigManager } from '../core/config-manager'
 import { enhancedSupabaseProvider } from '../providers/supabase/enhanced-supabase-provider'
+import { advancedUI } from '../ui/advanced-cli-ui'
 import {
   AdCampaign,
   AdRotationResult,
-  TOKEN_CREDIT_PER_IMPRESSION,
   DEFAULT_CPM_RATE,
   DEFAULT_AD_FREQUENCY_MINUTES,
 } from '../types/ads'
@@ -18,6 +19,7 @@ export class AdDisplayManager {
   private lastAdShowTime: Map<string, Date> = new Map()
   private impressionCache: Map<string, number> = new Map()
   private updateInterval?: NodeJS.Timeout
+  private syncInterval?: NodeJS.Timeout
 
   constructor() {
     this.initialize()
@@ -26,6 +28,7 @@ export class AdDisplayManager {
   private async initialize(): Promise<void> {
     await this.loadActiveCampaigns()
     this.startPeriodicUpdate()
+    this.startPeriodicSync()
   }
 
   /**
@@ -83,25 +86,25 @@ export class AdDisplayManager {
   }
 
   /**
-   * Decide whether to show an ad based on frequency and user preferences
+   * Decide whether to show an ad based on user tier and frequency
+   * Free users ALWAYS see ads (no opt-out), Pro users can hide ads
    */
   async shouldShowAd(userId: string, userTier: 'free' | 'pro'): Promise<AdRotationResult> {
-    // Only show ads to free tier users
-    if (userTier !== 'free') {
+    const config = simpleConfigManager.getAll()
+
+    // Pro users can opt-out by hiding ads
+    if (userTier === 'pro' && config.ads.userOptIn) {
       return {
         shouldShow: false,
-        tokenCredit: 0,
-        reason: 'Pro users do not see ads',
+        reason: 'Pro user has disabled ads',
       }
     }
 
-    // Get user preferences from config
-    const config = simpleConfigManager.getAll()
-    if (!config.ads.enabled || !config.ads.userOptIn) {
+    // Check ads enabled globally
+    if (!config.ads.enabled) {
       return {
         shouldShow: false,
-        tokenCredit: 0,
-        reason: 'Ads disabled or user not opted in',
+        reason: 'Ads globally disabled',
       }
     }
 
@@ -112,7 +115,6 @@ export class AdDisplayManager {
       if (minutesSinceLastAd < config.ads.frequencyMinutes) {
         return {
           shouldShow: false,
-          tokenCredit: 0,
           reason: `Frequency limit: ${Math.ceil(config.ads.frequencyMinutes - minutesSinceLastAd)} minutes remaining`,
         }
       }
@@ -122,7 +124,6 @@ export class AdDisplayManager {
     if (this.activeCampaigns.size === 0) {
       return {
         shouldShow: false,
-        tokenCredit: 0,
         reason: 'No active campaigns',
       }
     }
@@ -135,13 +136,9 @@ export class AdDisplayManager {
     this.lastAdShowTime.set(userId, new Date())
     await this.trackImpression(userId, selectedCampaign)
 
-    // Calculate token credit (25% of advertiser's pay goes to user)
-    const tokenCredit = TOKEN_CREDIT_PER_IMPRESSION
-
     return {
       shouldShow: true,
       ad: selectedCampaign,
-      tokenCredit,
     }
   }
 
@@ -159,7 +156,6 @@ export class AdDisplayManager {
         user_id: userId,
         timestamp: new Date().toISOString(),
         session_id: this.getSessionId(),
-        token_credit_awarded: TOKEN_CREDIT_PER_IMPRESSION,
         ad_content: campaign.content,
       })
 
@@ -178,12 +174,6 @@ export class AdDisplayManager {
       if (updateError) {
         console.error('Failed to update campaign:', updateError.message)
       }
-
-      // Update local config
-      const config = simpleConfigManager.getAll()
-      config.ads.impressionCount += 1
-      config.ads.tokenCreditsEarned += TOKEN_CREDIT_PER_IMPRESSION
-      simpleConfigManager.setAll(config)
     } catch (error) {
       console.error('Error tracking impression:', error)
     }
@@ -203,10 +193,31 @@ export class AdDisplayManager {
       lines.push(`🔗 ${ad.ctaText}`)
     }
 
-    const tokenCredit = TOKEN_CREDIT_PER_IMPRESSION
-    lines.push(`💡 +${(tokenCredit * 1000).toFixed(0)} tokens earned!`)
-
     return lines.join('\n')
+  }
+
+  /**
+   * Display ad as structured log using advancedUI
+   * Less invasive than panel-based display, integrates with other logs
+   */
+  displayAdAsStructuredLog(ad: AdCampaign): void {
+    try {
+      // Start sponsored function in structured log
+      advancedUI.logFunctionCall('sponsored', {
+        campaign_id: ad.id,
+        advertiser_id: ad.advertiserId,
+      })
+
+      // Ad content
+      advancedUI.logFunctionUpdate('info', ad.content, '📢')
+
+      // Call-to-action if available
+      if (ad.ctaText && ad.ctaUrl) {
+        advancedUI.logFunctionUpdate('info', `${ad.ctaText}: ${ad.ctaUrl}`, '🔗')
+      }
+    } catch (error) {
+      console.error('Error displaying ad as structured log:', error)
+    }
   }
 
   /**
@@ -232,17 +243,52 @@ export class AdDisplayManager {
   }
 
   /**
-   * Get user's ad statistics
+   * Start periodic sync to persist lastAdShowTime to database
+   */
+  private startPeriodicSync(): void {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval)
+    }
+
+    // Sync lastAdShowTime to database every 30 seconds
+    this.syncInterval = setInterval(() => {
+      void this.syncLastAdShowTimeToDatabase()
+    }, 30 * 1000)
+  }
+
+  /**
+   * Sync lastAdShowTime from memory to database for persistence
+   */
+  private async syncLastAdShowTimeToDatabase(): Promise<void> {
+    try {
+      const supabase = await enhancedSupabaseProvider.getClient()
+      if (!supabase || this.lastAdShowTime.size === 0) return
+
+      for (const [userId, timestamp] of this.lastAdShowTime.entries()) {
+        const { error } = await supabase
+          .from('user_ads_config')
+          .update({ last_ad_shown_at: timestamp.toISOString() })
+          .eq('user_id', userId)
+
+        if (error) {
+          console.error(`Failed to sync lastAdShowTime for user ${userId}:`, error.message)
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing lastAdShowTime to database:', error)
+    }
+  }
+
+  /**
+   * Get user's ad impression statistics
    */
   async getUserAdStats(userId: string): Promise<{
     impressions: number
-    tokenCredits: number
-    revenue: number
   }> {
     try {
       const supabase = await enhancedSupabaseProvider.getClient()
       if (!supabase) {
-        return { impressions: 0, tokenCredits: 0, revenue: 0 }
+        return { impressions: 0 }
       }
 
       const { data, error } = await supabase
@@ -252,17 +298,14 @@ export class AdDisplayManager {
 
       if (error) {
         console.error('Failed to get impressions:', error.message)
-        return { impressions: 0, tokenCredits: 0, revenue: 0 }
+        return { impressions: 0 }
       }
 
       const impressions = data?.length || 0
-      const tokenCredits = impressions * TOKEN_CREDIT_PER_IMPRESSION
-      const revenue = impressions * (DEFAULT_CPM_RATE / 1000) * (0.25) // 25% goes to user
-
-      return { impressions, tokenCredits, revenue }
+      return { impressions }
     } catch (error) {
       console.error('Error getting user stats:', error)
-      return { impressions: 0, tokenCredits: 0, revenue: 0 }
+      return { impressions: 0 }
     }
   }
 
@@ -273,12 +316,11 @@ export class AdDisplayManager {
     totalImpressions: number
     totalRevenue: number
     activeCampaigns: number
-    totalTokensDistributed: number
   }> {
     try {
       const supabase = await enhancedSupabaseProvider.getClient()
       if (!supabase) {
-        return { totalImpressions: 0, totalRevenue: 0, activeCampaigns: 0, totalTokensDistributed: 0 }
+        return { totalImpressions: 0, totalRevenue: 0, activeCampaigns: 0 }
       }
 
       const { count: impressionCount } = await supabase
@@ -286,7 +328,6 @@ export class AdDisplayManager {
         .select('*', { count: 'exact' })
 
       const totalImpressions = impressionCount || 0
-      const totalTokensDistributed = totalImpressions * TOKEN_CREDIT_PER_IMPRESSION
 
       // Calculate revenue from active campaigns
       const activeCampaigns = this.activeCampaigns.size
@@ -301,11 +342,10 @@ export class AdDisplayManager {
         totalImpressions,
         totalRevenue,
         activeCampaigns,
-        totalTokensDistributed,
       }
     } catch (error) {
       console.error('Error getting global stats:', error)
-      return { totalImpressions: 0, totalRevenue: 0, activeCampaigns: 0, totalTokensDistributed: 0 }
+      return { totalImpressions: 0, totalRevenue: 0, activeCampaigns: 0 }
     }
   }
 
@@ -315,6 +355,9 @@ export class AdDisplayManager {
   dispose(): void {
     if (this.updateInterval) {
       clearInterval(this.updateInterval)
+    }
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval)
     }
     this.activeCampaigns.clear()
     this.lastAdShowTime.clear()

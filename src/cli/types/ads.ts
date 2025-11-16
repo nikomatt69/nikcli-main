@@ -1,6 +1,6 @@
 /**
  * Advertising System Types
- * CPM-based revenue model with token credit compensation for users
+ * CPM-based revenue model: Free users see ads, Pro users can hide/manage ads
  */
 
 export interface AdCampaign {
@@ -29,7 +29,6 @@ export interface AdImpression {
   userId: string
   timestamp: Date
   sessionId: string
-  tokenCreditAwarded: number // Fixed: 0.02 tokens per impression
   adContent: string
 }
 
@@ -38,7 +37,6 @@ export interface UserAdPreferences {
   adsEnabled: boolean
   frequencyMinutes: number // Default 5 (max 1 ad per 5 min)
   impressionCount: number
-  tokenCreditsEarned: number
   lastAdShownAt?: Date
   tier: 'free' | 'pro'
   optInDate?: Date
@@ -47,7 +45,6 @@ export interface UserAdPreferences {
 export interface AdMetrics {
   userId: string
   impressions: number
-  tokenCreditsEarned: number
   lastAdShown?: Date
   currentCPM: number
   revenueContribution: number // User's revenue contribution to nikcli
@@ -106,15 +103,13 @@ export interface AdStatistics {
   }>
   userStats: {
     freeUsersWithAds: number
-    totalTokensDistributed: number
-    averageTokensPerUser: number
+    averageImpressionsPerUser: number
   }
 }
 
 export interface AdRotationResult {
   shouldShow: boolean
   ad?: AdCampaign
-  tokenCredit: number
   reason?: string
 }
 
@@ -130,9 +125,7 @@ export interface AdRotationState {
   updatedAt: Date
 }
 
-export const TOKEN_CREDIT_PER_IMPRESSION = 0.02 // Tokens per ad impression
 export const DEFAULT_CPM_RATE = 3.0 // $3 per 1000 impressions
 export const MIN_IMPRESSIONS_PURCHASE = 1000
 export const MAX_AD_LENGTH = 280
 export const DEFAULT_AD_FREQUENCY_MINUTES = 5
-export const TOKEN_DISCOUNT_RATIO = 0.25 // Users get 25% of revenue as credits

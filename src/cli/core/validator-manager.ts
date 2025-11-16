@@ -685,8 +685,8 @@ export class ValidatorManager extends EventEmitter {
         formatter: formatResult?.formatter,
       }
 
-      // Add timestamp for cache validation
-      ;(result as any).timestamp = Date.now()
+        // Add timestamp for cache validation
+        ; (result as any).timestamp = Date.now()
 
       return IntelligentValidationResultSchema.parse(result)
     } catch (error: any) {
@@ -918,7 +918,7 @@ export class ValidatorManager extends EventEmitter {
     // Add complexity reduction suggestions
     if (errors.some((e) => e.includes('complexity'))) {
       if (!content.includes('// TODO: Consider refactoring')) {
-        fixedContent = `// TODO: Consider refactoring for reduced complexity\n${fixedContent}`
+        fixedContent = `${fixedContent}`
       }
     }
 

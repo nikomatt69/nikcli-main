@@ -156,6 +156,10 @@ export class ToolRegistry {
   > = new Map()
   private readonly LSP_CACHE_TTL = 5000 // 5 seconds
 
+  // Sandbox approvals session cache - stores approved operations in current session
+  // Format: "toolName:operation:target" -> approved boolean
+  private sandboxApprovalCache: Set<string> = new Set()
+
   constructor(workingDirectory: string = process.cwd(), config: Partial<ToolRegistryConfig> = {}) {
     this.workingDirectory = workingDirectory
     this.config = ToolRegistryConfigSchema.parse(config)
@@ -290,7 +294,7 @@ export class ToolRegistry {
 
     try {
       if (this.config.enforcePermissions) {
-        await this.checkPermissions(toolInstance.metadata.permissions, args)
+        await this.checkPermissions(toolInstance.metadata.permissions, toolInstance.metadata.name)
       }
 
       // LSP + Context Analysis before tool execution
@@ -301,7 +305,16 @@ export class ToolRegistry {
         throw new Error(`Failed to get tool instance: ${toolId}`)
       }
 
-      const result = await tool.execute(...args)
+      // Execute tool with resource timeout enforcement
+      const maxExecutionTime = toolInstance.metadata.permissions.maxExecutionTime
+      const executionPromise = tool.execute(...args)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => {
+          reject(new Error(`Tool execution timeout after ${maxExecutionTime}ms`))
+        }, maxExecutionTime)
+      )
+
+      const result = await Promise.race([executionPromise, timeoutPromise])
 
       // Performance monitoring
       const metrics = this.performanceOptimizer.endMonitoring(sessionId, {
@@ -630,9 +643,211 @@ export class ToolRegistry {
     }
   }
 
-  private async checkPermissions(_permissions: ToolPermission, _args: any[]): Promise<void> {
-    // Implementation would check permissions against current context
-    // For now, this is a placeholder for the permission checking logic
+  /**
+   * Enhanced permission checking with session cache, config persistence, and user approval
+   */
+  private async checkPermissions(permissions: ToolPermission, toolName: string = 'unknown'): Promise<void> {
+    // If permissions enforcement is disabled, skip all checks
+    if (!this.config.enforcePermissions) {
+      return
+    }
+
+    // Import here to avoid circular dependency
+    const { approvalSystem } = await import('../ui/approval-system')
+    const { simpleConfigManager } = await import('./config-manager')
+
+    try {
+      // Check for dangerous operations that require approval
+      const needsApproval = this.detectDangerousOperations(permissions)
+
+      if (needsApproval.type === 'none') {
+        return // No dangerous operations detected
+      }
+
+      // Build approval key for caching
+      const approvalKey = `${toolName}:${needsApproval.type}:${needsApproval.target}`
+
+      // Check session cache first
+      if (this.sandboxApprovalCache.has(approvalKey)) {
+        return // Already approved in this session
+      }
+
+      // Check persistent config for cached approvals
+      const config = simpleConfigManager.getAll()
+      const cachedApproval = this.findCachedApproval(config.sandboxApprovals, needsApproval)
+
+      if (cachedApproval && !this.isApprovalExpired(cachedApproval, config.sandboxApprovals.expirationDays)) {
+        // Add to session cache to avoid re-checking
+        this.sandboxApprovalCache.add(approvalKey)
+        return // Approval is still valid
+      }
+
+      // Operation needs user approval
+      const approval = await approvalSystem.requestSandboxApproval(
+        toolName,
+        needsApproval.type === 'path' ? 'path-access' : needsApproval.type === 'command' ? 'command-execution' : 'resource-limit',
+        needsApproval.target,
+        {
+          reason: needsApproval.reason,
+          riskLevel: needsApproval.riskLevel,
+          path: needsApproval.type === 'path' ? needsApproval.target : undefined,
+          command: needsApproval.type === 'command' ? needsApproval.target : undefined,
+        }
+      )
+
+      if (!approval.approved) {
+        throw new Error(`Sandbox Permission Denied: ${needsApproval.reason}`)
+      }
+
+      // Add to session cache to avoid re-asking in same session
+      this.sandboxApprovalCache.add(approvalKey)
+
+      // Save to persistent config if user chose "remember"
+      if (approval.remember && config.sandboxApprovals.rememberChoices) {
+        this.saveApprovalToConfig(
+          config,
+          simpleConfigManager,
+          toolName,
+          needsApproval.type,
+          needsApproval.target
+        )
+      }
+    } catch (error: any) {
+      throw new Error(`Permission check failed: ${error.message}`)
+    }
+  }
+
+  /**
+   * Detect dangerous operations that require approval
+   */
+  private detectDangerousOperations(
+    permissions: ToolPermission
+  ): {
+    type: 'none' | 'path' | 'command' | 'resource'
+    target: string
+    reason: string
+    riskLevel: 'low' | 'medium' | 'high' | 'critical'
+  } {
+    // Check forbidden paths
+    if (permissions.forbiddenPaths && permissions.forbiddenPaths.length > 0 && permissions.canReadFiles) {
+      return {
+        type: 'path',
+        target: permissions.forbiddenPaths[0],
+        reason: `Access to forbidden path: ${permissions.forbiddenPaths[0]}`,
+        riskLevel: 'high',
+      }
+    }
+
+    // Check forbidden commands
+    if (permissions.forbiddenCommands && permissions.forbiddenCommands.length > 0 && permissions.canExecuteCommands) {
+      return {
+        type: 'command',
+        target: permissions.forbiddenCommands[0],
+        reason: `Execution of forbidden command: ${permissions.forbiddenCommands[0]}`,
+        riskLevel: 'critical',
+      }
+    }
+
+    // Check for file deletion without explicit approval
+    if (permissions.canDeleteFiles) {
+      return {
+        type: 'path',
+        target: '*',
+        reason: 'File deletion capability enabled',
+        riskLevel: 'high',
+      }
+    }
+
+    // Check for network access without explicit approval
+    if (permissions.canAccessNetwork) {
+      return {
+        type: 'resource',
+        target: 'network',
+        reason: 'Network access capability enabled',
+        riskLevel: 'medium',
+      }
+    }
+
+    // Check for command execution without explicit approval
+    if (permissions.canExecuteCommands) {
+      return {
+        type: 'command',
+        target: 'shell',
+        reason: 'Command execution capability enabled',
+        riskLevel: 'high',
+      }
+    }
+
+    return {
+      type: 'none',
+      target: '',
+      reason: '',
+      riskLevel: 'low',
+    }
+  }
+
+  /**
+   * Find cached approval in config
+   */
+  private findCachedApproval(
+    sandboxApprovals: any,
+    needsApproval: {
+      type: string
+      target: string
+    }
+  ): any | null {
+    if (needsApproval.type === 'path') {
+      return sandboxApprovals.approvedPaths.find((a: any) => a.path === needsApproval.target)
+    }
+    if (needsApproval.type === 'command') {
+      return sandboxApprovals.approvedCommands.find((a: any) => a.command === needsApproval.target)
+    }
+    return null
+  }
+
+  /**
+   * Check if approval has expired
+   */
+  private isApprovalExpired(approval: any, expirationDays: number): boolean {
+    if (!approval.expiresAt) {
+      return false // No expiration
+    }
+    const expiryDate = new Date(approval.expiresAt)
+    return expiryDate < new Date()
+  }
+
+  /**
+   * Save approval to persistent config
+   */
+  private saveApprovalToConfig(
+    config: any,
+    configManager: any,
+    toolName: string,
+    type: string,
+    target: string
+  ): void {
+    const now = new Date().toISOString()
+    const expiryDate = new Date(Date.now() + config.sandboxApprovals.expirationDays * 24 * 60 * 60 * 1000).toISOString()
+
+    if (type === 'path') {
+      config.sandboxApprovals.approvedPaths.push({
+        path: target,
+        operation: 'read', // Default operation
+        toolName,
+        timestamp: now,
+        expiresAt: expiryDate,
+      })
+    } else if (type === 'command') {
+      config.sandboxApprovals.approvedCommands.push({
+        command: target,
+        toolName,
+        timestamp: now,
+        expiresAt: expiryDate,
+      })
+    }
+
+    // Save to config file
+    configManager.set('sandboxApprovals', config.sandboxApprovals)
   }
 
   private updateToolMetrics(toolId: string, success: boolean, executionTime: number): void {

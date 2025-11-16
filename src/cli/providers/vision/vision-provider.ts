@@ -167,14 +167,14 @@ export class VisionProvider extends EventEmitter {
   ): Promise<VisionAnalysisResult> {
     const _currentModel = simpleConfigManager.get('currentModel')
     const apiKey =
-      simpleConfigManager.getApiKey('claude-3-5-sonnet-20241022') || simpleConfigManager.getApiKey('anthropic')
+      simpleConfigManager.getApiKey('claude-sonnet-4-20250514') || simpleConfigManager.getApiKey('anthropic')
 
     if (!apiKey) {
       throw new Error('Anthropic API key not configured. Use /set-key anthropic <key>')
     }
 
     const anthropicProvider = createAnthropic({ apiKey })
-    const model = anthropicProvider('claude-3-5-sonnet-20241022')
+    const model = anthropicProvider('claude-sonnet-4-20250514')
 
     const systemPrompt =
       customPrompt ||
@@ -218,7 +218,7 @@ Provide structured, detailed insights that would be useful for understanding the
     return {
       ...(result.object as VisionAnalysisResult),
       metadata: {
-        model_used: 'claude-3-5-sonnet',
+        model_used: 'claude-sonnet-4-20250514',
         processing_time_ms: 0, // Will be set by caller
         file_size_bytes: metadata?.size || 0,
         image_dimensions: metadata?.dimensions,
@@ -314,6 +314,7 @@ Provide thorough, useful insights for understanding the image content and contex
       'openai/gpt-4o',
       'openai/gpt-4o-mini',
       'openai/gpt-5',
+      'openai/gpt-5.1',
       'anthropic/claude-3-5-sonnet-20241022',
       'anthropic/claude-3-opus-20240229',
       'anthropic/claude-3-haiku-20240307',
@@ -328,7 +329,7 @@ Provide thorough, useful insights for understanding the image content and contex
     // Use the current model if it supports vision, otherwise default to gpt-4o
     const currentModel = simpleConfigManager.get('currentModel')
     const selectedModel = model ||
-      (availableVisionModels.includes(currentModel) ? currentModel : 'openai/gpt-4o')
+      (availableVisionModels.includes(currentModel) ? currentModel : 'openai/gpt-5.1')
 
     const systemPrompt =
       customPrompt ||

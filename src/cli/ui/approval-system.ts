@@ -2168,6 +2168,155 @@ class WorkflowEngine {
       parallel: false,
     }
   }
+
+  /**
+   * Request sandbox approval for dangerous operations (path access, command execution, resource limits)
+   * Integrates with config for persistent storage and session cache for current session
+   * CRITICAL: Properly manages input queue and prompt suspension
+   */
+  async requestSandboxApproval(
+    toolName: string,
+    operation: 'path-access' | 'command-execution' | 'resource-limit',
+    target: string,
+    details?: {
+      reason?: string
+      riskLevel?: 'low' | 'medium' | 'high' | 'critical'
+      path?: string
+      command?: string
+      timeoutMs?: number
+    }
+  ): Promise<{ approved: boolean; remember: boolean }> {
+    const wasEnabled = inputQueue.isBypassEnabled()
+    let inquirerInstance: any = null
+    const configuredTimeout = details?.timeoutMs || this.getApprovalTimeout()
+
+    try {
+      // Build descriptive message
+      let operationText = ''
+      let riskEmoji = '⚠️'
+      const riskLevel = details?.riskLevel || 'high'
+
+      if (riskLevel === 'critical') riskEmoji = '🚨'
+      if (riskLevel === 'medium') riskEmoji = '⚠️'
+      if (riskLevel === 'low') riskEmoji = '✓'
+
+      switch (operation) {
+        case 'path-access':
+          operationText = `File/Directory access: ${details?.path || target}`
+          break
+        case 'command-execution':
+          operationText = `Command execution: ${details?.command || target}`
+          break
+        case 'resource-limit':
+          operationText = `Resource limit exceeded: ${target}`
+          break
+      }
+
+      // Display approval box
+      const approvalBox = boxen(
+        chalk.yellow(`${riskEmoji} Sandbox Permission Required\n\n`) +
+          chalk.bold(`Tool: `) + chalk.cyan(toolName) + '\n' +
+          chalk.bold(`Operation: `) + chalk.white(operationText) + '\n' +
+          chalk.bold(`Risk Level: `) + chalk.red(riskLevel.toUpperCase()) +
+          (details?.reason ? '\n' + chalk.bold(`Reason: `) + chalk.gray(details.reason) : ''),
+        {
+          title: 'Sandbox Permission',
+          padding: 1,
+          margin: 1,
+          borderColor: riskLevel === 'critical' ? 'red' : 'yellow',
+          borderStyle: 'round',
+        }
+      )
+      console.log(approvalBox)
+
+      // Suspend main prompt and enable bypass to prevent interference
+      try {
+        ; (global as any).__nikCLI?.suspendPrompt?.()
+      } catch {}
+
+      if (!wasEnabled) {
+        inputQueue.enableBypass()
+      }
+
+      // Create inquirer prompt with arrow selection (no typing required, like plan mode)
+      const promptPromise = inquirer.prompt([
+        {
+          type: 'list',
+          name: 'approved',
+          message: chalk.cyan.bold(`Allow this operation?`),
+          choices: [
+            { name: chalk.green('✓ Allow (this time only)'), value: false },
+            { name: chalk.green('✓ Allow and remember'), value: true },
+            { name: chalk.red('✗ Deny'), value: null },
+          ],
+          default: 2, // Default to Deny (third option)
+          prefix: '  ',
+          pageSize: 3, // Show all 3 options
+          loop: false, // Don't loop around
+        },
+      ])
+
+      // Track inquirer instance for cleanup
+      inquirerInstance = promptPromise
+
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((resolve) =>
+        setTimeout(() => {
+          advancedUI.addLiveUpdate({
+            type: 'warning',
+            content: `⏰ Timeout after ${configuredTimeout / 1000}s, permission DENIED (default)`,
+          })
+          resolve({ approved: false })
+        }, configuredTimeout)
+      )
+
+      const answers = await Promise.race([promptPromise, timeoutPromise])
+      const approvalResponse = (answers as any).approved
+
+      // If denied
+      if (approvalResponse === null) {
+        console.log(chalk.red('❌ Operation denied by user'))
+        return { approved: false, remember: false }
+      }
+
+      // If approved - ask about remembering choice
+      if (approvalResponse === true) {
+        console.log(chalk.green('✓ Operation approved and will be remembered'))
+        return { approved: true, remember: true }
+      }
+
+      // Approved but don't remember
+      console.log(chalk.yellow('✓ Operation approved (remember disabled)'))
+      return { approved: true, remember: false }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ Approval request failed: ${error.message}`))
+      console.log(chalk.yellow(`🔄 Operation DENIED (default on error)`))
+      return { approved: false, remember: false }
+    } finally {
+      // CRITICAL: Always restore original input queue state
+      try {
+        if (!wasEnabled && inputQueue.isBypassEnabled()) {
+          inputQueue.disableBypass()
+        }
+      } catch (error) {
+        console.error('Failed to restore input queue state:', error)
+        // Force cleanup as last resort
+        inputQueue.forceCleanup()
+      }
+
+      // Clean up inquirer instance
+      if (inquirerInstance) {
+        try {
+          inquirerInstance.removeAllListeners?.()
+        } catch {}
+      }
+
+      // Restore prompt after approval interaction - CRITICAL for interactive mode
+      try {
+        ; (global as any).__nikCLI?.resumePromptAndRender?.()
+      } catch {}
+    }
+  }
 }
 
 // Export singleton instance

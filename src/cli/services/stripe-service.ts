@@ -34,7 +34,7 @@ export class StripeService {
 
       // First, try to get existing advertiser by email
       const { data: existing } = await supabase
-        .from('cli_users')
+        .from('user_profiles')
         .select('id')
         .eq('email', email)
         .limit(1)
@@ -52,7 +52,7 @@ export class StripeService {
       if (error) {
         // Fallback: if RPC not available, create via direct insert with minimal data
         const { data: fallbackData, error: fallbackError } = await supabase
-          .from('cli_users')
+          .from('user_profiles')
           .insert({
             email,
             username: company || email.split('@')[0],

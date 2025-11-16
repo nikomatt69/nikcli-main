@@ -387,6 +387,11 @@ export class SlashCommandHandler {
     // Advertising system commands
     this.commands.set('ads', this.adsCommand.bind(this))
 
+    // Sandbox command execution
+    this.commands.set('run', this.runCommand.bind(this))
+    this.commands.set('exec', this.execCommand.bind(this))
+    this.commands.set('sandbox', this.sandboxCommand.bind(this))
+
     // Edit history commands (undo/redo)
     this.commands.set('undo', this.undoCommand.bind(this))
     this.commands.set('redo', this.redoCommand.bind(this))
@@ -1038,24 +1043,56 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       const boxen = (await import('boxen')).default
       const sub = (args[0] || 'help').toLowerCase()
 
-      // Get user ID and tier (use simple defaults for non-authenticated users)
-      const userId = randomUUID() // Generate valid UUID for database
+      // Get user tier from auth provider
+      const { authProvider } = await import('../providers/supabase/auth-provider')
+      const profile = authProvider.getCurrentProfile()
+      const userTier = profile?.subscription_tier || 'free'
 
-      // Check if user has pro access based on email
-      const userEmail = 'nicola.mattioli.95@gmail.com' // Example email for pro access
-      const isProUser = userEmail === 'nicola.mattioli.95@gmail.com'
-      const userTier = isProUser ? 'pro' : 'free'
+      // ALL /ads commands require pro tier
+      if (userTier === 'free') {
+        const panel = boxen(
+          chalk.red('❌ /ads commands require Pro subscription\n\n') +
+          chalk.gray('Free users:\n') +
+          chalk.gray('  • Ads are always displayed\n') +
+          chalk.gray('  • No opt-out available\n\n') +
+          chalk.gray('Pro users:\n') +
+          chalk.gray('  • Can hide ads with /ads off\n') +
+          chalk.gray('  • Can create/manage ad campaigns\n') +
+          chalk.gray('  • Can access all /ads commands'),
+          {
+            title: 'Pro Feature Required',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+        if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+          this.cliInstance.printPanel(panel)
+        } else {
+          console.log(panel)
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Get user ID and email for database operations
+      const userId = profile?.id || randomUUID()
+      const userEmail = profile?.email || 'user@nikcli.dev'
 
       switch (sub) {
         case 'status': {
-          // Show user's ad statistics and earnings
+          // Show user's ad campaign statistics (pro users only)
           const stats = await adDisplayManager.getUserAdStats(userId)
+          const { simpleConfigManager } = await import('../core/config-manager')
+          const config = simpleConfigManager.getAll()
+          const adsHidden = config.ads.userOptIn ? 'Yes' : 'No'
+
           const panel = boxen(
-            chalk.green(`📊 Ad Statistics\n\n`) +
+            chalk.green(`📊 Ad Status\n\n`) +
             chalk.gray(`Total Impressions: ${chalk.cyan(stats.impressions.toString())}\n`) +
-            chalk.gray(`Tokens Earned: ${chalk.yellow(`+${stats.tokenCredits.toFixed(2)}`)}\n`) +
-            chalk.gray(`Estimated Revenue: ${chalk.cyan(`$${stats.revenue.toFixed(2)}`)}\n\n`) +
-            chalk.gray(`💰 Your Earnings: $${(stats.tokenCredits * 0.01).toFixed(2)}`),
+            chalk.gray(`Ads Hidden: ${chalk.cyan(adsHidden)}\n`) +
+            chalk.gray(`Ads Enabled: ${chalk.cyan(config.ads.enabled ? 'Yes' : 'No')}\n`) +
+            chalk.gray(`Frequency: Every ${chalk.cyan(config.ads.frequencyMinutes.toString())} minutes`),
             {
               title: '🎯 Advertising Status',
               padding: 1,
@@ -1072,24 +1109,46 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
           return { shouldExit: false, shouldUpdatePrompt: false }
         }
 
-        case 'on':
-        case 'toggle': {
-          // Toggle ads on/off for current user
-          const currentConfig = { userOptIn: false } // Default config
-          const newOptIn = !currentConfig.userOptIn
-          const updatedConfig = { ...currentConfig, userOptIn: newOptIn }
-          // Note: In production, save to persistent config storage
+        case 'on': {
+          // Show ads (pro users only)
+          const { simpleConfigManager } = await import('../core/config-manager')
+          const currentConfig = simpleConfigManager.getAll()
+          const updatedConfig = { ...currentConfig, ads: { ...currentConfig.ads, userOptIn: false } }
+          simpleConfigManager.setAll(updatedConfig)
 
-          const message = newOptIn
-            ? '✅ Ads enabled! You will see ads and earn tokens.'
-            : '❌ Ads disabled. You will not see ads or earn tokens.'
-
-          const panel = boxen(message, {
-            title: '🎯 Ads ' + (newOptIn ? 'Enabled' : 'Disabled'),
+          const panel = boxen('✅ Ads enabled! You will see ads.', {
+            title: '🎯 Ads Shown',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
-            borderColor: newOptIn ? 'green' : 'yellow',
+            borderColor: 'green',
+          })
+          if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+            this.cliInstance.printPanel(panel)
+          } else {
+            console.log(panel)
+          }
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        case 'toggle': {
+          // Toggle ads show/hide for current user (pro only)
+          const { simpleConfigManager } = await import('../core/config-manager')
+          const currentConfig = simpleConfigManager.getAll()
+          const newHidden = !currentConfig.ads.userOptIn
+          const updatedConfig = { ...currentConfig, ads: { ...currentConfig.ads, userOptIn: newHidden } }
+          simpleConfigManager.setAll(updatedConfig)
+
+          const message = newHidden
+            ? '✅ Ads hidden - you will not see ads'
+            : '✅ Ads shown - you will see ads'
+
+          const panel = boxen(message, {
+            title: '🎯 Ads ' + (newHidden ? 'Hidden' : 'Shown'),
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
           })
           if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
             this.cliInstance.printPanel(panel)
@@ -1100,12 +1159,14 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         }
 
         case 'off': {
-          // Disable ads
-          const currentConfig = { userOptIn: false } // Default config
-          // Note: In production, save to persistent config storage
+          // Hide ads (pro users only)
+          const { simpleConfigManager } = await import('../core/config-manager')
+          const currentConfig = simpleConfigManager.getAll()
+          const updatedConfig = { ...currentConfig, ads: { ...currentConfig.ads, userOptIn: true } }
+          simpleConfigManager.setAll(updatedConfig)
 
-          const panel = boxen('❌ Ads disabled. You will not see ads or earn tokens.', {
-            title: '🎯 Ads Disabled',
+          const panel = boxen('✅ Ads hidden - you will not see ads', {
+            title: '🎯 Ads Hidden',
             padding: 1,
             margin: 1,
             borderStyle: 'round',
@@ -1120,26 +1181,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         }
 
         case 'create': {
-          // Interactive wizard for creating an ad campaign
-          if (userTier === 'free') {
-            const panel = boxen(
-              chalk.red('❌ Ad creation requires a paid subscription.') +
-              chalk.gray('\nUpgrade to Pro or Enterprise to create campaigns.'),
-              {
-                title: 'Ad Campaign',
-                padding: 1,
-                margin: 1,
-                borderStyle: 'round',
-                borderColor: 'red',
-              }
-            )
-            if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
-              this.cliInstance.printPanel(panel)
-            } else {
-              console.log(panel)
-            }
-            return { shouldExit: false, shouldUpdatePrompt: false }
-          }
+          // Interactive wizard for creating an ad campaign (pro users only)
+          // Tier check already done above, so we know userTier === 'pro' here
 
           // Display header panel
           if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
@@ -7312,6 +7355,149 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         const result = await secureTools.executeGoat('chat', { message })
         const content = this.formatGoatChatPanel(message, result)
         this.cliInstance.printPanel(content)
+      } else if (sub === 'approve') {
+        if (!args[1]) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /goat approve --spender <address> --amount <number>', {
+              title: 'GOAT Approve',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        let spender: string | undefined
+        let amount: string | undefined
+        let token: string | undefined
+
+        for (let i = 1; i < args.length; i++) {
+          if (args[i] === '--spender' && args[i + 1]) {
+            spender = args[i + 1]
+            i++
+          } else if (args[i] === '--amount' && args[i + 1]) {
+            amount = args[i + 1]
+            i++
+          } else if (args[i] === '--token' && args[i + 1]) {
+            token = args[i + 1].toUpperCase()
+            i++
+          }
+        }
+
+        if (!spender || !amount) {
+          this.cliInstance.printPanel(
+            boxen('Missing required parameters: --spender and --amount', {
+              title: 'GOAT Approve',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const result = await secureTools.executeGoat('erc20-approve', {
+          spender,
+          amount,
+          token: token || 'USDC'
+        })
+        const content = this.formatGoatApprovePanel({ result, spender, amount, token })
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'reset') {
+        const result = await secureTools.executeGoat('reset-conversation')
+        const content = this.formatGoatResetPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'builder-status') {
+        const result = await secureTools.executeGoat('builder-status')
+        const content = this.formatGoatBuilderStatusPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'builder-metrics') {
+        const result = await secureTools.executeGoat('builder-metrics')
+        const content = this.formatGoatBuilderMetricsPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'set-funder') {
+        if (!args[1]) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /goat set-funder <address>', {
+              title: 'GOAT Set Funder',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const address = args[1]
+        const result = await secureTools.executeGoat('set-funder', { address })
+        const content = this.formatGoatSetFunderPanel({ result, address })
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'funder-status') {
+        const result = await secureTools.executeGoat('funder-status')
+        const content = this.formatGoatFunderStatusPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'gamma-trending') {
+        let limit = '20'
+        for (let i = 1; i < args.length; i++) {
+          if (args[i] === '--limit' && args[i + 1]) {
+            limit = args[i + 1]
+            i++
+          }
+        }
+
+        const result = await secureTools.executeGoat('gamma-trending', { limit })
+        const content = this.formatGoatGammaTrendingPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'gamma-search') {
+        if (!args[1]) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /goat gamma-search --query <search-term>', {
+              title: 'GOAT Gamma Search',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        let query: string | undefined
+        for (let i = 1; i < args.length; i++) {
+          if (args[i] === '--query' && args[i + 1]) {
+            query = args.slice(i + 1).join(' ')
+            break
+          }
+        }
+
+        if (!query) {
+          this.cliInstance.printPanel(
+            boxen('Missing required parameter: --query', {
+              title: 'GOAT Gamma Search',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const result = await secureTools.executeGoat('gamma-search', { query })
+        const content = this.formatGoatGammaSearchPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'rtds-connect') {
+        const result = await secureTools.executeGoat('rtds-connect')
+        const content = this.formatGoatRtdsPanel(result)
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'ws-connect') {
+        const result = await secureTools.executeGoat('ws-connect')
+        const content = this.formatGoatWebSocketPanel(result)
+        this.cliInstance.printPanel(content)
       } else if (sub === 'help' || sub === '?') {
         const category = args[1]?.toLowerCase() || null
         const content = this.formatGoatHelpPanel(category)
@@ -7862,6 +8048,247 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  private formatGoatApprovePanel({ result, spender, amount, token }: any): string {
+    const title = 'GOAT Token Approve'
+    const lines: string[] = []
+    lines.push(`${chalk.gray('Spender:')} ${spender}`)
+    lines.push(`${chalk.gray('Amount:')} ${amount} ${token || 'USDC'}`)
+    lines.push('')
+
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✓ Token approval request submitted'))
+      if (dataBlock?.txHash) {
+        lines.push(`${chalk.gray('Tx Hash:')} ${dataBlock.txHash}`)
+      }
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Token approval failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatGoatResetPanel(result: any): string {
+    const title = 'GOAT Reset'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✓ Conversation history reset'))
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Reset failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatGoatBuilderStatusPanel(result: any): string {
+    const title = '🏗️ Builder Program Status'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.cyan('Builder Program Configuration'))
+      if (dataBlock?.status) lines.push(`${chalk.gray('Status:')} ${dataBlock.status}`)
+      if (dataBlock?.address) lines.push(`${chalk.gray('Address:')} ${dataBlock.address}`)
+      if (dataBlock?.enabled !== undefined) lines.push(`${chalk.gray('Enabled:')} ${dataBlock.enabled ? 'Yes' : 'No'}`)
+      if (dataBlock?.ordersAttribued) lines.push(`${chalk.gray('Orders Attributed:')} ${dataBlock.ordersAttribued}`)
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to get builder status'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' })
+  }
+
+  private formatGoatBuilderMetricsPanel(result: any): string {
+    const title = '🏗️ Builder Program Metrics'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.cyan('Builder Metrics'))
+      if (dataBlock?.totalOrders !== undefined) lines.push(`${chalk.gray('Total Orders:')} ${dataBlock.totalOrders}`)
+      if (dataBlock?.volume) lines.push(`${chalk.gray('Volume:')} ${dataBlock.volume}`)
+      if (dataBlock?.earnings) lines.push(`${chalk.gray('Earnings:')} ${dataBlock.earnings}`)
+      if (dataBlock?.successRate) lines.push(`${chalk.gray('Success Rate:')} ${dataBlock.successRate}%`)
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to get builder metrics'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'yellow' })
+  }
+
+  private formatGoatSetFunderPanel({ result, address }: any): string {
+    const title = 'GOAT Set Funder'
+    const lines: string[] = []
+    lines.push(`${chalk.gray('Address:')} ${address}`)
+    lines.push('')
+
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✓ Funder address configured'))
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to set funder address'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatGoatFunderStatusPanel(result: any): string {
+    const title = 'GOAT Funder Status'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.cyan('Funder Configuration'))
+      if (dataBlock?.address) lines.push(`${chalk.gray('Address:')} ${dataBlock.address}`)
+      if (dataBlock?.configured !== undefined) lines.push(`${chalk.gray('Configured:')} ${dataBlock.configured ? 'Yes' : 'No'}`)
+      if (dataBlock?.attributed) lines.push(`${chalk.gray('Orders Attributed:')} ${dataBlock.attributed}`)
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to get funder status'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'blue' })
+  }
+
+  private formatGoatGammaTrendingPanel(result: any): string {
+    const title = '📊 Gamma Trending Markets'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.cyan('Top Trending Markets'))
+      if (dataBlock?.markets && Array.isArray(dataBlock.markets)) {
+        dataBlock.markets.slice(0, 10).forEach((market: any, idx: number) => {
+          lines.push(`${idx + 1}. ${market.name || market.title}`)
+          if (market.volume) lines.push(`   ${chalk.gray('Volume:')} ${market.volume}`)
+          if (market.openInterest) lines.push(`   ${chalk.gray('OI:')} ${market.openInterest}`)
+        })
+      } else if (dataBlock?.response) {
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to load trending markets'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  private formatGoatGammaSearchPanel(result: any): string {
+    const title = '📊 Gamma Market Search'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.cyan('Search Results'))
+      if (dataBlock?.markets && Array.isArray(dataBlock.markets)) {
+        lines.push(`Found ${dataBlock.markets.length} market(s)`)
+        lines.push('')
+        dataBlock.markets.slice(0, 10).forEach((market: any, idx: number) => {
+          lines.push(`${idx + 1}. ${market.name || market.title}`)
+          if (market.question) lines.push(`   ${chalk.gray('Question:')} ${market.question}`)
+        })
+        if (dataBlock.markets.length > 10) {
+          lines.push(chalk.gray(`... and ${dataBlock.markets.length - 10} more results`))
+        }
+      } else if (dataBlock?.response) {
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Search failed'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'magenta' })
+  }
+
+  private formatGoatRtdsPanel(result: any): string {
+    const title = 'Real-Time Data Stream'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✓ Real-time data stream connected'))
+      if (dataBlock?.streamId) lines.push(`${chalk.gray('Stream ID:')} ${dataBlock.streamId}`)
+      if (dataBlock?.status) lines.push(`${chalk.gray('Status:')} ${dataBlock.status}`)
+      if (dataBlock?.marketCount !== undefined) lines.push(`${chalk.gray('Markets:')} ${dataBlock.marketCount}`)
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to connect to real-time data stream'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
+  }
+
+  private formatGoatWebSocketPanel(result: any): string {
+    const title = 'WebSocket Connection'
+    const lines: string[] = []
+    const ok = result?.data?.success ?? result?.success
+    const dataBlock = result?.data?.data || result?.data || {}
+
+    if (ok) {
+      lines.push(chalk.green('✓ WebSocket connection established'))
+      if (dataBlock?.connectionId) lines.push(`${chalk.gray('Connection ID:')} ${dataBlock.connectionId}`)
+      if (dataBlock?.endpoint) lines.push(`${chalk.gray('Endpoint:')} ${dataBlock.endpoint}`)
+      if (dataBlock?.status) lines.push(`${chalk.gray('Status:')} ${dataBlock.status}`)
+      if (dataBlock?.response) {
+        lines.push('')
+        lines.push(chalk.white(dataBlock.response))
+      }
+    } else {
+      lines.push(chalk.red('❌ Failed to establish WebSocket connection'))
+      if (result?.error) lines.push(chalk.gray(result.error))
+    }
+
+    return boxen(lines.join('\n'), { title, padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' })
   }
 
   private formatGoatHelpPanel(category: string | null): string {
@@ -11472,6 +11899,274 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
       this.printPanel(chalk.red(`❌ Quick browse failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * /run command - Execute single command in sandbox
+   */
+  private async runCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const command = args.join(' ')
+
+      if (!command) {
+        console.log(chalk.red('❌ Usage: /run <command>'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Import sandbox components
+      const { commandSandboxExecutor } = await import('../sandbox/command-sandbox-executor')
+      const { sandboxSessionManager } = await import('../sandbox/sandbox-session-manager')
+
+      // Create session
+      const session = sandboxSessionManager.createSession(command)
+
+      console.log(chalk.blue(`\n🏝️  Sandbox Session: ${session.id}`))
+      console.log(chalk.gray(`Command: ${command}\n`))
+
+      // Execute in sandbox
+      const result = await commandSandboxExecutor.execute({
+        command,
+        sessionId: session.id,
+        shell: true,
+      })
+
+      // Update session with results
+      sandboxSessionManager.updateSession(session.id, {
+        status: result.success ? 'completed' : 'failed',
+        exitCode: result.exitCode || undefined,
+        duration: result.duration,
+      })
+
+      // Display summary
+      const summaryBox = boxen(
+        (result.success ? chalk.green('✅ Command executed successfully') : chalk.red('❌ Command failed')) +
+          '\n' +
+          chalk.gray(`Exit Code: ${result.exitCode}\n`) +
+          chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s\n`) +
+          chalk.gray(`Sandbox: ${result.sandboxDir}`),
+        {
+          title: `🏝️  Sandbox Result (${session.id})`,
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: result.success ? 'green' : 'red',
+        }
+      )
+
+      if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+        this.cliInstance.printPanel(summaryBox)
+      } else {
+        console.log(summaryBox)
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.error(chalk.red(`❌ /run failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * /exec command - Execute multi-line script in sandbox
+   */
+  private async execCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const inquirer = (await import('inquirer')).default
+
+      // If command is provided inline, execute it
+      if (args.length > 0) {
+        const { commandSandboxExecutor } = await import('../sandbox/command-sandbox-executor')
+        const { sandboxSessionManager } = await import('../sandbox/sandbox-session-manager')
+
+        const command = args.join(' ')
+        const session = sandboxSessionManager.createSession(command)
+
+        console.log(chalk.blue(`\n🏝️  Sandbox Session: ${session.id}`))
+        console.log(chalk.gray(`Script: ${command}\n`))
+
+        const result = await commandSandboxExecutor.execute({
+          command,
+          sessionId: session.id,
+          shell: true,
+        })
+
+        sandboxSessionManager.updateSession(session.id, {
+          status: result.success ? 'completed' : 'failed',
+          exitCode: result.exitCode || undefined,
+          duration: result.duration,
+        })
+
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Prompt for multi-line script
+      const answers = await inquirer.prompt([
+        {
+          type: 'editor',
+          name: 'script',
+          message: 'Enter script to execute in sandbox (will open in editor):',
+        },
+      ])
+
+      if (!answers.script) {
+        console.log(chalk.yellow('⚠️  No script provided'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const { commandSandboxExecutor } = await import('../sandbox/command-sandbox-executor')
+      const { sandboxSessionManager } = await import('../sandbox/sandbox-session-manager')
+
+      const session = sandboxSessionManager.createSession(answers.script)
+
+      console.log(chalk.blue(`\n🏝️  Sandbox Session: ${session.id}`))
+      console.log(chalk.gray('Executing script...\n'))
+
+      const result = await commandSandboxExecutor.execute({
+        command: answers.script,
+        sessionId: session.id,
+        shell: true,
+      })
+
+      sandboxSessionManager.updateSession(session.id, {
+        status: result.success ? 'completed' : 'failed',
+        exitCode: result.exitCode || undefined,
+        duration: result.duration,
+      })
+
+      const summaryBox = boxen(
+        (result.success ? chalk.green('✅ Script executed successfully') : chalk.red('❌ Script failed')) +
+          '\n' +
+          chalk.gray(`Exit Code: ${result.exitCode}\n`) +
+          chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s`),
+        {
+          title: `🏝️  Script Result (${session.id})`,
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: result.success ? 'green' : 'red',
+        }
+      )
+
+      if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+        this.cliInstance.printPanel(summaryBox)
+      } else {
+        console.log(summaryBox)
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.error(chalk.red(`❌ /exec failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * /sandbox command - Manage sandbox sessions
+   */
+  private async sandboxCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const sub = (args[0] || 'help').toLowerCase()
+
+      const { sandboxSessionManager } = await import('../sandbox/sandbox-session-manager')
+      const { commandSandboxExecutor } = await import('../sandbox/command-sandbox-executor')
+
+      switch (sub) {
+        case 'ls':
+        case 'list': {
+          const sessions = sandboxSessionManager.listAllSessions()
+
+          const lines: string[] = [`📋 Sandbox Sessions: ${sessions.length} total`]
+          sessions.forEach((session) => {
+            const statusEmoji =
+              session.status === 'running' ? '🔄' : session.status === 'completed' ? '✅' : '❌'
+            lines.push(`${statusEmoji} ${session.id}: ${session.command} (${session.status})`)
+          })
+
+          const panel = boxen(lines.join('\n'), {
+            title: 'Sandbox Sessions',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          })
+
+          if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+            this.cliInstance.printPanel(panel)
+          } else {
+            console.log(panel)
+          }
+          break
+        }
+
+        case 'stats': {
+          const stats = sandboxSessionManager.getStats()
+
+          const lines: string[] = [
+            `📊 Active: ${stats.active}`,
+            `✅ Completed: ${stats.completed}`,
+            `❌ Failed: ${stats.failed}`,
+            `🛑 Killed: ${stats.killed}`,
+            `⏱️  Avg Duration: ${(stats.averageDuration / 1000).toFixed(2)}s`,
+          ]
+
+          const panel = boxen(lines.join('\n'), {
+            title: 'Sandbox Stats',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          })
+
+          if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+            this.cliInstance.printPanel(panel)
+          } else {
+            console.log(panel)
+          }
+          break
+        }
+
+        case 'clear':
+        case 'cleanup': {
+          sandboxSessionManager.clearAll()
+          console.log(chalk.green('✓ All sandbox sessions cleared'))
+          break
+        }
+
+        case 'kill': {
+          const sessionId = args[1]
+          if (!sessionId) {
+            console.log(chalk.red('❌ Usage: /sandbox kill <sessionId>'))
+            break
+          }
+
+          const session = sandboxSessionManager.getSession(sessionId)
+          if (!session) {
+            console.log(chalk.red(`❌ Session not found: ${sessionId}`))
+            break
+          }
+
+          if (session.status === 'running') {
+            await commandSandboxExecutor.killSession(sessionId)
+            console.log(chalk.green(`✓ Killed session: ${sessionId}`))
+          } else {
+            console.log(chalk.yellow(`⚠️  Session is not running: ${session.status}`))
+          }
+          break
+        }
+
+        default:
+          console.log(chalk.blue('📋 Sandbox Commands:'))
+          console.log(chalk.gray('  /sandbox ls        - List all sandbox sessions'))
+          console.log(chalk.gray('  /sandbox stats     - Show sandbox statistics'))
+          console.log(chalk.gray('  /sandbox clear     - Clear all sessions'))
+          console.log(chalk.gray('  /sandbox kill <id> - Kill specific session'))
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.error(chalk.red(`❌ /sandbox failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }

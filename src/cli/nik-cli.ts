@@ -51,6 +51,7 @@ import { registerAgents } from './register-agents'
 import { agentService } from './services/agent-service'
 import { DashboardService } from './services/dashboard-service'
 import { adRotationService } from './services/ad-rotation-service'
+import { adDisplayManager } from './services/ad-display-manager'
 // New enhanced services
 import { cacheService } from './services/cache-service'
 import { memoryService } from './services/memory-service'
@@ -349,10 +350,8 @@ export class NikCLI {
   private isChatMode: boolean = false
   private isPrintingPanel: boolean = false
 
-  // Ad Caching System - prevent repeated rendering during progressbar updates
-  private cachedAdLines: string[] = []
-  private lastAdFetchTime: number = 0
-  private readonly AD_CACHE_TTL_MS: number = 60000 // Cache ad for 60 seconds
+  // Ads timer - show ads every 5 minutes
+  private adsTimer?: NodeJS.Timeout
 
   constructor() {
     this.workingDirectory = process.cwd()
@@ -2536,6 +2535,9 @@ export class NikCLI {
 
     // Show initial prompt immediately
     this.renderPromptAfterOutput()
+
+    // Start periodic ad display timer
+    this.startAdsTimer()
   }
 
   /**
@@ -5697,25 +5699,15 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     return lines
   }
 
+
   /**
-   * Build ad panel lines for display
-   * Fetches active ad campaigns from Supabase and formats for terminal display
-   * Returns empty array if no ads are available
+   * Show ads as structured log
+   * Fetches active campaigns and displays as structured log instead of panel
    */
-  private async buildAdPanelLines(maxWidth: number): Promise<string[]> {
+  private async showAdsAsStructuredLog(): Promise<void> {
     try {
-      // Return cached ad lines if still within cache TTL window
-      const now = Date.now()
-      if (this.cachedAdLines.length > 0 && (now - this.lastAdFetchTime) < this.AD_CACHE_TTL_MS) {
-        return this.cachedAdLines
-      }
-
       const supabase = await enhancedSupabaseProvider.getClient()
-
-      if (!supabase) {
-        console.error('[AD] Supabase client not available')
-        return []
-      }
+      if (!supabase) return
 
       const nowIso = new Date().toISOString()
       const { data: campaigns, error } = await supabase
@@ -5725,25 +5717,16 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         .gte('end_date', nowIso)
         .lte('start_date', nowIso)
 
-      if (error) {
-        console.error('[AD] Query error:', error.message)
-        return []
-      }
+      if (error || !campaigns || campaigns.length === 0) return
 
-      if (!campaigns || campaigns.length === 0) {
-        return []
-      }
-
-      // Filter out campaigns that have reached their impression limit
+      // Filter campaigns that haven't reached impression limit
       const availableCampaigns = campaigns.filter(
         (campaign: any) => campaign.impressions_served < campaign.budget_impressions
       )
 
-      if (availableCampaigns.length === 0) {
-        return []
-      }
+      if (availableCampaigns.length === 0) return
 
-      // Map database rows to AdCampaign type for rotation service
+      // Map to AdCampaign type
       const typedCampaigns = availableCampaigns.map((c: any) => ({
         id: c.id,
         advertiserId: c.advertiser_id,
@@ -5766,107 +5749,85 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
       // Get rotation state
       let rotationState = await adRotationService.getRotationState()
-
-      // Initialize if doesn't exist
       if (!rotationState) {
         rotationState = await adRotationService.initializeRotationState(typedCampaigns[0])
       }
 
-      // Check if we should rotate to next campaign
+      // Check if should rotate
       const shouldRotate = await adRotationService.shouldRotate()
-
       let selectedAd: any = null
 
       if (shouldRotate && rotationState) {
-        // Time to rotate: build weighted order and select next campaign
         const weightedOrder = await adRotationService.buildWeightedOrder(typedCampaigns)
         rotationState.weightedOrder = weightedOrder
-
         selectedAd = await adRotationService.getNextCampaign(typedCampaigns, rotationState)
 
         if (selectedAd) {
-          // Update rotation state in Supabase
           const updatedState = await adRotationService.updateRotationState(selectedAd, rotationState)
-          if (updatedState) {
-            rotationState = updatedState
-          }
+          if (updatedState) rotationState = updatedState
         }
       } else if (rotationState?.currentCampaignId) {
-        // Still within rotation interval: show current campaign
         selectedAd = typedCampaigns.find((c) => c.id === rotationState!.currentCampaignId) || null
       }
 
-      // Fallback to first available if nothing selected
+      // Fallback to first available
       if (!selectedAd && typedCampaigns.length > 0) {
         selectedAd = typedCampaigns[0]
       }
 
-      // Safety check - no campaign available
-      if (!selectedAd) {
-        return []
-      }
+      if (!selectedAd) return
 
-      // Track impression asynchronously (don't block rendering)
-      this.trackAdImpressionAsync(selectedAd, supabase)
+      // Track impression
+      const { randomUUID } = await import('node:crypto')
+      const userId = randomUUID()
+      await supabase.from('ad_impressions').insert({
+        campaign_id: selectedAd.id,
+        user_id: userId,
+        timestamp: new Date().toISOString(),
+        session_id: `session-${Date.now()}`,
+        ad_content: selectedAd.content,
+      })
 
-      const orange = chalk.rgb(255, 165, 0)
+      // Increment impressions
+      const newImpressions = (selectedAd.impressions_served || 0) + 1
+      await supabase
+        .from('ad_campaigns')
+        .update({ impressions_served: newImpressions })
+        .eq('id', selectedAd.id)
 
-      // Build ad on single line
-      let adText = `📢 ${selectedAd.content}`
-
-      if (selectedAd.ctaText && selectedAd.ctaUrl) {
-        adText += ` | 🔗 ${selectedAd.ctaText}: ${selectedAd.ctaUrl}`
-      } else if (selectedAd.ctaText) {
-        adText += ` | 🔗 ${selectedAd.ctaText}`
-      } else {
-        adText += ` | +0.02 tokens`
-      }
-
-      const adLines = [orange(adText)]
-
-      // Store in cache and update fetch time
-      this.cachedAdLines = adLines
-      this.lastAdFetchTime = now
-
-      return adLines
+      // Display as structured log
+      adDisplayManager.displayAdAsStructuredLog(selectedAd)
     } catch (error: any) {
-      console.error('[AD] Exception:', error.message)
-      return []
+      // Silently fail - ads should never break user experience
     }
   }
 
   /**
-   * Track ad impression asynchronously
-   * Called when an ad is displayed, without blocking rendering
+   * Start periodic ad display timer (every 5 minutes)
    */
-  private trackAdImpressionAsync(ad: any, supabase: any): void {
-    // Fire and forget - don't await, don't block
-    Promise.resolve().then(async () => {
-      try {
-        const { randomUUID } = await import('node:crypto')
-        const userId = randomUUID()
+  private startAdsTimer(): void {
+    // Clear any existing timer
+    this.stopAdsTimer()
 
-        // Record impression
-        await supabase.from('ad_impressions').insert({
-          campaign_id: ad.id,
-          user_id: userId,
-          timestamp: new Date().toISOString(),
-          session_id: `session-${Date.now()}`,
-          token_credit_awarded: 0.02,
-          ad_content: ad.content,
-        })
+    // Show first ad after 30 seconds
+    const initialDelay = setTimeout(() => {
+      void this.showAdsAsStructuredLog()
+    }, 30 * 1000)
 
-        // Increment impressions_served counter
-        const newImpressions = (ad.impressions_served || 0) + 1
-        await supabase
-          .from('ad_campaigns')
-          .update({ impressions_served: newImpressions })
-          .eq('id', ad.id)
-      } catch (error: any) {
-        // Silently fail - don't log or interrupt anything
-        // Impression tracking errors should never break the user experience
-      }
-    })
+    // Then show ads every 5 minutes
+    this.adsTimer = setInterval(() => {
+      void this.showAdsAsStructuredLog()
+    }, 5 * 60 * 1000)
+  }
+
+  /**
+   * Stop the ads timer and cleanup
+   */
+  private stopAdsTimer(): void {
+    if (this.adsTimer) {
+      clearInterval(this.adsTimer)
+      this.adsTimer = undefined
+    }
   }
 
   private showExecutionSummary(): void {
@@ -12937,7 +12898,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const terminalWidth = Math.max(40, process.stdout.columns || 120)
     const workingDir = chalk.blue(path.basename(this.workingDirectory))
     const planHudLines = this.planHudVisible ? this.buildPlanHudLines(terminalWidth) : []
-    const adPanelLines = await this.buildAdPanelLines(terminalWidth)
 
     // Mode info
     const _modeIcon = this.currentMode === 'plan' ? '✅' : this.currentMode === 'vm' ? '🐳' : '💎'
@@ -12952,8 +12912,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Move cursor to bottom of terminal (reserve HUD + frame + prompt + slash menu)
     const terminalHeight = process.stdout.rows || 24
     const hudExtraLines = planHudLines.length > 0 ? planHudLines.length + 1 : 0
-    const adExtraLines = adPanelLines.length > 0 ? adPanelLines.length + 1 : 0
-    const reservedLines = 3 + hudExtraLines + adExtraLines
+    const reservedLines = 3 + hudExtraLines
     process.stdout.write(`\x1B[${Math.max(1, terminalHeight - reservedLines)};0H`)
 
     // Clear the bottom lines
@@ -12967,15 +12926,6 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
       process.stdout.write('\n')
 
-    }
-
-    // Render ad panel if available
-    if (adPanelLines.length > 0) {
-      process.stdout.write('\n') // Add blank line above ad panel
-      for (const line of adPanelLines) {
-        process.stdout.write(`${line}\n`)
-      }
-      process.stdout.write('\n')
     }
 
     // Render slash menu if active
@@ -14196,6 +14146,9 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   private async shutdown(): Promise<void> {
     advancedUI.logFunctionCall(chalk.blue('\n Shutting down NikCLI...'))
 
+    // Stop ads timer
+    this.stopAdsTimer()
+
     // Stop file watcher
     if (this.fileWatcher) {
       try {
@@ -14232,6 +14185,15 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       advancedUI.logFunctionUpdate('info', ' All caches saved')
     } catch (error: any) {
       advancedUI.logFunctionUpdate('info', `Cache save warning: ${error.message}`)
+    }
+
+    // Clean up sandbox sessions and temporary directories
+    try {
+      const { commandSandboxExecutor } = await import('./sandbox/command-sandbox-executor')
+      await commandSandboxExecutor.cleanupAll()
+      advancedUI.logFunctionUpdate('info', '🧹 Sandbox sessions cleaned up')
+    } catch (error: any) {
+      advancedUI.logFunctionUpdate('info', `Sandbox cleanup warning: ${error.message}`)
     }
 
     // Clean up UI resources

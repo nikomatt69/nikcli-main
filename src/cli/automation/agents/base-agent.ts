@@ -32,6 +32,25 @@ export abstract class BaseAgent implements AgentInstance {
   protected performanceOptimized: boolean = true
   protected batchSize: number = 5 // Process tasks in batches for better performance
 
+  // Default sandbox permissions for all agents (can be overridden by specific agents)
+  protected defaultPermissions = {
+    canReadFiles: true,
+    canWriteFiles: true,
+    canDeleteFiles: false, // Dangerous - requires explicit approval
+    allowedPaths: [process.cwd()], // Only workspace directory by default
+    forbiddenPaths: ['/etc', '/usr', '/var', '/bin', '/sbin', '/root', '/boot'], // System directories always forbidden
+    canExecuteCommands: true,
+    allowedCommands: ['npm', 'git', 'node', 'tsc', 'jest', 'pnpm', 'yarn', 'bun'], // Safe development commands
+    forbiddenCommands: ['rm -rf', 'sudo', 'su', 'chmod 777', 'mkfs', 'dd'], // Always forbidden dangerous commands
+    canAccessNetwork: true,
+    allowedDomains: [], // Empty = all domains allowed initially
+    canInstallPackages: true,
+    canModifyConfig: false, // Dangerous - don't allow
+    canAccessSecrets: false, // Never allow agents to access secrets
+    maxExecutionTime: 300000, // 5 minutes timeout
+    maxMemoryUsage: 512 * 1024 * 1024, // 512 MB
+  }
+
   constructor(workingDirectory: string = process.cwd()) {
     this.eventBus = EventBus.getInstance()
     this.toolRegistry = new ToolRegistry(workingDirectory)

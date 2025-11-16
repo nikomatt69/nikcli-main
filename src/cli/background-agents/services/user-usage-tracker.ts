@@ -20,8 +20,6 @@ export interface UserUsage {
   toolCalls: number
   adMetrics?: {
     impressions: number
-    tokenCreditsEarned: number
-    revenue: number // Advertiser cost attributed to user
   }
 }
 
@@ -39,7 +37,6 @@ export interface UserUsageStats {
     jobsCompleted: number
     toolCalls: number
     adImpressions?: number
-    tokenCreditsFromAds?: number
   }
 }
 
@@ -155,9 +152,9 @@ export class UserUsageTracker {
   }
 
   /**
-   * Track ad impression and token credit for a user
+   * Track ad impression for a user
    */
-  async trackAdImpression(userId: string, tokenCredit: number): Promise<void> {
+  async trackAdImpression(userId: string): Promise<void> {
     const now = new Date()
     const hour = this.getPeriodStart(now, 'hour')
     const day = this.getPeriodStart(now, 'day')
@@ -178,8 +175,6 @@ export class UserUsageTracker {
           toolCalls: 0,
           adMetrics: {
             impressions: 0,
-            tokenCreditsEarned: 0,
-            revenue: 0,
           },
         }
         records.push(record)
@@ -187,14 +182,9 @@ export class UserUsageTracker {
       if (!record.adMetrics) {
         record.adMetrics = {
           impressions: 0,
-          tokenCreditsEarned: 0,
-          revenue: 0,
         }
       }
       record.adMetrics.impressions += 1
-      record.adMetrics.tokenCreditsEarned += tokenCredit
-      // Revenue: user gets 25% of $3 CPM per impression
-      record.adMetrics.revenue += (3.0 / 1000) * 0.25
     }
 
     updateRecord(hour, 'hour')
