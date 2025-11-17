@@ -27,7 +27,6 @@ interface SequenceOptimization {
 }
 
 class MLInferenceEngine {
-  private logger: Logger;
   private cacheService: CacheService | null = null;
   private initialized = false;
 

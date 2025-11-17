@@ -66,6 +66,7 @@ import { advancedUI } from './ui/advanced-cli-ui'
 import { projectMemory, type ProjectMemoryManager } from './core/project-memory'
 import { approvalSystem } from './ui/approval-system'
 import { createConsoleTokenDisplay } from './ui/token-aware-status-bar'
+import { recordTokenUsageForCurrentUser } from './analytics/token-usage-metrics'
 
 // ML System imports
 import { ToolchainOptimizer } from './ml/toolchain-optimizer'
@@ -3287,6 +3288,20 @@ export class NikCLI {
           await this.handleCacheCommands(cmd, args)
           break
 
+        case 'profile':
+          await this.showAuthProfile()
+          break
+
+        case 'signin':
+        case 'login':
+          await this.handleAuthSignIn()
+          break
+
+        case 'signup':
+        case 'register':
+          await this.handleAuthSignUp()
+          break
+
         case 'supabase':
         case 'db':
         case 'auth':
@@ -3682,6 +3697,35 @@ export class NikCLI {
    */
   private async handleChatInput(input: string): Promise<void> {
     try {
+      // Check token quota before processing message
+      const tokenQuota = authProvider.checkQuota('tokens')
+      if (!tokenQuota.allowed) {
+        this.printPanel(
+          boxen(
+            chalk.red(`❌ Token limit exceeded\n\n`) +
+            chalk.gray(`Current: ${chalk.cyan(tokenQuota.used.toString())}/${chalk.cyan(tokenQuota.limit.toString())}\n`) +
+            chalk.gray('Upgrade to Pro to increase limits'),
+            {
+              title: 'Token Quota Exceeded',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
+        )
+        return
+      }
+
+      // Warn if approaching 80% of quota
+      const tokenUsagePercent = (tokenQuota.used / tokenQuota.limit) * 100
+      if (tokenUsagePercent >= 80 && tokenUsagePercent < 100) {
+        advancedUI.logFunctionUpdate(
+          'warning',
+          chalk.yellow(`⚠️ Token usage at ${tokenUsagePercent.toFixed(0)}% (${tokenQuota.used}/${tokenQuota.limit})`)
+        )
+      }
+
       // Start token session if not already active
       if (!contextTokenManager.getCurrentSession()) {
         await this.startTokenSession()
@@ -5706,6 +5750,31 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
    */
   private async showAdsAsStructuredLog(): Promise<void> {
     try {
+      // Respect global ads configuration and Pro opt-out
+      const { simpleConfigManager } = await import('./core/config-manager')
+      const config = simpleConfigManager.getAll()
+
+      if (!config.ads?.enabled) {
+        return
+      }
+
+      // Determine effective tier (prefer auth profile over config.ads.tier)
+      let tier: 'free' | 'pro' = (config.ads.tier as 'free' | 'pro') || 'free'
+      try {
+        const { authProvider } = await import('./providers/supabase/auth-provider')
+        const profile = authProvider.getCurrentProfile()
+        if (profile) {
+          tier = profile.subscription_tier === 'free' ? 'free' : 'pro'
+        }
+      } catch {
+        // If auth provider is unavailable, fall back to config value
+      }
+
+      // For Pro/Enterprise users, honor /ads off (userOptIn === true means ads hidden)
+      if (tier !== 'free' && config.ads.userOptIn) {
+        return
+      }
+
       const supabase = await enhancedSupabaseProvider.getClient()
       if (!supabase) return
 
@@ -7038,8 +7107,36 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     try {
       switch (command) {
         case 'new': {
+          // Check session quota before creating new session
+          const sessionQuota = authProvider.checkQuota('sessions')
+          if (!sessionQuota.allowed) {
+            this.printPanel(
+              boxen(
+                chalk.red(`❌ Session limit reached\n\n`) +
+                chalk.gray(`Current: ${chalk.cyan(sessionQuota.used.toString())}/${chalk.cyan(sessionQuota.limit.toString())}\n`) +
+                chalk.gray('Upgrade to Pro to increase limits'),
+                {
+                  title: 'Session Quota Exceeded',
+                  padding: 1,
+                  margin: 1,
+                  borderStyle: 'round',
+                  borderColor: 'red',
+                }
+              )
+            )
+            break
+          }
+
           const title = args.join(' ') || undefined
           const session = chatManager.createNewSession(title)
+
+          // Record session usage in database
+          try {
+            await authProvider.recordUsage('sessions', 1)
+          } catch (error: any) {
+            console.debug('[new] Failed to record session usage:', error.message)
+          }
+
           this.printPanel(
             boxen(`${session.title} (${session.id.slice(0, 8)})`, {
               title: '🆕 New Session',
@@ -9903,39 +10000,120 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   }
 
   /**
-   * Initialize ML Toolchain Optimization System
+   * Initialize ML Toolchain Optimization System with comprehensive verification
    */
   private async initializeMLSystem(): Promise<void> {
+    const mlStartTime = Date.now()
+    const componentStatus: Record<string, { status: string; time: number; error?: string }> = {}
+
     try {
-      // Initialize components in order
+      // 1. Instantiate components
+      const instantiateStart = Date.now()
       this.featureExtractor = new FeatureExtractor()
       this.mlInferenceEngine = new MLInferenceEngine()
       this.evaluationPipeline = new EvaluationPipeline()
       this.toolchainOptimizer = new ToolchainOptimizer()
       this.dynamicToolSelector = new DynamicToolSelector(this.workingDirectory)
+      componentStatus['instantiation'] = {
+        status: '✓ completed',
+        time: Date.now() - instantiateStart
+      }
 
-      // Initialize ML Inference Engine with cache service
+      // 2. Initialize ML Inference Engine
+      const mlEngineStart = Date.now()
       await this.mlInferenceEngine.initialize(cacheService)
+      componentStatus['mlInferenceEngine'] = {
+        status: '✓ initialized',
+        time: Date.now() - mlEngineStart
+      }
 
-      // Initialize ML Optimizer with Supabase provider
+      // 3. Initialize Toolchain Optimizer
+      const optimizerStart = Date.now()
       await this.toolchainOptimizer.initialize(
         enhancedSupabaseProvider,
         this.mlInferenceEngine,
         this.featureExtractor
       )
+      componentStatus['toolchainOptimizer'] = {
+        status: '✓ initialized',
+        time: Date.now() - optimizerStart
+      }
 
-      // Initialize Evaluation Pipeline
+      // 4. Initialize Evaluation Pipeline
+      const evaluationStart = Date.now()
       await this.evaluationPipeline.initialize(enhancedSupabaseProvider)
+      componentStatus['evaluationPipeline'] = {
+        status: '✓ initialized',
+        time: Date.now() - evaluationStart
+      }
 
-      // Integrate ML components with tools
+      // 5. Integrate with tool routing
+      const integrationStart = Date.now()
       toolRouter.setMLOptimizer(this.toolchainOptimizer)
       this.dynamicToolSelector.setMLInferenceEngine(this.mlInferenceEngine)
+      componentStatus['integration'] = {
+        status: '✓ completed',
+        time: Date.now() - integrationStart
+      }
 
-      structuredLogger.info('ML System', '✓ ML toolchain optimizer initialized')
+      // 6. Verify all components are active
+      const verificationStart = Date.now()
+      const verification = {
+        featureExtractor: this.featureExtractor !== undefined,
+        mlInferenceEngine: this.mlInferenceEngine !== undefined,
+        evaluationPipeline: this.evaluationPipeline !== undefined,
+        toolchainOptimizer: this.toolchainOptimizer !== undefined,
+        dynamicToolSelector: this.dynamicToolSelector !== undefined,
+        toolRouterIntegrated: toolRouter !== undefined,
+        cacheServiceAvailable: cacheService !== undefined,
+        supabaseProviderAvailable: enhancedSupabaseProvider !== undefined
+      }
+      componentStatus['verification'] = {
+        status: '✓ completed',
+        time: Date.now() - verificationStart
+      }
+
+      const totalTime = Date.now() - mlStartTime
+
+      // Log comprehensive status
+      structuredLogger.success('ML System', '🤖 ML Toolchain Initialization Complete', {
+        totalInitializationTime: `${totalTime}ms`,
+        components: componentStatus,
+        verificationResults: verification,
+        allComponentsActive: Object.values(verification).every(v => v === true)
+      })
     } catch (error: any) {
-      structuredLogger.warning('ML System', `⚠️ ML initialization error: ${error.message}`)
+      const totalTime = Date.now() - mlStartTime
+      structuredLogger.error('ML System', `⚠️ ML initialization error after ${totalTime}ms`, {
+        error: error.message,
+        componentStatus,
+        stack: error.stack
+      })
       // Non-blocking - system continues without ML
     }
+  }
+
+  /**
+   * Get ML System Status for diagnostics
+   */
+  public getMLStatus(): {
+    featureExtractor: boolean
+    mlInferenceEngine: boolean
+    evaluationPipeline: boolean
+    toolchainOptimizer: boolean
+    dynamicToolSelector: boolean
+    allComponentsActive: boolean
+  } {
+    const status = {
+      featureExtractor: this.featureExtractor !== undefined,
+      mlInferenceEngine: this.mlInferenceEngine !== undefined,
+      evaluationPipeline: this.evaluationPipeline !== undefined,
+      toolchainOptimizer: this.toolchainOptimizer !== undefined,
+      dynamicToolSelector: this.dynamicToolSelector !== undefined,
+      allComponentsActive: false
+    }
+    status.allComponentsActive = Object.values(status).slice(0, -1).every(v => v === true)
+    return status
   }
 
   private async initializeCloudDocs(): Promise<void> {
@@ -11641,6 +11819,11 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         commands: [
           ['/run <command>', 'Execute terminal command with approval'],
           ['/build', 'Build the current project'],
+          ['/build:start', 'Build project and start CLI'],
+          ['/build:binary', 'Build binary executables for all platforms'],
+          ['/build:pkg', 'Build package with pkg tool'],
+          ['/build:release', 'Build release package'],
+          ['/build:vercel', 'Build for Vercel deployment'],
           ['/test [pattern]', 'Run tests with optional pattern'],
           ['/npm <args>', 'Run npm commands'],
           ['/yarn <args>', 'Run yarn commands'],
@@ -11682,6 +11865,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           ['/set-key-figma', 'Configure Figma and v0 API credentials'],
           ['/set-key-redis', 'Configure Redis/Upstash cache credentials'],
           ['/set-vector-key', 'Configure Upstash Vector database credentials'],
+          ['/signin', 'Sign in with email and password'],
+          ['/signup', 'Create a new account'],
+          ['/profile', 'Show current user profile panel'],
+          ['/auth [signin|signup|signout|profile|quotas]', 'Full authentication command suite'],
         ],
       },
       {
@@ -13968,11 +14155,23 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         )
       })
 
-      contextTokenManager.on('message_tracked', ({ messageInfo, session, optimization }) => {
+      contextTokenManager.on('message_tracked', async ({ messageInfo, session, optimization }) => {
         if (optimization.shouldTrim) {
           console.log(chalk.yellow(`💡 ${optimization.reason}`))
         }
         this.updateTokenDisplay()
+
+        // Record per-user token usage metrics when authenticated
+        try {
+          if (
+            authProvider.isAuthenticated() &&
+            (messageInfo.role === 'user' || messageInfo.role === 'assistant')
+          ) {
+            await recordTokenUsageForCurrentUser(messageInfo, session)
+          }
+        } catch (error) {
+          console.debug('Failed to record token usage metric:', error)
+        }
       })
 
       // Initialize token display
@@ -13992,6 +14191,37 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const currentProvider = modelConfig?.provider || 'anthropic' // Fallback only if config missing
 
       await contextTokenManager.startSession(currentProvider, currentModel)
+
+      // Listen for session end to finalize and save to database
+      contextTokenManager.once('session_ended', async (endedSession: any) => {
+        try {
+          const profile = authProvider.getCurrentProfile()
+          if (profile) {
+            const totalTokens = endedSession.totalInputTokens + endedSession.totalOutputTokens
+            // Persist session end metrics (optional DB update for historical tracking)
+            await enhancedSupabaseProvider.recordMetric({
+              user_id: profile.id,
+              session_id: endedSession.sessionId,
+              event_type: 'session_ended',
+              event_data: {
+                duration: Date.now() - endedSession.startTime.getTime(),
+                totalTokens,
+                inputTokens: endedSession.totalInputTokens,
+                outputTokens: endedSession.totalOutputTokens,
+                totalCost: endedSession.totalCost,
+                messageCount: endedSession.messageCount,
+              },
+              metadata: {
+                source: 'nikcli-cli',
+                provider: endedSession.provider,
+                model: endedSession.model,
+              },
+            })
+          }
+        } catch (error: any) {
+          console.debug('[startTokenSession] Failed to record session end:', error.message)
+        }
+      })
     } catch (error) {
       console.debug('Failed to start token session:', error)
     }
@@ -16941,7 +17171,12 @@ This file is automatically maintained by NikCLI to provide consistent context ac
           [
             'Usage: /db [sessions|blueprints|users|metrics] [action] [options]',
             '',
-            'Available actions: list, get, create, update, delete, stats',
+            'Available actions: list, get, delete, stats',
+            '',
+            chalk.dim('Examples:'),
+            chalk.dim('  /db sessions list --limit 5'),
+            chalk.dim('  /db blueprints list --tags planning,agent'),
+            chalk.dim('  /db users stats'),
           ].join('\n'),
           {
             title: 'Database Command',
@@ -16992,92 +17227,832 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     }
   }
 
+  private hasOption(options: string[], name: string): boolean {
+    return options.includes(`--${name}`)
+  }
+
+  private getOptionValue(options: string[], name: string): string | undefined {
+    const index = options.indexOf(`--${name}`)
+    if (index === -1 || index === options.length - 1) {
+      return undefined
+    }
+    return options[index + 1]
+  }
+
+  private getOptionNumber(options: string[], name: string, fallback: number): number {
+    const raw = this.getOptionValue(options, name)
+    if (!raw) return fallback
+    const parsed = parseInt(raw, 10)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+  }
+
+  private getOptionList(options: string[], name: string): string[] {
+    const raw = this.getOptionValue(options, name)
+    if (!raw) return []
+    return raw
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+  }
+
+  private formatTimestamp(value?: string | null): string {
+    if (!value) return 'Unknown'
+    try {
+      return new Date(value).toLocaleString()
+    } catch {
+      return value
+    }
+  }
+
   private async handleSessionCommands(action: string, _options: string[]): Promise<void> {
-    switch (action) {
-      case 'list':
-        console.log(chalk.blue('📋 Sessions'))
-        console.log(chalk.yellow('   Database operations require connection to Supabase'))
-        console.log(chalk.dim('   Ensure Supabase is configured and connected'))
-        break
+    const options = _options || []
 
-      case 'get':
-        console.log(chalk.blue('📄 Session Details'))
-        console.log(chalk.yellow('   Database operations require full Supabase integration'))
-        break
+    try {
+      if (!enhancedSupabaseProvider.isHealthy()) {
+        this.printPanel(
+          boxen('Supabase connection is not ready. Run /supabase connect first.', {
+            title: 'Sessions',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }),
+          'general'
+        )
+        return
+      }
 
-      case 'delete':
-        console.log(chalk.blue('🗑️ Delete Session'))
-        console.log(chalk.yellow('   Database operations require full Supabase integration'))
-        break
+      switch (action) {
+        case 'list': {
+          const limit = this.getOptionNumber(options, 'limit', 10)
+          const userId = this.getOptionValue(options, 'user')
+          const tags = this.getOptionList(options, 'tags')
+          const order = (this.getOptionValue(options, 'order') as 'created_at' | 'updated_at' | 'title') || 'updated_at'
+          const ascending = this.hasOption(options, 'asc')
 
-      default:
-        console.log(chalk.yellow('Available actions: list, get, delete'))
-        console.log(chalk.dim('Note: Full database operations coming soon'))
+          const sessions = await enhancedSupabaseProvider.listSessions({
+            limit,
+            userId,
+            tags: tags.length ? tags : undefined,
+            orderBy: order,
+            ascending,
+          })
+
+          if (!sessions.length) {
+            this.printPanel(
+              boxen('No sessions found for the provided filters.', {
+                title: 'Sessions',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }),
+              'general'
+            )
+            return
+          }
+
+          const lines = sessions.map((session, index) => {
+            const status = (session.metadata as any)?.status || 'active'
+            const statusColor =
+              status === 'archived' ? chalk.yellow : status === 'deleted' ? chalk.red : chalk.green
+            const messageCount = (session.metadata as any)?.message_count ?? session.content?.messages?.length ?? 0
+            const totalTokens = (session.metadata as any)?.total_tokens ?? 0
+            const tagLine = session.tags?.length ? chalk.gray(`   Tags: ${session.tags.join(', ')}`) : ''
+            return [
+              `${chalk.cyan(`${index + 1}.`)} ${chalk.bold(session.title || 'Untitled Session')}`,
+              `   ID: ${chalk.gray(session.id)}`,
+              `   User: ${session.user_id || 'n/a'} | Messages: ${messageCount} | Tokens: ${totalTokens}`,
+              `   Status: ${statusColor(status)} | Updated: ${chalk.gray(this.formatTimestamp(session.updated_at))}`,
+              tagLine,
+            ]
+              .filter(Boolean)
+              .join('\n')
+          })
+
+          this.printPanel(
+            boxen(lines.join('\n\n'), {
+              title: `Sessions (${sessions.length})`,
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'cyan',
+            }),
+            'general'
+          )
+          break
+        }
+
+        case 'get': {
+          const sessionId = options[0]
+          if (!sessionId) {
+            this.printPanel(
+              boxen('Usage: /db sessions get <sessionId>', {
+                title: 'Sessions',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }),
+              'general'
+            )
+            return
+          }
+
+          const session = await enhancedSupabaseProvider.getSession(sessionId)
+          if (!session) {
+            this.printPanel(
+              boxen(`Session ${sessionId} not found or access denied.`, {
+                title: 'Sessions',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              }),
+              'general'
+            )
+            return
+          }
+
+          const status = (session.metadata as any)?.status || 'active'
+          const totalTokens = (session.metadata as any)?.total_tokens ?? 0
+          const messageCount = (session.metadata as any)?.message_count ?? session.content?.messages?.length ?? 0
+          const isPublic = (session.metadata as any)?.is_public ?? false
+
+          const details = [
+            `${chalk.bold('Title:')} ${session.title || 'Untitled Session'}`,
+            `${chalk.bold('ID:')} ${session.id}`,
+            `${chalk.bold('User:')} ${session.user_id || 'n/a'}`,
+            `${chalk.bold('Status:')} ${status}`,
+            `${chalk.bold('Tokens:')} ${totalTokens}`,
+            `${chalk.bold('Messages:')} ${messageCount}`,
+            `${chalk.bold('Public:')} ${isPublic ? chalk.green('Yes') : chalk.gray('No')}`,
+            `${chalk.bold('Tags:')} ${session.tags?.length ? session.tags.join(', ') : 'None'}`,
+            `${chalk.bold('Created:')} ${this.formatTimestamp(session.created_at)}`,
+            `${chalk.bold('Updated:')} ${this.formatTimestamp(session.updated_at)}`,
+          ]
+
+          this.printPanel(
+            boxen(details.join('\n'), {
+              title: 'Session Details',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }),
+            'general'
+          )
+          break
+        }
+
+        case 'delete': {
+          const sessionId = options[0]
+          if (!sessionId) {
+            this.printPanel(
+              boxen('Usage: /db sessions delete <sessionId>', {
+                title: 'Sessions',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }),
+              'general'
+            )
+            return
+          }
+
+          const deleted = await enhancedSupabaseProvider.deleteSession(sessionId)
+          const borderColor = deleted ? 'green' : 'red'
+          const message = deleted ? `Session ${sessionId} deleted.` : `Unable to delete session ${sessionId}.`
+
+          this.printPanel(
+            boxen(message, {
+              title: deleted ? 'Session Deleted' : 'Delete Failed',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor,
+            }),
+            'general'
+          )
+          break
+        }
+
+        case 'stats': {
+          const supabase = await enhancedSupabaseProvider.getClient()
+          if (!supabase) {
+            this.printPanel(
+              boxen('Supabase client not available. Double-check your configuration.', {
+                title: 'Sessions',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              }),
+              'general'
+            )
+            return
+          }
+
+          const table = this.configManager.getSupabaseConfig().tables.sessions
+          const [total, active, archived, publicSessions, latest] = await Promise.all([
+            supabase.from(table).select('id', { count: 'exact', head: true }),
+            supabase.from(table).select('id', { count: 'exact', head: true }).eq('status', 'active'),
+            supabase.from(table).select('id', { count: 'exact', head: true }).eq('status', 'archived'),
+            supabase.from(table).select('id', { count: 'exact', head: true }).eq('is_public', true),
+            supabase.from(table).select('title, updated_at').order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+          ])
+
+          if (total.error || active.error || archived.error || publicSessions.error || latest.error) {
+            throw total.error || active.error || archived.error || publicSessions.error || latest.error
+          }
+
+          const statsLines = [
+            `${chalk.bold('Total Sessions:')} ${chalk.cyan(total.count ?? 0)}`,
+            `${chalk.bold('Active:')} ${chalk.green(active.count ?? 0)}    ${chalk.bold('Archived:')} ${chalk.yellow(archived.count ?? 0)}`,
+            `${chalk.bold('Public:')} ${chalk.magenta(publicSessions.count ?? 0)}`,
+            `${chalk.bold('Last Updated:')} ${latest.data ? `${latest.data.title || 'Untitled'} (${this.formatTimestamp(latest.data.updated_at)})` : '—'
+            }`,
+          ]
+
+          this.printPanel(
+            boxen(statsLines.join('\n'), {
+              title: 'Session Stats',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'cyan',
+            }),
+            'general'
+          )
+          break
+        }
+
+        default:
+          this.printPanel(
+            boxen('Available session actions: list, get, delete, stats', {
+              title: 'Sessions',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }),
+            'general'
+          )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Session command failed: ${error.message}`, {
+          title: 'Sessions',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }),
+        'general'
+      )
     }
   }
 
   private async handleBlueprintCommands(action: string, _options: string[]): Promise<void> {
-    switch (action) {
-      case 'list':
-        console.log(chalk.blue('🗂️ Agent Blueprints'))
-        console.log(chalk.yellow('   Blueprint operations require full Supabase integration'))
-        break
+    const options = _options || []
 
-      case 'get':
-        console.log(chalk.blue('📋 Blueprint Details'))
-        console.log(chalk.yellow('   Blueprint operations require full Supabase integration'))
-        break
+    try {
+      if (!enhancedSupabaseProvider.isHealthy()) {
+        this.printPanel(
+          boxen('Supabase connection is not ready. Run /supabase connect first.', {
+            title: 'Blueprints',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }),
+          'general'
+        )
+        return
+      }
 
-      default:
-        console.log(chalk.yellow('Available actions: list, get'))
-        console.log(chalk.dim('Note: Blueprint operations coming soon'))
+      switch (action) {
+        case 'list': {
+          const limit = this.getOptionNumber(options, 'limit', 10)
+          const tags = this.getOptionList(options, 'tags')
+          const includePrivate = this.hasOption(options, 'all')
+          const order = (this.getOptionValue(options, 'order') as 'created_at' | 'install_count' | 'name') || 'install_count'
+          const searchQuery = this.getOptionValue(options, 'query')
+
+          const blueprints = await enhancedSupabaseProvider.searchBlueprints({
+            limit,
+            tags: tags.length ? tags : undefined,
+            publicOnly: !includePrivate,
+            orderBy: order,
+            query: searchQuery,
+          })
+
+          if (!blueprints.length) {
+            this.printPanel(
+              boxen('No blueprints found for the given filters.', {
+                title: 'Blueprints',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }),
+              'general'
+            )
+            return
+          }
+
+          const lines = blueprints.map((bp, index) => {
+            const tagLine = bp.tags?.length ? chalk.gray(`   Tags: ${bp.tags.join(', ')}`) : ''
+            return [
+              `${chalk.cyan(`${index + 1}.`)} ${chalk.bold(bp.name)} ${bp.is_public ? chalk.green('[Public]') : chalk.gray('[Private]')}`,
+              `   ID: ${chalk.gray(bp.id)} | Installs: ${bp.install_count ?? 0}`,
+              `   Updated: ${this.formatTimestamp(bp.updated_at)}`,
+              tagLine,
+            ]
+              .filter(Boolean)
+              .join('\n')
+          })
+
+          this.printPanel(
+            boxen(lines.join('\n\n'), {
+              title: `Blueprints (${blueprints.length})`,
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'magenta',
+            }),
+            'general'
+          )
+          break
+        }
+
+        case 'get': {
+          const id = options[0]
+          if (!id) {
+            this.printPanel(
+              boxen('Usage: /db blueprints get <id>', {
+                title: 'Blueprints',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }),
+              'general'
+            )
+            return
+          }
+
+          const blueprint = await enhancedSupabaseProvider.getBlueprint(id)
+          if (!blueprint) {
+            this.printPanel(
+              boxen(`Blueprint ${id} not found.`, {
+                title: 'Blueprints',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              }),
+              'general'
+            )
+            return
+          }
+
+          const details = [
+            `${chalk.bold('Name:')} ${blueprint.name}`,
+            `${chalk.bold('ID:')} ${blueprint.id}`,
+            `${chalk.bold('Public:')} ${blueprint.is_public ? chalk.green('Yes') : chalk.gray('No')}`,
+            `${chalk.bold('Installs:')} ${blueprint.install_count ?? 0}`,
+            `${chalk.bold('Tags:')} ${blueprint.tags?.length ? blueprint.tags.join(', ') : 'None'}`,
+            `${chalk.bold('Updated:')} ${this.formatTimestamp(blueprint.updated_at)}`,
+            `${chalk.bold('Created:')} ${this.formatTimestamp(blueprint.created_at)}`,
+            '',
+            chalk.bold('Description:'),
+            blueprint.description || chalk.gray('No description provided'),
+          ]
+
+          this.printPanel(
+            boxen(details.join('\n'), {
+              title: 'Blueprint Details',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }),
+            'general'
+          )
+          break
+        }
+
+        case 'stats': {
+          const supabase = await enhancedSupabaseProvider.getClient()
+          if (!supabase) {
+            this.printPanel(
+              boxen('Supabase client not available.', {
+                title: 'Blueprints',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'red',
+              }),
+              'general'
+            )
+            return
+          }
+
+          const table = this.configManager.getSupabaseConfig().tables.blueprints
+          const [total, publicCount, latest] = await Promise.all([
+            supabase.from(table).select('id', { count: 'exact', head: true }),
+            supabase.from(table).select('id', { count: 'exact', head: true }).eq('is_public', true),
+            supabase.from(table).select('name, install_count').order('install_count', { ascending: false }).limit(1).maybeSingle(),
+          ])
+
+          if (total.error || publicCount.error || latest.error) {
+            throw total.error || publicCount.error || latest.error
+          }
+
+          const statsLines = [
+            `${chalk.bold('Total Blueprints:')} ${chalk.cyan(total.count ?? 0)}`,
+            `${chalk.bold('Public:')} ${chalk.green(publicCount.count ?? 0)} | ${chalk.bold('Private:')} ${(total.count ?? 0) - (publicCount.count ?? 0)
+            }`,
+            `${chalk.bold('Top Install:')} ${latest.data ? `${latest.data.name} (${latest.data.install_count ?? 0} installs)` : '—'
+            }`,
+          ]
+
+          this.printPanel(
+            boxen(statsLines.join('\n'), {
+              title: 'Blueprint Stats',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'magenta',
+            }),
+            'general'
+          )
+          break
+        }
+
+        default:
+          this.printPanel(
+            boxen('Available blueprint actions: list, get, stats', {
+              title: 'Blueprints',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }),
+            'general'
+          )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Blueprint command failed: ${error.message}`, {
+          title: 'Blueprints',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }),
+        'general'
+      )
     }
   }
 
   private async handleUserCommands(action: string, _options: string[]): Promise<void> {
-    switch (action) {
-      case 'list':
-        console.log(chalk.blue('👥 Users'))
-        console.log(chalk.yellow('   User operations require full Supabase integration'))
-        break
+    const options = _options || []
 
-      case 'stats':
-        console.log(chalk.blue('📊 User Statistics'))
-        console.log(chalk.yellow('   Statistics require full Supabase integration'))
-        break
+    try {
+      const supabase = await enhancedSupabaseProvider.getClient()
+      if (!supabase || !enhancedSupabaseProvider.isHealthy()) {
+        this.printPanel(
+          boxen('Supabase connection is not ready. Run /supabase connect first.', {
+            title: 'Users',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }),
+          'general'
+        )
+        return
+      }
 
-      default:
-        console.log(chalk.yellow('Available actions: list, stats'))
-        console.log(chalk.dim('Note: User operations coming soon'))
+      const table = this.configManager.getSupabaseConfig().tables.users
+
+      switch (action) {
+        case 'list': {
+          const limit = this.getOptionNumber(options, 'limit', 10)
+          const tier = this.getOptionValue(options, 'tier')
+          const orderBy = (this.getOptionValue(options, 'order') as 'created_at' | 'subscription_tier') || 'created_at'
+
+          let query = supabase.from(table).select('id, email, username, subscription_tier, created_at, updated_at, last_active_at')
+          if (tier) {
+            query = query.eq('subscription_tier', tier)
+          }
+          query = query.order(orderBy, { ascending: false }).limit(limit)
+
+          const { data, error } = await query
+          if (error) throw error
+
+          if (!data?.length) {
+            this.printPanel(
+              boxen('No users match the provided filters.', {
+                title: 'Users',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }),
+              'general'
+            )
+            return
+          }
+
+          const lines = data.map((user, index) => {
+            const tierColor =
+              user.subscription_tier === 'enterprise'
+                ? chalk.green
+                : user.subscription_tier === 'pro'
+                  ? chalk.blue
+                  : chalk.gray
+            return [
+              `${chalk.cyan(`${index + 1}.`)} ${chalk.bold(user.email || user.username || user.id)}`,
+              `   ID: ${chalk.gray(user.id)} | Tier: ${tierColor(user.subscription_tier || 'unknown')}`,
+              `   Created: ${this.formatTimestamp(user.created_at)} | Last Active: ${this.formatTimestamp((user as any).last_active_at)}`,
+            ].join('\n')
+          })
+
+          this.printPanel(
+            boxen(lines.join('\n\n'), {
+              title: `Users (${data.length})`,
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'blue',
+            }),
+            'general'
+          )
+          break
+        }
+
+        case 'stats': {
+          const { data, error } = await supabase.from(table).select('subscription_tier, created_at')
+          if (error) throw error
+
+          const tierCounts: Record<string, number> = {}
+          let oldest: string | null = null
+
+          data?.forEach((row) => {
+            const tierName = row.subscription_tier || 'unknown'
+            tierCounts[tierName] = (tierCounts[tierName] || 0) + 1
+            if (!oldest || new Date(row.created_at) < new Date(oldest)) {
+              oldest = row.created_at
+            }
+          })
+
+          const statsLines = [
+            `${chalk.bold('Total Users:')} ${chalk.cyan(data?.length ?? 0)}`,
+            `${chalk.bold('Free:')} ${tierCounts['free'] ?? 0}   ${chalk.bold('Pro:')} ${tierCounts['pro'] ?? 0}   ${chalk.bold('Enterprise:')} ${tierCounts['enterprise'] ?? 0}`,
+            `${chalk.bold('Oldest Account:')} ${oldest ? this.formatTimestamp(oldest) : '—'}`,
+          ]
+
+          this.printPanel(
+            boxen(statsLines.join('\n'), {
+              title: 'User Stats',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'blue',
+            }),
+            'general'
+          )
+          break
+        }
+
+        default:
+          this.printPanel(
+            boxen('Available user actions: list, stats', {
+              title: 'Users',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }),
+            'general'
+          )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`User command failed: ${error.message}`, {
+          title: 'Users',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }),
+        'general'
+      )
     }
   }
 
   private async handleMetricCommands(action: string, _options: string[]): Promise<void> {
-    switch (action) {
-      case 'list':
-        console.log(chalk.blue('📈 Recent Metrics'))
-        console.log(chalk.yellow('   Metric operations require full Supabase integration'))
-        break
+    const options = _options || []
 
-      case 'stats':
-        console.log(chalk.blue("📊 Today's Metrics"))
-        console.log(chalk.yellow('   Statistics require full Supabase integration'))
-        break
+    try {
+      const supabase = await enhancedSupabaseProvider.getClient()
+      if (!supabase || !enhancedSupabaseProvider.isHealthy()) {
+        this.printPanel(
+          boxen('Supabase connection is not ready. Run /supabase connect first.', {
+            title: 'Metrics',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }),
+          'general'
+        )
+        return
+      }
 
-      default:
-        console.log(chalk.yellow('Available actions: list, stats'))
-        console.log(chalk.dim('Note: Metric operations coming soon'))
+      const table = this.configManager.getSupabaseConfig().tables.metrics
+
+      switch (action) {
+        case 'list': {
+          const limit = this.getOptionNumber(options, 'limit', 10)
+          const eventFilter = this.getOptionValue(options, 'event')
+
+          let query = supabase
+            .from(table)
+            .select('id, event_type, user_id, session_id, timestamp, error_code')
+            .order('timestamp', { ascending: false })
+            .limit(limit)
+
+          if (eventFilter) {
+            query = query.eq('event_type', eventFilter)
+          }
+
+          const { data, error } = await query
+          if (error) throw error
+
+          if (!data?.length) {
+            this.printPanel(
+              boxen('No metrics found for the provided filters.', {
+                title: 'Metrics',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'yellow',
+              }),
+              'general'
+            )
+            return
+          }
+
+          const lines = data.map((metric, index) => {
+            return [
+              `${chalk.cyan(`${index + 1}.`)} ${chalk.bold(metric.event_type)} ${chalk.gray(metric.id)}`,
+              `   User: ${metric.user_id || 'n/a'} | Session: ${metric.session_id || 'n/a'}`,
+              `   Timestamp: ${this.formatTimestamp(metric.timestamp)}${metric.error_code ? chalk.red(` | Error: ${metric.error_code}`) : ''
+              }`,
+            ].join('\n')
+          })
+
+          this.printPanel(
+            boxen(lines.join('\n\n'), {
+              title: `Metrics (${data.length})`,
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'cyan',
+            }),
+            'general'
+          )
+          break
+        }
+
+        case 'stats': {
+          const limit = this.getOptionNumber(options, 'sample', 200)
+          const { data, error } = await supabase
+            .from(table)
+            .select('event_type')
+            .order('timestamp', { ascending: false })
+            .limit(limit)
+          if (error) throw error
+
+          const counts: Record<string, number> = {}
+          data?.forEach((row) => {
+            const key = row.event_type || 'unknown'
+            counts[key] = (counts[key] || 0) + 1
+          })
+
+          const sorted = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+          const lines = sorted.map(([event, count]) => `${chalk.bold(event)}: ${count}`)
+
+          this.printPanel(
+            boxen(
+              [
+                `${chalk.bold('Sample Size:')} ${data?.length ?? 0}`,
+                '',
+                lines.length ? lines.join('\n') : chalk.gray('No metrics recorded yet.'),
+              ].join('\n'),
+              {
+                title: 'Metric Stats',
+                padding: 1,
+                margin: 1,
+                borderStyle: 'round',
+                borderColor: 'cyan',
+              }
+            ),
+            'general'
+          )
+          break
+        }
+
+        default:
+          this.printPanel(
+            boxen('Available metric actions: list, stats', {
+              title: 'Metrics',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            }),
+            'general'
+          )
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Metric command failed: ${error.message}`, {
+          title: 'Metrics',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }),
+        'general'
+      )
     }
   }
 
   private async showDatabaseStats(): Promise<void> {
     try {
-      console.log(chalk.blue('🗃️ Database Statistics'))
-      console.log(chalk.gray('─'.repeat(40)))
-      console.log(chalk.yellow('   Database statistics require full Supabase integration'))
-      console.log(chalk.dim('   Configure Supabase to view detailed statistics'))
+      const supabase = await enhancedSupabaseProvider.getClient()
+      if (!supabase || !enhancedSupabaseProvider.isHealthy()) {
+        this.printPanel(
+          boxen('Supabase connection is not ready. Run /supabase connect first.', {
+            title: 'Database Stats',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }),
+          'general'
+        )
+        return
+      }
+
+      const tables = this.configManager.getSupabaseConfig().tables
+      const [sessions, blueprints, users, metrics] = await Promise.all([
+        supabase.from(tables.sessions).select('id', { count: 'exact', head: true }),
+        supabase.from(tables.blueprints).select('id', { count: 'exact', head: true }),
+        supabase.from(tables.users).select('id', { count: 'exact', head: true }),
+        supabase.from(tables.metrics).select('id', { count: 'exact', head: true }),
+      ])
+
+      if (sessions.error || blueprints.error || users.error || metrics.error) {
+        throw sessions.error || blueprints.error || users.error || metrics.error
+      }
+
+      const sections = [
+        `${chalk.bold('Sessions:')} ${chalk.cyan(sessions.count ?? 0)}`,
+        `${chalk.bold('Blueprints:')} ${chalk.magenta(blueprints.count ?? 0)}`,
+        `${chalk.bold('Users:')} ${chalk.blue(users.count ?? 0)}`,
+        `${chalk.bold('Metrics:')} ${chalk.green(metrics.count ?? 0)}`,
+      ]
+
+      this.printPanel(
+        boxen(sections.join('\n'), {
+          title: 'Database Stats',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        }),
+        'general'
+      )
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to get database stats: ${error.message}`))
+      this.printPanel(
+        boxen(`Failed to get database stats: ${error.message}`, {
+          title: 'Database Stats',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        }),
+        'general'
+      )
     }
   }
 
@@ -17182,8 +18157,21 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const { authProvider } = await import('./providers/supabase/auth-provider')
 
       if (!authProvider.isAuthenticated()) {
-        console.log(chalk.yellow('⚠️ Not signed in'))
-        console.log(chalk.dim('Sign in with: /auth signin'))
+        const panel = boxen(
+          [
+            chalk.yellow('⚠️ Not signed in'),
+            '',
+            chalk.dim('Use /signin or /auth signin to authenticate and load your profile.'),
+          ].join('\n'),
+          {
+            title: 'Profile',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }
+        )
+        this.printPanel(panel, 'general')
         return
       }
 
@@ -17191,47 +18179,100 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       const user = authProvider.getCurrentUser()
 
       if (!profile || !user) {
-        console.log(chalk.red('❌ Could not load profile'))
+        const panel = boxen(
+          chalk.red('❌ Could not load profile from authentication provider'),
+          {
+            title: 'Profile Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          }
+        )
+        this.printPanel(panel, 'general')
         return
       }
 
-      console.log(chalk.blue('👤 User Profile'))
-      console.log(chalk.gray('─'.repeat(40)))
+      const lines: string[] = []
 
-      // Basic Info
-      console.log(chalk.bold('📋 Basic Information'))
-      console.log(`   Email: ${chalk.cyan(profile.email || 'Not provided')}`)
-      console.log(`   Username: ${chalk.cyan(profile.username || 'Not set')}`)
-      console.log(`   Full Name: ${chalk.cyan(profile.full_name || 'Not provided')}`)
-      console.log(`   User ID: ${chalk.dim(user.id)}`)
-      console.log()
+      lines.push(chalk.bold('📋 Basic Information'))
+      lines.push(`  Email: ${chalk.cyan(profile.email || 'Not provided')}`)
+      lines.push(`  Username: ${chalk.cyan(profile.username || 'Not set')}`)
+      lines.push(`  Full Name: ${chalk.cyan(profile.full_name || 'Not provided')}`)
+      lines.push(`  User ID: ${chalk.dim(user.id)}`)
+      lines.push('')
 
-      // Subscription Info
-      console.log(chalk.bold('💎 Subscription'))
       const tierColor =
-        profile.subscription_tier === 'free' ? 'yellow' : profile.subscription_tier === 'pro' ? 'blue' : 'green'
-      console.log(`   Tier: ${chalk[tierColor](profile.subscription_tier.toUpperCase())}`)
-      console.log()
+        profile.subscription_tier === 'free' ? chalk.yellow : profile.subscription_tier === 'pro' ? chalk.blue : chalk.green
+      lines.push(chalk.bold('💎 Subscription'))
+      lines.push(`  Tier: ${tierColor(profile.subscription_tier.toUpperCase())}`)
+      lines.push('')
 
-      // Preferences
-      console.log(chalk.bold('� Preferences'))
-      console.log(`   Theme: ${chalk.cyan(profile.preferences.theme)}`)
-      console.log(`   Language: ${chalk.cyan(profile.preferences.language)}`)
-      console.log(`   Notifications: ${profile.preferences.notifications ? chalk.green('✓ On') : chalk.gray('❌ Off')}`)
-      console.log(`   Analytics: ${profile.preferences.analytics ? chalk.green('✓ On') : chalk.gray('❌ Off')}`)
-      console.log()
+      lines.push(chalk.bold('🎛 Preferences'))
+      lines.push(`  Theme: ${chalk.cyan(profile.preferences.theme)}`)
+      lines.push(`  Language: ${chalk.cyan(profile.preferences.language)}`)
+      lines.push(
+        `  Notifications: ${profile.preferences.notifications ? chalk.green('✓ On') : chalk.gray('❌ Off')
+        }`
+      )
+      lines.push(
+        `  Analytics: ${profile.preferences.analytics ? chalk.green('✓ On') : chalk.gray('❌ Off')}`
+      )
+      lines.push('')
 
-      // Account Info
-      console.log(chalk.bold('📅 Account Information'))
-      console.log(`   Account Created: ${new Date(user.created_at).toLocaleString()}`)
-      console.log(
-        `   Last Sign In: ${(user as any).last_sign_in_at ? new Date((user as any).last_sign_in_at).toLocaleString() : 'Never'}`
+      lines.push(chalk.bold('📅 Account Information'))
+      lines.push(`  Account Created: ${new Date(user.created_at).toLocaleString()}`)
+      lines.push(
+        `  Last Sign In: ${(user as any).last_sign_in_at
+          ? new Date((user as any).last_sign_in_at).toLocaleString()
+          : 'Never'
+        }`
       )
-      console.log(
-        `   Email Verified: ${(user as any).email_confirmed_at ? chalk.green('✓ Yes') : chalk.yellow('⚠️ Pending')}`
+      lines.push(
+        `  Email Verified: ${(user as any).email_confirmed_at ? chalk.green('✓ Yes') : chalk.yellow('⚠️ Pending')
+        }`
       )
+
+      // Quotas & usage (compact summary, full details remain under /auth quotas)
+      if (profile.quotas && profile.usage) {
+        lines.push('')
+        lines.push(chalk.bold('📊 Usage (This Month)'))
+        lines.push(
+          `  Sessions: ${chalk.cyan(
+            `${profile.usage.sessionsThisMonth}/${profile.quotas.sessionsPerMonth}`
+          )}`
+        )
+        lines.push(
+          `  Tokens: ${chalk.cyan(
+            `${profile.usage.tokensThisMonth}/${profile.quotas.tokensPerMonth}`
+          )}`
+        )
+        lines.push(
+          `  API Calls (hour): ${chalk.cyan(
+            `${profile.usage.apiCallsThisHour}/${profile.quotas.apiCallsPerHour}`
+          )}`
+        )
+      }
+
+      const panel = boxen(lines.join('\n'), {
+        title: 'User Profile',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+        width: Math.min(120, (process.stdout.columns || 100) - 4),
+      })
+
+      this.printPanel(panel, 'general')
     } catch (error: any) {
-      console.log(chalk.red(`❌ Failed to load profile: ${error.message}`))
+      const panel = boxen(`Failed to load profile: ${error.message}`, {
+        title: 'Profile Error',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'red',
+      })
+      this.printPanel(panel, 'general')
     }
   }
 

@@ -15,6 +15,9 @@ import { getLightweightInference } from '../ai/lightweight-inference-layer'
 // 🤖 Import ML Toolchain Optimizer
 import type { ToolchainOptimizer } from '../ml/toolchain-optimizer'
 
+// 📊 Import Structured Logger
+import { structuredLogger } from '../utils/structured-logger'
+
 // 🔧 Enhanced Tool Routing Schemas
 const ToolSecurityLevel = z.enum(['safe', 'moderate', 'risky', 'dangerous'])
 const ToolCategory = z.enum(['file', 'command', 'search', 'analysis', 'git', 'package', 'ide', 'ai', 'blockchain'])
@@ -875,8 +878,21 @@ export class ToolRouter extends EventEmitter {
           if (mlPrediction.confidence > 0.75) {
             // Boost ML-predicted tools in the candidates list
             mlEnhancedTools = this.applyMLBoost(toolCandidates, mlPrediction)
+            structuredLogger.debug('ML Tool Routing', '🤖 ML-Enhanced Tool Selection Active', {
+              mlConfidence: mlPrediction.confidence,
+              predictedTools: mlPrediction.tools,
+              inputIntent: context.userIntent.substring(0, 100),
+              totalCandidates: toolCandidates.length,
+              enhancedCandidates: mlEnhancedTools.length
+            })
+          } else {
+            structuredLogger.debug('ML Tool Routing', '⚠️ ML Confidence Below Threshold', {
+              mlConfidence: mlPrediction.confidence,
+              threshold: 0.75
+            })
           }
-        } catch {
+        } catch (error: any) {
+          structuredLogger.warn('ML Tool Routing', `⚠️ ML prediction failed: ${error.message}`)
           // Silent ML failure - use rule-based routing
         }
       }
@@ -1730,10 +1746,12 @@ export class ToolRouter extends EventEmitter {
   ): AdvancedToolRecommendation[] {
     // Create a map of predicted tools for quick lookup
     const predictedToolSet = new Set(mlPrediction.tools)
+    const boostedTools: string[] = []
 
     // Boost confidence for ML-predicted tools
     const boosted = candidates.map((candidate) => {
       if (predictedToolSet.has(candidate.tool)) {
+        boostedTools.push(candidate.tool)
         return {
           ...candidate,
           confidence: Math.min(candidate.confidence + 0.15, 1),
@@ -1744,7 +1762,19 @@ export class ToolRouter extends EventEmitter {
     })
 
     // Sort by confidence descending
-    return boosted.sort((a, b) => b.confidence - a.confidence)
+    const sorted = boosted.sort((a, b) => b.confidence - a.confidence)
+
+    // Log ML boost details
+    if (boostedTools.length > 0) {
+      structuredLogger.debug('ML Boost', '✓ ML-predicted tools boosted', {
+        boostedTools,
+        confidenceBoost: '+0.15',
+        totalCandidates: candidates.length,
+        boostedCount: boostedTools.length
+      })
+    }
+
+    return sorted
   }
 
   // ====================== 📊 ANALYTICS AND MONITORING ======================

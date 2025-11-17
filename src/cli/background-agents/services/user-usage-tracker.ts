@@ -246,7 +246,6 @@ export class UserUsageTracker {
         jobsCompleted: acc.jobsCompleted + record.jobsCompleted,
         toolCalls: acc.toolCalls + record.toolCalls,
         adImpressions: acc.adImpressions + (record.adMetrics?.impressions || 0),
-        tokenCreditsFromAds: acc.tokenCreditsFromAds + (record.adMetrics?.tokenCreditsEarned || 0),
       }),
       {
         aiCalls: 0,
@@ -255,7 +254,6 @@ export class UserUsageTracker {
         jobsCompleted: 0,
         toolCalls: 0,
         adImpressions: 0,
-        tokenCreditsFromAds: 0,
       }
     )
 
@@ -366,6 +364,7 @@ export function getUserUsageTracker(): UserUsageTracker {
   }
   return userUsageTrackerInstance
 }
+
 
 
 

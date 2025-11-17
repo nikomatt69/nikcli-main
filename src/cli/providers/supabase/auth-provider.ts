@@ -161,6 +161,10 @@ export class AuthProvider extends EventEmitter {
       this.currentSession = session
       this.currentProfile = profile
 
+      // Reset usage counters if periods have expired
+      this.resetMonthlyUsageIfNeeded()
+      this.resetHourlyUsageIfNeeded()
+
       // Persist session if enabled
       if (this.config.persistSession && options?.rememberMe !== false) {
         await this.persistSession(session, profile)
@@ -428,7 +432,7 @@ export class AuthProvider extends EventEmitter {
   }
 
   /**
-   * Record usage
+   * Record usage - Updates in-memory profile AND persists to database
    */
   async recordUsage(usageType: 'sessions' | 'tokens' | 'apiCalls', amount: number = 1): Promise<void> {
     if (!this.currentProfile) return
@@ -449,6 +453,22 @@ export class AuthProvider extends EventEmitter {
 
     await this.updateProfile(updatedProfile)
 
+    // Persist usage to database
+    try {
+      if (this.supabase && this.currentProfile?.id) {
+        const client = (this.supabase as any).client
+        if (client) {
+          await client
+            .from('user_profiles')
+            .update({ usage: updatedProfile.usage })
+            .eq('id', this.currentProfile.id)
+        }
+      }
+    } catch (error: any) {
+      // Usage persistence is best-effort; log but don't break flow
+      console.debug(`[auth-provider] Failed to persist ${usageType} usage to database:`, error.message)
+    }
+
     // Record metric
     await this.recordAuthMetric('usage', {
       userId: this.currentProfile.id,
@@ -456,6 +476,71 @@ export class AuthProvider extends EventEmitter {
       amount,
       timestamp: new Date().toISOString(),
     })
+  }
+
+  /**
+   * Reset usage counters if monthly period has expired
+   */
+  resetMonthlyUsageIfNeeded(): void {
+    if (!this.currentProfile) return
+
+    const lastResetMonth = this.currentProfile.usage.lastResetMonth
+    const today = new Date()
+    const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+
+    if (lastResetMonth !== currentMonth) {
+      this.currentProfile.usage.sessionsThisMonth = 0
+      this.currentProfile.usage.tokensThisMonth = 0
+      this.currentProfile.usage.lastResetMonth = currentMonth
+
+      // Attempt to persist to database
+      try {
+        if (this.supabase && this.currentProfile?.id) {
+          const client = (this.supabase as any).client
+          if (client) {
+            client
+              .from('user_profiles')
+              .update({ usage: this.currentProfile.usage })
+              .eq('id', this.currentProfile.id)
+              .catch((err: any) => console.debug('[auth-provider] Failed to persist monthly reset:', err.message))
+          }
+        }
+      } catch (error) {
+        console.debug('[auth-provider] Error during monthly usage reset:', error)
+      }
+    }
+  }
+
+  /**
+   * Reset usage counters if hourly period has expired
+   */
+  resetHourlyUsageIfNeeded(): void {
+    if (!this.currentProfile) return
+
+    const lastResetHour = this.currentProfile.usage.lastResetHour
+    const today = new Date()
+    const currentHour = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} ${String(today.getHours()).padStart(2, '0')}:00`
+
+    if (lastResetHour !== currentHour) {
+      this.currentProfile.usage.apiCallsThisHour = 0
+      this.currentProfile.usage.lastResetHour = currentHour
+
+      // Attempt to persist to database
+      try {
+        if (this.supabase && this.currentProfile?.id) {
+          const client = (this.supabase as any).client
+          if (client) {
+            client
+              .from('user_profiles')
+              .update({ usage: this.currentProfile.usage })
+              .eq('id', this.currentProfile.id)
+              .catch((err: any) => console.debug('[auth-provider] Failed to persist hourly reset:', err.message))
+          }
+        }
+      } catch (error) {
+        console.debug('[auth-provider] Error during hourly usage reset:', error)
+      }
+    }
   }
 
   // ===== PRIVATE METHODS =====
@@ -533,6 +618,10 @@ export class AuthProvider extends EventEmitter {
             this.currentSession = session
             this.currentProfile = profile
 
+            // Reset usage counters if periods have expired
+            this.resetMonthlyUsageIfNeeded()
+            this.resetHourlyUsageIfNeeded()
+
             // Save credentials for next time
             simpleConfigManager.saveAuthCredentials({
               accessToken: session.accessToken,
@@ -574,6 +663,10 @@ export class AuthProvider extends EventEmitter {
             this.currentSession = session
             this.currentProfile = profile
 
+            // Reset usage counters if periods have expired
+            this.resetMonthlyUsageIfNeeded()
+            this.resetHourlyUsageIfNeeded()
+
             // Update saved credentials with fresh tokens
             simpleConfigManager.saveAuthCredentials({
               accessToken: session.accessToken,
@@ -610,9 +703,56 @@ export class AuthProvider extends EventEmitter {
    * Load user profile
    */
   private async loadUserProfile(userId: string): Promise<UserProfile | null> {
+    // Prefer the database as source of truth for subscription tier and quotas,
+    // then fall back to cached profile if the DB is unavailable.
+    try {
+      const client = (this.supabase as any).client as any
+      if (client) {
+        const { data, error } = await client.from('user_profiles').select('*').eq('id', userId).single()
+
+        if (!error && data) {
+          const dbProfile = data as any
+
+          const profile: UserProfile = {
+            id: dbProfile.id,
+            email: dbProfile.email ?? undefined,
+            username: dbProfile.username ?? dbProfile.email?.split?.('@')?.[0],
+            full_name: dbProfile.full_name ?? undefined,
+            avatar_url: dbProfile.avatar_url ?? undefined,
+            subscription_tier: dbProfile.subscription_tier ?? 'free',
+            preferences: {
+              theme: (dbProfile.preferences?.theme ?? 'auto') as 'light' | 'dark' | 'auto',
+              language: dbProfile.preferences?.language ?? 'en',
+              notifications: dbProfile.preferences?.notifications ?? true,
+              analytics: dbProfile.preferences?.analytics ?? true,
+            },
+            notification_settings: dbProfile.notification_settings ?? undefined,
+            quotas: {
+              sessionsPerMonth: dbProfile.quotas?.sessionsPerMonth ?? 100,
+              tokensPerMonth: dbProfile.quotas?.tokensPerMonth ?? 10000,
+              apiCallsPerHour: dbProfile.quotas?.apiCallsPerHour ?? 60,
+            },
+            usage: {
+              sessionsThisMonth: dbProfile.usage?.sessionsThisMonth ?? 0,
+              tokensThisMonth: dbProfile.usage?.tokensThisMonth ?? 0,
+              apiCallsThisHour: dbProfile.usage?.apiCallsThisHour ?? 0,
+            },
+          }
+
+          await cacheService.set(`profile:${userId}`, profile, 'auth', {
+            ttl: this.config.sessionTTL,
+          })
+
+          return profile
+        }
+      }
+    } catch (_dbError) {
+      // Fall back to cache if DB fetch fails
+    }
+
     try {
       const cached = await cacheService.get<UserProfile>(`profile:${userId}`, 'auth')
-      return cached
+      return cached || null
     } catch (_error) {
       return null
     }
@@ -648,6 +788,37 @@ export class AuthProvider extends EventEmitter {
         tokensThisMonth: 0,
         apiCallsThisHour: 0,
       },
+    }
+
+    // Persist profile in Supabase so that subscription updates (e.g., Pro plan)
+    // are always reflected across environments.
+    try {
+      const client = (this.supabase as any).client as any
+      if (client) {
+        await client.from('user_profiles').insert({
+          id: profile.id,
+          email: profile.email,
+          username: profile.username,
+          full_name: profile.full_name,
+          avatar_url: profile.avatar_url,
+          subscription_tier: profile.subscription_tier,
+          preferences: profile.preferences,
+          notification_settings: profile.notification_settings,
+          quotas: profile.quotas,
+          usage: profile.usage,
+        })
+      }
+    } catch (_dbError) {
+      // Profile creation in DB is best-effort; continue with in-memory profile.
+    }
+
+    // Cache profile for faster access during the session
+    try {
+      await cacheService.set(`profile:${user.id}`, profile, 'auth', {
+        ttl: this.config.sessionTTL,
+      })
+    } catch (_cacheError) {
+      // Ignore cache failures
     }
 
     return profile

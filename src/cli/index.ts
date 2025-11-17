@@ -1903,8 +1903,10 @@ class StreamingModule extends EventEmitter {
 class MainOrchestrator {
   private streamingModule?: StreamingModule
   private initialized = false
+  private skipOnboarding: boolean
 
-  constructor() {
+  constructor(skipOnboarding: boolean = false) {
+    this.skipOnboarding = skipOnboarding
     this.setupGlobalHandlers()
   }
 
@@ -1950,11 +1952,13 @@ class MainOrchestrator {
       Logger.setConsoleOutput(false)
       UtilsLogger.getInstance().setConsoleOutput(false)
 
-      // Run onboarding flow
-      const onboardingComplete = await OnboardingModule.runOnboarding()
-      if (!onboardingComplete) {
-        advancedUI.logWarning('\nOnboarding incomplete. Please address the issues above.')
-        process.exit(1)
+      // Run onboarding flow (skip if --skip-onboarding or --no-interactive flag is set)
+      if (!this.skipOnboarding) {
+        const onboardingComplete = await OnboardingModule.runOnboarding()
+        if (!onboardingComplete) {
+          advancedUI.logWarning('\nOnboarding incomplete. Please address the issues above.')
+          process.exit(1)
+        }
       }
 
       // Initialize all systems
@@ -2046,7 +2050,10 @@ async function main() {
     }
   }
 
-  const orchestrator = new MainOrchestrator()
+  // Check for --skip-onboarding or --no-interactive flag
+  const skipOnboarding = argv.includes('--skip-onboarding') || argv.includes('--no-interactive')
+
+  const orchestrator = new MainOrchestrator(skipOnboarding)
   await orchestrator.start()
 }
 

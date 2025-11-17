@@ -220,6 +220,9 @@ export class SlashCommandHandler {
     this.commands.set('config', this.configCommand.bind(this))
     this.commands.set('env', this.envCommand.bind(this))
     this.commands.set('notify', this.notifyCommand.bind(this))
+    this.commands.set('supabase', this.supabaseCommand.bind(this))
+    this.commands.set('db', this.databaseCommand.bind(this))
+    this.commands.set('session-sync', this.sessionSyncCommand.bind(this))
 
     // Output Style Commands
     this.commands.set('style', this.styleCommand.bind(this))
@@ -229,6 +232,8 @@ export class SlashCommandHandler {
     this.commands.set('export', this.exportCommand.bind(this))
     this.commands.set('system', this.systemCommand.bind(this))
     this.commands.set('stats', this.statsCommand.bind(this))
+    this.commands.set('ml-status', this.mlStatusCommand.bind(this))
+    this.commands.set('ml', this.mlStatusCommand.bind(this))
     this.commands.set('temp', this.temperatureCommand.bind(this))
     this.commands.set('history', this.historyCommand.bind(this))
     this.commands.set('debug', this.debugCommand.bind(this))
@@ -387,10 +392,18 @@ export class SlashCommandHandler {
     // Advertising system commands
     this.commands.set('ads', this.adsCommand.bind(this))
 
+    // User profile and dashboard commands
+    this.commands.set('profile', this.profileCommand.bind(this))
+    this.commands.set('dashboard', this.profileCommand.bind(this))
+
     // Sandbox command execution
     this.commands.set('run', this.runCommand.bind(this))
     this.commands.set('exec', this.execCommand.bind(this))
     this.commands.set('sandbox', this.sandboxCommand.bind(this))
+
+    // Benchmark commands
+    this.commands.set('benchmark', this.benchmarkCommand.bind(this))
+    this.commands.set('bench', this.benchmarkCommand.bind(this))
 
     // Edit history commands (undo/redo)
     this.commands.set('undo', this.undoCommand.bind(this))
@@ -477,6 +490,11 @@ ${chalk.cyan('/cache [stats|clear|settings]')} - Manage token cache system
 ${chalk.cyan('/redis-enable')} - Enable Redis caching
 ${chalk.cyan('/redis-disable')} - Disable Redis caching
 ${chalk.cyan('/redis-status')} - Show Redis cache status
+
+${chalk.blue.bold('Cloud & Sync:')}
+${chalk.cyan('/supabase [connect|health|features]')} - Manage Supabase connection
+${chalk.cyan('/db <resource> <action>')} - Inspect Supabase data (sessions, blueprints, users, metrics)
+${chalk.cyan('/session-sync [push|pull|status]')} - Sync local sessions with Supabase
 
 ${chalk.blue.bold('Session Management:')}
 ${chalk.cyan('/sessions')} - List all chat sessions
@@ -655,7 +673,6 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
     try {
       const { authProvider } = await import('../providers/supabase/auth-provider')
-      const readline = await import('readline')
 
       if (sub === 'help' || sub === '-h') {
         const panel = boxen(
@@ -712,70 +729,62 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       // Sign in or sign up flow
       const isSignUp = sub === 'signup'
-      const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-      })
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('../core/input-queue')
 
-      const email = await new Promise<string>((resolve) => {
-        rl.question(chalk.blue('Email: '), resolve)
-      })
+      nik?.beginPanelOutput?.()
+      this.cliInstance.printPanel(
+        boxen(
+          isSignUp
+            ? 'Create a new account to access premium features.'
+            : 'Sign in with your email and password.',
+          {
+            title: isSignUp ? '📝 Create Account' : '🔐 Sign In',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'blue',
+          }
+        )
+      )
+      nik?.endPanelOutput?.()
 
-      if (!email) {
-        rl.close()
-        console.log(chalk.yellow('⚠️ Email required'))
-        return { shouldExit: false, shouldUpdatePrompt: false }
+      // Suspend prompt for interactive input
+      nik?.suspendPrompt?.()
+      inputQueue.enableBypass()
+
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'email',
+            message: 'Email address',
+            validate: (input) => {
+              return input.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
+                ? true
+                : 'Please enter a valid email address'
+            },
+          },
+          {
+            type: 'password',
+            name: 'password',
+            message: 'Password',
+            mask: '*',
+            validate: (input) => {
+              return input.length >= 6 ? true : 'Password must be at least 6 characters'
+            },
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        nik?.renderPromptAfterOutput?.()
       }
 
-      // Read password with hidden input
-      const password = await new Promise<string>((resolve) => {
-        const { stdin, stdout } = process
-        const password: string[] = []
+      const { email, password } = answers
 
-        const onData = (buf: Buffer) => {
-          const char = buf.toString()
-          switch (char) {
-            case '\n':
-            case '\r':
-            case '\u0004':
-              stdout.write('\n')
-              stdin.setRawMode(false)
-              stdin.pause()
-              stdin.removeListener('data', onData)
-              resolve(password.join(''))
-              break
-            case '\u0003':
-              stdout.write('\n')
-              stdin.setRawMode(false)
-              stdin.pause()
-              stdin.removeListener('data', onData)
-              process.exit(130)
-              break
-            case '\u007f':
-            case '\b':
-              if (password.length > 0) {
-                password.pop()
-                stdout.write('\b \b')
-              }
-              break
-            default:
-              if (char.charCodeAt(0) >= 32) {
-                password.push(char)
-                stdout.write('*')
-              }
-          }
-        }
-
-        stdout.write(chalk.blue('Password: '))
-        stdin.setRawMode(true)
-        stdin.resume()
-        stdin.on('data', onData)
-      })
-
-      rl.close()
-
-      if (!password) {
-        console.log(chalk.yellow('⚠️ Password required'))
+      if (!email || !password) {
+        console.log(chalk.yellow('⚠️ Email and password required'))
         return { shouldExit: false, shouldUpdatePrompt: false }
       }
 
@@ -827,6 +836,51 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.error(chalk.red(`Error: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
+  }
+
+  private async supabaseCommand(args: string[] = []): Promise<CommandResult> {
+    if (!this.cliInstance) {
+      console.log(chalk.yellow('⚠️ Supabase commands are available only inside the interactive CLI.'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const handler = (this.cliInstance as any)?.handleSupabaseCommands
+    if (typeof handler === 'function') {
+      await handler.call(this.cliInstance, 'supabase', args)
+    } else {
+      console.log(chalk.red('❌ Supabase handler unavailable in this context.'))
+    }
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async databaseCommand(args: string[] = []): Promise<CommandResult> {
+    if (!this.cliInstance) {
+      console.log(chalk.yellow('⚠️ Database commands require the interactive CLI.'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const handler = (this.cliInstance as any)?.handleSupabaseCommands
+    if (typeof handler === 'function') {
+      await handler.call(this.cliInstance, 'db', args)
+    } else {
+      console.log(chalk.red('❌ Database handler unavailable in this context.'))
+    }
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async sessionSyncCommand(args: string[] = []): Promise<CommandResult> {
+    if (!this.cliInstance) {
+      console.log(chalk.yellow('⚠️ Session sync is only available inside the NikCLI interface.'))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const handler = (this.cliInstance as any)?.handleSupabaseCommands
+    if (typeof handler === 'function') {
+      await handler.call(this.cliInstance, 'session-sync', args)
+    } else {
+      console.log(chalk.red('❌ Session sync handler unavailable in this context.'))
+    }
+    return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
   private async proCommand(args: string[] = []): Promise<CommandResult> {
@@ -2148,6 +2202,84 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         borderColor: 'blue',
       })
     )
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  private async mlStatusCommand(args: string[]): Promise<CommandResult> {
+    const boxen = (await import('boxen')).default
+
+    if (!this.cliInstance || !typeof this.cliInstance.getMLStatus === 'function') {
+      this.printPanel(
+        boxen('ML System status unavailable - CLI instance not initialized', {
+          title: '❌ ML System Status',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const mlStatusData = this.cliInstance.getMLStatus()
+      const mlStatus = {
+        featureExtractor: mlStatusData.featureExtractor ? '✓ Active' : '✗ Inactive',
+        mlInferenceEngine: mlStatusData.mlInferenceEngine ? '✓ Active' : '✗ Inactive',
+        evaluationPipeline: mlStatusData.evaluationPipeline ? '✓ Active' : '✗ Inactive',
+        toolchainOptimizer: mlStatusData.toolchainOptimizer ? '✓ Active' : '✗ Inactive',
+        dynamicToolSelector: mlStatusData.dynamicToolSelector ? '✓ Active' : '✗ Inactive',
+      }
+
+      const allActive = mlStatusData.allComponentsActive
+
+      const content = [
+        allActive ? chalk.green('🤖 ML Toolchain: FULLY OPERATIONAL') : chalk.yellow('🤖 ML Toolchain: PARTIAL'),
+        '',
+        `Feature Extractor:    ${mlStatus.featureExtractor}`,
+        `ML Inference Engine:  ${mlStatus.mlInferenceEngine}`,
+        `Evaluation Pipeline:  ${mlStatus.evaluationPipeline}`,
+        `Toolchain Optimizer:  ${mlStatus.toolchainOptimizer}`,
+        `Dynamic Tool Selector: ${mlStatus.dynamicToolSelector}`,
+        '',
+        allActive ? chalk.green('All components initialized and active') : chalk.yellow('Some components not initialized'),
+      ].join('\n')
+
+      this.printPanel(
+        boxen(content, {
+          title: '🤖 ML System Status',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: allActive ? 'green' : 'yellow',
+        })
+      )
+
+      // Log additional details if verbose flag
+      if (args.includes('--verbose') || args.includes('-v')) {
+        const details = [
+          chalk.cyan('ML System Details:'),
+          `  • Feature extraction active: ${mlStatus.featureExtractor.includes('✓')}`,
+          `  • Tool prediction active: ${mlStatus.mlInferenceEngine.includes('✓')}`,
+          `  • Performance evaluation active: ${mlStatus.evaluationPipeline.includes('✓')}`,
+          `  • Optimization active: ${mlStatus.toolchainOptimizer.includes('✓')}`,
+          `  • Dynamic selection active: ${mlStatus.dynamicToolSelector.includes('✓')}`,
+        ].join('\n')
+
+        console.log('\n' + details + '\n')
+      }
+    } catch (error: any) {
+      this.printPanel(
+        boxen(`Error checking ML status: ${error.message}`, {
+          title: '❌ ML Status Check Failed',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
@@ -12167,6 +12299,190 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       return { shouldExit: false, shouldUpdatePrompt: false }
     } catch (error: any) {
       console.error(chalk.red(`❌ /sandbox failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * /profile command - Display user profile dashboard with usage statistics
+   */
+  private async profileCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const { authProvider } = await import('../providers/supabase/auth-provider')
+      const profile = authProvider.getCurrentProfile()
+      const currentUser = authProvider.getCurrentUser()
+
+      if (!currentUser || !profile) {
+        const panel = boxen(
+          chalk.yellow('⚠️ Not authenticated'),
+          {
+            title: 'Profile',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          }
+        )
+        if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+          this.cliInstance.printPanel(panel)
+        } else {
+          console.log(panel)
+        }
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Calculate quota percentages
+      const sessionPercent = Math.round((profile.usage.sessionsThisMonth / profile.quotas.sessionsPerMonth) * 100)
+      const tokenPercent = Math.round((profile.usage.tokensThisMonth / profile.quotas.tokensPerMonth) * 100)
+      const apiPercent = Math.round((profile.usage.apiCallsThisHour / profile.quotas.apiCallsPerHour) * 100)
+
+      // Color code based on usage percentage
+      const getUsageColor = (percent: number) => {
+        if (percent >= 100) return chalk.red
+        if (percent >= 80) return chalk.yellow
+        return chalk.green
+      }
+
+      const sessionColor = getUsageColor(sessionPercent)
+      const tokenColor = getUsageColor(tokenPercent)
+      const apiColor = getUsageColor(apiPercent)
+
+      const panel = boxen(
+        chalk.cyan.bold(`👤 User Profile\n\n`) +
+        chalk.gray(`Email: ${chalk.cyan(profile.email || 'N/A')}\n`) +
+        chalk.gray(`Username: ${chalk.cyan(profile.username || 'N/A')}\n`) +
+        chalk.gray(`Tier: ${chalk.cyan(profile.subscription_tier.toUpperCase())}\n`) +
+        chalk.gray(`Member Since: ${chalk.cyan(new Date(profile.created_at).toLocaleDateString())}\n\n`) +
+        chalk.cyan.bold(`⚙️ Preferences\n\n`) +
+        chalk.gray(`Theme: ${chalk.cyan(profile.preferences.theme)}\n`) +
+        chalk.gray(`Notifications: ${profile.preferences.notifications ? chalk.green('✓ Enabled') : chalk.red('✗ Disabled')}\n`) +
+        chalk.gray(`Analytics: ${profile.preferences.analytics ? chalk.green('✓ Enabled') : chalk.red('✗ Disabled')}\n\n`) +
+        chalk.cyan.bold(`📊 Usage & Quotas\n\n`) +
+        chalk.gray(`Sessions: `) + sessionColor(`${profile.usage.sessionsThisMonth}/${profile.quotas.sessionsPerMonth}`) + chalk.gray(` (${sessionColor(sessionPercent + '%')})\n`) +
+        chalk.gray(`Tokens: `) + tokenColor(`${profile.usage.tokensThisMonth}/${profile.quotas.tokensPerMonth}`) + chalk.gray(` (${tokenColor(tokenPercent + '%')})\n`) +
+        chalk.gray(`API Calls/Hour: `) + apiColor(`${profile.usage.apiCallsThisHour}/${profile.quotas.apiCallsPerHour}`) + chalk.gray(` (${apiColor(apiPercent + '%')})\n`),
+        {
+          title: '📋 User Dashboard',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        }
+      )
+
+      if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+        this.cliInstance.printPanel(panel)
+      } else {
+        console.log(panel)
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.error(chalk.red(`❌ /profile failed: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
+  /**
+   * /benchmark - Run external SWE-Benchmark system
+   */
+  private async benchmarkCommand(args: string[]): Promise<CommandResult> {
+    try {
+      const { spawn } = await import('child_process')
+      const benchmarkDir = await import('path').then((m) => m.join(process.cwd(), 'benchmark'))
+
+      // Get benchmark type argument or default to 'all'
+      const benchmarkType = args[0] || 'all'
+      const validTypes = ['quick', 'extended', 'all', 'swebenech']
+      const commandMap: Record<string, string> = {
+        quick: 'ai-benchmark:quick',
+        extended: 'ai-benchmark:extended',
+        all: 'ai-benchmark:all',
+        swebenech: 'ai-benchmark:swebenech',
+      }
+
+      if (!validTypes.includes(benchmarkType)) {
+        console.log(
+          chalk.red(
+            `❌ Invalid benchmark type: ${benchmarkType}\nValid options: ${validTypes.join(', ')}`
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const command = commandMap[benchmarkType] || 'ai-benchmark'
+
+      // Display info about benchmark
+      const panel = boxen(
+        chalk.cyan(
+          `🚀 Running AI Code Generation Benchmark\n\n${chalk.gray('Type:')} ${chalk.white(benchmarkType.toUpperCase())}\n${chalk.gray('Dataset:')} ${chalk.white(benchmarkType === 'swebenech' ? 'SWE-Bench (3 tasks)' : 'HumanEval (Official)')}\n${chalk.gray('Status:')} ${chalk.yellow('Initializing...')}`
+        ),
+        {
+          title: '📊 AI Benchmark',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        }
+      )
+
+      if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+        this.cliInstance.printPanel(panel)
+      } else {
+        console.log(panel)
+      }
+
+      // Spawn benchmark process
+      const benchmarkProcess = spawn('npm', ['run', command], {
+        cwd: benchmarkDir,
+        stdio: 'inherit',
+        shell: true,
+      })
+
+      // Wait for process to complete
+      const exitCode = await new Promise<number>((resolve) => {
+        benchmarkProcess.on('close', (code) => {
+          resolve(code || 0)
+        })
+        benchmarkProcess.on('error', (error) => {
+          console.error(chalk.red(`❌ Benchmark process error: ${error.message}`))
+          resolve(1)
+        })
+      })
+
+      if (exitCode === 0) {
+        const completionPanel = boxen(chalk.green('✅ Benchmark completed successfully!'), {
+          title: '📊 Benchmark',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+
+        if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+          this.cliInstance.printPanel(completionPanel)
+        } else {
+          console.log(completionPanel)
+        }
+      } else {
+        const errorPanel = boxen(chalk.red(`❌ Benchmark failed with exit code ${exitCode}`), {
+          title: '📊 Benchmark',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+
+        if (this.cliInstance && typeof this.cliInstance.printPanel === 'function') {
+          this.cliInstance.printPanel(errorPanel)
+        } else {
+          console.log(errorPanel)
+        }
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.error(chalk.red(`❌ /benchmark failed: ${error.message}`))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
   }
