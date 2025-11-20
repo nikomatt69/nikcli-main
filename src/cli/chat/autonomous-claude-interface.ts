@@ -124,7 +124,7 @@ export class AutonomousClaudeInterface {
     if (process.stdin.isTTY) {
       require('readline').emitKeypressEvents(process.stdin)
       rawModeManager.pushRawMode(true)
-      ; (process.stdin as any).resume()
+        ; (process.stdin as any).resume()
     }
 
     // Handle keypress events for interactive features
@@ -323,7 +323,7 @@ export class AutonomousClaudeInterface {
     }
 
     // Show which keys are available
-    const availableKeys = []
+    const availableKeys: string[] = [];
     if (hasAnthropicKey) availableKeys.push(chalk.green('✓ Claude'))
     if (hasOpenAIKey) availableKeys.push(chalk.green('✓ GPT'))
     if (hasGoogleKey) availableKeys.push(chalk.green('✓ Gemini'))
@@ -877,7 +877,7 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
     if (!args) return ''
 
     // Format key arguments for display
-    const keyArgs = []
+    const keyArgs: string[] = []
     if (args.path) keyArgs.push(chalk.blue(args.path))
     if (args.command) keyArgs.push(chalk.yellow(args.command))
     if (args.packages) keyArgs.push(chalk.green(args.packages.join(', ')))
@@ -1473,7 +1473,8 @@ You are NOT a cautious assistant - you are a proactive, autonomous developer who
    * Update prompt indicators for current modes
    */
   private updatePromptIndicators(): string[] {
-    const indicators = []
+    const indicators = [] as string[];
+
 
     if (this.session.planMode) indicators.push(chalk.cyan('plan'))
     if (this.session.autoAcceptEdits) indicators.push(chalk.green('auto-accept'))

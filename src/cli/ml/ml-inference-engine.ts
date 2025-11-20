@@ -31,7 +31,6 @@ class MLInferenceEngine {
   private initialized = false;
 
   // Simple in-memory model weights (production would load serialized models)
-  private toolSelectorWeights: Map<string, number> = new Map();
   private successPredictorWeights: Map<string, number> = new Map();
 
   constructor() {
@@ -45,9 +44,9 @@ class MLInferenceEngine {
       this.initializeDefaultWeights();
 
       this.initialized = true;
-      structuredLogger.info('MLInferenceEngine initialized');
+      structuredLogger.info('MLInferenceEngine initialized', 'MLInferenceEngine');
     } catch (error) {
-      structuredLogger.error('Failed to initialize MLInferenceEngine', { error });
+      structuredLogger.error('Failed to initialize MLInferenceEngine', `MLInferenceEngine ${error}`);
       throw error;
     }
   }
@@ -96,7 +95,7 @@ class MLInferenceEngine {
 
       return result;
     } catch (error) {
-      structuredLogger.warn('Tool prediction inference failed', { error });
+      structuredLogger.warning('Tool prediction inference failed', `MLInferenceEngine ${error}`);
       return {
         tools: [],
         confidence: 0,
@@ -129,7 +128,7 @@ class MLInferenceEngine {
 
       return predictions;
     } catch (error) {
-      structuredLogger.warn('Success rate prediction failed', { error });
+      structuredLogger.warning('Success rate prediction failed', `MLInferenceEngine ${error}`);
       return {};
     }
   }
@@ -164,7 +163,6 @@ class MLInferenceEngine {
         : Object.keys(successfulCombinations).slice(0, 5);
 
       // Calculate potential improvement
-      const currentAvgDuration = patterns.averageDuration || 0;
       const potentialImprovement = this.calculatePerformanceImprovement(
         recommendedSequence,
         patterns
@@ -172,8 +170,7 @@ class MLInferenceEngine {
 
       // Build caching strategy
       const cachingStrategy = this.buildCachingStrategy(
-        recommendedSequence,
-        patterns
+        recommendedSequence
       );
 
       return {
@@ -182,7 +179,7 @@ class MLInferenceEngine {
         cachingStrategy
       };
     } catch (error) {
-      structuredLogger.warn('Sequence optimization failed', { error });
+      structuredLogger.warning('Sequence optimization failed', `MLInferenceEngine ${error}`);
       return {
         recommendedSequence: [],
         performanceImprovement: 0,
@@ -218,7 +215,6 @@ class MLInferenceEngine {
 
     // Extract intent type from context
     const intentType = featureVector.context.intentType || 'general';
-    const fileTypes = featureVector.context.fileTypes || [];
     const workspaceType = featureVector.context.workspaceType || 'mixed';
 
     // Score tools based on intent and context
@@ -298,8 +294,7 @@ class MLInferenceEngine {
   }
 
   private buildCachingStrategy(
-    sequence: string[],
-    patterns: Record<string, any>
+    sequence: string[]
   ): Record<string, number> {
     const strategy: Record<string, number> = {};
 
@@ -320,7 +315,11 @@ class MLInferenceEngine {
     }
 
     try {
-      return await this.cacheService.getMLInference(intentHash);
+      const cached = await this.cacheService.getMLInference(intentHash);
+      if (cached) {
+        return cached as ToolPredictionResult;
+      }
+      return null;
     } catch {
       return null;
     }
@@ -338,7 +337,7 @@ class MLInferenceEngine {
     try {
       await this.cacheService.cacheMLInference(intentHash, prediction, ttl);
     } catch (error) {
-      structuredLogger.warn('Failed to cache inference', { error });
+      structuredLogger.warning('Failed to cache inference', `${error}`);
     }
   }
 }

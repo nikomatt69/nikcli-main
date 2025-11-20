@@ -27,6 +27,7 @@ import { TextToCADTool } from './text-to-cad-tool'
 import { TextToGCodeTool } from './text-to-gcode-tool'
 import { VisionAnalysisTool } from './vision-analysis-tool'
 import { WriteFileTool } from './write-file-tool'
+import { NikDriveTool } from './nikdrive-tool'
 
 /**
  * Production-ready Tool Registry
@@ -657,6 +658,18 @@ export class ToolRegistry {
       requiredPermissions: ['read'],
       supportedFileTypes: ['*'],
       tags: ['browser', 'info', 'page', 'metadata'],
+    })
+
+    // NikDrive Cloud Storage tool
+    this.registerTool('nikdrive-tool', new NikDriveTool(workingDirectory), {
+      description: 'Cloud storage operations with NikDrive (upload, download, sync, search, share)',
+      category: 'cloud',
+      riskLevel: 'medium',
+      reversible: true,
+      estimatedDuration: 8000,
+      requiredPermissions: ['network', 'read', 'write'],
+      supportedFileTypes: ['*'],
+      tags: ['cloud', 'storage', 's3', 'sync', 'backup', 'nikdrive'],
     })
 
     if (!process.env.NIKCLI_QUIET_STARTUP) {

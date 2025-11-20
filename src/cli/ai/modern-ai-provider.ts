@@ -661,6 +661,7 @@ export class ModernAIProvider {
         messages,
         tools,
         temperature: 1,
+        maxTokens: 4000,
         // Spread middleware if available
       }
 
@@ -686,10 +687,58 @@ export class ModernAIProvider {
 
       const result = await streamText(streamOptions)
 
-      for await (const delta of result.textStream) {
-        yield {
-          type: 'text',
-          content: delta,
+      // Use fullStream to support all chunk types including reasoning
+      try {
+        for await (const event of result.fullStream) {
+          const eventType = (event as any).type
+
+          switch (eventType) {
+            case 'text-delta':
+              yield {
+                type: 'text',
+                content: (event as any).textDelta,
+              }
+              break
+            case 'thinking':
+              // Google Gemini thinking (reasoning) chunks
+              yield {
+                type: 'reasoning',
+                content: (event as any).thinking,
+              }
+              break
+            case 'tool-call-delta':
+            case 'tool-call-streaming-start':
+              yield {
+                type: 'tool_call',
+                toolCall: (event as any).toolCallId,
+                content: (event as any).argsTextDelta,
+              }
+              break
+            case 'finish':
+            case 'step-finish':
+              break
+            default:
+              // Handle any unknown event types gracefully
+              if ((event as any).thinking) {
+                yield {
+                  type: 'reasoning',
+                  content: (event as any).thinking,
+                }
+              }
+              break
+          }
+        }
+      } catch (streamError: any) {
+        // Fallback to textStream if fullStream fails
+        if (streamError.message?.includes('fullStream')) {
+          for await (const delta of result.textStream) {
+            yield {
+              type: 'text',
+              content: delta,
+            }
+          }
+        } else {
+          throw streamError
         }
       }
 
@@ -735,6 +784,7 @@ export class ModernAIProvider {
         tools,
         maxSteps: 10,
         temperature: 1,
+        maxTokens: 4000,
         // Spread middleware if available
       }
 
@@ -746,6 +796,15 @@ export class ModernAIProvider {
         }
         if (!generateOptions.experimental_providerMetadata.openrouter) {
           generateOptions.experimental_providerMetadata.openrouter = {}
+        }
+
+        // Reasoning parameter support for OpenRouter
+        if (reasoningEnabled) {
+          generateOptions.experimental_providerMetadata.openrouter.reasoning = {
+            effort: 'medium',
+            exclude: false,
+            enabled: true,
+          }
         }
 
         // Transforms parameter support (e.g., middle-out for context compression)

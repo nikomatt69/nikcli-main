@@ -1,0 +1,89 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "NikCLI",
+  "logo": {
+    "dark": "./images/icon.png",
+    "light": "./images/icon.png",
+    "href": "https://nikcli.store"
+  },
+  "favicon": "./images/icon.png",
+  "colors": {
+    "primary": "#8B5CF6",
+    "light": "#A78BFA",
+    "dark": "#7C3AED",
+    "anchors": {
+      "from": "#8B5CF6",
+      "to": "#7C3AED"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/nikomatt69/nikcli-main"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "https://github.com/nikomatt69/nikcli-main"
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    },
+    {
+      "name": "Developer Guide",
+      "url": "developer-guide"
+    },
+    {
+      "name": "Examples",
+      "url": "examples"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Introduction",
+      "pages": [
+        "introduction",
+        "features"
+      ]
+    },
+    {
+      "group": "Quickstart",
+      "pages": [
+        "quickstart/installation",
+        "quickstart/first-run"
+      ]
+    },
+    {
+      "group": "CLI Reference",
+      "pages": [
+        "commands/overview",
+        "commands/agents",
+        "commands/vm"
+      ]
+    },
+    {
+      "group": "Agent System",
+      "pages": [
+        "agents/universal-agent",
+        "agents/specialized-agents"
+      ]
+    },
+    {
+      "group": "Architecture",
+      "pages": [
+        "architecture/overview",
+        "architecture/tools",
+        "architecture/planning"
+      ]
+    },
+    {
+      "group": "Advanced",
+      "pages": [
+        "advanced/virtualized-agents",
+        "advanced/configuration"
+      ]
+    }
+  ]
+}

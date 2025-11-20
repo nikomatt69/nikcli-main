@@ -1,0 +1,295 @@
+```mdx
+---
+title: API Reference
+description: Comprehensive API documentation for the NIKOCLI Express server. Includes health checks, CLI execution endpoints, and web UI proxies.
+sidebarTitle: API Reference
+hideTitle: false
+---
+
+# NIKOCLI API Reference
+
+The NIKOCLI Express server (`api/`) provides RESTful endpoints for health monitoring, CLI command execution, and proxying requests to the web UI. All endpoints are served under `/api/v1`.
+
+## Authentication
+
+Most endpoints require an API key passed in the `X-API-Key` header. CLI-related endpoints enforce authentication via middleware.
+
+<Tabs>
+<TabItem label="API Key (Recommended)" value="api-key">
+
+```
+curl -X GET 'http://localhost:3000/api/v1/health' \
+  -H 'X-API-Key: your-api-key-here'
+```
+
+</TabItem>
+<TabItem label="Bearer Token (JWT)" value="bearer">
+
+```
+curl -X GET 'http://localhost:3000/api/v1/health' \
+  -H 'Authorization: Bearer your-jwt-token-here'
+```
+
+</TabItem>
+</Tabs>
+
+### Error Responses
+
+All endpoints return standard HTTP status codes with JSON error bodies.
+
+```json
+{
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Invalid request parameters",
+    "details": "Command 'invalid-cmd' not found"
+  }
+}
+```
+
+| Status Code | Meaning |
+|-------------|---------|
+| `200` | Success |
+| `400` | Bad Request (validation failed) |
+| `401` | Unauthorized (missing/invalid API key) |
+| `403` | Forbidden (insufficient permissions) |
+| `404` | Not Found |
+| `500` | Internal Server Error |
+
+## Health Check
+
+### `GET` /api/v1/health
+
+Checks server health and returns runtime info. No authentication required.
+
+#### Parameters
+
+<Parameters>
+<Parameter
+  name="None"
+  type="N/A"
+  required={false}
+  description="No query or path parameters required."
+/>
+</Parameters>
+
+#### Response Samples
+
+**200 OK**
+
+```json
+{
+  "status": "ok",
+  "version": "1.0.0",
+  "uptime": 12345.67,
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+**TypeScript Response Type**
+
+```typescript
+interface HealthResponse {
+  status: 'ok' | 'degraded' | 'error';
+  version: string;
+  uptime: number; // seconds
+  timestamp: string; // ISO 8601
+}
+```
+
+## CLI Execution
+
+### `POST` /api/v1/cli/execute
+
+Executes NIKOCLI commands programmatically. Analyzes `api/controllers/cliController.ts` for validation using Zod schemas. Middleware: `authMiddleware` (verifies `X-API-Key`), `rateLimitMiddleware` (100 req/min).
+
+#### Path Parameters
+
+None.
+
+#### Query Parameters
+
+<Parameters>
+<Parameter
+  name="timeout"
+  type="number"
+  required={false}
+  description="Execution timeout in seconds (default: 30, max: 300)."
+  example="60"
+/>
+</Parameters>
+
+#### Request Body
+
+**Content-Type: application/json**
+
+```json
+{
+  "command": "niko deploy",
+  "args": ["--env", "prod", "--force"],
+  "cwd": "/path/to/project",
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
+```
+
+**TypeScript Request Schema** (from `api/schemas/cliExecuteSchema.ts`)
+
+```typescript
+import { z } from 'zod';
+
+export const CliExecuteSchema = z.object({
+  command: z.string().min(1).max(100),
+  args: z.array(z.string()).max(50),
+  cwd: z.string().optional(),
+  env: z.record(z.string()).optional(),
+});
+
+export type CliExecuteRequest = z.infer<typeof CliExecuteSchema>;
+```
+
+#### Response Samples
+
+**200 OK** (Success)
+
+```json
+{
+  "success": true,
+  "output": "Deployment successful!\n",
+  "exitCode": 0,
+  "duration": 2.34,
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+**400 Bad Request** (Validation Error)
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid command length",
+    "details": {
+      "command": "String must contain at least 1 character(s)"
+    }
+  }
+}
+```
+
+**TypeScript Response Type**
+
+```typescript
+interface CliExecuteResponse {
+  success: boolean;
+  output: string;
+  exitCode: number;
+  duration: number; // seconds
+  timestamp: string;
+}
+
+interface CliExecuteError {
+  error: {
+    code: string;
+    message: string;
+    details?: Record<string, any>;
+  };
+}
+```
+
+## Web UI Proxies
+
+The server proxies requests to the NIKOCLI web UI (served at `/ui/*`). Routes defined in `api/routes/uiProxy.ts` using `http-proxy-middleware`. Authentication bypassed for public UI assets; private routes require auth.
+
+### `GET|POST|PUT|DELETE` /api/v1/ui/{path*}
+
+Proxies to `http://localhost:3001/{path*}` (configurable via `UI_PROXY_TARGET` env).
+
+#### Parameters
+
+<Parameters>
+<Parameter
+  name="path*"
+  type="string"
+  required={true}
+  description="Dynamic path segment proxied to web UI (e.g., dashboard, settings)."
+  example="dashboard"
+/>
+</Parameters>
+
+#### Forwarded Headers
+
+- `X-API-Key` (auth)
+- `Host`, `Origin` (preserved)
+- Custom: `X-NikoCLI-Version`
+
+#### Response
+
+Mirrors the proxied UI response (HTML/JSON/CSS/JS). Errors return proxy status.
+
+**Example: GET /api/v1/ui/dashboard**
+
+```
+curl -X GET 'http://localhost:3000/api/v1/ui/dashboard' \
+  -H 'X-API-Key: your-api-key-here'
+```
+
+**Proxy Error (502)**
+
+```json
+{
+  "error": {
+    "code": "PROXY_ERROR",
+    "message": "UI service unavailable",
+    "details": "Connection refused to localhost:3001"
+  }
+}
+```
+
+### Complex Logic Note
+
+```typescript
+// From api/middleware/uiProxyMiddleware.ts
+// Handles auth bypass for static assets (/ui/static/*)
+app.use('/api/v1/ui/static', cors(), proxy(UI_PROXY_TARGET));
+app.use('/api/v1/ui', authMiddleware, rateLimitMiddleware, proxy(UI_PROXY_TARGET, {
+  // Rewrite /api calls to UI backend
+  onProxyReq: (proxyReq, req, res) => {
+    if (req.url.startsWith('/api/')) {
+      proxyReq.path = `/ui-backend${req.url}`;
+    }
+  }
+}));
+```
+
+## Additional Endpoints
+
+### `GET` /api/v1/cli/commands
+
+Lists available NIKOCLI commands (no auth).
+
+**Response**
+
+```json
+{
+  "commands": [
+    { "name": "deploy", "description": "Deploy project" },
+    { "name": "build", "description": "Build artifacts" }
+  ]
+}
+```
+
+**TypeScript**
+
+```typescript
+interface Command {
+  name: string;
+  description: string;
+  aliases?: string[];
+}
+```
+
+---
+
+*Last updated: 2024-01-01. Generated from `api/` analysis: routes/index.ts, controllers/*, middleware/*, schemas/*.ts.*
+```

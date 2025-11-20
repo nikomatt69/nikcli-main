@@ -1889,21 +1889,26 @@ Respond in a helpful, professional manner with clear explanations and actionable
 
 
 
-      // OpenRouter Anthropic models REQUIRE maxTokens, OpenAI-compatible models should NOT use it
+      // OpenRouter and Anthropic models REQUIRE maxTokens
       if (provider !== 'openai') {
         if (provider === 'openrouter') {
-          // Only set maxTokens for Anthropic-based models on OpenRouter, NOT for OpenAI models
-          const modelName = effectiveModelName || this.currentModel || ''
-          const isOpenAIModel = modelName.includes('openai') ||
-            modelName.includes('gpt-') ||
-            modelName.includes('o1-') ||
-            modelName.includes('chatgpt')
-          const isAnthropicModel = (modelName.includes('claude') ||
-            modelName.includes('anthropic') ||
-            modelName.includes('@preset/nikcli')) && !isOpenAIModel
-          if (isAnthropicModel && this.getCurrentModelInfo().config.maxTokens) {
-            streamOpts.maxTokens = params.maxTokens
+          // All OpenRouter models require maxTokens parameter
+          streamOpts.maxTokens = params.maxTokens
+
+          // Add reasoning support for OpenRouter
+          if (!streamOpts.experimental_providerMetadata) {
+            streamOpts.experimental_providerMetadata = {}
           }
+          if (!streamOpts.experimental_providerMetadata.openrouter) {
+            streamOpts.experimental_providerMetadata.openrouter = {}
+          }
+          streamOpts.experimental_providerMetadata.openrouter.reasoning = {
+            effort: 'medium',
+            exclude: false,
+            enabled: true,
+          }
+          // Add transforms for context compression
+          streamOpts.experimental_providerMetadata.openrouter.transforms = ['middle-out']
         } else if (provider === 'anthropic') {
           if (this.getCurrentModelInfo().config.maxTokens) {
             streamOpts.maxTokens = params.maxTokens
@@ -2893,17 +2898,22 @@ Requirements:
       const provider = this.getCurrentModelInfo().config.provider
       if (provider !== 'openai') {
         if (provider === 'openrouter') {
-          const modelName = this.currentModel || ''
-          const isOpenAIModel = modelName.includes('openai') ||
-            modelName.includes('gpt-') ||
-            modelName.includes('o1-') ||
-            modelName.includes('chatgpt')
-          const isAnthropicModel = (modelName.includes('claude') ||
-            modelName.includes('anthropic') ||
-            modelName.includes('@preset/nikcli')) && !isOpenAIModel
-          if (isAnthropicModel) {
-            genOpts.maxTokens = Math.min(params.maxTokens, 2000)
+          // All OpenRouter models require maxTokens
+          genOpts.maxTokens = Math.min(params.maxTokens, 2000)
+
+          // Add reasoning support for OpenRouter
+          if (!genOpts.experimental_providerMetadata) {
+            genOpts.experimental_providerMetadata = {}
           }
+          if (!genOpts.experimental_providerMetadata.openrouter) {
+            genOpts.experimental_providerMetadata.openrouter = {}
+          }
+          genOpts.experimental_providerMetadata.openrouter.reasoning = {
+            effort: 'medium',
+            exclude: false,
+            enabled: true,
+          }
+          genOpts.experimental_providerMetadata.openrouter.transforms = ['middle-out']
         } else if (provider === 'anthropic') {
           genOpts.maxTokens = Math.min(params.maxTokens, 2000)
         }
@@ -3161,6 +3171,17 @@ Requirements:
       case 'lmstudio':
         // LMStudio local models
         return { maxTokens: 4096, temperature: 0.7 }
+
+      case 'openrouter':
+        // OpenRouter aggregates multiple providers - use temp 1 for compatibility
+        if (configData.model.includes('gpt-5') || configData.model.startsWith('openai/')) {
+          return { maxTokens: 4000, temperature: 1 } // OpenAI models require temperature=1
+        } else if (configData.model.includes('gemini') || configData.model.startsWith('google/')) {
+          return { maxTokens: 4000, temperature: 0.7 } // Google models
+        } else if (configData.model.startsWith('anthropic/')) {
+          return { maxTokens: 8000, temperature: 1 } // Anthropic models
+        }
+        return { maxTokens: 4000, temperature: 1 }
 
       default:
         return { maxTokens: 4096, temperature: 1 } // RIDOTTO per compatibilità universale

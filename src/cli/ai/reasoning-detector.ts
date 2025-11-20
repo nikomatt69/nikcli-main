@@ -96,6 +96,39 @@ export const MODEL_REASONING_CAPABILITIES: ModelReasoningMap = {
   },
 
   // OpenRouter-specific model paths (with provider prefix)
+  // Google models via OpenRouter
+  'google/gemini-3-pro-preview': {
+    supportsReasoning: true,
+    reasoningType: 'thinking',
+    defaultEnabled: true,
+    requiresExplicitRequest: false,
+  },
+  'google/gemini-3-pro': {
+    supportsReasoning: true,
+    reasoningType: 'thinking',
+    defaultEnabled: true,
+    requiresExplicitRequest: false,
+  },
+  'google/gemini-3-flash': {
+    supportsReasoning: true,
+    reasoningType: 'thinking',
+    defaultEnabled: true,
+    requiresExplicitRequest: false,
+  },
+  'google/gemini-2.5-pro': {
+    supportsReasoning: true,
+    reasoningType: 'thinking',
+    defaultEnabled: true,
+    requiresExplicitRequest: false,
+  },
+  'google/gemini-2.5-flash': {
+    supportsReasoning: true,
+    reasoningType: 'thinking',
+    defaultEnabled: true,
+    requiresExplicitRequest: false,
+  },
+
+  // OpenAI models via OpenRouter
   'openai/o1': {
     supportsReasoning: true,
     reasoningType: 'internal',
@@ -127,6 +160,12 @@ export const MODEL_REASONING_CAPABILITIES: ModelReasoningMap = {
     requiresExplicitRequest: false,
   },
   'openai/gpt-5-mini': {
+    supportsReasoning: true,
+    reasoningType: 'exposed',
+    defaultEnabled: true,
+    requiresExplicitRequest: false,
+  },
+  'openai/gpt-5.1': {
     supportsReasoning: true,
     reasoningType: 'exposed',
     defaultEnabled: true,
@@ -358,6 +397,28 @@ export const MODEL_REASONING_CAPABILITIES: ModelReasoningMap = {
     requiresExplicitRequest: false,
   },
 
+  // Gemini 3 models with reasoning
+  'gemini-3-pro-preview': {
+    supportsReasoning: true,
+    reasoningType: 'thinking',
+    defaultEnabled: true,
+    requiresExplicitRequest: false,
+  },
+
+  'gemini-3-pro': {
+    supportsReasoning: true,
+    reasoningType: 'thinking',
+    defaultEnabled: true,
+    requiresExplicitRequest: false,
+  },
+  'gemini-3-flash': {
+    supportsReasoning: true,
+    reasoningType: 'thinking',
+    defaultEnabled: true,
+    requiresExplicitRequest: false,
+  },
+
+
   // Default fallback for unknown models
   default: {
     supportsReasoning: false,
@@ -446,9 +507,14 @@ export class ReasoningDetector {
       { pattern: /grok-(2|3|4)/, capabilities: MODEL_REASONING_CAPABILITIES['xai/grok-beta'] },
       { pattern: /x-ai\/grok/, capabilities: MODEL_REASONING_CAPABILITIES['x-ai/grok-2'] },
 
-      // Gemini thinking patterns
+      // Gemini thinking patterns (direct and via OpenRouter)
       { pattern: /gemini-2\.5.*thinking/, capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-2.5-pro-thinking'] },
       { pattern: /gemini-2\.5/, capabilities: MODEL_REASONING_CAPABILITIES['gemini-2.5-pro'] },
+      { pattern: /gemini-3.*preview/, capabilities: MODEL_REASONING_CAPABILITIES['gemini-3-pro-preview'] },
+      { pattern: /gemini-3/, capabilities: MODEL_REASONING_CAPABILITIES['gemini-3-pro'] },
+      { pattern: /google\/gemini-3.*preview/, capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-3-pro-preview'] },
+      { pattern: /google\/gemini-3/, capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-3-pro'] },
+      { pattern: /google\/gemini-2\.5/, capabilities: MODEL_REASONING_CAPABILITIES['google/gemini-2.5-pro'] },
 
       // Qwen thinking patterns
       { pattern: /qwen.*thinking/, capabilities: MODEL_REASONING_CAPABILITIES['qwen/qwen-plus-thinking'] },

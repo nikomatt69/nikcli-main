@@ -65,6 +65,8 @@ export interface UserProfile {
     sessionsThisMonth: number
     tokensThisMonth: number
     apiCallsThisHour: number
+    lastResetMonth?: string
+    lastResetHour?: string
   }
 }
 
@@ -399,6 +401,28 @@ export class AuthProvider extends EventEmitter {
       return { allowed: false, used: 0, limit: 0 }
     }
 
+    // 🔓 Whitelist users with unlimited access
+    const UNLIMITED_USERS = ['nicola.mattioli.95@gmail.com', 'nicom.19@icloud.com']
+    if (UNLIMITED_USERS.includes(this.currentProfile.email || '')) {
+      // Return unlimited quota for whitelisted users
+      return {
+        allowed: true,
+        used: 0,
+        limit: Number.MAX_SAFE_INTEGER,
+        resetTime: this.getMonthResetTime(),
+      }
+    }
+
+    // ⭐ Pro users get unlimited access
+    if (this.currentProfile.subscription_tier === 'pro') {
+      return {
+        allowed: true,
+        used: 0,
+        limit: Number.MAX_SAFE_INTEGER,
+        resetTime: this.getMonthResetTime(),
+      }
+    }
+
     const { quotas, usage } = this.currentProfile
 
     switch (quotaType) {
@@ -728,9 +752,9 @@ export class AuthProvider extends EventEmitter {
             },
             notification_settings: dbProfile.notification_settings ?? undefined,
             quotas: {
-              sessionsPerMonth: dbProfile.quotas?.sessionsPerMonth ?? 100,
-              tokensPerMonth: dbProfile.quotas?.tokensPerMonth ?? 10000,
-              apiCallsPerHour: dbProfile.quotas?.apiCallsPerHour ?? 60,
+              sessionsPerMonth: dbProfile.quotas?.sessionsPerMonth ?? 1000,
+              tokensPerMonth: dbProfile.quotas?.tokensPerMonth ?? 5000000, // 5M tokens for free users
+              apiCallsPerHour: dbProfile.quotas?.apiCallsPerHour ?? 600,
             },
             usage: {
               sessionsThisMonth: dbProfile.usage?.sessionsThisMonth ?? 0,
@@ -779,9 +803,9 @@ export class AuthProvider extends EventEmitter {
         analytics: true,
       },
       quotas: {
-        sessionsPerMonth: 100,
-        tokensPerMonth: 10000,
-        apiCallsPerHour: 60,
+        sessionsPerMonth: 1000,
+        tokensPerMonth: 5000000, // 5M tokens for free users
+        apiCallsPerHour: 600,
       },
       usage: {
         sessionsThisMonth: 0,

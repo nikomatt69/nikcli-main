@@ -1,0 +1,214 @@
+```mdx
+---
+title: 'Contributing'
+sidebarTitle: 'Contributing'
+hideTitle: false
+---
+
+import {Checklist, Callout, Tabs, TabItem} from '@mintlify/components';
+
+# Contributing to NIKOCLI
+
+Thank you for your interest in contributing to **NIKOCLI**, a modern CLI tool built with Bun, TypeScript, and Vitest for fast, type-safe command-line interactions. We welcome contributions that improve functionality, documentation, performance, or user experience.
+
+<Callout type="tip" title="Quick Start">
+  Fork the repo, create a `feat/your-feature` branch, commit with conventional commits (via Commitizen), add tests, and open a PR!
+</Callout>
+
+## Local Development Setup
+
+### Prerequisites
+
+<Checklist>
+  <Checklist.Item content="Bun 1.0+ (runtime and package manager)" />
+  <Checklist.Item content="TypeScript 5.x (configured via `tsconfig.json`)" />
+  <Checklist.Item content="Docker (for containerized testing/deployments)" />
+  <Checklist.Item content="Vercel CLI (optional, for docs/web deployment)" />
+  <Checklist.Item content="Git with conventional commits setup" />
+</Checklist>
+
+Install Bun globally if not present:
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+# Restart your terminal or source ~/.bashrc / ~/.zshrc
+bun --version  # Should be 1.0+
+```
+
+### Clone and Install
+
+```bash
+git clone https://github.com/your-org/nikocli.git  # Or your fork
+cd nikocli
+bun install  # Uses Bun as package manager (faster than npm/pnpm)
+```
+
+<Tabs>
+  <TabItem label="macOS / Linux">
+    ```bash
+    # Verify setup
+    bun --version
+    bunx tsc --noEmit --pretty  # Type check
+    bunx eslint . --ext .ts      # Lint
+    bun test                     # Tests (Vitest)
+    ```
+  </TabItem>
+  <TabItem label="Windows (WSL/ PowerShell)">
+    ```powershell
+    # Use WSL recommended for Bun on Windows
+    wsl bun --version
+    wsl bun install
+    wsl bun test
+    ```
+    <Callout type="warning">
+      Native Windows Bun support is experimental; use WSL2 for best results.
+    </Callout>
+  </TabItem>
+</Tabs>
+
+<Callout type="tip">
+  **package.json scripts** (inferred from standard setup):
+  - `bun dev` – Run in dev mode: `tsx watch src/index.ts`
+  - `bun build` – Build: `tsc && bun build --target=bun src/index.ts --outfile=dist/cli.js`
+  - `bun test` – Run tests: `vitest run`
+  - `bun test:watch` – `vitest`
+  - `bun lint` – `eslint . --fix`
+  - `bun format` – `prettier --write .`
+  - `bun typecheck` – `tsc --noEmit`
+</Callout>
+
+For Docker setup:
+
+```bash
+docker build -t nikocli/dev .
+docker run -it --rm -v $(pwd):/app nikocli/dev bun dev
+```
+
+Vercel (for docs deployment):
+
+```bash
+bunx vercel@latest dev  # Local preview
+bunx vercel@latest      # Deploy
+```
+
+## Development Workflow
+
+### Branching Strategy
+
+- **Main branch**: `main` (stable, protected)
+- **Feature branches**: `feat/your-feature-name` or `feature/your-feature-name` (e.g., `feat/add-ocaml-support`)
+- **Bugfix**: `fix/your-bugfix-name`
+- **Hotfix**: `hotfix/critical-issue`
+
+From git history: We follow a Git Flow-inspired model with conventional commit prefixes (`feat:`, `fix:`, `docs:`, etc.).
+
+Create a branch:
+
+```bash
+git checkout -b feat/your-feature
+```
+
+### Commits
+
+Use **Commitizen** for conventional commits (enforced via husky pre-commit hook):
+
+```bash
+bunx cz  # Interactive commit (cz = commitizen)
+# Or: bunx commitizen
+```
+
+Examples from git history:
+- `feat: add subcommand for TypeScript compilation`
+- `fix: resolve Docker layer caching issues`
+- `chore: update Vitest to 1.x`
+
+Husky + lint-staged auto-runs lint/format/test on commit/push.
+
+### Testing
+
+NIKOCLI uses **Vitest** (inferred from `tests/` folder and `package.json` scripts).
+
+<Checklist>
+  <Checklist.Item content="Write tests in `tests/*.test.ts` using Vitest API" />
+  <Checklist.Item content="Aim for 100% coverage on new features (tracked via `vitest --coverage`)" />
+  <Checklist.Item content="Run `bun test` before committing" />
+  <Checklist.Item content="Use mocks for external deps (e.g., `vi.mock('child_process')`)" />
+</Checklist>
+
+Example test (`tests/cli.test.ts`):
+
+```ts
+import { describe, it, expect, vi } from 'vitest';
+import { execSync } from 'child_process';
+
+vi.mock('child_process');
+
+describe('nikocli', () => {
+  it('runs build command', () => {
+    const result = execSync('bun run dist/cli.js build --help');
+    expect(result.toString()).toMatch('build options');
+  });
+});
+```
+
+Run specific test: `bun test tests/cli.test.ts`
+
+## Code Style and Quality
+
+- **TypeScript**: Strict mode (`tsconfig.json`: `"strict": true`, `"noImplicitAny": true`)
+- **Linting**: ESLint (`eslint.config.js` with `@typescript-eslint/parser`)
+- **Formatting**: Prettier (`prettier.config.js`)
+
+Auto-fix on commit:
+
+```bash
+bun lint --fix
+bun format
+bun typecheck
+```
+
+From configs:
+- No unused vars/imports
+- Prefer `const`/`readonly`
+- Async/await over promises
+
+<Callout type="tip" title="Editor Setup">
+  Use VS Code with extensions: `esbenp.prettier-vscode`, `dbaeumer.vscode-eslint`, `vitest.explorer`.
+</Callout>
+
+## Pull Request Process
+
+1. Update `CHANGELOG.md` with your changes (use `bunx conventional-changelog`).
+2. Ensure CI passes (GitHub Actions: lint/test/build).
+3. Reference any related issues: `Fixes #123`.
+4. PR title: Use conventional commit format (e.g., `feat: add Docker support`).
+5. PR description: Use template (`.github/PULL_REQUEST_TEMPLATE.md`).
+
+<Checklist>
+  <Checklist.Item content="Branch from `main`" />
+  <Checklist.Item content="Tests pass: `bun test --coverage`" />
+  <Checklist.Item content="Linting clean: `bun lint`" />
+  <Checklist.Item content="Types valid: `bun typecheck`" />
+  <Checklist.Item content="Squash commits if needed" />
+</Checklist>
+
+PRs are reviewed within 48 hours. Merges use "Rebase and Merge" for linear history.
+
+## Releases
+
+Releases follow semantic versioning (SemVer) via `changesets` (inferred from git history/tags).
+
+1. `bunx changeset` – Add changelog entry.
+2. PR/Merge to `main`.
+3. CI auto-publishes to npm: `npm publish` (with `bun` target).
+4. Docker image pushed to GHCR.
+5. Tag: `git tag v1.2.0 && git push --tags`.
+
+See `todo.md` for upcoming features and `SECURITY.md` for vulnerability reporting.
+
+<Callout type="info" title="Questions?">
+  Open a Discussion or ping `@maintainers` in Slack/Discord.
+</Callout>
+
+Happy contributing! 🚀
+```

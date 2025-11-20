@@ -1,0 +1,312 @@
+```mdx
+---
+title: 'Build Process'
+slug: build-process
+description: 'Comprehensive guide to building, developing, and deploying NIKOCLI using Bun, Vercel, and Docker. Includes configs, env vars, and troubleshooting.'
+---
+
+import { Accordion, Callout, FileTree, Mermaid, Tabs, Tab, Timeline } from '@mintlify/components';
+import { Code } from 'components/code';
+
+# Build Process for NIKOCLI
+
+NIKOCLI is a TypeScript-based CLI tool with serverless (Vercel) and background worker support. This guide covers the full lifecycle: **install**, **dev**, **build**, **test**, **deploy** (Vercel/Docker), and **troubleshooting**.
+
+## Overview Flowchart
+
+```mermaid
+graph TD
+    A[bun install] --> B[bun dev<br/>(Hot reload)]
+    B --> C[bun build<br/>(CLI/Vercel/Background)]
+    C --> D[bun test]
+    D --> E{Deployment?}
+    E -->|Vercel| F[vercel --prod]
+    E -->|Docker| G[docker build<br/>docker push/deploy]
+    E -->|Local CLI| H[pkg build<br/>(pkg-config.json)]
+    
+    style A fill:#e1f5fe
+    style C fill:#f3e5f5
+    style F fill:#e8f5e8
+    style G fill:#fff3e0
+```
+
+## Quick Start Timeline
+
+<Timeline>
+  <Timeline.Step title="Install Dependencies">
+    Initializes Bun lockfile and installs packages.
+    ```bash
+    bun install
+    ```
+  </Timeline.Step>
+  
+  <Timeline.Step title="Development Mode">
+    Runs hot-reload dev server for all entrypoints (CLI/Vercel/Background).
+    ```bash
+    bun dev
+    ```
+  </Timeline.Step>
+  
+  <Timeline.Step title="Build Production Artifacts">
+    Outputs optimized builds to `dist/` for CLI, Vercel, and background workers.
+    ```bash
+    bun build
+    ```
+  </Timeline.Step>
+  
+  <Timeline.Step title="Run Tests">
+    TypeScript-aware tests with Bun's built-in test runner.
+    ```bash
+    bun test
+    ```
+  </Timeline.Step>
+  
+  <Timeline.Step title="Deploy">
+    Choose Vercel for serverless or Docker for containers.
+    ```bash
+    vercel --prod
+    # or
+    docker build -t nikocli .
+    ```
+  </Timeline.Step>
+</Timeline>
+
+## Installation
+
+Ensure [Bun](https://bun.sh) is installed (`curl -fsSL https://bun.sh/install | bash`).
+
+<Callout type="info" title="Bun Advantages">
+- Faster than npm/yarn/pnpm (up to 20x).
+- Built-in bundler, test runner, and TypeScript support—no extra tools needed.
+</Callout>
+
+```bash
+bun install
+```
+
+This runs `bun i` (alias), generating `bun.lockb` for reproducible installs.
+
+## Development Workflow
+
+### Run Dev Mode
+```bash
+bun dev
+```
+
+- Watches `src/` for changes.
+- Serves:
+  - CLI entry: `src/cli.ts`
+  - Vercel API: `src/vercel/api.ts`
+  - Background worker: `src/background/worker.ts`
+
+Hot reloads in <1s. Logs to console with structured output.
+
+## Build Process
+
+### Production Build
+```bash
+bun build
+```
+
+Bun compiles TypeScript to optimized JS/ESM bundles in `dist/`:
+
+```
+dist/
+├── cli.js          # Standalone CLI executable
+├── vercel/         # Vercel functions
+│   └── api.js
+└── background/     # Workers
+    └── worker.js
+```
+
+<Callout type="tip">
+Use `--minify` for smaller bundles: `bun build --minify`.
+</Callout>
+
+### Run Tests
+```bash
+bun test
+```
+
+Supports `describe/it/expect` with TypeScript inference. Covers unit/integration/e2e.
+
+## Configuration Files
+
+<Accordion title="package.json" defaultOpen>
+```json
+{
+  "name": "nikocli",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build:cli && bun build:vercel && bun build:background",
+    "build:cli": "bun build ./src/cli.ts --outfile dist/cli.js --target bun",
+    "build:vercel": "bun build ./src/vercel/api.ts --outfile dist/vercel/api.js --target node",
+    "build:background": "bun build ./src/background/worker.ts --outfile dist/background/worker.js --target bun",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "lint": "bunx @biomejs/biome check src/",
+    "typecheck": "bun tsc --noEmit"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "@biomejs/biome": "latest"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  }
+}
+```
+</Accordion>
+
+<Accordion title="bunfig.toml (Bun Configuration)">
+```toml
+[install]
+cache = true
+frozenLockfile = true
+ignoreScripts = false
+
+[build]
+target = "bun"
+
+[watch]
+usePolling = true  # For Docker/WSL
+
+[env]
+NODE_ENV = "development"
+```
+</Accordion>
+
+<FileTree>
+
+├── tsconfig.cli.json
+├── tsconfig.vercel.json
+├── tsconfig.background.json
+└── tsconfig.json
+
+</FileTree>
+
+<Accordion title="tsconfig.json (Base)">
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "ts-node": {
+    "esm": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+*Extends for CLI/Vercel/Background with overrides (e.g., `target: "bun"` for CLI).*
+</Accordion>
+
+<Accordion title="vercel.json (Serverless Config)">
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "builds": [
+    {
+      "src": "dist/vercel/api.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/dist/vercel/api.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
+```
+</Accordion>
+
+<Accordion title="Dockerfile (Container Builds)">
+```dockerfile
+# Multi-stage for prod efficiency
+FROM oven/bun:1 AS base
+WORKDIR /app
+
+# Install deps
+COPY bun.lockb package.json ./
+RUN bun install --frozen-lockfile --production
+
+# Build stage
+FROM base AS builder
+COPY . .
+COPY tsconfig*.json ./
+RUN bun build
+
+# Prod image
+FROM oven/bun:1-slim AS runner
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+EXPOSE 3000
+CMD ["bun", "dist/vercel/api.js"]
+```
+</Accordion>
+
+<Accordion title="pkg-config.json (Native CLI Binaries)">
+```json
+{
+  "pkg": "dist/cli.js",
+  "targets": ["node18-linux-x64", "node18-macos-x64", "node18-win-x64"],
+  "assets": ["dist/**/*"],
+  "scripts": "dist/**/*.js"
+}
+```
+*Use `pkg .` after `bun build` for cross-platform executables.*
+</Accordion>
+
+## Deployment
+
+### Vercel (Serverless)
+1. `bun build`
+2. `vercel --prod`
+
+Auto-detects `vercel.json`. Supports edge functions.
+
+### Docker
+```bash
+docker build -t nikocli:latest .
+docker run -p 3000:3000 nikocli:latest
+```
+
+Push to registry: `docker push your-repo/nikocli`.
+
+<Tabs>
+<Tab title="ECR (AWS)">
+```bash
+aws ecr get-login-password | docker login --username AWS --password-stdin <account>.dkr.ecr.us-east-1.amazonaws.com
+docker tag nikocli:latest <account>.dkr.ecr.us-east-1.amazonaws.com/nikocli:latest
+docker push <account>.dkr.ecr.us-east-1.amazonaws.com/nikocli:latest
+```
+</Tab>
+<Tab title="GCR (Google)">
+```bash
+gcloud auth configure-docker
+docker tag nikocli gcr.io/project/nikocli
+docker push gcr.io/project/nik

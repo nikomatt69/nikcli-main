@@ -26,13 +26,13 @@
   },
   "scripts": {
     "start": "bun --bun run src/cli/index.ts",
+    "build:start": "mkdir -p dist/cli && bun scripts/build-with-secrets.mjs && ./dist/cli/nikcli",
     "dev": "bun start",
     "clean": "rm -rf dist",
     "build": "mkdir -p dist/cli && bun build --compile --minify --sourcemap src/cli/index.ts --packages=external --outfile=dist/cli/nikcli",
     "build:api": "echo TypeScript compiled on-the-fly with tsx",
     "build:vercel": "echo Vercel build completed - using serverless functions",
     "prepublishOnly": "bun run build:with-secrets",
-    "build:start": "mkdir -p dist/cli && bun scripts/build-with-secrets.mjs && ./dist/cli/nikcli",
     "build:binary": "bun scripts/build-all.js",
     "build:pkg": "mkdir -p dist/cli && bun run build && mkdir -p public/bin && pkg dist/cli/index.mjs --target node18-macos-arm64 --output public/bin/nikcli-macos-arm64",
     "build:pkg:all": "bun run build && mkdir -p public/bin && bun run pkg:macos:arm64 && bun run pkg:macos:x64 && bun run pkg:linux:x64 && bun run pkg:win:x64",
@@ -80,7 +80,15 @@
     "benchmark:setup": "bash benchmarks/setup.sh",
     "benchmark:run": "bunx ts-node benchmarks/openrouter-benchmark.ts",
     "benchmark:quick": "BENCHMARK_SIZE=5 bunx ts-node benchmarks/openrouter-benchmark.ts",
-    "benchmark:full": "BENCHMARK_SIZE=164 bunx ts-node benchmarks/openrouter-benchmark.ts"
+    "benchmark:full": "BENCHMARK_SIZE=164 bunx ts-node benchmarks/openrouter-benchmark.ts",
+    "mobile:install": "cd mobile-app && npm install && cd .. && cd src-tauri && cargo build && cd ..",
+    "mobile:dev": "npx tauri dev",
+    "mobile:build": "tauri build",
+    "mobile:build:macos": "tauri build --target universal-apple-darwin",
+    "mobile:build:ios": "bunx tauri ios build",
+    "mobile:build:android": "tauri android build",
+    "mobile:ios:dev": "npx tauri ios dev",
+    "mobile:android:dev": "tauri android dev"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.0.0",

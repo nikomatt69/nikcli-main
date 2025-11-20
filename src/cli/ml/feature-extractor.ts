@@ -29,7 +29,7 @@ class FeatureExtractor {
         context: enrichedContext
       };
     } catch (error) {
-      structuredLogger.warn('Feature extraction failed', { error });
+      structuredLogger.warning('Feature extraction failed', `FeatureExtractor ${error}`);
       return {
         intentHash: '',
         features: {},

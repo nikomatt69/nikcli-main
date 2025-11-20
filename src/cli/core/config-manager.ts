@@ -546,7 +546,7 @@ const ConfigSchema = z.object({
       tables: {
         sessions: 'chat_sessions',
         blueprints: 'agent_blueprints',
-        users: 'cli_users',
+        users: 'user_profiles',
         metrics: 'usage_metrics',
         documents: 'documentation',
       },
@@ -790,6 +790,57 @@ const ConfigSchema = z.object({
         checkIntervalMs: 30000,
       },
     }),
+  // NikDrive Cloud Storage Integration
+  nikdrive: z
+    .object({
+      enabled: z.boolean().default(false).describe('Enable NikDrive cloud storage'),
+      endpoint: z
+        .string()
+        .default('https://nikcli-drive-production.up.railway.app')
+        .describe('NikDrive API endpoint URL'),
+      apiKey: z.string().optional().describe('Encrypted NikDrive API key'),
+      timeout: z.number().min(1000).max(120000).default(30000).describe('Request timeout in milliseconds'),
+      retries: z.number().min(1).max(10).default(3).describe('Number of retries for failed requests'),
+      retryDelayMs: z.number().min(100).max(10000).default(1000).describe('Delay between retries in milliseconds'),
+      features: z
+        .object({
+          syncWorkspace: z.boolean().default(false).describe('Auto-sync workspace with cloud'),
+          autoBackup: z.boolean().default(false).describe('Automatic backup to cloud'),
+          shareEnabled: z.boolean().default(true).describe('Enable share link generation'),
+          ragIndexing: z.boolean().default(false).describe('Index cloud files for RAG'),
+          contextAware: z.boolean().default(true).describe('Make cloud storage context-aware for AI'),
+        })
+        .default({
+          syncWorkspace: false,
+          autoBackup: false,
+          shareEnabled: true,
+          ragIndexing: false,
+          contextAware: true,
+        }),
+      autoSyncInterval: z
+        .number()
+        .min(60000)
+        .max(86400000)
+        .default(3600000)
+        .describe('Auto-sync interval in milliseconds (1 hour default)'),
+      cacheTtl: z.number().min(60).max(86400).default(300).describe('Cache TTL in seconds'),
+    })
+    .default({
+      enabled: false,
+      endpoint: 'https://nikcli-drive-production.up.railway.app',
+      timeout: 30000,
+      retries: 3,
+      retryDelayMs: 1000,
+      features: {
+        syncWorkspace: false,
+        autoBackup: false,
+        shareEnabled: true,
+        ragIndexing: false,
+        contextAware: true,
+      },
+      autoSyncInterval: 3600000,
+      cacheTtl: 300,
+    }),
 })
 
 export type ConfigType = z.infer<typeof ConfigSchema>
@@ -797,7 +848,7 @@ export type ModelConfig = z.infer<typeof ModelConfigSchema>
 export type CliConfig = ConfigType
 
 // Encryption utilities for API keys
-class KeyEncryption {
+export class KeyEncryption {
   private static ALGORITHM = 'aes-256-gcm'
   private static KEY_LENGTH = 32
   private static IV_LENGTH = 16
@@ -1267,6 +1318,22 @@ export class SimpleConfigManager {
       provider: 'openrouter',
       model: 'google/gemini-1.5-pro',
       maxContextTokens: 2097152,
+    },
+    // Google Gemini 3 models
+    'google/gemini-3-pro-preview': {
+      provider: 'openrouter',
+      model: 'google/gemini-3-pro-preview',
+      maxContextTokens: 2097152,
+    },
+    'google/gemini-3-pro': {
+      provider: 'openrouter',
+      model: 'google/gemini-3-pro',
+      maxContextTokens: 2097152,
+    },
+    'google/gemini-3-flash': {
+      provider: 'openrouter',
+      model: 'google/gemini-3-flash',
+      maxContextTokens: 1000000,
     },
     'openai/gpt-oss-120b:free': {
       provider: 'openrouter',
@@ -1903,6 +1970,10 @@ export class SimpleConfigManager {
       return process.env.BROWSERBASE_API_KEY
     }
 
+    if (model === 'nikdrive' || model === 'cloud') {
+      return process.env.NIKDRIVE_API_KEY
+    }
+
     return undefined
   }
 
@@ -2009,7 +2080,79 @@ export class SimpleConfigManager {
   }
 
   getModelConfig(model: string): ModelConfig | undefined {
-    return this.config.models[model]
+    // Try exact match first
+    const exactMatch = this.config.models[model]
+    if (exactMatch) {
+      return exactMatch
+    }
+
+    // Fallback: if model has a provider prefix (google/, openai/, anthropic/, etc.)
+    // and matches a configured OpenRouter model, return that configuration
+    if (model.includes('/')) {
+      const configuredModel = this.config.models[model]
+      if (configuredModel) {
+        return configuredModel
+      }
+
+      // If we still don't have it, create a dynamic config for OpenRouter models
+      // This handles cases like --model google/gemini-3-pro-preview
+      if (
+        model.startsWith('google/') ||
+        model.startsWith('openai/') ||
+        model.startsWith('anthropic/') ||
+        model.startsWith('x-ai/') ||
+        model.startsWith('qwen/') ||
+        model.startsWith('mistralai/') ||
+        model.startsWith('nvidia/') ||
+        model.startsWith('z-ai/') ||
+        model.startsWith('moonshotai/') ||
+        model.startsWith('minimax/') ||
+        model.startsWith('xai/')
+      ) {
+        // Return a dynamic OpenRouter config for namespaced models
+        return {
+          provider: 'openrouter',
+          model: model,
+          temperature: 0.7,
+          maxTokens: 8000,
+          maxContextTokens: this.getDefaultContextTokens(model),
+        }
+      }
+    }
+
+    return undefined
+  }
+
+  /**
+   * Get default context tokens for a model based on its name
+   */
+  private getDefaultContextTokens(model: string): number {
+    // Google models
+    if (model.includes('gemini-2.5') || model.includes('gemini-3')) {
+      return 2097152 // 2M tokens
+    }
+    if (model.includes('gemini-2.0')) {
+      return 1000000
+    }
+    if (model.includes('gemini-1.5')) {
+      return 2097152
+    }
+
+    // OpenAI models
+    if (model.includes('gpt-5')) {
+      return 400000
+    }
+    if (model.includes('gpt-4')) {
+      return 128000
+    }
+
+    // Anthropic models
+    if (model.includes('claude')) {
+      return 200000
+    }
+
+    // Default
+    return 128000
   }
 
   addModel(name: string, config: ModelConfig): void {
@@ -2121,6 +2264,40 @@ export class SimpleConfigManager {
       anonKey: supabaseConfig.anonKey || process.env.SUPABASE_ANON_KEY,
       serviceRoleKey: supabaseConfig.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY,
     }
+  }
+
+  // NikDrive configuration management
+  getNikDriveConfig(): ConfigType['nikdrive'] {
+    return this.config.nikdrive
+  }
+
+  setNikDriveConfig(config: Partial<ConfigType['nikdrive']>): void {
+    this.config.nikdrive = { ...this.config.nikdrive, ...config }
+    this.saveConfig()
+  }
+
+  getNikDriveCredentials(): { endpoint?: string; apiKey?: string } {
+    const nikdriveConfig = this.config.nikdrive
+
+    return {
+      endpoint: nikdriveConfig.endpoint || process.env.NIKDRIVE_ENDPOINT || 'https://nikcli-drive-production.up.railway.app',
+      apiKey: nikdriveConfig.apiKey || process.env.NIKDRIVE_API_KEY,
+    }
+  }
+
+  enableNikDrive(apiKey: string): void {
+    const encryptedKey = KeyEncryption.encrypt(apiKey)
+    this.setNikDriveConfig({
+      enabled: true,
+      apiKey: encryptedKey,
+    })
+  }
+
+  disableNikDrive(): void {
+    this.setNikDriveConfig({
+      enabled: false,
+      apiKey: undefined,
+    })
   }
 
   // Notification configuration management

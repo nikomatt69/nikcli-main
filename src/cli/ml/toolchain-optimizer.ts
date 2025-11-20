@@ -63,10 +63,10 @@ class ToolchainOptimizer extends EventEmitter {
       await this.loadLatestModels();
 
       this.initialized = true;
-      structuredLogger.info('ToolchainOptimizer initialized successfully');
+      structuredLogger.success('ToolchainOptimizer', 'Initialized successfully');
       this.emit('initialized');
-    } catch (error) {
-      structuredLogger.error('Failed to initialize ToolchainOptimizer', { error });
+    } catch (error: any) {
+      structuredLogger.error('ToolchainOptimizer', `Failed to initialize: ${error.message}`);
       throw error;
     }
   }
@@ -91,10 +91,8 @@ class ToolchainOptimizer extends EventEmitter {
         confidence: prediction.confidence,
         reasoning: prediction.reasoning
       };
-    } catch (error) {
-      structuredLogger.warn('Tool prediction failed, falling back to defaults', {
-        error
-      });
+    } catch (error: any) {
+      structuredLogger.warning('ToolchainOptimizer', `Tool prediction failed: ${error.message}`);
       return { tools: [], confidence: 0, reasoning: 'Prediction failed' };
     }
   }
@@ -119,8 +117,8 @@ class ToolchainOptimizer extends EventEmitter {
         tools: execution.selectedTools,
         duration: execution.executionDurationMs
       });
-    } catch (error) {
-      structuredLogger.warn('Failed to record execution', { error });
+    } catch (error: any) {
+      structuredLogger.warning('ToolchainOptimizer', `Failed to record execution: ${error.message}`);
     }
   }
 
@@ -141,10 +139,10 @@ class ToolchainOptimizer extends EventEmitter {
       // Check if retraining needed
       await this.checkAndTriggerRetraining(metrics);
 
-      structuredLogger.info('Session evaluation completed', { sessionId, metrics });
+      structuredLogger.success('ToolchainOptimizer', `Session evaluation completed: ${sessionId}`);
       this.emit('session:evaluated', { sessionId, metrics });
-    } catch (error) {
-      structuredLogger.warn('Session evaluation failed', { error });
+    } catch (error: any) {
+      structuredLogger.warning('ToolchainOptimizer', `Session evaluation failed: ${error.message}`);
     }
   }
 
@@ -167,8 +165,8 @@ class ToolchainOptimizer extends EventEmitter {
       const optimization = await this.inferenceEngine.optimizeSequence(patterns);
 
       return optimization;
-    } catch (error) {
-      structuredLogger.warn('Performance optimization failed', { error });
+    } catch (error: any) {
+      structuredLogger.warning('ToolchainOptimizer', `Performance optimization failed: ${error.message}`);
       return {
         recommendedSequence: [],
         performanceImprovement: 0,
@@ -189,13 +187,10 @@ class ToolchainOptimizer extends EventEmitter {
         const model = await this.supabaseProvider.getLatestModel(modelType);
         if (model) {
           this.currentModels.set(modelType, model);
-          structuredLogger.debug(`Loaded ${modelType} model`, {
-            version: model.model_version,
-            accuracy: model.accuracy_metrics?.accuracy
-          });
+          structuredLogger.info('ToolchainOptimizer', `Loaded ${modelType} model v${model.model_version}`);
         }
-      } catch (error) {
-        structuredLogger.warn(`Failed to load ${modelType} model`, { error });
+      } catch (error: any) {
+        structuredLogger.warning('ToolchainOptimizer', `Failed to load ${modelType} model: ${error.message}`);
       }
     }
   }
@@ -210,8 +205,8 @@ class ToolchainOptimizer extends EventEmitter {
         await this.supabaseProvider.recordToolchainExecution(execution);
       }
       this.executionBuffer = [];
-    } catch (error) {
-      structuredLogger.warn('Failed to flush execution buffer', { error });
+    } catch (error: any) {
+      structuredLogger.warning('ToolchainOptimizer', `Failed to flush execution buffer: ${error.message}`);
     }
   }
 
@@ -242,8 +237,8 @@ class ToolchainOptimizer extends EventEmitter {
         recall: accuracy,
         f1Score: accuracy
       };
-    } catch (error) {
-      structuredLogger.warn('Failed to calculate session metrics', { error });
+    } catch (error: any) {
+      structuredLogger.warning('ToolchainOptimizer', `Failed to calculate session metrics: ${error.message}`);
       return { accuracy: 0, precision: 0, recall: 0, f1Score: 0 };
     }
   }
@@ -265,16 +260,12 @@ class ToolchainOptimizer extends EventEmitter {
         (metrics.accuracy - baselineAccuracy) / Math.max(baselineAccuracy, 0.01);
 
       if (improvement > this.RETRAINING_THRESHOLD) {
-        structuredLogger.info('Triggering model retraining', {
-          currentAccuracy: metrics.accuracy,
-          baselineAccuracy,
-          improvement: `${(improvement * 100).toFixed(2)}%`
-        });
+        structuredLogger.info('ToolchainOptimizer', `Triggering model retraining (${(improvement * 100).toFixed(2)}% improvement)`);
 
         this.emit('retraining:triggered', { improvement, metrics });
       }
-    } catch (error) {
-      structuredLogger.warn('Failed to check retraining threshold', { error });
+    } catch (error: any) {
+      structuredLogger.warning('ToolchainOptimizer', `Failed to check retraining threshold: ${error.message}`);
     }
   }
 

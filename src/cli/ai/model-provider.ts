@@ -187,15 +187,46 @@ export class ModelProvider {
             `API key not found for model: ${currentModelName} (OpenRouter). Use /set-key openrouter <key> to configure.`
           )
         }
-        const openrouterProvider = createOpenAI({
-          apiKey,
-          baseURL: 'https://openrouter.ai/api/v1',
-          headers: {
-            'HTTP-Referer': 'https://nikcli.ai', // Optional: for attribution
-            'X-Title': 'NikCLI',
-          },
-        })
-        return openrouterProvider(config.model) // Assumes model like 'openai/gpt-4o'
+
+        // Detect model type and use appropriate provider
+        const modelName = config.model as string
+        let provider: any
+
+        if (modelName.startsWith('google/')) {
+          // Google models via OpenRouter - use OpenAI-compatible but with Google routing
+          provider = createOpenAI({
+            apiKey,
+            baseURL: 'https://openrouter.ai/api/v1',
+            headers: {
+              'HTTP-Referer': 'https://nikcli.ai',
+              'X-Title': 'NikCLI',
+            },
+          })
+        } else if (modelName.startsWith('openai/')) {
+          // OpenAI models via OpenRouter - use standard OpenAI-compatible
+          // Note: Some models may not exist on OpenRouter (like gpt-5.1-codex-mini)
+          // In that case, OpenRouter will handle the error or use an available equivalent
+          provider = createOpenAI({
+            apiKey,
+            baseURL: 'https://openrouter.ai/api/v1',
+            headers: {
+              'HTTP-Referer': 'https://nikcli.ai',
+              'X-Title': 'NikCLI',
+            },
+          })
+        } else {
+          // Other providers via OpenRouter (anthropic, etc)
+          provider = createOpenAI({
+            apiKey,
+            baseURL: 'https://openrouter.ai/api/v1',
+            headers: {
+              'HTTP-Referer': 'https://nikcli.ai',
+              'X-Title': 'NikCLI',
+            },
+          })
+        }
+
+        return provider(config.model)
       }
       case 'ollama': {
         // Ollama does not require API keys; assumes local daemon at default endpoint
@@ -306,10 +337,16 @@ export class ModelProvider {
       baseOptions.maxTokens = validatedOptions.maxTokens
     } else if (currentModelConfig.provider !== 'openai') {
       baseOptions.maxTokens = 6000 // provider-specific default when not supplied
+    } else if (currentModelConfig.provider === 'openrouter') {
+      // OpenRouter needs maxTokens set for all models
+      baseOptions.maxTokens = validatedOptions.maxTokens ?? 4000
     }
     const resolvedTemp = validatedOptions.temperature ?? configManager.get('temperature')
     if (resolvedTemp != null) {
       baseOptions.temperature = resolvedTemp
+    } else if (currentModelConfig.provider === 'openrouter') {
+      // OpenRouter requires temperature = 1 for all models
+      baseOptions.temperature = 1.0
     }
 
     // OpenRouter-specific parameters support
@@ -321,7 +358,7 @@ export class ModelProvider {
         baseOptions.experimental_providerMetadata.openrouter = {}
       }
 
-      // Reasoning parameter support
+      // Reasoning parameter support (only for models that support it)
       if (reasoningEnabled) {
         const reasoningConfig = validatedOptions.reasoning || {
           effort: 'medium',
@@ -452,9 +489,20 @@ export class ModelProvider {
       messages: validatedOptions.messages.map((msg) => ({ role: msg.role, content: msg.content })),
 
     }
-    if (currentModelConfig.provider !== 'openai') {
-      streamOptions.maxTokens = validatedOptions.maxTokens ?? 1500
-      streamOptions.temperature = validatedOptions.temperature ?? configManager.get('temperature')
+
+    // Set temperature and maxTokens for all providers
+    const resolvedTemp = validatedOptions.temperature ?? configManager.get('temperature')
+    if (resolvedTemp != null) {
+      streamOptions.temperature = resolvedTemp
+    } else if (currentModelConfig.provider === 'openrouter') {
+      // OpenRouter requires temperature = 1 for all models
+      streamOptions.temperature = 1.0
+    }
+
+    streamOptions.maxTokens = validatedOptions.maxTokens ?? 1500
+    if (currentModelConfig.provider === 'openrouter') {
+      // OpenRouter needs maxTokens set for all models
+      streamOptions.maxTokens = validatedOptions.maxTokens ?? 4000
     }
 
     // OpenRouter-specific parameters support for streaming
@@ -540,6 +588,7 @@ export class ModelProvider {
     }
     const model = this.getModel({ ...currentModelConfig, model: effId3 } as ModelConfig)
 
+    const resolvedTemp = options.temperature ?? configManager.get('temperature')
     const generateObjectParams: any = {
       model: model as any,
       messages: options.messages.map((msg) => ({
@@ -549,9 +598,18 @@ export class ModelProvider {
       schema: options.schema,
       schemaName: options.schemaName,
       schemaDescription: options.schemaDescription,
-      temperature: options.temperature ?? configManager.get('temperature'),
-
     }
+
+    // Set temperature for all providers
+    if (resolvedTemp != null) {
+      generateObjectParams.temperature = resolvedTemp
+    } else if (currentModelConfig.provider === 'openrouter') {
+      // OpenRouter requires temperature = 1 for all models
+      generateObjectParams.temperature = 1.0
+    }
+
+    // Set maxTokens for all providers
+    generateObjectParams.maxTokens = options.maxTokens ?? 4000
 
     // Add AI SDK steps and finalStep support
     if (options.steps) {

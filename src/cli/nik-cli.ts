@@ -2567,6 +2567,7 @@ export class NikCLI {
       lines.push('  /set-coin-keys        Configure Coinbase keys')
       lines.push('  /set-key-bb           Configure Browserbase keys')
       lines.push('  /set-key-redis        Configure Redis/Upstash keys')
+      lines.push('  /set-nikdrive-end     Configure NikDrive endpoint')
       lines.push('  /set-vector-key       Configure Upstash Vector keys')
       lines.push('  /redis-enable          Enable Redis caching')
       lines.push('  /redis-disable         Disable Redis caching')
@@ -3119,6 +3120,11 @@ export class NikCLI {
           break
         }
 
+        case 'set-nikdrive-end': {
+          await this.setNikDriveEndpoint(args)
+          break
+        }
+
         case 'set-vector-key': {
           await this.interactiveSetVectorKeys()
           break
@@ -3503,6 +3509,10 @@ export class NikCLI {
           break
         case 'polymarket':
           await this.handlePolymarketCommands(cmd, args)
+          break
+        case 'nikdrive':
+        case 'cloud':
+          await this.handleNikDriveCommands(cmd, args)
           break
         case 'web3-toolchain':
         case 'w3-toolchain':
@@ -10076,19 +10086,10 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const totalTime = Date.now() - mlStartTime
 
       // Log comprehensive status
-      structuredLogger.success('ML System', '🤖 ML Toolchain Initialization Complete', {
-        totalInitializationTime: `${totalTime}ms`,
-        components: componentStatus,
-        verificationResults: verification,
-        allComponentsActive: Object.values(verification).every(v => v === true)
-      })
+      advancedUI.logSuccess('🤖 ML Toolchain Initialization Complete', `${totalTime}ms`)
     } catch (error: any) {
       const totalTime = Date.now() - mlStartTime
-      structuredLogger.error('ML System', `⚠️ ML initialization error after ${totalTime}ms`, {
-        error: error.message,
-        componentStatus,
-        stack: error.stack
-      })
+      advancedUI.logError(`⚠️ ML initialization error after ${totalTime}ms: ${error.message}`)
       // Non-blocking - system continues without ML
     }
   }
@@ -12133,6 +12134,21 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
           ['/diagnostic status', 'Show diagnostic status'],
           ['/monitor [path]', 'Monitor file changes'],
           ['/diag-status', 'Show diagnostic system status'],
+        ],
+      },
+      {
+        title: '☁️  Cloud Storage (NikDrive)',
+        commands: [
+          ['/nikdrive status', 'Check cloud connection and quota'],
+          ['/nikdrive upload <path> [dest]', 'Upload file/folder to cloud'],
+          ['/nikdrive download <fileId> <path>', 'Download file from cloud'],
+          ['/nikdrive sync <localPath> [cloudPath]', 'Sync workspace bidirectionally'],
+          ['/nikdrive search <query> [limit]', 'Search files in cloud storage'],
+          ['/nikdrive list [folderId]', 'List cloud storage contents'],
+          ['/nikdrive share <fileId> [days]', 'Create shareable link'],
+          ['/nikdrive delete <fileId>', 'Delete file from cloud'],
+          ['/nikdrive mkdir <name> [parentId]', 'Create cloud folder'],
+          ['/set-key nikdrive <apiKey>', 'Configure cloud storage API key'],
         ],
       },
     ]
@@ -16267,6 +16283,16 @@ This file is automatically maintained by NikCLI to provide consistent context ac
    * Delegate Polymarket commands to slash handler
    */
   private async handlePolymarketCommands(cmd: string, args: string[]): Promise<void> {
+    const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
+    if (result.shouldExit) {
+      await this.shutdown()
+    }
+  }
+
+  /**
+   * Delegate NikDrive cloud storage commands
+   */
+  private async handleNikDriveCommands(cmd: string, args: string[]): Promise<void> {
     const result = await this.slashHandler.handle(`/${cmd} ${args.join(' ')}`)
     if (result.shouldExit) {
       await this.shutdown()
@@ -22329,6 +22355,68 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     }
 
     void this.renderPromptArea()
+  }
+
+  /**
+   * Configure NikDrive endpoint
+   */
+  private async setNikDriveEndpoint(args: string[]): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('./core/input-queue')
+
+      // If endpoint provided as argument, use it directly
+      if (args.length > 0) {
+        const endpoint = args.join(' ')
+
+        // Save to environment variable
+        process.env.NIKDRIVE_ENDPOINT = endpoint
+        process.env.NIKDRIVE_API_ENDPOINT = endpoint
+
+        console.log(chalk.green(`✓ NikDrive endpoint set to: ${endpoint}`))
+        console.log(chalk.gray('  Restart NikCLI or run /nikdrive status to test connection'))
+        return
+      }
+
+      // Interactive mode
+      this.printPanel(
+        boxen(
+          'Configure NikDrive endpoint. This URL is where your cloud storage API is running.',
+          { title: '☁️  Set NikDrive Endpoint', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+        )
+      )
+
+      const currentEndpoint = process.env.NIKDRIVE_ENDPOINT || process.env.NIKDRIVE_API_ENDPOINT || 'https://nikcli-drive-production.up.railway.app'
+
+      this.suspendPrompt()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'endpoint',
+            message: 'NikDrive Endpoint URL',
+            default: currentEndpoint,
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        this.resumePromptAndRender()
+      }
+
+      if (answers.endpoint && answers.endpoint.trim().length > 0) {
+        const endpoint = answers.endpoint.trim()
+        process.env.NIKDRIVE_ENDPOINT = endpoint
+        process.env.NIKDRIVE_API_ENDPOINT = endpoint
+        console.log(chalk.green(`✓ NikDrive endpoint set to: ${endpoint}`))
+        console.log(chalk.gray('  Run /nikdrive status to test connection'))
+      } else {
+        console.log(chalk.gray('⏭️  Skipped endpoint configuration'))
+      }
+    } catch (error) {
+      console.error(chalk.red('Error configuring endpoint:'), error)
+    }
   }
 }
 

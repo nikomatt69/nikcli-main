@@ -503,6 +503,155 @@ Provide:
     })
   }
 
+  // NikDrive cloud storage tool
+  getNikDriveTool() {
+    return tool({
+      description: 'Upload, download, sync, search, and manage files with NikDrive cloud storage',
+      parameters: z.object({
+        action: z
+          .enum(['upload', 'download', 'sync', 'search', 'list', 'share', 'delete', 'mkdir', 'status'])
+          .describe('NikDrive action to perform'),
+        path: z.string().optional().describe('Local or cloud file/folder path'),
+        destination: z.string().optional().describe('Destination path for upload or download'),
+        query: z.string().optional().describe('Search query for searching files'),
+        fileId: z.string().optional().describe('Cloud file ID for download/share/delete'),
+        cloudPath: z.string().optional().describe('Cloud path for operations'),
+        limit: z.number().optional().describe('Limit for search results'),
+      }),
+      execute: async ({ action, path, destination, query, fileId, cloudPath, limit }) => {
+        try {
+          const { nikdriveProvider } = await import('../providers/nikdrive')
+          const { simpleConfigManager } = await import('./config-manager')
+
+          // Check if NikDrive is enabled
+          const nikdriveConfig = simpleConfigManager.getNikDriveConfig?.()
+          if (!nikdriveConfig?.enabled) {
+            return {
+              error: 'NikDrive is not enabled. Use /set-key nikdrive <apiKey> to enable it.',
+            }
+          }
+
+          console.log(chalk.blue(`☁️  NikDrive: ${action.toUpperCase()}`))
+
+          switch (action) {
+            case 'upload': {
+              if (!path) throw new Error('path is required for upload action')
+              const result = await nikdriveProvider.uploadFile(path, destination || '/')
+              return {
+                success: true,
+                file: result.fileName,
+                size: result.size,
+                path: result.path,
+                message: `File uploaded: ${result.fileName}`,
+              }
+            }
+
+            case 'download': {
+              if (!fileId || !destination) throw new Error('fileId and destination are required for download')
+              await nikdriveProvider.downloadFile(fileId, destination)
+              return {
+                success: true,
+                message: `File downloaded to ${destination}`,
+              }
+            }
+
+            case 'sync': {
+              if (!path) throw new Error('path is required for sync action')
+              const stats = await nikdriveProvider.syncWorkspace(path, cloudPath || '/')
+              return {
+                success: true,
+                filesUploaded: stats.filesUploaded,
+                filesDownloaded: stats.filesDownloaded,
+                foldersSynced: stats.foldersSynced,
+                totalSize: stats.totalSize,
+                duration: stats.duration,
+                errors: stats.errors,
+              }
+            }
+
+            case 'search': {
+              if (!query) throw new Error('query is required for search action')
+              const results = await nikdriveProvider.searchFiles(query, limit || 20)
+              return {
+                success: true,
+                count: results.length,
+                results: results.map((r) => ({
+                  name: r.name,
+                  path: r.path,
+                  type: r.type,
+                  relevance: r.relevance,
+                })),
+              }
+            }
+
+            case 'list': {
+              const files = await nikdriveProvider.listFiles(destination || 'root')
+              return {
+                success: true,
+                count: files.length,
+                files: files.map((f) => ({
+                  id: f.id,
+                  name: f.name,
+                  type: f.type,
+                  size: f.size,
+                  createdAt: f.createdAt,
+                })),
+              }
+            }
+
+            case 'share': {
+              if (!fileId) throw new Error('fileId is required for share action')
+              const share = await nikdriveProvider.createShareLink(fileId)
+              return {
+                success: true,
+                url: share.url,
+                token: share.token,
+                expiresAt: share.expiresAt,
+              }
+            }
+
+            case 'delete': {
+              if (!fileId) throw new Error('fileId is required for delete action')
+              await nikdriveProvider.deleteFile(fileId)
+              return {
+                success: true,
+                message: 'File deleted successfully',
+              }
+            }
+
+            case 'mkdir': {
+              if (!path) throw new Error('path is required for mkdir action')
+              const folder = await nikdriveProvider.createFolder(path, destination || 'root')
+              return {
+                success: true,
+                folderId: folder.id,
+                name: folder.name,
+                path: folder.path,
+              }
+            }
+
+            case 'status': {
+              const health = await nikdriveProvider.getHealth()
+              return {
+                connected: health.connected,
+                status: health.status,
+                latency: health.latency,
+                quota: health.quota,
+              }
+            }
+
+            default:
+              throw new Error(`Unknown action: ${action}`)
+          }
+        } catch (error: any) {
+          return {
+            error: `NikDrive operation failed: ${error.message}`,
+          }
+        }
+      },
+    })
+  }
+
   // Helper function to find files
   private findFiles(dir: string, extensions: string[]): string[] {
     const files: string[] = []

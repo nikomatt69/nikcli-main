@@ -216,7 +216,9 @@ export class SlashCommandHandler {
     this.commands.set('pro', this.proCommand.bind(this))
     this.commands.set('model', this.modelCommand.bind(this))
     this.commands.set('models', this.modelsCommand.bind(this))
+    this.commands.set('models-open', this.modelsOpenCommand.bind(this))
     this.commands.set('set-key', this.setKeyCommand.bind(this))
+    this.commands.set('set-key-nikdrive', this.setKeyNikdriveCommand.bind(this))
     this.commands.set('config', this.configCommand.bind(this))
     this.commands.set('env', this.envCommand.bind(this))
     this.commands.set('notify', this.notifyCommand.bind(this))
@@ -411,6 +413,10 @@ export class SlashCommandHandler {
     this.commands.set('edit-history', this.editHistoryCommand.bind(this))
     this.commands.set('figma-create', this.figmaCreateCommand.bind(this))
 
+    // Cloud Storage (NikDrive)
+    this.commands.set('nikdrive', this.nikdriveCommand.bind(this))
+    this.commands.set('cloud', this.nikdriveCommand.bind(this))
+
     // BrowseGPT Web browsing commands
     this.commands.set('browse-session', this.browseSessionCommand.bind(this))
     this.commands.set('browse-search', this.browseSearchCommand.bind(this))
@@ -461,6 +467,8 @@ ${chalk.cyan('/set-vector-key')} - Configure Upstash Vector database credentials
 ${chalk.blue.bold('Model Management:')}
 ${chalk.cyan('/model <name>')} - Switch to a model
 ${chalk.cyan('/models')} - List available models
+${chalk.cyan('/models-open')} - Interactive OpenRouter models browser (search & select)
+${chalk.gray('  Fetches models from OpenRouter API with interactive search')}
 ${chalk.cyan('/set-key <model> <key>')} - Set API key for a model
 ${chalk.gray('  e.g. /set-key openrouter sk-or-v1-...')}
 ${chalk.gray('  Supported: openrouter, cerebras, groq, openai, anthropic, google, vercel')}
@@ -1538,6 +1546,189 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
+  private async modelsOpenCommand(): Promise<CommandResult> {
+    try {
+      const nik: any = (global as any).__nikCLI
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('../core/input-queue')
+
+      nik?.beginPanelOutput?.()
+      this.printPanel(
+        boxen('🚀 OpenRouter Models Browser', {
+          title: '📦 Fetching Models',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+      )
+      nik?.endPanelOutput?.()
+
+      const apiKey = process.env.OPENROUTER_API_KEY || configManager.getApiKey('openrouter')
+      if (!apiKey) {
+        this.printPanel(
+          boxen(chalk.red('❌ OPENROUTER_API_KEY not found\n\nSet it with: /set-key openrouter <your-api-key>'), {
+            title: '🔑 Missing API Key',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Fetch models from OpenRouter API
+      const response = await fetch('https://openrouter.ai/api/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://nikcli.ai',
+          'X-Title': 'NikCLI',
+        },
+      })
+
+      if (!response.ok) {
+        this.printPanel(
+          boxen(
+            chalk.red(
+              `❌ Error fetching models: ${response.status} ${response.statusText}\n\nCheck your API key with: /set-key openrouter <your-api-key>`
+            ),
+            {
+              title: '❌ API Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            }
+          )
+        )
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      const data = (await response.json()) as any
+      const allModels = (data.data || []) as Array<{ id: string; name: string; description?: string; pricing?: any }>
+
+      nik?.beginPanelOutput?.()
+      this.printPanel(
+        boxen(`✓ Found ${allModels.length} models`, {
+          title: '📦 Models Loaded',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+      )
+      nik?.endPanelOutput?.()
+
+      // Suspend prompt for interactive input
+      nik?.suspendPrompt?.()
+      inputQueue.enableBypass()
+
+      let selectedModel: string | null = null
+
+      try {
+        // First, get search query
+        const searchAnswer = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'search',
+            message: 'Search models (by name or ID)',
+            default: '',
+          },
+        ])
+
+        const searchQuery = searchAnswer.search.toLowerCase()
+
+        // Filter models based on search
+        const filtered = allModels.filter(
+          (m) =>
+            m.id.toLowerCase().includes(searchQuery) ||
+            (m.name && m.name.toLowerCase().includes(searchQuery))
+        )
+
+        if (filtered.length === 0) {
+          console.log(chalk.yellow('\n⚠️  No models found matching your search'))
+          inputQueue.disableBypass()
+          nik?.renderPromptAfterOutput?.()
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        // Display top 20 matches
+        const displayModels = filtered.slice(0, 20).map((m) => {
+          const pricing = m.pricing
+            ? ` (in: $${m.pricing.prompt || 0}/1M, out: $${m.pricing.completion || 0}/1M)`
+            : ''
+          return {
+            name: `${chalk.bold(m.id)}${chalk.dim(pricing)}`,
+            value: m.id,
+          }
+        })
+
+        // Let user select from filtered results
+        const selectAnswer = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'model',
+            message: `Select model (${filtered.length} results):`,
+            choices: displayModels,
+            pageSize: 15,
+          },
+        ])
+
+        selectedModel = selectAnswer.model
+
+        // Ask if want to set as current model
+        const setCurrentAnswer = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'setCurrent',
+            message: `Set ${chalk.bold(selectedModel)} as current model?`,
+            default: true,
+          },
+        ])
+
+        if (setCurrentAnswer.setCurrent) {
+          configManager.set('currentModel', selectedModel as any)
+          console.log(chalk.green(`✓ Current model set to: ${selectedModel}`))
+        }
+      } finally {
+        inputQueue.disableBypass()
+        nik?.renderPromptAfterOutput?.()
+      }
+
+      // Display summary
+      if (selectedModel) {
+        this.printPanel(
+          boxen(`✓ Selected: ${chalk.bold(selectedModel)}\n\nYou can now use this model directly`, {
+            title: '✅ Model Selected',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'green',
+          })
+        )
+      }
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      const nik: any = (global as any).__nikCLI
+      nik?.suspendPrompt?.()
+
+      this.printPanel(
+        boxen(chalk.red(`❌ Error: ${error.message}`), {
+          title: '❌ Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+
+      nik?.renderPromptAfterOutput?.()
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+  }
+
   private async routerCommand(args: string[] = []): Promise<CommandResult> {
     try {
       const { configManager } = await import('../core/config-manager')
@@ -1652,10 +1843,15 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
+    if (args.length === 1 && ['nikdrive', 'cloud', 'cloud-storage'].includes(args[0].toLowerCase())) {
+      await this.setKeyNikdriveCommand()
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
     if (args.length < 2) {
       this.printPanel(
         chalk.red(
-          'Usage: /set-key <model|coinbase-id|coinbase-secret|coinbase-wallet-secret|browserbase-api-key|browserbase-project-id> <api-key>'
+          'Usage: /set-key <model|coinbase-id|coinbase-secret|coinbase-wallet-secret|browserbase-api-key|browserbase-project-id|nikdrive> <api-key>'
         )
       )
       console.log(chalk.gray('Examples:'))
@@ -1667,6 +1863,8 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray('  /set-key browserbase-api-key your_browserbase_api_key'))
       console.log(chalk.gray('  /set-key browserbase-project-id your_project_id'))
       console.log(chalk.gray('  /set-key browserbase   # interactive wizard'))
+      console.log(chalk.gray('  /set-key nikdrive <your_api_key>'))
+      console.log(chalk.gray('  /set-key nikdrive   # interactive wizard'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -1693,6 +1891,27 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         configManager.setApiKey('browserbase_project_id', apiKey)
         process.env.BROWSERBASE_PROJECT_ID = apiKey
         console.log(chalk.green('✓ Browserbase Project ID set'))
+      } else if (['nikdrive', 'cloud', 'cloud-storage'].includes(keyName)) {
+        configManager.enableNikDrive(apiKey)
+        this.cliInstance.printPanel(
+          boxen(
+            [
+              chalk.green('✓ NikDrive API key set'),
+              '',
+              'You can now use:',
+              '  /nikdrive status   – Check cloud connection',
+              '  /nikdrive upload   – Upload files to cloud',
+              '  /nikdrive sync     – Sync workspace',
+            ].join('\n'),
+            {
+              title: '☁️  NikDrive Configured',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
       } else if (keyName === 'openrouter' || keyName === 'nikcli') {
         const valid = await this.validateOpenRouterKey(apiKey)
         if (!valid) {
@@ -1928,6 +2147,119 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       this.cliInstance.printPanel(
         boxen(`Failed to set Browserbase keys: ${error.message}`, {
           title: '❌ Set Browserbase Keys',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Dedicated /set-key-nikdrive command
+   */
+  private async setKeyNikdriveCommand(): Promise<CommandResult> {
+    await this.interactiveSetNikDriveKey()
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * Interactive wizard to set NikDrive API key securely
+   */
+  private async interactiveSetNikDriveKey(): Promise<void> {
+    try {
+      const inquirer = (await import('inquirer')).default
+      const { inputQueue } = await import('../core/input-queue')
+
+      const nik: any = (global as any).__nikCLI
+      nik?.beginPanelOutput?.()
+      this.cliInstance.printPanel(
+        boxen(
+          [
+            '☁️  NikDrive Cloud Storage Configuration',
+            '',
+            'Enter your NikDrive API key to enable cloud storage features.',
+            'Your API key is stored encrypted and never transmitted in plain text.',
+            '',
+            'Get your API key from: https://nikcli-drive-production.up.railway.app/dashboard',
+          ].join('\n'),
+          {
+            title: '🔑 Set NikDrive API Key',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          }
+        )
+      )
+      nik?.endPanelOutput?.()
+
+      const currentKey = configManager.getApiKey('nikdrive')
+
+      // Suspend prompt for interactive input
+      nik?.suspendPrompt?.()
+      inputQueue.enableBypass()
+      let answers: any
+      try {
+        answers = await inquirer.prompt([
+          {
+            type: 'password',
+            name: 'apiKey',
+            message: 'NIKDRIVE_API_KEY',
+            mask: '*',
+            suffix: currentKey ? chalk.gray(' (configured)') : '',
+          },
+        ])
+      } finally {
+        inputQueue.disableBypass()
+        nik?.renderPromptAfterOutput?.()
+      }
+
+      if (answers.apiKey && answers.apiKey.trim().length > 0) {
+        const apiKey = answers.apiKey.trim()
+        configManager.enableNikDrive(apiKey)
+
+        this.cliInstance.printPanel(
+          boxen(
+            [
+              chalk.green('✓ NikDrive API key saved'),
+              '',
+              'Cloud storage is now enabled. Available commands:',
+              '  /nikdrive status    – Check cloud connection and quota',
+              '  /nikdrive upload    – Upload files to cloud',
+              '  /nikdrive download  – Download files from cloud',
+              '  /nikdrive sync      – Sync workspace bidirectionally',
+              '  /nikdrive search    – Search files in cloud',
+              '  /nikdrive list      – List cloud storage contents',
+              '  /nikdrive share     – Create shareable links',
+              '  /nikdrive delete    – Delete files from cloud',
+              '  /nikdrive mkdir     – Create cloud folders',
+            ].join('\n'),
+            {
+              title: '☁️  NikDrive Ready',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            }
+          )
+        )
+      } else {
+        this.cliInstance.printPanel(
+          boxen('NikDrive API key configuration cancelled.', {
+            title: '⏭️  Skipped',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+        )
+      }
+    } catch (error: any) {
+      this.cliInstance.printPanel(
+        boxen(`Failed to set NikDrive API key: ${error.message}`, {
+          title: '❌ Set NikDrive API Key',
           padding: 1,
           margin: 1,
           borderStyle: 'round',
@@ -2209,7 +2541,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
   private async mlStatusCommand(args: string[]): Promise<CommandResult> {
     const boxen = (await import('boxen')).default
 
-    if (!this.cliInstance || !typeof this.cliInstance.getMLStatus === 'function') {
+    if (!this.cliInstance || !(typeof this.cliInstance.getMLStatus === 'function' as string)) {
       this.printPanel(
         boxen('ML System status unavailable - CLI instance not initialized', {
           title: '❌ ML System Status',
@@ -8848,6 +9180,390 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 
+  /**
+   * Cloud Storage (NikDrive) command handler
+   */
+  private async nikdriveCommand(args: string[]): Promise<CommandResult> {
+    // Help/usage
+    if (args.length === 0) {
+      this.cliInstance.printPanel(
+        boxen(
+          [
+            chalk.bold('☁️  NikDrive Cloud Storage Commands'),
+            chalk.gray('────────────────────────────────────────────'),
+            '',
+            `${chalk.cyan('/nikdrive status')}                    – Check connection & quota`,
+            `${chalk.cyan('/nikdrive upload <path> [dest]')}      – Upload file/folder`,
+            `${chalk.cyan('/nikdrive download <id> <path>')}      – Download file`,
+            `${chalk.cyan('/nikdrive sync <local> [cloud]')}      – Bidirectional sync`,
+            `${chalk.cyan('/nikdrive search <query> [limit]')}    – Search files`,
+            `${chalk.cyan('/nikdrive list [folderId]')}           – List contents`,
+            `${chalk.cyan('/nikdrive share <id> [days]')}         – Create share link`,
+            `${chalk.cyan('/nikdrive delete <id>')}               – Delete file`,
+            `${chalk.cyan('/nikdrive mkdir <name> [parentId]')}   – Create folder`,
+            '',
+            chalk.gray('Configure: /set-key nikdrive <API_KEY>'),
+          ].join('\n'),
+          { title: 'NikDrive', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'cyan' }
+        )
+      )
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    const sub = args[0].toLowerCase()
+
+    // Ensure panel-safe printing
+    const nik: any = (global as any).__nikCLI
+    nik?.beginPanelOutput?.()
+    try {
+      if (sub === 'status') {
+        const { nikdriveProvider } = await import('../providers/nikdrive')
+        const health = await nikdriveProvider.getHealth()
+
+        const lines: string[] = []
+        if (health.connected) {
+          lines.push(chalk.green('✓ Connected'))
+          lines.push(`Status: ${health.status}`)
+          lines.push(`Latency: ${health.latency}ms`)
+          if (health.quota) {
+            const used = formatBytes(health.quota.used)
+            const total = formatBytes(health.quota.total)
+            const percentage = ((health.quota.used / health.quota.total) * 100).toFixed(1)
+            lines.push(`Quota: ${used} / ${total} (${percentage}%)`)
+            lines.push(`Available: ${formatBytes(health.quota.available)}`)
+          }
+        } else {
+          lines.push(chalk.red('✗ Not connected'))
+          lines.push(`Status: ${health.status}`)
+          lines.push(`Latency: ${health.latency}ms`)
+        }
+
+        const content = boxen(lines.join('\n'), {
+          title: '☁️  NikDrive Status',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: health.connected ? 'green' : 'red',
+        })
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'upload') {
+        if (args.length < 2) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /nikdrive upload <path> [destination]', {
+              title: 'NikDrive Upload',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const { nikdriveProvider } = await import('../providers/nikdrive')
+        const [path, destination = '/'] = args.slice(1)
+        const result = await nikdriveProvider.uploadFile(path, destination)
+
+        const lines: string[] = [
+          chalk.green('✓ File uploaded successfully'),
+          '',
+          `File: ${result.fileName}`,
+          `Size: ${formatBytes(result.size)}`,
+          `Path: ${result.path}`,
+        ]
+
+        const content = boxen(lines.join('\n'), {
+          title: '☁️  Upload Complete',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'download') {
+        if (args.length < 3) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /nikdrive download <fileId> <destination>', {
+              title: 'NikDrive Download',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const { nikdriveProvider } = await import('../providers/nikdrive')
+        const [fileId, destination] = args.slice(1, 3)
+        await nikdriveProvider.downloadFile(fileId, destination)
+
+        const lines: string[] = [
+          chalk.green('✓ File downloaded successfully'),
+          '',
+          `Destination: ${destination}`,
+        ]
+
+        const content = boxen(lines.join('\n'), {
+          title: '☁️  Download Complete',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'sync') {
+        if (args.length < 2) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /nikdrive sync <localPath> [cloudPath]', {
+              title: 'NikDrive Sync',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const { nikdriveProvider } = await import('../providers/nikdrive')
+        const [localPath, cloudPath = '/'] = args.slice(1)
+
+        this.cliInstance.printPanel(boxen(chalk.blue('⏳ Syncing workspace...'), { padding: 1, margin: 1 }))
+        const stats = await nikdriveProvider.syncWorkspace(localPath, cloudPath)
+
+        const lines: string[] = [
+          chalk.green('✓ Sync completed'),
+          '',
+          `Files uploaded: ${stats.filesUploaded}`,
+          `Files downloaded: ${stats.filesDownloaded}`,
+          `Folders synced: ${stats.foldersSynced}`,
+          `Total size: ${formatBytes(stats.totalSize)}`,
+          `Duration: ${(stats.duration / 1000).toFixed(2)}s`,
+        ]
+
+        if (stats.errors.length > 0) {
+          lines.push('')
+          lines.push(chalk.yellow(`⚠ ${stats.errors.length} error(s):`))
+          stats.errors.forEach((err) => {
+            lines.push(`  • ${err.path}: ${err.error}`)
+          })
+        }
+
+        const content = boxen(lines.join('\n'), {
+          title: '☁️  Sync Complete',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: stats.errors.length > 0 ? 'yellow' : 'green',
+        })
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'search') {
+        if (args.length < 2) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /nikdrive search <query> [limit]', {
+              title: 'NikDrive Search',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const { nikdriveProvider } = await import('../providers/nikdrive')
+        const [query, limit = '20'] = args.slice(1)
+        const results = await nikdriveProvider.searchFiles(query, parseInt(limit))
+
+        if (results.length === 0) {
+          const content = boxen('No results found', {
+            title: '🔍 Search Results',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+          this.cliInstance.printPanel(content)
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const lines: string[] = [`Found ${results.length} result(s):\n`]
+        results.forEach((result) => {
+          const icon = result.type === 'folder' ? '📁' : '📄'
+          const relevance = (result.relevance * 100).toFixed(0)
+          lines.push(`${icon} ${result.name}`)
+          lines.push(`   ${result.path} (${relevance}% match)`)
+        })
+
+        const content = boxen(lines.join('\n'), {
+          title: '🔍 Search Results',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'list') {
+        const { nikdriveProvider } = await import('../providers/nikdrive')
+        const folderId = args[1] || '/'
+        const items = await nikdriveProvider.listFiles(folderId)
+
+        if (items.length === 0) {
+          const content = boxen('Folder is empty', {
+            title: '📁 Folder Contents',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+          })
+          this.cliInstance.printPanel(content)
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const lines: string[] = []
+        items.forEach((item) => {
+          const icon = item.type === 'folder' ? '📁' : '📄'
+          const size = item.type === 'folder' ? '' : ` (${formatBytes(item.size || 0)})`
+          lines.push(`${icon} ${item.name}${size}`)
+          lines.push(`   ID: ${item.id}`)
+          if (item.updatedAt) {
+            lines.push(`   Modified: ${new Date(item.updatedAt).toLocaleString()}`)
+          }
+          lines.push('')
+        })
+
+        const content = boxen(lines.join('\n'), {
+          title: '📁 Folder Contents',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'blue',
+        })
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'share') {
+        if (args.length < 2) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /nikdrive share <fileId> [expirationDays]', {
+              title: 'NikDrive Share',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const { nikdriveProvider } = await import('../providers/nikdrive')
+        const [fileId, expirationDays = '7'] = args.slice(1)
+        const shareLink = await nikdriveProvider.createShareLink(fileId, parseInt(expirationDays))
+
+        const lines: string[] = [
+          chalk.green('✓ Share link created'),
+          '',
+          `Link: ${shareLink.url}`,
+          `Expires in: ${expirationDays} days`,
+        ]
+
+        const content = boxen(lines.join('\n'), {
+          title: '🔗 Share Link',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'delete') {
+        if (args.length < 2) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /nikdrive delete <fileId>', {
+              title: 'NikDrive Delete',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const { nikdriveProvider } = await import('../providers/nikdrive')
+        const fileId = args[1]
+        await nikdriveProvider.deleteFile(fileId)
+
+        const lines: string[] = [chalk.green(`✓ File ${fileId} deleted successfully`)]
+
+        const content = boxen(lines.join('\n'), {
+          title: '🗑️  Delete Complete',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+        this.cliInstance.printPanel(content)
+      } else if (sub === 'mkdir') {
+        if (args.length < 2) {
+          this.cliInstance.printPanel(
+            boxen('Usage: /nikdrive mkdir <folderName> [parentId]', {
+              title: 'NikDrive Mkdir',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+          return { shouldExit: false, shouldUpdatePrompt: false }
+        }
+
+        const { nikdriveProvider } = await import('../providers/nikdrive')
+        const [folderName, parentId = '/'] = args.slice(1)
+        const folder = await nikdriveProvider.createFolder(folderName, parentId)
+
+        const lines: string[] = [
+          chalk.green('✓ Folder created successfully'),
+          '',
+          `Name: ${folder.name}`,
+          `ID: ${folder.id}`,
+          `Path: ${folder.path}`,
+        ]
+
+        const content = boxen(lines.join('\n'), {
+          title: '📁 Folder Created',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'green',
+        })
+        this.cliInstance.printPanel(content)
+      } else {
+        const panel = boxen(`Unknown subcommand: ${sub}`, {
+          title: 'NikDrive',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+        this.cliInstance.printPanel(panel)
+      }
+    } catch (error: any) {
+      const panel = boxen(
+        `Failed to execute NikDrive command: ${error.message}` +
+        '\n\nTips:\n- Ensure API key is configured: /set-key nikdrive <KEY>\n- Run /nikdrive status to check connection',
+        { title: 'NikDrive Error', padding: 1, margin: 1, borderStyle: 'round', borderColor: 'red' }
+      )
+      this.cliInstance.printPanel(panel)
+    } finally {
+      // Properly end panel output and re-render the prompt
+      if (nik) {
+        nik.endPanelOutput?.()
+        nik.renderPromptAfterOutput?.()
+      }
+    }
+
+    return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
   // Panel formatters
   private formatWeb3WalletsPanel(result: any): string {
     const title = 'Web3 Wallets'
@@ -12074,10 +12790,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       // Display summary
       const summaryBox = boxen(
         (result.success ? chalk.green('✅ Command executed successfully') : chalk.red('❌ Command failed')) +
-          '\n' +
-          chalk.gray(`Exit Code: ${result.exitCode}\n`) +
-          chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s\n`) +
-          chalk.gray(`Sandbox: ${result.sandboxDir}`),
+        '\n' +
+        chalk.gray(`Exit Code: ${result.exitCode}\n`) +
+        chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s\n`) +
+        chalk.gray(`Sandbox: ${result.sandboxDir}`),
         {
           title: `🏝️  Sandbox Result (${session.id})`,
           padding: 1,
@@ -12169,9 +12885,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
       const summaryBox = boxen(
         (result.success ? chalk.green('✅ Script executed successfully') : chalk.red('❌ Script failed')) +
-          '\n' +
-          chalk.gray(`Exit Code: ${result.exitCode}\n`) +
-          chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s`),
+        '\n' +
+        chalk.gray(`Exit Code: ${result.exitCode}\n`) +
+        chalk.gray(`Duration: ${(result.duration / 1000).toFixed(2)}s`),
         {
           title: `🏝️  Script Result (${session.id})`,
           padding: 1,
@@ -12352,7 +13068,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         chalk.gray(`Email: ${chalk.cyan(profile.email || 'N/A')}\n`) +
         chalk.gray(`Username: ${chalk.cyan(profile.username || 'N/A')}\n`) +
         chalk.gray(`Tier: ${chalk.cyan(profile.subscription_tier.toUpperCase())}\n`) +
-        chalk.gray(`Member Since: ${chalk.cyan(new Date(profile.created_at).toLocaleDateString())}\n\n`) +
+        chalk.gray(`Member Since: ${chalk.cyan(new Date(currentUser.created_at).toLocaleDateString())}\n\n`) +
         chalk.cyan.bold(`⚙️ Preferences\n\n`) +
         chalk.gray(`Theme: ${chalk.cyan(profile.preferences.theme)}\n`) +
         chalk.gray(`Notifications: ${profile.preferences.notifications ? chalk.green('✓ Enabled') : chalk.red('✗ Disabled')}\n`) +
@@ -13555,4 +14271,380 @@ function formatExecutionStatus(status: string): string {
     default:
       return chalk.gray(status)
   }
+}
+
+// ====================== ☁️  NIKDRIVE CLOUD STORAGE COMMANDS ======================
+
+export async function handleNikDriveCommand(args: string[]): Promise<void> {
+  const { nikdriveProvider } = await import('../providers/nikdrive')
+
+  if (args.length === 0) {
+    console.log(formatNikDriveHelpPanel())
+    return
+  }
+
+  const [action, ...actionArgs] = args
+
+  try {
+    switch (action.toLowerCase()) {
+      case 'status':
+        await handleNikDriveStatus()
+        break
+      case 'upload':
+        await handleNikDriveUpload(actionArgs)
+        break
+      case 'download':
+        await handleNikDriveDownload(actionArgs)
+        break
+      case 'sync':
+        await handleNikDriveSync(actionArgs)
+        break
+      case 'search':
+        await handleNikDriveSearch(actionArgs)
+        break
+      case 'list':
+        await handleNikDriveList(actionArgs)
+        break
+      case 'share':
+        await handleNikDriveShare(actionArgs)
+        break
+      case 'delete':
+        await handleNikDriveDelete(actionArgs)
+        break
+      case 'mkdir':
+        await handleNikDriveMkdir(actionArgs)
+        break
+      default:
+        console.log(formatNikDriveErrorPanel(`Unknown action: ${action}`))
+    }
+  } catch (error) {
+    console.log(formatNikDriveErrorPanel(error instanceof Error ? error.message : String(error)))
+  }
+}
+
+async function handleNikDriveStatus(): Promise<void> {
+  const { nikdriveProvider } = await import('../providers/nikdrive')
+  const health = await nikdriveProvider.getHealth()
+
+  const lines: string[] = []
+  if (health.connected) {
+    lines.push(chalk.green('✓ Connected'))
+    lines.push(`Status: ${health.status}`)
+    lines.push(`Latency: ${health.latency}ms`)
+    if (health.quota) {
+      const used = formatBytes(health.quota.used)
+      const total = formatBytes(health.quota.total)
+      const percentage = ((health.quota.used / health.quota.total) * 100).toFixed(1)
+      lines.push(`Quota: ${used} / ${total} (${percentage}%)`)
+      lines.push(`Available: ${formatBytes(health.quota.available)}`)
+    }
+  } else {
+    lines.push(chalk.red('✗ Not connected'))
+    lines.push(`Status: ${health.status}`)
+    lines.push(`Latency: ${health.latency}ms`)
+  }
+
+  console.log(boxen(lines.join('\n'), {
+    title: '☁️  NikDrive Status',
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: health.connected ? 'green' : 'red',
+  }))
+}
+
+async function handleNikDriveUpload(args: string[]): Promise<void> {
+  if (args.length < 1) {
+    console.log(formatNikDriveUsagePanel('upload', 'upload <path> [destination]'))
+    return
+  }
+
+  const { nikdriveProvider } = await import('../providers/nikdrive')
+  const [path, destination = '/'] = args
+  const result = await nikdriveProvider.uploadFile(path, destination)
+
+  const lines: string[] = [
+    chalk.green('✓ File uploaded successfully'),
+    '',
+    `File: ${result.fileName}`,
+    `Size: ${formatBytes(result.size)}`,
+    `Path: ${result.path}`,
+  ]
+
+  console.log(boxen(lines.join('\n'), {
+    title: '☁️  Upload Complete',
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'green',
+  }))
+}
+
+async function handleNikDriveDownload(args: string[]): Promise<void> {
+  if (args.length < 2) {
+    console.log(formatNikDriveUsagePanel('download', 'download <fileId> <destination>'))
+    return
+  }
+
+  const { nikdriveProvider } = await import('../providers/nikdrive')
+  const [fileId, destination] = args
+  await nikdriveProvider.downloadFile(fileId, destination)
+
+  const lines: string[] = [
+    chalk.green('✓ File downloaded successfully'),
+    '',
+    `Destination: ${destination}`,
+  ]
+
+  console.log(boxen(lines.join('\n'), {
+    title: '☁️  Download Complete',
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'green',
+  }))
+}
+
+async function handleNikDriveSync(args: string[]): Promise<void> {
+  if (args.length < 1) {
+    console.log(formatNikDriveUsagePanel('sync', 'sync <localPath> [cloudPath]'))
+    return
+  }
+
+  const { nikdriveProvider } = await import('../providers/nikdrive')
+  const [localPath, cloudPath = '/'] = args
+
+  console.log(chalk.blue('\n⏳ Syncing workspace...'))
+  const stats = await nikdriveProvider.syncWorkspace(localPath, cloudPath)
+
+  const lines: string[] = [
+    chalk.green('✓ Sync completed'),
+    '',
+    `Files uploaded: ${stats.filesUploaded}`,
+    `Files downloaded: ${stats.filesDownloaded}`,
+    `Folders synced: ${stats.foldersSynced}`,
+    `Total size: ${formatBytes(stats.totalSize)}`,
+    `Duration: ${(stats.duration / 1000).toFixed(2)}s`,
+  ]
+
+  if (stats.errors.length > 0) {
+    lines.push('')
+    lines.push(chalk.yellow(`⚠ ${stats.errors.length} error(s):`))
+    stats.errors.forEach((err) => {
+      lines.push(`  • ${err.path}: ${err.error}`)
+    })
+  }
+
+  console.log(boxen(lines.join('\n'), {
+    title: '☁️  Sync Complete',
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: stats.errors.length > 0 ? 'yellow' : 'green',
+  }))
+}
+
+async function handleNikDriveSearch(args: string[]): Promise<void> {
+  if (args.length < 1) {
+    console.log(formatNikDriveUsagePanel('search', 'search <query> [limit]'))
+    return
+  }
+
+  const { nikdriveProvider } = await import('../providers/nikdrive')
+  const [query, limit = '20'] = args
+  const results = await nikdriveProvider.searchFiles(query, parseInt(limit))
+
+  if (results.length === 0) {
+    console.log(boxen('No results found', {
+      title: '🔍 Search Results',
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'yellow',
+    }))
+    return
+  }
+
+  const lines: string[] = [`Found ${results.length} result(s):\n`]
+  results.forEach((result) => {
+    const icon = result.type === 'folder' ? '📁' : '📄'
+    const relevance = (result.relevance * 100).toFixed(0)
+    lines.push(`${icon} ${result.name}`)
+    lines.push(`   ${result.path} (${relevance}% match)`)
+  })
+
+  console.log(boxen(lines.join('\n'), {
+    title: '🔍 Search Results',
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'green',
+  }))
+}
+
+async function handleNikDriveList(args: string[]): Promise<void> {
+  const { nikdriveProvider } = await import('../providers/nikdrive')
+  const [folderId = 'root'] = args
+  const files = await nikdriveProvider.listFiles(folderId)
+
+  if (files.length === 0) {
+    console.log(boxen('Folder is empty', {
+      title: '📂 Cloud Contents',
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'yellow',
+    }))
+    return
+  }
+
+  const lines: string[] = [`Found ${files.length} item(s):\n`]
+  files.forEach((file) => {
+    const icon = file.type === 'folder' ? '📁' : '📄'
+    const size = file.size ? ` (${formatBytes(file.size)})` : ''
+    lines.push(`${icon} ${file.name}${size}`)
+  })
+
+  console.log(boxen(lines.join('\n'), {
+    title: '📂 Cloud Contents',
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'cyan',
+  }))
+}
+
+async function handleNikDriveShare(args: string[]): Promise<void> {
+  if (args.length < 1) {
+    console.log(formatNikDriveUsagePanel('share', 'share <fileId> [expiresInDays]'))
+    return
+  }
+
+  const { nikdriveProvider } = await import('../providers/nikdrive')
+  const [fileId, expiresInDaysStr] = args
+  const expiresInDays = expiresInDaysStr ? parseInt(expiresInDaysStr) : undefined
+  const expiresIn = expiresInDays ? expiresInDays * 24 * 60 * 60 * 1000 : undefined
+
+  const share = await nikdriveProvider.createShareLink(fileId, expiresIn)
+
+  const lines: string[] = [
+    chalk.green('✓ Share link created'),
+    '',
+    `URL: ${share.url}`,
+    `Token: ${share.token}`,
+  ]
+  if (share.expiresAt) {
+    lines.push(`Expires: ${share.expiresAt}`)
+  }
+
+  console.log(boxen(lines.join('\n'), {
+    title: '🔗 Share Link',
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'green',
+  }))
+}
+
+async function handleNikDriveDelete(args: string[]): Promise<void> {
+  if (args.length < 1) {
+    console.log(formatNikDriveUsagePanel('delete', 'delete <fileId>'))
+    return
+  }
+
+  const { nikdriveProvider } = await import('../providers/nikdrive')
+  const [fileId] = args
+  await nikdriveProvider.deleteFile(fileId)
+
+  console.log(boxen(chalk.green('✓ File deleted successfully'), {
+    title: '🗑️  Delete Complete',
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'green',
+  }))
+}
+
+async function handleNikDriveMkdir(args: string[]): Promise<void> {
+  if (args.length < 1) {
+    console.log(formatNikDriveUsagePanel('mkdir', 'mkdir <folderName> [parentId]'))
+    return
+  }
+
+  const { nikdriveProvider } = await import('../providers/nikdrive')
+  const [folderName, parentId = 'root'] = args
+  const folder = await nikdriveProvider.createFolder(folderName, parentId)
+
+  const lines: string[] = [
+    chalk.green('✓ Folder created'),
+    '',
+    `Name: ${folder.name}`,
+    `Path: ${folder.path}`,
+  ]
+
+  console.log(boxen(lines.join('\n'), {
+    title: '📁 Folder Created',
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'green',
+  }))
+}
+
+function formatNikDriveHelpPanel(): string {
+  const lines: string[] = [
+    'Cloud Storage Operations:',
+    '',
+    '/nikdrive status               Check connection and quota',
+    '/nikdrive upload <path>        Upload file/folder to cloud',
+    '/nikdrive download <id> <path> Download file from cloud',
+    '/nikdrive sync <path>          Sync workspace bidirectionally',
+    '/nikdrive search <query>       Search files in cloud',
+    '/nikdrive list [folder]        List cloud contents',
+    '/nikdrive share <id> [days]    Create public share link',
+    '/nikdrive delete <id>          Delete file from cloud',
+    '/nikdrive mkdir <name>         Create cloud folder',
+    '/set-key nikdrive <key>        Configure API key',
+  ]
+
+  return boxen(lines.join('\n'), {
+    title: '☁️  NikDrive Cloud Storage',
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'cyan',
+  })
+}
+
+function formatNikDriveUsagePanel(action: string, usage: string): string {
+  return boxen(`Usage: /nikdrive ${usage}`, {
+    title: `☁️  ${action.charAt(0).toUpperCase() + action.slice(1)} - Usage`,
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'yellow',
+  })
+}
+
+function formatNikDriveErrorPanel(error: string): string {
+  return boxen(chalk.red(`Error: ${error}`), {
+    title: '☁️  Error',
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'red',
+  })
+}
+
+function formatBytes(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let size = bytes
+  let unitIndex = 0
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex++
+  }
+
+  return `${size.toFixed(2)} ${units[unitIndex]}`
 }
