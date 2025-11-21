@@ -520,18 +520,54 @@ const ConfigSchema = z.object({
         }),
       tables: z
         .object({
+          // Core tables
           sessions: z.string().default('chat_sessions'),
           blueprints: z.string().default('agent_blueprints'),
           users: z.string().default('user_profiles'),
           metrics: z.string().default('usage_metrics'),
           documents: z.string().default('documentation'),
+          // Ad system tables
+          adCampaigns: z.string().default('ad_campaigns'),
+          adImpressions: z.string().default('ad_impressions'),
+          adRotationState: z.string().default('ad_rotation_state'),
+          userAdsConfig: z.string().default('user_ads_config'),
+          // ML system tables
+          mlToolchainExecutions: z.string().default('ml_toolchain_executions'),
+          mlToolchainModels: z.string().default('ml_toolchain_models'),
+          mlInferenceCache: z.string().default('ml_inference_cache'),
+          mlBenchmarkResults: z.string().default('ml_benchmark_results'),
+          mlBatchMetrics: z.string().default('ml_batch_metrics'),
+          // Documentation system tables
+          sharedDocs: z.string().default('shared_docs'),
+          docsLibraries: z.string().default('docs_libraries'),
+          // Misc tables
+          niklcliApiKey: z.string().default('nikcli-api-key'),
+          subscriptionEvents: z.string().default('subscription_events'),
         })
         .default({
+          // Core tables
           sessions: 'chat_sessions',
           blueprints: 'agent_blueprints',
           users: 'user_profiles',
           metrics: 'usage_metrics',
           documents: 'documentation',
+          // Ad system tables
+          adCampaigns: 'ad_campaigns',
+          adImpressions: 'ad_impressions',
+          adRotationState: 'ad_rotation_state',
+          userAdsConfig: 'user_ads_config',
+          // ML system tables
+          mlToolchainExecutions: 'ml_toolchain_executions',
+          mlToolchainModels: 'ml_toolchain_models',
+          mlInferenceCache: 'ml_inference_cache',
+          mlBenchmarkResults: 'ml_benchmark_results',
+          mlBatchMetrics: 'ml_batch_metrics',
+          // Documentation system tables
+          sharedDocs: 'shared_docs',
+          docsLibraries: 'docs_libraries',
+          // Misc tables
+          niklcliApiKey: 'nikcli-api-key',
+          subscriptionEvents: 'subscription_events',
         }),
     })
     .default({
@@ -549,6 +585,19 @@ const ConfigSchema = z.object({
         users: 'user_profiles',
         metrics: 'usage_metrics',
         documents: 'documentation',
+        adCampaigns: 'ad_campaigns',
+        adImpressions: 'ad_impressions',
+        adRotationState: 'ad_rotation_state',
+        userAdsConfig: 'user_ads_config',
+        mlToolchainExecutions: 'ml_toolchain_executions',
+        mlToolchainModels: 'ml_toolchain_models',
+        mlInferenceCache: 'ml_inference_cache',
+        mlBenchmarkResults: 'ml_benchmark_results',
+        mlBatchMetrics: 'ml_batch_metrics',
+        sharedDocs: 'shared_docs',
+        docsLibraries: 'docs_libraries',
+        niklcliApiKey: 'nikcli-api-key',
+        subscriptionEvents: 'subscription_events',
       },
     }),
   // Cloud documentation system (legacy compatibility)
@@ -1464,6 +1513,23 @@ export class SimpleConfigManager {
 
   private defaultConfig: ConfigType = {
     currentModel: '@preset/nikcli',
+    nikdrive: {
+      enabled: true,
+      endpoint: 'https://nikcli-drive-production.up.railway.app',
+      apiKey: process.env.NIKDRIVE_API_KEY || '',
+      timeout: 30000,
+      retries: 3,
+      retryDelayMs: 1000,
+      features: {
+        syncWorkspace: true,
+        autoBackup: true,
+        shareEnabled: true,
+        ragIndexing: true,
+        contextAware: true,
+      },
+      autoSyncInterval: 3600000,
+      cacheTtl: 300,
+    },
     temperature: 1,
     maxTokens: 8000,
     chatHistory: true,
@@ -1625,6 +1691,19 @@ export class SimpleConfigManager {
         users: 'user_profiles',
         metrics: 'usage_metrics',
         documents: 'documentation',
+        adCampaigns: 'ad_campaigns',
+        adImpressions: 'ad_impressions',
+        adRotationState: 'ad_rotation_state',
+        userAdsConfig: 'user_ads_config',
+        mlToolchainExecutions: 'ml_toolchain_executions',
+        mlToolchainModels: 'ml_toolchain_models',
+        mlInferenceCache: 'ml_inference_cache',
+        mlBenchmarkResults: 'ml_benchmark_results',
+        mlBatchMetrics: 'ml_batch_metrics',
+        sharedDocs: 'shared_docs',
+        docsLibraries: 'docs_libraries',
+        niklcliApiKey: 'nikcli-api-key',
+        subscriptionEvents: 'subscription_events',
       },
     },
     cloudDocs: {
@@ -2617,8 +2696,9 @@ export function getMermaidRenderingPreferences() {
  */
 export async function loadUserAdsConfigFromDatabase(userId: string, supabase: any): Promise<void> {
   try {
+    const config = simpleConfigManager.getSupabaseConfig()
     const { data } = await supabase
-      .from('user_ads_config')
+      .from(config.tables.userAdsConfig)
       .select('*')
       .eq('user_id', userId)
       .single()
@@ -2652,8 +2732,9 @@ export async function loadUserAdsConfigFromDatabase(userId: string, supabase: an
 export async function saveUserAdsConfigToDatabase(userId: string, supabase: any): Promise<void> {
   try {
     const config = simpleConfigManager.getAll()
+    const supabaseConfig = simpleConfigManager.getSupabaseConfig()
     await supabase
-      .from('user_ads_config')
+      .from(supabaseConfig.tables.userAdsConfig)
       .update({
         ads_enabled: config.ads.enabled,
         ads_hidden: config.ads.userOptIn,
@@ -2675,8 +2756,9 @@ export async function saveUserAdsConfigToDatabase(userId: string, supabase: any)
  */
 export async function syncSubscriptionTierFromDatabase(userId: string, supabase: any): Promise<void> {
   try {
+    const supabaseConfig = simpleConfigManager.getSupabaseConfig()
     const { data: profile } = await supabase
-      .from('user_profiles')
+      .from(supabaseConfig.tables.users)
       .select('subscription_tier')
       .eq('id', userId)
       .single()

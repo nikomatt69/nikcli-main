@@ -1,3 +1,5 @@
+
+
 // Core message types
 export type MessageRole = 'user' | 'assistant' | 'system';
 export type MessageStatus =
@@ -135,9 +137,9 @@ export type ChatAction =
   | { type: 'UPDATE_MESSAGE'; payload: Partial<ChatMessage> & { id: string } }
   | { type: 'DELETE_MESSAGE'; payload: { id: string } }
   | {
-      type: 'ADD_REACTION';
-      payload: { messageId: string; reaction: MessageReaction };
-    }
+    type: 'ADD_REACTION';
+    payload: { messageId: string; reaction: MessageReaction };
+  }
   | { type: 'REMOVE_REACTION'; payload: { messageId: string; emoji: string } }
   | { type: 'SET_TYPING'; payload: { userId: string; isTyping: boolean } }
   | { type: 'SET_CONNECTION_STATUS'; payload: UIState['connectionStatus'] }

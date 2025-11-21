@@ -17,11 +17,21 @@ export class SubscriptionService {
   private auth = authProvider
   private apiBaseUrl: string
 
+  // Table names from config
+  private readonly subscriptionEventsTable: string
+  private readonly userAdsConfigTable: string
+  private readonly userTableName: string
+
   constructor() {
     this.apiBaseUrl =
       process.env.NIKCLI_API_URL || process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
         : 'http://localhost:3000'
+
+    const supabaseConfig = simpleConfigManager.getSupabaseConfig()
+    this.subscriptionEventsTable = supabaseConfig.tables.subscriptionEvents
+    this.userAdsConfigTable = supabaseConfig.tables.userAdsConfig
+    this.userTableName = supabaseConfig.tables.users
   }
 
   /**
@@ -68,7 +78,7 @@ export class SubscriptionService {
 
     try {
       const { data, error } = await (this.supabase as any).client
-        .from('user_profiles')
+        .from(this.userTableName)
         .select(
           'subscription_tier, lemonsqueezy_subscription_id, openrouter_api_key, subscription_started_at, subscription_ends_at, subscription_canceled_at'
         )
@@ -170,7 +180,7 @@ export class SubscriptionService {
       if (data.lemonsqueezySubscriptionId) updateData.lemonsqueezy_subscription_id = data.lemonsqueezySubscriptionId
       if (data.openrouterApiKey) updateData.openrouter_api_key = data.openrouterApiKey
 
-      const { error } = await (this.supabase as any).client.from('user_profiles').update(updateData).eq('id', userId)
+      const { error } = await (this.supabase as any).client.from(this.userTableName).update(updateData).eq('id', userId)
 
       if (error) throw error
 
@@ -188,7 +198,7 @@ export class SubscriptionService {
 
   private async logSubscriptionEvent(userId: string, eventType: string, eventData: any): Promise<void> {
     try {
-      await (this.supabase as any).client.from('subscription_events').insert({
+      await (this.supabase as any).client.from(this.subscriptionEventsTable).insert({
         user_id: userId,
         event_type: eventType,
         event_data: eventData,

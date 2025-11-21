@@ -1388,7 +1388,7 @@ export class AdvancedCliUI {
 
     // Add "e altri N" indicator if there are more results
     if (remainingCount > 0) {
-      listContent += `\n\n${chalk.dim(`e altri ${remainingCount}`)}`
+      listContent += `\n\n${chalk.dim(`+ ${remainingCount} more files`)}`
     }
 
     this.panels.set('list', {

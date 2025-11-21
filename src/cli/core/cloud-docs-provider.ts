@@ -53,6 +53,10 @@ export class CloudDocsProvider {
   private sharedIndexFile: string
   private isInitialized = false
 
+  // Table names from config
+  private readonly sharedDocsTable: string
+  private readonly docsLibrariesTable: string
+
   constructor(config: CloudDocsConfig, cacheDir: string = './.nikcli') {
     this.config = {
       enabled: true,
@@ -80,6 +84,11 @@ export class CloudDocsProvider {
     this.cacheDir = cacheDir
 
     this.sharedIndexFile = path.join(cacheDir, 'shared-docs-index.json')
+
+    // Initialize table names from config with fallbacks
+    const supabaseConfig = simpleConfigManager.getSupabaseConfig()
+    this.sharedDocsTable = supabaseConfig.tables.sharedDocs
+    this.docsLibrariesTable = supabaseConfig.tables.docsLibraries
 
     // Non chiamare async nel costruttore - inizializzazione lazy
   }
@@ -126,7 +135,7 @@ export class CloudDocsProvider {
     try {
       // Download nuovi docs dal cloud
       const { data: cloudDocs, error: fetchError } = await this.supabase
-        .from('shared_docs')
+        .from(this.sharedDocsTable)
         .select('*')
         .order('updated_at', { ascending: false })
         .limit(100)
@@ -182,7 +191,7 @@ export class CloudDocsProvider {
         popularity_score: 0,
       }
 
-      const { data, error } = await this.supabase.from('shared_docs').insert([sharedDoc]).select().single()
+      const { data, error } = await this.supabase.from(this.sharedDocsTable).insert([sharedDoc]).select().single()
 
       if (error) throw error
 
@@ -205,7 +214,7 @@ export class CloudDocsProvider {
     }
 
     try {
-      let queryBuilder = this.supabase.from('shared_docs').select('*')
+      let queryBuilder = this.supabase.from(this.sharedDocsTable).select('*')
 
       // Filtro per categoria
       if (category) {
@@ -238,7 +247,7 @@ export class CloudDocsProvider {
 
     try {
       const { data, error } = await this.supabase
-        .from('docs_libraries')
+        .from(this.docsLibrariesTable)
         .select('*')
         .order('installs_count', { ascending: false })
         .limit(limit)
@@ -267,7 +276,7 @@ export class CloudDocsProvider {
     try {
       // Cerca la libreria per nome
       const { data: library, error: libError } = await this.supabase
-        .from('docs_libraries')
+        .from(this.docsLibrariesTable)
         .select('*')
         .eq('name', libraryName)
         .single()
@@ -277,7 +286,7 @@ export class CloudDocsProvider {
 
       // Ottieni i documenti della libreria
       const { data: docs, error: docsError } = await this.supabase
-        .from('shared_docs')
+        .from(this.sharedDocsTable)
         .select('*')
         .in('id', library.doc_ids)
 
@@ -285,7 +294,7 @@ export class CloudDocsProvider {
 
       // Incrementa il contatore di installazioni
       await this.supabase
-        .from('docs_libraries')
+        .from(this.docsLibrariesTable)
         .update({ installs_count: library.installs_count + 1 })
         .eq('id', library.id)
 

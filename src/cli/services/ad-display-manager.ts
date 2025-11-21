@@ -20,8 +20,17 @@ export class AdDisplayManager {
   private impressionCache: Map<string, number> = new Map()
   private updateInterval?: NodeJS.Timeout
   private syncInterval?: NodeJS.Timeout
+  private adCampaignsTable: string = 'ad_campaigns'
+  private adImpressionsTable: string = 'ad_impressions'
+  private userAdsConfigTable: string = 'user_ads_config'
+  private adRotationStateTable: string = 'ad_rotation_state'
 
   constructor() {
+    const config = simpleConfigManager.getSupabaseConfig()
+    this.adCampaignsTable = config.tables.adCampaigns
+    this.adImpressionsTable = config.tables.adImpressions
+    this.userAdsConfigTable = config.tables.userAdsConfig
+    this.adRotationStateTable = config.tables.adRotationState
     this.initialize()
   }
 
@@ -40,7 +49,7 @@ export class AdDisplayManager {
       if (!supabase) return
 
       const { data, error } = await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .select('*')
         .eq('status', 'active')
         .gte('end_date', new Date().toISOString())
@@ -151,7 +160,7 @@ export class AdDisplayManager {
       if (!supabase) return
 
       // Record impression
-      const { error: insertError } = await supabase.from('ad_impressions').insert({
+      const { error: insertError } = await supabase.from(this.adImpressionsTable).insert({
         campaign_id: campaign.id,
         user_id: userId,
         timestamp: new Date().toISOString(),
@@ -167,7 +176,7 @@ export class AdDisplayManager {
       // Update campaign impression count
       const newImpressions = campaign.impressionsServed + 1
       const { error: updateError } = await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .update({ impressions_served: newImpressions })
         .eq('id', campaign.id)
 
@@ -266,7 +275,7 @@ export class AdDisplayManager {
 
       for (const [userId, timestamp] of this.lastAdShowTime.entries()) {
         const { error } = await supabase
-          .from('user_ads_config')
+          .from(this.userAdsConfigTable)
           .update({ last_ad_shown_at: timestamp.toISOString() })
           .eq('user_id', userId)
 
@@ -292,7 +301,7 @@ export class AdDisplayManager {
       }
 
       const { data, error } = await supabase
-        .from('ad_impressions')
+        .from(this.adImpressionsTable)
         .select('count', { count: 'exact' })
         .eq('user_id', userId)
 
@@ -324,7 +333,7 @@ export class AdDisplayManager {
       }
 
       const { count: impressionCount } = await supabase
-        .from('ad_impressions')
+        .from(this.adImpressionsTable)
         .select('*', { count: 'exact' })
 
       const totalImpressions = impressionCount || 0

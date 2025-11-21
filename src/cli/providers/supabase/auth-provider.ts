@@ -79,11 +79,13 @@ export class AuthProvider extends EventEmitter {
   private currentProfile: UserProfile | null = null
   private config: AuthConfig
   private refreshTimer?: NodeJS.Timeout
+  private userTableName: string = 'user_profiles'
 
   constructor() {
     super()
 
     const supabaseConfig = simpleConfigManager.getSupabaseConfig()
+    this.userTableName = supabaseConfig.tables.users
     this.config = {
       enabled: supabaseConfig.enabled && supabaseConfig.features.auth,
       persistSession: true,
@@ -483,7 +485,7 @@ export class AuthProvider extends EventEmitter {
         const client = (this.supabase as any).client
         if (client) {
           await client
-            .from('user_profiles')
+            .from(this.userTableName)
             .update({ usage: updatedProfile.usage })
             .eq('id', this.currentProfile.id)
         }
@@ -523,7 +525,7 @@ export class AuthProvider extends EventEmitter {
           const client = (this.supabase as any).client
           if (client) {
             client
-              .from('user_profiles')
+              .from(this.userTableName)
               .update({ usage: this.currentProfile.usage })
               .eq('id', this.currentProfile.id)
               .catch((err: any) => console.debug('[auth-provider] Failed to persist monthly reset:', err.message))
@@ -555,7 +557,7 @@ export class AuthProvider extends EventEmitter {
           const client = (this.supabase as any).client
           if (client) {
             client
-              .from('user_profiles')
+              .from(this.userTableName)
               .update({ usage: this.currentProfile.usage })
               .eq('id', this.currentProfile.id)
               .catch((err: any) => console.debug('[auth-provider] Failed to persist hourly reset:', err.message))
@@ -732,7 +734,7 @@ export class AuthProvider extends EventEmitter {
     try {
       const client = (this.supabase as any).client as any
       if (client) {
-        const { data, error } = await client.from('user_profiles').select('*').eq('id', userId).single()
+        const { data, error } = await client.from(this.userTableName).select('*').eq('id', userId).single()
 
         if (!error && data) {
           const dbProfile = data as any
@@ -819,7 +821,7 @@ export class AuthProvider extends EventEmitter {
     try {
       const client = (this.supabase as any).client as any
       if (client) {
-        await client.from('user_profiles').insert({
+        await client.from(this.userTableName).insert({
           id: profile.id,
           email: profile.email,
           username: profile.username,

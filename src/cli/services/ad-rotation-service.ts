@@ -6,11 +6,22 @@
 
 import type { AdRotationState, AdCampaign } from '../types/ads'
 import { enhancedSupabaseProvider } from '../providers/supabase/enhanced-supabase-provider'
+import { simpleConfigManager } from '../core/config-manager'
 
 export class AdRotationService {
   private cachedRotationState: AdRotationState | null = null
   private lastStateCheckTime: number = 0
   private readonly STATE_CACHE_TTL_MS: number = 5000 // Cache rotation state for 5 seconds
+
+  // Table names from config
+  private readonly adRotationStateTable: string
+  private readonly adCampaignsTable: string
+
+  constructor() {
+    const supabaseConfig = simpleConfigManager.getSupabaseConfig()
+    this.adRotationStateTable = supabaseConfig.tables.adRotationState
+    this.adCampaignsTable = supabaseConfig.tables.adCampaigns
+  }
 
   /**
    * Get current rotation state from Supabase
@@ -29,7 +40,7 @@ export class AdRotationService {
       if (!supabase) return null
 
       const { data, error } = await supabase
-        .from('ad_rotation_state')
+        .from(this.adRotationStateTable)
         .select('*')
         .limit(1)
         .single()
@@ -205,7 +216,7 @@ export class AdRotationService {
       if (!supabase) return null
 
       const { data, error } = await supabase
-        .from('ad_rotation_state')
+        .from(this.adRotationStateTable)
         .select('*')
         .limit(1)
         .maybeSingle()
@@ -217,7 +228,7 @@ export class AdRotationService {
 
       // Create initial state
       const { data: newState, error: insertError } = await supabase
-        .from('ad_rotation_state')
+        .from(this.adRotationStateTable)
         .insert({
           current_campaign_id: campaign.id,
           rotation_index: 0,
@@ -269,7 +280,7 @@ export class AdRotationService {
       if (!supabase) return
 
       await supabase
-        .from('ad_rotation_state')
+        .from(this.adRotationStateTable)
         .update({
           weighted_order: newWeightedOrder,
           updated_at: new Date().toISOString(),

@@ -354,9 +354,18 @@ export class NikCLI {
   // Ads timer - show ads every 5 minutes
   private adsTimer?: NodeJS.Timeout
 
+  // Table names from config
+  private readonly adCampaignsTable: string
+  private readonly adImpressionsTable: string
+
   constructor() {
     this.workingDirectory = process.cwd()
     this.projectContextFile = path.join(this.workingDirectory, 'NIKOCLI.md')
+
+    // Initialize table names from config
+    const supabaseConfig = simpleConfigManager.getSupabaseConfig()
+    this.adCampaignsTable = supabaseConfig.tables.adCampaigns
+    this.adImpressionsTable = supabaseConfig.tables.adImpressions
 
     // Compact mode by default (cleaner output unless explicitly disabled)
     try {
@@ -5793,7 +5802,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
       const nowIso = new Date().toISOString()
       const { data: campaigns, error } = await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .select('*')
         .eq('status', 'active')
         .gte('end_date', nowIso)
@@ -5862,7 +5871,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // Track impression
       const { randomUUID } = await import('node:crypto')
       const userId = randomUUID()
-      await supabase.from('ad_impressions').insert({
+      await supabase.from(this.adImpressionsTable).insert({
         campaign_id: selectedAd.id,
         user_id: userId,
         timestamp: new Date().toISOString(),
@@ -5873,7 +5882,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // Increment impressions
       const newImpressions = (selectedAd.impressions_served || 0) + 1
       await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .update({ impressions_served: newImpressions })
         .eq('id', selectedAd.id)
 

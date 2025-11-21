@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import { enhancedSupabaseProvider, type SupabaseDocument } from '../providers/supabase/enhanced-supabase-provider'
+import { simpleConfigManager } from './config-manager'
 import type { DocumentationEntry } from './documentation-library'
 
 /**
@@ -9,8 +10,10 @@ import type { DocumentationEntry } from './documentation-library'
 export class DocumentationDatabase {
   private useSupabase: boolean = false
   private initialized: boolean = false
+  private documentTableName: string = 'documentation'
 
   constructor() {
+    this.documentTableName = simpleConfigManager.getSupabaseConfig().tables.documents
     this.checkSupabaseAvailability()
   }
 
@@ -68,7 +71,7 @@ export class DocumentationDatabase {
       // Use Supabase's client directly (we need to add this method to the provider)
       const client = (enhancedSupabaseProvider as any).client
       if (client) {
-        const { error } = await client.from('documentation').upsert(supabaseDoc)
+        const { error } = await client.from(this.documentTableName).upsert(supabaseDoc)
 
         if (error) {
           // If table doesn't exist, disable Supabase saves to prevent spam
@@ -117,7 +120,7 @@ export class DocumentationDatabase {
 
       const client = (enhancedSupabaseProvider as any).client
       if (client) {
-        const { data, error } = await client.from('documentation').upsert(supabaseDocs)
+        const { data, error } = await client.from(this.documentTableName).upsert(supabaseDocs)
 
         if (error) {
           // If table doesn't exist, disable Supabase saves to prevent spam
@@ -184,7 +187,7 @@ export class DocumentationDatabase {
       const client = (enhancedSupabaseProvider as any).client
       if (!client) return null
 
-      const { data, error } = await client.from('documentation').select('*').eq('id', id).single()
+      const { data, error } = await client.from(this.documentTableName).select('*').eq('id', id).single()
 
       if (error || !data) {
         return null
@@ -214,7 +217,7 @@ export class DocumentationDatabase {
       if (!client) return []
 
       const { data, error } = await client
-        .from('documentation')
+        .from(this.documentTableName)
         .select('*')
         .eq('category', category)
         .order('popularity_score', { ascending: false })
@@ -259,7 +262,7 @@ export class DocumentationDatabase {
         return { totalDocs: 0, categories: [], languages: [], totalWords: 0 }
       }
 
-      const { data, error } = await client.from('documentation').select('category, language, word_count')
+      const { data, error } = await client.from(this.documentTableName).select('category, language, word_count')
 
       if (error || !data) {
         return { totalDocs: 0, categories: [], languages: [], totalWords: 0 }
@@ -297,7 +300,7 @@ export class DocumentationDatabase {
       const client = (enhancedSupabaseProvider as any).client
       if (!client) return false
 
-      const { error } = await client.from('documentation').delete().eq('id', id)
+      const { error } = await client.from(this.documentTableName).delete().eq('id', id)
 
       if (error) {
         console.log(chalk.yellow(`⚠️ Delete failed: ${error.message}`))

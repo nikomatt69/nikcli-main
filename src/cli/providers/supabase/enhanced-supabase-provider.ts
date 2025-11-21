@@ -770,7 +770,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
     }
 
     try {
-      const { error } = await this.client.from('ml_toolchain_executions').insert({
+      const { error } = await this.client.from(this.config.tables.mlToolchainExecutions).insert({
         ...execution,
         created_at: new Date().toISOString(),
       })
@@ -793,7 +793,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
     try {
       const { data, error } = await this.client
-        .from('ml_toolchain_executions')
+        .from(this.config.tables.mlToolchainExecutions)
         .select('*')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true })
@@ -820,7 +820,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
     try {
       const { data, error } = await this.client
-        .from('ml_toolchain_executions')
+        .from(this.config.tables.mlToolchainExecutions)
         .select('*')
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: false })
@@ -847,7 +847,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
     try {
       const { data, error } = await this.client
-        .from('ml_toolchain_models')
+        .from(this.config.tables.mlToolchainModels)
         .select('*')
         .eq('model_type', modelType)
         .eq('deployed', true)
@@ -881,7 +881,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
     }
 
     try {
-      const { error } = await this.client.from('ml_inference_cache').upsert({
+      const { error } = await this.client.from(this.config.tables.mlInferenceCache).upsert({
         input_hash: hash,
         prediction,
         expires_at: expiresAt,
@@ -907,7 +907,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
     try {
       const now = new Date().toISOString()
       const { data, error } = await this.client
-        .from('ml_inference_cache')
+        .from(this.config.tables.mlInferenceCache)
         .select('prediction')
         .eq('input_hash', hash)
         .gt('expires_at', now)
@@ -934,7 +934,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
     try {
       const { data, error } = await this.client
-        .from('ml_toolchain_executions')
+        .from(this.config.tables.mlToolchainExecutions)
         .select('*')
         .order('created_at', { ascending: true })
         .limit(1)
@@ -960,7 +960,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
 
     try {
       const { data, error } = await this.client
-        .from('ml_toolchain_executions')
+        .from(this.config.tables.mlToolchainExecutions)
         .select('*')
         .eq('execution_success', true)
         .order('created_at', { ascending: false })
@@ -986,7 +986,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
     }
 
     try {
-      const { error } = await this.client.from('ml_benchmark_results').insert({
+      const { error } = await this.client.from(this.config.tables.mlBenchmarkResults).insert({
         session_id: result.sessionId,
         metrics: result.metrics,
         regressions: result.regressions,
@@ -1015,7 +1015,7 @@ export class EnhancedSupabaseProvider extends EventEmitter {
     }
 
     try {
-      const { error } = await this.client.from('ml_batch_metrics').insert({
+      const { error } = await this.client.from(this.config.tables.mlBatchMetrics).insert({
         metrics,
         lookback_days: lookbackDays,
         created_at: new Date().toISOString(),

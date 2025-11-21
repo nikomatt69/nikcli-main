@@ -5,6 +5,7 @@
  */
 
 import { enhancedSupabaseProvider } from '../providers/supabase/enhanced-supabase-provider'
+import { simpleConfigManager } from '../core/config-manager'
 import {
   AdCreationInput,
   AdCheckoutSession,
@@ -21,6 +22,18 @@ export class StripeService {
     advertiserId: 'advertiser_id',
   }
 
+  // Table names from config
+  private readonly adCampaignsTable: string
+  private readonly adImpressionsTable: string
+  private readonly userTableName: string
+
+  constructor() {
+    const supabaseConfig = simpleConfigManager.getSupabaseConfig()
+    this.adCampaignsTable = supabaseConfig.tables.adCampaigns
+    this.adImpressionsTable = supabaseConfig.tables.adImpressions
+    this.userTableName = supabaseConfig.tables.users
+  }
+
   /**
    * Create advertiser in database (LemonSqueezy doesn't require pre-creation)
    * Uses RPC function to bypass RLS policy
@@ -34,7 +47,7 @@ export class StripeService {
 
       // First, try to get existing advertiser by email
       const { data: existing } = await supabase
-        .from('user_profiles')
+        .from(this.userTableName)
         .select('id')
         .eq('email', email)
         .limit(1)
@@ -52,7 +65,7 @@ export class StripeService {
       if (error) {
         // Fallback: if RPC not available, create via direct insert with minimal data
         const { data: fallbackData, error: fallbackError } = await supabase
-          .from('user_profiles')
+          .from(this.userTableName)
           .insert({
             email,
             username: company || email.split('@')[0],
@@ -98,7 +111,7 @@ export class StripeService {
       }
 
       const { data: campaignData, error: campaignError } = await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .insert({
           advertiser_id: advertiserId,
           content: adInput.content,
@@ -155,7 +168,7 @@ export class StripeService {
 
       // Store checkout URL in campaign for reference
       await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .update({ stripe_session_id: checkoutUrl })
         .eq('id', campaignId)
 
@@ -178,7 +191,7 @@ export class StripeService {
 
       // Update campaign status to active
       const { data: campaign, error } = await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .update({
           status: 'active',
           stripe_payment_id: `lemonsqueezy_${Date.now()}`,
@@ -214,7 +227,7 @@ export class StripeService {
       }
 
       const { data: campaign, error } = await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .select('status, total_cost')
         .eq('id', campaignId)
         .single()
@@ -246,7 +259,7 @@ export class StripeService {
       }
 
       const { data: campaigns, error } = await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .select('*')
         .eq('advertiser_id', advertiserId)
         .order('created_at', { ascending: false })
@@ -274,7 +287,7 @@ export class StripeService {
       }
 
       const { error } = await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .update({ status: 'paused', updated_at: new Date().toISOString() })
         .eq('id', campaignId)
 
@@ -296,7 +309,7 @@ export class StripeService {
       }
 
       const { error } = await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .update({ status: 'active', updated_at: new Date().toISOString() })
         .eq('id', campaignId)
 
@@ -326,13 +339,13 @@ export class StripeService {
 
       // Get impressions count
       const { data: impressions, error: impError } = await supabase
-        .from('ad_impressions')
+        .from(this.adImpressionsTable)
         .select('count', { count: 'exact' })
         .eq('campaign_id', campaignId)
 
       // Get campaign data
       const { data: campaign, error: campError } = await supabase
-        .from('ad_campaigns')
+        .from(this.adCampaignsTable)
         .select('total_cost, conversion_count')
         .eq('id', campaignId)
         .single()
