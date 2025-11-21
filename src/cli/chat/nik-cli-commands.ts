@@ -293,6 +293,7 @@ export class SlashCommandHandler {
     this.commands.set('docker', this.dockerCommand.bind(this))
     this.commands.set('ps', this.processCommand.bind(this))
     this.commands.set('kill', this.killCommand.bind(this))
+    this.commands.set('ssh', this.sshCommand.bind(this))
 
     // Project operations
     this.commands.set('build', this.buildCommand.bind(this))
@@ -600,6 +601,9 @@ ${chalk.cyan('/snapshots [query]')} - List available snapshots
 
 ${chalk.blue.bold('Terminal Commands:')}
 ${chalk.cyan('/run <command>')} - Execute any terminal command
+${chalk.cyan('/ssh <user@host> [port] [directory]')} - Connect via SSH and start NikCLI on remote server
+${chalk.gray('  Example: /ssh user@example.com')}
+${chalk.gray('  Example: /ssh user@example.com 2222 /path/to/project')}
 ${chalk.cyan('/install <packages>')} - Install npm/yarn packages
 ${chalk.cyan('/npm <args>')} - Run npm commands
 ${chalk.cyan('/yarn <args>')} - Run yarn commands
@@ -4408,6 +4412,131 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     }
 
     return { shouldExit: false, shouldUpdatePrompt: false }
+  }
+
+  /**
+   * /ssh command - Connect to remote server via SSH and start NikCLI
+   * Usage: /ssh user@host [port] [directory]
+   * Example: /ssh user@example.com
+   * Example: /ssh user@example.com 2222
+   * Example: /ssh user@example.com 22 /path/to/project
+   */
+  private async sshCommand(args: string[]): Promise<CommandResult> {
+    if (args.length === 0) {
+      const usageBox = boxen(
+        [
+          chalk.cyan.bold('Usage: /ssh <user@host> [port] [directory]'),
+          '',
+          chalk.white('Examples:'),
+          chalk.gray('  /ssh user@example.com'),
+          chalk.gray('  /ssh user@example.com 2222'),
+          chalk.gray('  /ssh user@example.com 22 /path/to/project'),
+          '',
+          chalk.yellow('Note:'),
+          chalk.gray('  • NikCLI must be installed on the remote server'),
+          chalk.gray('  • SSH keys should be configured for passwordless login'),
+          chalk.gray('  • The command will start NikCLI in the specified directory'),
+        ].join('\n'),
+        {
+          title: 'SSH Connection',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        }
+      )
+      this.printPanel(usageBox)
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
+
+    try {
+      const { spawn } = await import('node:child_process')
+
+      // Parse arguments
+      const target = args[0] // user@host
+      let port: number | undefined
+      let directory: string | undefined
+
+      // Check if second arg is port (number) or directory (string)
+      if (args[1]) {
+        const secondArg = args[1]
+        const portNum = parseInt(secondArg, 10)
+        if (!Number.isNaN(portNum)) {
+          port = portNum
+          directory = args[2] // Third arg is directory if port was provided
+        } else {
+          directory = secondArg // Second arg is directory if not a number
+        }
+      }
+
+      // Validate target format
+      if (!target.includes('@')) {
+        console.log(chalk.red('❌ Invalid format. Use: user@host'))
+        return { shouldExit: false, shouldUpdatePrompt: false }
+      }
+
+      // Build SSH command
+      const sshArgs: string[] = []
+
+      // Add port if specified
+      if (port) {
+        sshArgs.push('-p', port.toString())
+      }
+
+      // Add target
+      sshArgs.push(target)
+
+      // Build remote command
+      let remoteCommand = 'nikcli'
+
+      // Change to directory if specified
+      if (directory) {
+        remoteCommand = `cd "${directory}" && ${remoteCommand}`
+      }
+
+      // Add remote command
+      sshArgs.push(remoteCommand)
+
+      console.log(chalk.blue(`🔗 Connecting to ${target}${port ? `:${port}` : ''}...`))
+      if (directory) {
+        console.log(chalk.gray(`   Working directory: ${directory}`))
+      }
+
+      // Spawn SSH process
+      const sshProcess = spawn('ssh', sshArgs, {
+        stdio: 'inherit',
+        shell: false,
+      })
+
+      // Handle process events
+      sshProcess.on('error', (error: any) => {
+        if (error.code === 'ENOENT') {
+          console.log(chalk.red('❌ SSH command not found. Please install OpenSSH client.'))
+        } else {
+          console.log(chalk.red(`❌ SSH connection failed: ${error.message}`))
+        }
+      })
+
+      sshProcess.on('exit', (code) => {
+        if (code === 0) {
+          console.log(chalk.green('✓ SSH session ended'))
+        } else if (code !== null) {
+          console.log(chalk.yellow(`⚠️ SSH session exited with code ${code}`))
+        }
+      })
+
+      // Wait for process to complete
+      await new Promise<void>((resolve) => {
+        sshProcess.on('close', () => {
+          resolve()
+        })
+      })
+
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    } catch (error: any) {
+      console.log(chalk.red(`❌ SSH connection error: ${error.message}`))
+      return { shouldExit: false, shouldUpdatePrompt: false }
+    }
   }
 
   // Project Operations

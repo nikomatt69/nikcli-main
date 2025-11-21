@@ -1,21 +1,22 @@
-import chalk, { type Chalk } from 'chalk'
+import chalk from 'chalk'
+import type { ChalkInstance } from 'chalk'
 
 export interface UITheme {
   name: string
-  primary: Chalk
-  secondary: Chalk
-  success: Chalk
-  warning: Chalk
-  error: Chalk
-  info: Chalk
-  muted: Chalk
-  highlight: Chalk
+  primary: ChalkInstance
+  secondary: ChalkInstance
+  success: ChalkInstance
+  warning: ChalkInstance
+  error: ChalkInstance
+  info: ChalkInstance
+  muted: ChalkInstance
+  highlight: ChalkInstance
   border: {
-    default: Chalk
-    active: Chalk
-    success: Chalk
-    error: Chalk
-    warning: Chalk
+    default: ChalkInstance
+    active: ChalkInstance
+    success: ChalkInstance
+    error: ChalkInstance
+    warning: ChalkInstance
   }
 }
 
@@ -189,6 +190,9 @@ export class ThemeService {
 
 // Export singleton instance
 export const themeService = new ThemeService()
+
+
+
 
 
 

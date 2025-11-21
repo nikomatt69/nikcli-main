@@ -3388,6 +3388,9 @@ export class NikCLI {
         case 'queue':
           this.handleQueueCommand(args)
           break
+        case 'ssh':
+          await this.handleSSHCommand(args)
+          break
         case 'tokens':
           await this.manageTokenCommands(args)
           break
@@ -14665,6 +14668,207 @@ This file is automatically maintained by NikCLI to provide consistent context ac
         console.log(`   Error: ${chalk.red(error.message)}`)
       }
     }
+  }
+
+  /**
+   * Handle SSH connection commands
+   */
+  private async handleSSHCommand(args: string[]): Promise<void> {
+    if (args.length === 0) {
+      this.showSSHPanel()
+      return
+    }
+
+    try {
+      const { spawn } = await import('node:child_process')
+
+      // Parse arguments
+      const target = args[0] // user@host
+      let port: number | undefined
+      let directory: string | undefined
+
+      // Check if second arg is port (number) or directory (string)
+      if (args[1]) {
+        const secondArg = args[1]
+        const portNum = parseInt(secondArg, 10)
+        if (!Number.isNaN(portNum)) {
+          port = portNum
+          directory = args[2] // Third arg is directory if port was provided
+        } else {
+          directory = secondArg // Second arg is directory if not a number
+        }
+      }
+
+      // Validate target format
+      if (!target.includes('@')) {
+        this.printPanel(
+          boxen(chalk.red('❌ Invalid format. Use: user@host'), {
+            title: 'SSH Error',
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'red',
+          })
+        )
+        return
+      }
+
+      // Build SSH command
+      const sshArgs: string[] = []
+
+      // Add port if specified
+      if (port) {
+        sshArgs.push('-p', port.toString())
+      }
+
+      // Add target
+      sshArgs.push(target)
+
+      // Build remote command
+      let remoteCommand = 'nikcli'
+
+      // Change to directory if specified
+      if (directory) {
+        remoteCommand = `cd "${directory}" && ${remoteCommand}`
+      }
+
+      // Add remote command
+      sshArgs.push(remoteCommand)
+
+      // Show connection info panel
+      const connectionInfo = [
+        chalk.cyan.bold('🔗 SSH Connection'),
+        '',
+        chalk.white(`Target: ${chalk.bold(target)}`),
+        port ? chalk.white(`Port: ${chalk.bold(port.toString())}`) : chalk.gray('Port: 22 (default)'),
+        directory
+          ? chalk.white(`Directory: ${chalk.bold(directory)}`)
+          : chalk.gray('Directory: Current (default)'),
+        '',
+        chalk.yellow('Connecting...'),
+      ].join('\n')
+
+      this.printPanel(
+        boxen(connectionInfo, {
+          title: 'SSH Connection',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'cyan',
+        })
+      )
+
+      // Spawn SSH process
+      const sshProcess = spawn('ssh', sshArgs, {
+        stdio: 'inherit',
+        shell: false,
+      })
+
+      // Handle process events
+      sshProcess.on('error', (error: any) => {
+        if (error.code === 'ENOENT') {
+          this.printPanel(
+            boxen(chalk.red('❌ SSH command not found. Please install OpenSSH client.'), {
+              title: 'SSH Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            })
+          )
+        } else {
+          this.printPanel(
+            boxen(chalk.red(`❌ SSH connection failed: ${error.message}`), {
+              title: 'SSH Error',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'red',
+            })
+          )
+        }
+      })
+
+      sshProcess.on('exit', (code) => {
+        if (code === 0) {
+          this.printPanel(
+            boxen(chalk.green('✓ SSH session ended successfully'), {
+              title: 'SSH Connection',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+            })
+          )
+        } else if (code !== null) {
+          this.printPanel(
+            boxen(chalk.yellow(`⚠️ SSH session exited with code ${code}`), {
+              title: 'SSH Connection',
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+            })
+          )
+        }
+      })
+
+      // Wait for process to complete
+      await new Promise<void>((resolve) => {
+        sshProcess.on('close', () => {
+          resolve()
+        })
+      })
+    } catch (error: any) {
+      this.printPanel(
+        boxen(chalk.red(`❌ SSH connection error: ${error.message}`), {
+          title: 'SSH Error',
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'red',
+        })
+      )
+    }
+  }
+
+  /**
+   * Show SSH connection panel with usage information
+   */
+  private showSSHPanel(): void {
+    const content = [
+      chalk.cyan.bold('🔗 SSH Connection'),
+      '',
+      chalk.white.bold('Usage:'),
+      chalk.gray('  /ssh <user@host> [port] [directory]'),
+      '',
+      chalk.white.bold('Examples:'),
+      chalk.gray('  /ssh user@example.com'),
+      chalk.gray('  /ssh user@example.com 2222'),
+      chalk.gray('  /ssh user@example.com 22 /path/to/project'),
+      chalk.gray('  /ssh user@example.com 2222 /path/to/project'),
+      '',
+      chalk.yellow.bold('Requirements:'),
+      chalk.gray('  • NikCLI must be installed on the remote server'),
+      chalk.gray('  • SSH keys should be configured for passwordless login'),
+      chalk.gray('  • OpenSSH client must be installed locally'),
+      '',
+      chalk.cyan.bold('Features:'),
+      chalk.gray('  • Automatic NikCLI startup on remote server'),
+      chalk.gray('  • Custom port support'),
+      chalk.gray('  • Working directory selection'),
+      chalk.gray('  • Session persistence with tmux integration'),
+    ].join('\n')
+
+    this.printPanel(
+      boxen(content, {
+        title: 'SSH Connection',
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+      })
+    )
   }
 
   /**

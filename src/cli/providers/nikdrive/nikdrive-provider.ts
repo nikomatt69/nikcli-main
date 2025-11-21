@@ -120,7 +120,7 @@ export class NikDriveProvider extends EventEmitter {
 
     try {
       // Get configuration from environment variables and options
-      const endpoint = options?.endpoint || process.env.NIKDRIVE_ENDPOINT || process.env.NIKDRIVE_API_ENDPOINT || 'https://nikcli-drive-production.up.railway.app'
+      const endpoint = options!.endpoint || process.env.NIKDRIVE_ENDPOINT || process.env.NIKDRIVE_API_ENDPOINT || 'https://nikcli-drive-production.up.railway.app'
 
       // Try to get API key from multiple sources, including ConfigManager
       const credentials = configManager.getNikDriveCredentials()
