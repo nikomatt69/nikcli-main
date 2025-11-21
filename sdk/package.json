@@ -1,0 +1,113 @@
+{
+  "name": "@nikcli/enterprise-sdk",
+  "version": "1.0.0",
+  "description": "Complete enterprise SDK for NikCLI - Programmatic access to all commands, tools, agents, and services",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    },
+    "./commands": {
+      "require": "./dist/commands.js",
+      "import": "./dist/commands.mjs",
+      "types": "./dist/commands.d.ts"
+    },
+    "./tools": {
+      "require": "./dist/tools.js",
+      "import": "./dist/tools.mjs",
+      "types": "./dist/tools.d.ts"
+    },
+    "./agents": {
+      "require": "./dist/agents.js",
+      "import": "./dist/agents.mjs",
+      "types": "./dist/agents.d.ts"
+    },
+    "./services": {
+      "require": "./dist/services.js",
+      "import": "./dist/services.mjs",
+      "types": "./dist/services.d.ts"
+    },
+    "./ai": {
+      "require": "./dist/ai.js",
+      "import": "./dist/ai.mjs",
+      "types": "./dist/ai.d.ts"
+    },
+    "./browser": {
+      "require": "./dist/browser.js",
+      "import": "./dist/browser.mjs",
+      "types": "./dist/browser.d.ts"
+    },
+    "./vm": {
+      "require": "./dist/vm.js",
+      "import": "./dist/vm.mjs",
+      "types": "./dist/vm.d.ts"
+    },
+    "./web3": {
+      "require": "./dist/web3.js",
+      "import": "./dist/web3.mjs",
+      "types": "./dist/web3.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "nikcli",
+    "sdk",
+    "enterprise",
+    "ai",
+    "cli",
+    "automation",
+    "agents",
+    "tools",
+    "web3",
+    "blockchain",
+    "browser-automation",
+    "vm",
+    "developer-tools"
+  ],
+  "author": "NikCLI Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nikomatt69/nikcli-main.git",
+    "directory": "sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/nikomatt69/nikcli-main/issues"
+  },
+  "homepage": "https://nikcli.mintlify.app",
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "prettier": "^3.1.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

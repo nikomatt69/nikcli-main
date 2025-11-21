@@ -1,0 +1,21 @@
+{
+  "name": "@nikcli/sdk-examples",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Usage examples for NikCLI Enterprise SDK",
+  "scripts": {
+    "basic": "ts-node basic-usage.ts",
+    "agents": "ts-node agent-automation.ts",
+    "browser": "ts-node browser-automation.ts",
+    "web3": "ts-node web3-integration.ts",
+    "ai": "ts-node ai-workflows.ts"
+  },
+  "dependencies": {
+    "@nikcli/enterprise-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.0"
+  }
+}
