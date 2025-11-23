@@ -28,6 +28,7 @@ import { TextToGCodeTool } from './text-to-gcode-tool'
 import { VisionAnalysisTool } from './vision-analysis-tool'
 import { WriteFileTool } from './write-file-tool'
 import { NikDriveTool } from './nikdrive-tool'
+import { WebSearchTool } from './web-search-tool'
 
 /**
  * Production-ready Tool Registry
@@ -298,6 +299,18 @@ export class ToolRegistry {
       requiredPermissions: ['write'],
       supportedFileTypes: ['*'],
       tags: ['write', 'filesystem', 'create'],
+    })
+
+    // Web search (online lookup with optional synthesis)
+    this.registerTool('web-search-tool', new WebSearchTool(workingDirectory), {
+      description: 'Search the web for up-to-date information or documentation',
+      category: 'network',
+      riskLevel: 'medium',
+      reversible: true,
+      estimatedDuration: 8000,
+      requiredPermissions: ['network'],
+      supportedFileTypes: ['*'],
+      tags: ['web', 'search', 'online', 'docs', 'stackoverflow'],
     })
 
     this.registerTool('replace', new ReplaceInFileTool(workingDirectory), {

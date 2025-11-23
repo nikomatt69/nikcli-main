@@ -26,6 +26,7 @@ export class TaskMasterService extends EventEmitter {
   private activePlans: Map<string, TaskMasterPlan> = new Map()
   private static instanceCount = 0
   private notificationService: any = null
+  private registryToolNames: string[] = []
 
   constructor(config?: Partial<TaskMasterIntegrationConfig>) {
     super()
@@ -66,6 +67,39 @@ export class TaskMasterService extends EventEmitter {
     } catch (error: any) {
       // Notification service initialization is optional - silent fail
     }
+  }
+
+  /**
+   * Load available tools from the unified ToolRegistry (cached)
+   */
+  private getRegistryTools(): string[] {
+    if (this.registryToolNames.length > 0) {
+      return this.registryToolNames
+    }
+
+    try {
+      const { ToolRegistry } = require('../tools/tool-registry')
+      const registry = new ToolRegistry(this.config.workspacePath || process.cwd())
+      this.registryToolNames = registry.listTools()
+    } catch (error: any) {
+      // Fallback to a conservative default set if registry fails
+      this.registryToolNames = [
+        'read-file-tool',
+        'write-file-tool',
+        'edit-tool',
+        'multi-read-tool',
+        'rag-search-tool',
+        'grep-tool',
+        'find-files-tool',
+        'glob-tool',
+        'run-command-tool',
+        'json-patch-tool',
+      ]
+
+      advancedUI.logFunctionUpdate('info', chalk.gray(`ℹ️ Using fallback tool list: ${error.message}`))
+    }
+
+    return this.registryToolNames
   }
 
   /**
@@ -140,6 +174,11 @@ export class TaskMasterService extends EventEmitter {
     await this.ensureNikCLIStructure()
 
     const planId = nanoid()
+    const availableTools = this.getRegistryTools()
+    const planningContext: PlanningContext = {
+      ...context,
+      availableTools,
+    }
 
     try {
       if (this.taskMaster && this.initialized) {
@@ -148,7 +187,7 @@ export class TaskMasterService extends EventEmitter {
         advancedUI.logFunctionUpdate('info', chalk.cyan('🔌 Using TaskMaster for project organization...'))
 
         // Create a TaskMaster-compatible plan structure
-        const plan = await this.createTaskMasterCompatiblePlan(planId, userRequest, context)
+        const plan = await this.createTaskMasterCompatiblePlan(planId, userRequest, planningContext)
         this.activePlans.set(planId, plan)
 
         advancedUI.logFunctionUpdate('info', chalk.green(`✓ Plan ${planId} created and stored`))
@@ -164,7 +203,7 @@ export class TaskMasterService extends EventEmitter {
     }
 
     // Fallback to rule-based planning
-    const fallbackPlan = this.createFallbackPlan(planId, userRequest, context)
+    const fallbackPlan = this.createFallbackPlan(planId, userRequest, planningContext)
     this.activePlans.set(planId, fallbackPlan)
     advancedUI.logFunctionUpdate('warning', chalk.yellow(`⚠️ Using fallback plan ${planId}`))
     return fallbackPlan
@@ -326,12 +365,17 @@ export class TaskMasterService extends EventEmitter {
   /**
    * Generate smart todos based on user request
    */
-  private async generateSmartTodos(userRequest: string, _context?: PlanningContext): Promise<PlanTodo[]> {
+  private async generateSmartTodos(userRequest: string, context?: PlanningContext): Promise<PlanTodo[]> {
     // SEMPRE usa l'AI per generare i todo, indipendentemente dal tipo di richiesta
     advancedUI.logFunctionUpdate('info', chalk.cyan('⚡︎ Using AI for todo generation (all requests)'))
 
+    const availableTools =
+      context?.availableTools && context.availableTools.length > 0
+        ? Array.from(new Set(context.availableTools))
+        : this.getRegistryTools()
+
     try {
-      const aiTasks = await this.generateTasksWithAI(userRequest)
+      const aiTasks = await this.generateTasksWithAI(userRequest, { ...context, availableTools })
       if (aiTasks.length > 0) {
         return aiTasks
       }
@@ -358,8 +402,9 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 10,
           progress: 0,
-          tools: ['analyze_project', 'read_file', 'explore_directory', 'search_semantic', 'multi_read_file', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search'],
+          tools: availableTools,
           reasoning: 'Understanding project context is crucial for successful implementation',
+          metadata: { suggestedTools: ['analyze_project', 'rag-search-tool', 'multi-read-tool'] },
         },
         {
           id: nanoid(),
@@ -371,8 +416,9 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 15,
           progress: 0,
-          tools: ['analyze_project', 'read_file', 'explore_directory', 'search_semantic', 'multi_read_file', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search'],
+          tools: availableTools,
           reasoning: 'Proper planning reduces implementation complexity',
+          metadata: { suggestedTools: ['analyze_project', 'rag-search-tool', 'multi-read-tool'] },
         },
         {
           id: nanoid(),
@@ -384,8 +430,9 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 30,
           progress: 0,
-          tools: ['generate_code', 'write_file', 'read_file', 'explore_directory', 'search_semantic', 'multi_read_file', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search'],
+          tools: availableTools,
           reasoning: 'Core implementation task',
+          metadata: { suggestedTools: ['generate_code', 'write_file', 'rag-search-tool', 'multi-read-tool'] },
         },
         {
           id: nanoid(),
@@ -397,8 +444,9 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 15,
           progress: 0,
-          tools: ['execute_command', 'analyze_project', 'read_file', 'explore_directory', 'search_semantic', 'multi_read_tool', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search'],
+          tools: availableTools,
           reasoning: 'Ensure quality and functionality',
+          metadata: { suggestedTools: ['execute_command', 'analyze_project', 'rag-search-tool', 'multi-read-tool'] },
         }
       )
     } else if (request.includes('fix') || request.includes('debug')) {
@@ -413,8 +461,9 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 15,
           progress: 0,
-          tools: ['read_file', 'analyze_project', 'explore_directory', 'multi_read_tool', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search'],
+          tools: availableTools,
           reasoning: 'Investigate the issue using the available tools',
+          metadata: { suggestedTools: ['read_file', 'rag-search-tool', 'multi-read-tool', 'grep-tool'] },
         },
         {
           id: nanoid(),
@@ -426,8 +475,9 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 20,
           progress: 0,
-          tools: ['read_file', 'write_file', 'execute_command', 'explore_directory', 'search_semantic', 'multi_read_tool', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search', 'multi_edit_tool'],
+          tools: availableTools,
           reasoning: 'Implement the solution using the available tools',
+          metadata: { suggestedTools: ['write_file', 'execute_command', 'rag-search-tool', 'multi-edit-tool'] },
         }
       )
     } else {
@@ -442,8 +492,17 @@ export class TaskMasterService extends EventEmitter {
         updatedAt: new Date(),
         estimatedDuration: 20,
         progress: 0,
-        tools: ['analyze_project', 'read_file', 'generate_code', 'write_file', 'execute_command', 'multi_edit_tool', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search', 'multi_read_tool'],
+        tools: availableTools,
         reasoning: 'Execute the task using the available tools',
+        metadata: {
+          suggestedTools: [
+            'analyze_project',
+            'rag-search-tool',
+            'write_file',
+            'execute_command',
+            'multi-edit-tool',
+          ],
+        },
       },
         {
           id: nanoid(),
@@ -455,8 +514,17 @@ export class TaskMasterService extends EventEmitter {
           updatedAt: new Date(),
           estimatedDuration: 20,
           progress: 0,
-          tools: ['analyze_project', 'read_file', 'generate_code', 'write_file', 'execute_command', 'multi_edit_tool', 'grep_tool', 'find_files_tool', 'glob_tool', 'web_search', 'multi_read_tool'],
+          tools: availableTools,
           reasoning: 'Execute the task using the available tools',
+          metadata: {
+            suggestedTools: [
+              'analyze_project',
+              'rag-search-tool',
+              'write_file',
+              'execute_command',
+              'multi-edit-tool',
+            ],
+          },
         })
     }
 
@@ -466,7 +534,16 @@ export class TaskMasterService extends EventEmitter {
   /**
    * Generate dynamic tasks using AI based on user request
    */
-  private async generateTasksWithAI(userRequest: string): Promise<PlanTodo[]> {
+  private async generateTasksWithAI(userRequest: string, context?: PlanningContext): Promise<PlanTodo[]> {
+    const availableTools =
+      context?.availableTools && context.availableTools.length > 0
+        ? Array.from(new Set(context.availableTools))
+        : this.getRegistryTools()
+    const toolListForPrompt =
+      availableTools.length > 0
+        ? JSON.stringify(availableTools)
+        : '["read-file-tool","write-file-tool","rag-search-tool","grep-tool","multi-read-tool"]'
+
     try {
       console.log(chalk.cyan('⚡︎ Generating custom tasks with AI...'))
 
@@ -492,7 +569,7 @@ REQUIRED JSON FORMAT (respond ONLY with valid JSON):
   }
 ]
 
-AVAILABLE TOOLS: ["read_file", "analyze_project", "execute_command", "write_file", "doc_search", "explore_directory", "generate_code"]
+AVAILABLE TOOLS: ${toolListForPrompt}
 
 EXAMPLES OF TASK BREAKDOWN:
 - Simple file edit → Analyze requirements + Plan changes + Implement + Test + Review
@@ -564,9 +641,9 @@ Generate tasks NOW (JSON only):`
           if (!response.ok) throw new Error(`Ollama service error: ${response.status}`)
 
           const data = await response.json()
-          if (data.response) {
+          if (data && typeof data === 'object' && 'response' in data && data.response) {
             try {
-              const parsed = JSON.parse(data.response.trim())
+              const parsed = JSON.parse((data.response as string).trim())
               if (Array.isArray(parsed) && parsed.length > 0) {
                 aiTasks = parsed
                 success = true
@@ -601,9 +678,13 @@ Generate tasks NOW (JSON only):`
               : 15,
           progress: 0,
           tools:
-            Array.isArray(task.tools) && task.tools.length > 0
-              ? task.tools.filter((tool: any) => typeof tool === 'string')
+            availableTools.length > 0
+              ? availableTools
               : ['analyze_project', 'read_file'],
+          metadata:
+            Array.isArray(task.tools) && task.tools.length > 0
+              ? { suggestedTools: task.tools.filter((tool: any) => typeof tool === 'string') }
+              : undefined,
           reasoning: typeof task.reasoning === 'string' ? task.reasoning : 'AI generated reasoning',
         }))
 
@@ -615,7 +696,7 @@ Generate tasks NOW (JSON only):`
         )
 
         // Aggiungi task generici basati sulla richiesta
-        const fallbackTasks = this.generateFallbackTasks(userRequest, 5 - todos.length)
+        const fallbackTasks = this.generateFallbackTasks(userRequest, 5 - todos.length, availableTools)
         todos.push(...fallbackTasks)
       }
 
@@ -642,7 +723,8 @@ Generate tasks NOW (JSON only):`
           updatedAt: new Date(),
           estimatedDuration: 15,
           progress: 0,
-          tools: ['explore_directory', 'read_file', 'analyze_project'],
+          tools: availableTools,
+          metadata: { suggestedTools: ['explore_directory', 'read_file', 'analyze_project', 'rag-search-tool'] },
           reasoning: 'Understanding the codebase structure is the foundation for comprehensive analysis',
         },
         {
@@ -655,7 +737,8 @@ Generate tasks NOW (JSON only):`
           updatedAt: new Date(),
           estimatedDuration: 20,
           progress: 0,
-          tools: ['read_file', 'analyze_project', 'execute_command'],
+          tools: availableTools,
+          metadata: { suggestedTools: ['read_file', 'analyze_project', 'execute_command', 'rag-search-tool'] },
           reasoning: 'Code quality assessment identifies areas for improvement and technical risks',
         },
         {
@@ -668,7 +751,8 @@ Generate tasks NOW (JSON only):`
           updatedAt: new Date(),
           estimatedDuration: 18,
           progress: 0,
-          tools: ['read_file', 'analyze_project', 'execute_command'],
+          tools: availableTools,
+          metadata: { suggestedTools: ['read_file', 'analyze_project', 'execute_command', 'rag-search-tool'] },
           reasoning: 'Security and performance are critical for production readiness',
         },
         {
@@ -681,7 +765,8 @@ Generate tasks NOW (JSON only):`
           updatedAt: new Date(),
           estimatedDuration: 12,
           progress: 0,
-          tools: ['read_file', 'doc_search', 'execute_command'],
+          tools: availableTools,
+          metadata: { suggestedTools: ['read_file', 'rag-search-tool', 'execute_command'] },
           reasoning: 'Good documentation and dependency management ensure maintainability',
         },
         {
@@ -694,7 +779,8 @@ Generate tasks NOW (JSON only):`
           updatedAt: new Date(),
           estimatedDuration: 25,
           progress: 0,
-          tools: ['generate_code', 'write_file', 'doc_search'],
+          tools: availableTools,
+          metadata: { suggestedTools: ['generate_code', 'write_file', 'rag-search-tool'] },
           reasoning: 'A comprehensive report provides actionable insights and strategic recommendations',
         },
       ]
@@ -704,8 +790,9 @@ Generate tasks NOW (JSON only):`
   /**
    * Generate fallback tasks when AI doesn't provide enough
    */
-  private generateFallbackTasks(userRequest: string, count: number): PlanTodo[] {
+  private generateFallbackTasks(userRequest: string, count: number, availableTools?: string[]): PlanTodo[] {
     const tasks: PlanTodo[] = []
+    const registryTools = availableTools && availableTools.length > 0 ? availableTools : this.getRegistryTools()
 
     const baseTasks = [
       {
@@ -752,8 +839,9 @@ Generate tasks NOW (JSON only):`
         updatedAt: new Date(),
         estimatedDuration: 15 + i * 5, // Vary duration slightly
         progress: 0,
-        tools: baseTask.tools,
+        tools: registryTools,
         reasoning: baseTask.reasoning,
+        metadata: { suggestedTools: baseTask.tools },
       })
     }
 
@@ -856,8 +944,12 @@ Generate tasks NOW (JSON only):`
   /**
    * Create fallback plan when TaskMaster is unavailable
    */
-  private createFallbackPlan(planId: string, userRequest: string, _context?: PlanningContext): TaskMasterPlan {
+  private createFallbackPlan(planId: string, userRequest: string, context?: PlanningContext): TaskMasterPlan {
     const todos: PlanTodo[] = []
+    const availableTools =
+      context?.availableTools && context.availableTools.length > 0
+        ? Array.from(new Set(context.availableTools))
+        : this.getRegistryTools()
 
     // Rule-based plan generation (simplified version of existing logic)
     if (userRequest.toLowerCase().includes('create') || userRequest.toLowerCase().includes('build')) {
@@ -872,6 +964,7 @@ Generate tasks NOW (JSON only):`
           updatedAt: new Date(),
           estimatedDuration: 10,
           progress: 0,
+          tools: availableTools,
         },
         {
           id: nanoid(),
@@ -883,6 +976,7 @@ Generate tasks NOW (JSON only):`
           updatedAt: new Date(),
           estimatedDuration: 15,
           progress: 0,
+          tools: availableTools,
         },
         {
           id: nanoid(),
@@ -894,6 +988,7 @@ Generate tasks NOW (JSON only):`
           updatedAt: new Date(),
           estimatedDuration: 30,
           progress: 0,
+          tools: availableTools,
         }
       )
     } else {
@@ -907,6 +1002,7 @@ Generate tasks NOW (JSON only):`
         updatedAt: new Date(),
         estimatedDuration: 15,
         progress: 0,
+        tools: availableTools,
       })
     }
 
@@ -958,8 +1054,8 @@ Generate tasks NOW (JSON only):`
       todo.status = 'in_progress'
       this.emit('stepStart', { planId: plan.id, taskId: todo.id })
 
-       // Notify task started
-       try { await this.sendTaskStartedNotification(plan, todo) } catch { }
+      // Notify task started
+      try { await this.sendTaskStartedNotification(plan, todo) } catch { }
 
       try {
         // Simulate task execution
@@ -1383,6 +1479,7 @@ export interface PlanningContext {
   relevantFiles?: string[]
   projectType?: string
   userPreferences?: Record<string, any>
+  availableTools?: string[]
 }
 
 // Create singleton instance

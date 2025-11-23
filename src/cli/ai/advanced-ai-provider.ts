@@ -1092,7 +1092,9 @@ Respond in a helpful, professional manner with clear explanations and actionable
         },
       }),
 
-      // Web search capabilities
+      // Web search capabilities (native OpenAI web_search_preview when available)
+      web_search_preview:
+        this.webSearchProvider.getNativeWebSearchTool() || this.webSearchProvider.getWebSearchTool(),
       web_search: this.webSearchProvider.getWebSearchTool(),
 
       // IDE context enrichment

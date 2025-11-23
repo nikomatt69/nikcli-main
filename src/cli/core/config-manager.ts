@@ -84,6 +84,14 @@ const ConfigSchema = z.object({
     .array(z.string())
     .default(['middle-out'])
     .describe('OpenRouter prompt transforms to apply (e.g., "middle-out" for automatic context compression)'),
+  // OpenRouter prompt caching (optional)
+  openrouterPromptCache: z
+    .object({
+      enabled: z.boolean().default(false),
+      mode: z.enum(['prefill', 'strict', 'default']).optional(),
+      ttl: z.number().int().positive().optional(),
+    })
+    .optional(),
   // MCP (Model Context Protocol) servers configuration - Claude Code/OpenCode compatible
   mcp: z
     .record(

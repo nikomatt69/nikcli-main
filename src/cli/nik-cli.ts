@@ -13301,6 +13301,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     terminalOutputManager.confirmOutput(spacerId, 'PromptSpacer', spacingLines, { persistent: false, expiryMs: 2000 })
     process.stdout.write(`\x1B[${Math.max(1, terminalHeight - reservedLines)};0H`)
 
+
     if (planHudLines.length > 0) {
       process.stdout.write('\n')
       for (const line of planHudLines) {

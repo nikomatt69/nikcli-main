@@ -107,6 +107,13 @@ export class ToolRouter extends EventEmitter {
       description: 'Search for updated web information',
       examples: ['search React 18 features', 'find TypeScript tutorial', 'information about Next.js 15'],
     },
+    {
+      tool: 'web-search-tool',
+      keywords: ['web search', 'search web', 'online search', 'lookup online', 'internet'],
+      priority: 6,
+      description: 'Web search via registry tool',
+      examples: ['search the web for prisma docs', 'lookup stackoverflow answer online'],
+    },
 
     // IDE Context Tools
     {
@@ -569,6 +576,11 @@ export class ToolRouter extends EventEmitter {
       // Friendly -> Registered tool names
       Read: 'read-file-tool',
       Write: 'write-file-tool',
+      WebSearch: 'web-search-tool',
+      web_search: 'web-search-tool',
+      web_search_preview: 'web-search-tool',
+      webSearch: 'web-search-tool',
+      'web-search-tool': 'web-search-tool',
       LS: 'list-tool',
       Grep: 'grep-tool',
       Glob: 'glob-tool',
@@ -642,6 +654,7 @@ export class ToolRouter extends EventEmitter {
       web_search: ['web', 'online', 'internet', 'browser', 'url', 'link'],
       ide_context: ['editor', 'vscode', 'intellij', 'workspace', 'project'],
       semantic_search: ['similar', 'pattern', 'example', 'implementation'],
+      rag_search: ['semantic', 'rag', 'vector', 'context', 'related', 'similar'],
       code_analysis: ['quality', 'review', 'improve', 'optimize'],
       dependency_analysis: ['package', 'npm', 'security', 'update'],
       git_workflow: ['repository', 'commit', 'branch', 'merge'],
@@ -727,6 +740,13 @@ export class ToolRouter extends EventEmitter {
         const semanticMatch = content.match(/(?:find)\s+(.+?)(?:\s|$)/i)
         if (semanticMatch) {
           suggestions.query = semanticMatch[1]
+        }
+        break
+      }
+      case 'rag_search': {
+        const ragMatch = content.match(/(?:search|find|lookup)\s+(.+?)(?:\s|$)/i)
+        if (ragMatch) {
+          suggestions.query = ragMatch[1]
         }
         break
       }
@@ -1199,6 +1219,17 @@ export class ToolRouter extends EventEmitter {
         alternatives: ['Grep'],
       },
       {
+        name: 'rag_search',
+        category: 'search' as const,
+        securityLevel: 'safe' as const,
+        keywords: ['search', 'semantic', 'rag', 'vector', 'context', 'docs', 'similar'],
+        capabilities: ['semantic-search', 'context-retrieval', 'vector-search'],
+        estimatedDuration: 12,
+        requiresApproval: false,
+        workspaceRestricted: true,
+        alternatives: ['Grep', 'WebSearch', 'semantic_search'],
+      },
+      {
         name: 'LS',
         category: 'file' as const,
         securityLevel: 'safe' as const,
@@ -1219,6 +1250,17 @@ export class ToolRouter extends EventEmitter {
         requiresApproval: false,
         workspaceRestricted: false,
         alternatives: ['WebSearch'],
+      },
+      {
+        name: 'WebSearch',
+        category: 'search' as const,
+        securityLevel: 'moderate' as const,
+        keywords: ['web', 'search', 'online', 'internet', 'docs', 'stackoverflow', 'github', 'latest'],
+        capabilities: ['web-access', 'information-retrieval', 'citations'],
+        estimatedDuration: 15,
+        requiresApproval: false,
+        workspaceRestricted: false,
+        alternatives: ['WebFetch', 'browse_web'],
       },
       {
         name: 'blockchain_web3',
@@ -1321,6 +1363,14 @@ export class ToolRouter extends EventEmitter {
     const performanceScore = this.scorePerformanceMatch(toolInfo.estimatedDuration, intentAnalysis.urgency)
     totalScore += performanceScore * 0.1
 
+    // 6. TOOLCHAIN SEARCH BOOST (semantic/RAG emphasis)
+    if (['rag_search', 'semantic_search'].includes(toolInfo.name)) {
+      const searchBonus = intentAnalysis.primaryAction === 'search' ? 0.3 : 0.15
+      const toolchainBonus = context?.orchestrationPlan ? 0.05 : 0
+      totalScore += searchBonus + toolchainBonus
+      reasons.push('Prioritize semantic/RAG search for toolchains')
+    }
+
     primaryReason = reasons.length > 0 ? reasons.join(', ') : `General ${toolInfo.category} tool`
 
     // Generate suggested parameters based on analysis
@@ -1400,7 +1450,7 @@ export class ToolRouter extends EventEmitter {
     // Default sequence: read -> search -> analyze -> write -> execute
     const sequencePriority = {
       file: { read: 1, list: 2 },
-      search: { search: 3, analyze: 4 },
+      search: { search: 3, analyze: 4, rag_search: 2, semantic_search: 2 },
       analysis: { analyze: 5 },
       blockchain: { blockchain: 4 },
       ai: { generate: 6 },
@@ -1413,7 +1463,8 @@ export class ToolRouter extends EventEmitter {
     tools.forEach((tool, index) => {
       const categoryPriority = sequencePriority[tool.category] || {}
       const toolKey = tool.tool.toLowerCase() as keyof typeof categoryPriority
-      tool.executionOrder = categoryPriority[toolKey] || 100 + index
+      tool.executionOrder =
+        categoryPriority[toolKey] || (['rag_search', 'semantic_search'].includes(tool.tool) ? 2 : 100 + index)
     })
 
     return tools.sort((a, b) => (a.executionOrder || 100) - (b.executionOrder || 100))

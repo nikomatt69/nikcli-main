@@ -1,8 +1,10 @@
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import { tool } from 'ai'
+import { createOpenAI, openai } from '@ai-sdk/openai'
 import chalk from 'chalk'
 import { z } from 'zod'
+import { configManager } from './config-manager'
 import { modelProvider } from '../ai/model-provider'
 
 const execAsync = promisify(exec)
@@ -20,6 +22,36 @@ interface WebSynthesisResult {
 }
 
 export class WebSearchProvider {
+  // Native OpenAI web search tool (web_search_preview) when supported
+  getNativeWebSearchTool() {
+    if (!this.supportsNativeOpenAIWebSearch()) return null
+
+    // The .tools.webSearchPreview property only exists on the default 'openai' export,
+    // not on instances created by createOpenAI(). Use the default export for OpenAI provider.
+    try {
+      const current = configManager.getCurrentModel()
+      const models = configManager.get('models')
+      const cfg = models?.[current]
+      if (!cfg) return null
+
+      // Only use native tool for OpenAI provider (not OpenRouter, as it requires custom baseURL)
+      if (cfg.provider === 'openai') {
+        const apiKey = configManager.getApiKey()
+        if (!apiKey) return null
+
+        // Check if the default openai export has the webSearchPreview tool
+        if (openai?.tools?.webSearchPreview) {
+          return openai.tools.webSearchPreview()
+        }
+      }
+
+      // For OpenRouter or other providers, return null to fall back to custom tool
+      return null
+    } catch (_error) {
+      return null
+    }
+  }
+
   // Web search tool using AI SDK
   getWebSearchTool() {
     return tool({
@@ -95,6 +127,67 @@ export class WebSearchProvider {
         }
       },
     })
+  }
+
+  private supportsNativeOpenAIWebSearch(): boolean {
+    try {
+      const current = configManager.getCurrentModel()
+      const models = configManager.get('models')
+      const cfg = models?.[current]
+      if (!cfg) return false
+
+      // Only OpenAI provider supports web_search_preview natively via the default export
+      // OpenRouter requires custom baseURL, so native tool is not available
+      if (cfg.provider === 'openai') {
+        // Check if the default openai export has the webSearchPreview tool
+        return !!openai?.tools?.webSearchPreview
+      }
+
+      return false
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Build an OpenAI-compatible provider for tool usage (OpenAI or OpenRouter baseURL).
+   */
+  private getOpenAICompatibleProvider() {
+    const current = configManager.getCurrentModel()
+    const models = configManager.get('models')
+    const cfg = models?.[current]
+    if (!cfg) return null
+
+    const getApiKey = (name?: string) => configManager.getApiKey(name || current)
+
+    try {
+      if (cfg.provider === 'openai') {
+        const apiKey = getApiKey()
+        if (!apiKey) return null
+        return createOpenAI({ apiKey })
+      }
+
+      if (cfg.provider === 'openrouter') {
+        let apiKey = getApiKey()
+        if (!apiKey) {
+          apiKey = configManager.getApiKey('openrouter') || process.env.OPENROUTER_API_KEY
+        }
+        if (!apiKey) return null
+
+        return createOpenAI({
+          apiKey,
+          baseURL: 'https://openrouter.ai/api/v1',
+          headers: {
+            'HTTP-Referer': 'https://nikcli.ai',
+            'X-Title': 'NikCLI',
+          },
+        })
+      }
+    } catch (_error) {
+      return null
+    }
+
+    return null
   }
 
   // General web search using curl and search engines

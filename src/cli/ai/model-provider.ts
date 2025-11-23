@@ -384,6 +384,8 @@ export class ModelProvider {
           exclude: false,
           enabled: true,
         }
+        // Preserve reasoning blocks when supported
+        ;(reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
         baseOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
       }
 
@@ -394,6 +396,15 @@ export class ModelProvider {
       } else {
         // Default to middle-out for automatic context compression
         baseOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+      }
+
+      // Prompt caching (OpenRouter-only) - applied only if enabled in config
+      const cacheCfg = configManager.get('openrouterPromptCache')
+      if (cacheCfg?.enabled) {
+        const cache: any = {}
+        if (cacheCfg.mode) cache.mode = cacheCfg.mode
+        if (cacheCfg.ttl) cache.ttl = cacheCfg.ttl
+        baseOptions.experimental_providerMetadata.openrouter.cache = cache
       }
     }
     const result = await generateText(baseOptions)
@@ -540,6 +551,8 @@ export class ModelProvider {
           exclude: false,
           enabled: true,
         }
+        // Preserve reasoning blocks when supported
+        ;(reasoningConfig as any).include_reasoning = (reasoningConfig as any).include_reasoning ?? true
         streamOptions.experimental_providerMetadata.openrouter.reasoning = reasoningConfig
       }
 
@@ -550,6 +563,15 @@ export class ModelProvider {
       } else {
         // Default to middle-out for automatic context compression
         streamOptions.experimental_providerMetadata.openrouter.transforms = ['middle-out']
+      }
+
+      // Prompt caching (OpenRouter-only) - applied only if enabled in config
+      const cacheCfg = configManager.get('openrouterPromptCache')
+      if (cacheCfg?.enabled) {
+        const cache: any = {}
+        if (cacheCfg.mode) cache.mode = cacheCfg.mode
+        if (cacheCfg.ttl) cache.ttl = cacheCfg.ttl
+        streamOptions.experimental_providerMetadata.openrouter.cache = cache
       }
     }
 
