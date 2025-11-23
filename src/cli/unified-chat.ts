@@ -603,6 +603,7 @@ export class UnifiedChatInterface extends EventEmitter {
 
     switch (cmd.toLowerCase()) {
       case 'help':
+      case 'commands':
         this.showHelp()
         break
       case 'plan':
@@ -642,7 +643,7 @@ export class UnifiedChatInterface extends EventEmitter {
         process.exit(0)
         break
       default:
-        console.log(chalk.red(`Unknown command: /${cmd}. Type /help for available commands.`))
+        console.log(chalk.red(`Unknown command: /${cmd}. Type /help or /commands for available commands.`))
     }
   }
 
@@ -664,8 +665,8 @@ export class UnifiedChatInterface extends EventEmitter {
   private showHelp(): void {
     const helpBox = boxen(
       chalk.white.bold('🔌 NikCLI Commands\n\n') +
-      chalk.green('/help') +
-      chalk.gray('     - Show this help\n') +
+      chalk.green('/help, /commands') +
+      chalk.gray(' - Show this help\n') +
       chalk.green('/plan') +
       chalk.gray('     - Toggle plan mode (currently: ') +
       (this.session.planMode ? chalk.green('ON') : chalk.red('OFF')) +
@@ -767,7 +768,7 @@ export class UnifiedChatInterface extends EventEmitter {
    * Auto-completion for commands
    */
   private autoComplete(line: string): [string[], string] {
-    const commands = ['/help', '/plan', '/status', '/queue', '/stop', '/clear', '/exit']
+    const commands = ['/help', '/commands', '/plan', '/status', '/queue', '/stop', '/clear', '/exit']
     const hits = commands.filter((cmd) => cmd.startsWith(line))
     return [hits.length ? hits : commands, line]
   }
@@ -802,7 +803,7 @@ export class UnifiedChatInterface extends EventEmitter {
    */
   private showPrompt(): void {
     const workingDir = require('node:path').basename(this.session.workingDirectory)
-    const indicators = []
+    const indicators: string[] = []
 
     if (this.session.planMode) indicators.push(chalk.green('plan'))
     if (this.session.isExecuting) indicators.push(chalk.yellow('exec'))

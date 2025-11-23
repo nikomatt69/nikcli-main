@@ -1757,7 +1757,7 @@ class StreamingModule extends EventEmitter {
       return [suggestions.length ? suggestions : [], line]
     } catch (_error) {
       // Fallback to original static completion
-      const commands = ['/status', '/agents', '/diff', '/accept', '/clear', '/help']
+      const commands = ['/status', '/agents', '/diff', '/accept', '/clear', '/help', '/commands']
       const agents = [
         '@react-expert',
         '@backend-expert',
@@ -1777,7 +1777,7 @@ class StreamingModule extends EventEmitter {
     const lines: string[] = []
     lines.push(`${chalk.bold('📋 Available Commands')}`)
     lines.push('')
-    lines.push(`${chalk.green('/help')}     Show detailed help`)
+    lines.push(`${chalk.green('/help')}     Show detailed help (/commands alias)`)
     lines.push(`${chalk.green('/agents')}   List available agents`)
     lines.push(`${chalk.green('/status')}   Show system status`)
     lines.push(`${chalk.green('/clear')}    Clear session`)

@@ -294,7 +294,7 @@ export class SmartCompletionManager {
     }
 
     // Skip AI for very common prefixes that have good static/ML coverage
-    const commonPrefixes = ['/help', '/status', '/clear', '/exit']
+    const commonPrefixes = ['/help', '/commands', '/status', '/clear', '/exit']
     if (commonPrefixes.some((prefix) => prefix.startsWith(partialInput))) {
       return false
     }
@@ -344,7 +344,7 @@ export class SmartCompletionManager {
    */
   private initializeStaticCommands(): void {
     // Default commands
-    const defaultCommands = ['/help', '/status', '/agents', '/clear', '/exit', '/models', '/config', '/env']
+    const defaultCommands = ['/help', '/commands', '/status', '/agents', '/clear', '/exit', '/models', '/config', '/env']
 
     // Orchestrator service commands
     const orchestratorCommands = [...defaultCommands, '/diff', '/accept', '/middleware']
@@ -376,10 +376,10 @@ export class SmartCompletionManager {
     ]
 
     // Unified chat commands
-    const unifiedChatCommands = ['/help', '/plan', '/status', '/queue', '/stop', '/clear', '/exit']
+    const unifiedChatCommands = ['/help', '/commands', '/plan', '/status', '/queue', '/stop', '/clear', '/exit']
 
     // Streaming orchestrator commands
-    const streamingCommands = ['/status', '/agents', '/diff', '/accept', '/clear', '/help']
+    const streamingCommands = ['/status', '/agents', '/diff', '/accept', '/clear', '/help', '/commands']
 
     this.staticCommands.set('default', defaultCommands)
     this.staticCommands.set('orchestrator', orchestratorCommands)
@@ -399,7 +399,7 @@ export class SmartCompletionManager {
   }
 
   private getStaticCommandPriority(cmd: string): number {
-    const highPriority = ['/help', '/status', '/agents', '/clear']
+    const highPriority = ['/help', '/commands', '/status', '/agents', '/clear']
     const mediumPriority = ['/diff', '/accept', '/plan', '/auto']
 
     if (highPriority.includes(cmd)) return 9
@@ -410,6 +410,7 @@ export class SmartCompletionManager {
   private getCommandDescription(cmd: string): string {
     const descriptions: Record<string, string> = {
       '/help': 'Show help information',
+      '/commands': 'Show help information',
       '/status': 'Display system status',
       '/agents': 'List available agents',
       '/clear': 'Clear current session',
@@ -426,6 +427,7 @@ export class SmartCompletionManager {
   private getCommandIcon(cmd: string): string {
     const icons: Record<string, string> = {
       '/help': '❓',
+      '/commands': '❓',
       '/status': '📊',
       '/agents': '🔌',
       '/clear': '🧹',

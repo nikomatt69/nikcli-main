@@ -65,13 +65,12 @@ export class ToolRegistry {
       estimatedDuration: metadata?.estimatedDuration || 5000,
       requiredPermissions: metadata?.requiredPermissions || [],
       supportedFileTypes: metadata?.supportedFileTypes || [],
-      version: metadata?.version || '1.3.0',
+      version: metadata?.version || '1.4.0',
       author: metadata?.author || 'system',
       tags: metadata?.tags || [],
     })
 
     if (!process.env.NIKCLI_SUPPRESS_TOOL_REGISTER_LOGS && !process.env.NIKCLI_QUIET_STARTUP) {
-
     }
   }
 
@@ -207,7 +206,7 @@ export class ToolRegistry {
     return {
       tools: Array.from(this.toolMetadata.values()),
       exportedAt: new Date(),
-      version: '1.3.0',
+      version: '1.4.0',
     }
   }
 
@@ -279,7 +278,6 @@ export class ToolRegistry {
     // Additional tools would be registered here
     // For now, we'll create placeholder registrations for the tools referenced in the planner
 
-
     this.registerTool('read-file-tool', new ReadFileTool(workingDirectory), {
       description: 'Read file contents with security validation',
       category: 'filesystem',
@@ -302,7 +300,7 @@ export class ToolRegistry {
       tags: ['write', 'filesystem', 'create'],
     })
 
-    this.registerTool('replace-in-file-tool', new ReplaceInFileTool(workingDirectory), {
+    this.registerTool('replace', new ReplaceInFileTool(workingDirectory), {
       description: 'Replace content in files with validation',
       category: 'filesystem',
       riskLevel: 'medium',
@@ -314,7 +312,7 @@ export class ToolRegistry {
     })
 
     // Interactive edit tool with diff preview
-    this.registerTool('edit-tool', new EditTool(workingDirectory), {
+    this.registerTool('edit', new EditTool(workingDirectory), {
       description: 'Interactive edits with diff preview and backup',
       category: 'filesystem',
       riskLevel: 'medium',
@@ -454,7 +452,8 @@ export class ToolRegistry {
     })
 
     this.registerTool('goat-tool', new GoatTool(workingDirectory), {
-      description: 'Execute blockchain operations using GOAT SDK (Polymarket, ERC20) on Polygon and Base with comprehensive help system',
+      description:
+        'Execute blockchain operations using GOAT SDK (Polymarket, ERC20) on Polygon and Base with comprehensive help system',
       category: 'blockchain',
       riskLevel: 'high',
       reversible: false,

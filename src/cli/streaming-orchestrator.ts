@@ -493,6 +493,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
         this.clearMessages()
         break
       case 'help':
+      case 'commands':
         this.showHelp()
         break
       case 'queue':
@@ -501,7 +502,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
       default:
         this.queueMessage({
           type: 'error',
-          content: `❌ Unknown command: ${cmd}`,
+          content: `❌ Unknown command: ${cmd}. Try /help or /commands.`,
         })
     }
   }
@@ -1163,7 +1164,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
     console.log(`${chalk.green('/accept')} [all]  Accept file changes`)
     console.log(`${chalk.green('/clear')}         Clear message queue`)
     console.log(`${chalk.green('/queue')} [cmd]   Manage input queue`)
-    console.log(`${chalk.green('/help')}          Show detailed help`)
+    console.log(`${chalk.green('/help')}          Show detailed help (/commands alias)`)
 
     console.log(chalk.cyan.bold('\\n🔌 Agent Usage:'))
     console.log(`${chalk.blue('@agent-name')} task description`)
@@ -1364,7 +1365,7 @@ class StreamingOrchestratorImpl extends EventEmitter {
 
   private autoComplete(line: string): [string[], string] {
     if (!this.rl) return [[], line]
-    const commands = ['/status', '/agents', '/diff', '/accept', '/clear', '/help']
+    const commands = ['/status', '/agents', '/diff', '/accept', '/clear', '/help', '/commands']
     const agents = [
       '@react-expert',
       '@backend-expert',

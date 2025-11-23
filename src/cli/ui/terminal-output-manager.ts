@@ -94,12 +94,8 @@ export class TerminalOutputManager {
     this.outputs.set(id, entry)
     this.currentLine += actualLines
 
-    // Riduci lo spazio riservato
-    const reservation = this.reservedHeight
-    const diff = Math.abs(actualLines - reservation)
-    if (diff > 0 && reservation > 0) {
-      this.reservedHeight = Math.max(0, this.reservedHeight - actualLines)
-    }
+    // Rimuovi la prenotazione: lo spazio riservato torna disponibile dopo la conferma
+    this.reservedHeight = Math.max(0, this.reservedHeight - actualLines)
   }
 
   /**

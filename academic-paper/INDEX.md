@@ -399,7 +399,7 @@ Future Work:           ✅ Identified
   author={Academic Analysis Team},
   institution={NikCLI Research},
   year={2025},
-  version={1.3.0},
+  version={1.4.0},
   series={NikCLI Academic Paper Series},
   papers=6,
   totalPages=90,

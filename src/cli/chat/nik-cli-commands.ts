@@ -208,6 +208,7 @@ export class SlashCommandHandler {
 
   private registerCommands(): void {
     this.commands.set('help', this.helpCommand.bind(this))
+    this.commands.set('commands', this.helpCommand.bind(this))
     this.commands.set('quit', this.quitCommand.bind(this))
     this.commands.set('exit', this.quitCommand.bind(this))
     this.commands.set('clear', this.clearCommand.bind(this))
@@ -438,7 +439,7 @@ export class SlashCommandHandler {
     const handler = this.commands.get(command)
     if (!handler) {
       console.log(chalk.red(`❌ Unknown command: ${command}`))
-      console.log(chalk.gray('Type /help for available commands'))
+      console.log(chalk.gray('Type /help or /commands for available commands'))
       return { shouldExit: false, shouldUpdatePrompt: false }
     }
 
@@ -450,7 +451,7 @@ export class SlashCommandHandler {
 ${chalk.blue.bold('🔧 Available Commands:')}
 ${chalk.gray('─'.repeat(40))}
 
-${chalk.cyan('/help')} - Show this help message
+${chalk.cyan('/help (alias: /commands)')} - Show this help message
 ${chalk.cyan('/quit, /exit')} - Exit the chat
 ${chalk.cyan('/clear')} - Clear current chat session
 ${chalk.cyan('/new [title]')} - Start a new chat session
@@ -675,7 +676,14 @@ ${chalk.cyan('/clear-approvals')} - Clear session approvals
 ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
     `
 
-    console.log(help)
+    const panel = boxen(help.trim(), {
+      title: 'Commands',
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'cyan',
+    })
+    this.printPanel(panel)
     return { shouldExit: false, shouldUpdatePrompt: false }
   }
 

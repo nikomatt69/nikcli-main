@@ -17,11 +17,23 @@ export interface MultiEditOperation {
 }
 
 export interface MultiEditParams {
-  operations: MultiEditOperation[]
+  operations?: MultiEditOperation[]
+  // Legacy/alias used by some callers
+  edits?: Array<{
+    file?: string
+    filePath?: string
+    search?: string
+    replace?: string
+    oldString?: string
+    newString?: string
+    replaceAll?: boolean
+  }>
   createBackup?: boolean
   validateSyntax?: boolean
   previewOnly?: boolean
   rollbackOnError?: boolean
+  // Allows dry-run semantics from older AI wrappers
+  dryRun?: boolean
 }
 
 export interface MultiEditResult {
@@ -57,14 +69,16 @@ export class MultiEditTool extends BaseTool {
 
       CliUI.logDebug(`Using system prompt: ${systemPrompt.substring(0, 100)}...`)
 
-      if (!params.operations || params.operations.length === 0) {
+      const normalizedOperations = this.normalizeOperations(params)
+
+      if (normalizedOperations.length === 0) {
         throw new Error('No operations specified')
       }
 
       advancedUI.logInfo(`⚡︎ Executing ${params.operations.length} edit operations`)
 
       const result: MultiEditResult = {
-        totalOperations: params.operations.length,
+        totalOperations: normalizedOperations.length,
         successfulOperations: 0,
         failedOperations: 0,
         results: [],
@@ -73,10 +87,10 @@ export class MultiEditTool extends BaseTool {
       }
 
       // Esegui operazioni in sequenza
-      for (let i = 0; i < params.operations.length; i++) {
-        const operation = params.operations[i]
+      for (let i = 0; i < normalizedOperations.length; i++) {
+        const operation = normalizedOperations[i]
 
-        advancedUI.logInfo(`📝 Operation ${i + 1}/${params.operations.length}: ${operation.filePath}`)
+        advancedUI.logInfo(`📝 Operation ${i + 1}/${normalizedOperations.length}: ${operation.filePath}`)
 
         try {
           const editParams: EditToolParams = {
@@ -86,7 +100,7 @@ export class MultiEditTool extends BaseTool {
             replaceAll: operation.replaceAll,
             createBackup: params.createBackup,
             validateSyntax: params.validateSyntax,
-            previewOnly: params.previewOnly,
+            previewOnly: params.previewOnly ?? params.dryRun,
           }
 
           const editResult = await this.editTool.execute(editParams)
@@ -163,6 +177,42 @@ export class MultiEditTool extends BaseTool {
         },
       }
     }
+  }
+
+  /**
+   * Normalize different param shapes into the expected operations array.
+   * Supports the newer `operations` shape and the legacy `edits` shape used by some tool wrappers.
+   */
+  private normalizeOperations(params: MultiEditParams): MultiEditOperation[] {
+    if (params.operations && params.operations.length > 0) {
+      return params.operations
+    }
+
+    if (!params.edits || params.edits.length === 0) {
+      return []
+    }
+
+    const normalized: MultiEditOperation[] = []
+
+    for (const edit of params.edits) {
+      const filePath = edit.filePath || edit.file
+      const oldString = edit.oldString ?? edit.search
+      const newString = edit.newString ?? edit.replace
+
+      if (!filePath || oldString === undefined || newString === undefined) {
+        advancedUI.logWarning('⚠️ Skipping invalid edit entry missing file/search/replace')
+        continue
+      }
+
+      normalized.push({
+        filePath,
+        oldString,
+        newString,
+        replaceAll: edit.replaceAll,
+      })
+    }
+
+    return normalized
   }
 
   /**

@@ -27,7 +27,7 @@ export abstract class BaseAgent implements AgentInstance {
   protected agentMetrics: AgentMetrics
 
   // Enhanced properties for unified interface
-  public readonly version: string = '1.3.0'
+  public readonly version: string = '1.4.0'
   protected memoryLimit: number = 100 // Limit task history to prevent memory leaks
   protected performanceOptimized: boolean = true
   protected batchSize: number = 5 // Process tasks in batches for better performance

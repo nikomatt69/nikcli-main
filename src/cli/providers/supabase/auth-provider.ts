@@ -166,8 +166,8 @@ export class AuthProvider extends EventEmitter {
       this.currentProfile = profile
 
       // Reset usage counters if periods have expired
-      this.resetMonthlyUsageIfNeeded()
-      this.resetHourlyUsageIfNeeded()
+      await this.resetMonthlyUsageIfNeeded()
+      await this.resetHourlyUsageIfNeeded()
 
       // Persist session if enabled
       if (this.config.persistSession && options?.rememberMe !== false) {
@@ -507,7 +507,7 @@ export class AuthProvider extends EventEmitter {
   /**
    * Reset usage counters if monthly period has expired
    */
-  resetMonthlyUsageIfNeeded(): void {
+  async resetMonthlyUsageIfNeeded(): Promise<void> {
     if (!this.currentProfile) return
 
     const lastResetMonth = this.currentProfile.usage.lastResetMonth
@@ -524,15 +524,14 @@ export class AuthProvider extends EventEmitter {
         if (this.supabase && this.currentProfile?.id) {
           const client = (this.supabase as any).client
           if (client) {
-            client
+            await client
               .from(this.userTableName)
               .update({ usage: this.currentProfile.usage })
               .eq('id', this.currentProfile.id)
-              .catch((err: any) => console.debug('[auth-provider] Failed to persist monthly reset:', err.message))
           }
         }
-      } catch (error) {
-        console.debug('[auth-provider] Error during monthly usage reset:', error)
+      } catch (error: any) {
+        console.debug('[auth-provider] Failed to persist monthly reset:', error?.message || error)
       }
     }
   }
@@ -540,7 +539,7 @@ export class AuthProvider extends EventEmitter {
   /**
    * Reset usage counters if hourly period has expired
    */
-  resetHourlyUsageIfNeeded(): void {
+  async resetHourlyUsageIfNeeded(): Promise<void> {
     if (!this.currentProfile) return
 
     const lastResetHour = this.currentProfile.usage.lastResetHour
@@ -556,15 +555,14 @@ export class AuthProvider extends EventEmitter {
         if (this.supabase && this.currentProfile?.id) {
           const client = (this.supabase as any).client
           if (client) {
-            client
+            await client
               .from(this.userTableName)
               .update({ usage: this.currentProfile.usage })
               .eq('id', this.currentProfile.id)
-              .catch((err: any) => console.debug('[auth-provider] Failed to persist hourly reset:', err.message))
           }
         }
-      } catch (error) {
-        console.debug('[auth-provider] Error during hourly usage reset:', error)
+      } catch (error: any) {
+        console.debug('[auth-provider] Failed to persist hourly reset:', error?.message || error)
       }
     }
   }

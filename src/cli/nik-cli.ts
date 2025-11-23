@@ -82,6 +82,7 @@ const formatCognitive = chalk.hex('#4a4a4a')
 import { structuredLogger } from './utils/structured-logger'
 import { configureSyntaxHighlighting } from './utils/syntax-highlighter'
 import { formatAgent, formatCommand, formatFileOp, formatSearch, formatStatus, wrapBlue } from './utils/text-wrapper'
+import { terminalOutputManager } from './ui/terminal-output-manager'
 
 // VM System imports
 import { vmSelector } from './virtualized-agents/vm-selector'
@@ -261,7 +262,7 @@ export class NikCLI {
     sharedData: Map<string, any>
   }
   private shouldInterrupt: boolean = false
-  private currentStreamController?: AbortController
+  private currentStreamControllers: Set<AbortController> = new Set()
   private lastGeneratedPlan?: ExecutionPlan
   private advancedUI: any
   private structuredUIEnabled: boolean = false
@@ -283,6 +284,8 @@ export class NikCLI {
   private orchestrationLevel: number = 8
   // Timer used to re-render the prompt after console output in chat mode
   private promptRenderTimer: NodeJS.Timeout | null = null
+  private lastPromptRenderAt: number = 0
+  private readonly promptRenderThrottleMs: number = 500
   // Status bar loading animation
   private statusBarTimer: NodeJS.Timeout | null = null
   private statusBarStep: number = 0
@@ -2642,10 +2645,16 @@ export class NikCLI {
     // Set interrupt flag
     this.shouldInterrupt = true
 
-    // Abort current stream if exists
-    if (this.currentStreamController) {
-      this.currentStreamController.abort()
-      this.currentStreamController = undefined
+    // Abort current streams if exist
+    if (this.currentStreamControllers.size > 0) {
+      for (const controller of this.currentStreamControllers) {
+        try {
+          controller.abort()
+        } catch {
+          /* ignore */
+        }
+      }
+      this.currentStreamControllers.clear()
     }
 
     // Stop all active spinners and operations
@@ -4720,68 +4729,74 @@ EOF`
 
       // Stream directly through streamttyService (no bridge needed)
       const { streamttyService } = await import('./services/streamtty-service')
+      const streamController = new AbortController()
+      this.currentStreamControllers.add(streamController)
 
-      // Use the same streaming as plan mode
-      for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
-        // Handle all streaming events exactly like plan mode
-        switch (ev.type) {
-          case 'text_delta':
-            // Stream text in dark gray like default mode
-            if (ev.content) {
-              assistantText += ev.content
-              await streamttyService.streamChunk(ev.content, 'ai')
+      try {
+        // Use the same streaming as plan mode
+        for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages, streamController.signal)) {
+          // Handle all streaming events exactly like plan mode
+          switch (ev.type) {
+            case 'text_delta':
+              // Stream text in dark gray like default mode
+              if (ev.content) {
+                assistantText += ev.content
+                await streamttyService.streamChunk(ev.content, 'ai')
 
-              // Track lines for clearing (same as default mode)
-              const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
-              const newlines = (visualContent.match(/\n/g) || []).length
-              const charsWithoutNewlines = visualContent.replace(/\n/g, '').length
-              const wrappedLines = Math.ceil(charsWithoutNewlines / terminalWidth)
-              streamedLines += newlines + wrappedLines
-            }
-            break
+                // Track lines for clearing (same as default mode)
+                const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
+                const newlines = (visualContent.match(/\n/g) || []).length
+                const charsWithoutNewlines = visualContent.replace(/\n/g, '').length
+                const wrappedLines = Math.ceil(charsWithoutNewlines / terminalWidth)
+                streamedLines += newlines + wrappedLines
+              }
+              break
 
-          case 'tool_call': {
-            // Use unified renderer for tool call logging (same as default mode)
-            const toolName = ev.toolName || 'unknown_tool'
-            const toolCallId = `plan-${toolName}-${Date.now()}`
-            await unifiedRenderer.logToolCall(
-              toolName,
-              ev.toolArgs,
-              { mode: 'plan', toolCallId, agentName },
-              { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
-            )
-            activeToolCallId = toolCallId
-            lastToolName = toolName
-            break
-          }
-
-          case 'tool_result': {
-            // Use unified renderer for tool result logging (same as default mode)
-            if (activeToolCallId) {
-              await unifiedRenderer.logToolResult(
-                activeToolCallId,
-                ev.toolResult,
-                { mode: 'plan', agentName },
+            case 'tool_call': {
+              // Use unified renderer for tool call logging (same as default mode)
+              const toolName = ev.toolName || 'unknown_tool'
+              const toolCallId = `plan-${toolName}-${Date.now()}`
+              await unifiedRenderer.logToolCall(
+                toolName,
+                ev.toolArgs,
+                { mode: 'plan', toolCallId, agentName },
                 { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
               )
+              activeToolCallId = toolCallId
+              lastToolName = toolName
+              break
             }
-            activeToolCallId = undefined
-            break
+
+            case 'tool_result': {
+              // Use unified renderer for tool result logging (same as default mode)
+              if (activeToolCallId) {
+                await unifiedRenderer.logToolResult(
+                  activeToolCallId,
+                  ev.toolResult,
+                  { mode: 'plan', agentName },
+                  { showInRecentUpdates: true, streamToTerminal: true, persistent: true }
+                )
+              }
+              activeToolCallId = undefined
+              break
+            }
+
+            case 'complete':
+              // Mark that we should format output after stream ends (like default mode)
+              if (assistantText.length > 200) {
+                shouldFormatOutput = true
+              }
+              streamCompleted = true
+              break
+
+            case 'error':
+              // Stream error
+              this.addLiveUpdate({ type: 'error', content: `❌ ${agentName} error: ${ev.error}`, source: 'plan-exec' })
+              throw new Error(ev.error)
           }
-
-          case 'complete':
-            // Mark that we should format output after stream ends (like default mode)
-            if (assistantText.length > 200) {
-              shouldFormatOutput = true
-            }
-            streamCompleted = true
-            break
-
-          case 'error':
-            // Stream error
-            this.addLiveUpdate({ type: 'error', content: `❌ ${agentName} error: ${ev.error}`, source: 'plan-exec' })
-            throw new Error(ev.error)
         }
+      } finally {
+        this.currentStreamControllers.delete(streamController)
       }
 
 
@@ -5027,12 +5042,18 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       const messages = [{ role: 'user' as const, content: aggregatorPrompt }]
       let aggregatedText = ''
 
-      for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
-        if (ev.type === 'text_delta' && ev.content) {
-          aggregatedText += ev.content
-        } else if (ev.type === 'complete') {
-          break
+      const streamController = new AbortController()
+      this.currentStreamControllers.add(streamController)
+      try {
+        for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages, streamController.signal)) {
+          if (ev.type === 'text_delta' && ev.content) {
+            aggregatedText += ev.content
+          } else if (ev.type === 'complete') {
+            break
+          }
         }
+      } finally {
+        this.currentStreamControllers.delete(streamController)
       }
 
       // Display aggregated result as a live update
@@ -5201,7 +5222,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     if (!this.planHudVisible) return 0
     const terminalWidth = Math.max(40, process.stdout.columns || 120)
     const planHudLines = this.buildPlanHudLines(terminalWidth)
-    return planHudLines.length > 0 ? planHudLines.length + 1 : 0 // +1 for spacing after HUD
+    return planHudLines.length > 0 ? planHudLines.length + 2 : 0 // +2: one blank before header, one after block
   }
 
   /**
@@ -5419,63 +5440,69 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
           // Stream directly through streamttyService
           const { streamttyService } = await import('./services/streamtty-service')
+          const streamController = new AbortController()
+          this.currentStreamControllers.add(streamController)
 
-          for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
-            // Handle all streaming events like default mode
-            switch (ev.type) {
-              case 'text_delta':
-                // Stream text through streamttyService
-                if (ev.content) {
-                  assistantText += ev.content
-                  await streamttyService.streamChunk(ev.content, 'ai')
+          try {
+            for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages, streamController.signal)) {
+              // Handle all streaming events like default mode
+              switch (ev.type) {
+                case 'text_delta':
+                  // Stream text through streamttyService
+                  if (ev.content) {
+                    assistantText += ev.content
+                    await streamttyService.streamChunk(ev.content, 'ai')
 
-                  // Track lines for clearing (same as default mode)
-                  const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
-                  const newlines = (visualContent.match(/\n/g) || []).length
-                  const charsWithoutNewlines = visualContent.replace(/\n/g, '').length
-                  const wrappedLines = Math.ceil(charsWithoutNewlines / terminalWidth)
-                  streamedLines += newlines + wrappedLines
-                }
-                break
-
-              case 'tool_call': {
-                // Tool execution events with parameter info
-                const toolInfo = this.formatToolCallInfo(ev)
-                {
-                  advancedUI.logFunctionCall(toolInfo.functionName)
-                  if (toolInfo.details) {
-                    advancedUI.logFunctionUpdate('info', toolInfo.details, 'ℹ')
+                    // Track lines for clearing (same as default mode)
+                    const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
+                    const newlines = (visualContent.match(/\n/g) || []).length
+                    const charsWithoutNewlines = visualContent.replace(/\n/g, '').length
+                    const wrappedLines = Math.ceil(charsWithoutNewlines / terminalWidth)
+                    streamedLines += newlines + wrappedLines
                   }
-                }
-                break
-              }
+                  break
 
-              case 'tool_result':
-                // Tool results
-                if (ev.toolResult) {
+                case 'tool_call': {
+                  // Tool execution events with parameter info
+                  const toolInfo = this.formatToolCallInfo(ev)
                   {
-                    advancedUI.logFunctionUpdate('success', 'Tool completed', '✓')
+                    advancedUI.logFunctionCall(toolInfo.functionName)
+                    if (toolInfo.details) {
+                      advancedUI.logFunctionUpdate('info', toolInfo.details, 'ℹ')
+                    }
                   }
+                  break
                 }
-                break
 
-              case 'complete':
-                // Mark that we should format output after stream ends (like default mode)
-                if (assistantText.length > 200) {
-                  shouldFormatOutput = true
-                }
-                streamCompleted = true
-                break
+                case 'tool_result':
+                  // Tool results
+                  if (ev.toolResult) {
+                    {
+                      advancedUI.logFunctionUpdate('success', 'Tool completed', '✓')
+                    }
+                  }
+                  break
 
-              case 'error':
-                // Stream error
-                console.log(chalk.red(`❌ Stream error: ${ev.error}`))
-                throw new Error(ev.error)
+                case 'complete':
+                  // Mark that we should format output after stream ends (like default mode)
+                  if (assistantText.length > 200) {
+                    shouldFormatOutput = true
+                  }
+                  streamCompleted = true
+                  break
 
-              default:
-                // Handle other event types silently
-                break
+                case 'error':
+                  // Stream error
+                  console.log(chalk.red(`❌ Stream error: ${ev.error}`))
+                  throw new Error(ev.error)
+
+                default:
+                  // Handle other event types silently
+                  break
+              }
             }
+          } finally {
+            this.currentStreamControllers.delete(streamController)
           }
 
           // Content already streamed through streamttyService
@@ -6133,93 +6160,98 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         let streamedLines = 1 // Start with 1 for "Assistant: " header
         const terminalWidth = process.stdout.columns || 80
 
-        // Stream directly through streamttyService
+        // Stream directly through streamttyService with abort support
         const { streamttyService } = await import('./services/streamtty-service')
+        const streamController = new AbortController()
+        this.currentStreamControllers.add(streamController)
+        try {
+          for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages, streamController.signal)) {
+            if (ev.type === 'text_delta' && ev.content) {
+              assistantText += ev.content
+              await streamttyService.streamChunk(ev.content, 'ai')
 
-        for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
-          if (ev.type === 'text_delta' && ev.content) {
-            assistantText += ev.content
-            await streamttyService.streamChunk(ev.content, 'ai')
+              // Track lines for clearing - remove ANSI codes for accurate visual width
+              const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
+              const newlines = (visualContent.match(/\n/g) || []).length
+              const charsWithoutNewlines = visualContent.replace(/\n/g, '').length
+              const wrappedLines = Math.ceil(charsWithoutNewlines / terminalWidth)
+              streamedLines += newlines + wrappedLines
 
-            // Track lines for clearing - remove ANSI codes for accurate visual width
-            const visualContent = ev.content.replace(/\x1b\[[0-9;]*m/g, '')
-            const newlines = (visualContent.match(/\n/g) || []).length
-            const charsWithoutNewlines = visualContent.replace(/\n/g, '').length
-            const wrappedLines = Math.ceil(charsWithoutNewlines / terminalWidth)
-            streamedLines += newlines + wrappedLines
-
-            // Text content streamed via adapter
-          } else if (ev.type === 'complete') {
-            // Mark that we should format output after stream ends
-            if (assistantText.length > 200) {
-              shouldFormatOutput = true
-            }
-            // Continue with regular complete handling
-          } else if (ev.type === 'tool_call') {
-            hasToolCalls = true
-
-            // Format tool call as markdown
-            const toolCall = this.formatToolCall(ev.toolName || '', ev.toolArgs)
-            const toolMarkdown = `\n**${toolCall.name}** \`${toolCall.params}\`\n`
-            await streamttyService.streamChunk(toolMarkdown, 'tool')
-            streamedLines += 2 // Account for newline + tool message line
-
-            // Log to structured UI with detailed tool information
-            const toolDetails = this.formatToolDetails(ev.toolName || '', ev.toolArgs)
-            advancedUI.logInfo('tool call', toolDetails)
-
-            // Check if tool call involves background agents
-            if (ev.metadata?.backgroundAgents) {
-              ev.metadata.backgroundAgents.forEach((agentInfo: any) => {
-                this.routeEventToUI('bg_agent_orchestrated', {
-                  parentTool: ev.content,
-                  agentId: agentInfo.id,
-                  agentName: agentInfo.name,
-                  task: agentInfo.task,
-                })
-              })
-            }
-          } else if (ev.type === 'tool_result') {
-            // Format tool result as markdown
-            const resultMarkdown = `\n> ✓ Result: ${ev.content}\n`
-            await streamttyService.streamChunk(resultMarkdown, 'tool')
-            streamedLines += 2 // Account for newline + result message line
-
-            // Log to structured UI
-            advancedUI.logSuccess('Tool Result', ev.content)
-
-            // Show results from background agents if present
-            if (ev.metadata?.backgroundResults) {
-              ev.metadata.backgroundResults.forEach((result: any) => {
-                advancedUI.logSuccess('Background Result', `${result.agentName}: ${result.summary}`)
-
-                // Show file changes if present
-                if (result.fileChanges) {
-                  result.fileChanges.forEach((change: any) => {
-                    this.advancedUI.showFileDiff(change.path, change.before, change.after)
-                  })
-                }
-              })
-            }
-
-            // Show file diffs and content using advancedUI
-            if (ev.metadata?.filePath) {
-              if (ev.metadata?.originalContent && ev.metadata?.newContent) {
-                this.advancedUI.showFileDiff(ev.metadata.filePath, ev.metadata.originalContent, ev.metadata.newContent)
-              } else if (ev.metadata?.content) {
-                this.advancedUI.showFileContent(ev.metadata.filePath, ev.metadata.content)
+              // Text content streamed via adapter
+            } else if (ev.type === 'complete') {
+              // Mark that we should format output after stream ends
+              if (assistantText.length > 200) {
+                shouldFormatOutput = true
               }
+              // Continue with regular complete handling
+            } else if (ev.type === 'tool_call') {
+              hasToolCalls = true
+
+              // Format tool call as markdown
+              const toolCall = this.formatToolCall(ev.toolName || '', ev.toolArgs)
+              const toolMarkdown = `\n**${toolCall.name}** \`${toolCall.params}\`\n`
+              await streamttyService.streamChunk(toolMarkdown, 'tool')
+              streamedLines += 2 // Account for newline + tool message line
+
+              // Log to structured UI with detailed tool information
+              const toolDetails = this.formatToolDetails(ev.toolName || '', ev.toolArgs)
+              advancedUI.logInfo('tool call', toolDetails)
+
+              // Check if tool call involves background agents
+              if (ev.metadata?.backgroundAgents) {
+                ev.metadata.backgroundAgents.forEach((agentInfo: any) => {
+                  this.routeEventToUI('bg_agent_orchestrated', {
+                    parentTool: ev.content,
+                    agentId: agentInfo.id,
+                    agentName: agentInfo.name,
+                    task: agentInfo.task,
+                  })
+                })
+              }
+            } else if (ev.type === 'tool_result') {
+              // Format tool result as markdown
+              const resultMarkdown = `\n> ✓ Result: ${ev.content}\n`
+              await streamttyService.streamChunk(resultMarkdown, 'tool')
+              streamedLines += 2 // Account for newline + result message line
+
+              // Log to structured UI
+              advancedUI.logSuccess('Tool Result', ev.content)
+
+              // Show results from background agents if present
+              if (ev.metadata?.backgroundResults) {
+                ev.metadata.backgroundResults.forEach((result: any) => {
+                  advancedUI.logSuccess('Background Result', `${result.agentName}: ${result.summary}`)
+
+                  // Show file changes if present
+                  if (result.fileChanges) {
+                    result.fileChanges.forEach((change: any) => {
+                      this.advancedUI.showFileDiff(change.path, change.before, change.after)
+                    })
+                  }
+                })
+              }
+
+              // Show file diffs and content using advancedUI
+              if (ev.metadata?.filePath) {
+                if (ev.metadata?.originalContent && ev.metadata?.newContent) {
+                  this.advancedUI.showFileDiff(ev.metadata.filePath, ev.metadata.originalContent, ev.metadata.newContent)
+                } else if (ev.metadata?.content) {
+                  this.advancedUI.showFileContent(ev.metadata.filePath, ev.metadata.content)
+                }
+              }
+            } else if (ev.type === 'error') {
+              const errorMessage = ev.content || ev.error || 'Unknown error'
+
+              // Format error as markdown
+              const errorMarkdown = `> ❌ **Error**: ${errorMessage}\n`
+              await streamttyService.streamChunk(errorMarkdown, 'error')
+
+              // Log to structured UI
+              advancedUI.logError('Error', errorMessage)
             }
-          } else if (ev.type === 'error') {
-            const errorMessage = ev.content || ev.error || 'Unknown error'
-
-            // Format error as markdown
-            const errorMarkdown = `> ❌ **Error**: ${errorMessage}\n`
-            await streamttyService.streamChunk(errorMarkdown, 'error')
-
-            // Log to structured UI
-            advancedUI.logError('Error', errorMessage)
           }
+        } finally {
+          this.currentStreamControllers.delete(streamController)
         }
 
         // Clear streamed output and show formatted version if needed
@@ -12635,11 +12667,41 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     // Responsive layout based on terminal width
     const layout = this.createResponsiveStatusLayout(terminalWidth)
     const truncatedModel = this.truncateModelName(currentModel, layout.modelMaxLength)
-    const responsiveModelDisplay = `${providerIcon} ${modelColor(truncatedModel)}`
+    const responsiveModelDisplay = `${chalk.hex('#666666')('Model:')} ${providerIcon} ${modelColor(truncatedModel)}`
 
     // Context and token rate info with responsive sizing
     const contextInfo = this.renderContextProgressBar(layout.contextWidth, layout.useCompact)
     const tokenRate = layout.showTokenRate ? ` | ${this.getTokenRate(layout.useCompact)}` : ''
+
+    // Auth/profile display
+    let userLabel = 'guest'
+    let userTier = 'free'
+    try {
+      const { authProvider } = require('./providers/supabase/auth-provider')
+      const profile = authProvider.getCurrentProfile?.()
+      const user = authProvider.getCurrentUser?.()
+      if (profile) {
+        userLabel = (profile.email || profile.username || 'user').trim() || 'user'
+        userTier = profile.subscription_tier === 'pro' ? 'pro' : 'free'
+      } else if (user?.email) {
+        userLabel = user.email
+      }
+    } catch {
+      /* ignore auth lookup errors */
+    }
+    const userDisplay = `${chalk.hex('#666666')('User:')} ${chalk.white(userLabel)} ${chalk.hex('#777777')(`(${userTier})`)}`
+    const pad2 = (value: number) => value.toString().padStart(2, '0')
+    const now = new Date()
+    const dateTimeDisplay = chalk.hex('#666666')(
+      `${pad2(now.getDate())}/${pad2(now.getMonth() + 1)} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`
+    )
+    let aiProviderName = 'unknown'
+    try {
+      aiProviderName = this.formatProviderDisplayName(advancedAIProvider.getCurrentModelInfo().config.provider)
+    } catch {
+      /* ignore */
+    }
+    const providerDisplay = `${chalk.hex('#666666')('AI:')} ${chalk.white(aiProviderName)}`
 
     // Create responsive status bar
     const statusLeft = `${modeIcon} ${readyText} | ${responsiveModelDisplay} | ${contextInfo}${tokenRate}${vmInfo}`
@@ -12687,57 +12749,49 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     // Display status bar using process.stdout.write to avoid extra lines
     if (!this.isPrintingPanel) {
-      process.stdout.write(`${chalk.cyan(`╭${'─'.repeat(terminalWidth - 2)}╮`)}\n`)
+      const verticalBar = chalk.blue('█')
+      // Subtle dark background
+      const bgColor = chalk.bgHex('#1a1a1a')
 
-      // Force exact width to fill terminal completely
-      const leftPart = ` ${finalStatusLeft}`
-      const rightPart = finalStatusRight
 
-      // Calculate exact space needed (terminalWidth - 2 for borders)
-      const totalSpaceAvailable = terminalWidth - 2
-      const leftLength = this._stripAnsi(leftPart).length
-      const rightLength = this._stripAnsi(rightPart).length
+      // ZONA 1: Empty line for input with vertical bar
+      const emptyPadding = ' '.repeat(Math.max(0, terminalWidth - 2))
+      process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
-      let displayLeft = leftPart
-      let displayRight = rightPart
+      // ZONA 2: Info Line - Left (Mode + Model) | Right (Statusbar)
+      const modeDisplay = chalk.cyan(this.currentMode.toUpperCase())
+      const leftInfo = ` ${modeDisplay} ${chalk.hex('#666666')('NikCLI')} ${responsiveModelDisplay}`
 
-      // If content is too long, truncate intelligently
-      if (leftLength + rightLength + 1 > totalSpaceAvailable) {
-        // Reserve space for right part (minimum 15 chars) and padding
-        const minRightSpace = Math.min(15, rightLength)
-        const maxLeftSpace = totalSpaceAvailable - minRightSpace - 1
+      const infoPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(leftInfo).length - this._stripAnsi(finalStatusRight).length)
+      process.stdout.write(bgColor(`${verticalBar}${leftInfo}${' '.repeat(infoPadding)}${chalk.white(finalStatusRight)}`) + '\n')
 
-        if (leftLength > maxLeftSpace) {
-          const plainLeft = this._stripAnsi(leftPart)
-          displayLeft = ` ${plainLeft.substring(0, maxLeftSpace - 2)}..`
-        }
+      // ZONA 3: Empty line with vertical bar
+      process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
-        const remainingSpace = totalSpaceAvailable - this._stripAnsi(displayLeft).length - 1
-        if (rightLength > remainingSpace) {
-          const plainRight = this._stripAnsi(rightPart)
-          displayRight = `${plainRight.substring(0, remainingSpace - 2)}..`
-        }
-      }
+      // ZONA 4: Controls (Progress Bar + Shortcuts)
+      const progressBar = this.assistantProcessing ? chalk.blue(this.renderLoadingBar(12)) : ' '.repeat(14)
 
-      // Calculate exact padding to fill remaining space - limit max padding for better distribution
-      const finalLeftLength = this._stripAnsi(displayLeft).length
-      const finalRightLength = this._stripAnsi(displayRight).length
-      const calculatedPadding = totalSpaceAvailable - finalLeftLength - finalRightLength
-      const padding = Math.max(1, Math.min(calculatedPadding, Math.floor(terminalWidth * 0.4)))
+      const escShortcut = chalk.hex('#666666')('Esc interupt')
+      const ctrlpShortcut = chalk.hex('#666666')('/help or /commands')
 
-      process.stdout.write(
-        chalk.cyan('│') +
-        chalk.green(displayLeft) +
-        ' '.repeat(padding) +
-        chalk.gray(displayRight) +
-        chalk.cyan('│') +
-        '\n'
-      )
-      process.stdout.write(`${chalk.cyan(`╰${'─'.repeat(terminalWidth - 2)}╯`)}\n`)
+      const controlsLeft = ` ${progressBar}  ${userDisplay}`
+      const controlsCenterPieces = [dateTimeDisplay, providerDisplay]
+      const controlsCenter = controlsCenterPieces.join('   ')
+      const controlsRight = `${escShortcut}   ${ctrlpShortcut}`
+
+      const centerPadding = Math.max(1, Math.floor((terminalWidth - 2 - this._stripAnsi(controlsLeft).length - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length) / 2))
+      const rightPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(controlsLeft).length - centerPadding - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length)
+
+      process.stdout.write(bgColor(`${verticalBar}${controlsLeft}${' '.repeat(centerPadding)}${controlsCenter}${' '.repeat(rightPadding)}${controlsRight}`) + '\n')
+
+      // Add empty line after prompt area to separate from future output
+      process.stdout.write('\n')
     }
 
-    // Input prompt
-    const inputPrompt = chalk.green('❯ ')
+    // Input prompt with dynamic state
+    const inputPrompt = this.assistantProcessing
+      ? chalk.blue(`⏲ ${this.renderLoadingBar(8)} `)
+      : chalk.green('❯ ')
     this.rl.setPrompt(inputPrompt)
     this.rl.prompt()
   }
@@ -12855,7 +12909,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // Add some spacing to push the status bar down
       console.log('\n'.repeat(2))
     } finally {
-      this.endPanelOutput()
+      this.endPanelOutput() + '\n\n'
     }
   }
 
@@ -12904,6 +12958,20 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       return chalk.blue // blue
     }
     return chalk.white
+  }
+
+  /**
+   * Pretty label for the active AI provider
+   */
+  private formatProviderDisplayName(provider?: string): string {
+    if (!provider) return 'unknown'
+    const normalized = provider.toLowerCase()
+    if (normalized.includes('openai')) return 'OpenAI'
+    if (normalized.includes('anthropic')) return 'Anthropic'
+    if (normalized.includes('google') || normalized.includes('gemini')) return 'Google'
+    if (normalized.includes('azure')) return 'Azure'
+    if (normalized.includes('hugging')) return 'HuggingFace'
+    return provider
   }
 
   // Inline loading bar for status area (fake progress)
@@ -13099,61 +13167,73 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
    * Render prompt area (fixed at bottom)
    */
   private async renderPromptArea(): Promise<void> {
-    if (this.isPrintingPanel) return // do not draw status frame while a panel prints
+    if (this.isPrintingPanel) return
 
-    // Lock prompt area during rendering (split-screen protection)
-
-    // Calculate session info (copied from showLegacyPrompt)
     const sessionDuration = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60)
     const totalTokens = this.sessionTokenUsage + this.contextTokens
-    const _tokensDisplay = totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens.toString()
     const costDisplay =
       this.realTimeCost > 0 ? chalk.magenta(`$${this.realTimeCost.toFixed(4)}`) : chalk.magenta('$0.0000')
 
     const terminalWidth = Math.max(40, process.stdout.columns || 120)
-    const workingDir = chalk.blue(path.basename(this.workingDirectory))
+    const workingDir = path.basename(this.workingDirectory)
     const planHudLines = this.planHudVisible ? this.buildPlanHudLines(terminalWidth) : []
 
-    // Mode info
-    const _modeIcon = this.currentMode === 'plan' ? '✅' : this.currentMode === 'vm' ? '🐳' : '💎'
     const modeText = this.currentMode.toUpperCase()
+    let userLabel = 'guest'
+    let userTier = 'free'
+    try {
+      const { authProvider } = await import('./providers/supabase/auth-provider')
+      const profile = authProvider.getCurrentProfile?.()
+      const user = authProvider.getCurrentUser?.()
+      if (profile) {
+        userLabel = (profile.email || profile.username || 'user').trim() || 'user'
+        userTier = profile.subscription_tier === 'pro' ? 'pro' : 'free'
+      } else if (user?.email) {
+        userLabel = user.email
+      }
+    } catch {
+      /* ignore auth lookup errors */
+    }
+    const userDisplay = `${chalk.hex('#666666')('User:')} ${chalk.white(userLabel)} ${chalk.hex('#777777')(`(${userTier})`)}`
 
-    // Status info
-    const readyText = this.assistantProcessing ? chalk.blue(`⏲ ${this.renderLoadingBar()}`) : chalk.green('⚡︎')
-    const statusIndicator = this.assistantProcessing ? '⏳' : '✅'
-
-    // Calculate slash menu lines (header + visible items + footer + borders)
-
-    // Move cursor to bottom of terminal (reserve HUD + frame + prompt + slash menu)
     const terminalHeight = process.stdout.rows || 24
-    const hudExtraLines = planHudLines.length > 0 ? planHudLines.length + 1 : 0
-    const reservedLines = 3 + hudExtraLines
+    const hudExtraLines = planHudLines.length > 0 ? planHudLines.length + 2 : 0
+    const reservedLines = 6 + hudExtraLines
+    const spacingLines = reservedLines + 1
+    terminalOutputManager.setPromptHeight(reservedLines)
+    // Reserve logical space for the HUD without emitting blank lines (prevents overlap without flicker)
+    const spacerId = terminalOutputManager.reserveSpace('PromptSpacer', spacingLines)
+    terminalOutputManager.confirmOutput(spacerId, 'PromptSpacer', spacingLines, { persistent: false, expiryMs: 2000 })
     process.stdout.write(`\x1B[${Math.max(1, terminalHeight - reservedLines)};0H`)
 
-    // Clear the bottom lines
-    process.stdout.write('\x1B[J') // Clear from cursor to end
+    process.stdout.write('\x1B[J')
 
     if (planHudLines.length > 0) {
-      // Track plan HUD output
-
+      process.stdout.write('\n')
       for (const line of planHudLines) {
         process.stdout.write(`${line}\n`)
       }
       process.stdout.write('\n')
-
     }
 
-    // Render slash menu if active
+    const currentModel = this.configManager.getCurrentModel()
+    const providerIcon = this.getProviderIcon(currentModel)
+    const modelColor = this.getProviderColor(currentModel)
+    const pad2 = (value: number) => value.toString().padStart(2, '0')
+    const now = new Date()
+    const dateTimeDisplay = chalk.hex('#666666')(
+      `${pad2(now.getDate())}/${pad2(now.getMonth() + 1)} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`
+    )
+    let aiProviderName = 'unknown'
+    try {
+      aiProviderName = this.formatProviderDisplayName(advancedAIProvider.getCurrentModelInfo().config.provider)
+    } catch {
+      /* ignore */
+    }
+    const providerDisplay = `${chalk.hex('#666666')('AI:')} ${chalk.white(aiProviderName)}`
 
-    // Model/provider
-    const currentModel2 = this.configManager.getCurrentModel()
-    const providerIcon2 = this.getProviderIcon(currentModel2)
-    const modelColor2 = this.getProviderColor(currentModel2)
-    const _modelDisplay2 = `${providerIcon2} ${modelColor2(currentModel2)}`
-
-    // Queue/agents
-    const queueStatus2 = inputQueue.getStatus()
-    const queueCount2 = queueStatus2.queueLength
+    const queueStatus = inputQueue.getStatus()
+    const queueCount = queueStatus.queueLength
     const runningAgents = (() => {
       try {
         return agentService.getActiveAgents().length
@@ -13162,122 +13242,81 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       }
     })()
 
-    // Responsive layout for renderPromptArea
-    const layout2 = this.createResponsiveStatusLayout(terminalWidth)
-    const truncatedModel2 = this.truncateModelName(currentModel2, layout2.modelMaxLength)
-    const responsiveModelDisplay2 = `${providerIcon2} ${modelColor2(truncatedModel2)}`
+    const layout = this.createResponsiveStatusLayout(terminalWidth)
+    const truncatedModel = this.truncateModelName(currentModel, layout.modelMaxLength)
 
-    // Context and token rate info with responsive sizing
-    const contextInfo2 = this.renderContextProgressBar(layout2.contextWidth, layout2.useCompact)
-    const tokenRate2 = layout2.showTokenRate ? ` | ${this.getTokenRate(layout2.useCompact)}` : ''
+    const contextInfo = this.renderContextProgressBar(layout.contextWidth, layout.useCompact)
 
-    // Create status bar (hide Mode when DEFAULT)
-    const modeSegment = this.currentMode === 'default' ? '' : ` | ${chalk.magentaBright(modeText)}`
-
-    // Add VM container info if in VM mode and container is active
-    let vmInfo = ''
-    if (this.currentMode === 'vm' && this.activeVMContainer) {
-      const containerId = this.activeVMContainer.slice(0, 8)
-      vmInfo = ` | 🐳 ${containerId}`
-    }
-
-    // Vim info if in vim mode
-
-    const statusLeft = `${statusIndicator} ${readyText}${modeSegment}${vmInfo} | ${responsiveModelDisplay2} | ${contextInfo2}${tokenRate2}`
-    const rightExtra = `${queueCount2 > 0 ? ` | 📥 ${queueCount2}` : ''}${runningAgents > 0 ? ` | 🔌 ${runningAgents}` : ''}`
-    const visionIcon2 = this.getVisionStatusIcon()
-    const imgIcon2 = this.getImageGenStatusIcon()
-    const visionPart2 = layout2.showVisionIcons && visionIcon2 ? ` | ${visionIcon2}` : ''
-    const imgPart2 = layout2.showVisionIcons && imgIcon2 ? ` | ${imgIcon2}` : ''
-    const statusRight = `${costDisplay} | ⏱️ ${chalk.yellow(`${sessionDuration}m`)} | ${chalk.blue('📁')} ${workingDir}${rightExtra}${visionPart2}${imgPart2}`
-    const statusPadding = Math.max(
-      0,
-      terminalWidth - this._stripAnsi(statusLeft).length - this._stripAnsi(statusRight).length - 3
-    ) // -3 for │ space and │
-
-    // Ensure we don't overflow the terminal width
-    const maxContentWidth = terminalWidth - 4 // Reserve space for │ characters
-    const finalStatusLeft = statusLeft
-    let finalStatusRight = statusRight
-    let _finalStatusPadding = statusPadding
-
-    const currentContentWidth = this._stripAnsi(statusLeft).length + this._stripAnsi(statusRight).length
-    if (currentContentWidth > maxContentWidth) {
-      // Truncate statusRight if necessary to fit
-      const availableRightSpace = Math.max(10, maxContentWidth - this._stripAnsi(statusLeft).length - 1)
-      const plainStatusRight = this._stripAnsi(statusRight)
-      if (plainStatusRight.length > availableRightSpace) {
-        const truncatedText = `${plainStatusRight.substring(0, availableRightSpace - 2)}..`
-        finalStatusRight = truncatedText
+    // Extract task info from planHudLines if available
+    let taskInfo = ''
+    if (planHudLines.length > 0) {
+      const taskLine = planHudLines.find(line => line.includes('Task') || line.includes('TODO'))
+      if (taskLine) {
+        const match = taskLine.match(/(\d+)\/(\d+)/)
+        if (match) {
+          taskInfo = `Task: ${match[1]}/${match[2]}`
+        }
       }
-      _finalStatusPadding = Math.max(
-        1,
-        terminalWidth - this._stripAnsi(finalStatusLeft).length - this._stripAnsi(finalStatusRight).length - 3
-      )
     }
 
-    // Display status bar with frame using process.stdout.write to avoid extra lines
     if (!this.isPrintingPanel) {
-      // Track prompt frame output (3 lines: top border + status line + bottom border)
+      const verticalBar = chalk.blue('█')
+      // Subtle dark background
+      const bgColor = chalk.bgHex('#1a1a1a')
 
+      // ZONA 1: Empty line for input with vertical bar
+      const emptyPadding = ' '.repeat(Math.max(0, terminalWidth - 2))
+      process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
-      process.stdout.write(`${chalk.cyan(`╭${'─'.repeat(terminalWidth - 2)}╮`)}\n`)
+      // ZONA 2: Info Line - Left (Mode + Model) | Right (Statusbar)
+      const modeDisplay = chalk.cyan(modeText)
+      const modelDisplay = `${chalk.hex('#666666')('Model:')} ${providerIcon} ${modelColor(truncatedModel)}`
+      const leftInfo = ` ${modeDisplay} ${chalk.hex('#666666')('NikCLI')} ${modelDisplay}`
 
-      // Force exact width to prevent overflow
-      const leftPart = ` ${finalStatusLeft}`
-      const rightPart = ` ${finalStatusRight}`
-      const availableSpace = terminalWidth - 2 // 2 for left and right borders
-      const totalContentLength = this._stripAnsi(leftPart).length + this._stripAnsi(rightPart).length
+      const visionIcon = this.getVisionStatusIcon()
+      const imgIcon = this.getImageGenStatusIcon()
+      const visionPart = layout.showVisionIcons && visionIcon ? ` ${visionIcon}` : ''
+      const imgPart = layout.showVisionIcons && imgIcon ? ` ${imgIcon}` : ''
 
-      const displayLeft = leftPart
-      let displayRight = rightPart
-      let padding = availableSpace - totalContentLength
+      const statusbarContent = `${costDisplay} ${chalk.yellow(`${sessionDuration}m`)} ${contextInfo}${queueCount > 0 ? ` 📥${queueCount}` : ''}${runningAgents > 0 ? ` 🔌${runningAgents}` : ''}${visionPart}${imgPart}`
 
-      // If content is too long, truncate right part
-      if (padding < 0) {
-        const maxRightLength = availableSpace - this._stripAnsi(leftPart).length - 1 // -1 for minimum space
-        if (maxRightLength > 10) {
-          const plainRight = this._stripAnsi(rightPart).trim()
-          displayRight = ` ${plainRight.length > maxRightLength - 3 ? `${plainRight.substring(0, maxRightLength - 3)}..` : plainRight}`
-          padding = availableSpace - this._stripAnsi(leftPart).length - this._stripAnsi(displayRight).length
-        } else {
-          displayRight = ` `
-          padding = availableSpace - this._stripAnsi(leftPart).length - 1
-        }
+      const infoPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(leftInfo).length - this._stripAnsi(statusbarContent).length)
+      process.stdout.write(bgColor(`${verticalBar}${leftInfo}${' '.repeat(infoPadding)}${chalk.white(statusbarContent)}`) + '\n')
+
+      // ZONA 3: Empty line with vertical bar
+      process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
+
+      // ZONA 4: Controls (Progress Bar + Shortcuts)
+      const progressBar = this.assistantProcessing ? chalk.blue(this.renderLoadingBar(12)) : ' '.repeat(14)
+
+      // Dynamic info (task counter or agents)
+      let dynamicInfo = ''
+      if (taskInfo) {
+        dynamicInfo = chalk.white(taskInfo)
+      } else if (runningAgents > 0) {
+        try {
+          const activeAgents = agentService.getActiveAgents()
+          const agentNames = activeAgents.slice(0, 2).map(a => a.agentType).join(', ')
+          dynamicInfo = chalk.white(agentNames)
+        } catch { }
       }
 
-      // Ensure padding is never negative and fills exact width
-      padding = Math.max(0, padding)
+      const escShortcut = chalk.hex('#666666')('Esc interupt')
 
-      // Build the status line and validate width
-      const statusLine =
-        chalk.cyan('│') + chalk.green(displayLeft) + ' '.repeat(padding) + chalk.gray(displayRight) + chalk.cyan('│')
+      const ctrlpShortcut = chalk.hex('#666666')('/help or /commands')
 
-      // Validate that the line length matches terminal width exactly
-      const actualLineLength = this._stripAnsi(statusLine).length
-      if (actualLineLength !== terminalWidth) {
-        // Adjust padding if there's a mismatch
-        const adjustedPadding = padding + (terminalWidth - actualLineLength)
-        if (adjustedPadding >= 0) {
-          process.stdout.write(
-            chalk.cyan('│') +
-            chalk.green(displayLeft) +
-            ' '.repeat(adjustedPadding) +
-            chalk.gray(displayRight) +
-            chalk.cyan('│') +
-            '\n'
-          )
-        } else {
-          // Fallback: ensure we don't have negative padding
-          process.stdout.write(`${statusLine}\n`)
-        }
-      } else {
-        process.stdout.write(`${statusLine}\n`)
-      }
-      process.stdout.write(`${chalk.cyan(`╰${'─'.repeat(terminalWidth - 2)}╯`)}\n`)
+      const controlsLeft = ` ${progressBar}  ${userDisplay}${dynamicInfo ? `  ${dynamicInfo}` : ''}`
+      const controlsCenterPieces = [dateTimeDisplay, providerDisplay]
+      const controlsCenter = controlsCenterPieces.join('   ')
+      const controlsRight = `${escShortcut}   ${ctrlpShortcut}`
 
-      // Confirm prompt frame output
+      const centerPadding = Math.max(1, Math.floor((terminalWidth - 2 - this._stripAnsi(controlsLeft).length - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length) / 2))
+      const rightPadding = Math.max(1, terminalWidth - 2 - this._stripAnsi(controlsLeft).length - centerPadding - this._stripAnsi(controlsCenter).length - this._stripAnsi(controlsRight).length)
 
+      process.stdout.write(bgColor(`${verticalBar}${controlsLeft}${' '.repeat(centerPadding)}${controlsCenter}${' '.repeat(rightPadding)}${controlsRight}`) + '\n')
+
+      // Add empty line after prompt area to separate from future output
+      process.stdout.write('\n')
     }
 
     if (this.rl) {
@@ -13305,14 +13344,21 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     } catch {
       /* ignore */
     }
+    const now = Date.now()
+    if (now - this.lastPromptRenderAt < this.promptRenderThrottleMs) {
+      return
+    }
     if (this.promptRenderTimer) {
-      clearTimeout(this.promptRenderTimer)
-      this.promptRenderTimer = null
+      return
     }
     this.promptRenderTimer = setTimeout(() => {
       try {
-        if (!this.isPrintingPanel && !this.isInquirerActive && !(inputQueue.isBypassEnabled?.() ?? false))
+        if (!this.isPrintingPanel && !this.isInquirerActive && !(inputQueue.isBypassEnabled?.() ?? false)) {
+          // Add empty line before prompt area to separate from output
+          process.stdout.write('\n')
           void this.renderPromptArea()
+          this.lastPromptRenderAt = Date.now()
+        }
       } finally {
         if (this.promptRenderTimer) {
           clearTimeout(this.promptRenderTimer)
@@ -18665,22 +18711,28 @@ This file is automatically maintained by NikCLI to provide consistent context ac
       let _streamedLines = 0
       const _terminalWidth = process.stdout.columns || 80
 
-      for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages)) {
-        if (ev.type === 'text_delta' && ev.content) {
-          _assistantText += ev.content
-          // Stream through streamttyService for markdown rendering
-          const { streamttyService } = await import('./services/streamtty-service')
-          await streamttyService.streamChunk(ev.content, 'ai')
+      const streamController = new AbortController()
+      this.currentStreamControllers.add(streamController)
+      try {
+        for await (const ev of advancedAIProvider.streamChatWithFullAutonomy(messages, streamController.signal)) {
+          if (ev.type === 'text_delta' && ev.content) {
+            _assistantText += ev.content
+            // Stream through streamttyService for markdown rendering
+            const { streamttyService } = await import('./services/streamtty-service')
+            await streamttyService.streamChunk(ev.content, 'ai')
 
-          // Track lines for clearing
-          const linesInChunk = Math.ceil(ev.content.length / _terminalWidth) + (ev.content.match(/\n/g) || []).length
-          _streamedLines += linesInChunk
-        } else if (ev.type === 'complete') {
-          // Mark that we should format output
-          if (_assistantText.length > 200) {
-            _shouldFormatOutput = true
+            // Track lines for clearing
+            const linesInChunk = Math.ceil(ev.content.length / _terminalWidth) + (ev.content.match(/\n/g) || []).length
+            _streamedLines += linesInChunk
+          } else if (ev.type === 'complete') {
+            // Mark that we should format output
+            if (_assistantText.length > 200) {
+              _shouldFormatOutput = true
+            }
           }
         }
+      } finally {
+        this.currentStreamControllers.delete(streamController)
       }
 
       // Already rendered through streamttyService during streaming

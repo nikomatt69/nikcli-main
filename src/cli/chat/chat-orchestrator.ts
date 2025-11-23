@@ -103,7 +103,7 @@ export class ChatOrchestrator {
         description: 'Planned tasks',
         specialization: 'general',
         capabilities: [],
-        version: '1.3.0',
+        version: '1.4.0',
         currentTasks: 0,
         maxConcurrentTasks: 1,
         initialize: async () => { },
@@ -284,7 +284,8 @@ export class ChatOrchestrator {
   private async handleCommand(session: SessionData, cmd: string): Promise<void> {
     const tokens = cmd.split(/\s+/)
     switch (tokens[0].toLowerCase()) {
-      case '/help': {
+      case '/help':
+      case '/commands': {
         const helpText = `Commands available:
 /help - Show this help message
 /sessions - List all sessions
@@ -320,7 +321,7 @@ export class ChatOrchestrator {
       default:
         session.messages.push({
           role: 'assistant',
-          content: `Unknown command: ${cmd}. Use /help for available commands.`,
+          content: `Unknown command: ${cmd}. Use /help or /commands for available commands.`,
           timestamp: new Date().toISOString(),
         })
     }

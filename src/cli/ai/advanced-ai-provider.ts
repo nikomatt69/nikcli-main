@@ -1182,7 +1182,29 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const multiEditTool = this.toolRegistry.getTool('multi-edit-tool')
           if (!multiEditTool) return { error: 'Multi-edit tool not available' }
-          const result = await multiEditTool.execute(params)
+          if (!params.edits || params.edits.length === 0) {
+            return { error: 'No edits provided' }
+          }
+
+          const operations = params.edits
+            .map((edit) => ({
+              filePath: edit.file,
+              oldString: edit.search,
+              newString: edit.replace,
+            }))
+            .filter((op) => op.filePath && op.oldString !== undefined && op.newString !== undefined)
+
+          if (operations.length === 0) {
+            return { error: 'No valid edits provided' }
+          }
+
+          const result = await multiEditTool.execute({
+            operations,
+            previewOnly: params.dryRun,
+            dryRun: params.dryRun,
+            rollbackOnError: true,
+            createBackup: true,
+          })
           return result.success ? result.data : { error: result.error }
         }
       }),
@@ -1216,7 +1238,18 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const editTool = this.toolRegistry.getTool('edit-tool')
           if (!editTool) return { error: 'Edit tool not available' }
-          const result = await editTool.execute(params)
+
+          if (!params.file || params.search === undefined || params.replace === undefined) {
+            return { error: 'file, search and replace are required' }
+          }
+
+          const result = await editTool.execute({
+            filePath: params.file,
+            oldString: params.search,
+            newString: params.replace,
+            replaceAll: true,
+            createBackup: params.backup,
+          })
           return result.success ? result.data : { error: result.error }
         }
       }),
@@ -1234,7 +1267,16 @@ Respond in a helpful, professional manner with clear explanations and actionable
         execute: async (params) => {
           const replaceTool = this.toolRegistry.getTool('replace-in-file-tool')
           if (!replaceTool) return { error: 'Replace tool not available' }
-          const result = await replaceTool.execute(params)
+
+          if (!params.file || params.pattern === undefined || params.replacement === undefined) {
+            return { error: 'file, pattern and replacement are required' }
+          }
+
+          const searchPattern = params.useRegex ? new RegExp(params.pattern, 'g') : params.pattern
+          const result = await replaceTool.execute(params.file, searchPattern, params.replacement, {
+            createBackup: params.backup,
+            requireMatch: true,
+          })
           return result.success ? result.data : { error: result.error }
         }
       }),

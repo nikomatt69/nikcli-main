@@ -23,6 +23,7 @@ export class ReplaceInFileTool extends BaseTool {
   ): Promise<ToolExecutionResult> {
     const startTime = Date.now()
     let backupContent: string | undefined
+    let backupPath: string | undefined
 
     try {
       // Sanitize and validate file path
@@ -55,6 +56,13 @@ export class ReplaceInFileTool extends BaseTool {
 
       // Show a visual diff summary before writing changes
       if (replaceResult.matchCount > 0) {
+        if (options.createBackup) {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+          backupPath = `${sanitizedPath}.backup.${timestamp}`
+          await writeFile(backupPath, originalContent, 'utf8')
+          advancedUI.logInfo(`💾 Backup created: ${backupPath}`)
+        }
+
         const fileDiff: FileDiff = {
           filePath: sanitizedPath,
           originalContent,
@@ -81,6 +89,7 @@ export class ReplaceInFileTool extends BaseTool {
         newSize: Buffer.byteLength(replaceResult.newContent, 'utf8'),
         duration,
         preview: this.generatePreview(originalContent, replaceResult.newContent, options.previewLines),
+        backupPath,
         metadata: {
           searchPattern: searchPattern ? searchPattern.toString() : 'undefined',
           replacement,
@@ -446,6 +455,7 @@ export interface ReplaceOptions {
   stopOnFirstError?: boolean
   previewLines?: number
   validators?: ReplacementValidator[]
+  createBackup?: boolean
 }
 
 export interface ContextOptions {
@@ -463,6 +473,7 @@ export interface ReplaceResult {
   newSize: number
   duration: number
   preview?: ChangePreview
+  backupPath?: string
   error?: string
   metadata: {
     searchPattern: string
