@@ -6,7 +6,17 @@ import { BaseTool, type ToolExecutionResult } from './base-tool'
 // Zod schemas for type validation
 export const ImageGenerationOptionsSchema = z.object({
   prompt: z.string().min(1, 'Prompt must not be empty'),
-  model: z.enum(['dall-e-3', 'dall-e-2', 'gpt-image-1', 'google/gemini-2.5-flash-image', 'openai/gpt-5-image-mini', 'openai/gpt-5-image']).optional(),
+  model: z
+    .enum([
+      'dall-e-3',
+      'dall-e-2',
+      'gpt-image-1',
+      'google/gemini-2.5-flash-image',
+      'google/gemini-3-pro-image-preview',
+      'openai/gpt-5-image-mini',
+      'openai/gpt-5-image',
+    ])
+    .optional(),
   size: z.enum(['1024x1024', '1792x1024', '1024x1792', '512x512', '256x256']).optional(),
   quality: z.enum(['standard', 'hd']).optional(),
   style: z.enum(['vivid', 'natural']).optional(),
@@ -138,6 +148,7 @@ export class ImageGenerationTool extends BaseTool {
       'dall-e-2': ['1024x1024', '512x512', '256x256'],
       'gpt-image-1': ['1024x1024', '1792x1024', '1024x1792'],
       'google/gemini-2.5-flash-image': ['1024x1024', '1792x1024', '1024x1792'],
+      'google/gemini-3-pro-image-preview': ['1024x1024', '1792x1024', '1024x1792'],
       'openai/gpt-5-image-mini': ['1024x1024', '1792x1024', '1024x1792'],
       'openai/gpt-5-image': ['1024x1024', '1792x1024', '1024x1792'],
       '@preset/nikcli': ['1024x1024', '1792x1024', '1024x1792'],
@@ -189,6 +200,11 @@ export class ImageGenerationTool extends BaseTool {
         '1024x1024': { standard: 0.045, hd: 0.09 },
         '1792x1024': { standard: 0.09, hd: 0.135 },
         '1024x1792': { standard: 0.09, hd: 0.135 },
+      },
+      'google/gemini-3-pro-image-preview': {
+        '1024x1024': { standard: 0.05, hd: 0.1 },
+        '1792x1024': { standard: 0.1, hd: 0.15 },
+        '1024x1792': { standard: 0.1, hd: 0.15 },
       },
       'openai/gpt-5-image-mini': {
         '1024x1024': { standard: 0.045, hd: 0.09 },

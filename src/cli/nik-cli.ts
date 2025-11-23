@@ -12907,9 +12907,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       console.log(content)
 
       // Add some spacing to push the status bar down
-      console.log('\n'.repeat(2))
+      console.log('\n'.repeat(4))
     } finally {
-      this.endPanelOutput() + '\n\n'
+      this.endPanelOutput()
     }
   }
 

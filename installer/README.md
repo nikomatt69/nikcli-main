@@ -13,7 +13,7 @@ curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/install
 
 **With Specific Package Manager:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s pnpm
+curl -fsSL https://raw.githubusercontent.com/nikomatt69/nikcli-main/main/installer/install.sh | bash -s bun
 ```
 
 **Features:**

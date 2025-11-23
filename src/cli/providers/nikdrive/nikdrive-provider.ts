@@ -98,6 +98,7 @@ export class NikDriveProvider extends EventEmitter {
     timeout: 30000,
     headers: {
       'Content-Type': 'application/json',
+      'X-API-Key': process.env.NIKDRIVE_API_KEY || '',
     },
   })
   private config!: ConfigType['nikdrive'] & { endpoint?: string; apiKey?: string }
@@ -120,11 +121,11 @@ export class NikDriveProvider extends EventEmitter {
 
     try {
       // Get configuration from environment variables and options
-      const endpoint = options!.endpoint || process.env.NIKDRIVE_ENDPOINT || process.env.NIKDRIVE_API_ENDPOINT || 'https://nikcli-drive-production.up.railway.app'
+      const endpoint = 'https://nikcli-drive-production.up.railway.app'
 
       // Try to get API key from multiple sources, including ConfigManager
       const credentials = configManager.getNikDriveCredentials()
-      let apiKey = options?.apiKey || credentials.apiKey || process.env.NIKDRIVE_API_KEY || process.env.NIKDRIVE_KEY || ''
+      let apiKey = process.env.NIKDRIVE_API_KEY!
 
       // Decrypt the API key if it's encrypted
       if (apiKey && typeof apiKey === 'string' && apiKey.length > 0) {
@@ -155,7 +156,7 @@ export class NikDriveProvider extends EventEmitter {
         retries: options?.retries || 3,
         retryDelayMs: options?.retryDelayMs || 1000,
         endpoint: endpoint,
-        apiKey: apiKey,
+        apiKey: apiKey as string,
         features: {
           syncWorkspace: true,
           autoBackup: false,
@@ -327,6 +328,7 @@ export class NikDriveProvider extends EventEmitter {
       const response = await this.defaultClient.post<NikDriveUploadResult>('/api/files/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+          'X-API-Key': this.config.apiKey as string,
         },
       })
 
@@ -349,6 +351,9 @@ export class NikDriveProvider extends EventEmitter {
 
       const response = await this.defaultClient.get<ArrayBuffer>(`/api/files/${fileId}`, {
         responseType: 'arraybuffer',
+        headers: {
+          'X-API-Key': this.config.apiKey as string,
+        },
       })
 
       const dir = dirname(destinationPath)
@@ -374,6 +379,9 @@ export class NikDriveProvider extends EventEmitter {
 
       const response = await this.defaultClient.get<NikDriveFile[]>('/api/files', {
         params: { folderId },
+        headers: {
+          'X-API-Key': this.config.apiKey as string,
+        },
       })
 
       response.data.forEach((file) => {
@@ -397,7 +405,11 @@ export class NikDriveProvider extends EventEmitter {
         return cached
       }
 
-      const response = await this.defaultClient.get<NikDriveFile>(`/api/files/${fileId}/info`)
+      const response = await this.defaultClient.get<NikDriveFile>(`/api/files/${fileId}/info`, {
+        headers: {
+          'X-API-Key': this.config.apiKey as string,
+        },
+      })
 
       this.fileCache.set(fileId, response.data)
       return response.data
@@ -412,7 +424,11 @@ export class NikDriveProvider extends EventEmitter {
   async deleteFile(fileId: string): Promise<boolean> {
     try {
       this.ensureClient()
-      await this.defaultClient.delete(`/api/files/${fileId}`)
+      await this.defaultClient.delete(`/api/files/${fileId}`, {
+        headers: {
+          'X-API-Key': this.config.apiKey as string,
+        },
+      })
       this.fileCache.delete(fileId)
       this.clearCache()
       this.emit('fileDeleted', { fileId })
@@ -431,6 +447,9 @@ export class NikDriveProvider extends EventEmitter {
       const response = await this.defaultClient.post<NikDriveFolder>('/api/folders', {
         name,
         parentId,
+        headers: {
+          'X-API-Key': this.config.apiKey as string,
+        },
       })
 
       this.folderCache.set(response.data.id, response.data)
@@ -450,6 +469,9 @@ export class NikDriveProvider extends EventEmitter {
       this.ensureClient()
       const response = await this.defaultClient.get<NikDriveSearchResult[]>('/api/search', {
         params: { q: query, limit },
+        headers: {
+          'X-API-Key': this.config.apiKey as string,
+        },
       })
 
       return response.data
@@ -466,6 +488,9 @@ export class NikDriveProvider extends EventEmitter {
       this.ensureClient()
       const response = await this.defaultClient.post<NikDriveShareLink>(`/api/share/${fileId}`, {
         expiresIn,
+        headers: {
+          'X-API-Key': this.config.apiKey as string,
+        },
       })
 
       this.emit('shareLinkCreated', response.data)
@@ -556,6 +581,9 @@ export class NikDriveProvider extends EventEmitter {
       this.ensureClient()
       const response = await this.defaultClient.get('/health', {
         timeout: 5000,
+        headers: {
+          'X-API-Key': this.config.apiKey as string,
+        },
       })
 
       const latency = Date.now() - startTime

@@ -568,7 +568,7 @@ ${chalk.cyan('/analyze-image --prompt "custom prompt"')} - Custom analysis promp
 ${chalk.blue.bold('Image Generation:')}
 ${chalk.cyan('/generate-image "prompt"')} - Generate image with AI models
 ${chalk.cyan('/create-image "prompt"')} - Alias for generate-image
-${chalk.cyan('/generate-image --model <dall-e-3|dall-e-2|gpt-image-1>')} - Choose model
+${chalk.cyan('/generate-image --model <dall-e-3|dall-e-2|gpt-image-1|google/gemini-3-pro-image-preview|openai/gpt-5-image>')} - Choose model
 ${chalk.cyan('/generate-image --size <1024x1024|1792x1024|1024x1792>')} - Set size
 
 ${chalk.blue.bold('Browser Mode (Interactive):')}
@@ -7642,7 +7642,9 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log('')
       console.log(`${chalk.cyan('/generate-image "prompt"')} - Generate an image from text prompt`)
       this.printPanel(
-        `${chalk.cyan('/generate-image "prompt" --model <dall-e-3|dall-e-2|gpt-image-1|google/gemini-2.5-flash-image|openai/gpt-5-image-mini|openai/gpt-5-image>')} - Use specific model`
+        `${chalk.cyan(
+          '/generate-image "prompt" --model <dall-e-3|dall-e-2|gpt-image-1|google/gemini-2.5-flash-image|google/gemini-3-pro-image-preview|openai/gpt-5-image-mini|openai/gpt-5-image>'
+        )} - Use specific model`
       )
       console.log(`${chalk.cyan('/generate-image "prompt" --size <1024x1024|1792x1024|1024x1792>')} - Set image size`)
       console.log(`${chalk.cyan('/generate-image "prompt" --quality <standard|hd>')} - Set quality (DALL-E 3 only)`)
@@ -7706,10 +7708,24 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
 
         switch (flag) {
           case '--model':
-            if (['dall-e-3', 'dall-e-2', 'gpt-image-1', 'google/gemini-2.5-flash-image', 'openai/gpt-5-image-mini', 'openai/gpt-5-image'].includes(value)) {
+            if (
+              [
+                'dall-e-3',
+                'dall-e-2',
+                'gpt-image-1',
+                'google/gemini-2.5-flash-image',
+                'google/gemini-3-pro-image-preview',
+                'openai/gpt-5-image-mini',
+                'openai/gpt-5-image',
+              ].includes(value)
+            ) {
               options.model = value
             } else {
-              console.log(chalk.red(`❌ Invalid model: ${value}. Use: dall-e-3, dall-e-2, gpt-image-1, google/gemini-2.5-flash-image, openai/gpt-5-image-mini, openai/gpt-5-image`))
+              console.log(
+                chalk.red(
+                  `❌ Invalid model: ${value}. Use: dall-e-3, dall-e-2, gpt-image-1, google/gemini-2.5-flash-image, google/gemini-3-pro-image-preview, openai/gpt-5-image-mini, openai/gpt-5-image`
+                )
+              )
               return { shouldExit: false, shouldUpdatePrompt: false }
             }
             break
