@@ -3142,6 +3142,29 @@ Requirements:
         })
         return lmstudioProvider(configData.model)
       }
+      case 'openai-compatible': {
+        const baseURL = (configData as any).baseURL || process.env.OPENAI_COMPATIBLE_BASE_URL
+        if (!baseURL) {
+          throw new Error(
+            `Base URL not configured for OpenAI-compatible provider (${model}). Set baseURL in model config or OPENAI_COMPATIBLE_BASE_URL.`
+          )
+        }
+        let apiKey = configManager.getApiKey(model)
+        if (!apiKey) {
+          const current = configManager.get('currentModel')
+          if (current && current !== model) apiKey = configManager.getApiKey(current)
+        }
+        if (!apiKey) {
+          throw new Error(`No API key found for OpenAI-compatible provider (model ${model})`)
+        }
+        const compatProvider = createOpenAICompatible({
+          name: (configData as any).name || 'openai-compatible',
+          apiKey,
+          baseURL,
+          headers: (configData as any).headers,
+        })
+        return compatProvider(configData.model)
+      }
       default:
         throw new Error(`Unsupported provider: ${configData.provider}`)
     }

@@ -473,7 +473,7 @@ ${chalk.cyan('/models-open')} - Interactive OpenRouter models browser (search & 
 ${chalk.gray('  Fetches models from OpenRouter API with interactive search')}
 ${chalk.cyan('/set-key <model> <key>')} - Set API key for a model
 ${chalk.gray('  e.g. /set-key openrouter sk-or-v1-...')}
-${chalk.gray('  Supported: openrouter, cerebras, groq, openai, anthropic, google, vercel')}
+${chalk.gray('  Supported: openrouter, cerebras, groq, openai, anthropic, google, vercel, openai-compatible')}
 ${chalk.cyan('/set-key coinbase-id <key>')} - Set Coinbase CDP_API_KEY_ID
 ${chalk.cyan('/set-key coinbase-secret <key>')} - Set Coinbase CDP_API_KEY_SECRET
 ${chalk.cyan('/set-key coinbase-wallet-secret <key>')} - Set Coinbase CDP_WALLET_SECRET
@@ -1875,6 +1875,7 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
       console.log(chalk.gray('  /set-key browserbase-api-key your_browserbase_api_key'))
       console.log(chalk.gray('  /set-key browserbase-project-id your_project_id'))
       console.log(chalk.gray('  /set-key browserbase   # interactive wizard'))
+      console.log(chalk.gray('  /set-key openai-compatible sk-...   # OpenAI-compatible endpoint'))
       console.log(chalk.gray('  /set-key nikdrive <your_api_key>'))
       console.log(chalk.gray('  /set-key nikdrive   # interactive wizard'))
       return { shouldExit: false, shouldUpdatePrompt: false }
@@ -1945,6 +1946,10 @@ ${chalk.gray('Tip: Use Ctrl+C to stop streaming responses')}
         configManager.setApiKey('openai', apiKey)
         process.env.OPENAI_API_KEY = apiKey
         console.log(chalk.green('✓ OpenAI API key set'))
+      } else if (['openai-compatible', 'openai_compatible', 'openai-compat', 'compat'].includes(keyName)) {
+        configManager.setApiKey('openai-compatible', apiKey)
+        process.env.OPENAI_COMPATIBLE_API_KEY = apiKey
+        console.log(chalk.green('✓ OpenAI-compatible API key set'))
       } else if (keyName === 'anthropic' || keyName === 'claude') {
         configManager.setApiKey('anthropic', apiKey)
         process.env.ANTHROPIC_API_KEY = apiKey

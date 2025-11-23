@@ -20,7 +20,19 @@ import type { OutputStyle } from '../types/output-styles'
 import { ReasoningDetector } from './reasoning-detector'
 
 export interface ModelConfig {
-  provider: 'openai' | 'anthropic' | 'google' | 'vercel' | 'gateway' | 'openrouter' | 'ollama' | 'cerebras' | 'groq' | 'llamacpp' | 'lmstudio'
+  provider:
+    | 'openai'
+    | 'anthropic'
+    | 'google'
+    | 'vercel'
+    | 'gateway'
+    | 'openrouter'
+    | 'ollama'
+    | 'cerebras'
+    | 'groq'
+    | 'llamacpp'
+    | 'lmstudio'
+    | 'openai-compatible'
   model: string
   temperature?: number
   maxTokens?: number
@@ -600,6 +612,21 @@ export class ModernAIProvider {
           baseURL: process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1',
         })
         return lmstudioProvider(config.model)
+      }
+      case 'openai-compatible': {
+        const baseURL = (config as any).baseURL || process.env.OPENAI_COMPATIBLE_BASE_URL
+        if (!baseURL) {
+          throw new Error(
+            `Base URL not configured for OpenAI-compatible provider (${model}). Set baseURL in model config or OPENAI_COMPATIBLE_BASE_URL.`
+          )
+        }
+        const compatProvider = createOpenAICompatible({
+          name: (config as any).name || 'openai-compatible',
+          apiKey,
+          baseURL,
+          headers: (config as any).headers,
+        })
+        return compatProvider(config.model)
       }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)

@@ -34,8 +34,8 @@ export interface VisionAnalysisResult {
 
 export interface VisionConfig {
   enabled: boolean
-  default_provider: 'claude' | 'openai' | 'google' | 'openrouter'
-  fallback_providers: ('claude' | 'openai' | 'google' | 'openrouter')[]
+  default_provider: 'claude' | 'openai' | 'google' | 'openrouter' | 'sam3'
+  fallback_providers: ('claude' | 'openai' | 'google' | 'openrouter' | 'sam3')[]
   cache_enabled: boolean
   cache_ttl: number // seconds
   max_file_size_mb: number
@@ -74,7 +74,7 @@ export class VisionProvider extends EventEmitter {
   async analyzeImage(
     imagePath: string,
     options: {
-      provider?: 'claude' | 'openai' | 'google' | 'openrouter'
+      provider?: 'claude' | 'openai' | 'google' | 'openrouter' | 'sam3'
       prompt?: string
       cache?: boolean
     } = {}
@@ -126,6 +126,9 @@ export class VisionProvider extends EventEmitter {
               break
             case 'openrouter':
               result = await this.analyzeWithOpenRouter(imageData, options.prompt, metadata)
+              break
+            case 'sam3':
+              result = await this.analyzeWithSam3(imageData, options.prompt, metadata)
               break
             default:
               throw new Error(`Unsupported vision provider: ${currentProvider}`)
@@ -448,6 +451,72 @@ Provide thorough, useful insights for understanding the image content and contex
   private extractTechnicalQuality(text: string): string {
     const qualityMatch = text.match(/quality[^:]*:([^\.]+)/i)
     return qualityMatch ? qualityMatch[1].trim() : 'Good technical quality'
+  }
+
+  /**
+   * Analyze image with SAM3 custom endpoint (OpenAI-compatible-ish)
+   */
+  private async analyzeWithSam3(
+    imageData: string,
+    customPrompt?: string,
+    metadata?: any
+  ): Promise<VisionAnalysisResult> {
+    const baseURL = process.env.SAM3_BASE_URL || process.env.OPENAI_COMPATIBLE_BASE_URL
+    const apiKey = process.env.SAM3_API_KEY || process.env.OPENAI_COMPATIBLE_API_KEY
+
+    if (!baseURL) {
+      throw new Error('SAM3_BASE_URL not configured')
+    }
+    if (!apiKey) {
+      throw new Error('SAM3_API_KEY not configured')
+    }
+
+    const systemPrompt =
+      customPrompt ||
+      'Esegui la segmentazione dell’immagine e descrivi brevemente cosa è stato rilevato. Ritorna le maschere e le bbox.'
+
+    const response = await fetch(`${baseURL.replace(/\/$/, '')}/v1/images/segment`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sam3',
+        image: { data: imageData },
+        prompt: systemPrompt,
+      }),
+    })
+
+    if (!response.ok) {
+      const errText = await response.text()
+      throw new Error(`SAM3 API error: ${response.status} ${errText}`)
+    }
+
+    const data: any = await response.json()
+    const masks = Array.isArray(data?.data) ? data.data : []
+
+    const objects = masks.map((m: any, idx: number) => {
+      const bbox = Array.isArray(m?.bbox) ? m.bbox.map((v: any) => Number(v).toFixed(1)).join(',') : 'n/a'
+      return `mask-${idx} bbox(${bbox}) score=${(m?.score ?? 0).toFixed(3)}`
+    })
+
+    return {
+      description: `SAM3 ha rilevato ${masks.length} maschere`,
+      objects,
+      text: '',
+      emotions: [],
+      colors: [],
+      composition: 'Segmentazione oggetti',
+      technical_quality: 'N/A (segmentazione)',
+      confidence: masks.length > 0 ? Math.min(1, Math.max(0, masks[0]?.score ?? 0.8)) : 0.5,
+      metadata: {
+        model_used: 'sam3',
+        processing_time_ms: 0,
+        file_size_bytes: metadata?.size || 0,
+        image_dimensions: metadata?.dimensions,
+      },
+    }
   }
 
   /**

@@ -267,6 +267,25 @@ export class ModelProvider {
         })
         return lmstudioProvider(config.model)
       }
+      case 'openai-compatible': {
+        const apiKey = configManager.getApiKey(currentModelName)
+        if (!apiKey) {
+          throw new Error(`API key not found for model: ${currentModelName} (OpenAI-compatible). Use /set-key to configure.`)
+        }
+        const baseURL = (config as any).baseURL || process.env.OPENAI_COMPATIBLE_BASE_URL
+        if (!baseURL) {
+          throw new Error(
+            `Base URL not configured for OpenAI-compatible provider (${currentModelName}). Set baseURL in config or OPENAI_COMPATIBLE_BASE_URL.`
+          )
+        }
+        const compatProvider = createOpenAICompatible({
+          name: (config as any).name || 'openai-compatible',
+          apiKey,
+          baseURL,
+          headers: (config as any).headers,
+        })
+        return compatProvider(config.model)
+      }
       default:
         throw new Error(`Unsupported provider: ${config.provider}`)
     }

@@ -8,7 +8,20 @@ import { OutputStyleConfigSchema, OutputStyleEnum } from '../types/output-styles
 
 // Validation schemas
 const ModelConfigSchema = z.object({
-  provider: z.enum(['openai', 'anthropic', 'google', 'ollama', 'vercel', 'gateway', 'openrouter', 'cerebras', 'groq', 'llamacpp', 'lmstudio']),
+  provider: z.enum([
+    'openai',
+    'anthropic',
+    'google',
+    'ollama',
+    'vercel',
+    'gateway',
+    'openrouter',
+    'cerebras',
+    'groq',
+    'llamacpp',
+    'lmstudio',
+    'openai-compatible',
+  ]),
   model: z.string(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().min(1).max(8000).optional(),
@@ -18,6 +31,10 @@ const ModelConfigSchema = z.object({
   reasoningMode: z.enum(['auto', 'explicit', 'disabled']).optional().describe('How to handle reasoning'),
   // Output style configuration
   outputStyle: OutputStyleEnum.optional().describe('AI output style for this model'),
+  // OpenAI-compatible extras
+  baseURL: z.string().url().optional().describe('Base URL for OpenAI-compatible providers'),
+  name: z.string().optional().describe('Provider name for OpenAI-compatible'),
+  headers: z.record(z.string()).optional().describe('Custom headers for OpenAI-compatible providers'),
 })
 
 const ConfigSchema = z.object({
@@ -2031,6 +2048,9 @@ export class SimpleConfigManager {
           return process.env.GATEWAY_API_KEY
         case 'openrouter':
           return process.env.OPENROUTER_API_KEY
+        case 'openai-compatible':
+          // Generic OpenAI-compatible endpoint; allow multiple env fallbacks
+          return process.env.OPENAI_COMPATIBLE_API_KEY || process.env.SAM3_API_KEY
         case 'cerebras':
           return process.env.CEREBRAS_API_KEY
         case 'groq':

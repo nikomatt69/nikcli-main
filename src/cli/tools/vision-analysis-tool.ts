@@ -5,7 +5,7 @@ import { sanitizePath, validateIsFile } from './secure-file-tools'
 
 // Zod schemas for type validation
 export const VisionAnalysisOptionsSchema = z.object({
-  provider: z.enum(['claude', 'openai', 'google']).optional(),
+  provider: z.enum(['claude', 'openai', 'google', 'sam3']).optional(),
   prompt: z.string().optional(),
   cache: z.boolean().default(true),
 })

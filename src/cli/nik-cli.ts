@@ -228,6 +228,7 @@ export class NikCLI {
   private slashMenuSelectedIndex: number = 0
   private slashMenuScrollOffset: number = 0
   private currentSlashInput: string = ''
+  private slashMenuAutoSubmit: boolean = false
   private readonly SLASH_MENU_MAX_VISIBLE: number = 5
 
   // Enhanced features
@@ -2456,6 +2457,22 @@ export class NikCLI {
           this.renderPromptAfterOutput()
         }
 
+        // Command palette (Ctrl/Cmd + B)
+        if ((key?.ctrl || key?.meta) && key?.name?.toLowerCase?.() === 'b') {
+          void this.openCommandPaletteModal()
+          return
+        }
+
+        // Navigate slash/command palette with Arrow keys (Shift supported), Enter, Esc
+        if (this.isSlashMenuActive && key) {
+          const isArrowNav = key.name === 'up' || key.name === 'down'
+          const wantsDirectNav = key.name === 'return' || key.name === 'escape'
+          if (isArrowNav || wantsDirectNav) {
+            const handled = this.handleSlashMenuNavigation(key)
+            if (handled) return
+          }
+        }
+
         // @ key listener removed per user request (was causing issues)
 
         // Handle ? key to show a quick cheat-sheet overlay (only at start of line)
@@ -2561,6 +2578,7 @@ export class NikCLI {
       const lines: string[] = []
       lines.push('Shortcuts:')
       lines.push('  /      Open command palette (Shift+↑↓ to navigate)')
+      lines.push('  Ctrl/Cmd+B        Open palette and run selection')
       lines.push('  @      Agent suggestions')
       lines.push('  *      File picker suggestions')
       lines.push('  Esc    Interrupt/return to default mode')
@@ -12701,7 +12719,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     } catch {
       /* ignore */
     }
-    const providerDisplay = `${chalk.hex('#666666')('AI:')} ${chalk.white(aiProviderName)}`
+    const providerDisplay = `${chalk.hex('#666666')('Provider AI:')} ${chalk.white(aiProviderName)}`
 
     // Create responsive status bar
     const statusLeft = `${modeIcon} ${readyText} | ${responsiveModelDisplay} | ${contextInfo}${tokenRate}${vmInfo}`
@@ -12771,8 +12789,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // ZONA 4: Controls (Progress Bar + Shortcuts)
       const progressBar = this.assistantProcessing ? chalk.blue(this.renderLoadingBar(12)) : ' '.repeat(14)
 
-      const escShortcut = chalk.hex('#666666')('Esc interupt')
-      const ctrlpShortcut = chalk.hex('#666666')('/help or /commands')
+      const escShortcut = chalk.hex('#666666')('Interrupt:Esc')
+      const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:Commands')
 
       const controlsLeft = ` ${progressBar}  ${userDisplay}`
       const controlsCenterPieces = [dateTimeDisplay, providerDisplay]
@@ -12785,7 +12803,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       process.stdout.write(bgColor(`${verticalBar}${controlsLeft}${' '.repeat(centerPadding)}${controlsCenter}${' '.repeat(rightPadding)}${controlsRight}`) + '\n')
 
       // Add empty line after prompt area to separate from future output
-      process.stdout.write('\n')
+
     }
 
     // Input prompt with dynamic state
@@ -12802,6 +12820,15 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
   private _stripAnsi(str: string): string {
     // More comprehensive ANSI escape sequence removal
     return str.replace(/\x1b\[[0-9;]*[mGK]|\x1b\[[\d;]*[A-Za-z]|\x1b\[[0-9;]*[JKHJIS]/g, '')
+  }
+
+  /**
+   * Pad ANSI-colored strings without miscounting visible length
+   */
+  private padAnsi(text: string, width: number): string {
+    const plainLength = this._stripAnsi(text).length
+    if (plainLength >= width) return text
+    return text + ' '.repeat(width - plainLength)
   }
 
   // NEW: Chat UI Methods
@@ -12839,6 +12866,71 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     }
 
     this.renderChatUI()
+  }
+
+  /**
+   * Build lines for the slash/command palette overlay
+   */
+  private buildSlashMenuLines(contentWidth: number): string[] {
+    if (!this.isSlashMenuActive) return []
+
+    const lines: string[] = []
+    const headerTitle = contentWidth <= 16 ? 'Palette' : 'Command Palette'
+    const verboseHint = '(Shift+↑↓ to navigate · Enter to run · Esc to close)'
+    const compactHint = '(Shift+↑↓ · Enter · Esc)'
+    let headerHint = ''
+    if (headerTitle.length + 1 + verboseHint.length <= contentWidth) {
+      headerHint = verboseHint
+    } else if (headerTitle.length + 1 + compactHint.length <= contentWidth) {
+      headerHint = compactHint
+    }
+    const header = headerHint ? `${chalk.cyan(headerTitle)} ${chalk.gray(headerHint)}` : chalk.cyan(headerTitle)
+    lines.push(this.padAnsi(header, contentWidth))
+
+    const start = this.slashMenuScrollOffset
+    const end = Math.min(start + this.SLASH_MENU_MAX_VISIBLE, this.slashMenuCommands.length)
+    const visible = this.slashMenuCommands.slice(start, end)
+
+    if (visible.length === 0) {
+      lines.push(this.padAnsi(chalk.gray('No commands available'), contentWidth))
+      return lines
+    }
+
+    const maxCommandLength = Math.max(6, Math.min(32, contentWidth - 4))
+
+    for (let idx = 0; idx < visible.length; idx++) {
+      const [command, description] = visible[idx]
+      const isSelected = start + idx === this.slashMenuSelectedIndex
+
+      const trimmedCommand =
+        command.length > maxCommandLength ? `${command.slice(0, maxCommandLength - 1)}…` : command
+
+      const prefixLength = 2 // symbol + space
+      const separatorLength = 3 // ' — '
+      const availableForDesc = Math.max(0, contentWidth - prefixLength - trimmedCommand.length - separatorLength)
+      const trimmedDesc =
+        description && availableForDesc > 0
+          ? description.length > availableForDesc
+            ? `${description.slice(0, Math.max(0, availableForDesc - 1))}…`
+            : description
+          : ''
+
+      const separator = trimmedDesc ? ' — ' : ''
+      const baseLine = `${trimmedCommand}${separator}${trimmedDesc}`
+
+      if (isSelected) {
+        const plainLine = this.padAnsi(`▶ ${baseLine}`, contentWidth)
+        lines.push(chalk.black.bgCyan(plainLine))
+      } else {
+        const prefix = chalk.hex('#666666')('•')
+        const commandPart = chalk.cyan(trimmedCommand)
+        const descPart = trimmedDesc ? chalk.gray(trimmedDesc) : ''
+        const coloredLine = `${prefix} ${commandPart}${trimmedDesc ? ` — ${descPart}` : ''}`
+        lines.push(this.padAnsi(coloredLine, contentWidth))
+      }
+    }
+
+    return lines
   }
 
   /**
@@ -13177,6 +13269,9 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     const terminalWidth = Math.max(40, process.stdout.columns || 120)
     const workingDir = path.basename(this.workingDirectory)
     const planHudLines = this.planHudVisible ? this.buildPlanHudLines(terminalWidth) : []
+    const contentWidth = Math.max(10, terminalWidth - 2)
+    const slashMenuLines = this.isSlashMenuActive ? this.buildSlashMenuLines(contentWidth) : []
+    const slashMenuHeight = slashMenuLines.length
 
     const modeText = this.currentMode.toUpperCase()
     let userLabel = 'guest'
@@ -13198,15 +13293,13 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
 
     const terminalHeight = process.stdout.rows || 24
     const hudExtraLines = planHudLines.length > 0 ? planHudLines.length + 2 : 0
-    const reservedLines = 6 + hudExtraLines
+    const reservedLines = 6 + hudExtraLines + slashMenuHeight
     const spacingLines = reservedLines + 1
     terminalOutputManager.setPromptHeight(reservedLines)
     // Reserve logical space for the HUD without emitting blank lines (prevents overlap without flicker)
     const spacerId = terminalOutputManager.reserveSpace('PromptSpacer', spacingLines)
     terminalOutputManager.confirmOutput(spacerId, 'PromptSpacer', spacingLines, { persistent: false, expiryMs: 2000 })
     process.stdout.write(`\x1B[${Math.max(1, terminalHeight - reservedLines)};0H`)
-
-    process.stdout.write('\x1B[J')
 
     if (planHudLines.length > 0) {
       process.stdout.write('\n')
@@ -13230,7 +13323,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     } catch {
       /* ignore */
     }
-    const providerDisplay = `${chalk.hex('#666666')('AI:')} ${chalk.white(aiProviderName)}`
+    const providerDisplay = `${chalk.hex('#666666')('Provider AI:')} ${chalk.white(aiProviderName)}`
 
     const queueStatus = inputQueue.getStatus()
     const queueCount = queueStatus.queueLength
@@ -13286,6 +13379,14 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
       // ZONA 3: Empty line with vertical bar
       process.stdout.write(bgColor(`${verticalBar}${emptyPadding}`) + '\n')
 
+      // ZONA 3b: Command palette overlay (when active)
+      if (slashMenuHeight > 0) {
+        for (const line of slashMenuLines) {
+          const paddedLine = this.padAnsi(line, contentWidth)
+          process.stdout.write(bgColor(`${verticalBar}${paddedLine}`) + '\n')
+        }
+      }
+
       // ZONA 4: Controls (Progress Bar + Shortcuts)
       const progressBar = this.assistantProcessing ? chalk.blue(this.renderLoadingBar(12)) : ' '.repeat(14)
 
@@ -13301,9 +13402,8 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
         } catch { }
       }
 
-      const escShortcut = chalk.hex('#666666')('Esc interupt')
-
-      const ctrlpShortcut = chalk.hex('#666666')('/help or /commands')
+      const escShortcut = chalk.hex('#666666')('Interrupt:Esc')
+      const ctrlpShortcut = chalk.hex('#666666')('Ctrl+B:Commands')
 
       const controlsLeft = ` ${progressBar}  ${userDisplay}${dynamicInfo ? `  ${dynamicInfo}` : ''}`
       const controlsCenterPieces = [dateTimeDisplay, providerDisplay]
@@ -13354,7 +13454,7 @@ Prefer consensus where agents agree. If conflicts exist, explain them and choose
     this.promptRenderTimer = setTimeout(() => {
       try {
         if (!this.isPrintingPanel && !this.isInquirerActive && !(inputQueue.isBypassEnabled?.() ?? false)) {
-          // Add empty line before prompt area to separate from output
+          // Add a spacer to ensure prompt is below the latest output without clearing previous lines
           process.stdout.write('\n')
           void this.renderPromptArea()
           this.lastPromptRenderAt = Date.now()
@@ -22521,6 +22621,78 @@ This file is automatically maintained by NikCLI to provide consistent context ac
   }
 
   /**
+   * Open interactive command palette modal (Ctrl/Cmd+B)
+   */
+  private async openCommandPaletteModal(): Promise<void> {
+    // Avoid re-entrancy or clashes with inline palette
+    if (this.isInquirerActive) return
+    if (this.isSlashMenuActive) {
+      this.closeSlashMenu()
+    }
+
+    const slashGroups = this.getSlashGroups()
+    const choices: any[] = []
+
+    for (const group of slashGroups) {
+      choices.push(new inquirer.Separator(` ${group.title} `))
+      for (const [cmd, desc] of group.commands) {
+        choices.push({
+          name: desc ? `${cmd} — ${desc}` : cmd,
+          value: cmd,
+          short: cmd,
+        })
+      }
+    }
+
+    if (choices.length === 0) {
+      advancedUI.logFunctionUpdate('info', chalk.yellow('No commands available for the command palette'))
+      return
+    }
+
+    let selectedCommand: string | null = null
+    const wasBypassEnabled = inputQueue.isBypassEnabled?.() ?? false
+
+    try {
+      this.isInquirerActive = true
+      this.suspendPrompt()
+      if (!wasBypassEnabled) {
+        inputQueue.enableBypass()
+      }
+
+      const { command } = await inquirer.prompt<{ command: string }>([
+        {
+          type: 'list',
+          name: 'command',
+          message: chalk.cyan('Command palette (Shift+↑/↓ to navigate, Enter to run)'),
+          choices,
+          pageSize: Math.min(14, choices.length),
+          loop: false,
+        },
+      ])
+      selectedCommand = command
+    } catch (error: any) {
+      if (error?.isTtyError) {
+        console.log(chalk.red('Interactive command palette requires an interactive terminal.'))
+      }
+      // Ignore user cancellations (Esc/Ctrl+C)
+    } finally {
+      if (!wasBypassEnabled) {
+        try {
+          inputQueue.disableBypass()
+        } catch {
+          /* ignore */
+        }
+      }
+      this.isInquirerActive = false
+      this.resumePromptAndRender()
+    }
+
+    if (selectedCommand) {
+      await this.processSingleInput(selectedCommand)
+    }
+  }
+
+  /**
    * Handle slash menu navigation with arrow keys and scrolling
    */
   private handleSlashMenuNavigation(key: any): boolean {
@@ -22568,11 +22740,17 @@ This file is automatically maintained by NikCLI to provide consistent context ac
 
     const selectedCommand = this.slashMenuCommands[this.slashMenuSelectedIndex]
     if (selectedCommand && this.rl) {
+      const shouldSubmit = this.slashMenuAutoSubmit
       // Clear current input and insert selected command
       this.rl.write('', { ctrl: true, name: 'u' }) // Clear line
       this.rl.write(selectedCommand[0])
-      this.rl.write('', { ctrl: true, name: 'e' })
+      if (!shouldSubmit) {
+        this.rl.write('', { ctrl: true, name: 'e' })
+      }
       this.closeSlashMenu()
+      if (shouldSubmit) {
+        this.rl.write('\n')
+      }
     }
   }
 
@@ -22585,17 +22763,19 @@ This file is automatically maintained by NikCLI to provide consistent context ac
     this.slashMenuSelectedIndex = 0
     this.slashMenuScrollOffset = 0
     this.currentSlashInput = ''
+    this.slashMenuAutoSubmit = false
     void this.renderPromptArea()
   }
 
   /**
    * Activate slash menu with initial input
    */
-  private activateSlashMenu(input: string): void {
+  private activateSlashMenu(input: string, autoSubmit: boolean = false): void {
     this.currentSlashInput = input
     this.slashMenuCommands = this.filterSlashCommands(input)
     this.slashMenuSelectedIndex = 0
     this.slashMenuScrollOffset = 0
+    this.slashMenuAutoSubmit = autoSubmit
     this.isSlashMenuActive = true
     void this.renderPromptArea()
   }

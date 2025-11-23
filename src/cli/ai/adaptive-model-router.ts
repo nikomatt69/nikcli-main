@@ -7,7 +7,17 @@ import type { ChatMessage } from './model-provider'
 export type ModelScope = 'chat_default' | 'planning' | 'code_gen' | 'tool_light' | 'tool_heavy' | 'vision'
 
 export interface ModelRouteInput {
-  provider: 'openai' | 'anthropic' | 'google' | 'ollama' | 'vercel' | 'gateway' | 'openrouter' | 'groq' | 'cerebras'
+  provider:
+    | 'openai'
+    | 'anthropic'
+    | 'google'
+    | 'ollama'
+    | 'vercel'
+    | 'gateway'
+    | 'openrouter'
+    | 'groq'
+    | 'cerebras'
+    | 'openai-compatible'
   baseModel: string // model id configured as current for provider
   messages: Array<Pick<ChatMessage, 'role' | 'content'>>
   scope?: ModelScope
@@ -103,6 +113,7 @@ function getCharTokenRatio(provider: string): number {
     openrouter: 3.7, // Mixed models
     groq: 3.5, // Llama-based models, similar to GPT
     cerebras: 4.0, // GLM and mixed models
+    'openai-compatible': 3.7, // generic OpenAI-compatible endpoints
   }
 
   return ratios[provider] || 4.0 // Default fallback
