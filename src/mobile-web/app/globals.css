@@ -176,6 +176,22 @@
   }
 }
 
+.animate-slide-up {
+  animation: slide-in-bottom 0.3s ease-out;
+}
+
+.animate-slide-down {
+  animation: slide-out-bottom 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-fade-out {
+  animation: fade-out 0.2s ease-out;
+}
+
 /* Typography */
 .markdown-content {
   @apply text-foreground;

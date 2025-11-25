@@ -1,31 +1,79 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Menu, Wifi, WifiOff } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { apiClient } from '@/lib/api-client'
+import { wsClient } from '@/lib/websocket-client'
 import { getDeviceInfo } from '@/lib/utils'
+import { ChatInterface } from '@/components/chat/ChatInterface'
+import { CommandPalette } from '@/components/chat/CommandPalette'
+import { ApprovalPanel } from '@/components/chat/ApprovalPanel'
 
 export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
-  const { isAuthenticated, setAuthenticated } = useStore()
+  const {
+    isAuthenticated,
+    setAuthenticated,
+    currentSessionId,
+    createSession,
+    isWebSocketConnected,
+    setWebSocketConnected,
+    toggleSidebar,
+  } = useStore()
 
   useEffect(() => {
-    // Auto-login on mount
-    const autoLogin = async () => {
-      if (!isAuthenticated) {
-        try {
+    const initialize = async () => {
+      try {
+        // Auto-login
+        if (!isAuthenticated) {
           const deviceInfo = getDeviceInfo()
           const tokens = await apiClient.login(deviceInfo)
           setAuthenticated(true, tokens.userId, tokens.accessToken)
-        } catch (error) {
-          console.error('Auto-login failed:', error)
         }
+
+        // Connect WebSocket
+        await wsClient.connect()
+        setWebSocketConnected(true)
+
+        // WebSocket event listeners
+        wsClient.on('connected', () => {
+          console.log('[App] WebSocket connected')
+          setWebSocketConnected(true)
+        })
+
+        wsClient.on('disconnected', () => {
+          console.log('[App] WebSocket disconnected')
+          setWebSocketConnected(false)
+        })
+
+        wsClient.on('reconnecting', (attempt: number) => {
+          console.log(`[App] WebSocket reconnecting (attempt ${attempt})`)
+        })
+
+        // Create initial session if none exists
+        if (!currentSessionId) {
+          createSession()
+        }
+      } catch (error) {
+        console.error('Initialization failed:', error)
+      } finally {
+        setIsLoading(false)
       }
-      setIsLoading(false)
     }
 
-    autoLogin()
-  }, [isAuthenticated, setAuthenticated])
+    initialize()
+
+    // Cleanup
+    return () => {
+      wsClient.removeAllListeners()
+    }
+  }, [])
+
+  const handleCommandSelect = (command: string) => {
+    // Command will be sent via ChatInterface
+    console.log('[App] Command selected:', command)
+  }
 
   if (isLoading) {
     return (
@@ -39,54 +87,51 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header */}
-      <header className="safe-top border-b border-border bg-card">
+      <header className="safe-top border-b border-border bg-card shrink-0">
         <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="text-xl font-bold text-primary">NikCLI Mobile</h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleSidebar}
+              className="rounded-lg p-2 hover:bg-accent"
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <h1 className="text-lg font-bold text-primary">NikCLI Mobile</h1>
+          </div>
+
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-sm text-muted-foreground">Connected</span>
+            {isWebSocketConnected ? (
+              <>
+                <Wifi className="h-4 w-4 text-green-500" />
+                <span className="text-xs text-muted-foreground hidden sm:inline">
+                  Connected
+                </span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-4 w-4 text-red-500" />
+                <span className="text-xs text-muted-foreground hidden sm:inline">
+                  Offline
+                </span>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="max-w-md text-center space-y-6">
-          <div className="text-6xl mb-4">🚀</div>
-          <h2 className="text-3xl font-bold">Welcome to NikCLI Mobile</h2>
-          <p className="text-muted-foreground text-lg">
-            Your context-aware AI development assistant, now on mobile.
-          </p>
-
-          <div className="glass rounded-lg p-6 text-left space-y-3">
-            <h3 className="font-semibold text-lg mb-3">Quick Start:</h3>
-            <ol className="space-y-2 text-sm text-muted-foreground">
-              <li>1. Start the workspace bridge on your dev machine</li>
-              <li>2. Connect your workspace using the ID</li>
-              <li>3. Start coding from anywhere! 💻</li>
-            </ol>
-          </div>
-
-          <button
-            className="w-full touch-target bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-            onClick={() => alert('Chat interface coming soon!')}
-          >
-            Get Started
-          </button>
-
-          <div className="text-xs text-muted-foreground">
-            <p>Status: {isAuthenticated ? '✅ Authenticated' : '❌ Not authenticated'}</p>
-            <p className="mt-1">Phase 2 - Frontend: In Progress 🚧</p>
-          </div>
-        </div>
+      {/* Main Chat Interface */}
+      <main className="flex-1 overflow-hidden">
+        <ChatInterface />
       </main>
 
-      {/* Footer */}
-      <footer className="safe-bottom border-t border-border bg-card p-4 text-center text-sm text-muted-foreground">
-        <p>NikCLI Mobile v1.0.0 - Phase 2 MVP</p>
-      </footer>
+      {/* Command Palette */}
+      <CommandPalette onSelectCommand={handleCommandSelect} />
+
+      {/* Approval Panel */}
+      <ApprovalPanel />
     </div>
   )
 }
